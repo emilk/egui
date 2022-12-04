@@ -20,6 +20,9 @@ all-features = true
 [features]
 default = ["clipboard", "links", "wayland", "winit/default"]
 
+## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
+accesskit = ["accesskit_winit", "egui/accesskit"]
+
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`egui::epaint::Vertex`], [`egui::Vec2`] etc to `&[u8]`.
 bytemuck = ["egui/bytemuck"]
 
@@ -56,6 +59,9 @@ winit = { version = "0.27.2", default-features = false }
 
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
+
+# feature accesskit
+accesskit_winit = { version = "0.7.1", optional = true }
 
 puffin = { version = "0.14", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }

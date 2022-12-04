@@ -399,6 +399,33 @@ impl InputState {
             }
         }
     }
+
+    #[cfg(feature = "accesskit")]
+    pub fn accesskit_action_requests(
+        &self,
+        id: crate::Id,
+        action: accesskit::Action,
+    ) -> impl Iterator<Item = &accesskit::ActionRequest> {
+        let accesskit_id = id.accesskit_id();
+        self.events.iter().filter_map(move |event| {
+            if let Event::AccessKitActionRequest(request) = event {
+                if request.target == accesskit_id && request.action == action {
+                    return Some(request);
+                }
+            }
+            None
+        })
+    }
+
+    #[cfg(feature = "accesskit")]
+    pub fn has_accesskit_action_request(&self, id: crate::Id, action: accesskit::Action) -> bool {
+        self.accesskit_action_requests(id, action).next().is_some()
+    }
+
+    #[cfg(feature = "accesskit")]
+    pub fn num_accesskit_action_requests(&self, id: crate::Id, action: accesskit::Action) -> usize {
+        self.accesskit_action_requests(id, action).count()
+    }
 }
 
 // ----------------------------------------------------------------------------

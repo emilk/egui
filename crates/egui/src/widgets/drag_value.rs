@@ -369,15 +369,16 @@ impl<'a> Widget for DragValue<'a> {
         } = self;
 
         let shift = ui.input().modifiers.shift_only();
-        let is_slow_speed = shift && ui.memory().is_being_dragged(ui.next_auto_id());
+        // The widget has the same ID whether it's in edit or button mode.
+        let id = ui.next_auto_id();
+        let is_slow_speed = shift && ui.memory().is_being_dragged(id);
 
-        let kb_edit_id = ui.next_auto_id();
         // The following call ensures that when a `DragValue` receives focus,
         // it is immediately rendered in edit mode, rather than being rendered
         // in button mode for just one frame. This is important for
         // screen readers.
-        ui.memory().interested_in_focus(kb_edit_id);
-        let is_kb_editing = ui.memory().has_focus(kb_edit_id);
+        ui.memory().interested_in_focus(id);
+        let is_kb_editing = ui.memory().has_focus(id);
 
         let old_value = get(&mut get_set_value);
         let mut value = old_value;
@@ -388,24 +389,47 @@ impl<'a> Widget for DragValue<'a> {
         let max_decimals = max_decimals.unwrap_or(auto_decimals + 2);
         let auto_decimals = auto_decimals.clamp(min_decimals, max_decimals);
 
-        if is_kb_editing {
+        let change = {
+            let mut change = 0.0;
             let mut input = ui.input_mut();
-            // This deliberately doesn't listen for left and right arrow keys,
-            // because when editing, these are used to move the caret.
-            // This behavior is consistent with other editable spinner/stepper
-            // implementations, such as Chromium's (for HTML5 number input).
-            // It is also normal for such controls to go directly into edit mode
-            // when they receive keyboard focus, and some screen readers
-            // assume this behavior, so having a separate mode for incrementing
-            // and decrementing, that supports all arrow keys, would be
-            // problematic.
-            let change = input.count_and_consume_key(Modifiers::NONE, Key::ArrowUp) as f64
-                - input.count_and_consume_key(Modifiers::NONE, Key::ArrowDown) as f64;
 
-            if change != 0.0 {
-                value += speed * change;
-                value = emath::round_to_decimals(value, auto_decimals);
+            if is_kb_editing {
+                // This deliberately doesn't listen for left and right arrow keys,
+                // because when editing, these are used to move the caret.
+                // This behavior is consistent with other editable spinner/stepper
+                // implementations, such as Chromium's (for HTML5 number input).
+                // It is also normal for such controls to go directly into edit mode
+                // when they receive keyboard focus, and some screen readers
+                // assume this behavior, so having a separate mode for incrementing
+                // and decrementing, that supports all arrow keys, would be
+                // problematic.
+                change += input.count_and_consume_key(Modifiers::NONE, Key::ArrowUp) as f64
+                    - input.count_and_consume_key(Modifiers::NONE, Key::ArrowDown) as f64;
             }
+
+            #[cfg(feature = "accesskit")]
+            {
+                use accesskit::Action;
+                change += input.num_accesskit_action_requests(id, Action::Increment) as f64
+                    - input.num_accesskit_action_requests(id, Action::Decrement) as f64;
+            }
+
+            change
+        };
+
+        #[cfg(feature = "accesskit")]
+        {
+            use accesskit::{Action, ActionData};
+            for request in ui.input().accesskit_action_requests(id, Action::SetValue) {
+                if let Some(ActionData::NumericValue(new_value)) = request.data {
+                    value = new_value;
+                }
+            }
+        }
+
+        if change != 0.0 {
+            value += speed * change;
+            value = emath::round_to_decimals(value, auto_decimals);
         }
 
         value = clamp_to_range(value, clamp_range.clone());
@@ -425,6 +449,8 @@ impl<'a> Widget for DragValue<'a> {
             }
         };
 
+        // some clones below are redundant if AccessKit is disabled
+        #[allow(clippy::redundant_clone)]
         let mut response = if is_kb_editing {
             let button_width = ui.spacing().interact_size.x;
             let mut value_text = ui
@@ -432,10 +458,10 @@ impl<'a> Widget for DragValue<'a> {
                 .drag_value
                 .edit_string
                 .take()
-                .unwrap_or(value_text);
+                .unwrap_or_else(|| value_text.clone());
             let response = ui.add(
                 TextEdit::singleline(&mut value_text)
-                    .id(kb_edit_id)
+                    .id(id)
                     .desired_width(button_width)
                     .font(TextStyle::Monospace),
             );
@@ -444,7 +470,7 @@ impl<'a> Widget for DragValue<'a> {
                 None => value_text.parse().ok(),
             };
             if let Some(parsed_value) = parsed_value {
-                let parsed_value = clamp_to_range(parsed_value, clamp_range);
+                let parsed_value = clamp_to_range(parsed_value, clamp_range.clone());
                 set(&mut get_set_value, parsed_value);
             }
             ui.memory().drag_value.edit_string = Some(value_text);
@@ -452,7 +478,7 @@ impl<'a> Widget for DragValue<'a> {
         } else {
             ui.memory().drag_value.edit_string = None;
             let button = Button::new(
-                RichText::new(format!("{}{}{}", prefix, value_text, suffix)).monospace(),
+                RichText::new(format!("{}{}{}", prefix, value_text.clone(), suffix)).monospace(),
             )
             .wrap(false)
             .sense(Sense::click_and_drag())
@@ -471,7 +497,7 @@ impl<'a> Widget for DragValue<'a> {
             }
 
             if response.clicked() {
-                ui.memory().request_focus(kb_edit_id);
+                ui.memory().request_focus(id);
             } else if response.dragged() {
                 ui.output().cursor_icon = CursorIcon::ResizeHorizontal;
 
@@ -499,7 +525,7 @@ impl<'a> Widget for DragValue<'a> {
                     );
                     let rounded_new_value =
                         emath::round_to_decimals(rounded_new_value, auto_decimals);
-                    let rounded_new_value = clamp_to_range(rounded_new_value, clamp_range);
+                    let rounded_new_value = clamp_to_range(rounded_new_value, clamp_range.clone());
                     set(&mut get_set_value, rounded_new_value);
 
                     drag_state.last_dragged_id = Some(response.id);
@@ -514,6 +540,54 @@ impl<'a> Widget for DragValue<'a> {
         response.changed = get(&mut get_set_value) != old_value;
 
         response.widget_info(|| WidgetInfo::drag_value(value));
+
+        #[cfg(feature = "accesskit")]
+        if let Some(mut node) = ui.ctx().accesskit_node(response.id) {
+            use accesskit::Action;
+            // If either end of the range is unbounded, it's better
+            // to leave the corresponding AccessKit field set to None,
+            // to allow for platform-specific default behavior.
+            if clamp_range.start().is_finite() {
+                node.min_numeric_value = Some(*clamp_range.start());
+            }
+            if clamp_range.end().is_finite() {
+                node.max_numeric_value = Some(*clamp_range.end());
+            }
+            node.numeric_value_step = Some(speed);
+            node.actions |= Action::SetValue;
+            if value < *clamp_range.end() {
+                node.actions |= Action::Increment;
+            }
+            if value > *clamp_range.start() {
+                node.actions |= Action::Decrement;
+            }
+            // The name field is set to the current value by the button,
+            // but we don't want it set that way on this widget type.
+            node.name = None;
+            // Always expose the value as a string. This makes the widget
+            // more stable to accessibility users as it switches
+            // between edit and button modes. This is particularly important
+            // for VoiceOver on macOS; if the value is not exposed as a string
+            // when the widget is in button mode, then VoiceOver speaks
+            // the value (or a percentage if the widget has a clamp range)
+            // when the widget loses focus, overriding the announcement
+            // of the newly focused widget. This is certainly a VoiceOver bug,
+            // but it's good to make our software work as well as possible
+            // with existing assistive technology. However, if the widget
+            // has a prefix and/or suffix, expose those when in button mode,
+            // just as they're exposed on the screen. This triggers the
+            // VoiceOver bug just described, but exposing all information
+            // is more important, and at least we can avoid the bug
+            // for instances of the widget with no prefix or suffix.
+            //
+            // The value is exposed as a string by the text edit widget
+            // when in edit mode.
+            if !is_kb_editing {
+                let value_text = format!("{}{}{}", prefix, value_text, suffix);
+                node.value = Some(value_text.into());
+            }
+        }
+
         response
     }
 }

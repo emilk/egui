@@ -166,13 +166,16 @@ pub(crate) struct Interaction {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Focus {
     /// The widget with keyboard focus (i.e. a text input field).
-    id: Option<Id>,
+    pub(crate) id: Option<Id>,
 
     /// What had keyboard focus previous frame?
     id_previous_frame: Option<Id>,
 
     /// Give focus to this widget next frame
     id_next_frame: Option<Id>,
+
+    #[cfg(feature = "accesskit")]
+    id_requested_by_accesskit: Option<accesskit::NodeId>,
 
     /// If set, the next widget that is interested in focus will automatically get it.
     /// Probably because the user pressed Tab.
@@ -231,6 +234,11 @@ impl Focus {
             self.id = Some(id);
         }
 
+        #[cfg(feature = "accesskit")]
+        {
+            self.id_requested_by_accesskit = None;
+        }
+
         self.pressed_tab = false;
         self.pressed_shift_tab = false;
         for event in &new_input.events {
@@ -261,6 +269,18 @@ impl Focus {
                     }
                 }
             }
+
+            #[cfg(feature = "accesskit")]
+            {
+                if let crate::Event::AccessKitActionRequest(accesskit::ActionRequest {
+                    action: accesskit::Action::Focus,
+                    target,
+                    data: None,
+                }) = event
+                {
+                    self.id_requested_by_accesskit = Some(*target);
+                }
+            }
         }
     }
 
@@ -281,6 +301,17 @@ impl Focus {
     }
 
     fn interested_in_focus(&mut self, id: Id) {
+        #[cfg(feature = "accesskit")]
+        {
+            if self.id_requested_by_accesskit == Some(id.accesskit_id()) {
+                self.id = Some(id);
+                self.id_requested_by_accesskit = None;
+                self.give_to_next = false;
+                self.pressed_tab = false;
+                self.pressed_shift_tab = false;
+            }
+        }
+
         if self.give_to_next && !self.had_focus_last_frame(id) {
             self.id = Some(id);
             self.give_to_next = false;

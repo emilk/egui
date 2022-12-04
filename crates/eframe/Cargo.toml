@@ -20,7 +20,10 @@ all-features = true
 
 
 [features]
-default = ["default_fonts", "glow"]
+default = ["accesskit", "default_fonts", "glow"]
+
+## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
+accesskit = ["egui/accesskit", "egui-winit/accesskit"]
 
 ## Detect dark mode system preference using [`dark-light`](https://docs.rs/dark-light).
 ##

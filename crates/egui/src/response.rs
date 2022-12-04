@@ -526,8 +526,107 @@ impl Response {
             None
         };
         if let Some(event) = event {
-            self.ctx.output().events.push(event);
+            self.output_event(event);
+        } else {
+            #[cfg(feature = "accesskit")]
+            if let Some(mut node) = self.ctx.accesskit_node(self.id) {
+                self.fill_accesskit_node_from_widget_info(&mut node, make_info());
+            }
         }
+    }
+
+    pub fn output_event(&self, event: crate::output::OutputEvent) {
+        #[cfg(feature = "accesskit")]
+        if let Some(mut node) = self.ctx.accesskit_node(self.id) {
+            self.fill_accesskit_node_from_widget_info(&mut node, event.widget_info().clone());
+        }
+        self.ctx.output().events.push(event);
+    }
+
+    #[cfg(feature = "accesskit")]
+    pub(crate) fn fill_accesskit_node_common(&self, node: &mut accesskit::Node) {
+        node.bounds = Some(accesskit::kurbo::Rect {
+            x0: self.rect.min.x.into(),
+            y0: self.rect.min.y.into(),
+            x1: self.rect.max.x.into(),
+            y1: self.rect.max.y.into(),
+        });
+        if self.sense.focusable {
+            node.focusable = true;
+        }
+        if self.sense.click && node.default_action_verb.is_none() {
+            node.default_action_verb = Some(accesskit::DefaultActionVerb::Click);
+        }
+    }
+
+    #[cfg(feature = "accesskit")]
+    fn fill_accesskit_node_from_widget_info(
+        &self,
+        node: &mut accesskit::Node,
+        info: crate::WidgetInfo,
+    ) {
+        use crate::WidgetType;
+        use accesskit::{CheckedState, Role};
+
+        self.fill_accesskit_node_common(node);
+        node.role = match info.typ {
+            WidgetType::Label => Role::StaticText,
+            WidgetType::Link => Role::Link,
+            WidgetType::TextEdit => Role::TextField,
+            WidgetType::Button | WidgetType::ImageButton | WidgetType::CollapsingHeader => {
+                Role::Button
+            }
+            WidgetType::Checkbox => Role::CheckBox,
+            WidgetType::RadioButton => Role::RadioButton,
+            WidgetType::SelectableLabel => Role::ToggleButton,
+            WidgetType::ComboBox => Role::PopupButton,
+            WidgetType::Slider => Role::Slider,
+            WidgetType::DragValue => Role::SpinButton,
+            WidgetType::ColorButton => Role::ColorWell,
+            WidgetType::Other => Role::Unknown,
+        };
+        if let Some(label) = info.label {
+            node.name = Some(label.into());
+        }
+        if let Some(value) = info.current_text_value {
+            node.value = Some(value.into());
+        }
+        if let Some(value) = info.value {
+            node.numeric_value = Some(value);
+        }
+        if let Some(selected) = info.selected {
+            node.checked_state = Some(if selected {
+                CheckedState::True
+            } else {
+                CheckedState::False
+            });
+        }
+    }
+
+    /// Associate a label with a control for accessibility.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut text = "Arthur".to_string();
+    /// ui.horizontal(|ui| {
+    ///     let label = ui.label("Your name: ");
+    ///     ui.text_edit_singleline(&mut text).labelled_by(label.id);
+    /// });
+    /// # });
+    /// ```
+    pub fn labelled_by(self, id: Id) -> Self {
+        #[cfg(feature = "accesskit")]
+        if let Some(mut node) = self.ctx.accesskit_node(self.id) {
+            node.labelled_by.push(id.accesskit_id());
+        }
+        #[cfg(not(feature = "accesskit"))]
+        {
+            let _ = id;
+        }
+
+        self
     }
 
     /// Response to secondary clicks (right-clicks) by showing the given menu.

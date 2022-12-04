@@ -18,6 +18,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 * Web: Add `WebInfo::user_agent` ([#2202](https://github.com/emilk/egui/pull/2202)).
 * Wgpu device/adapter/surface creation has now various configuration options exposed via `NativeOptions/WebOptions::wgpu_options` ([#2207](https://github.com/emilk/egui/pull/2207)).
 * Fix: Make sure that `native_pixels_per_point` is updated ([#2256](https://github.com/emilk/egui/pull/2256)).
+* Added optional, but enabled by default, integration with [AccessKit](https://accesskit.dev/) for implementing platform accessibility APIs. ([#2294](https://github.com/emilk/egui/pull/2294)).
 
 
 ## 0.19.0 - 2022-08-20

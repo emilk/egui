@@ -4,6 +4,8 @@
 use std::time::Duration;
 use std::time::Instant;
 
+#[cfg(feature = "accesskit")]
+use egui_winit::accesskit_winit;
 use egui_winit::winit;
 use winit::event_loop::{
     ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget,
@@ -15,6 +17,15 @@ use crate::epi;
 #[derive(Debug)]
 pub enum UserEvent {
     RequestRepaint,
+    #[cfg(feature = "accesskit")]
+    AccessKitActionRequest(accesskit_winit::ActionRequestEvent),
+}
+
+#[cfg(feature = "accesskit")]
+impl From<accesskit_winit::ActionRequestEvent> for UserEvent {
+    fn from(inner: accesskit_winit::ActionRequestEvent) -> Self {
+        Self::AccessKitActionRequest(inner)
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -353,7 +364,9 @@ mod glow_integration {
 
             let window_builder = epi_integration::window_builder(native_options, &window_settings)
                 .with_title(title)
-                .with_visible(false); // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
+                // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
+                // We must also keep the window hidden until AccessKit is initialized.
+                .with_visible(false);
 
             let gl_window = unsafe {
                 glutin::ContextBuilder::new()
@@ -400,6 +413,10 @@ mod glow_integration {
                 #[cfg(feature = "wgpu")]
                 None,
             );
+            #[cfg(feature = "accesskit")]
+            {
+                integration.init_accesskit(gl_window.window(), self.repaint_proxy.lock().clone());
+            }
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
 
@@ -671,6 +688,21 @@ mod glow_integration {
                         EventResult::Wait
                     }
                 }
+                #[cfg(feature = "accesskit")]
+                winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
+                    accesskit_winit::ActionRequestEvent { request, .. },
+                )) => {
+                    if let Some(running) = &mut self.running {
+                        running
+                            .integration
+                            .on_accesskit_action_request(request.clone());
+                        // As a form of user input, accessibility actions should
+                        // lead to a repaint.
+                        EventResult::RepaintNext
+                    } else {
+                        EventResult::Wait
+                    }
+                }
                 _ => EventResult::Wait,
             }
         }
@@ -769,7 +801,9 @@ mod wgpu_integration {
             let window_settings = epi_integration::load_window_settings(storage);
             epi_integration::window_builder(native_options, &window_settings)
                 .with_title(title)
-                .with_visible(false) // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
+                // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
+                // We must also keep the window hidden until AccessKit is initialized.
+                .with_visible(false)
                 .build(event_loop)
                 .unwrap()
         }
@@ -825,6 +859,10 @@ mod wgpu_integration {
                 None,
                 wgpu_render_state.clone(),
             );
+            #[cfg(feature = "accesskit")]
+            {
+                integration.init_accesskit(&window, self.repaint_proxy.lock().unwrap().clone());
+            }
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
 
@@ -1064,6 +1102,21 @@ mod wgpu_integration {
                         } else {
                             EventResult::Wait
                         }
+                    } else {
+                        EventResult::Wait
+                    }
+                }
+                #[cfg(feature = "accesskit")]
+                winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
+                    accesskit_winit::ActionRequestEvent { request, .. },
+                )) => {
+                    if let Some(running) = &mut self.running {
+                        running
+                            .integration
+                            .on_accesskit_action_request(request.clone());
+                        // As a form of user input, accessibility actions should
+                        // lead to a repaint.
+                        EventResult::RepaintNext
                     } else {
                         EventResult::Wait
                     }
