@@ -604,6 +604,18 @@ impl Response {
     }
 
     /// Associate a label with a control for accessibility.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let mut text = "Arthur".to_string();
+    /// ui.horizontal(|ui| {
+    ///     let label = ui.label("Your name: ");
+    ///     ui.text_edit_singleline(&mut text).labelled_by(label.id);
+    /// });
+    /// # });
+    /// ```
     pub fn labelled_by(self, id: Id) -> Self {
         #[cfg(feature = "accesskit")]
         if let Some(mut node) = self.ctx.accesskit_node(self.id) {
