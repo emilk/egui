@@ -3,9 +3,8 @@ All notable changes to the `egui_extras` integration will be noted in this file.
 
 
 ## Unreleased
-* Added `TableBuilder::vertical_scroll_offset`: method to set vertical scroll offset position for a table ([#1946](https://github.com/emilk/egui/pull/1946)).
 * Added `RetainedImage::from_svg_bytes_with_size` to be able to specify a size for SVGs to be rasterized at.
-* Big `Table` improvements ([#2369](https://github.com/emilk/egui/pull/2369)):
+* Lots of `Table` improvements ([#2369](https://github.com/emilk/egui/pull/2369)):
     * Double-click column separators to auto-size the column.
     * All `Table` now store state. You may see warnings about reused table ids. Use `ui.push_id` to fix this.
     * `TableBuilder::column` takes a `Column` instead of a `Size`.
@@ -19,6 +18,7 @@ All notable changes to the `egui_extras` integration will be noted in this file.
     * Fix bugs when putting `Table` inside of a horizontal `ScrollArea`.
     * Many other bug fixes.
 * Add `Table::auto_shrink` - set to `false` to expand table to fit its containing `Ui` ([#2371](https://github.com/emilk/egui/pull/2371)).
+* Added `TableBuilder::vertical_scroll_offset`: method to set vertical scroll offset position for a table ([#1946](https://github.com/emilk/egui/pull/1946)).
 
 
 ## 0.19.0 - 2022-08-20

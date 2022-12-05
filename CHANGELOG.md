@@ -8,7 +8,6 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * MSRV (Minimum Supported Rust Version) is now `1.65.0` ([#2314](https://github.com/emilk/egui/pull/2314)).
 * ⚠️ BREAKING: egui now expects integrations to do all color blending in gamma space ([#2071](https://github.com/emilk/egui/pull/2071)).
 * ⚠️ BREAKING: if you have overlapping interactive widgets, only the top widget (last added) will be interactive ([#2244](https://github.com/emilk/egui/pull/2244)).
-* Keyboard press events are only present at the frame when the key was pressed, consistent with how key releases work ([#2334](https://github.com/emilk/egui/pull/2334)).
 
 ### Added ⭐
 * Added helper functions for animating panels that collapse/expand ([#2190](https://github.com/emilk/egui/pull/2190)).
@@ -20,23 +19,39 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Added `egui::gui_zoom` module with helpers for scaling the whole GUI of an app ([#2239](https://github.com/emilk/egui/pull/2239)).
 * You can now put one interactive widget on top of another, and only one will get interaction at a time ([#2244](https://github.com/emilk/egui/pull/2244)).
 * Added `ui.centered`.
-* Added possibility to enable text wrap for the selected text of `egui::ComboBox` ([#2272](https://github.com/emilk/egui/pull/2244))
-* Added `Area::constrain` and `Window::constrain` which constrains area to the screen bounds. ([#2270](https://github.com/emilk/egui/pull/2270)).
-* Added `Area::pivot` and `Window::pivot` which controls what part of the window to position. ([#2303](https://github.com/emilk/egui/pull/2303)).
+* Added `spacing.menu_margin` for customizing menu spacing ([#2036](https://github.com/emilk/egui/pull/2036))
+* Added possibility to enable text wrap for the selected text of `egui::ComboBox` ([#2272](https://github.com/emilk/egui/pull/2272))
+* Added `Area::constrain` and `Window::constrain` which constrains area to the screen bounds ([#2270](https://github.com/emilk/egui/pull/2270)).
+* Added `Area::pivot` and `Window::pivot` which controls what part of the window to position ([#2303](https://github.com/emilk/egui/pull/2303)).
 * Added support for [thin space](https://en.wikipedia.org/wiki/Thin_space).
-* Added optional integration with [AccessKit](https://accesskit.dev/) for implementing platform accessibility APIs. ([#2294](https://github.com/emilk/egui/pull/2294)).
+* Added optional integration with [AccessKit](https://accesskit.dev/) for implementing platform accessibility APIs ([#2294](https://github.com/emilk/egui/pull/2294)).
+* Plots:
+  * Allow linking plot cursors ([#1722](https://github.com/emilk/egui/pull/1722)).
+  * Added `Plot::auto_bounds_x/y` and `Plot::reset` ([#2029](https://github.com/emilk/egui/pull/2029)).
+  * Added `PlotUi::translate_bounds` ([#2145](https://github.com/emilk/egui/pull/2145)).
+  * Added `PlotUi::set_plot_bounds` ([#2320](https://github.com/emilk/egui/pull/2320)).
+  * Added `PlotUi::plot_secondary_clicked` ([#2318](https://github.com/emilk/egui/pull/2318)).
 
 ### Changed 🔧
 * Panels always have a separator line, but no stroke on other sides. Their spacing has also changed slightly ([#2261](https://github.com/emilk/egui/pull/2261)).
 * Tooltips are only shown when mouse pointer is still ([#2263](https://github.com/emilk/egui/pull/2263)).
+* Make it slightly easier to click buttons ([#2304](https://github.com/emilk/egui/pull/2304)).
 
 ### Fixed 🐛
 * ⚠️ BREAKING: Fix text being too small ([#2069](https://github.com/emilk/egui/pull/2069)).
+* Improve mixed CJK/Latin line-breaking ([#1986](https://github.com/emilk/egui/pull/1986)).
 * Improved text rendering ([#2071](https://github.com/emilk/egui/pull/2071)).
+* Constrain menu popups to the screen ([#2191](https://github.com/emilk/egui/pull/2191)).
 * Less jitter when calling `Context::set_pixels_per_point` ([#2239](https://github.com/emilk/egui/pull/2239)).
 * Fixed popups and color edit going outside the screen.
 * Fixed keyboard support in `DragValue` ([#2342](https://github.com/emilk/egui/pull/2342)).
 * If you nest `ScrollAreas` inside each other, the inner area will now move its scroll bar so it is always visible ([#2371](https://github.com/emilk/egui/pull/2371)).
+* Ignore key-repeats for `input.key_pressed` ([#2334](https://github.com/emilk/egui/pull/2334)).
+* Fixed issue with calling `set-pixels_per_point` each frame ([#2352](https://github.com/emilk/egui/pull/2352)).
+* Fix bug in `SrollArea::show_rows` ([#2258](https://github.com/emilk/egui/pull/2258)).
+* Fix bug in `plot::Line::fill` ([#2275](https://github.com/emilk/egui/pull/2275)).
+* Only emit `changed` events in `radio_value` and `selectable_value` if the value actually changed ([#2343](https://github.com/emilk/egui/pull/2343)).
+* Fixed sizing bug in `Grid` ([#2384](https://github.com/emilk/egui/pull/2384)).
 
 
 ## 0.19.0 - 2022-08-20
