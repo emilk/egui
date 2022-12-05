@@ -303,7 +303,7 @@ impl SidePanel {
                 // TOOD(emilk): distinguish resizable from non-resizable
                 ui.style().visuals.widgets.noninteractive.bg_stroke
             } else {
-                Stroke::none()
+                Stroke::NONE
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
             let resize_x = side.opposite().side_x(rect);
@@ -752,7 +752,7 @@ impl TopBottomPanel {
                 // TOOD(emilk): distinguish resizable from non-resizable
                 ui.style().visuals.widgets.noninteractive.bg_stroke
             } else {
-                Stroke::none()
+                Stroke::NONE
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
             let resize_y = side.opposite().side_y(rect);

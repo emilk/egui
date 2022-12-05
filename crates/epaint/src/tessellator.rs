@@ -1412,7 +1412,7 @@ impl Tessellator {
                     }),
             );
 
-            if *underline != Stroke::none() {
+            if *underline != Stroke::NONE {
                 self.scratchpad_path.clear();
                 self.scratchpad_path
                     .add_line_segment([row_rect.left_bottom(), row_rect.right_bottom()]);

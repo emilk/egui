@@ -165,13 +165,13 @@ fn format_from_style(
     let underline = if emark_style.underline {
         Stroke::new(1.0, color)
     } else {
-        Stroke::none()
+        Stroke::NONE
     };
 
     let strikethrough = if emark_style.strikethrough {
         Stroke::new(1.0, color)
     } else {
-        Stroke::none()
+        Stroke::NONE
     };
 
     let valign = if emark_style.raised {

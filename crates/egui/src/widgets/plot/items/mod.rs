@@ -605,7 +605,7 @@ impl PlotItem for Polygon {
 
         let fill = Rgba::from(stroke.color).to_opaque().multiply(fill_alpha);
 
-        let shape = Shape::convex_polygon(values_tf.clone(), fill, Stroke::none());
+        let shape = Shape::convex_polygon(values_tf.clone(), fill, Stroke::NONE);
         shapes.push(shape);
         values_tf.push(*values_tf.first().unwrap());
         style.style_line(values_tf, *stroke, *highlight, shapes);

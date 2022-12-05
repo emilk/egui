@@ -176,7 +176,7 @@ impl Widget for Label {
             let underline = if response.has_focus() {
                 Stroke::new(1.0, response_color)
             } else {
-                Stroke::none()
+                Stroke::NONE
             };
 
             let override_text_color = if text_galley.galley_has_color {

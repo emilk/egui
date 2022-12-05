@@ -238,8 +238,8 @@ impl Default for TextFormat {
             color: Color32::GRAY,
             background: Color32::TRANSPARENT,
             italics: false,
-            underline: Stroke::none(),
-            strikethrough: Stroke::none(),
+            underline: Stroke::NONE,
+            strikethrough: Stroke::NONE,
             valign: Align::BOTTOM,
         }
     }

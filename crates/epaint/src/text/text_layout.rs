@@ -493,8 +493,8 @@ fn format_summary(job: &LayoutJob) -> FormatSummary {
     let mut format_summary = FormatSummary::default();
     for section in &job.sections {
         format_summary.any_background |= section.format.background != Color32::TRANSPARENT;
-        format_summary.any_underline |= section.format.underline != Stroke::none();
-        format_summary.any_strikethrough |= section.format.strikethrough != Stroke::none();
+        format_summary.any_underline |= section.format.underline != Stroke::NONE;
+        format_summary.any_strikethrough |= section.format.strikethrough != Stroke::NONE;
     }
     format_summary
 }
@@ -665,7 +665,7 @@ fn add_row_hline(
     for glyph in &row.glyphs {
         let (stroke, y) = stroke_and_y(glyph);
 
-        if stroke == Stroke::none() {
+        if stroke == Stroke::NONE {
             end_line(line_start.take(), last_right_x);
         } else if let Some((existing_stroke, start)) = line_start {
             if existing_stroke == stroke && start.y == y {
