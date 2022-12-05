@@ -855,10 +855,11 @@ impl PlotItem for Points {
 
         let default_stroke = Stroke::new(stroke_size, *color);
         let mut stem_stroke = default_stroke;
-        let stroke = (!filled)
-            .then_some(default_stroke)
-            .unwrap_or_else(Stroke::none);
-        let fill = filled.then(|| *color).unwrap_or_default();
+        let (fill, stroke) = if *filled {
+            (*color, Stroke::NONE)
+        } else {
+            (Color32::TRANSPARENT, default_stroke)
+        };
 
         if *highlight {
             radius *= 2f32.sqrt();
