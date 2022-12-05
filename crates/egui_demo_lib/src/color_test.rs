@@ -98,7 +98,6 @@ impl ColorTest {
         // TODO(emilk): test color multiplication (image tint),
         // to make sure vertex and texture color multiplication is done in linear space.
 
-        ui.separator();
         ui.label("Gamma interpolation:");
         self.show_gradients(ui, WHITE, (RED, GREEN), Interpolation::Gamma);
 
