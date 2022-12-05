@@ -87,7 +87,16 @@ egui-winit = { version = "0.19.0", path = "../egui-winit", default-features = fa
   "clipboard",
   "links",
 ] }
-glutin = { version = "0.29.0" }
+# we can expose these to user so that they can select which backends they want to enable to avoid compiling useless deps.
+# this can be done at the same time we expose x11/wayland features of winit crate.
+glutin = { version = "0.30.0", features = [
+  "egl",
+  "glx",
+  "x11",
+  "wayland",
+  "wgl",
+] }
+raw-window-handle = { version = "0.5.0" }
 winit = "0.27.2"
 
 # optional native:
@@ -95,7 +104,7 @@ dark-light = { version = "0.2.1", optional = true }
 directories-next = { version = "2", optional = true }
 egui-wgpu = { version = "0.19.0", path = "../egui-wgpu", optional = true, features = [
   "winit",
-] }
+] } # if wgpu is used, use it with winit
 image = { version = "0.24", optional = true, default-features = false, features = [
   "png",
 ] }

@@ -1306,11 +1306,12 @@ dependencies = [
  "egui-winit",
  "egui_glow",
  "glow",
- "glutin",
+ "glutin 0.30.0",
  "image",
  "js-sys",
  "percent-encoding",
  "puffin",
+ "raw-window-handle 0.5.0",
  "ron",
  "serde",
  "tracing",
@@ -1444,7 +1445,7 @@ dependencies = [
  "egui",
  "egui-winit",
  "glow",
- "glutin",
+ "glutin 0.29.1",
  "memoffset",
  "puffin",
  "tracing",
@@ -1915,7 +1916,7 @@ dependencies = [
  "backtrace",
  "fnv",
  "gl_generator",
- "glutin",
+ "glutin 0.29.1",
  "lazy_static",
  "memoffset",
  "smallvec",
@@ -1949,10 +1950,10 @@ dependencies = [
  "cgl",
  "cocoa",
  "core-foundation",
- "glutin_egl_sys",
+ "glutin_egl_sys 0.1.6",
  "glutin_gles2_sys",
- "glutin_glx_sys",
- "glutin_wgl_sys",
+ "glutin_glx_sys 0.1.8",
+ "glutin_wgl_sys 0.1.5",
  "libloading",
  "log",
  "objc",
@@ -1967,6 +1968,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "glutin"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34acbf502536f1d125f0fc09b6ad8824e93e6da7b99e86d3383e6b8310ba3554"
+dependencies = [
+ "bitflags",
+ "cfg_aliases",
+ "cgl",
+ "cocoa",
+ "core-foundation",
+ "glutin_egl_sys 0.3.0",
+ "glutin_glx_sys 0.3.0",
+ "glutin_wgl_sys 0.3.0",
+ "libloading",
+ "objc",
+ "once_cell",
+ "raw-window-handle 0.5.0",
+ "wayland-sys 0.30.0-beta.12",
+ "windows-sys 0.36.1",
+ "x11-dl",
+]
+
+[[package]]
 name = "glutin_egl_sys"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1974,6 +1998,16 @@ checksum = "68900f84b471f31ea1d1355567eb865a2cf446294f06cef8d653ed7bcf5f013d"
 dependencies = [
  "gl_generator",
  "winapi",
+]
+
+[[package]]
+name = "glutin_egl_sys"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c3c95a2d7a54bab0c74759794efb5cd63470d4504cbe85ed4114dc82c98bdc1"
+dependencies = [
+ "gl_generator",
+ "windows-sys 0.36.1",
 ]
 
 [[package]]
@@ -1997,10 +2031,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "glutin_glx_sys"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "947c4850c58211c9627969c2b4e2674764b81ae5b47bab2c9a477d7942f96e0f"
+dependencies = [
+ "gl_generator",
+ "x11-dl",
+]
+
+[[package]]
 name = "glutin_wgl_sys"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3da5951a1569dbab865c6f2a863efafff193a93caf05538d193e9e3816d21696"
+dependencies = [
+ "gl_generator",
+]
+
+[[package]]
+name = "glutin_wgl_sys"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20c33975a6c9d49d72c8f032a60079bf8df536954fbf9e4cee90396ace815c57"
 dependencies = [
  "gl_generator",
 ]
@@ -4335,7 +4388,7 @@ dependencies = [
  "scoped-tls",
  "wayland-commons",
  "wayland-scanner",
- "wayland-sys",
+ "wayland-sys 0.29.5",
 ]
 
 [[package]]
@@ -4347,7 +4400,7 @@ dependencies = [
  "nix 0.24.3",
  "once_cell",
  "smallvec",
- "wayland-sys",
+ "wayland-sys 0.29.5",
 ]
 
 [[package]]
@@ -4368,7 +4421,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "402de949f81a012926d821a2d659f930694257e76dd92b6e0042ceb27be4107d"
 dependencies = [
  "wayland-client",
- "wayland-sys",
+ "wayland-sys 0.29.5",
 ]
 
 [[package]]
@@ -4402,6 +4455,18 @@ checksum = "be12ce1a3c39ec7dba25594b97b42cb3195d54953ddb9d3d95a7c3902bc6e9d4"
 dependencies = [
  "dlib",
  "lazy_static",
+ "pkg-config",
+]
+
+[[package]]
+name = "wayland-sys"
+version = "0.30.0-beta.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1117fe4570fe063122ba2b1b1e39e56fb1a73921d395f9288af06af0dd1c7f55"
+dependencies = [
+ "dlib",
+ "lazy_static",
+ "log",
  "pkg-config",
 ]
 
