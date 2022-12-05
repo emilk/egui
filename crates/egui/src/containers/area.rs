@@ -192,11 +192,12 @@ pub(crate) struct Prepared {
     move_response: Response,
     enabled: bool,
     drag_bounds: Option<Rect>,
-    /// Set the first frame of new windows with anchors.
+
+    /// We always make windows invisible the first frame to hide "first-frame-jitters".
     ///
     /// This is so that we use the first frame to calculate the window size,
-    /// and then can correctly position the window the next frame,
-    /// without having one frame where the window is positioned in the wrong place.
+    /// and then can correctly position the window and its contents the next frame,
+    /// without having one frame where the window is wrongly positioned or sized.
     temporarily_invisible: bool,
 }
 
@@ -242,24 +243,15 @@ impl Area {
         });
         state.pos = new_pos.unwrap_or(state.pos);
         state.interactable = interactable;
-        let mut temporarily_invisible = false;
 
         if pivot != Align2::LEFT_TOP {
-            if is_new {
-                temporarily_invisible = true; // figure out the size first
-            } else {
-                state.pos.x -= pivot.x().to_factor() * state.size.x;
-                state.pos.y -= pivot.y().to_factor() * state.size.y;
-            }
+            state.pos.x -= pivot.x().to_factor() * state.size.x;
+            state.pos.y -= pivot.y().to_factor() * state.size.y;
         }
 
         if let Some((anchor, offset)) = anchor {
-            if is_new {
-                temporarily_invisible = true; // figure out the size first
-            } else {
-                let screen = ctx.available_rect();
-                state.pos = anchor.align_size_within_rect(state.size, screen).min + offset;
-            }
+            let screen = ctx.available_rect();
+            state.pos = anchor.align_size_within_rect(state.size, screen).min + offset;
         }
 
         // interact right away to prevent frame-delay
@@ -319,7 +311,7 @@ impl Area {
             move_response,
             enabled,
             drag_bounds,
-            temporarily_invisible,
+            temporarily_invisible: is_new,
         }
     }
 
