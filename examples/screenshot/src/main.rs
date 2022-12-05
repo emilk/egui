@@ -4,7 +4,7 @@ use eframe::{
     egui::{self, ColorImage},
     glow::{self, HasContext},
 };
-use itertools::Itertools;
+use itertools::Itertools as _;
 
 fn main() {
     let options = eframe::NativeOptions::default();
