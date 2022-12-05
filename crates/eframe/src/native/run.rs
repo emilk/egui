@@ -317,6 +317,7 @@ mod glow_integration {
     impl GlutinWindowContext {
         // refactor this function to use `glutin-winit` crate eventually.
         // preferably add android support at the same time.
+        #[allow(unsafe_code)]
         unsafe fn new(
             winit_window: winit::window::Window,
             native_options: &epi::NativeOptions,
@@ -500,7 +501,7 @@ mod glow_integration {
                 .expect("failed to create winit window");
             // a lot of the code below has been lifted from glutin example in their repo.
             let glutin_window_context =
-                unsafe { GlutinWindowContext::new(winit_window, &native_options) };
+                unsafe { GlutinWindowContext::new(winit_window, native_options) };
             let gl = unsafe {
                 glow::Context::from_loader_function(|s| {
                     let s = std::ffi::CString::new(s)
