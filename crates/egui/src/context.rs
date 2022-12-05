@@ -1293,12 +1293,15 @@ impl Context {
     }
 
     /// Like [`Self::animate_bool`] but allows you to control the animation time.
-    pub fn animate_bool_with_time(&self, id: Id, value: bool, animation_time: f32) -> f32 {
+    pub fn animate_bool_with_time(&self, id: Id, target_value: bool, animation_time: f32) -> f32 {
         let animated_value = {
             let ctx_impl = &mut *self.write();
-            ctx_impl
-                .animation_manager
-                .animate_bool(&ctx_impl.input, animation_time, id, value)
+            ctx_impl.animation_manager.animate_bool(
+                &ctx_impl.input,
+                animation_time,
+                id,
+                target_value,
+            )
         };
         let animation_in_progress = 0.0 < animated_value && animated_value < 1.0;
         if animation_in_progress {
@@ -1310,14 +1313,17 @@ impl Context {
     /// Allows you to smoothly change the f32 value.
     /// At the first call the value is written to memory.
     /// When it is called with a new value, it linearly interpolates to it in the given time.
-    pub fn animate_value_with_time(&self, id: Id, value: f32, animation_time: f32) -> f32 {
+    pub fn animate_value_with_time(&self, id: Id, target_value: f32, animation_time: f32) -> f32 {
         let animated_value = {
             let ctx_impl = &mut *self.write();
-            ctx_impl
-                .animation_manager
-                .animate_value(&ctx_impl.input, animation_time, id, value)
+            ctx_impl.animation_manager.animate_value(
+                &ctx_impl.input,
+                animation_time,
+                id,
+                target_value,
+            )
         };
-        let animation_in_progress = animated_value != value;
+        let animation_in_progress = animated_value != target_value;
         if animation_in_progress {
             self.request_repaint();
         }

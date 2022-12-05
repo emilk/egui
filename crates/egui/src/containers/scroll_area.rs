@@ -253,12 +253,13 @@ impl ScrollArea {
         self
     }
 
-    /// Control the scrolling behavior
-    /// If `true` (default), the scroll area will respond to user scrolling
-    /// If `false`, the scroll area will not respond to user scrolling
+    /// Control the scrolling behavior.
+    ///
+    /// * If `true` (default), the scroll area will respond to user scrolling.
+    /// * If `false`, the scroll area will not respond to user scrolling.
     ///
     /// This can be used, for example, to optionally freeze scrolling while the user
-    /// is inputing text in a [`TextEdit`] widget contained within the scroll area.
+    /// is typing text in a [`TextEdit`] widget contained within the scroll area.
     ///
     /// This controls both scrolling directions.
     pub fn enable_scrolling(mut self, enable: bool) -> Self {
@@ -268,8 +269,8 @@ impl ScrollArea {
 
     /// For each axis, should the containing area shrink if the content is small?
     ///
-    /// If true, egui will add blank space outside the scroll area.
-    /// If false, egui will add blank space inside the scroll area.
+    /// * If `true`, egui will add blank space outside the scroll area.
+    /// * If `false`, egui will add blank space inside the scroll area.
     ///
     /// Default: `[true; 2]`.
     pub fn auto_shrink(mut self, auto_shrink: [bool; 2]) -> Self {

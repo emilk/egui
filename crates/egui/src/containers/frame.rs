@@ -42,7 +42,7 @@ impl Frame {
         }
     }
 
-    pub(crate) fn side_top_panel(style: &Style) -> Self {
+    pub fn side_top_panel(style: &Style) -> Self {
         Self {
             inner_margin: Margin::symmetric(8.0, 2.0),
             fill: style.visuals.window_fill(),
@@ -50,7 +50,7 @@ impl Frame {
         }
     }
 
-    pub(crate) fn central_panel(style: &Style) -> Self {
+    pub fn central_panel(style: &Style) -> Self {
         Self {
             inner_margin: Margin::same(8.0),
             fill: style.visuals.window_fill(),

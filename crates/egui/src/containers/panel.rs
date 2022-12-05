@@ -349,6 +349,8 @@ impl SidePanel {
             None
         } else if how_expanded < 1.0 {
             // Show a fake panel in this in-between animation state:
+            // TODO(emilk): move the panel out-of-screen instead of changing its width.
+            // Then we can actually paint it as it animates.
             let expanded_width = PanelState::load(ctx, self.id)
                 .map_or(self.default_width, |state| state.rect.width());
             let fake_width = how_expanded * expanded_width;
@@ -382,6 +384,8 @@ impl SidePanel {
             None
         } else if how_expanded < 1.0 {
             // Show a fake panel in this in-between animation state:
+            // TODO(emilk): move the panel out-of-screen instead of changing its width.
+            // Then we can actually paint it as it animates.
             let expanded_width = PanelState::load(ui.ctx(), self.id)
                 .map_or(self.default_width, |state| state.rect.width());
             let fake_width = how_expanded * expanded_width;
@@ -785,6 +789,8 @@ impl TopBottomPanel {
             None
         } else if how_expanded < 1.0 {
             // Show a fake panel in this in-between animation state:
+            // TODO(emilk): move the panel out-of-screen instead of changing its height.
+            // Then we can actually paint it as it animates.
             let expanded_height = PanelState::load(ctx, self.id)
                 .map(|state| state.rect.height())
                 .or(self.default_height)
@@ -820,6 +826,8 @@ impl TopBottomPanel {
             None
         } else if how_expanded < 1.0 {
             // Show a fake panel in this in-between animation state:
+            // TODO(emilk): move the panel out-of-screen instead of changing its height.
+            // Then we can actually paint it as it animates.
             let expanded_height = PanelState::load(ui.ctx(), self.id)
                 .map(|state| state.rect.height())
                 .or(self.default_height)

@@ -2007,7 +2007,7 @@ impl Ui {
         InnerResponse::new(inner, self.interact(rect, child_ui.id, Sense::hover()))
     }
 
-    #[deprecated = "Use ui.vertical_centered instead"]
+    #[deprecated = "Use ui.vertical_centered or ui.centered_and_justified"]
     pub fn centered<R>(&mut self, add_contents: impl FnOnce(&mut Self) -> R) -> InnerResponse<R> {
         self.vertical_centered(add_contents)
     }
