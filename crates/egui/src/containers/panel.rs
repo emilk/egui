@@ -97,6 +97,7 @@ pub struct SidePanel {
     id: Id,
     frame: Option<Frame>,
     resizable: bool,
+    show_separator_line: bool,
     default_width: f32,
     width_range: RangeInclusive<f32>,
 }
@@ -119,6 +120,7 @@ impl SidePanel {
             id: id.into(),
             frame: None,
             resizable: true,
+            show_separator_line: true,
             default_width: 200.0,
             width_range: 96.0..=f32::INFINITY,
         }
@@ -137,6 +139,14 @@ impl SidePanel {
     /// * …
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
+        self
+    }
+
+    /// Show a separator line, even when not interacting with it?
+    ///
+    /// Default: `true`.
+    pub fn show_separator_line(mut self, show_separator_line: bool) -> Self {
+        self.show_separator_line = show_separator_line;
         self
     }
 
@@ -202,6 +212,7 @@ impl SidePanel {
             id,
             frame,
             resizable,
+            show_separator_line,
             default_width,
             width_range,
         } = self;
@@ -288,9 +299,11 @@ impl SidePanel {
                 ui.style().visuals.widgets.active.bg_stroke
             } else if resize_hover {
                 ui.style().visuals.widgets.hovered.bg_stroke
-            } else {
+            } else if show_separator_line {
                 // TOOD(emilk): distinguish resizable from non-resizable
                 ui.style().visuals.widgets.noninteractive.bg_stroke
+            } else {
+                Stroke::none()
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
             let resize_x = side.opposite().side_x(rect);
@@ -525,6 +538,7 @@ pub struct TopBottomPanel {
     id: Id,
     frame: Option<Frame>,
     resizable: bool,
+    show_separator_line: bool,
     default_height: Option<f32>,
     height_range: RangeInclusive<f32>,
 }
@@ -547,6 +561,7 @@ impl TopBottomPanel {
             id: id.into(),
             frame: None,
             resizable: false,
+            show_separator_line: true,
             default_height: None,
             height_range: 20.0..=f32::INFINITY,
         }
@@ -565,6 +580,14 @@ impl TopBottomPanel {
     /// * …
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
+        self
+    }
+
+    /// Show a separator line, even when not interacting with it?
+    ///
+    /// Default: `true`.
+    pub fn show_separator_line(mut self, show_separator_line: bool) -> Self {
+        self.show_separator_line = show_separator_line;
         self
     }
 
@@ -633,6 +656,7 @@ impl TopBottomPanel {
             id,
             frame,
             resizable,
+            show_separator_line,
             default_height,
             height_range,
         } = self;
@@ -724,9 +748,11 @@ impl TopBottomPanel {
                 ui.style().visuals.widgets.active.bg_stroke
             } else if resize_hover {
                 ui.style().visuals.widgets.hovered.bg_stroke
-            } else {
+            } else if show_separator_line {
                 // TOOD(emilk): distinguish resizable from non-resizable
                 ui.style().visuals.widgets.noninteractive.bg_stroke
+            } else {
+                Stroke::none()
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
             let resize_y = side.opposite().side_y(rect);
