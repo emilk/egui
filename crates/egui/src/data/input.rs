@@ -191,6 +191,14 @@ pub enum Event {
         modifiers: Modifiers,
     },
 
+    /// A key was repeated while pressed.
+    KeyRepeat {
+        key: Key,
+
+        /// The state of the modifier keys at the time of the event.
+        modifiers: Modifiers,
+    },
+
     /// The mouse or touch moved to a new place.
     PointerMoved(Pos2),
 
