@@ -24,9 +24,10 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 * Fix: Less flickering on resize on Windows ([#2280](https://github.com/emilk/egui/pull/2280)).
 
 #### Web:
+* ⚠️ BREAKING: `start_web` is a now `async` ([#2107](https://github.com/emilk/egui/pull/2107)).
 * Web: You can now use WebGL on top of `wgpu` by enabling the `wgpu` feature (and disabling `glow` via disabling default features) ([#2107](https://github.com/emilk/egui/pull/2107)).
 * Web: Add `WebInfo::user_agent` ([#2202](https://github.com/emilk/egui/pull/2202)).
-* Web: you can access your application from JS using `AppRunner::app_mut`. See `crates/egui_demo_app/src/lib.rs`.
+* Web: you can access your application from JS using `AppRunner::app_mut`. See `crates/egui_demo_app/src/lib.rs` ([#1886](https://github.com/emilk/egui/pull/1886)).
 
 
 ## 0.19.0 - 2022-08-20

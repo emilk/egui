@@ -46,9 +46,9 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Fixed popups and color edit going outside the screen.
 * Fixed keyboard support in `DragValue` ([#2342](https://github.com/emilk/egui/pull/2342)).
 * If you nest `ScrollAreas` inside each other, the inner area will now move its scroll bar so it is always visible ([#2371](https://github.com/emilk/egui/pull/2371)).
-* Ignore key-repeats for `input.key_pressed` ([#2334](https://github.com/emilk/egui/pull/2334)).
+* Ignore key-repeats for `input.key_pressed` ([#2334](https://github.com/emilk/egui/pull/2334), [#2389](https://github.com/emilk/egui/pull/2389)).
 * Fixed issue with calling `set-pixels_per_point` each frame ([#2352](https://github.com/emilk/egui/pull/2352)).
-* Fix bug in `SrollArea::show_rows` ([#2258](https://github.com/emilk/egui/pull/2258)).
+* Fix bug in `ScrollArea::show_rows` ([#2258](https://github.com/emilk/egui/pull/2258)).
 * Fix bug in `plot::Line::fill` ([#2275](https://github.com/emilk/egui/pull/2275)).
 * Only emit `changed` events in `radio_value` and `selectable_value` if the value actually changed ([#2343](https://github.com/emilk/egui/pull/2343)).
 * Fixed sizing bug in `Grid` ([#2384](https://github.com/emilk/egui/pull/2384)).
@@ -65,7 +65,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * You can now specify a texture filter for your textures ([#1636](https://github.com/emilk/egui/pull/1636)).
 * Added functions keys in `egui::Key` ([#1665](https://github.com/emilk/egui/pull/1665)).
 * Added support for using `PaintCallback` shapes with the WGPU backend ([#1684](https://github.com/emilk/egui/pull/1684)).
-* Added `Contex::request_repaint_after` ([#1694](https://github.com/emilk/egui/pull/1694)).
+* Added `Context::request_repaint_after` ([#1694](https://github.com/emilk/egui/pull/1694)).
 * `ctrl-h` now acts like backspace in `TextEdit` ([#1812](https://github.com/emilk/egui/pull/1812)).
 * Added `custom_formatter` method for `Slider` and `DragValue` ([#1851](https://github.com/emilk/egui/issues/1851)).
 * Added `RawInput::has_focus` which backends can set to indicate whether the UI as a whole has the keyboard focus ([#1859](https://github.com/emilk/egui/pull/1859)).
