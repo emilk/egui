@@ -117,7 +117,7 @@ impl TextureManager {
 }
 
 /// Meta-data about an allocated texture.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TextureMeta {
     /// A human-readable name useful for debugging.
     pub name: String,

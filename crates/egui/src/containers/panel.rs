@@ -44,7 +44,7 @@ impl PanelState {
 // ----------------------------------------------------------------------------
 
 /// [`Left`](Side::Left) or [`Right`](Side::Right)
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Side {
     Left,
     Right,
@@ -468,7 +468,7 @@ impl SidePanel {
 // ----------------------------------------------------------------------------
 
 /// [`Top`](TopBottomSide::Top) or [`Bottom`](TopBottomSide::Bottom)
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TopBottomSide {
     Top,
     Bottom,

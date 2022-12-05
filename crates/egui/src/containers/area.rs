@@ -230,7 +230,7 @@ impl Area {
 
         let layer_id = LayerId::new(order, id);
 
-        let state = ctx.memory().areas.get(id).cloned();
+        let state = ctx.memory().areas.get(id).copied();
         let is_new = state.is_none();
         if is_new {
             ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place

@@ -5,7 +5,7 @@ use crate::*;
 use super::items::PlotItem;
 
 /// Where to place the plot legend.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Corner {
     LeftTop,
     RightTop,

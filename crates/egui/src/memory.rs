@@ -587,8 +587,8 @@ impl Areas {
     pub fn visible_layer_ids(&self) -> ahash::HashSet<LayerId> {
         self.visible_last_frame
             .iter()
-            .cloned()
-            .chain(self.visible_current_frame.iter().cloned())
+            .copied()
+            .chain(self.visible_current_frame.iter().copied())
             .collect()
     }
 

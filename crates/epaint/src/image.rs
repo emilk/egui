@@ -43,7 +43,7 @@ impl ImageData {
 // ----------------------------------------------------------------------------
 
 /// A 2D RGBA color image in RAM.
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ColorImage {
     /// width, height.

@@ -1513,7 +1513,7 @@ impl Context {
             ui.label("Hover to highlight");
             let layers_ids: Vec<LayerId> = self.memory().areas.order().to_vec();
             for layer_id in layers_ids {
-                let area = self.memory().areas.get(layer_id.id).cloned();
+                let area = self.memory().areas.get(layer_id.id).copied();
                 if let Some(area) = area {
                     let is_visible = self.memory().areas.is_visible(&layer_id);
                     if !is_visible {

@@ -66,7 +66,7 @@ impl std::ops::SubAssign<usize> for CCursor {
 }
 
 /// Row Cursor
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RCursor {
     /// 0 is first row, and so on.

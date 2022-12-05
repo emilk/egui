@@ -172,7 +172,7 @@ impl Rect {
     /// Rotate the bounds (will expand the [`Rect`])
     #[must_use]
     #[inline]
-    pub fn rotate_bb(self, rot: crate::Rot2) -> Self {
+    pub fn rotate_bb(self, rot: Rot2) -> Self {
         let a = rot * self.left_top().to_vec2();
         let b = rot * self.right_top().to_vec2();
         let c = rot * self.left_bottom().to_vec2();

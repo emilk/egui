@@ -211,7 +211,7 @@ fn color_slider_2d(
 }
 
 /// What options to show for alpha
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Alpha {
     // Set alpha to 1.0, and show no option for it.
     Opaque,
@@ -425,7 +425,7 @@ pub fn color_edit_button_rgb(ui: &mut Ui, rgb: &mut [f32; 3]) -> Response {
 // To ensure we keep hue slider when `srgba` is gray we store the full [`Hsva`] in a cache:
 fn color_cache_get(ctx: &Context, rgba: impl Into<Rgba>) -> Hsva {
     let rgba = rgba.into();
-    use_color_cache(ctx, |cc| cc.get(&rgba).cloned()).unwrap_or_else(|| Hsva::from(rgba))
+    use_color_cache(ctx, |cc| cc.get(&rgba).copied()).unwrap_or_else(|| Hsva::from(rgba))
 }
 
 // To ensure we keep hue slider when `srgba` is gray we store the full [`Hsva`] in a cache:
