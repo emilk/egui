@@ -122,6 +122,30 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// Sets the window position and prevents it from being dragged around.
+    pub fn fixed_pos(mut self, pos: impl Into<Pos2>) -> Self {
+        self.area = self.area.fixed_pos(pos);
+        self
+    }
+
+    /// Constrains this window to the screen bounds.
+    pub fn constrain(mut self, constrain: bool) -> Self {
+        self.area = self.area.constrain(constrain);
+        self
+    }
+
+    /// Where the "root" of the window is.
+    ///
+    /// For instance, if you set this to [`Align2::RIGHT_TOP`]
+    /// then [`Self::fixed_pos`] will set the position of the right-top
+    /// corner of the window.
+    ///
+    /// Default: [`Align2::LEFT_TOP`].
+    pub fn pivot(mut self, pivot: Align2) -> Self {
+        self.area = self.area.pivot(pivot);
+        self
+    }
+
     /// Set anchor and distance.
     ///
     /// An anchor of `Align2::RIGHT_TOP` means "put the right-top corner of the window
@@ -156,21 +180,15 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Set initial position and size of the window.
-    pub fn default_rect(self, rect: Rect) -> Self {
-        self.default_pos(rect.min).default_size(rect.size())
-    }
-
-    /// Sets the window position and prevents it from being dragged around.
-    pub fn fixed_pos(mut self, pos: impl Into<Pos2>) -> Self {
-        self.area = self.area.fixed_pos(pos);
-        self
-    }
-
     /// Sets the window size and prevents it from being resized by dragging its edges.
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.fixed_size(size);
         self
+    }
+
+    /// Set initial position and size of the window.
+    pub fn default_rect(self, rect: Rect) -> Self {
+        self.default_pos(rect.min).default_size(rect.size())
     }
 
     /// Sets the window pos and size and prevents it from being moved and resized by dragging its edges.

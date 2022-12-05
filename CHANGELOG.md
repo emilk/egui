@@ -5,8 +5,10 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 
 ## Unreleased
+* MSRV (Minimum Supported Rust Version) is now `1.65.0` ([#2314](https://github.com/emilk/egui/pull/2314)).
 * ⚠️ BREAKING: egui now expects integrations to do all color blending in gamma space ([#2071](https://github.com/emilk/egui/pull/2071)).
 * ⚠️ BREAKING: if you have overlapping interactive widgets, only the top widget (last added) will be interactive ([#2244](https://github.com/emilk/egui/pull/2244)).
+* Keyboard press events are only present at the frame when the key was pressed, consistent with how key releases work ([#2334](https://github.com/emilk/egui/pull/2334)).
 
 ### Added ⭐
 * Added helper functions for animating panels that collapse/expand ([#2190](https://github.com/emilk/egui/pull/2190)).
@@ -17,8 +19,12 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Added `Key::Minus` and `Key::Equals` ([#2239](https://github.com/emilk/egui/pull/2239)).
 * Added `egui::gui_zoom` module with helpers for scaling the whole GUI of an app ([#2239](https://github.com/emilk/egui/pull/2239)).
 * You can now put one interactive widget on top of another, and only one will get interaction at a time ([#2244](https://github.com/emilk/egui/pull/2244)).
-* Add `ui.centered`.
-* Added `Area::constrain` which constrains area to the screen bounds. ([#2270](https://github.com/emilk/egui/pull/2270)).
+* Added `ui.centered`.
+* Added possibility to enable text wrap for the selected text of `egui::ComboBox` ([#2272](https://github.com/emilk/egui/pull/2244))
+* Added `Area::constrain` and `Window::constrain` which constrains area to the screen bounds. ([#2270](https://github.com/emilk/egui/pull/2270)).
+* Added `Area::pivot` and `Window::pivot` which controls what part of the window to position. ([#2303](https://github.com/emilk/egui/pull/2303)).
+* Added support for [thin space](https://en.wikipedia.org/wiki/Thin_space).
+* Added optional integration with [AccessKit](https://accesskit.dev/) for implementing platform accessibility APIs. ([#2294](https://github.com/emilk/egui/pull/2294)).
 
 ### Changed 🔧
 * Panels always have a separator line, but no stroke on other sides. Their spacing has also changed slightly ([#2261](https://github.com/emilk/egui/pull/2261)).
@@ -29,6 +35,8 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Improved text rendering ([#2071](https://github.com/emilk/egui/pull/2071)).
 * Less jitter when calling `Context::set_pixels_per_point` ([#2239](https://github.com/emilk/egui/pull/2239)).
 * Fixed popups and color edit going outside the screen.
+* Fixed keyboard support in `DragValue` ([#2342](https://github.com/emilk/egui/pull/2342)).
+* If you nest `ScrollAreas` inside each other, the inner area will now move its scroll bar so it is always visible ([#2371](https://github.com/emilk/egui/pull/2371)).
 
 
 ## 0.19.0 - 2022-08-20

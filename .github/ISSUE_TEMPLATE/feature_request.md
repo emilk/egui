@@ -8,7 +8,7 @@ assignees: ''
 ---
 
 <!--
-First look if there is already a similar feature request. If there is, add a comment to it instead!
+First look if there is already a similar feature request. If there is, upvote the issue with 👍
 -->
 
 

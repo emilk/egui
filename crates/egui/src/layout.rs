@@ -230,21 +230,9 @@ impl Layout {
     }
 
     /// For when you want to add a single widget to a layout, and that widget
-    /// should be centered horizontally and vertically.
-    #[inline(always)]
-    pub fn centered(main_dir: Direction) -> Self {
-        Self {
-            main_dir,
-            main_wrap: false,
-            main_align: Align::Center,
-            main_justify: false,
-            cross_align: Align::Center,
-            cross_justify: false,
-        }
-    }
-
-    /// For when you want to add a single widget to a layout, and that widget
     /// should use up all available space.
+    ///
+    /// Only one widget may be added to the inner `Ui`!
     #[inline(always)]
     pub fn centered_and_justified(main_dir: Direction) -> Self {
         Self {

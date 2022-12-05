@@ -490,7 +490,7 @@ impl<'t> TextEdit<'t> {
                     if response.hovered() && ui.input().pointer.any_pressed() {
                         ui.memory().request_focus(id);
                         if ui.input().modifiers.shift {
-                            if let Some(mut cursor_range) = state.cursor_range(&*galley) {
+                            if let Some(mut cursor_range) = state.cursor_range(&galley) {
                                 cursor_range.primary = cursor_at_pointer;
                                 state.set_cursor_range(Some(cursor_range));
                             } else {
@@ -502,7 +502,7 @@ impl<'t> TextEdit<'t> {
                     } else if ui.input().pointer.any_down() && response.is_pointer_button_down_on()
                     {
                         // drag to select text:
-                        if let Some(mut cursor_range) = state.cursor_range(&*galley) {
+                        if let Some(mut cursor_range) = state.cursor_range(&galley) {
                             cursor_range.primary = cursor_at_pointer;
                             state.set_cursor_range(Some(cursor_range));
                         }
@@ -516,7 +516,7 @@ impl<'t> TextEdit<'t> {
         }
 
         let mut cursor_range = None;
-        let prev_cursor_range = state.cursor_range(&*galley);
+        let prev_cursor_range = state.cursor_range(&galley);
         if ui.memory().has_focus(id) && interactive {
             ui.memory().lock_focus(id, lock_focus);
 
@@ -595,7 +595,7 @@ impl<'t> TextEdit<'t> {
             }
 
             if ui.memory().has_focus(id) {
-                if let Some(cursor_range) = state.cursor_range(&*galley) {
+                if let Some(cursor_range) = state.cursor_range(&galley) {
                     // We paint the cursor on top of the text, in case
                     // the text galley has backgrounds (as e.g. `code` snippets in markup do).
                     paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursor_range);
@@ -648,17 +648,98 @@ impl<'t> TextEdit<'t> {
                 char_range,
                 mask_if_password(password, text.as_str()),
             );
-            response
-                .ctx
-                .output()
-                .events
-                .push(OutputEvent::TextSelectionChanged(info));
+            response.output_event(OutputEvent::TextSelectionChanged(info));
         } else {
             response.widget_info(|| {
                 WidgetInfo::text_edit(
                     mask_if_password(password, prev_text.as_str()),
                     mask_if_password(password, text.as_str()),
                 )
+            });
+        }
+
+        #[cfg(feature = "accesskit")]
+        if let Some(mut node) = ui.ctx().accesskit_node(response.id) {
+            use accesskit::{Role, TextDirection, TextPosition, TextSelection};
+
+            let parent_id = response.id;
+
+            if let Some(cursor_range) = &cursor_range {
+                let anchor = &cursor_range.secondary.rcursor;
+                let focus = &cursor_range.primary.rcursor;
+                node.text_selection = Some(TextSelection {
+                    anchor: TextPosition {
+                        node: parent_id.with(anchor.row).accesskit_id(),
+                        character_index: anchor.column,
+                    },
+                    focus: TextPosition {
+                        node: parent_id.with(focus.row).accesskit_id(),
+                        character_index: focus.column,
+                    },
+                });
+            }
+
+            node.default_action_verb = Some(accesskit::DefaultActionVerb::Focus);
+
+            drop(node);
+
+            ui.ctx().with_accessibility_parent(parent_id, || {
+                for (i, row) in galley.rows.iter().enumerate() {
+                    let id = parent_id.with(i);
+                    let mut node = ui.ctx().accesskit_node(id).unwrap();
+                    node.role = Role::InlineTextBox;
+                    let rect = row.rect.translate(text_draw_pos.to_vec2());
+                    node.bounds = Some(accesskit::kurbo::Rect {
+                        x0: rect.min.x.into(),
+                        y0: rect.min.y.into(),
+                        x1: rect.max.x.into(),
+                        y1: rect.max.y.into(),
+                    });
+                    node.text_direction = Some(TextDirection::LeftToRight);
+                    // TODO(mwcampbell): Set more node fields for the row
+                    // once AccessKit adapters expose text formatting info.
+
+                    let glyph_count = row.glyphs.len();
+                    let mut value = String::new();
+                    value.reserve(glyph_count);
+                    let mut character_lengths = Vec::<u8>::new();
+                    character_lengths.reserve(glyph_count);
+                    let mut character_positions = Vec::<f32>::new();
+                    character_positions.reserve(glyph_count);
+                    let mut character_widths = Vec::<f32>::new();
+                    character_widths.reserve(glyph_count);
+                    let mut word_lengths = Vec::<u8>::new();
+                    let mut was_at_word_end = false;
+                    let mut last_word_start = 0usize;
+
+                    for glyph in &row.glyphs {
+                        let is_word_char = is_word_char(glyph.chr);
+                        if is_word_char && was_at_word_end {
+                            word_lengths.push((character_lengths.len() - last_word_start) as _);
+                            last_word_start = character_lengths.len();
+                        }
+                        was_at_word_end = !is_word_char;
+                        let old_len = value.len();
+                        value.push(glyph.chr);
+                        character_lengths.push((value.len() - old_len) as _);
+                        character_positions.push(glyph.pos.x - row.rect.min.x);
+                        character_widths.push(glyph.size.x);
+                    }
+
+                    if row.ends_with_newline {
+                        value.push('\n');
+                        character_lengths.push(1);
+                        character_positions.push(row.rect.max.x - row.rect.min.x);
+                        character_widths.push(0.0);
+                    }
+                    word_lengths.push((character_lengths.len() - last_word_start) as _);
+
+                    node.value = Some(value.into());
+                    node.character_lengths = character_lengths.into();
+                    node.character_positions = Some(character_positions.into());
+                    node.character_widths = Some(character_widths.into());
+                    node.word_lengths = word_lengths.into();
+                }
             });
         }
 
@@ -689,6 +770,28 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
 
 // ----------------------------------------------------------------------------
 
+#[cfg(feature = "accesskit")]
+fn ccursor_from_accesskit_text_position(
+    id: Id,
+    galley: &Galley,
+    position: &accesskit::TextPosition,
+) -> Option<CCursor> {
+    let mut total_length = 0usize;
+    for (i, row) in galley.rows.iter().enumerate() {
+        let row_id = id.with(i);
+        if row_id.accesskit_id() == position.node {
+            return Some(CCursor {
+                index: total_length + position.character_index,
+                prefer_next_row: !(position.character_index == row.glyphs.len()
+                    && !row.ends_with_newline
+                    && (i + 1) < galley.rows.len()),
+            });
+        }
+        total_length += row.glyphs.len() + (row.ends_with_newline as usize);
+    }
+    None
+}
+
 /// Check for (keyboard) events to edit the cursor and/or text.
 #[allow(clippy::too_many_arguments)]
 fn events(
@@ -703,7 +806,7 @@ fn events(
     password: bool,
     default_cursor_range: CursorRange,
 ) -> (bool, CursorRange) {
-    let mut cursor_range = state.cursor_range(&*galley).unwrap_or(default_cursor_range);
+    let mut cursor_range = state.cursor_range(galley).unwrap_or(default_cursor_range);
 
     // We feed state to the undoer both before and after handling input
     // so that the undoer creates automatic saves even when there are no events for a while.
@@ -844,6 +947,27 @@ fn events(
                         insert_text(&mut ccursor, text, prediction);
                     }
                     Some(CCursorRange::one(ccursor))
+                } else {
+                    None
+                }
+            }
+
+            #[cfg(feature = "accesskit")]
+            Event::AccessKitActionRequest(accesskit::ActionRequest {
+                action: accesskit::Action::SetTextSelection,
+                target,
+                data: Some(accesskit::ActionData::SetTextSelection(selection)),
+            }) => {
+                if id.accesskit_id() == *target {
+                    let primary =
+                        ccursor_from_accesskit_text_position(id, galley, &selection.focus);
+                    let secondary =
+                        ccursor_from_accesskit_text_position(id, galley, &selection.anchor);
+                    if let (Some(primary), Some(secondary)) = (primary, secondary) {
+                        Some(CCursorRange { primary, secondary })
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }

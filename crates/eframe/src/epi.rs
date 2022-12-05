@@ -10,7 +10,7 @@
 use std::any::Any;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use crate::native::run::RequestRepaintEvent;
+pub use crate::native::run::UserEvent;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use winit::event_loop::EventLoopBuilder;
@@ -20,7 +20,7 @@ pub use winit::event_loop::EventLoopBuilder;
 /// You can configure any platform specific details required on top of the default configuration
 /// done by `EFrame`.
 #[cfg(not(target_arch = "wasm32"))]
-pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<RequestRepaintEvent>)>;
+pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)>;
 
 /// This is how your app is created.
 ///

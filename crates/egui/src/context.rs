@@ -67,6 +67,9 @@ struct ContextImpl {
     layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
     /// Read
     layer_rects_prev_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
+
+    #[cfg(feature = "accesskit")]
+    is_accesskit_enabled: bool,
 }
 
 impl ContextImpl {
@@ -105,6 +108,25 @@ impl ContextImpl {
                 interactable: true,
             },
         );
+
+        #[cfg(feature = "accesskit")]
+        if self.is_accesskit_enabled {
+            use crate::frame_state::AccessKitFrameState;
+            let id = crate::accesskit_root_id();
+            let node = Box::new(accesskit::Node {
+                role: accesskit::Role::Window,
+                transform: Some(
+                    accesskit::kurbo::Affine::scale(self.input.pixels_per_point().into()).into(),
+                ),
+                ..Default::default()
+            });
+            let mut nodes = IdMap::default();
+            nodes.insert(id, node);
+            self.frame_state.accesskit_state = Some(AccessKitFrameState {
+                nodes,
+                parent_stack: vec![id],
+            });
+        }
     }
 
     /// Load fonts unless already loaded.
@@ -131,6 +153,19 @@ impl ContextImpl {
                 fonts.lock().fonts.font(font_id).preload_common_characters();
             }
         }
+    }
+
+    #[cfg(feature = "accesskit")]
+    fn accesskit_node(&mut self, id: Id) -> &mut accesskit::Node {
+        let state = self.frame_state.accesskit_state.as_mut().unwrap();
+        let nodes = &mut state.nodes;
+        if let std::collections::hash_map::Entry::Vacant(entry) = nodes.entry(id) {
+            entry.insert(Default::default());
+            let parent_id = state.parent_stack.last().unwrap();
+            let parent = nodes.get_mut(parent_id).unwrap();
+            parent.children.push(id.accesskit_id());
+        }
+        nodes.get_mut(&id).unwrap()
     }
 }
 
@@ -279,16 +314,45 @@ impl Context {
                 return;
             }
 
-            let show_error = |pos: Pos2, text: String| {
+            let show_error = |widget_rect: Rect, text: String| {
+                let text = format!("🔥 {}", text);
+                let color = self.style().visuals.error_fg_color;
                 let painter = self.debug_painter();
-                let rect = painter.error(pos, text);
+                painter.rect_stroke(widget_rect, 0.0, (1.0, color));
+
+                let below = widget_rect.bottom() + 32.0 < self.input().screen_rect.bottom();
+
+                let text_rect = if below {
+                    painter.debug_text(
+                        widget_rect.left_bottom() + vec2(0.0, 2.0),
+                        Align2::LEFT_TOP,
+                        color,
+                        text,
+                    )
+                } else {
+                    painter.debug_text(
+                        widget_rect.left_top() - vec2(0.0, 2.0),
+                        Align2::LEFT_BOTTOM,
+                        color,
+                        text,
+                    )
+                };
+
                 if let Some(pointer_pos) = self.pointer_hover_pos() {
-                    if rect.contains(pointer_pos) {
+                    if text_rect.contains(pointer_pos) {
+                        let tooltip_pos = if below {
+                            text_rect.left_bottom() + vec2(2.0, 4.0)
+                        } else {
+                            text_rect.left_top() + vec2(2.0, -4.0)
+                        };
+
                         painter.error(
-                            rect.left_bottom() + vec2(2.0, 4.0),
-                            "ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
+                            tooltip_pos,
+                            format!("Widget is {} this text.\n\n\
+                             ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
                              or when things like Plot and Grid:s aren't given unique id_source:s.\n\n\
                              Sometimes the solution is to use ui.push_id.",
+                             if below { "above" } else { "below" })
                         );
                     }
                 }
@@ -297,19 +361,10 @@ impl Context {
             let id_str = id.short_debug_format();
 
             if prev_rect.min.distance(new_rect.min) < 4.0 {
-                show_error(
-                    new_rect.min,
-                    format!("Double use of {} ID {}", what, id_str),
-                );
+                show_error(new_rect, format!("Double use of {} ID {}", what, id_str));
             } else {
-                show_error(
-                    prev_rect.min,
-                    format!("First use of {} ID {}", what, id_str),
-                );
-                show_error(
-                    new_rect.min,
-                    format!("Second use of {} ID {}", what, id_str),
-                );
+                show_error(prev_rect, format!("First use of {} ID {}", what, id_str));
+                show_error(new_rect, format!("Second use of {} ID {}", what, id_str));
             }
         }
     }
@@ -328,7 +383,7 @@ impl Context {
         sense: Sense,
         enabled: bool,
     ) -> Response {
-        let gap = 0.5; // Just to make sure we don't accidentally hover two things at once (a small eps should be sufficient).
+        let gap = 0.1; // Just to make sure we don't accidentally hover two things at once (a small eps should be sufficient).
 
         // Make it easier to click things:
         let interact_rect = rect.expand2(
@@ -436,16 +491,22 @@ impl Context {
 
         self.check_for_id_clash(id, rect, "widget");
 
+        #[cfg(feature = "accesskit")]
+        if sense.focusable {
+            // Make sure anything that can receive focus has an AccessKit node.
+            // TODO(mwcampbell): For nodes that are filled from widget info,
+            // some information is written to the node twice.
+            if let Some(mut node) = self.accesskit_node(id) {
+                response.fill_accesskit_node_common(&mut node);
+            }
+        }
+
         let clicked_elsewhere = response.clicked_elsewhere();
         let ctx_impl = &mut *self.write();
         let memory = &mut ctx_impl.memory;
         let input = &mut ctx_impl.input;
 
-        // We only want to focus labels if the screen reader is on.
-        let interested_in_focus =
-            sense.interactive() || sense.focusable && memory.options.screen_reader;
-
-        if interested_in_focus {
+        if sense.focusable {
             memory.interested_in_focus(id);
         }
 
@@ -455,6 +516,15 @@ impl Context {
         {
             // Space/enter works like a primary click for e.g. selected buttons
             response.clicked[PointerButton::Primary as usize] = true;
+        }
+
+        #[cfg(feature = "accesskit")]
+        {
+            if sense.click
+                && input.has_accesskit_action_request(response.id, accesskit::Action::Default)
+            {
+                response.clicked[PointerButton::Primary as usize] = true;
+            }
         }
 
         if sense.click || sense.drag {
@@ -827,9 +897,8 @@ impl Context {
     pub fn set_pixels_per_point(&self, pixels_per_point: f32) {
         if pixels_per_point != self.pixels_per_point() {
             self.request_repaint();
+            self.memory().new_pixels_per_point = Some(pixels_per_point);
         }
-
-        self.memory().new_pixels_per_point = Some(pixels_per_point);
     }
 
     /// Useful for pixel-perfect rendering
@@ -984,7 +1053,29 @@ impl Context {
             textures_delta = ctx_impl.tex_manager.0.write().take_delta();
         };
 
-        let platform_output: PlatformOutput = std::mem::take(&mut self.output());
+        #[cfg_attr(not(feature = "accesskit"), allow(unused_mut))]
+        let mut platform_output: PlatformOutput = std::mem::take(&mut self.output());
+
+        #[cfg(feature = "accesskit")]
+        {
+            let state = self.frame_state().accesskit_state.take();
+            if let Some(state) = state {
+                let has_focus = self.input().raw.has_focus;
+                let root_id = crate::accesskit_root_id().accesskit_id();
+                platform_output.accesskit_update = Some(accesskit::TreeUpdate {
+                    nodes: state
+                        .nodes
+                        .into_iter()
+                        .map(|(id, node)| (id.accesskit_id(), Arc::from(node)))
+                        .collect(),
+                    tree: Some(accesskit::Tree::new(root_id)),
+                    focus: has_focus.then(|| {
+                        let focus_id = self.memory().interaction.focus.id;
+                        focus_id.map_or(root_id, |id| id.accesskit_id())
+                    }),
+                });
+            }
+        }
 
         // if repaint_requests is greater than zero. just set the duration to zero for immediate
         // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
@@ -1500,6 +1591,62 @@ impl Context {
         let mut style: Style = (*self.style()).clone();
         style.ui(ui);
         self.set_style(style);
+    }
+}
+
+/// ## Accessibility
+impl Context {
+    /// Call the provided function with the given ID pushed on the stack of
+    /// parent IDs for accessibility purposes. If the `accesskit` feature
+    /// is disabled or if AccessKit support is not active for this frame,
+    /// the function is still called, but with no other effect.
+    pub fn with_accessibility_parent(&self, id: Id, f: impl FnOnce()) {
+        #[cfg(feature = "accesskit")]
+        {
+            let mut frame_state = self.frame_state();
+            if let Some(state) = frame_state.accesskit_state.as_mut() {
+                state.parent_stack.push(id);
+            }
+        }
+        #[cfg(not(feature = "accesskit"))]
+        {
+            let _ = id;
+        }
+        f();
+        #[cfg(feature = "accesskit")]
+        {
+            let mut frame_state = self.frame_state();
+            if let Some(state) = frame_state.accesskit_state.as_mut() {
+                assert_eq!(state.parent_stack.pop(), Some(id));
+            }
+        }
+    }
+
+    /// If AccessKit support is active for the current frame, get or create
+    /// a node with the specified ID and return a mutable reference to it.
+    /// For newly crated nodes, the parent is the node with the ID at the top
+    /// of the stack managed by [`Context::with_accessibility_parent`].
+    #[cfg(feature = "accesskit")]
+    pub fn accesskit_node(&self, id: Id) -> Option<RwLockWriteGuard<'_, accesskit::Node>> {
+        let ctx = self.write();
+        ctx.frame_state
+            .accesskit_state
+            .is_some()
+            .then(move || RwLockWriteGuard::map(ctx, |c| c.accesskit_node(id)))
+    }
+
+    /// Enable generation of AccessKit tree updates in all future frames.
+    ///
+    /// If it's practical for the egui integration to immediately run the egui
+    /// application when it is either initializing the AccessKit adapter or
+    /// being called by the AccessKit adapter to provide the initial tree update,
+    /// then it should do so, to provide a complete AccessKit tree to the adapter
+    /// immediately. Otherwise, it should enqueue a repaint and use the
+    /// placeholder tree update from [`crate::accesskit_placeholder_tree_update`]
+    /// in the meantime.
+    #[cfg(feature = "accesskit")]
+    pub fn enable_accesskit(&self) {
+        self.write().is_accesskit_enabled = true;
     }
 }
 

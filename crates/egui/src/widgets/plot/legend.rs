@@ -189,7 +189,7 @@ impl LegendWidget {
                         LegendEntry::new(color, checked)
                     });
             });
-        (!entries.is_empty()).then(|| Self {
+        (!entries.is_empty()).then_some(Self {
             rect,
             entries,
             config,

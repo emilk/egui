@@ -156,6 +156,23 @@ impl FontImpl {
             }
         }
 
+        if c == '\u{2009}' {
+            // Thin space, often used as thousands deliminator: 1 234 567 890
+            // https://www.compart.com/en/unicode/U+2009
+            // https://en.wikipedia.org/wiki/Thin_space
+
+            if let Some(space) = self.glyph_info(' ') {
+                let em = self.height_in_points; // TODO(emilk): is this right?
+                let advance_width = f32::min(em / 6.0, space.advance_width * 0.5);
+                let glyph_info = GlyphInfo {
+                    advance_width,
+                    ..GlyphInfo::default()
+                };
+                self.glyph_info_cache.write().insert(c, glyph_info);
+                return Some(glyph_info);
+            }
+        }
+
         // Add new character:
         use ab_glyph::Font as _;
         let glyph_id = self.ab_glyph_font.glyph_id(c);

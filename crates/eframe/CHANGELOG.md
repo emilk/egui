@@ -5,6 +5,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 
 ## Unreleased
+* MSRV (Minimum Supported Rust Version) is now `1.65.0` ([#2314](https://github.com/emilk/egui/pull/2314)).
 * Added `NativeOptions::fullsize_content` option on Mac to build titlebar-less windows with floating window controls ([#2049](https://github.com/emilk/egui/pull/2049)).
 * Added `NativeOptions::event_loop_builder` hook for apps to change platform specific event loop options ([#1952](https://github.com/emilk/egui/pull/1952)).
 * Enabled deferred render state initialization to support Android ([#1952](https://github.com/emilk/egui/pull/1952)).
@@ -17,6 +18,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 * Web: Add `WebInfo::user_agent` ([#2202](https://github.com/emilk/egui/pull/2202)).
 * Wgpu device/adapter/surface creation has now various configuration options exposed via `NativeOptions/WebOptions::wgpu_options` ([#2207](https://github.com/emilk/egui/pull/2207)).
 * Fix: Make sure that `native_pixels_per_point` is updated ([#2256](https://github.com/emilk/egui/pull/2256)).
+* Added optional, but enabled by default, integration with [AccessKit](https://accesskit.dev/) for implementing platform accessibility APIs. ([#2294](https://github.com/emilk/egui/pull/2294)).
 
 
 ## 0.19.0 - 2022-08-20

@@ -53,6 +53,7 @@ fn main() {
                 // draw things on top of egui here
 
                 gl_window.swap_buffers().unwrap();
+                gl_window.window().set_visible(true);
             }
         };
 
@@ -111,7 +112,8 @@ fn create_display(
             width: 800.0,
             height: 600.0,
         })
-        .with_title("egui_glow example");
+        .with_title("egui_glow example")
+        .with_visible(false); // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
 
     let gl_window = unsafe {
         glutin::ContextBuilder::new()

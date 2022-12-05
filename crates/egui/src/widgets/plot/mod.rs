@@ -1040,6 +1040,11 @@ impl PlotUi {
         *self.last_screen_transform.bounds()
     }
 
+    /// Set the plot bounds. Can be useful for implementing alternative plot navigation methods.
+    pub fn set_plot_bounds(&mut self, plot_bounds: PlotBounds) {
+        self.last_screen_transform.set_bounds(plot_bounds);
+    }
+
     /// Move the plot bounds. Can be useful for implementing alternative plot navigation methods.
     pub fn translate_bounds(&mut self, delta_pos: Vec2) {
         self.last_screen_transform.translate_bounds(delta_pos);
@@ -1053,6 +1058,11 @@ impl PlotUi {
     /// Returns `true` if the plot was clicked by the primary button.
     pub fn plot_clicked(&self) -> bool {
         self.response.clicked()
+    }
+
+    /// Returns `true` if the plot was clicked by the secondary button.
+    pub fn plot_secondary_clicked(&self) -> bool {
+        self.response.secondary_clicked()
     }
 
     /// The pointer position in plot coordinates. Independent of whether the pointer is in the plot area.
@@ -1411,6 +1421,9 @@ impl PreparedPlot {
                 let mut p1 = pos_in_gui;
                 p0[1 - axis] = transform.frame().min[1 - axis];
                 p1[1 - axis] = transform.frame().max[1 - axis];
+                // Round to avoid aliasing
+                p0 = ui.ctx().round_pos_to_pixels(p0);
+                p1 = ui.ctx().round_pos_to_pixels(p1);
                 shapes.push(Shape::line_segment([p0, p1], Stroke::new(1.0, line_color)));
             }
 

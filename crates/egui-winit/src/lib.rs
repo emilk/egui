@@ -11,7 +11,11 @@
 
 use std::os::raw::c_void;
 
+#[cfg(feature = "accesskit")]
+pub use accesskit_winit;
 pub use egui;
+#[cfg(feature = "accesskit")]
+use egui::accesskit;
 pub use winit;
 
 pub mod clipboard;
@@ -86,6 +90,9 @@ pub struct State {
 
     /// track ime state
     input_method_editor_started: bool,
+
+    #[cfg(feature = "accesskit")]
+    accesskit: Option<accesskit_winit::Adapter>,
 }
 
 impl State {
@@ -114,7 +121,24 @@ impl State {
             pointer_touch_id: None,
 
             input_method_editor_started: false,
+
+            #[cfg(feature = "accesskit")]
+            accesskit: None,
         }
+    }
+
+    #[cfg(feature = "accesskit")]
+    pub fn init_accesskit<T: From<accesskit_winit::ActionRequestEvent> + Send>(
+        &mut self,
+        window: &winit::window::Window,
+        event_loop_proxy: winit::event_loop::EventLoopProxy<T>,
+        initial_tree_update_factory: impl 'static + FnOnce() -> accesskit::TreeUpdate + Send,
+    ) {
+        self.accesskit = Some(accesskit_winit::Adapter::new(
+            window,
+            initial_tree_update_factory,
+            event_loop_proxy,
+        ));
     }
 
     /// Call this once a graphics context has been created to update the maximum texture dimensions
@@ -374,6 +398,16 @@ impl State {
         }
     }
 
+    /// Call this when there is a new [`accesskit::ActionRequest`].
+    ///
+    /// The result can be found in [`Self::egui_input`] and be extracted with [`Self::take_egui_input`].
+    #[cfg(feature = "accesskit")]
+    pub fn on_accesskit_action_request(&mut self, request: accesskit::ActionRequest) {
+        self.egui_input
+            .events
+            .push(egui::Event::AccessKitActionRequest(request));
+    }
+
     fn on_mouse_button_input(
         &mut self,
         state: winit::event::ElementState,
@@ -592,6 +626,8 @@ impl State {
             events: _,                    // handled above
             mutable_text_under_cursor: _, // only used in eframe web
             text_cursor_pos,
+            #[cfg(feature = "accesskit")]
+            accesskit_update,
         } = platform_output;
         self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
 
@@ -607,6 +643,13 @@ impl State {
 
         if let Some(egui::Pos2 { x, y }) = text_cursor_pos {
             window.set_ime_position(winit::dpi::LogicalPosition { x, y });
+        }
+
+        #[cfg(feature = "accesskit")]
+        if let Some(accesskit) = self.accesskit.as_ref() {
+            if let Some(update) = accesskit_update {
+                accesskit.update_if_active(|| update);
+            }
         }
     }
 
