@@ -51,6 +51,9 @@ pub(crate) struct GridLayout {
     style: std::sync::Arc<Style>,
     id: Id,
 
+    /// First frame (no previous know state).
+    is_first_frame: bool,
+
     /// State previous frame (if any).
     /// This can be used to predict future sizes of cells.
     prev_state: State,
@@ -71,8 +74,9 @@ pub(crate) struct GridLayout {
 }
 
 impl GridLayout {
-    pub(crate) fn new(ui: &Ui, id: Id) -> Self {
-        let prev_state = State::load(ui.ctx(), id).unwrap_or_default();
+    pub(crate) fn new(ui: &Ui, id: Id, prev_state: Option<State>) -> Self {
+        let is_first_frame = prev_state.is_none();
+        let prev_state = prev_state.unwrap_or_default();
 
         // TODO(emilk): respect current layout
 
@@ -88,6 +92,7 @@ impl GridLayout {
             ctx: ui.ctx().clone(),
             style: ui.style().clone(),
             id,
+            is_first_frame,
             prev_state,
             curr_state: State::default(),
             initial_available,
@@ -125,7 +130,16 @@ impl GridLayout {
         let is_last_column = Some(self.col + 1) == self.num_columns;
 
         let width = if is_last_column {
-            (self.initial_available.right() - region.cursor.left()).at_most(self.max_cell_size.x)
+            // The first frame we don't really know the widths of the previous columns,
+            // so returning a big available width here can cause trouble.
+            if self.is_first_frame {
+                self.curr_state
+                    .col_width(self.col)
+                    .unwrap_or(self.min_cell_size.x)
+            } else {
+                (self.initial_available.right() - region.cursor.left())
+                    .at_most(self.max_cell_size.x)
+            }
         } else if self.max_cell_size.x.is_finite() {
             // TODO(emilk): should probably heed `prev_state` here too
             self.max_cell_size.x
@@ -361,14 +375,17 @@ impl Grid {
         let min_row_height = min_row_height.unwrap_or_else(|| ui.spacing().interact_size.y);
         let spacing = spacing.unwrap_or_else(|| ui.spacing().item_spacing);
 
+        let id = ui.make_persistent_id(id_source);
+        let prev_state = State::load(ui.ctx(), id);
+
         // Each grid cell is aligned LEFT_CENTER.
         // If somebody wants to wrap more things inside a cell,
         // then we should pick a default layout that matches that alignment,
         // which we do here:
         let max_rect = ui.cursor().intersect(ui.max_rect());
         ui.allocate_ui_at_rect(max_rect, |ui| {
+            ui.set_visible(prev_state.is_some()); // Avoid visible first-frame jitter
             ui.horizontal(|ui| {
-                let id = ui.make_persistent_id(id_source);
                 let grid = GridLayout {
                     num_columns,
                     striped,
@@ -376,7 +393,7 @@ impl Grid {
                     max_cell_size,
                     spacing,
                     row: start_row,
-                    ..GridLayout::new(ui, id)
+                    ..GridLayout::new(ui, id, prev_state)
                 };
 
                 ui.set_grid(grid);
