@@ -1,5 +1,5 @@
 # Changelog for ecolor
-All notable changes to the `ecolor` integration will be noted in this file.
+All notable changes to the `ecolor` crate will be noted in this file.
 
 
 ## Unreleased
