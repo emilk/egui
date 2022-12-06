@@ -3,6 +3,10 @@
 //! If you want a compact color representation, use [`Color32`].
 //! If you want to manipulate RGBA colors use [`Rgba`].
 //! If you want to manipulate colors in a way closer to how humans think about colors, use [`HsvaGamma`].
+//!
+//! ## Feature flags
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+//!
 
 #![allow(clippy::wrong_self_convention)]
 
