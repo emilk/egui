@@ -34,6 +34,12 @@ default = ["default_fonts"]
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`Vertex`] to `&[u8]`.
 bytemuck = ["dep:bytemuck", "emath/bytemuck", "ecolor/bytemuck"]
 
+## [`cint`](https://docs.rs/cint) enables interopability with other color libraries.
+cint = ["ecolor/cint"]
+
+## Enable the [`hex_color`] macro.
+color-hex = ["ecolor/color-hex"]
+
 ## This will automatically detect deadlocks due to double-locking on the same thread.
 ## If your app freezes, you may want to enable this!
 ## Only affects [`mutex::RwLock`] (which epaint and egui uses a lot).
@@ -56,12 +62,6 @@ mint = ["emath/mint"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = ["dep:serde", "ahash/serde", "emath/serde", "ecolor/serde"]
-
-## [`cint`](https://docs.rs/cint) enables interopability with other color libraries.
-cint = ["ecolor/cint"]
-
-## Enable the [`hex_color`] macro.
-color-hex = ["ecolor/color-hex"]
 
 [dependencies]
 emath = { version = "0.19.0", path = "../emath" }
