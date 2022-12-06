@@ -1,4 +1,4 @@
-/// Construct a [`Color32`] from a hex RGB or RGBA string.
+/// Construct a [`crate::Color32`] from a hex RGB or RGBA string.
 ///
 /// ```
 /// # use ecolor::{hex_color, Color32};

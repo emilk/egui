@@ -3,7 +3,7 @@ use crate::{gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_f32_from_
 /// This format is used for space-efficient color representation (32 bits).
 ///
 /// Instead of manipulating this directly it is often better
-/// to first convert it to either [`Rgba`] or [`Hsva`].
+/// to first convert it to either [`Rgba`] or [`crate::Hsva`].
 ///
 /// Internally this uses 0-255 gamma space `sRGBA` color with premultiplied alpha.
 /// Alpha channel is in linear space.
