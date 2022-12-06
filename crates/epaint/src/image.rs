@@ -127,7 +127,7 @@ impl ColorImage {
                 let s = 1.0;
                 let v = 1.0;
                 let a = y as f32 / height as f32;
-                img[(x, y)] = crate::color::Hsva { h, s, v, a }.into();
+                img[(x, y)] = crate::Hsva { h, s, v, a }.into();
             }
         }
         img

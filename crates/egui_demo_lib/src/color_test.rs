@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use egui::{color::*, widgets::color_picker::show_color, TextureOptions, *};
+use egui::{widgets::color_picker::show_color, TextureOptions, *};
 
 const GRADIENT_SIZE: Vec2 = vec2(256.0, 18.0);
 

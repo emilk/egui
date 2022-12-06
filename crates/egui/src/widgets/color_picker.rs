@@ -2,7 +2,7 @@
 
 use crate::util::fixed_cache::FixedCache;
 use crate::*;
-use epaint::{color::*, *};
+use epaint::{ecolor::*, *};
 
 fn contrast_color(color: impl Into<Rgba>) -> Color32 {
     if color.into().intensity() < 0.5 {

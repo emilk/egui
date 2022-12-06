@@ -1,6 +1,6 @@
 use super::*;
 use crate::LOREM_IPSUM;
-use egui::{color::*, epaint::text::TextWrapping, *};
+use egui::{epaint::text::TextWrapping, *};
 
 /// Showcase some ui code
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

@@ -179,7 +179,7 @@ impl Color32 {
 
     /// Multiply with 0.5 to make color half as opaque.
     pub fn linear_multiply(self, factor: f32) -> Color32 {
-        crate::epaint_assert!(0.0 <= factor && factor <= 1.0);
+        crate::ecolor_assert!(0.0 <= factor && factor <= 1.0);
         // As an unfortunate side-effect of using premultiplied alpha
         // we need a somewhat expensive conversion to linear space and back.
         Rgba::from(self).multiply(factor).into()
@@ -253,6 +253,18 @@ impl std::ops::IndexMut<usize> for Rgba {
     }
 }
 
+#[inline(always)]
+pub(crate) fn f32_hash<H: std::hash::Hasher>(state: &mut H, f: f32) {
+    if f == 0.0 {
+        state.write_u8(0);
+    } else if f.is_nan() {
+        state.write_u8(1);
+    } else {
+        use std::hash::Hash;
+        f.to_bits().hash(state);
+    }
+}
+
 #[allow(clippy::derive_hash_xor_eq)]
 impl std::hash::Hash for Rgba {
     #[inline]
@@ -311,22 +323,22 @@ impl Rgba {
     }
 
     pub fn from_luminance_alpha(l: f32, a: f32) -> Self {
-        crate::epaint_assert!(0.0 <= l && l <= 1.0);
-        crate::epaint_assert!(0.0 <= a && a <= 1.0);
+        crate::ecolor_assert!(0.0 <= l && l <= 1.0);
+        crate::ecolor_assert!(0.0 <= a && a <= 1.0);
         Self([l * a, l * a, l * a, a])
     }
 
     /// Transparent black
     #[inline(always)]
     pub fn from_black_alpha(a: f32) -> Self {
-        crate::epaint_assert!(0.0 <= a && a <= 1.0);
+        crate::ecolor_assert!(0.0 <= a && a <= 1.0);
         Self([0.0, 0.0, 0.0, a])
     }
 
     /// Transparent white
     #[inline(always)]
     pub fn from_white_alpha(a: f32) -> Self {
-        crate::epaint_assert!(0.0 <= a && a <= 1.0, "a: {}", a);
+        crate::ecolor_assert!(0.0 <= a && a <= 1.0, "a: {}", a);
         Self([a, a, a, a])
     }
 
@@ -871,6 +883,22 @@ impl From<Hsva> for HsvaGamma {
             s,
             v: gamma_from_linear(v),
             a,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// An assert that is only active when `epaint` is compiled with the `extra_asserts` feature
+/// or with the `extra_debug_asserts` feature in debug builds.
+#[macro_export]
+macro_rules! ecolor_assert {
+    ($($arg: tt)*) => {
+        if cfg!(any(
+            feature = "extra_asserts",
+            all(feature = "extra_debug_asserts", debug_assertions),
+        )) {
+            assert!($($arg)*);
         }
     }
 }

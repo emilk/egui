@@ -2,7 +2,7 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use crate::{color::*, emath::*, FontFamily, FontId, Response, RichText, WidgetText};
+use crate::{ecolor::*, emath::*, FontFamily, FontId, Response, RichText, WidgetText};
 use epaint::{Rounding, Shadow, Stroke};
 use std::collections::BTreeMap;
 
@@ -495,7 +495,7 @@ impl Visuals {
     }
 
     pub fn weak_text_color(&self) -> Color32 {
-        crate::color::tint_color_towards(self.text_color(), self.window_fill())
+        crate::ecolor::tint_color_towards(self.text_color(), self.window_fill())
     }
 
     #[inline(always)]

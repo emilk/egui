@@ -6,7 +6,7 @@ use std::sync::Arc;
 use epaint::mutex::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
-    color::*, containers::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
+    containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
     widgets::*, *,
 };
 

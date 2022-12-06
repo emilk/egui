@@ -1294,6 +1294,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4f94fa09c2aeea5b8839e414b7b841bf429fd25b9c522116ac97ee87856d88b2"
 
 [[package]]
+name = "ecolor"
+version = "0.19.0"
+dependencies = [
+ "bytemuck",
+ "cint",
+ "color-hex",
+ "document-features",
+ "serde",
+]
+
+[[package]]
 name = "eframe"
 version = "0.19.0"
 dependencies = [
@@ -1556,10 +1567,9 @@ dependencies = [
  "atomic_refcell",
  "backtrace",
  "bytemuck",
- "cint",
- "color-hex",
  "criterion",
  "document-features",
+ "ecolor",
  "emath",
  "nohash-hasher",
  "parking_lot",

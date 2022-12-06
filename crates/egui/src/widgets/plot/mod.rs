@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::*;
-use epaint::color::Hsva;
 use epaint::util::FloatOrd;
+use epaint::Hsva;
 
 use items::PlotItem;
 use legend::LegendWidget;
