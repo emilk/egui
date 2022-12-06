@@ -1,8 +1,5 @@
-# egui_extras
+# ecolor - egui color library
 
-[![Latest version](https://img.shields.io/crates/v/egui_extras.svg)](https://crates.io/crates/egui_extras)
-[![Documentation](https://docs.rs/egui_extras/badge.svg)](https://docs.rs/egui_extras)
-![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
-![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
+A simple color storage and conversion library.
 
-This is a crate that adds some features on top top of [`egui`](https://github.com/emilk/egui). This crate is for experimental features, and features that require big dependencies that do not belong in `egui`.
+Made for [`egui`](https://github.com/emilk/egui/).
