@@ -11,7 +11,7 @@
 
 👉 [Click to run the web demo](https://www.egui.rs/#demo) 👈
 
-egui is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations) (or will soon).
+egui (pronounced "e-gooey") is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations) (or will soon).
 
 egui aims to be the easiest-to-use Rust GUI library, and the simplest way to make a web app in Rust.
 
