@@ -36,6 +36,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Panels always have a separator line, but no stroke on other sides. Their spacing has also changed slightly ([#2261](https://github.com/emilk/egui/pull/2261)).
 * Tooltips are only shown when mouse pointer is still ([#2263](https://github.com/emilk/egui/pull/2263)).
 * Make it slightly easier to click buttons ([#2304](https://github.com/emilk/egui/pull/2304)).
+* `egui::color` has been renamed `egui::ecolor` ([#2399](https://github.com/emilk/egui/pull/2399)).
 
 ### Fixed 🐛
 * ⚠️ BREAKING: Fix text being too small ([#2069](https://github.com/emilk/egui/pull/2069)).
