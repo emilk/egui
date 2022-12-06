@@ -8,6 +8,7 @@ All notable changes to the epaint crate will be documented in this file.
 * Improve mixed CJK/Latin line-breaking ([#1986](https://github.com/emilk/egui/pull/1986)).
 * Added `Fonts::has_glyph(s)` for querying if a glyph is supported ([#2202](https://github.com/emilk/egui/pull/2202)).
 * Added support for [thin space](https://en.wikipedia.org/wiki/Thin_space).
+* Split out color into its own crate, `ecolor` ([#2399](https://github.com/emilk/egui/pull/2399)).
 
 
 ## 0.19.0 - 2022-08-20

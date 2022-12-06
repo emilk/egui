@@ -116,6 +116,7 @@ allow = [
   # TODO(emilk): enable more lints
   "clippy::type_complexity",
   "clippy::undocumented_unsafe_blocks",
+  "clippy::manual_range_contains",
   "trivial_casts",
   "unsafe_op_in_unsafe_fn",             # `unsafe_op_in_unsafe_fn` may become the default in future Rust versions: https://github.com/rust-lang/rust/issues/71668
   "unused_qualifications",

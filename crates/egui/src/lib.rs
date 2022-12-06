@@ -328,17 +328,19 @@ pub mod widgets;
 pub use accesskit;
 
 pub use epaint;
+pub use epaint::ecolor;
 pub use epaint::emath;
 
-pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2};
 #[cfg(feature = "color-hex")]
-pub use epaint::hex_color;
+pub use ecolor::hex_color;
+pub use ecolor::{Color32, Rgba};
+pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2};
 pub use epaint::{
-    color, mutex,
+    mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::{TextureFilter, TextureOptions, TexturesDelta},
-    ClippedPrimitive, Color32, ColorImage, FontImage, ImageData, Mesh, PaintCallback,
-    PaintCallbackInfo, Rgba, Rounding, Shape, Stroke, TextureHandle, TextureId,
+    ClippedPrimitive, ColorImage, FontImage, ImageData, Mesh, PaintCallback, PaintCallbackInfo,
+    Rounding, Shape, Stroke, TextureHandle, TextureId,
 };
 
 pub mod text {

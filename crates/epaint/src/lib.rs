@@ -13,7 +13,6 @@
 #![allow(clippy::manual_range_contains)]
 
 mod bezier;
-pub mod color;
 pub mod image;
 mod mesh;
 pub mod mutex;
@@ -31,7 +30,6 @@ pub mod util;
 
 pub use {
     bezier::{CubicBezierShape, QuadraticBezierShape},
-    color::{Color32, Rgba},
     image::{ColorImage, FontImage, ImageData, ImageDelta},
     mesh::{Mesh, Mesh16, Vertex},
     shadow::Shadow,
@@ -48,13 +46,15 @@ pub use {
     textures::TextureManager,
 };
 
+pub use ecolor::{Color32, Hsva, HsvaGamma, Rgba};
 pub use emath::{pos2, vec2, Pos2, Rect, Vec2};
 
 pub use ahash;
+pub use ecolor;
 pub use emath;
 
 #[cfg(feature = "color-hex")]
-pub use color_hex;
+pub use ecolor::hex_color;
 
 /// The UV coordinate of a white region of the texture mesh.
 /// The default egui texture has the top-left corner pixel fully white.

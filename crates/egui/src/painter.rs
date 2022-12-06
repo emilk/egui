@@ -448,6 +448,6 @@ impl Painter {
 
 fn tint_shape_towards(shape: &mut Shape, target: Color32) {
     epaint::shape_transform::adjust_colors(shape, &|color| {
-        *color = crate::color::tint_color_towards(*color, target);
+        *color = crate::ecolor::tint_color_towards(*color, target);
     });
 }
