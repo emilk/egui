@@ -25,9 +25,7 @@ mod hsva;
 pub use hsva::*;
 
 #[cfg(feature = "color-hex")]
-mod hex_color;
-#[cfg(feature = "color-hex")]
-pub use hex_color::*;
+mod hex_color_macro;
 
 mod rgba;
 pub use rgba::*;
