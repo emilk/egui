@@ -339,7 +339,8 @@ mod glow_integration {
 
             // try egl and fallback to windows wgl. Windows is the only platform that *requires* window handle to create display.
             #[cfg(target_os = "windows")]
-            let preference = glutin::display::DisplayApiPreference::EglThenWgl(Some(window_handle));
+            let preference =
+                glutin::display::DisplayApiPreference::EglThenWgl(Some(raw_window_handle));
             // try egl and fallback to x11 glx
             #[cfg(target_os = "linux")]
             let preference = glutin::display::DisplayApiPreference::EglThenGlx(Box::new(
