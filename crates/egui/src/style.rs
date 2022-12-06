@@ -464,6 +464,11 @@ pub struct Visuals {
 
     pub window_rounding: Rounding,
     pub window_shadow: Shadow,
+    pub window_fill: Color32,
+    pub window_stroke: Stroke,
+
+    /// Panel background color
+    pub panel_fill: Color32,
 
     pub popup_shadow: Shadow,
 
@@ -495,7 +500,7 @@ impl Visuals {
     }
 
     pub fn weak_text_color(&self) -> Color32 {
-        crate::ecolor::tint_color_towards(self.text_color(), self.window_fill())
+        self.gray_out(self.text_color())
     }
 
     #[inline(always)]
@@ -506,12 +511,25 @@ impl Visuals {
     /// Window background color.
     #[inline(always)]
     pub fn window_fill(&self) -> Color32 {
-        self.widgets.noninteractive.bg_fill
+        self.window_fill
     }
 
     #[inline(always)]
     pub fn window_stroke(&self) -> Stroke {
-        self.widgets.noninteractive.bg_stroke
+        self.window_stroke
+    }
+
+    /// When fading out things, we fade the colors towards this.
+    // TODO(emilk): replace with an alpha
+    #[inline(always)]
+    pub fn fade_out_to_color(&self) -> Color32 {
+        self.widgets.noninteractive.bg_fill
+    }
+
+    /// Returned a "grayed out" version of the given color.
+    #[inline(always)]
+    pub fn gray_out(&self, color: Color32) -> Color32 {
+        crate::ecolor::tint_color_towards(color, self.fade_out_to_color())
     }
 }
 
@@ -694,8 +712,14 @@ impl Visuals {
             code_bg_color: Color32::from_gray(64),
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
+
             window_rounding: Rounding::same(6.0),
             window_shadow: Shadow::big_dark(),
+            window_fill: Color32::from_gray(27),
+            window_stroke: Stroke::new(1.0, Color32::from_gray(60)),
+
+            panel_fill: Color32::from_gray(27),
+
             popup_shadow: Shadow::small_dark(),
             resize_corner_size: 12.0,
             text_cursor_width: 2.0,
@@ -718,7 +742,13 @@ impl Visuals {
             code_bg_color: Color32::from_gray(230),
             warn_fg_color: Color32::from_rgb(255, 100, 0), // slightly orange red. it's difficult to find a warning color that pops on bright background.
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
+
             window_shadow: Shadow::big_light(),
+            window_fill: Color32::from_gray(248),
+            window_stroke: Stroke::new(1.0, Color32::from_gray(190)),
+
+            panel_fill: Color32::from_gray(248),
+
             popup_shadow: Shadow::small_light(),
             ..Self::dark()
         }
@@ -757,8 +787,8 @@ impl Widgets {
     pub fn dark() -> Self {
         Self {
             noninteractive: WidgetVisuals {
-                bg_fill: Color32::from_gray(27), // window background
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // separators, indentation lines, windows outlines
+                bg_fill: Color32::from_gray(27),
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // separators, indentation lines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
@@ -797,8 +827,8 @@ impl Widgets {
     pub fn light() -> Self {
         Self {
             noninteractive: WidgetVisuals {
-                bg_fill: Color32::from_gray(248), // window background - should be distinct from TextEdit background
-                bg_stroke: Stroke::new(1.0, Color32::from_gray(190)), // separators, indentation lines, windows outlines
+                bg_fill: Color32::from_gray(248),
+                bg_stroke: Stroke::new(1.0, Color32::from_gray(190)), // separators, indentation lines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(80)),  // normal text color
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
@@ -1210,9 +1240,16 @@ impl Visuals {
             code_bg_color,
             warn_fg_color,
             error_fg_color,
+
             window_rounding,
             window_shadow,
+            window_fill,
+            window_stroke,
+
+            panel_fill,
+
             popup_shadow,
+
             resize_corner_size,
             text_cursor_width,
             text_cursor_preview,
@@ -1223,7 +1260,8 @@ impl Visuals {
 
         ui.collapsing("Background Colors", |ui| {
             ui_color(ui, &mut widgets.inactive.bg_fill, "Buttons");
-            ui_color(ui, &mut widgets.noninteractive.bg_fill, "Windows");
+            ui_color(ui, window_fill, "Windows");
+            ui_color(ui, panel_fill, "Panels");
             ui_color(ui, faint_bg_color, "Faint accent").on_hover_text(
                 "Used for faint accentuation of interactive things, like striped grids.",
             );
@@ -1233,8 +1271,8 @@ impl Visuals {
 
         ui.collapsing("Window", |ui| {
             // Common shortcuts
-            ui_color(ui, &mut widgets.noninteractive.bg_fill, "Fill");
-            stroke_ui(ui, &mut widgets.noninteractive.bg_stroke, "Outline");
+            ui_color(ui, window_fill, "Fill");
+            stroke_ui(ui, window_stroke, "Outline");
 
             rounding_ui(ui, window_rounding);
 

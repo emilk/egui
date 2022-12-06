@@ -176,7 +176,7 @@ impl eframe::App for WrapApp {
     }
 
     fn clear_color(&self, visuals: &egui::Visuals) -> egui::Rgba {
-        visuals.window_fill().into()
+        visuals.panel_fill.into()
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
