@@ -4,7 +4,7 @@ use eframe::{
     egui::{self, ColorImage},
     glow::{self, HasContext},
 };
-use itertools::Itertools;
+use itertools::Itertools as _;
 
 fn main() {
     let options = eframe::NativeOptions::default();
@@ -30,7 +30,7 @@ impl eframe::App for MyApp {
                 self.texture = Some(ui.ctx().load_texture(
                     "screenshot",
                     screenshot,
-                    egui::TextureFilter::Linear,
+                    Default::default(),
                 ));
             }
 
@@ -74,23 +74,25 @@ impl eframe::App for MyApp {
 
         self.take_screenshot = false;
         if let Some(gl) = frame.gl() {
-            let mut buf = vec![0u8; screen_size_px[0] as usize * screen_size_px[1] as usize * 4];
+            let [w, h] = screen_size_px;
+            let mut buf = vec![0u8; w as usize * h as usize * 4];
             let pixels = glow::PixelPackData::Slice(&mut buf[..]);
             unsafe {
                 gl.read_pixels(
                     0,
                     0,
-                    screen_size_px[0] as i32,
-                    screen_size_px[1] as i32,
+                    w as i32,
+                    h as i32,
                     glow::RGBA,
                     glow::UNSIGNED_BYTE,
                     pixels,
                 );
             }
 
+            // Flip vertically:
             let mut rows: Vec<Vec<u8>> = buf
                 .into_iter()
-                .chunks(screen_size_px[0] as usize * 4)
+                .chunks(w as usize * 4)
                 .into_iter()
                 .map(|chunk| chunk.collect())
                 .collect();

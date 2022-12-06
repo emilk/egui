@@ -68,7 +68,7 @@ impl WindowSettings {
                 })
                 .with_fullscreen(
                     self.fullscreen
-                        .then(|| winit::window::Fullscreen::Borderless(None)),
+                        .then_some(winit::window::Fullscreen::Borderless(None)),
                 )
         } else {
             window

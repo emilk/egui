@@ -1,7 +1,7 @@
 use epaint::text::cursor::*;
 
 /// A selected text range (could be a range of length zero).
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct CursorRange {
     /// When selecting with a mouse, this is where the mouse was released.

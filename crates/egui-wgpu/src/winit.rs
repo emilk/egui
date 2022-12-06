@@ -4,17 +4,7 @@ use egui::mutex::RwLock;
 use tracing::error;
 use wgpu::{Adapter, Instance, Surface};
 
-use crate::renderer;
-
-/// Access to the render state for egui, which can be useful in combination with
-/// [`egui::PaintCallback`]s for custom rendering using WGPU.
-#[derive(Clone)]
-pub struct RenderState {
-    pub device: Arc<wgpu::Device>,
-    pub queue: Arc<wgpu::Queue>,
-    pub target_format: wgpu::TextureFormat,
-    pub egui_rpass: Arc<RwLock<renderer::RenderPass>>,
-}
+use crate::{renderer, RenderState, Renderer, SurfaceErrorAction, WgpuConfiguration};
 
 struct SurfaceState {
     surface: Surface,
@@ -25,11 +15,11 @@ struct SurfaceState {
 /// Everything you need to paint egui with [`wgpu`] on [`winit`].
 ///
 /// Alternatively you can use [`crate::renderer`] directly.
-pub struct Painter<'a> {
-    power_preference: wgpu::PowerPreference,
-    device_descriptor: wgpu::DeviceDescriptor<'a>,
-    present_mode: wgpu::PresentMode,
+pub struct Painter {
+    configuration: WgpuConfiguration,
     msaa_samples: u32,
+    depth_format: Option<wgpu::TextureFormat>,
+    depth_texture_view: Option<wgpu::TextureView>,
 
     instance: Instance,
     adapter: Option<Adapter>,
@@ -37,7 +27,7 @@ pub struct Painter<'a> {
     surface_state: Option<SurfaceState>,
 }
 
-impl<'a> Painter<'a> {
+impl Painter {
     /// Manages [`wgpu`] state, including surface state, required to render egui.
     ///
     /// Only the [`wgpu::Instance`] is initialized here. Device selection and the initialization
@@ -50,20 +40,14 @@ impl<'a> Painter<'a> {
     /// [`set_window()`](Self::set_window) once you have
     /// a [`winit::window::Window`] with a valid `.raw_window_handle()`
     /// associated.
-    pub fn new(
-        backends: wgpu::Backends,
-        power_preference: wgpu::PowerPreference,
-        device_descriptor: wgpu::DeviceDescriptor<'a>,
-        present_mode: wgpu::PresentMode,
-        msaa_samples: u32,
-    ) -> Self {
-        let instance = wgpu::Instance::new(backends);
+    pub fn new(configuration: WgpuConfiguration, msaa_samples: u32, depth_bits: u8) -> Self {
+        let instance = wgpu::Instance::new(configuration.backends);
 
         Self {
-            power_preference,
-            device_descriptor,
-            present_mode,
+            configuration,
             msaa_samples,
+            depth_format: (depth_bits > 0).then_some(wgpu::TextureFormat::Depth32Float),
+            depth_texture_view: None,
 
             instance,
             adapter: None,
@@ -85,15 +69,16 @@ impl<'a> Painter<'a> {
         target_format: wgpu::TextureFormat,
     ) -> RenderState {
         let (device, queue) =
-            pollster::block_on(adapter.request_device(&self.device_descriptor, None)).unwrap();
+            pollster::block_on(adapter.request_device(&self.configuration.device_descriptor, None))
+                .unwrap();
 
-        let rpass = renderer::RenderPass::new(&device, target_format, self.msaa_samples);
+        let renderer = Renderer::new(&device, target_format, self.depth_format, self.msaa_samples);
 
         RenderState {
             device: Arc::new(device),
             queue: Arc::new(queue),
             target_format,
-            egui_rpass: Arc::new(RwLock::new(rpass)),
+            renderer: Arc::new(RwLock::new(renderer)),
         }
     }
 
@@ -105,7 +90,7 @@ impl<'a> Painter<'a> {
     fn ensure_render_state_for_surface(&mut self, surface: &Surface) {
         self.adapter.get_or_insert_with(|| {
             pollster::block_on(self.instance.request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: self.power_preference,
+                power_preference: self.configuration.power_preference,
                 compatible_surface: Some(surface),
                 force_fallback_adapter: false,
             }))
@@ -114,7 +99,9 @@ impl<'a> Painter<'a> {
 
         if self.render_state.is_none() {
             let adapter = self.adapter.as_ref().unwrap();
-            let swapchain_format = surface.get_supported_formats(adapter)[0];
+
+            let swapchain_format =
+                crate::preferred_framebuffer_format(&surface.get_supported_formats(adapter));
 
             let rs = pollster::block_on(self.init_render_state(adapter, swapchain_format));
             self.render_state = Some(rs);
@@ -122,6 +109,8 @@ impl<'a> Painter<'a> {
     }
 
     fn configure_surface(&mut self, width_in_pixels: u32, height_in_pixels: u32) {
+        crate::profile_function!();
+
         let render_state = self
             .render_state
             .as_ref()
@@ -133,7 +122,8 @@ impl<'a> Painter<'a> {
             format,
             width: width_in_pixels,
             height: height_in_pixels,
-            present_mode: self.present_mode,
+            present_mode: self.configuration.present_mode,
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
         };
 
         let surface_state = self
@@ -186,7 +176,7 @@ impl<'a> Painter<'a> {
                     width,
                     height,
                 });
-                self.configure_surface(width, height);
+                self.resize_and_generate_depth_texture_view(width, height);
             }
             None => {
                 self.surface_state = None;
@@ -205,9 +195,36 @@ impl<'a> Painter<'a> {
             .map(|rs| rs.device.limits().max_texture_dimension_2d as usize)
     }
 
+    pub fn resize_and_generate_depth_texture_view(
+        &mut self,
+        width_in_pixels: u32,
+        height_in_pixels: u32,
+    ) {
+        self.configure_surface(width_in_pixels, height_in_pixels);
+        let device = &self.render_state.as_ref().unwrap().device;
+        self.depth_texture_view = self.depth_format.map(|depth_format| {
+            device
+                .create_texture(&wgpu::TextureDescriptor {
+                    label: Some("egui_depth_texture"),
+                    size: wgpu::Extent3d {
+                        width: width_in_pixels,
+                        height: height_in_pixels,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: depth_format,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                        | wgpu::TextureUsages::TEXTURE_BINDING,
+                })
+                .create_view(&wgpu::TextureViewDescriptor::default())
+        });
+    }
+
     pub fn on_window_resized(&mut self, width_in_pixels: u32, height_in_pixels: u32) {
         if self.surface_state.is_some() {
-            self.configure_surface(width_in_pixels, height_in_pixels);
+            self.resize_and_generate_depth_texture_view(width_in_pixels, height_in_pixels);
         } else {
             error!("Ignoring window resize notification with no surface created via Painter::set_window()");
         }
@@ -220,6 +237,8 @@ impl<'a> Painter<'a> {
         clipped_primitives: &[egui::ClippedPrimitive],
         textures_delta: &egui::TexturesDelta,
     ) {
+        crate::profile_function!();
+
         let render_state = match self.render_state.as_mut() {
             Some(rs) => rs,
             None => return,
@@ -228,23 +247,27 @@ impl<'a> Painter<'a> {
             Some(rs) => rs,
             None => return,
         };
+        let (width, height) = (surface_state.width, surface_state.height);
 
-        let output_frame = match surface_state.surface.get_current_texture() {
-            Ok(frame) => frame,
-            Err(wgpu::SurfaceError::Outdated) => {
-                // This error occurs when the app is minimized on Windows.
-                // Silently return here to prevent spamming the console with:
-                // "The underlying surface has changed, and therefore the swap chain must be updated"
-                return;
-            }
-            Err(e) => {
-                tracing::warn!("Dropped frame with error: {e}");
-                return;
-            }
+        let output_frame = {
+            crate::profile_scope!("get_current_texture");
+            // This is what vsync-waiting happens, at least on Mac.
+            surface_state.surface.get_current_texture()
         };
-        let output_view = output_frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
+
+        let output_frame = match output_frame {
+            Ok(frame) => frame,
+            #[allow(clippy::single_match_else)]
+            Err(e) => match (*self.configuration.on_surface_error)(e) {
+                SurfaceErrorAction::RecreateSurface => {
+                    self.configure_surface(width, height);
+                    return;
+                }
+                SurfaceErrorAction::SkipFrame => {
+                    return;
+                }
+            },
+        };
 
         let mut encoder =
             render_state
@@ -255,50 +278,90 @@ impl<'a> Painter<'a> {
 
         // Upload all resources for the GPU.
         let screen_descriptor = renderer::ScreenDescriptor {
-            size_in_pixels: [surface_state.width, surface_state.height],
+            size_in_pixels: [width, height],
             pixels_per_point,
         };
 
-        {
-            let mut rpass = render_state.egui_rpass.write();
+        let user_cmd_bufs = {
+            let mut renderer = render_state.renderer.write();
             for (id, image_delta) in &textures_delta.set {
-                rpass.update_texture(&render_state.device, &render_state.queue, *id, image_delta);
+                renderer.update_texture(
+                    &render_state.device,
+                    &render_state.queue,
+                    *id,
+                    image_delta,
+                );
             }
 
-            rpass.update_buffers(
+            renderer.update_buffers(
                 &render_state.device,
                 &render_state.queue,
+                &mut encoder,
                 clipped_primitives,
                 &screen_descriptor,
-            );
-        }
-
-        // Record all render passes.
-        render_state.egui_rpass.read().execute(
-            &mut encoder,
-            &output_view,
-            clipped_primitives,
-            &screen_descriptor,
-            Some(wgpu::Color {
-                r: clear_color.r() as f64,
-                g: clear_color.g() as f64,
-                b: clear_color.b() as f64,
-                a: clear_color.a() as f64,
-            }),
-        );
+            )
+        };
 
         {
-            let mut rpass = render_state.egui_rpass.write();
+            let renderer = render_state.renderer.read();
+            let frame_view = output_frame
+                .texture
+                .create_view(&wgpu::TextureViewDescriptor::default());
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &frame_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: clear_color.r() as f64,
+                            g: clear_color.g() as f64,
+                            b: clear_color.b() as f64,
+                            a: clear_color.a() as f64,
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: self.depth_texture_view.as_ref().map(|view| {
+                    wgpu::RenderPassDepthStencilAttachment {
+                        view,
+                        depth_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(1.0),
+                            store: true,
+                        }),
+                        stencil_ops: None,
+                    }
+                }),
+                label: Some("egui_render"),
+            });
+
+            renderer.render(&mut render_pass, clipped_primitives, &screen_descriptor);
+        }
+
+        {
+            let mut renderer = render_state.renderer.write();
             for id in &textures_delta.free {
-                rpass.free_texture(id);
+                renderer.free_texture(id);
             }
         }
 
-        // Submit the commands.
-        render_state.queue.submit(std::iter::once(encoder.finish()));
+        let encoded = {
+            crate::profile_scope!("CommandEncoder::finish");
+            encoder.finish()
+        };
+
+        // Submit the commands: both the main buffer and user-defined ones.
+        {
+            crate::profile_scope!("Queue::submit");
+            render_state
+                .queue
+                .submit(user_cmd_bufs.into_iter().chain(std::iter::once(encoded)));
+        };
 
         // Redraw egui
-        output_frame.present();
+        {
+            crate::profile_scope!("present");
+            output_frame.present();
+        }
     }
 
     #[allow(clippy::unused_self)]

@@ -21,11 +21,12 @@ pub enum TextStyle {
     /// Normal labels. Easily readable, doesn't take up too much space.
     Body,
 
-    /// Same size as [`Self::Body`], but used when monospace is important (for aligning number, code snippets, etc).
+    /// Same size as [`Self::Body`], but used when monospace is important (for code snippets, aligning numbers, etc).
     Monospace,
 
     /// Buttons. Maybe slightly bigger than [`Self::Body`].
-    /// Signifies that he item is interactive.
+    ///
+    /// Signifies that he item can be interacted with.
     Button,
 
     /// Heading. Probably larger than [`Self::Body`].
@@ -252,6 +253,9 @@ pub struct Spacing {
     /// Button size is text size plus this on each side
     pub button_padding: Vec2,
 
+    /// Horizontal and vertical margins within a menu frame.
+    pub menu_margin: Margin,
+
     /// Indent collapsing regions etc by this much.
     pub indent: f32,
 
@@ -288,6 +292,11 @@ pub struct Spacing {
     pub combo_height: f32,
 
     pub scroll_bar_width: f32,
+
+    /// Margin between contents and scroll bar.
+    pub scroll_bar_inner_margin: f32,
+    /// Margin between scroll bar and the outer container (e.g. right of a vertical scroll bar).
+    pub scroll_bar_outer_margin: f32,
 }
 
 impl Spacing {
@@ -583,41 +592,41 @@ impl WidgetVisuals {
 }
 
 /// Options for help debug egui by adding extra visualization
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DebugOptions {
     /// However over widgets to see their rectangles
     pub debug_on_hover: bool,
+
     /// Show which widgets make their parent wider
     pub show_expand_width: bool,
+
     /// Show which widgets make their parent higher
     pub show_expand_height: bool,
+
     pub show_resize: bool,
+
+    /// Show an overlay on all interactive widgets.
+    pub show_interactive_widgets: bool,
+
+    /// Show what widget blocks the interaction of another widget.
+    pub show_blocking_widget: bool,
 }
 
 // ----------------------------------------------------------------------------
 
 /// The default text styles of the default egui theme.
 pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
-    let mut text_styles = BTreeMap::new();
-    text_styles.insert(
-        TextStyle::Small,
-        FontId::new(10.0, FontFamily::Proportional),
-    );
-    text_styles.insert(TextStyle::Body, FontId::new(14.0, FontFamily::Proportional));
-    text_styles.insert(
-        TextStyle::Button,
-        FontId::new(14.0, FontFamily::Proportional),
-    );
-    text_styles.insert(
-        TextStyle::Heading,
-        FontId::new(20.0, FontFamily::Proportional),
-    );
-    text_styles.insert(
-        TextStyle::Monospace,
-        FontId::new(14.0, FontFamily::Monospace),
-    );
-    text_styles
+    use FontFamily::{Monospace, Proportional};
+
+    [
+        (TextStyle::Small, FontId::new(9.0, Proportional)),
+        (TextStyle::Body, FontId::new(12.5, Proportional)),
+        (TextStyle::Button, FontId::new(12.5, Proportional)),
+        (TextStyle::Heading, FontId::new(18.0, Proportional)),
+        (TextStyle::Monospace, FontId::new(12.0, Monospace)),
+    ]
+    .into()
 }
 
 impl Default for Style {
@@ -642,6 +651,7 @@ impl Default for Spacing {
         Self {
             item_spacing: vec2(8.0, 3.0),
             window_margin: Margin::same(6.0),
+            menu_margin: Margin::same(1.0),
             button_padding: vec2(4.0, 1.0),
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
             interact_size: vec2(40.0, 18.0),
@@ -653,6 +663,8 @@ impl Default for Spacing {
             tooltip_width: 600.0,
             combo_height: 200.0,
             scroll_bar_width: 8.0,
+            scroll_bar_inner_margin: 4.0,
+            scroll_bar_outer_margin: 0.0,
             indent_ends_with_horizontal_line: false,
         }
     }
@@ -663,7 +675,7 @@ impl Default for Interaction {
         Self {
             resize_grab_radius_side: 5.0,
             resize_grab_radius_corner: 10.0,
-            show_tooltips_only_when_still: false,
+            show_tooltips_only_when_still: true,
         }
     }
 }
@@ -704,8 +716,8 @@ impl Visuals {
             faint_bg_color: Color32::from_gray(242),
             extreme_bg_color: Color32::from_gray(255), // e.g. TextEdit background
             code_bg_color: Color32::from_gray(230),
-            warn_fg_color: Color32::from_rgb(255, 0, 0), // red also, beecause orange doesn't look great because of https://github.com/emilk/egui/issues/1455
-            error_fg_color: Color32::from_rgb(255, 0, 0), // red
+            warn_fg_color: Color32::from_rgb(255, 100, 0), // slightly orange red. it's difficult to find a warning color that pops on bright background.
+            error_fg_color: Color32::from_rgb(255, 0, 0),  // red
             window_shadow: Shadow::big_light(),
             popup_shadow: Shadow::small_light(),
             ..Self::dark()
@@ -923,6 +935,7 @@ impl Spacing {
         let Self {
             item_spacing,
             window_margin,
+            menu_margin,
             button_padding,
             indent,
             interact_size,
@@ -935,6 +948,8 @@ impl Spacing {
             indent_ends_with_horizontal_line,
             combo_height,
             scroll_bar_width,
+            scroll_bar_inner_margin,
+            scroll_bar_outer_margin,
         } = self;
 
         ui.add(slider_vec2(item_spacing, 0.0..=20.0, "Item spacing"));
@@ -963,10 +978,39 @@ impl Spacing {
             );
             ui.add(
                 DragValue::new(&mut window_margin.bottom)
-                    .clamp_range(margin_range)
+                    .clamp_range(margin_range.clone())
                     .prefix("bottom: "),
             );
             ui.label("Window margins y");
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(
+                DragValue::new(&mut menu_margin.left)
+                    .clamp_range(margin_range.clone())
+                    .prefix("left: "),
+            );
+            ui.add(
+                DragValue::new(&mut menu_margin.right)
+                    .clamp_range(margin_range.clone())
+                    .prefix("right: "),
+            );
+
+            ui.label("Menu margins x");
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(
+                DragValue::new(&mut menu_margin.top)
+                    .clamp_range(margin_range.clone())
+                    .prefix("top: "),
+            );
+            ui.add(
+                DragValue::new(&mut menu_margin.bottom)
+                    .clamp_range(margin_range)
+                    .prefix("bottom: "),
+            );
+            ui.label("Menu margins y");
         });
 
         ui.add(slider_vec2(button_padding, 0.0..=20.0, "Button padding"));
@@ -986,7 +1030,15 @@ impl Spacing {
         });
         ui.horizontal(|ui| {
             ui.add(DragValue::new(scroll_bar_width).clamp_range(0.0..=32.0));
-            ui.label("Scroll-bar width width");
+            ui.label("Scroll-bar width");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(scroll_bar_inner_margin).clamp_range(0.0..=32.0));
+            ui.label("Scroll-bar inner margin");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(scroll_bar_outer_margin).clamp_range(0.0..=32.0));
+            ui.label("Scroll-bar outer margin");
         });
 
         ui.horizontal(|ui| {
@@ -1229,21 +1281,33 @@ impl DebugOptions {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             debug_on_hover,
-            show_expand_width: debug_expand_width,
-            show_expand_height: debug_expand_height,
-            show_resize: debug_resize,
+            show_expand_width,
+            show_expand_height,
+            show_resize,
+            show_interactive_widgets,
+            show_blocking_widget,
         } = self;
 
         ui.checkbox(debug_on_hover, "Show debug info on hover");
         ui.checkbox(
-            debug_expand_width,
+            show_expand_width,
             "Show which widgets make their parent wider",
         );
         ui.checkbox(
-            debug_expand_height,
+            show_expand_height,
             "Show which widgets make their parent higher",
         );
-        ui.checkbox(debug_resize, "Debug Resize");
+        ui.checkbox(show_resize, "Debug Resize");
+
+        ui.checkbox(
+            show_interactive_widgets,
+            "Show an overlay on all interactive widgets",
+        );
+
+        ui.checkbox(
+            show_blocking_widget,
+            "Show wha widget blocks the interaction of another widget",
+        );
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }

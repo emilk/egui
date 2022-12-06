@@ -1,4 +1,4 @@
-use crate::{textures::TextureFilter, Color32};
+use crate::{textures::TextureOptions, Color32};
 
 /// An image stored in RAM.
 ///
@@ -43,7 +43,7 @@ impl ImageData {
 // ----------------------------------------------------------------------------
 
 /// A 2D RGBA color image in RAM.
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ColorImage {
     /// width, height.
@@ -97,6 +97,21 @@ impl ColorImage {
         let pixels = rgba
             .chunks_exact(4)
             .map(|p| Color32::from_rgba_unmultiplied(p[0], p[1], p[2], p[3]))
+            .collect();
+        Self { size, pixels }
+    }
+
+    /// Create a [`ColorImage`] from flat RGB data.
+    ///
+    /// This is what you want to use after having loaded an image file (and if
+    /// you are ignoring the alpha channel - considering it to always be 0xff)
+    ///
+    /// Panics if `size[0] * size[1] * 3 != rgb.len()`.
+    pub fn from_rgb(size: [usize; 2], rgb: &[u8]) -> Self {
+        assert_eq!(size[0] * size[1] * 3, rgb.len());
+        let pixels = rgb
+            .chunks_exact(3)
+            .map(|p| Color32::from_rgb(p[0], p[1], p[2]))
             .collect();
         Self { size, pixels }
     }
@@ -195,17 +210,19 @@ impl FontImage {
 
     /// Returns the textures as `sRGBA` premultiplied pixels, row by row, top to bottom.
     ///
-    /// `gamma` should normally be set to 1.0.
-    /// If you are having problems with text looking skinny and pixelated, try
-    /// setting a lower gamma, e.g. `0.5`.
-    pub fn srgba_pixels(&'_ self, gamma: f32) -> impl ExactSizeIterator<Item = Color32> + '_ {
+    /// `gamma` should normally be set to `None`.
+    ///
+    /// If you are having problems with text looking skinny and pixelated, try using a low gamma, e.g. `0.4`.
+    pub fn srgba_pixels(
+        &'_ self,
+        gamma: Option<f32>,
+    ) -> impl ExactSizeIterator<Item = Color32> + '_ {
+        let gamma = gamma.unwrap_or(0.55); // TODO(emilk): this default coverage gamma is a magic constant, chosen by eye. I don't even know why we need it.
         self.pixels.iter().map(move |coverage| {
-            // This is arbitrarily chosen to make text look as good as possible.
-            // In particular, it looks good with gamma=1 and the default eframe backend,
-            // which uses linear blending.
-            // See https://github.com/emilk/egui/issues/1410
-            let a = fast_round(coverage.powf(gamma / 2.2) * 255.0);
-            Color32::from_rgba_premultiplied(a, a, a, a) // this makes no sense, but works
+            let alpha = coverage.powf(gamma);
+            // We want to multiply with `vec4(alpha)` in the fragment shader:
+            let a = fast_round(alpha * 255.0);
+            Color32::from_rgba_premultiplied(a, a, a, a)
         })
     }
 
@@ -274,7 +291,7 @@ pub struct ImageDelta {
     /// If [`Self::pos`] is `Some`, this describes a patch of the whole image starting at [`Self::pos`].
     pub image: ImageData,
 
-    pub filter: TextureFilter,
+    pub options: TextureOptions,
 
     /// If `None`, set the whole texture to [`Self::image`].
     ///
@@ -284,19 +301,19 @@ pub struct ImageDelta {
 
 impl ImageDelta {
     /// Update the whole texture.
-    pub fn full(image: impl Into<ImageData>, filter: TextureFilter) -> Self {
+    pub fn full(image: impl Into<ImageData>, options: TextureOptions) -> Self {
         Self {
             image: image.into(),
-            filter,
+            options,
             pos: None,
         }
     }
 
     /// Update a sub-region of an existing texture.
-    pub fn partial(pos: [usize; 2], image: impl Into<ImageData>, filter: TextureFilter) -> Self {
+    pub fn partial(pos: [usize; 2], image: impl Into<ImageData>, options: TextureOptions) -> Self {
         Self {
             image: image.into(),
-            filter,
+            options,
             pos: Some(pos),
         }
     }

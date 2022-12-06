@@ -2,7 +2,7 @@
 
 precision mediump float;
 uniform sampler2D u_sampler;
-varying vec4 v_rgba;
+varying vec4 v_rgba_gamma; // 0-1 gamma sRGBA
 varying vec2 v_tc;
 
 // 0-255 sRGB  from  0-1 linear
@@ -30,16 +30,9 @@ vec4 linear_from_srgba(vec4 srgba) {
 }
 
 void main() {
-    // We must decode the colors, since WebGL doesn't come with sRGBA textures:
-    vec4 texture_rgba = linear_from_srgba(texture2D(u_sampler, v_tc) * 255.0);
+    // WebGL doesn't come with sRGBA textures:
+    vec4 texture_in_gamma = texture2D(u_sampler, v_tc);
 
-    /// Multiply vertex color with texture color (in linear space).
-    gl_FragColor = v_rgba * texture_rgba;
-
-    // We must gamma-encode again since WebGL doesn't support linear blending in the framebuffer.
-    gl_FragColor = srgba_from_linear(v_rgba * texture_rgba) / 255.0;
-
-    // WebGL doesn't support linear blending in the framebuffer,
-    // so we apply this hack to at least get a bit closer to the desired blending:
-    gl_FragColor.a = pow(gl_FragColor.a, 1.6); // Empiric nonsense
+    // Multiply vertex color with texture color (in gamma space).
+    gl_FragColor = v_rgba_gamma * texture_in_gamma;
 }

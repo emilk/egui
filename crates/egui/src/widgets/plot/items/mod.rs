@@ -176,7 +176,7 @@ impl HLine {
 }
 
 impl PlotItem for HLine {
-    fn shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let HLine {
             y,
             stroke,
@@ -184,9 +184,15 @@ impl PlotItem for HLine {
             style,
             ..
         } = self;
+
+        // Round to minimize aliasing:
         let points = vec![
-            transform.position_from_point(&PlotPoint::new(transform.bounds().min[0], *y)),
-            transform.position_from_point(&PlotPoint::new(transform.bounds().max[0], *y)),
+            ui.ctx().round_pos_to_pixels(
+                transform.position_from_point(&PlotPoint::new(transform.bounds().min[0], *y)),
+            ),
+            ui.ctx().round_pos_to_pixels(
+                transform.position_from_point(&PlotPoint::new(transform.bounds().max[0], *y)),
+            ),
         ];
         style.style_line(points, *stroke, *highlight, shapes);
     }
@@ -286,7 +292,7 @@ impl VLine {
 }
 
 impl PlotItem for VLine {
-    fn shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let VLine {
             x,
             stroke,
@@ -294,9 +300,15 @@ impl PlotItem for VLine {
             style,
             ..
         } = self;
+
+        // Round to minimize aliasing:
         let points = vec![
-            transform.position_from_point(&PlotPoint::new(*x, transform.bounds().min[1])),
-            transform.position_from_point(&PlotPoint::new(*x, transform.bounds().max[1])),
+            ui.ctx().round_pos_to_pixels(
+                transform.position_from_point(&PlotPoint::new(*x, transform.bounds().min[1])),
+            ),
+            ui.ctx().round_pos_to_pixels(
+                transform.position_from_point(&PlotPoint::new(*x, transform.bounds().max[1])),
+            ),
         ];
         style.style_line(points, *stroke, *highlight, shapes);
     }
@@ -406,7 +418,7 @@ impl Line {
 /// a horizontal line at the given y-coordinate.
 fn y_intersection(p1: &Pos2, p2: &Pos2, y: f32) -> Option<f32> {
     ((p1.y > y && p2.y < y) || (p1.y < y && p2.y > y))
-        .then(|| ((y * (p1.x - p2.x)) - (p1.x * p2.y - p1.y * p2.x)) / (p1.y - p2.y))
+        .then_some(((y * (p1.x - p2.x)) - (p1.x * p2.y - p1.y * p2.x)) / (p1.y - p2.y))
 }
 
 impl PlotItem for Line {
@@ -447,7 +459,7 @@ impl PlotItem for Line {
             let expected_intersections = 20;
             mesh.reserve_triangles((n_values - 1) * 2);
             mesh.reserve_vertices(n_values * 2 + expected_intersections);
-            values_tf[0..n_values - 1].windows(2).for_each(|w| {
+            values_tf.windows(2).for_each(|w| {
                 let i = mesh.vertices.len() as u32;
                 mesh.colored_vertex(w[0], fill_color);
                 mesh.colored_vertex(pos2(w[0].x, y), fill_color);
@@ -593,7 +605,7 @@ impl PlotItem for Polygon {
 
         let fill = Rgba::from(stroke.color).to_opaque().multiply(fill_alpha);
 
-        let shape = Shape::convex_polygon(values_tf.clone(), fill, Stroke::none());
+        let shape = Shape::convex_polygon(values_tf.clone(), fill, Stroke::NONE);
         shapes.push(shape);
         values_tf.push(*values_tf.first().unwrap());
         style.style_line(values_tf, *stroke, *highlight, shapes);
@@ -843,10 +855,11 @@ impl PlotItem for Points {
 
         let default_stroke = Stroke::new(stroke_size, *color);
         let mut stem_stroke = default_stroke;
-        let stroke = (!filled)
-            .then(|| default_stroke)
-            .unwrap_or_else(Stroke::none);
-        let fill = filled.then(|| *color).unwrap_or_default();
+        let (fill, stroke) = if *filled {
+            (*color, Stroke::NONE)
+        } else {
+            (Color32::TRANSPARENT, default_stroke)
+        };
 
         if *highlight {
             radius *= 2f32.sqrt();
@@ -1644,7 +1657,7 @@ fn add_rulers_and_text(
 
     let corner_value = elem.corner_value();
     shapes.push(Shape::text(
-        &*plot.ui.fonts(),
+        &plot.ui.fonts(),
         plot.transform.position_from_point(&corner_value) + vec2(3.0, -2.0),
         Align2::LEFT_BOTTOM,
         text,
@@ -1701,7 +1714,7 @@ pub(super) fn rulers_at_value(
     let font_id = TextStyle::Body.resolve(plot.ui.style());
 
     shapes.push(Shape::text(
-        &*plot.ui.fonts(),
+        &plot.ui.fonts(),
         pointer + vec2(3.0, -2.0),
         Align2::LEFT_BOTTOM,
         text,

@@ -1,4 +1,4 @@
-use egui::{Context, ScrollArea, Ui};
+use egui::{Context, Modifiers, ScrollArea, Ui};
 use std::collections::BTreeSet;
 
 use super::About;
@@ -194,7 +194,7 @@ impl DemoWindows {
                     ui.add_space(12.0);
                     ui.vertical_centered_justified(|ui| {
                         if ui
-                            .button(egui::RichText::new("Continue to the demo!").size(24.0))
+                            .button(egui::RichText::new("Continue to the demo!").size(20.0))
                             .clicked()
                         {
                             close = true;
@@ -211,7 +211,7 @@ impl DemoWindows {
     fn mobile_top_bar(&mut self, ctx: &Context) {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
-                let font_size = 20.0;
+                let font_size = 16.5;
 
                 ui.menu_button(egui::RichText::new("⏷ demos").size(font_size), |ui| {
                     ui.set_style(ui.ctx().style()); // ignore the "menu" style set by `menu_button`.
@@ -239,7 +239,7 @@ impl DemoWindows {
     fn desktop_ui(&mut self, ctx: &Context) {
         egui::SidePanel::right("egui_demo_panel")
             .resizable(false)
-            .default_width(145.0)
+            .default_width(150.0)
             .show(ctx, |ui| {
                 egui::trace!(ui);
                 ui.vertical_centered(|ui| {
@@ -301,13 +301,49 @@ impl DemoWindows {
 // ----------------------------------------------------------------------------
 
 fn file_menu_button(ui: &mut Ui) {
+    let organize_shortcut =
+        egui::KeyboardShortcut::new(Modifiers::CTRL | Modifiers::SHIFT, egui::Key::O);
+    let reset_shortcut =
+        egui::KeyboardShortcut::new(Modifiers::CTRL | Modifiers::SHIFT, egui::Key::R);
+
+    // NOTE: we must check the shortcuts OUTSIDE of the actual "File" menu,
+    // or else they would only be checked if the "File" menu was actually open!
+
+    if ui.input_mut().consume_shortcut(&organize_shortcut) {
+        ui.ctx().memory().reset_areas();
+    }
+
+    if ui.input_mut().consume_shortcut(&reset_shortcut) {
+        *ui.ctx().memory() = Default::default();
+    }
+
     ui.menu_button("File", |ui| {
-        if ui.button("Organize windows").clicked() {
+        ui.set_min_width(220.0);
+        ui.style_mut().wrap = Some(false);
+
+        // On the web the browser controls the zoom
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            egui::gui_zoom::zoom_menu_buttons(ui, None);
+            ui.separator();
+        }
+
+        if ui
+            .add(
+                egui::Button::new("Organize Windows")
+                    .shortcut_text(ui.ctx().format_shortcut(&organize_shortcut)),
+            )
+            .clicked()
+        {
             ui.ctx().memory().reset_areas();
             ui.close_menu();
         }
+
         if ui
-            .button("Reset egui memory")
+            .add(
+                egui::Button::new("Reset egui memory")
+                    .shortcut_text(ui.ctx().format_shortcut(&reset_shortcut)),
+            )
             .on_hover_text("Forget scroll, positions, sizes etc")
             .clicked()
         {

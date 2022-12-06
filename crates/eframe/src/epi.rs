@@ -6,8 +6,12 @@
 
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
+#[cfg(target_arch = "wasm32")]
+use std::any::Any;
+
 #[cfg(not(target_arch = "wasm32"))]
-pub use crate::native::run::RequestRepaintEvent;
+pub use crate::native::run::UserEvent;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub use winit::event_loop::EventLoopBuilder;
 
@@ -16,7 +20,7 @@ pub use winit::event_loop::EventLoopBuilder;
 /// You can configure any platform specific details required on top of the default configuration
 /// done by `EFrame`.
 #[cfg(not(target_arch = "wasm32"))]
-pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<RequestRepaintEvent>)>;
+pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)>;
 
 /// This is how your app is created.
 ///
@@ -65,6 +69,26 @@ pub trait App {
     ///
     /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
     fn update(&mut self, ctx: &egui::Context, frame: &mut Frame);
+
+    /// Get a handle to the app.
+    ///
+    /// Can be used from web to interact or other external context.
+    ///
+    /// You need to implement this if you want to be able to access the application from JS using [`AppRunner::app_mut`].
+    ///
+    /// This is needed because downcasting `Box<dyn App>` -> `Box<dyn Any>` to get &`ConcreteApp` is not simple in current rust.
+    ///
+    /// Just copy-paste this as your implementation:
+    /// ```ignore
+    /// #[cfg(target_arch = "wasm32")]
+    /// fn as_any_mut(&mut self) -> Option<&mut dyn std::any::Any> {
+    ///     Some(&mut *self)
+    /// }
+    /// ```
+    #[cfg(target_arch = "wasm32")]
+    fn as_any_mut(&mut self) -> Option<&mut dyn Any> {
+        None
+    }
 
     /// Called on shutdown, and perhaps at regular intervals. Allows you to save state.
     ///
@@ -190,7 +214,7 @@ pub enum HardwareAcceleration {
 /// Only a single native window is currently supported.
 #[cfg(not(target_arch = "wasm32"))]
 pub struct NativeOptions {
-    /// Sets whether or not the window will always be on top of other windows.
+    /// Sets whether or not the window will always be on top of other windows at initialization.
     pub always_on_top: bool,
 
     /// Show window in maximized mode
@@ -204,6 +228,14 @@ pub struct NativeOptions {
     ///
     /// Default: `false`.
     pub fullscreen: bool,
+
+    /// On Mac: the window doesn't have a titlebar, but floating window buttons.
+    ///
+    /// See [winit's documentation][with_fullsize_content_view] for information on Mac-specific options.
+    ///
+    /// [with_fullsize_content_view]: https://docs.rs/winit/latest/x86_64-apple-darwin/winit/platform/macos/trait.WindowBuilderExtMacOS.html#tymethod.with_fullsize_content_view
+    #[cfg(target_os = "macos")]
+    pub fullsize_content: bool,
 
     /// On Windows: enable drag and drop support. Drag and drop can
     /// not be disabled on other platforms.
@@ -240,6 +272,10 @@ pub struct NativeOptions {
     /// You should avoid having a [`egui::CentralPanel`], or make sure its frame is also transparent.
     pub transparent: bool,
 
+    /// On desktop: mouse clicks pass through the window, used for non-interactable overlays
+    /// Generally you would use this in conjunction with always_on_top
+    pub mouse_passthrough: bool,
+
     /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
     ///
     /// The default is `true`.
@@ -259,6 +295,10 @@ pub struct NativeOptions {
     /// Sets the number of bits in the depth buffer.
     ///
     /// `egui` doesn't need the depth buffer, so the default value is 0.
+    ///
+    /// On `wgpu` backends, due to limited depth texture format options, this
+    /// will be interpreted as a boolean (non-zero = true) for whether or not
+    /// specifically a `Depth32Float` buffer is used.
     pub depth_buffer: u8,
 
     /// Sets the number of bits in the stencil buffer.
@@ -266,7 +306,7 @@ pub struct NativeOptions {
     /// `egui` doesn't need the stencil buffer, so the default value is 0.
     pub stencil_buffer: u8,
 
-    /// Specify wether or not hardware acceleration is preferred, required, or not.
+    /// Specify whether or not hardware acceleration is preferred, required, or not.
     ///
     /// Default: [`HardwareAcceleration::Preferred`].
     pub hardware_acceleration: HardwareAcceleration,
@@ -311,6 +351,24 @@ pub struct NativeOptions {
     ///
     /// Note: A [`NativeOptions`] clone will not include any `event_loop_builder` hook.
     pub event_loop_builder: Option<EventLoopBuilderHook>,
+
+    #[cfg(feature = "glow")]
+    /// Needed for cross compiling for VirtualBox VMSVGA driver with OpenGL ES 2.0 and OpenGL 2.1 which doesn't support SRGB texture.
+    /// See <https://github.com/emilk/egui/pull/1993>.
+    ///
+    /// For OpenGL ES 2.0: set this to [`egui_glow::ShaderVersion::Es100`] to solve blank texture problem (by using the "fallback shader").
+    pub shader_version: Option<egui_glow::ShaderVersion>,
+
+    /// On desktop: make the window position to be centered at initialization.
+    ///
+    /// Platform specific:
+    ///
+    /// Wayland desktop currently not supported.
+    pub centered: bool,
+
+    /// Configures wgpu instance/device/adapter/surface creation and renderloop.
+    #[cfg(feature = "wgpu")]
+    pub wgpu_options: egui_wgpu::WgpuConfiguration,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -319,6 +377,8 @@ impl Clone for NativeOptions {
         Self {
             icon_data: self.icon_data.clone(),
             event_loop_builder: None, // Skip any builder callbacks if cloning
+            #[cfg(feature = "wgpu")]
+            wgpu_options: self.wgpu_options.clone(),
             ..*self
         }
     }
@@ -332,6 +392,8 @@ impl Default for NativeOptions {
             maximized: false,
             decorated: true,
             fullscreen: false,
+            #[cfg(target_os = "macos")]
+            fullsize_content: false,
             drag_and_drop_support: true,
             icon_data: None,
             initial_window_pos: None,
@@ -340,6 +402,7 @@ impl Default for NativeOptions {
             max_window_size: None,
             resizable: true,
             transparent: false,
+            mouse_passthrough: false,
             vsync: true,
             multisampling: 0,
             depth_buffer: 0,
@@ -350,6 +413,11 @@ impl Default for NativeOptions {
             default_theme: Theme::Dark,
             run_and_return: true,
             event_loop_builder: None,
+            #[cfg(feature = "glow")]
+            shader_version: None,
+            centered: false,
+            #[cfg(feature = "wgpu")]
+            wgpu_options: egui_wgpu::WgpuConfiguration::default(),
         }
     }
 }
@@ -386,7 +454,7 @@ pub struct WebOptions {
     ///
     /// See also [`Self::default_theme`].
     ///
-    /// Default: `false`.
+    /// Default: `true`.
     pub follow_system_theme: bool,
 
     /// Which theme to use in case [`Self::follow_system_theme`] is `false`
@@ -398,7 +466,12 @@ pub struct WebOptions {
     /// Which version of WebGl context to select
     ///
     /// Default: [`WebGlContextOption::BestFirst`].
+    #[cfg(feature = "glow")]
     pub webgl_context_option: WebGlContextOption,
+
+    /// Configures wgpu instance/device/adapter/surface creation and renderloop.
+    #[cfg(feature = "wgpu")]
+    pub wgpu_options: egui_wgpu::WgpuConfiguration,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -407,7 +480,26 @@ impl Default for WebOptions {
         Self {
             follow_system_theme: true,
             default_theme: Theme::Dark,
+
+            #[cfg(feature = "glow")]
             webgl_context_option: WebGlContextOption::BestFirst,
+
+            #[cfg(feature = "wgpu")]
+            wgpu_options: egui_wgpu::WgpuConfiguration {
+                // WebGPU is not stable enough yet, use WebGL emulation
+                backends: wgpu::Backends::GL,
+                device_descriptor: wgpu::DeviceDescriptor {
+                    label: Some("egui wgpu device"),
+                    features: wgpu::Features::default(),
+                    limits: wgpu::Limits {
+                        // When using a depth buffer, we have to be able to create a texture
+                        // large enough for the entire surface, and we want to support 4k+ displays.
+                        max_texture_dimension_2d: 8192,
+                        ..wgpu::Limits::downlevel_webgl2_defaults()
+                    },
+                },
+                ..Default::default()
+            },
         }
     }
 }
@@ -673,6 +765,29 @@ impl Frame {
         self.output.visible = Some(visible);
     }
 
+    /// On desktop: Set the window always on top.
+    ///
+    /// (Wayland desktop currently not supported)
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn set_always_on_top(&mut self, always_on_top: bool) {
+        self.output.always_on_top = Some(always_on_top);
+    }
+
+    /// On desktop: Set the window to be centered.
+    ///
+    /// (Wayland desktop currently not supported)
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn set_centered(&mut self) {
+        if let Some(monitor_size) = self.info.window_info.monitor_size {
+            let inner_size = self.info.window_info.size;
+            if monitor_size.x > 1.0 && monitor_size.y > 1.0 {
+                let x = (monitor_size.x - inner_size.x) / 2.0;
+                let y = (monitor_size.y - inner_size.y) / 2.0;
+                self.set_window_pos(egui::Pos2 { x, y });
+            }
+        }
+    }
+
     /// for integrations only: call once per frame
     pub(crate) fn take_app_output(&mut self) -> backend::AppOutput {
         std::mem::take(&mut self.output)
@@ -683,6 +798,9 @@ impl Frame {
 #[derive(Clone, Debug)]
 #[cfg(target_arch = "wasm32")]
 pub struct WebInfo {
+    /// The browser user agent.
+    pub user_agent: String,
+
     /// Information about the URL.
     pub location: Location,
 }
@@ -703,6 +821,9 @@ pub struct WindowInfo {
 
     /// Window inner size in egui points (logical pixels).
     pub size: egui::Vec2,
+
+    /// Current monitor size in egui points (logical pixels)
+    pub monitor_size: Option<egui::Vec2>,
 }
 
 /// Information about the URL.
@@ -876,5 +997,9 @@ pub(crate) mod backend {
         /// Set to some bool to change window visibility.
         #[cfg(not(target_arch = "wasm32"))]
         pub visible: Option<bool>,
+
+        /// Set to some bool to tell the window always on top.
+        #[cfg(not(target_arch = "wasm32"))]
+        pub always_on_top: Option<bool>,
     }
 }

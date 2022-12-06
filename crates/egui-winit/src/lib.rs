@@ -11,7 +11,11 @@
 
 use std::os::raw::c_void;
 
+#[cfg(feature = "accesskit")]
+pub use accesskit_winit;
 pub use egui;
+#[cfg(feature = "accesskit")]
+use egui::accesskit;
 pub use winit;
 
 pub mod clipboard;
@@ -83,6 +87,12 @@ pub struct State {
     ///
     /// Only one touch will be interpreted as pointer at any time.
     pointer_touch_id: Option<u64>,
+
+    /// track ime state
+    input_method_editor_started: bool,
+
+    #[cfg(feature = "accesskit")]
+    accesskit: Option<accesskit_winit::Adapter>,
 }
 
 impl State {
@@ -109,7 +119,26 @@ impl State {
 
             simulate_touch_screen: false,
             pointer_touch_id: None,
+
+            input_method_editor_started: false,
+
+            #[cfg(feature = "accesskit")]
+            accesskit: None,
         }
+    }
+
+    #[cfg(feature = "accesskit")]
+    pub fn init_accesskit<T: From<accesskit_winit::ActionRequestEvent> + Send>(
+        &mut self,
+        window: &winit::window::Window,
+        event_loop_proxy: winit::event_loop::EventLoopProxy<T>,
+        initial_tree_update_factory: impl 'static + FnOnce() -> accesskit::TreeUpdate + Send,
+    ) {
+        self.accesskit = Some(accesskit_winit::Adapter::new(
+            window,
+            initial_tree_update_factory,
+            event_loop_proxy,
+        ));
     }
 
     /// Call this once a graphics context has been created to update the maximum texture dimensions
@@ -251,6 +280,44 @@ impl State {
                     consumed,
                 }
             }
+            WindowEvent::Ime(ime) => {
+                // on Mac even Cmd-C is preessed during ime, a `c` is pushed to Preedit.
+                // So no need to check is_mac_cmd.
+                //
+                // How winit produce `Ime::Enabled` and `Ime::Disabled` differs in MacOS
+                // and Windows.
+                //
+                // - On Windows, before and after each Commit will produce an Enable/Disabled
+                // event.
+                // - On MacOS, only when user explicit enable/disable ime. No Disabled
+                // after Commit.
+                //
+                // We use input_method_editor_started to mannualy insert CompositionStart
+                // between Commits.
+                match ime {
+                    winit::event::Ime::Enabled | winit::event::Ime::Disabled => (),
+                    winit::event::Ime::Commit(text) => {
+                        self.input_method_editor_started = false;
+                        self.egui_input
+                            .events
+                            .push(egui::Event::CompositionEnd(text.clone()));
+                    }
+                    winit::event::Ime::Preedit(text, ..) => {
+                        if !self.input_method_editor_started {
+                            self.input_method_editor_started = true;
+                            self.egui_input.events.push(egui::Event::CompositionStart);
+                        }
+                        self.egui_input
+                            .events
+                            .push(egui::Event::CompositionUpdate(text.clone()));
+                    }
+                };
+
+                EventResponse {
+                    repaint: true,
+                    consumed: egui_ctx.wants_keyboard_input(),
+                }
+            }
             WindowEvent::KeyboardInput { input, .. } => {
                 self.on_keyboard_input(input);
                 let consumed = egui_ctx.wants_keyboard_input()
@@ -317,7 +384,6 @@ impl State {
             | WindowEvent::CloseRequested
             | WindowEvent::CursorEntered { .. }
             | WindowEvent::Destroyed
-            | WindowEvent::Ime(_)
             | WindowEvent::Occluded(_)
             | WindowEvent::Resized(_)
             | WindowEvent::ThemeChanged(_)
@@ -330,6 +396,16 @@ impl State {
                 consumed: false,
             },
         }
+    }
+
+    /// Call this when there is a new [`accesskit::ActionRequest`].
+    ///
+    /// The result can be found in [`Self::egui_input`] and be extracted with [`Self::take_egui_input`].
+    #[cfg(feature = "accesskit")]
+    pub fn on_accesskit_action_request(&mut self, request: accesskit::ActionRequest) {
+        self.egui_input
+            .events
+            .push(egui::Event::AccessKitActionRequest(request));
     }
 
     fn on_mouse_button_input(
@@ -550,6 +626,8 @@ impl State {
             events: _,                    // handled above
             mutable_text_under_cursor: _, // only used in eframe web
             text_cursor_pos,
+            #[cfg(feature = "accesskit")]
+            accesskit_update,
         } = platform_output;
         self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
 
@@ -565,6 +643,13 @@ impl State {
 
         if let Some(egui::Pos2 { x, y }) = text_cursor_pos {
             window.set_ime_position(winit::dpi::LogicalPosition { x, y });
+        }
+
+        #[cfg(feature = "accesskit")]
+        if let Some(accesskit) = self.accesskit.as_ref() {
+            if let Some(update) = accesskit_update {
+                accesskit.update_if_active(|| update);
+            }
         }
     }
 
@@ -667,6 +752,11 @@ fn translate_virtual_key_code(key: winit::event::VirtualKeyCode) -> Option<egui:
         VirtualKeyCode::End => Key::End,
         VirtualKeyCode::PageUp => Key::PageUp,
         VirtualKeyCode::PageDown => Key::PageDown,
+
+        VirtualKeyCode::Minus => Key::Minus,
+        // Using Mac the key with the Plus sign on it is reported as the Equals key
+        // (with both English and Swedish keyboard).
+        VirtualKeyCode::Equals => Key::PlusEquals,
 
         VirtualKeyCode::Key0 | VirtualKeyCode::Numpad0 => Key::Num0,
         VirtualKeyCode::Key1 | VirtualKeyCode::Numpad1 => Key::Num1,

@@ -1,9 +1,8 @@
 use super::popup::DatePickerPopup;
 use chrono::{Date, Utc};
-use egui::{Area, Button, Frame, Key, Order, RichText, Ui, Widget};
+use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget};
 
-#[derive(Default, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Default, Clone, serde::Deserialize, serde::Serialize)]
 pub(crate) struct DatePickerButtonState {
     pub picker_visible: bool,
 }
@@ -63,7 +62,7 @@ impl<'a> DatePickerButton<'a> {
 
 impl<'a> Widget for DatePickerButton<'a> {
     fn ui(self, ui: &mut Ui) -> egui::Response {
-        let id = ui.make_persistent_id(&self.id_source);
+        let id = ui.make_persistent_id(self.id_source);
         let mut button_state = ui
             .memory()
             .data
@@ -79,7 +78,7 @@ impl<'a> Widget for DatePickerButton<'a> {
         if button_state.picker_visible {
             button = button.fill(visuals.bg_fill).stroke(visuals.bg_stroke);
         }
-        let button_response = ui.add(button);
+        let mut button_response = ui.add(button);
         if button_response.clicked() {
             button_state.picker_visible = true;
             ui.memory().data.insert_persisted(id, button_state.clone());
@@ -101,27 +100,35 @@ impl<'a> Widget for DatePickerButton<'a> {
 
             //TODO(elwerene): Better positioning
 
-            let area_response = Area::new(ui.make_persistent_id(&self.id_source))
+            let InnerResponse {
+                inner: saved,
+                response: area_response,
+            } = Area::new(ui.make_persistent_id(self.id_source))
                 .order(Order::Foreground)
                 .fixed_pos(pos)
                 .show(ui.ctx(), |ui| {
                     let frame = Frame::popup(ui.style());
-                    frame.show(ui, |ui| {
-                        ui.set_min_width(width);
-                        ui.set_max_width(width);
+                    frame
+                        .show(ui, |ui| {
+                            ui.set_min_width(width);
+                            ui.set_max_width(width);
 
-                        DatePickerPopup {
-                            selection: self.selection,
-                            button_id: id,
-                            combo_boxes: self.combo_boxes,
-                            arrows: self.arrows,
-                            calendar: self.calendar,
-                            calendar_week: self.calendar_week,
-                        }
-                        .draw(ui);
-                    })
-                })
-                .response;
+                            DatePickerPopup {
+                                selection: self.selection,
+                                button_id: id,
+                                combo_boxes: self.combo_boxes,
+                                arrows: self.arrows,
+                                calendar: self.calendar,
+                                calendar_week: self.calendar_week,
+                            }
+                            .draw(ui)
+                        })
+                        .inner
+                });
+
+            if saved {
+                button_response.mark_changed();
+            }
 
             if !button_response.clicked()
                 && (ui.input().key_pressed(Key::Escape) || area_response.clicked_elsewhere())

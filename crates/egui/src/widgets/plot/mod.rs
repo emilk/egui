@@ -73,25 +73,22 @@ impl Default for CoordinatesFormatter {
 const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO(emilk): large enough for a wide label
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Clone)]
-struct AutoBounds {
+#[derive(Copy, Clone)]
+struct AxisBools {
     x: bool,
     y: bool,
 }
 
-impl AutoBounds {
-    fn from_bool(val: bool) -> Self {
-        AutoBounds { x: val, y: val }
-    }
-
+impl AxisBools {
+    #[inline]
     fn any(&self) -> bool {
         self.x || self.y
     }
 }
 
-impl From<bool> for AutoBounds {
+impl From<bool> for AxisBools {
     fn from(val: bool) -> Self {
-        AutoBounds::from_bool(val)
+        AxisBools { x: val, y: val }
     }
 }
 
@@ -99,10 +96,11 @@ impl From<bool> for AutoBounds {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone)]
 struct PlotMemory {
-    auto_bounds: AutoBounds,
+    /// Indicates if the user has modified the bounds, for example by moving or zooming,
+    /// or if the bounds should be calculated based by included point or auto bounds.
+    bounds_modified: AxisBools,
     hovered_entry: Option<String>,
     hidden_items: ahash::HashSet<String>,
-    min_auto_bounds: PlotBounds,
     last_screen_transform: ScreenTransform,
     /// Allows to remember the first click position when performing a boxed zoom
     last_click_pos_for_zoom: Option<Pos2>,
@@ -268,9 +266,11 @@ pub struct Plot {
     allow_zoom: bool,
     allow_drag: bool,
     allow_scroll: bool,
+    allow_double_click_reset: bool,
+    allow_boxed_zoom: bool,
+    auto_bounds: AxisBools,
     min_auto_bounds: PlotBounds,
     margin_fraction: Vec2,
-    allow_boxed_zoom: bool,
     boxed_zoom_pointer_button: PointerButton,
     linked_axes: Option<LinkedAxisGroup>,
     linked_cursors: Option<LinkedCursorsGroup>,
@@ -280,6 +280,8 @@ pub struct Plot {
     height: Option<f32>,
     data_aspect: Option<f32>,
     view_aspect: Option<f32>,
+
+    reset: bool,
 
     show_x: bool,
     show_y: bool,
@@ -303,9 +305,11 @@ impl Plot {
             allow_zoom: true,
             allow_drag: true,
             allow_scroll: true,
+            allow_double_click_reset: true,
+            allow_boxed_zoom: true,
+            auto_bounds: false.into(),
             min_auto_bounds: PlotBounds::NOTHING,
             margin_fraction: Vec2::splat(0.05),
-            allow_boxed_zoom: true,
             boxed_zoom_pointer_button: PointerButton::Secondary,
             linked_axes: None,
             linked_cursors: None,
@@ -315,6 +319,8 @@ impl Plot {
             height: None,
             data_aspect: None,
             view_aspect: None,
+
+            reset: false,
 
             show_x: true,
             show_y: true,
@@ -402,7 +408,14 @@ impl Plot {
         self
     }
 
-    /// Set the side margin as a fraction of the plot size.
+    /// Whether to allow double clicking to reset the view.
+    /// Default: `true`.
+    pub fn allow_double_click_reset(mut self, on: bool) -> Self {
+        self.allow_double_click_reset = on;
+        self
+    }
+
+    /// Set the side margin as a fraction of the plot size. Only used for auto bounds.
     ///
     /// For instance, a value of `0.1` will add 10% space on both sides.
     pub fn set_margin_fraction(mut self, margin_fraction: Vec2) -> Self {
@@ -556,6 +569,18 @@ impl Plot {
         self
     }
 
+    /// Expand bounds to fit all items across the x axis, including values given by `include_x`.
+    pub fn auto_bounds_x(mut self) -> Self {
+        self.auto_bounds.x = true;
+        self
+    }
+
+    /// Expand bounds to fit all items across the y axis, including values given by `include_y`.
+    pub fn auto_bounds_y(mut self) -> Self {
+        self.auto_bounds.y = true;
+        self
+    }
+
     /// Show a legend including all named items.
     pub fn legend(mut self, legend: Legend) -> Self {
         self.legend_config = Some(legend);
@@ -592,6 +617,12 @@ impl Plot {
         self
     }
 
+    /// Resets the plot.
+    pub fn reset(mut self) -> Self {
+        self.reset = true;
+        self
+    }
+
     /// Interact with and add items to the plot and finally draw it.
     pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> InnerResponse<R> {
         self.show_dyn(ui, Box::new(build_fn))
@@ -607,10 +638,12 @@ impl Plot {
             center_x_axis,
             center_y_axis,
             allow_zoom,
-            allow_scroll,
             allow_drag,
+            allow_scroll,
+            allow_double_click_reset,
             allow_boxed_zoom,
             boxed_zoom_pointer_button: boxed_zoom_pointer,
+            auto_bounds,
             min_auto_bounds,
             margin_fraction,
             width,
@@ -624,6 +657,7 @@ impl Plot {
             coordinates_formatter,
             axis_formatters,
             legend_config,
+            reset,
             show_background,
             show_axes,
             linked_axes,
@@ -661,11 +695,19 @@ impl Plot {
         // Load or initialize the memory.
         let plot_id = ui.make_persistent_id(id_source);
         ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
-        let mut memory = PlotMemory::load(ui.ctx(), plot_id).unwrap_or_else(|| PlotMemory {
-            auto_bounds: (!min_auto_bounds.is_valid()).into(),
+        let memory = if reset {
+            if let Some(axes) = linked_axes.as_ref() {
+                axes.bounds.set(None);
+            };
+
+            None
+        } else {
+            PlotMemory::load(ui.ctx(), plot_id)
+        }
+        .unwrap_or_else(|| PlotMemory {
+            bounds_modified: false.into(),
             hovered_entry: None,
             hidden_items: Default::default(),
-            min_auto_bounds,
             last_screen_transform: ScreenTransform::new(
                 rect,
                 min_auto_bounds,
@@ -675,24 +717,12 @@ impl Plot {
             last_click_pos_for_zoom: None,
         });
 
-        // If the min bounds changed, recalculate everything.
-        if min_auto_bounds != memory.min_auto_bounds {
-            memory = PlotMemory {
-                auto_bounds: (!min_auto_bounds.is_valid()).into(),
-                hovered_entry: None,
-                min_auto_bounds,
-                ..memory
-            };
-            memory.clone().store(ui.ctx(), plot_id);
-        }
-
         let PlotMemory {
-            mut auto_bounds,
+            mut bounds_modified,
             mut hovered_entry,
             mut hidden_items,
             last_screen_transform,
             mut last_click_pos_for_zoom,
-            ..
         } = memory;
 
         // Call the plot build function.
@@ -774,52 +804,51 @@ impl Plot {
             if let Some(linked_bounds) = axes.get() {
                 if axes.link_x {
                     bounds.set_x(&linked_bounds);
-                    // Turn off auto bounds to keep it from overriding what we just set.
-                    auto_bounds.x = false;
+                    // Mark the axis as modified to prevent it from being changed.
+                    bounds_modified.x = true;
                 }
                 if axes.link_y {
                     bounds.set_y(&linked_bounds);
-                    // Turn off auto bounds to keep it from overriding what we just set.
-                    auto_bounds.y = false;
+                    // Mark the axis as modified to prevent it from being changed.
+                    bounds_modified.y = true;
                 }
             }
         };
 
-        // Allow double clicking to reset to automatic bounds.
-        if response.double_clicked_by(PointerButton::Primary) {
-            auto_bounds = true.into();
+        // Allow double clicking to reset to the initial bounds?
+        if allow_double_click_reset && response.double_clicked_by(PointerButton::Primary) {
+            bounds_modified = false.into();
         }
 
-        if !bounds.is_valid() {
-            auto_bounds = true.into();
+        // Reset bounds to initial bounds if we haven't been modified.
+        if !bounds_modified.x {
+            bounds.set_x(&min_auto_bounds);
         }
+        if !bounds_modified.y {
+            bounds.set_y(&min_auto_bounds);
+        }
+
+        let auto_x = !bounds_modified.x && (!min_auto_bounds.is_valid_x() || auto_bounds.x);
+        let auto_y = !bounds_modified.y && (!min_auto_bounds.is_valid_y() || auto_bounds.y);
 
         // Set bounds automatically based on content.
-        if auto_bounds.any() {
-            if auto_bounds.x {
-                bounds.set_x(&min_auto_bounds);
-            }
-
-            if auto_bounds.y {
-                bounds.set_y(&min_auto_bounds);
-            }
-
+        if auto_x || auto_y {
             for item in &items {
                 let item_bounds = item.bounds();
 
-                if auto_bounds.x {
+                if auto_x {
                     bounds.merge_x(&item_bounds);
                 }
-                if auto_bounds.y {
+                if auto_y {
                     bounds.merge_y(&item_bounds);
                 }
             }
 
-            if auto_bounds.x {
+            if auto_x {
                 bounds.add_relative_margin_x(margin_fraction);
             }
 
-            if auto_bounds.y {
+            if auto_y {
                 bounds.add_relative_margin_y(margin_fraction);
             }
         }
@@ -831,8 +860,10 @@ impl Plot {
             if let Some(linked_axes) = &linked_axes {
                 let change_x = linked_axes.link_y && !linked_axes.link_x;
                 transform.set_aspect_by_changing_axis(data_aspect as f64, change_x);
-            } else {
+            } else if auto_bounds.any() {
                 transform.set_aspect_by_expanding(data_aspect as f64);
+            } else {
+                transform.set_aspect_by_changing_axis(data_aspect as f64, false);
             }
         }
 
@@ -840,7 +871,7 @@ impl Plot {
         if allow_drag && response.dragged_by(PointerButton::Primary) {
             response = response.on_hover_cursor(CursorIcon::Grabbing);
             transform.translate_bounds(-response.drag_delta());
-            auto_bounds = false.into();
+            bounds_modified = true.into();
         }
 
         // Zooming
@@ -876,14 +907,18 @@ impl Plot {
                     let box_start_pos = transform.value_from_position(box_start_pos);
                     let box_end_pos = transform.value_from_position(box_end_pos);
                     let new_bounds = PlotBounds {
-                        min: [box_start_pos.x, box_end_pos.y],
-                        max: [box_end_pos.x, box_start_pos.y],
+                        min: [
+                            box_start_pos.x.min(box_end_pos.x),
+                            box_start_pos.y.min(box_end_pos.y),
+                        ],
+                        max: [
+                            box_start_pos.x.max(box_end_pos.x),
+                            box_start_pos.y.max(box_end_pos.y),
+                        ],
                     };
                     if new_bounds.is_valid() {
                         transform.set_bounds(new_bounds);
-                        auto_bounds = false.into();
-                    } else {
-                        auto_bounds = true.into();
+                        bounds_modified = true.into();
                     }
                     // reset the boxed zoom state
                     last_click_pos_for_zoom = None;
@@ -900,14 +935,14 @@ impl Plot {
                 };
                 if zoom_factor != Vec2::splat(1.0) {
                     transform.zoom(zoom_factor, hover_pos);
-                    auto_bounds = false.into();
+                    bounds_modified = true.into();
                 }
             }
             if allow_scroll {
                 let scroll_delta = ui.input().scroll_delta;
                 if scroll_delta != Vec2::ZERO {
                     transform.translate_bounds(-scroll_delta);
-                    auto_bounds = false.into();
+                    bounds_modified = true.into();
                 }
             }
         }
@@ -957,10 +992,9 @@ impl Plot {
         }
 
         let memory = PlotMemory {
-            auto_bounds,
+            bounds_modified,
             hovered_entry,
             hidden_items,
-            min_auto_bounds,
             last_screen_transform: transform,
             last_click_pos_for_zoom,
         };
@@ -1006,6 +1040,16 @@ impl PlotUi {
         *self.last_screen_transform.bounds()
     }
 
+    /// Set the plot bounds. Can be useful for implementing alternative plot navigation methods.
+    pub fn set_plot_bounds(&mut self, plot_bounds: PlotBounds) {
+        self.last_screen_transform.set_bounds(plot_bounds);
+    }
+
+    /// Move the plot bounds. Can be useful for implementing alternative plot navigation methods.
+    pub fn translate_bounds(&mut self, delta_pos: Vec2) {
+        self.last_screen_transform.translate_bounds(delta_pos);
+    }
+
     /// Returns `true` if the plot area is currently hovered.
     pub fn plot_hovered(&self) -> bool {
         self.response.hovered()
@@ -1014,6 +1058,11 @@ impl PlotUi {
     /// Returns `true` if the plot was clicked by the primary button.
     pub fn plot_clicked(&self) -> bool {
         self.response.clicked()
+    }
+
+    /// Returns `true` if the plot was clicked by the secondary button.
+    pub fn plot_secondary_clicked(&self) -> bool {
+        self.response.secondary_clicked()
     }
 
     /// The pointer position in plot coordinates. Independent of whether the pointer is in the plot area.
@@ -1372,6 +1421,9 @@ impl PreparedPlot {
                 let mut p1 = pos_in_gui;
                 p0[1 - axis] = transform.frame().min[1 - axis];
                 p1[1 - axis] = transform.frame().max[1 - axis];
+                // Round to avoid aliasing
+                p0 = ui.ctx().round_pos_to_pixels(p0);
+                p1 = ui.ctx().round_pos_to_pixels(p1);
                 shapes.push(Shape::line_segment([p0, p1], Stroke::new(1.0, line_color)));
             }
 

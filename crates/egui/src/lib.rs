@@ -3,7 +3,7 @@
 //! Try the live web demo: <https://www.egui.rs/#demo>. Read more about egui at <https://github.com/emilk/egui>.
 //!
 //! `egui` is in heavy development, with each new version having breaking changes.
-//! You need to have rust 1.61.0 or later to use `egui`.
+//! You need to have rust 1.62.0 or later to use `egui`.
 //!
 //! To quickly get started with egui, you can take a look at [`eframe_template`](https://github.com/emilk/eframe_template)
 //! which uses [`eframe`](https://docs.rs/eframe).
@@ -305,6 +305,7 @@ mod context;
 mod data;
 mod frame_state;
 pub(crate) mod grid;
+pub mod gui_zoom;
 mod id;
 mod input_state;
 pub mod introspection;
@@ -312,6 +313,7 @@ pub mod layers;
 mod layout;
 mod memory;
 pub mod menu;
+pub mod os;
 mod painter;
 pub(crate) mod placer;
 mod response;
@@ -322,6 +324,9 @@ pub mod util;
 pub mod widget_text;
 pub mod widgets;
 
+#[cfg(feature = "accesskit")]
+pub use accesskit;
+
 pub use epaint;
 pub use epaint::emath;
 
@@ -331,7 +336,7 @@ pub use epaint::hex_color;
 pub use epaint::{
     color, mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
-    textures::{TextureFilter, TexturesDelta},
+    textures::{TextureFilter, TextureOptions, TexturesDelta},
     ClippedPrimitive, Color32, ColorImage, FontImage, ImageData, Mesh, PaintCallback,
     PaintCallbackInfo, Rgba, Rounding, Shape, Stroke, TextureHandle, TextureId,
 };
@@ -373,7 +378,7 @@ pub use {
 pub fn warn_if_debug_build(ui: &mut crate::Ui) {
     if cfg!(debug_assertions) {
         ui.label(
-            RichText::new("‼ Debug build ‼")
+            RichText::new("⚠ Debug build ⚠")
                 .small()
                 .color(ui.visuals().warn_fg_color),
         )
@@ -502,7 +507,7 @@ pub mod special_emojis {
 }
 
 /// The different types of built-in widgets in egui
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WidgetType {
     Label, // TODO(emilk): emit Label events
@@ -546,4 +551,31 @@ pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
             add_contents(ui);
         });
     });
+}
+
+#[cfg(feature = "accesskit")]
+pub fn accesskit_root_id() -> Id {
+    Id::new("accesskit_root")
+}
+
+/// Return a tree update that the egui integration should provide to the
+/// AccessKit adapter if it cannot immediately run the egui application
+/// to get a full tree update after running [`Context::enable_accesskit`].
+#[cfg(feature = "accesskit")]
+pub fn accesskit_placeholder_tree_update() -> accesskit::TreeUpdate {
+    use accesskit::{Node, Role, Tree, TreeUpdate};
+    use std::sync::Arc;
+
+    let root_id = accesskit_root_id().accesskit_id();
+    TreeUpdate {
+        nodes: vec![(
+            root_id,
+            Arc::new(Node {
+                role: Role::Window,
+                ..Default::default()
+            }),
+        )],
+        tree: Some(Tree::new(root_id)),
+        focus: None,
+    }
 }

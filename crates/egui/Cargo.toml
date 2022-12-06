@@ -4,7 +4,7 @@ version = "0.19.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "An easy-to-use immediate mode GUI that runs on both web and native"
 edition = "2021"
-rust-version = "1.61"
+rust-version = "1.65"
 homepage = "https://github.com/emilk/egui"
 license = "MIT OR Apache-2.0"
 readme = "../../README.md"
@@ -52,15 +52,22 @@ mint = ["epaint/mint"]
 persistence = ["serde", "epaint/serde", "ron"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
-serde = ["dep:serde", "epaint/serde"]
+serde = ["dep:serde", "epaint/serde", "accesskit?/serde"]
 
 [dependencies]
 epaint = { version = "0.19.0", path = "../epaint", default-features = false }
 
-ahash = "0.8"
+ahash = { version = "0.8.1", default-features = false, features = [
+    "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
+    "std",
+] }
 nohash-hasher = "0.2"
 
 #! ### Optional dependencies
+## Exposes detailed accessibility implementation required by platform
+## accessibility APIs. Also requires support in the egui integration.
+accesskit = { version = "0.8.1", optional = true }
+
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
 
@@ -68,4 +75,6 @@ ron = { version = "0.8", optional = true }
 serde = { version = "1", optional = true, features = ["derive", "rc"] }
 
 # egui doesn't log much, but when it does, it uses [`tracing`](https://docs.rs/tracing).
-tracing = { version = "0.1", optional = true, default-features = false, features = ["std"] }
+tracing = { version = "0.1", optional = true, default-features = false, features = [
+    "std",
+] }

@@ -1,7 +1,7 @@
+use crate::shader_version::ShaderVersion;
 pub use egui_winit;
-pub use egui_winit::EventResponse;
-
 use egui_winit::winit;
+pub use egui_winit::EventResponse;
 
 /// Use [`egui`] from a [`glow`] app based on [`winit`].
 pub struct EguiGlow {
@@ -14,11 +14,13 @@ pub struct EguiGlow {
 }
 
 impl EguiGlow {
+    /// For automatic shader version detection set `shader_version` to `None`.
     pub fn new<E>(
         event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
         gl: std::sync::Arc<glow::Context>,
+        shader_version: Option<ShaderVersion>,
     ) -> Self {
-        let painter = crate::Painter::new(gl, None, "")
+        let painter = crate::Painter::new(gl, "", shader_version)
             .map_err(|error| {
                 tracing::error!("error occurred in initializing painter:\n{}", error);
             })

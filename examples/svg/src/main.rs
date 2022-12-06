@@ -25,9 +25,10 @@ struct MyApp {
 impl Default for MyApp {
     fn default() -> Self {
         Self {
-            svg_image: egui_extras::RetainedImage::from_svg_bytes(
+            svg_image: egui_extras::RetainedImage::from_svg_bytes_with_size(
                 "rustacean-flat-happy.svg",
                 include_bytes!("rustacean-flat-happy.svg"),
+                egui_extras::image::FitTo::Original,
             )
             .unwrap(),
         }
@@ -43,7 +44,7 @@ impl eframe::App for MyApp {
             ui.separator();
 
             let max_size = ui.available_size();
-            self.svg_image.show_max_size(ui, max_size);
+            self.svg_image.show_size(ui, max_size);
         });
     }
 }

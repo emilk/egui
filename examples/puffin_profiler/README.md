@@ -7,3 +7,5 @@ cargo run -p puffin_profiler &
 cargo install puffin_viewer
 puffin_viewer --url 127.0.0.1:8585
 ```
+
+![](screenshot.png)

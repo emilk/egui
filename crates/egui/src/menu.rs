@@ -66,10 +66,10 @@ impl std::ops::DerefMut for BarState {
 
 fn set_menu_style(style: &mut Style) {
     style.spacing.button_padding = vec2(2.0, 0.0);
-    style.visuals.widgets.active.bg_stroke = Stroke::none();
-    style.visuals.widgets.hovered.bg_stroke = Stroke::none();
+    style.visuals.widgets.active.bg_stroke = Stroke::NONE;
+    style.visuals.widgets.hovered.bg_stroke = Stroke::NONE;
     style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
-    style.visuals.widgets.inactive.bg_stroke = Stroke::none();
+    style.visuals.widgets.inactive.bg_stroke = Stroke::NONE;
 }
 
 /// The menu bar goes well in a [`TopBottomPanel::top`],
@@ -117,7 +117,7 @@ pub(crate) fn submenu_button<R>(
 /// wrapper for the contents of every menu.
 pub(crate) fn menu_ui<'c, R>(
     ctx: &Context,
-    menu_id: impl std::hash::Hash,
+    menu_id: impl Into<Id>,
     menu_state_arc: &Arc<RwLock<MenuState>>,
     add_contents: impl FnOnce(&mut Ui) -> R + 'c,
 ) -> InnerResponse<R> {
@@ -288,7 +288,22 @@ impl MenuRoot {
         {
             // menu not open and button clicked
             // or button hovered while other menu is open
-            let pos = response.rect.left_bottom();
+            drop(input);
+
+            let mut pos = response.rect.left_bottom();
+            if let Some(root) = root.inner.as_mut() {
+                let menu_rect = root.menu_state.read().rect;
+                let screen_rect = response.ctx.input().screen_rect;
+
+                if pos.y + menu_rect.height() > screen_rect.max.y {
+                    pos.y = screen_rect.max.y - menu_rect.height() - response.rect.height();
+                }
+
+                if pos.x + menu_rect.width() > screen_rect.max.x {
+                    pos.x = screen_rect.max.x - menu_rect.width();
+                }
+            }
+
             return MenuResponse::Create(pos, id);
         } else if input.pointer.any_pressed() && input.pointer.primary_down() {
             if let Some(pos) = input.pointer.interact_pos() {
@@ -428,7 +443,7 @@ impl SubMenuButton {
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| {
-            crate::WidgetInfo::labeled(crate::WidgetType::Button, &text_galley.text())
+            crate::WidgetInfo::labeled(crate::WidgetType::Button, text_galley.text())
         });
 
         if ui.is_rect_visible(rect) {
@@ -476,7 +491,7 @@ impl SubMenu {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
         let sub_id = ui.id().with(self.button.index);
-        let button = self.button.show(ui, &*self.parent_state.read(), sub_id);
+        let button = self.button.show(ui, &self.parent_state.read(), sub_id);
         self.parent_state
             .write()
             .submenu_button_interaction(ui, sub_id, &button);

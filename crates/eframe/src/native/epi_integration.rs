@@ -1,5 +1,12 @@
 use winit::event_loop::EventLoopWindowTarget;
 
+#[cfg(target_os = "macos")]
+use winit::platform::macos::WindowBuilderExtMacOS as _;
+
+#[cfg(feature = "accesskit")]
+use egui::accesskit;
+#[cfg(feature = "accesskit")]
+use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
 
 use crate::{epi, Theme, WindowInfo};
@@ -18,6 +25,14 @@ pub fn read_window_info(window: &winit::window::Window, pixels_per_point: f32) -
         .map(|pos| pos.to_logical::<f32>(pixels_per_point.into()))
         .map(|pos| egui::Pos2 { x: pos.x, y: pos.y });
 
+    let monitor = window.current_monitor().is_some();
+    let monitor_size = if monitor {
+        let size = window.current_monitor().unwrap().size();
+        Some(egui::vec2(size.width as _, size.height as _))
+    } else {
+        None
+    };
+
     let size = window
         .inner_size()
         .to_logical::<f32>(pixels_per_point.into());
@@ -29,6 +44,7 @@ pub fn read_window_info(window: &winit::window::Window, pixels_per_point: f32) -
             x: size.width,
             y: size.height,
         },
+        monitor_size,
     }
 }
 
@@ -41,6 +57,8 @@ pub fn window_builder(
         maximized,
         decorated,
         fullscreen,
+        #[cfg(target_os = "macos")]
+        fullsize_content,
         drag_and_drop_support,
         icon_data,
         initial_window_pos,
@@ -62,6 +80,14 @@ pub fn window_builder(
         .with_resizable(*resizable)
         .with_transparent(*transparent)
         .with_window_icon(window_icon);
+
+    #[cfg(target_os = "macos")]
+    if *fullsize_content {
+        window_builder = window_builder
+            .with_title_hidden(true)
+            .with_titlebar_transparent(true)
+            .with_fullsize_content_view(true);
+    }
 
     if let Some(min_size) = *min_window_size {
         window_builder = window_builder.with_min_inner_size(points_to_size(min_size));
@@ -124,7 +150,8 @@ pub fn handle_app_output(
         fullscreen,
         drag_window,
         window_pos,
-        visible,
+        visible: _, // handled in post_present
+        always_on_top,
     } = app_output;
 
     if let Some(decorated) = decorated {
@@ -142,7 +169,7 @@ pub fn handle_app_output(
     }
 
     if let Some(fullscreen) = fullscreen {
-        window.set_fullscreen(fullscreen.then(|| winit::window::Fullscreen::Borderless(None)));
+        window.set_fullscreen(fullscreen.then_some(winit::window::Fullscreen::Borderless(None)));
     }
 
     if let Some(window_title) = window_title {
@@ -160,8 +187,8 @@ pub fn handle_app_output(
         let _ = window.drag_window();
     }
 
-    if let Some(visible) = visible {
-        window.set_visible(visible);
+    if let Some(always_on_top) = always_on_top {
+        window.set_always_on_top(always_on_top);
     }
 }
 
@@ -204,14 +231,19 @@ impl EpiIntegration {
 
         *egui_ctx.memory() = load_egui_memory(storage.as_deref()).unwrap_or_default();
 
+        let native_pixels_per_point = window.scale_factor() as f32;
+
         let frame = epi::Frame {
             info: epi::IntegrationInfo {
                 system_theme,
                 cpu_usage: None,
-                native_pixels_per_point: Some(native_pixels_per_point(window)),
+                native_pixels_per_point: Some(native_pixels_per_point),
                 window_info: read_window_info(window, egui_ctx.pixels_per_point()),
             },
-            output: Default::default(),
+            output: epi::backend::AppOutput {
+                visible: Some(true),
+                ..Default::default()
+            },
             storage,
             #[cfg(feature = "glow")]
             gl,
@@ -221,8 +253,7 @@ impl EpiIntegration {
 
         let mut egui_winit = egui_winit::State::new(event_loop);
         egui_winit.set_max_texture_side(max_texture_side);
-        let pixels_per_point = window.scale_factor() as f32;
-        egui_winit.set_pixels_per_point(pixels_per_point);
+        egui_winit.set_pixels_per_point(native_pixels_per_point);
 
         Self {
             frame,
@@ -233,6 +264,25 @@ impl EpiIntegration {
             close: false,
             can_drag_window: false,
         }
+    }
+
+    #[cfg(feature = "accesskit")]
+    pub fn init_accesskit<E: From<accesskit_winit::ActionRequestEvent> + Send>(
+        &mut self,
+        window: &winit::window::Window,
+        event_loop_proxy: winit::event_loop::EventLoopProxy<E>,
+    ) {
+        let egui_ctx = self.egui_ctx.clone();
+        self.egui_winit
+            .init_accesskit(window, event_loop_proxy, move || {
+                // This function is called when an accessibility client
+                // (e.g. screen reader) makes its first request. If we got here,
+                // we know that an accessibility tree is actually wanted.
+                egui_ctx.enable_accesskit();
+                // Enqueue a repaint so we'll receive a full tree update soon.
+                egui_ctx.request_repaint();
+                egui::accesskit_placeholder_tree_update()
+            });
     }
 
     pub fn warm_up(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
@@ -265,10 +315,18 @@ impl EpiIntegration {
                 state: ElementState::Pressed,
                 ..
             } => self.can_drag_window = true,
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                self.frame.info.native_pixels_per_point = Some(*scale_factor as _);
+            }
             _ => {}
         }
 
         self.egui_winit.on_event(&self.egui_ctx, event)
+    }
+
+    #[cfg(feature = "accesskit")]
+    pub fn on_accesskit_action_request(&mut self, request: accesskit::ActionRequest) {
+        self.egui_winit.on_accesskit_action_request(request);
     }
 
     pub fn update(
@@ -294,10 +352,11 @@ impl EpiIntegration {
             if app_output.close {
                 self.close = app.on_close_event();
             }
+            self.frame.output.visible = app_output.visible; // this is handled by post_present
             handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
         }
 
-        let frame_time = (std::time::Instant::now() - frame_start).as_secs_f64() as f32;
+        let frame_time = frame_start.elapsed().as_secs_f64() as f32;
         self.frame.info.cpu_usage = Some(frame_time);
 
         full_output
@@ -308,6 +367,12 @@ impl EpiIntegration {
         let window_size_px = [inner_size.width, inner_size.height];
 
         app.post_rendering(window_size_px, &self.frame);
+    }
+
+    pub fn post_present(&mut self, window: &winit::window::Window) {
+        if let Some(visible) = self.frame.output.visible.take() {
+            window.set_visible(visible);
+        }
     }
 
     pub fn handle_platform_output(

@@ -581,18 +581,19 @@ impl Ui {
     /// Use this to generate widget ids for widgets that have persistent state in [`Memory`].
     pub fn make_persistent_id<IdSource>(&self, id_source: IdSource) -> Id
     where
-        IdSource: Hash + std::fmt::Debug,
+        IdSource: Hash,
     {
         self.id.with(&id_source)
     }
 
-    pub(crate) fn next_auto_id(&self) -> Id {
+    /// This is the `Id` that will be assigned to the next widget added to this `Ui`.
+    pub fn next_auto_id(&self) -> Id {
         Id::new(self.next_auto_id_source)
     }
 
-    pub(crate) fn auto_id_with<IdSource>(&self, id_source: IdSource) -> Id
+    pub fn auto_id_with<IdSource>(&self, id_source: IdSource) -> Id
     where
-        IdSource: Hash + std::fmt::Debug,
+        IdSource: Hash,
     {
         Id::new(self.next_auto_id_source).with(id_source)
     }
@@ -615,6 +616,22 @@ impl Ui {
             sense,
             self.enabled,
         )
+    }
+
+    /// Check for clicks, and drags on a specific region that is hovered.
+    /// This can be used once you have checked that some shape you are painting has been hovered,
+    /// and want to check for clicks and drags on hovered items this frame.
+    /// The given [`Rect`] should approximately be where the thing is,
+    /// as it is just where warnings will be painted if there is an [`Id`] clash.
+    pub fn interact_with_hovered(
+        &self,
+        rect: Rect,
+        hovered: bool,
+        id: Id,
+        sense: Sense,
+    ) -> Response {
+        self.ctx()
+            .interact_with_hovered(self.layer_id(), id, rect, sense, self.enabled, hovered)
     }
 
     /// Is the pointer (mouse/touch) above this rectangle in this [`Ui`]?
@@ -1430,7 +1447,7 @@ impl Ui {
         text: impl Into<WidgetText>,
     ) -> Response {
         let mut response = self.radio(*current_value == alternative, text);
-        if response.clicked() {
+        if response.clicked() && *current_value != alternative {
             *current_value = alternative;
             response.mark_changed();
         }
@@ -1458,7 +1475,7 @@ impl Ui {
         text: impl Into<WidgetText>,
     ) -> Response {
         let mut response = self.selectable_label(*current_value == selected_value, text);
-        if response.clicked() {
+        if response.clicked() && *current_value != selected_value {
             *current_value = selected_value;
             response.mark_changed();
         }
@@ -1536,7 +1553,7 @@ impl Ui {
     ///             ui.ctx().load_texture(
     ///                 "my-image",
     ///                 egui::ColorImage::example(),
-    ///                 egui::TextureFilter::Linear
+    ///                 Default::default()
     ///             )
     ///         });
     ///
@@ -1990,7 +2007,14 @@ impl Ui {
         InnerResponse::new(inner, self.interact(rect, child_ui.id, Sense::hover()))
     }
 
+    #[deprecated = "Use ui.vertical_centered or ui.centered_and_justified"]
+    pub fn centered<R>(&mut self, add_contents: impl FnOnce(&mut Self) -> R) -> InnerResponse<R> {
+        self.vertical_centered(add_contents)
+    }
+
     /// This will make the next added widget centered and justified in the available space.
+    ///
+    /// Only one widget may be added to the inner `Ui`!
     pub fn centered_and_justified<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Self) -> R,
@@ -2025,7 +2049,7 @@ impl Ui {
         self.placer.set_row_height(height);
     }
 
-    /// Temporarily split split an Ui into several columns.
+    /// Temporarily split a [`Ui`] into several columns.
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {

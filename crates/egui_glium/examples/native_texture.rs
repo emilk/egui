@@ -18,7 +18,7 @@ fn main() {
     // Allocate egui's texture id for GL texture
     let texture_id = egui_glium
         .painter
-        .register_native_texture(glium_texture, egui::TextureFilter::Linear);
+        .register_native_texture(glium_texture, Default::default());
     // Setup button image size for reasonable image size for button container.
     let button_image_size = egui::vec2(32_f32, 32_f32);
 
@@ -115,7 +115,6 @@ fn create_display(event_loop: &glutin::event_loop::EventLoop<()>) -> glium::Disp
 
     let context_builder = glutin::ContextBuilder::new()
         .with_depth_buffer(0)
-        .with_srgb(true)
         .with_stencil_buffer(0)
         .with_vsync(true);
 

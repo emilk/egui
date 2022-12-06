@@ -4,7 +4,7 @@ version = "0.19.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition = "2021"
-rust-version = "1.61"
+rust-version = "1.65"
 homepage = "https://github.com/emilk/egui/tree/master/crates/eframe"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -20,7 +20,10 @@ all-features = true
 
 
 [features]
-default = ["default_fonts", "glow"]
+default = ["accesskit", "default_fonts", "glow"]
+
+## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
+accesskit = ["egui/accesskit", "egui-winit/accesskit"]
 
 ## Detect dark mode system preference using [`dark-light`](https://docs.rs/dark-light).
 ##
@@ -47,17 +50,18 @@ persistence = [
 ##
 ## Only enabled on native, because of the low resolution (1ms) of time keeping in browsers.
 ## `eframe` will call `puffin::GlobalProfiler::lock().new_frame()` for you
-puffin = ["dep:puffin", "egui_glow?/puffin"]
+puffin = ["dep:puffin", "egui_glow?/puffin", "egui-wgpu?/puffin"]
 
 ## Enable screen reader support (requires `ctx.options().screen_reader = true;`)
-screen_reader = [
-  "egui-winit/screen_reader",
-  "tts",
-]
+screen_reader = ["egui-winit/screen_reader", "tts"]
+
+## If set, eframe will look for the env-var `EFRAME_SCREENSHOT_TO` and write a screenshot to that location, and then quit.
+## This is used to generate images for the examples.
+__screenshot = ["dep:image"]
 
 ## Use [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui-wgpu`](https://github.com/emilk/egui/tree/master/crates/egui-wgpu)).
 ## This overrides the `glow` feature.
-wgpu = ["dep:wgpu", "egui-wgpu"]
+wgpu = ["dep:wgpu", "dep:egui-wgpu"]
 
 
 [dependencies]
@@ -72,29 +76,45 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 document-features = { version = "0.2", optional = true }
 
 egui_glow = { version = "0.19.0", path = "../egui_glow", optional = true, default-features = false }
-egui-wgpu = { version = "0.19.0", path = "../egui-wgpu", optional = true, features = ["winit"] }
 glow = { version = "0.11", optional = true }
 ron = { version = "0.8", optional = true, features = ["integer128"] }
 serde = { version = "1", optional = true, features = ["derive"] }
-wgpu = { version = "0.13", optional = true }
 
 # -------------------------------------------
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-dark-light = { version = "0.2.1", optional = true }
-egui-winit = { version = "0.19.0", path = "../egui-winit", default-features = false, features = ["clipboard", "links"] }
-glutin = { version = "0.29.0" }
+egui-winit = { version = "0.19.0", path = "../egui-winit", default-features = false, features = [
+  "clipboard",
+  "links",
+] }
+# we can expose these to user so that they can select which backends they want to enable to avoid compiling useless deps.
+# this can be done at the same time we expose x11/wayland features of winit crate.
+glutin = { version = "0.30.0", features = [
+  "egl",
+  "glx",
+  "x11",
+  "wayland",
+  "wgl",
+] }
+raw-window-handle = { version = "0.5.0" }
 winit = "0.27.2"
 
 # optional native:
-puffin = { version = "0.13", optional = true }
+dark-light = { version = "0.2.1", optional = true }
 directories-next = { version = "2", optional = true }
+egui-wgpu = { version = "0.19.0", path = "../egui-wgpu", optional = true, features = [
+  "winit",
+] } # if wgpu is used, use it with winit
+image = { version = "0.24", optional = true, default-features = false, features = [
+  "png",
+] }
+puffin = { version = "0.14", optional = true }
+wgpu = { version = "0.14", optional = true }
 
 # -------------------------------------------
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 bytemuck = "1.7"
-getrandom = { version = "0.2", features = ["js"] } # used by ahash
 js-sys = "0.3"
 percent-encoding = "2.1"
 wasm-bindgen = "0.2"
@@ -142,6 +162,7 @@ web-sys = { version = "0.3.58", features = [
   "Window",
 ] }
 
-# optional
-# feature screen_reader
-tts = { version = "0.20", optional = true } # Can't use 0.22 due to compilation problems on linux: https://github.com/emilk/egui/runs/7170127089?check_suite_focus=true#step:5:713
+# optional web:
+egui-wgpu = { version = "0.19.0", path = "../egui-wgpu", optional = true } # if wgpu is used, use it without (!) winit
+tts = { version = "0.24", optional = true }
+wgpu = { version = "0.14", optional = true, features = ["webgl"] }

@@ -56,13 +56,15 @@ impl Painting {
             response.mark_changed();
         }
 
-        let mut shapes = vec![];
-        for line in &self.lines {
-            if line.len() >= 2 {
+        let shapes = self
+            .lines
+            .iter()
+            .filter(|line| line.len() >= 2)
+            .map(|line| {
                 let points: Vec<Pos2> = line.iter().map(|p| to_screen * *p).collect();
-                shapes.push(egui::Shape::line(points, self.stroke));
-            }
-        }
+                egui::Shape::line(points, self.stroke)
+            });
+
         painter.extend(shapes);
 
         response

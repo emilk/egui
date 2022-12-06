@@ -1,8 +1,16 @@
-use crate::{style::WidgetVisuals, *};
 use epaint::Shape;
 
+use crate::{style::WidgetVisuals, *};
+
+/// Indicate wether or not a popup will be shown above or below the box.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum AboveOrBelow {
+    Above,
+    Below,
+}
+
 /// A function that paints the [`ComboBox`] icon
-pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool)>;
+pub type IconPainter = Box<dyn FnOnce(&Ui, Rect, &WidgetVisuals, bool, AboveOrBelow)>;
 
 /// A drop-down selection menu with a descriptive label.
 ///
@@ -28,6 +36,7 @@ pub struct ComboBox {
     selected_text: WidgetText,
     width: Option<f32>,
     icon: Option<IconPainter>,
+    wrap_enabled: bool,
 }
 
 impl ComboBox {
@@ -39,6 +48,7 @@ impl ComboBox {
             selected_text: Default::default(),
             width: None,
             icon: None,
+            wrap_enabled: false,
         }
     }
 
@@ -51,6 +61,7 @@ impl ComboBox {
             selected_text: Default::default(),
             width: None,
             icon: None,
+            wrap_enabled: false,
         }
     }
 
@@ -62,6 +73,7 @@ impl ComboBox {
             selected_text: Default::default(),
             width: None,
             icon: None,
+            wrap_enabled: false,
         }
     }
 
@@ -89,6 +101,7 @@ impl ComboBox {
     ///     rect: egui::Rect,
     ///     visuals: &egui::style::WidgetVisuals,
     ///     _is_open: bool,
+    ///     _above_or_below: egui::AboveOrBelow,
     /// ) {
     ///     let rect = egui::Rect::from_center_size(
     ///         rect.center(),
@@ -107,8 +120,17 @@ impl ComboBox {
     ///     .show_ui(ui, |_ui| {});
     /// # });
     /// ```
-    pub fn icon(mut self, icon_fn: impl FnOnce(&Ui, Rect, &WidgetVisuals, bool) + 'static) -> Self {
+    pub fn icon(
+        mut self,
+        icon_fn: impl FnOnce(&Ui, Rect, &WidgetVisuals, bool, AboveOrBelow) + 'static,
+    ) -> Self {
         self.icon = Some(Box::new(icon_fn));
+        self
+    }
+
+    /// Controls whether text wrap is used for the selected text
+    pub fn wrap(mut self, wrap: bool) -> Self {
+        self.wrap_enabled = wrap;
         self
     }
 
@@ -134,6 +156,7 @@ impl ComboBox {
             selected_text,
             width,
             icon,
+            wrap_enabled,
         } = self;
 
         let button_id = ui.make_persistent_id(id_source);
@@ -142,7 +165,14 @@ impl ComboBox {
             if let Some(width) = width {
                 ui.spacing_mut().slider_width = width; // yes, this is ugly. Will remove later.
             }
-            let mut ir = combo_box_dyn(ui, button_id, selected_text, menu_contents, icon);
+            let mut ir = combo_box_dyn(
+                ui,
+                button_id,
+                selected_text,
+                menu_contents,
+                icon,
+                wrap_enabled,
+            );
             if let Some(label) = label {
                 ir.response
                     .widget_info(|| WidgetInfo::labeled(WidgetType::ComboBox, label.text()));
@@ -209,16 +239,40 @@ fn combo_box_dyn<'c, R>(
     selected_text: WidgetText,
     menu_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     icon: Option<IconPainter>,
+    wrap_enabled: bool,
 ) -> InnerResponse<Option<R>> {
     let popup_id = button_id.with("popup");
 
     let is_popup_open = ui.memory().is_popup_open(popup_id);
+
+    let popup_height = ui
+        .ctx()
+        .memory()
+        .areas
+        .get(popup_id)
+        .map_or(100.0, |state| state.size.y);
+
+    let above_or_below =
+        if ui.next_widget_position().y + ui.spacing().interact_size.y + popup_height
+            < ui.ctx().input().screen_rect().bottom()
+        {
+            AboveOrBelow::Below
+        } else {
+            AboveOrBelow::Above
+        };
+
     let button_response = button_frame(ui, button_id, is_popup_open, Sense::click(), |ui| {
         // We don't want to change width when user selects something new
-        let full_minimum_width = ui.spacing().slider_width;
+        let full_minimum_width = wrap_enabled
+            .then(|| ui.available_width() - ui.spacing().item_spacing.x * 2.0)
+            .unwrap_or_else(|| ui.spacing().slider_width);
         let icon_size = Vec2::splat(ui.spacing().icon_width);
+        let wrap_width = wrap_enabled
+            .then(|| ui.available_width() - ui.spacing().item_spacing.x - icon_size.x)
+            .unwrap_or(f32::INFINITY);
 
-        let galley = selected_text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Button);
+        let galley =
+            selected_text.into_galley(ui, Some(wrap_enabled), wrap_width, TextStyle::Button);
 
         let width = galley.size().x + ui.spacing().item_spacing.x + icon_size.x;
         let width = width.at_least(full_minimum_width);
@@ -243,9 +297,15 @@ fn combo_box_dyn<'c, R>(
                     icon_rect.expand(visuals.expansion),
                     visuals,
                     is_popup_open,
+                    above_or_below,
                 );
             } else {
-                paint_default_icon(ui.painter(), icon_rect.expand(visuals.expansion), visuals);
+                paint_default_icon(
+                    ui.painter(),
+                    icon_rect.expand(visuals.expansion),
+                    visuals,
+                    above_or_below,
+                );
             }
 
             let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
@@ -256,12 +316,18 @@ fn combo_box_dyn<'c, R>(
     if button_response.clicked() {
         ui.memory().toggle_popup(popup_id);
     }
-    let inner = crate::popup::popup_below_widget(ui, popup_id, &button_response, |ui| {
-        ScrollArea::vertical()
-            .max_height(ui.spacing().combo_height)
-            .show(ui, menu_contents)
-            .inner
-    });
+    let inner = crate::popup::popup_above_or_below_widget(
+        ui,
+        popup_id,
+        &button_response,
+        above_or_below,
+        |ui| {
+            ScrollArea::vertical()
+                .max_height(ui.spacing().combo_height)
+                .show(ui, menu_contents)
+                .inner
+        },
+    );
 
     InnerResponse {
         inner,
@@ -316,13 +382,31 @@ fn button_frame(
     response
 }
 
-fn paint_default_icon(painter: &Painter, rect: Rect, visuals: &WidgetVisuals) {
+fn paint_default_icon(
+    painter: &Painter,
+    rect: Rect,
+    visuals: &WidgetVisuals,
+    above_or_below: AboveOrBelow,
+) {
     let rect = Rect::from_center_size(
         rect.center(),
         vec2(rect.width() * 0.7, rect.height() * 0.45),
     );
-    painter.add(Shape::closed_line(
-        vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
-        visuals.fg_stroke,
-    ));
+
+    match above_or_below {
+        AboveOrBelow::Above => {
+            // Upward pointing triangle
+            painter.add(Shape::closed_line(
+                vec![rect.left_bottom(), rect.right_bottom(), rect.center_top()],
+                visuals.fg_stroke,
+            ));
+        }
+        AboveOrBelow::Below => {
+            // Downward pointing triangle
+            painter.add(Shape::closed_line(
+                vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
+                visuals.fg_stroke,
+            ));
+        }
+    }
 }

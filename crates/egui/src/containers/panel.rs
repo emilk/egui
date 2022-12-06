@@ -19,15 +19,21 @@ use std::ops::RangeInclusive;
 
 use crate::*;
 
+/// State regarding panels.
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-struct PanelState {
-    rect: Rect,
+pub struct PanelState {
+    pub rect: Rect,
 }
 
 impl PanelState {
-    fn load(ctx: &Context, bar_id: Id) -> Option<Self> {
+    pub fn load(ctx: &Context, bar_id: Id) -> Option<Self> {
         ctx.data().get_persisted(bar_id)
+    }
+
+    /// The size of the panel (from previous frame).
+    pub fn size(&self) -> Vec2 {
+        self.rect.size()
     }
 
     fn store(self, ctx: &Context, bar_id: Id) {
@@ -38,7 +44,7 @@ impl PanelState {
 // ----------------------------------------------------------------------------
 
 /// [`Left`](Side::Left) or [`Right`](Side::Right)
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Side {
     Left,
     Right,
@@ -91,28 +97,30 @@ pub struct SidePanel {
     id: Id,
     frame: Option<Frame>,
     resizable: bool,
+    show_separator_line: bool,
     default_width: f32,
     width_range: RangeInclusive<f32>,
 }
 
 impl SidePanel {
-    /// `id_source`: Something unique, e.g. `"my_left_panel"`.
-    pub fn left(id_source: impl std::hash::Hash) -> Self {
-        Self::new(Side::Left, id_source)
+    /// The id should be globally unique, e.g. `Id::new("my_left_panel")`.
+    pub fn left(id: impl Into<Id>) -> Self {
+        Self::new(Side::Left, id)
     }
 
-    /// `id_source`: Something unique, e.g. `"my_right_panel"`.
-    pub fn right(id_source: impl std::hash::Hash) -> Self {
-        Self::new(Side::Right, id_source)
+    /// The id should be globally unique, e.g. `Id::new("my_right_panel")`.
+    pub fn right(id: impl Into<Id>) -> Self {
+        Self::new(Side::Right, id)
     }
 
-    /// `id_source`: Something unique, e.g. `"my_panel"`.
-    pub fn new(side: Side, id_source: impl std::hash::Hash) -> Self {
+    /// The id should be globally unique, e.g. `Id::new("my_panel")`.
+    pub fn new(side: Side, id: impl Into<Id>) -> Self {
         Self {
             side,
-            id: Id::new(id_source),
+            id: id.into(),
             frame: None,
             resizable: true,
+            show_separator_line: true,
             default_width: 200.0,
             width_range: 96.0..=f32::INFINITY,
         }
@@ -134,25 +142,45 @@ impl SidePanel {
         self
     }
 
+    /// Show a separator line, even when not interacting with it?
+    ///
+    /// Default: `true`.
+    pub fn show_separator_line(mut self, show_separator_line: bool) -> Self {
+        self.show_separator_line = show_separator_line;
+        self
+    }
+
     /// The initial wrapping width of the [`SidePanel`].
     pub fn default_width(mut self, default_width: f32) -> Self {
         self.default_width = default_width;
+        self.width_range = self.width_range.start().at_most(default_width)
+            ..=self.width_range.end().at_least(default_width);
         self
     }
 
+    /// Minimum width of the panel.
     pub fn min_width(mut self, min_width: f32) -> Self {
-        self.width_range = min_width..=(*self.width_range.end());
+        self.width_range = min_width..=self.width_range.end().at_least(min_width);
         self
     }
 
+    /// Maximum width of the panel.
     pub fn max_width(mut self, max_width: f32) -> Self {
-        self.width_range = (*self.width_range.start())..=max_width;
+        self.width_range = self.width_range.start().at_most(max_width)..=max_width;
         self
     }
 
-    /// The allowable width range for resizable panels.
+    /// The allowable width range for the panel.
     pub fn width_range(mut self, width_range: RangeInclusive<f32>) -> Self {
+        self.default_width = clamp_to_range(self.default_width, width_range.clone());
         self.width_range = width_range;
+        self
+    }
+
+    /// Enforce this exact width.
+    pub fn exact_width(mut self, width: f32) -> Self {
+        self.default_width = width;
+        self.width_range = width..=width;
         self
     }
 
@@ -184,6 +212,7 @@ impl SidePanel {
             id,
             frame,
             resizable,
+            show_separator_line,
             default_width,
             width_range,
         } = self;
@@ -197,6 +226,7 @@ impl SidePanel {
             }
             width = clamp_to_range(width, width_range.clone()).at_most(available_rect.width());
             side.set_rect_width(&mut panel_rect, width);
+            ui.ctx().check_for_id_clash(id, panel_rect, "SidePanel");
         }
 
         let mut resize_hover = false;
@@ -252,10 +282,10 @@ impl SidePanel {
             let mut cursor = ui.cursor();
             match side {
                 Side::Left => {
-                    cursor.min.x = rect.max.x + ui.spacing().item_spacing.x;
+                    cursor.min.x = rect.max.x;
                 }
                 Side::Right => {
-                    cursor.max.x = rect.min.x - ui.spacing().item_spacing.x;
+                    cursor.max.x = rect.min.x;
                 }
             }
             ui.set_cursor(cursor);
@@ -264,18 +294,20 @@ impl SidePanel {
 
         PanelState { rect }.store(ui.ctx(), id);
 
-        if resize_hover || is_resizing {
+        {
             let stroke = if is_resizing {
                 ui.style().visuals.widgets.active.bg_stroke
-            } else {
+            } else if resize_hover {
                 ui.style().visuals.widgets.hovered.bg_stroke
+            } else if show_separator_line {
+                // TOOD(emilk): distinguish resizable from non-resizable
+                ui.style().visuals.widgets.noninteractive.bg_stroke
+            } else {
+                Stroke::NONE
             };
-            // draw on top of ALL panels so that the resize line won't be covered by subsequent panels
-            let resize_layer = LayerId::new(Order::Foreground, Id::new("panel_resize"));
+            // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
             let resize_x = side.opposite().side_x(rect);
-            ui.ctx()
-                .layer_painter(resize_layer)
-                .vline(resize_x, rect.y_range(), stroke);
+            ui.painter().vline(resize_x, rect.y_range(), stroke);
         }
 
         inner_response
@@ -315,12 +347,145 @@ impl SidePanel {
         }
         inner_response
     }
+
+    /// Show the panel if `is_expanded` is `true`,
+    /// otherwise don't show it, but with a nice animation between collapsed and expanded.
+    pub fn show_animated<R>(
+        self,
+        ctx: &Context,
+        is_expanded: bool,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<InnerResponse<R>> {
+        let how_expanded = ctx.animate_bool(self.id.with("animation"), is_expanded);
+
+        if 0.0 == how_expanded {
+            None
+        } else if how_expanded < 1.0 {
+            // Show a fake panel in this in-between animation state:
+            // TODO(emilk): move the panel out-of-screen instead of changing its width.
+            // Then we can actually paint it as it animates.
+            let expanded_width = PanelState::load(ctx, self.id)
+                .map_or(self.default_width, |state| state.rect.width());
+            let fake_width = how_expanded * expanded_width;
+            Self {
+                id: self.id.with("animating_panel"),
+                ..self
+            }
+            .resizable(false)
+            .exact_width(fake_width)
+            .show(ctx, |_ui| {});
+            None
+        } else {
+            // Show the real panel:
+            Some(self.show(ctx, add_contents))
+        }
+    }
+
+    /// Show the panel if `is_expanded` is `true`,
+    /// otherwise don't show it, but with a nice animation between collapsed and expanded.
+    pub fn show_animated_inside<R>(
+        self,
+        ui: &mut Ui,
+        is_expanded: bool,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<InnerResponse<R>> {
+        let how_expanded = ui
+            .ctx()
+            .animate_bool(self.id.with("animation"), is_expanded);
+
+        if 0.0 == how_expanded {
+            None
+        } else if how_expanded < 1.0 {
+            // Show a fake panel in this in-between animation state:
+            // TODO(emilk): move the panel out-of-screen instead of changing its width.
+            // Then we can actually paint it as it animates.
+            let expanded_width = PanelState::load(ui.ctx(), self.id)
+                .map_or(self.default_width, |state| state.rect.width());
+            let fake_width = how_expanded * expanded_width;
+            Self {
+                id: self.id.with("animating_panel"),
+                ..self
+            }
+            .resizable(false)
+            .exact_width(fake_width)
+            .show_inside(ui, |_ui| {});
+            None
+        } else {
+            // Show the real panel:
+            Some(self.show_inside(ui, add_contents))
+        }
+    }
+
+    /// Show either a collapsed or a expanded panel, with a nice animation between.
+    pub fn show_animated_between<R>(
+        ctx: &Context,
+        is_expanded: bool,
+        collapsed_panel: Self,
+        expanded_panel: Self,
+        add_contents: impl FnOnce(&mut Ui, f32) -> R,
+    ) -> Option<InnerResponse<R>> {
+        let how_expanded = ctx.animate_bool(expanded_panel.id.with("animation"), is_expanded);
+
+        if 0.0 == how_expanded {
+            Some(collapsed_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
+        } else if how_expanded < 1.0 {
+            // Show animation:
+            let collapsed_width = PanelState::load(ctx, collapsed_panel.id)
+                .map_or(collapsed_panel.default_width, |state| state.rect.width());
+            let expanded_width = PanelState::load(ctx, expanded_panel.id)
+                .map_or(expanded_panel.default_width, |state| state.rect.width());
+            let fake_width = lerp(collapsed_width..=expanded_width, how_expanded);
+            Self {
+                id: expanded_panel.id.with("animating_panel"),
+                ..expanded_panel
+            }
+            .resizable(false)
+            .exact_width(fake_width)
+            .show(ctx, |ui| add_contents(ui, how_expanded));
+            None
+        } else {
+            Some(expanded_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
+        }
+    }
+
+    /// Show either a collapsed or a expanded panel, with a nice animation between.
+    pub fn show_animated_between_inside<R>(
+        ui: &mut Ui,
+        is_expanded: bool,
+        collapsed_panel: Self,
+        expanded_panel: Self,
+        add_contents: impl FnOnce(&mut Ui, f32) -> R,
+    ) -> InnerResponse<R> {
+        let how_expanded = ui
+            .ctx()
+            .animate_bool(expanded_panel.id.with("animation"), is_expanded);
+
+        if 0.0 == how_expanded {
+            collapsed_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
+        } else if how_expanded < 1.0 {
+            // Show animation:
+            let collapsed_width = PanelState::load(ui.ctx(), collapsed_panel.id)
+                .map_or(collapsed_panel.default_width, |state| state.rect.width());
+            let expanded_width = PanelState::load(ui.ctx(), expanded_panel.id)
+                .map_or(expanded_panel.default_width, |state| state.rect.width());
+            let fake_width = lerp(collapsed_width..=expanded_width, how_expanded);
+            Self {
+                id: expanded_panel.id.with("animating_panel"),
+                ..expanded_panel
+            }
+            .resizable(false)
+            .exact_width(fake_width)
+            .show_inside(ui, |ui| add_contents(ui, how_expanded))
+        } else {
+            expanded_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
 
 /// [`Top`](TopBottomSide::Top) or [`Bottom`](TopBottomSide::Bottom)
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TopBottomSide {
     Top,
     Bottom,
@@ -373,28 +538,30 @@ pub struct TopBottomPanel {
     id: Id,
     frame: Option<Frame>,
     resizable: bool,
+    show_separator_line: bool,
     default_height: Option<f32>,
     height_range: RangeInclusive<f32>,
 }
 
 impl TopBottomPanel {
-    /// `id_source`: Something unique, e.g. `"my_top_panel"`.
-    pub fn top(id_source: impl std::hash::Hash) -> Self {
-        Self::new(TopBottomSide::Top, id_source)
+    /// The id should be globally unique, e.g. `Id::new("my_top_panel")`.
+    pub fn top(id: impl Into<Id>) -> Self {
+        Self::new(TopBottomSide::Top, id)
     }
 
-    /// `id_source`: Something unique, e.g. `"my_bottom_panel"`.
-    pub fn bottom(id_source: impl std::hash::Hash) -> Self {
-        Self::new(TopBottomSide::Bottom, id_source)
+    /// The id should be globally unique, e.g. `Id::new("my_bottom_panel")`.
+    pub fn bottom(id: impl Into<Id>) -> Self {
+        Self::new(TopBottomSide::Bottom, id)
     }
 
-    /// `id_source`: Something unique, e.g. `"my_panel"`.
-    pub fn new(side: TopBottomSide, id_source: impl std::hash::Hash) -> Self {
+    /// The id should be globally unique, e.g. `Id::new("my_panel")`.
+    pub fn new(side: TopBottomSide, id: impl Into<Id>) -> Self {
         Self {
             side,
-            id: Id::new(id_source),
+            id: id.into(),
             frame: None,
             resizable: false,
+            show_separator_line: true,
             default_height: None,
             height_range: 20.0..=f32::INFINITY,
         }
@@ -416,26 +583,48 @@ impl TopBottomPanel {
         self
     }
 
+    /// Show a separator line, even when not interacting with it?
+    ///
+    /// Default: `true`.
+    pub fn show_separator_line(mut self, show_separator_line: bool) -> Self {
+        self.show_separator_line = show_separator_line;
+        self
+    }
+
     /// The initial height of the [`SidePanel`].
     /// Defaults to [`style::Spacing::interact_size`].y.
     pub fn default_height(mut self, default_height: f32) -> Self {
         self.default_height = Some(default_height);
+        self.height_range = self.height_range.start().at_most(default_height)
+            ..=self.height_range.end().at_least(default_height);
         self
     }
 
+    /// Minimum height of the panel.
     pub fn min_height(mut self, min_height: f32) -> Self {
-        self.height_range = min_height..=(*self.height_range.end());
+        self.height_range = min_height..=self.height_range.end().at_least(min_height);
         self
     }
 
+    /// Maximum height of the panel.
     pub fn max_height(mut self, max_height: f32) -> Self {
-        self.height_range = (*self.height_range.start())..=max_height;
+        self.height_range = self.height_range.start().at_most(max_height)..=max_height;
         self
     }
 
-    /// The allowable height range for resizable panels.
+    /// The allowable height range for the panel.
     pub fn height_range(mut self, height_range: RangeInclusive<f32>) -> Self {
+        self.default_height = self
+            .default_height
+            .map(|default_height| clamp_to_range(default_height, height_range.clone()));
         self.height_range = height_range;
+        self
+    }
+
+    /// Enforce this exact height.
+    pub fn exact_height(mut self, height: f32) -> Self {
+        self.default_height = Some(height);
+        self.height_range = height..=height;
         self
     }
 
@@ -467,6 +656,7 @@ impl TopBottomPanel {
             id,
             frame,
             resizable,
+            show_separator_line,
             default_height,
             height_range,
         } = self;
@@ -481,6 +671,8 @@ impl TopBottomPanel {
             };
             height = clamp_to_range(height, height_range.clone()).at_most(available_rect.height());
             side.set_rect_height(&mut panel_rect, height);
+            ui.ctx()
+                .check_for_id_clash(id, panel_rect, "TopBottomPanel");
         }
 
         let mut resize_hover = false;
@@ -539,10 +731,10 @@ impl TopBottomPanel {
             let mut cursor = ui.cursor();
             match side {
                 TopBottomSide::Top => {
-                    cursor.min.y = rect.max.y + ui.spacing().item_spacing.y;
+                    cursor.min.y = rect.max.y;
                 }
                 TopBottomSide::Bottom => {
-                    cursor.max.y = rect.min.y - ui.spacing().item_spacing.y;
+                    cursor.max.y = rect.min.y;
                 }
             }
             ui.set_cursor(cursor);
@@ -551,18 +743,20 @@ impl TopBottomPanel {
 
         PanelState { rect }.store(ui.ctx(), id);
 
-        if resize_hover || is_resizing {
+        {
             let stroke = if is_resizing {
                 ui.style().visuals.widgets.active.bg_stroke
-            } else {
+            } else if resize_hover {
                 ui.style().visuals.widgets.hovered.bg_stroke
+            } else if show_separator_line {
+                // TOOD(emilk): distinguish resizable from non-resizable
+                ui.style().visuals.widgets.noninteractive.bg_stroke
+            } else {
+                Stroke::NONE
             };
-            // draw on top of ALL panels so that the resize line won't be covered by subsequent panels
-            let resize_layer = LayerId::new(Order::Foreground, Id::new("panel_resize"));
+            // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
             let resize_y = side.opposite().side_y(rect);
-            ui.ctx()
-                .layer_painter(resize_layer)
-                .hline(rect.x_range(), resize_y, stroke);
+            ui.painter().hline(rect.x_range(), resize_y, stroke);
         }
 
         inner_response
@@ -605,6 +799,155 @@ impl TopBottomPanel {
         }
 
         inner_response
+    }
+
+    /// Show the panel if `is_expanded` is `true`,
+    /// otherwise don't show it, but with a nice animation between collapsed and expanded.
+    pub fn show_animated<R>(
+        self,
+        ctx: &Context,
+        is_expanded: bool,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<InnerResponse<R>> {
+        let how_expanded = ctx.animate_bool(self.id.with("animation"), is_expanded);
+
+        if 0.0 == how_expanded {
+            None
+        } else if how_expanded < 1.0 {
+            // Show a fake panel in this in-between animation state:
+            // TODO(emilk): move the panel out-of-screen instead of changing its height.
+            // Then we can actually paint it as it animates.
+            let expanded_height = PanelState::load(ctx, self.id)
+                .map(|state| state.rect.height())
+                .or(self.default_height)
+                .unwrap_or_else(|| ctx.style().spacing.interact_size.y);
+            let fake_height = how_expanded * expanded_height;
+            Self {
+                id: self.id.with("animating_panel"),
+                ..self
+            }
+            .resizable(false)
+            .exact_height(fake_height)
+            .show(ctx, |_ui| {});
+            None
+        } else {
+            // Show the real panel:
+            Some(self.show(ctx, add_contents))
+        }
+    }
+
+    /// Show the panel if `is_expanded` is `true`,
+    /// otherwise don't show it, but with a nice animation between collapsed and expanded.
+    pub fn show_animated_inside<R>(
+        self,
+        ui: &mut Ui,
+        is_expanded: bool,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<InnerResponse<R>> {
+        let how_expanded = ui
+            .ctx()
+            .animate_bool(self.id.with("animation"), is_expanded);
+
+        if 0.0 == how_expanded {
+            None
+        } else if how_expanded < 1.0 {
+            // Show a fake panel in this in-between animation state:
+            // TODO(emilk): move the panel out-of-screen instead of changing its height.
+            // Then we can actually paint it as it animates.
+            let expanded_height = PanelState::load(ui.ctx(), self.id)
+                .map(|state| state.rect.height())
+                .or(self.default_height)
+                .unwrap_or_else(|| ui.style().spacing.interact_size.y);
+            let fake_height = how_expanded * expanded_height;
+            Self {
+                id: self.id.with("animating_panel"),
+                ..self
+            }
+            .resizable(false)
+            .exact_height(fake_height)
+            .show_inside(ui, |_ui| {});
+            None
+        } else {
+            // Show the real panel:
+            Some(self.show_inside(ui, add_contents))
+        }
+    }
+
+    /// Show either a collapsed or a expanded panel, with a nice animation between.
+    pub fn show_animated_between<R>(
+        ctx: &Context,
+        is_expanded: bool,
+        collapsed_panel: Self,
+        expanded_panel: Self,
+        add_contents: impl FnOnce(&mut Ui, f32) -> R,
+    ) -> Option<InnerResponse<R>> {
+        let how_expanded = ctx.animate_bool(expanded_panel.id.with("animation"), is_expanded);
+
+        if 0.0 == how_expanded {
+            Some(collapsed_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
+        } else if how_expanded < 1.0 {
+            // Show animation:
+            let collapsed_height = PanelState::load(ctx, collapsed_panel.id)
+                .map(|state| state.rect.height())
+                .or(collapsed_panel.default_height)
+                .unwrap_or_else(|| ctx.style().spacing.interact_size.y);
+
+            let expanded_height = PanelState::load(ctx, expanded_panel.id)
+                .map(|state| state.rect.height())
+                .or(expanded_panel.default_height)
+                .unwrap_or_else(|| ctx.style().spacing.interact_size.y);
+
+            let fake_height = lerp(collapsed_height..=expanded_height, how_expanded);
+            Self {
+                id: expanded_panel.id.with("animating_panel"),
+                ..expanded_panel
+            }
+            .resizable(false)
+            .exact_height(fake_height)
+            .show(ctx, |ui| add_contents(ui, how_expanded));
+            None
+        } else {
+            Some(expanded_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
+        }
+    }
+
+    /// Show either a collapsed or a expanded panel, with a nice animation between.
+    pub fn show_animated_between_inside<R>(
+        ui: &mut Ui,
+        is_expanded: bool,
+        collapsed_panel: Self,
+        expanded_panel: Self,
+        add_contents: impl FnOnce(&mut Ui, f32) -> R,
+    ) -> InnerResponse<R> {
+        let how_expanded = ui
+            .ctx()
+            .animate_bool(expanded_panel.id.with("animation"), is_expanded);
+
+        if 0.0 == how_expanded {
+            collapsed_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
+        } else if how_expanded < 1.0 {
+            // Show animation:
+            let collapsed_height = PanelState::load(ui.ctx(), collapsed_panel.id)
+                .map(|state| state.rect.height())
+                .or(collapsed_panel.default_height)
+                .unwrap_or_else(|| ui.style().spacing.interact_size.y);
+
+            let expanded_height = PanelState::load(ui.ctx(), expanded_panel.id)
+                .map(|state| state.rect.height())
+                .or(expanded_panel.default_height)
+                .unwrap_or_else(|| ui.style().spacing.interact_size.y);
+
+            let fake_height = lerp(collapsed_height..=expanded_height, how_expanded);
+            Self {
+                id: expanded_panel.id.with("animating_panel"),
+                ..expanded_panel
+            }
+            .resizable(false)
+            .exact_height(fake_height)
+            .show_inside(ui, |ui| add_contents(ui, how_expanded))
+        } else {
+            expanded_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
+        }
     }
 }
 

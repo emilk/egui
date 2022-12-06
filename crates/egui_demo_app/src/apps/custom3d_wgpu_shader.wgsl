@@ -4,7 +4,7 @@ struct VertexOut {
 };
 
 struct Uniforms {
-    angle: f32,
+    @size(16) angle: f32, // pad to 16 bytes
 };
 
 @group(0) @binding(0)

@@ -178,19 +178,19 @@ impl Painter {
     /// Add many shapes at once.
     ///
     /// Calling this once is generally faster than calling [`Self::add`] multiple times.
-    pub fn extend(&self, mut shapes: Vec<Shape>) {
+    pub fn extend<I: IntoIterator<Item = Shape>>(&self, shapes: I) {
         if self.fade_to_color == Some(Color32::TRANSPARENT) {
             return;
         }
-        if !shapes.is_empty() {
-            if self.fade_to_color.is_some() {
-                for shape in &mut shapes {
-                    self.transform_shape(shape);
-                }
-            }
-
+        if self.fade_to_color.is_some() {
+            let shapes = shapes.into_iter().map(|mut shape| {
+                self.transform_shape(&mut shape);
+                shape
+            });
             self.paint_list().extend(self.clip_rect, shapes);
-        }
+        } else {
+            self.paint_list().extend(self.clip_rect, shapes);
+        };
     }
 
     /// Modify an existing [`Shape`].
@@ -208,12 +208,17 @@ impl Painter {
 impl Painter {
     #[allow(clippy::needless_pass_by_value)]
     pub fn debug_rect(&self, rect: Rect, color: Color32, text: impl ToString) {
-        self.rect_stroke(rect, 0.0, (1.0, color));
+        self.rect(
+            rect,
+            0.0,
+            color.additive().linear_multiply(0.015),
+            (1.0, color),
+        );
         self.text(
             rect.min,
             Align2::LEFT_TOP,
             text.to_string(),
-            FontId::monospace(14.0),
+            FontId::monospace(12.0),
             color,
         );
     }
@@ -232,13 +237,13 @@ impl Painter {
         color: Color32,
         text: impl ToString,
     ) -> Rect {
-        let galley = self.layout_no_wrap(text.to_string(), FontId::monospace(14.0), color);
+        let galley = self.layout_no_wrap(text.to_string(), FontId::monospace(12.0), color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
         let frame_rect = rect.expand(2.0);
         self.add(Shape::rect_filled(
             frame_rect,
             0.0,
-            Color32::from_black_alpha(240),
+            Color32::from_black_alpha(150),
         ));
         self.galley(rect.min, galley);
         frame_rect
@@ -351,6 +356,16 @@ impl Painter {
         self.line_segment([origin, tip], stroke);
         self.line_segment([tip, tip - tip_length * (rot * dir)], stroke);
         self.line_segment([tip, tip - tip_length * (rot.inverse() * dir)], stroke);
+    }
+
+    /// An image at the given position.
+    ///
+    /// `uv` should normally be `Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0))`
+    /// unless you want to crop or flip the image.
+    ///
+    /// `tint` is a color multiplier. Use [`Color32::WHITE`] if you don't want to tint the image.
+    pub fn image(&self, texture_id: epaint::TextureId, rect: Rect, uv: Rect, tint: Color32) {
+        self.add(Shape::image(texture_id, rect, uv, tint));
     }
 }
 

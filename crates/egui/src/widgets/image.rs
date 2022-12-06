@@ -18,7 +18,7 @@ use emath::Rot2;
 ///             ui.ctx().load_texture(
 ///                 "my-image",
 ///                 egui::ColorImage::example(),
-///                 egui::TextureFilter::Linear
+///                 Default::default()
 ///             )
 ///         });
 ///

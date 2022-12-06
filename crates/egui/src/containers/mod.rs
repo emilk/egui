@@ -9,7 +9,7 @@ pub(crate) mod frame;
 pub mod panel;
 pub mod popup;
 pub(crate) mod resize;
-pub(crate) mod scroll_area;
+pub mod scroll_area;
 pub(crate) mod window;
 
 pub use {

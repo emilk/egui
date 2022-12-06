@@ -11,6 +11,7 @@ fn main() {
         // To have rounded corners we need transparency:
         transparent: true,
         min_window_size: Some(egui::vec2(320.0, 100.0)),
+        initial_window_size: Some(egui::vec2(320.0, 240.0)),
         ..Default::default()
     };
     eframe::run_native(
@@ -70,7 +71,7 @@ fn custom_window_frame(
                 rect.center_top() + vec2(0.0, height / 2.0),
                 Align2::CENTER_CENTER,
                 title,
-                FontId::proportional(height - 2.0),
+                FontId::proportional(height * 0.8),
                 text_color,
             );
 

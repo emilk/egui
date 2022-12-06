@@ -1,17 +1,19 @@
 #![allow(deprecated)] // legacy implement_vertex macro
 #![allow(semicolon_in_expressions_from_macros)] // glium::program! macro
 
-use egui::{epaint::Primitive, TextureFilter};
+use egui::{
+    epaint::{textures::TextureFilter, Primitive},
+    TextureOptions,
+};
 
 use {
     egui::{emath::Rect, epaint::Mesh},
     glium::{
         implement_vertex,
         index::PrimitiveType,
-        program,
         texture::{self, srgb_texture2d::SrgbTexture2d},
         uniform,
-        uniforms::{MagnifySamplerFilter, SamplerWrapFunction},
+        uniforms::{MagnifySamplerFilter, MinifySamplerFilter, SamplerWrapFunction},
     },
     std::rc::Rc,
 };
@@ -26,31 +28,77 @@ pub struct Painter {
     next_native_tex_id: u64,
 }
 
+fn create_program(
+    facade: &dyn glium::backend::Facade,
+    vertex_shader: &str,
+    fragment_shader: &str,
+) -> glium::program::Program {
+    let input = glium::program::ProgramCreationInput::SourceCode {
+        vertex_shader,
+        tessellation_control_shader: None,
+        tessellation_evaluation_shader: None,
+        geometry_shader: None,
+        fragment_shader,
+        transform_feedback_varyings: None,
+        outputs_srgb: true,
+        uses_point_size: false,
+    };
+
+    glium::program::Program::new(facade, input)
+        .unwrap_or_else(|err| panic!("Failed to compile shader: {}", err))
+}
+
 impl Painter {
     pub fn new(facade: &dyn glium::backend::Facade) -> Painter {
         use glium::CapabilitiesSource as _;
         let max_texture_side = facade.get_capabilities().max_texture_size as _;
 
-        let program = program! {
-            facade,
-            120 => {
-                vertex: include_str!("shader/vertex_120.glsl"),
-                fragment: include_str!("shader/fragment_120.glsl"),
-            },
-            140 => {
-                vertex: include_str!("shader/vertex_140.glsl"),
-                fragment: include_str!("shader/fragment_140.glsl"),
-            },
-            100 es => {
-                vertex: include_str!("shader/vertex_100es.glsl"),
-                fragment: include_str!("shader/fragment_100es.glsl"),
-            },
-            300 es => {
-                vertex: include_str!("shader/vertex_300es.glsl"),
-                fragment: include_str!("shader/fragment_300es.glsl"),
-            },
-        }
-        .expect("Failed to compile shader");
+        let program = if facade
+            .get_context()
+            .is_glsl_version_supported(&glium::Version(glium::Api::Gl, 1, 4))
+        {
+            eprintln!("Using GL 1.4");
+            create_program(
+                facade,
+                include_str!("shader/vertex_140.glsl"),
+                include_str!("shader/fragment_140.glsl"),
+            )
+        } else if facade
+            .get_context()
+            .is_glsl_version_supported(&glium::Version(glium::Api::Gl, 1, 2))
+        {
+            eprintln!("Using GL 1.2");
+            create_program(
+                facade,
+                include_str!("shader/vertex_120.glsl"),
+                include_str!("shader/fragment_120.glsl"),
+            )
+        } else if facade
+            .get_context()
+            .is_glsl_version_supported(&glium::Version(glium::Api::GlEs, 3, 0))
+        {
+            eprintln!("Using GL ES 3.0");
+            create_program(
+                facade,
+                include_str!("shader/vertex_300es.glsl"),
+                include_str!("shader/fragment_300es.glsl"),
+            )
+        } else if facade
+            .get_context()
+            .is_glsl_version_supported(&glium::Version(glium::Api::GlEs, 1, 0))
+        {
+            eprintln!("Using GL ES 1.0");
+            create_program(
+                facade,
+                include_str!("shader/vertex_100es.glsl"),
+                include_str!("shader/fragment_100es.glsl"),
+            )
+        } else {
+            panic!(
+                "Failed to find a compatible shader for OpenGL version {:?}",
+                facade.get_version()
+            )
+        };
 
         Painter {
             max_texture_side,
@@ -146,14 +194,25 @@ impl Painter {
 
         if let Some(texture) = self.texture(mesh.texture_id) {
             // The texture coordinates for text are so that both nearest and linear should work with the egui font texture.
-            let filter = match texture.filter {
+            let mag_filter = match texture.options.magnification {
                 TextureFilter::Nearest => MagnifySamplerFilter::Nearest,
                 TextureFilter::Linear => MagnifySamplerFilter::Linear,
             };
+            let min_filter = match texture.options.minification {
+                TextureFilter::Nearest => MinifySamplerFilter::Nearest,
+                TextureFilter::Linear => MinifySamplerFilter::Linear,
+            };
+
+            let sampler = texture
+                .glium_texture
+                .sampled()
+                .magnify_filter(mag_filter)
+                .minify_filter(min_filter)
+                .wrap_function(SamplerWrapFunction::Clamp);
 
             let uniforms = uniform! {
                 u_screen_size: [width_in_points, height_in_points],
-                u_sampler: texture.glium_texture.sampled().magnify_filter(filter).wrap_function(SamplerWrapFunction::Clamp),
+                u_sampler: sampler,
             };
 
             // egui outputs colors with premultiplied alpha:
@@ -236,13 +295,10 @@ impl Painter {
                 );
                 image.pixels.iter().map(|color| color.to_tuple()).collect()
             }
-            egui::ImageData::Font(image) => {
-                let gamma = 1.0;
-                image
-                    .srgba_pixels(gamma)
-                    .map(|color| color.to_tuple())
-                    .collect()
-            }
+            egui::ImageData::Font(image) => image
+                .srgba_pixels(None)
+                .map(|color| color.to_tuple())
+                .collect(),
         };
         let glium_image = glium::texture::RawImage2d {
             data: std::borrow::Cow::Owned(pixels),
@@ -267,13 +323,13 @@ impl Painter {
                     .main_level()
                     .write(rect, glium_image);
 
-                user_texture.filter = delta.filter;
+                user_texture.options = delta.options;
             }
         } else {
             let gl_texture =
                 SrgbTexture2d::with_format(facade, glium_image, format, mipmaps).unwrap();
 
-            let user_texture = EguiTexture::new(gl_texture.into(), delta.filter);
+            let user_texture = EguiTexture::new(gl_texture.into(), delta.options);
             self.textures.insert(tex_id, user_texture);
         }
     }
@@ -289,12 +345,12 @@ impl Painter {
     pub fn register_native_texture(
         &mut self,
         native: Rc<SrgbTexture2d>,
-        filter: TextureFilter,
+        options: TextureOptions,
     ) -> egui::TextureId {
         let id = egui::TextureId::User(self.next_native_tex_id);
         self.next_native_tex_id += 1;
 
-        let texture = EguiTexture::new(native, filter);
+        let texture = EguiTexture::new(native, options);
         self.textures.insert(id, texture);
         id
     }
@@ -303,23 +359,23 @@ impl Painter {
         &mut self,
         id: egui::TextureId,
         replacing: Rc<SrgbTexture2d>,
-        filter: TextureFilter,
+        options: TextureOptions,
     ) {
-        let texture = EguiTexture::new(replacing, filter);
+        let texture = EguiTexture::new(replacing, options);
         self.textures.insert(id, texture);
     }
 }
 
 struct EguiTexture {
     glium_texture: Rc<SrgbTexture2d>,
-    filter: TextureFilter,
+    options: TextureOptions,
 }
 
 impl EguiTexture {
-    fn new(glium_texture: Rc<SrgbTexture2d>, filter: TextureFilter) -> Self {
+    fn new(glium_texture: Rc<SrgbTexture2d>, options: TextureOptions) -> Self {
         Self {
             glium_texture,
-            filter,
+            options,
         }
     }
 }

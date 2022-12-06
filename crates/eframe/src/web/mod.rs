@@ -8,12 +8,25 @@ mod input;
 pub mod screen_reader;
 pub mod storage;
 mod text_agent;
-mod web_glow_painter;
+
+#[cfg(not(any(feature = "glow", feature = "wgpu")))]
+compile_error!("You must enable either the 'glow' or 'wgpu' feature");
+
+mod web_painter;
+
+#[cfg(feature = "glow")]
+mod web_painter_glow;
+#[cfg(feature = "glow")]
+pub(crate) type ActiveWebPainter = web_painter_glow::WebPainterGlow;
+
+#[cfg(feature = "wgpu")]
+mod web_painter_wgpu;
+#[cfg(all(feature = "wgpu", not(feature = "glow")))]
+pub(crate) type ActiveWebPainter = web_painter_wgpu::WebPainterWgpu;
 
 pub use backend::*;
 pub use events::*;
 pub use storage::*;
-pub(crate) use web_glow_painter::WebPainter;
 
 use std::collections::BTreeMap;
 use std::sync::{
@@ -78,7 +91,7 @@ pub fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
 
 pub fn canvas_element_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
     canvas_element(canvas_id)
-        .unwrap_or_else(|| panic!("Failed to find canvas with id '{}'", canvas_id))
+        .unwrap_or_else(|| panic!("Failed to find canvas with id {:?}", canvas_id))
 }
 
 fn canvas_origin(canvas_id: &str) -> egui::Pos2 {
@@ -243,48 +256,4 @@ pub fn percent_decode(s: &str) -> String {
     percent_encoding::percent_decode_str(s)
         .decode_utf8_lossy()
         .to_string()
-}
-
-// ----------------------------------------------------------------------------
-
-pub(crate) fn webgl1_requires_brightening(gl: &web_sys::WebGlRenderingContext) -> bool {
-    // See https://github.com/emilk/egui/issues/794
-
-    // detect WebKitGTK
-
-    // WebKitGTK use WebKit default unmasked vendor and renderer
-    // but safari use same vendor and renderer
-    // so exclude "Mac OS X" user-agent.
-    let user_agent = web_sys::window().unwrap().navigator().user_agent().unwrap();
-    !user_agent.contains("Mac OS X") && is_safari_and_webkit_gtk(gl)
-}
-
-/// detecting Safari and `webkitGTK`.
-///
-/// Safari and `webkitGTK` use unmasked renderer :Apple GPU
-///
-/// If we detect safari or `webkitGTKs` returns true.
-///
-/// This function used to avoid displaying linear color with `sRGB` supported systems.
-fn is_safari_and_webkit_gtk(gl: &web_sys::WebGlRenderingContext) -> bool {
-    // This call produces a warning in Firefox ("WEBGL_debug_renderer_info is deprecated in Firefox and will be removed.")
-    // but unless we call it we get errors in Chrome when we call `get_parameter` below.
-    // TODO(emilk): do something smart based on user agent?
-    if gl
-        .get_extension("WEBGL_debug_renderer_info")
-        .unwrap()
-        .is_some()
-    {
-        if let Ok(renderer) =
-            gl.get_parameter(web_sys::WebglDebugRendererInfo::UNMASKED_RENDERER_WEBGL)
-        {
-            if let Some(renderer) = renderer.as_string() {
-                if renderer.contains("Apple") {
-                    return true;
-                }
-            }
-        }
-    }
-
-    false
 }

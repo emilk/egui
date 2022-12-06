@@ -109,7 +109,7 @@ impl LayerId {
 }
 
 /// A unique identifier of a specific [`Shape`] in a [`PaintList`].
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct ShapeIdx(usize);
 
 /// A list of [`Shape`]s paired with a clip rectangle.
@@ -130,9 +130,12 @@ impl PaintList {
         idx
     }
 
-    pub fn extend(&mut self, clip_rect: Rect, mut shapes: Vec<Shape>) {
-        self.0
-            .extend(shapes.drain(..).map(|shape| ClippedShape(clip_rect, shape)));
+    pub fn extend<I: IntoIterator<Item = Shape>>(&mut self, clip_rect: Rect, shapes: I) {
+        self.0.extend(
+            shapes
+                .into_iter()
+                .map(|shape| ClippedShape(clip_rect, shape)),
+        );
     }
 
     /// Modify an existing [`Shape`].

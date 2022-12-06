@@ -39,7 +39,7 @@ impl<'open> Window<'open> {
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl Into<WidgetText>) -> Self {
         let title = title.into().fallback_text_style(TextStyle::Heading);
-        let area = Area::new(title.text());
+        let area = Area::new(Id::new(title.text()));
         Self {
             title,
             open: None,
@@ -78,14 +78,14 @@ impl<'open> Window<'open> {
     }
 
     /// Usage: `Window::new(…).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
-    /// Not sure this is a good interface for this.
+    // TODO(emilk): I'm not sure this is a good interface for this.
     pub fn mutate(mut self, mutate: impl Fn(&mut Self)) -> Self {
         mutate(&mut self);
         self
     }
 
     /// Usage: `Window::new(…).resize(|r| r.auto_expand_width(true))`
-    /// Not sure this is a good interface for this.
+    // TODO(emilk): I'm not sure this is a good interface for this.
     pub fn resize(mut self, mutate: impl Fn(Resize) -> Resize) -> Self {
         self.resize = mutate(self.resize);
         self
@@ -119,6 +119,30 @@ impl<'open> Window<'open> {
     /// Set initial position of the window.
     pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
         self.area = self.area.default_pos(default_pos);
+        self
+    }
+
+    /// Sets the window position and prevents it from being dragged around.
+    pub fn fixed_pos(mut self, pos: impl Into<Pos2>) -> Self {
+        self.area = self.area.fixed_pos(pos);
+        self
+    }
+
+    /// Constrains this window to the screen bounds.
+    pub fn constrain(mut self, constrain: bool) -> Self {
+        self.area = self.area.constrain(constrain);
+        self
+    }
+
+    /// Where the "root" of the window is.
+    ///
+    /// For instance, if you set this to [`Align2::RIGHT_TOP`]
+    /// then [`Self::fixed_pos`] will set the position of the right-top
+    /// corner of the window.
+    ///
+    /// Default: [`Align2::LEFT_TOP`].
+    pub fn pivot(mut self, pivot: Align2) -> Self {
+        self.area = self.area.pivot(pivot);
         self
     }
 
@@ -156,21 +180,15 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Set initial position and size of the window.
-    pub fn default_rect(self, rect: Rect) -> Self {
-        self.default_pos(rect.min).default_size(rect.size())
-    }
-
-    /// Sets the window position and prevents it from being dragged around.
-    pub fn fixed_pos(mut self, pos: impl Into<Pos2>) -> Self {
-        self.area = self.area.fixed_pos(pos);
-        self
-    }
-
     /// Sets the window size and prevents it from being resized by dragging its edges.
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.fixed_size(size);
         self
+    }
+
+    /// Set initial position and size of the window.
+    pub fn default_rect(self, rect: Rect) -> Self {
+        self.default_pos(rect.min).default_size(rect.size())
     }
 
     /// Sets the window pos and size and prevents it from being moved and resized by dragging its edges.
@@ -881,8 +899,11 @@ impl TitleBar {
             ui.painter().hline(outer_rect.x_range(), y, stroke);
         }
 
+        // Don't cover the close- and collapse buttons:
+        let double_click_rect = self.rect.shrink2(vec2(32.0, 0.0));
+
         if ui
-            .interact(self.rect, self.id, Sense::click())
+            .interact(double_click_rect, self.id, Sense::click())
             .double_clicked()
             && collapsible
         {

@@ -13,3 +13,5 @@ If you are content of having egui sit on top of a 3D background, take a look at:
 ```sh
 cargo run -p custom_3d_glow
 ```
+
+![](screenshot.png)

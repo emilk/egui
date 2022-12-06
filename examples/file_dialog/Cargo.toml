@@ -4,10 +4,12 @@ version = "0.1.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.61"
+rust-version = "1.65"
 publish = false
 
 
 [dependencies]
-eframe = { path = "../../crates/eframe" }
+eframe = { path = "../../crates/eframe", features = [
+    "__screenshot", # __screenshot is so we can dump a ascreenshot using EFRAME_SCREENSHOT_TO
+] }
 rfd = "0.10"

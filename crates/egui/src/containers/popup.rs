@@ -6,13 +6,13 @@ use crate::*;
 
 /// Same state for all tooltips.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct MonoState {
-    last_id: Option<Id>,
-    last_size: Vec<Vec2>,
+pub(crate) struct TooltipState {
+    last_common_id: Option<Id>,
+    individual_ids_and_sizes: ahash::HashMap<usize, (Id, Vec2)>,
 }
 
-impl MonoState {
-    fn load(ctx: &Context) -> Option<Self> {
+impl TooltipState {
+    pub fn load(ctx: &Context) -> Option<Self> {
         ctx.data().get_temp(Id::null())
     }
 
@@ -20,30 +20,28 @@ impl MonoState {
         ctx.data().insert_temp(Id::null(), self);
     }
 
-    fn tooltip_size(&self, id: Id, index: usize) -> Option<Vec2> {
-        if self.last_id == Some(id) {
-            self.last_size.get(index).cloned()
+    fn individual_tooltip_size(&self, common_id: Id, index: usize) -> Option<Vec2> {
+        if self.last_common_id == Some(common_id) {
+            Some(self.individual_ids_and_sizes.get(&index)?.1)
         } else {
             None
         }
     }
 
-    fn set_tooltip_size(&mut self, id: Id, index: usize, size: Vec2) {
-        if self.last_id == Some(id) {
-            if let Some(stored_size) = self.last_size.get_mut(index) {
-                *stored_size = size;
-            } else {
-                self.last_size
-                    .extend((0..index - self.last_size.len()).map(|_| Vec2::ZERO));
-                self.last_size.push(size);
-            }
-            return;
+    fn set_individual_tooltip(
+        &mut self,
+        common_id: Id,
+        index: usize,
+        individual_id: Id,
+        size: Vec2,
+    ) {
+        if self.last_common_id != Some(common_id) {
+            self.last_common_id = Some(common_id);
+            self.individual_ids_and_sizes.clear();
         }
 
-        self.last_id = Some(id);
-        self.last_size.clear();
-        self.last_size.extend((0..index).map(|_| Vec2::ZERO));
-        self.last_size.push(size);
+        self.individual_ids_and_sizes
+            .insert(index, (individual_id, size));
     }
 }
 
@@ -151,27 +149,30 @@ pub fn show_tooltip_at<R>(
 
 fn show_tooltip_at_avoid_dyn<'c, R>(
     ctx: &Context,
-    mut id: Id,
+    individual_id: Id,
     suggested_position: Option<Pos2>,
     above: bool,
     mut avoid_rect: Rect,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> Option<R> {
-    let mut tooltip_rect = Rect::NOTHING;
-    let mut count = 0;
+    let spacing = 4.0;
 
-    let stored = ctx.frame_state().tooltip_rect;
+    // if there are multiple tooltips open they should use the same common_id for the `tooltip_size` caching to work.
+    let mut frame_state =
+        ctx.frame_state()
+            .tooltip_state
+            .unwrap_or(crate::frame_state::TooltipFrameState {
+                common_id: individual_id,
+                rect: Rect::NOTHING,
+                count: 0,
+            });
 
-    let mut position = if let Some(stored) = stored {
-        // if there are multiple tooltips open they should use the same id for the `tooltip_size` caching to work.
-        id = stored.id;
-        tooltip_rect = stored.rect;
-        count = stored.count;
-        avoid_rect = avoid_rect.union(tooltip_rect);
+    let mut position = if frame_state.rect.is_positive() {
+        avoid_rect = avoid_rect.union(frame_state.rect);
         if above {
-            tooltip_rect.left_top()
+            frame_state.rect.left_top() - spacing * Vec2::Y
         } else {
-            tooltip_rect.left_bottom()
+            frame_state.rect.left_bottom() + spacing * Vec2::Y
         }
     } else if let Some(position) = suggested_position {
         position
@@ -181,8 +182,9 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         return None; // No good place for a tooltip :(
     };
 
-    let mut state = MonoState::load(ctx).unwrap_or_default();
-    let expected_size = state.tooltip_size(id, count);
+    let mut long_state = TooltipState::load(ctx).unwrap_or_default();
+    let expected_size =
+        long_state.individual_tooltip_size(frame_state.common_id, frame_state.count);
     let expected_size = expected_size.unwrap_or_else(|| vec2(64.0, 32.0));
 
     if above {
@@ -195,30 +197,37 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     {
         let new_rect = Rect::from_min_size(position, expected_size);
 
-        // Note: We do not use Rect::intersects() since it returns true even if the rects only touch.
+        // Note: We use shrink so that we don't get false positives when the rects just touch
         if new_rect.shrink(1.0).intersects(avoid_rect) {
             if above {
                 // place below instead:
-                position = avoid_rect.left_bottom();
+                position = avoid_rect.left_bottom() + spacing * Vec2::Y;
             } else {
                 // place above instead:
-                position = Pos2::new(position.x, avoid_rect.min.y - expected_size.y);
+                position = Pos2::new(position.x, avoid_rect.min.y - expected_size.y - spacing);
             }
         }
     }
 
     let position = position.at_least(ctx.input().screen_rect().min);
 
-    let InnerResponse { inner, response } = show_tooltip_area_dyn(ctx, id, position, add_contents);
+    let area_id = frame_state.common_id.with(frame_state.count);
 
-    state.set_tooltip_size(id, count, response.rect.size());
-    state.store(ctx);
+    let InnerResponse { inner, response } =
+        show_tooltip_area_dyn(ctx, area_id, position, add_contents);
 
-    ctx.frame_state().tooltip_rect = Some(crate::frame_state::TooltipRect {
-        id,
-        rect: tooltip_rect.union(response.rect),
-        count: count + 1,
-    });
+    long_state.set_individual_tooltip(
+        frame_state.common_id,
+        frame_state.count,
+        individual_id,
+        response.rect.size(),
+    );
+    long_state.store(ctx);
+
+    frame_state.count += 1;
+    frame_state.rect = frame_state.rect.union(response.rect);
+    ctx.frame_state().tooltip_state = Some(frame_state);
+
     Some(inner)
 }
 
@@ -246,12 +255,12 @@ pub fn show_tooltip_text(ctx: &Context, id: Id, text: impl Into<WidgetText>) -> 
 /// Show a pop-over window.
 fn show_tooltip_area_dyn<'c, R>(
     ctx: &Context,
-    id: Id,
+    area_id: Id,
     window_pos: Pos2,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> InnerResponse<R> {
     use containers::*;
-    Area::new(id)
+    Area::new(area_id)
         .order(Order::Tooltip)
         .fixed_pos(window_pos)
         .interactable(false)
@@ -266,7 +275,42 @@ fn show_tooltip_area_dyn<'c, R>(
         })
 }
 
-/// Shows a popup below another widget.
+/// Was this popup visible last frame?
+pub fn was_tooltip_open_last_frame(ctx: &Context, tooltip_id: Id) -> bool {
+    if let Some(state) = TooltipState::load(ctx) {
+        if let Some(common_id) = state.last_common_id {
+            for (count, (individual_id, _size)) in &state.individual_ids_and_sizes {
+                if *individual_id == tooltip_id {
+                    let area_id = common_id.with(count);
+                    let layer_id = LayerId::new(Order::Tooltip, area_id);
+                    if ctx.memory().areas.visible_last_frame(&layer_id) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    false
+}
+
+/// Helper for [`popup_above_or_below_widget`].
+pub fn popup_below_widget<R>(
+    ui: &Ui,
+    popup_id: Id,
+    widget_response: &Response,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> Option<R> {
+    popup_above_or_below_widget(
+        ui,
+        popup_id,
+        widget_response,
+        AboveOrBelow::Below,
+        add_contents,
+    )
+}
+
+/// Shows a popup above or below another widget.
 ///
 /// Useful for drop-down menus (combo boxes) or suggestion menus under text fields.
 ///
@@ -281,28 +325,37 @@ fn show_tooltip_area_dyn<'c, R>(
 /// if response.clicked() {
 ///     ui.memory().toggle_popup(popup_id);
 /// }
-/// egui::popup::popup_below_widget(ui, popup_id, &response, |ui| {
+/// let below = egui::AboveOrBelow::Below;
+/// egui::popup::popup_above_or_below_widget(ui, popup_id, &response, below, |ui| {
 ///     ui.set_min_width(200.0); // if you want to control the size
 ///     ui.label("Some more info, or things you can select:");
 ///     ui.label("…");
 /// });
 /// # });
 /// ```
-pub fn popup_below_widget<R>(
+pub fn popup_above_or_below_widget<R>(
     ui: &Ui,
     popup_id: Id,
     widget_response: &Response,
+    above_or_below: AboveOrBelow,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     if ui.memory().is_popup_open(popup_id) {
+        let (pos, pivot) = match above_or_below {
+            AboveOrBelow::Above => (widget_response.rect.left_top(), Align2::LEFT_BOTTOM),
+            AboveOrBelow::Below => (widget_response.rect.left_bottom(), Align2::LEFT_TOP),
+        };
+
         let inner = Area::new(popup_id)
             .order(Order::Foreground)
-            .fixed_pos(widget_response.rect.left_bottom())
+            .constrain(true)
+            .fixed_pos(pos)
+            .pivot(pivot)
             .show(ui.ctx(), |ui| {
                 // Note: we use a separate clip-rect for this area, so the popup can be outside the parent.
                 // See https://github.com/emilk/egui/issues/825
                 let frame = Frame::popup(ui.style());
-                let frame_margin = frame.inner_margin + frame.outer_margin;
+                let frame_margin = frame.total_margin();
                 frame
                     .show(ui, |ui| {
                         ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {

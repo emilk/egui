@@ -211,7 +211,7 @@ fn color_slider_2d(
 }
 
 /// What options to show for alpha
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Alpha {
     // Set alpha to 1.0, and show no option for it.
     Opaque,
@@ -350,13 +350,17 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
     if button_response.clicked() {
         ui.memory().toggle_popup(popup_id);
     }
+
+    const COLOR_SLIDER_WIDTH: f32 = 210.0;
+
     // TODO(emilk): make it easier to show a temporary popup that closes when you click outside it
     if ui.memory().is_popup_open(popup_id) {
         let area_response = Area::new(popup_id)
             .order(Order::Foreground)
-            .current_pos(button_response.rect.max)
+            .fixed_pos(button_response.rect.max)
+            .constrain(true)
             .show(ui.ctx(), |ui| {
-                ui.spacing_mut().slider_width = 210.0;
+                ui.spacing_mut().slider_width = COLOR_SLIDER_WIDTH;
                 Frame::popup(ui.style()).show(ui, |ui| {
                     if color_picker_hsva_2d(ui, hsva, alpha) {
                         button_response.mark_changed();
@@ -421,7 +425,7 @@ pub fn color_edit_button_rgb(ui: &mut Ui, rgb: &mut [f32; 3]) -> Response {
 // To ensure we keep hue slider when `srgba` is gray we store the full [`Hsva`] in a cache:
 fn color_cache_get(ctx: &Context, rgba: impl Into<Rgba>) -> Hsva {
     let rgba = rgba.into();
-    use_color_cache(ctx, |cc| cc.get(&rgba).cloned()).unwrap_or_else(|| Hsva::from(rgba))
+    use_color_cache(ctx, |cc| cc.get(&rgba).copied()).unwrap_or_else(|| Hsva::from(rgba))
 }
 
 // To ensure we keep hue slider when `srgba` is gray we store the full [`Hsva`] in a cache:

@@ -1,4 +1,5 @@
 //! Demo app for egui
+#![allow(clippy::missing_errors_doc)]
 
 mod apps;
 mod backend_panel;
@@ -32,16 +33,15 @@ pub struct WebHandle {
 #[wasm_bindgen]
 impl WebHandle {
     #[wasm_bindgen]
-    #[cfg(target_arch = "wasm32")]
     pub fn stop_web(&self) -> Result<(), wasm_bindgen::JsValue> {
         let mut app = self.handle.lock();
-        let res = app.destroy();
+        app.destroy()
+    }
 
-        // let numw = Arc::weak_count(&app);
-        // let nums = Arc::strong_count(&app);
-        // tracing::debug!("runner ref {:?}, {:?}", numw, nums);
-
-        res
+    #[wasm_bindgen]
+    pub fn set_some_content_from_javasript(&mut self, _some_data: &str) {
+        let _app = self.handle.lock().app_mut::<WrapApp>();
+        // _app.data = some_data;
     }
 }
 
@@ -57,16 +57,15 @@ pub fn init_wasm_hooks() {
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub fn start_separate(canvas_id: &str) -> Result<WebHandle, wasm_bindgen::JsValue> {
+pub async fn start_separate(canvas_id: &str) -> Result<WebHandle, wasm_bindgen::JsValue> {
     let web_options = eframe::WebOptions::default();
-    let handle = eframe::start_web(
+    eframe::start_web(
         canvas_id,
         web_options,
         Box::new(|cc| Box::new(WrapApp::new(cc))),
     )
-    .map(|handle| WebHandle { handle });
-
-    handle
+    .await
+    .map(|handle| WebHandle { handle })
 }
 
 /// This is the entry-point for all the web-assembly.
@@ -75,7 +74,7 @@ pub fn start_separate(canvas_id: &str) -> Result<WebHandle, wasm_bindgen::JsValu
 /// You can add more callbacks like this if you want to call in to your code.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub fn start(canvas_id: &str) -> Result<WebHandle, wasm_bindgen::JsValue> {
+pub async fn start(canvas_id: &str) -> Result<WebHandle, wasm_bindgen::JsValue> {
     init_wasm_hooks();
-    start_separate(canvas_id)
+    start_separate(canvas_id).await
 }

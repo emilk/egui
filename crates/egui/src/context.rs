@@ -3,9 +3,10 @@ use std::sync::Arc;
 
 use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
-    input_state::*, layers::GraphicLayers, memory::Options, output::FullOutput, TextureHandle, *,
+    input_state::*, layers::GraphicLayers, memory::Options, os::OperatingSystem,
+    output::FullOutput, TextureHandle, *,
 };
-use epaint::{mutex::*, stats::*, text::Fonts, textures::TextureFilter, TessellationOptions, *};
+use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
 
 // ----------------------------------------------------------------------------
 
@@ -36,6 +37,8 @@ struct ContextImpl {
     animation_manager: AnimationManager,
     tex_manager: WrappedTextureManager,
 
+    os: OperatingSystem,
+
     input: InputState,
 
     /// State that is collected during a frame and then cleared
@@ -46,25 +49,50 @@ struct ContextImpl {
     output: PlatformOutput,
 
     paint_stats: PaintStats,
+
     /// the duration backend will poll for new events, before forcing another egui update
     /// even if there's no new events.
     repaint_after: std::time::Duration,
+
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
     repaint_requests: u32,
     request_repaint_callback: Option<Box<dyn Fn() + Send + Sync>>,
+
+    /// used to suppress multiple calls to [`Self::request_repaint_callback`] during the same frame.
+    has_requested_repaint_this_frame: bool,
+
     requested_repaint_last_frame: bool,
+
+    /// Written to during the frame.
+    layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
+    /// Read
+    layer_rects_prev_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
+
+    #[cfg(feature = "accesskit")]
+    is_accesskit_enabled: bool,
 }
 
 impl ContextImpl {
-    fn begin_frame_mut(&mut self, new_raw_input: RawInput) {
+    fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
+        self.has_requested_repaint_this_frame = false; // allow new calls during the frame
+
+        if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
+            new_raw_input.pixels_per_point = Some(new_pixels_per_point);
+
+            // This is a bit hacky, but is required to avoid jitter:
+            let ratio = self.input.pixels_per_point / new_pixels_per_point;
+            let mut rect = self.input.screen_rect;
+            rect.min = (ratio * rect.min.to_vec2()).to_pos2();
+            rect.max = (ratio * rect.max.to_vec2()).to_pos2();
+            new_raw_input.screen_rect = Some(rect);
+        }
+
+        self.layer_rects_prev_frame = std::mem::take(&mut self.layer_rects_this_frame);
+
         self.memory.begin_frame(&self.input, &new_raw_input);
 
         self.input = std::mem::take(&mut self.input)
             .begin_frame(new_raw_input, self.requested_repaint_last_frame);
-
-        if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
-            self.input.pixels_per_point = new_pixels_per_point;
-        }
 
         self.frame_state.begin_frame(&self.input);
 
@@ -80,6 +108,25 @@ impl ContextImpl {
                 interactable: true,
             },
         );
+
+        #[cfg(feature = "accesskit")]
+        if self.is_accesskit_enabled {
+            use crate::frame_state::AccessKitFrameState;
+            let id = crate::accesskit_root_id();
+            let node = Box::new(accesskit::Node {
+                role: accesskit::Role::Window,
+                transform: Some(
+                    accesskit::kurbo::Affine::scale(self.input.pixels_per_point().into()).into(),
+                ),
+                ..Default::default()
+            });
+            let mut nodes = IdMap::default();
+            nodes.insert(id, node);
+            self.frame_state.accesskit_state = Some(AccessKitFrameState {
+                nodes,
+                parent_stack: vec![id],
+            });
+        }
     }
 
     /// Load fonts unless already loaded.
@@ -106,6 +153,19 @@ impl ContextImpl {
                 fonts.lock().fonts.font(font_id).preload_common_characters();
             }
         }
+    }
+
+    #[cfg(feature = "accesskit")]
+    fn accesskit_node(&mut self, id: Id) -> &mut accesskit::Node {
+        let state = self.frame_state.accesskit_state.as_mut().unwrap();
+        let nodes = &mut state.nodes;
+        if let std::collections::hash_map::Entry::Vacant(entry) = nodes.entry(id) {
+            entry.insert(Default::default());
+            let parent_id = state.parent_stack.last().unwrap();
+            let parent = nodes.get_mut(parent_id).unwrap();
+            parent.children.push(id.accesskit_id());
+        }
+        nodes.get_mut(&id).unwrap()
     }
 }
 
@@ -149,6 +209,12 @@ impl ContextImpl {
 /// ```
 #[derive(Clone)]
 pub struct Context(Arc<RwLock<ContextImpl>>);
+
+impl std::fmt::Debug for Context {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Context").finish_non_exhaustive()
+    }
+}
 
 impl std::cmp::PartialEq for Context {
     fn eq(&self, other: &Context) -> bool {
@@ -248,16 +314,45 @@ impl Context {
                 return;
             }
 
-            let show_error = |pos: Pos2, text: String| {
+            let show_error = |widget_rect: Rect, text: String| {
+                let text = format!("🔥 {}", text);
+                let color = self.style().visuals.error_fg_color;
                 let painter = self.debug_painter();
-                let rect = painter.error(pos, text);
+                painter.rect_stroke(widget_rect, 0.0, (1.0, color));
+
+                let below = widget_rect.bottom() + 32.0 < self.input().screen_rect.bottom();
+
+                let text_rect = if below {
+                    painter.debug_text(
+                        widget_rect.left_bottom() + vec2(0.0, 2.0),
+                        Align2::LEFT_TOP,
+                        color,
+                        text,
+                    )
+                } else {
+                    painter.debug_text(
+                        widget_rect.left_top() - vec2(0.0, 2.0),
+                        Align2::LEFT_BOTTOM,
+                        color,
+                        text,
+                    )
+                };
+
                 if let Some(pointer_pos) = self.pointer_hover_pos() {
-                    if rect.contains(pointer_pos) {
+                    if text_rect.contains(pointer_pos) {
+                        let tooltip_pos = if below {
+                            text_rect.left_bottom() + vec2(2.0, 4.0)
+                        } else {
+                            text_rect.left_top() + vec2(2.0, -4.0)
+                        };
+
                         painter.error(
-                            rect.left_bottom() + vec2(2.0, 4.0),
-                            "ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
+                            tooltip_pos,
+                            format!("Widget is {} this text.\n\n\
+                             ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
                              or when things like Plot and Grid:s aren't given unique id_source:s.\n\n\
                              Sometimes the solution is to use ui.push_id.",
+                             if below { "above" } else { "below" })
                         );
                     }
                 }
@@ -266,19 +361,10 @@ impl Context {
             let id_str = id.short_debug_format();
 
             if prev_rect.min.distance(new_rect.min) < 4.0 {
-                show_error(
-                    new_rect.min,
-                    format!("Double use of {} ID {}", what, id_str),
-                );
+                show_error(new_rect, format!("Double use of {} ID {}", what, id_str));
             } else {
-                show_error(
-                    prev_rect.min,
-                    format!("First use of {} ID {}", what, id_str),
-                );
-                show_error(
-                    new_rect.min,
-                    format!("Second use of {} ID {}", what, id_str),
-                );
+                show_error(prev_rect, format!("First use of {} ID {}", what, id_str));
+                show_error(new_rect, format!("Second use of {} ID {}", what, id_str));
             }
         }
     }
@@ -297,15 +383,73 @@ impl Context {
         sense: Sense,
         enabled: bool,
     ) -> Response {
-        let gap = 0.5; // Just to make sure we don't accidentally hover two things at once (a small eps should be sufficient).
+        let gap = 0.1; // Just to make sure we don't accidentally hover two things at once (a small eps should be sufficient).
 
         // Make it easier to click things:
         let interact_rect = rect.expand2(
             (0.5 * item_spacing - Vec2::splat(gap))
                 .at_least(Vec2::splat(0.0))
                 .at_most(Vec2::splat(5.0)),
-        ); // make it easier to click
-        let hovered = self.rect_contains_pointer(layer_id, clip_rect.intersect(interact_rect));
+        );
+
+        // Respect clip rectangle when interacting
+        let interact_rect = clip_rect.intersect(interact_rect);
+        let mut hovered = self.rect_contains_pointer(layer_id, interact_rect);
+
+        // This solves the problem of overlapping widgets.
+        // Whichever widget is added LAST (=on top) gets the input:
+        if interact_rect.is_positive() && sense.interactive() {
+            if self.style().debug.show_interactive_widgets {
+                Self::layer_painter(self, LayerId::debug()).rect(
+                    interact_rect,
+                    0.0,
+                    Color32::YELLOW.additive().linear_multiply(0.005),
+                    Stroke::new(1.0, Color32::YELLOW.additive().linear_multiply(0.05)),
+                );
+            }
+
+            let mut slf = self.write();
+
+            slf.layer_rects_this_frame
+                .entry(layer_id)
+                .or_default()
+                .push((id, interact_rect));
+
+            if hovered {
+                let pointer_pos = slf.input.pointer.interact_pos();
+                if let Some(pointer_pos) = pointer_pos {
+                    if let Some(rects) = slf.layer_rects_prev_frame.get(&layer_id) {
+                        for &(prev_id, prev_rect) in rects.iter().rev() {
+                            if prev_id == id {
+                                break; // there is no other interactive widget covering us at the pointer position.
+                            }
+                            if prev_rect.contains(pointer_pos) {
+                                // Another interactive widget is covering us at the pointer position,
+                                // so we aren't hovered.
+
+                                if slf.memory.options.style.debug.show_blocking_widget {
+                                    drop(slf);
+                                    Self::layer_painter(self, LayerId::debug()).debug_rect(
+                                        interact_rect,
+                                        Color32::GREEN,
+                                        "Covered",
+                                    );
+                                    Self::layer_painter(self, LayerId::debug()).debug_rect(
+                                        prev_rect,
+                                        Color32::LIGHT_BLUE,
+                                        "On top",
+                                    );
+                                }
+
+                                hovered = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         self.interact_with_hovered(layer_id, id, rect, sense, enabled, hovered)
     }
 
@@ -347,16 +491,22 @@ impl Context {
 
         self.check_for_id_clash(id, rect, "widget");
 
+        #[cfg(feature = "accesskit")]
+        if sense.focusable {
+            // Make sure anything that can receive focus has an AccessKit node.
+            // TODO(mwcampbell): For nodes that are filled from widget info,
+            // some information is written to the node twice.
+            if let Some(mut node) = self.accesskit_node(id) {
+                response.fill_accesskit_node_common(&mut node);
+            }
+        }
+
         let clicked_elsewhere = response.clicked_elsewhere();
         let ctx_impl = &mut *self.write();
         let memory = &mut ctx_impl.memory;
         let input = &mut ctx_impl.input;
 
-        // We only want to focus labels if the screen reader is on.
-        let interested_in_focus =
-            sense.interactive() || sense.focusable && memory.options.screen_reader;
-
-        if interested_in_focus {
+        if sense.focusable {
             memory.interested_in_focus(id);
         }
 
@@ -366,6 +516,15 @@ impl Context {
         {
             // Space/enter works like a primary click for e.g. selected buttons
             response.clicked[PointerButton::Primary as usize] = true;
+        }
+
+        #[cfg(feature = "accesskit")]
+        {
+            if sense.click
+                && input.has_accesskit_action_request(response.id, accesskit::Action::Default)
+            {
+                response.clicked[PointerButton::Primary as usize] = true;
+            }
         }
 
         if sense.click || sense.drag {
@@ -555,6 +714,59 @@ impl Context {
     pub fn tessellation_options(&self) -> RwLockWriteGuard<'_, TessellationOptions> {
         RwLockWriteGuard::map(self.write(), |c| &mut c.memory.options.tessellation_options)
     }
+
+    /// What operating system are we running on?
+    ///
+    /// When compiling natively, this is
+    /// figured out from the `target_os`.
+    ///
+    /// For web, this can be figured out from the user-agent,
+    /// and is done so by [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe).
+    pub fn os(&self) -> OperatingSystem {
+        self.read().os
+    }
+
+    /// Set the operating system we are running on.
+    ///
+    /// If you are writing wasm-based integration for egui you
+    /// may want to set this based on e.g. the user-agent.
+    pub fn set_os(&self, os: OperatingSystem) {
+        self.write().os = os;
+    }
+
+    /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
+    ///
+    /// Can be used to get the text for [`Button::shortcut_text`].
+    pub fn format_shortcut(&self, shortcut: &KeyboardShortcut) -> String {
+        let os = self.os();
+
+        let is_mac = matches!(os, OperatingSystem::Mac | OperatingSystem::IOS);
+
+        let can_show_symbols = || {
+            let ModifierNames {
+                alt,
+                ctrl,
+                shift,
+                mac_cmd,
+                ..
+            } = ModifierNames::SYMBOLS;
+
+            let font_id = TextStyle::Body.resolve(&self.style());
+            let fonts = self.fonts();
+            let mut fonts = fonts.lock();
+            let font = fonts.fonts.font(&font_id);
+            font.has_glyphs(alt)
+                && font.has_glyphs(ctrl)
+                && font.has_glyphs(shift)
+                && font.has_glyphs(mac_cmd)
+        };
+
+        if is_mac && can_show_symbols() {
+            shortcut.format(&ModifierNames::SYMBOLS, is_mac)
+        } else {
+            shortcut.format(&ModifierNames::NAMES, is_mac)
+        }
+    }
 }
 
 impl Context {
@@ -571,7 +783,10 @@ impl Context {
         let mut ctx = self.write();
         ctx.repaint_requests = 2;
         if let Some(callback) = &ctx.request_repaint_callback {
-            (callback)();
+            if !ctx.has_requested_repaint_this_frame {
+                (callback)();
+                ctx.has_requested_repaint_this_frame = true;
+            }
         }
     }
 
@@ -682,9 +897,8 @@ impl Context {
     pub fn set_pixels_per_point(&self, pixels_per_point: f32) {
         if pixels_per_point != self.pixels_per_point() {
             self.request_repaint();
+            self.memory().new_pixels_per_point = Some(pixels_per_point);
         }
-
-        self.memory().new_pixels_per_point = Some(pixels_per_point);
     }
 
     /// Useful for pixel-perfect rendering
@@ -733,7 +947,7 @@ impl Context {
     ///             ui.ctx().load_texture(
     ///                 "my-image",
     ///                 egui::ColorImage::example(),
-    ///                 egui::TextureFilter::Linear
+    ///                 Default::default()
     ///             )
     ///         });
     ///
@@ -748,7 +962,7 @@ impl Context {
         &self,
         name: impl Into<String>,
         image: impl Into<ImageData>,
-        filter: TextureFilter,
+        options: TextureOptions,
     ) -> TextureHandle {
         let name = name.into();
         let image = image.into();
@@ -762,7 +976,7 @@ impl Context {
             max_texture_side
         );
         let tex_mngr = self.tex_manager();
-        let tex_id = tex_mngr.write().alloc(name, image, filter);
+        let tex_id = tex_mngr.write().alloc(name, image, options);
         TextureHandle::new(tex_mngr, tex_id)
     }
 
@@ -839,7 +1053,29 @@ impl Context {
             textures_delta = ctx_impl.tex_manager.0.write().take_delta();
         };
 
-        let platform_output: PlatformOutput = std::mem::take(&mut self.output());
+        #[cfg_attr(not(feature = "accesskit"), allow(unused_mut))]
+        let mut platform_output: PlatformOutput = std::mem::take(&mut self.output());
+
+        #[cfg(feature = "accesskit")]
+        {
+            let state = self.frame_state().accesskit_state.take();
+            if let Some(state) = state {
+                let has_focus = self.input().raw.has_focus;
+                let root_id = crate::accesskit_root_id().accesskit_id();
+                platform_output.accesskit_update = Some(accesskit::TreeUpdate {
+                    nodes: state
+                        .nodes
+                        .into_iter()
+                        .map(|(id, node)| (id.accesskit_id(), Arc::from(node)))
+                        .collect(),
+                    tree: Some(accesskit::Tree::new(root_id)),
+                    focus: has_focus.then(|| {
+                        let focus_id = self.memory().interaction.focus.id;
+                        focus_id.map_or(root_id, |id| id.accesskit_id())
+                    }),
+                });
+            }
+        }
 
         // if repaint_requests is greater than zero. just set the duration to zero for immediate
         // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
@@ -850,12 +1086,18 @@ impl Context {
             self.read().repaint_after
         };
 
-        self.write().requested_repaint_last_frame = repaint_after.is_zero();
-        // make sure we reset the repaint_after duration.
-        // otherwise, if repaint_after is low, then any widget setting repaint_after next frame,
-        // will fail to overwrite the previous lower value. and thus, repaints will never
-        // go back to higher values.
-        self.write().repaint_after = std::time::Duration::MAX;
+        {
+            let ctx_impl = &mut *self.write();
+            ctx_impl.requested_repaint_last_frame = repaint_after.is_zero();
+
+            ctx_impl.has_requested_repaint_this_frame = false; // allow new calls between frames
+
+            // make sure we reset the repaint_after duration.
+            // otherwise, if repaint_after is low, then any widget setting repaint_after next frame,
+            // will fail to overwrite the previous lower value. and thus, repaints will never
+            // go back to higher values.
+            ctx_impl.repaint_after = std::time::Duration::MAX;
+        }
         let shapes = self.drain_paint_lists();
 
         FullOutput {
@@ -1009,11 +1251,13 @@ impl Context {
     }
 
     pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        let pointer_pos = self.input().pointer.interact_pos();
-        if let Some(pointer_pos) = pointer_pos {
-            rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
-        } else {
-            false
+        rect.is_positive() && {
+            let pointer_pos = self.input().pointer.interact_pos();
+            if let Some(pointer_pos) = pointer_pos {
+                rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
+            } else {
+                false
+            }
         }
     }
 
@@ -1049,12 +1293,15 @@ impl Context {
     }
 
     /// Like [`Self::animate_bool`] but allows you to control the animation time.
-    pub fn animate_bool_with_time(&self, id: Id, value: bool, animation_time: f32) -> f32 {
+    pub fn animate_bool_with_time(&self, id: Id, target_value: bool, animation_time: f32) -> f32 {
         let animated_value = {
             let ctx_impl = &mut *self.write();
-            ctx_impl
-                .animation_manager
-                .animate_bool(&ctx_impl.input, animation_time, id, value)
+            ctx_impl.animation_manager.animate_bool(
+                &ctx_impl.input,
+                animation_time,
+                id,
+                target_value,
+            )
         };
         let animation_in_progress = 0.0 < animated_value && animated_value < 1.0;
         if animation_in_progress {
@@ -1066,14 +1313,17 @@ impl Context {
     /// Allows you to smoothly change the f32 value.
     /// At the first call the value is written to memory.
     /// When it is called with a new value, it linearly interpolates to it in the given time.
-    pub fn animate_value_with_time(&self, id: Id, value: f32, animation_time: f32) -> f32 {
+    pub fn animate_value_with_time(&self, id: Id, target_value: f32, animation_time: f32) -> f32 {
         let animated_value = {
             let ctx_impl = &mut *self.write();
-            ctx_impl
-                .animation_manager
-                .animate_value(&ctx_impl.input, animation_time, id, value)
+            ctx_impl.animation_manager.animate_value(
+                &ctx_impl.input,
+                animation_time,
+                id,
+                target_value,
+            )
         };
-        let animation_in_progress = animated_value != value;
+        let animation_in_progress = animated_value != target_value;
         if animation_in_progress {
             self.request_repaint();
         }
@@ -1269,7 +1519,7 @@ impl Context {
             ui.label("Hover to highlight");
             let layers_ids: Vec<LayerId> = self.memory().areas.order().to_vec();
             for layer_id in layers_ids {
-                let area = self.memory().areas.get(layer_id.id).cloned();
+                let area = self.memory().areas.get(layer_id.id).copied();
                 if let Some(area) = area {
                     let is_visible = self.memory().areas.is_visible(&layer_id);
                     if !is_visible {
@@ -1347,6 +1597,62 @@ impl Context {
         let mut style: Style = (*self.style()).clone();
         style.ui(ui);
         self.set_style(style);
+    }
+}
+
+/// ## Accessibility
+impl Context {
+    /// Call the provided function with the given ID pushed on the stack of
+    /// parent IDs for accessibility purposes. If the `accesskit` feature
+    /// is disabled or if AccessKit support is not active for this frame,
+    /// the function is still called, but with no other effect.
+    pub fn with_accessibility_parent(&self, id: Id, f: impl FnOnce()) {
+        #[cfg(feature = "accesskit")]
+        {
+            let mut frame_state = self.frame_state();
+            if let Some(state) = frame_state.accesskit_state.as_mut() {
+                state.parent_stack.push(id);
+            }
+        }
+        #[cfg(not(feature = "accesskit"))]
+        {
+            let _ = id;
+        }
+        f();
+        #[cfg(feature = "accesskit")]
+        {
+            let mut frame_state = self.frame_state();
+            if let Some(state) = frame_state.accesskit_state.as_mut() {
+                assert_eq!(state.parent_stack.pop(), Some(id));
+            }
+        }
+    }
+
+    /// If AccessKit support is active for the current frame, get or create
+    /// a node with the specified ID and return a mutable reference to it.
+    /// For newly crated nodes, the parent is the node with the ID at the top
+    /// of the stack managed by [`Context::with_accessibility_parent`].
+    #[cfg(feature = "accesskit")]
+    pub fn accesskit_node(&self, id: Id) -> Option<RwLockWriteGuard<'_, accesskit::Node>> {
+        let ctx = self.write();
+        ctx.frame_state
+            .accesskit_state
+            .is_some()
+            .then(move || RwLockWriteGuard::map(ctx, |c| c.accesskit_node(id)))
+    }
+
+    /// Enable generation of AccessKit tree updates in all future frames.
+    ///
+    /// If it's practical for the egui integration to immediately run the egui
+    /// application when it is either initializing the AccessKit adapter or
+    /// being called by the AccessKit adapter to provide the initial tree update,
+    /// then it should do so, to provide a complete AccessKit tree to the adapter
+    /// immediately. Otherwise, it should enqueue a repaint and use the
+    /// placeholder tree update from [`crate::accesskit_placeholder_tree_update`]
+    /// in the meantime.
+    #[cfg(feature = "accesskit")]
+    pub fn enable_accesskit(&self) {
+        self.write().is_accesskit_enabled = true;
     }
 }
 

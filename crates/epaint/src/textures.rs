@@ -26,7 +26,7 @@ impl TextureManager {
     /// MUST have a white pixel at (0,0) ([`crate::WHITE_UV`]).
     ///
     /// The texture is given a retain-count of `1`, requiring one call to [`Self::free`] to free it.
-    pub fn alloc(&mut self, name: String, image: ImageData, filter: TextureFilter) -> TextureId {
+    pub fn alloc(&mut self, name: String, image: ImageData, options: TextureOptions) -> TextureId {
         let id = TextureId::Managed(self.next_id);
         self.next_id += 1;
 
@@ -35,10 +35,10 @@ impl TextureManager {
             size: image.size(),
             bytes_per_pixel: image.bytes_per_pixel(),
             retain_count: 1,
-            filter,
+            options,
         });
 
-        self.delta.set.push((id, ImageDelta::full(image, filter)));
+        self.delta.set.push((id, ImageDelta::full(image, options)));
         id
     }
 
@@ -117,7 +117,7 @@ impl TextureManager {
 }
 
 /// Meta-data about an allocated texture.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TextureMeta {
     /// A human-readable name useful for debugging.
     pub name: String,
@@ -131,12 +131,54 @@ pub struct TextureMeta {
     /// Free when this reaches zero.
     pub retain_count: usize,
 
-    /// The texture filtering mode to use when rendering
-    pub filter: TextureFilter,
+    /// The texture filtering mode to use when rendering.
+    pub options: TextureOptions,
+}
+
+impl TextureMeta {
+    /// Size in bytes.
+    /// width x height x [`Self::bytes_per_pixel`].
+    pub fn bytes_used(&self) -> usize {
+        self.size[0] * self.size[1] * self.bytes_per_pixel
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// How the texture texels are filtered.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct TextureOptions {
+    /// How to filter when magnifying (when texels are larger than pixels).
+    pub magnification: TextureFilter,
+
+    /// How to filter when minifying (when texels are smaller than pixels).
+    pub minification: TextureFilter,
+}
+
+impl TextureOptions {
+    /// Linear magnification and minification.
+    pub const LINEAR: Self = Self {
+        magnification: TextureFilter::Linear,
+        minification: TextureFilter::Linear,
+    };
+
+    /// Nearest magnification and minification.
+    pub const NEAREST: Self = Self {
+        magnification: TextureFilter::Nearest,
+        minification: TextureFilter::Nearest,
+    };
+}
+
+impl Default for TextureOptions {
+    /// The default is linear for both magnification and minification.
+    fn default() -> Self {
+        Self::LINEAR
+    }
 }
 
 /// How the texture texels are filtered.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum TextureFilter {
     /// Show the nearest pixel value.
@@ -146,23 +188,7 @@ pub enum TextureFilter {
     Nearest,
 
     /// Linearly interpolate the nearest neighbors, creating a smoother look when zooming in and out.
-    ///
-    /// This is the default.
     Linear,
-}
-
-impl Default for TextureFilter {
-    fn default() -> Self {
-        Self::Linear
-    }
-}
-
-impl TextureMeta {
-    /// Size in bytes.
-    /// width x height x [`Self::bytes_per_pixel`].
-    pub fn bytes_used(&self) -> usize {
-        self.size[0] * self.size[1] * self.bytes_per_pixel
-    }
 }
 
 // ----------------------------------------------------------------------------

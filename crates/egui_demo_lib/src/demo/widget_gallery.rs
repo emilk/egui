@@ -115,11 +115,8 @@ impl WidgetGallery {
         } = self;
 
         let texture: &egui::TextureHandle = texture.get_or_insert_with(|| {
-            ui.ctx().load_texture(
-                "example",
-                egui::ColorImage::example(),
-                egui::TextureFilter::Linear,
-            )
+            ui.ctx()
+                .load_texture("example", egui::ColorImage::example(), Default::default())
         });
 
         ui.add(doc_link_label("Label", "label,heading"));

@@ -14,6 +14,12 @@ pub struct Stroke {
 
 impl Stroke {
     /// Same as [`Stroke::default`].
+    pub const NONE: Stroke = Stroke {
+        width: 0.0,
+        color: Color32::TRANSPARENT,
+    };
+
+    #[deprecated = "Use Stroke::NONE instead"]
     #[inline(always)]
     pub fn none() -> Self {
         Self::new(0.0, Color32::TRANSPARENT)

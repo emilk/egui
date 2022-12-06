@@ -1,4 +1,4 @@
-#[derive(Clone, PartialEq, Default)]
+#[derive(Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WindowWithPanels {}
 

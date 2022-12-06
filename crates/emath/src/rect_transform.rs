@@ -1,10 +1,10 @@
-use crate::*;
+use crate::{pos2, remap, remap_clamp, Pos2, Rect, Vec2};
 
 /// Linearly transforms positions from one [`Rect`] to another.
 ///
 /// [`RectTransform`] stores the rectangles, and therefore supports clamping and culling.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct RectTransform {

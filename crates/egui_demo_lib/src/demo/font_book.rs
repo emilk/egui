@@ -10,7 +10,7 @@ impl Default for FontBook {
     fn default() -> Self {
         Self {
             filter: Default::default(),
-            font_id: egui::FontId::proportional(20.0),
+            font_id: egui::FontId::proportional(18.0),
             named_chars: Default::default(),
         }
     }
