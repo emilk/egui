@@ -360,6 +360,10 @@ impl Margin {
     pub fn right_bottom(&self) -> Vec2 {
         vec2(self.right, self.bottom)
     }
+
+    pub fn is_same(&self) -> bool {
+        self.left == self.right && self.left == self.top && self.left == self.bottom
+    }
 }
 
 impl From<f32> for Margin {
@@ -669,7 +673,7 @@ impl Default for Spacing {
         Self {
             item_spacing: vec2(8.0, 3.0),
             window_margin: Margin::same(6.0),
-            menu_margin: Margin::same(1.0),
+            menu_margin: Margin::same(6.0),
             button_padding: vec2(4.0, 1.0),
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
             interact_size: vec2(40.0, 18.0),
@@ -984,64 +988,8 @@ impl Spacing {
 
         ui.add(slider_vec2(item_spacing, 0.0..=20.0, "Item spacing"));
 
-        let margin_range = 0.0..=20.0;
-        ui.horizontal(|ui| {
-            ui.add(
-                DragValue::new(&mut window_margin.left)
-                    .clamp_range(margin_range.clone())
-                    .prefix("left: "),
-            );
-            ui.add(
-                DragValue::new(&mut window_margin.right)
-                    .clamp_range(margin_range.clone())
-                    .prefix("right: "),
-            );
-
-            ui.label("Window margins x");
-        });
-
-        ui.horizontal(|ui| {
-            ui.add(
-                DragValue::new(&mut window_margin.top)
-                    .clamp_range(margin_range.clone())
-                    .prefix("top: "),
-            );
-            ui.add(
-                DragValue::new(&mut window_margin.bottom)
-                    .clamp_range(margin_range.clone())
-                    .prefix("bottom: "),
-            );
-            ui.label("Window margins y");
-        });
-
-        ui.horizontal(|ui| {
-            ui.add(
-                DragValue::new(&mut menu_margin.left)
-                    .clamp_range(margin_range.clone())
-                    .prefix("left: "),
-            );
-            ui.add(
-                DragValue::new(&mut menu_margin.right)
-                    .clamp_range(margin_range.clone())
-                    .prefix("right: "),
-            );
-
-            ui.label("Menu margins x");
-        });
-
-        ui.horizontal(|ui| {
-            ui.add(
-                DragValue::new(&mut menu_margin.top)
-                    .clamp_range(margin_range.clone())
-                    .prefix("top: "),
-            );
-            ui.add(
-                DragValue::new(&mut menu_margin.bottom)
-                    .clamp_range(margin_range)
-                    .prefix("bottom: "),
-            );
-            ui.label("Menu margins y");
-        });
+        margin_ui(ui, "Window margin:", window_margin);
+        margin_ui(ui, "Menu margin:", menu_margin);
 
         ui.add(slider_vec2(button_padding, 0.0..=20.0, "Button padding"));
         ui.add(slider_vec2(interact_size, 4.0..=60.0, "Interact size"))
@@ -1107,6 +1055,55 @@ impl Spacing {
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
+}
+
+fn margin_ui(ui: &mut Ui, text: &str, margin: &mut Margin) {
+    let margin_range = 0.0..=20.0;
+
+    ui.horizontal(|ui| {
+        ui.label(text);
+
+        let mut same = margin.is_same();
+        ui.checkbox(&mut same, "Same");
+
+        if same {
+            let mut value = margin.left;
+            ui.add(DragValue::new(&mut value).clamp_range(margin_range.clone()));
+            *margin = Margin::same(value);
+        } else {
+            if margin.is_same() {
+                // HACK: prevent collapse:
+                margin.right = margin.left + 1.0;
+                margin.bottom = margin.left + 2.0;
+                margin.top = margin.left + 3.0;
+            }
+
+            ui.add(
+                DragValue::new(&mut margin.left)
+                    .clamp_range(margin_range.clone())
+                    .prefix("L: "),
+            )
+            .on_hover_text("Left margin");
+            ui.add(
+                DragValue::new(&mut margin.right)
+                    .clamp_range(margin_range.clone())
+                    .prefix("R: "),
+            )
+            .on_hover_text("Right margin");
+            ui.add(
+                DragValue::new(&mut margin.top)
+                    .clamp_range(margin_range.clone())
+                    .prefix("T: "),
+            )
+            .on_hover_text("Top margin");
+            ui.add(
+                DragValue::new(&mut margin.bottom)
+                    .clamp_range(margin_range)
+                    .prefix("B: "),
+            )
+            .on_hover_text("Bottom margin");
+        }
+    });
 }
 
 impl Interaction {
