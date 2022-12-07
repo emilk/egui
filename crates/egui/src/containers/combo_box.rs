@@ -401,16 +401,18 @@ fn paint_default_icon(
     match above_or_below {
         AboveOrBelow::Above => {
             // Upward pointing triangle
-            painter.add(Shape::closed_line(
+            painter.add(Shape::convex_polygon(
                 vec![rect.left_bottom(), rect.right_bottom(), rect.center_top()],
-                visuals.fg_stroke,
+                visuals.fg_stroke.color,
+                Stroke::NONE,
             ));
         }
         AboveOrBelow::Below => {
             // Downward pointing triangle
-            painter.add(Shape::closed_line(
+            painter.add(Shape::convex_polygon(
                 vec![rect.left_top(), rect.right_top(), rect.center_bottom()],
-                visuals.fg_stroke,
+                visuals.fg_stroke.color,
+                Stroke::NONE,
             ));
         }
     }
