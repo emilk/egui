@@ -34,7 +34,7 @@ extra_asserts = []
 [dependencies]
 #! ### Optional dependencies
 
-## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast `emath` types to `&[u8]`.
+## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast `ecolor` types to `&[u8]`.
 bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
 
 ## [`cint`](https://docs.rs/cint) enables interopability with other color libraries.
