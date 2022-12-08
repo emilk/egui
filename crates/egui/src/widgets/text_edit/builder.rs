@@ -919,6 +919,10 @@ fn events(
                 modifiers,
             } => on_key_press(&mut cursor_range, text, galley, *key, modifiers),
 
+            Event::KeyRepeat { key, modifiers } => {
+                on_key_press(&mut cursor_range, text, galley, *key, modifiers)
+            }
+
             Event::CompositionStart => {
                 state.has_ime = true;
                 None
