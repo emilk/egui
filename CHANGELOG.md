@@ -25,6 +25,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Added `Area::pivot` and `Window::pivot` which controls what part of the window to position ([#2303](https://github.com/emilk/egui/pull/2303)).
 * Added support for [thin space](https://en.wikipedia.org/wiki/Thin_space).
 * Added optional integration with [AccessKit](https://accesskit.dev/) for implementing platform accessibility APIs ([#2294](https://github.com/emilk/egui/pull/2294)).
+* Added `panel_fill`, `window_fill` and `window_stroke` to `Visuals` for your theming pleasure ([#2406](https://github.com/emilk/egui/pull/2406)).
 * Plots:
   * Allow linking plot cursors ([#1722](https://github.com/emilk/egui/pull/1722)).
   * Added `Plot::auto_bounds_x/y` and `Plot::reset` ([#2029](https://github.com/emilk/egui/pull/2029)).
@@ -53,6 +54,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Fix bug in `plot::Line::fill` ([#2275](https://github.com/emilk/egui/pull/2275)).
 * Only emit `changed` events in `radio_value` and `selectable_value` if the value actually changed ([#2343](https://github.com/emilk/egui/pull/2343)).
 * Fixed sizing bug in `Grid` ([#2384](https://github.com/emilk/egui/pull/2384)).
+* `ComboBox::width` now correctly sets the outer width ([#2406](https://github.com/emilk/egui/pull/2406)).
 
 
 ## 0.19.0 - 2022-08-20
