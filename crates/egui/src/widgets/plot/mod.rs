@@ -1,10 +1,7 @@
 //! Simple plotting library.
 
-use std::{
-    cell::{Cell, RefCell},
-    ops::RangeInclusive,
-    rc::Rc,
-};
+use ahash::HashMap;
+use std::ops::RangeInclusive;
 
 use crate::*;
 use epaint::util::FloatOrd;
@@ -35,9 +32,14 @@ type AxisFormatter = Option<Box<AxisFormatterFn>>;
 type GridSpacerFn = dyn Fn(GridInput) -> Vec<GridMark>;
 type GridSpacer = Box<GridSpacerFn>;
 
+type CoordinatesFormatterFn = dyn Fn(&PlotPoint, &PlotBounds) -> String;
+
+const LINKED_PLOT_AXES_KEY: &str = "egui_linked_plot_axes";
+const LINKED_PLOT_CURSORS_KEY: &str = "egui_linked_plot_cursors";
+
 /// Specifies the coordinates formatting when passed to [`Plot::coordinates_formatter`].
 pub struct CoordinatesFormatter {
-    function: Box<dyn Fn(&PlotPoint, &PlotBounds) -> String>,
+    function: Box<CoordinatesFormatterFn>,
 }
 
 impl CoordinatesFormatter {
@@ -126,119 +128,10 @@ enum Cursor {
 }
 
 /// Contains the cursors drawn for a plot widget in a single frame.
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 struct PlotFrameCursors {
     id: Id,
     cursors: Vec<Cursor>,
-}
-
-/// Defines how multiple plots share the same cursor for one or both of their axes. Can be added while building
-/// a plot with [`Plot::link_cursor`]. Contains an internal state, meaning that this object should be stored by
-/// the user between frames.
-#[derive(Clone, PartialEq)]
-pub struct LinkedCursorsGroup {
-    link_x: bool,
-    link_y: bool,
-    // We store the cursors drawn for each linked plot. Each time a plot in the group is drawn, the
-    // cursors due to hovering it drew are appended to `frames`, so lower indices are older.
-    // When a plot is redrawn all entries older than its previous entry are removed. This avoids
-    // unbounded growth and also ensures entries for plots which are not longer part of the group
-    // gets removed.
-    frames: Rc<RefCell<Vec<PlotFrameCursors>>>,
-}
-
-impl LinkedCursorsGroup {
-    pub fn new(link_x: bool, link_y: bool) -> Self {
-        Self {
-            link_x,
-            link_y,
-            frames: Rc::new(RefCell::new(Vec::new())),
-        }
-    }
-
-    /// Only link the cursor for the x-axis.
-    pub fn x() -> Self {
-        Self::new(true, false)
-    }
-
-    /// Only link the cursor for the y-axis.
-    pub fn y() -> Self {
-        Self::new(false, true)
-    }
-
-    /// Link the cursors for both axes.
-    pub fn both() -> Self {
-        Self::new(true, true)
-    }
-
-    /// Change whether the cursor for the x-axis is linked for this group. Using this after plots in this group have been
-    /// drawn in this frame already may lead to unexpected results.
-    pub fn set_link_x(&mut self, link: bool) {
-        self.link_x = link;
-    }
-
-    /// Change whether the cursor for the y-axis is linked for this group. Using this after plots in this group have been
-    /// drawn in this frame already may lead to unexpected results.
-    pub fn set_link_y(&mut self, link: bool) {
-        self.link_y = link;
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// Defines how multiple plots share the same range for one or both of their axes. Can be added while building
-/// a plot with [`Plot::link_axis`]. Contains an internal state, meaning that this object should be stored by
-/// the user between frames.
-#[derive(Clone, PartialEq)]
-pub struct LinkedAxisGroup {
-    pub(crate) link_x: bool,
-    pub(crate) link_y: bool,
-    pub(crate) bounds: Rc<Cell<Option<PlotBounds>>>,
-}
-
-impl LinkedAxisGroup {
-    pub fn new(link_x: bool, link_y: bool) -> Self {
-        Self {
-            link_x,
-            link_y,
-            bounds: Rc::new(Cell::new(None)),
-        }
-    }
-
-    /// Only link the x-axis.
-    pub fn x() -> Self {
-        Self::new(true, false)
-    }
-
-    /// Only link the y-axis.
-    pub fn y() -> Self {
-        Self::new(false, true)
-    }
-
-    /// Link both axes. Note that this still respects the aspect ratio of the individual plots.
-    pub fn both() -> Self {
-        Self::new(true, true)
-    }
-
-    /// Change whether the x-axis is linked for this group. Using this after plots in this group have been
-    /// drawn in this frame already may lead to unexpected results.
-    pub fn set_link_x(&mut self, link: bool) {
-        self.link_x = link;
-    }
-
-    /// Change whether the y-axis is linked for this group. Using this after plots in this group have been
-    /// drawn in this frame already may lead to unexpected results.
-    pub fn set_link_y(&mut self, link: bool) {
-        self.link_y = link;
-    }
-
-    fn get(&self) -> Option<PlotBounds> {
-        self.bounds.get()
-    }
-
-    fn set(&self, bounds: PlotBounds) {
-        self.bounds.set(Some(bounds));
-    }
 }
 
 // ----------------------------------------------------------------------------
@@ -272,8 +165,8 @@ pub struct Plot {
     min_auto_bounds: PlotBounds,
     margin_fraction: Vec2,
     boxed_zoom_pointer_button: PointerButton,
-    linked_axes: Option<LinkedAxisGroup>,
-    linked_cursors: Option<LinkedCursorsGroup>,
+    linked_axes: Option<(Id, AxisBools)>,
+    linked_cursors: Option<(Id, AxisBools)>,
 
     min_size: Vec2,
     width: Option<f32>,
@@ -603,17 +496,29 @@ impl Plot {
         self
     }
 
-    /// Add a [`LinkedAxisGroup`] so that this plot will share the bounds with other plots that have this
-    /// group assigned. A plot cannot belong to more than one group.
-    pub fn link_axis(mut self, group: LinkedAxisGroup) -> Self {
-        self.linked_axes = Some(group);
+    /// Add this plot to an axis link group so that this plot will share the bounds with other plots in the
+    /// same group. A plot cannot belong to more than one axis group.
+    pub fn link_axis(mut self, group_name: impl Into<Id>, link_x: bool, link_y: bool) -> Self {
+        self.linked_axes = Some((
+            group_name.into(),
+            AxisBools {
+                x: link_x,
+                y: link_y,
+            },
+        ));
         self
     }
 
-    /// Add a [`LinkedCursorsGroup`] so that this plot will share the bounds with other plots that have this
-    /// group assigned. A plot cannot belong to more than one group.
-    pub fn link_cursor(mut self, group: LinkedCursorsGroup) -> Self {
-        self.linked_cursors = Some(group);
+    /// Add this plot to a cursor link group so that this plot will share the cursor position with other plots
+    /// in the same group. A plot cannot belong to more than one cursor group.
+    pub fn link_cursor(mut self, group_name: impl Into<Id>, link_x: bool, link_y: bool) -> Self {
+        self.linked_cursors = Some((
+            group_name.into(),
+            AxisBools {
+                x: link_x,
+                y: link_y,
+            },
+        ));
         self
     }
 
@@ -696,10 +601,12 @@ impl Plot {
         let plot_id = ui.make_persistent_id(id_source);
         ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
         let memory = if reset {
-            if let Some(axes) = linked_axes.as_ref() {
-                axes.bounds.set(None);
+            if let Some((name, _)) = linked_axes.as_ref() {
+                let data = &mut ui.memory().data;
+                let link_groups: &mut HashMap<Id, PlotBounds> =
+                    data.get_temp_mut_or_default(LINKED_PLOT_AXES_KEY.into());
+                link_groups.remove(name);
             };
-
             None
         } else {
             PlotMemory::load(ui.ctx(), plot_id)
@@ -731,6 +638,7 @@ impl Plot {
             next_auto_color_idx: 0,
             last_screen_transform,
             response,
+            bounds_modifications: Vec::new(),
             ctx: ui.ctx().clone(),
         };
         let inner = build_fn(&mut plot_ui);
@@ -738,6 +646,7 @@ impl Plot {
             mut items,
             mut response,
             last_screen_transform,
+            bounds_modifications,
             ..
         } = plot_ui;
 
@@ -775,11 +684,14 @@ impl Plot {
         let mut bounds = *last_screen_transform.bounds();
 
         // Find the cursors from other plots we need to draw
-        let draw_cursors: Vec<Cursor> = if let Some(group) = linked_cursors.as_ref() {
-            let mut frames = group.frames.borrow_mut();
+        let draw_cursors: Vec<Cursor> = if let Some((id, _)) = linked_cursors.as_ref() {
+            let data = &mut ui.memory().data;
+            let frames: &mut HashMap<Id, Vec<PlotFrameCursors>> =
+                data.get_temp_mut_or_default(LINKED_PLOT_CURSORS_KEY.into());
+            let cursors = frames.entry(*id).or_default();
 
             // Look for our previous frame
-            let index = frames
+            let index = cursors
                 .iter()
                 .enumerate()
                 .find(|(_, frame)| frame.id == plot_id)
@@ -787,11 +699,11 @@ impl Plot {
 
             // Remove our previous frame and all older frames as these are no longer displayed. This avoids
             // unbounded growth, as we add an entry each time we draw a plot.
-            index.map(|index| frames.drain(0..=index));
+            index.map(|index| cursors.drain(0..=index));
 
             // Gather all cursors of the remaining frames. This will be all the cursors of the
             // other plots in the group. We want to draw these in the current plot too.
-            frames
+            cursors
                 .iter()
                 .flat_map(|frame| frame.cursors.iter().copied())
                 .collect()
@@ -800,27 +712,43 @@ impl Plot {
         };
 
         // Transfer the bounds from a link group.
-        if let Some(axes) = linked_axes.as_ref() {
-            if let Some(linked_bounds) = axes.get() {
-                if axes.link_x {
-                    bounds.set_x(&linked_bounds);
-                    // Mark the axis as modified to prevent it from being changed.
-                    bounds_modified.x = true;
+        if let Some((id, axes)) = linked_axes.as_ref() {
+            let data = &mut ui.memory().data;
+            let link_groups: &mut HashMap<Id, PlotBounds> =
+                data.get_temp_mut_or_default(LINKED_PLOT_AXES_KEY.into());
+            if let Some(linked_bounds) = link_groups.get(id) {
+                if axes.x {
+                    bounds.set_x(linked_bounds);
                 }
-                if axes.link_y {
-                    bounds.set_y(&linked_bounds);
-                    // Mark the axis as modified to prevent it from being changed.
-                    bounds_modified.y = true;
+                if axes.y {
+                    bounds.set_y(linked_bounds);
                 }
-            }
+            };
         };
 
-        // Allow double clicking to reset to the initial bounds?
-        if allow_double_click_reset && response.double_clicked_by(PointerButton::Primary) {
+        // Allow double clicking to reset to the initial bounds.
+        if allow_double_click_reset && response.double_clicked() {
             bounds_modified = false.into();
         }
 
-        // Reset bounds to initial bounds if we haven't been modified.
+        // Apply bounds modifications.
+        bounds_modifications
+            .into_iter()
+            .for_each(|modification| match modification {
+                BoundsModification::Set(new_bounds) => {
+                    bounds = new_bounds;
+                    bounds_modified = true.into();
+                }
+                BoundsModification::Translate(delta) => {
+                    bounds.translate(delta);
+                    bounds_modified = true.into();
+                }
+                BoundsModification::Auto => {
+                    bounds_modified = false.into();
+                }
+            });
+
+        // Reset bounds to initial bounds if they haven't been modified.
         if !bounds_modified.x {
             bounds.set_x(&min_auto_bounds);
         }
@@ -835,7 +763,6 @@ impl Plot {
         if auto_x || auto_y {
             for item in &items {
                 let item_bounds = item.bounds();
-
                 if auto_x {
                     bounds.merge_x(&item_bounds);
                 }
@@ -857,8 +784,8 @@ impl Plot {
 
         // Enforce aspect ratio
         if let Some(data_aspect) = data_aspect {
-            if let Some(linked_axes) = &linked_axes {
-                let change_x = linked_axes.link_y && !linked_axes.link_x;
+            if let Some((_, linked_axes)) = &linked_axes {
+                let change_x = linked_axes.y && !linked_axes.x;
                 transform.set_aspect_by_changing_axis(data_aspect as f64, change_x);
             } else if auto_bounds.any() {
                 transform.set_aspect_by_expanding(data_aspect as f64);
@@ -962,8 +889,8 @@ impl Plot {
             show_axes,
             transform: transform.clone(),
             grid_spacers,
-            draw_cursor_x: linked_cursors.as_ref().map_or(false, |group| group.link_x),
-            draw_cursor_y: linked_cursors.as_ref().map_or(false, |group| group.link_y),
+            draw_cursor_x: linked_cursors.as_ref().map_or(false, |(_, group)| group.x),
+            draw_cursor_y: linked_cursors.as_ref().map_or(false, |(_, group)| group.y),
             draw_cursors,
         };
         let plot_cursors = prepared.ui(ui, &response);
@@ -979,16 +906,24 @@ impl Plot {
             hovered_entry = legend.hovered_entry_name();
         }
 
-        if let Some(group) = linked_cursors.as_ref() {
+        if let Some((id, _)) = linked_cursors.as_ref() {
             // Push the frame we just drew to the list of frames
-            group.frames.borrow_mut().push(PlotFrameCursors {
+            let data = &mut ui.memory().data;
+            let frames: &mut HashMap<Id, Vec<PlotFrameCursors>> =
+                data.get_temp_mut_or_default(LINKED_PLOT_CURSORS_KEY.into());
+            let cursors = frames.entry(*id).or_default();
+            cursors.push(PlotFrameCursors {
                 id: plot_id,
                 cursors: plot_cursors,
             });
         }
 
-        if let Some(group) = linked_axes.as_ref() {
-            group.set(*transform.bounds());
+        if let Some((id, _)) = linked_axes.as_ref() {
+            // Save the linked bounds.
+            let data = &mut ui.memory().data;
+            let link_groups: &mut HashMap<Id, PlotBounds> =
+                data.get_temp_mut_or_default(LINKED_PLOT_AXES_KEY.into());
+            link_groups.insert(*id, *transform.bounds());
         }
 
         let memory = PlotMemory {
@@ -1010,6 +945,12 @@ impl Plot {
     }
 }
 
+enum BoundsModification {
+    Auto,
+    Set(PlotBounds),
+    Translate(Vec2),
+}
+
 /// Provides methods to interact with a plot while building it. It is the single argument of the closure
 /// provided to [`Plot::show`]. See [`Plot`] for an example of how to use it.
 pub struct PlotUi {
@@ -1017,6 +958,7 @@ pub struct PlotUi {
     next_auto_color_idx: usize,
     last_screen_transform: ScreenTransform,
     response: Response,
+    bounds_modifications: Vec<BoundsModification>,
     ctx: Context,
 }
 
@@ -1040,14 +982,22 @@ impl PlotUi {
         *self.last_screen_transform.bounds()
     }
 
+    /// Set plot bounds automatically based on plot contents. Continue to do so until plot bounds are set
+    /// otherwise (manually, or by panning/zooming).
+    pub fn set_bounds_auto(&mut self) {
+        self.bounds_modifications.push(BoundsModification::Auto);
+    }
+
     /// Set the plot bounds. Can be useful for implementing alternative plot navigation methods.
     pub fn set_plot_bounds(&mut self, plot_bounds: PlotBounds) {
-        self.last_screen_transform.set_bounds(plot_bounds);
+        self.bounds_modifications
+            .push(BoundsModification::Set(plot_bounds));
     }
 
     /// Move the plot bounds. Can be useful for implementing alternative plot navigation methods.
     pub fn translate_bounds(&mut self, delta_pos: Vec2) {
-        self.last_screen_transform.translate_bounds(delta_pos);
+        self.bounds_modifications
+            .push(BoundsModification::Translate(delta_pos));
     }
 
     /// Returns `true` if the plot area is currently hovered.
