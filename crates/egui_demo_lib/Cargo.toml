@@ -34,7 +34,7 @@ egui = { version = "0.19.0", path = "../egui", default-features = false }
 egui_extras = { version = "0.19.0", path = "../egui_extras" }
 enum-map = { version = "2", features = ["serde"] }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
-unicode_names2 = { version = "0.5.0", default-features = false }
+unicode_names2 = { version = "0.6.0", default-features = false }
 
 #! ### Optional dependencies
 chrono = { version = "0.4", optional = true, features = ["js-sys", "wasmbind"] }

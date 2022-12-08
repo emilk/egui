@@ -3006,9 +3006,9 @@ dependencies = [
 
 [[package]]
 name = "poll-promise"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "260817b339544e5b23d4bb66d4522d89dd64af88d16b6dcd7b2a2409ee2e095d"
+checksum = "fcf2a02372dfae23c9c01267fb296b8a3413bb4e45fbd589c3ac73c6dcfbb305"
 dependencies = [
  "static_assertions",
 ]
@@ -4202,9 +4202,9 @@ checksum = "f962df74c8c05a667b5ee8bcf162993134c104e96440b663c8daa176dc772d8c"
 
 [[package]]
 name = "unicode_names2"
-version = "0.5.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "029df4cc8238cefc911704ff8fa210853a0f3bce2694d8f51181dd41ee0f3301"
+checksum = "446c96c6dd42604779487f0a981060717156648c1706aa1f464677f03c6cc059"
 
 [[package]]
 name = "untrusted"
@@ -4498,7 +4498,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "01d62aa75495ab67cdc273d0b95cc76bcedfea2ba28338a4cf9b4137949dfac5"
 dependencies = [
  "jni",
- "ndk-glue 0.6.2",
+ "ndk-glue 0.7.0",
  "objc",
  "raw-window-handle 0.5.0",
  "url",

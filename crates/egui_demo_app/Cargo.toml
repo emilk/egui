@@ -50,7 +50,7 @@ image = { version = "0.24", optional = true, default-features = false, features 
   "jpeg",
   "png",
 ] }
-poll-promise = { version = "0.1", optional = true, default-features = false }
+poll-promise = { version = "0.2", optional = true, default-features = false }
 
 # feature "persistence":
 serde = { version = "1", optional = true, features = ["derive"] }
