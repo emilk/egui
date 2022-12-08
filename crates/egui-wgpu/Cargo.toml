@@ -1,6 +1,6 @@
 [package]
 name = "egui-wgpu"
-version = "0.19.0"
+version = "0.20.0"
 description = "Bindings for using egui natively using the wgpu library"
 authors = [
   "Nils Hasenbanck <nils@hasenbanck.de>",
@@ -36,7 +36,7 @@ winit = ["dep:pollster", "dep:winit"]
 
 
 [dependencies]
-egui = { version = "0.19.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.20.0", path = "../egui", default-features = false, features = [
   "bytemuck",
 ] }
 

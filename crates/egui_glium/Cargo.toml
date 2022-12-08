@@ -1,6 +1,6 @@
 [package]
 name = "egui_glium"
-version = "0.19.0"
+version = "0.20.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glium library"
 edition = "2021"
@@ -39,10 +39,10 @@ screen_reader = ["egui-winit/screen_reader"]
 
 
 [dependencies]
-egui = { version = "0.19.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.20.0", path = "../egui", default-features = false, features = [
   "bytemuck",
 ] }
-egui-winit = { version = "0.19.0", path = "../egui-winit", default-features = false }
+egui-winit = { version = "0.20.0", path = "../egui-winit", default-features = false }
 
 ahash = { version = "0.8.1", default-features = false, features = [
   "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
@@ -57,5 +57,5 @@ document-features = { version = "0.2", optional = true }
 
 
 [dev-dependencies]
-egui_demo_lib = { version = "0.19.0", path = "../egui_demo_lib", default-features = false }
+egui_demo_lib = { version = "0.20.0", path = "../egui_demo_lib", default-features = false }
 image = { version = "0.24", default-features = false, features = ["png"] }

@@ -1,6 +1,6 @@
 [package]
 name = "egui_extras"
-version = "0.19.0"
+version = "0.20.0"
 authors = [
   "Dominik Rössler <dominik@freshx.de>",
   "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
@@ -37,7 +37,7 @@ tracing = ["dep:tracing", "egui/tracing"]
 
 
 [dependencies]
-egui = { version = "0.19.0", path = "../egui", default-features = false }
+egui = { version = "0.20.0", path = "../egui", default-features = false }
 
 serde = { version = "1", features = ["derive"] }
 

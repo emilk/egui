@@ -1,6 +1,6 @@
 [package]
 name = "eframe"
-version = "0.19.0"
+version = "0.20.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition = "2021"
@@ -65,7 +65,7 @@ wgpu = ["dep:wgpu", "dep:egui-wgpu"]
 
 
 [dependencies]
-egui = { version = "0.19.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.20.0", path = "../egui", default-features = false, features = [
   "bytemuck",
   "tracing",
 ] }
@@ -75,7 +75,7 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
 
-egui_glow = { version = "0.19.0", path = "../egui_glow", optional = true, default-features = false }
+egui_glow = { version = "0.20.0", path = "../egui_glow", optional = true, default-features = false }
 glow = { version = "0.11", optional = true }
 ron = { version = "0.8", optional = true, features = ["integer128"] }
 serde = { version = "1", optional = true, features = ["derive"] }
@@ -83,7 +83,7 @@ serde = { version = "1", optional = true, features = ["derive"] }
 # -------------------------------------------
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.19.0", path = "../egui-winit", default-features = false, features = [
+egui-winit = { version = "0.20.0", path = "../egui-winit", default-features = false, features = [
   "clipboard",
   "links",
 ] }
@@ -93,7 +93,7 @@ winit = "0.27.2"
 # optional native:
 dark-light = { version = "0.2.1", optional = true }
 directories-next = { version = "2", optional = true }
-egui-wgpu = { version = "0.19.0", path = "../egui-wgpu", optional = true, features = [
+egui-wgpu = { version = "0.20.0", path = "../egui-wgpu", optional = true, features = [
   "winit",
 ] } # if wgpu is used, use it with winit
 
@@ -165,6 +165,6 @@ web-sys = { version = "0.3.58", features = [
 ] }
 
 # optional web:
-egui-wgpu = { version = "0.19.0", path = "../egui-wgpu", optional = true } # if wgpu is used, use it without (!) winit
+egui-wgpu = { version = "0.20.0", path = "../egui-wgpu", optional = true } # if wgpu is used, use it without (!) winit
 tts = { version = "0.24", optional = true }
 wgpu = { version = "0.14", optional = true, features = ["webgl"] }
