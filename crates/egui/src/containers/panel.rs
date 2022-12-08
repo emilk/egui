@@ -306,7 +306,10 @@ impl SidePanel {
                 Stroke::NONE
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
-            let resize_x = side.opposite().side_x(rect);
+            // In the meantime: nudge the line so its inside the panel, so it won't be covered by neighboring panel
+            // (hence the shrink).
+            let resize_x = side.opposite().side_x(rect.shrink(1.0));
+            let resize_x = ui.painter().round_to_pixel(resize_x);
             ui.painter().vline(resize_x, rect.y_range(), stroke);
         }
 
@@ -755,7 +758,10 @@ impl TopBottomPanel {
                 Stroke::NONE
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
-            let resize_y = side.opposite().side_y(rect);
+            // In the meantime: nudge the line so its inside the panel, so it won't be covered by neighboring panel
+            // (hence the shrink).
+            let resize_y = side.opposite().side_y(rect.shrink(1.0));
+            let resize_y = ui.painter().round_to_pixel(resize_y);
             ui.painter().hline(rect.x_range(), resize_y, stroke);
         }
 

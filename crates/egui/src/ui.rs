@@ -239,7 +239,7 @@ impl Ui {
         self.enabled &= enabled;
         if !self.enabled && self.is_visible() {
             self.painter
-                .set_fade_to_color(Some(self.visuals().window_fill()));
+                .set_fade_to_color(Some(self.visuals().fade_out_to_color()));
         }
     }
 

@@ -516,6 +516,13 @@ pub struct Table<'a> {
 }
 
 impl<'a> Table<'a> {
+    /// Access the contained [`egui::Ui`].
+    ///
+    /// You can use this to e.g. modify the [`egui::Style`] with [`egui::Ui::style_mut`].
+    pub fn ui_mut(&mut self) -> &mut egui::Ui {
+        self.ui
+    }
+
     /// Create table body after adding a header row
     pub fn body<F>(self, add_body_contents: F)
     where
@@ -724,6 +731,13 @@ pub struct TableBody<'a> {
 }
 
 impl<'a> TableBody<'a> {
+    /// Access the contained [`egui::Ui`].
+    ///
+    /// You can use this to e.g. modify the [`egui::Style`] with [`egui::Ui::style_mut`].
+    pub fn ui_mut(&mut self) -> &mut egui::Ui {
+        self.layout.ui
+    }
+
     /// Where in screen-space is the table body?
     pub fn max_rect(&self) -> Rect {
         self.layout

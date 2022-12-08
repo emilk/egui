@@ -14,6 +14,11 @@ pub struct Shadow {
 }
 
 impl Shadow {
+    pub const NONE: Self = Self {
+        extrusion: 0.0,
+        color: Color32::TRANSPARENT,
+    };
+
     /// Tooltips, menus, …, for dark mode.
     pub fn small_dark() -> Self {
         Self {
