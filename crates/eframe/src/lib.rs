@@ -103,9 +103,20 @@ pub use web_sys;
 /// /// You can add more callbacks like this if you want to call in to your code.
 /// #[cfg(target_arch = "wasm32")]
 /// #[wasm_bindgen]
-/// pub async fn start(canvas_id: &str) -> Result<AppRunnerRef>, eframe::wasm_bindgen::JsValue> {
+/// pub struct WebHandle {
+///     handle: AppRunnerRef,
+/// }
+/// #[cfg(target_arch = "wasm32")]
+/// #[wasm_bindgen]
+/// pub async fn start(canvas_id: &str) -> Result<WebHandle, eframe::wasm_bindgen::JsValue> {
 ///     let web_options = eframe::WebOptions::default();
-///     eframe::start_web(canvas_id, web_options, Box::new(|cc| Box::new(MyEguiApp::new(cc)))).await
+///     eframe::start_web(
+///         canvas_id,
+///         web_options,
+///         Box::new(|cc| Box::new(MyEguiApp::new(cc))),
+///     )
+///     .await
+///     .map(|handle| WebHandle { handle })
 /// }
 /// ```
 ///
