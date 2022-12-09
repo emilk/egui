@@ -912,8 +912,8 @@ fn events(
                     None
                 }
             }
-
-            Event::Key {
+            Event::KeyRepeat { key, modifiers }
+            | Event::Key {
                 key,
                 pressed: true,
                 modifiers,
