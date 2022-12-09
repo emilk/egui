@@ -1496,7 +1496,7 @@ impl PreparedPlot {
         fn color_from_contrast(ui: &Ui, contrast: f32) -> Color32 {
             let bg = ui.visuals().extreme_bg_color;
             let fg = ui.visuals().widgets.open.fg_stroke.color;
-            let mix = 0.65 * contrast.sqrt();
+            let mix = 0.5 * contrast.sqrt();
             Color32::from_rgb(
                 lerp((bg.r() as f32)..=(fg.r() as f32), mix) as u8,
                 lerp((bg.g() as f32)..=(fg.g() as f32), mix) as u8,
