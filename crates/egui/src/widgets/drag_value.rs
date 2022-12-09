@@ -499,6 +499,7 @@ impl<'a> Widget for DragValue<'a> {
             }
 
             if response.clicked() {
+                ui.memory().drag_value.edit_string = None;
                 ui.memory().request_focus(id);
             } else if response.dragged() {
                 ui.output().cursor_icon = CursorIcon::ResizeHorizontal;
