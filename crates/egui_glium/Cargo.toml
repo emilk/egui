@@ -20,7 +20,8 @@ include = [
 ]
 
 [package.metadata.docs.rs]
-all-features = true
+# Avoid speech-dispatcher dependencies - see https://docs.rs/crate/egui_glium/0.20.0/builds/695197
+features = ["document-features"]
 
 
 [features]
