@@ -7,7 +7,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 ## Unreleased
 
 
-## 0.20.0 - 2022-08-20 - AccessKit integration and `wgpu` web support
+## 0.20.0 - 2022-12-08 - AccessKit integration and `wgpu` web support
 * MSRV (Minimum Supported Rust Version) is now `1.65.0` ([#2314](https://github.com/emilk/egui/pull/2314)).
 * Allow empty textures with the glow renderer.
 

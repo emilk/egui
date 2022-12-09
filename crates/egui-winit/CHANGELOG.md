@@ -5,7 +5,7 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 ## Unreleased
 
 
-## 0.20.0 - 2022-08-20
+## 0.20.0 - 2022-12-08
 * The default features of the `winit` crate are not enabled if the default features of `egui-winit` are disabled too ([#1971](https://github.com/emilk/egui/pull/1971)).
 * Added new feature `wayland` which enables Wayland support ([#1971](https://github.com/emilk/egui/pull/1971)).
 * Don't repaint when just moving window ([#1980](https://github.com/emilk/egui/pull/1980)).

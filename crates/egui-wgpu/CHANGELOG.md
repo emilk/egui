@@ -5,7 +5,7 @@ All notable changes to the `egui-wgpu` integration will be noted in this file.
 ## Unreleased
 
 
-## 0.20.0 - 2022-08-20 - web support
+## 0.20.0 - 2022-12-08 - web support
 * Renamed `RenderPass` to `Renderer`.
 * Renamed `RenderPass::execute` to `RenderPass::render`.
 * Renamed `RenderPass::execute_with_renderpass` to `Renderer::render` (replacing existing `Renderer::render`)
