@@ -5,6 +5,8 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 
 ## Unreleased
+### Fixed 🐛
+* Fix key-repeat for backspace and arrow keys in `TextEdit` ([#2416](https://github.com/emilk/egui/pull/2416)).
 
 
 ## 0.20.0 - 2022-12-08 - AccessKit, prettier text, overlapping widgets
