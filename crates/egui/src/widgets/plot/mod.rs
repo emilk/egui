@@ -332,7 +332,7 @@ impl Plot {
             show_background: true,
             show_axes: [true; 2],
             grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
-            sharp_grid_lines: false,
+            sharp_grid_lines: true,
         }
     }
 
@@ -620,7 +620,7 @@ impl Plot {
     }
 
     /// Round grid positions to full pixels to avoid aliasing. Improves plot appearance but might have an
-    /// undesired effect when shifting the plot bounds.
+    /// undesired effect when shifting the plot bounds. Enabled by default.
     pub fn sharp_grid_lines(mut self, enabled: bool) -> Self {
         self.sharp_grid_lines = enabled;
         self
@@ -1320,8 +1320,8 @@ impl PreparedPlot {
             }
         }
 
-        // Sort the axes by contrast so that those with higher contrast are drawn in front.
-        axes_shapes.sort_by(|(_, contrast1), (_, contrast2)| contrast1.total_cmp(contrast2));
+        // Sort the axes by strength so that those with higher strength are drawn in front.
+        axes_shapes.sort_by(|(_, strength1), (_, strength2)| strength1.total_cmp(strength2));
 
         let mut shapes = axes_shapes.into_iter().map(|(shape, _)| shape).collect();
 
@@ -1439,13 +1439,13 @@ impl PreparedPlot {
             let spacing_in_points = (transform.dpos_dvalue()[axis] * step.step_size).abs() as f32;
 
             if spacing_in_points > MIN_LINE_SPACING_IN_POINTS as f32 {
-                let line_contrast = remap_clamp(
+                let line_strength = remap_clamp(
                     spacing_in_points,
                     MIN_LINE_SPACING_IN_POINTS as f32..=300.0,
                     0.0..=1.0,
                 );
 
-                let line_color = color_from_contrast(ui, line_contrast);
+                let line_color = color_from_contrast(ui, line_strength);
 
                 let mut p0 = pos_in_gui;
                 let mut p1 = pos_in_gui;
@@ -1458,15 +1458,15 @@ impl PreparedPlot {
                 }
                 shapes.push((
                     Shape::line_segment([p0, p1], Stroke::new(1.0, line_color)),
-                    line_contrast,
+                    line_strength,
                 ));
             }
 
             const MIN_TEXT_SPACING: f32 = 40.0;
             if spacing_in_points > MIN_TEXT_SPACING {
-                let text_contrast =
+                let text_strength =
                     remap_clamp(spacing_in_points, MIN_TEXT_SPACING..=150.0, 0.0..=1.0);
-                let color = color_from_contrast(ui, text_contrast);
+                let color = color_from_contrast(ui, text_strength);
 
                 let text: String = if let Some(formatter) = axis_formatters[axis].as_deref() {
                     formatter(value_main, &axis_range)
@@ -1488,7 +1488,7 @@ impl PreparedPlot {
                         .at_most(transform.frame().max[1 - axis] - galley.size()[1 - axis] - 2.0)
                         .at_least(transform.frame().min[1 - axis] + 1.0);
 
-                    shapes.push((Shape::galley(text_pos, galley), text_contrast));
+                    shapes.push((Shape::galley(text_pos, galley), text_strength));
                 }
             }
         }
