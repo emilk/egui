@@ -1498,9 +1498,9 @@ impl PreparedPlot {
             let fg = ui.visuals().widgets.open.fg_stroke.color;
             let mix = 0.65 * contrast.sqrt();
             Color32::from_rgb(
-                (bg.r() as f32 + (fg.r() as f32 - bg.r() as f32) * mix) as u8,
-                (bg.g() as f32 + (fg.g() as f32 - bg.g() as f32) * mix) as u8,
-                (bg.b() as f32 + (fg.b() as f32 - bg.b() as f32) * mix) as u8,
+                lerp((bg.r() as f32)..=(fg.r() as f32), mix) as u8,
+                lerp((bg.g() as f32)..=(fg.g() as f32), mix) as u8,
+                lerp((bg.b() as f32)..=(fg.b() as f32), mix) as u8,
             )
         }
     }
