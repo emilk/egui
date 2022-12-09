@@ -379,6 +379,9 @@ impl<'a> Widget for DragValue<'a> {
         // screen readers.
         ui.memory().interested_in_focus(id);
         let is_kb_editing = ui.memory().has_focus(id);
+        if ui.memory().gained_focus(id) {
+            ui.memory().drag_value.edit_string = None
+        }
 
         let old_value = get(&mut get_set_value);
         let mut value = old_value;
@@ -476,7 +479,6 @@ impl<'a> Widget for DragValue<'a> {
             ui.memory().drag_value.edit_string = Some(value_text);
             response
         } else {
-            ui.memory().drag_value.edit_string = None;
             let button = Button::new(
                 RichText::new(format!("{}{}{}", prefix, value_text.clone(), suffix)).monospace(),
             )
