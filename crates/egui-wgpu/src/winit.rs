@@ -60,26 +60,27 @@ impl Painter {
     ///
     /// Will return [`None`] if the render state has not been initialized yet.
     pub fn render_state(&self) -> Option<RenderState> {
-        self.render_state.as_ref().cloned()
+        self.render_state.clone()
     }
 
     async fn init_render_state(
         &self,
         adapter: &Adapter,
         target_format: wgpu::TextureFormat,
-    ) -> RenderState {
-        let (device, queue) =
-            pollster::block_on(adapter.request_device(&self.configuration.device_descriptor, None))
-                .unwrap();
-
-        let renderer = Renderer::new(&device, target_format, self.depth_format, self.msaa_samples);
-
-        RenderState {
-            device: Arc::new(device),
-            queue: Arc::new(queue),
-            target_format,
-            renderer: Arc::new(RwLock::new(renderer)),
-        }
+    ) -> Result<RenderState, wgpu::RequestDeviceError> {
+        adapter
+            .request_device(&self.configuration.device_descriptor, None)
+            .await
+            .map(|(device, queue)| {
+                let renderer =
+                    Renderer::new(&device, target_format, self.depth_format, self.msaa_samples);
+                RenderState {
+                    device: Arc::new(device),
+                    queue: Arc::new(queue),
+                    target_format,
+                    renderer: Arc::new(RwLock::new(renderer)),
+                }
+            })
     }
 
     // We want to defer the initialization of our render state until we have a surface
@@ -87,25 +88,31 @@ impl Painter {
     //
     // After we've initialized our render state once though we expect all future surfaces
     // will have the same format and so this render state will remain valid.
-    fn ensure_render_state_for_surface(&mut self, surface: &Surface) {
-        self.adapter.get_or_insert_with(|| {
-            pollster::block_on(self.instance.request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: self.configuration.power_preference,
-                compatible_surface: Some(surface),
-                force_fallback_adapter: false,
-            }))
-            .unwrap()
-        });
-
-        if self.render_state.is_none() {
-            let adapter = self.adapter.as_ref().unwrap();
-
-            let swapchain_format =
-                crate::preferred_framebuffer_format(&surface.get_supported_formats(adapter));
-
-            let rs = pollster::block_on(self.init_render_state(adapter, swapchain_format));
-            self.render_state = Some(rs);
+    fn ensure_render_state_for_surface(
+        &mut self,
+        surface: &Surface,
+    ) -> Result<(), wgpu::RequestDeviceError> {
+        if self.adapter.is_none() {
+            self.adapter =
+                pollster::block_on(self.instance.request_adapter(&wgpu::RequestAdapterOptions {
+                    power_preference: self.configuration.power_preference,
+                    compatible_surface: Some(surface),
+                    force_fallback_adapter: false,
+                }));
         }
+        if self.render_state.is_none() {
+            match &self.adapter {
+                Some(adapter) => {
+                    let swapchain_format = crate::preferred_framebuffer_format(
+                        &surface.get_supported_formats(adapter),
+                    );
+                    let rs = pollster::block_on(self.init_render_state(adapter, swapchain_format))?;
+                    self.render_state = Some(rs);
+                }
+                None => return Err(wgpu::RequestDeviceError {}),
+            }
+        }
+        Ok(())
     }
 
     fn configure_surface(&mut self, width_in_pixels: u32, height_in_pixels: u32) {
@@ -161,12 +168,18 @@ impl Painter {
     /// The raw Window handle associated with the given `window` must be a valid object to create a
     /// surface upon and must remain valid for the lifetime of the created surface. (The surface may
     /// be cleared by passing `None`).
-    pub unsafe fn set_window(&mut self, window: Option<&winit::window::Window>) {
+    ///
+    /// # Errors
+    /// If the provided wgpu configuration does not match an available device.
+    pub unsafe fn set_window(
+        &mut self,
+        window: Option<&winit::window::Window>,
+    ) -> Result<(), wgpu::RequestDeviceError> {
         match window {
             Some(window) => {
                 let surface = self.instance.create_surface(&window);
 
-                self.ensure_render_state_for_surface(&surface);
+                self.ensure_render_state_for_surface(&surface)?;
 
                 let size = window.inner_size();
                 let width = size.width;
@@ -182,6 +195,7 @@ impl Painter {
                 self.surface_state = None;
             }
         }
+        Ok(())
     }
 
     /// Returns the maximum texture dimension supported if known
@@ -195,7 +209,7 @@ impl Painter {
             .map(|rs| rs.device.limits().max_texture_dimension_2d as usize)
     }
 
-    pub fn resize_and_generate_depth_texture_view(
+    fn resize_and_generate_depth_texture_view(
         &mut self,
         width_in_pixels: u32,
         height_in_pixels: u32,

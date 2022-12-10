@@ -941,7 +941,7 @@ mod wgpu_integration {
             self.window = Some(window);
             if let Some(running) = &mut self.running {
                 unsafe {
-                    running.painter.set_window(self.window.as_ref());
+                    running.painter.set_window(self.window.as_ref()).unwrap();
                 }
             }
         }
@@ -952,7 +952,7 @@ mod wgpu_integration {
             self.window = None;
             if let Some(running) = &mut self.running {
                 unsafe {
-                    running.painter.set_window(None);
+                    running.painter.set_window(None).unwrap();
                 }
             }
         }
@@ -970,7 +970,7 @@ mod wgpu_integration {
                     self.native_options.multisampling.max(1) as _,
                     self.native_options.depth_buffer,
                 );
-                painter.set_window(Some(&window));
+                painter.set_window(Some(&window)).unwrap();
                 painter
             };
 
