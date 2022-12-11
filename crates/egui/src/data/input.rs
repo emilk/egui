@@ -1,5 +1,7 @@
 //! The input needed by egui.
 
+#![allow(deprecated)] // TODO(emilk): remove
+
 use crate::emath::*;
 
 /// What the integrations provides to egui at the start of each frame.
@@ -191,13 +193,9 @@ pub enum Event {
         modifiers: Modifiers,
     },
 
-    /// A key was repeated while pressed.
-    KeyRepeat {
-        key: Key,
-
-        /// The state of the modifier keys at the time of the event.
-        modifiers: Modifiers,
-    },
+    /// DEPRECATED - DO NOT USE
+    #[deprecated = "Do not use"]
+    KeyRepeat { key: Key, modifiers: Modifiers },
 
     /// The mouse or touch moved to a new place.
     PointerMoved(Pos2),

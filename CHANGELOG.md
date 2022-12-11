@@ -5,8 +5,11 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 
 ## Unreleased
+### Changed 🔧
+* `InputState`: all press functions again include key repeates (like in egui 0.19) ([#2429](https://github.com/emilk/egui/pull/2429)).
+
 ### Fixed 🐛
-* Fix key-repeat for backspace and arrow keys in `TextEdit` ([#2416](https://github.com/emilk/egui/pull/2416)).
+* Fix key-repeats for `TextEdit`, `Slider`s, etc ([#2429](https://github.com/emilk/egui/pull/2429)).
 
 
 ## 0.20.0 - 2022-12-08 - AccessKit, prettier text, overlapping widgets
