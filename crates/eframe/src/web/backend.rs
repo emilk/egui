@@ -1,11 +1,12 @@
-use super::{web_painter::WebPainter, *};
-use crate::epi;
-
 use egui::{
     mutex::{Mutex, MutexGuard},
     TexturesDelta,
 };
 pub use egui::{pos2, Color32};
+
+use crate::{epi, App};
+
+use super::{web_painter::WebPainter, *};
 
 // ----------------------------------------------------------------------------
 
@@ -284,7 +285,7 @@ impl AppRunner {
     /// Get mutable access to the concrete [`App`] we enclose.
     ///
     /// This will panic if your app does not implement [`App::as_any_mut`].
-    pub fn app_mut<ConreteApp: 'static + crate::App>(&mut self) -> &mut ConreteApp {
+    pub fn app_mut<ConreteApp: 'static + App>(&mut self) -> &mut ConreteApp {
         self.app
             .as_any_mut()
             .expect("Your app must implement `as_any_mut`, but it doesn't")

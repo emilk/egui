@@ -17,6 +17,7 @@ include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 # Avoid speech-dispatcher dependencies - see https://docs.rs/crate/eframe/0.20.0/builds/695200
 no-default-features = true
 features = ["document-features", "glow", "wgpu", "persistence", "wgpu"]
+targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 [lib]
 
