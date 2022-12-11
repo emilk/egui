@@ -1,6 +1,6 @@
 [package]
 name = "egui_glium"
-version = "0.20.0"
+version = "0.20.1"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glium library"
 edition = "2021"

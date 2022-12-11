@@ -3,6 +3,9 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 
 ## Unreleased
+
+
+## 0.20.1 - 2022-12-11
 * Fix docs.rs build ([#2420](https://github.com/emilk/egui/pull/2420)).
 
 

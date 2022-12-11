@@ -1306,7 +1306,7 @@ dependencies = [
 
 [[package]]
 name = "eframe"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "bytemuck",
  "dark-light",
@@ -1365,7 +1365,7 @@ dependencies = [
 
 [[package]]
 name = "egui-winit"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "accesskit_winit",
  "arboard",
@@ -1435,7 +1435,7 @@ dependencies = [
 
 [[package]]
 name = "egui_glium"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "ahash 0.8.2",
  "bytemuck",
@@ -1449,7 +1449,7 @@ dependencies = [
 
 [[package]]
 name = "egui_glow"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "bytemuck",
  "document-features",
