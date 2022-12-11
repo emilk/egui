@@ -5,6 +5,9 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 
 ## Unreleased
+
+
+## 0.20.1 - 2022-12-11 - Fix key-repeat
 ### Changed 🔧
 * `InputState`: all press functions again include key repeates (like in egui 0.19) ([#2429](https://github.com/emilk/egui/pull/2429)).
 

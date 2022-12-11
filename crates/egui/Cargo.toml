@@ -1,6 +1,6 @@
 [package]
 name = "egui"
-version = "0.20.0"
+version = "0.20.1"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "An easy-to-use immediate mode GUI that runs on both web and native"
 edition = "2021"
