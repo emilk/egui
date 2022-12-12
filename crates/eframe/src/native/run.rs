@@ -106,7 +106,7 @@ fn run_and_return(
 ) -> Result<()> {
     use winit::platform::run_return::EventLoopExtRunReturn as _;
 
-    tracing::debug!("event_loop.run_return");
+    tracing::debug!("Entering the winit event loop (run_return)…");
 
     let mut next_repaint_time = Instant::now();
 
@@ -115,7 +115,7 @@ fn run_and_return(
     event_loop.run_return(|event, event_loop, control_flow| {
         let event_result = match &event {
             winit::event::Event::LoopDestroyed => {
-                tracing::debug!("winit::event::Event::LoopDestroyed");
+                tracing::debug!("Received Event::LoopDestroyed");
                 EventResult::Exit
             }
 
@@ -149,6 +149,7 @@ fn run_and_return(
                 Ok(event_result) => event_result,
                 Err(err) => {
                     returned_result = Err(err);
+                    tracing::debug!("Exiting because of an error");
                     EventResult::Exit
                 }
             },
@@ -206,13 +207,16 @@ fn run_and_return(
 }
 
 fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp + 'static) -> ! {
-    tracing::debug!("event_loop.run");
+    tracing::debug!("Entering the winit event loop (run)…");
 
     let mut next_repaint_time = Instant::now();
 
     event_loop.run(move |event, event_loop, control_flow| {
         let event_result = match event {
-            winit::event::Event::LoopDestroyed => EventResult::Exit,
+            winit::event::Event::LoopDestroyed => {
+                tracing::debug!("Received Event::LoopDestroyed");
+                EventResult::Exit
+            }
 
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
@@ -252,7 +256,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                 next_repaint_time = next_repaint_time.min(repaint_time);
             }
             EventResult::Exit => {
-                tracing::debug!("Quitting…");
+                tracing::debug!("Quitting - saving app state…");
                 winit_app.save_and_destroy();
                 #[allow(clippy::exit)]
                 std::process::exit(0);
@@ -802,7 +806,8 @@ mod glow_integration {
                             winit::event::WindowEvent::CloseRequested
                                 if running.integration.should_close() =>
                             {
-                                return Ok(EventResult::Exit)
+                                tracing::debug!("Received WindowEvent::CloseRequested");
+                                return Ok(EventResult::Exit);
                             }
                             _ => {}
                         }
@@ -1228,7 +1233,8 @@ mod wgpu_integration {
                             winit::event::WindowEvent::CloseRequested
                                 if running.integration.should_close() =>
                             {
-                                return Ok(EventResult::Exit)
+                                tracing::debug!("Received WindowEvent::CloseRequested");
+                                return Ok(EventResult::Exit);
                             }
                             _ => {}
                         };

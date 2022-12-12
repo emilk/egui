@@ -308,8 +308,15 @@ impl EpiIntegration {
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
         match event {
-            WindowEvent::CloseRequested => self.close = app.on_close_event(),
-            WindowEvent::Destroyed => self.close = true,
+            WindowEvent::CloseRequested => {
+                tracing::debug!("Received WindowEvent::CloseRequested");
+                self.close = app.on_close_event();
+                tracing::debug!("App::on_close_event returned {}", self.close);
+            }
+            WindowEvent::Destroyed => {
+                tracing::debug!("Received WindowEvent::Destroyed");
+                self.close = true;
+            }
             WindowEvent::MouseInput {
                 button: MouseButton::Left,
                 state: ElementState::Pressed,
@@ -351,6 +358,7 @@ impl EpiIntegration {
             self.can_drag_window = false;
             if app_output.close {
                 self.close = app.on_close_event();
+                tracing::debug!("App::on_close_event returned {}", self.close);
             }
             self.frame.output.visible = app_output.visible; // this is handled by post_present
             handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);

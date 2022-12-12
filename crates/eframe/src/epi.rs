@@ -708,6 +708,7 @@ impl Frame {
     #[doc(alias = "exit")]
     #[doc(alias = "quit")]
     pub fn close(&mut self) {
+        tracing::debug!("eframe::Frame::close called");
         self.output.close = true;
     }
 
