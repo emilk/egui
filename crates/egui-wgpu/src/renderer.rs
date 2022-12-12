@@ -589,7 +589,7 @@ impl Renderer {
     ///
     /// This could be used by custom paint hooks to render images that have been added through with
     /// [`egui_extras::RetainedImage`](https://docs.rs/egui_extras/latest/egui_extras/image/struct.RetainedImage.html)
-    /// or [`epaint::Context::load_texture`].
+    /// or [`epaint::Context::load_texture`](https://docs.rs/egui/latest/egui/struct.Context.html#method.load_texture).
     pub fn texture(
         &self,
         id: &epaint::TextureId,

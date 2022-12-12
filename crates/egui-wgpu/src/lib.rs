@@ -8,12 +8,12 @@
 
 pub use wgpu;
 
-/// Low-level painting of [`egui`] on [`wgpu`].
+/// Low-level painting of [`egui`](https://github.com/emilk/egui) on [`wgpu`].
 pub mod renderer;
 pub use renderer::CallbackFn;
 pub use renderer::Renderer;
 
-/// Module for painting [`egui`] with [`wgpu`] on [`winit`].
+/// Module for painting [`egui`](https://github.com/emilk/egui) with [`wgpu`] on [`winit`].
 #[cfg(feature = "winit")]
 pub mod winit;
 
