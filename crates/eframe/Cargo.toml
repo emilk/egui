@@ -72,6 +72,7 @@ egui = { version = "0.20.0", path = "../egui", default-features = false, feature
   "bytemuck",
   "tracing",
 ] }
+thiserror = "1.0.37"
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 
 #! ### Optional dependencies

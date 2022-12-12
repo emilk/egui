@@ -6,7 +6,7 @@ use eframe::egui;
 use egui::mutex::Mutex;
 use std::sync::Arc;
 
-fn main() {
+fn main() -> Result<(), eframe::EframeError> {
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(350.0, 380.0)),
         multisampling: 8,
@@ -17,7 +17,7 @@ fn main() {
         "Custom 3D painting in eframe using glow",
         options,
         Box::new(|cc| Box::new(MyApp::new(cc))),
-    );
+    )
 }
 
 struct MyApp {

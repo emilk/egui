@@ -174,9 +174,16 @@ mod native;
 ///    }
 /// }
 /// ```
+///
+/// # Errors
+/// This function can fail if we fail to set up a graphics context.
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(clippy::needless_pass_by_value)]
-pub fn run_native(app_name: &str, native_options: NativeOptions, app_creator: AppCreator) {
+pub fn run_native(
+    app_name: &str,
+    native_options: NativeOptions,
+    app_creator: AppCreator,
+) -> Result<()> {
     let renderer = native_options.renderer;
 
     #[cfg(not(feature = "__screenshot"))]
@@ -189,16 +196,28 @@ pub fn run_native(app_name: &str, native_options: NativeOptions, app_creator: Ap
         #[cfg(feature = "glow")]
         Renderer::Glow => {
             tracing::debug!("Using the glow renderer");
-            native::run::run_glow(app_name, native_options, app_creator);
+            native::run::run_glow(app_name, native_options, app_creator)
         }
 
         #[cfg(feature = "wgpu")]
         Renderer::Wgpu => {
             tracing::debug!("Using the wgpu renderer");
-            native::run::run_wgpu(app_name, native_options, app_creator);
+            native::run::run_wgpu(app_name, native_options, app_creator)
         }
     }
 }
+
+// ----------------------------------------------------------------------------
+
+/// The different problems that can occur when trying to run `eframe`.
+#[derive(thiserror::Error, Debug)]
+pub enum EframeError {
+    #[cfg(feature = "wgpu")]
+    #[error("WGPU error: {0}")]
+    Wgpu(#[from] wgpu::RequestDeviceError),
+}
+
+pub type Result<T> = std::result::Result<T, EframeError>;
 
 // ---------------------------------------------------------------------------
 

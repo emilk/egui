@@ -1,18 +1,21 @@
 //! Note that this file contains two similar paths - one for [`glow`], one for [`wgpu`].
 //! When making changes to one you often also want to apply it to the other.
 
-use std::time::Duration;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
-#[cfg(feature = "accesskit")]
-use egui_winit::accesskit_winit;
-use egui_winit::winit;
 use winit::event_loop::{
     ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget,
 };
 
+#[cfg(feature = "accesskit")]
+use egui_winit::accesskit_winit;
+use egui_winit::winit;
+
+use crate::{epi, Result};
+
 use super::epi_integration::{self, EpiIntegration};
-use crate::epi;
+
+// ----------------------------------------------------------------------------
 
 #[derive(Debug)]
 pub enum UserEvent {
@@ -60,7 +63,7 @@ trait WinitApp {
         &mut self,
         event_loop: &EventLoopWindowTarget<UserEvent>,
         event: &winit::event::Event<'_, UserEvent>,
-    ) -> EventResult;
+    ) -> Result<EventResult>;
 }
 
 fn create_event_loop_builder(
@@ -79,10 +82,10 @@ fn create_event_loop_builder(
 ///
 /// We reuse the event-loop so we can support closing and opening an eframe window
 /// multiple times. This is just a limitation of winit.
-fn with_event_loop(
+fn with_event_loop<R>(
     mut native_options: epi::NativeOptions,
-    f: impl FnOnce(&mut EventLoop<UserEvent>, NativeOptions),
-) {
+    f: impl FnOnce(&mut EventLoop<UserEvent>, NativeOptions) -> R,
+) -> R {
     use std::cell::RefCell;
     thread_local!(static EVENT_LOOP: RefCell<Option<EventLoop<UserEvent>>> = RefCell::new(None));
 
@@ -93,16 +96,21 @@ fn with_event_loop(
         let mut event_loop = event_loop.borrow_mut();
         let event_loop = event_loop
             .get_or_insert_with(|| create_event_loop_builder(&mut native_options).build());
-        f(event_loop, native_options);
-    });
+        f(event_loop, native_options)
+    })
 }
 
-fn run_and_return(event_loop: &mut EventLoop<UserEvent>, mut winit_app: impl WinitApp) {
+fn run_and_return(
+    event_loop: &mut EventLoop<UserEvent>,
+    mut winit_app: impl WinitApp,
+) -> Result<()> {
     use winit::platform::run_return::EventLoopExtRunReturn as _;
 
     tracing::debug!("event_loop.run_return");
 
     let mut next_repaint_time = Instant::now();
+
+    let mut returned_result = Ok(());
 
     event_loop.run_return(|event, event_loop, control_flow| {
         let event_result = match &event {
@@ -137,7 +145,13 @@ fn run_and_return(event_loop: &mut EventLoop<UserEvent>, mut winit_app: impl Win
                 EventResult::Wait
             }
 
-            event => winit_app.on_event(event_loop, event),
+            event => match winit_app.on_event(event_loop, event) {
+                Ok(event_result) => event_result,
+                Err(err) => {
+                    returned_result = Err(err);
+                    EventResult::Exit
+                }
+            },
         };
 
         match event_result {
@@ -187,6 +201,8 @@ fn run_and_return(event_loop: &mut EventLoop<UserEvent>, mut winit_app: impl Win
     event_loop.run_return(|_, _, control_flow| {
         control_flow.set_exit();
     });
+
+    returned_result
 }
 
 fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp + 'static) -> ! {
@@ -215,7 +231,12 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                 ..
             }) => EventResult::RepaintNext,
 
-            event => winit_app.on_event(event_loop, &event),
+            event => match winit_app.on_event(event_loop, &event) {
+                Ok(event_result) => event_result,
+                Err(err) => {
+                    panic!("eframe encountered a fatal error: {err}");
+                }
+            },
         };
 
         match event_result {
@@ -726,8 +747,8 @@ mod glow_integration {
             &mut self,
             event_loop: &EventLoopWindowTarget<UserEvent>,
             event: &winit::event::Event<'_, UserEvent>,
-        ) -> EventResult {
-            match event {
+        ) -> Result<EventResult> {
+            Ok(match event {
                 winit::event::Event::Resumed => {
                     if self.running.is_none() {
                         self.init_run_state(event_loop);
@@ -793,7 +814,7 @@ mod glow_integration {
                             winit::event::WindowEvent::CloseRequested
                                 if running.integration.should_close() =>
                             {
-                                return EventResult::Exit
+                                return Ok(EventResult::Exit)
                             }
                             _ => {}
                         }
@@ -832,7 +853,7 @@ mod glow_integration {
                     }
                 }
                 _ => EventResult::Wait,
-            }
+            })
         }
     }
 
@@ -840,7 +861,7 @@ mod glow_integration {
         app_name: &str,
         mut native_options: epi::NativeOptions,
         app_creator: epi::AppCreator,
-    ) {
+    ) -> Result<()> {
         if native_options.run_and_return {
             with_event_loop(native_options, |event_loop, mut native_options| {
                 if native_options.centered {
@@ -849,8 +870,8 @@ mod glow_integration {
 
                 let glow_eframe =
                     GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
-                run_and_return(event_loop, glow_eframe);
-            });
+                run_and_return(event_loop, glow_eframe)
+            })
         } else {
             let event_loop = create_event_loop_builder(&mut native_options).build();
 
@@ -937,24 +958,29 @@ mod wgpu_integration {
         }
 
         #[allow(unsafe_code)]
-        fn set_window(&mut self, window: winit::window::Window) {
+        fn set_window(
+            &mut self,
+            window: winit::window::Window,
+        ) -> std::result::Result<(), wgpu::RequestDeviceError> {
             self.window = Some(window);
             if let Some(running) = &mut self.running {
                 unsafe {
-                    running.painter.set_window(self.window.as_ref()).unwrap();
+                    running.painter.set_window(self.window.as_ref())?;
                 }
             }
+            Ok(())
         }
 
         #[allow(unsafe_code)]
         #[cfg(target_os = "android")]
-        fn drop_window(&mut self) {
+        fn drop_window(&mut self) -> std::result::Result<(), wgpu::RequestDeviceError> {
             self.window = None;
             if let Some(running) = &mut self.running {
                 unsafe {
-                    running.painter.set_window(None).unwrap();
+                    running.painter.set_window(None)?;
                 }
             }
+            Ok(())
         }
 
         fn init_run_state(
@@ -962,7 +988,7 @@ mod wgpu_integration {
             event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<Box<dyn epi::Storage>>,
             window: winit::window::Window,
-        ) {
+        ) -> std::result::Result<(), wgpu::RequestDeviceError> {
             #[allow(unsafe_code, unused_mut, unused_unsafe)]
             let painter = unsafe {
                 let mut painter = egui_wgpu::winit::Painter::new(
@@ -970,7 +996,7 @@ mod wgpu_integration {
                     self.native_options.multisampling.max(1) as _,
                     self.native_options.depth_buffer,
                 );
-                painter.set_window(Some(&window)).unwrap();
+                painter.set_window(Some(&window))?;
                 painter
             };
 
@@ -1028,6 +1054,8 @@ mod wgpu_integration {
                 app,
             });
             self.window = Some(window);
+
+            Ok(())
         }
     }
 
@@ -1135,8 +1163,8 @@ mod wgpu_integration {
             &mut self,
             event_loop: &EventLoopWindowTarget<UserEvent>,
             event: &winit::event::Event<'_, UserEvent>,
-        ) -> EventResult {
-            match event {
+        ) -> Result<EventResult> {
+            Ok(match event {
                 winit::event::Event::Resumed => {
                     if let Some(running) = &self.running {
                         if self.window.is_none() {
@@ -1146,7 +1174,7 @@ mod wgpu_integration {
                                 &self.app_name,
                                 &self.native_options,
                             );
-                            self.set_window(window);
+                            self.set_window(window)?;
                         }
                     } else {
                         let storage = epi_integration::create_storage(&self.app_name);
@@ -1156,7 +1184,7 @@ mod wgpu_integration {
                             &self.app_name,
                             &self.native_options,
                         );
-                        self.init_run_state(event_loop, storage, window);
+                        self.init_run_state(event_loop, storage, window)?;
                     }
                     EventResult::RepaintNow
                 }
@@ -1212,7 +1240,7 @@ mod wgpu_integration {
                             winit::event::WindowEvent::CloseRequested
                                 if running.integration.should_close() =>
                             {
-                                return EventResult::Exit
+                                return Ok(EventResult::Exit)
                             }
                             _ => {}
                         };
@@ -1250,7 +1278,7 @@ mod wgpu_integration {
                     }
                 }
                 _ => EventResult::Wait,
-            }
+            })
         }
     }
 
@@ -1258,7 +1286,7 @@ mod wgpu_integration {
         app_name: &str,
         mut native_options: epi::NativeOptions,
         app_creator: epi::AppCreator,
-    ) {
+    ) -> Result<()> {
         if native_options.run_and_return {
             with_event_loop(native_options, |event_loop, mut native_options| {
                 if native_options.centered {
@@ -1267,8 +1295,8 @@ mod wgpu_integration {
 
                 let wgpu_eframe =
                     WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
-                run_and_return(event_loop, wgpu_eframe);
-            });
+                run_and_return(event_loop, wgpu_eframe)
+            })
         } else {
             let event_loop = create_event_loop_builder(&mut native_options).build();
 

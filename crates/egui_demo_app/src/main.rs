@@ -3,7 +3,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 // When compiling natively:
-fn main() {
+fn main() -> Result<(), eframe::EframeError> {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
@@ -21,5 +21,5 @@ fn main() {
         "egui demo app",
         options,
         Box::new(|cc| Box::new(egui_demo_app::WrapApp::new(cc))),
-    );
+    )
 }

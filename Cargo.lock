@@ -1325,6 +1325,7 @@ dependencies = [
  "raw-window-handle 0.5.0",
  "ron",
  "serde",
+ "thiserror",
  "tracing",
  "tts",
  "wasm-bindgen",
