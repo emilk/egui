@@ -9,6 +9,9 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 #### Desktop/Native:
 * `eframe::run_native` now returns a `Result` ([#2433](https://github.com/emilk/egui/pull/2433)).
 
+#### Web:
+* `App::on_exit` is no longer available for `wasm32` ([#2436](https://github.com/emilk/egui/pull/2436)).
+
 
 ## 0.20.1 - 2022-12-11
 * Fix docs.rs build ([#2420](https://github.com/emilk/egui/pull/2420)).
