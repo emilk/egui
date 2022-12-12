@@ -46,12 +46,13 @@ impl WindowSettings {
         &self,
         mut window: winit::window::WindowBuilder,
     ) -> winit::window::WindowBuilder {
-        if !cfg!(target_os = "windows") {
-            // If the app last ran on two monitors and only one is now connected, then
-            // the given position is invalid.
-            // If this happens on Mac, the window is clamped into valid area.
-            // If this happens on Windows, the window is hidden and very difficult to find.
-            // So we don't restore window positions on Windows.
+        // If the app last ran on two monitors and only one is now connected, then
+        // the given position is invalid.
+        // If this happens on Mac, the window is clamped into valid area.
+        // If this happens on Windows, the window is hidden and very difficult to find.
+        // So we don't restore window positions on Windows.
+        let try_restore_position = !cfg!(target_os = "windows");
+        if try_restore_position {
             if let Some(pos) = self.position {
                 window = window.with_position(winit::dpi::PhysicalPosition {
                     x: pos.x as f64,
@@ -72,6 +73,14 @@ impl WindowSettings {
                 )
         } else {
             window
+        }
+    }
+
+    pub fn clamp_to_sane_values(&mut self) {
+        if let Some(size) = &mut self.inner_size_points {
+            // Prevent ridiculously small windows
+            let min_size = egui::Vec2::splat(64.0);
+            *size = size.max(min_size);
         }
     }
 }

@@ -3,7 +3,7 @@ All notable changes to the `egui-wgpu` integration will be noted in this file.
 
 
 ## Unreleased
-* Fix panic if we can't find a device ([#2428](https://github.com/emilk/egui/pull/2428))
+* Return `Err` instead of panic if we can't find a device ([#2428](https://github.com/emilk/egui/pull/2428)).
 
 
 ## 0.20.0 - 2022-12-08 - web support
