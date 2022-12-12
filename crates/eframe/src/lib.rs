@@ -212,6 +212,10 @@ pub fn run_native(
 /// The different problems that can occur when trying to run `eframe`.
 #[derive(thiserror::Error, Debug)]
 pub enum EframeError {
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("winit error: {0}")]
+    Winit(#[from] winit::error::OsError),
+
     #[cfg(feature = "glow")]
     #[error("glutin error: {0}")]
     Glutin(#[from] glutin::error::Error),

@@ -509,9 +509,7 @@ mod glow_integration {
                 // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
                 // We must also keep the window hidden until AccessKit is initialized.
                 .with_visible(false);
-            let winit_window = window_builder
-                .build(event_loop)
-                .expect("failed to create winit window");
+            let winit_window = window_builder.build(event_loop)?;
             // a lot of the code below has been lifted from glutin example in their repo.
             let glutin_window_context =
                 unsafe { GlutinWindowContext::new(winit_window, native_options)? };
@@ -940,15 +938,16 @@ mod wgpu_integration {
             storage: Option<&dyn epi::Storage>,
             title: &String,
             native_options: &NativeOptions,
-        ) -> winit::window::Window {
+        ) -> Result<winit::window::Window> {
             let window_settings = epi_integration::load_window_settings(storage);
-            epi_integration::window_builder(native_options, &window_settings)
-                .with_title(title)
-                // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
-                // We must also keep the window hidden until AccessKit is initialized.
-                .with_visible(false)
-                .build(event_loop)
-                .unwrap()
+            Ok(
+                epi_integration::window_builder(native_options, &window_settings)
+                    .with_title(title)
+                    // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
+                    // We must also keep the window hidden until AccessKit is initialized.
+                    .with_visible(false)
+                    .build(event_loop)?,
+            )
         }
 
         #[allow(unsafe_code)]
@@ -1167,7 +1166,7 @@ mod wgpu_integration {
                                 running.integration.frame.storage(),
                                 &self.app_name,
                                 &self.native_options,
-                            );
+                            )?;
                             self.set_window(window)?;
                         }
                     } else {
@@ -1177,7 +1176,7 @@ mod wgpu_integration {
                             storage.as_deref(),
                             &self.app_name,
                             &self.native_options,
-                        );
+                        )?;
                         self.init_run_state(event_loop, storage, window)?;
                     }
                     EventResult::RepaintNow
