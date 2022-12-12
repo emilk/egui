@@ -163,8 +163,14 @@ fn run_and_return(
             EventResult::Wait => {}
             EventResult::RepaintNow => {
                 tracing::trace!("Repaint caused by winit::Event: {:?}", event);
-                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
-                winit_app.paint();
+                if cfg!(windows) {
+                    // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
+                    next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                    winit_app.paint();
+                } else {
+                    // Fix for https://github.com/emilk/egui/issues/2425
+                    next_repaint_time = Instant::now();
+                }
             }
             EventResult::RepaintNext => {
                 tracing::trace!("Repaint caused by winit::Event: {:?}", event);
@@ -247,8 +253,14 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
         match event_result {
             EventResult::Wait => {}
             EventResult::RepaintNow => {
-                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
-                winit_app.paint();
+                if cfg!(windows) {
+                    // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
+                    next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                    winit_app.paint();
+                } else {
+                    // Fix for https://github.com/emilk/egui/issues/2425
+                    next_repaint_time = Instant::now();
+                }
             }
             EventResult::RepaintNext => {
                 next_repaint_time = Instant::now();
