@@ -1356,7 +1356,7 @@ version = "0.20.0"
 dependencies = [
  "bytemuck",
  "document-features",
- "egui",
+ "epaint",
  "puffin",
  "tracing",
  "type-map",
