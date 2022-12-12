@@ -145,9 +145,11 @@ impl RotatingTriangle {
                         .expect("Cannot create shader");
                     gl.shader_source(shader, &format!("{}\n{}", shader_version, shader_source));
                     gl.compile_shader(shader);
-                    if !gl.get_shader_compile_status(shader) {
-                        panic!("{}", gl.get_shader_info_log(shader));
-                    }
+                    assert!(
+                        gl.get_shader_compile_status(shader),
+                        "Failed to compile {shader_type}: {}",
+                        gl.get_shader_info_log(shader)
+                    );
                     gl.attach_shader(program, shader);
                     shader
                 })
