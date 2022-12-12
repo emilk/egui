@@ -127,7 +127,7 @@ pub async fn start_web(
     canvas_id: &str,
     web_options: WebOptions,
     app_creator: AppCreator,
-) -> Result<AppRunnerRef, wasm_bindgen::JsValue> {
+) -> std::result::Result<AppRunnerRef, wasm_bindgen::JsValue> {
     let handle = web::start(canvas_id, web_options, app_creator).await?;
 
     Ok(handle)
@@ -216,11 +216,11 @@ pub enum EframeError {
     #[error("winit error: {0}")]
     Winit(#[from] winit::error::OsError),
 
-    #[cfg(feature = "glow")]
+    #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
     #[error("glutin error: {0}")]
     Glutin(#[from] glutin::error::Error),
 
-    #[cfg(feature = "glow")]
+    #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
     #[error("Found no glutin configs matching the template: {0:?}")]
     NoGlutinConfigs(glutin::config::ConfigTemplate),
 
