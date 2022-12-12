@@ -88,17 +88,19 @@ impl Painter {
     //
     // After we've initialized our render state once though we expect all future surfaces
     // will have the same format and so this render state will remain valid.
-    fn ensure_render_state_for_surface(
+    async fn ensure_render_state_for_surface(
         &mut self,
         surface: &Surface,
     ) -> Result<(), wgpu::RequestDeviceError> {
         if self.adapter.is_none() {
-            self.adapter =
-                pollster::block_on(self.instance.request_adapter(&wgpu::RequestAdapterOptions {
+            self.adapter = self
+                .instance
+                .request_adapter(&wgpu::RequestAdapterOptions {
                     power_preference: self.configuration.power_preference,
                     compatible_surface: Some(surface),
                     force_fallback_adapter: false,
-                }));
+                })
+                .await;
         }
         if self.render_state.is_none() {
             match &self.adapter {
@@ -106,7 +108,7 @@ impl Painter {
                     let swapchain_format = crate::preferred_framebuffer_format(
                         &surface.get_supported_formats(adapter),
                     );
-                    let rs = pollster::block_on(self.init_render_state(adapter, swapchain_format))?;
+                    let rs = self.init_render_state(adapter, swapchain_format).await?;
                     self.render_state = Some(rs);
                 }
                 None => return Err(wgpu::RequestDeviceError {}),
@@ -171,7 +173,7 @@ impl Painter {
     ///
     /// # Errors
     /// If the provided wgpu configuration does not match an available device.
-    pub unsafe fn set_window(
+    pub async unsafe fn set_window(
         &mut self,
         window: Option<&winit::window::Window>,
     ) -> Result<(), wgpu::RequestDeviceError> {
@@ -179,7 +181,7 @@ impl Painter {
             Some(window) => {
                 let surface = self.instance.create_surface(&window);
 
-                self.ensure_render_state_for_surface(&surface)?;
+                self.ensure_render_state_for_surface(&surface).await?;
 
                 let size = window.inner_size();
                 let width = size.width;

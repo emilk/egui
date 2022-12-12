@@ -950,7 +950,7 @@ mod wgpu_integration {
             self.window = Some(window);
             if let Some(running) = &mut self.running {
                 unsafe {
-                    running.painter.set_window(self.window.as_ref())?;
+                    pollster::block_on(running.painter.set_window(self.window.as_ref()))?;
                 }
             }
             Ok(())
@@ -962,7 +962,7 @@ mod wgpu_integration {
             self.window = None;
             if let Some(running) = &mut self.running {
                 unsafe {
-                    running.painter.set_window(None)?;
+                    pollster::block_on(running.painter.set_window(None))?;
                 }
             }
             Ok(())
@@ -981,7 +981,7 @@ mod wgpu_integration {
                     self.native_options.multisampling.max(1) as _,
                     self.native_options.depth_buffer,
                 );
-                painter.set_window(Some(&window))?;
+                pollster::block_on(painter.set_window(Some(&window)))?;
                 painter
             };
 

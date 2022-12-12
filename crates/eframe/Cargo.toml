@@ -64,7 +64,7 @@ __screenshot = ["dep:image"]
 
 ## Use [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui-wgpu`](https://github.com/emilk/egui/tree/master/crates/egui-wgpu)).
 ## This overrides the `glow` feature.
-wgpu = ["dep:wgpu", "dep:egui-wgpu"]
+wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
 
 
 [dependencies]
@@ -100,6 +100,7 @@ directories-next = { version = "2", optional = true }
 egui-wgpu = { version = "0.20.0", path = "../egui-wgpu", optional = true, features = [
   "winit",
 ] } # if wgpu is used, use it with winit
+pollster = { version = "0.2", optional = true } # needed for wgpu
 
 # we can expose these to user so that they can select which backends they want to enable to avoid compiling useless deps.
 # this can be done at the same time we expose x11/wayland features of winit crate.
