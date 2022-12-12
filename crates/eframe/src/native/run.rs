@@ -1175,7 +1175,7 @@ mod wgpu_integration {
                 }
                 winit::event::Event::Suspended => {
                     #[cfg(target_os = "android")]
-                    self.drop_window();
+                    self.drop_window()?;
                     EventResult::Wait
                 }
 
