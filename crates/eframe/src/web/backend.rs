@@ -1,8 +1,7 @@
 use egui::{
     mutex::{Mutex, MutexGuard},
-    TexturesDelta,
+    pos2, Color32, TexturesDelta,
 };
-pub use egui::{pos2, Color32};
 
 use crate::{epi, App};
 

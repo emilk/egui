@@ -125,12 +125,14 @@ pub trait App {
     ///
     /// To get a [`glow`] context you need to compile with the `glow` feature flag,
     /// and run eframe with the glow backend.
+    #[cfg(not(target_arch = "wasm32"))]
     #[cfg(feature = "glow")]
     fn on_exit(&mut self, _gl: Option<&glow::Context>) {}
 
     /// Called once on shutdown, after [`Self::save`].
     ///
     /// If you need to abort an exit use [`Self::on_close_event`].
+    #[cfg(not(target_arch = "wasm32"))]
     #[cfg(not(feature = "glow"))]
     fn on_exit(&mut self) {}
 
