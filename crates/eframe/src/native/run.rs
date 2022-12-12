@@ -305,6 +305,8 @@ fn center_window_pos(
 mod glow_integration {
     use std::sync::Arc;
 
+    use egui::NumExt as _;
+
     use super::*;
 
     // Note: that the current Glutin API design tightly couples the GL context with
@@ -416,8 +418,8 @@ mod glow_integration {
                 glutin::context::ContextAttributesBuilder::new().build(Some(raw_window_handle));
             // for surface creation.
             let (width, height): (u32, u32) = winit_window.inner_size().into();
-            let width = std::num::NonZeroU32::new(width).expect("Size must not be zero");
-            let height = std::num::NonZeroU32::new(height).expect("Size must not be zero");
+            let width = std::num::NonZeroU32::new(width.at_least(1)).unwrap();
+            let height = std::num::NonZeroU32::new(height.at_least(1)).unwrap();
             let surface_attributes =
                 glutin::surface::SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new()
                     .build(raw_window_handle, width, height);
@@ -441,10 +443,8 @@ mod glow_integration {
 
         fn resize(&self, physical_size: winit::dpi::PhysicalSize<u32>) {
             use glutin::surface::GlSurface;
-            let width =
-                std::num::NonZeroU32::new(physical_size.width).expect("Size must not be zero");
-            let height =
-                std::num::NonZeroU32::new(physical_size.height).expect("Size must not be zero");
+            let width = std::num::NonZeroU32::new(physical_size.width.at_least(1)).unwrap();
+            let height = std::num::NonZeroU32::new(physical_size.height.at_least(1)).unwrap();
             self.gl_surface.resize(&self.gl_context, width, height);
         }
 
