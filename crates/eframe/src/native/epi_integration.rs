@@ -49,6 +49,7 @@ pub fn read_window_info(window: &winit::window::Window, pixels_per_point: f32) -
 }
 
 pub fn window_builder(
+    title: &str,
     native_options: &epi::NativeOptions,
     window_settings: &Option<WindowSettings>,
 ) -> winit::window::WindowBuilder {
@@ -73,13 +74,17 @@ pub fn window_builder(
     let window_icon = icon_data.clone().and_then(load_icon);
 
     let mut window_builder = winit::window::WindowBuilder::new()
+        .with_title(title)
         .with_always_on_top(*always_on_top)
         .with_decorations(*decorated)
         .with_fullscreen(fullscreen.then(|| winit::window::Fullscreen::Borderless(None)))
         .with_maximized(*maximized)
         .with_resizable(*resizable)
         .with_transparent(*transparent)
-        .with_window_icon(window_icon);
+        .with_window_icon(window_icon)
+        // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
+        // We must also keep the window hidden until AccessKit is initialized.
+        .with_visible(false);
 
     #[cfg(target_os = "macos")]
     if *fullsize_content {

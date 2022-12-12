@@ -496,20 +496,16 @@ mod glow_integration {
         fn create_glutin_windowed_context(
             event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<&dyn epi::Storage>,
-            title: &String,
+            title: &str,
             native_options: &NativeOptions,
         ) -> Result<(GlutinWindowContext, glow::Context)> {
             crate::profile_function!();
 
             let window_settings = epi_integration::load_window_settings(storage);
 
-            let window_builder = epi_integration::window_builder(native_options, &window_settings)
-                .with_title(title)
-                .with_transparent(native_options.transparent)
-                // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
-                // We must also keep the window hidden until AccessKit is initialized.
-                .with_visible(false);
-            let winit_window = window_builder.build(event_loop)?;
+            let winit_window =
+                epi_integration::window_builder(title, native_options, &window_settings)
+                    .build(event_loop)?;
             // a lot of the code below has been lifted from glutin example in their repo.
             let glutin_window_context =
                 unsafe { GlutinWindowContext::new(winit_window, native_options)? };
@@ -936,16 +932,12 @@ mod wgpu_integration {
         fn create_window(
             event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<&dyn epi::Storage>,
-            title: &String,
+            title: &str,
             native_options: &NativeOptions,
         ) -> Result<winit::window::Window> {
             let window_settings = epi_integration::load_window_settings(storage);
             Ok(
-                epi_integration::window_builder(native_options, &window_settings)
-                    .with_title(title)
-                    // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
-                    // We must also keep the window hidden until AccessKit is initialized.
-                    .with_visible(false)
+                epi_integration::window_builder(title, native_options, &window_settings)
                     .build(event_loop)?,
             )
         }
