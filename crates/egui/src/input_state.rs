@@ -166,10 +166,15 @@ impl InputState {
         let mut zoom_factor_delta = 1.0;
         for event in &mut new.events {
             match event {
-                Event::Key { key, pressed, .. } => {
+                Event::Key {
+                    key,
+                    pressed,
+                    repeat,
+                    ..
+                } => {
                     if *pressed {
-                        keys_down.insert(*key);
-                        // TODO(emilk): detect key repeats and mark the event accordingly!
+                        let first_press = keys_down.insert(*key);
+                        *repeat = !first_press;
                     } else {
                         keys_down.remove(key);
                     }
@@ -263,7 +268,8 @@ impl InputState {
                 Event::Key {
                     key: ev_key,
                     modifiers: ev_mods,
-                    pressed: true
+                    pressed: true,
+                    ..
                 } if *ev_key == key && ev_mods.matches(modifiers)
             );
 

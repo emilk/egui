@@ -594,6 +594,7 @@ impl State {
                 self.egui_input.events.push(egui::Event::Key {
                     key,
                     pressed,
+                    repeat: false, // egui will fill this in for us!
                     modifiers: self.egui_input.modifiers,
                 });
             }
