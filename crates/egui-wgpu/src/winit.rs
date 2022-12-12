@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use egui::mutex::RwLock;
 use tracing::error;
 use wgpu::{Adapter, Instance, Surface};
+
+use epaint::mutex::RwLock;
 
 use crate::{renderer, RenderState, Renderer, SurfaceErrorAction, WgpuConfiguration};
 
@@ -249,9 +250,9 @@ impl Painter {
     pub fn paint_and_update_textures(
         &mut self,
         pixels_per_point: f32,
-        clear_color: egui::Rgba,
-        clipped_primitives: &[egui::ClippedPrimitive],
-        textures_delta: &egui::TexturesDelta,
+        clear_color: epaint::Rgba,
+        clipped_primitives: &[epaint::ClippedPrimitive],
+        textures_delta: &epaint::textures::TexturesDelta,
     ) {
         crate::profile_function!();
 

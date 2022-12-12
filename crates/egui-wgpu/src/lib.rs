@@ -17,8 +17,9 @@ pub use renderer::Renderer;
 #[cfg(feature = "winit")]
 pub mod winit;
 
-use egui::mutex::RwLock;
 use std::sync::Arc;
+
+use epaint::mutex::RwLock;
 
 /// Access to the render state for egui.
 #[derive(Clone)]
