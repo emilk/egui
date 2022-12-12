@@ -145,9 +145,6 @@ pub trait App {
     /// The size limit of the web app canvas.
     ///
     /// By default the max size is [`egui::Vec2::INFINITY`], i.e. unlimited.
-    ///
-    /// A large canvas can lead to bad frame rates on some older browsers on some platforms
-    /// (see <https://bugzilla.mozilla.org/show_bug.cgi?id=1010527#c0>).
     fn max_size_points(&self) -> egui::Vec2 {
         egui::Vec2::INFINITY
     }
