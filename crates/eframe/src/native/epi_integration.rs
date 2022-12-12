@@ -440,7 +440,9 @@ const STORAGE_WINDOW_KEY: &str = "window";
 pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<WindowSettings> {
     #[cfg(feature = "persistence")]
     {
-        epi::get_value(_storage?, STORAGE_WINDOW_KEY)
+        let mut settings: WindowSettings = epi::get_value(_storage?, STORAGE_WINDOW_KEY)?;
+        settings.clamp_to_sane_values();
+        Some(settings)
     }
     #[cfg(not(feature = "persistence"))]
     None
