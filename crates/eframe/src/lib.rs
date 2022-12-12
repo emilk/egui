@@ -212,6 +212,14 @@ pub fn run_native(
 /// The different problems that can occur when trying to run `eframe`.
 #[derive(thiserror::Error, Debug)]
 pub enum EframeError {
+    #[cfg(feature = "glow")]
+    #[error("glutin error: {0}")]
+    Glutin(#[from] glutin::error::Error),
+
+    #[cfg(feature = "glow")]
+    #[error("Found no glutin configs matching the template: {0:?}")]
+    NoGlutinConfigs(glutin::config::ConfigTemplate),
+
     #[cfg(feature = "wgpu")]
     #[error("WGPU error: {0}")]
     Wgpu(#[from] wgpu::RequestDeviceError),

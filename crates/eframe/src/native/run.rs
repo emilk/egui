@@ -342,7 +342,7 @@ mod glow_integration {
         unsafe fn new(
             winit_window: winit::window::Window,
             native_options: &epi::NativeOptions,
-        ) -> Self {
+        ) -> Result<Self> {
             use glutin::prelude::*;
             use raw_window_handle::*;
             let hardware_acceleration = match native_options.hardware_acceleration {
@@ -372,8 +372,7 @@ mod glow_integration {
             #[cfg(target_os = "android")]
             let preference = glutin::display::DisplayApiPreference::Egl;
 
-            let gl_display = glutin::display::Display::new(raw_display_handle, preference)
-                .expect("failed to create glutin display");
+            let gl_display = glutin::display::Display::new(raw_display_handle, preference)?;
             let swap_interval = if native_options.vsync {
                 glutin::surface::SwapInterval::Wait(std::num::NonZeroU32::new(1).unwrap())
             } else {
@@ -404,64 +403,51 @@ mod glow_integration {
             // options required by user like multi sampling, srgb, transparency etc..
             // TODO: need to figure out a good fallback config template
             let config = gl_display
-                .find_configs(config_template)
-                .expect("failed to find even a single matching configuration")
+                .find_configs(config_template.clone())?
                 .next()
-                .expect("failed to find a matching configuration for creating opengl context");
+                .ok_or(crate::EframeError::NoGlutinConfigs(config_template))?;
 
             let context_attributes =
                 glutin::context::ContextAttributesBuilder::new().build(Some(raw_window_handle));
             // for surface creation.
             let (width, height): (u32, u32) = winit_window.inner_size().into();
+            let width = std::num::NonZeroU32::new(width).expect("Size must not be zero");
+            let height = std::num::NonZeroU32::new(height).expect("Size must not be zero");
             let surface_attributes =
                 glutin::surface::SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new()
-                    .build(
-                        raw_window_handle,
-                        std::num::NonZeroU32::new(width).unwrap(),
-                        std::num::NonZeroU32::new(height).unwrap(),
-                    );
+                    .build(raw_window_handle, width, height);
             // start creating the gl objects
-            let gl_context = gl_display
-                .create_context(&config, &context_attributes)
-                .expect("failed to create opengl context");
+            let gl_context = gl_display.create_context(&config, &context_attributes)?;
 
-            let gl_surface = gl_display
-                .create_window_surface(&config, &surface_attributes)
-                .expect("failed to create glutin window surface");
-            let gl_context = gl_context
-                .make_current(&gl_surface)
-                .expect("failed to make gl context current");
-            gl_surface
-                .set_swap_interval(&gl_context, swap_interval)
-                .expect("failed to set vsync swap interval");
-            GlutinWindowContext {
+            let gl_surface = gl_display.create_window_surface(&config, &surface_attributes)?;
+            let gl_context = gl_context.make_current(&gl_surface)?;
+            gl_surface.set_swap_interval(&gl_context, swap_interval)?;
+            Ok(GlutinWindowContext {
                 window: winit_window,
                 gl_context,
                 gl_display,
                 gl_surface,
-            }
+            })
         }
+
         fn window(&self) -> &winit::window::Window {
             &self.window
         }
+
         fn resize(&self, physical_size: winit::dpi::PhysicalSize<u32>) {
             use glutin::surface::GlSurface;
-            self.gl_surface.resize(
-                &self.gl_context,
-                physical_size
-                    .width
-                    .try_into()
-                    .expect("physical size must not be zero"),
-                physical_size
-                    .height
-                    .try_into()
-                    .expect("physical size must not be zero"),
-            );
+            let width =
+                std::num::NonZeroU32::new(physical_size.width).expect("Size must not be zero");
+            let height =
+                std::num::NonZeroU32::new(physical_size.height).expect("Size must not be zero");
+            self.gl_surface.resize(&self.gl_context, width, height);
         }
+
         fn swap_buffers(&self) -> glutin::error::Result<()> {
             use glutin::surface::GlSurface;
             self.gl_surface.swap_buffers(&self.gl_context)
         }
+
         fn get_proc_address(&self, addr: &std::ffi::CStr) -> *const std::ffi::c_void {
             use glutin::display::GlDisplay;
             self.gl_display.get_proc_address(addr)
@@ -507,7 +493,7 @@ mod glow_integration {
             storage: Option<&dyn epi::Storage>,
             title: &String,
             native_options: &NativeOptions,
-        ) -> (GlutinWindowContext, glow::Context) {
+        ) -> Result<(GlutinWindowContext, glow::Context)> {
             crate::profile_function!();
 
             let window_settings = epi_integration::load_window_settings(storage);
@@ -523,7 +509,7 @@ mod glow_integration {
                 .expect("failed to create winit window");
             // a lot of the code below has been lifted from glutin example in their repo.
             let glutin_window_context =
-                unsafe { GlutinWindowContext::new(winit_window, native_options) };
+                unsafe { GlutinWindowContext::new(winit_window, native_options)? };
             let gl = unsafe {
                 glow::Context::from_loader_function(|s| {
                     let s = std::ffi::CString::new(s)
@@ -533,10 +519,10 @@ mod glow_integration {
                 })
             };
 
-            (glutin_window_context, gl)
+            Ok((glutin_window_context, gl))
         }
 
-        fn init_run_state(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) {
+        fn init_run_state(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
             let storage = epi_integration::create_storage(&self.app_name);
 
             let (gl_window, gl) = Self::create_glutin_windowed_context(
@@ -544,7 +530,7 @@ mod glow_integration {
                 storage.as_deref(),
                 &self.app_name,
                 &self.native_options,
-            );
+            )?;
             let gl = Arc::new(gl);
 
             let painter =
@@ -606,6 +592,8 @@ mod glow_integration {
                 integration,
                 app,
             });
+
+            Ok(())
         }
     }
 
@@ -751,7 +739,7 @@ mod glow_integration {
             Ok(match event {
                 winit::event::Event::Resumed => {
                     if self.running.is_none() {
-                        self.init_run_state(event_loop);
+                        self.init_run_state(event_loop)?;
                     }
                     EventResult::RepaintNow
                 }
