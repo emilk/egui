@@ -96,22 +96,22 @@ impl Rgba {
     }
 
     pub fn from_luminance_alpha(l: f32, a: f32) -> Self {
-        crate::ecolor_assert!((0.0..=1.0).contains(&l));
-        crate::ecolor_assert!((0.0..=1.0).contains(&a));
+        crate::ecolor_assert!(0.0 <= l && l <= 1.0);
+        crate::ecolor_assert!(0.0 <= a && a <= 1.0);
         Self([l * a, l * a, l * a, a])
     }
 
     /// Transparent black
     #[inline(always)]
     pub fn from_black_alpha(a: f32) -> Self {
-        crate::ecolor_assert!((0.0..=1.0).contains(&a));
+        crate::ecolor_assert!(0.0 <= a && a <= 1.0);
         Self([0.0, 0.0, 0.0, a])
     }
 
     /// Transparent white
     #[inline(always)]
     pub fn from_white_alpha(a: f32) -> Self {
-        crate::ecolor_assert!((0.0..=1.0).contains(&a), "a: {}", a);
+        crate::ecolor_assert!(0.0 <= a && a <= 1.0, "a: {}", a);
         Self([a, a, a, a])
     }
 

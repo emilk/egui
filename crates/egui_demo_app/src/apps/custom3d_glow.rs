@@ -148,9 +148,10 @@ impl RotatingTriangle {
                     gl.compile_shader(shader);
                     assert!(
                         gl.get_shader_compile_status(shader),
-                        "Failed to compile custom_3d_glow: {}",
+                        "Failed to compile custom_3d_glow {shader_type}: {}",
                         gl.get_shader_info_log(shader)
                     );
+
                     gl.attach_shader(program, shader);
                     shader
                 })

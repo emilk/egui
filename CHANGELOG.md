@@ -12,6 +12,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 ## 0.20.1 - 2022-12-11 - Fix key-repeat
 ### Changed 🔧
 * `InputState`: all press functions again include key repeates (like in egui 0.19) ([#2429](https://github.com/emilk/egui/pull/2429)).
+* Improve the look of thin white lines ([#2437](https://github.com/emilk/egui/pull/2437)).
 
 ### Fixed 🐛
 * Fix key-repeats for `TextEdit`, `Slider`s, etc ([#2429](https://github.com/emilk/egui/pull/2429)).
