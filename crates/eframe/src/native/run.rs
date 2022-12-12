@@ -115,8 +115,12 @@ fn run_and_return(
     event_loop.run_return(|event, event_loop, control_flow| {
         let event_result = match &event {
             winit::event::Event::LoopDestroyed => {
-                tracing::debug!("Received Event::LoopDestroyed");
-                EventResult::Exit
+                // On Mac, Cmd-Q we get here and then `run_return` doesn't return (despite its name),
+                // so we need to save state now:
+                tracing::debug!("Received Event::LoopDestroyed - saving app state…");
+                winit_app.save_and_destroy();
+                *control_flow = ControlFlow::Exit;
+                return;
             }
 
             // Platform-dependent event handlers to workaround a winit bug
@@ -170,10 +174,7 @@ fn run_and_return(
                 next_repaint_time = next_repaint_time.min(repaint_time);
             }
             EventResult::Exit => {
-                // On Cmd-Q we get here and then `run_return` doesn't return,
-                // so we need to save state now:
-                tracing::debug!("Exiting event loop - saving app state…");
-                winit_app.save_and_destroy();
+                tracing::debug!("Asking to exit event loop…");
                 *control_flow = ControlFlow::Exit;
                 return;
             }
