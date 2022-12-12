@@ -866,6 +866,7 @@ fn events(
                 key: Key::Tab,
                 pressed: true,
                 modifiers,
+                ..
             } => {
                 if multiline && ui.memory().has_lock_focus(id) {
                     let mut ccursor = delete_selected(text, &cursor_range);
@@ -899,6 +900,7 @@ fn events(
                 key: Key::Z,
                 pressed: true,
                 modifiers,
+                ..
             } if modifiers.command && !modifiers.shift => {
                 // TODO(emilk): redo
                 if let Some((undo_ccursor_range, undo_txt)) = state
@@ -917,6 +919,7 @@ fn events(
                 key,
                 pressed: true,
                 modifiers,
+                ..
             } => on_key_press(&mut cursor_range, text, galley, *key, modifiers),
 
             Event::CompositionStart => {

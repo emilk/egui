@@ -1,7 +1,5 @@
 //! The input needed by egui.
 
-#![allow(deprecated)] // TODO(emilk): remove
-
 use crate::emath::*;
 
 /// What the integrations provides to egui at the start of each frame.
@@ -189,13 +187,18 @@ pub enum Event {
         /// Was it pressed or released?
         pressed: bool,
 
+        /// If this is a `pressed` event, is it a key-repeat?
+        ///
+        /// On many platforms, holding down a key produces many repeated "pressed" events for it, so called key-repeats.
+        /// Sometimes you will want to ignore such events, and this lets you do that.
+        ///
+        /// egui will automatically detect such repeat events and mark them as such here.
+        /// Therefore, if you are writing an egui integration, you do not need to set this (just set it to `false`).
+        repeat: bool,
+
         /// The state of the modifier keys at the time of the event.
         modifiers: Modifiers,
     },
-
-    /// DEPRECATED - DO NOT USE
-    #[deprecated = "Do not use"]
-    KeyRepeat { key: Key, modifiers: Modifiers },
 
     /// The mouse or touch moved to a new place.
     PointerMoved(Pos2),
