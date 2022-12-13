@@ -492,6 +492,10 @@ pub struct Visuals {
 
     /// Show a background behind collapsing headers.
     pub collapsing_header_frame: bool,
+
+    /// Wether or not Grids and Tables should be striped by default
+    /// (have alternating rows differently colored).
+    pub striped: bool,
 }
 
 impl Visuals {
@@ -735,6 +739,8 @@ impl Visuals {
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
             collapsing_header_frame: false,
+
+            striped: false,
         }
     }
 
@@ -1259,6 +1265,8 @@ impl Visuals {
             clip_rect_margin,
             button_frame,
             collapsing_header_frame,
+
+            striped,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1314,6 +1322,8 @@ impl Visuals {
 
         ui.checkbox(button_frame, "Button has a frame");
         ui.checkbox(collapsing_header_frame, "Collapsing header has a frame");
+
+        ui.checkbox(striped, "By default, add stripes to grids and tables?");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }

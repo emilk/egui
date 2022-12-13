@@ -218,7 +218,7 @@ impl Default for TableScrollOptions {
 pub struct TableBuilder<'a> {
     ui: &'a mut Ui,
     columns: Vec<Column>,
-    striped: bool,
+    striped: Option<bool>,
     resizable: bool,
     cell_layout: egui::Layout,
     scroll_options: TableScrollOptions,
@@ -230,16 +230,18 @@ impl<'a> TableBuilder<'a> {
         Self {
             ui,
             columns: Default::default(),
-            striped: false,
+            striped: None,
             resizable: false,
             cell_layout,
             scroll_options: Default::default(),
         }
     }
 
-    /// Enable striped row background for improved readability (default: `false`)
+    /// Enable striped row background for improved readability.
+    ///
+    /// Default is whatever is in [`egui::Visuals::striped`].
     pub fn striped(mut self, striped: bool) -> Self {
-        self.striped = striped;
+        self.striped = Some(striped);
         self
     }
 
@@ -373,6 +375,8 @@ impl<'a> TableBuilder<'a> {
             scroll_options,
         } = self;
 
+        let striped = striped.unwrap_or(ui.visuals().striped);
+
         let state_id = ui.id().with("__table_state");
 
         let initial_widths =
@@ -430,6 +434,8 @@ impl<'a> TableBuilder<'a> {
             cell_layout,
             scroll_options,
         } = self;
+
+        let striped = striped.unwrap_or(ui.visuals().striped);
 
         let state_id = ui.id().with("__table_state");
 
