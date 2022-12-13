@@ -471,6 +471,8 @@ pub struct Visuals {
     pub window_fill: Color32,
     pub window_stroke: Stroke,
 
+    pub menu_rounding: Rounding,
+
     /// Panel background color
     pub panel_fill: Color32,
 
@@ -721,6 +723,8 @@ impl Visuals {
             window_shadow: Shadow::big_dark(),
             window_fill: Color32::from_gray(27),
             window_stroke: Stroke::new(1.0, Color32::from_gray(60)),
+
+            menu_rounding: Rounding::same(6.0),
 
             panel_fill: Color32::from_gray(27),
 
@@ -1243,6 +1247,8 @@ impl Visuals {
             window_fill,
             window_stroke,
 
+            menu_rounding,
+
             panel_fill,
 
             popup_shadow,
@@ -1267,14 +1273,15 @@ impl Visuals {
         });
 
         ui.collapsing("Window", |ui| {
-            // Common shortcuts
             ui_color(ui, window_fill, "Fill");
             stroke_ui(ui, window_stroke, "Outline");
-
             rounding_ui(ui, window_rounding);
-
             shadow_ui(ui, window_shadow, "Shadow");
-            shadow_ui(ui, popup_shadow, "Shadow (small menus and popups)");
+        });
+
+        ui.collapsing("Menus and popups", |ui| {
+            rounding_ui(ui, menu_rounding);
+            shadow_ui(ui, popup_shadow, "Shadow");
         });
 
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
