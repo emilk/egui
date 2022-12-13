@@ -30,6 +30,7 @@ impl Clipboard {
         Self {
             #[cfg(all(feature = "arboard", not(target_os = "android")))]
             arboard: init_arboard(),
+
             #[cfg(all(
                 any(
                     target_os = "linux",
@@ -41,6 +42,7 @@ impl Clipboard {
                 feature = "smithay-clipboard"
             ))]
             smithay: init_smithay_clipboard(wayland_display),
+
             clipboard: Default::default(),
         }
     }
@@ -60,7 +62,7 @@ impl Clipboard {
             return match clipboard.load() {
                 Ok(text) => Some(text),
                 Err(err) => {
-                    tracing::error!("Paste error: {}", err);
+                    tracing::error!("smithay paste error: {err}");
                     None
                 }
             };
@@ -71,7 +73,7 @@ impl Clipboard {
             return match clipboard.get_text() {
                 Ok(text) => Some(text),
                 Err(err) => {
-                    tracing::error!("Paste error: {}", err);
+                    tracing::error!("arboard paste error: {err}");
                     None
                 }
             };
@@ -99,7 +101,7 @@ impl Clipboard {
         #[cfg(all(feature = "arboard", not(target_os = "android")))]
         if let Some(clipboard) = &mut self.arboard {
             if let Err(err) = clipboard.set_text(text) {
-                tracing::error!("Copy/Cut error: {}", err);
+                tracing::error!("arboard copy/cut error: {err}");
             }
             return;
         }
@@ -110,10 +112,11 @@ impl Clipboard {
 
 #[cfg(all(feature = "arboard", not(target_os = "android")))]
 fn init_arboard() -> Option<arboard::Clipboard> {
+    tracing::debug!("Initializing arboard clipboard…");
     match arboard::Clipboard::new() {
         Ok(clipboard) => Some(clipboard),
         Err(err) => {
-            tracing::error!("Failed to initialize clipboard: {}", err);
+            tracing::warn!("Failed to initialize arboard clipboard: {err}");
             None
         }
     }
@@ -133,10 +136,11 @@ fn init_smithay_clipboard(
     wayland_display: Option<*mut c_void>,
 ) -> Option<smithay_clipboard::Clipboard> {
     if let Some(display) = wayland_display {
+        tracing::debug!("Initializing smithay clipboard…");
         #[allow(unsafe_code)]
         Some(unsafe { smithay_clipboard::Clipboard::new(display) })
     } else {
-        tracing::error!("Cannot initialize smithay clipboard without a display handle!");
+        tracing::debug!("Cannot initialize smithay clipboard without a display handle");
         None
     }
 }
