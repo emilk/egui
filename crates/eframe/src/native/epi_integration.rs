@@ -5,6 +5,7 @@ use winit::platform::macos::WindowBuilderExtMacOS as _;
 
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
+use egui::NumExt as _;
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
@@ -48,10 +49,11 @@ pub fn read_window_info(window: &winit::window::Window, pixels_per_point: f32) -
     }
 }
 
-pub fn window_builder(
+pub fn window_builder<E>(
+    event_loop: &EventLoopWindowTarget<E>,
     title: &str,
     native_options: &epi::NativeOptions,
-    window_settings: &Option<WindowSettings>,
+    window_settings: Option<WindowSettings>,
 ) -> winit::window::WindowBuilder {
     let epi::NativeOptions {
         always_on_top,
@@ -103,7 +105,9 @@ pub fn window_builder(
 
     window_builder = window_builder_drag_and_drop(window_builder, *drag_and_drop_support);
 
-    if let Some(window_settings) = window_settings {
+    if let Some(mut window_settings) = window_settings {
+        // Restore pos/size from previous session
+        window_settings.clamp_to_sane_values(largest_monitor_point_size(event_loop));
         window_builder = window_settings.initialize_window(window_builder);
     } else {
         if let Some(pos) = *initial_window_pos {
@@ -112,12 +116,31 @@ pub fn window_builder(
                 y: pos.y as f64,
             });
         }
+
         if let Some(initial_window_size) = *initial_window_size {
+            let initial_window_size =
+                initial_window_size.at_most(largest_monitor_point_size(event_loop));
             window_builder = window_builder.with_inner_size(points_to_size(initial_window_size));
         }
     }
 
     window_builder
+}
+
+fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui::Vec2 {
+    let mut max_size = egui::Vec2::ZERO;
+
+    for monitor in event_loop.available_monitors() {
+        let size = monitor.size().to_logical::<f32>(monitor.scale_factor());
+        let size = egui::vec2(size.width, size.height);
+        max_size = max_size.max(size);
+    }
+
+    if max_size == egui::Vec2::ZERO {
+        egui::Vec2::splat(16000.0)
+    } else {
+        max_size
+    }
 }
 
 fn load_icon(icon_data: epi::IconData) -> Option<winit::window::Icon> {
@@ -445,9 +468,7 @@ const STORAGE_WINDOW_KEY: &str = "window";
 pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<WindowSettings> {
     #[cfg(feature = "persistence")]
     {
-        let mut settings: WindowSettings = epi::get_value(_storage?, STORAGE_WINDOW_KEY)?;
-        settings.clamp_to_sane_values();
-        Some(settings)
+        epi::get_value(_storage?, STORAGE_WINDOW_KEY)
     }
     #[cfg(not(feature = "persistence"))]
     None

@@ -76,11 +76,14 @@ impl WindowSettings {
         }
     }
 
-    pub fn clamp_to_sane_values(&mut self) {
+    pub fn clamp_to_sane_values(&mut self, max_size: egui::Vec2) {
+        use egui::NumExt as _;
+
         if let Some(size) = &mut self.inner_size_points {
             // Prevent ridiculously small windows
             let min_size = egui::Vec2::splat(64.0);
-            *size = size.max(min_size);
+            *size = size.at_least(min_size);
+            *size = size.at_most(max_size);
         }
     }
 }

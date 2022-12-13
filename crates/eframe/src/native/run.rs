@@ -504,7 +504,7 @@ mod glow_integration {
             let window_settings = epi_integration::load_window_settings(storage);
 
             let winit_window =
-                epi_integration::window_builder(title, native_options, &window_settings)
+                epi_integration::window_builder(event_loop, title, native_options, window_settings)
                     .build(event_loop)?;
             // a lot of the code below has been lifted from glutin example in their repo.
             let glutin_window_context =
@@ -937,7 +937,7 @@ mod wgpu_integration {
         ) -> Result<winit::window::Window> {
             let window_settings = epi_integration::load_window_settings(storage);
             Ok(
-                epi_integration::window_builder(title, native_options, &window_settings)
+                epi_integration::window_builder(event_loop, title, native_options, window_settings)
                     .build(event_loop)?,
             )
         }
