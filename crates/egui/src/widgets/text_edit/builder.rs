@@ -680,6 +680,7 @@ impl<'t> TextEdit<'t> {
             }
 
             node.default_action_verb = Some(accesskit::DefaultActionVerb::Focus);
+            node.multiline = self.multiline;
 
             drop(node);
 
