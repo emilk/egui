@@ -255,10 +255,10 @@ pub struct NativeOptions {
     /// The initial inner size of the native window in points (logical pixels).
     pub initial_window_size: Option<egui::Vec2>,
 
-    /// The minimum inner window size
+    /// The minimum inner window size in points (logical pixels).
     pub min_window_size: Option<egui::Vec2>,
 
-    /// The maximum inner window size
+    /// The maximum inner window size in points (logical pixels).
     pub max_window_size: Option<egui::Vec2>,
 
     /// Should the app window be resizable?
