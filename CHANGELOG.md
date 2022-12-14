@@ -8,6 +8,9 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 ### Added ⭐
 * `Event::Key` now has a `repeat` field that is set to `true` if the event was the result of a key-repeat ([#2435](https://github.com/emilk/egui/pull/2435)).
 
+### Fixed 🐛
+* Expose `TextEdit`'s multiline flag to AccessKit ([#2448](https://github.com/emilk/egui/pull/2448)).
+
 
 ## 0.20.1 - 2022-12-11 - Fix key-repeat
 ### Changed 🔧
