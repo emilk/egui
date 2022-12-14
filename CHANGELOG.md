@@ -10,7 +10,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 ### Fixed 🐛
 * Expose `TextEdit`'s multiline flag to AccessKit ([#2448](https://github.com/emilk/egui/pull/2448)).
-* Don't render `\r` (Carriage Return).
+* Don't render `\r` (Carriage Return) ([#2452](https://github.com/emilk/egui/pull/2452)).
 
 
 ## 0.20.1 - 2022-12-11 - Fix key-repeat
