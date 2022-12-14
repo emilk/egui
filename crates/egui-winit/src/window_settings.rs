@@ -62,6 +62,12 @@ impl WindowSettings {
         }
 
         if let Some(inner_size_points) = self.inner_size_points {
+            tracing::info!(
+                "Restoring window size to {}x{} points, with fullscreen={}",
+                inner_size_points.x,
+                inner_size_points.y,
+                self.fullscreen
+            );
             window
                 .with_inner_size(winit::dpi::LogicalSize {
                     width: inner_size_points.x as f64,
@@ -80,6 +86,8 @@ impl WindowSettings {
         use egui::NumExt as _;
 
         if let Some(size) = &mut self.inner_size_points {
+            tracing::info!("Clamping size to {}x{} points", max_size.x, max_size.y);
+
             // Prevent ridiculously small windows
             let min_size = egui::Vec2::splat(64.0);
             *size = size.at_least(min_size);

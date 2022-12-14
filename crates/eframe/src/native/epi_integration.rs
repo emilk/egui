@@ -133,6 +133,13 @@ fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui:
     for monitor in event_loop.available_monitors() {
         let size = monitor.size().to_logical::<f32>(monitor.scale_factor());
         let size = egui::vec2(size.width, size.height);
+        tracing::info!(
+            "Monitor size: {}x{} pixels, {}x{} points",
+            monitor.size().width,
+            monitor.size().height,
+            size.x,
+            size.y
+        );
         max_size = max_size.max(size);
     }
 
