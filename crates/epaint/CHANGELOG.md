@@ -4,6 +4,7 @@ All notable changes to the epaint crate will be documented in this file.
 
 ## Unreleased
 * Improve the look of thin white lines ([#2437](https://github.com/emilk/egui/pull/2437)).
+* Don't render `\r` (Carriage Return) ([#2452](https://github.com/emilk/egui/pull/2452)).
 
 
 ## 0.20.0 - 2022-12-08
@@ -20,7 +21,7 @@ All notable changes to the epaint crate will be documented in this file.
 * Added `epaint::hex_color!` to create `Color32`'s from hex strings under the `color-hex` feature ([#1596](https://github.com/emilk/egui/pull/1596)).
 * Optimize tessellation of filled circles by 10x or more ([#1616](https://github.com/emilk/egui/pull/1616)).
 * Added opt-in feature `deadlock_detection` to detect double-lock of mutexes on the same thread ([#1619](https://github.com/emilk/egui/pull/1619)).
-* Texture loading now takes a `TexureOptions` with minification and magnification filters ([#2224](https://github.com/emilk/egui/pull/2224)).
+* Texture loading now takes a `TextureOptions` with minification and magnification filters ([#2224](https://github.com/emilk/egui/pull/2224)).
 
 
 ## 0.18.1 - 2022-05-01
