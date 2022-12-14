@@ -381,7 +381,7 @@ impl Font {
 
 /// Code points that will always be invisible (zero width).
 ///
-/// Se also [`Font::ignore_character`].
+/// See also [`FontImpl::ignore_character`].
 #[inline]
 fn invisible_char(c: char) -> bool {
     if c == '\r' {
