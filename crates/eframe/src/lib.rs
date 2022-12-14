@@ -211,7 +211,7 @@ pub fn run_native(
 
 /// The different problems that can occur when trying to run `eframe`.
 #[derive(thiserror::Error, Debug)]
-pub enum EframeError {
+pub enum Error {
     #[cfg(not(target_arch = "wasm32"))]
     #[error("winit error: {0}")]
     Winit(#[from] winit::error::OsError),
@@ -229,7 +229,7 @@ pub enum EframeError {
     Wgpu(#[from] wgpu::RequestDeviceError),
 }
 
-pub type Result<T> = std::result::Result<T, EframeError>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 // ---------------------------------------------------------------------------
 

@@ -4,7 +4,7 @@
 
 use eframe::egui;
 
-fn main() -> Result<(), eframe::EframeError> {
+fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         // Hide the OS-specific "chrome" around the window:
         decorated: false,

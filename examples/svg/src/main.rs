@@ -6,7 +6,7 @@
 
 use eframe::egui;
 
-fn main() -> Result<(), eframe::EframeError> {
+fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(1000.0, 700.0)),
         ..Default::default()

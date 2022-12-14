@@ -58,7 +58,7 @@ impl eframe::App for MyApp {
     }
 }
 
-fn main() -> Result<(), eframe::EframeError> {
+fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions::default();
 
     eframe::run_native(
