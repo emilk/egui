@@ -853,7 +853,8 @@ impl Plot {
             }
         }
 
-        if let Some(hover_pos) = response.hover_pos() {
+        let hover_pos = response.hover_pos();
+        if let Some(hover_pos) = hover_pos {
             if allow_zoom {
                 let zoom_factor = if data_aspect.is_some() {
                     Vec2::splat(ui.input().zoom_delta())
@@ -1018,7 +1019,9 @@ impl PlotUi {
     /// The pointer position in plot coordinates. Independent of whether the pointer is in the plot area.
     pub fn pointer_coordinate(&self) -> Option<PlotPoint> {
         // We need to subtract the drag delta to keep in sync with the frame-delayed screen transform:
-        let last_pos = self.ctx().input().pointer.latest_pos()? - self.response.drag_delta();
+        let latest_pos = self.ctx().input().pointer.latest_pos()?;
+        let drag_delta = self.response.drag_delta();
+        let last_pos = latest_pos - drag_delta;
         let value = self.plot_from_screen(last_pos);
         Some(value)
     }
@@ -1260,7 +1263,8 @@ impl PreparedPlot {
             item.shapes(&mut plot_ui, transform, &mut shapes);
         }
 
-        let cursors = if let Some(pointer) = response.hover_pos() {
+        let hover_pos = response.hover_pos();
+        let cursors = if let Some(pointer) = hover_pos {
             self.hover(ui, pointer, &mut shapes)
         } else {
             Vec::new()
@@ -1301,7 +1305,8 @@ impl PreparedPlot {
         painter.extend(shapes);
 
         if let Some((corner, formatter)) = self.coordinates_formatter.as_ref() {
-            if let Some(pointer) = response.hover_pos() {
+            let hover_pos = response.hover_pos();
+            if let Some(pointer) = hover_pos {
                 let font_id = TextStyle::Monospace.resolve(ui.style());
                 let coordinate = transform.value_from_position(pointer);
                 let text = formatter.format(&coordinate, transform.bounds());
