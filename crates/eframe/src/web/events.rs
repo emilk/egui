@@ -69,6 +69,7 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
                 runner_lock.input.raw.events.push(egui::Event::Key {
                     key,
                     pressed: true,
+                    repeat: false, // egui will fill this in for us!
                     modifiers,
                 });
             }
@@ -125,6 +126,7 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
                 runner_lock.input.raw.events.push(egui::Event::Key {
                     key,
                     pressed: false,
+                    repeat: false,
                     modifiers,
                 });
             }

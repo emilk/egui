@@ -248,6 +248,7 @@ impl Focus {
                     key: crate::Key::Escape,
                     pressed: true,
                     modifiers: _,
+                    ..
                 }
             ) {
                 self.id = None;
@@ -259,6 +260,7 @@ impl Focus {
                 key: crate::Key::Tab,
                 pressed: true,
                 modifiers,
+                ..
             } = event
             {
                 if !self.is_focus_locked {

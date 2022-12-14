@@ -471,6 +471,8 @@ pub struct Visuals {
     pub window_fill: Color32,
     pub window_stroke: Stroke,
 
+    pub menu_rounding: Rounding,
+
     /// Panel background color
     pub panel_fill: Color32,
 
@@ -490,6 +492,10 @@ pub struct Visuals {
 
     /// Show a background behind collapsing headers.
     pub collapsing_header_frame: bool,
+
+    /// Wether or not Grids and Tables should be striped by default
+    /// (have alternating rows differently colored).
+    pub striped: bool,
 }
 
 impl Visuals {
@@ -722,6 +728,8 @@ impl Visuals {
             window_fill: Color32::from_gray(27),
             window_stroke: Stroke::new(1.0, Color32::from_gray(60)),
 
+            menu_rounding: Rounding::same(6.0),
+
             panel_fill: Color32::from_gray(27),
 
             popup_shadow: Shadow::small_dark(),
@@ -731,6 +739,8 @@ impl Visuals {
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
             collapsing_header_frame: false,
+
+            striped: false,
         }
     }
 
@@ -1243,6 +1253,8 @@ impl Visuals {
             window_fill,
             window_stroke,
 
+            menu_rounding,
+
             panel_fill,
 
             popup_shadow,
@@ -1253,6 +1265,8 @@ impl Visuals {
             clip_rect_margin,
             button_frame,
             collapsing_header_frame,
+
+            striped,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1267,14 +1281,15 @@ impl Visuals {
         });
 
         ui.collapsing("Window", |ui| {
-            // Common shortcuts
             ui_color(ui, window_fill, "Fill");
             stroke_ui(ui, window_stroke, "Outline");
-
             rounding_ui(ui, window_rounding);
-
             shadow_ui(ui, window_shadow, "Shadow");
-            shadow_ui(ui, popup_shadow, "Shadow (small menus and popups)");
+        });
+
+        ui.collapsing("Menus and popups", |ui| {
+            rounding_ui(ui, menu_rounding);
+            shadow_ui(ui, popup_shadow, "Shadow");
         });
 
         ui.collapsing("Widgets", |ui| widgets.ui(ui));
@@ -1307,6 +1322,8 @@ impl Visuals {
 
         ui.checkbox(button_frame, "Button has a frame");
         ui.checkbox(collapsing_header_frame, "Collapsing header has a frame");
+
+        ui.checkbox(striped, "By default, add stripes to grids and tables?");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }

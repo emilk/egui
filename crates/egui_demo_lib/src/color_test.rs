@@ -460,21 +460,21 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
                 Align2::LEFT_TOP,
                 format!("{:.0}% white", 100.0 * opacity),
                 FontId::proportional(14.0),
-                Color32::WHITE.linear_multiply(opacity),
+                Color32::WHITE.gamma_multiply(opacity),
             );
             painter.text(
                 rect.center_top() + vec2(80.0, y),
                 Align2::LEFT_TOP,
                 format!("{:.0}% gray", 100.0 * opacity),
                 FontId::proportional(14.0),
-                Color32::GRAY.linear_multiply(opacity),
+                Color32::GRAY.gamma_multiply(opacity),
             );
             painter.text(
                 rect.center_top() + vec2(160.0, y),
                 Align2::LEFT_TOP,
                 format!("{:.0}% black", 100.0 * opacity),
                 FontId::proportional(14.0),
-                Color32::BLACK.linear_multiply(opacity),
+                Color32::BLACK.gamma_multiply(opacity),
             );
             y += 20.0;
         }
@@ -495,8 +495,8 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
 
     rect.max.x = rect.center().x;
 
-    rect = rect.shrink(12.0);
-    for width in [0.5, 1.0, 2.0] {
+    rect = rect.shrink(16.0);
+    for width in [0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 4.0] {
         painter.text(
             rect.left_top(),
             Align2::CENTER_CENTER,
@@ -517,8 +517,8 @@ fn paint_fine_lines_and_text(painter: &egui::Painter, mut rect: Rect, color: Col
             Stroke::new(width, color),
         ));
 
-        rect.min.y += 32.0;
-        rect.max.x -= 32.0;
+        rect.min.y += 24.0;
+        rect.max.x -= 24.0;
     }
 
     rect.min.y += 16.0;

@@ -1,6 +1,6 @@
 [package]
 name = "ecolor"
-version = "0.19.0"
+version = "0.20.0"
 authors = [
   "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
   "Andreas Reich <reichandreas@gmx.de>",
@@ -12,7 +12,7 @@ homepage = "https://github.com/emilk/egui"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/emilk/egui"
-categories = ["mathematics", "encoding", "images"]
+categories = ["mathematics", "encoding"]
 keywords = ["gui", "color", "conversion", "gamedev", "images"]
 include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
@@ -34,7 +34,7 @@ extra_asserts = []
 [dependencies]
 #! ### Optional dependencies
 
-## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast `emath` types to `&[u8]`.
+## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast `ecolor` types to `&[u8]`.
 bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
 
 ## [`cint`](https://docs.rs/cint) enables interopability with other color libraries.

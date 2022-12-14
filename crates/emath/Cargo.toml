@@ -1,6 +1,6 @@
 [package]
 name = "emath"
-version = "0.19.0"
+version = "0.20.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Minimal 2D math library for GUI work"
 edition = "2021"

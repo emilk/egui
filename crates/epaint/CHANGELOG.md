@@ -3,6 +3,10 @@ All notable changes to the epaint crate will be documented in this file.
 
 
 ## Unreleased
+* Improve the look of thin white lines ([#2437](https://github.com/emilk/egui/pull/2437)).
+
+
+## 0.20.0 - 2022-12-08
 * ⚠️ BREAKING: Fix text being too small ([#2069](https://github.com/emilk/egui/pull/2069)).
 * ⚠️ BREAKING: epaint now expects integrations to do all color blending in gamma space ([#2071](https://github.com/emilk/egui/pull/2071)).
 * Improve mixed CJK/Latin line-breaking ([#1986](https://github.com/emilk/egui/pull/1986)).

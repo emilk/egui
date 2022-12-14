@@ -5,6 +5,7 @@ use winit::platform::macos::WindowBuilderExtMacOS as _;
 
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
+use egui::NumExt as _;
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
@@ -48,9 +49,11 @@ pub fn read_window_info(window: &winit::window::Window, pixels_per_point: f32) -
     }
 }
 
-pub fn window_builder(
+pub fn window_builder<E>(
+    event_loop: &EventLoopWindowTarget<E>,
+    title: &str,
     native_options: &epi::NativeOptions,
-    window_settings: &Option<WindowSettings>,
+    window_settings: Option<WindowSettings>,
 ) -> winit::window::WindowBuilder {
     let epi::NativeOptions {
         always_on_top,
@@ -73,13 +76,17 @@ pub fn window_builder(
     let window_icon = icon_data.clone().and_then(load_icon);
 
     let mut window_builder = winit::window::WindowBuilder::new()
+        .with_title(title)
         .with_always_on_top(*always_on_top)
         .with_decorations(*decorated)
         .with_fullscreen(fullscreen.then(|| winit::window::Fullscreen::Borderless(None)))
         .with_maximized(*maximized)
         .with_resizable(*resizable)
         .with_transparent(*transparent)
-        .with_window_icon(window_icon);
+        .with_window_icon(window_icon)
+        // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
+        // We must also keep the window hidden until AccessKit is initialized.
+        .with_visible(false);
 
     #[cfg(target_os = "macos")]
     if *fullsize_content {
@@ -98,7 +105,9 @@ pub fn window_builder(
 
     window_builder = window_builder_drag_and_drop(window_builder, *drag_and_drop_support);
 
-    if let Some(window_settings) = window_settings {
+    if let Some(mut window_settings) = window_settings {
+        // Restore pos/size from previous session
+        window_settings.clamp_to_sane_values(largest_monitor_point_size(event_loop));
         window_builder = window_settings.initialize_window(window_builder);
     } else {
         if let Some(pos) = *initial_window_pos {
@@ -107,12 +116,31 @@ pub fn window_builder(
                 y: pos.y as f64,
             });
         }
+
         if let Some(initial_window_size) = *initial_window_size {
+            let initial_window_size =
+                initial_window_size.at_most(largest_monitor_point_size(event_loop));
             window_builder = window_builder.with_inner_size(points_to_size(initial_window_size));
         }
     }
 
     window_builder
+}
+
+fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui::Vec2 {
+    let mut max_size = egui::Vec2::ZERO;
+
+    for monitor in event_loop.available_monitors() {
+        let size = monitor.size().to_logical::<f32>(monitor.scale_factor());
+        let size = egui::vec2(size.width, size.height);
+        max_size = max_size.max(size);
+    }
+
+    if max_size == egui::Vec2::ZERO {
+        egui::Vec2::splat(16000.0)
+    } else {
+        max_size
+    }
 }
 
 fn load_icon(icon_data: epi::IconData) -> Option<winit::window::Icon> {
@@ -308,8 +336,15 @@ impl EpiIntegration {
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
         match event {
-            WindowEvent::CloseRequested => self.close = app.on_close_event(),
-            WindowEvent::Destroyed => self.close = true,
+            WindowEvent::CloseRequested => {
+                tracing::debug!("Received WindowEvent::CloseRequested");
+                self.close = app.on_close_event();
+                tracing::debug!("App::on_close_event returned {}", self.close);
+            }
+            WindowEvent::Destroyed => {
+                tracing::debug!("Received WindowEvent::Destroyed");
+                self.close = true;
+            }
             WindowEvent::MouseInput {
                 button: MouseButton::Left,
                 state: ElementState::Pressed,
@@ -351,6 +386,7 @@ impl EpiIntegration {
             self.can_drag_window = false;
             if app_output.close {
                 self.close = app.on_close_event();
+                tracing::debug!("App::on_close_event returned {}", self.close);
             }
             self.frame.output.visible = app_output.visible; // this is handled by post_present
             handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);

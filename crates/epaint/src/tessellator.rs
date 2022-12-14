@@ -957,10 +957,9 @@ fn stroke_path(
 }
 
 fn mul_color(color: Color32, factor: f32) -> Color32 {
-    crate::epaint_assert!(0.0 <= factor && factor <= 1.0);
-    // As an unfortunate side-effect of using premultiplied alpha
-    // we need a somewhat expensive conversion to linear space and back.
-    color.linear_multiply(factor)
+    // The fast gamma-space multiply also happens to be perceptually better.
+    // Win-win!
+    color.gamma_multiply(factor)
 }
 
 // ----------------------------------------------------------------------------
