@@ -1,6 +1,7 @@
 //! Demo app for egui
-
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+
+use eframe::{egui_wgpu, wgpu};
 
 // When compiling natively:
 fn main() -> Result<(), eframe::EframeError> {
@@ -19,12 +20,26 @@ fn main() -> Result<(), eframe::EframeError> {
     tracing_subscriber::fmt::init();
 
     let options = eframe::NativeOptions {
-        drag_and_drop_support: true,
+        initial_window_size: Some([1600.0, 1200.0].into()),
+        min_window_size: Some([600.0, 240.0].into()),
 
-        initial_window_size: Some([1280.0, 1024.0].into()),
+        follow_system_theme: false,
+        default_theme: eframe::Theme::Dark,
 
-        #[cfg(feature = "wgpu")]
         renderer: eframe::Renderer::Wgpu,
+        wgpu_options: egui_wgpu::WgpuConfiguration {
+            device_descriptor: wgpu::DeviceDescriptor {
+                features: wgpu::Features::empty(),
+                limits: wgpu::Limits {
+                    max_texture_dimension_2d: 8192,
+                    ..wgpu::Limits::downlevel_webgl2_defaults()
+                },
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        depth_buffer: 0,
+        multisampling: 0, // the 3D views do their own MSAA
 
         ..Default::default()
     };
