@@ -2,7 +2,7 @@
 
 use eframe::egui;
 
-fn main() -> Result<(), eframe::EframeError> {
+fn main() -> Result<(), eframe::Error> {
     start_puffin_server(); // NOTE: you may only want to call this if the users specifies some flag or clicks a button!
 
     let options = eframe::NativeOptions::default();

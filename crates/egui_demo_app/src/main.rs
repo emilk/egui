@@ -3,7 +3,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 // When compiling natively:
-fn main() -> Result<(), eframe::EframeError> {
+fn main() -> Result<(), eframe::Error> {
     {
         // Silence wgpu log spam (https://github.com/gfx-rs/wgpu/issues/3206)
         let mut rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_owned());

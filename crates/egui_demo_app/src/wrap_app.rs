@@ -190,6 +190,14 @@ impl eframe::App for WrapApp {
             self.state.selected_anchor = selected_anchor;
         }
 
+        #[cfg(not(target_arch = "wasm32"))]
+        if ctx
+            .input_mut()
+            .consume_key(egui::Modifiers::NONE, egui::Key::F11)
+        {
+            frame.set_fullscreen(!frame.info().window_info.fullscreen);
+        }
+
         egui::TopBottomPanel::top("wrap_app_top_bar").show(ctx, |ui| {
             egui::trace!(ui);
             ui.horizontal_wrapped(|ui| {

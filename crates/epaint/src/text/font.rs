@@ -38,11 +38,12 @@ pub struct GlyphInfo {
     /// Unit: points.
     pub advance_width: f32,
 
-    /// Texture coordinates. None for space.
+    /// Texture coordinates.
     pub uv_rect: UvRect,
 }
 
 impl Default for GlyphInfo {
+    /// Basically a zero-width space.
     fn default() -> Self {
         Self {
             id: ab_glyph::GlyphId(0),
@@ -105,6 +106,9 @@ impl FontImpl {
         }
     }
 
+    /// Code points that will always be replaced by the replacement character.
+    ///
+    /// See also [`invisible_char`].
     fn ignore_character(&self, chr: char) -> bool {
         if self.name == "emoji-icon-font" {
             // HACK: https://github.com/emilk/egui/issues/1284 https://github.com/jslegers/emoji-icon-font/issues/18
@@ -142,7 +146,7 @@ impl FontImpl {
         }
 
         if self.ignore_character(c) {
-            return None;
+            return None; // these will result in the replacement character when rendering
         }
 
         if c == '\t' {
@@ -173,19 +177,18 @@ impl FontImpl {
             }
         }
 
+        if invisible_char(c) {
+            let glyph_info = GlyphInfo::default();
+            self.glyph_info_cache.write().insert(c, glyph_info);
+            return Some(glyph_info);
+        }
+
         // Add new character:
         use ab_glyph::Font as _;
         let glyph_id = self.ab_glyph_font.glyph_id(c);
 
         if glyph_id.0 == 0 {
-            if invisible_char(c) {
-                // hack
-                let glyph_info = GlyphInfo::default();
-                self.glyph_info_cache.write().insert(c, glyph_info);
-                Some(glyph_info)
-            } else {
-                None // unsupported character
-            }
+            None // unsupported character
         } else {
             let glyph_info = allocate_glyph(
                 &mut self.atlas.lock(),
@@ -376,8 +379,16 @@ impl Font {
     }
 }
 
+/// Code points that will always be invisible (zero width).
+///
+/// See also [`FontImpl::ignore_character`].
 #[inline]
 fn invisible_char(c: char) -> bool {
+    if c == '\r' {
+        // A character most vile and pernicious. Don't display it.
+        return true;
+    }
+
     // See https://github.com/emilk/egui/issues/336
 
     // From https://www.fileformat.info/info/unicode/category/Cf/list.htm

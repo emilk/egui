@@ -4,7 +4,7 @@
 use eframe::egui;
 
 #[cfg(not(target_arch = "wasm32"))]
-fn main() -> Result<(), eframe::EframeError> {
+fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(550.0, 610.0)),
         multisampling: 8,

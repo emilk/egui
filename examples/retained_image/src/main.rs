@@ -3,7 +3,7 @@
 use eframe::egui;
 use egui_extras::RetainedImage;
 
-fn main() -> Result<(), eframe::EframeError> {
+fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(300.0, 900.0)),
         ..Default::default()
