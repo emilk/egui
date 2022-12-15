@@ -79,6 +79,7 @@ pub struct Slider<'a> {
     text: WidgetText,
     /// Sets the minimal step of the widget value
     step: Option<f64>,
+    drag_value_speed: Option<f64>,
     min_decimals: usize,
     max_decimals: Option<usize>,
     custom_formatter: Option<NumFormatter<'a>>,
@@ -123,6 +124,7 @@ impl<'a> Slider<'a> {
             suffix: Default::default(),
             text: Default::default(),
             step: None,
+            drag_value_speed: None,
             min_decimals: 0,
             max_decimals: None,
             custom_formatter: None,
@@ -212,6 +214,7 @@ impl<'a> Slider<'a> {
     }
 
     /// Sets the minimal change of the value.
+    ///
     /// Value `0.0` effectively disables the feature. If the new value is out of range
     /// and `clamp_to_range` is enabled, you would not have the ability to change the value.
     ///
@@ -221,8 +224,22 @@ impl<'a> Slider<'a> {
         self
     }
 
+    /// When dragging the value, how fast does it move?
+    ///
+    /// Unit: values per point (logical pixel).
+    /// See also [`DragValue::speed`].
+    ///
+    /// By default this is the same speed as when dragging the slider,
+    /// but you can change it here to for instance have a much finer control
+    /// by dragging the slider value rather than the slider itself.
+    pub fn drag_value_speed(mut self, drag_value_speed: f64) -> Self {
+        self.drag_value_speed = Some(drag_value_speed);
+        self
+    }
+
     // TODO(emilk): we should also have a "min precision".
     /// Set a minimum number of decimals to display.
+    ///
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
     pub fn min_decimals(mut self, min_decimals: usize) -> Self {
@@ -232,6 +249,7 @@ impl<'a> Slider<'a> {
 
     // TODO(emilk): we should also have a "max precision".
     /// Set a maximum number of decimals to display.
+    ///
     /// Values will also be rounded to this number of decimals.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
@@ -241,6 +259,7 @@ impl<'a> Slider<'a> {
     }
 
     /// Set an exact number of decimals to display.
+    ///
     /// Values will also be rounded to this number of decimals.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
@@ -678,7 +697,6 @@ impl<'a> Slider<'a> {
     }
 
     fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) -> Response {
-        // If [`DragValue`] is controlled from the keyboard and `step` is defined, set speed to `step`
         let change = {
             // Hold one lock rather than 4 (see https://github.com/emilk/egui/pull/1380).
             let input = ui.input();
@@ -687,10 +705,16 @@ impl<'a> Slider<'a> {
                 - input.num_presses(Key::ArrowDown) as i32
                 - input.num_presses(Key::ArrowLeft) as i32
         };
-        let speed = match self.step {
-            Some(step) if change != 0 => step,
-            _ => self.current_gradient(&position_range),
+
+        let any_change = change != 0;
+        let speed = if let (Some(step), true) = (self.step, any_change) {
+            // If [`DragValue`] is controlled from the keyboard and `step` is defined, set speed to `step`
+            step
+        } else {
+            self.drag_value_speed
+                .unwrap_or_else(|| self.current_gradient(&position_range))
         };
+
         let mut value = self.get_value();
         let response = ui.add({
             let mut dv = DragValue::new(&mut value)
