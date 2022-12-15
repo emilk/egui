@@ -720,6 +720,7 @@ impl Frame {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_window_size(&mut self, size: egui::Vec2) {
         self.output.window_size = Some(size);
+        self.info.window_info.size = size; // so that subsequent calls see the updated value
     }
 
     /// Set the desired title of the window.
@@ -740,12 +741,14 @@ impl Frame {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_fullscreen(&mut self, fullscreen: bool) {
         self.output.fullscreen = Some(fullscreen);
+        self.info.window_info.fullscreen = fullscreen; // so that subsequent calls see the updated value
     }
 
     /// set the position of the outer window.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_window_pos(&mut self, pos: egui::Pos2) {
         self.output.window_pos = Some(pos);
+        self.info.window_info.position = Some(pos); // so that subsequent calls see the updated value
     }
 
     /// When called, the native window will follow the

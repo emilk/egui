@@ -4,7 +4,7 @@ use eframe::egui;
 use egui_extras::RetainedImage;
 use poll_promise::Promise;
 
-fn main() -> Result<(), eframe::EframeError> {
+fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions::default();
     eframe::run_native(
         "Download and show an image with eframe/egui",

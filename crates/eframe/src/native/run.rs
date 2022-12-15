@@ -424,7 +424,7 @@ mod glow_integration {
             let config = gl_display
                 .find_configs(config_template.clone())?
                 .next()
-                .ok_or(crate::EframeError::NoGlutinConfigs(config_template))?;
+                .ok_or(crate::Error::NoGlutinConfigs(config_template))?;
 
             let context_attributes =
                 glutin::context::ContextAttributesBuilder::new().build(Some(raw_window_handle));
