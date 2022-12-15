@@ -5,6 +5,7 @@ All notable changes to the epaint crate will be documented in this file.
 ## Unreleased
 * Improve the look of thin white lines ([#2437](https://github.com/emilk/egui/pull/2437)).
 * Don't render `\r` (Carriage Return) ([#2452](https://github.com/emilk/egui/pull/2452)).
+* Fix bug in `Mesh::split_to_u16` ([#2459](https://github.com/emilk/egui/pull/2459)).
 
 
 ## 0.20.0 - 2022-12-08
