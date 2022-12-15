@@ -416,7 +416,6 @@ impl Response {
         // but we do want tooltips while holding down on an item on a touch screen.
         let pointer_state = &self.ctx.input().pointer;
         if pointer_state.any_down() && pointer_state.has_moved_too_much_for_a_click {
-        {
             return false;
         }
 
