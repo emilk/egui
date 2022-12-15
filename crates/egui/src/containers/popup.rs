@@ -368,7 +368,9 @@ pub fn popup_above_or_below_widget<R>(
             })
             .inner;
 
-        if ui.input().key_pressed(Key::Escape) || widget_response.clicked_elsewhere() {
+        let key_pressed = ui.input().key_pressed(Key::Escape);
+        let clicked_elsewhere = widget_response.clicked_elsewhere();
+        if key_pressed || clicked_elsewhere {
             ui.memory().close_popup();
         }
         Some(inner)
