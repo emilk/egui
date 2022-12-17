@@ -2157,6 +2157,20 @@ impl Ui {
             menu::menu_button(self, title, add_contents)
         }
     }
+
+    pub fn menu_button_image<R>(
+        &mut self,
+        texture_id: TextureId,
+        image_size: impl Into<Vec2>,
+        text: impl Into<WidgetText>,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<Option<R>> {
+        if let Some(menu_state) = self.menu_state.clone() {
+            menu::submenu_button(self, menu_state, text, add_contents)
+        } else {
+            menu::menu_button_image(self, texture_id, image_size, add_contents)
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------

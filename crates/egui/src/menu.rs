@@ -100,6 +100,20 @@ pub fn menu_button<R>(
     stationary_menu_impl(ui, title, Box::new(add_contents))
 }
 
+/// Construct a top level menu in a menu bar. This would be e.g. "File", "Edit" etc.
+///
+/// Responds to primary clicks.
+///
+/// Returns `None` if the menu is not open.
+pub fn menu_button_image<R>(
+    ui: &mut Ui,
+    texture_id: TextureId,
+    image_size: impl Into<Vec2>,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> InnerResponse<Option<R>> {
+    stationary_menu_image_impl(ui, texture_id, image_size, Box::new(add_contents))
+}
+
 /// Construct a nested sub menu in another menu.
 ///
 /// Opens on hover.
@@ -169,6 +183,25 @@ fn stationary_menu_impl<'c, R>(
         button = button.fill(ui.visuals().widgets.open.bg_fill);
         button = button.stroke(ui.visuals().widgets.open.bg_stroke);
     }
+
+    let button_response = ui.add(button);
+    let inner = bar_state.bar_menu(&button_response, add_contents);
+
+    bar_state.store(ui.ctx(), bar_id);
+    InnerResponse::new(inner.map(|r| r.inner), button_response)
+}
+
+fn stationary_menu_image_impl<'c, R>(
+    ui: &mut Ui,
+    texture_id: TextureId,
+    image_size: impl Into<Vec2>,
+    add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+) -> InnerResponse<Option<R>> {
+    let bar_id = ui.id();
+
+    let mut bar_state = BarState::load(ui.ctx(), bar_id);
+
+    let button = ImageButton::new(texture_id, image_size);
 
     let button_response = ui.add(button);
     let inner = bar_state.bar_menu(&button_response, add_contents);
