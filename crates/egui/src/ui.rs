@@ -71,7 +71,13 @@ impl Ui {
     ///
     /// Normally you would not use this directly, but instead use
     /// [`SidePanel`], [`TopBottomPanel`], [`CentralPanel`], [`Window`] or [`Area`].
-    pub fn new(ctx: Context, layer_id: LayerId, id: Id, max_rect: Rect, clip_rect: Rect) -> Self {
+    pub fn new(
+        ctx: Context,
+        layer_id: AreaLayerId,
+        id: Id,
+        max_rect: Rect,
+        clip_rect: Rect,
+    ) -> Self {
         let style = ctx.style();
         Ui {
             id,
@@ -310,7 +316,7 @@ impl Ui {
 
     /// Use this to paint stuff within this [`Ui`].
     #[inline]
-    pub fn layer_id(&self) -> LayerId {
+    pub fn layer_id(&self) -> AreaLayerId {
         self.painter().layer_id()
     }
 
@@ -1728,7 +1734,7 @@ impl Ui {
     /// Redirect shapes to another paint layer.
     pub fn with_layer_id<R>(
         &mut self,
-        layer_id: LayerId,
+        layer_id: AreaLayerId,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
         self.scope(|ui| {

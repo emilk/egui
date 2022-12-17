@@ -1,4 +1,4 @@
-use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
+use crate::{area, window, AreaLayerId, Id, IdMap, InputState, Pos2, Rect, Style};
 
 // ----------------------------------------------------------------------------
 
@@ -357,12 +357,12 @@ impl Memory {
     }
 
     /// Top-most layer at the given position.
-    pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
+    pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<AreaLayerId> {
         self.areas.layer_id_at(pos, resize_interact_radius_side)
     }
 
     /// An iterator over all layers. Back-to-front. Top is last.
-    pub fn layer_ids(&self) -> impl ExactSizeIterator<Item = LayerId> + '_ {
+    pub fn layer_ids(&self) -> impl ExactSizeIterator<Item = AreaLayerId> + '_ {
         self.areas.order().iter().copied()
     }
 
@@ -525,16 +525,16 @@ impl Memory {
 pub struct Areas {
     areas: IdMap<area::State>,
     /// Back-to-front. Top is last.
-    order: Vec<LayerId>,
-    visible_last_frame: ahash::HashSet<LayerId>,
-    visible_current_frame: ahash::HashSet<LayerId>,
+    order: Vec<AreaLayerId>,
+    visible_last_frame: ahash::HashSet<AreaLayerId>,
+    visible_current_frame: ahash::HashSet<AreaLayerId>,
 
     /// When an area want to be on top, it is put in here.
     /// At the end of the frame, this is used to reorder the layers.
     /// This means if several layers want to be on top, they will keep their relative order.
     /// So if you close three windows and then reopen them all in one frame,
     /// they will all be sent to the top, but keep their previous internal order.
-    wants_to_be_on_top: ahash::HashSet<LayerId>,
+    wants_to_be_on_top: ahash::HashSet<AreaLayerId>,
 }
 
 impl Areas {
@@ -547,11 +547,11 @@ impl Areas {
     }
 
     /// Back-to-front. Top is last.
-    pub(crate) fn order(&self) -> &[LayerId] {
+    pub(crate) fn order(&self) -> &[AreaLayerId] {
         &self.order
     }
 
-    pub(crate) fn set_state(&mut self, layer_id: LayerId, state: area::State) {
+    pub(crate) fn set_state(&mut self, layer_id: AreaLayerId, state: area::State) {
         self.visible_current_frame.insert(layer_id);
         self.areas.insert(layer_id.id, state);
         if !self.order.iter().any(|x| *x == layer_id) {
@@ -560,7 +560,7 @@ impl Areas {
     }
 
     /// Top-most layer at the given position.
-    pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
+    pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<AreaLayerId> {
         for layer in self.order.iter().rev() {
             if self.is_visible(layer) {
                 if let Some(state) = self.areas.get(&layer.id) {
@@ -578,15 +578,15 @@ impl Areas {
         None
     }
 
-    pub fn visible_last_frame(&self, layer_id: &LayerId) -> bool {
+    pub fn visible_last_frame(&self, layer_id: &AreaLayerId) -> bool {
         self.visible_last_frame.contains(layer_id)
     }
 
-    pub fn is_visible(&self, layer_id: &LayerId) -> bool {
+    pub fn is_visible(&self, layer_id: &AreaLayerId) -> bool {
         self.visible_last_frame.contains(layer_id) || self.visible_current_frame.contains(layer_id)
     }
 
-    pub fn visible_layer_ids(&self) -> ahash::HashSet<LayerId> {
+    pub fn visible_layer_ids(&self) -> ahash::HashSet<AreaLayerId> {
         self.visible_last_frame
             .iter()
             .copied()
@@ -602,7 +602,7 @@ impl Areas {
             .collect()
     }
 
-    pub fn move_to_top(&mut self, layer_id: LayerId) {
+    pub fn move_to_top(&mut self, layer_id: AreaLayerId) {
         self.visible_current_frame.insert(layer_id);
         self.wants_to_be_on_top.insert(layer_id);
 

@@ -69,12 +69,12 @@ impl Order {
 /// Also acts as an identifier for [`Area`]:s.
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct LayerId {
+pub struct AreaLayerId {
     pub order: Order,
     pub id: Id,
 }
 
-impl LayerId {
+impl AreaLayerId {
     pub fn new(order: Order, id: Id) -> Self {
         Self { order, id }
     }
@@ -163,13 +163,16 @@ impl PaintList {
 pub(crate) struct GraphicLayers([IdMap<PaintList>; Order::COUNT]);
 
 impl GraphicLayers {
-    pub fn list(&mut self, layer_id: LayerId) -> &mut PaintList {
+    pub fn list(&mut self, layer_id: AreaLayerId) -> &mut PaintList {
         self.0[layer_id.order as usize]
             .entry(layer_id.id)
             .or_default()
     }
 
-    pub fn drain(&mut self, area_order: &[LayerId]) -> impl ExactSizeIterator<Item = ClippedShape> {
+    pub fn drain(
+        &mut self,
+        area_order: &[AreaLayerId],
+    ) -> impl ExactSizeIterator<Item = ClippedShape> {
         let mut all_shapes: Vec<_> = Default::default();
 
         for &order in &Order::ALL {

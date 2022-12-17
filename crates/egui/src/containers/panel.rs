@@ -331,7 +331,7 @@ impl SidePanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let layer_id = LayerId::background();
+        let layer_id = AreaLayerId::background();
         let side = self.side;
         let available_rect = ctx.available_rect();
         let clip_rect = ctx.input().screen_rect();
@@ -783,7 +783,7 @@ impl TopBottomPanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let layer_id = LayerId::background();
+        let layer_id = AreaLayerId::background();
         let available_rect = ctx.available_rect();
         let side = self.side;
 
@@ -1039,7 +1039,7 @@ impl CentralPanel {
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let available_rect = ctx.available_rect();
-        let layer_id = LayerId::background();
+        let layer_id = AreaLayerId::background();
         let id = Id::new("central_panel");
 
         let clip_rect = ctx.input().screen_rect();

@@ -488,7 +488,7 @@ impl PossibleInteractions {
 /// Either a move or resize
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct WindowInteraction {
-    pub(crate) area_layer_id: LayerId,
+    pub(crate) area_layer_id: AreaLayerId,
     pub(crate) start_rect: Rect,
     pub(crate) left: bool,
     pub(crate) right: bool,
@@ -518,7 +518,7 @@ fn interact(
     window_interaction: WindowInteraction,
     ctx: &Context,
     margins: Vec2,
-    area_layer_id: LayerId,
+    area_layer_id: AreaLayerId,
     area: &mut area::Prepared,
     resize_id: Id,
 ) -> Option<WindowInteraction> {
@@ -585,7 +585,7 @@ fn move_and_resize_window(ctx: &Context, window_interaction: &WindowInteraction)
 fn window_interaction(
     ctx: &Context,
     possible: PossibleInteractions,
-    area_layer_id: LayerId,
+    area_layer_id: AreaLayerId,
     id: Id,
     rect: Rect,
 ) -> Option<WindowInteraction> {
@@ -626,7 +626,7 @@ fn window_interaction(
 fn resize_hover(
     ctx: &Context,
     possible: PossibleInteractions,
-    area_layer_id: LayerId,
+    area_layer_id: AreaLayerId,
     rect: Rect,
 ) -> Option<WindowInteraction> {
     let pointer = ctx.input().pointer.interact_pos()?;

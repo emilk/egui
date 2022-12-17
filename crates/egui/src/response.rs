@@ -1,6 +1,6 @@
 use crate::{
     emath::{Align, Pos2, Rect, Vec2},
-    menu, Context, CursorIcon, Id, LayerId, PointerButton, Sense, Ui, WidgetText,
+    menu, AreaLayerId, Context, CursorIcon, Id, PointerButton, Sense, Ui, WidgetText,
     NUM_POINTER_BUTTONS,
 };
 
@@ -21,7 +21,7 @@ pub struct Response {
 
     // IN:
     /// Which layer the widget is part of.
-    pub layer_id: LayerId,
+    pub layer_id: AreaLayerId,
 
     /// The [`Id`] of the widget/area this response pertains.
     pub id: Id,

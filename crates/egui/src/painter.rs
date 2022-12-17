@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::{
     emath::{Align2, Pos2, Rect, Vec2},
-    layers::{LayerId, PaintList, ShapeIdx},
+    layers::{AreaLayerId, PaintList, ShapeIdx},
     Color32, Context, FontId,
 };
 use epaint::{
@@ -21,7 +21,7 @@ pub struct Painter {
     ctx: Context,
 
     /// Where we paint
-    layer_id: LayerId,
+    layer_id: AreaLayerId,
 
     /// Everything painted in this [`Painter`] will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
@@ -34,7 +34,7 @@ pub struct Painter {
 
 impl Painter {
     /// Create a painter to a specific layer within a certain clip rectangle.
-    pub fn new(ctx: Context, layer_id: LayerId, clip_rect: Rect) -> Self {
+    pub fn new(ctx: Context, layer_id: AreaLayerId, clip_rect: Rect) -> Self {
         Self {
             ctx,
             layer_id,
@@ -45,7 +45,7 @@ impl Painter {
 
     /// Redirect where you are painting.
     #[must_use]
-    pub fn with_layer_id(self, layer_id: LayerId) -> Self {
+    pub fn with_layer_id(self, layer_id: AreaLayerId) -> Self {
         Self {
             ctx: self.ctx,
             layer_id,
@@ -68,7 +68,7 @@ impl Painter {
     }
 
     /// Redirect where you are painting.
-    pub fn set_layer_id(&mut self, layer_id: LayerId) {
+    pub fn set_layer_id(&mut self, layer_id: AreaLayerId) {
         self.layer_id = layer_id;
     }
 
@@ -113,7 +113,7 @@ impl Painter {
 
     /// Where we paint
     #[inline(always)]
-    pub fn layer_id(&self) -> LayerId {
+    pub fn layer_id(&self) -> AreaLayerId {
         self.layer_id
     }
 
