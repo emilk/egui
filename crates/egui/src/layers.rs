@@ -118,12 +118,50 @@ impl AreaLayerId {
 pub struct ZOrder(pub i32);
 
 impl ZOrder {
-    const DEFAULT: ZOrder = ZOrder(0);
+    const BASE: ZOrder = ZOrder(0);
+    const ABOVE_ALL: ZOrder = ZOrder(i32::MAX);
+    const BELOW_ALL: ZOrder = ZOrder(i32::MIN);
+
+    /// Base z-order, corresponding to a level of 0
+    #[inline(always)]
+    pub fn base() -> Self {
+        Self::BASE
+    }
+
+    /// Maximal z-order - nothing on the same area layer can render above this
+    #[inline(always)]
+    pub fn above_all() -> Self {
+        Self::ABOVE_ALL
+    }
+
+    /// Minimal z-order - nothing on the same area layer can render below this
+    #[inline(always)]
+    pub fn below_all() -> Self {
+        Self::BELOW_ALL
+    }
+
+    /// Above by one level
+    pub fn above(self) -> Self {
+        self.above_by(1)
+    }
+
+    /// Below by one level
+    pub fn below(self) -> Self {
+        self.below_by(1)
+    }
+
+    pub fn above_by(self, levels: i32) -> Self {
+        Self(self.0.saturating_add(levels))
+    }
+
+    pub fn below_by(self, levels: i32) -> Self {
+        Self(self.0.saturating_sub(levels))
+    }
 }
 
 impl Default for ZOrder {
     fn default() -> Self {
-        Self::DEFAULT
+        Self::BASE
     }
 }
 
@@ -147,6 +185,7 @@ impl ZLayer {
         Self { area_layer, z }
     }
 
+    /// Use base Z-level
     pub fn from_area_layer(area_layer: AreaLayerId) -> Self {
         Self::from_area_layer_z(area_layer, ZOrder::default())
     }
@@ -157,6 +196,33 @@ impl ZLayer {
 
     pub fn background() -> Self {
         Self::from_area_layer(AreaLayerId::background())
+    }
+
+    #[must_use]
+    pub fn with_z(self, z: ZOrder) -> Self {
+        Self::from_area_layer_z(self.area_layer, z)
+    }
+
+    /// Above by one level
+    #[must_use]
+    pub fn above(self) -> Self {
+        self.with_z(self.z.above())
+    }
+
+    #[must_use]
+    pub fn above_by(self, levels: i32) -> Self {
+        self.with_z(self.z.above_by(levels))
+    }
+
+    /// Below one level
+    #[must_use]
+    pub fn below(self) -> Self {
+        self.with_z(self.z.below())
+    }
+
+    #[must_use]
+    pub fn below_by(self, levels: i32) -> Self {
+        self.with_z(self.z.below_by(levels))
     }
 }
 
