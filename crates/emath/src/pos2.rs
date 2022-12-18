@@ -26,6 +26,15 @@ pub const fn pos2(x: f32, y: f32) -> Pos2 {
     Pos2 { x, y }
 }
 
+/// Treat this vector as a position.
+/// `v.into()` is equivalent to `Pos2::default() + v`.
+impl From<Vec2> for Pos2 {
+    #[inline(always)]
+    fn from(v: Vec2) -> Self {
+        Self { x: v.x, y: v.y }
+    }
+}
+
 // ----------------------------------------------------------------------------
 // Compatibility and convenience conversions to and from [f32; 2]:
 
@@ -118,16 +127,6 @@ impl Pos2 {
     #[inline(always)]
     pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
-    }
-
-    /// The vector from origin to this position.
-    /// `p.to_vec2()` is equivalent to `p - Pos2::default()`.
-    #[inline(always)]
-    pub fn to_vec2(self) -> Vec2 {
-        Vec2 {
-            x: self.x,
-            y: self.y,
-        }
     }
 
     #[inline]

@@ -173,15 +173,12 @@ impl Rect {
     #[must_use]
     #[inline]
     pub fn rotate_bb(self, rot: Rot2) -> Self {
-        let a = rot * self.left_top().to_vec2();
-        let b = rot * self.right_top().to_vec2();
-        let c = rot * self.left_bottom().to_vec2();
-        let d = rot * self.right_bottom().to_vec2();
+        let a = rot * Vec2::from(self.left_top());
+        let b = rot * Vec2::from(self.right_top());
+        let c = rot * Vec2::from(self.left_bottom());
+        let d = rot * Vec2::from(self.right_bottom());
 
-        Self::from_min_max(
-            a.min(b).min(c).min(d).to_pos2(),
-            a.max(b).max(c).max(d).to_pos2(),
-        )
+        Self::from_min_max(a.min(b).min(c).min(d).into(), a.max(b).max(c).max(d).into())
     }
 
     #[must_use]

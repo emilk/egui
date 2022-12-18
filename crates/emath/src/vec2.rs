@@ -24,6 +24,15 @@ pub const fn vec2(x: f32, y: f32) -> Vec2 {
     Vec2 { x, y }
 }
 
+/// The vector from origin to this position.
+/// `p.into()` is equivalent to `p - Pos2::default()`.
+impl From<crate::Pos2> for Vec2 {
+    #[inline(always)]
+    fn from(p: crate::Pos2) -> Self {
+        Self { x: p.x, y: p.y }
+    }
+}
+
 // ----------------------------------------------------------------------------
 // Compatibility and convenience conversions to and from [f32; 2]:
 
@@ -128,16 +137,6 @@ impl Vec2 {
     #[inline(always)]
     pub const fn splat(v: f32) -> Self {
         Self { x: v, y: v }
-    }
-
-    /// Treat this vector as a position.
-    /// `v.to_pos2()` is equivalent to `Pos2::default() + v`.
-    #[inline(always)]
-    pub fn to_pos2(self) -> crate::Pos2 {
-        crate::Pos2 {
-            x: self.x,
-            y: self.y,
-        }
     }
 
     /// Safe normalize: returns zero if input is zero.

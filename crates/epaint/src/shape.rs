@@ -657,7 +657,7 @@ impl TextShape {
     /// The visual bounding rectangle
     #[inline]
     pub fn visual_bounding_rect(&self) -> Rect {
-        self.galley.mesh_bounds.translate(self.pos.to_vec2())
+        self.galley.mesh_bounds.translate(self.pos.into())
     }
 }
 

@@ -147,9 +147,9 @@ impl CubicBezierShape {
         let from = self.sample(t_range.start);
         let to = self.sample(t_range.end);
 
-        let d_from = self.points[1] - self.points[0].to_vec2();
-        let d_ctrl = self.points[2] - self.points[1].to_vec2();
-        let d_to = self.points[3] - self.points[2].to_vec2();
+        let d_from = self.points[1] - Vec2::from(self.points[0]);
+        let d_ctrl = self.points[2] - Vec2::from(self.points[1]);
+        let d_to = self.points[3] - Vec2::from(self.points[2]);
         let q = QuadraticBezierShape {
             points: [d_from, d_ctrl, d_to],
             closed: self.closed,
@@ -159,8 +159,8 @@ impl CubicBezierShape {
         let delta_t = t_range.end - t_range.start;
         let q_start = q.sample(t_range.start);
         let q_end = q.sample(t_range.end);
-        let ctrl1 = from + q_start.to_vec2() * delta_t;
-        let ctrl2 = to - q_end.to_vec2() * delta_t;
+        let ctrl1 = from + Vec2::from(q_start) * delta_t;
+        let ctrl2 = to - Vec2::from(q_end) * delta_t;
         CubicBezierShape {
             points: [from, ctrl1, ctrl2, to],
             closed: self.closed,
@@ -280,11 +280,11 @@ impl CubicBezierShape {
         let b = 3.0 * t * t * h;
         let c = 3.0 * t * h * h;
         let d = h * h * h;
-        let result = self.points[3].to_vec2() * a
-            + self.points[2].to_vec2() * b
-            + self.points[1].to_vec2() * c
-            + self.points[0].to_vec2() * d;
-        result.to_pos2()
+        let result = Vec2::from(self.points[3]) * a
+            + Vec2::from(self.points[2]) * b
+            + Vec2::from(self.points[1]) * c
+            + Vec2::from(self.points[0]) * d;
+        result.into()
     }
 
     /// find a set of points that approximate the cubic Bézier curve.
@@ -502,10 +502,10 @@ impl QuadraticBezierShape {
         let a = t * t;
         let b = 2.0 * t * h;
         let c = h * h;
-        let result = self.points[2].to_vec2() * a
-            + self.points[1].to_vec2() * b
-            + self.points[0].to_vec2() * c;
-        result.to_pos2()
+        let result = Vec2::from(self.points[2]) * a
+            + Vec2::from(self.points[1]) * b
+            + Vec2::from(self.points[0]) * c;
+        result.into()
     }
 
     /// find a set of points that approximate the quadratic Bézier curve.
