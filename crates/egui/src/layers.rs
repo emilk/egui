@@ -98,6 +98,11 @@ impl AreaLayerId {
         self.order.allow_interaction()
     }
 
+    #[must_use]
+    pub fn with_z(self, z: ZOrder) -> ZLayer {
+        ZLayer::from_area_layer_z(self, z)
+    }
+
     /// Short and readable summary
     pub fn short_debug_format(&self) -> String {
         format!(
@@ -108,13 +113,72 @@ impl AreaLayerId {
     }
 }
 
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct ZOrder(pub i32);
+
+impl ZOrder {
+    const DEFAULT: ZOrder = ZOrder(0);
+}
+
+impl Default for ZOrder {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+/// An identifier for a paint layer which supports Z-indexing
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct ZLayer {
+    pub area_layer: AreaLayerId,
+    pub z: ZOrder,
+}
+
+impl ZLayer {
+    pub fn new(order: Order, id: Id, z: ZOrder) -> Self {
+        Self {
+            area_layer: AreaLayerId { order, id },
+            z,
+        }
+    }
+
+    pub fn from_area_layer_z(area_layer: AreaLayerId, z: ZOrder) -> Self {
+        Self { area_layer, z }
+    }
+
+    pub fn from_area_layer(area_layer: AreaLayerId) -> Self {
+        Self::from_area_layer_z(area_layer, ZOrder::default())
+    }
+
+    pub fn debug() -> Self {
+        Self::from_area_layer(AreaLayerId::debug())
+    }
+
+    pub fn background() -> Self {
+        Self::from_area_layer(AreaLayerId::background())
+    }
+}
+
 /// A unique identifier of a specific [`Shape`] in a [`PaintList`].
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct ShapeIdx(usize);
 
+#[derive(Clone, PartialEq)]
+struct PaintedShape {
+    shape: ClippedShape,
+    z: ZOrder,
+}
+
+impl PaintedShape {
+    pub fn new(shape: ClippedShape, z: ZOrder) -> Self {
+        Self { shape, z }
+    }
+}
+
 /// A list of [`Shape`]s paired with a clip rectangle.
 #[derive(Clone, Default)]
-pub struct PaintList(Vec<ClippedShape>);
+pub struct PaintList(Vec<PaintedShape>);
 
 impl PaintList {
     #[inline(always)]
@@ -124,17 +188,18 @@ impl PaintList {
 
     /// Returns the index of the new [`Shape`] that can be used with `PaintList::set`.
     #[inline(always)]
-    pub fn add(&mut self, clip_rect: Rect, shape: Shape) -> ShapeIdx {
+    pub fn add(&mut self, clip_rect: Rect, shape: Shape, z: ZOrder) -> ShapeIdx {
         let idx = ShapeIdx(self.0.len());
-        self.0.push(ClippedShape(clip_rect, shape));
+        self.0
+            .push(PaintedShape::new(ClippedShape(clip_rect, shape), z));
         idx
     }
 
-    pub fn extend<I: IntoIterator<Item = Shape>>(&mut self, clip_rect: Rect, shapes: I) {
+    pub fn extend<I: IntoIterator<Item = Shape>>(&mut self, clip_rect: Rect, shapes: I, z: ZOrder) {
         self.0.extend(
             shapes
                 .into_iter()
-                .map(|shape| ClippedShape(clip_rect, shape)),
+                .map(|shape| PaintedShape::new(ClippedShape(clip_rect, shape), z)),
         );
     }
 
@@ -147,12 +212,16 @@ impl PaintList {
     /// and then later setting it using `paint_list.set(idx, cr, frame);`.
     #[inline(always)]
     pub fn set(&mut self, idx: ShapeIdx, clip_rect: Rect, shape: Shape) {
-        self.0[idx.0] = ClippedShape(clip_rect, shape);
+        self.0[idx.0].shape = ClippedShape(clip_rect, shape);
     }
 
     /// Translate each [`Shape`] and clip rectangle by this much, in-place
     pub fn translate(&mut self, delta: Vec2) {
-        for ClippedShape(clip_rect, shape) in &mut self.0 {
+        for PaintedShape {
+            shape: ClippedShape(clip_rect, shape),
+            ..
+        } in &mut self.0
+        {
             *clip_rect = clip_rect.translate(delta);
             shape.translate(delta);
         }
@@ -178,6 +247,11 @@ impl GraphicLayers {
         for &order in &Order::ALL {
             let order_map = &mut self.0[order as usize];
 
+            // Sort by z-order
+            for list in order_map.values_mut() {
+                list.0.sort_by_key(|PaintedShape { z, .. }| *z);
+            }
+
             // If a layer is empty at the start of the frame
             // then nobody has added to it, and it is old and defunct.
             // Free it to save memory:
@@ -198,6 +272,8 @@ impl GraphicLayers {
             }
         }
 
-        all_shapes.into_iter()
+        all_shapes
+            .into_iter()
+            .map(|PaintedShape { shape, .. }| shape)
     }
 }

@@ -604,9 +604,9 @@ impl Context {
     }
 
     /// Get a full-screen painter for a new or existing layer
-    pub fn layer_painter(&self, layer_id: AreaLayerId) -> Painter {
+    pub fn layer_painter(&self, layer: AreaLayerId) -> Painter {
         let screen_rect = self.input().screen_rect();
-        Painter::new(self.clone(), layer_id, screen_rect)
+        Painter::new(self.clone(), layer, screen_rect)
     }
 
     /// Paint on top of everything else

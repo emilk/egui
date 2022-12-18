@@ -6,8 +6,15 @@ use std::sync::Arc;
 use epaint::mutex::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
-    containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
-    widgets::*, *,
+    containers::*,
+    ecolor::*,
+    epaint::text::Fonts,
+    layers::{ZLayer, ZOrder},
+    layout::*,
+    menu::MenuState,
+    placer::Placer,
+    widgets::*,
+    *,
 };
 
 // ----------------------------------------------------------------------------
@@ -317,7 +324,7 @@ impl Ui {
     /// Use this to paint stuff within this [`Ui`].
     #[inline]
     pub fn layer_id(&self) -> AreaLayerId {
-        self.painter().layer_id()
+        self.painter().layer()
     }
 
     /// The [`InputState`] of the [`Context`] associated with this [`Ui`].
@@ -1731,7 +1738,7 @@ impl Ui {
         InnerResponse::new(ret, response)
     }
 
-    /// Redirect shapes to another paint layer.
+    /// Redirect shapes to another area layer.
     pub fn with_layer_id<R>(
         &mut self,
         layer_id: AreaLayerId,
@@ -1739,6 +1746,28 @@ impl Ui {
     ) -> InnerResponse<R> {
         self.scope(|ui| {
             ui.painter.set_layer_id(layer_id);
+            add_contents(ui)
+        })
+    }
+
+    pub fn with_layer<R>(
+        &mut self,
+        layer: ZLayer,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R> {
+        self.scope(|ui| {
+            ui.painter.set_layer(layer);
+            add_contents(ui)
+        })
+    }
+
+    pub fn with_z<R>(
+        &mut self,
+        z: ZOrder,
+        add_contents: impl FnOnce(&mut Self) -> R,
+    ) -> InnerResponse<R> {
+        self.scope(|ui| {
+            ui.painter.set_z(z);
             add_contents(ui)
         })
     }
