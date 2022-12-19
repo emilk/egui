@@ -755,6 +755,7 @@ impl ChartsDemo {
         Plot::new("Normal Distribution Demo")
             .legend(Legend::default())
             .data_aspect(1.0)
+            .clamp_grid(true)
             .show(ui, |plot_ui| plot_ui.bar_chart(chart))
             .response
     }

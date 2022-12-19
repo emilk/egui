@@ -291,8 +291,10 @@ pub struct Plot {
     legend_config: Option<Legend>,
     show_background: bool,
     show_axes: [bool; 2],
+
     grid_spacers: [GridSpacer; 2],
     sharp_grid_lines: bool,
+    clamp_grid: bool,
 }
 
 impl Plot {
@@ -331,8 +333,10 @@ impl Plot {
             legend_config: None,
             show_background: true,
             show_axes: [true; 2],
+
             grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
             sharp_grid_lines: true,
+            clamp_grid: false,
         }
     }
 
@@ -557,6 +561,14 @@ impl Plot {
         self
     }
 
+    /// Clamp the grid to only be visible at the range of data where we have values.
+    ///
+    /// Default: `false`.
+    pub fn clamp_grid(mut self, clamp_grid: bool) -> Self {
+        self.clamp_grid = clamp_grid;
+        self
+    }
+
     /// Expand bounds to include the given x value.
     /// For instance, to always show the y axis, call `plot.include_x(0.0)`.
     pub fn include_x(mut self, x: impl Into<f64>) -> Self {
@@ -671,6 +683,8 @@ impl Plot {
             show_axes,
             linked_axes,
             linked_cursors,
+
+            clamp_grid,
             grid_spacers,
             sharp_grid_lines,
         } = self;
@@ -971,11 +985,12 @@ impl Plot {
             axis_formatters,
             show_axes,
             transform: transform.clone(),
-            grid_spacers,
             draw_cursor_x: linked_cursors.as_ref().map_or(false, |group| group.link_x),
             draw_cursor_y: linked_cursors.as_ref().map_or(false, |group| group.link_y),
             draw_cursors,
+            grid_spacers,
             sharp_grid_lines,
+            clamp_grid,
         };
         let plot_cursors = prepared.ui(ui, &response);
 
@@ -1297,11 +1312,13 @@ struct PreparedPlot {
     axis_formatters: [AxisFormatter; 2],
     show_axes: [bool; 2],
     transform: ScreenTransform,
-    grid_spacers: [GridSpacer; 2],
     draw_cursor_x: bool,
     draw_cursor_y: bool,
     draw_cursors: Vec<Cursor>,
+
+    grid_spacers: [GridSpacer; 2],
     sharp_grid_lines: bool,
+    clamp_grid: bool,
 }
 
 impl PreparedPlot {
@@ -1400,10 +1417,13 @@ impl PreparedPlot {
         shapes: &mut Vec<(Shape, f32)>,
         sharp_grid_lines: bool,
     ) {
+        #![allow(clippy::collapsible_else_if)]
+
         let Self {
             transform,
             axis_formatters,
             grid_spacers,
+            clamp_grid,
             ..
         } = self;
 
@@ -1417,7 +1437,6 @@ impl PreparedPlot {
         let font_id = TextStyle::Body.resolve(ui.style());
 
         // Where on the cross-dimension to show the label values
-        let bounds = transform.bounds();
         let value_cross = 0.0_f64.clamp(bounds.min[1 - axis], bounds.max[1 - axis]);
 
         let input = GridInput {
@@ -1426,8 +1445,30 @@ impl PreparedPlot {
         };
         let steps = (grid_spacers[axis])(input);
 
+        let clamp_range = clamp_grid.then(|| {
+            let mut tight_bounds = PlotBounds::NOTHING;
+            for item in &self.items {
+                let item_bounds = item.bounds();
+                tight_bounds.merge_x(&item_bounds);
+                tight_bounds.merge_y(&item_bounds);
+            }
+            tight_bounds
+        });
+
         for step in steps {
             let value_main = step.value;
+
+            if let Some(clamp_range) = clamp_range {
+                if axis == 0 {
+                    if !clamp_range.range_x().contains(&value_main) {
+                        continue;
+                    };
+                } else {
+                    if !clamp_range.range_y().contains(&value_main) {
+                        continue;
+                    };
+                }
+            }
 
             let value = if axis == 0 {
                 PlotPoint::new(value_main, value_cross)
@@ -1451,11 +1492,23 @@ impl PreparedPlot {
                 let mut p1 = pos_in_gui;
                 p0[1 - axis] = transform.frame().min[1 - axis];
                 p1[1 - axis] = transform.frame().max[1 - axis];
+
+                if let Some(clamp_range) = clamp_range {
+                    if axis == 0 {
+                        p0.y = transform.position_from_point_y(clamp_range.min[1]);
+                        p1.y = transform.position_from_point_y(clamp_range.max[1]);
+                    } else {
+                        p0.x = transform.position_from_point_x(clamp_range.min[0]);
+                        p1.x = transform.position_from_point_x(clamp_range.max[0]);
+                    }
+                }
+
                 if sharp_grid_lines {
                     // Round to avoid aliasing
                     p0 = ui.ctx().round_pos_to_pixels(p0);
                     p1 = ui.ctx().round_pos_to_pixels(p1);
                 }
+
                 shapes.push((
                     Shape::line_segment([p0, p1], Stroke::new(1.0, line_color)),
                     line_strength,
