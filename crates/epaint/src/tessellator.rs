@@ -1309,12 +1309,32 @@ impl Tessellator {
         rect.min = rect.min.at_least(pos2(-1e7, -1e7));
         rect.max = rect.max.at_most(pos2(1e7, 1e7));
 
-        let path = &mut self.scratchpad_path;
-        path.clear();
-        path::rounded_rectangle(&mut self.scratchpad_points, rect, rounding);
-        path.add_line_loop(&self.scratchpad_points);
-        path.fill(self.feathering, fill, out);
-        path.stroke_closed(self.feathering, stroke, out);
+        if rect.width() < self.feathering {
+            // Very thin - approximate by a vertial line-segment:
+            let line = [rect.center_top(), rect.center_bottom()];
+            if fill != Color32::TRANSPARENT {
+                self.tessellate_line(line, Stroke::new(rect.width(), fill), out);
+            }
+            if !stroke.is_empty() {
+                self.tessellate_line(line, stroke, out);
+            }
+        } else if rect.height() < self.feathering {
+            // Very thin - approximate by a horizontal line-segment:
+            let line = [rect.left_center(), rect.right_center()];
+            if fill != Color32::TRANSPARENT {
+                self.tessellate_line(line, Stroke::new(rect.width(), fill), out);
+            }
+            if !stroke.is_empty() {
+                self.tessellate_line(line, stroke, out);
+            }
+        } else {
+            let path = &mut self.scratchpad_path;
+            path.clear();
+            path::rounded_rectangle(&mut self.scratchpad_points, rect, rounding);
+            path.add_line_loop(&self.scratchpad_points);
+            path.fill(self.feathering, fill, out);
+            path.stroke_closed(self.feathering, stroke, out);
+        }
     }
 
     /// Tessellate a single [`TextShape`] into a [`Mesh`].

@@ -479,6 +479,10 @@ impl Memory {
         self.popup == Some(popup_id) || self.everything_is_visible()
     }
 
+    pub fn any_popup_open(&self) -> bool {
+        self.popup.is_some() || self.everything_is_visible()
+    }
+
     pub fn open_popup(&mut self, popup_id: Id) {
         self.popup = Some(popup_id);
     }
