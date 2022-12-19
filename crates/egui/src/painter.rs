@@ -197,12 +197,13 @@ impl Painter {
     }
 
     fn add_to_paint_list(&self, shape: Shape) -> ShapeIdx {
-        self.paint_list().add(self.clip_rect, shape, self.layer.z)
+        self.paint_list()
+            .add_at_z(self.clip_rect, shape, self.layer.z)
     }
 
     fn extend_paint_list(&self, shapes: impl IntoIterator<Item = Shape>) {
         self.paint_list()
-            .extend(self.clip_rect, shapes, self.layer.z);
+            .extend_at_z(self.clip_rect, shapes, self.layer.z);
     }
 
     fn set_shape_in_paint_list(&self, idx: ShapeIdx, shape: Shape) {

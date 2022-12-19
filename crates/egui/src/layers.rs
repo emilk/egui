@@ -267,20 +267,35 @@ impl PaintList {
         self.0.is_empty()
     }
 
-    /// Returns the index of the new [`Shape`] that can be used with `PaintList::set`.
+    /// Returns the index of the new [`Shape`] at index `z` that can be used with `PaintList::set`.
     #[inline(always)]
-    pub fn add(&mut self, clip_rect: Rect, shape: Shape, z: ZOrder) -> ShapeIdx {
+    pub fn add_at_z(&mut self, clip_rect: Rect, shape: Shape, z: ZOrder) -> ShapeIdx {
         let idx = ShapeIdx(self.0.len());
         self.0.push((z, ClippedShape(clip_rect, shape)));
         idx
     }
 
-    pub fn extend<I: IntoIterator<Item = Shape>>(&mut self, clip_rect: Rect, shapes: I, z: ZOrder) {
+    /// Returns the index of the new [`Shape`] at base z-index that can be used with `PaintList::set`.
+    #[inline(always)]
+    pub fn add(&mut self, clip_rect: Rect, shape: Shape) -> ShapeIdx {
+        self.add_at_z(clip_rect, shape, ZOrder::base())
+    }
+
+    pub fn extend_at_z<I: IntoIterator<Item = Shape>>(
+        &mut self,
+        clip_rect: Rect,
+        shapes: I,
+        z: ZOrder,
+    ) {
         self.0.extend(
             shapes
                 .into_iter()
                 .map(|shape| (z, ClippedShape(clip_rect, shape))),
         );
+    }
+
+    pub fn extend<I: IntoIterator<Item = Shape>>(&mut self, clip_rect: Rect, shapes: I) {
+        self.extend_at_z(clip_rect, shapes, ZOrder::base());
     }
 
     /// Modify an existing [`Shape`].
