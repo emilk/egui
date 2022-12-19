@@ -74,6 +74,10 @@ pub struct AreaLayerId {
     pub id: Id,
 }
 
+/// For backwards-compatibility with `AreaLayerId`
+#[deprecated(note = "Use `AreaLayerId` instead")]
+pub type LayerId = AreaLayerId;
+
 impl AreaLayerId {
     pub fn new(order: Order, id: Id) -> Self {
         Self { order, id }
