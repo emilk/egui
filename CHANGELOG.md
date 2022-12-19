@@ -7,14 +7,14 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 ## Unreleased
 ### Added ⭐
 * `Event::Key` now has a `repeat` field that is set to `true` if the event was the result of a key-repeat ([#2435](https://github.com/emilk/egui/pull/2435)).
+
+### Changed 🔧
+* ⚠️ BREAKING: `Plot::link_axis` and `Plot::link_cursor` now take the name of the group ([#2410](https://github.com/emilk/egui/pull/2410)).
 * Add `Slider::drag_value_speed`, which lets you ask for finer precision when dragging the slider value rather than the actual slider.
 
 ### Fixed 🐛
 * Expose `TextEdit`'s multiline flag to AccessKit ([#2448](https://github.com/emilk/egui/pull/2448)).
 * Don't render `\r` (Carriage Return) ([#2452](https://github.com/emilk/egui/pull/2452)).
-
-### Changed 🔧
-* ⚠️ BREAKING: `Plot::link_axis` and `Plot::link_cursor` now take the name of the group ([#2410](https://github.com/emilk/egui/pull/2410)).
 
 
 ## 0.20.1 - 2022-12-11 - Fix key-repeat
