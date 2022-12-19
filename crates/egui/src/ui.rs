@@ -6,15 +6,8 @@ use std::sync::Arc;
 use epaint::mutex::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
-    containers::*,
-    ecolor::*,
-    epaint::text::Fonts,
-    layers::{ZLayer, ZOrder},
-    layout::*,
-    menu::MenuState,
-    placer::Placer,
-    widgets::*,
-    *,
+    containers::*, ecolor::*, epaint::text::Fonts, layers::ZLayer, layout::*, menu::MenuState,
+    placer::Placer, widgets::*, *,
 };
 
 // ----------------------------------------------------------------------------
@@ -1768,7 +1761,7 @@ impl Ui {
 
     pub fn with_z<R>(
         &mut self,
-        z: ZOrder,
+        z: layers::ZOrder,
         add_contents: impl FnOnce(&mut Self) -> R,
     ) -> InnerResponse<R> {
         self.scope(|ui| {

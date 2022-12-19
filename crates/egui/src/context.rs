@@ -2,15 +2,9 @@
 use std::sync::Arc;
 
 use crate::{
-    animation_manager::AnimationManager,
-    data::output::PlatformOutput,
-    frame_state::FrameState,
-    input_state::*,
-    layers::{GraphicLayers, ZLayer, ZOrder},
-    memory::Options,
-    os::OperatingSystem,
-    output::FullOutput,
-    TextureHandle, *,
+    animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
+    input_state::*, layers::GraphicLayers, memory::Options, os::OperatingSystem,
+    output::FullOutput, TextureHandle, *,
 };
 use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
 
@@ -70,9 +64,9 @@ struct ContextImpl {
     requested_repaint_last_frame: bool,
 
     /// Written to during the frame.
-    layer_rects_this_frame: ahash::HashMap<AreaLayerId, Vec<(Id, ZOrder, Rect)>>,
+    layer_rects_this_frame: ahash::HashMap<AreaLayerId, Vec<(Id, layers::ZOrder, Rect)>>,
     /// Read
-    layer_rects_prev_frame: ahash::HashMap<AreaLayerId, Vec<(Id, ZOrder, Rect)>>,
+    layer_rects_prev_frame: ahash::HashMap<AreaLayerId, Vec<(Id, layers::ZOrder, Rect)>>,
 
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
@@ -383,7 +377,7 @@ impl Context {
         &self,
         clip_rect: Rect,
         item_spacing: Vec2,
-        layer: ZLayer,
+        layer: layers::ZLayer,
         id: Id,
         rect: Rect,
         sense: Sense,
