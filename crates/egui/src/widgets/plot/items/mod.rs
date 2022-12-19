@@ -34,6 +34,7 @@ pub(super) struct PlotConfig<'a> {
 pub(super) trait PlotItem {
     fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>);
 
+    /// For plot-items which are generated based on x values (plotting functions).
     fn initialize(&mut self, x_range: RangeInclusive<f64>);
 
     fn name(&self) -> &str;
