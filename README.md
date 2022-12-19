@@ -192,6 +192,7 @@ These are the official egui integrations:
 * [`notan_egui`](https://github.com/Nazariglez/notan/tree/main/crates/notan_egui) for [notan](https://github.com/Nazariglez/notan).
 * [`screen-13-egui`](https://github.com/attackgoat/screen-13/tree/master/contrib/screen-13-egui) for [Screen 13](https://github.com/attackgoat/screen-13).
 * [`smithay-egui`](https://github.com/Smithay/smithay-egui) for [smithay](https://github.com/Smithay/smithay/).
+* [`egui_skia`](https://github.com/lucasmerlin/egui_skia) for [skia](https://github.com/rust-skia/rust-skia/tree/master/skia-safe).
 
 Missing an integration for the thing you're working on? Create one, it's easy!
 
