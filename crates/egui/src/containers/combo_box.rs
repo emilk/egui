@@ -265,21 +265,35 @@ fn combo_box_dyn<'c, R>(
     let button_response = button_frame(ui, button_id, is_popup_open, Sense::click(), |ui| {
         // We don't want to change width when user selects something new
         let full_minimum_width = if wrap_enabled {
-            ui.available_width() - ui.spacing().item_spacing.x * 2.0
+            // Currently selected value's text will be wrapped if needed, so occupy the available width.
+            ui.available_width()
         } else {
+            // Occupy at least the minimum width assigned to Slider and ComboBox.
             ui.spacing().slider_width - 2.0 * margin.x
         };
         let icon_size = Vec2::splat(ui.spacing().icon_width);
         let wrap_width = if wrap_enabled {
+            // Use the available width, currently selected value's text will be wrapped if exceeds this value.
             ui.available_width() - ui.spacing().item_spacing.x - icon_size.x
         } else {
+            // Use all the width necessary to display the currently selected value's text.
             f32::INFINITY
         };
 
         let galley =
             selected_text.into_galley(ui, Some(wrap_enabled), wrap_width, TextStyle::Button);
 
-        let width = galley.size().x + ui.spacing().item_spacing.x + icon_size.x;
+        // The width necessary to contain the whole widget with the currently selected value's text.
+        let width = if wrap_enabled {
+            full_minimum_width
+        } else {
+            // Occupy at least the minimum width needed to contain the widget with the currently selected value's text.
+            galley.size().x + ui.spacing().item_spacing.x + icon_size.x
+        };
+
+        // Case : wrap_enabled : occupy all the available width.
+        // Case : !wrap_enabled : occupy at least the minimum width assigned to Slider and ComboBox,
+        // increase if the currently selected value needs additional horizontal space to fully display its text (up to wrap_width (f32::INFINITY)).
         let width = width.at_least(full_minimum_width);
         let height = galley.size().y.max(icon_size.y);
 
