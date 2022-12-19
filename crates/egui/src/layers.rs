@@ -230,21 +230,9 @@ impl ZLayer {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct ShapeIdx(usize);
 
-#[derive(Clone, PartialEq)]
-struct PaintedShape {
-    shape: ClippedShape,
-    z: ZOrder,
-}
-
-impl PaintedShape {
-    pub fn new(shape: ClippedShape, z: ZOrder) -> Self {
-        Self { shape, z }
-    }
-}
-
 /// A list of [`Shape`]s paired with a clip rectangle.
 #[derive(Clone, Default)]
-pub struct PaintList(Vec<PaintedShape>);
+pub struct PaintList(Vec<(ZOrder, ClippedShape)>);
 
 impl PaintList {
     #[inline(always)]
@@ -256,8 +244,7 @@ impl PaintList {
     #[inline(always)]
     pub fn add(&mut self, clip_rect: Rect, shape: Shape, z: ZOrder) -> ShapeIdx {
         let idx = ShapeIdx(self.0.len());
-        self.0
-            .push(PaintedShape::new(ClippedShape(clip_rect, shape), z));
+        self.0.push((z, ClippedShape(clip_rect, shape)));
         idx
     }
 
@@ -265,7 +252,7 @@ impl PaintList {
         self.0.extend(
             shapes
                 .into_iter()
-                .map(|shape| PaintedShape::new(ClippedShape(clip_rect, shape), z)),
+                .map(|shape| (z, ClippedShape(clip_rect, shape))),
         );
     }
 
@@ -278,16 +265,12 @@ impl PaintList {
     /// and then later setting it using `paint_list.set(idx, cr, frame);`.
     #[inline(always)]
     pub fn set(&mut self, idx: ShapeIdx, clip_rect: Rect, shape: Shape) {
-        self.0[idx.0].shape = ClippedShape(clip_rect, shape);
+        self.0[idx.0].1 = ClippedShape(clip_rect, shape);
     }
 
     /// Translate each [`Shape`] and clip rectangle by this much, in-place
     pub fn translate(&mut self, delta: Vec2) {
-        for PaintedShape {
-            shape: ClippedShape(clip_rect, shape),
-            ..
-        } in &mut self.0
-        {
+        for (_z, ClippedShape(clip_rect, shape)) in &mut self.0 {
             *clip_rect = clip_rect.translate(delta);
             shape.translate(delta);
         }
@@ -315,7 +298,7 @@ impl GraphicLayers {
 
             // Sort by z-order
             for list in order_map.values_mut() {
-                list.0.sort_by_key(|PaintedShape { z, .. }| *z);
+                list.0.sort_by_key(|(z, ..)| *z);
             }
 
             // If a layer is empty at the start of the frame
@@ -338,8 +321,6 @@ impl GraphicLayers {
             }
         }
 
-        all_shapes
-            .into_iter()
-            .map(|PaintedShape { shape, .. }| shape)
+        all_shapes.into_iter().map(|(_z, shape)| shape)
     }
 }
