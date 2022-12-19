@@ -113,6 +113,8 @@ impl AreaLayerId {
     }
 }
 
+/// Represents the relative order an element should be displayed
+/// Lower values render first, and therefore appear below higher values
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ZOrder(pub i32);
@@ -140,20 +142,22 @@ impl ZOrder {
         Self::BELOW_ALL
     }
 
-    /// Above by one level
+    /// Directly above
     pub fn above(self) -> Self {
         self.above_by(1)
     }
 
-    /// Below by one level
+    /// Directly below
     pub fn below(self) -> Self {
         self.below_by(1)
     }
 
+    /// Above by the number of levels given
     pub fn above_by(self, levels: i32) -> Self {
         Self(self.0.saturating_add(levels))
     }
 
+    /// Below by the number of levels given
     pub fn below_by(self, levels: i32) -> Self {
         Self(self.0.saturating_sub(levels))
     }
@@ -166,6 +170,10 @@ impl Default for ZOrder {
 }
 
 /// An identifier for a paint layer which supports Z-indexing
+///
+/// This says: draw on `area_layer` with index z. This only affects the display
+/// order of elements on the same area layer. Order of area layers still takes
+/// precedence over z-index.
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ZLayer {
@@ -181,6 +189,7 @@ impl ZLayer {
         }
     }
 
+    /// Use specified Z-level
     pub fn from_area_layer_z(area_layer: AreaLayerId, z: ZOrder) -> Self {
         Self { area_layer, z }
     }
@@ -203,33 +212,37 @@ impl ZLayer {
         Self::from_area_layer_z(self.area_layer, z)
     }
 
-    /// Above by one level
+    /// Get the `ZLayer` directly above this one
     #[must_use]
     pub fn above(self) -> Self {
         self.with_z(self.z.above())
     }
 
+    /// Get the `ZLayer` above this one by `levels` levels
     #[must_use]
     pub fn above_by(self, levels: i32) -> Self {
         self.with_z(self.z.above_by(levels))
     }
 
-    /// Below one level
+    /// Get the `ZLayer` directly below this one
     #[must_use]
     pub fn below(self) -> Self {
         self.with_z(self.z.below())
     }
 
+    /// Get the `ZLayer` below this one by `levels` levels
     #[must_use]
     pub fn below_by(self, levels: i32) -> Self {
         self.with_z(self.z.below_by(levels))
     }
 
+    /// `Id` of underlying area layer
     #[inline(always)]
     pub fn id(&self) -> Id {
         self.area_layer.id
     }
 
+    /// `Order` of underlying area layer
     #[inline(always)]
     pub fn order(&self) -> Order {
         self.area_layer.order
