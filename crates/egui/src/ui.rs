@@ -1748,6 +1748,7 @@ impl Ui {
         })
     }
 
+    /// Set z-index and layer id at the same time
     pub fn with_layer<R>(
         &mut self,
         layer: ZLayer,
@@ -1759,6 +1760,10 @@ impl Ui {
         })
     }
 
+    /// Set z-index for all shapes drawn on the current layer
+    ///
+    /// Note that this z-index is for this layer only. The draw order of area
+    /// layers takes precedence over this z-index.
     pub fn with_z<R>(
         &mut self,
         z: layers::ZOrder,
