@@ -6,13 +6,13 @@ use eframe::{
 };
 use itertools::Itertools as _;
 
-fn main() {
+fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions::default();
     eframe::run_native(
         "Take screenshots and display with eframe/egui",
         options,
         Box::new(|_cc| Box::new(MyApp::default())),
-    );
+    )
 }
 
 #[derive(Default)]

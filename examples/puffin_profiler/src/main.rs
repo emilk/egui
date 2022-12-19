@@ -2,7 +2,7 @@
 
 use eframe::egui;
 
-fn main() {
+fn main() -> Result<(), eframe::Error> {
     start_puffin_server(); // NOTE: you may only want to call this if the users specifies some flag or clicks a button!
 
     let options = eframe::NativeOptions::default();
@@ -10,7 +10,7 @@ fn main() {
         "My egui App",
         options,
         Box::new(|_cc| Box::new(MyApp::default())),
-    );
+    )
 }
 
 #[derive(Default)]

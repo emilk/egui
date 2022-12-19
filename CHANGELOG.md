@@ -5,6 +5,25 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 
 ## Unreleased
+### Added ⭐
+* `Event::Key` now has a `repeat` field that is set to `true` if the event was the result of a key-repeat ([#2435](https://github.com/emilk/egui/pull/2435)).
+* Add `Slider::drag_value_speed`, which lets you ask for finer precision when dragging the slider value rather than the actual slider.
+
+### Fixed 🐛
+* Expose `TextEdit`'s multiline flag to AccessKit ([#2448](https://github.com/emilk/egui/pull/2448)).
+* Don't render `\r` (Carriage Return) ([#2452](https://github.com/emilk/egui/pull/2452)).
+
+
+## 0.20.1 - 2022-12-11 - Fix key-repeat
+### Changed 🔧
+* `InputState`: all press functions again include key repeats (like in egui 0.19) ([#2429](https://github.com/emilk/egui/pull/2429)).
+* Improve the look of thin white lines ([#2437](https://github.com/emilk/egui/pull/2437)).
+
+### Fixed 🐛
+* Fix key-repeats for `TextEdit`, `Slider`s, etc ([#2429](https://github.com/emilk/egui/pull/2429)).
+
+
+## 0.20.0 - 2022-12-08 - AccessKit, prettier text, overlapping widgets
 * MSRV (Minimum Supported Rust Version) is now `1.65.0` ([#2314](https://github.com/emilk/egui/pull/2314)).
 * ⚠️ BREAKING: egui now expects integrations to do all color blending in gamma space ([#2071](https://github.com/emilk/egui/pull/2071)).
 * ⚠️ BREAKING: if you have overlapping interactive widgets, only the top widget (last added) will be interactive ([#2244](https://github.com/emilk/egui/pull/2244)).
@@ -19,7 +38,6 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Added `Key::Minus` and `Key::Equals` ([#2239](https://github.com/emilk/egui/pull/2239)).
 * Added `egui::gui_zoom` module with helpers for scaling the whole GUI of an app ([#2239](https://github.com/emilk/egui/pull/2239)).
 * You can now put one interactive widget on top of another, and only one will get interaction at a time ([#2244](https://github.com/emilk/egui/pull/2244)).
-* Added `ui.centered`.
 * Added `spacing.menu_margin` for customizing menu spacing ([#2036](https://github.com/emilk/egui/pull/2036))
 * Added possibility to enable text wrap for the selected text of `egui::ComboBox` ([#2272](https://github.com/emilk/egui/pull/2272))
 * Added `Area::constrain` and `Window::constrain` which constrains area to the screen bounds ([#2270](https://github.com/emilk/egui/pull/2270)).
@@ -50,7 +68,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Fixed keyboard support in `DragValue` ([#2342](https://github.com/emilk/egui/pull/2342)).
 * If you nest `ScrollAreas` inside each other, the inner area will now move its scroll bar so it is always visible ([#2371](https://github.com/emilk/egui/pull/2371)).
 * Ignore key-repeats for `input.key_pressed` ([#2334](https://github.com/emilk/egui/pull/2334), [#2389](https://github.com/emilk/egui/pull/2389)).
-* Fixed issue with calling `set-pixels_per_point` each frame ([#2352](https://github.com/emilk/egui/pull/2352)).
+* Fixed issue with calling `set_pixels_per_point` each frame ([#2352](https://github.com/emilk/egui/pull/2352)).
 * Fix bug in `ScrollArea::show_rows` ([#2258](https://github.com/emilk/egui/pull/2258)).
 * Fix bug in `plot::Line::fill` ([#2275](https://github.com/emilk/egui/pull/2275)).
 * Only emit `changed` events in `radio_value` and `selectable_value` if the value actually changed ([#2343](https://github.com/emilk/egui/pull/2343)).

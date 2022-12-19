@@ -187,13 +187,14 @@ pub enum Event {
         /// Was it pressed or released?
         pressed: bool,
 
-        /// The state of the modifier keys at the time of the event.
-        modifiers: Modifiers,
-    },
-
-    /// A key was repeated while pressed.
-    KeyRepeat {
-        key: Key,
+        /// If this is a `pressed` event, is it a key-repeat?
+        ///
+        /// On many platforms, holding down a key produces many repeated "pressed" events for it, so called key-repeats.
+        /// Sometimes you will want to ignore such events, and this lets you do that.
+        ///
+        /// egui will automatically detect such repeat events and mark them as such here.
+        /// Therefore, if you are writing an egui integration, you do not need to set this (just set it to `false`).
+        repeat: bool,
 
         /// The state of the modifier keys at the time of the event.
         modifiers: Modifiers,

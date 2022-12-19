@@ -4,7 +4,7 @@
 
 use eframe::egui;
 
-fn main() {
+fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         // Hide the OS-specific "chrome" around the window:
         decorated: false,
@@ -18,7 +18,7 @@ fn main() {
         "Custom window frame", // unused title
         options,
         Box::new(|_cc| Box::new(MyApp::default())),
-    );
+    )
 }
 
 #[derive(Default)]

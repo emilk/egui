@@ -1,6 +1,6 @@
 [package]
 name = "egui-winit"
-version = "0.19.0"
+version = "0.20.1"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui with winit"
 edition = "2021"
@@ -14,7 +14,8 @@ keywords = ["winit", "egui", "gui", "gamedev"]
 include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [package.metadata.docs.rs]
-all-features = true
+# Avoid speech-dispatcher dependencies - see https://docs.rs/crate/egui-winit/0.20.0/builds/695196
+features = ["document-features"]
 
 
 [features]
@@ -46,7 +47,7 @@ serde = ["egui/serde", "dep:serde"]
 wayland = ["winit/wayland"]
 
 [dependencies]
-egui = { version = "0.19.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.20.0", path = "../egui", default-features = false, features = [
   "tracing",
 ] }
 instant = { version = "0.1", features = [

@@ -191,9 +191,9 @@ impl Mesh {
     pub fn split_to_u16(self) -> Vec<Mesh16> {
         crate::epaint_assert!(self.is_valid());
 
-        const MAX_SIZE: u32 = 1 << 16;
+        const MAX_SIZE: u32 = std::u16::MAX as u32;
 
-        if self.vertices.len() < MAX_SIZE as usize {
+        if self.vertices.len() <= MAX_SIZE as usize {
             // Common-case optimization:
             return vec![Mesh16 {
                 indices: self.indices.iter().map(|&i| i as u16).collect(),
@@ -218,7 +218,8 @@ impl Mesh {
                     new_max = new_max.max(idx);
                 }
 
-                if new_max - new_min < MAX_SIZE {
+                let new_span_size = new_max - new_min + 1; // plus one, because it is an inclusive range
+                if new_span_size <= MAX_SIZE {
                     // Triangle fits
                     min_vindex = new_min;
                     max_vindex = new_max;

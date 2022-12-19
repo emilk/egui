@@ -6,7 +6,7 @@ use eframe::egui;
 use egui::mutex::Mutex;
 use std::sync::Arc;
 
-fn main() {
+fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(350.0, 380.0)),
         multisampling: 8,
@@ -17,7 +17,7 @@ fn main() {
         "Custom 3D painting in eframe using glow",
         options,
         Box::new(|cc| Box::new(MyApp::new(cc))),
-    );
+    )
 }
 
 struct MyApp {
@@ -145,9 +145,11 @@ impl RotatingTriangle {
                         .expect("Cannot create shader");
                     gl.shader_source(shader, &format!("{}\n{}", shader_version, shader_source));
                     gl.compile_shader(shader);
-                    if !gl.get_shader_compile_status(shader) {
-                        panic!("{}", gl.get_shader_info_log(shader));
-                    }
+                    assert!(
+                        gl.get_shader_compile_status(shader),
+                        "Failed to compile {shader_type}: {}",
+                        gl.get_shader_info_log(shader)
+                    );
                     gl.attach_shader(program, shader);
                     shader
                 })

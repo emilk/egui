@@ -3,6 +3,9 @@ All notable changes to the `egui_extras` integration will be noted in this file.
 
 
 ## Unreleased
+
+
+## 0.20.0 - 2022-12-08
 * Added `RetainedImage::from_svg_bytes_with_size` to be able to specify a size for SVGs to be rasterized at.
 * Lots of `Table` improvements ([#2369](https://github.com/emilk/egui/pull/2369)):
     * Double-click column separators to auto-size the column.
