@@ -2,7 +2,7 @@
 //! It has no frame or own size. It is potentially movable.
 //! It is the foundation for windows and popups.
 
-use crate::*;
+use crate::{layers::ZLayer, *};
 
 /// State that is persisted between frames.
 // TODO(emilk): this is not currently stored in `memory().data`, but maybe it should be?
@@ -268,7 +268,7 @@ impl Area {
             let move_response = ctx.interact(
                 Rect::EVERYTHING,
                 ctx.style().spacing.item_spacing,
-                layer_id,
+                ZLayer::from_area_layer(layer_id),
                 interact_id,
                 state.rect(),
                 sense,

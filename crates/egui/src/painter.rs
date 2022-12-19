@@ -140,6 +140,12 @@ impl Painter {
         self.layer.area_layer
     }
 
+    /// Where we paint, and on what Z-level
+    #[inline(always)]
+    pub fn zlayer(&self) -> ZLayer {
+        self.layer
+    }
+
     #[inline(always)]
     pub fn z(&self) -> ZOrder {
         self.layer.z

@@ -2,9 +2,15 @@
 use std::sync::Arc;
 
 use crate::{
-    animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
-    input_state::*, layers::GraphicLayers, memory::Options, os::OperatingSystem,
-    output::FullOutput, TextureHandle, *,
+    animation_manager::AnimationManager,
+    data::output::PlatformOutput,
+    frame_state::FrameState,
+    input_state::*,
+    layers::{GraphicLayers, ZLayer, ZOrder},
+    memory::Options,
+    os::OperatingSystem,
+    output::FullOutput,
+    TextureHandle, *,
 };
 use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
 
@@ -64,9 +70,9 @@ struct ContextImpl {
     requested_repaint_last_frame: bool,
 
     /// Written to during the frame.
-    layer_rects_this_frame: ahash::HashMap<AreaLayerId, Vec<(Id, Rect)>>,
+    layer_rects_this_frame: ahash::HashMap<AreaLayerId, Vec<(Id, ZOrder, Rect)>>,
     /// Read
-    layer_rects_prev_frame: ahash::HashMap<AreaLayerId, Vec<(Id, Rect)>>,
+    layer_rects_prev_frame: ahash::HashMap<AreaLayerId, Vec<(Id, ZOrder, Rect)>>,
 
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
@@ -377,7 +383,7 @@ impl Context {
         &self,
         clip_rect: Rect,
         item_spacing: Vec2,
-        layer_id: AreaLayerId,
+        layer: ZLayer,
         id: Id,
         rect: Rect,
         sense: Sense,
@@ -394,7 +400,7 @@ impl Context {
 
         // Respect clip rectangle when interacting
         let interact_rect = clip_rect.intersect(interact_rect);
-        let mut hovered = self.rect_contains_pointer(layer_id, interact_rect);
+        let mut hovered = self.rect_contains_pointer(layer.area_layer, interact_rect);
 
         // This solves the problem of overlapping widgets.
         // Whichever widget is added LAST (=on top) gets the input:
@@ -411,16 +417,18 @@ impl Context {
             let mut slf = self.write();
 
             slf.layer_rects_this_frame
-                .entry(layer_id)
+                .entry(layer.area_layer)
                 .or_default()
-                .push((id, interact_rect));
+                .push((id, layer.z, interact_rect));
 
             if hovered {
                 let pointer_pos = slf.input.pointer.interact_pos();
                 if let Some(pointer_pos) = pointer_pos {
-                    if let Some(rects) = slf.layer_rects_prev_frame.get(&layer_id) {
-                        for &(prev_id, prev_rect) in rects.iter().rev() {
-                            if prev_id == id {
+                    if let Some(rects) = slf.layer_rects_prev_frame.get_mut(&layer.area_layer) {
+                        rects.sort_by_key(|(_id, z, ..)| *z);
+
+                        for &(prev_id, prev_z, prev_rect) in rects.iter().rev() {
+                            if prev_id == id && prev_z <= layer.z {
                                 break; // there is no other interactive widget covering us at the pointer position.
                             }
                             if prev_rect.contains(pointer_pos) {
@@ -450,7 +458,7 @@ impl Context {
             }
         }
 
-        self.interact_with_hovered(layer_id, id, rect, sense, enabled, hovered)
+        self.interact_with_hovered(layer.area_layer, id, rect, sense, enabled, hovered)
     }
 
     /// You specify if a thing is hovered, and the function gives a [`Response`].

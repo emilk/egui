@@ -327,6 +327,11 @@ impl Ui {
         self.painter().layer()
     }
 
+    #[inline]
+    pub fn layer(&self) -> ZLayer {
+        self.painter().zlayer()
+    }
+
     /// The [`InputState`] of the [`Context`] associated with this [`Ui`].
     /// Equivalent to `.ctx().input()`.
     ///
@@ -623,7 +628,7 @@ impl Ui {
         self.ctx().interact(
             self.clip_rect(),
             self.spacing().item_spacing,
-            self.layer_id(),
+            self.layer(),
             id,
             rect,
             sense,

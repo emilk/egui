@@ -224,6 +224,16 @@ impl ZLayer {
     pub fn below_by(self, levels: i32) -> Self {
         self.with_z(self.z.below_by(levels))
     }
+
+    #[inline(always)]
+    pub fn id(&self) -> Id {
+        self.area_layer.id
+    }
+
+    #[inline(always)]
+    pub fn order(&self) -> Order {
+        self.area_layer.order
+    }
 }
 
 /// A unique identifier of a specific [`Shape`] in a [`PaintList`].
