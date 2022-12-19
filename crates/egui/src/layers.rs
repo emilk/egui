@@ -280,7 +280,7 @@ impl PaintList {
 
     /// Translate each [`Shape`] and clip rectangle by this much, in-place
     pub fn translate(&mut self, delta: Vec2) {
-        for (_z, ClippedShape(clip_rect, shape)) in &mut self.0 {
+        for (.., ClippedShape(clip_rect, shape)) in &mut self.0 {
             *clip_rect = clip_rect.translate(delta);
             shape.translate(delta);
         }
@@ -331,6 +331,6 @@ impl GraphicLayers {
             }
         }
 
-        all_shapes.into_iter().map(|(_z, shape)| shape)
+        all_shapes.into_iter().map(|(.., shape)| shape)
     }
 }
