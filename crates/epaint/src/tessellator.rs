@@ -1316,16 +1316,18 @@ impl Tessellator {
                 self.tessellate_line(line, Stroke::new(rect.width(), fill), out);
             }
             if !stroke.is_empty() {
-                self.tessellate_line(line, stroke, out);
+                self.tessellate_line(line, stroke, out); // back…
+                self.tessellate_line(line, stroke, out); // …and forth
             }
         } else if rect.height() < self.feathering {
             // Very thin - approximate by a horizontal line-segment:
             let line = [rect.left_center(), rect.right_center()];
             if fill != Color32::TRANSPARENT {
-                self.tessellate_line(line, Stroke::new(rect.width(), fill), out);
+                self.tessellate_line(line, Stroke::new(rect.height(), fill), out);
             }
             if !stroke.is_empty() {
-                self.tessellate_line(line, stroke, out);
+                self.tessellate_line(line, stroke, out); // back…
+                self.tessellate_line(line, stroke, out); // …and forth
             }
         } else {
             let path = &mut self.scratchpad_path;
