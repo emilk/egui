@@ -17,6 +17,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Improved the algorithm for picking the number of decimals to show when hovering values in the `Plot`.
 
 ### Fixed 🐛
+* `Plot::items`: fix bool setting of `highlight` function. 
 * Expose `TextEdit`'s multiline flag to AccessKit ([#2448](https://github.com/emilk/egui/pull/2448)).
 * Don't render `\r` (Carriage Return) ([#2452](https://github.com/emilk/egui/pull/2452)).
 

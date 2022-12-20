@@ -15,6 +15,8 @@ pub use bar::Bar;
 pub use box_elem::{BoxElem, BoxSpread};
 pub use values::{LineStyle, MarkerShape, Orientation, PlotPoint, PlotPoints};
 
+use util::bool_state::BoolState;
+
 mod bar;
 mod box_elem;
 mod rect_elem;
@@ -118,7 +120,7 @@ pub struct HLine {
     pub(super) y: f64,
     pub(super) stroke: Stroke,
     pub(super) name: String,
-    pub(super) highlight: bool,
+    pub(super) highlight: BoolState,
     pub(super) style: LineStyle,
 }
 
@@ -128,14 +130,14 @@ impl HLine {
             y: y.into(),
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             name: String::default(),
-            highlight: false,
+            highlight: BoolState::default(),
             style: LineStyle::Solid,
         }
     }
 
     /// Highlight this line in the plot by scaling up the line.
     pub fn highlight(mut self, highlight: bool) -> Self {
-        self.highlight = highlight;
+        self.highlight.init = highlight;
         self
     }
 
@@ -195,7 +197,7 @@ impl PlotItem for HLine {
                 transform.position_from_point(&PlotPoint::new(transform.bounds().max[0], *y)),
             ),
         ];
-        style.style_line(points, *stroke, *highlight, shapes);
+        style.style_line(points, *stroke, highlight.is_allowed(), shapes);
     }
 
     fn initialize(&mut self, _x_range: RangeInclusive<f64>) {}
@@ -209,11 +211,11 @@ impl PlotItem for HLine {
     }
 
     fn highlight(&mut self) {
-        self.highlight = true;
+        self.highlight.state = true;
     }
 
     fn highlighted(&self) -> bool {
-        self.highlight
+        self.highlight.state
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
@@ -234,7 +236,7 @@ pub struct VLine {
     pub(super) x: f64,
     pub(super) stroke: Stroke,
     pub(super) name: String,
-    pub(super) highlight: bool,
+    pub(super) highlight: BoolState,
     pub(super) style: LineStyle,
 }
 
@@ -244,14 +246,14 @@ impl VLine {
             x: x.into(),
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             name: String::default(),
-            highlight: false,
+            highlight: BoolState::default(),
             style: LineStyle::Solid,
         }
     }
 
     /// Highlight this line in the plot by scaling up the line.
     pub fn highlight(mut self, highlight: bool) -> Self {
-        self.highlight = highlight;
+        self.highlight.init = highlight;
         self
     }
 
@@ -311,7 +313,7 @@ impl PlotItem for VLine {
                 transform.position_from_point(&PlotPoint::new(*x, transform.bounds().max[1])),
             ),
         ];
-        style.style_line(points, *stroke, *highlight, shapes);
+        style.style_line(points, *stroke, highlight.is_allowed(), shapes);
     }
 
     fn initialize(&mut self, _x_range: RangeInclusive<f64>) {}
@@ -325,11 +327,11 @@ impl PlotItem for VLine {
     }
 
     fn highlight(&mut self) {
-        self.highlight = true;
+        self.highlight.state = true;
     }
 
     fn highlighted(&self) -> bool {
-        self.highlight
+        self.highlight.state
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
@@ -349,7 +351,7 @@ pub struct Line {
     pub(super) series: PlotPoints,
     pub(super) stroke: Stroke,
     pub(super) name: String,
-    pub(super) highlight: bool,
+    pub(super) highlight: BoolState,
     pub(super) fill: Option<f32>,
     pub(super) style: LineStyle,
 }
@@ -360,7 +362,7 @@ impl Line {
             series: series.into(),
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             name: Default::default(),
-            highlight: false,
+            highlight: BoolState::default(),
             fill: None,
             style: LineStyle::Solid,
         }
@@ -368,7 +370,7 @@ impl Line {
 
     /// Highlight this line in the plot by scaling up the line.
     pub fn highlight(mut self, highlight: bool) -> Self {
-        self.highlight = highlight;
+        self.highlight.init = highlight;
         self
     }
 
@@ -446,7 +448,7 @@ impl PlotItem for Line {
         }
         if let Some(y_reference) = fill {
             let mut fill_alpha = DEFAULT_FILL_ALPHA;
-            if *highlight {
+            if highlight.is_allowed() {
                 fill_alpha = (2.0 * fill_alpha).at_most(1.0);
             }
             let y = transform
@@ -479,7 +481,7 @@ impl PlotItem for Line {
             mesh.colored_vertex(pos2(last.x, y), fill_color);
             shapes.push(Shape::Mesh(mesh));
         }
-        style.style_line(values_tf, *stroke, *highlight, shapes);
+        style.style_line(values_tf, *stroke, highlight.is_allowed(), shapes);
     }
 
     fn initialize(&mut self, x_range: RangeInclusive<f64>) {
@@ -495,11 +497,11 @@ impl PlotItem for Line {
     }
 
     fn highlight(&mut self) {
-        self.highlight = true;
+        self.highlight.state = true;
     }
 
     fn highlighted(&self) -> bool {
-        self.highlight
+        self.highlight.state
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
@@ -516,7 +518,7 @@ pub struct Polygon {
     pub(super) series: PlotPoints,
     pub(super) stroke: Stroke,
     pub(super) name: String,
-    pub(super) highlight: bool,
+    pub(super) highlight: BoolState,
     pub(super) fill_alpha: f32,
     pub(super) style: LineStyle,
 }
@@ -527,7 +529,7 @@ impl Polygon {
             series: series.into(),
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             name: Default::default(),
-            highlight: false,
+            highlight: BoolState::default(),
             fill_alpha: DEFAULT_FILL_ALPHA,
             style: LineStyle::Solid,
         }
@@ -536,7 +538,7 @@ impl Polygon {
     /// Highlight this polygon in the plot by scaling up the stroke and reducing the fill
     /// transparency.
     pub fn highlight(mut self, highlight: bool) -> Self {
-        self.highlight = highlight;
+        self.highlight.init = highlight;
         self
     }
 
@@ -594,7 +596,7 @@ impl PlotItem for Polygon {
             ..
         } = self;
 
-        if *highlight {
+        if highlight.is_allowed() {
             fill_alpha = (2.0 * fill_alpha).at_most(1.0);
         }
 
@@ -609,7 +611,7 @@ impl PlotItem for Polygon {
         let shape = Shape::convex_polygon(values_tf.clone(), fill, Stroke::NONE);
         shapes.push(shape);
         values_tf.push(*values_tf.first().unwrap());
-        style.style_line(values_tf, *stroke, *highlight, shapes);
+        style.style_line(values_tf, *stroke, highlight.is_allowed(), shapes);
     }
 
     fn initialize(&mut self, x_range: RangeInclusive<f64>) {
@@ -625,11 +627,11 @@ impl PlotItem for Polygon {
     }
 
     fn highlight(&mut self) {
-        self.highlight = true;
+        self.highlight.state = true;
     }
 
     fn highlighted(&self) -> bool {
-        self.highlight
+        self.highlight.state
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
@@ -647,7 +649,7 @@ pub struct Text {
     pub(super) text: WidgetText,
     pub(super) position: PlotPoint,
     pub(super) name: String,
-    pub(super) highlight: bool,
+    pub(super) highlight: BoolState,
     pub(super) color: Color32,
     pub(super) anchor: Align2,
 }
@@ -658,7 +660,7 @@ impl Text {
             text: text.into(),
             position,
             name: Default::default(),
-            highlight: false,
+            highlight: BoolState::default(),
             color: Color32::TRANSPARENT,
             anchor: Align2::CENTER_CENTER,
         }
@@ -666,7 +668,7 @@ impl Text {
 
     /// Highlight this text in the plot by drawing a rectangle around it.
     pub fn highlight(mut self, highlight: bool) -> Self {
-        self.highlight = highlight;
+        self.highlight.init = highlight;
         self
     }
 
@@ -719,7 +721,7 @@ impl PlotItem for Text {
         }
         shapes.push(text_shape.into());
 
-        if self.highlight {
+        if self.highlight.state {
             shapes.push(Shape::rect_stroke(
                 rect.expand(2.0),
                 1.0,
@@ -739,11 +741,11 @@ impl PlotItem for Text {
     }
 
     fn highlight(&mut self) {
-        self.highlight = true;
+        self.highlight.state = true;
     }
 
     fn highlighted(&self) -> bool {
-        self.highlight
+        self.highlight.state
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
@@ -768,7 +770,7 @@ pub struct Points {
     /// The maximum extent of the marker from its center.
     pub(super) radius: f32,
     pub(super) name: String,
-    pub(super) highlight: bool,
+    pub(super) highlight: BoolState,
     pub(super) stems: Option<f32>,
 }
 
@@ -781,7 +783,7 @@ impl Points {
             filled: true,
             radius: 1.0,
             name: Default::default(),
-            highlight: false,
+            highlight: BoolState::default(),
             stems: None,
         }
     }
@@ -794,7 +796,7 @@ impl Points {
 
     /// Highlight these points in the plot by scaling up their markers.
     pub fn highlight(mut self, highlight: bool) -> Self {
-        self.highlight = highlight;
+        self.highlight.init = highlight;
         self
     }
 
@@ -862,7 +864,7 @@ impl PlotItem for Points {
             (Color32::TRANSPARENT, default_stroke)
         };
 
-        if *highlight {
+        if highlight.is_allowed() {
             radius *= 2f32.sqrt();
             stem_stroke.width *= 2.0;
         }
@@ -977,11 +979,11 @@ impl PlotItem for Points {
     }
 
     fn highlight(&mut self) {
-        self.highlight = true;
+        self.highlight.state = true;
     }
 
     fn highlighted(&self) -> bool {
-        self.highlight
+        self.highlight.state
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
@@ -999,7 +1001,7 @@ pub struct Arrows {
     pub(super) tips: PlotPoints,
     pub(super) color: Color32,
     pub(super) name: String,
-    pub(super) highlight: bool,
+    pub(super) highlight: BoolState,
 }
 
 impl Arrows {
@@ -1009,13 +1011,13 @@ impl Arrows {
             tips: tips.into(),
             color: Color32::TRANSPARENT,
             name: Default::default(),
-            highlight: false,
+            highlight: BoolState::default(),
         }
     }
 
     /// Highlight these arrows in the plot.
     pub fn highlight(mut self, highlight: bool) -> Self {
-        self.highlight = highlight;
+        self.highlight.init = highlight;
         self
     }
 
@@ -1048,7 +1050,7 @@ impl PlotItem for Arrows {
             highlight,
             ..
         } = self;
-        let stroke = Stroke::new(if *highlight { 2.0 } else { 1.0 }, *color);
+        let stroke = Stroke::new(if highlight.is_allowed() { 2.0 } else { 1.0 }, *color);
         origins
             .points()
             .iter()
@@ -1092,11 +1094,11 @@ impl PlotItem for Arrows {
     }
 
     fn highlight(&mut self) {
-        self.highlight = true;
+        self.highlight.state = true;
     }
 
     fn highlighted(&self) -> bool {
-        self.highlight
+        self.highlight.state
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
@@ -1117,7 +1119,7 @@ pub struct PlotImage {
     pub(super) size: Vec2,
     pub(super) bg_fill: Color32,
     pub(super) tint: Color32,
-    pub(super) highlight: bool,
+    pub(super) highlight: BoolState,
     pub(super) name: String,
 }
 
@@ -1131,7 +1133,7 @@ impl PlotImage {
         Self {
             position: center_position,
             name: Default::default(),
-            highlight: false,
+            highlight: BoolState::default(),
             texture_id: texture_id.into(),
             uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
             size: size.into(),
@@ -1142,7 +1144,7 @@ impl PlotImage {
 
     /// Highlight this image in the plot.
     pub fn highlight(mut self, highlight: bool) -> Self {
-        self.highlight = highlight;
+        self.highlight.init = highlight;
         self
     }
 
@@ -1207,7 +1209,7 @@ impl PlotItem for PlotImage {
             .tint(*tint)
             .uv(*uv)
             .paint_at(ui, rect);
-        if *highlight {
+        if highlight.is_allowed() {
             shapes.push(Shape::rect_stroke(
                 rect,
                 0.0,
@@ -1227,11 +1229,11 @@ impl PlotItem for PlotImage {
     }
 
     fn highlight(&mut self) {
-        self.highlight = true;
+        self.highlight.state = true;
     }
 
     fn highlighted(&self) -> bool {
-        self.highlight
+        self.highlight.state
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
@@ -1263,7 +1265,7 @@ pub struct BarChart {
     pub(super) name: String,
     /// A custom element formatter
     pub(super) element_formatter: Option<Box<dyn Fn(&Bar, &BarChart) -> String>>,
-    highlight: bool,
+    highlight: BoolState,
 }
 
 impl BarChart {
@@ -1274,7 +1276,7 @@ impl BarChart {
             default_color: Color32::TRANSPARENT,
             name: String::new(),
             element_formatter: None,
-            highlight: false,
+            highlight: BoolState::default(),
         }
     }
 
@@ -1332,7 +1334,7 @@ impl BarChart {
 
     /// Highlight all plot elements.
     pub fn highlight(mut self, highlight: bool) -> Self {
-        self.highlight = highlight;
+        self.highlight.init = highlight;
         self
     }
 
@@ -1371,7 +1373,7 @@ impl BarChart {
 impl PlotItem for BarChart {
     fn shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         for b in &self.bars {
-            b.add_shapes(transform, self.highlight, shapes);
+            b.add_shapes(transform, self.highlight.state, shapes);
         }
     }
 
@@ -1388,11 +1390,11 @@ impl PlotItem for BarChart {
     }
 
     fn highlight(&mut self) {
-        self.highlight = true;
+        self.highlight.state = true;
     }
 
     fn highlighted(&self) -> bool {
-        self.highlight
+        self.highlight.state
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
@@ -1433,7 +1435,7 @@ pub struct BoxPlot {
     pub(super) name: String,
     /// A custom element formatter
     pub(super) element_formatter: Option<Box<dyn Fn(&BoxElem, &BoxPlot) -> String>>,
-    highlight: bool,
+    highlight: BoolState,
 }
 
 impl BoxPlot {
@@ -1444,7 +1446,7 @@ impl BoxPlot {
             default_color: Color32::TRANSPARENT,
             name: String::new(),
             element_formatter: None,
-            highlight: false,
+            highlight: BoolState::default(),
         }
     }
 
@@ -1496,7 +1498,7 @@ impl BoxPlot {
 
     /// Highlight all plot elements.
     pub fn highlight(mut self, highlight: bool) -> Self {
-        self.highlight = highlight;
+        self.highlight.init = highlight;
         self
     }
 
@@ -1514,7 +1516,7 @@ impl BoxPlot {
 impl PlotItem for BoxPlot {
     fn shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         for b in &self.boxes {
-            b.add_shapes(transform, self.highlight, shapes);
+            b.add_shapes(transform, self.highlight.state, shapes);
         }
     }
 
@@ -1531,11 +1533,11 @@ impl PlotItem for BoxPlot {
     }
 
     fn highlight(&mut self) {
-        self.highlight = true;
+        self.highlight.state = true;
     }
 
     fn highlighted(&self) -> bool {
-        self.highlight
+        self.highlight.state
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {

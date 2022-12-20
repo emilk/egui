@@ -370,9 +370,19 @@ impl MarkerDemo {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Default, PartialEq)]
+#[derive(PartialEq)]
 struct LegendDemo {
     config: Legend,
+    highlighted_hover_entry: bool,
+}
+
+impl Default for LegendDemo {
+    fn default() -> Self {
+        Self {
+            config: Legend::default(),
+            highlighted_hover_entry: true,
+        }
+    }
 }
 
 impl LegendDemo {
@@ -401,7 +411,10 @@ impl LegendDemo {
     }
 
     fn ui(&mut self, ui: &mut Ui) -> Response {
-        let LegendDemo { config } = self;
+        let LegendDemo {
+            config,
+            highlighted_hover_entry,
+        } = self;
 
         egui::Grid::new("settings").show(ui, |ui| {
             ui.label("Text style:");
@@ -428,6 +441,9 @@ impl LegendDemo {
                     .clamp_range(0.0..=1.0),
             );
             ui.end_row();
+
+            ui.checkbox(highlighted_hover_entry, "highlighted hover entry");
+            ui.end_row();
         });
 
         let legend_plot = Plot::new("legend_demo")
@@ -435,11 +451,31 @@ impl LegendDemo {
             .data_aspect(1.0);
         legend_plot
             .show(ui, |plot_ui| {
-                plot_ui.line(LegendDemo::line_with_slope(0.5).name("lines"));
-                plot_ui.line(LegendDemo::line_with_slope(1.0).name("lines"));
-                plot_ui.line(LegendDemo::line_with_slope(2.0).name("lines"));
-                plot_ui.line(LegendDemo::sin().name("sin(x)"));
-                plot_ui.line(LegendDemo::cos().name("cos(x)"));
+                plot_ui.line(
+                    LegendDemo::line_with_slope(0.5)
+                        .name("lines")
+                        .highlight(self.highlighted_hover_entry),
+                );
+                plot_ui.line(
+                    LegendDemo::line_with_slope(1.0)
+                        .name("lines")
+                        .highlight(self.highlighted_hover_entry),
+                );
+                plot_ui.line(
+                    LegendDemo::line_with_slope(2.0)
+                        .name("lines")
+                        .highlight(self.highlighted_hover_entry),
+                );
+                plot_ui.line(
+                    LegendDemo::sin()
+                        .name("sin(x)")
+                        .highlight(self.highlighted_hover_entry),
+                );
+                plot_ui.line(
+                    LegendDemo::cos()
+                        .name("cos(x)")
+                        .highlight(self.highlighted_hover_entry),
+                );
             })
             .response
     }
