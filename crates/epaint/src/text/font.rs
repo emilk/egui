@@ -61,7 +61,7 @@ pub struct FontImpl {
     name: String,
     ab_glyph_font: ab_glyph::FontArc,
     /// Maximum character height
-    scale_in_pixels: u32,
+    scale_in_points: f32,
     height_in_points: f32,
     // move each character by this much (hack)
     y_offset: f32,
@@ -76,13 +76,13 @@ impl FontImpl {
         pixels_per_point: f32,
         name: String,
         ab_glyph_font: ab_glyph::FontArc,
-        scale_in_pixels: u32,
+        scale_in_points: f32,
         y_offset_points: f32,
     ) -> FontImpl {
-        assert!(scale_in_pixels > 0);
+        assert!(scale_in_points > 0.0);
         assert!(pixels_per_point > 0.0);
 
-        let height_in_points = scale_in_pixels as f32 / pixels_per_point;
+        let height_in_points = scale_in_points;
 
         // TODO(emilk): use these font metrics?
         // use ab_glyph::ScaleFont as _;
@@ -92,12 +92,12 @@ impl FontImpl {
         // dbg!(scaled.line_gap());
 
         // Round to closest pixel:
-        let y_offset = (y_offset_points * pixels_per_point).round() / pixels_per_point;
+        let y_offset = y_offset_points.round();
 
         Self {
             name,
             ab_glyph_font,
-            scale_in_pixels,
+            scale_in_points,
             height_in_points,
             y_offset,
             pixels_per_point,
@@ -194,7 +194,7 @@ impl FontImpl {
                 &mut self.atlas.lock(),
                 &self.ab_glyph_font,
                 glyph_id,
-                self.scale_in_pixels as f32,
+                self.scale_in_points,
                 self.y_offset,
                 self.pixels_per_point,
             );
@@ -212,9 +212,8 @@ impl FontImpl {
     ) -> f32 {
         use ab_glyph::{Font as _, ScaleFont};
         self.ab_glyph_font
-            .as_scaled(self.scale_in_pixels as f32)
+            .as_scaled(self.scale_in_points)
             .kern(last_glyph_id, glyph_id)
-            / self.pixels_per_point
     }
 
     /// Height of one row of text. In points
@@ -430,13 +429,14 @@ fn allocate_glyph(
     atlas: &mut TextureAtlas,
     font: &ab_glyph::FontArc,
     glyph_id: ab_glyph::GlyphId,
-    scale_in_pixels: f32,
+    scale_in_points: f32,
     y_offset: f32,
     pixels_per_point: f32,
 ) -> GlyphInfo {
     assert!(glyph_id.0 != 0);
     use ab_glyph::{Font as _, ScaleFont};
 
+    let scale_in_pixels = scale_in_points * pixels_per_point;
     let glyph =
         glyph_id.with_scale_and_position(scale_in_pixels, ab_glyph::Point { x: 0.0, y: 0.0 });
 
@@ -471,8 +471,7 @@ fn allocate_glyph(
     });
     let uv_rect = uv_rect.unwrap_or_default();
 
-    let advance_width_in_points =
-        font.as_scaled(scale_in_pixels).h_advance(glyph_id) / pixels_per_point;
+    let advance_width_in_points = font.as_scaled(scale_in_points).h_advance(glyph_id);
 
     GlyphInfo {
         id: glyph_id,

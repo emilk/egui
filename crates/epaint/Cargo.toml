@@ -49,6 +49,9 @@ deadlock_detection = ["dep:backtrace"]
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = []
 
+## Enabling this feature will allow fixed-width fonts to scale correctly for any display DPI.
+proportional_font_scaling = []
+
 ## Enable additional checks if debug assertions are enabled (debug builds).
 extra_debug_asserts = [
   "emath/extra_debug_asserts",
