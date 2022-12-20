@@ -100,12 +100,12 @@ pub fn menu_button<R>(
     stationary_menu_impl(ui, title, Box::new(add_contents))
 }
 
-/// Construct a top level menu in a menu bar. This would be e.g. "File", "Edit" etc.
+/// Construct a top level menu with an image in a menu bar. This would be e.g. "File", "Edit" etc.
 ///
 /// Responds to primary clicks.
 ///
 /// Returns `None` if the menu is not open.
-pub fn menu_button_image<R>(
+pub fn menu_image_button<R>(
     ui: &mut Ui,
     texture_id: TextureId,
     image_size: impl Into<Vec2>,
@@ -191,6 +191,9 @@ fn stationary_menu_impl<'c, R>(
     InnerResponse::new(inner.map(|r| r.inner), button_response)
 }
 
+/// Build a top level menu with an image button.
+///
+/// Responds to primary clicks.
 fn stationary_menu_image_impl<'c, R>(
     ui: &mut Ui,
     texture_id: TextureId,
