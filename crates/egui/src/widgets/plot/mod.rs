@@ -291,7 +291,10 @@ pub struct Plot {
     legend_config: Option<Legend>,
     show_background: bool,
     show_axes: [bool; 2],
+
     grid_spacers: [GridSpacer; 2],
+    sharp_grid_lines: bool,
+    clamp_grid: bool,
 }
 
 impl Plot {
@@ -330,7 +333,10 @@ impl Plot {
             legend_config: None,
             show_background: true,
             show_axes: [true; 2],
+
             grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
+            sharp_grid_lines: true,
+            clamp_grid: false,
         }
     }
 
@@ -555,6 +561,14 @@ impl Plot {
         self
     }
 
+    /// Clamp the grid to only be visible at the range of data where we have values.
+    ///
+    /// Default: `false`.
+    pub fn clamp_grid(mut self, clamp_grid: bool) -> Self {
+        self.clamp_grid = clamp_grid;
+        self
+    }
+
     /// Expand bounds to include the given x value.
     /// For instance, to always show the y axis, call `plot.include_x(0.0)`.
     pub fn include_x(mut self, x: impl Into<f64>) -> Self {
@@ -617,6 +631,13 @@ impl Plot {
         self
     }
 
+    /// Round grid positions to full pixels to avoid aliasing. Improves plot appearance but might have an
+    /// undesired effect when shifting the plot bounds. Enabled by default.
+    pub fn sharp_grid_lines(mut self, enabled: bool) -> Self {
+        self.sharp_grid_lines = enabled;
+        self
+    }
+
     /// Resets the plot.
     pub fn reset(mut self) -> Self {
         self.reset = true;
@@ -662,7 +683,10 @@ impl Plot {
             show_axes,
             linked_axes,
             linked_cursors,
+
+            clamp_grid,
             grid_spacers,
+            sharp_grid_lines,
         } = self;
 
         // Determine the size of the plot in the UI
@@ -961,10 +985,12 @@ impl Plot {
             axis_formatters,
             show_axes,
             transform: transform.clone(),
-            grid_spacers,
             draw_cursor_x: linked_cursors.as_ref().map_or(false, |group| group.link_x),
             draw_cursor_y: linked_cursors.as_ref().map_or(false, |group| group.link_y),
             draw_cursors,
+            grid_spacers,
+            sharp_grid_lines,
+            clamp_grid,
         };
         let plot_cursors = prepared.ui(ui, &response);
 
@@ -1286,21 +1312,35 @@ struct PreparedPlot {
     axis_formatters: [AxisFormatter; 2],
     show_axes: [bool; 2],
     transform: ScreenTransform,
-    grid_spacers: [GridSpacer; 2],
     draw_cursor_x: bool,
     draw_cursor_y: bool,
     draw_cursors: Vec<Cursor>,
+
+    grid_spacers: [GridSpacer; 2],
+    sharp_grid_lines: bool,
+    clamp_grid: bool,
 }
 
 impl PreparedPlot {
     fn ui(self, ui: &mut Ui, response: &Response) -> Vec<Cursor> {
-        let mut shapes = Vec::new();
+        let mut axes_shapes = Vec::new();
 
         for d in 0..2 {
             if self.show_axes[d] {
-                self.paint_axis(ui, d, &mut shapes);
+                self.paint_axis(
+                    ui,
+                    d,
+                    self.show_axes[1 - d],
+                    &mut axes_shapes,
+                    self.sharp_grid_lines,
+                );
             }
         }
+
+        // Sort the axes by strength so that those with higher strength are drawn in front.
+        axes_shapes.sort_by(|(_, strength1), (_, strength2)| strength1.total_cmp(strength2));
+
+        let mut shapes = axes_shapes.into_iter().map(|(shape, _)| shape).collect();
 
         let transform = &self.transform;
 
@@ -1369,11 +1409,21 @@ impl PreparedPlot {
         cursors
     }
 
-    fn paint_axis(&self, ui: &Ui, axis: usize, shapes: &mut Vec<Shape>) {
+    fn paint_axis(
+        &self,
+        ui: &Ui,
+        axis: usize,
+        other_axis_shown: bool,
+        shapes: &mut Vec<(Shape, f32)>,
+        sharp_grid_lines: bool,
+    ) {
+        #![allow(clippy::collapsible_else_if)]
+
         let Self {
             transform,
             axis_formatters,
             grid_spacers,
+            clamp_grid,
             ..
         } = self;
 
@@ -1387,7 +1437,6 @@ impl PreparedPlot {
         let font_id = TextStyle::Body.resolve(ui.style());
 
         // Where on the cross-dimension to show the label values
-        let bounds = transform.bounds();
         let value_cross = 0.0_f64.clamp(bounds.min[1 - axis], bounds.max[1 - axis]);
 
         let input = GridInput {
@@ -1396,8 +1445,30 @@ impl PreparedPlot {
         };
         let steps = (grid_spacers[axis])(input);
 
+        let clamp_range = clamp_grid.then(|| {
+            let mut tight_bounds = PlotBounds::NOTHING;
+            for item in &self.items {
+                let item_bounds = item.bounds();
+                tight_bounds.merge_x(&item_bounds);
+                tight_bounds.merge_y(&item_bounds);
+            }
+            tight_bounds
+        });
+
         for step in steps {
             let value_main = step.value;
+
+            if let Some(clamp_range) = clamp_range {
+                if axis == 0 {
+                    if !clamp_range.range_x().contains(&value_main) {
+                        continue;
+                    };
+                } else {
+                    if !clamp_range.range_y().contains(&value_main) {
+                        continue;
+                    };
+                }
+            }
 
             let value = if axis == 0 {
                 PlotPoint::new(value_main, value_cross)
@@ -1408,29 +1479,47 @@ impl PreparedPlot {
             let pos_in_gui = transform.position_from_point(&value);
             let spacing_in_points = (transform.dpos_dvalue()[axis] * step.step_size).abs() as f32;
 
-            let line_alpha = remap_clamp(
-                spacing_in_points,
-                (MIN_LINE_SPACING_IN_POINTS as f32)..=300.0,
-                0.0..=0.15,
-            );
+            if spacing_in_points > MIN_LINE_SPACING_IN_POINTS as f32 {
+                let line_strength = remap_clamp(
+                    spacing_in_points,
+                    MIN_LINE_SPACING_IN_POINTS as f32..=300.0,
+                    0.0..=1.0,
+                );
 
-            if line_alpha > 0.0 {
-                let line_color = color_from_alpha(ui, line_alpha);
+                let line_color = color_from_contrast(ui, line_strength);
 
                 let mut p0 = pos_in_gui;
                 let mut p1 = pos_in_gui;
                 p0[1 - axis] = transform.frame().min[1 - axis];
                 p1[1 - axis] = transform.frame().max[1 - axis];
-                // Round to avoid aliasing
-                p0 = ui.ctx().round_pos_to_pixels(p0);
-                p1 = ui.ctx().round_pos_to_pixels(p1);
-                shapes.push(Shape::line_segment([p0, p1], Stroke::new(1.0, line_color)));
+
+                if let Some(clamp_range) = clamp_range {
+                    if axis == 0 {
+                        p0.y = transform.position_from_point_y(clamp_range.min[1]);
+                        p1.y = transform.position_from_point_y(clamp_range.max[1]);
+                    } else {
+                        p0.x = transform.position_from_point_x(clamp_range.min[0]);
+                        p1.x = transform.position_from_point_x(clamp_range.max[0]);
+                    }
+                }
+
+                if sharp_grid_lines {
+                    // Round to avoid aliasing
+                    p0 = ui.ctx().round_pos_to_pixels(p0);
+                    p1 = ui.ctx().round_pos_to_pixels(p1);
+                }
+
+                shapes.push((
+                    Shape::line_segment([p0, p1], Stroke::new(1.0, line_color)),
+                    line_strength,
+                ));
             }
 
-            let text_alpha = remap_clamp(spacing_in_points, 40.0..=150.0, 0.0..=0.4);
-
-            if text_alpha > 0.0 {
-                let color = color_from_alpha(ui, text_alpha);
+            const MIN_TEXT_SPACING: f32 = 40.0;
+            if spacing_in_points > MIN_TEXT_SPACING {
+                let text_strength =
+                    remap_clamp(spacing_in_points, MIN_TEXT_SPACING..=150.0, 0.0..=1.0);
+                let color = color_from_contrast(ui, text_strength);
 
                 let text: String = if let Some(formatter) = axis_formatters[axis].as_deref() {
                     formatter(value_main, &axis_range)
@@ -1438,8 +1527,11 @@ impl PreparedPlot {
                     emath::round_to_decimals(value_main, 5).to_string() // hack
                 };
 
+                // Skip origin label for y-axis if x-axis is already showing it (otherwise displayed twice)
+                let skip_origin_y = axis == 1 && other_axis_shown && value_main == 0.0;
+
                 // Custom formatters can return empty string to signal "no label at this resolution"
-                if !text.is_empty() {
+                if !text.is_empty() && !skip_origin_y {
                     let galley = ui.painter().layout_no_wrap(text, font_id.clone(), color);
 
                     let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);
@@ -1449,17 +1541,20 @@ impl PreparedPlot {
                         .at_most(transform.frame().max[1 - axis] - galley.size()[1 - axis] - 2.0)
                         .at_least(transform.frame().min[1 - axis] + 1.0);
 
-                    shapes.push(Shape::galley(text_pos, galley));
+                    shapes.push((Shape::galley(text_pos, galley), text_strength));
                 }
             }
         }
 
-        fn color_from_alpha(ui: &Ui, alpha: f32) -> Color32 {
-            if ui.visuals().dark_mode {
-                Rgba::from_white_alpha(alpha).into()
-            } else {
-                Rgba::from_black_alpha((4.0 * alpha).at_most(1.0)).into()
-            }
+        fn color_from_contrast(ui: &Ui, contrast: f32) -> Color32 {
+            let bg = ui.visuals().extreme_bg_color;
+            let fg = ui.visuals().widgets.open.fg_stroke.color;
+            let mix = 0.5 * contrast.sqrt();
+            Color32::from_rgb(
+                lerp((bg.r() as f32)..=(fg.r() as f32), mix) as u8,
+                lerp((bg.g() as f32)..=(fg.g() as f32), mix) as u8,
+                lerp((bg.b() as f32)..=(fg.b() as f32), mix) as u8,
+            )
         }
     }
 
