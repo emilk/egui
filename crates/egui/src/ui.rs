@@ -2172,7 +2172,7 @@ impl Ui {
     ///     egui_extras::image::FitTo::Size(24, 24),
     /// );
     ///
-    /// ui.menu_image_button(img.texture_id(ctx), img.size_vec2() , , |ui| {
+    /// ui.menu_image_button(img.texture_id(ctx), img.size_vec2(), |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
     ///         if ui.button("Close the menu").clicked() {
     ///             ui.close_menu();
