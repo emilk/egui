@@ -361,7 +361,7 @@ pub use {
     grid::Grid,
     id::{Id, IdMap},
     input_state::{InputState, MultiTouchInfo, PointerState},
-    layers::{AreaLayerId, Order},
+    layers::{AreaLayerId, LayerId, Order},
     layout::*,
     memory::Memory,
     painter::Painter,
