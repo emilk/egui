@@ -2127,6 +2127,7 @@ impl Ui {
     pub(crate) fn set_menu_state(&mut self, menu_state: Option<Arc<RwLock<MenuState>>>) {
         self.menu_state = menu_state;
     }
+
     #[inline]
     /// Create a menu button that when clicked will show the given menu.
     ///

@@ -203,10 +203,7 @@ fn stationary_menu_image_impl<'c, R>(
     let bar_id = ui.id();
 
     let mut bar_state = BarState::load(ui.ctx(), bar_id);
-
-    let button = ImageButton::new(texture_id, image_size);
-
-    let button_response = ui.add(button);
+    let button_response = ui.add(ImageButton::new(texture_id, image_size));
     let inner = bar_state.bar_menu(&button_response, add_contents);
 
     bar_state.store(ui.ctx(), bar_id);
