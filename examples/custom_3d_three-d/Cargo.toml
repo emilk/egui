@@ -11,7 +11,9 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-eframe = { path = "../../crates/eframe", features = ["glow"] }
+eframe = { path = "../../crates/eframe", features = [
+    "__screenshot", # __screenshot is so we can dump a ascreenshot using EFRAME_SCREENSHOT_TO
+] }
 egui_glow = { path = "../../crates/egui_glow" }
 glow = "0.11"
 three-d = { version = "0.13", default-features = false }

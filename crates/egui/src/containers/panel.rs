@@ -44,7 +44,7 @@ impl PanelState {
 // ----------------------------------------------------------------------------
 
 /// [`Left`](Side::Left) or [`Right`](Side::Right)
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Side {
     Left,
     Right,
@@ -97,6 +97,7 @@ pub struct SidePanel {
     id: Id,
     frame: Option<Frame>,
     resizable: bool,
+    show_separator_line: bool,
     default_width: f32,
     width_range: RangeInclusive<f32>,
 }
@@ -119,6 +120,7 @@ impl SidePanel {
             id: id.into(),
             frame: None,
             resizable: true,
+            show_separator_line: true,
             default_width: 200.0,
             width_range: 96.0..=f32::INFINITY,
         }
@@ -137,6 +139,14 @@ impl SidePanel {
     /// * …
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
+        self
+    }
+
+    /// Show a separator line, even when not interacting with it?
+    ///
+    /// Default: `true`.
+    pub fn show_separator_line(mut self, show_separator_line: bool) -> Self {
+        self.show_separator_line = show_separator_line;
         self
     }
 
@@ -202,6 +212,7 @@ impl SidePanel {
             id,
             frame,
             resizable,
+            show_separator_line,
             default_width,
             width_range,
         } = self;
@@ -215,6 +226,7 @@ impl SidePanel {
             }
             width = clamp_to_range(width, width_range.clone()).at_most(available_rect.width());
             side.set_rect_width(&mut panel_rect, width);
+            ui.ctx().check_for_id_clash(id, panel_rect, "SidePanel");
         }
 
         let mut resize_hover = false;
@@ -287,12 +299,17 @@ impl SidePanel {
                 ui.style().visuals.widgets.active.bg_stroke
             } else if resize_hover {
                 ui.style().visuals.widgets.hovered.bg_stroke
-            } else {
+            } else if show_separator_line {
                 // TOOD(emilk): distinguish resizable from non-resizable
                 ui.style().visuals.widgets.noninteractive.bg_stroke
+            } else {
+                Stroke::NONE
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
-            let resize_x = side.opposite().side_x(rect);
+            // In the meantime: nudge the line so its inside the panel, so it won't be covered by neighboring panel
+            // (hence the shrink).
+            let resize_x = side.opposite().side_x(rect.shrink(1.0));
+            let resize_x = ui.painter().round_to_pixel(resize_x);
             ui.painter().vline(resize_x, rect.y_range(), stroke);
         }
 
@@ -348,6 +365,8 @@ impl SidePanel {
             None
         } else if how_expanded < 1.0 {
             // Show a fake panel in this in-between animation state:
+            // TODO(emilk): move the panel out-of-screen instead of changing its width.
+            // Then we can actually paint it as it animates.
             let expanded_width = PanelState::load(ctx, self.id)
                 .map_or(self.default_width, |state| state.rect.width());
             let fake_width = how_expanded * expanded_width;
@@ -381,6 +400,8 @@ impl SidePanel {
             None
         } else if how_expanded < 1.0 {
             // Show a fake panel in this in-between animation state:
+            // TODO(emilk): move the panel out-of-screen instead of changing its width.
+            // Then we can actually paint it as it animates.
             let expanded_width = PanelState::load(ui.ctx(), self.id)
                 .map_or(self.default_width, |state| state.rect.width());
             let fake_width = how_expanded * expanded_width;
@@ -467,7 +488,7 @@ impl SidePanel {
 // ----------------------------------------------------------------------------
 
 /// [`Top`](TopBottomSide::Top) or [`Bottom`](TopBottomSide::Bottom)
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TopBottomSide {
     Top,
     Bottom,
@@ -520,6 +541,7 @@ pub struct TopBottomPanel {
     id: Id,
     frame: Option<Frame>,
     resizable: bool,
+    show_separator_line: bool,
     default_height: Option<f32>,
     height_range: RangeInclusive<f32>,
 }
@@ -542,6 +564,7 @@ impl TopBottomPanel {
             id: id.into(),
             frame: None,
             resizable: false,
+            show_separator_line: true,
             default_height: None,
             height_range: 20.0..=f32::INFINITY,
         }
@@ -560,6 +583,14 @@ impl TopBottomPanel {
     /// * …
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
+        self
+    }
+
+    /// Show a separator line, even when not interacting with it?
+    ///
+    /// Default: `true`.
+    pub fn show_separator_line(mut self, show_separator_line: bool) -> Self {
+        self.show_separator_line = show_separator_line;
         self
     }
 
@@ -628,6 +659,7 @@ impl TopBottomPanel {
             id,
             frame,
             resizable,
+            show_separator_line,
             default_height,
             height_range,
         } = self;
@@ -642,6 +674,8 @@ impl TopBottomPanel {
             };
             height = clamp_to_range(height, height_range.clone()).at_most(available_rect.height());
             side.set_rect_height(&mut panel_rect, height);
+            ui.ctx()
+                .check_for_id_clash(id, panel_rect, "TopBottomPanel");
         }
 
         let mut resize_hover = false;
@@ -717,12 +751,17 @@ impl TopBottomPanel {
                 ui.style().visuals.widgets.active.bg_stroke
             } else if resize_hover {
                 ui.style().visuals.widgets.hovered.bg_stroke
-            } else {
+            } else if show_separator_line {
                 // TOOD(emilk): distinguish resizable from non-resizable
                 ui.style().visuals.widgets.noninteractive.bg_stroke
+            } else {
+                Stroke::NONE
             };
             // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
-            let resize_y = side.opposite().side_y(rect);
+            // In the meantime: nudge the line so its inside the panel, so it won't be covered by neighboring panel
+            // (hence the shrink).
+            let resize_y = side.opposite().side_y(rect.shrink(1.0));
+            let resize_y = ui.painter().round_to_pixel(resize_y);
             ui.painter().hline(rect.x_range(), resize_y, stroke);
         }
 
@@ -782,6 +821,8 @@ impl TopBottomPanel {
             None
         } else if how_expanded < 1.0 {
             // Show a fake panel in this in-between animation state:
+            // TODO(emilk): move the panel out-of-screen instead of changing its height.
+            // Then we can actually paint it as it animates.
             let expanded_height = PanelState::load(ctx, self.id)
                 .map(|state| state.rect.height())
                 .or(self.default_height)
@@ -817,6 +858,8 @@ impl TopBottomPanel {
             None
         } else if how_expanded < 1.0 {
             // Show a fake panel in this in-between animation state:
+            // TODO(emilk): move the panel out-of-screen instead of changing its height.
+            // Then we can actually paint it as it animates.
             let expanded_height = PanelState::load(ui.ctx(), self.id)
                 .map(|state| state.rect.height())
                 .or(self.default_height)

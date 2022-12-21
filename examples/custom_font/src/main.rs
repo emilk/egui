@@ -2,13 +2,16 @@
 
 use eframe::egui;
 
-fn main() {
-    let options = eframe::NativeOptions::default();
+fn main() -> Result<(), eframe::Error> {
+    let options = eframe::NativeOptions {
+        initial_window_size: Some(egui::vec2(320.0, 240.0)),
+        ..Default::default()
+    };
     eframe::run_native(
         "egui example: custom font",
         options,
         Box::new(|cc| Box::new(MyApp::new(cc))),
-    );
+    )
 }
 
 fn setup_custom_fonts(ctx: &egui::Context) {

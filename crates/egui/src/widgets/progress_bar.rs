@@ -78,12 +78,8 @@ impl Widget for ProgressBar {
 
             let visuals = ui.style().visuals.clone();
             let rounding = outer_rect.height() / 2.0;
-            ui.painter().rect(
-                outer_rect,
-                rounding,
-                visuals.extreme_bg_color,
-                Stroke::none(),
-            );
+            ui.painter()
+                .rect(outer_rect, rounding, visuals.extreme_bg_color, Stroke::NONE);
             let inner_rect = Rect::from_min_size(
                 outer_rect.min,
                 vec2(
@@ -103,7 +99,7 @@ impl Widget for ProgressBar {
                 inner_rect,
                 rounding,
                 Color32::from(Rgba::from(visuals.selection.bg_fill) * color_factor as f32),
-                Stroke::none(),
+                Stroke::NONE,
             );
 
             if animate {

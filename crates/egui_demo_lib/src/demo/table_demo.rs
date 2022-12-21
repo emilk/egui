@@ -10,20 +10,22 @@ enum DemoType {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TableDemo {
     demo: DemoType,
+    striped: bool,
     resizable: bool,
     num_rows: usize,
-    row_to_scroll_to: i32,
-    vertical_scroll_offset: Option<f32>,
+    scroll_to_row_slider: usize,
+    scroll_to_row: Option<usize>,
 }
 
 impl Default for TableDemo {
     fn default() -> Self {
         Self {
             demo: DemoType::Manual,
+            striped: true,
             resizable: true,
             num_rows: 10_000,
-            row_to_scroll_to: 0,
-            vertical_scroll_offset: None,
+            scroll_to_row_slider: 0,
+            scroll_to_row: None,
         }
     }
 }
@@ -45,16 +47,15 @@ impl super::Demo for TableDemo {
     }
 }
 
-fn scroll_offset_for_row(ui: &egui::Ui, row: i32) -> f32 {
-    let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
-    let row_item_spacing = ui.spacing().item_spacing.y;
-    row as f32 * (text_height + row_item_spacing)
-}
+const NUM_MANUAL_ROWS: usize = 20;
 
 impl super::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
-            ui.checkbox(&mut self.resizable, "Resizable columns");
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut self.striped, "Striped");
+                ui.checkbox(&mut self.resizable, "Resizable columns");
+            });
 
             ui.label("Table type:");
             ui.radio_value(&mut self.demo, DemoType::Manual, "Few, manual rows");
@@ -77,16 +78,20 @@ impl super::View for TableDemo {
                 );
             }
 
-            if self.demo == DemoType::ManyHomogenous {
-                ui.add(
-                    egui::Slider::new(&mut self.row_to_scroll_to, 0..=self.num_rows as i32)
+            {
+                let max_rows = if self.demo == DemoType::Manual {
+                    NUM_MANUAL_ROWS
+                } else {
+                    self.num_rows
+                };
+
+                let slider_response = ui.add(
+                    egui::Slider::new(&mut self.scroll_to_row_slider, 0..=max_rows)
                         .logarithmic(true)
                         .text("Row to scroll to"),
                 );
-
-                if ui.button("Scroll to row").clicked() {
-                    self.vertical_scroll_offset
-                        .replace(scroll_offset_for_row(ui, self.row_to_scroll_to));
+                if slider_response.changed() {
+                    self.scroll_to_row = Some(self.scroll_to_row_slider);
                 }
             }
         });
@@ -96,11 +101,13 @@ impl super::View for TableDemo {
         // Leave room for the source code link after the table demo:
         use egui_extras::{Size, StripBuilder};
         StripBuilder::new(ui)
-            .size(Size::remainder()) // for the table
+            .size(Size::remainder().at_least(100.0)) // for the table
             .size(Size::exact(10.0)) // for the source code link
             .vertical(|mut strip| {
                 strip.cell(|ui| {
-                    self.table_ui(ui);
+                    egui::ScrollArea::horizontal().show(ui, |ui| {
+                        self.table_ui(ui);
+                    });
                 });
                 strip.cell(|ui| {
                     ui.vertical_centered(|ui| {
@@ -113,37 +120,46 @@ impl super::View for TableDemo {
 
 impl TableDemo {
     fn table_ui(&mut self, ui: &mut egui::Ui) {
-        use egui_extras::{Size, TableBuilder};
+        use egui_extras::{Column, TableBuilder};
 
         let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
 
         let mut table = TableBuilder::new(ui)
-            .striped(true)
+            .striped(self.striped)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-            .column(Size::initial(60.0).at_least(40.0))
-            .column(Size::initial(60.0).at_least(40.0))
-            .column(Size::remainder().at_least(60.0))
-            .resizable(self.resizable);
+            .column(Column::auto())
+            .column(Column::initial(100.0).range(40.0..=300.0).resizable(true))
+            .column(
+                Column::initial(100.0)
+                    .at_least(40.0)
+                    .resizable(true)
+                    .clip(true),
+            )
+            .column(Column::remainder())
+            .min_scrolled_height(0.0);
 
-        if let Some(y_scroll) = self.vertical_scroll_offset.take() {
-            table = table.vertical_scroll_offset(y_scroll);
+        if let Some(row_nr) = self.scroll_to_row.take() {
+            table = table.scroll_to_row(row_nr, None);
         }
 
         table
             .header(20.0, |mut header| {
                 header.col(|ui| {
-                    ui.heading("Row");
+                    ui.strong("Row");
                 });
                 header.col(|ui| {
-                    ui.heading("Clock");
+                    ui.strong("Expanding content");
                 });
                 header.col(|ui| {
-                    ui.heading("Content");
+                    ui.strong("Clipped text");
+                });
+                header.col(|ui| {
+                    ui.strong("Content");
                 });
             })
             .body(|mut body| match self.demo {
                 DemoType::Manual => {
-                    for row_index in 0..20 {
+                    for row_index in 0..NUM_MANUAL_ROWS {
                         let is_thick = thick_row(row_index);
                         let row_height = if is_thick { 30.0 } else { 18.0 };
                         body.row(row_height, |mut row| {
@@ -151,7 +167,10 @@ impl TableDemo {
                                 ui.label(row_index.to_string());
                             });
                             row.col(|ui| {
-                                ui.label(clock_emoji(row_index));
+                                expanding_content(ui);
+                            });
+                            row.col(|ui| {
+                                ui.label(long_text(row_index));
                             });
                             row.col(|ui| {
                                 ui.style_mut().wrap = Some(false);
@@ -170,7 +189,10 @@ impl TableDemo {
                             ui.label(row_index.to_string());
                         });
                         row.col(|ui| {
-                            ui.label(clock_emoji(row_index));
+                            expanding_content(ui);
+                        });
+                        row.col(|ui| {
+                            ui.label(long_text(row_index));
                         });
                         row.col(|ui| {
                             ui.add(
@@ -191,24 +213,21 @@ impl TableDemo {
                         (0..self.num_rows).into_iter().map(row_thickness),
                         |row_index, mut row| {
                             row.col(|ui| {
-                                ui.centered_and_justified(|ui| {
-                                    ui.label(row_index.to_string());
-                                });
+                                ui.label(row_index.to_string());
                             });
                             row.col(|ui| {
-                                ui.centered_and_justified(|ui| {
-                                    ui.label(clock_emoji(row_index));
-                                });
+                                expanding_content(ui);
                             });
                             row.col(|ui| {
-                                ui.centered_and_justified(|ui| {
-                                    ui.style_mut().wrap = Some(false);
-                                    if thick_row(row_index) {
-                                        ui.heading("Extra thick row");
-                                    } else {
-                                        ui.label("Normal row");
-                                    }
-                                });
+                                ui.label(long_text(row_index));
+                            });
+                            row.col(|ui| {
+                                ui.style_mut().wrap = Some(false);
+                                if thick_row(row_index) {
+                                    ui.heading("Extra thick row");
+                                } else {
+                                    ui.label("Normal row");
+                                }
                             });
                         },
                     );
@@ -217,10 +236,19 @@ impl TableDemo {
     }
 }
 
-fn clock_emoji(row_index: usize) -> String {
-    char::from_u32(0x1f550 + row_index as u32 % 24)
-        .unwrap()
-        .to_string()
+fn expanding_content(ui: &mut egui::Ui) {
+    let width = ui.available_width().clamp(20.0, 200.0);
+    let height = ui.available_height();
+    let (rect, _response) = ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::hover());
+    ui.painter().hline(
+        rect.x_range(),
+        rect.center().y,
+        (1.0, ui.visuals().text_color()),
+    );
+}
+
+fn long_text(row_index: usize) -> String {
+    format!("Row {row_index} has some long text that you may want to clip, or it will take up too much horizontal space!")
 }
 
 fn thick_row(row_index: usize) -> bool {

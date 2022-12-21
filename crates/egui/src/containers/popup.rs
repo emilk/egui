@@ -22,7 +22,7 @@ impl TooltipState {
 
     fn individual_tooltip_size(&self, common_id: Id, index: usize) -> Option<Vec2> {
         if self.last_common_id == Some(common_id) {
-            Some(self.individual_ids_and_sizes.get(&index).cloned()?.1)
+            Some(self.individual_ids_and_sizes.get(&index)?.1)
         } else {
             None
         }

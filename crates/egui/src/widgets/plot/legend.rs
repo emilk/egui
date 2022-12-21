@@ -5,7 +5,7 @@ use crate::*;
 use super::items::PlotItem;
 
 /// Where to place the plot legend.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Corner {
     LeftTop,
     RightTop,
@@ -239,7 +239,7 @@ impl Widget for &mut LegendWidget {
                 let background_frame = Frame {
                     inner_margin: vec2(8.0, 4.0).into(),
                     rounding: ui.style().visuals.window_rounding,
-                    shadow: epaint::Shadow::default(),
+                    shadow: epaint::Shadow::NONE,
                     fill: ui.style().visuals.extreme_bg_color,
                     stroke: ui.style().visuals.window_stroke(),
                     ..Default::default()

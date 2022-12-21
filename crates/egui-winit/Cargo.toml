@@ -1,6 +1,6 @@
 [package]
 name = "egui-winit"
-version = "0.19.0"
+version = "0.20.1"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui with winit"
 edition = "2021"
@@ -14,11 +14,15 @@ keywords = ["winit", "egui", "gui", "gamedev"]
 include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [package.metadata.docs.rs]
-all-features = true
+# Avoid speech-dispatcher dependencies - see https://docs.rs/crate/egui-winit/0.20.0/builds/695196
+features = ["document-features"]
 
 
 [features]
 default = ["clipboard", "links", "wayland", "winit/default"]
+
+## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
+accesskit = ["accesskit_winit", "egui/accesskit"]
 
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`egui::epaint::Vertex`], [`egui::Vec2`] etc to `&[u8]`.
 bytemuck = ["egui/bytemuck"]
@@ -43,7 +47,7 @@ serde = ["egui/serde", "dep:serde"]
 wayland = ["winit/wayland"]
 
 [dependencies]
-egui = { version = "0.19.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.20.0", path = "../egui", default-features = false, features = [
   "tracing",
 ] }
 instant = { version = "0.1", features = [
@@ -56,6 +60,9 @@ winit = { version = "0.27.2", default-features = false }
 
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
+
+# feature accesskit
+accesskit_winit = { version = "0.7.1", optional = true }
 
 puffin = { version = "0.14", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }

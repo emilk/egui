@@ -1,4 +1,5 @@
 **/target
+**/target_ra
 /.*.json
 /.vscode
 /media/*

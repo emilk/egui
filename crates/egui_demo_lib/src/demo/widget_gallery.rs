@@ -20,7 +20,7 @@ pub struct WidgetGallery {
 
     #[cfg(feature = "chrono")]
     #[cfg_attr(feature = "serde", serde(skip))]
-    date: Option<chrono::Date<chrono::Utc>>,
+    date: Option<chrono::NaiveDate>,
 
     #[cfg_attr(feature = "serde", serde(skip))]
     texture: Option<egui::TextureHandle>,
@@ -218,7 +218,7 @@ impl WidgetGallery {
 
         #[cfg(feature = "chrono")]
         {
-            let date = date.get_or_insert_with(|| chrono::offset::Utc::now().date());
+            let date = date.get_or_insert_with(|| chrono::offset::Utc::now().date_naive());
             ui.add(doc_link_label("DatePickerButton", "DatePickerButton"));
             ui.add(egui_extras::DatePickerButton::new(date));
             ui.end_row();

@@ -49,7 +49,7 @@ impl FractalClock {
         ui.expand_to_include_rect(painter.clip_rect());
 
         Frame::popup(ui.style())
-            .stroke(Stroke::none())
+            .stroke(Stroke::NONE)
             .show(ui, |ui| {
                 ui.set_max_width(270.0);
                 CollapsingHeader::new("Settings")

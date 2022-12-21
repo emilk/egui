@@ -6,7 +6,7 @@ use std::sync::Arc;
 use epaint::mutex::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::{
-    color::*, containers::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
+    containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
     widgets::*, *,
 };
 
@@ -239,7 +239,7 @@ impl Ui {
         self.enabled &= enabled;
         if !self.enabled && self.is_visible() {
             self.painter
-                .set_fade_to_color(Some(self.visuals().window_fill()));
+                .set_fade_to_color(Some(self.visuals().fade_out_to_color()));
         }
     }
 
@@ -2007,12 +2007,14 @@ impl Ui {
         InnerResponse::new(inner, self.interact(rect, child_ui.id, Sense::hover()))
     }
 
-    /// This will make the next added widget centered in the available space.
+    #[deprecated = "Use ui.vertical_centered or ui.centered_and_justified"]
     pub fn centered<R>(&mut self, add_contents: impl FnOnce(&mut Self) -> R) -> InnerResponse<R> {
-        self.with_layout_dyn(Layout::centered(Direction::TopDown), Box::new(add_contents))
+        self.vertical_centered(add_contents)
     }
 
     /// This will make the next added widget centered and justified in the available space.
+    ///
+    /// Only one widget may be added to the inner `Ui`!
     pub fn centered_and_justified<R>(
         &mut self,
         add_contents: impl FnOnce(&mut Self) -> R,

@@ -66,6 +66,10 @@ pub struct ScrollAreaOutput<R> {
     /// The current state of the scroll area.
     pub state: State,
 
+    /// The size of the content. If this is larger than [`Self::inner_rect`],
+    /// then there was need for scrolling.
+    pub content_size: Vec2,
+
     /// Where on the screen the content is (excludes scroll bars).
     pub inner_rect: Rect,
 }
@@ -93,8 +97,10 @@ pub struct ScrollArea {
     id_source: Option<Id>,
     offset_x: Option<f32>,
     offset_y: Option<f32>,
+
     /// If false, we ignore scroll events.
     scrolling_enabled: bool,
+    drag_to_scroll: bool,
 
     /// If true for vertical or horizontal the scroll wheel will stick to the
     /// end position until user manually changes position. It will become true
@@ -137,6 +143,7 @@ impl ScrollArea {
             offset_x: None,
             offset_y: None,
             scrolling_enabled: true,
+            drag_to_scroll: true,
             stick_to_end: [false; 2],
         }
     }
@@ -198,6 +205,8 @@ impl ScrollArea {
 
     /// Set the horizontal and vertical scroll offset position.
     ///
+    /// Positive offset means scrolling down/right.
+    ///
     /// See also: [`Self::vertical_scroll_offset`], [`Self::horizontal_scroll_offset`],
     /// [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
@@ -209,6 +218,8 @@ impl ScrollArea {
 
     /// Set the vertical scroll offset position.
     ///
+    /// Positive offset means scrolling down.
+    ///
     /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
     pub fn vertical_scroll_offset(mut self, offset: f32) -> Self {
@@ -217,6 +228,8 @@ impl ScrollArea {
     }
 
     /// Set the horizontal scroll offset position.
+    ///
+    /// Positive offset means scrolling right.
     ///
     /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
@@ -243,12 +256,13 @@ impl ScrollArea {
         self
     }
 
-    /// Control the scrolling behavior
-    /// If `true` (default), the scroll area will respond to user scrolling
-    /// If `false`, the scroll area will not respond to user scrolling
+    /// Control the scrolling behavior.
+    ///
+    /// * If `true` (default), the scroll area will respond to user scrolling.
+    /// * If `false`, the scroll area will not respond to user scrolling.
     ///
     /// This can be used, for example, to optionally freeze scrolling while the user
-    /// is inputing text in a [`TextEdit`] widget contained within the scroll area.
+    /// is typing text in a [`TextEdit`] widget contained within the scroll area.
     ///
     /// This controls both scrolling directions.
     pub fn enable_scrolling(mut self, enable: bool) -> Self {
@@ -256,10 +270,22 @@ impl ScrollArea {
         self
     }
 
+    /// Can the user drag the scroll area to scroll?
+    ///
+    /// This is useful for touch screens.
+    ///
+    /// If `true`, the [`ScrollArea`] will sense drags.
+    ///
+    /// Default: `true`.
+    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
+        self.drag_to_scroll = drag_to_scroll;
+        self
+    }
+
     /// For each axis, should the containing area shrink if the content is small?
     ///
-    /// If true, egui will add blank space outside the scroll area.
-    /// If false, egui will add blank space inside the scroll area.
+    /// * If `true`, egui will add blank space outside the scroll area.
+    /// * If `false`, egui will add blank space inside the scroll area.
     ///
     /// Default: `[true; 2]`.
     pub fn auto_shrink(mut self, auto_shrink: [bool; 2]) -> Self {
@@ -325,6 +351,7 @@ impl ScrollArea {
             offset_x,
             offset_y,
             scrolling_enabled,
+            drag_to_scroll,
             stick_to_end,
         } = self;
 
@@ -411,7 +438,9 @@ impl ScrollArea {
 
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
 
-        if scrolling_enabled && (state.content_is_too_large[0] || state.content_is_too_large[1]) {
+        if (scrolling_enabled && drag_to_scroll)
+            && (state.content_is_too_large[0] || state.content_is_too_large[1])
+        {
             // Drag contents to scroll (for touch screens mostly).
             // We must do this BEFORE adding content to the `ScrollArea`,
             // or we will steal input from the widgets we contain.
@@ -541,18 +570,20 @@ impl ScrollArea {
         let id = prepared.id;
         let inner_rect = prepared.inner_rect;
         let inner = add_contents(&mut prepared.content_ui, prepared.viewport);
-        let state = prepared.end(ui);
+        let (content_size, state) = prepared.end(ui);
         ScrollAreaOutput {
             inner,
             id,
             state,
+            content_size,
             inner_rect,
         }
     }
 }
 
 impl Prepared {
-    fn end(self, ui: &mut Ui) -> State {
+    /// Returns content size and state
+    fn end(self, ui: &mut Ui) -> (Vec2, State) {
         let Prepared {
             id,
             mut state,
@@ -623,23 +654,7 @@ impl Prepared {
                 };
             }
 
-            let mut inner_rect = Rect::from_min_size(inner_rect.min, inner_size);
-
-            // The window that egui sits in can't be expanded by egui, so we need to respect it:
-            for d in 0..2 {
-                if !has_bar[d] {
-                    // HACK for when we have a vertical-only scroll area in a top level panel,
-                    // and that panel is not wide enough for the contents.
-                    // This code ensures we still see the scroll bar!
-                    let max = ui.input().screen_rect().max[d]
-                        - current_bar_use[d]
-                        - ui.spacing().item_spacing[d];
-                    inner_rect.max[d] = inner_rect.max[d].at_most(max);
-                    // TODO(emilk): maybe auto-enable horizontal/vertical scrolling if this limit is reached
-                }
-            }
-
-            inner_rect
+            Rect::from_min_size(inner_rect.min, inner_size)
         };
 
         let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
@@ -691,12 +706,28 @@ impl Prepared {
                 continue;
             }
 
-            // margin between contents and scroll bar
-            let margin = animation_t * ui.spacing().item_spacing.x;
-            let min_cross = inner_rect.max[1 - d] + margin; // left of vertical scroll (d == 1)
-            let max_cross = outer_rect.max[1 - d]; // right of vertical scroll (d == 1)
+            // margin on either side of the scroll bar
+            let inner_margin = animation_t * ui.spacing().scroll_bar_inner_margin;
+            let outer_margin = animation_t * ui.spacing().scroll_bar_outer_margin;
+            let mut min_cross = inner_rect.max[1 - d] + inner_margin; // left of vertical scroll (d == 1)
+            let mut max_cross = outer_rect.max[1 - d] - outer_margin; // right of vertical scroll (d == 1)
             let min_main = inner_rect.min[d]; // top of vertical scroll (d == 1)
             let max_main = inner_rect.max[d]; // bottom of vertical scroll (d == 1)
+
+            if ui.clip_rect().max[1 - d] < max_cross + outer_margin {
+                // Move the scrollbar so it is visible. This is needed in some cases.
+                // For instance:
+                // * When we have a vertical-only scroll area in a top level panel,
+                //   and that panel is not wide enough for the contents.
+                // * When one ScrollArea is nested inside another, and the outer
+                //   is scrolled so that the scroll-bars of the inner ScrollArea (us)
+                //   is outside the clip rectangle.
+                // Really this should use the tighter clip_rect that ignores clip_rect_margin, but we don't store that.
+                // clip_rect_margin is quite a hack. It would be nice to get rid of it.
+                let width = max_cross - min_cross;
+                max_cross = ui.clip_rect().max[1 - d] - outer_margin;
+                min_cross = max_cross - width;
+            }
 
             let outer_scroll_rect = if d == 0 {
                 Rect::from_min_max(
@@ -847,11 +878,13 @@ impl Prepared {
 
         state.store(ui.ctx(), id);
 
-        state
+        (content_size, state)
     }
 }
 
 /// Width of a vertical scrollbar, or height of a horizontal scroll bar
 fn max_scroll_bar_width_with_margin(ui: &Ui) -> f32 {
-    ui.spacing().item_spacing.x + ui.spacing().scroll_bar_width
+    ui.spacing().scroll_bar_inner_margin
+        + ui.spacing().scroll_bar_width
+        + ui.spacing().scroll_bar_outer_margin
 }

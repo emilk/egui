@@ -176,7 +176,7 @@ impl eframe::App for WrapApp {
     }
 
     fn clear_color(&self, visuals: &egui::Visuals) -> egui::Rgba {
-        visuals.window_fill().into()
+        visuals.panel_fill.into()
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
@@ -188,6 +188,14 @@ impl eframe::App for WrapApp {
         if self.state.selected_anchor.is_empty() {
             let selected_anchor = self.apps_iter_mut().next().unwrap().0.to_owned();
             self.state.selected_anchor = selected_anchor;
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        if ctx
+            .input_mut()
+            .consume_key(egui::Modifiers::NONE, egui::Key::F11)
+        {
+            frame.set_fullscreen(!frame.info().window_info.fullscreen);
         }
 
         egui::TopBottomPanel::top("wrap_app_top_bar").show(ctx, |ui| {

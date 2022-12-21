@@ -48,7 +48,7 @@ impl Widget for Link {
             let underline = if response.hovered() || response.has_focus() {
                 Stroke::new(visuals.fg_stroke.width, color)
             } else {
-                Stroke::none()
+                Stroke::NONE
             };
 
             ui.painter().add(epaint::TextShape {

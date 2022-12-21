@@ -648,7 +648,7 @@ impl TextShape {
         Self {
             pos,
             galley,
-            underline: Stroke::none(),
+            underline: Stroke::NONE,
             override_text_color: None,
             angle: 0.0,
         }

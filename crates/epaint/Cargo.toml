@@ -1,6 +1,6 @@
 [package]
 name = "epaint"
-version = "0.19.0"
+version = "0.20.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Minimal 2D graphics library for GUI work"
 edition = "2021"
@@ -32,7 +32,13 @@ all-features = true
 default = ["default_fonts"]
 
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`Vertex`] to `&[u8]`.
-bytemuck = ["dep:bytemuck", "emath/bytemuck"]
+bytemuck = ["dep:bytemuck", "emath/bytemuck", "ecolor/bytemuck"]
+
+## [`cint`](https://docs.rs/cint) enables interopability with other color libraries.
+cint = ["ecolor/cint"]
+
+## Enable the [`hex_color`] macro.
+color-hex = ["ecolor/color-hex"]
 
 ## This will automatically detect deadlocks due to double-locking on the same thread.
 ## If your app freezes, you may want to enable this!
@@ -44,18 +50,22 @@ deadlock_detection = ["dep:backtrace"]
 default_fonts = []
 
 ## Enable additional checks if debug assertions are enabled (debug builds).
-extra_debug_asserts = ["emath/extra_debug_asserts"]
+extra_debug_asserts = [
+  "emath/extra_debug_asserts",
+  "ecolor/extra_debug_asserts",
+]
 ## Always enable additional checks.
-extra_asserts = ["emath/extra_asserts"]
+extra_asserts = ["emath/extra_asserts", "ecolor/extra_asserts"]
 
 ## [`mint`](https://docs.rs/mint) enables interopability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
 mint = ["emath/mint"]
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
-serde = ["dep:serde", "ahash/serde", "emath/serde"]
+serde = ["dep:serde", "ahash/serde", "emath/serde", "ecolor/serde"]
 
 [dependencies]
-emath = { version = "0.19.0", path = "../emath" }
+emath = { version = "0.20.0", path = "../emath" }
+ecolor = { version = "0.20.0", path = "../ecolor" }
 
 ab_glyph = "0.2.11"
 ahash = { version = "0.8.1", default-features = false, features = [
@@ -66,12 +76,6 @@ nohash-hasher = "0.2"
 
 #! ### Optional dependencies
 bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
-
-## [`cint`](https://docs.rs/cint) enables interopability with other color libraries.
-cint = { version = "0.3.1", optional = true }
-
-## Enable the [`hex_color`] macro.
-color-hex = { version = "0.2.0", optional = true }
 
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }

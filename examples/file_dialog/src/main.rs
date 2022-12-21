@@ -2,16 +2,17 @@
 
 use eframe::egui;
 
-fn main() {
+fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         drag_and_drop_support: true,
+        initial_window_size: Some(egui::vec2(320.0, 240.0)),
         ..Default::default()
     };
     eframe::run_native(
         "Native file dialogs and drag-and-drop files",
         options,
         Box::new(|_cc| Box::new(MyApp::default())),
-    );
+    )
 }
 
 #[derive(Default)]

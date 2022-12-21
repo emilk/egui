@@ -1,15 +1,14 @@
 use super::popup::DatePickerPopup;
-use chrono::{Date, Utc};
+use chrono::NaiveDate;
 use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget};
 
-#[derive(Default, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Default, Clone, serde::Deserialize, serde::Serialize)]
 pub(crate) struct DatePickerButtonState {
     pub picker_visible: bool,
 }
 
 pub struct DatePickerButton<'a> {
-    selection: &'a mut Date<Utc>,
+    selection: &'a mut NaiveDate,
     id_source: Option<&'a str>,
     combo_boxes: bool,
     arrows: bool,
@@ -18,7 +17,7 @@ pub struct DatePickerButton<'a> {
 }
 
 impl<'a> DatePickerButton<'a> {
-    pub fn new(selection: &'a mut Date<Utc>) -> Self {
+    pub fn new(selection: &'a mut NaiveDate) -> Self {
         Self {
             selection,
             id_source: None,

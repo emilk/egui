@@ -11,7 +11,7 @@
 
 👉 [Click to run the web demo](https://www.egui.rs/#demo) 👈
 
-egui is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations) (or will soon).
+egui (pronounced "e-gooey") is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations) (or will soon).
 
 egui aims to be the easiest-to-use Rust GUI library, and the simplest way to make a web app in Rust.
 
@@ -191,6 +191,7 @@ These are the official egui integrations:
 * [`nannou_egui`](https://github.com/nannou-org/nannou/tree/master/nannou_egui) for [nannou](https://nannou.cc).
 * [`notan_egui`](https://github.com/Nazariglez/notan/tree/main/crates/notan_egui) for [notan](https://github.com/Nazariglez/notan).
 * [`screen-13-egui`](https://github.com/attackgoat/screen-13/tree/master/contrib/screen-13-egui) for [Screen 13](https://github.com/attackgoat/screen-13).
+* [`egui_skia`](https://github.com/lucasmerlin/egui_skia) for [skia](https://github.com/rust-skia/rust-skia/tree/master/skia-safe).
 * [`smithay-egui`](https://github.com/Smithay/smithay-egui) for [smithay](https://github.com/Smithay/smithay/).
 
 Missing an integration for the thing you're working on? Create one, it's easy!
@@ -322,9 +323,9 @@ If you call `.await` in your GUI code, the UI will freeze, which is very bad UX.
 * [`tokio::sync::watch::channel`](https://docs.rs/tokio/latest/tokio/sync/watch/fn.channel.html)
 
 ### What about accessibility, such as screen readers?
-There is experimental support for a screen reader. In [the web demo](https://www.egui.rs/#demo) you can enable it in the "Backend" tab.
+egui includes optional support for [AccessKit](https://accesskit.dev/), which currently implements the native accessibility APIs on Windows and macOS. This feature is enabled by default in eframe. For platforms that AccessKit doesn't yet support, including web, there is an experimental built-in screen reader; in [the web demo](https://www.egui.rs/#demo) you can enable it in the "Backend" tab.
 
-Read more at <https://github.com/emilk/egui/issues/167>.
+The original discussion of accessibility in egui is at <https://github.com/emilk/egui/issues/167>. Now that AccessKit support is merged, providing a strong foundation for future accessibility work, please open new issues on specific accessibility problems.
 
 ### What is the difference between [egui](https://docs.rs/egui) and [eframe](https://github.com/emilk/egui/tree/master/crates/eframe)?
 
@@ -407,3 +408,12 @@ Default fonts:
 * `Hack-Regular.ttf`: <https://github.com/source-foundry/Hack>, [MIT Licence](https://github.com/source-foundry/Hack/blob/master/LICENSE.md)
 * `NotoEmoji-Regular.ttf`: [google.com/get/noto](https://google.com/get/noto), [SIL Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL)
 * `Ubuntu-Light.ttf` by [Dalton Maag](http://www.daltonmaag.com/): [Ubuntu font licence](https://ubuntu.com/legal/font-licence)
+
+---
+
+<div align="center">
+<img src="media/rerun_io_logo.png" width="50%">
+
+egui development is sponsored by [Rerun](https://www.rerun.io/), a startup doing<br>
+visualizations for computer vision and robotics.
+</div>

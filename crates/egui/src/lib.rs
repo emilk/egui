@@ -324,18 +324,23 @@ pub mod util;
 pub mod widget_text;
 pub mod widgets;
 
+#[cfg(feature = "accesskit")]
+pub use accesskit;
+
 pub use epaint;
+pub use epaint::ecolor;
 pub use epaint::emath;
 
-pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2};
 #[cfg(feature = "color-hex")]
-pub use epaint::hex_color;
+pub use ecolor::hex_color;
+pub use ecolor::{Color32, Rgba};
+pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2};
 pub use epaint::{
-    color, mutex,
+    mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
     textures::{TextureFilter, TextureOptions, TexturesDelta},
-    ClippedPrimitive, Color32, ColorImage, FontImage, ImageData, Mesh, PaintCallback,
-    PaintCallbackInfo, Rgba, Rounding, Shape, Stroke, TextureHandle, TextureId,
+    ClippedPrimitive, ColorImage, FontImage, ImageData, Mesh, PaintCallback, PaintCallbackInfo,
+    Rounding, Shape, Stroke, TextureHandle, TextureId,
 };
 
 pub mod text {
@@ -504,7 +509,7 @@ pub mod special_emojis {
 }
 
 /// The different types of built-in widgets in egui
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WidgetType {
     Label, // TODO(emilk): emit Label events
@@ -548,4 +553,31 @@ pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
             add_contents(ui);
         });
     });
+}
+
+#[cfg(feature = "accesskit")]
+pub fn accesskit_root_id() -> Id {
+    Id::new("accesskit_root")
+}
+
+/// Return a tree update that the egui integration should provide to the
+/// AccessKit adapter if it cannot immediately run the egui application
+/// to get a full tree update after running [`Context::enable_accesskit`].
+#[cfg(feature = "accesskit")]
+pub fn accesskit_placeholder_tree_update() -> accesskit::TreeUpdate {
+    use accesskit::{Node, Role, Tree, TreeUpdate};
+    use std::sync::Arc;
+
+    let root_id = accesskit_root_id().accesskit_id();
+    TreeUpdate {
+        nodes: vec![(
+            root_id,
+            Arc::new(Node {
+                role: Role::Window,
+                ..Default::default()
+            }),
+        )],
+        tree: Some(Tree::new(root_id)),
+        focus: None,
+    }
 }

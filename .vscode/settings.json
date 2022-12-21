@@ -1,5 +1,32 @@
 {
     "files.insertFinalNewline": true,
     "editor.formatOnSave": true,
-    "files.trimTrailingWhitespace": true
+    "files.trimTrailingWhitespace": true,
+    "editor.semanticTokenColorCustomizations": {
+        "rules": {
+            "*.unsafe:rust": "#eb5046"
+        }
+    },
+    "files.exclude": {
+        "target/**": true,
+        "target_ra/**": true,
+    },
+    // Tell Rust Analyzer to use its own target directory, so we don't need to wait for it to finish wen we want to `cargo run`
+    "rust-analyzer.checkOnSave.overrideCommand": [
+        "cargo",
+        "cranky",
+        "--target-dir=target_ra",
+        "--workspace",
+        "--message-format=json",
+        "--all-targets"
+    ],
+    "rust-analyzer.cargo.buildScripts.overrideCommand": [
+        "cargo",
+        "check",
+        "--quiet",
+        "--target-dir=target_ra",
+        "--workspace",
+        "--message-format=json",
+        "--all-targets"
+    ],
 }

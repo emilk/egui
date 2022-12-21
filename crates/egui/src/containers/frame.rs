@@ -42,18 +42,18 @@ impl Frame {
         }
     }
 
-    pub(crate) fn side_top_panel(style: &Style) -> Self {
+    pub fn side_top_panel(style: &Style) -> Self {
         Self {
             inner_margin: Margin::symmetric(8.0, 2.0),
-            fill: style.visuals.window_fill(),
+            fill: style.visuals.panel_fill,
             ..Default::default()
         }
     }
 
-    pub(crate) fn central_panel(style: &Style) -> Self {
+    pub fn central_panel(style: &Style) -> Self {
         Self {
             inner_margin: Margin::same(8.0),
-            fill: style.visuals.window_fill(),
+            fill: style.visuals.panel_fill,
             ..Default::default()
         }
     }
@@ -72,7 +72,7 @@ impl Frame {
     pub fn menu(style: &Style) -> Self {
         Self {
             inner_margin: style.spacing.menu_margin,
-            rounding: style.visuals.widgets.noninteractive.rounding,
+            rounding: style.visuals.menu_rounding,
             shadow: style.visuals.popup_shadow,
             fill: style.visuals.window_fill(),
             stroke: style.visuals.window_stroke(),
@@ -82,8 +82,8 @@ impl Frame {
 
     pub fn popup(style: &Style) -> Self {
         Self {
-            inner_margin: style.spacing.window_margin,
-            rounding: style.visuals.widgets.noninteractive.rounding,
+            inner_margin: style.spacing.menu_margin,
+            rounding: style.visuals.menu_rounding,
             shadow: style.visuals.popup_shadow,
             fill: style.visuals.window_fill(),
             stroke: style.visuals.window_stroke(),
