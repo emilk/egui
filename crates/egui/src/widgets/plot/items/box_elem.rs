@@ -269,9 +269,15 @@ impl RectElement for BoxElem {
 
     fn default_values_format(&self, transform: &ScreenTransform) -> String {
         let scale = transform.dvalue_dpos();
-        let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
+        let scale = match self.orientation {
+            Orientation::Horizontal => scale[0],
+            Orientation::Vertical => scale[1],
+        };
+        let y_decimals = ((-scale.abs().log10()).ceil().at_least(0.0) as usize)
+            .at_most(6)
+            .at_least(1);
         format!(
-            "\nMax = {max:.decimals$}\
+            "Max = {max:.decimals$}\
              \nQuartile 3 = {q3:.decimals$}\
              \nMedian = {med:.decimals$}\
              \nQuartile 1 = {q1:.decimals$}\

@@ -1648,6 +1648,7 @@ fn add_rulers_and_text(
         let mut text = elem.name().to_owned(); // could be empty
 
         if show_values {
+            text.push('\n');
             text.push_str(&elem.default_values_format(plot.transform));
         }
 
@@ -1694,8 +1695,8 @@ pub(super) fn rulers_at_value(
 
     let text = {
         let scale = plot.transform.dvalue_dpos();
-        let x_decimals = ((-scale[0].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
-        let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
+        let x_decimals = ((-scale[0].abs().log10()).ceil().at_least(0.0) as usize).clamp(1, 6);
+        let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).clamp(1, 6);
         if let Some(custom_label) = label_formatter {
             custom_label(name, &value)
         } else if plot.show_x && plot.show_y {
