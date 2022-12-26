@@ -564,17 +564,17 @@ impl Context {
                             }
                         }
                     }
-                    PointerEvent::Released(click) => {
+                    PointerEvent::Released { click, button } => {
                         response.drag_released = response.dragged;
                         response.dragged = false;
 
                         if hovered && response.is_pointer_button_down_on {
                             if let Some(click) = click {
                                 let clicked = hovered && response.is_pointer_button_down_on;
-                                response.clicked[click.button as usize] = clicked;
-                                response.double_clicked[click.button as usize] =
+                                response.clicked[*button as usize] = clicked;
+                                response.double_clicked[*button as usize] =
                                     clicked && click.is_double();
-                                response.triple_clicked[click.button as usize] =
+                                response.triple_clicked[*button as usize] =
                                     clicked && click.is_triple();
                             }
                         }
