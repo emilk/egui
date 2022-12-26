@@ -777,11 +777,28 @@ impl PointerState {
         self.pointer_events.iter().any(|event| event.is_release())
     }
 
+    /// Was the button given pressed this frame?
+    pub fn button_pressed(&self, button: PointerButton) -> bool {
+        self.pointer_events
+            .iter()
+            .any(|event| matches!(event, &PointerEvent::Pressed{button: b, ..} if button == b))
+    }
+
     /// Was the button given released this frame?
     pub fn button_released(&self, button: PointerButton) -> bool {
         self.pointer_events
             .iter()
             .any(|event| matches!(event, &PointerEvent::Released{button: b, ..} if button == b))
+    }
+
+    /// Was the primary button pressed this frame?
+    pub fn primary_pressed(&self) -> bool {
+        self.button_pressed(PointerButton::Primary)
+    }
+
+    /// Was the secondary button pressed this frame?
+    pub fn secondary_pressed(&self) -> bool {
+        self.button_pressed(PointerButton::Secondary)
     }
 
     /// Was the primary button released this frame?
@@ -846,18 +863,6 @@ impl PointerState {
     pub fn secondary_clicked(&self) -> bool {
         self.button_clicked(PointerButton::Secondary)
     }
-
-    // /// Was this button pressed (`!down -> down`) this frame?
-    // /// This can sometimes return `true` even if `any_down() == false`
-    // /// because a press can be shorted than one frame.
-    // pub fn button_pressed(&self, button: PointerButton) -> bool {
-    //     self.pointer_events.iter().any(|event| event.is_press())
-    // }
-
-    // /// Was this button released (`down -> !down`) this frame?
-    // pub fn button_released(&self, button: PointerButton) -> bool {
-    //     self.pointer_events.iter().any(|event| event.is_release())
-    // }
 
     /// Is this button currently down?
     #[inline(always)]
