@@ -12,6 +12,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Add `Plot::clamp_grid` to only show grid where there is data ([#2480](https://github.com/emilk/egui/pull/2480)).
 * Add `ScrollArea::drag_to_scroll` if you want to turn off that feature.
 * Add `Response::on_hover_and_drag_cursor`.
+* Add `image_margin` field and method on `Button` widget to configure its layout ([#2510](https://github.com/emilk/egui/pull/2510)).
 
 ### Changed 🔧
 * Improved plot grid appearance ([#2412](https://github.com/emilk/egui/pull/2412)).
