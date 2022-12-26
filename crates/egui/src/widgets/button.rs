@@ -234,7 +234,6 @@ impl Widget for Button {
 
 // ----------------------------------------------------------------------------
 
-// TODO(emilk): allow checkbox without a text label
 /// Boolean on/off control with text label.
 ///
 /// Usually you'd use [`Ui::checkbox`] instead.
@@ -250,14 +249,21 @@ impl Widget for Button {
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Checkbox<'a> {
     checked: &'a mut bool,
-    text: WidgetText,
+    text: Option<WidgetText>,
 }
 
 impl<'a> Checkbox<'a> {
     pub fn new(checked: &'a mut bool, text: impl Into<WidgetText>) -> Self {
         Checkbox {
             checked,
-            text: text.into(),
+            text: Some(text.into()),
+        }
+    }
+
+    pub fn without_text(checked: &'a mut bool) -> Self {
+        Checkbox {
+            checked,
+            text: None,
         }
     }
 }
@@ -270,18 +276,19 @@ impl<'a> Widget for Checkbox<'a> {
         let icon_width = spacing.icon_width;
         let icon_spacing = spacing.icon_spacing;
 
-        let (text, mut desired_size) = if text.is_empty() {
-            (None, vec2(icon_width, 0.0))
-        } else {
-            let total_extra = vec2(icon_width + icon_spacing, 0.0);
+        let (text, mut desired_size) = match text {
+            Some(text) if !text.is_empty() => {
+                let total_extra = vec2(icon_width + icon_spacing, 0.0);
 
-            let wrap_width = ui.available_width() - total_extra.x;
-            let text = text.into_galley(ui, None, wrap_width, TextStyle::Button);
+                let wrap_width = ui.available_width() - total_extra.x;
+                let text = text.into_galley(ui, None, wrap_width, TextStyle::Button);
 
-            let mut desired_size = total_extra + text.size();
-            desired_size = desired_size.at_least(spacing.interact_size);
+                let mut desired_size = total_extra + text.size();
+                desired_size = desired_size.at_least(spacing.interact_size);
 
-            (Some(text), desired_size)
+                (Some(text), desired_size)
+            }
+            _ => (None, vec2(icon_width, 0.0)),
         };
 
         desired_size = desired_size.at_least(Vec2::splat(spacing.interact_size.y));
