@@ -459,6 +459,14 @@ impl Response {
         self
     }
 
+    /// When hovered or dragged, use this icon for the mouse cursor.
+    pub fn on_hover_and_drag_cursor(self, cursor: CursorIcon) -> Self {
+        if self.hovered() || self.dragged() {
+            self.ctx.output().cursor_icon = cursor;
+        }
+        self
+    }
+
     /// Check for more interactions (e.g. sense clicks on a [`Response`] returned from a label).
     ///
     /// Note that this call will not add any hover-effects to the widget, so when possible
