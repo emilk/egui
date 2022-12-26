@@ -245,6 +245,8 @@ impl Widget for Button {
 /// ui.checkbox(&mut my_bool, "Checked");
 /// ui.add(egui::Checkbox::new(&mut my_bool, "Checked"));
 /// # });
+/// // You can also create a checkbox without a text label
+/// ui.add(egui::Checkbox::without_text(&mut my_bool));
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Checkbox<'a> {
