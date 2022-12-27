@@ -180,6 +180,7 @@ pub fn handle_app_output(
         window_pos,
         visible: _, // handled in post_present
         always_on_top,
+        minimized,
     } = app_output;
 
     if let Some(decorated) = decorated {
@@ -217,6 +218,10 @@ pub fn handle_app_output(
 
     if let Some(always_on_top) = always_on_top {
         window.set_always_on_top(always_on_top);
+    }
+
+    if let Some(minimized) = minimized {
+        window.set_minimized(minimized);
     }
 }
 

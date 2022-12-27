@@ -789,6 +789,12 @@ impl Frame {
         }
     }
 
+    /// Minimize or un-minimize window
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn set_minimized(&mut self, minimized: bool) {
+        self.output.minimized = Some(minimized);
+    }
+
     /// for integrations only: call once per frame
     pub(crate) fn take_app_output(&mut self) -> backend::AppOutput {
         std::mem::take(&mut self.output)
@@ -1002,5 +1008,9 @@ pub(crate) mod backend {
         /// Set to some bool to tell the window always on top.
         #[cfg(not(target_arch = "wasm32"))]
         pub always_on_top: Option<bool>,
+
+        /// Set to some bool to change window minimization
+        #[cfg(not(target_arch = "wasm32"))]
+        pub minimized: Option<bool>,
     }
 }
