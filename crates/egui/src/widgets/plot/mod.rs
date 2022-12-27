@@ -1483,7 +1483,7 @@ impl PreparedPlot {
                 let line_strength = remap_clamp(
                     spacing_in_points,
                     MIN_LINE_SPACING_IN_POINTS as f32..=300.0,
-                    0.0..=1.0,
+                    0.2..=1.0,
                 );
 
                 let line_color = color_from_contrast(ui, line_strength);
@@ -1518,7 +1518,7 @@ impl PreparedPlot {
             const MIN_TEXT_SPACING: f32 = 40.0;
             if spacing_in_points > MIN_TEXT_SPACING {
                 let text_strength =
-                    remap_clamp(spacing_in_points, MIN_TEXT_SPACING..=150.0, 0.0..=1.0);
+                    remap_clamp(spacing_in_points, MIN_TEXT_SPACING..=150.0, 0.2..=1.0);
                 let color = color_from_contrast(ui, text_strength);
 
                 let text: String = if let Some(formatter) = axis_formatters[axis].as_deref() {
