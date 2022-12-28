@@ -165,7 +165,7 @@ impl Widget for Button {
         let mut desired_size = text.size();
         if let Some(image) = image {
             desired_size.x += image.size().x + ui.spacing().icon_spacing;
-            desired_size.y = desired_size.y.max(image.size().y)
+            desired_size.y = desired_size.y.max(image.size().y);
         }
         if let Some(shortcut_text) = &shortcut_text {
             desired_size.x += ui.spacing().item_spacing.x + shortcut_text.size().x;
@@ -221,10 +221,7 @@ impl Widget for Button {
 
             if let Some(image) = image {
                 let image_rect = Rect::from_min_size(
-                    pos2(
-                        rect.min.x + button_padding.x,
-                        rect.center().y - 0.5 - (image.size().y / 2.0),
-                    ),
+                    pos2(rect.min.x, rect.center().y - 0.5 - (image.size().y / 2.0)),
                     image.size(),
                 );
                 image.paint_at(ui, image_rect);
