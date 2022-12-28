@@ -222,9 +222,14 @@ impl<'a> Slider<'a> {
     /// This only has an effect when [`smart_aim`] is ON. `snap_radius` defines the range around
     /// the mouse where the slider will snap to the given values. To be useful, this should be
     /// somewhat large (and definitely larger than [`InputState::aim_radius`]). Default is 0.1.
-    pub fn smart_aim_values<Num: emath::Numeric>(mut self, smart_aim_values: Vec<Num>, snap_radius: f32) -> Self {
+    pub fn smart_aim_values<Num: emath::Numeric>(
+        mut self,
+        smart_aim_values: Vec<Num>,
+        snap_radius: f32,
+    ) -> Self {
         self.snap_radius = snap_radius.clamp(0.0, 1.0);
-        self.smart_aim_values = smart_aim_values.into_iter()
+        self.smart_aim_values = smart_aim_values
+            .into_iter()
             .map(|n| n.to_f64().clamp(*self.range.start(), *self.range.end()))
             .collect();
         self.smart_aim_values
@@ -576,7 +581,8 @@ impl<'a> Slider<'a> {
                     let norm_value = normalized_from_value(value, self.range.clone(), &self.spec);
                     let mut closest_distance = f64::INFINITY;
                     for snap in self.smart_aim_values.iter().copied() {
-                        let snap_norm_value = normalized_from_value(snap, self.range.clone(), &self.spec);
+                        let snap_norm_value =
+                            normalized_from_value(snap, self.range.clone(), &self.spec);
                         let distance = (norm_value - snap_norm_value).abs();
                         if distance < closest_distance {
                             closest_snap = snap;
@@ -675,13 +681,17 @@ impl<'a> Slider<'a> {
 
             if self.smart_aim {
                 for smart_aim_value in &self.smart_aim_values {
-                    let snap_position_1d = self.position_from_value(*smart_aim_value, position_range.clone());
+                    let snap_position_1d =
+                        self.position_from_value(*smart_aim_value, position_range.clone());
                     let center = self.marker_center(snap_position_1d, &rail_rect);
                     ui.painter().add(epaint::CircleShape {
                         center,
                         radius: 2.0,
                         fill: ui.visuals().widgets.noninteractive.bg_fill,
-                        stroke: Stroke { width: 0.0, color: Default::default() },
+                        stroke: Stroke {
+                            width: 0.0,
+                            color: Default::default(),
+                        },
                     });
                 }
             }
