@@ -587,6 +587,8 @@ impl<'a> Slider<'a> {
                         if distance < closest_distance {
                             closest_snap = snap;
                             closest_distance = distance;
+                        } else {
+                            break;
                         }
                     }
                     if closest_distance < self.snap_radius as f64 {
