@@ -11,6 +11,8 @@ pub struct Sliders {
     pub logarithmic: bool,
     pub clamp_to_range: bool,
     pub smart_aim: bool,
+    pub snap_aim: bool,
+    pub smart_aim_values: Vec<f64>,
     pub step: f64,
     pub use_steps: bool,
     pub integer: bool,
@@ -26,6 +28,8 @@ impl Default for Sliders {
             logarithmic: true,
             clamp_to_range: false,
             smart_aim: true,
+            snap_aim: false,
+            smart_aim_values: vec![],
             step: 10.0,
             use_steps: false,
             integer: false,
@@ -59,6 +63,8 @@ impl super::View for Sliders {
             logarithmic,
             clamp_to_range,
             smart_aim,
+            snap_aim,
+            smart_aim_values,
             step,
             use_steps,
             integer,
@@ -93,6 +99,7 @@ impl super::View for Sliders {
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
+                    .smart_aim_values(smart_aim_values.clone(), 0.1)
                     .orientation(orientation)
                     .text("i32 demo slider")
                     .step_by(istep),
@@ -104,6 +111,7 @@ impl super::View for Sliders {
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
+                    .smart_aim_values(smart_aim_values.clone(), 0.1)
                     .orientation(orientation)
                     .text("f64 demo slider")
                     .step_by(istep),
@@ -134,6 +142,15 @@ impl super::View for Sliders {
                 .smart_aim(*smart_aim)
                 .text("right"),
         );
+
+        if *snap_aim {
+            let range = *max - *min;
+
+            // Set the smart aim values to 1/3 and 2/3 of the range, for demo-ing
+            *smart_aim_values = vec![range / 3.0, range * 2.0 / 3.0];
+        } else {
+            *smart_aim_values = vec![];
+        }
 
         ui.separator();
 
@@ -172,6 +189,10 @@ impl super::View for Sliders {
 
         ui.checkbox(smart_aim, "Smart Aim");
         ui.label("Smart Aim will guide you towards round values when you drag the slider so you you are more likely to hit 250 than 247.23");
+        ui.add_space(8.0);
+
+        ui.checkbox(snap_aim, "Snap Aim");
+        ui.label("Snap Aim will snap the slider to user-defined values when close to them (Smart Aim must also be enabled).");
         ui.add_space(8.0);
 
         ui.vertical_centered(|ui| {

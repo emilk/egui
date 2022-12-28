@@ -20,7 +20,6 @@ fn main() -> Result<(), eframe::Error> {
 struct MyApp {
     name: String,
     age: u32,
-    float_value: f64,
 }
 
 impl Default for MyApp {
@@ -28,7 +27,6 @@ impl Default for MyApp {
         Self {
             name: "Arthur".to_owned(),
             age: 42,
-            float_value: 0.0,
         }
     }
 }
@@ -43,12 +41,6 @@ impl eframe::App for MyApp {
                     .labelled_by(name_label.id);
             });
             ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
-
-            ui.add(
-                egui::Slider::new::<f64>(&mut self.float_value, 0.0..=1.0)
-                    .text("snap")
-                    .smart_aim_values(vec![0.0, 0.3, 0.7, f64::NAN], 0.1),
-            );
             if ui.button("Click each year").clicked() {
                 self.age += 1;
             }

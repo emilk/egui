@@ -315,7 +315,7 @@ impl Response {
         self.is_pointer_button_down_on
     }
 
-    /// What the underlying data changed?
+    /// Was the underlying data changed?
     ///
     /// e.g. the slider was dragged, text was entered in a [`TextEdit`](crate::TextEdit) etc.
     /// Always `false` for something like a [`Button`](crate::Button).
