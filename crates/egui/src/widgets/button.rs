@@ -31,7 +31,6 @@ pub struct Button {
     frame: Option<bool>,
     min_size: Vec2,
     image: Option<widgets::Image>,
-    image_margin: Option<style::Margin>,
 }
 
 impl Button {
@@ -47,7 +46,6 @@ impl Button {
             frame: None,
             min_size: Vec2::ZERO,
             image: None,
-            image_margin: None,
         }
     }
 
@@ -128,14 +126,6 @@ impl Button {
         self.shortcut_text = shortcut_text.into();
         self
     }
-
-    /// Adds margin around image of image button
-    ///
-    /// Adding a image-margin to a button without an image is a noop
-    pub fn image_margin(mut self, margin: style::Margin) -> Self {
-        self.image_margin.replace(margin);
-        self
-    }
 }
 
 impl Widget for Button {
@@ -151,7 +141,6 @@ impl Widget for Button {
             frame,
             min_size,
             image,
-            image_margin,
         } = self;
 
         let frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
@@ -175,12 +164,8 @@ impl Widget for Button {
 
         let mut desired_size = text.size();
         if let Some(image) = image {
-            desired_size.x += image.size().x
-                + image_margin.map_or(0.0, |margin| margin.left + margin.right)
-                + ui.spacing().icon_spacing;
-            desired_size.y = desired_size.y.max(
-                image.size().y + image_margin.map_or(0.0, |margin| margin.top + margin.bottom),
-            );
+            desired_size.x += image.size().x + ui.spacing().icon_spacing;
+            desired_size.y = desired_size.y.max(image.size().y)
         }
         if let Some(shortcut_text) = &shortcut_text {
             desired_size.x += ui.spacing().item_spacing.x + shortcut_text.size().x;
@@ -212,11 +197,7 @@ impl Widget for Button {
             let text_pos = if let Some(image) = image {
                 let icon_spacing = ui.spacing().icon_spacing;
                 pos2(
-                    rect.min.x
-                        + button_padding.x
-                        + image.size().x
-                        + image_margin.map_or(0.0, |margin| margin.left + margin.right)
-                        + icon_spacing,
+                    rect.min.x + button_padding.x + image.size().x + icon_spacing,
                     rect.center().y - 0.5 * text.size().y,
                 )
             } else {
@@ -241,7 +222,7 @@ impl Widget for Button {
             if let Some(image) = image {
                 let image_rect = Rect::from_min_size(
                     pos2(
-                        rect.min.x + image_margin.map_or(0.0, |margin| margin.left),
+                        rect.min.x + button_padding.x,
                         rect.center().y - 0.5 - (image.size().y / 2.0),
                     ),
                     image.size(),
