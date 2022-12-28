@@ -1,5 +1,6 @@
 #![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
 
+use std::cmp::Ordering;
 use std::ops::RangeInclusive;
 
 use crate::*;
@@ -72,6 +73,8 @@ pub struct Slider<'a> {
     spec: SliderSpec,
     clamp_to_range: bool,
     smart_aim: bool,
+    smart_aim_values: Vec<f64>,
+    snap_radius: f32,
     show_value: bool,
     orientation: SliderOrientation,
     prefix: String,
@@ -118,6 +121,8 @@ impl<'a> Slider<'a> {
             },
             clamp_to_range: true,
             smart_aim: true,
+            smart_aim_values: vec![],
+            snap_radius: 0.1,
             show_value: true,
             orientation: SliderOrientation::Horizontal,
             prefix: Default::default(),
@@ -210,6 +215,25 @@ impl<'a> Slider<'a> {
     /// There is almost no point in turning this off.
     pub fn smart_aim(mut self, smart_aim: bool) -> Self {
         self.smart_aim = smart_aim;
+        self
+    }
+
+    /// Set specific points for the slider to snap to. These points are visualized with small dots.
+    /// This only has an effect when [`smart_aim`] is ON. `snap_radius` defines the range around
+    /// the mouse where the slider will snap to the given values. To be useful, this should be
+    /// somewhat large (and definitely larger than [`InputState::aim_radius`]). Default is 0.1.
+    pub fn smart_aim_values<Num: emath::Numeric>(mut self, smart_aim_values: Vec<Num>, snap_radius: f32) -> Self {
+        self.snap_radius = snap_radius.clamp(0.0, 1.0);
+        self.smart_aim_values = smart_aim_values.into_iter()
+            .map(|n| n.to_f64().clamp(*self.range.start(), *self.range.end()))
+            .collect();
+        self.smart_aim_values
+            .sort_by(|a, b| match a.partial_cmp(b) {
+                Some(ordering) => ordering,
+
+                // NaNs are handled silently
+                None => Ordering::Greater,
+            });
         self
     }
 
@@ -541,10 +565,30 @@ impl<'a> Slider<'a> {
             let position = self.pointer_position(pointer_position_2d);
             let new_value = if self.smart_aim {
                 let aim_radius = ui.input().aim_radius();
-                emath::smart_aim::best_in_range_f64(
+                let value = emath::smart_aim::best_in_range_f64(
                     self.value_from_position(position - aim_radius, position_range.clone()),
                     self.value_from_position(position + aim_radius, position_range.clone()),
-                )
+                );
+                if self.smart_aim_values.is_empty() {
+                    value
+                } else {
+                    let mut closest_snap = 0.0;
+                    let norm_value = normalized_from_value(value, self.range.clone(), &self.spec);
+                    let mut closest_distance = f64::INFINITY;
+                    for snap in self.smart_aim_values.iter().copied() {
+                        let snap_norm_value = normalized_from_value(snap, self.range.clone(), &self.spec);
+                        let distance = (norm_value - snap_norm_value).abs();
+                        if distance < closest_distance {
+                            closest_snap = snap;
+                            closest_distance = distance;
+                        }
+                    }
+                    if closest_distance < self.snap_radius as f64 {
+                        closest_snap
+                    } else {
+                        value
+                    }
+                }
             } else {
                 self.value_from_position(position, position_range.clone())
             };
@@ -617,8 +661,6 @@ impl<'a> Slider<'a> {
             let rail_radius = ui.painter().round_to_pixel(self.rail_radius_limit(rect));
             let rail_rect = self.rail_rect(rect, rail_radius);
 
-            let position_1d = self.position_from_value(value, position_range);
-
             let visuals = ui.style().interact(response);
             ui.painter().add(epaint::RectShape {
                 rect: rail_rect,
@@ -630,6 +672,21 @@ impl<'a> Slider<'a> {
                 // stroke: visuals.bg_stroke,
                 // stroke: ui.visuals().widgets.inactive.bg_stroke,
             });
+
+            if self.smart_aim {
+                for smart_aim_value in &self.smart_aim_values {
+                    let snap_position_1d = self.position_from_value(*smart_aim_value, position_range.clone());
+                    let center = self.marker_center(snap_position_1d, &rail_rect);
+                    ui.painter().add(epaint::CircleShape {
+                        center,
+                        radius: 2.0,
+                        fill: ui.visuals().widgets.noninteractive.bg_fill,
+                        stroke: Stroke { width: 0.0, color: Default::default() },
+                    });
+                }
+            }
+
+            let position_1d = self.position_from_value(value, position_range);
 
             let center = self.marker_center(position_1d, &rail_rect);
 
