@@ -221,7 +221,10 @@ impl Widget for Button {
 
             if let Some(image) = image {
                 let image_rect = Rect::from_min_size(
-                    pos2(rect.min.x, rect.center().y - 0.5 - (image.size().y / 2.0)),
+                    pos2(
+                        rect.min.x + button_padding.x,
+                        rect.center().y - 0.5 - (image.size().y / 2.0),
+                    ),
                     image.size(),
                 );
                 image.paint_at(ui, image_rect);
