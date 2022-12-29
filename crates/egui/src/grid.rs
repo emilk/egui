@@ -217,6 +217,20 @@ impl GridLayout {
         self.col += 1;
     }
 
+    pub(crate) fn paint_row(&mut self, cursor: &mut Rect, painter: &Painter) {
+        // handle row color painting based on color-picker function
+        let Some(color_picker) = self.color_picker.as_ref() else { return };
+        let Some(row_color)    = color_picker(self.row, &self.style) else { return };
+        let Some(height)       = self.prev_state.row_height(self.row) else {return };
+        // Paint background for coming row:
+        let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
+        let rect = Rect::from_min_size(cursor.min, size);
+        let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
+        let rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
+
+        painter.rect_filled(rect, 2.0, row_color);
+    }
+
     pub(crate) fn end_row(&mut self, cursor: &mut Rect, painter: &Painter) {
         cursor.min.x = self.initial_available.min.x;
         cursor.min.y += self.spacing.y;
@@ -228,19 +242,7 @@ impl GridLayout {
         self.col = 0;
         self.row += 1;
 
-        // handle row color painting based on color-picker function
-        let Some(color_picker) = self.color_picker.as_ref() else { return };
-        if let Some(row_color) = color_picker(self.row, &self.style) {
-            if let Some(height) = self.prev_state.row_height(self.row) {
-                // Paint background for coming row:
-                let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
-                let rect = Rect::from_min_size(cursor.min, size);
-                let rect = rect.expand2(0.5 * self.spacing.y * Vec2::Y);
-                let rect = rect.expand2(2.0 * Vec2::X); // HACK: just looks better with some spacing on the sides
-
-                painter.rect_filled(rect, 2.0, row_color);
-            }
-        }
+        self.paint_row(cursor, painter);
     }
 
     pub(crate) fn save(&self) {
@@ -404,7 +406,8 @@ impl Grid {
         ui.allocate_ui_at_rect(max_rect, |ui| {
             ui.set_visible(prev_state.is_some()); // Avoid visible first-frame jitter
             ui.horizontal(|ui| {
-                let grid = GridLayout {
+                let is_color = color_picker.is_some();
+                let mut grid = GridLayout {
                     num_columns,
                     color_picker,
                     min_cell_size: vec2(min_col_width, min_row_height),
@@ -413,6 +416,13 @@ impl Grid {
                     row: start_row,
                     ..GridLayout::new(ui, id, prev_state)
                 };
+
+                // paint first incoming row
+                if is_color {
+                    let mut cursor = ui.cursor();
+                    let painter = ui.painter();
+                    grid.paint_row(&mut cursor, &painter);
+                }
 
                 ui.set_grid(grid);
                 let r = add_contents(ui);
