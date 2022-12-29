@@ -516,9 +516,10 @@ mod glow_integration {
                 tracing::debug!("context is current, so making it non-current");
                 self.not_current_gl_context = Some(current.make_not_current()?);
             } else {
-                tracing::debug!("context is already not current??? could be duplicate suspend event");
+                tracing::debug!(
+                    "context is already not current??? could be duplicate suspend event"
+                );
             }
-
 
             Ok(())
         }
@@ -529,18 +530,27 @@ mod glow_integration {
         fn resize(&self, physical_size: winit::dpi::PhysicalSize<u32>) {
             let width = std::num::NonZeroU32::new(physical_size.width.at_least(1)).unwrap();
             let height = std::num::NonZeroU32::new(physical_size.height.at_least(1)).unwrap();
-            self.gl_surface.as_ref().expect("failed to get surface to resize").resize(
-                self.current_gl_context.as_ref().expect("failed to get current context to resize surface"),
-                width,
-                height,
-            );
+            self.gl_surface
+                .as_ref()
+                .expect("failed to get surface to resize")
+                .resize(
+                    self.current_gl_context
+                        .as_ref()
+                        .expect("failed to get current context to resize surface"),
+                    width,
+                    height,
+                );
         }
 
         fn swap_buffers(&self) -> glutin::error::Result<()> {
             self.gl_surface
                 .as_ref()
                 .expect("failed to get surface to swap buffers")
-                .swap_buffers(self.current_gl_context.as_ref().expect("failed to get current context to swap buffers"))
+                .swap_buffers(
+                    self.current_gl_context
+                        .as_ref()
+                        .expect("failed to get current context to swap buffers"),
+                )
         }
 
         fn get_proc_address(&self, addr: &std::ffi::CStr) -> *const std::ffi::c_void {
