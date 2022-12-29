@@ -421,7 +421,7 @@ mod glow_integration {
             let config_template_builder = config_template_builder
                 .with_stencil_size(native_options.stencil_buffer)
                 .with_transparency(native_options.transparent);
-
+            tracing::debug!("trying to get gl_config");
             let (window, gl_config) = glutin_winit::DisplayBuilder::new()
                 .with_preference(glutin_winit::ApiPrefence::PreferEgl)
                 .with_window_builder(Some(winit_window_builder.clone()))
@@ -436,8 +436,10 @@ mod glow_integration {
                 )
                 .map_err(|e| crate::Error::NoGlutinConfigs(config_template_builder.build(), e))?;
 
-            let raw_window_handle = window.as_ref().map(|w| w.raw_window_handle());
+            tracing::debug!("found gl_config: {:?}", &gl_config);
 
+            let raw_window_handle = window.as_ref().map(|w| w.raw_window_handle());
+            tracing::debug!("raw window handle: {:?}", raw_window_handle);
             let context_attributes =
                 glutin::context::ContextAttributesBuilder::new().build(raw_window_handle);
             let fallback_context_attributes = glutin::context::ContextAttributesBuilder::new()
@@ -448,6 +450,9 @@ mod glow_integration {
                     .display()
                     .create_context(&gl_config, &context_attributes)
                     .unwrap_or_else(|_| {
+                        tracing::debug!("failed to create gl_context with attributes: {:?}. retrying with fallback context attributes: {:?}",
+                            &context_attributes,
+                            &fallback_context_attributes);
                         gl_config
                             .display()
                             .create_context(&gl_config, &fallback_context_attributes)
@@ -467,7 +472,9 @@ mod glow_integration {
         /// This is where we create window + surface + make context current.
         #[allow(unsafe_code)]
         fn on_resume(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
+            tracing::debug!("received resume event.");
             let window = self.window.take().unwrap_or_else(|| {
+                tracing::debug!("window doesn't exist yet. creating one now with finalize_window");
                 glutin_winit::finalize_window(event_loop, self.builder.clone(), &self.gl_config)
                     .expect("failed to finalize glutin window")
             });
@@ -477,18 +484,22 @@ mod glow_integration {
             let surface_attributes =
                 glutin::surface::SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new()
                     .build(window.raw_window_handle(), width, height);
-
+            tracing::debug!(
+                "creating surface with attributes: {:?}",
+                &surface_attributes
+            );
             let gl_surface = unsafe {
                 self.gl_config
                     .display()
                     .create_window_surface(&self.gl_config, &surface_attributes)?
             };
-
+            tracing::debug!("making context current");
             let gl_context = self
                 .not_current_gl_context
                 .take()
-                .unwrap()
+                .expect("failed to get not current context after resume event")
                 .make_current(&gl_surface)?;
+            tracing::debug!("setting swap interval for surface");
             gl_surface.set_swap_interval(&gl_context, self.swap_interval)?;
             self.gl_surface = Some(gl_surface);
             self.current_gl_context = Some(gl_context);
@@ -498,22 +509,28 @@ mod glow_integration {
 
         /// only applies for android. but we basically drop surface + window and make context not current
         fn on_suspend(&mut self) -> Result<()> {
+            tracing::debug!("received suspend event. dropping window and surface");
             self.gl_surface.take();
-            if let Some(current) = self.current_gl_context.take() {
-                self.not_current_gl_context = Some(current.make_not_current()?);
-            }
             self.window.take();
+            if let Some(current) = self.current_gl_context.take() {
+                tracing::debug!("context is current, so making it non-current");
+                self.not_current_gl_context = Some(current.make_not_current()?);
+            } else {
+                tracing::debug!("context is already not current??? could be duplicate suspend event");
+            }
+
+
             Ok(())
         }
         fn window(&self) -> &winit::window::Window {
-            self.window.as_ref().unwrap()
+            self.window.as_ref().expect("winit window doesn't exist")
         }
 
         fn resize(&self, physical_size: winit::dpi::PhysicalSize<u32>) {
             let width = std::num::NonZeroU32::new(physical_size.width.at_least(1)).unwrap();
             let height = std::num::NonZeroU32::new(physical_size.height.at_least(1)).unwrap();
-            self.gl_surface.as_ref().unwrap().resize(
-                self.current_gl_context.as_ref().unwrap(),
+            self.gl_surface.as_ref().expect("failed to get surface to resize").resize(
+                self.current_gl_context.as_ref().expect("failed to get current context to resize surface"),
                 width,
                 height,
             );
@@ -522,8 +539,8 @@ mod glow_integration {
         fn swap_buffers(&self) -> glutin::error::Result<()> {
             self.gl_surface
                 .as_ref()
-                .unwrap()
-                .swap_buffers(self.current_gl_context.as_ref().unwrap())
+                .expect("failed to get surface to swap buffers")
+                .swap_buffers(self.current_gl_context.as_ref().expect("failed to get current context to swap buffers"))
         }
 
         fn get_proc_address(&self, addr: &std::ffi::CStr) -> *const std::ffi::c_void {
