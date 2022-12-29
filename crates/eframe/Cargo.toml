@@ -38,7 +38,7 @@ dark-light = ["dep:dark-light"]
 default_fonts = ["egui/default_fonts"]
 
 ## Use [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/master/crates/egui_glow).
-glow = ["dep:glow", "dep:egui_glow", "dep:glutin"]
+glow = ["dep:glow", "dep:egui_glow", "dep:glutin", "dep:glutin-winit"]
 
 ## Enable saving app state to disk.
 persistence = [
@@ -104,14 +104,8 @@ pollster = { version = "0.2", optional = true } # needed for wgpu
 
 # we can expose these to user so that they can select which backends they want to enable to avoid compiling useless deps.
 # this can be done at the same time we expose x11/wayland features of winit crate.
-glutin = { version = "0.30.0", optional = true, es = [
-  "egl",
-  "glx",
-  "x11",
-  "wayland",
-  "wgl",
-] }
-
+glutin = { version = "0.30", optional = true }
+glutin-winit = { version = "0.2.1", optional = true }
 image = { version = "0.24", optional = true, default-features = false, features = [
   "png",
 ] }
