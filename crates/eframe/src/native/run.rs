@@ -423,7 +423,7 @@ mod glow_integration {
                 .with_transparency(native_options.transparent);
             tracing::debug!("trying to get gl_config");
             let (window, gl_config) = glutin_winit::DisplayBuilder::new()
-                .with_preference(glutin_winit::ApiPrefence::PreferEgl)
+                .with_preference(glutin_winit::ApiPrefence::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
                 .with_window_builder(Some(winit_window_builder.clone()))
                 .build(
                     event_loop,
