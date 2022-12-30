@@ -153,7 +153,7 @@ fn run_and_return(
                 Ok(event_result) => event_result,
                 Err(err) => {
                     returned_result = Err(err);
-                    tracing::debug!("Exiting because of an error");
+                    tracing::error!("Exiting because of an error");
                     EventResult::Exit
                 }
             },
@@ -493,16 +493,17 @@ mod glow_integration {
                     .display()
                     .create_window_surface(&self.gl_config, &surface_attributes)?
             };
-            tracing::debug!("making context current");
-            let gl_context = self
+            tracing::debug!("surface created successfully: {gl_surface:?}.making context current");
+            let not_current_gl_context = self
                 .not_current_gl_context
                 .take()
-                .expect("failed to get not current context after resume event")
-                .make_current(&gl_surface)?;
-            tracing::debug!("setting swap interval for surface");
-            gl_surface.set_swap_interval(&gl_context, self.swap_interval)?;
+                .expect("failed to get not current context after resume event. impossible!");
+            let current_gl_context = not_current_gl_context.make_current(&gl_surface)?;
+            tracing::debug!("made context current. setting swap interval for surface");
+            gl_surface.set_swap_interval(&current_gl_context, self.swap_interval)?;
+            tracing::debug!("made context current. setting swap interval for surface");
             self.gl_surface = Some(gl_surface);
-            self.current_gl_context = Some(gl_context);
+            self.current_gl_context = Some(current_gl_context);
             self.window = Some(window);
             Ok(())
         }
@@ -520,7 +521,6 @@ mod glow_integration {
                     "context is already not current??? could be duplicate suspend event"
                 );
             }
-
             Ok(())
         }
         fn window(&self) -> &winit::window::Window {
