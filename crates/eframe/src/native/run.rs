@@ -152,8 +152,8 @@ fn run_and_return(
             event => match winit_app.on_event(event_loop, event) {
                 Ok(event_result) => event_result,
                 Err(err) => {
+                    tracing::error!("Exiting because of error: {err:?} on event {event:?}");
                     returned_result = Err(err);
-                    tracing::error!("Exiting because of an error");
                     EventResult::Exit
                 }
             },
