@@ -95,7 +95,7 @@ fn custom_window_frame(
             if title_bar_response.is_pointer_button_down_on() {
                 frame.drag_window();
             }
-            
+
             // Add the close button:
             let close_response = ui.put(
                 Rect::from_min_size(rect.left_top(), Vec2::splat(height)),
