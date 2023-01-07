@@ -49,16 +49,13 @@ impl WindowSettings {
         // If the app last ran on two monitors and only one is now connected, then
         // the given position is invalid.
         // If this happens on Mac, the window is clamped into valid area.
-        // If this happens on Windows, the window is hidden and very difficult to find.
-        // So we don't restore window positions on Windows.
-        let try_restore_position = !cfg!(target_os = "windows");
-        if try_restore_position {
-            if let Some(pos) = self.position {
-                window = window.with_position(winit::dpi::PhysicalPosition {
-                    x: pos.x as f64,
-                    y: pos.y as f64,
-                });
-            }
+        // If this happens on Windows, the clamping behavior is managed by the function
+        // clamp_window_to_sane_position.
+        if let Some(pos) = self.position {
+            window = window.with_position(winit::dpi::PhysicalPosition {
+                x: pos.x as f64,
+                y: pos.y as f64,
+            });
         }
 
         if let Some(inner_size_points) = self.inner_size_points {
