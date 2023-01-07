@@ -86,4 +86,41 @@ impl WindowSettings {
             *size = size.at_most(max_size);
         }
     }
+    
+    pub fn clamp_window_to_sane_position<E>(
+        &mut self,
+        event_loop: &winit::event_loop::EventLoopWindowTarget<E>)
+    {
+        use std::ops::{Add, Sub, MulAssign};
+        
+        if let (Some(position), Some(inner_size)) = (&mut self.position, &mut self.inner_size_points) {
+            let monitors = event_loop.available_monitors();
+            // default to primary monitor, in case the correct monitor was disconnected.
+            // todo (Shel-M): determine nearest neighbor to previous position if the old monitor no longer exists
+            let mut _monitor: winit::monitor::MonitorHandle = event_loop.available_monitors().nth(0).unwrap();
+            
+            for monitor in monitors {
+                let monitor_x_range = monitor.position().x..(monitor.position().x + monitor.size().width as i32);
+                let monitor_y_range = monitor.position().y..(monitor.position().y + monitor.size().height as i32);
+                
+                if monitor_x_range.contains(&(position.x as i32)) && monitor_y_range.contains(&(position.y as i32)) {
+                    _monitor = monitor
+                }
+            };
+            let mut _inner_size = inner_size.clone();
+            _inner_size.mul_assign(_monitor.scale_factor() as f32);
+            let _position = egui::Pos2::new(_monitor.position().x as f32, _monitor.position().y as f32);
+            let _monitor_log_size = _monitor.size();
+            
+            *position = position.clamp(
+                _position,
+                _position
+                    .add(egui::Vec2::new(_monitor_log_size.width as f32, _monitor_log_size.height as f32))
+                    .sub(_inner_size
+                        // Add size of title bar. This is 32 px in Win 10/11.
+                        // todo (Shel-M): Find the size of the title bar dynamically? Maybe use outer_size instead of inner?
+                        .add(egui::Vec2::new(0.0, 32.0*_monitor.scale_factor() as f32)))
+                );
+        }
+    }
 }

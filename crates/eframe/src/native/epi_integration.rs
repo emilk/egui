@@ -108,6 +108,8 @@ pub fn window_builder<E>(
     if let Some(mut window_settings) = window_settings {
         // Restore pos/size from previous session
         window_settings.clamp_to_sane_values(largest_monitor_point_size(event_loop));
+        #[cfg(windows)]
+        window_settings.clamp_window_to_sane_position(&event_loop);
         window_builder = window_settings.initialize_window(window_builder);
     } else {
         if let Some(pos) = *initial_window_pos {
