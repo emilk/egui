@@ -30,6 +30,7 @@ pub struct Window<'open> {
     resize: Resize,
     scroll: ScrollArea,
     collapsible: bool,
+    default_open: bool,
     with_title_bar: bool,
 }
 
@@ -51,6 +52,7 @@ impl<'open> Window<'open> {
                 .default_size([340.0, 420.0]), // Default inner size of a window
             scroll: ScrollArea::neither(),
             collapsible: true,
+            default_open: true,
             with_title_bar: true,
         }
     }
@@ -159,6 +161,12 @@ impl<'open> Window<'open> {
     /// It is an error to set both an anchor and a position.
     pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
         self.area = self.area.anchor(align, offset);
+        self
+    }
+
+    /// Set initial collapsed state of the window
+    pub fn default_open(mut self, default_open: bool) -> Self {
+        self.default_open = default_open;
         self
     }
 
@@ -275,6 +283,7 @@ impl<'open> Window<'open> {
             resize,
             scroll,
             collapsible,
+            default_open,
             with_title_bar,
         } = self;
 
@@ -291,7 +300,7 @@ impl<'open> Window<'open> {
         let area_layer_id = area.layer();
         let resize_id = area_id.with("resize");
         let mut collapsing =
-            CollapsingState::load_with_default_open(ctx, area_id.with("collapsing"), true);
+            CollapsingState::load_with_default_open(ctx, area_id.with("collapsing"), default_open);
 
         let is_collapsed = with_title_bar && !collapsing.is_open();
         let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
