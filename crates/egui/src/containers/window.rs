@@ -10,7 +10,7 @@ use super::*;
 ///
 /// You can customize:
 /// * title
-/// * default, minimum, maximum and/or fixed size
+/// * default, minimum, maximum and/or fixed size, collapsed/expanded
 /// * if the window has a scroll area (off by default)
 /// * if the window can be collapsed (minimized) to just the title bar (yes, by default)
 /// * if there should be a close button (none by default)
