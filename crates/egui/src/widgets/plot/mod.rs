@@ -1574,7 +1574,9 @@ impl PreparedPlot {
 
         let interact_radius_sq: f32 = (16.0f32).powi(2);
 
-        let candidates = items.iter().filter_map(|item| {
+        let candidates = items.iter()
+        .filter(|entry| entry.allow_hover() == true)
+        .filter_map(|item| {
             let item = &**item;
             let closest = item.find_closest(pointer, transform);
 
