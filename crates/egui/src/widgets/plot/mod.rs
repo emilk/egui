@@ -748,7 +748,7 @@ impl Plot {
             hidden_items,
             last_screen_transform,
             mut last_click_pos_for_zoom,
-        }: PlotMemory = memory;
+        } = memory;
 
         // Call the plot build function.
         let mut plot_ui = PlotUi {
