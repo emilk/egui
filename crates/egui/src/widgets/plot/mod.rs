@@ -1,5 +1,6 @@
-//! Simple plotting library.
+// Simple plotting library.
 
+use ahash::HashSet;
 use std::{
     cell::{Cell, RefCell},
     ops::RangeInclusive,
@@ -744,10 +745,10 @@ impl Plot {
         let PlotMemory {
             mut bounds_modified,
             mut hovered_entry,
-            mut hidden_items,
+            hidden_items,
             last_screen_transform,
             mut last_click_pos_for_zoom,
-        } = memory;
+        }: PlotMemory = memory;
 
         // Call the plot build function.
         let mut plot_ui = PlotUi {
@@ -756,12 +757,14 @@ impl Plot {
             last_screen_transform,
             response,
             ctx: ui.ctx().clone(),
+            hidden_items: hidden_items.clone(),
         };
         let inner = build_fn(&mut plot_ui);
         let PlotUi {
             mut items,
             mut response,
             last_screen_transform,
+            mut hidden_items,
             ..
         } = plot_ui;
 
@@ -777,7 +780,7 @@ impl Plot {
 
         // --- Legend ---
         let legend = legend_config
-            .and_then(|config| LegendWidget::try_new(rect, config, &items, &hidden_items));
+            .and_then(|config| LegendWidget::try_new(rect, config, &items, &mut hidden_items));
         // Don't show hover cursor when hovering over legend.
         if hovered_entry.is_some() {
             show_x = false;
@@ -1044,8 +1047,8 @@ pub struct PlotUi {
     last_screen_transform: ScreenTransform,
     response: Response,
     ctx: Context,
+    hidden_items: HashSet<String>,
 }
-
 impl PlotUi {
     fn auto_color(&mut self) -> Color32 {
         let i = self.next_auto_color_idx;

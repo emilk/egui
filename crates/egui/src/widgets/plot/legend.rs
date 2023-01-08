@@ -69,14 +69,16 @@ struct LegendEntry {
     color: Color32,
     checked: bool,
     hovered: bool,
+    visibility: bool,
 }
 
 impl LegendEntry {
-    fn new(color: Color32, checked: bool) -> Self {
+    fn new(color: Color32, checked: bool, visibility: bool) -> Self {
         Self {
             color,
             checked,
             hovered: false,
+            visibility,
         }
     }
 
@@ -85,6 +87,7 @@ impl LegendEntry {
             color,
             checked,
             hovered,
+            visibility,
         } = self;
 
         let font_id = text_style.resolve(ui.style());
@@ -101,7 +104,7 @@ impl LegendEntry {
         let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
 
         response
-            .widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *checked, galley.text()));
+            .widget_info(|| WidgetInfo::selected(WidgetType::Checkbox, *visibility, galley.text()));
 
         let visuals = ui.style().interact(&response);
         let label_on_the_left = ui.layout().horizontal_placement() == Align::RIGHT;
@@ -123,7 +126,7 @@ impl LegendEntry {
             stroke: visuals.bg_stroke,
         });
 
-        if *checked {
+        if *visibility {
             let fill = if *color == Color32::TRANSPARENT {
                 ui.visuals().noninteractive().fg_stroke.color
             } else {
@@ -134,7 +137,7 @@ impl LegendEntry {
                 icon_size * 0.4,
                 fill,
             ));
-        }
+        };
 
         let text_position_x = if label_on_the_left {
             rect.right() - icon_size - icon_spacing - galley.size().x
@@ -166,7 +169,7 @@ impl LegendWidget {
         rect: Rect,
         config: Legend,
         items: &[Box<dyn PlotItem>],
-        hidden_items: &ahash::HashSet<String>,
+        hidden_items: &mut ahash::HashSet<String>,
     ) -> Option<Self> {
         // Collect the legend entries. If multiple items have the same name, they share a
         // checkbox. If their colors don't match, we pick a neutral color for the checkbox.
@@ -175,19 +178,19 @@ impl LegendWidget {
             .iter()
             .filter(|item| !item.name().is_empty())
             .for_each(|item| {
-                entries
-                    .entry(item.name().to_owned())
-                    .and_modify(|entry| {
-                        if entry.color != item.color() {
-                            // Multiple items with different colors
-                            entry.color = Color32::TRANSPARENT;
-                        }
-                    })
-                    .or_insert_with(|| {
-                        let color = item.color();
-                        let checked = !hidden_items.contains(item.name());
-                        LegendEntry::new(color, checked)
-                    });
+                entries.entry(item.name().to_owned()).or_insert_with(|| {
+                    let color = item.color();
+                    let checked = !hidden_items.contains(item.name());
+                    let visible = item.visible();
+                    let visibility = checked && visible || !checked && !visible;
+
+                    if visibility {
+                        hidden_items.remove(&item.name().to_owned());
+                    } else {
+                        hidden_items.insert(item.name().to_owned());
+                    }
+                    LegendEntry::new(color, checked, visibility)
+                });
             });
         (!entries.is_empty()).then_some(Self {
             rect,
