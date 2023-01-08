@@ -1,4 +1,4 @@
-// Simple plotting library.
+//! Simple plotting library.
 
 use ahash::HashSet;
 use std::{
@@ -757,7 +757,7 @@ impl Plot {
             last_screen_transform,
             response,
             ctx: ui.ctx().clone(),
-            hidden_items: hidden_items.clone(),
+            hidden_items: hidden_items,
         };
         let inner = build_fn(&mut plot_ui);
         let PlotUi {
@@ -1049,6 +1049,7 @@ pub struct PlotUi {
     ctx: Context,
     hidden_items: HashSet<String>,
 }
+
 impl PlotUi {
     fn auto_color(&mut self) -> Color32 {
         let i = self.next_auto_color_idx;
