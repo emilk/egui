@@ -821,4 +821,3 @@ This is when I started the CHANGELOG.md, after almost two years of development. 
 * 2019-03-12: gave a talk about what would later become egui: https://www.youtube.com/watch?v=-pmwLHw5Gbs
 * 2018-12-23: [initial commit](https://github.com/emilk/egui/commit/856bbf4dae4a69693a0324da34e8b0dd3754dfdf)
 * 2018-11-04: started tinkering on a train
-
