@@ -70,6 +70,8 @@ struct ContextImpl {
 
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
+
+    custom_shadow: Option<Arc<dyn Fn(Shadow, Rect, Rounding) -> Shape + Send + Sync>>,
 }
 
 impl ContextImpl {
@@ -1023,6 +1025,20 @@ impl Context {
         pos = self.round_pos_to_pixels(pos);
 
         Rect::from_min_size(pos, window.size())
+    }
+
+    pub fn custom_shadow_provider(
+        &self,
+    ) -> RwLockReadGuard<'_, Option<Arc<dyn Fn(Shadow, Rect, Rounding) -> Shape + Send + Sync>>>
+    {
+        RwLockReadGuard::map(self.read(), |f| &f.custom_shadow)
+    }
+
+    pub fn set_custom_shadow_provider(
+        &self,
+        custom_shadow: Option<Arc<dyn Fn(Shadow, Rect, Rounding) -> Shape + Send + Sync>>,
+    ) {
+        self.write().custom_shadow = custom_shadow;
     }
 }
 

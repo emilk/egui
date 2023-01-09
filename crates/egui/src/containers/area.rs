@@ -339,7 +339,7 @@ impl Area {
             //     Rect::from_center_size(area_rect.center(), visibility_factor * area_rect.size());
 
             let frame = frame.multiply_with_opacity(visibility_factor);
-            painter.add(frame.paint(area_rect));
+            painter.add(frame.paint(area_rect, ctx));
         }
     }
 }
@@ -378,7 +378,7 @@ impl Prepared {
             bounds.max.at_least(self.state.pos + Vec2::splat(32.0)),
         );
 
-        let shadow_radius = ctx.style().visuals.window_shadow.extrusion; // hacky
+        let shadow_radius = ctx.style().visuals.window_shadow.extrusion * 2.0; // hacky
         let clip_rect_margin = ctx.style().visuals.clip_rect_margin.max(shadow_radius);
 
         let clip_rect = Rect::from_min_max(self.state.pos, bounds.max)
