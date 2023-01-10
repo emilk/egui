@@ -6,6 +6,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 ## Unreleased
 ### Added ⭐
+* Add`Plot::allow_auto_bounds` auto bounds or keep bounds. Default: `true`.
 * `Event::Key` now has a `repeat` field that is set to `true` if the event was the result of a key-repeat ([#2435](https://github.com/emilk/egui/pull/2435)).
 * Add `Slider::drag_value_speed`, which lets you ask for finer precision when dragging the slider value rather than the actual slider.
 * Add `Memory::any_popup_open`, which returns true if any popup is currently open ([#2464](https://github.com/emilk/egui/pull/2464)).

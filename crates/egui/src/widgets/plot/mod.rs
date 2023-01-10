@@ -268,6 +268,7 @@ pub struct Plot {
     allow_scroll: bool,
     allow_double_click_reset: bool,
     allow_boxed_zoom: bool,
+    allow_auto_bounds: bool,
     auto_bounds: AxisBools,
     min_auto_bounds: PlotBounds,
     margin_fraction: Vec2,
@@ -310,6 +311,7 @@ impl Plot {
             allow_scroll: true,
             allow_double_click_reset: true,
             allow_boxed_zoom: true,
+            allow_auto_bounds: true,
             auto_bounds: false.into(),
             min_auto_bounds: PlotBounds::NOTHING,
             margin_fraction: Vec2::splat(0.05),
@@ -434,6 +436,14 @@ impl Plot {
     /// Default: `true`.
     pub fn allow_boxed_zoom(mut self, on: bool) -> Self {
         self.allow_boxed_zoom = on;
+        self
+    }
+
+    /// Whether to allow auto bounds. Default: `true`.
+    /// `false` keep bounds, it gives the ability with a pointer down to the drawn outside the plot area 
+    /// without ask auto bounds.
+    pub fn allow_auto_bounds(mut self, on: bool) -> Self {
+        self.allow_auto_bounds = on;
         self
     }
 
@@ -683,6 +693,7 @@ impl Plot {
             show_axes,
             linked_axes,
             linked_cursors,
+            allow_auto_bounds,
 
             clamp_grid,
             grid_spacers,
@@ -838,6 +849,10 @@ impl Plot {
                 }
             }
         };
+
+       if !allow_auto_bounds {
+            bounds_modified = true.into();
+        }
 
         // Allow double clicking to reset to the initial bounds?
         if allow_double_click_reset && response.double_clicked_by(PointerButton::Primary) {
