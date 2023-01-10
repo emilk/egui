@@ -1594,6 +1594,7 @@ impl PreparedPlot {
 
         let candidates = items
             .iter()
+            .filter(|entry| entry.allow_hover())
             .enumerate()
             .filter_map(|(i, item)| {
                 let item = &**item;
@@ -1604,8 +1605,7 @@ impl PreparedPlot {
         let closest = candidates
             .min_by_key(|(_, elem)| elem.dist_sq.ord())
             .filter(|(_, elem)| elem.dist_sq <= interact_radius_sq);
-
-            
+      
         let mut cursors = Vec::new();
 
         let plot = items::PlotConfig {
@@ -1617,7 +1617,6 @@ impl PreparedPlot {
 
         let mut index_interact_radius_sq = None;
 
-        
         if let Some((( index_root,item), elem)) = closest {
             index_interact_radius_sq = Some([index_root, elem.index]);
             item.on_hover(elem, shapes, &mut cursors, &plot, label_formatter);
