@@ -759,7 +759,7 @@ impl InteractionDemo {
 
         let InnerResponse {
             response,
-            inner: (screen_pos, pointer_coordinate, pointer_coordinate_drag_delta, bounds, hovered),
+            inner: (screen_pos, pointer_coordinate, pointer_coordinate_drag_delta, bounds, hovered, interact),
         } = plot.show(ui, |plot_ui| {
             (
                 plot_ui.screen_from_plot(PlotPoint::new(0.0, 0.0)),
@@ -767,6 +767,7 @@ impl InteractionDemo {
                 plot_ui.pointer_coordinate_drag_delta(),
                 plot_ui.plot_bounds(),
                 plot_ui.plot_hovered(),
+                plot_ui.plot_interact(),
             )
         });
 
@@ -794,7 +795,10 @@ impl InteractionDemo {
             "pointer coordinate drag delta: {}",
             coordinate_text
         ));
-
+        ui.label(format!(
+            "pointer interact: {}",
+            interact
+        ));
         response
     }
 }
