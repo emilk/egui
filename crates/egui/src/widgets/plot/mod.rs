@@ -1081,6 +1081,11 @@ impl PlotUi {
         self.response.hovered()
     }
 
+    /// Returns `true` if the plot area has interaction pointer.
+    pub fn plot_interact(&self) -> bool {
+        self.response.interact_pointer_pos().is_some() 
+    }
+
     /// Returns `true` if the plot was clicked by the primary button.
     pub fn plot_clicked(&self) -> bool {
         self.response.clicked()
