@@ -754,6 +754,7 @@ impl Plot {
             items: Vec::new(),
             next_auto_color_idx: 0,
             last_screen_transform,
+            is_hovered_entry: hovered_entry.is_some(),
             response,
             ctx: ui.ctx().clone(),
         };
@@ -1044,6 +1045,7 @@ pub struct PlotUi {
     last_screen_transform: ScreenTransform,
     response: Response,
     ctx: Context,
+    is_hovered_entry: bool,
 }
 
 impl PlotUi {
@@ -1079,6 +1081,11 @@ impl PlotUi {
     /// Returns `true` if the plot area is currently hovered.
     pub fn plot_hovered(&self) -> bool {
         self.response.hovered()
+    }
+
+    /// Returns `true` if the plot area is hovered entry.
+    pub fn is_hovered_entry(&self) -> bool {
+        self.is_hovered_entry
     }
 
     /// Returns `true` if the plot was clicked by the primary button.
