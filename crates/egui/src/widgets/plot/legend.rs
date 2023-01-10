@@ -173,7 +173,8 @@ impl LegendWidget {
     ) -> Option<Self> {
         // Collect the legend entries. If multiple items have the same name, they share a
         // checkbox. If their colors don't match, we pick a neutral color for the checkbox.
-        let mut entries: BTreeMap<String, LegendEntry> = BTreeMap::new();
+        let mut entries: BTreeMap<String, LegendEntry> = BTreeMap::new(); 
+        let mut hidden_items_new: ahash::HashSet<String> = Default::default();
         items
             .iter()
             .filter(|item| !item.name().is_empty())
@@ -182,16 +183,16 @@ impl LegendWidget {
                     let color = item.color();
                     let checked = !hidden_items.contains(item.name());
                     let visible = item.visible();
-                    let visibility = checked && visible || !checked && !visible;
+                    let hiddened= !(checked && visible || !checked && !visible);
 
-                    if visibility {
-                        hidden_items.remove(&item.name().to_owned());
-                    } else {
-                        hidden_items.insert(item.name().to_owned());
+                    if hiddened {
+                        hidden_items_new.insert(item.name().to_owned());
                     }
-                    LegendEntry::new(color, checked, visibility)
+
+                    LegendEntry::new(color, checked, !hiddened)
                 });
             });
+        *hidden_items = hidden_items_new;
         (!entries.is_empty()).then_some(Self {
             rect,
             entries,
