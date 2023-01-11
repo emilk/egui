@@ -31,6 +31,7 @@ pub struct Button {
     frame: Option<bool>,
     min_size: Vec2,
     image: Option<widgets::Image>,
+    fade_enabled: bool,
 }
 
 impl Button {
@@ -46,6 +47,7 @@ impl Button {
             frame: None,
             min_size: Vec2::ZERO,
             image: None,
+            fade_enabled: true,
         }
     }
 
@@ -126,6 +128,11 @@ impl Button {
         self.shortcut_text = shortcut_text.into();
         self
     }
+
+    pub fn fade_enabled(mut self, fade_enabled: bool) -> Self {
+        self.fade_enabled = fade_enabled;
+        self
+    }
 }
 
 impl Widget for Button {
@@ -141,6 +148,7 @@ impl Widget for Button {
             frame,
             min_size,
             image,
+            fade_enabled,
         } = self;
 
         let frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
@@ -181,18 +189,24 @@ impl Widget for Button {
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, text.text()));
 
         if ui.is_rect_visible(rect) {
-            let visuals = ui.style().interact(&response);
-
+            // Draw button background rect
             if frame {
+                let visuals = ui.style().interact(&response);
+                let rounding = visuals.rounding;
+                let expansion = visuals.expansion;
+
                 let fill = fill.unwrap_or(visuals.bg_fill);
                 let stroke = stroke.unwrap_or(visuals.bg_stroke);
-                ui.painter().rect(
-                    rect.expand(visuals.expansion),
-                    visuals.rounding,
-                    fill,
-                    stroke,
-                );
+                if fade_enabled {
+                    ui.painter()
+                        .rect(rect.expand(expansion), rounding, fill, stroke);
+                } else {
+                    ui.painter_with_fade(None)
+                        .rect(rect.expand(expansion), rounding, fill, stroke);
+                }
             }
+
+            let visuals = ui.style().interact(&response);
 
             let text_pos = if let Some(image) = image {
                 let icon_spacing = ui.spacing().icon_spacing;

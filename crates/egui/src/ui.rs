@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use epaint::mutex::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
+use crate::painter::TempPainter;
 use crate::{
     containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
     widgets::*, *,
@@ -206,6 +207,11 @@ impl Ui {
     #[inline]
     pub fn painter(&self) -> &Painter {
         &self.painter
+    }
+
+    /// Get a painter with the specified fade color within this ['Ui']
+    pub fn painter_with_fade(&mut self, fade_color: Option<Color32>) -> TempPainter {
+        TempPainter::new(&mut self.painter, fade_color)
     }
 
     /// If `false`, the [`Ui`] does not allow any interaction and

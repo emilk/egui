@@ -1,4 +1,4 @@
-use std::ops::RangeInclusive;
+use std::ops::{Deref, DerefMut, RangeInclusive};
 use std::sync::Arc;
 
 use crate::{
@@ -11,6 +11,42 @@ use epaint::{
     text::{Fonts, Galley},
     CircleShape, RectShape, Rounding, Shape, Stroke,
 };
+
+pub struct TempPainter<'a> {
+    temp_painter: &'a mut Painter,
+    cached_color: Option<Color32>,
+}
+
+impl<'a> TempPainter<'a> {
+    pub(crate) fn new(painter: &'a mut Painter, new_fade_color: Option<Color32>) -> Self {
+        let cached_color = painter.fade_to_color();
+        painter.set_fade_to_color(new_fade_color);
+        Self {
+            temp_painter: painter,
+            cached_color,
+        }
+    }
+}
+
+impl<'a> Deref for TempPainter<'a> {
+    type Target = Painter;
+    fn deref(&self) -> &Self::Target {
+        self.temp_painter
+    }
+}
+
+impl<'a> DerefMut for TempPainter<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.temp_painter
+    }
+}
+
+impl<'a> Drop for TempPainter<'a> {
+    fn drop(&mut self) {
+        let color = self.cached_color;
+        self.set_fade_to_color(color);
+    }
+}
 
 /// Helper to paint shapes and text to a specific region on a specific layer.
 ///
@@ -75,6 +111,11 @@ impl Painter {
     /// If set, colors will be modified to look like this
     pub(crate) fn set_fade_to_color(&mut self, fade_to_color: Option<Color32>) {
         self.fade_to_color = fade_to_color;
+    }
+
+    /// Get the fade color
+    pub(crate) fn fade_to_color(&self) -> Option<Color32> {
+        self.fade_to_color
     }
 
     pub(crate) fn is_visible(&self) -> bool {
