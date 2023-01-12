@@ -1372,7 +1372,10 @@ impl PreparedPlot {
 
         if hovered_indexes.is_some() {
             self.hovered_indexes = hovered_indexes;
+        } else {
+            self.hovered_indexes = None;
         }
+
         // Draw cursors
         let line_color = rulers_color(ui);
 
