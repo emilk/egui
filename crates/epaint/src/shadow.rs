@@ -52,11 +52,14 @@ impl Shadow {
     }
 }
 
+/// Functions for painting shadows
 pub struct ShadowPainter {
     clip_rect: std::sync::Arc<dyn Fn(Shadow, Rect, Rounding) -> Rect + Send + Sync>,
     paint: std::sync::Arc<dyn Fn(Shadow, Rect, Rounding) -> Shape + Send + Sync>,
 }
 impl ShadowPainter {
+    /// Create a custom [`ShadowPainter`].
+    /// For arguments, see [`Self::shadow_clip_rect`] and [`Self::paint`]
     pub fn new(
         clip_rect: impl Fn(Shadow, Rect, Rounding) -> Rect + Send + Sync + 'static,
         paint: impl Fn(Shadow, Rect, Rounding) -> Shape + Send + Sync + 'static,
@@ -66,11 +69,15 @@ impl ShadowPainter {
             paint: std::sync::Arc::new(paint),
         }
     }
-    pub fn shadow_clip_rect(&self, shadow: Shadow, rect: Rect, rounding: Rounding) -> Rect {
-        (self.clip_rect)(shadow, rect, rounding)
+
+    /// Transform (typically expand) a clip rect to fit the given shadow
+    pub fn shadow_clip_rect(&self, shadow: Shadow, content_rect: Rect, rounding: Rounding) -> Rect {
+        (self.clip_rect)(shadow, content_rect, rounding)
     }
-    pub fn paint(&self, shadow: Shadow, rect: Rect, rounding: Rounding) -> Shape {
-        (self.paint)(shadow, rect, rounding)
+
+    /// Convert a shadow into a [`Shape`]
+    pub fn paint(&self, shadow: Shadow, content_rect: Rect, rounding: Rounding) -> Shape {
+        (self.paint)(shadow, content_rect, rounding)
     }
 }
 impl Default for ShadowPainter {

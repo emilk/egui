@@ -339,7 +339,7 @@ impl Area {
             //     Rect::from_center_size(area_rect.center(), visibility_factor * area_rect.size());
 
             let frame = frame.multiply_with_opacity(visibility_factor);
-            painter.add(frame.paint(area_rect, ctx));
+            painter.add(frame.paint(ctx, area_rect));
         }
     }
 }
