@@ -24,6 +24,8 @@ fn setup_custom_fonts(ctx: &egui::Context) {
         "my_font".to_owned(),
         egui::FontData::from_static(include_bytes!(
             "../../../crates/epaint/fonts/Hack-Regular.ttf"
+            // Support Chinese(支持中文)
+            // "../../../crates/epaint/fonts/SmileySans-Oblique.ttf"
         )),
     );
 
