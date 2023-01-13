@@ -3,7 +3,7 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 
 
 ## Unreleased
-
+Fixed window position persistence for Windows  ([#1469](https://github.com/emilk/egui/issues/1469)
 
 ## 0.20.1 - 2022-12-11
 * Fix docs.rs build ([#2420](https://github.com/emilk/egui/pull/2420)).
