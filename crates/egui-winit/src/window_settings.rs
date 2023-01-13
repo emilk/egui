@@ -88,35 +88,45 @@ impl WindowSettings {
         &mut self,
         event_loop: &winit::event_loop::EventLoopWindowTarget<E>)
     {
-        use std::ops::{Add, Sub, MulAssign};
+        use std::ops::{Add, Sub, AddAssign, MulAssign};
         
-        if let (Some(position), Some(inner_size)) = (&mut self.position, &mut self.inner_size_points) {
+        if let (Some(position), Some(inner_size)) = (&mut self.position, &self.inner_size_points) {
             let monitors = event_loop.available_monitors();
             // default to primary monitor, in case the correct monitor was disconnected.
-            // todo (Shel-M): determine nearest neighbor to previous position if the old monitor no longer exists
-            let mut _monitor: winit::monitor::MonitorHandle = event_loop.available_monitors().nth(0).unwrap();
-            
-            for monitor in monitors {
-                let monitor_x_range = monitor.position().x..(monitor.position().x + monitor.size().width as i32);
-                let monitor_y_range = monitor.position().y..(monitor.position().y + monitor.size().height as i32);
+            let mut monitor: winit::monitor::MonitorHandle =
+                match event_loop.primary_monitor() {
+                    Some(m) => m,
+                    // No primary monitor, grab index 0 instead
+                    _ => {
+                        match event_loop.available_monitors().nth(0) {
+                            Some(m) => m,
+                            None => return // No monitors?
+                        }
+                    }
+                };
+            for _monitor in monitors {
+                let monitor_x_range = _monitor.position().x..(_monitor.position().x + _monitor.size().width as i32);
+                let monitor_y_range = _monitor.position().y..(_monitor.position().y + _monitor.size().height as i32);
                 
                 if monitor_x_range.contains(&(position.x as i32)) && monitor_y_range.contains(&(position.y as i32)) {
-                    _monitor = monitor
+                    monitor = _monitor
                 }
             };
-            let mut _inner_size = inner_size.clone();
-            _inner_size.mul_assign(_monitor.scale_factor() as f32);
-            let _position = egui::Pos2::new(_monitor.position().x as f32, _monitor.position().y as f32);
-            let _monitor_log_size = _monitor.size();
             
+            let mut inner_size = inner_size.clone(); // Shadow inner_size, we don't want to modify the original
+            inner_size.mul_assign(monitor.scale_factor() as f32);
+            // Add size of title bar. This is 32 px by default in Win 10/11.
+            #[cfg(windows)]
+            inner_size.add_assign(egui::Vec2::new(0.0, 32.0* monitor.scale_factor() as f32));
+            let monitor_position = egui::Pos2::new(monitor.position().x as f32, monitor.position().y as f32);
+            let monitor_logical_size = monitor.size();
             *position = position.clamp(
-                _position,
-                _position
-                    .add(egui::Vec2::new(_monitor_log_size.width as f32, _monitor_log_size.height as f32))
-                    .sub(_inner_size
-                        // Add size of title bar. This is 32 px in Win 10/11.
-                        // todo (Shel-M): Find the size of the title bar dynamically? Maybe use outer_size instead of inner?
-                        .add(egui::Vec2::new(0.0, 32.0*_monitor.scale_factor() as f32)))
+                monitor_position,
+                // To get the maximum position, we get the rightmost corner of the display, then subtract
+                // the size of the window to get the bottom right most value window.position can have.
+                monitor_position
+                    .add(egui::Vec2::new(monitor_logical_size.width as f32, monitor_logical_size.height as f32))
+                    .sub(inner_size)
                 );
         }
     }
