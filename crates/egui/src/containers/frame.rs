@@ -242,12 +242,7 @@ impl Frame {
         if shadow == Default::default() {
             frame_shape
         } else {
-            let shadow = if let Some(custom_shadow) = &*ctx.custom_shadow_provider() {
-                custom_shadow(shadow, outer_rect, rounding)
-            } else {
-                let shadow = shadow.tessellate(outer_rect, rounding);
-                Shape::Mesh(shadow)
-            };
+            let shadow = ctx.shadow_painter().paint(shadow, outer_rect, rounding);
             Shape::Vec(vec![shadow, frame_shape])
         }
     }
