@@ -46,7 +46,7 @@ impl GlutinWindowContext {
                 .with_window_builder(Some(winit_window_builder.clone()))
                 .build(
                     event_loop,
-                    config_template_builder.clone(),
+                    config_template_builder,
                     |mut config_iterator| {
                         config_iterator.next().expect(
                             "failed to find a matching configuration for creating glutin config",
