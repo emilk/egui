@@ -355,25 +355,16 @@ mod glow_integration {
     /// This struct will contain both persistent and temporary glutin state.
     ///
     /// Platform Quirks:
-    /// Microsoft Windows:
-    /// requires that we create a window before opengl context.
-    /// Android:
-    /// requires that window be dropped along with the surface.
+    /// Microsoft Windows: requires that we create a window before opengl context.
+    /// Android: window and surface should be destroyed when we receive a suspend event. recreate on resume event.
     ///
-    /// so, we make `winit::Window` an `Option`.
+    /// winit guarantees that we will get a Resumed event on startup on all platforms.
+    /// * Before Resumed event: `gl_config`, `gl_context` can be created at any time. on windows, a window must be created to get `gl_context`.
+    /// * Resumed: `gl_surface` will be created here. `window` will be re-created here for android.
+    /// * Suspended: on android, we drop window + surface.  on other platforms, we don't get Suspended event.
     ///
-    /// roughly this is the lifecycle of the different glutin state
-    /// Pre-Resumed:
-    /// `gl_config`, `gl_context` can be created at any time.
-    /// Resumed:
-    /// window, `gl_surface` must be created here for android.
-    /// to make it easy, we just create it here for other platforms too.
-    /// winit guarantees that we will get a Resumed event on startup.
-    /// Suspended:
-    /// on android, we drop window + surface. we will recreate them again on android Resumed event
-    /// on other platforms, we don't get this event, so we can always assume
-    /// that there will be `winit::Window` at all times.
-    ///
+    /// The setup is divided between the `new` fn and `on_resume` fn. we can just assume that `on_resume` is a continuation of
+    /// `new` fn on all platforms. only on android, do we get multiple resumed events because app can be suspended.
     struct GlutinWindowContext {
         builder: winit::window::WindowBuilder,
         swap_interval: glutin::surface::SwapInterval,
@@ -385,7 +376,8 @@ mod glow_integration {
     }
 
     impl GlutinWindowContext {
-        // this can be called at any time. but we need to call on_resume before we start using this.
+        /// There is a lot of complexity with opengl creation, so prefer extensivve logging to get all the help we can to debug issues.
+        ///
         #[allow(unsafe_code)]
         unsafe fn new(
             winit_window_builder: winit::window::WindowBuilder,
@@ -393,6 +385,7 @@ mod glow_integration {
             event_loop: &EventLoopWindowTarget<UserEvent>,
         ) -> Result<Self> {
             use glutin::prelude::*;
+            // convert native options to glutin options
             let hardware_acceleration = match native_options.hardware_acceleration {
                 crate::HardwareAcceleration::Required => Some(true),
                 crate::HardwareAcceleration::Preferred => None,
@@ -403,62 +396,93 @@ mod glow_integration {
             } else {
                 glutin::surface::SwapInterval::DontWait
             };
+            /*  opengl setup flow goes like this:
+                1. we create a configuration for opengl "Display" / "Config" creation
+                2. choose between special extensions like glx or egl or wgl and use them to create config/display
+                3. opengl context configuration
+                4. opengl context creation
 
+            */
+
+            // start building config for gl display
             let config_template_builder = glutin::config::ConfigTemplateBuilder::new()
                 .prefer_hardware_accelerated(hardware_acceleration)
-                .with_depth_size(native_options.depth_buffer);
+                .with_depth_size(native_options.depth_buffer)
+                .with_stencil_size(native_options.stencil_buffer)
+                .with_transparency(native_options.transparent);
             // we don't know if multi sampling option is set. so, check if its more than 0.
             let config_template_builder = if native_options.multisampling > 0 {
                 config_template_builder.with_multisampling(
                     native_options
                         .multisampling
                         .try_into()
-                        .expect("failed to fit multisamples into u8"),
+                        .expect("failed to fit multisamples option of native_options into u8"),
                 )
             } else {
                 config_template_builder
             };
-            let config_template_builder = config_template_builder
-                .with_stencil_size(native_options.stencil_buffer)
-                .with_transparency(native_options.transparent);
-            tracing::debug!("trying to get gl_config");
+
+            tracing::debug!(
+                "trying to create glutin Display with config: {:?}",
+                &config_template_builder
+            );
+            // create gl display. this may probably create a window too on most platforms. definitely on `MS windows`. never on android.
             let (window, gl_config) = glutin_winit::DisplayBuilder::new()
+                // we might want to expose this option to users in the future. maybe using an env var or using native_options.
                 .with_preference(glutin_winit::ApiPrefence::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
                 .with_window_builder(Some(winit_window_builder.clone()))
                 .build(
                     event_loop,
                     config_template_builder.clone(),
                     |mut config_iterator| {
-                        config_iterator.next().expect(
+                        let config = config_iterator.next().expect(
                             "failed to find a matching configuration for creating glutin config",
-                        )
+                        );
+                        tracing::debug!(
+                            "using the first config from config picker closure. config: {:?}",
+                            &config
+                        );
+                        config
                     },
                 )
                 .map_err(|e| crate::Error::NoGlutinConfigs(config_template_builder.build(), e))?;
 
-            tracing::debug!("found gl_config: {:?}", &gl_config);
-
+            let gl_display = gl_config.display();
+            tracing::debug!(
+                "successfully created GL Display with version: {} and supported features: {:?}",
+                gl_display.version_string(),
+                gl_display.supported_features()
+            );
             let raw_window_handle = window.as_ref().map(|w| w.raw_window_handle());
-            tracing::debug!("raw window handle: {:?}", raw_window_handle);
+            tracing::debug!(
+                "creating gl context using raw window handle: {:?}",
+                raw_window_handle
+            );
+
+            // create gl context. if core context cannot be created, try gl es context as fallback.
             let context_attributes =
                 glutin::context::ContextAttributesBuilder::new().build(raw_window_handle);
             let fallback_context_attributes = glutin::context::ContextAttributesBuilder::new()
                 .with_context_api(glutin::context::ContextApi::Gles(None))
                 .build(raw_window_handle);
-            let not_current_gl_context = Some(unsafe {
-                gl_config
-                    .display()
-                    .create_context(&gl_config, &context_attributes)
-                    .unwrap_or_else(|_| {
-                        tracing::debug!("failed to create gl_context with attributes: {:?}. retrying with fallback context attributes: {:?}",
-                            &context_attributes,
-                            &fallback_context_attributes);
-                        gl_config
-                            .display()
-                            .create_context(&gl_config, &fallback_context_attributes)
-                            .expect("failed to create context even with fallback attributes")
-                    })
-            });
+            let gl_context = match gl_config
+                .display()
+                .create_context(&gl_config, &context_attributes)
+            {
+                Ok(it) => it,
+                Err(err) => {
+                    tracing::error!("failed to create context using default context attributes {context_attributes:?} due to error: {err}");
+                    tracing::debug!("retrying with fallback context attributes: {fallback_context_attributes:?}");
+                    gl_config
+                        .display()
+                        .create_context(&gl_config, &fallback_context_attributes)?
+                }
+            };
+            let not_current_gl_context = Some(gl_context);
+            // the fun part with opengl gl is that we never know whether there is an error. the context creation might have failed, but
+            // it could keep working until we try to make surface current or swap buffers or something else. future glutin improvements might
+            // help us start from scratch again if we fail context creation and go back to preferEgl or try with different config etc..
+            // https://github.com/emilk/egui/pull/2541#issuecomment-1370767582
             Ok(GlutinWindowContext {
                 builder: winit_window_builder,
                 swap_interval,
@@ -469,15 +493,30 @@ mod glow_integration {
                 not_current_gl_context,
             })
         }
-        /// This is where we create window + surface + make context current.
+        /// This will be run after `new`. on android, it might be called multiple times over the course of the app's lifetime.
+        /// roughly,
+        /// 1. check if window already exists. otherwise, create one now.
+        /// 2. create attributes for surface creation.
+        /// 3. create surface.
+        /// 4. make surface and context current.
+        ///
+        /// we presently assume that we will
         #[allow(unsafe_code)]
         fn on_resume(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
-            tracing::debug!("received resume event.");
+            if self.gl_surface.is_some() {
+                tracing::warn!(
+                    "on_resume called even thought we already have a surface. early return"
+                );
+                return Ok(());
+            }
+            tracing::debug!("running on_resume fn.");
+            // make sure we have a window or create one.
             let window = self.window.take().unwrap_or_else(|| {
                 tracing::debug!("window doesn't exist yet. creating one now with finalize_window");
                 glutin_winit::finalize_window(event_loop, self.builder.clone(), &self.gl_config)
                     .expect("failed to finalize glutin window")
             });
+            // surface attributes
             let (width, height): (u32, u32) = window.inner_size().into();
             let width = std::num::NonZeroU32::new(width.at_least(1)).unwrap();
             let height = std::num::NonZeroU32::new(height.at_least(1)).unwrap();
@@ -488,20 +527,26 @@ mod glow_integration {
                 "creating surface with attributes: {:?}",
                 &surface_attributes
             );
+            // create surface
             let gl_surface = unsafe {
                 self.gl_config
                     .display()
                     .create_window_surface(&self.gl_config, &surface_attributes)?
             };
             tracing::debug!("surface created successfully: {gl_surface:?}.making context current");
+            // make surface and context current.
             let not_current_gl_context = self
                 .not_current_gl_context
                 .take()
                 .expect("failed to get not current context after resume event. impossible!");
             let current_gl_context = not_current_gl_context.make_current(&gl_surface)?;
+            // try setting swap interval. but its not absolutely necessary, so don't panic on failure.
             tracing::debug!("made context current. setting swap interval for surface");
-            gl_surface.set_swap_interval(&current_gl_context, self.swap_interval)?;
-            tracing::debug!("made context current. setting swap interval for surface");
+            if let Err(e) = gl_surface.set_swap_interval(&current_gl_context, self.swap_interval) {
+                tracing::error!("failed to set swap interval due to error: {e:?}");
+            }
+            // we will reach this point only once in most platforms except android.
+            // create window/surface/make context current once and just use them forever.
             self.gl_surface = Some(gl_surface);
             self.current_gl_context = Some(current_gl_context);
             self.window = Some(window);
@@ -837,9 +882,13 @@ mod glow_integration {
         ) -> Result<EventResult> {
             Ok(match event {
                 winit::event::Event::Resumed => {
+                    // first resume event.
+                    // we can actually move this outside of event loop.
+                    // and just run the on_resume fn of gl_window
                     if self.running.is_none() {
                         self.init_run_state(event_loop)?;
                     } else {
+                        // not the first resume event. create whatever you need.
                         self.running
                             .as_mut()
                             .unwrap()
