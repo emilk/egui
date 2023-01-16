@@ -89,6 +89,7 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
 
             let egui_wants_keyboard = runner_lock.egui_ctx().wants_keyboard_input();
 
+            #[allow(clippy::if_same_then_else)]
             let prevent_default = if egui_key == Some(Key::Tab) {
                 // Always prevent moving cursor to url bar.
                 // egui wants to use tab to move to the next text field.
