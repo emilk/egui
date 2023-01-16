@@ -109,16 +109,16 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
                 false
             };
 
-            tracing::debug!(
-                "On key-down {:?}, egui_wants_keyboard: {}, prevent_default: {}",
-                event.key().as_str(),
-                egui_wants_keyboard,
-                prevent_default
-            );
+            // tracing::debug!(
+            //     "On key-down {:?}, egui_wants_keyboard: {}, prevent_default: {}",
+            //     event.key().as_str(),
+            //     egui_wants_keyboard,
+            //     prevent_default
+            // );
 
             if prevent_default {
                 event.prevent_default();
-                event.stop_propagation();
+                // event.stop_propagation();
             }
         },
     )?;
@@ -218,8 +218,8 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
             move |event: web_sys::MouseEvent,
                   mut _runner_lock: egui::mutex::MutexGuard<'_, AppRunner>| {
                 event.prevent_default();
-                event.stop_propagation();
-                tracing::debug!("Preventing event {:?}", event_name);
+                // event.stop_propagation();
+                // tracing::debug!("Preventing event {:?}", event_name);
             };
 
         runner_container.add_event_listener(&canvas, event_name, closure)?;
