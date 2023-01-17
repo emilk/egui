@@ -783,7 +783,7 @@ impl InteractionDemo {
                 Line::new(PlotPoints::from_explicit_callback(
                     move |x| x.cos(),
                     ..,
-                    110,
+                    200,
                 ))
                 .name("cos"),
             );

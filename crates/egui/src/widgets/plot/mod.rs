@@ -1649,10 +1649,11 @@ impl PreparedPlot {
             .filter(|(_, elem)| elem.dist_sq <= interact_radius_sq)
             .fold(None, |acc, ((i, item), elem)| {
                 let name = item.name().clone().to_owned();
+                let elem_index = elem.index;
                 match acc {
-                    None => Some((vec![(i, elem.index, name)], item, elem)),
+                    None => Some((vec![(i, elem_index, name)], item, elem)),
                     Some((mut idx, item, elem)) => {
-                        idx.push((i, elem.index, name));
+                        idx.push((i, elem_index, name));
                         Some((idx, item, elem))
                     }
                 }
