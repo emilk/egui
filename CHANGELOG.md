@@ -6,7 +6,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 ## Unreleased
 ### Added ⭐
-* Add `Plot::hovered_indexes` Returns the index and subindex of the point of the hovered shape.
+* Add `Plot::plot_hovered_indexes` Returns the index and subindex of the point of the hovered shape.
 * Add `Plot::Item::allow_hover` give possibility to masked the interaction on hovered item. 
 * `Event::Key` now has a `repeat` field that is set to `true` if the event was the result of a key-repeat ([#2435](https://github.com/emilk/egui/pull/2435)).
 * Add `Slider::drag_value_speed`, which lets you ask for finer precision when dragging the slider value rather than the actual slider.

@@ -7,7 +7,6 @@ use std::{
 };
 
 use crate::*;
-use epaint::util::FloatOrd;
 use epaint::Hsva;
 
 use items::PlotItem;
@@ -92,6 +91,38 @@ impl From<bool> for AxisBools {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Clone, Debug)]
+pub struct IndexesHovered {
+    pub is_in_radius: bool,
+    pub indexes: Option<Vec<(usize, usize, String)>>,
+    pub hover_name: String,
+}
+
+impl Default for IndexesHovered {
+    fn default() -> Self {
+        Self {
+            is_in_radius: false,
+            indexes: None,
+            hover_name: String::new(),
+        }
+    }
+}
+
+impl IndexesHovered {
+    fn new(
+        is_in_radius: bool,
+        indexes: Option<Vec<(usize, usize, String)>>,
+        hover_name: String,
+    ) -> Self {
+        Self {
+            is_in_radius,
+            indexes,
+            hover_name,
+        }
+    }
+}
+
 /// Information about the plot that has to persist between frames.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone)]
@@ -104,7 +135,7 @@ struct PlotMemory {
     last_screen_transform: ScreenTransform,
     /// Allows to remember the first click position when performing a boxed zoom
     last_click_pos_for_zoom: Option<Pos2>,
-    hovered_indexes: Option<[usize; 2]>,
+    hovered_indexes: IndexesHovered,
 }
 
 impl PlotMemory {
@@ -740,7 +771,7 @@ impl Plot {
                 center_y_axis,
             ),
             last_click_pos_for_zoom: None,
-            hovered_indexes: None,
+            hovered_indexes: IndexesHovered::default(),
         });
 
         let PlotMemory {
@@ -759,13 +790,13 @@ impl Plot {
             last_screen_transform,
             response,
             ctx: ui.ctx().clone(),
-            hovered_indexes:hovered_indexes.clone(),
+            hovered_indexes: hovered_indexes,
         };
         let inner = build_fn(&mut plot_ui);
         let PlotUi {
             mut items,
             mut response,
-            last_screen_transform, 
+            last_screen_transform,
             hovered_indexes,
             ..
         } = plot_ui;
@@ -995,10 +1026,10 @@ impl Plot {
             draw_cursors,
             grid_spacers,
             sharp_grid_lines,
-            clamp_grid, 
+            clamp_grid,
             hovered_indexes,
         };
-        let (plot_cursors, hovered_indexes_shape) =  prepared.ui(ui, &response);
+        let (plot_cursors, hovered_indexes_shape) = prepared.ui(ui, &response);
 
         if let Some(boxed_zoom_rect) = boxed_zoom_rect {
             ui.painter().with_clip_rect(rect).add(boxed_zoom_rect.0);
@@ -1029,7 +1060,7 @@ impl Plot {
             hidden_items,
             last_screen_transform: transform,
             last_click_pos_for_zoom,
-            hovered_indexes:hovered_indexes_shape,
+            hovered_indexes: hovered_indexes_shape,
         };
         memory.store(ui.ctx(), plot_id);
 
@@ -1051,7 +1082,7 @@ pub struct PlotUi {
     last_screen_transform: ScreenTransform,
     response: Response,
     ctx: Context,
-    hovered_indexes: Option<[usize; 2]> 
+    hovered_indexes: IndexesHovered,
 }
 
 impl PlotUi {
@@ -1089,10 +1120,10 @@ impl PlotUi {
         self.response.hovered()
     }
 
-    /// Returns the index and subindex shape of the hovered point in the plot.
-    pub fn plot_hovered_indexes(&self) -> Option<[usize; 2]> {
-        self.hovered_indexes
-    }    
+    /// Returns the is_in_radius and index and subindex of shape and the name item of the hovered point in the plot.
+    pub fn plot_hovered_indexes(&self) -> IndexesHovered {
+        self.hovered_indexes.clone()
+    }
 
     /// Returns `true` if the plot was clicked by the primary button.
     pub fn plot_clicked(&self) -> bool {
@@ -1332,11 +1363,11 @@ struct PreparedPlot {
     grid_spacers: [GridSpacer; 2],
     sharp_grid_lines: bool,
     clamp_grid: bool,
-    hovered_indexes: Option<[usize; 2]>, 
+    hovered_indexes: IndexesHovered,
 }
 
 impl PreparedPlot {
-    fn ui(mut self, ui: &mut Ui, response: &Response) -> (Vec<Cursor>, Option<[usize; 2]>){
+    fn ui(mut self, ui: &mut Ui, response: &Response) -> (Vec<Cursor>, IndexesHovered) {
         let mut axes_shapes = Vec::new();
 
         for d in 0..2 {
@@ -1364,13 +1395,21 @@ impl PreparedPlot {
             item.shapes(&mut plot_ui, transform, &mut shapes);
         }
 
-        let (cursors, hovered_indexes) = if let Some(pointer) = response.hover_pos() {
+        let (cursors, hovered_indexes, hovered_name) = if let Some(pointer) = response.hover_pos() {
             self.hover(ui, pointer, &mut shapes)
         } else {
-            (Vec::new(), None)
+            (Vec::new(), None, String::new())
         };
 
-        self.hovered_indexes = hovered_indexes;
+        if hovered_indexes.is_some() {
+            self.hovered_indexes = IndexesHovered::new(true, hovered_indexes, hovered_name);
+        } else {
+            self.hovered_indexes = IndexesHovered::new(
+                false,
+                self.hovered_indexes.indexes,
+                self.hovered_indexes.hover_name,
+            );
+        }
 
         // Draw cursors
         let line_color = rulers_color(ui);
@@ -1574,7 +1613,12 @@ impl PreparedPlot {
         }
     }
 
-    fn hover(&self, ui: &Ui, pointer: Pos2, shapes: &mut Vec<Shape>) -> (Vec<Cursor>, Option<[usize; 2]>)  {
+    fn hover(
+        &self,
+        ui: &Ui,
+        pointer: Pos2,
+        shapes: &mut Vec<Shape>,
+    ) -> (Vec<Cursor>, Option<Vec<(usize, usize, String)>>, String) {
         let Self {
             transform,
             show_x,
@@ -1585,11 +1629,10 @@ impl PreparedPlot {
         } = self;
 
         if !show_x && !show_y {
-            return (Vec::new(), None);
+            return (Vec::new(), None, String::new());
         }
 
         let interact_radius_sq: f32 = (16.0f32).powi(2);
-
 
         let candidates = items
             .iter()
@@ -1602,9 +1645,19 @@ impl PreparedPlot {
             });
 
         let closest = candidates
-            .min_by_key(|(_, elem)| elem.dist_sq.ord())
-            .filter(|(_, elem)| elem.dist_sq <= interact_radius_sq);
-      
+            .clone()
+            .filter(|(_, elem)| elem.dist_sq <= interact_radius_sq)
+            .fold(None, |acc, ((i, item), elem)| {
+                let name = item.name().clone().to_owned();
+                match acc {
+                    None => Some((vec![(i, elem.index, name)], item, elem)),
+                    Some((mut idx, item, elem)) => {
+                        idx.push((i, elem.index, name));
+                        Some((idx, item, elem))
+                    }
+                }
+            });
+
         let mut cursors = Vec::new();
 
         let plot = items::PlotConfig {
@@ -1615,9 +1668,11 @@ impl PreparedPlot {
         };
 
         let mut index_interact_radius_sq = None;
+        let mut name_interact_radius_sq = String::new();
 
-        if let Some((( index_root,item), elem)) = closest {
-            index_interact_radius_sq = Some([index_root, elem.index]);
+        if let Some((index_root, item, elem)) = closest {
+            index_interact_radius_sq = Some(index_root);
+            name_interact_radius_sq = item.name().to_owned();
             item.on_hover(elem, shapes, &mut cursors, &plot, label_formatter);
         } else {
             let value = transform.value_from_position(pointer);
@@ -1632,7 +1687,7 @@ impl PreparedPlot {
             );
         }
 
-        (cursors, index_interact_radius_sq)
+        (cursors, index_interact_radius_sq, name_interact_radius_sq)
     }
 }
 
