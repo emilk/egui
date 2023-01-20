@@ -85,7 +85,7 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// If `false` the window will be in movable.
+    /// If `false` the window will be immovable.
     pub fn movable(mut self, movable: bool) -> Self {
         self.area = self.area.movable(movable);
         self
