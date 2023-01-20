@@ -85,6 +85,12 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// If `false` the window will be in movable.
+    pub fn movable(mut self, movable: bool) -> Self {
+        self.area = self.area.movable(movable);
+        self
+    }
+
     /// Usage: `Window::new(…).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
     // TODO(emilk): I'm not sure this is a good interface for this.
     pub fn mutate(mut self, mutate: impl Fn(&mut Self)) -> Self {
