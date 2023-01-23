@@ -756,9 +756,8 @@ impl Plot {
         }
 
         // Apply bounds modifications.
-        bounds_modifications
-            .into_iter()
-            .for_each(|modification| match modification {
+        for modification in bounds_modifications {
+            match modification {
                 BoundsModification::Set(new_bounds) => {
                     bounds = new_bounds;
                     bounds_modified = true.into();
