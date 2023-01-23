@@ -162,9 +162,6 @@ impl ComboBox {
         let button_id = ui.make_persistent_id(id_source);
 
         ui.horizontal(|ui| {
-            if let Some(width) = width {
-                ui.spacing_mut().slider_width = width; // yes, this is ugly. Will remove later.
-            }
             let mut ir = combo_box_dyn(
                 ui,
                 button_id,
@@ -172,6 +169,7 @@ impl ComboBox {
                 menu_contents,
                 icon,
                 wrap_enabled,
+                width,
             );
             if let Some(label) = label {
                 ir.response
@@ -240,6 +238,7 @@ fn combo_box_dyn<'c, R>(
     menu_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     icon: Option<IconPainter>,
     wrap_enabled: bool,
+    width: Option<f32>,
 ) -> InnerResponse<Option<R>> {
     let popup_id = button_id.with("popup");
 
@@ -269,7 +268,8 @@ fn combo_box_dyn<'c, R>(
             ui.available_width()
         } else {
             // Occupy at least the minimum width assigned to Slider and ComboBox.
-            ui.spacing().slider_width - 2.0 * margin.x
+            let width = width.unwrap_or_else(|| ui.spacing().combo_width);
+            width - 2.0 * margin.x
         };
         let icon_size = Vec2::splat(ui.spacing().icon_width);
         let wrap_width = if wrap_enabled {
