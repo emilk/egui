@@ -769,7 +769,8 @@ impl Plot {
                 BoundsModification::Auto => {
                     bounds_modified = false.into();
                 }
-            });
+            }
+        }
 
         // Reset bounds to initial bounds if they haven't been modified.
         if !bounds_modified.x {

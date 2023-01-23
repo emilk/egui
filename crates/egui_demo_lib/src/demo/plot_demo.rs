@@ -528,23 +528,23 @@ impl LinkedAxisDemo {
                 .data_aspect(1.0)
                 .width(250.0)
                 .height(250.0)
-                .link_axis(LINK_GROUP_NAME, self.link_x, self.link_y)
-                .link_cursor(LINK_GROUP_NAME, self.link_cursor_x, self.link_cursor_y)
+                .link_axis(link_group_id, self.link_x, self.link_y)
+                .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
                 .show(ui, LinkedAxisDemo::configure_plot);
             Plot::new("linked_axis_2")
                 .data_aspect(2.0)
                 .width(150.0)
                 .height(250.0)
-                .link_axis(LINK_GROUP_NAME, self.link_x, self.link_y)
-                .link_cursor(LINK_GROUP_NAME, self.link_cursor_x, self.link_cursor_y)
+                .link_axis(link_group_id, self.link_x, self.link_y)
+                .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
                 .show(ui, LinkedAxisDemo::configure_plot);
         });
         Plot::new("linked_axis_3")
             .data_aspect(0.5)
             .width(250.0)
             .height(150.0)
-            .link_axis(LINK_GROUP_NAME, self.link_x, self.link_y)
-            .link_cursor(LINK_GROUP_NAME, self.link_cursor_x, self.link_cursor_y)
+            .link_axis(link_group_id, self.link_x, self.link_y)
+            .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
             .show(ui, LinkedAxisDemo::configure_plot)
             .response
     }
