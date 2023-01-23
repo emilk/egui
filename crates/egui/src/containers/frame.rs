@@ -222,7 +222,7 @@ impl Frame {
         InnerResponse::new(ret, response)
     }
 
-    pub fn paint(&self, outer_rect: Rect) -> Shape {
+    pub fn paint(&self, ctx: &Context, outer_rect: Rect) -> Shape {
         let Self {
             inner_margin: _,
             outer_margin: _,
@@ -242,8 +242,7 @@ impl Frame {
         if shadow == Default::default() {
             frame_shape
         } else {
-            let shadow = shadow.tessellate(outer_rect, rounding);
-            let shadow = Shape::Mesh(shadow);
+            let shadow = ctx.shadow_painter().paint(shadow, outer_rect, rounding);
             Shape::Vec(vec![shadow, frame_shape])
         }
     }
@@ -274,7 +273,7 @@ impl Prepared {
         } = self;
 
         if ui.is_rect_visible(paint_rect) {
-            let shape = frame.paint(paint_rect);
+            let shape = frame.paint(ui.ctx(), paint_rect);
             ui.painter().set(where_to_put_background, shape);
         }
 

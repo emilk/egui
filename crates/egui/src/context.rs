@@ -70,6 +70,8 @@ struct ContextImpl {
 
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
+
+    shadow_painter: ShadowPainter,
 }
 
 impl ContextImpl {
@@ -1023,6 +1025,14 @@ impl Context {
         pos = self.round_pos_to_pixels(pos);
 
         Rect::from_min_size(pos, window.size())
+    }
+
+    pub fn shadow_painter(&self) -> RwLockReadGuard<'_, ShadowPainter> {
+        RwLockReadGuard::map(self.read(), |f| &f.shadow_painter)
+    }
+
+    pub fn set_shadow_painter(&self, custom_shadow: ShadowPainter) {
+        self.write().shadow_painter = custom_shadow;
     }
 }
 

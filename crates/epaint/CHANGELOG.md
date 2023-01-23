@@ -3,6 +3,7 @@ All notable changes to the epaint crate will be documented in this file.
 
 
 ## Unreleased
+* Add `ShadowPainter` struct to support custom shadow implementions ([#2564](https://github.com/emilk/egui/pull/2564)).
 * Improve the look of thin white lines ([#2437](https://github.com/emilk/egui/pull/2437)).
 * Don't render `\r` (Carriage Return) ([#2452](https://github.com/emilk/egui/pull/2452)).
 * Fix bug in `Mesh::split_to_u16` ([#2459](https://github.com/emilk/egui/pull/2459)).

@@ -32,7 +32,7 @@ pub use {
     bezier::{CubicBezierShape, QuadraticBezierShape},
     image::{ColorImage, FontImage, ImageData, ImageDelta},
     mesh::{Mesh, Mesh16, Vertex},
-    shadow::Shadow,
+    shadow::{Shadow, ShadowPainter},
     shape::{
         CircleShape, PaintCallback, PaintCallbackInfo, PathShape, RectShape, Rounding, Shape,
         TextShape,

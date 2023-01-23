@@ -6,6 +6,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 ## Unreleased
 ### Added ⭐
+* Add `Context::(set_)shadow_painter` for overriding the default shadow implementation with custom one ([#2564](https://github.com/emilk/egui/pull/2564)).
 * `Event::Key` now has a `repeat` field that is set to `true` if the event was the result of a key-repeat ([#2435](https://github.com/emilk/egui/pull/2435)).
 * Add `Slider::drag_value_speed`, which lets you ask for finer precision when dragging the slider value rather than the actual slider.
 * Add `Memory::any_popup_open`, which returns true if any popup is currently open ([#2464](https://github.com/emilk/egui/pull/2464)).
@@ -16,6 +17,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Add `Button::rounding` to enable round buttons ([#2539](https://github.com/emilk/egui/pull/2539))
 
 ### Changed 🔧
+* `Frame::paint` now takes an extra `&Context` argument ([#2564](https://github.com/emilk/egui/pull/2564)).
 * Improved plot grid appearance ([#2412](https://github.com/emilk/egui/pull/2412)).
 * Improved the algorithm for picking the number of decimals to show when hovering values in the `Plot`.
 

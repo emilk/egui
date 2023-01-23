@@ -50,38 +50,72 @@ impl Shadow {
             color: Color32::from_black_alpha(16),
         }
     }
+}
 
-    pub fn tessellate(&self, rect: Rect, rounding: impl Into<Rounding>) -> Mesh {
-        // tessellator.clip_rect = clip_rect; // TODO(emilk): culling
+/// Functions for painting shadows
+pub struct ShadowPainter {
+    clip_rect: std::sync::Arc<dyn Fn(Shadow, Rect, Rounding) -> Rect + Send + Sync>,
+    paint: std::sync::Arc<dyn Fn(Shadow, Rect, Rounding) -> Shape + Send + Sync>,
+}
+impl ShadowPainter {
+    /// Create a custom [`ShadowPainter`].
+    /// For arguments, see [`Self::shadow_clip_rect`] and [`Self::paint`]
+    pub fn new(
+        clip_rect: impl Fn(Shadow, Rect, Rounding) -> Rect + Send + Sync + 'static,
+        paint: impl Fn(Shadow, Rect, Rounding) -> Shape + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            clip_rect: std::sync::Arc::new(clip_rect),
+            paint: std::sync::Arc::new(paint),
+        }
+    }
 
-        let Self { extrusion, color } = *self;
+    /// Transform (typically expand) a clip rect to fit the given shadow
+    pub fn shadow_clip_rect(&self, shadow: Shadow, content_rect: Rect, rounding: Rounding) -> Rect {
+        (self.clip_rect)(shadow, content_rect, rounding)
+    }
 
-        let rounding: Rounding = rounding.into();
-        let half_ext = 0.5 * extrusion;
+    /// Convert a shadow into a [`Shape`]
+    pub fn paint(&self, shadow: Shadow, content_rect: Rect, rounding: Rounding) -> Shape {
+        (self.paint)(shadow, content_rect, rounding)
+    }
+}
+impl Default for ShadowPainter {
+    fn default() -> Self {
+        Self::new(
+            |shadow, rect, _| rect.expand(shadow.extrusion),
+            |shadow, rect, rounding| {
+                // tessellator.clip_rect = clip_rect; // TODO(emilk): culling
 
-        let ext_rounding = Rounding {
-            nw: rounding.nw + half_ext,
-            ne: rounding.ne + half_ext,
-            sw: rounding.sw + half_ext,
-            se: rounding.se + half_ext,
-        };
+                let Shadow { extrusion, color } = shadow;
 
-        use crate::tessellator::*;
-        let rect = RectShape::filled(rect.expand(half_ext), ext_rounding, color);
-        let pixels_per_point = 1.0; // doesn't matter here
-        let font_tex_size = [1; 2]; // unused size we are not tessellating text.
-        let mut tessellator = Tessellator::new(
-            pixels_per_point,
-            TessellationOptions {
-                feathering: true,
-                feathering_size_in_pixels: extrusion * pixels_per_point,
-                ..Default::default()
+                let half_ext = 0.5 * extrusion;
+
+                let ext_rounding = Rounding {
+                    nw: rounding.nw + half_ext,
+                    ne: rounding.ne + half_ext,
+                    sw: rounding.sw + half_ext,
+                    se: rounding.se + half_ext,
+                };
+
+                use crate::tessellator::*;
+                let rect = RectShape::filled(rect.expand(half_ext), ext_rounding, color);
+                let pixels_per_point = 1.0; // doesn't matter here
+                let font_tex_size = [1; 2]; // unused size we are not tessellating text.
+                let mut tessellator = Tessellator::new(
+                    pixels_per_point,
+                    TessellationOptions {
+                        feathering: true,
+                        feathering_size_in_pixels: extrusion * pixels_per_point,
+                        ..Default::default()
+                    },
+                    font_tex_size,
+                    vec![],
+                );
+                let mut mesh = Mesh::default();
+                tessellator.tessellate_rect(&rect, &mut mesh);
+                Shape::Mesh(mesh)
             },
-            font_tex_size,
-            vec![],
-        );
-        let mut mesh = Mesh::default();
-        tessellator.tessellate_rect(&rect, &mut mesh);
-        mesh
+        )
     }
 }
