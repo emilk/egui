@@ -13,6 +13,7 @@ pub struct ProgressBar {
     progress: f32,
     desired_width: Option<f32>,
     text: Option<ProgressBarText>,
+    fill: Option<Color32>,
     animate: bool,
 }
 
@@ -23,6 +24,7 @@ impl ProgressBar {
             progress: progress.clamp(0.0, 1.0),
             desired_width: None,
             text: None,
+            fill: None,
             animate: false,
         }
     }
@@ -30,6 +32,12 @@ impl ProgressBar {
     /// The desired width of the bar. Will use all horizontal space if not set.
     pub fn desired_width(mut self, desired_width: f32) -> Self {
         self.desired_width = Some(desired_width);
+        self
+    }
+
+    /// The fill color of the bar.
+    pub fn fill(mut self, color: Color32) -> Self {
+        self.fill = Some(color);
         self
     }
 
@@ -60,6 +68,7 @@ impl Widget for ProgressBar {
             progress,
             desired_width,
             text,
+            fill,
             animate,
         } = self;
 
@@ -98,7 +107,9 @@ impl Widget for ProgressBar {
             ui.painter().rect(
                 inner_rect,
                 rounding,
-                Color32::from(Rgba::from(visuals.selection.bg_fill) * color_factor as f32),
+                Color32::from(
+                    Rgba::from(fill.unwrap_or(visuals.selection.bg_fill)) * color_factor as f32,
+                ),
                 Stroke::NONE,
             );
 
