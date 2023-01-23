@@ -583,7 +583,9 @@ impl<'a> Slider<'a> {
                         break;
                     }
                 }
-                if closest_distance < ui.input().aim_radius() as f64 {
+
+                // Divide aim_radius by the granularity we want
+                if closest_distance < ui.input().aim_radius() as f64 / 10.0 {
                     new_value = closest_snap;
                 }
             }

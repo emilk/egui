@@ -12,7 +12,7 @@ pub struct Sliders {
     pub clamp_to_range: bool,
     pub smart_aim: bool,
     pub snap_aim: bool,
-    pub smart_aim_values: Vec<f64>,
+    pub snap_values: Vec<f64>,
     pub step: f64,
     pub use_steps: bool,
     pub integer: bool,
@@ -29,7 +29,7 @@ impl Default for Sliders {
             clamp_to_range: false,
             smart_aim: true,
             snap_aim: false,
-            smart_aim_values: vec![],
+            snap_values: vec![],
             step: 10.0,
             use_steps: false,
             integer: false,
@@ -64,7 +64,7 @@ impl super::View for Sliders {
             clamp_to_range,
             smart_aim,
             snap_aim,
-            smart_aim_values,
+            snap_values,
             step,
             use_steps,
             integer,
@@ -99,7 +99,7 @@ impl super::View for Sliders {
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
-                    .snap_values(smart_aim_values.clone())
+                    .snap_values(snap_values.clone())
                     .orientation(orientation)
                     .text("i32 demo slider")
                     .step_by(istep),
@@ -111,7 +111,7 @@ impl super::View for Sliders {
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
-                    .snap_values(smart_aim_values.clone())
+                    .snap_values(snap_values.clone())
                     .orientation(orientation)
                     .text("f64 demo slider")
                     .step_by(istep),
@@ -147,9 +147,9 @@ impl super::View for Sliders {
             let range = *max - *min;
 
             // Set the smart aim values to 1/3 and 2/3 of the range, for demo-ing
-            *smart_aim_values = vec![range / 3.0, range * 2.0 / 3.0];
+            *snap_values = vec![0.0, range / 3.0, range * 2.0 / 3.0, range];
         } else {
-            *smart_aim_values = vec![];
+            *snap_values = vec![];
         }
 
         ui.separator();
