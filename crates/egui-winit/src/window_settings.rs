@@ -88,22 +88,15 @@ impl WindowSettings {
         &mut self,
         event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
     ) {
-        use std::ops::{Add, AddAssign, MulAssign, Sub};
-
-        if let (Some(position), Some(inner_size)) = (&mut self.position, &self.inner_size_points) {
+         if let (Some(position), Some(inner_size_points)) = (&mut self.position, &self.inner_size_points) {
             let monitors = event_loop.available_monitors();
             // default to primary monitor, in case the correct monitor was disconnected.
-            let mut monitor: winit::monitor::MonitorHandle = match event_loop.primary_monitor() {
-                Some(m) => m,
-                // No primary monitor, grab index 0 instead
-                _ => {
-                    match event_loop.available_monitors().nth(0) {
-                        Some(m) => m,
-                        None => return, // No monitors?
-                    }
-                }
-            };
-            for _monitor in monitors {
+             let mut active_monitor =
+                 if let Some(active_monitor) = event_loop.primary_monitor().or_else(|| event_loop.available_monitors().next()) { active_monitor }
+                 else {
+                     return; // no monitors 🤷
+                 };
+            for monitor in monitors {
                 let monitor_x_range =
                     _monitor.position().x..(_monitor.position().x + _monitor.size().width as i32);
                 let monitor_y_range =
@@ -112,28 +105,25 @@ impl WindowSettings {
                 if monitor_x_range.contains(&(position.x as i32))
                     && monitor_y_range.contains(&(position.y as i32))
                 {
-                    monitor = _monitor
+                    active_monitor = monitor
                 }
             }
 
-            let mut inner_size = inner_size.clone(); // Shadow inner_size, we don't want to modify the original
-            inner_size.mul_assign(monitor.scale_factor() as f32);
+            let mut inner_size_pixels = inner_size_points.clone() * (active_monitor.scale_factor() as f32); // clone inner_size_points, we don't want to modify the original
             // Add size of title bar. This is 32 px by default in Win 10/11.
             #[cfg(windows)]
-            inner_size.add_assign(egui::Vec2::new(0.0, 32.0 * monitor.scale_factor() as f32));
+            { inner_size_pixels += egui::Vec2::new(0.0, 32.0 * active_monitor.scale_factor() as f32); } // Wrapped
             let monitor_position =
-                egui::Pos2::new(monitor.position().x as f32, monitor.position().y as f32);
-            let monitor_logical_size = monitor.size();
+                egui::Pos2::new(active_monitor.position().x as f32, active_monitor.position().y as f32);
+            let monitor_size = active_monitor.size();
             *position = position.clamp(
                 monitor_position,
                 // To get the maximum position, we get the rightmost corner of the display, then subtract
                 // the size of the window to get the bottom right most value window.position can have.
-                monitor_position
-                    .add(egui::Vec2::new(
-                        monitor_logical_size.width as f32,
-                        monitor_logical_size.height as f32,
-                    ))
-                    .sub(inner_size),
+                monitor_position + egui::Vec2::new(
+                    monitor_size.width as f32,
+                    monitor_size.height as f32,
+                ) - inner_size_pixels,
             );
         }
     }
