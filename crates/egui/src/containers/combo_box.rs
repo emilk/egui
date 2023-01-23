@@ -262,6 +262,7 @@ fn combo_box_dyn<'c, R>(
 
     let margin = ui.spacing().button_padding;
     let button_response = button_frame(ui, button_id, is_popup_open, Sense::click(), |ui| {
+        let icon_spacing = ui.spacing().icon_spacing;
         // We don't want to change width when user selects something new
         let full_minimum_width = if wrap_enabled {
             // Currently selected value's text will be wrapped if needed, so occupy the available width.
@@ -274,7 +275,7 @@ fn combo_box_dyn<'c, R>(
         let icon_size = Vec2::splat(ui.spacing().icon_width);
         let wrap_width = if wrap_enabled {
             // Use the available width, currently selected value's text will be wrapped if exceeds this value.
-            ui.available_width() - ui.spacing().item_spacing.x - icon_size.x
+            ui.available_width() - icon_spacing - icon_size.x
         } else {
             // Use all the width necessary to display the currently selected value's text.
             f32::INFINITY
@@ -288,7 +289,7 @@ fn combo_box_dyn<'c, R>(
             full_minimum_width
         } else {
             // Occupy at least the minimum width needed to contain the widget with the currently selected value's text.
-            galley.size().x + ui.spacing().item_spacing.x + icon_size.x
+            galley.size().x + icon_spacing + icon_size.x
         };
 
         // Case : wrap_enabled : occupy all the available width.
