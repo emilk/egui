@@ -731,8 +731,8 @@ impl Visuals {
             widgets: Widgets::default(),
             selection: Selection::default(),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
-            faint_bg_color: Color32::from_additive_luminance(8),
-            extreme_bg_color: Color32::from_gray(10), // e.g. TextEdit background
+            faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
+            extreme_bg_color: Color32::from_gray(10),            // e.g. TextEdit background
             code_bg_color: Color32::from_gray(64),
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
@@ -765,8 +765,8 @@ impl Visuals {
             widgets: Widgets::light(),
             selection: Selection::light(),
             hyperlink_color: Color32::from_rgb(0, 155, 255),
-            faint_bg_color: Color32::from_additive_luminance(8),
-            extreme_bg_color: Color32::from_gray(255), // e.g. TextEdit background
+            faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
+            extreme_bg_color: Color32::from_gray(255),           // e.g. TextEdit background
             code_bg_color: Color32::from_gray(230),
             warn_fg_color: Color32::from_rgb(255, 100, 0), // slightly orange red. it's difficult to find a warning color that pops on bright background.
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
