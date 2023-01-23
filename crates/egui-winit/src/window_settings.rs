@@ -109,7 +109,7 @@ impl WindowSettings {
                 }
             }
 
-            let mut inner_size_pixels = inner_size_points.clone() * (active_monitor.scale_factor() as f32); // clone inner_size_points, we don't want to modify the original
+            let mut inner_size_pixels = inner_size_points * (active_monitor.scale_factor() as f32);
             // Add size of title bar. This is 32 px by default in Win 10/11.
             if cfg!(target_os = "windows") {
                 inner_size_pixels += egui::Vec2::new(0.0, 32.0 * active_monitor.scale_factor() as f32);
