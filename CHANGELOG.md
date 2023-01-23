@@ -12,7 +12,8 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Add `Plot::clamp_grid` to only show grid where there is data ([#2480](https://github.com/emilk/egui/pull/2480)).
 * Add `ScrollArea::drag_to_scroll` if you want to turn off that feature.
 * Add `Response::on_hover_and_drag_cursor`.
-* Add `Checkbox::without_text`.
+* Add `Checkbox::without_text` ([#2508](https://github.com/emilk/egui/pull/2508))
+* Add `Window::default_open` ([#2539](https://github.com/emilk/egui/pull/2539))
 
 ### Changed 🔧
 * Improved plot grid appearance ([#2412](https://github.com/emilk/egui/pull/2412)).
@@ -21,6 +22,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 ### Fixed 🐛
 * Expose `TextEdit`'s multiline flag to AccessKit ([#2448](https://github.com/emilk/egui/pull/2448)).
 * Don't render `\r` (Carriage Return) ([#2452](https://github.com/emilk/egui/pull/2452)).
+* The `button_padding` style option works closer as expected with image+text buttons now ([#2510](https://github.com/emilk/egui/pull/2510)).
 
 
 ## 0.20.1 - 2022-12-11 - Fix key-repeat
