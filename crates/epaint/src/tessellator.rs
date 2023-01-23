@@ -1507,6 +1507,10 @@ impl Tessellator {
         stroke: Stroke,
         out: &mut Mesh,
     ) {
+        if points.len() < 2 {
+            return;
+        }
+
         self.scratchpad_path.clear();
         if closed {
             self.scratchpad_path.add_line_loop(points);

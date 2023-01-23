@@ -30,6 +30,7 @@ pub struct Button {
     small: bool,
     frame: Option<bool>,
     min_size: Vec2,
+    rounding: Option<Rounding>,
     image: Option<widgets::Image>,
 }
 
@@ -45,6 +46,7 @@ impl Button {
             small: false,
             frame: None,
             min_size: Vec2::ZERO,
+            rounding: None,
             image: None,
         }
     }
@@ -117,6 +119,12 @@ impl Button {
         self
     }
 
+    /// Set the rounding of the button.
+    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
+        self.rounding = Some(rounding.into());
+        self
+    }
+
     /// Show some text on the right side of the button, in weak color.
     ///
     /// Designed for menu buttons, for setting a keyboard shortcut text (e.g. `Ctrl+S`).
@@ -140,6 +148,7 @@ impl Widget for Button {
             small,
             frame,
             min_size,
+            rounding,
             image,
         } = self;
 
@@ -186,12 +195,9 @@ impl Widget for Button {
             if frame {
                 let fill = fill.unwrap_or(visuals.bg_fill);
                 let stroke = stroke.unwrap_or(visuals.bg_stroke);
-                ui.painter().rect(
-                    rect.expand(visuals.expansion),
-                    visuals.rounding,
-                    fill,
-                    stroke,
-                );
+                let rounding = rounding.unwrap_or(visuals.rounding);
+                ui.painter()
+                    .rect(rect.expand(visuals.expansion), rounding, fill, stroke);
             }
 
             let text_pos = if let Some(image) = image {
@@ -221,7 +227,10 @@ impl Widget for Button {
 
             if let Some(image) = image {
                 let image_rect = Rect::from_min_size(
-                    pos2(rect.min.x, rect.center().y - 0.5 - (image.size().y / 2.0)),
+                    pos2(
+                        rect.min.x + button_padding.x,
+                        rect.center().y - 0.5 - (image.size().y / 2.0),
+                    ),
                     image.size(),
                 );
                 image.paint_at(ui, image_rect);
