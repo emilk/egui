@@ -76,7 +76,9 @@ impl<'a> Widget for DatePickerButton<'a> {
         }
         let mut button = Button::new(text);
         if button_state.picker_visible {
-            button = button.fill(visuals.bg_fill).stroke(visuals.bg_stroke);
+            button = button
+                .fill(visuals.optional_bg_fill)
+                .stroke(visuals.bg_stroke);
         }
         let mut button_response = ui.add(button);
         if button_response.clicked() {

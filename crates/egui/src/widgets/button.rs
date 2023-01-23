@@ -193,7 +193,7 @@ impl Widget for Button {
             let visuals = ui.style().interact(&response);
 
             if frame {
-                let fill = fill.unwrap_or(visuals.bg_fill);
+                let fill = fill.unwrap_or(visuals.optional_bg_fill);
                 let stroke = stroke.unwrap_or(visuals.bg_stroke);
                 let rounding = rounding.unwrap_or(visuals.rounding);
                 ui.painter()
@@ -316,7 +316,7 @@ impl<'a> Widget for Checkbox<'a> {
             ui.painter().add(epaint::RectShape {
                 rect: big_icon_rect.expand(visuals.expansion),
                 rounding: visuals.rounding,
-                fill: visuals.bg_fill,
+                fill: visuals.mandatory_bg_fill,
                 stroke: visuals.bg_stroke,
             });
 
@@ -425,7 +425,7 @@ impl Widget for RadioButton {
             painter.add(epaint::CircleShape {
                 center: big_icon_rect.center(),
                 radius: big_icon_rect.width() / 2.0 + visuals.expansion,
-                fill: visuals.bg_fill,
+                fill: visuals.mandatory_bg_fill,
                 stroke: visuals.bg_stroke,
             });
 
@@ -540,7 +540,7 @@ impl Widget for ImageButton {
                 (
                     expansion,
                     visuals.rounding,
-                    visuals.bg_fill,
+                    visuals.optional_bg_fill,
                     visuals.bg_stroke,
                 )
             } else {

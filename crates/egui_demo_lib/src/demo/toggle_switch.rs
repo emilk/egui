@@ -55,12 +55,16 @@ pub fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
         let rect = rect.expand(visuals.expansion);
         let radius = 0.5 * rect.height();
         ui.painter()
-            .rect(rect, radius, visuals.bg_fill, visuals.bg_stroke);
+            .rect(rect, radius, visuals.mandatory_bg_fill, visuals.bg_stroke);
         // Paint the circle, animating it from left to right with `how_on`:
         let circle_x = egui::lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
         let center = egui::pos2(circle_x, rect.center().y);
-        ui.painter()
-            .circle(center, 0.75 * radius, visuals.bg_fill, visuals.fg_stroke);
+        ui.painter().circle(
+            center,
+            0.75 * radius,
+            visuals.mandatory_bg_fill,
+            visuals.fg_stroke,
+        );
     }
 
     // All done! Return the interaction response so the user can check what happened
@@ -85,11 +89,15 @@ fn toggle_ui_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
         let rect = rect.expand(visuals.expansion);
         let radius = 0.5 * rect.height();
         ui.painter()
-            .rect(rect, radius, visuals.bg_fill, visuals.bg_stroke);
+            .rect(rect, radius, visuals.mandatory_bg_fill, visuals.bg_stroke);
         let circle_x = egui::lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
         let center = egui::pos2(circle_x, rect.center().y);
-        ui.painter()
-            .circle(center, 0.75 * radius, visuals.bg_fill, visuals.fg_stroke);
+        ui.painter().circle(
+            center,
+            0.75 * radius,
+            visuals.mandatory_bg_fill,
+            visuals.fg_stroke,
+        );
     }
 
     response

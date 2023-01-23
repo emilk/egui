@@ -623,12 +623,8 @@ impl<'a> Slider<'a> {
             ui.painter().add(epaint::RectShape {
                 rect: rail_rect,
                 rounding: ui.visuals().widgets.inactive.rounding,
-                fill: ui.visuals().widgets.inactive.bg_fill,
-                // fill: visuals.bg_fill,
-                // fill: ui.visuals().extreme_bg_color,
+                fill: ui.visuals().widgets.inactive.mandatory_bg_fill,
                 stroke: Default::default(),
-                // stroke: visuals.bg_stroke,
-                // stroke: ui.visuals().widgets.inactive.bg_stroke,
             });
 
             let center = self.marker_center(position_1d, &rail_rect);
@@ -636,7 +632,7 @@ impl<'a> Slider<'a> {
             ui.painter().add(epaint::CircleShape {
                 center,
                 radius: self.handle_radius(rect) + visuals.expansion,
-                fill: visuals.bg_fill,
+                fill: visuals.mandatory_bg_fill,
                 stroke: visuals.fg_stroke,
             });
         }

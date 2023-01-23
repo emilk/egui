@@ -391,7 +391,7 @@ fn button_frame(
             epaint::RectShape {
                 rect: outer_rect.expand(visuals.expansion),
                 rounding: visuals.rounding,
-                fill: visuals.bg_fill,
+                fill: visuals.optional_bg_fill,
                 stroke: visuals.bg_stroke,
             },
         );

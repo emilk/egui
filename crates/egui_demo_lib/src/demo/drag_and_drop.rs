@@ -55,7 +55,7 @@ pub fn drop_target<R>(
         ui.visuals().widgets.inactive
     };
 
-    let mut fill = style.bg_fill;
+    let mut fill = style.mandatory_bg_fill;
     let mut stroke = style.bg_stroke;
     if is_being_dragged && !can_accept_what_is_being_dragged {
         fill = ui.visuals().gray_out(fill);

@@ -68,7 +68,7 @@ fn set_menu_style(style: &mut Style) {
     style.spacing.button_padding = vec2(2.0, 0.0);
     style.visuals.widgets.active.bg_stroke = Stroke::NONE;
     style.visuals.widgets.hovered.bg_stroke = Stroke::NONE;
-    style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+    style.visuals.widgets.inactive.optional_bg_fill = Color32::TRANSPARENT;
     style.visuals.widgets.inactive.bg_stroke = Stroke::NONE;
 }
 
@@ -180,7 +180,7 @@ fn stationary_menu_impl<'c, R>(
     let mut button = Button::new(title);
 
     if bar_state.open_menu.is_menu_open(menu_id) {
-        button = button.fill(ui.visuals().widgets.open.bg_fill);
+        button = button.fill(ui.visuals().widgets.open.optional_bg_fill);
         button = button.stroke(ui.visuals().widgets.open.bg_stroke);
     }
 
@@ -492,7 +492,7 @@ impl SubMenuButton {
                 ui.painter().rect_filled(
                     rect.expand(visuals.expansion),
                     visuals.rounding,
-                    visuals.bg_fill,
+                    visuals.optional_bg_fill,
                 );
             }
 

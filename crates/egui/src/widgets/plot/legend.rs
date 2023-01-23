@@ -119,7 +119,7 @@ impl LegendEntry {
         painter.add(epaint::CircleShape {
             center: icon_rect.center(),
             radius: icon_size * 0.5,
-            fill: visuals.bg_fill,
+            fill: visuals.mandatory_bg_fill,
             stroke: visuals.bg_stroke,
         });
 

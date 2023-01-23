@@ -555,7 +555,7 @@ impl CollapsingHeader {
                 ui.painter().add(epaint::RectShape {
                     rect: header_response.rect.expand(visuals.expansion),
                     rounding: visuals.rounding,
-                    fill: visuals.bg_fill,
+                    fill: visuals.optional_bg_fill,
                     stroke: visuals.bg_stroke,
                     // stroke: Default::default(),
                 });
@@ -565,8 +565,12 @@ impl CollapsingHeader {
             {
                 let rect = rect.expand(visuals.expansion);
 
-                ui.painter()
-                    .rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
+                ui.painter().rect(
+                    rect,
+                    visuals.rounding,
+                    visuals.mandatory_bg_fill,
+                    visuals.bg_stroke,
+                );
             }
 
             {
