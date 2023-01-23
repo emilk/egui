@@ -73,7 +73,7 @@ pub struct Slider<'a> {
     spec: SliderSpec,
     clamp_to_range: bool,
     smart_aim: bool,
-    smart_aim_values: Vec<f64>,
+    snap_values: Vec<f64>,
     show_value: bool,
     orientation: SliderOrientation,
     prefix: String,
@@ -120,7 +120,7 @@ impl<'a> Slider<'a> {
             },
             clamp_to_range: true,
             smart_aim: true,
-            smart_aim_values: vec![],
+            snap_values: vec![],
             show_value: true,
             orientation: SliderOrientation::Horizontal,
             prefix: Default::default(),
@@ -220,15 +220,15 @@ impl<'a> Slider<'a> {
     /// This only has an effect when [`smart_aim`] is ON. `snap_radius` defines the range around
     /// the mouse where the slider will snap to the given values. To be useful, this should be
     /// somewhat large (and definitely larger than [`InputState::aim_radius`]). Default is 0.1.
-    pub fn smart_aim_values<Num: emath::Numeric>(
+    pub fn snap_values<Num: emath::Numeric>(
         mut self,
-        smart_aim_values: Vec<Num>,
+        snap_values: Vec<Num>,
     ) -> Self {
-        self.smart_aim_values = smart_aim_values
+        self.snap_values = snap_values
             .into_iter()
             .map(|n| n.to_f64().clamp(*self.range.start(), *self.range.end()))
             .collect();
-        self.smart_aim_values
+        self.snap_values
             .sort_by(|a, b| a.total_cmp(b));
         self
     }
@@ -559,38 +559,35 @@ impl<'a> Slider<'a> {
 
         if let Some(pointer_position_2d) = response.interact_pointer_pos() {
             let position = self.pointer_position(pointer_position_2d);
-            let new_value = if self.smart_aim {
+            let mut new_value = if self.smart_aim {
                 let aim_radius = ui.input().aim_radius();
-                let value = emath::smart_aim::best_in_range_f64(
+                emath::smart_aim::best_in_range_f64(
                     self.value_from_position(position - aim_radius, position_range.clone()),
                     self.value_from_position(position + aim_radius, position_range.clone()),
-                );
-                if self.smart_aim_values.is_empty() {
-                    value
-                } else {
-                    let mut closest_snap = 0.0;
-                    let norm_value = normalized_from_value(value, self.range.clone(), &self.spec);
-                    let mut closest_distance = f64::INFINITY;
-                    for snap in self.smart_aim_values.iter().copied() {
-                        let snap_norm_value =
-                            normalized_from_value(snap, self.range.clone(), &self.spec);
-                        let distance = (norm_value - snap_norm_value).abs();
-                        if distance < closest_distance {
-                            closest_snap = snap;
-                            closest_distance = distance;
-                        } else {
-                            break;
-                        }
-                    }
-                    if closest_distance < ui.input().aim_radius() as f64 {
-                        closest_snap
-                    } else {
-                        value
-                    }
-                }
+                )
             } else {
                 self.value_from_position(position, position_range.clone())
             };
+            if !self.snap_values.is_empty() {
+                let mut closest_snap = 0.0;
+                let norm_value = normalized_from_value(new_value, self.range.clone(), &self.spec);
+                let mut closest_distance = f64::INFINITY;
+                for snap in self.snap_values.iter().copied() {
+                    let snap_norm_value =
+                        normalized_from_value(snap, self.range.clone(), &self.spec);
+                    let distance = (norm_value - snap_norm_value).abs();
+                    if distance < closest_distance {
+                        closest_snap = snap;
+                        closest_distance = distance;
+                    } else {
+                        break;
+                    }
+                }
+                if closest_distance < ui.input().aim_radius() as f64 {
+                    new_value = closest_snap;
+                }
+            }
+
             self.set_value(new_value);
         }
 
@@ -672,22 +669,21 @@ impl<'a> Slider<'a> {
                 // stroke: ui.visuals().widgets.inactive.bg_stroke,
             });
 
-            if self.smart_aim {
-                for smart_aim_value in &self.smart_aim_values {
-                    let snap_position_1d =
-                        self.position_from_value(*smart_aim_value, position_range.clone());
-                    let center = self.marker_center(snap_position_1d, &rail_rect);
-                    ui.painter().add(epaint::CircleShape {
-                        center,
-                        radius: 2.0,
-                        fill: ui.visuals().widgets.noninteractive.bg_fill,
-                        stroke: Stroke {
-                            width: 0.0,
-                            color: Default::default(),
-                        },
-                    });
-                }
+            for smart_aim_value in &self.snap_values {
+                let snap_position_1d =
+                    self.position_from_value(*smart_aim_value, position_range.clone());
+                let center = self.marker_center(snap_position_1d, &rail_rect);
+                ui.painter().add(epaint::CircleShape {
+                    center,
+                    radius: 2.0,
+                    fill: ui.visuals().widgets.noninteractive.bg_fill,
+                    stroke: Stroke {
+                        width: 0.0,
+                        color: Default::default(),
+                    },
+                });
             }
+
 
             let position_1d = self.position_from_value(value, position_range);
 
