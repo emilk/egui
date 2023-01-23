@@ -74,7 +74,6 @@ pub struct Slider<'a> {
     clamp_to_range: bool,
     smart_aim: bool,
     smart_aim_values: Vec<f64>,
-    snap_radius: f32,
     show_value: bool,
     orientation: SliderOrientation,
     prefix: String,
@@ -122,7 +121,6 @@ impl<'a> Slider<'a> {
             clamp_to_range: true,
             smart_aim: true,
             smart_aim_values: vec![],
-            snap_radius: 0.1,
             show_value: true,
             orientation: SliderOrientation::Horizontal,
             prefix: Default::default(),
@@ -225,20 +223,13 @@ impl<'a> Slider<'a> {
     pub fn smart_aim_values<Num: emath::Numeric>(
         mut self,
         smart_aim_values: Vec<Num>,
-        snap_radius: f32,
     ) -> Self {
-        self.snap_radius = snap_radius.clamp(0.0, 1.0);
         self.smart_aim_values = smart_aim_values
             .into_iter()
             .map(|n| n.to_f64().clamp(*self.range.start(), *self.range.end()))
             .collect();
         self.smart_aim_values
-            .sort_by(|a, b| match a.partial_cmp(b) {
-                Some(ordering) => ordering,
-
-                // NaNs are handled silently
-                None => Ordering::Greater,
-            });
+            .sort_by(|a, b| a.total_cmp(b));
         self
     }
 
@@ -591,7 +582,7 @@ impl<'a> Slider<'a> {
                             break;
                         }
                     }
-                    if closest_distance < self.snap_radius as f64 {
+                    if closest_distance < ui.input().aim_radius() as f64 {
                         closest_snap
                     } else {
                         value

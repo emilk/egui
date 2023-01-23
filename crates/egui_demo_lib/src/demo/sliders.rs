@@ -99,7 +99,7 @@ impl super::View for Sliders {
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
-                    .smart_aim_values(smart_aim_values.clone(), 0.1)
+                    .smart_aim_values(smart_aim_values.clone())
                     .orientation(orientation)
                     .text("i32 demo slider")
                     .step_by(istep),
@@ -111,7 +111,7 @@ impl super::View for Sliders {
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
-                    .smart_aim_values(smart_aim_values.clone(), 0.1)
+                    .smart_aim_values(smart_aim_values.clone())
                     .orientation(orientation)
                     .text("f64 demo slider")
                     .step_by(istep),
