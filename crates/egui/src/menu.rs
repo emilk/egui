@@ -472,7 +472,8 @@ impl SubMenuButton {
             text_galley.size().x + icon_galley.size().x,
             text_galley.size().y.max(icon_galley.size().y),
         );
-        let desired_size = text_and_icon_size + 2.0 * button_padding;
+        let mut desired_size = text_and_icon_size + 2.0 * button_padding;
+        desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| {
