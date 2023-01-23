@@ -846,7 +846,7 @@ impl Prepared {
                 ui.painter().add(epaint::Shape::rect_filled(
                     handle_rect,
                     visuals.rounding,
-                    visuals.mandatory_bg_fill,
+                    visuals.bg_fill,
                 ));
             }
         }

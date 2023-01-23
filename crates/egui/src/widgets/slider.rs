@@ -623,7 +623,7 @@ impl<'a> Slider<'a> {
             ui.painter().add(epaint::RectShape {
                 rect: rail_rect,
                 rounding: ui.visuals().widgets.inactive.rounding,
-                fill: ui.visuals().widgets.inactive.mandatory_bg_fill,
+                fill: ui.visuals().widgets.inactive.bg_fill,
                 stroke: Default::default(),
             });
 
@@ -632,7 +632,7 @@ impl<'a> Slider<'a> {
             ui.painter().add(epaint::CircleShape {
                 center,
                 radius: self.handle_radius(rect) + visuals.expansion,
-                fill: visuals.mandatory_bg_fill,
+                fill: visuals.bg_fill,
                 stroke: visuals.fg_stroke,
             });
         }

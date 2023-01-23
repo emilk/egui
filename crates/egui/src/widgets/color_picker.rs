@@ -95,7 +95,7 @@ fn color_button(ui: &mut Ui, color: Color32, open: bool) -> Response {
 
         let rounding = visuals.rounding.at_most(2.0);
         ui.painter()
-            .rect_stroke(rect, rounding, (2.0, visuals.mandatory_bg_fill)); // fill is intentional, because default style has no border
+            .rect_stroke(rect, rounding, (2.0, visuals.bg_fill)); // fill is intentional, because default style has no border
     }
 
     response

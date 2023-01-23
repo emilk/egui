@@ -565,12 +565,8 @@ impl CollapsingHeader {
             {
                 let rect = rect.expand(visuals.expansion);
 
-                ui.painter().rect(
-                    rect,
-                    visuals.rounding,
-                    visuals.mandatory_bg_fill,
-                    visuals.bg_stroke,
-                );
+                ui.painter()
+                    .rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
             }
 
             {
