@@ -1026,6 +1026,7 @@ impl<'a, 'b> TableRow<'a, 'b> {
     /// Add the contents of a column.
     ///
     /// Return the used space (`min_rect`) plus the [`Response`] of the whole cell.
+    #[cfg_attr(debug_assertions, track_caller)]
     pub fn col(&mut self, add_cell_contents: impl FnOnce(&mut Ui)) -> (Rect, Response) {
         let col_index = self.col_index;
 

@@ -7,17 +7,23 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 ## Unreleased
 ### Added ⭐
 * `Event::Key` now has a `repeat` field that is set to `true` if the event was the result of a key-repeat ([#2435](https://github.com/emilk/egui/pull/2435)).
-
-### Changed 🔧
-* ⚠️ BREAKING: `Plot::link_axis` and `Plot::link_cursor` now take the name of the group ([#2410](https://github.com/emilk/egui/pull/2410)).
 * Add `Slider::drag_value_speed`, which lets you ask for finer precision when dragging the slider value rather than the actual slider.
 * Add `Memory::any_popup_open`, which returns true if any popup is currently open ([#2464](https://github.com/emilk/egui/pull/2464)).
 * Add `Plot::clamp_grid` to only show grid where there is data ([#2480](https://github.com/emilk/egui/pull/2480)).
+* Add `ScrollArea::drag_to_scroll` if you want to turn off that feature.
+* Add `Response::on_hover_and_drag_cursor`.
+* Add `Window::default_open` ([#2539](https://github.com/emilk/egui/pull/2539))
+* Add `Button::rounding` to enable round buttons ([#2539](https://github.com/emilk/egui/pull/2539))
+
+### Changed 🔧
+* ⚠️ BREAKING: `Plot::link_axis` and `Plot::link_cursor` now take the name of the group ([#2410](https://github.com/emilk/egui/pull/2410)).
 * Improved plot grid appearance ([#2412](https://github.com/emilk/egui/pull/2412)).
+* Improved the algorithm for picking the number of decimals to show when hovering values in the `Plot`.
 
 ### Fixed 🐛
 * Expose `TextEdit`'s multiline flag to AccessKit ([#2448](https://github.com/emilk/egui/pull/2448)).
 * Don't render `\r` (Carriage Return) ([#2452](https://github.com/emilk/egui/pull/2452)).
+* The `button_padding` style option works closer as expected with image+text buttons now ([#2510](https://github.com/emilk/egui/pull/2510)).
 
 
 ## 0.20.1 - 2022-12-11 - Fix key-repeat

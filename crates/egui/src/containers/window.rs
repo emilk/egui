@@ -10,7 +10,7 @@ use super::*;
 ///
 /// You can customize:
 /// * title
-/// * default, minimum, maximum and/or fixed size
+/// * default, minimum, maximum and/or fixed size, collapsed/expanded
 /// * if the window has a scroll area (off by default)
 /// * if the window can be collapsed (minimized) to just the title bar (yes, by default)
 /// * if there should be a close button (none by default)
@@ -30,6 +30,7 @@ pub struct Window<'open> {
     resize: Resize,
     scroll: ScrollArea,
     collapsible: bool,
+    default_open: bool,
     with_title_bar: bool,
 }
 
@@ -51,6 +52,7 @@ impl<'open> Window<'open> {
                 .default_size([340.0, 420.0]), // Default inner size of a window
             scroll: ScrollArea::neither(),
             collapsible: true,
+            default_open: true,
             with_title_bar: true,
         }
     }
@@ -74,6 +76,18 @@ impl<'open> Window<'open> {
     /// If `false` the window will be grayed out and non-interactive.
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.area = self.area.enabled(enabled);
+        self
+    }
+
+    /// If `false` the window will be non-interactive.
+    pub fn interactable(mut self, interactable: bool) -> Self {
+        self.area = self.area.interactable(interactable);
+        self
+    }
+
+    /// If `false` the window will be immovable.
+    pub fn movable(mut self, movable: bool) -> Self {
+        self.area = self.area.movable(movable);
         self
     }
 
@@ -159,6 +173,12 @@ impl<'open> Window<'open> {
     /// It is an error to set both an anchor and a position.
     pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
         self.area = self.area.anchor(align, offset);
+        self
+    }
+
+    /// Set initial collapsed state of the window
+    pub fn default_open(mut self, default_open: bool) -> Self {
+        self.default_open = default_open;
         self
     }
 
@@ -275,6 +295,7 @@ impl<'open> Window<'open> {
             resize,
             scroll,
             collapsible,
+            default_open,
             with_title_bar,
         } = self;
 
@@ -291,7 +312,7 @@ impl<'open> Window<'open> {
         let area_layer_id = area.layer();
         let resize_id = area_id.with("resize");
         let mut collapsing =
-            CollapsingState::load_with_default_open(ctx, area_id.with("collapsing"), true);
+            CollapsingState::load_with_default_open(ctx, area_id.with("collapsing"), default_open);
 
         let is_collapsed = with_title_bar && !collapsing.is_open();
         let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
