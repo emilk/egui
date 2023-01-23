@@ -233,12 +233,7 @@ impl<'a> Slider<'a> {
             .map(|n| n.to_f64().clamp(*self.range.start(), *self.range.end()))
             .collect();
         self.smart_aim_values
-            .sort_by(|a, b| match a.partial_cmp(b) {
-                Some(ordering) => ordering,
-
-                // NaNs are handled silently
-                None => Ordering::Greater,
-            });
+            .sort_by(|a, b| a.total_cmp(b));
         self
     }
 
