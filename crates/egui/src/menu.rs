@@ -443,7 +443,7 @@ impl SubMenuButton {
         sub_id: Id,
     ) -> &'a WidgetVisuals {
         if menu_state.is_open(sub_id) {
-            &ui.style().visuals.widgets.hovered
+            &ui.style().visuals.widgets.open
         } else {
             ui.style().interact(response)
         }
