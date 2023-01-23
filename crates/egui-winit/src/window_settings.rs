@@ -98,9 +98,9 @@ impl WindowSettings {
                  };
             for monitor in monitors {
                 let monitor_x_range =
-                    _monitor.position().x..(_monitor.position().x + _monitor.size().width as i32);
+                    (monitor.position().x - inner_size_points.x as i32)..(monitor.position().x + monitor.size().width as i32);
                 let monitor_y_range =
-                    _monitor.position().y..(_monitor.position().y + _monitor.size().height as i32);
+                    (monitor.position().y - inner_size_points.y as i32)..(monitor.position().y + monitor.size().height as i32);
 
                 if monitor_x_range.contains(&(position.x as i32))
                     && monitor_y_range.contains(&(position.y as i32))
