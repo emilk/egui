@@ -34,9 +34,6 @@ type GridSpacer = Box<GridSpacerFn>;
 
 type CoordinatesFormatterFn = dyn Fn(&PlotPoint, &PlotBounds) -> String;
 
-const LINKED_PLOT_AXES_KEY: &str = "egui_linked_plot_axes";
-const LINKED_PLOT_CURSORS_KEY: &str = "egui_linked_plot_cursors";
-
 /// Specifies the coordinates formatting when passed to [`Plot::coordinates_formatter`].
 pub struct CoordinatesFormatter {
     function: Box<CoordinatesFormatterFn>,
@@ -133,6 +130,12 @@ struct PlotFrameCursors {
     id: Id,
     cursors: Vec<Cursor>,
 }
+
+#[derive(Default, Clone)]
+struct CursorLinkGroups(HashMap<Id, Vec<PlotFrameCursors>>);
+
+#[derive(Default, Clone)]
+struct BoundsLinkGroups(HashMap<Id, PlotBounds>);
 
 // ----------------------------------------------------------------------------
 
@@ -512,9 +515,9 @@ impl Plot {
 
     /// Add this plot to an axis link group so that this plot will share the bounds with other plots in the
     /// same group. A plot cannot belong to more than one axis group.
-    pub fn link_axis(mut self, group_name: impl Into<Id>, link_x: bool, link_y: bool) -> Self {
+    pub fn link_axis(mut self, group_id: impl Into<Id>, link_x: bool, link_y: bool) -> Self {
         self.linked_axes = Some((
-            group_name.into(),
+            group_id.into(),
             AxisBools {
                 x: link_x,
                 y: link_y,
@@ -525,9 +528,9 @@ impl Plot {
 
     /// Add this plot to a cursor link group so that this plot will share the cursor position with other plots
     /// in the same group. A plot cannot belong to more than one cursor group.
-    pub fn link_cursor(mut self, group_name: impl Into<Id>, link_x: bool, link_y: bool) -> Self {
+    pub fn link_cursor(mut self, group_id: impl Into<Id>, link_x: bool, link_y: bool) -> Self {
         self.linked_cursors = Some((
-            group_name.into(),
+            group_id.into(),
             AxisBools {
                 x: link_x,
                 y: link_y,
@@ -627,9 +630,8 @@ impl Plot {
         let memory = if reset {
             if let Some((name, _)) = linked_axes.as_ref() {
                 let data = &mut ui.memory().data;
-                let link_groups: &mut HashMap<Id, PlotBounds> =
-                    data.get_temp_mut_or_default(LINKED_PLOT_AXES_KEY.into());
-                link_groups.remove(name);
+                let link_groups: &mut BoundsLinkGroups = data.get_temp_mut_or_default(Id::null());
+                link_groups.0.remove(name);
             };
             None
         } else {
@@ -710,9 +712,8 @@ impl Plot {
         // Find the cursors from other plots we need to draw
         let draw_cursors: Vec<Cursor> = if let Some((id, _)) = linked_cursors.as_ref() {
             let data = &mut ui.memory().data;
-            let frames: &mut HashMap<Id, Vec<PlotFrameCursors>> =
-                data.get_temp_mut_or_default(LINKED_PLOT_CURSORS_KEY.into());
-            let cursors = frames.entry(*id).or_default();
+            let frames: &mut CursorLinkGroups = data.get_temp_mut_or_default(Id::null());
+            let cursors = frames.0.entry(*id).or_default();
 
             // Look for our previous frame
             let index = cursors
@@ -738,9 +739,8 @@ impl Plot {
         // Transfer the bounds from a link group.
         if let Some((id, axes)) = linked_axes.as_ref() {
             let data = &mut ui.memory().data;
-            let link_groups: &mut HashMap<Id, PlotBounds> =
-                data.get_temp_mut_or_default(LINKED_PLOT_AXES_KEY.into());
-            if let Some(linked_bounds) = link_groups.get(id) {
+            let link_groups: &mut BoundsLinkGroups = data.get_temp_mut_or_default(Id::null());
+            if let Some(linked_bounds) = link_groups.0.get(id) {
                 if axes.x {
                     bounds.set_x(linked_bounds);
                 }
@@ -936,9 +936,8 @@ impl Plot {
         if let Some((id, _)) = linked_cursors.as_ref() {
             // Push the frame we just drew to the list of frames
             let data = &mut ui.memory().data;
-            let frames: &mut HashMap<Id, Vec<PlotFrameCursors>> =
-                data.get_temp_mut_or_default(LINKED_PLOT_CURSORS_KEY.into());
-            let cursors = frames.entry(*id).or_default();
+            let frames: &mut CursorLinkGroups = data.get_temp_mut_or_default(Id::null());
+            let cursors = frames.0.entry(*id).or_default();
             cursors.push(PlotFrameCursors {
                 id: plot_id,
                 cursors: plot_cursors,
@@ -948,9 +947,8 @@ impl Plot {
         if let Some((id, _)) = linked_axes.as_ref() {
             // Save the linked bounds.
             let data = &mut ui.memory().data;
-            let link_groups: &mut HashMap<Id, PlotBounds> =
-                data.get_temp_mut_or_default(LINKED_PLOT_AXES_KEY.into());
-            link_groups.insert(*id, *transform.bounds());
+            let link_groups: &mut BoundsLinkGroups = data.get_temp_mut_or_default(Id::null());
+            link_groups.0.insert(*id, *transform.bounds());
         }
 
         let memory = PlotMemory {
