@@ -183,7 +183,7 @@ impl LegendWidget {
                     let color = item.color();
                     let checked = !hidden_items.contains(item.name());
                     let visible = item.default_visible();
-                    let hiddened = !(checked && visible || !checked && !visible);
+                    let hiddened = checked != visible;
 
                     if hiddened {
                         hidden_items_new.insert(item.name().to_owned());
