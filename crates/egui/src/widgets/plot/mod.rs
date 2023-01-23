@@ -757,7 +757,7 @@ impl Plot {
             last_screen_transform,
             response,
             ctx: ui.ctx().clone(),
-            hidden_items: hidden_items,
+            hidden_items,
         };
         let inner = build_fn(&mut plot_ui);
         let PlotUi {
