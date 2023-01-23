@@ -522,7 +522,7 @@ impl LinkedAxisDemo {
             ui.checkbox(&mut self.link_cursor_y, "Y");
         });
 
-        const LINK_GROUP_NAME: &str = "linked_demo";
+        let link_group_id = ui.id().with("linked_demo");
         ui.horizontal(|ui| {
             Plot::new("linked_axis_1")
                 .data_aspect(1.0)
