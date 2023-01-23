@@ -12,9 +12,10 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Add `Plot::clamp_grid` to only show grid where there is data ([#2480](https://github.com/emilk/egui/pull/2480)).
 * Add `ScrollArea::drag_to_scroll` if you want to turn off that feature.
 * Add `Response::on_hover_and_drag_cursor`.
-* Add `Window::default_open` ([#2539](https://github.com/emilk/egui/pull/2539))
-* Add `ProgressBar::fill` if you want to set the fill color manually. ([#2618](https://github.com/emilk/egui/pull/2618))
-* Add `Button::rounding` to enable round buttons ([#2539](https://github.com/emilk/egui/pull/2539))
+* Add `Window::default_open` ([#2539](https://github.com/emilk/egui/pull/2539)).
+* Add `ProgressBar::fill` if you want to set the fill color manually. ([#2618](https://github.com/emilk/egui/pull/2618)).
+* Add `Button::rounding` to enable round buttons ([#2616](https://github.com/emilk/egui/pull/2616)).
+* Add `WidgetVisuals::optional_bg_color` - set it to `Color32::TRANSPARENT` to hide button backgrounds ([#2621](https://github.com/emilk/egui/pull/2621)).
 
 ### Changed 🔧
 * Improved plot grid appearance ([#2412](https://github.com/emilk/egui/pull/2412)).
