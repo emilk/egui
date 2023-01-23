@@ -45,6 +45,8 @@ pub(super) trait PlotItem {
 
     fn highlighted(&self) -> bool;
 
+    fn default_visible(&self) -> bool;
+
     fn geometry(&self) -> PlotGeometry<'_>;
 
     fn bounds(&self) -> PlotBounds;
@@ -119,6 +121,7 @@ pub struct HLine {
     pub(super) stroke: Stroke,
     pub(super) name: String,
     pub(super) highlight: bool,
+    pub(super) default_visible: bool,
     pub(super) style: LineStyle,
 }
 
@@ -129,6 +132,7 @@ impl HLine {
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             name: String::default(),
             highlight: false,
+            default_visible: true,
             style: LineStyle::Solid,
         }
     }
@@ -136,6 +140,13 @@ impl HLine {
     /// Highlight this line in the plot by scaling up the line.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Is the item visible on initialization? Default is `true`.
+    #[inline]
+    pub fn default_visible(mut self, visible: bool) -> Self {
+        self.default_visible = visible;
         self
     }
 
@@ -216,6 +227,10 @@ impl PlotItem for HLine {
         self.highlight
     }
 
+    fn default_visible(&self) -> bool {
+        self.default_visible
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::None
     }
@@ -235,6 +250,7 @@ pub struct VLine {
     pub(super) stroke: Stroke,
     pub(super) name: String,
     pub(super) highlight: bool,
+    pub(super) default_visible: bool,
     pub(super) style: LineStyle,
 }
 
@@ -245,6 +261,7 @@ impl VLine {
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             name: String::default(),
             highlight: false,
+            default_visible: true,
             style: LineStyle::Solid,
         }
     }
@@ -252,6 +269,13 @@ impl VLine {
     /// Highlight this line in the plot by scaling up the line.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Is the item visible on initialization? Default is `true`.
+    #[inline]
+    pub fn default_visible(mut self, visible: bool) -> Self {
+        self.default_visible = visible;
         self
     }
 
@@ -332,6 +356,10 @@ impl PlotItem for VLine {
         self.highlight
     }
 
+    fn default_visible(&self) -> bool {
+        self.default_visible
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::None
     }
@@ -350,6 +378,7 @@ pub struct Line {
     pub(super) stroke: Stroke,
     pub(super) name: String,
     pub(super) highlight: bool,
+    pub(super) default_visible: bool,
     pub(super) fill: Option<f32>,
     pub(super) style: LineStyle,
 }
@@ -361,6 +390,7 @@ impl Line {
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             name: Default::default(),
             highlight: false,
+            default_visible: true,
             fill: None,
             style: LineStyle::Solid,
         }
@@ -369,6 +399,13 @@ impl Line {
     /// Highlight this line in the plot by scaling up the line.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Is the item visible on initialization? Default is `true`.
+    #[inline]
+    pub fn default_visible(mut self, visible: bool) -> Self {
+        self.default_visible = visible;
         self
     }
 
@@ -502,6 +539,10 @@ impl PlotItem for Line {
         self.highlight
     }
 
+    fn default_visible(&self) -> bool {
+        self.default_visible
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::Points(self.series.points())
     }
@@ -517,6 +558,7 @@ pub struct Polygon {
     pub(super) stroke: Stroke,
     pub(super) name: String,
     pub(super) highlight: bool,
+    pub(super) default_visible: bool,
     pub(super) fill_alpha: f32,
     pub(super) style: LineStyle,
 }
@@ -528,6 +570,7 @@ impl Polygon {
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             name: Default::default(),
             highlight: false,
+            default_visible: true,
             fill_alpha: DEFAULT_FILL_ALPHA,
             style: LineStyle::Solid,
         }
@@ -537,6 +580,13 @@ impl Polygon {
     /// transparency.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Is the item visible on initialization? Default is `true`.
+    #[inline]
+    pub fn default_visible(mut self, visible: bool) -> Self {
+        self.default_visible = visible;
         self
     }
 
@@ -632,6 +682,10 @@ impl PlotItem for Polygon {
         self.highlight
     }
 
+    fn default_visible(&self) -> bool {
+        self.default_visible
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::Points(self.series.points())
     }
@@ -648,6 +702,7 @@ pub struct Text {
     pub(super) position: PlotPoint,
     pub(super) name: String,
     pub(super) highlight: bool,
+    pub(super) default_visible: bool,
     pub(super) color: Color32,
     pub(super) anchor: Align2,
 }
@@ -659,6 +714,7 @@ impl Text {
             position,
             name: Default::default(),
             highlight: false,
+            default_visible: true,
             color: Color32::TRANSPARENT,
             anchor: Align2::CENTER_CENTER,
         }
@@ -667,6 +723,13 @@ impl Text {
     /// Highlight this text in the plot by drawing a rectangle around it.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Is the item visible on initialization? Default is `true`.
+    #[inline]
+    pub fn default_visible(mut self, visible: bool) -> Self {
+        self.default_visible = visible;
         self
     }
 
@@ -746,6 +809,10 @@ impl PlotItem for Text {
         self.highlight
     }
 
+    fn default_visible(&self) -> bool {
+        self.default_visible
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::None
     }
@@ -769,6 +836,7 @@ pub struct Points {
     pub(super) radius: f32,
     pub(super) name: String,
     pub(super) highlight: bool,
+    pub(super) default_visible: bool,
     pub(super) stems: Option<f32>,
 }
 
@@ -782,6 +850,7 @@ impl Points {
             radius: 1.0,
             name: Default::default(),
             highlight: false,
+            default_visible: true,
             stems: None,
         }
     }
@@ -795,6 +864,13 @@ impl Points {
     /// Highlight these points in the plot by scaling up their markers.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Is the item visible on initialization? Default is `true`.
+    #[inline]
+    pub fn default_visible(mut self, visible: bool) -> Self {
+        self.default_visible = visible;
         self
     }
 
@@ -984,6 +1060,10 @@ impl PlotItem for Points {
         self.highlight
     }
 
+    fn default_visible(&self) -> bool {
+        self.default_visible
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::Points(self.series.points())
     }
@@ -1000,6 +1080,7 @@ pub struct Arrows {
     pub(super) color: Color32,
     pub(super) name: String,
     pub(super) highlight: bool,
+    pub(super) default_visible: bool,
 }
 
 impl Arrows {
@@ -1010,12 +1091,20 @@ impl Arrows {
             color: Color32::TRANSPARENT,
             name: Default::default(),
             highlight: false,
+            default_visible: true,
         }
     }
 
     /// Highlight these arrows in the plot.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Is the item visible on initialization? Default is `true`.
+    #[inline]
+    pub fn default_visible(mut self, visible: bool) -> Self {
+        self.default_visible = visible;
         self
     }
 
@@ -1099,6 +1188,10 @@ impl PlotItem for Arrows {
         self.highlight
     }
 
+    fn default_visible(&self) -> bool {
+        self.default_visible
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::Points(self.origins.points())
     }
@@ -1118,6 +1211,7 @@ pub struct PlotImage {
     pub(super) bg_fill: Color32,
     pub(super) tint: Color32,
     pub(super) highlight: bool,
+    pub(super) default_visible: bool,
     pub(super) name: String,
 }
 
@@ -1132,6 +1226,7 @@ impl PlotImage {
             position: center_position,
             name: Default::default(),
             highlight: false,
+            default_visible: true,
             texture_id: texture_id.into(),
             uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
             size: size.into(),
@@ -1143,6 +1238,13 @@ impl PlotImage {
     /// Highlight this image in the plot.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Is the item visible on initialization? Default is `true`.
+    #[inline]
+    pub fn default_visible(mut self, visible: bool) -> Self {
+        self.default_visible = visible;
         self
     }
 
@@ -1234,6 +1336,10 @@ impl PlotItem for PlotImage {
         self.highlight
     }
 
+    fn default_visible(&self) -> bool {
+        self.default_visible
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::None
     }
@@ -1264,6 +1370,7 @@ pub struct BarChart {
     /// A custom element formatter
     pub(super) element_formatter: Option<Box<dyn Fn(&Bar, &BarChart) -> String>>,
     highlight: bool,
+    default_visible: bool,
 }
 
 impl BarChart {
@@ -1275,6 +1382,7 @@ impl BarChart {
             name: String::new(),
             element_formatter: None,
             highlight: false,
+            default_visible: true,
         }
     }
 
@@ -1333,6 +1441,13 @@ impl BarChart {
     /// Highlight all plot elements.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Is the item visible on initialization? Default is `true`.
+    #[inline]
+    pub fn default_visible(mut self, visible: bool) -> Self {
+        self.default_visible = visible;
         self
     }
 
@@ -1395,6 +1510,10 @@ impl PlotItem for BarChart {
         self.highlight
     }
 
+    fn default_visible(&self) -> bool {
+        self.default_visible
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::Rects
     }
@@ -1434,6 +1553,7 @@ pub struct BoxPlot {
     /// A custom element formatter
     pub(super) element_formatter: Option<Box<dyn Fn(&BoxElem, &BoxPlot) -> String>>,
     highlight: bool,
+    default_visible: bool,
 }
 
 impl BoxPlot {
@@ -1445,6 +1565,7 @@ impl BoxPlot {
             name: String::new(),
             element_formatter: None,
             highlight: false,
+            default_visible: true,
         }
     }
 
@@ -1500,6 +1621,13 @@ impl BoxPlot {
         self
     }
 
+    /// Is the item visible on initialization? Default is `true`.
+    #[inline]
+    pub fn default_visible(mut self, visible: bool) -> Self {
+        self.default_visible = visible;
+        self
+    }
+
     /// Add a custom way to format an element.
     /// Can be used to display a set number of decimals or custom labels.
     pub fn element_formatter(
@@ -1536,6 +1664,10 @@ impl PlotItem for BoxPlot {
 
     fn highlighted(&self) -> bool {
         self.highlight
+    }
+
+    fn default_visible(&self) -> bool {
+        self.default_visible
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
