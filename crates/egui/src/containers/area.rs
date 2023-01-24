@@ -358,7 +358,7 @@ impl Prepared {
     }
 
     pub(crate) fn content_ui(&self, ctx: &Context) -> Ui {
-        let screen_rect = ctx.input(|i| i.screen_rect());
+        let screen_rect = ctx.screen_rect();
 
         let bounds = if let Some(bounds) = self.drag_bounds {
             bounds.intersect(screen_rect) // protect against infinite bounds

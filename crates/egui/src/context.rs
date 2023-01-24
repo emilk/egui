@@ -776,13 +776,18 @@ impl Context {
 
     /// Get a full-screen painter for a new or existing layer
     pub fn layer_painter(&self, layer_id: LayerId) -> Painter {
-        let screen_rect = self.input(|i| i.screen_rect());
+        let screen_rect = self.screen_rect();
         Painter::new(self.clone(), layer_id, screen_rect)
     }
 
     /// Paint on top of everything else
     pub fn debug_painter(&self) -> Painter {
         Self::layer_painter(self, LayerId::debug())
+    }
+
+    /// Position and size of the egui area.
+    pub fn screen_rect(&self) -> Rect {
+        self.input(|i| i.screen_rect())
     }
 
     /// How much space is still available after panels has been added.
@@ -1082,13 +1087,13 @@ impl Context {
         if window.width() > area.width() {
             // Allow overlapping side bars.
             // This is important for small screens, e.g. mobiles running the web demo.
-            (area.min.x, area.max.x) =
-                self.input(|i| (i.screen_rect().min.x, i.screen_rect().max.x));
+            let screen_rect = self.screen_rect();
+            (area.min.x, area.max.x) = (screen_rect.min.x, screen_rect.max.x);
         }
         if window.height() > area.height() {
             // Allow overlapping top/bottom bars:
-            (area.min.y, area.max.y) =
-                self.input(|i| (i.screen_rect().min.y, i.screen_rect().max.y));
+            let screen_rect = self.screen_rect();
+            (area.min.y, area.max.y) = (screen_rect.min.y, screen_rect.max.y);
         }
 
         let mut pos = window.min;
@@ -1549,7 +1554,7 @@ impl Context {
                                 size *= (max_preview_size.y / size.y).min(1.0);
                                 ui.image(texture_id, size).on_hover_ui(|ui| {
                                     // show larger on hover
-                                    let max_size = 0.5 * ui.ctx().input(|i| i.screen_rect().size());
+                                    let max_size = 0.5 * ui.ctx().screen_rect().size();
                                     let mut size = vec2(w as f32, h as f32);
                                     size *= max_size.x / size.x.max(max_size.x);
                                     size *= max_size.y / size.y.max(max_size.y);

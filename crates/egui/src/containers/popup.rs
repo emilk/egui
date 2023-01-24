@@ -156,14 +156,13 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
     let spacing = 4.0;
 
     // if there are multiple tooltips open they should use the same common_id for the `tooltip_size` caching to work.
-    let mut frame_state = ctx.frame_state(|fs| {
-        fs.tooltip_state
+    let mut frame_state =
+        ctx.frame_state(|fs| fs.tooltip_state)
             .unwrap_or(crate::frame_state::TooltipFrameState {
                 common_id: individual_id,
                 rect: Rect::NOTHING,
                 count: 0,
-            })
-    });
+            });
 
     let mut position = if frame_state.rect.is_positive() {
         avoid_rect = avoid_rect.union(frame_state.rect);
@@ -189,7 +188,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         position.y -= expected_size.y;
     }
 
-    position = position.at_most(ctx.input(|i| i.screen_rect().max) - expected_size);
+    position = position.at_most(ctx.screen_rect().max - expected_size);
 
     // check if we intersect the avoid_rect
     {
@@ -207,7 +206,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         }
     }
 
-    let position = position.at_least(ctx.input(|i| i.screen_rect().min));
+    let position = position.at_least(ctx.screen_rect().min);
 
     let area_id = frame_state.common_id.with(frame_state.count);
 

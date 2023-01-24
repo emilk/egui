@@ -248,7 +248,7 @@ fn combo_box_dyn<'c, R>(
 
     let above_or_below =
         if ui.next_widget_position().y + ui.spacing().interact_size.y + popup_height
-            < ui.input(|i| i.screen_rect().bottom())
+            < ui.ctx().screen_rect().bottom()
         {
             AboveOrBelow::Below
         } else {
