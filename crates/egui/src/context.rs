@@ -804,8 +804,8 @@ impl Context {
     ///
     /// Equivalent to:
     /// ```
-    /// # let ctx = Context::default();
-    /// ctx.output_mut(|o| o.cursor_icon = CursorIcon::PointingHand);
+    /// # let ctx = egui::Context::default();
+    /// ctx.output_mut(|o| o.cursor_icon = egui::CursorIcon::PointingHand);
     /// ```
     pub fn set_cursor_icon(&self, cursor_icon: CursorIcon) {
         self.output_mut(|o| o.cursor_icon = cursor_icon);
