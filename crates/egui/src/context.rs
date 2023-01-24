@@ -702,7 +702,7 @@ impl Context {
     /// # let mut ctx = egui::Context::default();
     /// ctx.input(|i| {
     ///     // ⚠️ Using `ctx` (even from other `Arc` reference) again here will lead to a dead-lock!
-    /// })
+    /// });
     ///
     /// if let Some(pos) = ctx.input(|i| i.pointer.hover_pos()) {
     ///     // This is fine!

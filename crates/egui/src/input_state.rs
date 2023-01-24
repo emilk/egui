@@ -368,7 +368,7 @@ impl InputState {
     /// # egui::__run_test_ui(|ui| {
     /// let mut zoom = 1.0; // no zoom
     /// let mut rotation = 0.0; // no rotation
-    /// let multi_touch = ui.input().multi_touch();
+    /// let multi_touch = ui.input(|i| i.multi_touch());
     /// if let Some(multi_touch) = multi_touch {
     ///     zoom *= multi_touch.zoom_delta;
     ///     rotation += multi_touch.rotation_delta;

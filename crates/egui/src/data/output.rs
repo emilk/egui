@@ -70,7 +70,7 @@ pub struct PlatformOutput {
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// if ui.button("📋").clicked() {
-    ///     ui.output().copied_text = "some_text".to_string();
+    ///     ui.output_mut(|o| o.copied_text = "some_text".to_string());
     /// }
     /// # });
     /// ```

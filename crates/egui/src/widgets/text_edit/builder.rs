@@ -19,7 +19,7 @@ use super::{CCursorRange, CursorRange, TextEditOutput, TextEditState};
 /// if response.changed() {
 ///     // …
 /// }
-/// if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
+/// if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
 ///     // …
 /// }
 /// # });
@@ -206,7 +206,7 @@ impl<'t> TextEdit<'t> {
     /// let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
     ///     let mut layout_job: egui::text::LayoutJob = my_memoized_highlighter(string);
     ///     layout_job.wrap.max_width = wrap_width;
-    ///     ui.fonts().layout_job(layout_job)
+    ///     ui.fonts(|f| f.layout_job(layout_job))
     /// };
     /// ui.add(egui::TextEdit::multiline(&mut my_code).layouter(&mut layouter));
     /// # });

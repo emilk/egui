@@ -236,7 +236,7 @@ impl Response {
     /// # let mut my_text = String::new();
     /// # fn do_request(_: &str) {}
     /// let response = ui.text_edit_singleline(&mut my_text);
-    /// if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
+    /// if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
     ///     do_request(&my_text);
     /// }
     /// # });
@@ -258,7 +258,7 @@ impl Response {
     /// The widgets is being dragged.
     ///
     /// To find out which button(s), query [`crate::PointerState::button_down`]
-    /// (`ui.input().pointer.button_down(…)`).
+    /// (`ui.input(|i| i.pointer.button_down(…))`).
     ///
     /// Note that the widget must be sensing drags with [`Sense::drag`].
     /// [`crate::DragValue`] senses drags; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
