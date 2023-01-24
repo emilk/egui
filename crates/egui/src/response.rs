@@ -532,7 +532,7 @@ impl Response {
         } else {
             #[cfg(feature = "accesskit")]
             self.ctx.accesskit_node_if_some(self.id, |node| {
-                self.fill_accesskit_node_from_widget_info(node, make_info())
+                self.fill_accesskit_node_from_widget_info(node, make_info());
             });
         }
     }
@@ -540,7 +540,7 @@ impl Response {
     pub fn output_event(&self, event: crate::output::OutputEvent) {
         #[cfg(feature = "accesskit")]
         self.ctx.accesskit_node_if_some(self.id, |node| {
-            self.fill_accesskit_node_from_widget_info(node, event.widget_info().clone())
+            self.fill_accesskit_node_from_widget_info(node, event.widget_info().clone());
         });
         self.ctx.output_mut(|o| o.events.push(event));
     }

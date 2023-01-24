@@ -340,10 +340,10 @@ impl SidePanel {
 
         match side {
             Side::Left => ctx.frame_state_mut(|state| {
-                state.allocate_left_panel(Rect::from_min_max(available_rect.min, rect.max))
+                state.allocate_left_panel(Rect::from_min_max(available_rect.min, rect.max));
             }),
             Side::Right => ctx.frame_state_mut(|state| {
-                state.allocate_right_panel(Rect::from_min_max(rect.min, available_rect.max))
+                state.allocate_right_panel(Rect::from_min_max(rect.min, available_rect.max));
             }),
         }
         inner_response
@@ -790,12 +790,12 @@ impl TopBottomPanel {
         match side {
             TopBottomSide::Top => {
                 ctx.frame_state_mut(|state| {
-                    state.allocate_top_panel(Rect::from_min_max(available_rect.min, rect.max))
+                    state.allocate_top_panel(Rect::from_min_max(available_rect.min, rect.max));
                 });
             }
             TopBottomSide::Bottom => {
                 ctx.frame_state_mut(|state| {
-                    state.allocate_bottom_panel(Rect::from_min_max(rect.min, available_rect.max))
+                    state.allocate_bottom_panel(Rect::from_min_max(rect.min, available_rect.max));
                 });
             }
         }

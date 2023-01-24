@@ -447,7 +447,6 @@ impl Context {
                                     // so we aren't hovered.
 
                                     if ctx.memory.options.style.debug.show_blocking_widget {
-                                        drop(ctx);
                                         Self::layer_painter(self, LayerId::debug()).debug_rect(
                                             interact_rect,
                                             Color32::GREEN,
@@ -467,7 +466,7 @@ impl Context {
                         }
                     }
                 }
-            })
+            });
         }
 
         self.interact_with_hovered(layer_id, id, rect, sense, enabled, hovered)
@@ -832,7 +831,7 @@ impl Context {
                     ctx.has_requested_repaint_this_frame = true;
                 }
             }
-        })
+        });
     }
 
     /// Request repaint after the specified duration elapses in the case of no new input
@@ -864,7 +863,7 @@ impl Context {
     /// during app idle time where we are not receiving any new input events.
     pub fn request_repaint_after(&self, duration: std::time::Duration) {
         // Maybe we can check if duration is ZERO, and call self.request_repaint()?
-        self.write(|ctx| ctx.repaint_after = ctx.repaint_after.min(duration))
+        self.write(|ctx| ctx.repaint_after = ctx.repaint_after.min(duration));
     }
 
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
@@ -874,7 +873,7 @@ impl Context {
     /// Note that only one callback can be set. Any new call overrides the previous callback.
     pub fn set_request_repaint_callback(&self, callback: impl Fn() + Send + Sync + 'static) {
         let callback = Box::new(callback);
-        self.write(|ctx| ctx.request_repaint_callback = Some(callback))
+        self.write(|ctx| ctx.request_repaint_callback = Some(callback));
     }
 
     /// Tell `egui` which fonts to use.

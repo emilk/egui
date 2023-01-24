@@ -124,7 +124,7 @@ impl Widget for Hyperlink {
                 o.open_url = Some(crate::output::OpenUrl {
                     url: url.clone(),
                     new_tab: true,
-                })
+                });
             });
         }
         response.on_hover_text(url)
