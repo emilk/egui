@@ -2163,10 +2163,10 @@ impl Ui {
     ///
     /// If called from within a menu this will instead create a button for a sub-menu.
     ///
-    /// ```
+    /// ```ignore
     /// use egui_extras;
     ///
-    /// let img = egui_extrasRetainedImage::from_svg_bytes_with_size(
+    /// let img = egui_extras::RetainedImage::from_svg_bytes_with_size(
     ///     "rss",
     ///     include_bytes!("rss.svg"),
     ///     egui_extras::image::FitTo::Size(24, 24),
