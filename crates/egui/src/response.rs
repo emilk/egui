@@ -278,9 +278,19 @@ impl Response {
         self.dragged && self.ctx.input().pointer.any_pressed()
     }
 
+    /// Did a drag on this widgets by the button begin this frame?
+    pub fn drag_started_by(&self, button: PointerButton) -> bool {
+        self.drag_started() && self.ctx.input().pointer.button_pressed(button)
+    }
+
     /// The widget was being dragged, but now it has been released.
     pub fn drag_released(&self) -> bool {
         self.drag_released
+    }
+
+    /// The widget was being dragged by the button, but now it has been released.
+    pub fn drag_released_by(&self, button: PointerButton) -> bool {
+        self.drag_released() && self.ctx.input().pointer.button_released(button)
     }
 
     /// If dragged, how many points were we dragged and in what direction?
