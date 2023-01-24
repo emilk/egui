@@ -93,7 +93,7 @@ impl<'a> DatePickerPopup<'a> {
                                                     .min(popup_state.last_day_of_month());
                                                 ui.memory_mut(|mem| {
                                                     mem.data
-                                                        .insert_persisted(id, popup_state.clone())
+                                                        .insert_persisted(id, popup_state.clone());
                                                 });
                                             }
                                         }
@@ -117,7 +117,7 @@ impl<'a> DatePickerPopup<'a> {
                                                     .min(popup_state.last_day_of_month());
                                                 ui.memory_mut(|mem| {
                                                     mem.data
-                                                        .insert_persisted(id, popup_state.clone())
+                                                        .insert_persisted(id, popup_state.clone());
                                                 });
                                             }
                                         }
@@ -138,7 +138,7 @@ impl<'a> DatePickerPopup<'a> {
                                             {
                                                 ui.memory_mut(|mem| {
                                                     mem.data
-                                                        .insert_persisted(id, popup_state.clone())
+                                                        .insert_persisted(id, popup_state.clone());
                                                 });
                                             }
                                         }
@@ -162,7 +162,7 @@ impl<'a> DatePickerPopup<'a> {
                                         popup_state.day =
                                             popup_state.day.min(popup_state.last_day_of_month());
                                         ui.memory_mut(|mem| {
-                                            mem.data.insert_persisted(id, popup_state.clone())
+                                            mem.data.insert_persisted(id, popup_state.clone());
                                         });
                                     }
                                 });
@@ -182,7 +182,7 @@ impl<'a> DatePickerPopup<'a> {
                                         popup_state.day =
                                             popup_state.day.min(popup_state.last_day_of_month());
                                         ui.memory_mut(|mem| {
-                                            mem.data.insert_persisted(id, popup_state.clone())
+                                            mem.data.insert_persisted(id, popup_state.clone());
                                         });
                                     }
                                 });
@@ -200,7 +200,7 @@ impl<'a> DatePickerPopup<'a> {
                                             popup_state.day = popup_state.last_day_of_month();
                                         }
                                         ui.memory_mut(|mem| {
-                                            mem.data.insert_persisted(id, popup_state.clone())
+                                            mem.data.insert_persisted(id, popup_state.clone());
                                         });
                                     }
                                 });
@@ -218,7 +218,7 @@ impl<'a> DatePickerPopup<'a> {
                                             }
                                         }
                                         ui.memory_mut(|mem| {
-                                            mem.data.insert_persisted(id, popup_state.clone())
+                                            mem.data.insert_persisted(id, popup_state.clone());
                                         });
                                     }
                                 });
@@ -234,7 +234,7 @@ impl<'a> DatePickerPopup<'a> {
                                         popup_state.day =
                                             popup_state.day.min(popup_state.last_day_of_month());
                                         ui.memory_mut(|mem| {
-                                            mem.data.insert_persisted(id, popup_state.clone())
+                                            mem.data.insert_persisted(id, popup_state.clone());
                                         });
                                     }
                                 });
@@ -246,7 +246,7 @@ impl<'a> DatePickerPopup<'a> {
                                         popup_state.day =
                                             popup_state.day.min(popup_state.last_day_of_month());
                                         ui.memory_mut(|mem| {
-                                            mem.data.insert_persisted(id, popup_state.clone())
+                                            mem.data.insert_persisted(id, popup_state.clone());
                                         });
                                     }
                                 });
@@ -359,7 +359,7 @@ impl<'a> DatePickerPopup<'a> {
                                                                 mem.data.insert_persisted(
                                                                     id,
                                                                     popup_state.clone(),
-                                                                )
+                                                                );
                                                             });
                                                         }
                                                     },

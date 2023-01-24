@@ -506,7 +506,7 @@ impl Response {
         self.ctx.frame_state_mut(|state| {
             state.scroll_target[0] = Some((self.rect.x_range(), align));
             state.scroll_target[1] = Some((self.rect.y_range(), align));
-        })
+        });
     }
 
     /// For accessibility.

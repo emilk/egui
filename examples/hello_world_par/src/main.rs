@@ -57,7 +57,7 @@ fn new_worker(
 
             while let Ok(ctx) = show_rc.recv() {
                 for panel in &mut panels {
-                    panel.show(&ctx)
+                    panel.show(&ctx);
                 }
 
                 let _ = on_done_tx.send(());
@@ -100,7 +100,7 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             if ui.button("add worker").clicked() {
                 let id = self.workers.len();
-                self.workers.push(new_worker(id, self.on_done_tx.clone()))
+                self.workers.push(new_worker(id, self.on_done_tx.clone()));
             }
         });
 

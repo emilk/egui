@@ -624,11 +624,11 @@ impl<'t> TextEdit<'t> {
                             // position of IME.
                             if cfg!(target_arch = "wasm32") {
                                 ui.ctx().output_mut(|o| {
-                                    o.text_cursor_pos = Some(cursor_pos.left_top())
+                                    o.text_cursor_pos = Some(cursor_pos.left_top());
                                 });
                             } else {
                                 ui.ctx().output_mut(|o| {
-                                    o.text_cursor_pos = Some(cursor_pos.left_bottom())
+                                    o.text_cursor_pos = Some(cursor_pos.left_bottom());
                                 });
                             }
                         }
@@ -665,8 +665,8 @@ impl<'t> TextEdit<'t> {
         }
 
         #[cfg(feature = "accesskit")]
-        ui.ctx()
-            .accesskit_node_if_some(response.id, |node| {
+        {
+            let parent_id = ui.ctx().accesskit_node_if_some(response.id, |node| {
                 use accesskit::{TextPosition, TextSelection};
 
                 let parent_id = response.id;
@@ -689,8 +689,8 @@ impl<'t> TextEdit<'t> {
                 node.default_action_verb = Some(accesskit::DefaultActionVerb::Focus);
 
                 parent_id
-            })
-            .map(|parent_id| {
+            });
+            if let Some(parent_id) = parent_id {
                 // drop ctx lock before further processing
                 use accesskit::{Role, TextDirection};
 
@@ -755,7 +755,8 @@ impl<'t> TextEdit<'t> {
                         });
                     }
                 });
-            });
+            }
+        }
 
         TextEditOutput {
             response,

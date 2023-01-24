@@ -95,16 +95,16 @@ impl FrameHistory {
             ));
             let cpu_usage = to_screen.inverse().transform_pos(pointer_pos).y;
             let text = format!("{:.1} ms", 1e3 * cpu_usage);
-            ui.fonts(|f| {
-                shapes.push(Shape::text(
-                    &f,
+            shapes.push(ui.fonts(|f| {
+                Shape::text(
+                    f,
                     pos2(rect.left(), y),
                     egui::Align2::LEFT_BOTTOM,
                     text,
                     TextStyle::Monospace.resolve(ui.style()),
                     color,
-                ))
-            });
+                )
+            }));
         }
 
         let circle_color = color;

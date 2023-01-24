@@ -883,16 +883,18 @@ impl Context {
     ///
     /// The new fonts will become active at the start of the next frame.
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
-        self.fonts_mut(|fonts| {
+        let is_same_fonts = self.fonts_mut(|fonts| {
             if let Some(current_fonts) = fonts {
                 // NOTE: this comparison is expensive since it checks TTF data for equality
-                if current_fonts.lock().fonts.definitions() == &font_definitions {
-                    return; // no change - save us from reloading font textures
-                }
+                current_fonts.lock().fonts.definitions() == &font_definitions
+            } else {
+                false
             }
         });
 
-        self.memory_mut(|mem| mem.new_font_definitions = Some(font_definitions));
+        if !is_same_fonts {
+            self.memory_mut(|mem| mem.new_font_definitions = Some(font_definitions));
+        }
     }
 
     /// The [`Style`] used by all subsequent windows, panels etc.
@@ -1650,7 +1652,7 @@ impl Context {
                 if let Some(state) = fs.accesskit_state.as_mut() {
                     state.parent_stack.push(id);
                 }
-            })
+            });
         }
         #[cfg(not(feature = "accesskit"))]
         {
@@ -1663,7 +1665,7 @@ impl Context {
                 if let Some(state) = fs.accesskit_state.as_mut() {
                     assert_eq!(state.parent_stack.pop(), Some(id));
                 }
-            })
+            });
         }
     }
 
