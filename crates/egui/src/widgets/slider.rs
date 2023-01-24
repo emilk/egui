@@ -562,18 +562,18 @@ impl<'a> Slider<'a> {
                 SliderOrientation::Vertical => (Key::ArrowUp, Key::ArrowDown),
             };
 
-            ui.input(|i| {
-                decrement += i.num_presses(dec_key);
-                increment += i.num_presses(inc_key);
+            ui.input(|input| {
+                decrement += input.num_presses(dec_key);
+                increment += input.num_presses(inc_key);
             });
         }
 
         #[cfg(feature = "accesskit")]
         {
             use accesskit::Action;
-            ui.input(|i| {
-                decrement += i.num_accesskit_action_requests(response.id, Action::Decrement);
-                increment += i.num_accesskit_action_requests(response.id, Action::Increment);
+            ui.input(|input| {
+                decrement += input.num_accesskit_action_requests(response.id, Action::Decrement);
+                increment += input.num_accesskit_action_requests(response.id, Action::Increment);
             });
         }
 
@@ -600,8 +600,8 @@ impl<'a> Slider<'a> {
         #[cfg(feature = "accesskit")]
         {
             use accesskit::{Action, ActionData};
-            ui.input(|i| {
-                for request in i.accesskit_action_requests(response.id, Action::SetValue) {
+            ui.input(|input| {
+                for request in input.accesskit_action_requests(response.id, Action::SetValue) {
                     if let Some(ActionData::NumericValue(new_value)) = request.data {
                         self.set_value(new_value);
                     }
@@ -693,10 +693,10 @@ impl<'a> Slider<'a> {
 
     fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) -> Response {
         // If [`DragValue`] is controlled from the keyboard and `step` is defined, set speed to `step`
-        let change = ui.input(|i| {
-            i.num_presses(Key::ArrowUp) as i32 + i.num_presses(Key::ArrowRight) as i32
-                - i.num_presses(Key::ArrowDown) as i32
-                - i.num_presses(Key::ArrowLeft) as i32
+        let change = ui.input(|input| {
+            input.num_presses(Key::ArrowUp) as i32 + input.num_presses(Key::ArrowRight) as i32
+                - input.num_presses(Key::ArrowDown) as i32
+                - input.num_presses(Key::ArrowLeft) as i32
         });
 
         let any_change = change != 0;

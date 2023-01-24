@@ -99,7 +99,8 @@ impl Widget for ProgressBar {
 
             let (dark, bright) = (0.7, 1.0);
             let color_factor = if animate {
-                lerp(dark..=bright, ui.input(|i| i.time).cos().abs())
+                let time = ui.input(|i| i.time);
+                lerp(dark..=bright, time.cos().abs())
             } else {
                 bright
             };

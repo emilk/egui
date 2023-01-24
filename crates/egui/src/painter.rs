@@ -104,7 +104,9 @@ impl Painter {
         &self.ctx
     }
 
-    /// Available fonts.
+    /// Read-only access to the shared [`Fonts`].
+    ///
+    /// See [`Context`] documentation for how locks work.
     #[inline(always)]
     pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
         self.ctx.fonts(reader)

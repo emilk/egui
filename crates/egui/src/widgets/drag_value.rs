@@ -425,8 +425,8 @@ impl<'a> Widget for DragValue<'a> {
         #[cfg(feature = "accesskit")]
         {
             use accesskit::{Action, ActionData};
-            ui.input(|i| {
-                for request in i.accesskit_action_requests(id, Action::SetValue) {
+            ui.input(|input| {
+                for request in input.accesskit_action_requests(id, Action::SetValue) {
                     if let Some(ActionData::NumericValue(new_value)) = request.data {
                         value = new_value;
                     }
