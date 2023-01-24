@@ -45,7 +45,6 @@ You can also use `egui_glow` and [`winit`](https://github.com/rust-windowing/win
 * Mobile text editing is not as good as for a normal web app.
 * Accessibility: There is an experimental screen reader for `eframe`, but it has to be enabled explicitly. There is no JS function to ask "Does the user want a screen reader?" (and there should probably not be such a function, due to user tracking/integrity concerns).
 * No integration with browser settings for colors and fonts.
-* On Linux and Mac, Firefox will copy the WebGL render target from GPU, to CPU and then back again (https://bugzilla.mozilla.org/show_bug.cgi?id=1010527#c0), slowing down egui.
 
 In many ways, `eframe` is trying to make the browser do something it wasn't designed to do (though there are many things browser vendors could do to improve how well libraries like egui work).
 

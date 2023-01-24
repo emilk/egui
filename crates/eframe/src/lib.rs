@@ -103,9 +103,20 @@ pub use web_sys;
 /// /// You can add more callbacks like this if you want to call in to your code.
 /// #[cfg(target_arch = "wasm32")]
 /// #[wasm_bindgen]
-/// pub async fn start(canvas_id: &str) -> Result<AppRunnerRef>, eframe::wasm_bindgen::JsValue> {
+/// pub struct WebHandle {
+///     handle: AppRunnerRef,
+/// }
+/// #[cfg(target_arch = "wasm32")]
+/// #[wasm_bindgen]
+/// pub async fn start(canvas_id: &str) -> Result<WebHandle, eframe::wasm_bindgen::JsValue> {
 ///     let web_options = eframe::WebOptions::default();
-///     eframe::start_web(canvas_id, web_options, Box::new(|cc| Box::new(MyEguiApp::new(cc)))).await
+///     eframe::start_web(
+///         canvas_id,
+///         web_options,
+///         Box::new(|cc| Box::new(MyEguiApp::new(cc))),
+///     )
+///     .await
+///     .map(|handle| WebHandle { handle })
 /// }
 /// ```
 ///
@@ -116,7 +127,7 @@ pub async fn start_web(
     canvas_id: &str,
     web_options: WebOptions,
     app_creator: AppCreator,
-) -> Result<AppRunnerRef, wasm_bindgen::JsValue> {
+) -> std::result::Result<AppRunnerRef, wasm_bindgen::JsValue> {
     let handle = web::start(canvas_id, web_options, app_creator).await?;
 
     Ok(handle)
@@ -163,9 +174,16 @@ mod native;
 ///    }
 /// }
 /// ```
+///
+/// # Errors
+/// This function can fail if we fail to set up a graphics context.
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(clippy::needless_pass_by_value)]
-pub fn run_native(app_name: &str, native_options: NativeOptions, app_creator: AppCreator) {
+pub fn run_native(
+    app_name: &str,
+    native_options: NativeOptions,
+    app_creator: AppCreator,
+) -> Result<()> {
     let renderer = native_options.renderer;
 
     #[cfg(not(feature = "__screenshot"))]
@@ -178,16 +196,40 @@ pub fn run_native(app_name: &str, native_options: NativeOptions, app_creator: Ap
         #[cfg(feature = "glow")]
         Renderer::Glow => {
             tracing::debug!("Using the glow renderer");
-            native::run::run_glow(app_name, native_options, app_creator);
+            native::run::run_glow(app_name, native_options, app_creator)
         }
 
         #[cfg(feature = "wgpu")]
         Renderer::Wgpu => {
             tracing::debug!("Using the wgpu renderer");
-            native::run::run_wgpu(app_name, native_options, app_creator);
+            native::run::run_wgpu(app_name, native_options, app_creator)
         }
     }
 }
+
+// ----------------------------------------------------------------------------
+
+/// The different problems that can occur when trying to run `eframe`.
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("winit error: {0}")]
+    Winit(#[from] winit::error::OsError),
+
+    #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
+    #[error("glutin error: {0}")]
+    Glutin(#[from] glutin::error::Error),
+
+    #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
+    #[error("Found no glutin configs matching the template: {0:?}")]
+    NoGlutinConfigs(glutin::config::ConfigTemplate),
+
+    #[cfg(feature = "wgpu")]
+    #[error("WGPU error: {0}")]
+    Wgpu(#[from] wgpu::RequestDeviceError),
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
 
 // ---------------------------------------------------------------------------
 

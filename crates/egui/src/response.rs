@@ -278,9 +278,19 @@ impl Response {
         self.dragged && self.ctx.input(|i| i.pointer.any_pressed())
     }
 
+    /// Did a drag on this widgets by the button begin this frame?
+    pub fn drag_started_by(&self, button: PointerButton) -> bool {
+        self.drag_started() && self.ctx.input(|i| i.pointer.button_pressed(button))
+    }
+
     /// The widget was being dragged, but now it has been released.
     pub fn drag_released(&self) -> bool {
         self.drag_released
+    }
+
+    /// The widget was being dragged by the button, but now it has been released.
+    pub fn drag_released_by(&self, button: PointerButton) -> bool {
+        self.drag_released() && self.ctx.input(|i| i.pointer.button_released(button))
     }
 
     /// If dragged, how many points were we dragged and in what direction?
@@ -454,6 +464,14 @@ impl Response {
     /// When hovered, use this icon for the mouse cursor.
     pub fn on_hover_cursor(self, cursor: CursorIcon) -> Self {
         if self.hovered() {
+            self.ctx.output_mut(|o| o.cursor_icon = cursor);
+        }
+        self
+    }
+
+    /// When hovered or dragged, use this icon for the mouse cursor.
+    pub fn on_hover_and_drag_cursor(self, cursor: CursorIcon) -> Self {
+        if self.hovered() || self.dragged() {
             self.ctx.output_mut(|o| o.cursor_icon = cursor);
         }
         self

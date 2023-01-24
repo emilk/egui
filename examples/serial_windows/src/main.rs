@@ -2,7 +2,7 @@
 
 use eframe::egui;
 
-fn main() {
+fn main() -> Result<(), eframe::Error> {
     if cfg!(target_os = "macos") {
         eprintln!("WARNING: this example does not work on Mac! See https://github.com/emilk/egui/issues/1918");
     }
@@ -18,7 +18,7 @@ fn main() {
         "First Window",
         options.clone(),
         Box::new(|_cc| Box::new(MyApp::default())),
-    );
+    )?;
 
     std::thread::sleep(std::time::Duration::from_secs(2));
 
@@ -27,7 +27,7 @@ fn main() {
         "Second Window",
         options.clone(),
         Box::new(|_cc| Box::new(MyApp::default())),
-    );
+    )?;
 
     std::thread::sleep(std::time::Duration::from_secs(2));
 
@@ -36,7 +36,7 @@ fn main() {
         "Third Window",
         options,
         Box::new(|_cc| Box::new(MyApp::default())),
-    );
+    )
 }
 
 #[derive(Default)]

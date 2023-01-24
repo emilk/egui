@@ -278,7 +278,7 @@ impl GridLayout {
 pub struct Grid {
     id_source: Id,
     num_columns: Option<usize>,
-    striped: bool,
+    striped: Option<bool>,
     min_col_width: Option<f32>,
     min_row_height: Option<f32>,
     max_cell_size: Vec2,
@@ -292,7 +292,7 @@ impl Grid {
         Self {
             id_source: Id::new(id_source),
             num_columns: None,
-            striped: false,
+            striped: None,
             min_col_width: None,
             min_row_height: None,
             max_cell_size: Vec2::INFINITY,
@@ -310,9 +310,9 @@ impl Grid {
     /// If `true`, add a subtle background color to every other row.
     ///
     /// This can make a table easier to read.
-    /// Default: `false`.
+    /// Default is whatever is in [`crate::Visuals::striped`].
     pub fn striped(mut self, striped: bool) -> Self {
-        self.striped = striped;
+        self.striped = Some(striped);
         self
     }
 
@@ -371,6 +371,7 @@ impl Grid {
             spacing,
             start_row,
         } = self;
+        let striped = striped.unwrap_or(ui.visuals().striped);
         let min_col_width = min_col_width.unwrap_or_else(|| ui.spacing().interact_size.x);
         let min_row_height = min_row_height.unwrap_or_else(|| ui.spacing().interact_size.y);
         let spacing = spacing.unwrap_or_else(|| ui.spacing().item_spacing);

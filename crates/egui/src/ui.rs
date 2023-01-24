@@ -239,7 +239,7 @@ impl Ui {
         self.enabled &= enabled;
         if !self.enabled && self.is_visible() {
             self.painter
-                .set_fade_to_color(Some(self.visuals().window_fill()));
+                .set_fade_to_color(Some(self.visuals().fade_out_to_color()));
         }
     }
 
@@ -2127,6 +2127,43 @@ impl Ui {
             menu::submenu_button(self, menu_state, title, add_contents)
         } else {
             menu::menu_button(self, title, add_contents)
+        }
+    }
+
+    #[inline]
+    /// Create a menu button with an image that when clicked will show the given menu.
+    ///
+    /// If called from within a menu this will instead create a button for a sub-menu.
+    ///
+    /// ```ignore
+    /// use egui_extras;
+    ///
+    /// let img = egui_extras::RetainedImage::from_svg_bytes_with_size(
+    ///     "rss",
+    ///     include_bytes!("rss.svg"),
+    ///     egui_extras::image::FitTo::Size(24, 24),
+    /// );
+    ///
+    /// ui.menu_image_button(img.texture_id(ctx), img.size_vec2(), |ui| {
+    ///     ui.menu_button("My sub-menu", |ui| {
+    ///         if ui.button("Close the menu").clicked() {
+    ///             ui.close_menu();
+    ///         }
+    ///     });
+    /// });
+    /// ```
+    ///
+    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
+    pub fn menu_image_button<R>(
+        &mut self,
+        texture_id: TextureId,
+        image_size: impl Into<Vec2>,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<Option<R>> {
+        if let Some(menu_state) = self.menu_state.clone() {
+            menu::submenu_button(self, menu_state, String::new(), add_contents)
+        } else {
+            menu::menu_image_button(self, texture_id, image_size, add_contents)
         }
     }
 }

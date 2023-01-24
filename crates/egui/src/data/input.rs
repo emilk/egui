@@ -187,13 +187,14 @@ pub enum Event {
         /// Was it pressed or released?
         pressed: bool,
 
-        /// The state of the modifier keys at the time of the event.
-        modifiers: Modifiers,
-    },
-
-    /// A key was repeated while pressed.
-    KeyRepeat {
-        key: Key,
+        /// If this is a `pressed` event, is it a key-repeat?
+        ///
+        /// On many platforms, holding down a key produces many repeated "pressed" events for it, so called key-repeats.
+        /// Sometimes you will want to ignore such events, and this lets you do that.
+        ///
+        /// egui will automatically detect such repeat events and mark them as such here.
+        /// Therefore, if you are writing an egui integration, you do not need to set this (just set it to `false`).
+        repeat: bool,
 
         /// The state of the modifier keys at the time of the event.
         modifiers: Modifiers,
@@ -313,7 +314,7 @@ pub const NUM_POINTER_BUTTONS: usize = 5;
 /// NOTE: For cross-platform uses, ALT+SHIFT is a bad combination of modifiers
 /// as on mac that is how you type special characters,
 /// so those key presses are usually not reported to egui.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Modifiers {
     /// Either of the alt keys are down (option ⌥ on Mac).
@@ -776,7 +777,7 @@ impl Key {
 ///
 /// Can be used with [`crate::InputState::consume_shortcut`]
 /// and [`crate::Context::format_shortcut`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct KeyboardShortcut {
     pub modifiers: Modifiers,
     pub key: Key,

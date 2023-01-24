@@ -312,7 +312,6 @@ impl<'ui, HeaderRet> HeaderResponse<'ui, HeaderRet> {
 /// Paint the arrow icon that indicated if the region is open or not
 pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
     let visuals = ui.style().interact(response);
-    let stroke = visuals.fg_stroke;
 
     let rect = response.rect;
 
@@ -326,7 +325,11 @@ pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
         *p = rect.center() + rotation * (*p - rect.center());
     }
 
-    ui.painter().add(Shape::closed_line(points, stroke));
+    ui.painter().add(Shape::convex_polygon(
+        points,
+        visuals.fg_stroke.color,
+        Stroke::NONE,
+    ));
 }
 
 /// A function that paints an icon indicating if the region is open or not
@@ -553,7 +556,7 @@ impl CollapsingHeader {
                 ui.painter().add(epaint::RectShape {
                     rect: header_response.rect.expand(visuals.expansion),
                     rounding: visuals.rounding,
-                    fill: visuals.bg_fill,
+                    fill: visuals.weak_bg_fill,
                     stroke: visuals.bg_stroke,
                     // stroke: Default::default(),
                 });

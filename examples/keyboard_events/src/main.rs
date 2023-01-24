@@ -2,7 +2,7 @@
 
 use eframe::egui;
 use egui::*;
-fn main() {
+fn main() -> Result<(), eframe::Error> {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
@@ -11,7 +11,7 @@ fn main() {
         "Keyboard events",
         options,
         Box::new(|_cc| Box::new(Content::default())),
-    );
+    )
 }
 
 #[derive(Default)]

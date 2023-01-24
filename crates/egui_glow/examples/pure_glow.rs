@@ -223,9 +223,9 @@ fn create_display(
             height: 600.0,
         })
         .with_title("egui_glow example")
-        .with_visible(false)
+        .with_visible(false) // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
         .build(event_loop)
-        .unwrap(); // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
+        .unwrap();
 
     // a lot of the code below has been lifted from glutin example in their repo.
     let glutin_window_context = unsafe { GlutinWindowContext::new(winit_window) };

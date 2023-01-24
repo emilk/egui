@@ -68,7 +68,7 @@ fn set_menu_style(style: &mut Style) {
     style.spacing.button_padding = vec2(2.0, 0.0);
     style.visuals.widgets.active.bg_stroke = Stroke::NONE;
     style.visuals.widgets.hovered.bg_stroke = Stroke::NONE;
-    style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+    style.visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
     style.visuals.widgets.inactive.bg_stroke = Stroke::NONE;
 }
 
@@ -98,6 +98,20 @@ pub fn menu_button<R>(
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> InnerResponse<Option<R>> {
     stationary_menu_impl(ui, title, Box::new(add_contents))
+}
+
+/// Construct a top level menu with an image in a menu bar. This would be e.g. "File", "Edit" etc.
+///
+/// Responds to primary clicks.
+///
+/// Returns `None` if the menu is not open.
+pub fn menu_image_button<R>(
+    ui: &mut Ui,
+    texture_id: TextureId,
+    image_size: impl Into<Vec2>,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> InnerResponse<Option<R>> {
+    stationary_menu_image_impl(ui, texture_id, image_size, Box::new(add_contents))
 }
 
 /// Construct a nested sub menu in another menu.
@@ -166,11 +180,30 @@ fn stationary_menu_impl<'c, R>(
     let mut button = Button::new(title);
 
     if bar_state.open_menu.is_menu_open(menu_id) {
-        button = button.fill(ui.visuals().widgets.open.bg_fill);
+        button = button.fill(ui.visuals().widgets.open.weak_bg_fill);
         button = button.stroke(ui.visuals().widgets.open.bg_stroke);
     }
 
     let button_response = ui.add(button);
+    let inner = bar_state.bar_menu(&button_response, add_contents);
+
+    bar_state.store(ui.ctx(), bar_id);
+    InnerResponse::new(inner.map(|r| r.inner), button_response)
+}
+
+/// Build a top level menu with an image button.
+///
+/// Responds to primary clicks.
+fn stationary_menu_image_impl<'c, R>(
+    ui: &mut Ui,
+    texture_id: TextureId,
+    image_size: impl Into<Vec2>,
+    add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
+) -> InnerResponse<Option<R>> {
+    let bar_id = ui.id();
+
+    let mut bar_state = BarState::load(ui.ctx(), bar_id);
+    let button_response = ui.add(ImageButton::new(texture_id, image_size));
     let inner = bar_state.bar_menu(&button_response, add_contents);
 
     bar_state.store(ui.ctx(), bar_id);
@@ -412,7 +445,7 @@ impl SubMenuButton {
         sub_id: Id,
     ) -> &'a WidgetVisuals {
         if menu_state.is_open(sub_id) {
-            &ui.style().visuals.widgets.hovered
+            &ui.style().visuals.widgets.open
         } else {
             ui.style().interact(response)
         }
@@ -441,7 +474,8 @@ impl SubMenuButton {
             text_galley.size().x + icon_galley.size().x,
             text_galley.size().y.max(icon_galley.size().y),
         );
-        let desired_size = text_and_icon_size + 2.0 * button_padding;
+        let mut desired_size = text_and_icon_size + 2.0 * button_padding;
+        desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| {
@@ -461,7 +495,7 @@ impl SubMenuButton {
                 ui.painter().rect_filled(
                     rect.expand(visuals.expansion),
                     visuals.rounding,
-                    visuals.bg_fill,
+                    visuals.weak_bg_fill,
                 );
             }
 

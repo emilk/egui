@@ -172,9 +172,13 @@ impl BackendPanel {
             ui.horizontal(|ui| {
                 {
                     let mut fullscreen = frame.info().window_info.fullscreen;
-                    ui.checkbox(&mut fullscreen, "🗖 Fullscreen")
-                        .on_hover_text("Fullscreen the window");
-                    frame.set_fullscreen(fullscreen);
+                    if ui
+                        .checkbox(&mut fullscreen, "🗖 Fullscreen (F11)")
+                        .on_hover_text("Fullscreen the window")
+                        .changed()
+                    {
+                        frame.set_fullscreen(fullscreen);
+                    }
                 }
 
                 if ui

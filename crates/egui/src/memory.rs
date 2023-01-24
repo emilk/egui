@@ -248,6 +248,7 @@ impl Focus {
                     key: crate::Key::Escape,
                     pressed: true,
                     modifiers: _,
+                    ..
                 }
             ) {
                 self.id = None;
@@ -259,6 +260,7 @@ impl Focus {
                 key: crate::Key::Tab,
                 pressed: true,
                 modifiers,
+                ..
             } = event
             {
                 if !self.is_focus_locked {
@@ -475,6 +477,10 @@ impl Memory {
 impl Memory {
     pub fn is_popup_open(&self, popup_id: Id) -> bool {
         self.popup == Some(popup_id) || self.everything_is_visible()
+    }
+
+    pub fn any_popup_open(&self) -> bool {
+        self.popup.is_some() || self.everything_is_visible()
     }
 
     pub fn open_popup(&mut self, popup_id: Id) {

@@ -218,7 +218,7 @@ impl Default for TableScrollOptions {
 pub struct TableBuilder<'a> {
     ui: &'a mut Ui,
     columns: Vec<Column>,
-    striped: bool,
+    striped: Option<bool>,
     resizable: bool,
     cell_layout: egui::Layout,
     scroll_options: TableScrollOptions,
@@ -230,16 +230,18 @@ impl<'a> TableBuilder<'a> {
         Self {
             ui,
             columns: Default::default(),
-            striped: false,
+            striped: None,
             resizable: false,
             cell_layout,
             scroll_options: Default::default(),
         }
     }
 
-    /// Enable striped row background for improved readability (default: `false`)
+    /// Enable striped row background for improved readability.
+    ///
+    /// Default is whatever is in [`egui::Visuals::striped`].
     pub fn striped(mut self, striped: bool) -> Self {
-        self.striped = striped;
+        self.striped = Some(striped);
         self
     }
 
@@ -373,6 +375,8 @@ impl<'a> TableBuilder<'a> {
             scroll_options,
         } = self;
 
+        let striped = striped.unwrap_or(ui.visuals().striped);
+
         let state_id = ui.id().with("__table_state");
 
         let initial_widths =
@@ -430,6 +434,8 @@ impl<'a> TableBuilder<'a> {
             cell_layout,
             scroll_options,
         } = self;
+
+        let striped = striped.unwrap_or(ui.visuals().striped);
 
         let state_id = ui.id().with("__table_state");
 
@@ -516,6 +522,13 @@ pub struct Table<'a> {
 }
 
 impl<'a> Table<'a> {
+    /// Access the contained [`egui::Ui`].
+    ///
+    /// You can use this to e.g. modify the [`egui::Style`] with [`egui::Ui::style_mut`].
+    pub fn ui_mut(&mut self) -> &mut egui::Ui {
+        self.ui
+    }
+
     /// Create table body after adding a header row
     pub fn body<F>(self, add_body_contents: F)
     where
@@ -722,6 +735,13 @@ pub struct TableBody<'a> {
 }
 
 impl<'a> TableBody<'a> {
+    /// Access the contained [`egui::Ui`].
+    ///
+    /// You can use this to e.g. modify the [`egui::Style`] with [`egui::Ui::style_mut`].
+    pub fn ui_mut(&mut self) -> &mut egui::Ui {
+        self.layout.ui
+    }
+
     /// Where in screen-space is the table body?
     pub fn max_rect(&self) -> Rect {
         self.layout
@@ -1004,6 +1024,7 @@ impl<'a, 'b> TableRow<'a, 'b> {
     /// Add the contents of a column.
     ///
     /// Return the used space (`min_rect`) plus the [`Response`] of the whole cell.
+    #[cfg_attr(debug_assertions, track_caller)]
     pub fn col(&mut self, add_cell_contents: impl FnOnce(&mut Ui)) -> (Rect, Response) {
         let col_index = self.col_index;
 

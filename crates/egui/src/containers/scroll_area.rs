@@ -97,8 +97,10 @@ pub struct ScrollArea {
     id_source: Option<Id>,
     offset_x: Option<f32>,
     offset_y: Option<f32>,
+
     /// If false, we ignore scroll events.
     scrolling_enabled: bool,
+    drag_to_scroll: bool,
 
     /// If true for vertical or horizontal the scroll wheel will stick to the
     /// end position until user manually changes position. It will become true
@@ -141,6 +143,7 @@ impl ScrollArea {
             offset_x: None,
             offset_y: None,
             scrolling_enabled: true,
+            drag_to_scroll: true,
             stick_to_end: [false; 2],
         }
     }
@@ -267,6 +270,18 @@ impl ScrollArea {
         self
     }
 
+    /// Can the user drag the scroll area to scroll?
+    ///
+    /// This is useful for touch screens.
+    ///
+    /// If `true`, the [`ScrollArea`] will sense drags.
+    ///
+    /// Default: `true`.
+    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
+        self.drag_to_scroll = drag_to_scroll;
+        self
+    }
+
     /// For each axis, should the containing area shrink if the content is small?
     ///
     /// * If `true`, egui will add blank space outside the scroll area.
@@ -336,6 +351,7 @@ impl ScrollArea {
             offset_x,
             offset_y,
             scrolling_enabled,
+            drag_to_scroll,
             stick_to_end,
         } = self;
 
@@ -422,7 +438,9 @@ impl ScrollArea {
 
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
 
-        if scrolling_enabled && (state.content_is_too_large[0] || state.content_is_too_large[1]) {
+        if (scrolling_enabled && drag_to_scroll)
+            && (state.content_is_too_large[0] || state.content_is_too_large[1])
+        {
             // Drag contents to scroll (for touch screens mostly).
             // We must do this BEFORE adding content to the `ScrollArea`,
             // or we will steal input from the widgets we contain.
