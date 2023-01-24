@@ -268,7 +268,7 @@ fn combo_box_dyn<'c, R>(
             // Currently selected value's text will be wrapped if needed, so occupy the available width.
             ui.available_width()
         } else {
-            // Occupy at least the minimum width assigned to Slider and ComboBox.
+            // Occupy at least the minimum width assigned to ComboBox.
             let width = width.unwrap_or_else(|| ui.spacing().combo_width);
             width - 2.0 * margin.x
         };
