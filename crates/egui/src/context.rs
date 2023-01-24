@@ -179,7 +179,7 @@ impl ContextImpl {
 /// [`Context`] is cheap to clone, and any clones refers to the same mutable data
 /// ([`Context`] uses refcounting internally).
 ///
-/// All methods are marked `&self`; [`Context`] has interior mutability (protected by a `RwLock`).
+/// All methods are marked `&self`; [`Context`] has interior mutability (protected by an [`RwLock`]).
 ///
 ///
 /// You can store
