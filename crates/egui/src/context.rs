@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
     input_state::*, layers::GraphicLayers, memory::Options, os::OperatingSystem,
-    output::FullOutput, TextureHandle, *,
+    output::FullOutput, util::IdTypeMap, TextureHandle, *,
 };
 use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
 
@@ -179,12 +179,24 @@ impl ContextImpl {
 /// [`Context`] is cheap to clone, and any clones refers to the same mutable data
 /// ([`Context`] uses refcounting internally).
 ///
-/// All methods are marked `&self`; [`Context`] has interior mutability (protected by an [`RwLock`]).
+/// ## Locking
+/// All methods are marked `&self`; [`Context`] has interior mutability protected by an [`RwLock`].
 ///
+/// To access parts of a `Context` you need to use some of the helper functions that take closures:
 ///
-/// You can store
+/// ```
+/// # let ctx = egui::Context::default();
+/// if ctx.input(|i| i.key_pressed(Key::A)) {
+///     ctx.output_mut(|o| o.copied_text = "Hello!".to_string());
+/// }
+/// ```
 ///
-/// # Example:
+/// Within such a closure you may NOT recursively lock the same [`Context`], as that can lead to a deadlock.
+/// Therefore it is important that any lock of [`Context`] is short-lived.
+///
+/// [`Ui`] has many of the same accessor functions, and the same applies there.
+///
+/// ## Example:
 ///
 /// ``` no_run
 /// # fn handle_platform_output(_: egui::PlatformOutput) {}
@@ -311,7 +323,148 @@ impl Context {
     pub fn begin_frame(&self, new_input: RawInput) {
         self.write(|ctx| ctx.begin_frame_mut(new_input));
     }
+}
 
+/// ## Borrows parts of [`Context`]
+/// These functions all lock the [`Context`].
+/// Please see the documentation of [`Context`] for how locking works!
+impl Context {
+    /// Read-only access to [`InputState`].
+    ///
+    /// Note that this locks the [`Context`].
+    ///
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.input(|i| {
+    ///     // ⚠️ Using `ctx` (even from other `Arc` reference) again here will lead to a dead-lock!
+    /// });
+    ///
+    /// if let Some(pos) = ctx.input(|i| i.pointer.hover_pos()) {
+    ///     // This is fine!
+    /// }
+    /// ```
+    #[inline]
+    pub fn input<R>(&self, reader: impl FnOnce(&InputState) -> R) -> R {
+        self.read(move |ctx| reader(&ctx.input))
+    }
+
+    /// Read-write access to [`InputState`].
+    #[inline]
+    pub fn input_mut<R>(&self, writer: impl FnOnce(&mut InputState) -> R) -> R {
+        self.write(move |ctx| writer(&mut ctx.input))
+    }
+
+    /// Read-only access to [`Memory`].
+    #[inline]
+    pub fn memory<R>(&self, reader: impl FnOnce(&Memory) -> R) -> R {
+        self.read(move |ctx| reader(&ctx.memory))
+    }
+
+    /// Read-write access to [`Memory`].
+    #[inline]
+    pub fn memory_mut<R>(&self, writer: impl FnOnce(&mut Memory) -> R) -> R {
+        self.write(move |ctx| writer(&mut ctx.memory))
+    }
+
+    /// Read-only access to [`IdTypeMap`], which stores superficial widget state.
+    #[inline]
+    pub fn data<R>(&self, reader: impl FnOnce(&IdTypeMap) -> R) -> R {
+        self.read(move |ctx| reader(&ctx.memory.data))
+    }
+
+    /// Read-write access to [`IdTypeMap`], which stores superficial widget state.
+    #[inline]
+    pub fn data_mut<R>(&self, writer: impl FnOnce(&mut IdTypeMap) -> R) -> R {
+        self.write(move |ctx| writer(&mut ctx.memory.data))
+    }
+
+    /// Read-write access to [`GraphicLayers`], where painted [`Shapes`] are written to.
+    #[inline]
+    pub(crate) fn graphics_mut<R>(&self, writer: impl FnOnce(&mut GraphicLayers) -> R) -> R {
+        self.write(move |ctx| writer(&mut ctx.graphics))
+    }
+
+    /// Read-only access to [`PlatformOutput`].
+    ///
+    /// This is what egui outputs each frame.
+    ///
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.output_mut(|o| o.cursor_icon = egui::CursorIcon::Progress);
+    /// ```
+    #[inline]
+    pub fn output<R>(&self, reader: impl FnOnce(&PlatformOutput) -> R) -> R {
+        self.read(move |ctx| reader(&ctx.output))
+    }
+
+    /// Read-write access to [`PlatformOutput`].
+    #[inline]
+    pub fn output_mut<R>(&self, writer: impl FnOnce(&mut PlatformOutput) -> R) -> R {
+        self.write(move |ctx| writer(&mut ctx.output))
+    }
+
+    /// Read-only access to [`FrameState`].
+    #[inline]
+    pub(crate) fn frame_state<R>(&self, reader: impl FnOnce(&FrameState) -> R) -> R {
+        self.read(move |ctx| reader(&ctx.frame_state))
+    }
+
+    /// Read-write access to [`FrameState`].
+    #[inline]
+    pub(crate) fn frame_state_mut<R>(&self, writer: impl FnOnce(&mut FrameState) -> R) -> R {
+        self.write(move |ctx| writer(&mut ctx.frame_state))
+    }
+
+    /// Read-only access to [`Fonts`].
+    ///
+    /// Not valid until first call to [`Context::run()`].
+    /// That's because since we don't know the proper `pixels_per_point` until then.
+    #[inline]
+    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+        self.read(move |ctx| {
+            reader(
+                ctx.fonts
+                    .as_ref()
+                    .expect("No fonts available until first call to Context::run()"),
+            )
+        })
+    }
+
+    /// Read-write access to [`Fonts`].
+    #[inline]
+    pub fn fonts_mut<R>(&self, writer: impl FnOnce(&mut Option<Fonts>) -> R) -> R {
+        self.write(move |ctx| writer(&mut ctx.fonts))
+    }
+
+    /// Read-only access to [`Options`].
+    #[inline]
+    pub fn options<R>(&self, reader: impl FnOnce(&Options) -> R) -> R {
+        self.read(move |ctx| reader(&ctx.memory.options))
+    }
+
+    /// Read-write access to [`Options`].
+    #[inline]
+    pub fn options_mut<R>(&self, writer: impl FnOnce(&mut Options) -> R) -> R {
+        self.write(move |ctx| writer(&mut ctx.memory.options))
+    }
+
+    /// Read-only access to [`TessellationOptions`].
+    #[inline]
+    pub fn tessellation_options<R>(&self, reader: impl FnOnce(&TessellationOptions) -> R) -> R {
+        self.read(move |ctx| reader(&ctx.memory.options.tessellation_options))
+    }
+
+    /// Read-write access to [`TessellationOptions`].
+    #[inline]
+    pub fn tessellation_options_mut<R>(
+        &self,
+        writer: impl FnOnce(&mut TessellationOptions) -> R,
+    ) -> R {
+        self.write(move |ctx| writer(&mut ctx.memory.options.tessellation_options))
+    }
+}
+
+impl Context {
     // ---------------------------------------------------------------------
 
     /// If the given [`Id`] has been used previously the same frame at at different position,
@@ -637,124 +790,6 @@ impl Context {
     /// This is also the area to which windows are constrained.
     pub fn available_rect(&self) -> Rect {
         self.frame_state(|s| s.available_rect())
-    }
-}
-
-/// ## Borrows parts of [`Context`]
-impl Context {
-    /// Stores all the egui state.
-    ///
-    /// If you want to store/restore egui, serialize this.
-    #[inline]
-    pub fn memory<R>(&self, reader: impl FnOnce(&Memory) -> R) -> R {
-        self.read(move |ctx| reader(&ctx.memory))
-    }
-
-    #[inline]
-    pub fn memory_mut<R>(&self, writer: impl FnOnce(&mut Memory) -> R) -> R {
-        self.write(move |ctx| writer(&mut ctx.memory))
-    }
-
-    /// Stores superficial widget state.
-    #[inline]
-    pub fn data<R>(&self, reader: impl FnOnce(&crate::util::IdTypeMap) -> R) -> R {
-        self.read(move |ctx| reader(&ctx.memory.data))
-    }
-    #[inline]
-    pub fn data_mut<R>(&self, writer: impl FnOnce(&mut crate::util::IdTypeMap) -> R) -> R {
-        self.write(move |ctx| writer(&mut ctx.memory.data))
-    }
-
-    #[inline]
-    pub(crate) fn graphics_mut<R>(&self, writer: impl FnOnce(&mut GraphicLayers) -> R) -> R {
-        self.write(move |ctx| writer(&mut ctx.graphics))
-    }
-
-    /// What egui outputs each frame.
-    ///
-    /// ```
-    /// # let mut ctx = egui::Context::default();
-    /// ctx.output_mut(|o| o.cursor_icon = egui::CursorIcon::Progress);
-    /// ```
-    #[inline]
-    pub fn output<R>(&self, reader: impl FnOnce(&PlatformOutput) -> R) -> R {
-        self.read(move |ctx| reader(&ctx.output))
-    }
-    #[inline]
-    pub fn output_mut<R>(&self, writer: impl FnOnce(&mut PlatformOutput) -> R) -> R {
-        self.write(move |ctx| writer(&mut ctx.output))
-    }
-
-    #[inline]
-    pub(crate) fn frame_state<R>(&self, reader: impl FnOnce(&FrameState) -> R) -> R {
-        self.read(move |ctx| reader(&ctx.frame_state))
-    }
-    #[inline]
-    pub(crate) fn frame_state_mut<R>(&self, writer: impl FnOnce(&mut FrameState) -> R) -> R {
-        self.write(move |ctx| writer(&mut ctx.frame_state))
-    }
-
-    /// Access the [`InputState`].
-    ///
-    /// Note that this locks the [`Context`]
-    ///
-    /// ```
-    /// # let mut ctx = egui::Context::default();
-    /// ctx.input(|i| {
-    ///     // ⚠️ Using `ctx` (even from other `Arc` reference) again here will lead to a dead-lock!
-    /// });
-    ///
-    /// if let Some(pos) = ctx.input(|i| i.pointer.hover_pos()) {
-    ///     // This is fine!
-    /// }
-    /// ```
-    #[inline]
-    pub fn input<R>(&self, reader: impl FnOnce(&InputState) -> R) -> R {
-        self.read(move |ctx| reader(&ctx.input))
-    }
-
-    #[inline]
-    pub fn input_mut<R>(&self, writer: impl FnOnce(&mut InputState) -> R) -> R {
-        self.write(move |ctx| writer(&mut ctx.input))
-    }
-
-    /// Not valid until first call to [`Context::run()`].
-    /// That's because since we don't know the proper `pixels_per_point` until then.
-    #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
-        self.read(move |ctx| {
-            reader(
-                ctx.fonts
-                    .as_ref()
-                    .expect("No fonts available until first call to Context::run()"),
-            )
-        })
-    }
-    #[inline]
-    pub fn fonts_mut<R>(&self, writer: impl FnOnce(&mut Option<Fonts>) -> R) -> R {
-        self.write(move |ctx| writer(&mut ctx.fonts))
-    }
-
-    #[inline]
-    pub fn options<R>(&self, reader: impl FnOnce(&Options) -> R) -> R {
-        self.read(move |ctx| reader(&ctx.memory.options))
-    }
-    #[inline]
-    pub fn options_mut<R>(&self, writer: impl FnOnce(&mut Options) -> R) -> R {
-        self.write(move |ctx| writer(&mut ctx.memory.options))
-    }
-
-    /// Change the options used by the tessellator.
-    #[inline]
-    pub fn tessellation_options<R>(&self, reader: impl FnOnce(&TessellationOptions) -> R) -> R {
-        self.read(move |ctx| reader(&ctx.memory.options.tessellation_options))
-    }
-    #[inline]
-    pub fn tessellation_options_mut<R>(
-        &self,
-        writer: impl FnOnce(&mut TessellationOptions) -> R,
-    ) -> R {
-        self.write(move |ctx| writer(&mut ctx.memory.options.tessellation_options))
     }
 
     /// What operating system are we running on?

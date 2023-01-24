@@ -371,8 +371,7 @@ egui uses the builder pattern for construction widgets. For instance: `ui.add(La
 
 Instead of using matching `begin/end` style function calls (which can be error prone) egui prefers to use `FnOnce` closures passed to a wrapping function. Lambdas are a bit ugly though, so I'd like to find a nicer solution to this. More discussion of this at <https://github.com/emilk/egui/issues/1004#issuecomment-1001650754>.
 
-egui uses single RWLock for short time locks on each access to Context data. Single lock is to leave implementation simple and transactional. Short time locks is to allow users to run their UI logic in parallel almost without waiting on locks.
-Also, instead of creating mutex guards egui::Context uses `FnOnce` closures passed to a wrapping function. Reason for this is to make it harder to implement double locking from the same thread (can lead to deadlock) or long locking.
+egui uses a single `RwLock` for short-time locks on each access of `Context` data. This is to leave implementation simple and transactional and allow users to run their UI logic in parallel. Instead of creating mutex guards, egui uses closures passed to a wrapping function, e.g. `ctx.input(|i| i.key_down(Key::A))`. This is to make it less likely that a user would accidentally double-lock the `Context`, which would lead to a deadlock.
 
 ### Inspiration
 

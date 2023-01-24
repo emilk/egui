@@ -7,7 +7,7 @@ use epaint::mutex::RwLock;
 
 use crate::{
     containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
-    widgets::*, *,
+    util::IdTypeMap, widgets::*, *,
 };
 
 // ----------------------------------------------------------------------------
@@ -314,50 +314,6 @@ impl Ui {
         self.painter().layer_id()
     }
 
-    /// shortcuts for some self.ctx.method()
-    /// TODO: doc must stay
-
-    #[inline]
-    pub fn input<R>(&self, reader: impl FnOnce(&InputState) -> R) -> R {
-        self.ctx().input(reader)
-    }
-    #[inline]
-    pub fn input_mut<R>(&self, writer: impl FnOnce(&mut InputState) -> R) -> R {
-        self.ctx().input_mut(writer)
-    }
-
-    #[inline]
-    pub fn memory<R>(&self, reader: impl FnOnce(&Memory) -> R) -> R {
-        self.ctx().memory(reader)
-    }
-    #[inline]
-    pub fn memory_mut<R>(&self, writer: impl FnOnce(&mut Memory) -> R) -> R {
-        self.ctx().memory_mut(writer)
-    }
-
-    #[inline]
-    pub fn data<R>(&self, reader: impl FnOnce(&crate::util::IdTypeMap) -> R) -> R {
-        self.ctx().data(reader)
-    }
-    #[inline]
-    pub fn data_mut<R>(&self, writer: impl FnOnce(&mut crate::util::IdTypeMap) -> R) -> R {
-        self.ctx().data_mut(writer)
-    }
-
-    #[inline]
-    pub fn output<R>(&self, reader: impl FnOnce(&PlatformOutput) -> R) -> R {
-        self.ctx().output(reader)
-    }
-    #[inline]
-    pub fn output_mut<R>(&self, writer: impl FnOnce(&mut PlatformOutput) -> R) -> R {
-        self.ctx().output_mut(writer)
-    }
-
-    #[inline]
-    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
-        self.ctx().fonts(reader)
-    }
-
     /// The height of text of this text style
     pub fn text_style_height(&self, style: &TextStyle) -> f32 {
         self.fonts(|f| f.row_height(&style.resolve(self.style())))
@@ -379,6 +335,87 @@ impl Ui {
     /// Can be used for culling: if `false`, then no part of `rect` will be visible on screen.
     pub fn is_rect_visible(&self, rect: Rect) -> bool {
         self.is_visible() && rect.intersects(self.clip_rect())
+    }
+}
+
+/// # Helpers for accessing the underlying [`Context`].
+/// These functions all lock the [`Context`] owned by this [`Ui`].
+/// Please see the documentation of [`Context`] for how locking works!
+impl Ui {
+    /// Read-only access to the shared [`InputState`].
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// if ui.input(|i| i.key_pressed(egui::Key::A)) {
+    ///     // …
+    /// }
+    /// # });
+    /// ```
+    #[inline]
+    pub fn input<R>(&self, reader: impl FnOnce(&InputState) -> R) -> R {
+        self.ctx().input(reader)
+    }
+
+    /// Read-write access to the shared [`InputState`].
+    #[inline]
+    pub fn input_mut<R>(&self, writer: impl FnOnce(&mut InputState) -> R) -> R {
+        self.ctx().input_mut(writer)
+    }
+
+    /// Read-only access to the shared [`Memory`].
+    #[inline]
+    pub fn memory<R>(&self, reader: impl FnOnce(&Memory) -> R) -> R {
+        self.ctx().memory(reader)
+    }
+
+    /// Read-write access to the shared [`Memory`].
+    #[inline]
+    pub fn memory_mut<R>(&self, writer: impl FnOnce(&mut Memory) -> R) -> R {
+        self.ctx().memory_mut(writer)
+    }
+
+    /// Read-only access to the shared [`IdTypeMap`], which stores superficial widget state.
+    #[inline]
+    pub fn data<R>(&self, reader: impl FnOnce(&IdTypeMap) -> R) -> R {
+        self.ctx().data(reader)
+    }
+
+    /// Read-write access to the shared [`IdTypeMap`], which stores superficial widget state.
+    #[inline]
+    pub fn data_mut<R>(&self, writer: impl FnOnce(&mut IdTypeMap) -> R) -> R {
+        self.ctx().data_mut(writer)
+    }
+
+    /// Read-only access to the shared [`PlatformOutput`].
+    ///
+    /// This is what egui outputs each frame.
+    ///
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.output_mut(|o| o.cursor_icon = egui::CursorIcon::Progress);
+    /// ```
+    #[inline]
+    pub fn output<R>(&self, reader: impl FnOnce(&PlatformOutput) -> R) -> R {
+        self.ctx().output(reader)
+    }
+
+    /// Read-write access to the shared [`PlatformOutput`].
+    ///
+    /// This is what egui outputs each frame.
+    ///
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.output_mut(|o| o.cursor_icon = egui::CursorIcon::Progress);
+    /// ```
+    #[inline]
+    pub fn output_mut<R>(&self, writer: impl FnOnce(&mut PlatformOutput) -> R) -> R {
+        self.ctx().output_mut(writer)
+    }
+
+    /// Read-only access to [`Fonts`].
+    #[inline]
+    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+        self.ctx().fonts(reader)
     }
 }
 
