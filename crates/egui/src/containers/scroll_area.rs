@@ -449,10 +449,10 @@ impl ScrollArea {
             if content_response.dragged() {
                 for d in 0..2 {
                     if has_bar[d] {
-                        let (delta, velocity) =
-                            ui.input(|i| (i.pointer.delta()[d], i.pointer.velocity()[d]));
-                        state.offset[d] -= delta;
-                        state.vel[d] = velocity;
+                        ui.input(|i| {
+                            state.offset[d] -= i.pointer.delta()[d];
+                            state.vel[d] = i.pointer.velocity()[d];
+                        });
                         state.scroll_stuck_to_end[d] = false;
                     } else {
                         state.vel[d] = 0.0;

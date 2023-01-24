@@ -301,7 +301,8 @@ impl<'open> Window<'open> {
 
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
-        let is_open = !matches!(open, Some(false)) || ctx.memory(|mem| mem.everything_is_visible());
+        let is_explicitly_closed = matches!(open, Some(false));
+        let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
         area.show_open_close_animation(ctx, &frame, is_open);
 
         if !is_open {
