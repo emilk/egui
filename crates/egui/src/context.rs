@@ -194,6 +194,8 @@ impl ContextImpl {
 /// Within such a closure you may NOT recursively lock the same [`Context`], as that can lead to a deadlock.
 /// Therefore it is important that any lock of [`Context`] is short-lived.
 ///
+/// These are effectively transactional accesses.
+///
 /// [`Ui`] has many of the same accessor functions, and the same applies there.
 ///
 /// ## Example:
@@ -220,25 +222,7 @@ impl ContextImpl {
 /// }
 /// ```
 #[derive(Clone)]
-pub struct Context(Arc<ShortRwLockHelper<ContextImpl>>);
-
-// helper struct to enforce users to lock their data more careful
-// todo: is it required? should it be here?
-struct ShortRwLockHelper<T>(RwLock<T>);
-
-impl<T> ShortRwLockHelper<T> {
-    fn new(data: T) -> Self {
-        Self(RwLock::new(data))
-    }
-
-    fn read<R>(&self, reader: impl FnOnce(&T) -> R) -> R {
-        reader(&*self.0.read())
-    }
-
-    fn write<R>(&self, writer: impl FnOnce(&mut T) -> R) -> R {
-        writer(&mut *self.0.write())
-    }
-}
+pub struct Context(Arc<RwLock<ContextImpl>>);
 
 impl std::fmt::Debug for Context {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -254,7 +238,7 @@ impl std::cmp::PartialEq for Context {
 
 impl Default for Context {
     fn default() -> Self {
-        Self(Arc::new(ShortRwLockHelper::new(ContextImpl {
+        Self(Arc::new(RwLock::new(ContextImpl {
             // Start with painting an extra frame to compensate for some widgets
             // that take two frames before they "settle":
             repaint_requests: 1,
@@ -266,12 +250,12 @@ impl Default for Context {
 impl Context {
     // Do read-only (shared access) transaction on Context
     fn read<R>(&self, reader: impl FnOnce(&ContextImpl) -> R) -> R {
-        self.0.read(reader)
+        reader(&self.0.read())
     }
 
     // Do read-write (exclusive access) transaction on Context
     fn write<R>(&self, writer: impl FnOnce(&mut ContextImpl) -> R) -> R {
-        self.0.write(writer)
+        writer(&mut self.0.write())
     }
 
     /// Run the ui code for one frame.
