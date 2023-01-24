@@ -216,7 +216,7 @@ impl Style {
     pub fn interact_selectable(&self, response: &Response, selected: bool) -> WidgetVisuals {
         let mut visuals = *self.visuals.widgets.style(response);
         if selected {
-            visuals.optional_bg_fill = self.visuals.selection.bg_fill;
+            visuals.weak_bg_fill = self.visuals.selection.bg_fill;
             visuals.bg_fill = self.visuals.selection.bg_fill;
             // visuals.bg_stroke = self.visuals.selection.stroke;
             visuals.fg_stroke = self.visuals.selection.stroke;
@@ -537,7 +537,7 @@ impl Visuals {
     // TODO(emilk): replace with an alpha
     #[inline(always)]
     pub fn fade_out_to_color(&self) -> Color32 {
-        self.widgets.noninteractive.optional_bg_fill
+        self.widgets.noninteractive.weak_bg_fill
     }
 
     /// Returned a "grayed out" version of the given color.
@@ -598,17 +598,16 @@ impl Widgets {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetVisuals {
-    /// Background color of widget that must have a background fill,
-    /// such as the slider background or a checkbox background.
+    /// Background color of widgets that must have a background fill,
+    /// such as the slider background, a checkbox background, or a radio button background.
     ///
     /// Must never be [`Color32::TRANSPARENT`].
     pub bg_fill: Color32,
 
-    /// Background color of widget that can _optionally_ have a background fill,
-    /// such as buttons.
+    /// Background color of widgets that can _optionally_ have a background fill, such as buttons.
     ///
     /// May be [`Color32::TRANSPARENT`].
-    pub optional_bg_fill: Color32,
+    pub weak_bg_fill: Color32,
 
     /// For surrounding rectangle of things that need it,
     /// like buttons, the box of the checkbox, etc.
@@ -815,7 +814,7 @@ impl Widgets {
     pub fn dark() -> Self {
         Self {
             noninteractive: WidgetVisuals {
-                optional_bg_fill: Color32::from_gray(27),
+                weak_bg_fill: Color32::from_gray(27),
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // separators, indentation lines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
@@ -823,15 +822,15 @@ impl Widgets {
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
-                optional_bg_fill: Color32::from_gray(60), // button background
-                bg_fill: Color32::from_gray(60),          // checkbox background
+                weak_bg_fill: Color32::from_gray(60), // button background
+                bg_fill: Color32::from_gray(60),      // checkbox background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
-                optional_bg_fill: Color32::from_gray(70),
+                weak_bg_fill: Color32::from_gray(70),
                 bg_fill: Color32::from_gray(70),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
@@ -839,7 +838,7 @@ impl Widgets {
                 expansion: 1.0,
             },
             active: WidgetVisuals {
-                optional_bg_fill: Color32::from_gray(55),
+                weak_bg_fill: Color32::from_gray(55),
                 bg_fill: Color32::from_gray(55),
                 bg_stroke: Stroke::new(1.0, Color32::WHITE),
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
@@ -847,7 +846,7 @@ impl Widgets {
                 expansion: 1.0,
             },
             open: WidgetVisuals {
-                optional_bg_fill: Color32::from_gray(27),
+                weak_bg_fill: Color32::from_gray(27),
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
@@ -860,7 +859,7 @@ impl Widgets {
     pub fn light() -> Self {
         Self {
             noninteractive: WidgetVisuals {
-                optional_bg_fill: Color32::from_gray(248),
+                weak_bg_fill: Color32::from_gray(248),
                 bg_fill: Color32::from_gray(248),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(190)), // separators, indentation lines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(80)),  // normal text color
@@ -868,15 +867,15 @@ impl Widgets {
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
-                optional_bg_fill: Color32::from_gray(230), // button background
-                bg_fill: Color32::from_gray(230),          // checkbox background
+                weak_bg_fill: Color32::from_gray(230), // button background
+                bg_fill: Color32::from_gray(230),      // checkbox background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
-                optional_bg_fill: Color32::from_gray(220),
+                weak_bg_fill: Color32::from_gray(220),
                 bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::BLACK),
@@ -884,7 +883,7 @@ impl Widgets {
                 expansion: 1.0,
             },
             active: WidgetVisuals {
-                optional_bg_fill: Color32::from_gray(165),
+                weak_bg_fill: Color32::from_gray(165),
                 bg_fill: Color32::from_gray(165),
                 bg_stroke: Stroke::new(1.0, Color32::BLACK),
                 fg_stroke: Stroke::new(2.0, Color32::BLACK),
@@ -892,7 +891,7 @@ impl Widgets {
                 expansion: 1.0,
             },
             open: WidgetVisuals {
-                optional_bg_fill: Color32::from_gray(220),
+                weak_bg_fill: Color32::from_gray(220),
                 bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(160)),
                 fg_stroke: Stroke::new(1.0, Color32::BLACK),
@@ -1214,14 +1213,14 @@ impl Selection {
 impl WidgetVisuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
-            optional_bg_fill,
+            weak_bg_fill,
             bg_fill: mandatory_bg_fill,
             bg_stroke,
             rounding,
             fg_stroke,
             expansion,
         } = self;
-        ui_color(ui, optional_bg_fill, "optional background fill")
+        ui_color(ui, weak_bg_fill, "optional background fill")
             .on_hover_text("For buttons, combo-boxes, etc");
         ui_color(ui, mandatory_bg_fill, "mandatory background fill")
             .on_hover_text("For checkboxes, sliders, etc");
@@ -1303,7 +1302,7 @@ impl Visuals {
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
-            ui_color(ui, &mut widgets.inactive.optional_bg_fill, "Buttons");
+            ui_color(ui, &mut widgets.inactive.weak_bg_fill, "Buttons");
             ui_color(ui, window_fill, "Windows");
             ui_color(ui, panel_fill, "Panels");
             ui_color(ui, faint_bg_color, "Faint accent").on_hover_text(

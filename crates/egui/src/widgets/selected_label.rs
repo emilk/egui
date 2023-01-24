@@ -67,7 +67,7 @@ impl Widget for SelectableLabel {
                 ui.painter().rect(
                     rect,
                     visuals.rounding,
-                    visuals.optional_bg_fill,
+                    visuals.weak_bg_fill,
                     visuals.bg_stroke,
                 );
             }

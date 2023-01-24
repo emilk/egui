@@ -193,7 +193,7 @@ impl Widget for Button {
             let visuals = ui.style().interact(&response);
 
             if frame {
-                let fill = fill.unwrap_or(visuals.optional_bg_fill);
+                let fill = fill.unwrap_or(visuals.weak_bg_fill);
                 let stroke = stroke.unwrap_or(visuals.bg_stroke);
                 let rounding = rounding.unwrap_or(visuals.rounding);
                 ui.painter()
@@ -540,7 +540,7 @@ impl Widget for ImageButton {
                 (
                     expansion,
                     visuals.rounding,
-                    visuals.optional_bg_fill,
+                    visuals.weak_bg_fill,
                     visuals.bg_stroke,
                 )
             } else {
