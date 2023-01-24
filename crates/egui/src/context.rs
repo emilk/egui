@@ -769,18 +769,6 @@ impl Context {
         Self::layer_painter(self, LayerId::debug())
     }
 
-    /// Position and size of the egui area.
-    pub fn screen_rect(&self) -> Rect {
-        self.input(|i| i.screen_rect())
-    }
-
-    /// How much space is still available after panels has been added.
-    /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
-    /// This is also the area to which windows are constrained.
-    pub fn available_rect(&self) -> Rect {
-        self.frame_state(|s| s.available_rect())
-    }
-
     /// What operating system are we running on?
     ///
     /// When compiling natively, this is
@@ -916,16 +904,16 @@ impl Context {
     ///
     /// The new fonts will become active at the start of the next frame.
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
-        let is_same_fonts = self.fonts_mut(|fonts| {
+        let update_fonts = self.fonts_mut(|fonts| {
             if let Some(current_fonts) = fonts {
                 // NOTE: this comparison is expensive since it checks TTF data for equality
-                current_fonts.lock().fonts.definitions() == &font_definitions
+                current_fonts.lock().fonts.definitions() != &font_definitions
             } else {
-                false
+                true
             }
         });
 
-        if !is_same_fonts {
+        if update_fonts {
             self.memory_mut(|mem| mem.new_font_definitions = Some(font_definitions));
         }
     }
@@ -1223,6 +1211,19 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
+    /// Position and size of the egui area.
+    pub fn screen_rect(&self) -> Rect {
+        self.input(|i| i.screen_rect())
+    }
+
+    /// How much space is still available after panels has been added.
+    ///
+    /// This is the "background" area, what egui doesn't cover with panels (but may cover with windows).
+    /// This is also the area to which windows are constrained.
+    pub fn available_rect(&self) -> Rect {
+        self.frame_state(|s| s.available_rect())
+    }
+
     /// How much space is used by panels and windows.
     pub fn used_rect(&self) -> Rect {
         self.read(|ctx| {
@@ -1235,6 +1236,7 @@ impl Context {
     }
 
     /// How much space is used by panels and windows.
+    ///
     /// You can shrink your egui area to this size and still fit all egui components.
     pub fn used_size(&self) -> Vec2 {
         self.used_rect().max - Pos2::ZERO
@@ -1261,6 +1263,7 @@ impl Context {
     }
 
     /// True if egui is currently interested in the pointer (mouse or touch).
+    ///
     /// Could be the pointer is hovering over a [`Window`] or the user is dragging a widget.
     /// If `false`, the pointer is outside of any egui area and so
     /// you may be interested in what it is doing (e.g. controlling your game).
@@ -1270,7 +1273,8 @@ impl Context {
             || (self.is_pointer_over_area() && !self.input(|i| i.pointer.any_down()))
     }
 
-    /// Is egui currently using the pointer position (e.g. dragging a slider).
+    /// Is egui currently using the pointer position (e.g. dragging a slider)?
+    ///
     /// NOTE: this will return `false` if the pointer is just hovering over an egui area.
     pub fn is_using_pointer(&self) -> bool {
         self.memory(|m| m.interaction.is_using_pointer())
@@ -1285,6 +1289,7 @@ impl Context {
 // Ergonomic methods to forward some calls often used in 'if let' without holding the borrow
 impl Context {
     /// Latest reported pointer position.
+    ///
     /// When tapping a touch screen, this will be `None`.
     #[inline(always)]
     pub fn pointer_latest_pos(&self) -> Option<Pos2> {
@@ -1315,6 +1320,7 @@ impl Context {
 
 impl Context {
     /// Move all the graphics at the given layer.
+    ///
     /// Can be used to implement drag-and-drop (see relevant demo).
     pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
         if delta != Vec2::ZERO {
@@ -1330,6 +1336,7 @@ impl Context {
     }
 
     /// Moves the given area to the top in its [`Order`].
+    ///
     /// [`Area`]:s and [`Window`]:s also do this automatically when being clicked on or interacted with.
     pub fn move_to_top(&self, layer_id: LayerId) {
         self.memory_mut(|mem| mem.areas.move_to_top(layer_id));
@@ -1390,7 +1397,8 @@ impl Context {
         animated_value
     }
 
-    /// Allows you to smoothly change the f32 value.
+    /// Smoothly animate an `f32` value.
+    ///
     /// At the first call the value is written to memory.
     /// When it is called with a new value, it linearly interpolates to it in the given time.
     pub fn animate_value_with_time(&self, id: Id, target_value: f32, animation_time: f32) -> f32 {
@@ -1681,7 +1689,7 @@ impl Context {
     ///
     /// No locks are held while the given closure is called.
     pub fn with_accessibility_parent(&self, _id: Id, f: impl FnOnce()) {
-        // TODO(emilk): this isn't thread-safe!
+        // TODO(emilk): this isn't thread-safe - another thread can call this function between the push/pop calls
         #[cfg(feature = "accesskit")]
         self.frame_state_mut(|fs| {
             if let Some(state) = fs.accesskit_state.as_mut() {
