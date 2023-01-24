@@ -1,10 +1,3 @@
-## feature spec:
-1) need to remove feature spec from README
-2) methods documentation may be little outdated, since changes where made by "change api and fix all everything that failed to build"
-3) not all libs are currently ready or even can be built, especialy integration and web code
-4) changes are easy but breaking, will be great to write some migration guide
-
-
 # 🖌 egui: an easy-to-use GUI in pure Rust
 
 [<img alt="github" src="https://img.shields.io/badge/github-emilk/egui-8da0cb?logo=github" height="20">](https://github.com/emilk/egui)
