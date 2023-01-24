@@ -548,7 +548,7 @@ impl<'a> Widget for DragValue<'a> {
         response.widget_info(|| WidgetInfo::drag_value(value));
 
         #[cfg(feature = "accesskit")]
-        ui.ctx().accesskit_node_if_some(response.id, |node| {
+        ui.ctx().accesskit_node(response.id, |node| {
             use accesskit::Action;
             // If either end of the range is unbounded, it's better
             // to leave the corresponding AccessKit field set to None,

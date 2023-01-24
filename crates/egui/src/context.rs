@@ -652,7 +652,7 @@ impl Context {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
             // some information is written to the node twice.
-            self.accesskit_node_if_some(id, |node| response.fill_accesskit_node_common(node));
+            self.accesskit_node(id, |node| response.fill_accesskit_node_common(node));
         }
 
         let clicked_elsewhere = response.clicked_elsewhere();
@@ -1678,59 +1678,49 @@ impl Context {
     /// parent IDs for accessibility purposes. If the `accesskit` feature
     /// is disabled or if AccessKit support is not active for this frame,
     /// the function is still called, but with no other effect.
-    pub fn with_accessibility_parent(&self, id: Id, f: impl FnOnce()) {
+    ///
+    /// No locks are held while the given closure is called.
+    pub fn with_accessibility_parent(&self, _id: Id, f: impl FnOnce()) {
+        // TODO(emilk): this isn't thread-safe!
         #[cfg(feature = "accesskit")]
-        {
-            self.frame_state_mut(|fs| {
-                if let Some(state) = fs.accesskit_state.as_mut() {
-                    state.parent_stack.push(id);
-                }
-            });
-        }
-        #[cfg(not(feature = "accesskit"))]
-        {
-            let _ = id;
-        }
+        self.frame_state_mut(|fs| {
+            if let Some(state) = fs.accesskit_state.as_mut() {
+                state.parent_stack.push(_id);
+            }
+        });
+
         f();
+
         #[cfg(feature = "accesskit")]
-        {
-            self.frame_state_mut(|fs| {
-                if let Some(state) = fs.accesskit_state.as_mut() {
-                    assert_eq!(state.parent_stack.pop(), Some(id));
-                }
-            });
-        }
+        self.frame_state_mut(|fs| {
+            if let Some(state) = fs.accesskit_state.as_mut() {
+                assert_eq!(state.parent_stack.pop(), Some(_id));
+            }
+        });
     }
 
     /// If AccessKit support is active for the current frame, get or create
     /// a node with the specified ID and return a mutable reference to it.
     /// For newly crated nodes, the parent is the node with the ID at the top
     /// of the stack managed by [`Context::with_accessibility_parent`].
-    /// TODO: consider making both RO and RW versions
+    ///
+    /// The `Context` lock is held while the given closure is called!
+    ///
+    /// Returns `None` if acesskit is off.
+    // TODO: consider making both RO and RW versions
     #[cfg(feature = "accesskit")]
     pub fn accesskit_node<R>(
         &self,
         id: Id,
-        writer: impl FnOnce(Option<&mut accesskit::Node>) -> R,
-    ) -> R {
-        self.write(|ctx| {
-            writer(
-                ctx.frame_state
-                    .accesskit_state
-                    .is_some()
-                    .then(|| ctx.accesskit_node(id)),
-            )
-        })
-    }
-
-    /// TODO: explicit enough?
-    #[cfg(feature = "accesskit")]
-    pub fn accesskit_node_if_some<R>(
-        &self,
-        id: Id,
         writer: impl FnOnce(&mut accesskit::Node) -> R,
     ) -> Option<R> {
-        self.accesskit_node(id, move |node| node.map(writer))
+        self.write(|ctx| {
+            ctx.frame_state
+                .accesskit_state
+                .is_some()
+                .then(|| ctx.accesskit_node(id))
+                .map(writer)
+        })
     }
 
     /// Enable generation of AccessKit tree updates in all future frames.

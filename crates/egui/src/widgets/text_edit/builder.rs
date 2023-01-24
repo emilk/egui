@@ -666,7 +666,7 @@ impl<'t> TextEdit<'t> {
 
         #[cfg(feature = "accesskit")]
         {
-            let parent_id = ui.ctx().accesskit_node_if_some(response.id, |node| {
+            let parent_id = ui.ctx().accesskit_node(response.id, |node| {
                 use accesskit::{TextPosition, TextSelection};
 
                 let parent_id = response.id;
@@ -700,7 +700,6 @@ impl<'t> TextEdit<'t> {
                     for (i, row) in galley.rows.iter().enumerate() {
                         let id = parent_id.with(i);
                         ui.ctx().accesskit_node(id, |node| {
-                            let node = node.unwrap();
                             node.role = Role::InlineTextBox;
                             let rect = row.rect.translate(text_draw_pos.to_vec2());
                             node.bounds = Some(accesskit::kurbo::Rect {

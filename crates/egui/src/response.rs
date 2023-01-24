@@ -549,7 +549,7 @@ impl Response {
             self.output_event(event);
         } else {
             #[cfg(feature = "accesskit")]
-            self.ctx.accesskit_node_if_some(self.id, |node| {
+            self.ctx.accesskit_node(self.id, |node| {
                 self.fill_accesskit_node_from_widget_info(node, make_info());
             });
         }
@@ -557,7 +557,7 @@ impl Response {
 
     pub fn output_event(&self, event: crate::output::OutputEvent) {
         #[cfg(feature = "accesskit")]
-        self.ctx.accesskit_node_if_some(self.id, |node| {
+        self.ctx.accesskit_node(self.id, |node| {
             self.fill_accesskit_node_from_widget_info(node, event.widget_info().clone());
         });
         self.ctx.output_mut(|o| o.events.push(event));
@@ -639,7 +639,7 @@ impl Response {
     pub fn labelled_by(self, id: Id) -> Self {
         #[cfg(feature = "accesskit")]
         self.ctx
-            .accesskit_node_if_some(self.id, |node| node.labelled_by.push(id.accesskit_id()));
+            .accesskit_node(self.id, |node| node.labelled_by.push(id.accesskit_id()));
         #[cfg(not(feature = "accesskit"))]
         {
             let _ = id;
