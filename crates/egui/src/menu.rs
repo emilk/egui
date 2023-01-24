@@ -68,7 +68,7 @@ fn set_menu_style(style: &mut Style) {
     style.spacing.button_padding = vec2(2.0, 0.0);
     style.visuals.widgets.active.bg_stroke = Stroke::NONE;
     style.visuals.widgets.hovered.bg_stroke = Stroke::NONE;
-    style.visuals.widgets.inactive.bg_fill = Color32::TRANSPARENT;
+    style.visuals.widgets.inactive.weak_bg_fill = Color32::TRANSPARENT;
     style.visuals.widgets.inactive.bg_stroke = Stroke::NONE;
 }
 
@@ -180,7 +180,7 @@ fn stationary_menu_impl<'c, R>(
     let mut button = Button::new(title);
 
     if bar_state.open_menu.is_menu_open(menu_id) {
-        button = button.fill(ui.visuals().widgets.open.bg_fill);
+        button = button.fill(ui.visuals().widgets.open.weak_bg_fill);
         button = button.stroke(ui.visuals().widgets.open.bg_stroke);
     }
 
@@ -443,7 +443,7 @@ impl SubMenuButton {
         sub_id: Id,
     ) -> &'a WidgetVisuals {
         if menu_state.is_open(sub_id) {
-            &ui.style().visuals.widgets.hovered
+            &ui.style().visuals.widgets.open
         } else {
             ui.style().interact(response)
         }
@@ -472,7 +472,8 @@ impl SubMenuButton {
             text_galley.size().x + icon_galley.size().x,
             text_galley.size().y.max(icon_galley.size().y),
         );
-        let desired_size = text_and_icon_size + 2.0 * button_padding;
+        let mut desired_size = text_and_icon_size + 2.0 * button_padding;
+        desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| {
@@ -492,7 +493,7 @@ impl SubMenuButton {
                 ui.painter().rect_filled(
                     rect.expand(visuals.expansion),
                     visuals.rounding,
-                    visuals.bg_fill,
+                    visuals.weak_bg_fill,
                 );
             }
 

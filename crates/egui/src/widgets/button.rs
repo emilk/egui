@@ -180,10 +180,10 @@ impl Widget for Button {
             desired_size.x += ui.spacing().item_spacing.x + shortcut_text.size().x;
             desired_size.y = desired_size.y.max(shortcut_text.size().y);
         }
+        desired_size += 2.0 * button_padding;
         if !small {
             desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
         }
-        desired_size += 2.0 * button_padding;
         desired_size = desired_size.at_least(min_size);
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
@@ -193,7 +193,7 @@ impl Widget for Button {
             let visuals = ui.style().interact(&response);
 
             if frame {
-                let fill = fill.unwrap_or(visuals.bg_fill);
+                let fill = fill.unwrap_or(visuals.weak_bg_fill);
                 let stroke = stroke.unwrap_or(visuals.bg_stroke);
                 let rounding = rounding.unwrap_or(visuals.rounding);
                 ui.painter()
@@ -540,7 +540,7 @@ impl Widget for ImageButton {
                 (
                     expansion,
                     visuals.rounding,
-                    visuals.bg_fill,
+                    visuals.weak_bg_fill,
                     visuals.bg_stroke,
                 )
             } else {
