@@ -186,7 +186,7 @@ impl ContextImpl {
 ///
 /// ```
 /// # let ctx = egui::Context::default();
-/// if ctx.input(|i| i.key_pressed(Key::A)) {
+/// if ctx.input(|i| i.key_pressed(egui::Key::A)) {
 ///     ctx.output_mut(|o| o.copied_text = "Hello!".to_string());
 /// }
 /// ```

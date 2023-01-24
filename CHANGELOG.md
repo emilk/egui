@@ -5,9 +5,8 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 
 ## Unreleased
-* ⚠️ BREAKING: `egui::Context` locks now use closures ([#2625](https://github.com/emilk/egui/pull/2625)):
+* ⚠️ BREAKING: `egui::Context` now use closures for locking ([#2625](https://github.com/emilk/egui/pull/2625)):
   * `ctx.input().key_pressed(Key::A)` -> `ctx.input(|i| i.key_pressed(Key::A))`
-  * `ctx.input_mut().consume_key(Modifiers::CTRL, Key::A)` -> `ctx.input_mut(|i| i.consume_key(Modifiers::CTRL, Key::A))`
   * `ui.memory().toggle_popup(popup_id)` -> `ui.memory_mut(|mem| mem.toggle_popup(popup_id))`
 
 ### Added ⭐
