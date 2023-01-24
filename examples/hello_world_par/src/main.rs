@@ -1,12 +1,17 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-use eframe::egui;
+
 use std::sync::mpsc;
 use std::thread::JoinHandle;
 
+use eframe::egui;
+
 fn main() -> Result<(), eframe::Error> {
-    let options = eframe::NativeOptions::default();
+    let options = eframe::NativeOptions {
+        initial_window_size: Some(egui::vec2(1024.0, 768.0)),
+        ..Default::default()
+    };
     eframe::run_native(
-        "My egui App",
+        "My parallel egui App",
         options,
         Box::new(|_cc| Box::new(MyApp::new())),
     )
@@ -19,9 +24,14 @@ struct TestPanel {
 }
 
 impl TestPanel {
+    fn new(name: &str, age: u32, thread_nr: usize) -> Self {
+        let name = name.into();
+        let title = format!("{}'s test panel, thread={}", name, thread_nr);
+        Self { title, name, age }
+    }
+
     fn show(&mut self, ctx: &egui::Context) {
         egui::Window::new(&self.title).show(ctx, |ui| {
-            ui.heading("My egui Application");
             ui.horizontal(|ui| {
                 ui.label("Your name: ");
                 ui.text_edit_singleline(&mut self.name);
@@ -33,26 +43,20 @@ impl TestPanel {
             ui.label(format!("Hello '{}', age {}", self.name, self.age));
         });
     }
-
-    fn new(name: &str, age: u32, id: usize) -> Self {
-        let name = name.into();
-        let title = format!("{}'s test panel {}", name, id);
-        Self { title, name, age }
-    }
 }
 
 fn new_worker(
-    id: usize,
+    thread_nr: usize,
     on_done_tx: mpsc::SyncSender<()>,
 ) -> (JoinHandle<()>, mpsc::SyncSender<egui::Context>) {
     let (show_tx, show_rc) = mpsc::sync_channel(0);
     let handle = std::thread::Builder::new()
-        .name(format!("EguiPanelWorker {}", id))
+        .name(format!("EguiPanelWorker {}", thread_nr))
         .spawn(move || {
             let mut panels = [
-                TestPanel::new("Bob", 42 + id as u32, id),
-                TestPanel::new("Alice", 15 - id as u32, id),
-                TestPanel::new("Cris", 10 * id as u32, id),
+                TestPanel::new("Bob", 42 + thread_nr as u32, thread_nr),
+                TestPanel::new("Alice", 15 - thread_nr as u32, thread_nr),
+                TestPanel::new("Cris", 10 * thread_nr as u32, thread_nr),
             ];
 
             while let Ok(ctx) = show_rc.recv() {
@@ -99,8 +103,9 @@ impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             if ui.button("add worker").clicked() {
-                let id = self.workers.len();
-                self.workers.push(new_worker(id, self.on_done_tx.clone()));
+                let thread_nr = self.workers.len();
+                self.workers
+                    .push(new_worker(thread_nr, self.on_done_tx.clone()));
             }
         });
 
