@@ -6,8 +6,8 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 ## Unreleased
 ### Added ⭐
-* Add `Response::drag_started_by` and `Response::drag_released_by` for convenience, similar to `dragged` and `dragged_by`.
-* Add `PointerState::*_pressed` to check if the given button was pressed in this frame.
+* Add `Response::drag_started_by` and `Response::drag_released_by` for convenience, similar to `dragged` and `dragged_by` ([#2507](https://github.com/emilk/egui/pull/2507)).
+* Add `PointerState::*_pressed` to check if the given button was pressed in this frame ([#2507](https://github.com/emilk/egui/pull/2507)).
 * `Event::Key` now has a `repeat` field that is set to `true` if the event was the result of a key-repeat ([#2435](https://github.com/emilk/egui/pull/2435)).
 * Add `Slider::drag_value_speed`, which lets you ask for finer precision when dragging the slider value rather than the actual slider.
 * Add `Memory::any_popup_open`, which returns true if any popup is currently open ([#2464](https://github.com/emilk/egui/pull/2464)).
