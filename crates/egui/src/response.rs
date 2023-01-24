@@ -464,7 +464,7 @@ impl Response {
     /// When hovered, use this icon for the mouse cursor.
     pub fn on_hover_cursor(self, cursor: CursorIcon) -> Self {
         if self.hovered() {
-            self.ctx.output_mut(|o| o.cursor_icon = cursor);
+            self.ctx.set_cursor_icon(cursor);
         }
         self
     }
@@ -472,7 +472,7 @@ impl Response {
     /// When hovered or dragged, use this icon for the mouse cursor.
     pub fn on_hover_and_drag_cursor(self, cursor: CursorIcon) -> Self {
         if self.hovered() || self.dragged() {
-            self.ctx.output_mut(|o| o.cursor_icon = cursor);
+            self.ctx.set_cursor_icon(cursor);
         }
         self
     }

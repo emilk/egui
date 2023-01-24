@@ -22,6 +22,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Add `ProgressBar::fill` if you want to set the fill color manually. ([#2618](https://github.com/emilk/egui/pull/2618)).
 * Add `Button::rounding` to enable round buttons ([#2616](https://github.com/emilk/egui/pull/2616)).
 * Add `WidgetVisuals::optional_bg_color` - set it to `Color32::TRANSPARENT` to hide button backgrounds ([#2621](https://github.com/emilk/egui/pull/2621)).
+* Add `Context::screen_rect` and `Context::set_cursor_icon` ([#2625](https://github.com/emilk/egui/pull/2625)).
 
 ### Changed 🔧
 * Improved plot grid appearance ([#2412](https://github.com/emilk/egui/pull/2412)).

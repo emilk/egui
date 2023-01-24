@@ -800,6 +800,17 @@ impl Context {
         self.write(|ctx| ctx.os = os);
     }
 
+    /// Set the cursor icon.
+    ///
+    /// Equivalent to:
+    /// ```
+    /// # let ctx = Context::default();
+    /// ctx.output_mut(|o| o.cursor_icon = CursorIcon::PointingHand);
+    /// ```
+    pub fn set_cursor_icon(&self, cursor_icon: CursorIcon) {
+        self.output_mut(|o| o.cursor_icon = cursor_icon);
+    }
+
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
     ///
     /// Can be used to get the text for [`Button::shortcut_text`].
@@ -834,9 +845,7 @@ impl Context {
             shortcut.format(&ModifierNames::NAMES, is_mac)
         }
     }
-}
 
-impl Context {
     /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
     ///
     /// If this is called at least once in a frame, then there will be another frame right after this.

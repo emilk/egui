@@ -263,7 +263,7 @@ impl SidePanel {
                 resize_hover = mouse_over_resize_line && !dragging_something_else;
 
                 if resize_hover || is_resizing {
-                    ui.output_mut(|o| o.cursor_icon = CursorIcon::ResizeHorizontal);
+                    ui.ctx().set_cursor_icon(CursorIcon::ResizeHorizontal);
                 }
             }
         }
@@ -714,7 +714,7 @@ impl TopBottomPanel {
                 resize_hover = mouse_over_resize_line && !dragging_something_else;
 
                 if resize_hover || is_resizing {
-                    ui.output_mut(|o| o.cursor_icon = CursorIcon::ResizeVertical);
+                    ui.ctx().set_cursor_icon(CursorIcon::ResizeVertical);
                 }
             }
         }

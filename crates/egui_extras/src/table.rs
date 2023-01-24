@@ -685,7 +685,7 @@ impl<'a> Table<'a> {
                 let resize_hover = resize_response.hovered() && !dragging_something_else;
 
                 if resize_hover || resize_response.dragged() {
-                    ui.output_mut(|o| o.cursor_icon = egui::CursorIcon::ResizeColumn);
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeColumn);
                 }
 
                 let stroke = if resize_response.dragged() {

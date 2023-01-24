@@ -38,8 +38,7 @@ impl Widget for Link {
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Link, text_galley.text()));
 
         if response.hovered() {
-            ui.ctx()
-                .output_mut(|o| o.cursor_icon = CursorIcon::PointingHand);
+            ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
         }
 
         if ui.is_rect_visible(response.rect) {

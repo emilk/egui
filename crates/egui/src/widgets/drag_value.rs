@@ -505,7 +505,7 @@ impl<'a> Widget for DragValue<'a> {
                     mem.request_focus(id);
                 });
             } else if response.dragged() {
-                ui.output_mut(|o| o.cursor_icon = CursorIcon::ResizeHorizontal);
+                ui.ctx().set_cursor_icon(CursorIcon::ResizeHorizontal);
 
                 let mdelta = response.drag_delta();
                 let delta_points = mdelta.x - mdelta.y; // Increase to the right and up

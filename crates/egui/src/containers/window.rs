@@ -520,13 +520,13 @@ pub(crate) struct WindowInteraction {
 impl WindowInteraction {
     pub fn set_cursor(&self, ctx: &Context) {
         if (self.left && self.top) || (self.right && self.bottom) {
-            ctx.output_mut(|o| o.cursor_icon = CursorIcon::ResizeNwSe);
+            ctx.set_cursor_icon(CursorIcon::ResizeNwSe);
         } else if (self.right && self.top) || (self.left && self.bottom) {
-            ctx.output_mut(|o| o.cursor_icon = CursorIcon::ResizeNeSw);
+            ctx.set_cursor_icon(CursorIcon::ResizeNeSw);
         } else if self.left || self.right {
-            ctx.output_mut(|o| o.cursor_icon = CursorIcon::ResizeHorizontal);
+            ctx.set_cursor_icon(CursorIcon::ResizeHorizontal);
         } else if self.bottom || self.top {
-            ctx.output_mut(|o| o.cursor_icon = CursorIcon::ResizeVertical);
+            ctx.set_cursor_icon(CursorIcon::ResizeVertical);
         }
     }
 

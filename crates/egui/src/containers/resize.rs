@@ -305,8 +305,7 @@ impl Resize {
             paint_resize_corner(ui, &corner_response);
 
             if corner_response.hovered() || corner_response.dragged() {
-                ui.ctx()
-                    .output_mut(|o| o.cursor_icon = CursorIcon::ResizeNwSe);
+                ui.ctx().set_cursor_icon(CursorIcon::ResizeNwSe);
             }
         }
 
