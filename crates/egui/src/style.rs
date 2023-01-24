@@ -216,6 +216,7 @@ impl Style {
     pub fn interact_selectable(&self, response: &Response, selected: bool) -> WidgetVisuals {
         let mut visuals = *self.visuals.widgets.style(response);
         if selected {
+            visuals.weak_bg_fill = self.visuals.selection.bg_fill;
             visuals.bg_fill = self.visuals.selection.bg_fill;
             // visuals.bg_stroke = self.visuals.selection.stroke;
             visuals.fg_stroke = self.visuals.selection.stroke;
@@ -264,8 +265,11 @@ pub struct Spacing {
     /// Anything clickable should be (at least) this size.
     pub interact_size: Vec2, // TODO(emilk): rename min_interact_size ?
 
-    /// Default width of a [`Slider`] and [`ComboBox`](crate::ComboBox).
-    pub slider_width: f32, // TODO(emilk): rename big_interact_size ?
+    /// Default width of a [`Slider`].
+    pub slider_width: f32,
+
+    /// Default (minimum) width of a [`ComboBox`](crate::ComboBox).
+    pub combo_width: f32,
 
     /// Default width of a [`TextEdit`].
     pub text_edit_width: f32,
@@ -533,7 +537,7 @@ impl Visuals {
     // TODO(emilk): replace with an alpha
     #[inline(always)]
     pub fn fade_out_to_color(&self) -> Color32 {
-        self.widgets.noninteractive.bg_fill
+        self.widgets.noninteractive.weak_bg_fill
     }
 
     /// Returned a "grayed out" version of the given color.
@@ -594,8 +598,16 @@ impl Widgets {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WidgetVisuals {
-    /// Background color of widget.
+    /// Background color of widgets that must have a background fill,
+    /// such as the slider background, a checkbox background, or a radio button background.
+    ///
+    /// Must never be [`Color32::TRANSPARENT`].
     pub bg_fill: Color32,
+
+    /// Background color of widgets that can _optionally_ have a background fill, such as buttons.
+    ///
+    /// May be [`Color32::TRANSPARENT`].
+    pub weak_bg_fill: Color32,
 
     /// For surrounding rectangle of things that need it,
     /// like buttons, the box of the checkbox, etc.
@@ -684,6 +696,7 @@ impl Default for Spacing {
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
             interact_size: vec2(40.0, 18.0),
             slider_width: 100.0,
+            combo_width: 100.0,
             text_edit_width: 280.0,
             icon_width: 14.0,
             icon_width_inner: 8.0,
@@ -717,8 +730,8 @@ impl Visuals {
             widgets: Widgets::default(),
             selection: Selection::default(),
             hyperlink_color: Color32::from_rgb(90, 170, 255),
-            faint_bg_color: Color32::from_gray(35),
-            extreme_bg_color: Color32::from_gray(10), // e.g. TextEdit background
+            faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
+            extreme_bg_color: Color32::from_gray(10),            // e.g. TextEdit background
             code_bg_color: Color32::from_gray(64),
             warn_fg_color: Color32::from_rgb(255, 143, 0), // orange
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
@@ -751,8 +764,8 @@ impl Visuals {
             widgets: Widgets::light(),
             selection: Selection::light(),
             hyperlink_color: Color32::from_rgb(0, 155, 255),
-            faint_bg_color: Color32::from_gray(242),
-            extreme_bg_color: Color32::from_gray(255), // e.g. TextEdit background
+            faint_bg_color: Color32::from_additive_luminance(5), // visible, but barely so
+            extreme_bg_color: Color32::from_gray(255),           // e.g. TextEdit background
             code_bg_color: Color32::from_gray(230),
             warn_fg_color: Color32::from_rgb(255, 100, 0), // slightly orange red. it's difficult to find a warning color that pops on bright background.
             error_fg_color: Color32::from_rgb(255, 0, 0),  // red
@@ -801,6 +814,7 @@ impl Widgets {
     pub fn dark() -> Self {
         Self {
             noninteractive: WidgetVisuals {
+                weak_bg_fill: Color32::from_gray(27),
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // separators, indentation lines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
@@ -808,13 +822,15 @@ impl Widgets {
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
-                bg_fill: Color32::from_gray(60), // button background
+                weak_bg_fill: Color32::from_gray(60), // button background
+                bg_fill: Color32::from_gray(60),      // checkbox background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
+                weak_bg_fill: Color32::from_gray(70),
                 bg_fill: Color32::from_gray(70),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(150)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
@@ -822,6 +838,7 @@ impl Widgets {
                 expansion: 1.0,
             },
             active: WidgetVisuals {
+                weak_bg_fill: Color32::from_gray(55),
                 bg_fill: Color32::from_gray(55),
                 bg_stroke: Stroke::new(1.0, Color32::WHITE),
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
@@ -829,6 +846,7 @@ impl Widgets {
                 expansion: 1.0,
             },
             open: WidgetVisuals {
+                weak_bg_fill: Color32::from_gray(27),
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
@@ -841,6 +859,7 @@ impl Widgets {
     pub fn light() -> Self {
         Self {
             noninteractive: WidgetVisuals {
+                weak_bg_fill: Color32::from_gray(248),
                 bg_fill: Color32::from_gray(248),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(190)), // separators, indentation lines
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(80)),  // normal text color
@@ -848,13 +867,15 @@ impl Widgets {
                 expansion: 0.0,
             },
             inactive: WidgetVisuals {
-                bg_fill: Color32::from_gray(230), // button background
+                weak_bg_fill: Color32::from_gray(230), // button background
+                bg_fill: Color32::from_gray(230),      // checkbox background
                 bg_stroke: Default::default(),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
             },
             hovered: WidgetVisuals {
+                weak_bg_fill: Color32::from_gray(220),
                 bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(105)), // e.g. hover over window edge or button
                 fg_stroke: Stroke::new(1.5, Color32::BLACK),
@@ -862,6 +883,7 @@ impl Widgets {
                 expansion: 1.0,
             },
             active: WidgetVisuals {
+                weak_bg_fill: Color32::from_gray(165),
                 bg_fill: Color32::from_gray(165),
                 bg_stroke: Stroke::new(1.0, Color32::BLACK),
                 fg_stroke: Stroke::new(2.0, Color32::BLACK),
@@ -869,6 +891,7 @@ impl Widgets {
                 expansion: 1.0,
             },
             open: WidgetVisuals {
+                weak_bg_fill: Color32::from_gray(220),
                 bg_fill: Color32::from_gray(220),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(160)),
                 fg_stroke: Stroke::new(1.0, Color32::BLACK),
@@ -984,6 +1007,7 @@ impl Spacing {
             indent,
             interact_size,
             slider_width,
+            combo_width,
             text_edit_width,
             icon_width,
             icon_width_inner,
@@ -1011,6 +1035,10 @@ impl Spacing {
         ui.horizontal(|ui| {
             ui.add(DragValue::new(slider_width).clamp_range(0.0..=1000.0));
             ui.label("Slider width");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(combo_width).clamp_range(0.0..=1000.0));
+            ui.label("ComboBox width");
         });
         ui.horizontal(|ui| {
             ui.add(DragValue::new(text_edit_width).clamp_range(0.0..=1000.0));
@@ -1185,13 +1213,17 @@ impl Selection {
 impl WidgetVisuals {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
-            bg_fill,
+            weak_bg_fill,
+            bg_fill: mandatory_bg_fill,
             bg_stroke,
             rounding,
             fg_stroke,
             expansion,
         } = self;
-        ui_color(ui, bg_fill, "background fill");
+        ui_color(ui, weak_bg_fill, "optional background fill")
+            .on_hover_text("For buttons, combo-boxes, etc");
+        ui_color(ui, mandatory_bg_fill, "mandatory background fill")
+            .on_hover_text("For checkboxes, sliders, etc");
         stroke_ui(ui, bg_stroke, "background stroke");
 
         rounding_ui(ui, rounding);
@@ -1270,7 +1302,7 @@ impl Visuals {
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
-            ui_color(ui, &mut widgets.inactive.bg_fill, "Buttons");
+            ui_color(ui, &mut widgets.inactive.weak_bg_fill, "Buttons");
             ui_color(ui, window_fill, "Windows");
             ui_color(ui, panel_fill, "Panels");
             ui_color(ui, faint_bg_color, "Faint accent").on_hover_text(

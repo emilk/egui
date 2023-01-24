@@ -314,6 +314,8 @@ pub fn popup_below_widget<R>(
 ///
 /// Useful for drop-down menus (combo boxes) or suggestion menus under text fields.
 ///
+/// The opened popup will have the same width as the parent.
+///
 /// You must open the popup with [`Memory::open_popup`] or  [`Memory::toggle_popup`].
 ///
 /// Returns `None` if the popup is not open.
