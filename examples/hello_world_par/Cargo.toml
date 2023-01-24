@@ -4,8 +4,9 @@ version = "0.1.0"
 authors = ["Maxim Osipenko <maxim1999max@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.61"
+rust-version = "1.65"
 publish = false
+
 
 [dependencies]
 eframe = { path = "../../crates/eframe", default-features = false, features = [
