@@ -162,9 +162,6 @@ impl ComboBox {
         let button_id = ui.make_persistent_id(id_source);
 
         ui.horizontal(|ui| {
-            if let Some(width) = width {
-                ui.spacing_mut().slider_width = width; // yes, this is ugly. Will remove later.
-            }
             let mut ir = combo_box_dyn(
                 ui,
                 button_id,
@@ -172,6 +169,7 @@ impl ComboBox {
                 menu_contents,
                 icon,
                 wrap_enabled,
+                width,
             );
             if let Some(label) = label {
                 ir.response
@@ -240,21 +238,17 @@ fn combo_box_dyn<'c, R>(
     menu_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     icon: Option<IconPainter>,
     wrap_enabled: bool,
+    width: Option<f32>,
 ) -> InnerResponse<Option<R>> {
     let popup_id = button_id.with("popup");
 
-    let is_popup_open = ui.memory().is_popup_open(popup_id);
+    let is_popup_open = ui.memory(|m| m.is_popup_open(popup_id));
 
-    let popup_height = ui
-        .ctx()
-        .memory()
-        .areas
-        .get(popup_id)
-        .map_or(100.0, |state| state.size.y);
+    let popup_height = ui.memory(|m| m.areas.get(popup_id).map_or(100.0, |state| state.size.y));
 
     let above_or_below =
         if ui.next_widget_position().y + ui.spacing().interact_size.y + popup_height
-            < ui.ctx().input().screen_rect().bottom()
+            < ui.ctx().screen_rect().bottom()
         {
             AboveOrBelow::Below
         } else {
@@ -263,18 +257,20 @@ fn combo_box_dyn<'c, R>(
 
     let margin = ui.spacing().button_padding;
     let button_response = button_frame(ui, button_id, is_popup_open, Sense::click(), |ui| {
+        let icon_spacing = ui.spacing().icon_spacing;
         // We don't want to change width when user selects something new
         let full_minimum_width = if wrap_enabled {
             // Currently selected value's text will be wrapped if needed, so occupy the available width.
             ui.available_width()
         } else {
-            // Occupy at least the minimum width assigned to Slider and ComboBox.
-            ui.spacing().slider_width - 2.0 * margin.x
+            // Occupy at least the minimum width assigned to ComboBox.
+            let width = width.unwrap_or_else(|| ui.spacing().combo_width);
+            width - 2.0 * margin.x
         };
         let icon_size = Vec2::splat(ui.spacing().icon_width);
         let wrap_width = if wrap_enabled {
             // Use the available width, currently selected value's text will be wrapped if exceeds this value.
-            ui.available_width() - ui.spacing().item_spacing.x - icon_size.x
+            ui.available_width() - icon_spacing - icon_size.x
         } else {
             // Use all the width necessary to display the currently selected value's text.
             f32::INFINITY
@@ -288,7 +284,7 @@ fn combo_box_dyn<'c, R>(
             full_minimum_width
         } else {
             // Occupy at least the minimum width needed to contain the widget with the currently selected value's text.
-            galley.size().x + ui.spacing().item_spacing.x + icon_size.x
+            galley.size().x + icon_spacing + icon_size.x
         };
 
         // Case : wrap_enabled : occupy all the available width.
@@ -333,7 +329,7 @@ fn combo_box_dyn<'c, R>(
     });
 
     if button_response.clicked() {
-        ui.memory().toggle_popup(popup_id);
+        ui.memory_mut(|mem| mem.toggle_popup(popup_id));
     }
     let inner = crate::popup::popup_above_or_below_widget(
         ui,
@@ -390,7 +386,7 @@ fn button_frame(
             epaint::RectShape {
                 rect: outer_rect.expand(visuals.expansion),
                 rounding: visuals.rounding,
-                fill: visuals.bg_fill,
+                fill: visuals.weak_bg_fill,
                 stroke: visuals.bg_stroke,
             },
         );

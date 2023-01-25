@@ -363,7 +363,7 @@ pub use {
     input_state::{InputState, MultiTouchInfo, PointerState},
     layers::{LayerId, Order},
     layout::*,
-    memory::Memory,
+    memory::{Memory, Options},
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,

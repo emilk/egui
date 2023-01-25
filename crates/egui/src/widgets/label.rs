@@ -72,7 +72,7 @@ impl Label {
     pub fn layout_in_ui(self, ui: &mut Ui) -> (Pos2, WidgetTextGalley, Response) {
         let sense = self.sense.unwrap_or_else(|| {
             // We only want to focus labels if the screen reader is on.
-            if ui.memory().options.screen_reader {
+            if ui.memory(|mem| mem.options.screen_reader) {
                 Sense::focusable_noninteractive()
             } else {
                 Sense::hover()
@@ -120,7 +120,7 @@ impl Label {
             if let Some(first_section) = text_job.job.sections.first_mut() {
                 first_section.leading_space = first_row_indentation;
             }
-            let text_galley = text_job.into_galley(&ui.fonts());
+            let text_galley = ui.fonts(|f| text_job.into_galley(f));
 
             let pos = pos2(ui.max_rect().left(), ui.cursor().top());
             assert!(
@@ -153,7 +153,7 @@ impl Label {
                 text_job.job.justify = ui.layout().horizontal_justify();
             };
 
-            let text_galley = text_job.into_galley(&ui.fonts());
+            let text_galley = ui.fonts(|f| text_job.into_galley(f));
             let (rect, response) = ui.allocate_exact_size(text_galley.size(), sense);
             let pos = match text_galley.galley.job.halign {
                 Align::LEFT => rect.left_top(),

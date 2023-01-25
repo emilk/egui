@@ -173,7 +173,7 @@ pub trait App {
     }
 
     /// If `true` a warm-up call to [`Self::update`] will be issued where
-    /// `ctx.memory().everything_is_visible()` will be set to `true`.
+    /// `ctx.memory(|mem| mem.everything_is_visible())` will be set to `true`.
     ///
     /// This can help pre-caching resources loaded by different parts of the UI, preventing stutter later on.
     ///

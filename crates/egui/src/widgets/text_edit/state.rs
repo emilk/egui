@@ -34,11 +34,11 @@ pub struct TextEditState {
 
 impl TextEditState {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data().get_persisted(id)
+        ctx.data_mut(|d| d.get_persisted(id))
     }
 
     pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data().insert_persisted(id, self);
+        ctx.data_mut(|d| d.insert_persisted(id, self));
     }
 
     /// The the currently selected range of characters.

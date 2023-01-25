@@ -615,7 +615,7 @@ impl State {
         egui_ctx: &egui::Context,
         platform_output: egui::PlatformOutput,
     ) {
-        if egui_ctx.options().screen_reader {
+        if egui_ctx.options(|o| o.screen_reader) {
             self.screen_reader
                 .speak(&platform_output.events_description());
         }
