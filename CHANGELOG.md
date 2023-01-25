@@ -5,6 +5,10 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 
 ## Unreleased
+* ⚠️ BREAKING: `egui::Context` now use closures for locking ([#2625](https://github.com/emilk/egui/pull/2625)):
+  * `ctx.input().key_pressed(Key::A)` -> `ctx.input(|i| i.key_pressed(Key::A))`
+  * `ui.memory().toggle_popup(popup_id)` -> `ui.memory_mut(|mem| mem.toggle_popup(popup_id))`
+
 ### Added ⭐
 * Add `Response::drag_started_by` and `Response::drag_released_by` for convenience, similar to `dragged` and `dragged_by` ([#2507](https://github.com/emilk/egui/pull/2507)).
 * Add `PointerState::*_pressed` to check if the given button was pressed in this frame ([#2507](https://github.com/emilk/egui/pull/2507)).
@@ -18,6 +22,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Add `ProgressBar::fill` if you want to set the fill color manually. ([#2618](https://github.com/emilk/egui/pull/2618)).
 * Add `Button::rounding` to enable round buttons ([#2616](https://github.com/emilk/egui/pull/2616)).
 * Add `WidgetVisuals::optional_bg_color` - set it to `Color32::TRANSPARENT` to hide button backgrounds ([#2621](https://github.com/emilk/egui/pull/2621)).
+* Add `Context::screen_rect` and `Context::set_cursor_icon` ([#2625](https://github.com/emilk/egui/pull/2625)).
 
 ### Changed 🔧
 * Improved plot grid appearance ([#2412](https://github.com/emilk/egui/pull/2412)).

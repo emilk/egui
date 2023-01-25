@@ -368,33 +368,35 @@ impl<'a> Widget for DragValue<'a> {
             custom_parser,
         } = self;
 
-        let shift = ui.input().modifiers.shift_only();
+        let shift = ui.input(|i| i.modifiers.shift_only());
         // The widget has the same ID whether it's in edit or button mode.
         let id = ui.next_auto_id();
-        let is_slow_speed = shift && ui.memory().is_being_dragged(id);
+        let is_slow_speed = shift && ui.memory(|mem| mem.is_being_dragged(id));
 
-        // The following call ensures that when a `DragValue` receives focus,
+        // The following ensures that when a `DragValue` receives focus,
         // it is immediately rendered in edit mode, rather than being rendered
         // in button mode for just one frame. This is important for
         // screen readers.
-        ui.memory().interested_in_focus(id);
-        let is_kb_editing = ui.memory().has_focus(id);
-        if ui.memory().gained_focus(id) {
-            ui.memory().drag_value.edit_string = None;
-        }
+        let is_kb_editing = ui.memory_mut(|mem| {
+            mem.interested_in_focus(id);
+            let is_kb_editing = mem.has_focus(id);
+            if mem.gained_focus(id) {
+                mem.drag_value.edit_string = None;
+            }
+            is_kb_editing
+        });
 
         let old_value = get(&mut get_set_value);
         let mut value = old_value;
-        let aim_rad = ui.input().aim_radius() as f64;
+        let aim_rad = ui.input(|i| i.aim_radius() as f64);
 
         let auto_decimals = (aim_rad / speed.abs()).log10().ceil().clamp(0.0, 15.0) as usize;
         let auto_decimals = auto_decimals + is_slow_speed as usize;
         let max_decimals = max_decimals.unwrap_or(auto_decimals + 2);
         let auto_decimals = auto_decimals.clamp(min_decimals, max_decimals);
 
-        let change = {
+        let change = ui.input_mut(|input| {
             let mut change = 0.0;
-            let mut input = ui.input_mut();
 
             if is_kb_editing {
                 // This deliberately doesn't listen for left and right arrow keys,
@@ -418,16 +420,18 @@ impl<'a> Widget for DragValue<'a> {
             }
 
             change
-        };
+        });
 
         #[cfg(feature = "accesskit")]
         {
             use accesskit::{Action, ActionData};
-            for request in ui.input().accesskit_action_requests(id, Action::SetValue) {
-                if let Some(ActionData::NumericValue(new_value)) = request.data {
-                    value = new_value;
+            ui.input(|input| {
+                for request in input.accesskit_action_requests(id, Action::SetValue) {
+                    if let Some(ActionData::NumericValue(new_value)) = request.data {
+                        value = new_value;
+                    }
                 }
-            }
+            });
         }
 
         if change != 0.0 {
@@ -438,7 +442,7 @@ impl<'a> Widget for DragValue<'a> {
         value = clamp_to_range(value, clamp_range.clone());
         if old_value != value {
             set(&mut get_set_value, value);
-            ui.memory().drag_value.edit_string = None;
+            ui.memory_mut(|mem| mem.drag_value.edit_string = None);
         }
 
         let value_text = match custom_formatter {
@@ -457,10 +461,7 @@ impl<'a> Widget for DragValue<'a> {
         let mut response = if is_kb_editing {
             let button_width = ui.spacing().interact_size.x;
             let mut value_text = ui
-                .memory()
-                .drag_value
-                .edit_string
-                .take()
+                .memory_mut(|mem| mem.drag_value.edit_string.take())
                 .unwrap_or_else(|| value_text.clone());
             let response = ui.add(
                 TextEdit::singleline(&mut value_text)
@@ -476,7 +477,7 @@ impl<'a> Widget for DragValue<'a> {
                 let parsed_value = clamp_to_range(parsed_value, clamp_range.clone());
                 set(&mut get_set_value, parsed_value);
             }
-            ui.memory().drag_value.edit_string = Some(value_text);
+            ui.memory_mut(|mem| mem.drag_value.edit_string = Some(value_text));
             response
         } else {
             let button = Button::new(
@@ -499,10 +500,12 @@ impl<'a> Widget for DragValue<'a> {
             }
 
             if response.clicked() {
-                ui.memory().drag_value.edit_string = None;
-                ui.memory().request_focus(id);
+                ui.memory_mut(|mem| {
+                    mem.drag_value.edit_string = None;
+                    mem.request_focus(id);
+                });
             } else if response.dragged() {
-                ui.output().cursor_icon = CursorIcon::ResizeHorizontal;
+                ui.ctx().set_cursor_icon(CursorIcon::ResizeHorizontal);
 
                 let mdelta = response.drag_delta();
                 let delta_points = mdelta.x - mdelta.y; // Increase to the right and up
@@ -512,7 +515,7 @@ impl<'a> Widget for DragValue<'a> {
                 let delta_value = delta_points as f64 * speed;
 
                 if delta_value != 0.0 {
-                    let mut drag_state = std::mem::take(&mut ui.memory().drag_value);
+                    let mut drag_state = ui.memory_mut(|mem| std::mem::take(&mut mem.drag_value));
 
                     // Since we round the value being dragged, we need to store the full precision value in memory:
                     let stored_value = (drag_state.last_dragged_id == Some(response.id))
@@ -533,7 +536,7 @@ impl<'a> Widget for DragValue<'a> {
 
                     drag_state.last_dragged_id = Some(response.id);
                     drag_state.last_dragged_value = Some(stored_value);
-                    ui.memory().drag_value = drag_state;
+                    ui.memory_mut(|mem| mem.drag_value = drag_state);
                 }
             }
 
@@ -545,7 +548,7 @@ impl<'a> Widget for DragValue<'a> {
         response.widget_info(|| WidgetInfo::drag_value(value));
 
         #[cfg(feature = "accesskit")]
-        if let Some(mut node) = ui.ctx().accesskit_node(response.id) {
+        ui.ctx().accesskit_node(response.id, |node| {
             use accesskit::Action;
             // If either end of the range is unbounded, it's better
             // to leave the corresponding AccessKit field set to None,
@@ -589,7 +592,7 @@ impl<'a> Widget for DragValue<'a> {
                 let value_text = format!("{}{}{}", prefix, value_text, suffix);
                 node.value = Some(value_text.into());
             }
-        }
+        });
 
         response
     }

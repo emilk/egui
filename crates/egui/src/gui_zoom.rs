@@ -26,15 +26,15 @@ pub mod kb_shortcuts {
 /// }
 /// ```
 pub fn zoom_with_keyboard_shortcuts(ctx: &Context, native_pixels_per_point: Option<f32>) {
-    if ctx.input_mut().consume_shortcut(&kb_shortcuts::ZOOM_RESET) {
+    if ctx.input_mut(|i| i.consume_shortcut(&kb_shortcuts::ZOOM_RESET)) {
         if let Some(native_pixels_per_point) = native_pixels_per_point {
             ctx.set_pixels_per_point(native_pixels_per_point);
         }
     } else {
-        if ctx.input_mut().consume_shortcut(&kb_shortcuts::ZOOM_IN) {
+        if ctx.input_mut(|i| i.consume_shortcut(&kb_shortcuts::ZOOM_IN)) {
             zoom_in(ctx);
         }
-        if ctx.input_mut().consume_shortcut(&kb_shortcuts::ZOOM_OUT) {
+        if ctx.input_mut(|i| i.consume_shortcut(&kb_shortcuts::ZOOM_OUT)) {
             zoom_out(ctx);
         }
     }

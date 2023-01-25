@@ -257,7 +257,8 @@ impl EpiIntegration {
     ) -> Self {
         let egui_ctx = egui::Context::default();
 
-        *egui_ctx.memory() = load_egui_memory(storage.as_deref()).unwrap_or_default();
+        let memory = load_egui_memory(storage.as_deref()).unwrap_or_default();
+        egui_ctx.memory_mut(|mem| *mem = memory);
 
         let native_pixels_per_point = window.scale_factor() as f32;
 
@@ -315,11 +316,12 @@ impl EpiIntegration {
 
     pub fn warm_up(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
         crate::profile_function!();
-        let saved_memory: egui::Memory = self.egui_ctx.memory().clone();
-        self.egui_ctx.memory().set_everything_is_visible(true);
+        let saved_memory: egui::Memory = self.egui_ctx.memory(|mem| mem.clone());
+        self.egui_ctx
+            .memory_mut(|mem| mem.set_everything_is_visible(true));
         let full_output = self.update(app, window);
         self.pending_full_output.append(full_output); // Handle it next frame
-        *self.egui_ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
+        self.egui_ctx.memory_mut(|mem| *mem = saved_memory); // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
     }
 
@@ -446,7 +448,8 @@ impl EpiIntegration {
             }
             if _app.persist_egui_memory() {
                 crate::profile_scope!("egui_memory");
-                epi::set_value(storage, STORAGE_EGUI_MEMORY_KEY, &*self.egui_ctx.memory());
+                self.egui_ctx
+                    .memory(|mem| epi::set_value(storage, STORAGE_EGUI_MEMORY_KEY, mem));
             }
             {
                 crate::profile_scope!("App::save");
