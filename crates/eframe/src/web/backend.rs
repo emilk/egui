@@ -313,10 +313,11 @@ impl AppRunner {
 
     pub fn warm_up(&mut self) -> Result<(), JsValue> {
         if self.app.warm_up_enabled() {
-            let saved_memory: egui::Memory = self.egui_ctx.memory().clone();
-            self.egui_ctx.memory().set_everything_is_visible(true);
+            let saved_memory: egui::Memory = self.egui_ctx.memory(|m| m.clone());
+            self.egui_ctx
+                .memory_mut(|m| m.set_everything_is_visible(true));
             self.logic()?;
-            *self.egui_ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
+            self.egui_ctx.memory_mut(|m| *m = saved_memory); // We don't want to remember that windows were huge.
             self.egui_ctx.clear_animations();
         }
         Ok(())
@@ -388,7 +389,7 @@ impl AppRunner {
     }
 
     fn handle_platform_output(&mut self, platform_output: egui::PlatformOutput) {
-        if self.egui_ctx.options().screen_reader {
+        if self.egui_ctx.options(|o| o.screen_reader) {
             self.screen_reader
                 .speak(&platform_output.events_description());
         }

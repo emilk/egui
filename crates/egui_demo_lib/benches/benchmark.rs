@@ -38,7 +38,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     if false {
         let ctx = egui::Context::default();
-        ctx.memory().set_everything_is_visible(true); // give us everything
+        ctx.memory_mut(|m| m.set_everything_is_visible(true)); // give us everything
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
         c.bench_function("demo_full_no_tessellate", |b| {
             b.iter(|| {
