@@ -362,7 +362,7 @@ impl Context {
         self.write(move |ctx| writer(&mut ctx.memory.data))
     }
 
-    /// Read-write access to [`GraphicLayers`], where painted [`crate::Shapes`] are written to.
+    /// Read-write access to [`GraphicLayers`], where painted [`crate::Shape`]s are written to.
     #[inline]
     pub(crate) fn graphics_mut<R>(&self, writer: impl FnOnce(&mut GraphicLayers) -> R) -> R {
         self.write(move |ctx| writer(&mut ctx.graphics))
