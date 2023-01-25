@@ -759,14 +759,57 @@ impl InteractionDemo {
 
         let InnerResponse {
             response,
-            inner: (screen_pos, pointer_coordinate, pointer_coordinate_drag_delta, bounds, hovered),
+            inner:
+                (
+                    screen_pos,
+                    pointer_coordinate,
+                    pointer_coordinate_drag_delta,
+                    bounds,
+                    hovered,
+                    hover_indexes,
+                ),
         } = plot.show(ui, |plot_ui| {
+            plot_ui.line(
+                Line::new(PlotPoints::from_explicit_callback(
+                    move |x| x.cos() / 2.0,
+                    ..,
+                    200,
+                ))
+                .name("cos/2"),
+            );
+            plot_ui.line(
+                Line::new(PlotPoints::from_explicit_callback(
+                    move |x| x.sin(),
+                    ..,
+                    100,
+                ))
+                .name("Sin")
+                .group("line A", 0),
+            );
+            plot_ui.line(
+                Line::new(PlotPoints::from_explicit_callback(
+                    move |x| x.cos(),
+                    ..,
+                    200,
+                ))
+                .name("cos")
+                .group("line A", 1),
+            );
+            plot_ui.line(
+                Line::new(PlotPoints::from_explicit_callback(
+                    move |x| x.sin() / 2.0,
+                    ..,
+                    200,
+                ))
+                .name("sin/2"),
+            );
             (
                 plot_ui.screen_from_plot(PlotPoint::new(0.0, 0.0)),
                 plot_ui.pointer_coordinate(),
                 plot_ui.pointer_coordinate_drag_delta(),
                 plot_ui.plot_bounds(),
                 plot_ui.plot_hovered(),
+                plot_ui.plot_hover_indexes(),
             )
         });
 
@@ -794,6 +837,29 @@ impl InteractionDemo {
             "pointer coordinate drag delta: {}",
             coordinate_text
         ));
+
+        let indexes = if hover_indexes.is_some() {
+            let src_hover = hover_indexes.as_ref().unwrap();
+            let group = if src_hover.group.is_some() {
+                let src_gr = src_hover.group.as_ref().unwrap();
+                format!(
+                    "{} [{}]",
+                    src_gr.group_name.to_string(),
+                    src_gr.index_overide.to_string(),
+                )
+            } else {
+                "None".to_owned()
+            };
+            format!(
+                "retained: {} sub: {} group: {}",
+                src_hover.retained.to_string(),
+                src_hover.sub.to_string(),
+                group
+            )
+        } else {
+            "None".to_owned()
+        };
+        ui.label(format!("hover indexes: {}", indexes));
 
         response
     }
