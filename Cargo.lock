@@ -1346,6 +1346,7 @@ dependencies = [
  "epaint",
  "nohash-hasher",
  "ron",
+ "rust-hsluv",
  "serde",
  "tracing",
 ]
@@ -3318,6 +3319,12 @@ checksum = "921904a62e410e37e215c40381b7117f830d9d89ba60ab5236170541dd25646b"
 dependencies = [
  "xmlparser",
 ]
+
+[[package]]
+name = "rust-hsluv"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "efe2374f2385cdd8755a446f80b2a646de603c9d8539ca38734879b5c71e378b"
 
 [[package]]
 name = "rust-ini"

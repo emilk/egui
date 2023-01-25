@@ -299,6 +299,7 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
 
+pub mod animation;
 mod animation_manager;
 pub mod containers;
 mod context;
