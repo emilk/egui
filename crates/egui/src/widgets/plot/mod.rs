@@ -1097,7 +1097,7 @@ impl PlotUi {
     }
 
     ///
-    pub fn plot_hover_indexes(&self) -> Option<HoverIndexes> {
+    pub fn hover_indexes(&self) -> Option<HoverIndexes> {
         self.hover_indexes.clone()
     }
 
