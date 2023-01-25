@@ -629,9 +629,11 @@ impl Plot {
         ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
         let memory = if reset {
             if let Some((name, _)) = linked_axes.as_ref() {
-                let data = &mut ui.memory().data;
-                let link_groups: &mut BoundsLinkGroups = data.get_temp_mut_or_default(Id::null());
-                link_groups.0.remove(name);
+                ui.memory_mut(|memory| {
+                    let link_groups: &mut BoundsLinkGroups =
+                        memory.data.get_temp_mut_or_default(Id::null());
+                    link_groups.0.remove(name);
+                });
             };
             None
         } else {
@@ -711,43 +713,46 @@ impl Plot {
 
         // Find the cursors from other plots we need to draw
         let draw_cursors: Vec<Cursor> = if let Some((id, _)) = linked_cursors.as_ref() {
-            let data = &mut ui.memory().data;
-            let frames: &mut CursorLinkGroups = data.get_temp_mut_or_default(Id::null());
-            let cursors = frames.0.entry(*id).or_default();
+            ui.memory_mut(|memory| {
+                let frames: &mut CursorLinkGroups = memory.data.get_temp_mut_or_default(Id::null());
+                let cursors = frames.0.entry(*id).or_default();
 
-            // Look for our previous frame
-            let index = cursors
-                .iter()
-                .enumerate()
-                .find(|(_, frame)| frame.id == plot_id)
-                .map(|(i, _)| i);
+                // Look for our previous frame
+                let index = cursors
+                    .iter()
+                    .enumerate()
+                    .find(|(_, frame)| frame.id == plot_id)
+                    .map(|(i, _)| i);
 
-            // Remove our previous frame and all older frames as these are no longer displayed. This avoids
-            // unbounded growth, as we add an entry each time we draw a plot.
-            index.map(|index| cursors.drain(0..=index));
+                // Remove our previous frame and all older frames as these are no longer displayed. This avoids
+                // unbounded growth, as we add an entry each time we draw a plot.
+                index.map(|index| cursors.drain(0..=index));
 
-            // Gather all cursors of the remaining frames. This will be all the cursors of the
-            // other plots in the group. We want to draw these in the current plot too.
-            cursors
-                .iter()
-                .flat_map(|frame| frame.cursors.iter().copied())
-                .collect()
+                // Gather all cursors of the remaining frames. This will be all the cursors of the
+                // other plots in the group. We want to draw these in the current plot too.
+                cursors
+                    .iter()
+                    .flat_map(|frame| frame.cursors.iter().copied())
+                    .collect()
+            })
         } else {
             Vec::new()
         };
 
         // Transfer the bounds from a link group.
         if let Some((id, axes)) = linked_axes.as_ref() {
-            let data = &mut ui.memory().data;
-            let link_groups: &mut BoundsLinkGroups = data.get_temp_mut_or_default(Id::null());
-            if let Some(linked_bounds) = link_groups.0.get(id) {
-                if axes.x {
-                    bounds.set_x(linked_bounds);
-                }
-                if axes.y {
-                    bounds.set_y(linked_bounds);
-                }
-            };
+            ui.memory_mut(|memory| {
+                let link_groups: &mut BoundsLinkGroups =
+                    memory.data.get_temp_mut_or_default(Id::null());
+                if let Some(linked_bounds) = link_groups.0.get(id) {
+                    if axes.x {
+                        bounds.set_x(linked_bounds);
+                    }
+                    if axes.y {
+                        bounds.set_y(linked_bounds);
+                    }
+                };
+            });
         };
 
         // Allow double clicking to reset to the initial bounds.
@@ -935,20 +940,23 @@ impl Plot {
 
         if let Some((id, _)) = linked_cursors.as_ref() {
             // Push the frame we just drew to the list of frames
-            let data = &mut ui.memory().data;
-            let frames: &mut CursorLinkGroups = data.get_temp_mut_or_default(Id::null());
-            let cursors = frames.0.entry(*id).or_default();
-            cursors.push(PlotFrameCursors {
-                id: plot_id,
-                cursors: plot_cursors,
+            ui.memory_mut(|memory| {
+                let frames: &mut CursorLinkGroups = memory.data.get_temp_mut_or_default(Id::null());
+                let cursors = frames.0.entry(*id).or_default();
+                cursors.push(PlotFrameCursors {
+                    id: plot_id,
+                    cursors: plot_cursors,
+                });
             });
         }
 
         if let Some((id, _)) = linked_axes.as_ref() {
             // Save the linked bounds.
-            let data = &mut ui.memory().data;
-            let link_groups: &mut BoundsLinkGroups = data.get_temp_mut_or_default(Id::null());
-            link_groups.0.insert(*id, *transform.bounds());
+            ui.memory_mut(|memory| {
+                let link_groups: &mut BoundsLinkGroups =
+                    memory.data.get_temp_mut_or_default(Id::null());
+                link_groups.0.insert(*id, *transform.bounds());
+            });
         }
 
         let memory = PlotMemory {
