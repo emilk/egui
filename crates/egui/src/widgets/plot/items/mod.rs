@@ -30,6 +30,12 @@ pub(super) struct PlotConfig<'a> {
     pub show_y: bool,
 }
 
+#[derive(PartialEq, Clone, Debug)]
+pub struct SourceIndex {
+    pub group_name: String,
+    pub index_overide: usize,
+}
+
 /// Trait shared by things that can be drawn in the plot.
 pub(super) trait PlotItem {
     fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>);
@@ -44,6 +50,8 @@ pub(super) trait PlotItem {
     fn highlight(&mut self);
 
     fn highlighted(&self) -> bool;
+
+    fn group(&self) -> Option<SourceIndex>;
 
     fn geometry(&self) -> PlotGeometry<'_>;
 
@@ -120,6 +128,7 @@ pub struct HLine {
     pub(super) name: String,
     pub(super) highlight: bool,
     pub(super) style: LineStyle,
+    pub(super) group: Option<SourceIndex>,
 }
 
 impl HLine {
@@ -130,12 +139,24 @@ impl HLine {
             name: String::default(),
             highlight: false,
             style: LineStyle::Solid,
+            group: None,
         }
     }
 
     /// Highlight this line in the plot by scaling up the line.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Group name and index are used to retrieve the source index of the hover event.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+        });
         self
     }
 
@@ -216,6 +237,10 @@ impl PlotItem for HLine {
         self.highlight
     }
 
+    fn group(&self) -> Option<SourceIndex> {
+        self.group.clone()
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::None
     }
@@ -236,6 +261,7 @@ pub struct VLine {
     pub(super) name: String,
     pub(super) highlight: bool,
     pub(super) style: LineStyle,
+    pub(super) group: Option<SourceIndex>,
 }
 
 impl VLine {
@@ -246,12 +272,24 @@ impl VLine {
             name: String::default(),
             highlight: false,
             style: LineStyle::Solid,
+            group: None,
         }
     }
 
     /// Highlight this line in the plot by scaling up the line.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Group name and index are used to retrieve the source index of the hover event.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+        });
         self
     }
 
@@ -332,6 +370,10 @@ impl PlotItem for VLine {
         self.highlight
     }
 
+    fn group(&self) -> Option<SourceIndex> {
+        self.group.clone()
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::None
     }
@@ -352,6 +394,7 @@ pub struct Line {
     pub(super) highlight: bool,
     pub(super) fill: Option<f32>,
     pub(super) style: LineStyle,
+    pub(super) group: Option<SourceIndex>,
 }
 
 impl Line {
@@ -363,12 +406,24 @@ impl Line {
             highlight: false,
             fill: None,
             style: LineStyle::Solid,
+            group: None,
         }
     }
 
     /// Highlight this line in the plot by scaling up the line.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Group name and index are used to retrieve the source index of the hover event.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+        });
         self
     }
 
@@ -502,6 +557,10 @@ impl PlotItem for Line {
         self.highlight
     }
 
+    fn group(&self) -> Option<SourceIndex> {
+        self.group.clone()
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::Points(self.series.points())
     }
@@ -519,6 +578,7 @@ pub struct Polygon {
     pub(super) highlight: bool,
     pub(super) fill_alpha: f32,
     pub(super) style: LineStyle,
+    pub(super) group: Option<SourceIndex>,
 }
 
 impl Polygon {
@@ -530,6 +590,7 @@ impl Polygon {
             highlight: false,
             fill_alpha: DEFAULT_FILL_ALPHA,
             style: LineStyle::Solid,
+            group: None,
         }
     }
 
@@ -537,6 +598,17 @@ impl Polygon {
     /// transparency.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Group name and index are used to retrieve the source index of the hover event.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+        });
         self
     }
 
@@ -632,6 +704,10 @@ impl PlotItem for Polygon {
         self.highlight
     }
 
+    fn group(&self) -> Option<SourceIndex> {
+        self.group.clone()
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::Points(self.series.points())
     }
@@ -650,6 +726,7 @@ pub struct Text {
     pub(super) highlight: bool,
     pub(super) color: Color32,
     pub(super) anchor: Align2,
+    pub(super) group: Option<SourceIndex>,
 }
 
 impl Text {
@@ -661,12 +738,24 @@ impl Text {
             highlight: false,
             color: Color32::TRANSPARENT,
             anchor: Align2::CENTER_CENTER,
+            group: None,
         }
     }
 
     /// Highlight this text in the plot by drawing a rectangle around it.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Group name and index are used to retrieve the source index of the hover event.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+        });
         self
     }
 
@@ -746,6 +835,10 @@ impl PlotItem for Text {
         self.highlight
     }
 
+    fn group(&self) -> Option<SourceIndex> {
+        self.group.clone()
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::None
     }
@@ -770,6 +863,7 @@ pub struct Points {
     pub(super) name: String,
     pub(super) highlight: bool,
     pub(super) stems: Option<f32>,
+    pub(super) group: Option<SourceIndex>,
 }
 
 impl Points {
@@ -783,6 +877,7 @@ impl Points {
             name: Default::default(),
             highlight: false,
             stems: None,
+            group: None,
         }
     }
 
@@ -795,6 +890,17 @@ impl Points {
     /// Highlight these points in the plot by scaling up their markers.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Group name and index are used to retrieve the source index of the hover event.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+        });
         self
     }
 
@@ -984,6 +1090,10 @@ impl PlotItem for Points {
         self.highlight
     }
 
+    fn group(&self) -> Option<SourceIndex> {
+        self.group.clone()
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::Points(self.series.points())
     }
@@ -1000,6 +1110,7 @@ pub struct Arrows {
     pub(super) color: Color32,
     pub(super) name: String,
     pub(super) highlight: bool,
+    pub(super) group: Option<SourceIndex>,
 }
 
 impl Arrows {
@@ -1010,12 +1121,24 @@ impl Arrows {
             color: Color32::TRANSPARENT,
             name: Default::default(),
             highlight: false,
+            group: None,
         }
     }
 
     /// Highlight these arrows in the plot.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Group name and index are used to retrieve the source index of the hover event.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+        });
         self
     }
 
@@ -1099,6 +1222,10 @@ impl PlotItem for Arrows {
         self.highlight
     }
 
+    fn group(&self) -> Option<SourceIndex> {
+        self.group.clone()
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::Points(self.origins.points())
     }
@@ -1119,6 +1246,7 @@ pub struct PlotImage {
     pub(super) tint: Color32,
     pub(super) highlight: bool,
     pub(super) name: String,
+    pub(super) group: Option<SourceIndex>,
 }
 
 impl PlotImage {
@@ -1137,12 +1265,24 @@ impl PlotImage {
             size: size.into(),
             bg_fill: Default::default(),
             tint: Color32::WHITE,
+            group: None,
         }
     }
 
     /// Highlight this image in the plot.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Group name and index are used to retrieve the source index of the hover event.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+        });
         self
     }
 
@@ -1234,6 +1374,10 @@ impl PlotItem for PlotImage {
         self.highlight
     }
 
+    fn group(&self) -> Option<SourceIndex> {
+        self.group.clone()
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::None
     }
@@ -1264,6 +1408,7 @@ pub struct BarChart {
     /// A custom element formatter
     pub(super) element_formatter: Option<Box<dyn Fn(&Bar, &BarChart) -> String>>,
     highlight: bool,
+    group: Option<SourceIndex>,
 }
 
 impl BarChart {
@@ -1275,6 +1420,7 @@ impl BarChart {
             name: String::new(),
             element_formatter: None,
             highlight: false,
+            group: None,
         }
     }
 
@@ -1333,6 +1479,17 @@ impl BarChart {
     /// Highlight all plot elements.
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
+        self
+    }
+
+    /// Group name and index are used to retrieve the source index of the hover event.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+        });
         self
     }
 
@@ -1395,6 +1552,10 @@ impl PlotItem for BarChart {
         self.highlight
     }
 
+    fn group(&self) -> Option<SourceIndex> {
+        self.group.clone()
+    }
+
     fn geometry(&self) -> PlotGeometry<'_> {
         PlotGeometry::Rects
     }
@@ -1434,6 +1595,7 @@ pub struct BoxPlot {
     /// A custom element formatter
     pub(super) element_formatter: Option<Box<dyn Fn(&BoxElem, &BoxPlot) -> String>>,
     highlight: bool,
+    group: Option<SourceIndex>,
 }
 
 impl BoxPlot {
@@ -1445,6 +1607,7 @@ impl BoxPlot {
             name: String::new(),
             element_formatter: None,
             highlight: false,
+            group: None,
         }
     }
 
@@ -1500,6 +1663,17 @@ impl BoxPlot {
         self
     }
 
+    /// Group name and index are used to retrieve the source index of the hover event.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+        });
+        self
+    }
+
     /// Add a custom way to format an element.
     /// Can be used to display a set number of decimals or custom labels.
     pub fn element_formatter(
@@ -1536,6 +1710,10 @@ impl PlotItem for BoxPlot {
 
     fn highlighted(&self) -> bool {
         self.highlight
+    }
+
+    fn group(&self) -> Option<SourceIndex> {
+        self.group.clone()
     }
 
     fn geometry(&self) -> PlotGeometry<'_> {
