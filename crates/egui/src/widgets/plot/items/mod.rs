@@ -34,6 +34,7 @@ pub(super) struct PlotConfig<'a> {
 pub(super) trait PlotItem {
     fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>);
 
+    /// For plot-items which are generated based on x values (plotting functions).
     fn initialize(&mut self, x_range: RangeInclusive<f64>);
 
     fn name(&self) -> &str;
@@ -1647,6 +1648,7 @@ fn add_rulers_and_text(
         let mut text = elem.name().to_owned(); // could be empty
 
         if show_values {
+            text.push('\n');
             text.push_str(&elem.default_values_format(plot.transform));
         }
 
@@ -1656,14 +1658,16 @@ fn add_rulers_and_text(
     let font_id = TextStyle::Body.resolve(plot.ui.style());
 
     let corner_value = elem.corner_value();
-    shapes.push(Shape::text(
-        &plot.ui.fonts(),
-        plot.transform.position_from_point(&corner_value) + vec2(3.0, -2.0),
-        Align2::LEFT_BOTTOM,
-        text,
-        font_id,
-        plot.ui.visuals().text_color(),
-    ));
+    plot.ui.fonts(|f| {
+        shapes.push(Shape::text(
+            f,
+            plot.transform.position_from_point(&corner_value) + vec2(3.0, -2.0),
+            Align2::LEFT_BOTTOM,
+            text,
+            font_id,
+            plot.ui.visuals().text_color(),
+        ));
+    });
 }
 
 /// Draws a cross of horizontal and vertical ruler at the `pointer` position.
@@ -1693,8 +1697,8 @@ pub(super) fn rulers_at_value(
 
     let text = {
         let scale = plot.transform.dvalue_dpos();
-        let x_decimals = ((-scale[0].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
-        let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
+        let x_decimals = ((-scale[0].abs().log10()).ceil().at_least(0.0) as usize).clamp(1, 6);
+        let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).clamp(1, 6);
         if let Some(custom_label) = label_formatter {
             custom_label(name, &value)
         } else if plot.show_x && plot.show_y {
@@ -1712,15 +1716,16 @@ pub(super) fn rulers_at_value(
     };
 
     let font_id = TextStyle::Body.resolve(plot.ui.style());
-
-    shapes.push(Shape::text(
-        &plot.ui.fonts(),
-        pointer + vec2(3.0, -2.0),
-        Align2::LEFT_BOTTOM,
-        text,
-        font_id,
-        plot.ui.visuals().text_color(),
-    ));
+    plot.ui.fonts(|f| {
+        shapes.push(Shape::text(
+            f,
+            pointer + vec2(3.0, -2.0),
+            Align2::LEFT_BOTTOM,
+            text,
+            font_id,
+            plot.ui.visuals().text_color(),
+        ));
+    });
 }
 
 fn find_closest_rect<'a, T>(

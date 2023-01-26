@@ -48,11 +48,11 @@ impl Default for State {
 
 impl State {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data().get_persisted(id)
+        ctx.data_mut(|d| d.get_persisted(id))
     }
 
     pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data().insert_persisted(id, self);
+        ctx.data_mut(|d| d.insert_persisted(id, self));
     }
 }
 
@@ -97,8 +97,10 @@ pub struct ScrollArea {
     id_source: Option<Id>,
     offset_x: Option<f32>,
     offset_y: Option<f32>,
+
     /// If false, we ignore scroll events.
     scrolling_enabled: bool,
+    drag_to_scroll: bool,
 
     /// If true for vertical or horizontal the scroll wheel will stick to the
     /// end position until user manually changes position. It will become true
@@ -141,6 +143,7 @@ impl ScrollArea {
             offset_x: None,
             offset_y: None,
             scrolling_enabled: true,
+            drag_to_scroll: true,
             stick_to_end: [false; 2],
         }
     }
@@ -267,6 +270,18 @@ impl ScrollArea {
         self
     }
 
+    /// Can the user drag the scroll area to scroll?
+    ///
+    /// This is useful for touch screens.
+    ///
+    /// If `true`, the [`ScrollArea`] will sense drags.
+    ///
+    /// Default: `true`.
+    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
+        self.drag_to_scroll = drag_to_scroll;
+        self
+    }
+
     /// For each axis, should the containing area shrink if the content is small?
     ///
     /// * If `true`, egui will add blank space outside the scroll area.
@@ -336,6 +351,7 @@ impl ScrollArea {
             offset_x,
             offset_y,
             scrolling_enabled,
+            drag_to_scroll,
             stick_to_end,
         } = self;
 
@@ -422,7 +438,9 @@ impl ScrollArea {
 
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
 
-        if scrolling_enabled && (state.content_is_too_large[0] || state.content_is_too_large[1]) {
+        if (scrolling_enabled && drag_to_scroll)
+            && (state.content_is_too_large[0] || state.content_is_too_large[1])
+        {
             // Drag contents to scroll (for touch screens mostly).
             // We must do this BEFORE adding content to the `ScrollArea`,
             // or we will steal input from the widgets we contain.
@@ -431,8 +449,10 @@ impl ScrollArea {
             if content_response.dragged() {
                 for d in 0..2 {
                     if has_bar[d] {
-                        state.offset[d] -= ui.input().pointer.delta()[d];
-                        state.vel[d] = ui.input().pointer.velocity()[d];
+                        ui.input(|input| {
+                            state.offset[d] -= input.pointer.delta()[d];
+                            state.vel[d] = input.pointer.velocity()[d];
+                        });
                         state.scroll_stuck_to_end[d] = false;
                     } else {
                         state.vel[d] = 0.0;
@@ -441,7 +461,7 @@ impl ScrollArea {
             } else {
                 let stop_speed = 20.0; // Pixels per second.
                 let friction_coeff = 1000.0; // Pixels per second squared.
-                let dt = ui.input().unstable_dt;
+                let dt = ui.input(|i| i.unstable_dt);
 
                 let friction = friction_coeff * dt;
                 if friction > state.vel.length() || state.vel.length() < stop_speed {
@@ -585,7 +605,9 @@ impl Prepared {
         for d in 0..2 {
             if has_bar[d] {
                 // We take the scroll target so only this ScrollArea will use it:
-                let scroll_target = content_ui.ctx().frame_state().scroll_target[d].take();
+                let scroll_target = content_ui
+                    .ctx()
+                    .frame_state_mut(|state| state.scroll_target[d].take());
                 if let Some((scroll, align)) = scroll_target {
                     let min = content_ui.min_rect().min[d];
                     let clip_rect = content_ui.clip_rect();
@@ -650,8 +672,7 @@ impl Prepared {
         if scrolling_enabled && ui.rect_contains_pointer(outer_rect) {
             for d in 0..2 {
                 if has_bar[d] {
-                    let mut frame_state = ui.ctx().frame_state();
-                    let scroll_delta = frame_state.scroll_delta;
+                    let scroll_delta = ui.ctx().frame_state(|fs| fs.scroll_delta);
 
                     let scrolling_up = state.offset[d] > 0.0 && scroll_delta[d] > 0.0;
                     let scrolling_down = state.offset[d] < max_offset[d] && scroll_delta[d] < 0.0;
@@ -659,7 +680,7 @@ impl Prepared {
                     if scrolling_up || scrolling_down {
                         state.offset[d] -= scroll_delta[d];
                         // Clear scroll delta so no parent scroll will use it.
-                        frame_state.scroll_delta[d] = 0.0;
+                        ui.ctx().frame_state_mut(|fs| fs.scroll_delta[d] = 0.0);
                         state.scroll_stuck_to_end[d] = false;
                     }
                 }

@@ -185,7 +185,11 @@ impl RectElement for Bar {
 
     fn default_values_format(&self, transform: &ScreenTransform) -> String {
         let scale = transform.dvalue_dpos();
-        let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
-        format!("\n{:.*}", y_decimals, self.value)
+        let scale = match self.orientation {
+            Orientation::Horizontal => scale[0],
+            Orientation::Vertical => scale[1],
+        };
+        let decimals = ((-scale.abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
+        crate::plot::format_number(self.value, decimals)
     }
 }

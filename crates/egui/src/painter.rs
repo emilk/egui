@@ -7,7 +7,6 @@ use crate::{
     AreaLayerId, Color32, Context, FontId,
 };
 use epaint::{
-    mutex::{RwLockReadGuard, RwLockWriteGuard},
     text::{Fonts, Galley},
     CircleShape, RectShape, Rounding, Shape, Stroke,
 };
@@ -128,10 +127,12 @@ impl Painter {
         &self.ctx
     }
 
-    /// Available fonts.
+    /// Read-only access to the shared [`Fonts`].
+    ///
+    /// See [`Context`] documentation for how locks work.
     #[inline(always)]
-    pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
-        self.ctx.fonts()
+    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+        self.ctx.fonts(reader)
     }
 
     /// Where we paint
@@ -186,8 +187,9 @@ impl Painter {
 
 /// ## Low level
 impl Painter {
-    fn paint_list(&self) -> RwLockWriteGuard<'_, PaintList> {
-        RwLockWriteGuard::map(self.ctx.graphics(), |g| g.list(self.layer.area_layer))
+    fn paint_list<R>(&self, writer: impl FnOnce(&mut PaintList) -> R) -> R {
+        self.ctx
+            .graphics_mut(|g| writer(g.list(self.layer.area_layer)))
     }
 
     fn transform_shape(&self, shape: &mut Shape) {
@@ -197,17 +199,15 @@ impl Painter {
     }
 
     fn add_to_paint_list(&self, shape: Shape) -> ShapeIdx {
-        self.paint_list()
-            .add_at_z(self.clip_rect, shape, self.layer.z)
+        self.paint_list(|l| l.add_at_z(self.clip_rect, shape, self.layer.z))
     }
 
     fn extend_paint_list(&self, shapes: impl IntoIterator<Item = Shape>) {
-        self.paint_list()
-            .extend_at_z(self.clip_rect, shapes, self.layer.z);
+        self.paint_list(|l| l.extend_at_z(self.clip_rect, shapes, self.layer.z));
     }
 
     fn set_shape_in_paint_list(&self, idx: ShapeIdx, shape: Shape) {
-        self.paint_list().set(idx, self.clip_rect, shape);
+        self.paint_list(|l| l.set(idx, self.clip_rect, shape));
     }
 
     /// It is up to the caller to make sure there is room for this.
@@ -453,7 +453,7 @@ impl Painter {
         color: crate::Color32,
         wrap_width: f32,
     ) -> Arc<Galley> {
-        self.fonts().layout(text, font_id, color, wrap_width)
+        self.fonts(|f| f.layout(text, font_id, color, wrap_width))
     }
 
     /// Will line break at `\n`.
@@ -466,7 +466,7 @@ impl Painter {
         font_id: FontId,
         color: crate::Color32,
     ) -> Arc<Galley> {
-        self.fonts().layout(text, font_id, color, f32::INFINITY)
+        self.fonts(|f| f.layout(text, font_id, color, f32::INFINITY))
     }
 
     /// Paint text that has already been layed out in a [`Galley`].
