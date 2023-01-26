@@ -570,7 +570,9 @@ pub struct Widgets {
     /// The style of an interactive widget, such as a button, at rest.
     pub inactive: WidgetVisuals,
 
-    /// The style of an interactive widget while you hover it.
+    /// The style of an interactive widget while you hover it, or when it is highlighted.
+    ///
+    /// See [`Response::hovered`], [`Response::highlighted`] and [`Response::highlight`].
     pub hovered: WidgetVisuals,
 
     /// The style of an interactive widget as you are clicking or dragging it.
@@ -586,7 +588,7 @@ impl Widgets {
             &self.noninteractive
         } else if response.is_pointer_button_down_on() || response.has_focus() {
             &self.active
-        } else if response.hovered() {
+        } else if response.hovered() | response.highlighted() {
             &self.hovered
         } else {
             &self.inactive

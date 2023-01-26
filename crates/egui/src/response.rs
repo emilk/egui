@@ -13,6 +13,7 @@ use crate::{
 ///
 /// Whenever something gets added to a [`Ui`], a [`Response`] object is returned.
 /// [`ui.add`] returns a [`Response`], as does [`ui.button`], and all similar shortcuts.
+// TODO(emilk): we should be using bit sets instead of so many bools
 #[derive(Clone)]
 pub struct Response {
     // CONTEXT:
@@ -41,6 +42,10 @@ pub struct Response {
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
     #[doc(hidden)]
     pub hovered: bool,
+
+    /// The widget is highlighted via a call to [`Self::highlight`] or [`Context::highlight_widget`].
+    #[doc(hidden)]
+    pub highlighted: bool,
 
     /// The pointer clicked this thing this frame.
     #[doc(hidden)]
@@ -90,6 +95,7 @@ impl std::fmt::Debug for Response {
             sense,
             enabled,
             hovered,
+            highlighted,
             clicked,
             double_clicked,
             triple_clicked,
@@ -106,6 +112,7 @@ impl std::fmt::Debug for Response {
             .field("sense", sense)
             .field("enabled", enabled)
             .field("hovered", hovered)
+            .field("highlighted", highlighted)
             .field("clicked", clicked)
             .field("double_clicked", double_clicked)
             .field("triple_clicked", triple_clicked)
@@ -211,6 +218,12 @@ impl Response {
     #[inline(always)]
     pub fn hovered(&self) -> bool {
         self.hovered
+    }
+
+    /// The widget is highlighted via a call to [`Self::highlight`] or [`Context::highlight_widget`].
+    #[doc(hidden)]
+    pub fn highlighted(&self) -> bool {
+        self.highlighted
     }
 
     /// This widget has the keyboard focus (i.e. is receiving key presses).
@@ -454,6 +467,17 @@ impl Response {
         })
     }
 
+    /// Highlight this widget, to make it look like it is hovered, even if it isn't.
+    ///
+    /// The highlight takes on frame to take effect if you call this after the widget has been fully rendered.
+    ///
+    /// See also [`Context::highlight_widget`].
+    pub fn highlight(mut self) -> Self {
+        self.ctx.highlight_widget(self.id);
+        self.highlighted = true;
+        self
+    }
+
     /// Show this text when hovering if the widget is disabled.
     pub fn on_disabled_hover_text(self, text: impl Into<WidgetText>) -> Self {
         self.on_disabled_hover_ui(|ui| {
@@ -688,6 +712,7 @@ impl Response {
             sense: self.sense.union(other.sense),
             enabled: self.enabled || other.enabled,
             hovered: self.hovered || other.hovered,
+            highlighted: self.highlighted || other.highlighted,
             clicked: [
                 self.clicked[0] || other.clicked[0],
                 self.clicked[1] || other.clicked[1],
