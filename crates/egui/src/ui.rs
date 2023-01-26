@@ -327,8 +327,8 @@ impl Ui {
     }
 
     #[inline]
-    pub fn zlayer(&self) -> ZLayer {
-        self.painter().zlayer()
+    pub fn z_layer(&self) -> ZLayer {
+        self.painter().z_layer()
     }
 
     /// The height of text of this text style
@@ -633,7 +633,7 @@ impl Ui {
         self.ctx().interact(
             self.clip_rect(),
             self.spacing().item_spacing,
-            self.zlayer(),
+            self.z_layer(),
             id,
             rect,
             sense,
