@@ -316,8 +316,14 @@ impl Ui {
 
     /// Use this to paint stuff within this [`Ui`].
     #[inline]
+    pub fn area_layer_id(&self) -> AreaLayerId {
+        self.painter().area_layer_id()
+    }
+
+    #[deprecated = "Rename area_layer_id"]
+    #[inline]
     pub fn layer_id(&self) -> AreaLayerId {
-        self.painter().layer()
+        self.area_layer_id()
     }
 
     #[inline]
@@ -647,8 +653,14 @@ impl Ui {
         id: Id,
         sense: Sense,
     ) -> Response {
-        self.ctx()
-            .interact_with_hovered(self.layer_id(), id, rect, sense, self.enabled, hovered)
+        self.ctx().interact_with_hovered(
+            self.area_layer_id(),
+            id,
+            rect,
+            sense,
+            self.enabled,
+            hovered,
+        )
     }
 
     /// Is the pointer (mouse/touch) above this rectangle in this [`Ui`]?
@@ -657,7 +669,7 @@ impl Ui {
     /// if this [`Ui`] is behind some other window, this will always return `false`.
     pub fn rect_contains_pointer(&self, rect: Rect) -> bool {
         self.ctx()
-            .rect_contains_pointer(self.layer_id(), self.clip_rect().intersect(rect))
+            .rect_contains_pointer(self.area_layer_id(), self.clip_rect().intersect(rect))
     }
 
     /// Is the pointer (mouse/touch) above this [`Ui`]?
@@ -953,7 +965,7 @@ impl Ui {
     pub fn allocate_painter(&mut self, desired_size: Vec2, sense: Sense) -> (Response, Painter) {
         let response = self.allocate_response(desired_size, sense);
         let clip_rect = self.clip_rect().intersect(response.rect); // Make sure we don't paint out of bounds
-        let painter = Painter::new(self.ctx().clone(), self.layer_id(), clip_rect);
+        let painter = Painter::new(self.ctx().clone(), self.area_layer_id(), clip_rect);
         (response, painter)
     }
 

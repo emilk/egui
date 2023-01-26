@@ -20,7 +20,7 @@ pub struct Painter {
     ctx: Context,
 
     /// Where we paint
-    layer: ZLayer,
+    zlayer: ZLayer,
 
     /// Everything painted in this [`Painter`] will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
@@ -36,7 +36,7 @@ impl Painter {
     pub fn new(ctx: Context, area_layer: AreaLayerId, clip_rect: Rect) -> Self {
         Self {
             ctx,
-            layer: ZLayer::from_area_layer(area_layer),
+            zlayer: ZLayer::from_area_layer(area_layer),
             clip_rect,
             fade_to_color: None,
         }
@@ -44,10 +44,10 @@ impl Painter {
 
     /// Redirect where you are painting.
     #[must_use]
-    pub fn with_layer(self, layer: ZLayer) -> Self {
+    pub fn with_layer(self, zlayer: ZLayer) -> Self {
         Self {
             ctx: self.ctx,
-            layer,
+            zlayer: zlayer,
             clip_rect: self.clip_rect,
             fade_to_color: None,
         }
@@ -62,7 +62,7 @@ impl Painter {
     /// Redirect z-index
     #[must_use]
     pub fn with_z(self, z: ZOrder) -> Self {
-        let layer = self.layer.area_layer.with_z(z);
+        let layer = self.zlayer.area_layer.with_z(z);
         self.with_layer(layer)
     }
 
@@ -73,7 +73,7 @@ impl Painter {
     pub fn with_clip_rect(&self, rect: Rect) -> Self {
         Self {
             ctx: self.ctx.clone(),
-            layer: self.layer,
+            zlayer: self.zlayer,
             clip_rect: rect.intersect(self.clip_rect),
             fade_to_color: self.fade_to_color,
         }
@@ -81,17 +81,17 @@ impl Painter {
 
     /// Redirect what area layer you are painting.
     pub fn set_layer_id(&mut self, area_layer: AreaLayerId) {
-        self.layer.area_layer = area_layer;
+        self.zlayer.area_layer = area_layer;
     }
 
     /// Redirect at what z order you are drawing
     pub fn set_z(&mut self, z: ZOrder) {
-        self.layer.z = z;
+        self.zlayer.z = z;
     }
 
     /// Redirect where you are drawing
     pub fn set_layer(&mut self, layer: ZLayer) {
-        self.layer = layer;
+        self.zlayer = layer;
     }
 
     /// If set, colors will be modified to look like this
@@ -112,7 +112,7 @@ impl Painter {
     pub fn sub_region(&self, rect: Rect) -> Self {
         Self {
             ctx: self.ctx.clone(),
-            layer: self.layer,
+            zlayer: self.zlayer,
             clip_rect: rect.intersect(self.clip_rect),
             fade_to_color: self.fade_to_color,
         }
@@ -137,19 +137,19 @@ impl Painter {
 
     /// Where we paint
     #[inline(always)]
-    pub fn layer(&self) -> AreaLayerId {
-        self.layer.area_layer
+    pub fn area_layer_id(&self) -> AreaLayerId {
+        self.zlayer.area_layer
     }
 
     /// Where we paint, and on what Z-level
     #[inline(always)]
     pub fn zlayer(&self) -> ZLayer {
-        self.layer
+        self.zlayer
     }
 
     #[inline(always)]
     pub fn z(&self) -> ZOrder {
-        self.layer.z
+        self.zlayer.z
     }
 
     /// Everything painted in this [`Painter`] will be clipped against this.
@@ -189,7 +189,7 @@ impl Painter {
 impl Painter {
     fn paint_list<R>(&self, writer: impl FnOnce(&mut PaintList) -> R) -> R {
         self.ctx
-            .graphics_mut(|g| writer(g.list(self.layer.area_layer)))
+            .graphics_mut(|g| writer(g.list(self.zlayer.area_layer)))
     }
 
     fn transform_shape(&self, shape: &mut Shape) {
@@ -199,11 +199,11 @@ impl Painter {
     }
 
     fn add_to_paint_list(&self, shape: Shape) -> ShapeIdx {
-        self.paint_list(|l| l.add_at_z(self.clip_rect, shape, self.layer.z))
+        self.paint_list(|l| l.add_at_z(self.clip_rect, shape, self.zlayer.z))
     }
 
     fn extend_paint_list(&self, shapes: impl IntoIterator<Item = Shape>) {
-        self.paint_list(|l| l.extend_at_z(self.clip_rect, shapes, self.layer.z));
+        self.paint_list(|l| l.extend_at_z(self.clip_rect, shapes, self.zlayer.z));
     }
 
     fn set_shape_in_paint_list(&self, idx: ShapeIdx, shape: Shape) {

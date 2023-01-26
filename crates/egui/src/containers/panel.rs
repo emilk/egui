@@ -237,7 +237,7 @@ impl SidePanel {
                 let we_are_on_top = ui
                     .ctx()
                     .layer_id_at(pointer)
-                    .map_or(true, |top_layer_id| top_layer_id == ui.layer_id());
+                    .map_or(true, |top_layer_id| top_layer_id == ui.area_layer_id());
 
                 let resize_x = side.opposite().side_x(panel_rect);
                 let mouse_over_resize_line = we_are_on_top
@@ -688,7 +688,7 @@ impl TopBottomPanel {
                 let we_are_on_top = ui
                     .ctx()
                     .layer_id_at(pointer)
-                    .map_or(true, |top_layer_id| top_layer_id == ui.layer_id());
+                    .map_or(true, |top_layer_id| top_layer_id == ui.area_layer_id());
 
                 let resize_y = side.opposite().side_y(panel_rect);
                 let mouse_over_resize_line = we_are_on_top
