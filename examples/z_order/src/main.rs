@@ -72,7 +72,7 @@ impl eframe::App for MyApp {
                     }
 
                     let base = ZOrder::BASE;
-                    let above = base.above();
+                    let above = base.in_front();
 
                     draw_squares(ui, Vec2::new(0.0, 0.0), base, above);
                     draw_squares(ui, Vec2::new(100.0, 0.0), above, base);

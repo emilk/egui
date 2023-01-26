@@ -308,10 +308,11 @@ impl SidePanel {
             };
             let resize_x = side.opposite().side_x(rect);
             let resize_x = ui.painter().round_to_pixel(resize_x);
-            ui.painter()
-                .clone()
-                .with_z(layers::ZOrder::ABOVE_ALL)
-                .vline(resize_x, rect.y_range(), stroke);
+            ui.painter().clone().with_z(layers::ZOrder::FRONT).vline(
+                resize_x,
+                rect.y_range(),
+                stroke,
+            );
         }
 
         inner_response
@@ -759,10 +760,11 @@ impl TopBottomPanel {
             };
             let resize_y = side.opposite().side_y(rect);
             let resize_y = ui.painter().round_to_pixel(resize_y);
-            ui.painter()
-                .clone()
-                .with_z(layers::ZOrder::ABOVE_ALL)
-                .hline(rect.x_range(), resize_y, stroke);
+            ui.painter().clone().with_z(layers::ZOrder::FRONT).hline(
+                rect.x_range(),
+                resize_y,
+                stroke,
+            );
         }
 
         inner_response

@@ -127,27 +127,32 @@ impl AreaLayerId {
 pub struct ZOrder(pub i32);
 
 impl ZOrder {
+    /// The default layer 0.
     pub const BASE: ZOrder = ZOrder(0);
-    pub const ABOVE_ALL: ZOrder = ZOrder(i32::MAX);
-    pub const BELOW_ALL: ZOrder = ZOrder(i32::MIN);
+
+    /// In front of everything else.
+    pub const FRONT: ZOrder = ZOrder(i32::MAX);
+
+    /// Behind everything else.
+    pub const BACK: ZOrder = ZOrder(i32::MIN);
 
     /// Directly above
-    pub fn above(self) -> Self {
-        self.above_by(1)
+    pub fn in_front(self) -> Self {
+        self.in_front_by(1)
     }
 
-    /// Directly below
-    pub fn below(self) -> Self {
-        self.below_by(1)
+    /// Directly behind
+    pub fn behind(self) -> Self {
+        self.behind_by(1)
     }
 
-    /// Above by the number of levels given
-    pub fn above_by(self, levels: i32) -> Self {
+    /// In front of by the number of levels given
+    pub fn in_front_by(self, levels: i32) -> Self {
         Self(self.0.saturating_add(levels))
     }
 
-    /// Below by the number of levels given
-    pub fn below_by(self, levels: i32) -> Self {
+    /// Behind by the number of levels given
+    pub fn behind_by(self, levels: i32) -> Self {
         Self(self.0.saturating_sub(levels))
     }
 }
@@ -175,6 +180,9 @@ impl std::ops::AddAssign<ZOffset> for ZOrder {
 // ----------------------------------------------------------------------------
 
 /// Offset within a [`ZOrder`].
+///
+/// * Positive: more in front of.
+/// * Negative: more behind.
 pub type ZOffset = i32;
 
 // ----------------------------------------------------------------------------
@@ -222,28 +230,28 @@ impl ZLayer {
         Self::from_area_layer_z(self.area_layer, z)
     }
 
-    /// Get the `ZLayer` directly above this one
+    /// Get the `ZLayer` directly in front of this one.
     #[must_use]
-    pub fn above(self) -> Self {
-        self.with_z(self.z.above())
+    pub fn in_front(self) -> Self {
+        self.with_z(self.z.in_front())
     }
 
-    /// Get the `ZLayer` above this one by `levels` levels
+    /// Get the `ZLayer` in front of this one by `levels` levels.
     #[must_use]
-    pub fn above_by(self, levels: i32) -> Self {
-        self.with_z(self.z.above_by(levels))
+    pub fn in_front_by(self, levels: i32) -> Self {
+        self.with_z(self.z.in_front_by(levels))
     }
 
-    /// Get the `ZLayer` directly below this one
+    /// Get the `ZLayer` directly behind this one.
     #[must_use]
-    pub fn below(self) -> Self {
-        self.with_z(self.z.below())
+    pub fn behind(self) -> Self {
+        self.with_z(self.z.behind())
     }
 
-    /// Get the `ZLayer` below this one by `levels` levels
+    /// Get the `ZLayer` behind this one by `levels` levels.
     #[must_use]
-    pub fn below_by(self, levels: i32) -> Self {
-        self.with_z(self.z.below_by(levels))
+    pub fn behind_by(self, levels: i32) -> Self {
+        self.with_z(self.z.behind_by(levels))
     }
 
     /// `Id` of underlying area layer
