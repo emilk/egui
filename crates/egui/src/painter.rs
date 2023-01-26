@@ -44,7 +44,7 @@ impl Painter {
 
     /// Redirect where you are painting.
     #[must_use]
-    pub fn with_layer(self, z_layer: ZLayer) -> Self {
+    pub fn with_z_layer(self, z_layer: ZLayer) -> Self {
         Self {
             ctx: self.ctx,
             z_layer,
@@ -56,14 +56,14 @@ impl Painter {
     /// Redirect where you are painting with default z-index
     #[must_use]
     pub fn with_layer_id(self, layer: AreaLayerId) -> Self {
-        self.with_layer(ZLayer::from_area_layer(layer))
+        self.with_z_layer(ZLayer::from_area_layer(layer))
     }
 
     /// Redirect z-index
     #[must_use]
     pub fn with_z(self, z: ZOrder) -> Self {
         let layer = self.z_layer.area_layer.with_z(z);
-        self.with_layer(layer)
+        self.with_z_layer(layer)
     }
 
     /// Create a painter for a sub-region of this [`Painter`].

@@ -1770,7 +1770,7 @@ impl Ui {
     }
 
     /// Set z-index and layer id at the same time
-    pub fn with_layer<R>(
+    pub fn with_z_layer<R>(
         &mut self,
         layer: ZLayer,
         add_contents: impl FnOnce(&mut Self) -> R,
