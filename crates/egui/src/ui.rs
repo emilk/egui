@@ -321,7 +321,7 @@ impl Ui {
     }
 
     #[inline]
-    pub fn layer(&self) -> ZLayer {
+    pub fn zlayer(&self) -> ZLayer {
         self.painter().zlayer()
     }
 
@@ -627,7 +627,7 @@ impl Ui {
         self.ctx().interact(
             self.clip_rect(),
             self.spacing().item_spacing,
-            self.layer(),
+            self.zlayer(),
             id,
             rect,
             sense,
