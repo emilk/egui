@@ -117,8 +117,11 @@ impl AreaLayerId {
     }
 }
 
-/// Represents the relative order an element should be displayed
-/// Lower values render first, and therefore appear below higher values
+// ----------------------------------------------------------------------------
+
+/// Represents the relative order an element should be displayed.
+///
+/// Lower values render first, and therefore appear below higher values.
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ZOrder(pub i32);
@@ -154,6 +157,27 @@ impl Default for ZOrder {
         Self::BASE
     }
 }
+
+impl std::ops::Add<ZOffset> for ZOrder {
+    type Output = ZOrder;
+
+    fn add(self, offset: ZOffset) -> Self::Output {
+        Self(self.0.saturating_add(offset))
+    }
+}
+
+impl std::ops::AddAssign<ZOffset> for ZOrder {
+    fn add_assign(&mut self, offset: ZOffset) {
+        self.0 = self.0.saturating_add(offset);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Offset within a [`ZOrder`].
+pub type ZOffset = i32;
+
+// ----------------------------------------------------------------------------
 
 /// An identifier for a paint layer which supports Z-indexing
 ///

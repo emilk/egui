@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::{
     emath::{Align2, Pos2, Rect, Vec2},
-    layers::{PaintList, ShapeIdx, ZLayer, ZOrder},
+    layers::{PaintList, ShapeIdx, ZLayer, ZOffset, ZOrder},
     AreaLayerId, Color32, Context, FontId,
 };
 use epaint::{
@@ -42,28 +42,25 @@ impl Painter {
         }
     }
 
-    /// Redirect where you are painting.
-    #[must_use]
-    pub fn with_z_layer(self, z_layer: ZLayer) -> Self {
-        Self {
-            ctx: self.ctx,
-            z_layer,
-            clip_rect: self.clip_rect,
-            fade_to_color: None,
-        }
-    }
-
     /// Redirect where you are painting with default z-index
     #[must_use]
-    pub fn with_layer_id(self, layer: AreaLayerId) -> Self {
-        self.with_z_layer(ZLayer::from_area_layer(layer))
+    pub fn with_layer_id(mut self, layer: AreaLayerId) -> Self {
+        self.z_layer = ZLayer::from_area_layer(layer);
+        self
     }
 
     /// Redirect z-index
     #[must_use]
-    pub fn with_z(self, z: ZOrder) -> Self {
-        let layer = self.z_layer.area_layer.with_z(z);
-        self.with_z_layer(layer)
+    pub fn with_z(mut self, z: ZOrder) -> Self {
+        self.z_layer.z = z;
+        self
+    }
+
+    /// Modify z-index
+    #[must_use]
+    pub fn with_z_offset(mut self, z_offset: ZOffset) -> Self {
+        self.z_layer.z += z_offset;
+        self
     }
 
     /// Create a painter for a sub-region of this [`Painter`].
