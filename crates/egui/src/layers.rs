@@ -124,27 +124,9 @@ impl AreaLayerId {
 pub struct ZOrder(pub i32);
 
 impl ZOrder {
-    const BASE: ZOrder = ZOrder(0);
-    const ABOVE_ALL: ZOrder = ZOrder(i32::MAX);
-    const BELOW_ALL: ZOrder = ZOrder(i32::MIN);
-
-    /// Base z-order, corresponding to a level of 0
-    #[inline(always)]
-    pub fn base() -> Self {
-        Self::BASE
-    }
-
-    /// Maximal z-order - nothing on the same area layer can render above this
-    #[inline(always)]
-    pub fn above_all() -> Self {
-        Self::ABOVE_ALL
-    }
-
-    /// Minimal z-order - nothing on the same area layer can render below this
-    #[inline(always)]
-    pub fn below_all() -> Self {
-        Self::BELOW_ALL
-    }
+    pub const BASE: ZOrder = ZOrder(0);
+    pub const ABOVE_ALL: ZOrder = ZOrder(i32::MAX);
+    pub const BELOW_ALL: ZOrder = ZOrder(i32::MIN);
 
     /// Directly above
     pub fn above(self) -> Self {
@@ -278,7 +260,7 @@ impl PaintList {
     /// Returns the index of the new [`Shape`] at base z-index that can be used with `PaintList::set`.
     #[inline(always)]
     pub fn add(&mut self, clip_rect: Rect, shape: Shape) -> ShapeIdx {
-        self.add_at_z(clip_rect, shape, ZOrder::base())
+        self.add_at_z(clip_rect, shape, ZOrder::BASE)
     }
 
     pub fn extend_at_z<I: IntoIterator<Item = Shape>>(
@@ -295,7 +277,7 @@ impl PaintList {
     }
 
     pub fn extend<I: IntoIterator<Item = Shape>>(&mut self, clip_rect: Rect, shapes: I) {
-        self.extend_at_z(clip_rect, shapes, ZOrder::base());
+        self.extend_at_z(clip_rect, shapes, ZOrder::BASE);
     }
 
     /// Modify an existing [`Shape`].
