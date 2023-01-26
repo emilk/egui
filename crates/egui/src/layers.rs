@@ -175,7 +175,7 @@ impl Default for ZOrder {
 
 /// An identifier for a paint layer which supports Z-indexing
 ///
-/// This says: draw on `area_layer` with index z. This only affects the display
+/// This says: draw on [`AreaLayerId`] with index z. This only affects the display
 /// order of elements on the same area layer. Order of area layers still takes
 /// precedence over z-index.
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
