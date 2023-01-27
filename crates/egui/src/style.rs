@@ -497,7 +497,7 @@ pub struct Visuals {
     /// Show a background behind collapsing headers.
     pub collapsing_header_frame: bool,
 
-    /// Draw a vertical lien left of indented region, in e.g. [`crate::CollapsedHeader`].
+    /// Draw a vertical lien left of indented region, in e.g. [`crate::CollapsingHeader`].
     pub indent_has_left_vline: bool,
 
     /// Wether or not Grids and Tables should be striped by default
