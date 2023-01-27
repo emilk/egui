@@ -1,6 +1,5 @@
 #![allow(clippy::needless_pass_by_value)] // False positives with `impl ToString`
 
-use std::cmp::Ordering;
 use std::ops::RangeInclusive;
 
 use crate::*;
@@ -74,6 +73,8 @@ pub struct Slider<'a> {
     clamp_to_range: bool,
     smart_aim: bool,
     snap_values: Vec<f64>,
+    /// Snaps to a pre-defined `snap_value` only if the cursor is close to it. If not close to a `snap_value`, behave as a normal `Slider`.
+    snap_values_only: bool,
     show_value: bool,
     orientation: SliderOrientation,
     prefix: String,
@@ -121,6 +122,7 @@ impl<'a> Slider<'a> {
             clamp_to_range: true,
             smart_aim: true,
             snap_values: vec![],
+            snap_values_only: false,
             show_value: true,
             orientation: SliderOrientation::Horizontal,
             prefix: Default::default(),
@@ -223,6 +225,7 @@ impl<'a> Slider<'a> {
     pub fn snap_values<Num: emath::Numeric>(
         mut self,
         snap_values: Vec<Num>,
+        snap_values_only: bool
     ) -> Self {
         self.snap_values = snap_values
             .into_iter()
@@ -230,6 +233,7 @@ impl<'a> Slider<'a> {
             .collect();
         self.snap_values
             .sort_by(|a, b| a.total_cmp(b));
+        self.snap_values_only = snap_values_only;
         self
     }
 
@@ -585,7 +589,7 @@ impl<'a> Slider<'a> {
                 }
 
                 // Divide aim_radius by the granularity we want
-                if closest_distance < ui.input().aim_radius() as f64 / 10.0 {
+                if self.snap_values_only || closest_distance < ui.input().aim_radius() as f64 / 15.0 {
                     new_value = closest_snap;
                 }
             }

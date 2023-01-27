@@ -13,6 +13,7 @@ pub struct Sliders {
     pub smart_aim: bool,
     pub snap_aim: bool,
     pub snap_values: Vec<f64>,
+    pub snap_values_only: bool,
     pub step: f64,
     pub use_steps: bool,
     pub integer: bool,
@@ -30,6 +31,7 @@ impl Default for Sliders {
             smart_aim: true,
             snap_aim: false,
             snap_values: vec![],
+            snap_values_only: false,
             step: 10.0,
             use_steps: false,
             integer: false,
@@ -65,6 +67,7 @@ impl super::View for Sliders {
             smart_aim,
             snap_aim,
             snap_values,
+            snap_values_only,
             step,
             use_steps,
             integer,
@@ -99,7 +102,7 @@ impl super::View for Sliders {
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
-                    .snap_values(snap_values.clone())
+                    .snap_values(snap_values.clone(), *snap_values_only)
                     .orientation(orientation)
                     .text("i32 demo slider")
                     .step_by(istep),
@@ -111,7 +114,7 @@ impl super::View for Sliders {
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
-                    .snap_values(snap_values.clone())
+                    .snap_values(snap_values.clone(), *snap_values_only)
                     .orientation(orientation)
                     .text("f64 demo slider")
                     .step_by(istep),
@@ -192,8 +195,15 @@ impl super::View for Sliders {
         ui.add_space(8.0);
 
         ui.checkbox(snap_aim, "Snap Aim");
-        ui.label("Snap Aim will snap the slider to user-defined values when close to them (Smart Aim must also be enabled).");
+        ui.label("Snap Aim will snap the slider to user-defined values when close to them. For this demo, the values are 0, 1/3, 2/3 and 1 of the range.");
         ui.add_space(8.0);
+
+
+        ui.add_enabled_ui(*snap_aim, |ui| {
+            ui.checkbox(snap_values_only, "Snap To Values Only");
+            ui.label("If enabled, Snap Aim will always snap to the closest snap value, and not allow values in between.");
+            ui.add_space(8.0);
+        });
 
         ui.vertical_centered(|ui| {
             egui::reset_button(ui, self);
