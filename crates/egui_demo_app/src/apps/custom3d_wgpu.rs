@@ -1,8 +1,8 @@
 use std::{num::NonZeroU64, sync::Arc};
 
 use eframe::{
+    egui_wgpu::wgpu::util::DeviceExt,
     egui_wgpu::{self, wgpu},
-    wgpu::util::DeviceExt,
 };
 
 pub struct Custom3d {

@@ -49,6 +49,7 @@ impl WebPainterWgpu {
                     dimension: wgpu::TextureDimension::D2,
                     format: depth_format,
                     usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    view_formats: &[depth_format],
                 })
                 .create_view(&wgpu::TextureViewDescriptor::default())
         })
@@ -60,8 +61,13 @@ impl WebPainterWgpu {
 
         let canvas = super::canvas_element_or_die(canvas_id);
 
-        let instance = wgpu::Instance::new(options.wgpu_options.backends);
-        let surface = instance.create_surface_from_canvas(&canvas);
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: options.wgpu_options.backends,
+            dx12_shader_compiler: Default::default(),
+        });
+        let surface = instance
+            .create_surface_from_canvas(&canvas)
+            .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -81,7 +87,7 @@ impl WebPainterWgpu {
             .map_err(|err| format!("Failed to find wgpu device: {}", err))?;
 
         let target_format =
-            egui_wgpu::preferred_framebuffer_format(&surface.get_supported_formats(&adapter));
+            egui_wgpu::preferred_framebuffer_format(&surface.get_capabilities(&adapter).formats);
 
         let depth_format = options.wgpu_options.depth_format;
         let renderer = egui_wgpu::Renderer::new(&device, target_format, depth_format, 1);
@@ -99,6 +105,7 @@ impl WebPainterWgpu {
             height: 0,
             present_mode: options.wgpu_options.present_mode,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            view_formats: vec![target_format],
         };
 
         tracing::debug!("wgpu painter initialized.");
