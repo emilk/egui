@@ -621,6 +621,8 @@ impl Context {
     ) -> Response {
         let hovered = hovered && enabled; // can't even hover disabled widgets
 
+        let highlighted = self.frame_state(|fs| fs.highlight_this_frame.contains(&id));
+
         let mut response = Response {
             ctx: self.clone(),
             layer_id,
@@ -629,6 +631,7 @@ impl Context {
             sense,
             enabled,
             hovered,
+            highlighted,
             clicked: Default::default(),
             double_clicked: Default::default(),
             triple_clicked: Default::default(),
@@ -1283,6 +1286,15 @@ impl Context {
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`TextEdit`]).
     pub fn wants_keyboard_input(&self) -> bool {
         self.memory(|m| m.interaction.focus.focused().is_some())
+    }
+
+    /// Highlight this widget, to make it look like it is hovered, even if it isn't.
+    ///
+    /// The highlight takes on frame to take effect if you call this after the widget has been fully rendered.
+    ///
+    /// See also [`Response::highlight`].
+    pub fn highlight_widget(&self, id: Id) {
+        self.frame_state_mut(|fs| fs.highlight_next_frame.insert(id));
     }
 }
 
