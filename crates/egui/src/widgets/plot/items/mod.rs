@@ -650,6 +650,8 @@ pub struct Text {
     pub(super) highlight: bool,
     pub(super) color: Color32,
     pub(super) anchor: Align2,
+    pub(super) font: TextStyle,
+    pub(super) font_size: Option<f32>,
 }
 
 impl Text {
@@ -661,6 +663,8 @@ impl Text {
             highlight: false,
             color: Color32::TRANSPARENT,
             anchor: Align2::CENTER_CENTER,
+            font: TextStyle::Small,
+            font_size: Default::default(),
         }
     }
 
@@ -682,6 +686,23 @@ impl Text {
         self
     }
 
+    /// Set font style of the text. Default is `TextStyle::Small`.
+    pub fn font_style(mut self, font: TextStyle) -> Self {
+        self.font = font;
+        self
+    }
+
+    /// Set Font size of the text.
+    /// If you want to use a custom font size, you can use `font_style` instead.
+    /// This will override the font size of the `font_style`.
+    /// How are defined name font: prefixed by "Plot_" the "name" of FondID spaced by a underscore and "size"
+    /// to prevent redundant text_styles.
+    pub fn font_size(mut self, font_size: f32) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+    
+    
     /// Name of this text.
     ///
     /// This name will show up in the plot legend, if legends are turned on.
@@ -703,10 +724,31 @@ impl PlotItem for Text {
             self.color
         };
 
-        let galley =
-            self.text
-                .clone()
-                .into_galley(ui, Some(false), f32::INFINITY, TextStyle::Small);
+        let font = if self.font_size.is_some() {
+            let name_font = format!("Plot_{}_{}", self.font.clone(), self.font_size.unwrap());
+            if ui
+                .style()
+                .text_styles
+                .get_key_value(&TextStyle::Name(name_font.clone().into()))
+                .is_none()
+            {
+                ui.style_mut().text_styles.insert(
+                    TextStyle::Name(name_font.clone().into()),
+                    FontId {
+                        size: self.font_size.unwrap(),
+                        family: Default::default(),
+                    },
+                );
+            }
+            TextStyle::Name(name_font.into())
+        } else {
+            self.font.clone().into()
+        };
+
+        let galley = self
+            .text
+            .clone()
+            .into_galley(ui, Some(false), f32::INFINITY, font.clone());
 
         let pos = transform.position_from_point(&self.position);
         let rect = self
