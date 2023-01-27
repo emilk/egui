@@ -42,7 +42,10 @@ impl Painter {
     /// a [`winit::window::Window`] with a valid `.raw_window_handle()`
     /// associated.
     pub fn new(configuration: WgpuConfiguration, msaa_samples: u32, depth_bits: u8) -> Self {
-        let instance = wgpu::Instance::new(configuration.backends);
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: configuration.backends,
+            dx12_shader_compiler: Default::default(), //
+        });
 
         Self {
             configuration,
@@ -107,7 +110,7 @@ impl Painter {
             match &self.adapter {
                 Some(adapter) => {
                     let swapchain_format = crate::preferred_framebuffer_format(
-                        &surface.get_supported_formats(adapter),
+                        &surface.get_capabilities(adapter).formats,
                     );
                     let rs = self.init_render_state(adapter, swapchain_format).await?;
                     self.render_state = Some(rs);
@@ -134,6 +137,7 @@ impl Painter {
             height: height_in_pixels,
             present_mode: self.configuration.present_mode,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            view_formats: vec![format],
         };
 
         let surface_state = self
@@ -177,10 +181,10 @@ impl Painter {
     pub async unsafe fn set_window(
         &mut self,
         window: Option<&winit::window::Window>,
-    ) -> Result<(), wgpu::RequestDeviceError> {
+    ) -> Result<(), crate::WgpuError> {
         match window {
             Some(window) => {
-                let surface = self.instance.create_surface(&window);
+                let surface = self.instance.create_surface(&window)?;
 
                 self.ensure_render_state_for_surface(&surface).await?;
 
@@ -234,6 +238,7 @@ impl Painter {
                     format: depth_format,
                     usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                         | wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[depth_format],
                 })
                 .create_view(&wgpu::TextureViewDescriptor::default())
         });

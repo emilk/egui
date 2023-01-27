@@ -608,19 +608,19 @@ impl<'a> Slider<'a> {
                 SliderOrientation::Vertical => (Key::ArrowUp, Key::ArrowDown),
             };
 
-            decrement += ui.input().num_presses(dec_key);
-            increment += ui.input().num_presses(inc_key);
+            ui.input(|input| {
+                decrement += input.num_presses(dec_key);
+                increment += input.num_presses(inc_key);
+            });
         }
 
         #[cfg(feature = "accesskit")]
         {
             use accesskit::Action;
-            decrement += ui
-                .input()
-                .num_accesskit_action_requests(response.id, Action::Decrement);
-            increment += ui
-                .input()
-                .num_accesskit_action_requests(response.id, Action::Increment);
+            ui.input(|input| {
+                decrement += input.num_accesskit_action_requests(response.id, Action::Decrement);
+                increment += input.num_accesskit_action_requests(response.id, Action::Increment);
+            });
         }
 
         let kb_step = increment as f32 - decrement as f32;
@@ -632,7 +632,7 @@ impl<'a> Slider<'a> {
             let new_value = match self.step {
                 Some(step) => prev_value + (kb_step as f64 * step),
                 None if self.smart_aim => {
-                    let aim_radius = ui.input().aim_radius();
+                    let aim_radius = ui.input(|i| i.aim_radius());
                     emath::smart_aim::best_in_range_f64(
                         self.value_from_position(new_position - aim_radius, position_range.clone()),
                         self.value_from_position(new_position + aim_radius, position_range.clone()),
@@ -646,14 +646,13 @@ impl<'a> Slider<'a> {
         #[cfg(feature = "accesskit")]
         {
             use accesskit::{Action, ActionData};
-            for request in ui
-                .input()
-                .accesskit_action_requests(response.id, Action::SetValue)
-            {
-                if let Some(ActionData::NumericValue(new_value)) = request.data {
-                    self.set_value(new_value);
+            ui.input(|input| {
+                for request in input.accesskit_action_requests(response.id, Action::SetValue) {
+                    if let Some(ActionData::NumericValue(new_value)) = request.data {
+                        self.set_value(new_value);
+                    }
                 }
-            }
+            });
         }
 
         // Paint it:
@@ -668,11 +667,7 @@ impl<'a> Slider<'a> {
                 rect: rail_rect,
                 rounding: ui.visuals().widgets.inactive.rounding,
                 fill: ui.visuals().widgets.inactive.bg_fill,
-                // fill: visuals.bg_fill,
-                // fill: ui.visuals().extreme_bg_color,
                 stroke: Default::default(),
-                // stroke: visuals.bg_stroke,
-                // stroke: ui.visuals().widgets.inactive.bg_stroke,
             });
 
             for smart_aim_value in &self.snap_values {
@@ -759,14 +754,12 @@ impl<'a> Slider<'a> {
     }
 
     fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) -> Response {
-        let change = {
-            // Hold one lock rather than 4 (see https://github.com/emilk/egui/pull/1380).
-            let input = ui.input();
-
+        // If [`DragValue`] is controlled from the keyboard and `step` is defined, set speed to `step`
+        let change = ui.input(|input| {
             input.num_presses(Key::ArrowUp) as i32 + input.num_presses(Key::ArrowRight) as i32
                 - input.num_presses(Key::ArrowDown) as i32
                 - input.num_presses(Key::ArrowLeft) as i32
-        };
+        });
 
         let any_change = change != 0;
         let speed = if let (Some(step), true) = (self.step, any_change) {
@@ -826,7 +819,7 @@ impl<'a> Slider<'a> {
         response.widget_info(|| WidgetInfo::slider(value, self.text.text()));
 
         #[cfg(feature = "accesskit")]
-        if let Some(mut node) = ui.ctx().accesskit_node(response.id) {
+        ui.ctx().accesskit_node(response.id, |node| {
             use accesskit::Action;
             node.min_numeric_value = Some(*self.range.start());
             node.max_numeric_value = Some(*self.range.end());
@@ -839,7 +832,7 @@ impl<'a> Slider<'a> {
             if value > *clamp_range.start() {
                 node.actions |= Action::Decrement;
             }
-        }
+        });
 
         let slider_response = response.clone();
 

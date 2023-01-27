@@ -26,13 +26,14 @@ pub struct CollapsingState {
 
 impl CollapsingState {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data()
-            .get_persisted::<InnerState>(id)
-            .map(|state| Self { id, state })
+        ctx.data_mut(|d| {
+            d.get_persisted::<InnerState>(id)
+                .map(|state| Self { id, state })
+        })
     }
 
     pub fn store(&self, ctx: &Context) {
-        ctx.data().insert_persisted(self.id, self.state);
+        ctx.data_mut(|d| d.insert_persisted(self.id, self.state));
     }
 
     pub fn id(&self) -> Id {
@@ -64,7 +65,7 @@ impl CollapsingState {
 
     /// 0 for closed, 1 for open, with tweening
     pub fn openness(&self, ctx: &Context) -> f32 {
-        if ctx.memory().everything_is_visible() {
+        if ctx.memory(|mem| mem.everything_is_visible()) {
             1.0
         } else {
             ctx.animate_bool(self.id, self.state.open)
@@ -555,7 +556,7 @@ impl CollapsingHeader {
                 ui.painter().add(epaint::RectShape {
                     rect: header_response.rect.expand(visuals.expansion),
                     rounding: visuals.rounding,
-                    fill: visuals.bg_fill,
+                    fill: visuals.weak_bg_fill,
                     stroke: visuals.bg_stroke,
                     // stroke: Default::default(),
                 });

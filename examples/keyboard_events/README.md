@@ -1,5 +1,5 @@
 ```sh
-cargo run -p hello_world
+cargo run -p keyboard_events
 ```
 
 ![](screenshot.png)
