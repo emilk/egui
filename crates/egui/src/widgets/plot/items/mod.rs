@@ -695,14 +695,13 @@ impl Text {
     /// Set Font size of the text.
     /// If you want to use a custom font size, you can use `font_style` instead.
     /// This will override the font size of the `font_style`.
-    /// How are defined name font: prefixed by "Plot_" the "name" of FondID spaced by a underscore and "size"
-    /// to prevent redundant text_styles.
+    /// The font key name is defined with prefixed by "Plot_" the "name" of `FondID` spaced
+    /// by a underscore and the "size" to prevent redundant `text styles` in ui.
     pub fn font_size(mut self, font_size: f32) -> Self {
         self.font_size = Some(font_size);
         self
     }
-    
-    
+
     /// Name of this text.
     ///
     /// This name will show up in the plot legend, if legends are turned on.

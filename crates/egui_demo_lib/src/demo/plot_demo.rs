@@ -739,7 +739,7 @@ impl ItemsDemo {
             plot_ui.text(
                 Text::new(PlotPoint::new(-3.0, -3.0), "wow")
                     .name("Text")
-                    .font_size(30.0),
+                    .font_size(20.0),
             );
             plot_ui.text(Text::new(PlotPoint::new(-2.0, 2.5), "so graph").name("Text"));
             plot_ui.text(Text::new(PlotPoint::new(3.0, 3.0), "much color").name("Text"));
