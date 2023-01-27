@@ -497,6 +497,9 @@ pub struct Visuals {
     /// Show a background behind collapsing headers.
     pub collapsing_header_frame: bool,
 
+    /// Draw a vertical lien left of indented region, in e.g. [`crate::CollapsingHeader`].
+    pub indent_has_left_vline: bool,
+
     /// Wether or not Grids and Tables should be striped by default
     /// (have alternating rows differently colored).
     pub striped: bool,
@@ -752,6 +755,7 @@ impl Visuals {
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
             collapsing_header_frame: false,
+            indent_has_left_vline: true,
 
             striped: false,
         }
@@ -1297,6 +1301,7 @@ impl Visuals {
             clip_rect_margin,
             button_frame,
             collapsing_header_frame,
+            indent_has_left_vline,
 
             striped,
         } = self;
@@ -1354,6 +1359,10 @@ impl Visuals {
 
         ui.checkbox(button_frame, "Button has a frame");
         ui.checkbox(collapsing_header_frame, "Collapsing header has a frame");
+        ui.checkbox(
+            indent_has_left_vline,
+            "Paint a vertical line to the left of indented regions",
+        );
 
         ui.checkbox(striped, "By default, add stripes to grids and tables?");
 
