@@ -736,7 +736,11 @@ impl ItemsDemo {
             plot_ui.line(line.name("Line with fill"));
             plot_ui.polygon(polygon.name("Convex polygon"));
             plot_ui.points(points.name("Points with stems"));
-            plot_ui.text(Text::new(PlotPoint::new(-3.0, -3.0), "wow").name("Text"));
+            plot_ui.text(
+                Text::new(PlotPoint::new(-3.0, -3.0), "wow")
+                    .name("Text")
+                    .font_size(30.0),
+            );
             plot_ui.text(Text::new(PlotPoint::new(-2.0, 2.5), "so graph").name("Text"));
             plot_ui.text(Text::new(PlotPoint::new(3.0, 3.0), "much color").name("Text"));
             plot_ui.text(Text::new(PlotPoint::new(2.5, -2.0), "such plot").name("Text"));
