@@ -594,7 +594,7 @@ impl Widgets {
             &self.noninteractive
         } else if response.is_pointer_button_down_on() || response.has_focus() {
             &self.active
-        } else if response.hovered() | response.highlighted() {
+        } else if response.hovered() || response.highlighted() {
             &self.hovered
         } else {
             &self.inactive
