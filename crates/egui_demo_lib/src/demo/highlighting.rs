@@ -22,8 +22,9 @@ impl super::Demo for Highlighting {
 impl super::View for Highlighting {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.label("This demo demonstrates highlighting a widget.");
-
+        ui.add_space(4.0);
         let label_response = ui.label("Hover me to highlight the button!");
+        ui.add_space(4.0);
         let mut button_response = ui.button("Hover the button to highlight the label!");
 
         if label_response.hovered() {
