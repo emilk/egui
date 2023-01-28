@@ -958,7 +958,7 @@ mod wgpu_integration {
         fn set_window(
             &mut self,
             window: winit::window::Window,
-        ) -> std::result::Result<(), wgpu::RequestDeviceError> {
+        ) -> std::result::Result<(), egui_wgpu::WgpuError> {
             self.window = Some(window);
             if let Some(running) = &mut self.running {
                 unsafe {
@@ -970,7 +970,7 @@ mod wgpu_integration {
 
         #[allow(unsafe_code)]
         #[cfg(target_os = "android")]
-        fn drop_window(&mut self) -> std::result::Result<(), wgpu::RequestDeviceError> {
+        fn drop_window(&mut self) -> std::result::Result<(), egui_wgpu::WgpuError> {
             self.window = None;
             if let Some(running) = &mut self.running {
                 unsafe {
@@ -985,7 +985,7 @@ mod wgpu_integration {
             event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<Box<dyn epi::Storage>>,
             window: winit::window::Window,
-        ) -> std::result::Result<(), wgpu::RequestDeviceError> {
+        ) -> std::result::Result<(), egui_wgpu::WgpuError> {
             #[allow(unsafe_code, unused_mut, unused_unsafe)]
             let painter = unsafe {
                 let mut painter = egui_wgpu::winit::Painter::new(

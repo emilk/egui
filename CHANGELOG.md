@@ -5,21 +5,40 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 
 ## Unreleased
+* ⚠️ BREAKING: `egui::Context` now use closures for locking ([#2625](https://github.com/emilk/egui/pull/2625)):
+  * `ctx.input().key_pressed(Key::A)` -> `ctx.input(|i| i.key_pressed(Key::A))`
+  * `ui.memory().toggle_popup(popup_id)` -> `ui.memory_mut(|mem| mem.toggle_popup(popup_id))`
+
 ### Added ⭐
+* Add `Response::drag_started_by` and `Response::drag_released_by` for convenience, similar to `dragged` and `dragged_by` ([#2507](https://github.com/emilk/egui/pull/2507)).
+* Add `PointerState::*_pressed` to check if the given button was pressed in this frame ([#2507](https://github.com/emilk/egui/pull/2507)).
 * `Event::Key` now has a `repeat` field that is set to `true` if the event was the result of a key-repeat ([#2435](https://github.com/emilk/egui/pull/2435)).
 * Add `Slider::drag_value_speed`, which lets you ask for finer precision when dragging the slider value rather than the actual slider.
 * Add `Memory::any_popup_open`, which returns true if any popup is currently open ([#2464](https://github.com/emilk/egui/pull/2464)).
 * Add `Plot::clamp_grid` to only show grid where there is data ([#2480](https://github.com/emilk/egui/pull/2480)).
 * Add `ScrollArea::drag_to_scroll` if you want to turn off that feature.
 * Add `Response::on_hover_and_drag_cursor`.
+* Add `Window::default_open` ([#2539](https://github.com/emilk/egui/pull/2539)).
+* Add `ProgressBar::fill` if you want to set the fill color manually. ([#2618](https://github.com/emilk/egui/pull/2618)).
+* Add `Button::rounding` to enable round buttons ([#2616](https://github.com/emilk/egui/pull/2616)).
+* Add `WidgetVisuals::optional_bg_color` - set it to `Color32::TRANSPARENT` to hide button backgrounds ([#2621](https://github.com/emilk/egui/pull/2621)).
+* Add `Context::screen_rect` and `Context::set_cursor_icon` ([#2625](https://github.com/emilk/egui/pull/2625)).
+* You can turn off the vertical line left of indented regions with `Visuals::indent_has_left_vline` ([#2636](https://github.com/emilk/egui/pull/2636)).
+* Add `Response.highlight` to highlight a widget ([#2632](https://github.com/emilk/egui/pull/2632)).
 
 ### Changed 🔧
 * Improved plot grid appearance ([#2412](https://github.com/emilk/egui/pull/2412)).
 * Improved the algorithm for picking the number of decimals to show when hovering values in the `Plot`.
+* Default `ComboBox` is now controlled with `Spacing::combo_width` ([#2621](https://github.com/emilk/egui/pull/2621)).
+* `DragValue` and `Slider` now use the proportional font ([#2638](https://github.com/emilk/egui/pull/2638)).
 
 ### Fixed 🐛
+* Trigger `PointerEvent::Released` for drags ([#2507](https://github.com/emilk/egui/pull/2507)).
 * Expose `TextEdit`'s multiline flag to AccessKit ([#2448](https://github.com/emilk/egui/pull/2448)).
 * Don't render `\r` (Carriage Return) ([#2452](https://github.com/emilk/egui/pull/2452)).
+* The `button_padding` style option works closer as expected with image+text buttons now ([#2510](https://github.com/emilk/egui/pull/2510)).
+* Fixed rendering of `…` (ellipsis).
+* Menus are now moved to fit on the screen.
 
 
 ## 0.20.1 - 2022-12-11 - Fix key-repeat

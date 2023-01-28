@@ -18,11 +18,11 @@ pub(crate) struct State {
 
 impl State {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data().get_persisted(id)
+        ctx.data_mut(|d| d.get_persisted(id))
     }
 
     pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data().insert_persisted(id, self);
+        ctx.data_mut(|d| d.insert_persisted(id, self));
     }
 }
 
@@ -180,7 +180,7 @@ impl Resize {
                 .at_least(self.min_size)
                 .at_most(self.max_size)
                 .at_most(
-                    ui.input().screen_rect().size() - ui.spacing().window_margin.sum(), // hack for windows
+                    ui.ctx().screen_rect().size() - ui.spacing().window_margin.sum(), // hack for windows
                 );
 
             State {
@@ -305,7 +305,7 @@ impl Resize {
             paint_resize_corner(ui, &corner_response);
 
             if corner_response.hovered() || corner_response.dragged() {
-                ui.ctx().output().cursor_icon = CursorIcon::ResizeNwSe;
+                ui.ctx().set_cursor_icon(CursorIcon::ResizeNwSe);
             }
         }
 

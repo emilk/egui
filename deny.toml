@@ -40,6 +40,7 @@ skip-tree = [
     { name = "glium" },     # legacy crate, lots of old dependencies
     { name = "rfd" },       # example dependency
     { name = "three-d" },   # example dependency
+    { name = "tts" },       # we are migrating away from tts to accesskit
 ]
 
 

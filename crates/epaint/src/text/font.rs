@@ -392,7 +392,38 @@ fn invisible_char(c: char) -> bool {
     // See https://github.com/emilk/egui/issues/336
 
     // From https://www.fileformat.info/info/unicode/category/Cf/list.htm
-    ('\u{200B}'..='\u{206F}').contains(&c) // TODO(emilk): heed bidi characters
+
+    // TODO(emilk): heed bidi characters
+
+    matches!(
+        c,
+        '\u{200B}' // ZERO WIDTH SPACE
+            | '\u{200C}' // ZERO WIDTH NON-JOINER
+            | '\u{200D}' // ZERO WIDTH JOINER
+            | '\u{200E}' // LEFT-TO-RIGHT MARK
+            | '\u{200F}' // RIGHT-TO-LEFT MARK
+            | '\u{202A}' // LEFT-TO-RIGHT EMBEDDING
+            | '\u{202B}' // RIGHT-TO-LEFT EMBEDDING
+            | '\u{202C}' // POP DIRECTIONAL FORMATTING
+            | '\u{202D}' // LEFT-TO-RIGHT OVERRIDE
+            | '\u{202E}' // RIGHT-TO-LEFT OVERRIDE
+            | '\u{2060}' // WORD JOINER
+            | '\u{2061}' // FUNCTION APPLICATION
+            | '\u{2062}' // INVISIBLE TIMES
+            | '\u{2063}' // INVISIBLE SEPARATOR
+            | '\u{2064}' // INVISIBLE PLUS
+            | '\u{2066}' // LEFT-TO-RIGHT ISOLATE
+            | '\u{2067}' // RIGHT-TO-LEFT ISOLATE
+            | '\u{2068}' // FIRST STRONG ISOLATE
+            | '\u{2069}' // POP DIRECTIONAL ISOLATE
+            | '\u{206A}' // INHIBIT SYMMETRIC SWAPPING
+            | '\u{206B}' // ACTIVATE SYMMETRIC SWAPPING
+            | '\u{206C}' // INHIBIT ARABIC FORM SHAPING
+            | '\u{206D}' // ACTIVATE ARABIC FORM SHAPING
+            | '\u{206E}' // NATIONAL DIGIT SHAPES
+            | '\u{206F}' // NOMINAL DIGIT SHAPES
+            | '\u{FEFF}' // ZERO WIDTH NO-BREAK SPACE
+    )
 }
 
 fn allocate_glyph(

@@ -460,18 +460,18 @@ impl IdTypeMap {
     }
 
     #[inline]
-    pub fn is_empty(&mut self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
     #[inline]
-    pub fn len(&mut self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 
     /// Count how many values are stored but not yet deserialized.
     #[inline]
-    pub fn count_serialized(&mut self) -> usize {
+    pub fn count_serialized(&self) -> usize {
         self.0
             .values()
             .filter(|e| matches!(e, Element::Serialized { .. }))
@@ -479,7 +479,7 @@ impl IdTypeMap {
     }
 
     /// Count the number of values are stored with the given type.
-    pub fn count<T: 'static>(&mut self) -> usize {
+    pub fn count<T: 'static>(&self) -> usize {
         let key = TypeId::of::<T>();
         self.0
             .iter()

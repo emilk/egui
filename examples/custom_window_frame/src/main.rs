@@ -84,15 +84,6 @@ fn custom_window_frame(
                 Stroke::new(1.0, text_color),
             );
 
-            // Add the close button:
-            let close_response = ui.put(
-                Rect::from_min_size(rect.left_top(), Vec2::splat(height)),
-                Button::new(RichText::new("❌").size(height - 4.0)).frame(false),
-            );
-            if close_response.clicked() {
-                frame.close();
-            }
-
             // Interact with the title bar (drag to move window):
             let title_bar_rect = {
                 let mut rect = rect;
@@ -103,6 +94,15 @@ fn custom_window_frame(
                 ui.interact(title_bar_rect, Id::new("title_bar"), Sense::click());
             if title_bar_response.is_pointer_button_down_on() {
                 frame.drag_window();
+            }
+
+            // Add the close button:
+            let close_response = ui.put(
+                Rect::from_min_size(rect.left_top(), Vec2::splat(height)),
+                Button::new(RichText::new("❌").size(height - 4.0)).frame(false),
+            );
+            if close_response.clicked() {
+                frame.close();
             }
 
             // Add the contents:
