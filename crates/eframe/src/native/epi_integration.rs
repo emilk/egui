@@ -49,12 +49,12 @@ pub fn read_window_info(window: &winit::window::Window, pixels_per_point: f32) -
     }
 }
 
-pub fn window_builder<E>(
+pub fn build_window<E>(
     event_loop: &EventLoopWindowTarget<E>,
     title: &str,
     native_options: &epi::NativeOptions,
     window_settings: Option<WindowSettings>,
-) -> winit::window::WindowBuilder {
+) -> Result<winit::window::Window, winit::error::OsError> {
     let epi::NativeOptions {
         always_on_top,
         maximized,
@@ -124,7 +124,7 @@ pub fn window_builder<E>(
         }
     }
 
-    window_builder
+    window_builder.build(event_loop)
 }
 
 fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui::Vec2 {
@@ -153,7 +153,7 @@ fn window_builder_drag_and_drop(
     enable: bool,
 ) -> winit::window::WindowBuilder {
     use winit::platform::windows::WindowBuilderExtWindows as _;
-    window_builder.with_drag_and_drop(enable)
+    build_window.with_drag_and_drop(enable)
 }
 
 #[cfg(not(target_os = "windows"))]
