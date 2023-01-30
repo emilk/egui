@@ -67,6 +67,8 @@ pub struct TextEdit<'t> {
     desired_height_rows: usize,
     lock_focus: bool,
     cursor_at_end: bool,
+    align: Align,
+    use_content_width: bool,
 }
 
 impl<'t> WidgetWithState for TextEdit<'t> {
@@ -93,6 +95,15 @@ impl<'t> TextEdit<'t> {
         }
     }
 
+    /// [`Self::singleline()`] with [`Button`] like styles.
+    pub fn singleline_button(text: &'t mut dyn TextBuffer, align: Align) -> Self {
+        Self {
+            align,
+            use_content_width: true,
+            ..Self::singleline(text)
+        }
+    }
+
     /// A [`TextEdit`] for multiple lines. Pressing enter key will create a new line.
     pub fn multiline(text: &'t mut dyn TextBuffer) -> Self {
         Self {
@@ -112,6 +123,8 @@ impl<'t> TextEdit<'t> {
             desired_height_rows: 4,
             lock_focus: false,
             cursor_at_end: true,
+            align: Align::Min,
+            use_content_width: false,
         }
     }
 
@@ -364,13 +377,15 @@ impl<'t> TextEdit<'t> {
             layouter,
             password,
             frame: _,
-            margin: _,
+            margin,
             multiline,
             interactive,
             desired_width,
             desired_height_rows,
             lock_focus,
             cursor_at_end,
+            align,
+            use_content_width,
         } = self;
 
         let text_color = text_color
@@ -389,7 +404,7 @@ impl<'t> TextEdit<'t> {
             available_width
         } else {
             desired_width.min(available_width)
-        };
+        } - margin.x * 2.0;
 
         let font_id_clone = font_id.clone();
         let mut default_layouter = move |ui: &Ui, text: &str, wrap_width: f32| {
@@ -406,10 +421,10 @@ impl<'t> TextEdit<'t> {
 
         let mut galley = layouter(ui, text.as_str(), wrap_width);
 
-        let desired_width = if multiline {
+        let desired_width = if use_content_width || multiline {
             galley.size().x.max(wrap_width) // always show everything in multiline
         } else {
-            wrap_width // visual clipping with scroll in singleline input. TODO(emilk): opt-in/out?
+            wrap_width // visual clipping with scroll in singleline input.
         };
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
         let desired_size = vec2(desired_width, galley.size().y.max(desired_height));
@@ -547,7 +562,11 @@ impl<'t> TextEdit<'t> {
             cursor_range = Some(new_cursor_range);
         }
 
-        let mut text_draw_pos = response.rect.min;
+        let mut text_draw_pos = match align {
+            Align::Min => response.rect.min,
+            Align::Center => response.rect.center_top() - Vec2::new(galley.size().x, 0.0) / 2.0,
+            Align::Max => response.rect.right_top() - Vec2::new(galley.size().x, 0.0),
+        };
 
         // Visual clipping for singleline text editor with text larger than width
         if !multiline {
