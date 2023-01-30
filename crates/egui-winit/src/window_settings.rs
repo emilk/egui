@@ -42,6 +42,10 @@ impl WindowSettings {
         }
     }
 
+    pub fn inner_size_points(&self) -> Option<egui::Vec2> {
+        self.inner_size_points
+    }
+
     pub fn initialize_window(
         &self,
         mut window: winit::window::WindowBuilder,
