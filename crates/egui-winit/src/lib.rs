@@ -377,8 +377,9 @@ impl State {
                     consumed: false,
                 }
             }
-            WindowEvent::AxisMotion { .. }
-            | WindowEvent::CloseRequested
+
+            // Things that may require repaint:
+            WindowEvent::CloseRequested
             | WindowEvent::CursorEntered { .. }
             | WindowEvent::Destroyed
             | WindowEvent::Occluded(_)
@@ -388,10 +389,26 @@ impl State {
                 repaint: true,
                 consumed: false,
             },
-            WindowEvent::Moved(_) => EventResponse {
-                repaint: false, // moving a window doesn't warrant a repaint
+
+            // Things we completely ignore:
+            WindowEvent::AxisMotion { .. }
+            | WindowEvent::Moved(_)
+            | WindowEvent::SmartMagnify { .. }
+            | WindowEvent::TouchpadRotate { .. } => EventResponse {
+                repaint: false,
                 consumed: false,
             },
+
+            WindowEvent::TouchpadMagnify { delta, .. } => {
+                // Positive delta values indicate magnification (zooming in).
+                // Negative delta values indicate shrinking (zooming out).
+                let zoom_factor = (*delta as f32).exp();
+                self.egui_input.events.push(egui::Event::Zoom(zoom_factor));
+                EventResponse {
+                    repaint: true,
+                    consumed: egui_ctx.wants_pointer_input(),
+                }
+            }
         }
     }
 

@@ -50,7 +50,7 @@ instant = { version = "0.1", features = [
   "wasm-bindgen",
 ] } # We use instant so we can (maybe) compile for web
 tracing = { version = "0.1", default-features = false, features = ["std"] }
-winit = { version = "0.27.2", default-features = false }
+winit = { version = "0.28", default-features = false }
 
 #! ### Optional dependencies
 
