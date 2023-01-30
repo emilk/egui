@@ -111,7 +111,7 @@ pub fn build_window<E>(
         window_builder = window_settings.initialize_window(window_builder);
     } else {
         if let Some(pos) = *initial_window_pos {
-            window_builder = window_builder.with_position(winit::dpi::PhysicalPosition {
+            window_builder = window_builder.with_position(winit::dpi::LogicalPosition {
                 x: pos.x as f64,
                 y: pos.y as f64,
             });
