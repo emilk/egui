@@ -70,6 +70,7 @@ pub fn build_window<E>(
         max_window_size,
         resizable,
         transparent,
+        centered,
         ..
     } = native_options;
 
@@ -105,10 +106,11 @@ pub fn build_window<E>(
 
     window_builder = window_builder_drag_and_drop(window_builder, *drag_and_drop_support);
 
-    if let Some(mut window_settings) = window_settings {
+    let inner_size_points = if let Some(mut window_settings) = window_settings {
         // Restore pos/size from previous session
         window_settings.clamp_to_sane_values(largest_monitor_point_size(event_loop));
         window_builder = window_settings.initialize_window(window_builder);
+        window_settings.inner_size_points()
     } else {
         if let Some(pos) = *initial_window_pos {
             window_builder = window_builder.with_position(winit::dpi::LogicalPosition {
@@ -121,6 +123,23 @@ pub fn build_window<E>(
             let initial_window_size =
                 initial_window_size.at_most(largest_monitor_point_size(event_loop));
             window_builder = window_builder.with_inner_size(points_to_size(initial_window_size));
+        }
+
+        *initial_window_size
+    };
+
+    if *centered {
+        if let Some(monitor) = event_loop.available_monitors().next() {
+            let monitor_size = monitor.size();
+            let inner_size = inner_size_points.unwrap_or(egui::Vec2 { x: 800.0, y: 600.0 });
+            if monitor_size.width > 0 && monitor_size.height > 0 {
+                let x = (monitor_size.width - inner_size.x as u32) / 2;
+                let y = (monitor_size.height - inner_size.y as u32) / 2;
+                window_builder = window_builder.with_position(winit::dpi::LogicalPosition {
+                    x: x as f64,
+                    y: y as f64,
+                });
+            }
         }
     }
 
