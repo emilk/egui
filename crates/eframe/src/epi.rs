@@ -429,6 +429,7 @@ impl NativeOptions {
             match dark_light::detect() {
                 dark_light::Mode::Dark => Some(Theme::Dark),
                 dark_light::Mode::Light => Some(Theme::Light),
+                dark_light::Mode::Default => None,
             }
         } else {
             None
