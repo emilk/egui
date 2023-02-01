@@ -8,6 +8,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 #### Desktop/Native:
 * `eframe::run_native` now returns a `Result` ([#2433](https://github.com/emilk/egui/pull/2433)).
+* Added `eframe::Frame::set_minimized` for app to minimize and unminimize window.
 
 #### Web:
 * Prevent ctrl-P/cmd-P from opening the print dialog ([#2598](https://github.com/emilk/egui/pull/2598)).
