@@ -191,10 +191,7 @@ impl eframe::App for WrapApp {
         }
 
         #[cfg(not(target_arch = "wasm32"))]
-        if ctx
-            .input_mut()
-            .consume_key(egui::Modifiers::NONE, egui::Key::F11)
-        {
+        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F11)) {
             frame.set_fullscreen(!frame.info().window_info.fullscreen);
         }
 
@@ -241,7 +238,8 @@ impl WrapApp {
     fn backend_panel(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // The backend-panel can be toggled on/off.
         // We show a little animation when the user switches it.
-        let is_open = self.state.backend_panel.open || ctx.memory().everything_is_visible();
+        let is_open =
+            self.state.backend_panel.open || ctx.memory(|mem| mem.everything_is_visible());
 
         egui::SidePanel::left("backend_panel")
             .resizable(false)
@@ -266,13 +264,13 @@ impl WrapApp {
                 .on_hover_text("Forget scroll, positions, sizes etc")
                 .clicked()
             {
-                *ui.ctx().memory() = Default::default();
+                ui.ctx().memory_mut(|mem| *mem = Default::default());
                 ui.close_menu();
             }
 
             if ui.button("Reset everything").clicked() {
                 self.state = Default::default();
-                *ui.ctx().memory() = Default::default();
+                ui.ctx().memory_mut(|mem| *mem = Default::default());
                 ui.close_menu();
             }
         });
@@ -282,7 +280,7 @@ impl WrapApp {
         let mut found_anchor = false;
         let selected_anchor = self.state.selected_anchor.clone();
         for (_name, anchor, app) in self.apps_iter_mut() {
-            if anchor == selected_anchor || ctx.memory().everything_is_visible() {
+            if anchor == selected_anchor || ctx.memory(|mem| mem.everything_is_visible()) {
                 app.update(ctx, frame);
                 found_anchor = true;
             }
@@ -316,7 +314,7 @@ impl WrapApp {
             {
                 selected_anchor = anchor.to_owned();
                 if frame.is_web() {
-                    ui.output().open_url(format!("#{}", anchor));
+                    ui.output_mut(|o| o.open_url(format!("#{}", anchor)));
                 }
             }
         }
@@ -328,7 +326,7 @@ impl WrapApp {
                 if clock_button(ui, crate::seconds_since_midnight()).clicked() {
                     self.state.selected_anchor = "clock".to_owned();
                     if frame.is_web() {
-                        ui.output().open_url("#clock");
+                        ui.output_mut(|o| o.open_url("#clock"));
                     }
                 }
             }
@@ -342,22 +340,25 @@ impl WrapApp {
         use std::fmt::Write as _;
 
         // Preview hovering files:
-        if !ctx.input().raw.hovered_files.is_empty() {
-            let mut text = "Dropping files:\n".to_owned();
-            for file in &ctx.input().raw.hovered_files {
-                if let Some(path) = &file.path {
-                    write!(text, "\n{}", path.display()).ok();
-                } else if !file.mime.is_empty() {
-                    write!(text, "\n{}", file.mime).ok();
-                } else {
-                    text += "\n???";
+        if !ctx.input(|i| i.raw.hovered_files.is_empty()) {
+            let text = ctx.input(|i| {
+                let mut text = "Dropping files:\n".to_owned();
+                for file in &i.raw.hovered_files {
+                    if let Some(path) = &file.path {
+                        write!(text, "\n{}", path.display()).ok();
+                    } else if !file.mime.is_empty() {
+                        write!(text, "\n{}", file.mime).ok();
+                    } else {
+                        text += "\n???";
+                    }
                 }
-            }
+                text
+            });
 
             let painter =
                 ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
 
-            let screen_rect = ctx.input().screen_rect();
+            let screen_rect = ctx.screen_rect();
             painter.rect_filled(screen_rect, 0.0, Color32::from_black_alpha(192));
             painter.text(
                 screen_rect.center(),
@@ -369,9 +370,11 @@ impl WrapApp {
         }
 
         // Collect dropped files:
-        if !ctx.input().raw.dropped_files.is_empty() {
-            self.dropped_files = ctx.input().raw.dropped_files.clone();
-        }
+        ctx.input(|i| {
+            if !i.raw.dropped_files.is_empty() {
+                self.dropped_files = i.raw.dropped_files.clone();
+            }
+        });
 
         // Show dropped files (if any):
         if !self.dropped_files.is_empty() {

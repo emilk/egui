@@ -52,9 +52,10 @@ pub struct Memory {
     /// type CharCountCache<'a> = FrameCache<usize, CharCounter>;
     ///
     /// # let mut ctx = egui::Context::default();
-    /// let mut memory = ctx.memory();
-    /// let cache = memory.caches.cache::<CharCountCache<'_>>();
-    /// assert_eq!(cache.get("hello"), 5);
+    /// ctx.memory_mut(|mem| {
+    ///     let cache = mem.caches.cache::<CharCountCache<'_>>();
+    ///     assert_eq!(cache.get("hello"), 5);
+    /// });
     /// ```
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub caches: crate::util::cache::CacheStorage,
@@ -405,7 +406,7 @@ impl Memory {
     }
 
     /// Is the keyboard focus locked on this widget? If so the focus won't move even if the user presses the tab key.
-    pub fn has_lock_focus(&mut self, id: Id) -> bool {
+    pub fn has_lock_focus(&self, id: Id) -> bool {
         if self.had_focus_last_frame(id) && self.has_focus(id) {
             self.interaction.focus.is_focus_locked
         } else {

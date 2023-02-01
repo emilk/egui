@@ -81,7 +81,7 @@ impl Default for BackendPanel {
 impl BackendPanel {
     pub fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         self.frame_history
-            .on_new_frame(ctx.input().time, frame.info().cpu_usage);
+            .on_new_frame(ctx.input(|i| i.time), frame.info().cpu_usage);
 
         match self.run_mode {
             RunMode::Continuous => {
@@ -131,9 +131,9 @@ impl BackendPanel {
         ui.separator();
 
         {
-            let mut screen_reader = ui.ctx().options().screen_reader;
+            let mut screen_reader = ui.ctx().options(|o| o.screen_reader);
             ui.checkbox(&mut screen_reader, "🔈 Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
-            ui.ctx().options().screen_reader = screen_reader;
+            ui.ctx().options_mut(|o| o.screen_reader = screen_reader);
         }
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -339,9 +339,11 @@ impl EguiWindows {
             output_event_history,
         } = self;
 
-        for event in &ctx.output().events {
-            output_event_history.push_back(event.clone());
-        }
+        ctx.output(|o| {
+            for event in &o.events {
+                output_event_history.push_back(event.clone());
+            }
+        });
         while output_event_history.len() > 1000 {
             output_event_history.pop_front();
         }

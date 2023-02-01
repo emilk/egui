@@ -99,7 +99,35 @@ pub fn preferred_framebuffer_format(formats: &[wgpu::TextureFormat]) -> wgpu::Te
     }
     formats[0] // take the first
 }
-
+// maybe use this-error?
+#[derive(Debug)]
+pub enum WgpuError {
+    DeviceError(wgpu::RequestDeviceError),
+    SurfaceError(wgpu::CreateSurfaceError),
+}
+impl std::fmt::Display for WgpuError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self, f)
+    }
+}
+impl std::error::Error for WgpuError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            WgpuError::DeviceError(e) => e.source(),
+            WgpuError::SurfaceError(e) => e.source(),
+        }
+    }
+}
+impl From<wgpu::RequestDeviceError> for WgpuError {
+    fn from(e: wgpu::RequestDeviceError) -> Self {
+        Self::DeviceError(e)
+    }
+}
+impl From<wgpu::CreateSurfaceError> for WgpuError {
+    fn from(e: wgpu::CreateSurfaceError) -> Self {
+        Self::SurfaceError(e)
+    }
+}
 // ---------------------------------------------------------------------------
 
 /// Profiling macro for feature "puffin"
