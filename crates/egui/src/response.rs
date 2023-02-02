@@ -57,7 +57,7 @@ pub struct Response {
     pub double_clicked: [bool; NUM_POINTER_BUTTONS],
 
     /// The thing was triple-clicked.
-    pub(crate) triple_clicked: [bool; NUM_POINTER_BUTTONS],
+    pub triple_clicked: [bool; NUM_POINTER_BUTTONS],
 
     /// The widgets is being dragged
     #[doc(hidden)]
@@ -741,6 +741,13 @@ impl Response {
             interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
             changed: self.changed || other.changed,
         }
+    }
+}
+
+impl Response {
+    /// Returns a response with a modified [`Self::rect`].
+    pub fn with_new_rect(self, rect: Rect) -> Self {
+        Self { rect, ..self }
     }
 }
 
