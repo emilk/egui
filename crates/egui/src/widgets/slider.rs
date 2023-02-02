@@ -73,6 +73,7 @@ pub struct Slider<'a> {
     clamp_to_range: bool,
     smart_aim: bool,
     show_value: bool,
+    trailing_color: bool,
     orientation: SliderOrientation,
     prefix: String,
     suffix: String,
@@ -119,6 +120,7 @@ impl<'a> Slider<'a> {
             clamp_to_range: true,
             smart_aim: true,
             show_value: true,
+            trailing_color: false,
             orientation: SliderOrientation::Horizontal,
             prefix: Default::default(),
             suffix: Default::default(),
@@ -210,6 +212,14 @@ impl<'a> Slider<'a> {
     /// There is almost no point in turning this off.
     pub fn smart_aim(mut self, smart_aim: bool) -> Self {
         self.smart_aim = smart_aim;
+        self
+    }
+
+    /// Display trailing color behind the slider's circle. Default is OFF.
+    ///
+    /// The color will be taken from `selection.bg_fill` in your [`style::Visuals`], the same as a [`widgets::ProgressBar`].
+    pub fn trailing_color(mut self, trailing_color: bool) -> Self {
+        self.trailing_color = trailing_color;
         self
     }
 
@@ -616,17 +626,36 @@ impl<'a> Slider<'a> {
             let rail_radius = ui.painter().round_to_pixel(self.rail_radius_limit(rect));
             let rail_rect = self.rail_rect(rect, rail_radius);
 
-            let position_1d = self.position_from_value(value, position_range);
-
             let visuals = ui.style().interact(response);
+            let widget_visuals = &ui.visuals().widgets;
+
             ui.painter().add(epaint::RectShape {
                 rect: rail_rect,
-                rounding: ui.visuals().widgets.inactive.rounding,
-                fill: ui.visuals().widgets.inactive.bg_fill,
+                rounding: widget_visuals.inactive.rounding,
+                fill: widget_visuals.inactive.bg_fill,
                 stroke: Default::default(),
             });
 
+            let position_1d = self.position_from_value(value, position_range);
             let center = self.marker_center(position_1d, &rail_rect);
+
+            // Paint trailing color if enabled.
+            if self.trailing_color {
+                let mut trailing_rail_rect = rail_rect;
+
+                // The trailing rect has to be drawn differently depending on the orientation.
+                match self.orientation {
+                    SliderOrientation::Vertical => trailing_rail_rect.min.y = center.y,
+                    SliderOrientation::Horizontal => trailing_rail_rect.max.x = center.x,
+                };
+
+                ui.painter().add(epaint::RectShape {
+                    rect: trailing_rail_rect,
+                    rounding: widget_visuals.inactive.rounding,
+                    fill: ui.visuals().selection.bg_fill,
+                    stroke: Default::default(),
+                });
+            }
 
             ui.painter().add(epaint::CircleShape {
                 center,
