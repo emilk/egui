@@ -442,6 +442,9 @@ impl ScrollArea {
                         // Make sure content doesn't cover scroll bars:
                         content_clip_rect.max[1 - d] = inner_rect.max[1 - d] + clip_rect_margin;
                     }
+                } else {
+                    // Nice handling of forced resizing beyond the possible:
+                    content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
                 }
             }
             content_ui.set_clip_rect(content_clip_rect);
