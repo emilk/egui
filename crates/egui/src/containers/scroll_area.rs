@@ -430,6 +430,7 @@ impl ScrollArea {
         {
             // Clip the content, but only when we really need to:
             let clip_rect_margin = ui.visuals().clip_rect_margin;
+            let scroll_bar_inner_margin = ui.spacing().scroll_bar_inner_margin;
             let mut content_clip_rect = ui.clip_rect();
             for d in 0..2 {
                 if has_bar[d] {
@@ -439,14 +440,18 @@ impl ScrollArea {
                     }
 
                     if state.show_scroll[d] {
-                        // Make sure content doesn't cover scroll bars:
-                        content_clip_rect.max[1 - d] = inner_rect.max[1 - d] + clip_rect_margin;
+                        // Make sure content doesn't cover scroll bars
+                        let tiny_gap = 1.0;
+                        content_clip_rect.max[1 - d] =
+                            inner_rect.max[1 - d] + scroll_bar_inner_margin - tiny_gap;
                     }
                 } else {
                     // Nice handling of forced resizing beyond the possible:
                     content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
                 }
             }
+            // Make sure we din't accidentally expand the clip rect
+            content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
             content_ui.set_clip_rect(content_clip_rect);
         }
 
