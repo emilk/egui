@@ -153,3 +153,24 @@ jobs:
         uses: Swatinem/rust-cache@v2
       - run: cargo check --features wgpu --target aarch64-linux-android
         working-directory: crates/eframe
+
+  windows:
+    name: Check Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.65.0
+          override: true
+
+      - name: Set up cargo cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all-targets --all-features
+
