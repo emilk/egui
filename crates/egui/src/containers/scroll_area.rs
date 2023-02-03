@@ -836,7 +836,7 @@ impl Prepared {
                         ),
                     )
                 };
-                let min_handle_size = ui.spacing().scroll_bar_width;
+                let min_handle_size = ui.spacing().scroll_handle_min_length;
                 if handle_rect.size()[d] < min_handle_size {
                     handle_rect = Rect::from_center_size(
                         handle_rect.center(),
