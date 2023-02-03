@@ -172,7 +172,7 @@ fn window_builder_drag_and_drop(
     enable: bool,
 ) -> winit::window::WindowBuilder {
     use winit::platform::windows::WindowBuilderExtWindows as _;
-    build_window.with_drag_and_drop(enable)
+    window_builder.with_drag_and_drop(enable)
 }
 
 #[cfg(not(target_os = "windows"))]
