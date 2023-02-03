@@ -367,7 +367,7 @@ pub use {
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,
-    style::{FontSelection, Style, TextStyle, Visuals},
+    style::{FontSelection, Margin, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
     widget_text::{RichText, WidgetText},
