@@ -370,9 +370,9 @@ mod glow_integration {
         swap_interval: glutin::surface::SwapInterval,
         gl_config: glutin::config::Config,
         current_gl_context: Option<glutin::context::PossiblyCurrentContext>,
-        window: Option<winit::window::Window>,
         gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
         not_current_gl_context: Option<glutin::context::NotCurrentContext>,
+        window: Option<winit::window::Window>,
     }
 
     impl GlutinWindowContext {
