@@ -186,7 +186,7 @@ These are the official egui integrations:
 * [`egui-tetra`](https://crates.io/crates/egui-tetra) for [Tetra](https://crates.io/crates/tetra), a 2D game framework.
 * [`egui-winit-ash-integration`](https://github.com/MatchaChoco010/egui-winit-ash-integration) for [winit](https://github.com/rust-windowing/winit) and [ash](https://github.com/MaikKlein/ash).
 * [`fltk-egui`](https://crates.io/crates/fltk-egui) for [fltk-rs](https://github.com/fltk-rs/fltk-rs).
-* [`ggez-egui`](https://github.com/NemuiSen/ggez-egui) for the [ggez](https://ggez.rs/) game framework.
+* [`ggegui`](https://github.com/NemuiSen/ggegui) for the [ggez](https://ggez.rs/) game framework.
 * [`godot-egui`](https://github.com/setzer22/godot-egui) for [godot-rust](https://github.com/godot-rust/godot-rust).
 * [`nannou_egui`](https://github.com/nannou-org/nannou/tree/master/nannou_egui) for [nannou](https://nannou.cc).
 * [`notan_egui`](https://github.com/Nazariglez/notan/tree/main/crates/notan_egui) for [notan](https://github.com/Nazariglez/notan).
