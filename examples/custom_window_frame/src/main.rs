@@ -95,7 +95,11 @@ fn custom_window_frame(
             };
             let title_bar_response =
                 ui.interact(title_bar_rect, Id::new("title_bar"), Sense::click());
-            if title_bar_response.is_pointer_button_down_on() {
+
+            if title_bar_response.double_clicked() {
+                app.maximized = !app.maximized;
+                frame.set_maximized(app.maximized);
+            } else if title_bar_response.is_pointer_button_down_on() {
                 frame.drag_window();
             }
 
