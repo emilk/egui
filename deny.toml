@@ -43,7 +43,6 @@ skip-tree = [
     { name = "criterion" }, # dev-dependency
     { name = "rfd" },       # example dependency
     { name = "three-d" },   # example dependency
-    { name = "tts" },       # we are migrating away from tts to accesskit
 ]
 
 
