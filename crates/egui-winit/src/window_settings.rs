@@ -114,7 +114,7 @@ impl WindowSettings {
                 if monitor_x_range.contains(&(position.x as i32))
                     && monitor_y_range.contains(&(position.y as i32))
                 {
-                    active_monitor = monitor
+                    active_monitor = monitor;
                 }
             }
 
