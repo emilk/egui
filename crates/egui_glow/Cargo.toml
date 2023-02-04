@@ -37,9 +37,6 @@ clipboard = ["egui-winit?/clipboard"]
 ## enable opening links in a browser when an egui hyperlink is clicked.
 links = ["egui-winit?/links"]
 
-## Experimental support for a screen reader.
-screen_reader = ["egui-winit?/screen_reader"]
-
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 puffin = ["dep:puffin", "egui-winit?/puffin"]
 

@@ -55,8 +55,10 @@ persistence = [
 ## `eframe` will call `puffin::GlobalProfiler::lock().new_frame()` for you
 puffin = ["dep:puffin", "egui_glow?/puffin", "egui-wgpu?/puffin"]
 
-## Enable screen reader support (requires `ctx.options_mut(|o| o.screen_reader = true);`)
-screen_reader = ["egui-winit/screen_reader", "tts"]
+## Enable screen reader support (requires `ctx.options_mut(|o| o.screen_reader = true);`) on web.
+##
+## For other platforms, use the "accesskit" feature instead.
+web_screen_reader = ["tts"]
 
 ## If set, eframe will look for the env-var `EFRAME_SCREENSHOT_TO` and write a screenshot to that location, and then quit.
 ## This is used to generate images for the examples.

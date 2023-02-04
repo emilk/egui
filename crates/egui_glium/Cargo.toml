@@ -35,9 +35,6 @@ clipboard = ["egui-winit/clipboard"]
 ## Enable opening links in a browser when an egui hyperlink is clicked.
 links = ["egui-winit/links"]
 
-## Experimental support for a screen reader.
-screen_reader = ["egui-winit/screen_reader"]
-
 
 [dependencies]
 egui = { version = "0.20.0", path = "../egui", default-features = false, features = [

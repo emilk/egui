@@ -19,7 +19,6 @@ use egui::accesskit;
 pub use winit;
 
 pub mod clipboard;
-pub mod screen_reader;
 mod window_settings;
 
 pub use window_settings::WindowSettings;
@@ -75,7 +74,6 @@ pub struct State {
     current_pixels_per_point: f32,
 
     clipboard: clipboard::Clipboard,
-    screen_reader: screen_reader::ScreenReader,
 
     /// If `true`, mouse inputs will be treated as touches.
     /// Useful for debugging touch support in egui.
@@ -115,7 +113,6 @@ impl State {
             current_pixels_per_point: 1.0,
 
             clipboard: clipboard::Clipboard::new(wayland_display),
-            screen_reader: screen_reader::ScreenReader::default(),
 
             simulate_touch_screen: false,
             pointer_touch_id: None,
@@ -615,11 +612,6 @@ impl State {
         egui_ctx: &egui::Context,
         platform_output: egui::PlatformOutput,
     ) {
-        if egui_ctx.options(|o| o.screen_reader) {
-            self.screen_reader
-                .speak(&platform_output.events_description());
-        }
-
         let egui::PlatformOutput {
             cursor_icon,
             open_url,
