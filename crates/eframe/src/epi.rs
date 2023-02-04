@@ -841,6 +841,12 @@ pub struct WindowInfo {
     /// Are we in fullscreen mode?
     pub fullscreen: bool,
 
+    /// Are we minimized?
+    pub minimized: bool,
+
+    /// Are we maximized?
+    pub maximized: bool,
+
     /// Window inner size in egui points (logical pixels).
     pub size: egui::Vec2,
 
