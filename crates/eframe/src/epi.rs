@@ -677,12 +677,12 @@ impl Frame {
 
     /// Request the current frame's pixel data. Needs to be retrieved by calling [`eframe::Frame::frame_pixels`]
     /// during [`eframe::App::post_rendering`].
-    pub fn request_pixels(&mut self){
+    pub fn request_pixels(&mut self) {
         self.output.pixels_requested = true;
     }
 
     /// Cancel a request made with [`eframe::Frame::request_pixels`].
-    pub fn cancel_request_pixels(&mut self){
+    pub fn cancel_request_pixels(&mut self) {
         self.output.pixels_requested = false;
     }
 
@@ -693,7 +693,7 @@ impl Frame {
     ///     [`eframe::Frame::request_pixels`] wasn't called on this frame during [`eframe::App::update`]
     ///     The rendering backend doesn't support this feature (yet). Currently only implemented for the wgpu backend.
     ///     Retrieving the data was unsuccesful in some way.
-    pub fn frame_pixels(&self) -> Option<Vec<u8>>{
+    pub fn frame_pixels(&self) -> Option<Vec<u8>> {
         self.pixel_data.take()
     }
 

@@ -1077,8 +1077,8 @@ mod wgpu_integration {
                     integration.egui_ctx.tessellate(shapes)
                 };
 
-                let pixels_requested = &mut integration.frame.output.pixels_requested; 
-                
+                let pixels_requested = &mut integration.frame.output.pixels_requested;
+
                 let pixel_data = painter.paint_and_update_textures(
                     integration.egui_ctx.pixels_per_point(),
                     app.clear_color(&integration.egui_ctx.style().visuals),
@@ -1088,7 +1088,7 @@ mod wgpu_integration {
                 );
                 *pixels_requested = false;
                 integration.frame.pixel_data.set(pixel_data);
-                
+
                 integration.post_rendering(app.as_mut(), window);
                 integration.post_present(window);
 
