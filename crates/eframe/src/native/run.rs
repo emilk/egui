@@ -1079,20 +1079,9 @@ mod wgpu_integration {
 
                 let pixels_requested = &mut integration.frame.output.pixels_requested; 
                 
-                // let idk = egui::Rgba::to_rgba_unmultiplied
-                let broken_color = 
-                    app.clear_color(&integration.egui_ctx.style().visuals);
-                let color = egui::Rgba::from_rgba_unmultiplied(
-                    broken_color[0],
-                    broken_color[1],
-                    broken_color[2],
-                    broken_color[3],
-                );
-                
                 let pixel_data = painter.paint_and_update_textures(
                     integration.egui_ctx.pixels_per_point(),
-                    // app.clear_color(&integration.egui_ctx.style().visuals),
-                    color,
+                    app.clear_color(&integration.egui_ctx.style().visuals),
                     &clipped_primitives,
                     &textures_delta,
                     *pixels_requested,
