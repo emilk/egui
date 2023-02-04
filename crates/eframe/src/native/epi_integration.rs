@@ -50,8 +50,7 @@ pub fn read_window_info(
         .inner_size()
         .to_logical::<f32>(pixels_per_point.into());
 
-    // NOTE: window.is_minimized() or window.is_maximized() here
-    // causes a deadlock on Mac.
+    // NOTE: calling window.is_minimized() or window.is_maximized() deadlocks on Mac.
 
     WindowInfo {
         position,
