@@ -29,15 +29,18 @@ deny = [
 ]
 
 skip = [
-    { name = "ahash" },      # old version via dark-light
-    { name = "arrayvec" },   # old version via tiny-skiaz
-    { name = "hashbrown" },  # old version via dark-light
-    { name = "time" },       # old version pulled in by unmaintianed crate 'chrono'
-    { name = "ttf-parser" }, # different versions pulled in by ab_glyph and usvg
+    { name = "ahash" },       # old version via dark-light
+    { name = "arrayvec" },    # old version via tiny-skiaz
+    { name = "hashbrown" },   # old version via dark-light
+    { name = "nix" },         # old version via winit
+    { name = "time" },        # old version pulled in by unmaintianed crate 'chrono'
+    { name = "tiny-skia" },   # winit uses a different version from egui_extras (TODO(emilk): update egui_extras!)
+    { name = "ttf-parser" },  # different versions pulled in by ab_glyph and usvg
+    { name = "wayland-sys" }, # old version via winit
+    { name = "windows-sys" }, # old version via glutin
 ]
 skip-tree = [
     { name = "criterion" }, # dev-dependency
-    { name = "glium" },     # legacy crate, lots of old dependencies
     { name = "rfd" },       # example dependency
     { name = "three-d" },   # example dependency
     { name = "tts" },       # we are migrating away from tts to accesskit
