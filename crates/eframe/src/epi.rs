@@ -150,13 +150,21 @@ pub trait App {
         egui::Vec2::INFINITY
     }
 
-    /// Background color for the app, e.g. what is sent to `gl.clearColor`.
+    /// Background color values for the app, e.g. what is sent to `gl.clearColor`.
+    ///
     /// This is the background of your windows if you don't set a central panel.
-    fn clear_color(&self, _visuals: &egui::Visuals) -> egui::Rgba {
+    ///
+    /// ATTENTION:
+    /// Since these float values go to the render as-is, any color space conversion as done
+    /// e.g. by converting from [`egui::Color32`] to [`egui::Rgba`] may cause incorrect results.
+    /// egui recommends that rendering backends use a normal "gamma-space" (non-sRGB-aware) blending,
+    ///  which means the values you return here should also be in `sRGB` gamma-space in the 0-1 range.
+    /// You can use [`egui::Color32::to_normalized_gamma_f32`] for this.
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
         // NOTE: a bright gray makes the shadows of the windows look weird.
         // We use a bit of transparency so that if the user switches on the
         // `transparent()` option they get immediate results.
-        egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).into()
+        egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).to_normalized_gamma_f32()
 
         // _visuals.window_fill() would also be a natural choice
     }
