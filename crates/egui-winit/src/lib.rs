@@ -25,16 +25,6 @@ pub use window_settings::WindowSettings;
 
 use winit::event_loop::EventLoopWindowTarget;
 
-#[cfg(feature = "wayland")]
-#[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-))]
-use winit::platform::unix::EventLoopWindowTargetExtUnix;
-
 pub fn native_pixels_per_point(window: &winit::window::Window) -> f32 {
     window.scale_factor() as f32
 }
@@ -888,6 +878,7 @@ fn wayland_display<T>(_event_loop: &EventLoopWindowTarget<T>) -> Option<*mut c_v
         target_os = "openbsd"
     ))]
     {
+        use winit::platform::wayland::EventLoopWindowTargetExtWayland as _;
         return _event_loop.wayland_display();
     }
 
