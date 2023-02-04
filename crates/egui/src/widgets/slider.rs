@@ -73,7 +73,6 @@ pub struct Slider<'a> {
     clamp_to_range: bool,
     smart_aim: bool,
     show_value: bool,
-    trailing_color: bool,
     orientation: SliderOrientation,
     prefix: String,
     suffix: String,
@@ -85,6 +84,7 @@ pub struct Slider<'a> {
     max_decimals: Option<usize>,
     custom_formatter: Option<NumFormatter<'a>>,
     custom_parser: Option<NumParser<'a>>,
+    trailing_fill: Option<bool>,
 }
 
 impl<'a> Slider<'a> {
@@ -120,7 +120,6 @@ impl<'a> Slider<'a> {
             clamp_to_range: true,
             smart_aim: true,
             show_value: true,
-            trailing_color: false,
             orientation: SliderOrientation::Horizontal,
             prefix: Default::default(),
             suffix: Default::default(),
@@ -131,6 +130,7 @@ impl<'a> Slider<'a> {
             max_decimals: None,
             custom_formatter: None,
             custom_parser: None,
+            trailing_fill: None,
         }
     }
 
@@ -215,14 +215,6 @@ impl<'a> Slider<'a> {
         self
     }
 
-    /// Display trailing color behind the slider's circle. Default is OFF.
-    ///
-    /// The color will be taken from `selection.bg_fill` in your [`style::Visuals`], the same as a [`widgets::ProgressBar`].
-    pub fn trailing_color(mut self, trailing_color: bool) -> Self {
-        self.trailing_color = trailing_color;
-        self
-    }
-
     /// Sets the minimal change of the value.
     ///
     /// Value `0.0` effectively disables the feature. If the new value is out of range
@@ -276,6 +268,17 @@ impl<'a> Slider<'a> {
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
         self.min_decimals = num_decimals;
         self.max_decimals = Some(num_decimals);
+        self
+    }
+
+    /// Display trailing color behind the slider's circle. Default is OFF.
+    ///
+    /// This setting can be enabled globally for all sliders with [`Visuals::slider_trailing_fill`].
+    /// Toggling it here will override the above setting ONLY for this individual slider.
+    ///
+    /// The fill color will be taken from `selection.bg_fill` in your [`Visuals`], the same as a [`ProgressBar`].
+    pub fn trailing_fill(mut self, trailing_fill: bool) -> Self {
+        self.trailing_fill = Some(trailing_fill);
         self
     }
 
@@ -629,18 +632,23 @@ impl<'a> Slider<'a> {
             let visuals = ui.style().interact(response);
             let widget_visuals = &ui.visuals().widgets;
 
-            ui.painter().add(epaint::RectShape {
-                rect: rail_rect,
-                rounding: widget_visuals.inactive.rounding,
-                fill: widget_visuals.inactive.bg_fill,
-                stroke: Default::default(),
-            });
+            ui.painter().rect_filled(
+                rail_rect,
+                widget_visuals.inactive.rounding,
+                widget_visuals.inactive.bg_fill,
+            );
 
             let position_1d = self.position_from_value(value, position_range);
             let center = self.marker_center(position_1d, &rail_rect);
 
-            // Paint trailing color if enabled.
-            if self.trailing_color {
+            // Decide if we should add trailing fill.
+            let trailing_fill = match self.trailing_fill {
+                Some(override_bool) => override_bool,
+                None => ui.visuals().slider_trailing_fill,
+            };
+
+            // Paint trailing fill.
+            if trailing_fill {
                 let mut trailing_rail_rect = rail_rect;
 
                 // The trailing rect has to be drawn differently depending on the orientation.
@@ -649,12 +657,11 @@ impl<'a> Slider<'a> {
                     SliderOrientation::Horizontal => trailing_rail_rect.max.x = center.x,
                 };
 
-                ui.painter().add(epaint::RectShape {
-                    rect: trailing_rail_rect,
-                    rounding: widget_visuals.inactive.rounding,
-                    fill: ui.visuals().selection.bg_fill,
-                    stroke: Default::default(),
-                });
+                ui.painter().rect_filled(
+                    trailing_rail_rect,
+                    widget_visuals.inactive.rounding,
+                    ui.visuals().selection.bg_fill,
+                );
             }
 
             ui.painter().add(epaint::CircleShape {
