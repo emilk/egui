@@ -1077,13 +1077,32 @@ mod wgpu_integration {
                     integration.egui_ctx.tessellate(shapes)
                 };
 
-                painter.paint_and_update_textures(
+                let pixels_requested = &mut integration.frame.output.pixels_requested; 
+                
+                let pixel_data = painter.paint_and_update_textures(
                     integration.egui_ctx.pixels_per_point(),
                     app.clear_color(&integration.egui_ctx.style().visuals),
                     &clipped_primitives,
                     &textures_delta,
+                    pixels_requested,
                 );
+                *pixels_requested = false;
+                if let Some(ref data) = pixel_data{
+                    dbg!(data.iter().any(|ele| *ele != 0));
+                }
+                integration.frame.pixel_data.set(pixel_data);
 
+                // let pixels_requested = &mut integration.frame.output.pixels_requested;
+                // if *pixels_requested{
+                //     let now = std::time::Instant::now();
+                //     let idk = painter.read_screen_rgba();
+                //     dbg!(idk.as_ref().unwrap().iter().any(|ele| *ele != 0));
+                //     let elapsed = now.elapsed().as_secs_f64();
+                //     dbg!(elapsed);
+                //     integration.frame.pixel_data.set(idk);
+                //     *pixels_requested = false;
+                // }
+                
                 integration.post_rendering(app.as_mut(), window);
                 integration.post_present(window);
 

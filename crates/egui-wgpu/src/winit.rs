@@ -13,6 +13,43 @@ struct SurfaceState {
     height: u32,
 }
 
+struct CaptureBuffer {
+    buffer: wgpu::Buffer,
+    size: u32,
+}
+
+impl CaptureBuffer{
+    fn new(size: u32, device: &wgpu::Device) -> Self{
+        dbg!("idk");
+        let buffer = device.create_buffer(
+            &wgpu::BufferDescriptor{
+                label: None,
+                size: size as u64,
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                mapped_at_creation: false,
+            }
+        );
+        Self{
+            buffer,
+            size,
+        }
+    }
+
+    fn update(existing: &mut Option<Self>, size: u32, device: &wgpu::Device){
+        match existing{
+            Some(cap_buffer) => {
+                if cap_buffer.size == size{
+                    return
+                } else {
+                    *cap_buffer = CaptureBuffer::new(size, device);
+                }
+            },
+            None => { *existing = Some(CaptureBuffer::new(size, device)) },
+        }
+    }
+}
+
+
 /// Everything you need to paint egui with [`wgpu`] on [`winit`].
 ///
 /// Alternatively you can use [`crate::renderer`] directly.
@@ -21,6 +58,7 @@ pub struct Painter {
     msaa_samples: u32,
     depth_format: Option<wgpu::TextureFormat>,
     depth_texture_view: Option<wgpu::TextureView>,
+    screen_capture_buffer: Option<CaptureBuffer>,
 
     instance: Instance,
     adapter: Option<Adapter>,
@@ -52,6 +90,7 @@ impl Painter {
             msaa_samples,
             depth_format: (depth_bits > 0).then_some(wgpu::TextureFormat::Depth32Float),
             depth_texture_view: None,
+            screen_capture_buffer: None,
 
             instance,
             adapter: None,
@@ -131,7 +170,7 @@ impl Painter {
         let format = render_state.target_format;
 
         let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             format,
             width: width_in_pixels,
             height: height_in_pixels,
@@ -252,22 +291,89 @@ impl Painter {
         }
     }
 
+    pub fn read_screen_rgba(&mut self, tex: &wgpu::Texture) -> Option<Vec<u8>>{
+        // let surface_state = self.surface_state.as_ref()?;
+        // let w = surface_state.width;
+        // let h = surface_state.height;
+        // let surface = &surface_state.surface;
+        // let tex = &surface.get_current_texture().ok()?.texture;
+        dbg!(tex.format());
+        let device = &self.render_state()?.device;
+        let queue = &self.render_state()?.queue;
+        
+        let buf_dims = BufferPadding::new(tex.width());
+
+        CaptureBuffer::update(&mut self.screen_capture_buffer, buf_dims.padded_bytes_per_row * tex.height(), device);
+        let buffer = &self.screen_capture_buffer.as_ref()?.buffer;
+
+
+        let idk = self.surface_state.as_ref()?.surface.get_capabilities(self.adapter.as_ref()?).formats;
+        dbg!(
+            idk
+        );
+        // let tex_extent = wgpu::Extent3d{
+        //     width: w,
+        //     height: h,
+        //     depth_or_array_layers: 1,
+        // };
+
+        let tex_extent = tex.size();
+        
+        
+        let mut encoder = device.create_command_encoder(&Default::default());
+        encoder.copy_texture_to_buffer(
+            tex.as_image_copy(),
+            
+            wgpu::ImageCopyBuffer{
+                buffer: &buffer,
+                layout: wgpu::ImageDataLayout{
+                    offset: 0,
+                    bytes_per_row: Some(
+                        std::num::NonZeroU32::new(buf_dims.padded_bytes_per_row)?
+                    ),
+                    rows_per_image: None,
+                }
+            },
+            tex_extent,
+        );
+
+        let id = queue.submit(Some(encoder.finish()));
+        let buffer_slice = buffer.slice(..);
+        // let (sender, receiver) = std::sync::mpsc::channel();
+        buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
+        // buffer_slice.map_async(wgpu::MapMode::Read, move |v| { drop(sender.send(v)); });
+        device.poll(wgpu::Maintain::WaitForSubmissionIndex(id));
+        // receiver.recv().ok()?.ok()?;
+        
+        let pixels: Vec<u8> = buffer_slice.get_mapped_range()
+            .chunks(buf_dims.padded_bytes_per_row as usize)
+            .flat_map(|chunk| chunk[..buf_dims.unpadded_bytes_per_row as usize].iter().cloned())
+            .collect();
+        
+        // drop(buffer_slice);
+        buffer.unmap();
+        // drop(buffer);
+        
+        Some(pixels)
+    }
+
     pub fn paint_and_update_textures(
         &mut self,
         pixels_per_point: f32,
         clear_color: epaint::Rgba,
         clipped_primitives: &[epaint::ClippedPrimitive],
         textures_delta: &epaint::textures::TexturesDelta,
-    ) {
+        capture: &bool,
+    ) -> Option<Vec<u8>> {
         crate::profile_function!();
 
         let render_state = match self.render_state.as_mut() {
             Some(rs) => rs,
-            None => return,
+            None => return None,
         };
         let surface_state = match self.surface_state.as_ref() {
             Some(rs) => rs,
-            None => return,
+            None => return None,
         };
         let (width, height) = (surface_state.width, surface_state.height);
 
@@ -283,10 +389,10 @@ impl Painter {
             Err(e) => match (*self.configuration.on_surface_error)(e) {
                 SurfaceErrorAction::RecreateSurface => {
                     self.configure_surface(width, height);
-                    return;
+                    return None;
                 }
                 SurfaceErrorAction::SkipFrame => {
-                    return;
+                    return None;
                 }
             },
         };
@@ -379,15 +485,43 @@ impl Painter {
                 .submit(user_cmd_bufs.into_iter().chain(std::iter::once(encoded)));
         };
 
+        let out = if *capture{
+            self.read_screen_rgba(&output_frame.texture)
+        } else {
+            None
+        };
         // Redraw egui
         {
             crate::profile_scope!("present");
             output_frame.present();
         }
+        out
     }
+
+    
 
     #[allow(clippy::unused_self)]
     pub fn destroy(&mut self) {
         // TODO(emilk): something here?
+    }
+}
+
+
+struct BufferPadding {
+    unpadded_bytes_per_row: u32,
+    padded_bytes_per_row: u32,
+}
+
+impl BufferPadding {
+    fn new(width: u32) -> Self {
+        let bytes_per_pixel = std::mem::size_of::<u32>() as u32;
+        let unpadded_bytes_per_row = width * bytes_per_pixel;
+        let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as u32;
+        let padded_bytes_per_row_padding = (align - unpadded_bytes_per_row % align) % align;
+        let padded_bytes_per_row = unpadded_bytes_per_row + padded_bytes_per_row_padding;
+        Self {
+            unpadded_bytes_per_row,
+            padded_bytes_per_row,
+        }
     }
 }

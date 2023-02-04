@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use winit::event_loop::EventLoopWindowTarget;
 
 #[cfg(target_os = "macos")]
@@ -199,6 +201,7 @@ pub fn handle_app_output(
         window_pos,
         visible: _, // handled in post_present
         always_on_top,
+        pixels_requested: _,
     } = app_output;
 
     if let Some(decorated) = decorated {
@@ -297,6 +300,7 @@ impl EpiIntegration {
             gl,
             #[cfg(feature = "wgpu")]
             wgpu_render_state,
+            pixel_data: Cell::new(None),
         };
 
         let mut egui_winit = egui_winit::State::new(event_loop);
@@ -410,6 +414,7 @@ impl EpiIntegration {
                 tracing::debug!("App::on_close_event returned {}", self.close);
             }
             self.frame.output.visible = app_output.visible; // this is handled by post_present
+            self.frame.output.pixels_requested = app_output.pixels_requested;
             handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
         }
 

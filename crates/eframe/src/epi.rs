@@ -8,6 +8,7 @@
 
 #[cfg(target_arch = "wasm32")]
 use std::any::Any;
+use std::cell::Cell;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use crate::native::run::UserEvent;
@@ -643,6 +644,8 @@ pub struct Frame {
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
     pub(crate) wgpu_render_state: Option<egui_wgpu::RenderState>,
+
+    pub(crate) pixel_data: Cell<Option<Vec<u8>>>,
 }
 
 impl Frame {
@@ -662,6 +665,18 @@ impl Frame {
     /// A place where you can store custom data in a way that persists when you restart the app.
     pub fn storage(&self) -> Option<&dyn Storage> {
         self.storage.as_deref()
+    }
+
+    pub fn request_pixels(&mut self){
+        self.output.pixels_requested = true;
+    }
+
+    pub fn cancel_request_pixels(&mut self){
+        self.output.pixels_requested = false;
+    }
+
+    pub fn frame_pixels(&self) -> Option<Vec<u8>>{
+        self.pixel_data.take()
     }
 
     /// A place where you can store custom data in a way that persists when you restart the app.
@@ -1003,5 +1018,7 @@ pub(crate) mod backend {
         /// Set to some bool to tell the window always on top.
         #[cfg(not(target_arch = "wasm32"))]
         pub always_on_top: Option<bool>,
+
+        pub pixels_requested: bool,
     }
 }
