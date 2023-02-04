@@ -13,6 +13,7 @@ use crate::{
 ///
 /// Whenever something gets added to a [`Ui`], a [`Response`] object is returned.
 /// [`ui.add`] returns a [`Response`], as does [`ui.button`], and all similar shortcuts.
+// TODO(emilk): we should be using bit sets instead of so many bools
 #[derive(Clone)]
 pub struct Response {
     // CONTEXT:
@@ -42,6 +43,10 @@ pub struct Response {
     #[doc(hidden)]
     pub hovered: bool,
 
+    /// The widget is highlighted via a call to [`Self::highlight`] or [`Context::highlight_widget`].
+    #[doc(hidden)]
+    pub highlighted: bool,
+
     /// The pointer clicked this thing this frame.
     #[doc(hidden)]
     pub clicked: [bool; NUM_POINTER_BUTTONS],
@@ -52,7 +57,7 @@ pub struct Response {
     pub double_clicked: [bool; NUM_POINTER_BUTTONS],
 
     /// The thing was triple-clicked.
-    pub(crate) triple_clicked: [bool; NUM_POINTER_BUTTONS],
+    pub triple_clicked: [bool; NUM_POINTER_BUTTONS],
 
     /// The widgets is being dragged
     #[doc(hidden)]
@@ -90,6 +95,7 @@ impl std::fmt::Debug for Response {
             sense,
             enabled,
             hovered,
+            highlighted,
             clicked,
             double_clicked,
             triple_clicked,
@@ -106,6 +112,7 @@ impl std::fmt::Debug for Response {
             .field("sense", sense)
             .field("enabled", enabled)
             .field("hovered", hovered)
+            .field("highlighted", highlighted)
             .field("clicked", clicked)
             .field("double_clicked", double_clicked)
             .field("triple_clicked", triple_clicked)
@@ -173,23 +180,25 @@ impl Response {
         // We do not use self.clicked(), because we want to catch all clicks within our frame,
         // even if we aren't clickable (or even enabled).
         // This is important for windows and such that should close then the user clicks elsewhere.
-        let pointer = &self.ctx.input().pointer;
+        self.ctx.input(|i| {
+            let pointer = &i.pointer;
 
-        if pointer.any_click() {
-            // We detect clicks/hover on a "interact_rect" that is slightly larger than
-            // self.rect. See Context::interact.
-            // This means we can be hovered and clicked even though `!self.rect.contains(pos)` is true,
-            // hence the extra complexity here.
-            if self.hovered() {
-                false
-            } else if let Some(pos) = pointer.interact_pos() {
-                !self.rect.contains(pos)
+            if pointer.any_click() {
+                // We detect clicks/hover on a "interact_rect" that is slightly larger than
+                // self.rect. See Context::interact.
+                // This means we can be hovered and clicked even though `!self.rect.contains(pos)` is true,
+                // hence the extra complexity here.
+                if self.hovered() {
+                    false
+                } else if let Some(pos) = pointer.interact_pos() {
+                    !self.rect.contains(pos)
+                } else {
+                    false // clicked without a pointer, weird
+                }
             } else {
-                false // clicked without a pointer, weird
+                false
             }
-        } else {
-            false
-        }
+        })
     }
 
     /// Was the widget enabled?
@@ -211,20 +220,24 @@ impl Response {
         self.hovered
     }
 
+    /// The widget is highlighted via a call to [`Self::highlight`] or [`Context::highlight_widget`].
+    #[doc(hidden)]
+    pub fn highlighted(&self) -> bool {
+        self.highlighted
+    }
+
     /// This widget has the keyboard focus (i.e. is receiving key presses).
     ///
     /// This function only returns true if the UI as a whole (e.g. window)
     /// also has the keyboard focus. That makes this function suitable
     /// for style choices, e.g. a thicker border around focused widgets.
     pub fn has_focus(&self) -> bool {
-        // Access input and memory in separate statements to prevent deadlock.
-        let has_global_focus = self.ctx.input().raw.has_focus;
-        has_global_focus && self.ctx.memory().has_focus(self.id)
+        self.ctx.input(|i| i.raw.has_focus) && self.ctx.memory(|mem| mem.has_focus(self.id))
     }
 
     /// True if this widget has keyboard focus this frame, but didn't last frame.
     pub fn gained_focus(&self) -> bool {
-        self.ctx.memory().gained_focus(self.id)
+        self.ctx.memory(|mem| mem.gained_focus(self.id))
     }
 
     /// The widget had keyboard focus and lost it,
@@ -236,29 +249,29 @@ impl Response {
     /// # let mut my_text = String::new();
     /// # fn do_request(_: &str) {}
     /// let response = ui.text_edit_singleline(&mut my_text);
-    /// if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
+    /// if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
     ///     do_request(&my_text);
     /// }
     /// # });
     /// ```
     pub fn lost_focus(&self) -> bool {
-        self.ctx.memory().lost_focus(self.id)
+        self.ctx.memory(|mem| mem.lost_focus(self.id))
     }
 
     /// Request that this widget get keyboard focus.
     pub fn request_focus(&self) {
-        self.ctx.memory().request_focus(self.id);
+        self.ctx.memory_mut(|mem| mem.request_focus(self.id));
     }
 
     /// Surrender keyboard focus for this widget.
     pub fn surrender_focus(&self) {
-        self.ctx.memory().surrender_focus(self.id);
+        self.ctx.memory_mut(|mem| mem.surrender_focus(self.id));
     }
 
     /// The widgets is being dragged.
     ///
     /// To find out which button(s), query [`crate::PointerState::button_down`]
-    /// (`ui.input().pointer.button_down(…)`).
+    /// (`ui.input(|i| i.pointer.button_down(…))`).
     ///
     /// Note that the widget must be sensing drags with [`Sense::drag`].
     /// [`crate::DragValue`] senses drags; [`crate::Label`] does not (unless you call [`crate::Label::sense`]).
@@ -270,12 +283,17 @@ impl Response {
     }
 
     pub fn dragged_by(&self, button: PointerButton) -> bool {
-        self.dragged() && self.ctx.input().pointer.button_down(button)
+        self.dragged() && self.ctx.input(|i| i.pointer.button_down(button))
     }
 
     /// Did a drag on this widgets begin this frame?
     pub fn drag_started(&self) -> bool {
-        self.dragged && self.ctx.input().pointer.any_pressed()
+        self.dragged && self.ctx.input(|i| i.pointer.any_pressed())
+    }
+
+    /// Did a drag on this widgets by the button begin this frame?
+    pub fn drag_started_by(&self, button: PointerButton) -> bool {
+        self.drag_started() && self.ctx.input(|i| i.pointer.button_pressed(button))
     }
 
     /// The widget was being dragged, but now it has been released.
@@ -283,10 +301,15 @@ impl Response {
         self.drag_released
     }
 
+    /// The widget was being dragged by the button, but now it has been released.
+    pub fn drag_released_by(&self, button: PointerButton) -> bool {
+        self.drag_released() && self.ctx.input(|i| i.pointer.button_released(button))
+    }
+
     /// If dragged, how many points were we dragged and in what direction?
     pub fn drag_delta(&self) -> Vec2 {
         if self.dragged() {
-            self.ctx.input().pointer.delta()
+            self.ctx.input(|i| i.pointer.delta())
         } else {
             Vec2::ZERO
         }
@@ -302,7 +325,7 @@ impl Response {
     /// None if the pointer is outside the response area.
     pub fn hover_pos(&self) -> Option<Pos2> {
         if self.hovered() {
-            self.ctx.input().pointer.hover_pos()
+            self.ctx.input(|i| i.pointer.hover_pos())
         } else {
             None
         }
@@ -392,11 +415,11 @@ impl Response {
     }
 
     fn should_show_hover_ui(&self) -> bool {
-        if self.ctx.memory().everything_is_visible() {
+        if self.ctx.memory(|mem| mem.everything_is_visible()) {
             return true;
         }
 
-        if !self.hovered || !self.ctx.input().pointer.has_pointer() {
+        if !self.hovered || !self.ctx.input(|i| i.pointer.has_pointer()) {
             return false;
         }
 
@@ -404,8 +427,7 @@ impl Response {
             // We only show the tooltip when the mouse pointer is still,
             // but once shown we keep showing it until the mouse leaves the parent.
 
-            let is_pointer_still = self.ctx.input().pointer.is_still();
-            if !is_pointer_still && !self.is_tooltip_open() {
+            if !self.ctx.input(|i| i.pointer.is_still()) && !self.is_tooltip_open() {
                 // wait for mouse to stop
                 self.ctx.request_repaint();
                 return false;
@@ -414,8 +436,9 @@ impl Response {
 
         // We don't want tooltips of things while we are dragging them,
         // but we do want tooltips while holding down on an item on a touch screen.
-        if self.ctx.input().pointer.any_down()
-            && self.ctx.input().pointer.has_moved_too_much_for_a_click
+        if self
+            .ctx
+            .input(|i| i.pointer.any_down() && i.pointer.has_moved_too_much_for_a_click)
         {
             return false;
         }
@@ -444,6 +467,17 @@ impl Response {
         })
     }
 
+    /// Highlight this widget, to make it look like it is hovered, even if it isn't.
+    ///
+    /// The highlight takes on frame to take effect if you call this after the widget has been fully rendered.
+    ///
+    /// See also [`Context::highlight_widget`].
+    pub fn highlight(mut self) -> Self {
+        self.ctx.highlight_widget(self.id);
+        self.highlighted = true;
+        self
+    }
+
     /// Show this text when hovering if the widget is disabled.
     pub fn on_disabled_hover_text(self, text: impl Into<WidgetText>) -> Self {
         self.on_disabled_hover_ui(|ui| {
@@ -454,7 +488,7 @@ impl Response {
     /// When hovered, use this icon for the mouse cursor.
     pub fn on_hover_cursor(self, cursor: CursorIcon) -> Self {
         if self.hovered() {
-            self.ctx.output().cursor_icon = cursor;
+            self.ctx.set_cursor_icon(cursor);
         }
         self
     }
@@ -462,7 +496,7 @@ impl Response {
     /// When hovered or dragged, use this icon for the mouse cursor.
     pub fn on_hover_and_drag_cursor(self, cursor: CursorIcon) -> Self {
         if self.hovered() || self.dragged() {
-            self.ctx.output().cursor_icon = cursor;
+            self.ctx.set_cursor_icon(cursor);
         }
         self
     }
@@ -511,8 +545,10 @@ impl Response {
     /// # });
     /// ```
     pub fn scroll_to_me(&self, align: Option<Align>) {
-        self.ctx.frame_state().scroll_target[0] = Some((self.rect.x_range(), align));
-        self.ctx.frame_state().scroll_target[1] = Some((self.rect.y_range(), align));
+        self.ctx.frame_state_mut(|state| {
+            state.scroll_target[0] = Some((self.rect.x_range(), align));
+            state.scroll_target[1] = Some((self.rect.y_range(), align));
+        });
     }
 
     /// For accessibility.
@@ -537,18 +573,18 @@ impl Response {
             self.output_event(event);
         } else {
             #[cfg(feature = "accesskit")]
-            if let Some(mut node) = self.ctx.accesskit_node(self.id) {
-                self.fill_accesskit_node_from_widget_info(&mut node, make_info());
-            }
+            self.ctx.accesskit_node(self.id, |node| {
+                self.fill_accesskit_node_from_widget_info(node, make_info());
+            });
         }
     }
 
     pub fn output_event(&self, event: crate::output::OutputEvent) {
         #[cfg(feature = "accesskit")]
-        if let Some(mut node) = self.ctx.accesskit_node(self.id) {
-            self.fill_accesskit_node_from_widget_info(&mut node, event.widget_info().clone());
-        }
-        self.ctx.output().events.push(event);
+        self.ctx.accesskit_node(self.id, |node| {
+            self.fill_accesskit_node_from_widget_info(node, event.widget_info().clone());
+        });
+        self.ctx.output_mut(|o| o.events.push(event));
     }
 
     #[cfg(feature = "accesskit")]
@@ -626,9 +662,8 @@ impl Response {
     /// ```
     pub fn labelled_by(self, id: Id) -> Self {
         #[cfg(feature = "accesskit")]
-        if let Some(mut node) = self.ctx.accesskit_node(self.id) {
-            node.labelled_by.push(id.accesskit_id());
-        }
+        self.ctx
+            .accesskit_node(self.id, |node| node.labelled_by.push(id.accesskit_id()));
         #[cfg(not(feature = "accesskit"))]
         {
             let _ = id;
@@ -677,6 +712,7 @@ impl Response {
             sense: self.sense.union(other.sense),
             enabled: self.enabled || other.enabled,
             hovered: self.hovered || other.hovered,
+            highlighted: self.highlighted || other.highlighted,
             clicked: [
                 self.clicked[0] || other.clicked[0],
                 self.clicked[1] || other.clicked[1],
@@ -705,6 +741,13 @@ impl Response {
             interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
             changed: self.changed || other.changed,
         }
+    }
+}
+
+impl Response {
+    /// Returns a response with a modified [`Self::rect`].
+    pub fn with_new_rect(self, rect: Rect) -> Self {
+        Self { rect, ..self }
     }
 }
 

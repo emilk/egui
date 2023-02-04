@@ -52,9 +52,10 @@ pub struct Memory {
     /// type CharCountCache<'a> = FrameCache<usize, CharCounter>;
     ///
     /// # let mut ctx = egui::Context::default();
-    /// let mut memory = ctx.memory();
-    /// let cache = memory.caches.cache::<CharCountCache<'_>>();
-    /// assert_eq!(cache.get("hello"), 5);
+    /// ctx.memory_mut(|mem| {
+    ///     let cache = mem.caches.cache::<CharCountCache<'_>>();
+    ///     assert_eq!(cache.get("hello"), 5);
+    /// });
     /// ```
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub caches: crate::util::cache::CacheStorage,
@@ -102,9 +103,15 @@ pub struct Options {
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,
 
-    /// This does not at all change the behavior of egui,
-    /// but is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
+    /// This is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
+    ///
+    /// The only change to egui is that labels can be focused by pressing tab.
+    ///
     /// Screen readers is an experimental feature of egui, and not supported on all platforms.
+    ///
+    /// `eframe` supports it only on web, using the `web_screen_reader` feature flag,
+    /// but you should consider using [AccessKit](https://github.com/AccessKit/accesskit) instead,
+    /// which `eframe` supports.
     pub screen_reader: bool,
 
     /// If true, the most common glyphs (ASCII) are pre-rendered to the texture atlas.
@@ -405,7 +412,7 @@ impl Memory {
     }
 
     /// Is the keyboard focus locked on this widget? If so the focus won't move even if the user presses the tab key.
-    pub fn has_lock_focus(&mut self, id: Id) -> bool {
+    pub fn has_lock_focus(&self, id: Id) -> bool {
         if self.had_focus_last_frame(id) && self.has_focus(id) {
             self.interaction.focus.is_focus_locked
         } else {

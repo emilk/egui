@@ -48,11 +48,11 @@ impl Default for State {
 
 impl State {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data().get_persisted(id)
+        ctx.data_mut(|d| d.get_persisted(id))
     }
 
     pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data().insert_persisted(id, self);
+        ctx.data_mut(|d| d.insert_persisted(id, self));
     }
 }
 
@@ -426,15 +426,34 @@ impl ScrollArea {
 
         let content_max_rect = Rect::from_min_size(inner_rect.min - state.offset, content_max_size);
         let mut content_ui = ui.child_ui(content_max_rect, *ui.layout());
-        let mut content_clip_rect = inner_rect.expand(ui.visuals().clip_rect_margin);
-        content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
-        // Nice handling of forced resizing beyond the possible:
-        for d in 0..2 {
-            if !has_bar[d] {
-                content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
+
+        {
+            // Clip the content, but only when we really need to:
+            let clip_rect_margin = ui.visuals().clip_rect_margin;
+            let scroll_bar_inner_margin = ui.spacing().scroll_bar_inner_margin;
+            let mut content_clip_rect = ui.clip_rect();
+            for d in 0..2 {
+                if has_bar[d] {
+                    if state.content_is_too_large[d] {
+                        content_clip_rect.min[d] = inner_rect.min[d] - clip_rect_margin;
+                        content_clip_rect.max[d] = inner_rect.max[d] + clip_rect_margin;
+                    }
+
+                    if state.show_scroll[d] {
+                        // Make sure content doesn't cover scroll bars
+                        let tiny_gap = 1.0;
+                        content_clip_rect.max[1 - d] =
+                            inner_rect.max[1 - d] + scroll_bar_inner_margin - tiny_gap;
+                    }
+                } else {
+                    // Nice handling of forced resizing beyond the possible:
+                    content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
+                }
             }
+            // Make sure we din't accidentally expand the clip rect
+            content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
+            content_ui.set_clip_rect(content_clip_rect);
         }
-        content_ui.set_clip_rect(content_clip_rect);
 
         let viewport = Rect::from_min_size(Pos2::ZERO + state.offset, inner_size);
 
@@ -449,8 +468,10 @@ impl ScrollArea {
             if content_response.dragged() {
                 for d in 0..2 {
                     if has_bar[d] {
-                        state.offset[d] -= ui.input().pointer.delta()[d];
-                        state.vel[d] = ui.input().pointer.velocity()[d];
+                        ui.input(|input| {
+                            state.offset[d] -= input.pointer.delta()[d];
+                            state.vel[d] = input.pointer.velocity()[d];
+                        });
                         state.scroll_stuck_to_end[d] = false;
                     } else {
                         state.vel[d] = 0.0;
@@ -459,7 +480,7 @@ impl ScrollArea {
             } else {
                 let stop_speed = 20.0; // Pixels per second.
                 let friction_coeff = 1000.0; // Pixels per second squared.
-                let dt = ui.input().unstable_dt;
+                let dt = ui.input(|i| i.unstable_dt);
 
                 let friction = friction_coeff * dt;
                 if friction > state.vel.length() || state.vel.length() < stop_speed {
@@ -603,7 +624,9 @@ impl Prepared {
         for d in 0..2 {
             if has_bar[d] {
                 // We take the scroll target so only this ScrollArea will use it:
-                let scroll_target = content_ui.ctx().frame_state().scroll_target[d].take();
+                let scroll_target = content_ui
+                    .ctx()
+                    .frame_state_mut(|state| state.scroll_target[d].take());
                 if let Some((scroll, align)) = scroll_target {
                     let min = content_ui.min_rect().min[d];
                     let clip_rect = content_ui.clip_rect();
@@ -668,8 +691,7 @@ impl Prepared {
         if scrolling_enabled && ui.rect_contains_pointer(outer_rect) {
             for d in 0..2 {
                 if has_bar[d] {
-                    let mut frame_state = ui.ctx().frame_state();
-                    let scroll_delta = frame_state.scroll_delta;
+                    let scroll_delta = ui.ctx().frame_state(|fs| fs.scroll_delta);
 
                     let scrolling_up = state.offset[d] > 0.0 && scroll_delta[d] > 0.0;
                     let scrolling_down = state.offset[d] < max_offset[d] && scroll_delta[d] < 0.0;
@@ -677,7 +699,7 @@ impl Prepared {
                     if scrolling_up || scrolling_down {
                         state.offset[d] -= scroll_delta[d];
                         // Clear scroll delta so no parent scroll will use it.
-                        frame_state.scroll_delta[d] = 0.0;
+                        ui.ctx().frame_state_mut(|fs| fs.scroll_delta[d] = 0.0);
                         state.scroll_stuck_to_end[d] = false;
                     }
                 }
@@ -819,7 +841,7 @@ impl Prepared {
                         ),
                     )
                 };
-                let min_handle_size = ui.spacing().scroll_bar_width;
+                let min_handle_size = ui.spacing().scroll_handle_min_length;
                 if handle_rect.size()[d] < min_handle_size {
                     handle_rect = Rect::from_center_size(
                         handle_rect.center(),

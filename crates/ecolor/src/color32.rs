@@ -198,4 +198,19 @@ impl Color32 {
         // we need a somewhat expensive conversion to linear space and back.
         Rgba::from(self).multiply(factor).into()
     }
+
+    /// Converts to floating point values in the range 0-1 without any gamma space conversion.
+    ///
+    /// Use this with great care! In almost all cases, you want to convert to [`crate::Rgba`] instead
+    /// in order to obtain linear space color values.
+    #[inline]
+    pub fn to_normalized_gamma_f32(self) -> [f32; 4] {
+        let Self([r, g, b, a]) = self;
+        [
+            r as f32 / 255.0,
+            g as f32 / 255.0,
+            b as f32 / 255.0,
+            a as f32 / 255.0,
+        ]
+    }
 }

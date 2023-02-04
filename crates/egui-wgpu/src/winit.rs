@@ -42,7 +42,10 @@ impl Painter {
     /// a [`winit::window::Window`] with a valid `.raw_window_handle()`
     /// associated.
     pub fn new(configuration: WgpuConfiguration, msaa_samples: u32, depth_bits: u8) -> Self {
-        let instance = wgpu::Instance::new(configuration.backends);
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: configuration.backends,
+            dx12_shader_compiler: Default::default(), //
+        });
 
         Self {
             configuration,
@@ -107,7 +110,7 @@ impl Painter {
             match &self.adapter {
                 Some(adapter) => {
                     let swapchain_format = crate::preferred_framebuffer_format(
-                        &surface.get_supported_formats(adapter),
+                        &surface.get_capabilities(adapter).formats,
                     );
                     let rs = self.init_render_state(adapter, swapchain_format).await?;
                     self.render_state = Some(rs);
@@ -134,6 +137,7 @@ impl Painter {
             height: height_in_pixels,
             present_mode: self.configuration.present_mode,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            view_formats: vec![format],
         };
 
         let surface_state = self
@@ -177,10 +181,10 @@ impl Painter {
     pub async unsafe fn set_window(
         &mut self,
         window: Option<&winit::window::Window>,
-    ) -> Result<(), wgpu::RequestDeviceError> {
+    ) -> Result<(), crate::WgpuError> {
         match window {
             Some(window) => {
-                let surface = self.instance.create_surface(&window);
+                let surface = self.instance.create_surface(&window)?;
 
                 self.ensure_render_state_for_surface(&surface).await?;
 
@@ -234,6 +238,7 @@ impl Painter {
                     format: depth_format,
                     usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                         | wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[depth_format],
                 })
                 .create_view(&wgpu::TextureViewDescriptor::default())
         });
@@ -250,7 +255,7 @@ impl Painter {
     pub fn paint_and_update_textures(
         &mut self,
         pixels_per_point: f32,
-        clear_color: epaint::Rgba,
+        clear_color: [f32; 4],
         clipped_primitives: &[epaint::ClippedPrimitive],
         textures_delta: &epaint::textures::TexturesDelta,
     ) {
@@ -330,10 +335,10 @@ impl Painter {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: clear_color.r() as f64,
-                            g: clear_color.g() as f64,
-                            b: clear_color.b() as f64,
-                            a: clear_color.a() as f64,
+                            r: clear_color[0] as f64,
+                            g: clear_color[1] as f64,
+                            b: clear_color[2] as f64,
+                            a: clear_color[3] as f64,
                         }),
                         store: true,
                     },

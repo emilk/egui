@@ -226,7 +226,7 @@ pub enum Error {
 
     #[cfg(feature = "wgpu")]
     #[error("WGPU error: {0}")]
-    Wgpu(#[from] wgpu::RequestDeviceError),
+    Wgpu(#[from] egui_wgpu::WgpuError),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
