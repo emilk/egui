@@ -78,7 +78,6 @@ pub fn build_window<E>(
 
     let mut window_builder = winit::window::WindowBuilder::new()
         .with_title(title)
-        .with_always_on_top(*always_on_top)
         .with_decorations(*decorated)
         .with_fullscreen(fullscreen.then(|| winit::window::Fullscreen::Borderless(None)))
         .with_maximized(*maximized)
@@ -145,7 +144,16 @@ pub fn build_window<E>(
         }
     }
 
-    window_builder.build(event_loop)
+    let window = window_builder.build(event_loop)?;
+
+    use winit::window::WindowLevel;
+    window.set_window_level(if *always_on_top {
+        WindowLevel::AlwaysOnTop
+    } else {
+        WindowLevel::Normal
+    });
+
+    Ok(window)
 }
 
 fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui::Vec2 {
@@ -237,7 +245,12 @@ pub fn handle_app_output(
     }
 
     if let Some(always_on_top) = always_on_top {
-        window.set_always_on_top(always_on_top);
+        use winit::window::WindowLevel;
+        window.set_window_level(if always_on_top {
+            WindowLevel::AlwaysOnTop
+        } else {
+            WindowLevel::Normal
+        });
     }
 }
 

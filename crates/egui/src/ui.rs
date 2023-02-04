@@ -1572,7 +1572,7 @@ impl Ui {
     /// }
     /// ```
     ///
-    /// Se also [`crate::Image`] and [`crate::ImageButton`].
+    /// See also [`crate::Image`] and [`crate::ImageButton`].
     #[inline]
     pub fn image(&mut self, texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {
         Image::new(texture_id, size).ui(self)
