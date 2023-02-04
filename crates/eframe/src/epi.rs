@@ -157,7 +157,7 @@ pub trait App {
     /// Since these float values go to the render as-is, any color space conversion as done
     /// e.g. by converting from [`egui::Color32`] to [`egui::Rgba`] may cause incorrect results.
     /// egui recommends that rendering backends use a normal "gamma-space" (non-sRGB-aware) blending,
-    ///  which means the values you return here should also be in sRGB gamma-space in the 0-1 range.
+    ///  which means the values you return here should also be in `sRGB` gamma-space in the 0-1 range.
     /// You can use [`egui::Color32::to_normalized_gamma_f32`] for this.
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
         // NOTE: a bright gray makes the shadows of the windows look weird.
