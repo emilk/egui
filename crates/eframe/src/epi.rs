@@ -150,21 +150,13 @@ pub trait App {
         egui::Vec2::INFINITY
     }
 
-    /// Background color values for the app, e.g. what is sent to `gl.clearColor`.
-    ///
+    /// Background color for the app, e.g. what is sent to `gl.clearColor`.
     /// This is the background of your windows if you don't set a central panel.
-    ///
-    /// ATTENTION:
-    /// Since these float values go to the render as-is, any color space conversion as done
-    /// e.g. by converting from [`egui::Color32`] to [`egui::Rgba`] may cause incorrect results.
-    /// egui recommends that rendering backends use a normal "gamma-space" (non-sRGB-aware) blending,
-    ///  which means the values you return here should also be in `sRGB` gamma-space in the 0-1 range.
-    /// You can use [`egui::Color32::to_normalized_gamma_f32`] for this.
-    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+    fn clear_color(&self, _visuals: &egui::Visuals) -> egui::Rgba {
         // NOTE: a bright gray makes the shadows of the windows look weird.
         // We use a bit of transparency so that if the user switches on the
         // `transparent()` option they get immediate results.
-        egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).to_normalized_gamma_f32()
+        egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).into()
 
         // _visuals.window_fill() would also be a natural choice
     }
@@ -675,14 +667,24 @@ impl Frame {
         self.storage.as_deref()
     }
 
+    /// Request the current frame's pixel data. Needs to be retrieved by calling [`eframe::Frame::frame_pixels`]
+    /// during [`eframe::App::post_rendering`].
     pub fn request_pixels(&mut self){
         self.output.pixels_requested = true;
     }
 
+    /// Cancel a request made with [`eframe::Frame::request_pixels`].
     pub fn cancel_request_pixels(&mut self){
         self.output.pixels_requested = false;
     }
 
+    /// During [`eframe::App::post_rendering`], use this to retrieve the pixel data that was requested during
+    /// [`eframe::App::update`] via [`eframe::Frame::request_pixels`]. Currently only implemented with wgpu backend.
+    /// Returns None if
+    ///     Called in [`eframe::App::update`]
+    ///     [`eframe::Frame::request_pixels`] wasn't called on this frame during [`eframe::App::update`]
+    ///     The rendering backend doesn't support this feature (yet). Currently only implemented for the wgpu backend.
+    ///     Retrieving the data was unsuccesful in some way.
     pub fn frame_pixels(&self) -> Option<Vec<u8>>{
         self.pixel_data.take()
     }
