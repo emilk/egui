@@ -231,12 +231,11 @@ pub fn load_svg_bytes_with_size(
     svg_bytes: &[u8],
     fit_to: FitTo,
 ) -> Result<egui::ColorImage, String> {
-    let mut opt = usvg::Options::default();
-    opt.fontdb.load_system_fonts();
+    let opt = usvg::Options::default();
 
-    let rtree = usvg::Tree::from_data(svg_bytes, &opt.to_ref()).map_err(|err| err.to_string())?;
+    let rtree = usvg::Tree::from_data(svg_bytes, &opt).map_err(|err| err.to_string())?;
 
-    let pixmap_size = rtree.svg_node().size.to_screen_size();
+    let pixmap_size = rtree.size.to_screen_size();
     let [w, h] = match fit_to {
         FitTo::Original => [pixmap_size.width(), pixmap_size.height()],
         FitTo::Size(w, h) => [w, h],

@@ -10,6 +10,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 #### Desktop/Native:
 * `eframe::run_native` now returns a `Result` ([#2433](https://github.com/emilk/egui/pull/2433)).
+* Update to `winit` 0.28, adding support for mac trackpad zoom ([#2654](https://github.com/emilk/egui/pull/2654)).
 
 #### Web:
 * Prevent ctrl-P/cmd-P from opening the print dialog ([#2598](https://github.com/emilk/egui/pull/2598)).
