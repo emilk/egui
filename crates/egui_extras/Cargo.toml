@@ -58,9 +58,9 @@ document-features = { version = "0.2", optional = true }
 image = { version = "0.24", optional = true, default-features = false }
 
 # svg feature
-resvg = { version = "0.23", optional = true }
-tiny-skia = { version = "0.6", optional = true } # must be updated in lock-step with resvg
-usvg = { version = "0.23", optional = true }
+resvg = { version = "0.28", optional = true, default-features = false }
+tiny-skia = { version = "0.8", optional = true, default-features = false } # must be updated in lock-step with resvg
+usvg = { version = "0.28", optional = true, default-features = false }
 
 # feature "tracing"
 tracing = { version = "0.1", optional = true, default-features = false, features = [

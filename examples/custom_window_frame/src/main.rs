@@ -25,8 +25,8 @@ fn main() -> Result<(), eframe::Error> {
 struct MyApp {}
 
 impl eframe::App for MyApp {
-    fn clear_color(&self, _visuals: &egui::Visuals) -> egui::Rgba {
-        egui::Rgba::TRANSPARENT // Make sure we don't paint anything behind the rounded corners
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        egui::Rgba::TRANSPARENT.to_array() // Make sure we don't paint anything behind the rounded corners
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {

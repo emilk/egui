@@ -112,10 +112,7 @@ impl CollapsingState {
             response.rect.center().y,
         ));
         let openness = self.openness(ui.ctx());
-        let small_icon_response = Response {
-            rect: icon_rect,
-            ..response.clone()
-        };
+        let small_icon_response = response.clone().with_new_rect(icon_rect);
         icon_fn(ui, openness, &small_icon_response);
         response
     }
@@ -576,10 +573,7 @@ impl CollapsingHeader {
                     header_response.rect.left() + ui.spacing().indent / 2.0,
                     header_response.rect.center().y,
                 ));
-                let icon_response = Response {
-                    rect: icon_rect,
-                    ..header_response.clone()
-                };
+                let icon_response = header_response.clone().with_new_rect(icon_rect);
                 if let Some(icon) = icon {
                     icon(ui, openness, &icon_response);
                 } else {

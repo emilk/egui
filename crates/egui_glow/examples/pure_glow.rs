@@ -29,11 +29,11 @@ impl GlutinWindowContext {
 
         // try egl and fallback to windows wgl. Windows is the only platform that *requires* window handle to create display.
         #[cfg(target_os = "windows")]
-        let preference = glutin::display::DisplayApiPreference::EglThenWgl(Some(window_handle));
+        let preference = glutin::display::DisplayApiPreference::EglThenWgl(Some(raw_window_handle));
         // try egl and fallback to x11 glx
         #[cfg(target_os = "linux")]
         let preference = glutin::display::DisplayApiPreference::EglThenGlx(Box::new(
-            winit::platform::unix::register_xlib_error_hook,
+            winit::platform::x11::register_xlib_error_hook,
         ));
         #[cfg(target_os = "macos")]
         let preference = glutin::display::DisplayApiPreference::Cgl;
