@@ -3,6 +3,7 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 
 
 ## Unreleased
+* Remove the `screen_reader` feature. Use the `accesskit` feature flag instead ([#2669](https://github.com/emilk/egui/pull/2669)).
 
 
 ## 0.20.1 - 2022-12-11

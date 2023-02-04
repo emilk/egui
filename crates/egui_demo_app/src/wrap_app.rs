@@ -175,8 +175,8 @@ impl eframe::App for WrapApp {
         eframe::set_value(storage, eframe::APP_KEY, &self.state);
     }
 
-    fn clear_color(&self, visuals: &egui::Visuals) -> egui::Rgba {
-        visuals.panel_fill.into()
+    fn clear_color(&self, visuals: &egui::Visuals) -> [f32; 4] {
+        visuals.panel_fill.to_normalized_gamma_f32()
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {

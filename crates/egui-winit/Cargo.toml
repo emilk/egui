@@ -14,8 +14,7 @@ keywords = ["winit", "egui", "gui", "gamedev"]
 include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [package.metadata.docs.rs]
-# Avoid speech-dispatcher dependencies - see https://docs.rs/crate/egui-winit/0.20.0/builds/695196
-features = ["document-features"]
+all-features = true
 
 
 [features]
@@ -36,9 +35,6 @@ links = ["webbrowser"]
 
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 puffin = ["dep:puffin"]
-
-## Experimental support for a screen reader.
-screen_reader = ["tts"]
 
 ## Allow serialization of [`WindowSettings`] using [`serde`](https://docs.rs/serde).
 serde = ["egui/serde", "dep:serde"]
@@ -66,9 +62,6 @@ accesskit_winit = { version = "0.8.1", optional = true }
 
 puffin = { version = "0.14", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
-
-# feature screen_reader
-tts = { version = "0.24", optional = true }
 
 webbrowser = { version = "0.8.3", optional = true }
 

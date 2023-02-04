@@ -3,6 +3,7 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 
 ## Unreleased
+* Remove the `screen_reader` feature ([#2669](https://github.com/emilk/egui/pull/2669)).
 
 
 ## 0.20.1 - 2022-12-11
