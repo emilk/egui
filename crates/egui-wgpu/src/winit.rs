@@ -407,6 +407,7 @@ impl Painter {
         Some(pixels)
     }
 
+    // Returns a vector with the frame's pixel data if it was requested.
     pub fn paint_and_update_textures(
         &mut self,
         pixels_per_point: f32,
@@ -547,7 +548,7 @@ impl Painter {
                 .submit(user_cmd_bufs.into_iter().chain(std::iter::once(encoded)));
         };
 
-        let out = if capture {
+        let pixel_data = if capture {
             let screen_capture_state = self.screen_capture_state.as_ref()?;
             Self::read_screen_rgba(screen_capture_state, render_state, &output_frame)
         } else {
@@ -558,7 +559,7 @@ impl Painter {
             crate::profile_scope!("present");
             output_frame.present();
         }
-        out
+        pixel_data
     }
 
     #[allow(clippy::unused_self)]
