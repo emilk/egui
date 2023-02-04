@@ -10,7 +10,6 @@ use wasm_bindgen::prelude::*;
 static AGENT_ID: &str = "egui_text_agent";
 
 pub fn text_agent() -> web_sys::HtmlInputElement {
-    use wasm_bindgen::JsCast;
     web_sys::window()
         .unwrap()
         .document()
@@ -23,7 +22,6 @@ pub fn text_agent() -> web_sys::HtmlInputElement {
 
 /// Text event handler,
 pub fn install_text_agent(runner_container: &mut AppRunnerContainer) -> Result<(), JsValue> {
-    use wasm_bindgen::JsCast;
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
     let body = document.body().expect("document should have a body");
@@ -129,7 +127,6 @@ pub fn install_text_agent(runner_container: &mut AppRunnerContainer) -> Result<(
 
 /// Focus or blur text agent to toggle mobile keyboard.
 pub fn update_text_agent(runner: MutexGuard<'_, AppRunner>) -> Option<()> {
-    use wasm_bindgen::JsCast;
     use web_sys::HtmlInputElement;
     let window = web_sys::window()?;
     let document = window.document()?;

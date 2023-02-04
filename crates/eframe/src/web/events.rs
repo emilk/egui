@@ -31,7 +31,6 @@ pub fn paint_and_schedule(
         runner_ref: AppRunnerRef,
         panicked: Arc<AtomicBool>,
     ) -> Result<(), JsValue> {
-        use wasm_bindgen::JsCast;
         let window = web_sys::window().unwrap();
         let closure = Closure::once(move || paint_and_schedule(&runner_ref, panicked));
         window.request_animation_frame(closure.as_ref().unchecked_ref())?;
