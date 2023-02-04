@@ -29,11 +29,14 @@ deny = [
 ]
 
 skip = [
-    { name = "ahash" },      # old version via dark-light
-    { name = "arrayvec" },   # old version via tiny-skiaz
-    { name = "hashbrown" },  # old version via dark-light
-    { name = "time" },       # old version pulled in by unmaintianed crate 'chrono'
-    { name = "ttf-parser" }, # different versions pulled in by ab_glyph and usvg
+    { name = "ahash" },       # old version via dark-light
+    { name = "arrayvec" },    # old version via tiny-skiaz
+    { name = "hashbrown" },   # old version via dark-light
+    { name = "time" },        # old version pulled in by unmaintianed crate 'chrono'
+    { name = "ttf-parser" },  # different versions pulled in by ab_glyph and usvg
+    { name = "windows-sys" }, # old version via glutin
+    { name = "wayland-sys" }, # old version via winit
+    { name = "nix" },         # old version via winit
 ]
 skip-tree = [
     { name = "criterion" }, # dev-dependency
