@@ -103,9 +103,15 @@ pub struct Options {
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,
 
-    /// This does not at all change the behavior of egui,
-    /// but is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
+    /// This is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
+    ///
+    /// The only change to egui is that labels can be focused by pressing tab.
+    ///
     /// Screen readers is an experimental feature of egui, and not supported on all platforms.
+    ///
+    /// `eframe` supports it only on web, using the `web_screen_reader` feature flag,
+    /// but you should consider using [AccessKit](https://github.com/AccessKit/accesskit) instead,
+    /// which `eframe` supports.
     pub screen_reader: bool,
 
     /// If true, the most common glyphs (ASCII) are pre-rendered to the texture atlas.
