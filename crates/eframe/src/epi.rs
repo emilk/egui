@@ -718,6 +718,18 @@ impl Frame {
         self.output.close = true;
     }
 
+    /// Minimize or unminimize window. (native only)
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn set_minimized(&mut self, minimized: bool) {
+        self.output.minimized = Some(minimized);
+    }
+
+    /// Maximize or unmaximize window. (native only)
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn set_maximized(&mut self, maximized: bool) {
+        self.output.maximized = Some(maximized);
+    }
+
     /// Tell `eframe` to close the desktop window.
     #[cfg(not(target_arch = "wasm32"))]
     #[deprecated = "Renamed `close`"]
@@ -1011,5 +1023,13 @@ pub(crate) mod backend {
         /// Set to some bool to tell the window always on top.
         #[cfg(not(target_arch = "wasm32"))]
         pub always_on_top: Option<bool>,
+
+        /// Set to some bool to minimize or unminimize window.
+        #[cfg(not(target_arch = "wasm32"))]
+        pub minimized: Option<bool>,
+
+        /// Set to some bool to maximize or unmaximize window.
+        #[cfg(not(target_arch = "wasm32"))]
+        pub maximized: Option<bool>,
     }
 }
