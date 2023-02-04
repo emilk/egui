@@ -5,7 +5,7 @@ cd "$script_path/.."
 
 CRATE_NAME="egui_demo_app"
  # NOTE: persistence use up about 400kB (10%) of the WASM!
-FEATURES="glow,http,persistence,screen_reader"
+FEATURES="glow,http,persistence,web_screen_reader"
 
 OPEN=false
 OPTIMIZE=false
