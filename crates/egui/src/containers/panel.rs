@@ -297,12 +297,12 @@ impl SidePanel {
 
         {
             let stroke = if is_resizing {
-                ui.style().visuals.widgets.active.bg_stroke
+                ui.style().visuals.widgets.active.fg_stroke // highly visible
             } else if resize_hover {
-                ui.style().visuals.widgets.hovered.bg_stroke
+                ui.style().visuals.widgets.hovered.fg_stroke // highly visible
             } else if show_separator_line {
                 // TOOD(emilk): distinguish resizable from non-resizable
-                ui.style().visuals.widgets.noninteractive.bg_stroke
+                ui.style().visuals.widgets.noninteractive.bg_stroke // dim
             } else {
                 Stroke::NONE
             };
@@ -748,12 +748,12 @@ impl TopBottomPanel {
 
         {
             let stroke = if is_resizing {
-                ui.style().visuals.widgets.active.bg_stroke
+                ui.style().visuals.widgets.active.fg_stroke // highly visible
             } else if resize_hover {
-                ui.style().visuals.widgets.hovered.bg_stroke
+                ui.style().visuals.widgets.hovered.fg_stroke // highly visible
             } else if show_separator_line {
                 // TOOD(emilk): distinguish resizable from non-resizable
-                ui.style().visuals.widgets.noninteractive.bg_stroke
+                ui.style().visuals.widgets.noninteractive.bg_stroke // dim
             } else {
                 Stroke::NONE
             };

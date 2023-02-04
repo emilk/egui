@@ -20,8 +20,7 @@ include = [
 ]
 
 [package.metadata.docs.rs]
-# Avoid speech-dispatcher dependencies - see https://docs.rs/crate/egui_glow/0.20.0/builds/695194
-features = ["document-features"]
+all-features = true
 
 
 [features]
@@ -36,9 +35,6 @@ clipboard = ["egui-winit?/clipboard"]
 ## For the `winit` integration:
 ## enable opening links in a browser when an egui hyperlink is clicked.
 links = ["egui-winit?/links"]
-
-## Experimental support for a screen reader.
-screen_reader = ["egui-winit?/screen_reader"]
 
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 puffin = ["dep:puffin", "egui-winit?/puffin"]

@@ -61,7 +61,7 @@ impl Widget for SelectableLabel {
 
             let visuals = ui.style().interact_selectable(&response, selected);
 
-            if selected || response.hovered() || response.has_focus() {
+            if selected || response.hovered() || response.highlighted() || response.has_focus() {
                 let rect = rect.expand(visuals.expansion);
 
                 ui.painter().rect(

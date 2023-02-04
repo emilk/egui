@@ -43,13 +43,13 @@ epaint = { version = "0.20.0", path = "../epaint", default-features = false, fea
 bytemuck = "1.7"
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 type-map = "0.5.0"
-wgpu = "0.14"
+wgpu = "0.15.0"
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
 
-winit = { version = "0.27.2", optional = true }
+winit = { version = "0.28", optional = true }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

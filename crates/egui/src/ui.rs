@@ -1572,7 +1572,7 @@ impl Ui {
     /// }
     /// ```
     ///
-    /// Se also [`crate::Image`] and [`crate::ImageButton`].
+    /// See also [`crate::Image`] and [`crate::ImageButton`].
     #[inline]
     pub fn image(&mut self, texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {
         Image::new(texture_id, size).ui(self)
@@ -1789,24 +1789,31 @@ impl Ui {
         };
         let ret = add_contents(&mut child_ui);
 
+        let left_vline = self.visuals().indent_has_left_vline;
         let end_with_horizontal_line = self.spacing().indent_ends_with_horizontal_line;
 
-        if end_with_horizontal_line {
-            child_ui.add_space(4.0);
-        }
+        if left_vline || end_with_horizontal_line {
+            if end_with_horizontal_line {
+                child_ui.add_space(4.0);
+            }
 
-        // draw a faint line on the left to mark the indented section
-        let stroke = self.visuals().widgets.noninteractive.bg_stroke;
-        let left_top = child_rect.min - 0.5 * indent * Vec2::X;
-        let left_top = self.painter().round_pos_to_pixels(left_top);
-        let left_bottom = pos2(left_top.x, child_ui.min_rect().bottom() - 2.0);
-        let left_bottom = self.painter().round_pos_to_pixels(left_bottom);
-        self.painter.line_segment([left_top, left_bottom], stroke);
-        if end_with_horizontal_line {
-            let fudge = 2.0; // looks nicer with button rounding in collapsing headers
-            let right_bottom = pos2(child_ui.min_rect().right() - fudge, left_bottom.y);
-            self.painter
-                .line_segment([left_bottom, right_bottom], stroke);
+            let stroke = self.visuals().widgets.noninteractive.bg_stroke;
+            let left_top = child_rect.min - 0.5 * indent * Vec2::X;
+            let left_top = self.painter().round_pos_to_pixels(left_top);
+            let left_bottom = pos2(left_top.x, child_ui.min_rect().bottom() - 2.0);
+            let left_bottom = self.painter().round_pos_to_pixels(left_bottom);
+
+            if left_vline {
+                // draw a faint line on the left to mark the indented section
+                self.painter.line_segment([left_top, left_bottom], stroke);
+            }
+
+            if end_with_horizontal_line {
+                let fudge = 2.0; // looks nicer with button rounding in collapsing headers
+                let right_bottom = pos2(child_ui.min_rect().right() - fudge, left_bottom.y);
+                self.painter
+                    .line_segment([left_bottom, right_bottom], stroke);
+            }
         }
 
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());

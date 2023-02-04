@@ -456,6 +456,8 @@ impl<'a> Widget for DragValue<'a> {
             }
         };
 
+        let text_style = ui.style().drag_value_text_style.clone();
+
         // some clones below are redundant if AccessKit is disabled
         #[allow(clippy::redundant_clone)]
         let mut response = if is_kb_editing {
@@ -467,7 +469,7 @@ impl<'a> Widget for DragValue<'a> {
                 TextEdit::singleline(&mut value_text)
                     .id(id)
                     .desired_width(button_width)
-                    .font(TextStyle::Monospace),
+                    .font(text_style),
             );
             let parsed_value = match custom_parser {
                 Some(parser) => parser(&value_text),
@@ -481,7 +483,8 @@ impl<'a> Widget for DragValue<'a> {
             response
         } else {
             let button = Button::new(
-                RichText::new(format!("{}{}{}", prefix, value_text.clone(), suffix)).monospace(),
+                RichText::new(format!("{}{}{}", prefix, value_text.clone(), suffix))
+                    .text_style(text_style),
             )
             .wrap(false)
             .sense(Sense::click_and_drag())
@@ -504,6 +507,12 @@ impl<'a> Widget for DragValue<'a> {
                     mem.drag_value.edit_string = None;
                     mem.request_focus(id);
                 });
+                let mut state = TextEdit::load_state(ui.ctx(), id).unwrap_or_default();
+                state.set_ccursor_range(Some(text::CCursorRange::two(
+                    epaint::text::cursor::CCursor::default(),
+                    epaint::text::cursor::CCursor::new(value_text.chars().count()),
+                )));
+                state.store(ui.ctx(), response.id);
             } else if response.dragged() {
                 ui.ctx().set_cursor_icon(CursorIcon::ResizeHorizontal);
 

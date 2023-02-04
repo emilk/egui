@@ -10,8 +10,8 @@ fn main() -> Result<(), eframe::Error> {
         decorated: false,
         // To have rounded corners we need transparency:
         transparent: true,
-        min_window_size: Some(egui::vec2(320.0, 100.0)),
-        initial_window_size: Some(egui::vec2(320.0, 240.0)),
+        min_window_size: Some(egui::vec2(400.0, 100.0)),
+        initial_window_size: Some(egui::vec2(400.0, 240.0)),
         ..Default::default()
     };
     eframe::run_native(
@@ -25,8 +25,8 @@ fn main() -> Result<(), eframe::Error> {
 struct MyApp {}
 
 impl eframe::App for MyApp {
-    fn clear_color(&self, _visuals: &egui::Visuals) -> egui::Rgba {
-        egui::Rgba::TRANSPARENT // Make sure we don't paint anything behind the rounded corners
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        egui::Rgba::TRANSPARENT.to_array() // Make sure we don't paint anything behind the rounded corners
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
@@ -51,6 +51,8 @@ fn custom_window_frame(
 
     // Height of the title bar
     let height = 28.0;
+
+    let button_height = 16.0;
 
     CentralPanel::default()
         .frame(Frame::none())
@@ -92,18 +94,49 @@ fn custom_window_frame(
             };
             let title_bar_response =
                 ui.interact(title_bar_rect, Id::new("title_bar"), Sense::click());
-            if title_bar_response.is_pointer_button_down_on() {
+
+            if title_bar_response.double_clicked() {
+                frame.set_maximized(!frame.info().window_info.maximized);
+            } else if title_bar_response.is_pointer_button_down_on() {
                 frame.drag_window();
             }
 
-            // Add the close button:
-            let close_response = ui.put(
-                Rect::from_min_size(rect.left_top(), Vec2::splat(height)),
-                Button::new(RichText::new("❌").size(height - 4.0)).frame(false),
-            );
-            if close_response.clicked() {
-                frame.close();
-            }
+            ui.allocate_ui_at_rect(title_bar_rect, |ui| {
+                ui.horizontal_centered(|ui| {
+                    ui.spacing_mut().item_spacing.x = 0.0;
+                    ui.visuals_mut().button_frame = false;
+
+                    let close_response = ui
+                        .add(Button::new(RichText::new("❌").size(button_height)))
+                        .on_hover_text("Close the window");
+                    if close_response.clicked() {
+                        frame.close();
+                    }
+
+                    let minimized_response = ui
+                        .add(Button::new(RichText::new("🗕").size(button_height)))
+                        .on_hover_text("Minimize the window");
+                    if minimized_response.clicked() {
+                        frame.set_minimized(true);
+                    }
+
+                    if frame.info().window_info.maximized {
+                        let maximized_response = ui
+                            .add(Button::new(RichText::new("🗖").size(button_height)))
+                            .on_hover_text("Restore window");
+                        if maximized_response.clicked() {
+                            frame.set_maximized(false);
+                        }
+                    } else {
+                        let maximized_response = ui
+                            .add(Button::new(RichText::new("🗗").size(button_height)))
+                            .on_hover_text("Maximize window");
+                        if maximized_response.clicked() {
+                            frame.set_maximized(true);
+                        }
+                    }
+                });
+            });
 
             // Add the contents:
             let content_rect = {
