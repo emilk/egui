@@ -83,6 +83,7 @@ pub fn system_theme() -> Option<Theme> {
 }
 
 pub fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
+    use wasm_bindgen::JsCast;
     let document = web_sys::window()?.document()?;
     let canvas = document.get_element_by_id(canvas_id)?;
     canvas.dyn_into::<web_sys::HtmlCanvasElement>().ok()

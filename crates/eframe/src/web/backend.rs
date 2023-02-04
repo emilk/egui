@@ -450,6 +450,8 @@ pub enum EventToUnsubscribe {
 
 impl EventToUnsubscribe {
     pub fn unsubscribe(self) -> Result<(), JsValue> {
+        use wasm_bindgen::JsCast;
+
         match self {
             EventToUnsubscribe::TargetEvent(handle) => {
                 handle.target.remove_event_listener_with_callback(
@@ -484,6 +486,8 @@ impl AppRunnerContainer {
         event_name: &'static str,
         mut closure: impl FnMut(E, MutexGuard<'_, AppRunner>) + 'static,
     ) -> Result<(), JsValue> {
+        use wasm_bindgen::JsCast;
+
         // Create a JS closure based on the FnMut provided
         let closure = Closure::wrap({
             // Clone atomics
