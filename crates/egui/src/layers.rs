@@ -109,7 +109,7 @@ impl LayerId {
 }
 
 /// A unique identifier of a specific [`Shape`] in a [`PaintList`].
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct ShapeIdx(usize);
 
 /// A list of [`Shape`]s paired with a clip rectangle.

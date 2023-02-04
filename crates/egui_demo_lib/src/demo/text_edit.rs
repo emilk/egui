@@ -1,5 +1,5 @@
 /// Showcase [`TextEdit`].
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct TextEdit {
@@ -65,10 +65,7 @@ impl super::View for TextEdit {
             egui::Label::new("Press ctrl+Y to toggle the case of selected text (cmd+Y on Mac)"),
         );
 
-        if ui
-            .input_mut()
-            .consume_key(egui::Modifiers::COMMAND, egui::Key::Y)
-        {
+        if ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Y)) {
             if let Some(text_cursor_range) = output.cursor_range {
                 use egui::TextBuffer as _;
                 let selected_chars = text_cursor_range.as_sorted_char_range();
@@ -93,7 +90,7 @@ impl super::View for TextEdit {
                     let ccursor = egui::text::CCursor::new(0);
                     state.set_ccursor_range(Some(egui::text::CCursorRange::one(ccursor)));
                     state.store(ui.ctx(), text_edit_id);
-                    ui.ctx().memory().request_focus(text_edit_id); // give focus back to the [`TextEdit`].
+                    ui.ctx().memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
                 }
             }
 
@@ -103,7 +100,7 @@ impl super::View for TextEdit {
                     let ccursor = egui::text::CCursor::new(text.chars().count());
                     state.set_ccursor_range(Some(egui::text::CCursorRange::one(ccursor)));
                     state.store(ui.ctx(), text_edit_id);
-                    ui.ctx().memory().request_focus(text_edit_id); // give focus back to the [`TextEdit`].
+                    ui.ctx().memory_mut(|mem| mem.request_focus(text_edit_id)); // give focus back to the [`TextEdit`].
                 }
             }
         });

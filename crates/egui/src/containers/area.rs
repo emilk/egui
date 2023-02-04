@@ -5,7 +5,7 @@
 use crate::*;
 
 /// State that is persisted between frames.
-// TODO(emilk): this is not currently stored in `memory().data`, but maybe it should be?
+// TODO(emilk): this is not currently stored in `Memory::data`, but maybe it should be?
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
@@ -192,11 +192,12 @@ pub(crate) struct Prepared {
     move_response: Response,
     enabled: bool,
     drag_bounds: Option<Rect>,
-    /// Set the first frame of new windows with anchors.
+
+    /// We always make windows invisible the first frame to hide "first-frame-jitters".
     ///
     /// This is so that we use the first frame to calculate the window size,
-    /// and then can correctly position the window the next frame,
-    /// without having one frame where the window is positioned in the wrong place.
+    /// and then can correctly position the window and its contents the next frame,
+    /// without having one frame where the window is wrongly positioned or sized.
     temporarily_invisible: bool,
 }
 
@@ -230,7 +231,7 @@ impl Area {
 
         let layer_id = LayerId::new(order, id);
 
-        let state = ctx.memory().areas.get(id).cloned();
+        let state = ctx.memory(|mem| mem.areas.get(id).copied());
         let is_new = state.is_none();
         if is_new {
             ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place
@@ -242,24 +243,15 @@ impl Area {
         });
         state.pos = new_pos.unwrap_or(state.pos);
         state.interactable = interactable;
-        let mut temporarily_invisible = false;
 
         if pivot != Align2::LEFT_TOP {
-            if is_new {
-                temporarily_invisible = true; // figure out the size first
-            } else {
-                state.pos.x -= pivot.x().to_factor() * state.size.x;
-                state.pos.y -= pivot.y().to_factor() * state.size.y;
-            }
+            state.pos.x -= pivot.x().to_factor() * state.size.x;
+            state.pos.y -= pivot.y().to_factor() * state.size.y;
         }
 
         if let Some((anchor, offset)) = anchor {
-            if is_new {
-                temporarily_invisible = true; // figure out the size first
-            } else {
-                let screen = ctx.available_rect();
-                state.pos = anchor.align_size_within_rect(state.size, screen).min + offset;
-            }
+            let screen = ctx.available_rect();
+            state.pos = anchor.align_size_within_rect(state.size, screen).min + offset;
         }
 
         // interact right away to prevent frame-delay
@@ -286,7 +278,7 @@ impl Area {
             // Important check - don't try to move e.g. a combobox popup!
             if movable {
                 if move_response.dragged() {
-                    state.pos += ctx.input().pointer.delta();
+                    state.pos += ctx.input(|i| i.pointer.delta());
                 }
 
                 state.pos = ctx
@@ -296,9 +288,9 @@ impl Area {
 
             if (move_response.dragged() || move_response.clicked())
                 || pointer_pressed_on_area(ctx, layer_id)
-                || !ctx.memory().areas.visible_last_frame(&layer_id)
+                || !ctx.memory(|m| m.areas.visible_last_frame(&layer_id))
             {
-                ctx.memory().areas.move_to_top(layer_id);
+                ctx.memory_mut(|m| m.areas.move_to_top(layer_id));
                 ctx.request_repaint();
             }
 
@@ -319,7 +311,7 @@ impl Area {
             move_response,
             enabled,
             drag_bounds,
-            temporarily_invisible,
+            temporarily_invisible: is_new,
         }
     }
 
@@ -337,7 +329,7 @@ impl Area {
         }
 
         let layer_id = LayerId::new(self.order, self.id);
-        let area_rect = ctx.memory().areas.get(self.id).map(|area| area.rect());
+        let area_rect = ctx.memory(|mem| mem.areas.get(self.id).map(|area| area.rect()));
         if let Some(area_rect) = area_rect {
             let clip_rect = ctx.available_rect();
             let painter = Painter::new(ctx.clone(), layer_id, clip_rect);
@@ -366,7 +358,7 @@ impl Prepared {
     }
 
     pub(crate) fn content_ui(&self, ctx: &Context) -> Ui {
-        let screen_rect = ctx.input().screen_rect();
+        let screen_rect = ctx.screen_rect();
 
         let bounds = if let Some(bounds) = self.drag_bounds {
             bounds.intersect(screen_rect) // protect against infinite bounds
@@ -418,7 +410,7 @@ impl Prepared {
 
         state.size = content_ui.min_rect().size();
 
-        ctx.memory().areas.set_state(layer_id, state);
+        ctx.memory_mut(|m| m.areas.set_state(layer_id, state));
 
         move_response
     }
@@ -426,7 +418,7 @@ impl Prepared {
 
 fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
     if let Some(pointer_pos) = ctx.pointer_interact_pos() {
-        let any_pressed = ctx.input().pointer.any_pressed();
+        let any_pressed = ctx.input(|i| i.pointer.any_pressed());
         any_pressed && ctx.layer_id_at(pointer_pos) == Some(layer_id)
     } else {
         false
@@ -434,13 +426,13 @@ fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
 }
 
 fn automatic_area_position(ctx: &Context) -> Pos2 {
-    let mut existing: Vec<Rect> = ctx
-        .memory()
-        .areas
-        .visible_windows()
-        .into_iter()
-        .map(State::rect)
-        .collect();
+    let mut existing: Vec<Rect> = ctx.memory(|mem| {
+        mem.areas
+            .visible_windows()
+            .into_iter()
+            .map(State::rect)
+            .collect()
+    });
     existing.sort_by_key(|r| r.left().round() as i32);
 
     let available_rect = ctx.available_rect();

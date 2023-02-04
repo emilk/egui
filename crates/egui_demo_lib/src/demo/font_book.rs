@@ -93,7 +93,7 @@ impl super::View for FontBook {
                         };
 
                         if ui.add(button).on_hover_ui(tooltip_ui).clicked() {
-                            ui.output().copied_text = chr.to_string();
+                            ui.output_mut(|o| o.copied_text = chr.to_string());
                         }
                     }
                 }
@@ -103,15 +103,16 @@ impl super::View for FontBook {
 }
 
 fn available_characters(ui: &egui::Ui, family: egui::FontFamily) -> BTreeMap<char, String> {
-    ui.fonts()
-        .lock()
-        .fonts
-        .font(&egui::FontId::new(10.0, family)) // size is arbitrary for getting the characters
-        .characters()
-        .iter()
-        .filter(|chr| !chr.is_whitespace() && !chr.is_ascii_control())
-        .map(|&chr| (chr, char_name(chr)))
-        .collect()
+    ui.fonts(|f| {
+        f.lock()
+            .fonts
+            .font(&egui::FontId::new(10.0, family)) // size is arbitrary for getting the characters
+            .characters()
+            .iter()
+            .filter(|chr| !chr.is_whitespace() && !chr.is_ascii_control())
+            .map(|&chr| (chr, char_name(chr)))
+            .collect()
+    })
 }
 
 fn char_name(chr: char) -> String {

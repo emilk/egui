@@ -26,6 +26,7 @@ impl FileStorage {
     /// Store the state in this .ron file.
     pub fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Self {
         let ron_filepath: PathBuf = ron_filepath.into();
+        tracing::debug!("Loading app state from {:?}…", ron_filepath);
         Self {
             kv: read_ron(&ron_filepath).unwrap_or_default(),
             ron_filepath,

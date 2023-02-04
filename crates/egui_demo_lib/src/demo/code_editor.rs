@@ -79,7 +79,7 @@ impl super::View for CodeEditor {
             let mut layout_job =
                 crate::syntax_highlighting::highlight(ui.ctx(), &theme, string, language);
             layout_job.wrap.max_width = wrap_width;
-            ui.fonts().layout_job(layout_job)
+            ui.fonts(|f| f.layout_job(layout_job))
         };
 
         egui::ScrollArea::vertical().show(ui, |ui| {

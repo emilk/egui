@@ -56,11 +56,11 @@ impl<'a> StripBuilder<'a> {
             ui,
             sizing: Default::default(),
             cell_layout,
-            clip: true,
+            clip: false,
         }
     }
 
-    /// Should we clip the contents of each cell? Default: `true`.
+    /// Should we clip the contents of each cell? Default: `false`.
     pub fn clip(mut self, clip: bool) -> Self {
         self.clip = clip;
         self
@@ -98,15 +98,11 @@ impl<'a> StripBuilder<'a> {
             self.ui.available_rect_before_wrap().width(),
             self.ui.spacing().item_spacing.x,
         );
-        let mut layout = StripLayout::new(
-            self.ui,
-            CellDirection::Horizontal,
-            self.clip,
-            self.cell_layout,
-        );
+        let mut layout = StripLayout::new(self.ui, CellDirection::Horizontal, self.cell_layout);
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Horizontal,
+            clip: self.clip,
             sizes: widths,
             size_index: 0,
         });
@@ -125,15 +121,11 @@ impl<'a> StripBuilder<'a> {
             self.ui.available_rect_before_wrap().height(),
             self.ui.spacing().item_spacing.y,
         );
-        let mut layout = StripLayout::new(
-            self.ui,
-            CellDirection::Vertical,
-            self.clip,
-            self.cell_layout,
-        );
+        let mut layout = StripLayout::new(self.ui, CellDirection::Vertical, self.cell_layout);
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Vertical,
+            clip: self.clip,
             sizes: heights,
             size_index: 0,
         });
@@ -146,11 +138,13 @@ impl<'a> StripBuilder<'a> {
 pub struct Strip<'a, 'b> {
     layout: &'b mut StripLayout<'a>,
     direction: CellDirection,
+    clip: bool,
     sizes: Vec<f32>,
     size_index: usize,
 }
 
 impl<'a, 'b> Strip<'a, 'b> {
+    #[cfg_attr(debug_assertions, track_caller)]
     fn next_cell_size(&mut self) -> (CellSize, CellSize) {
         let size = if let Some(size) = self.sizes.get(self.size_index) {
             self.size_index += 1;
@@ -170,12 +164,16 @@ impl<'a, 'b> Strip<'a, 'b> {
     }
 
     /// Add cell contents.
+    #[cfg_attr(debug_assertions, track_caller)]
     pub fn cell(&mut self, add_contents: impl FnOnce(&mut Ui)) {
         let (width, height) = self.next_cell_size();
-        self.layout.add(width, height, add_contents);
+        let striped = false;
+        self.layout
+            .add(self.clip, striped, width, height, add_contents);
     }
 
     /// Add an empty cell.
+    #[cfg_attr(debug_assertions, track_caller)]
     pub fn empty(&mut self) {
         let (width, height) = self.next_cell_size();
         self.layout.empty(width, height);
@@ -183,7 +181,7 @@ impl<'a, 'b> Strip<'a, 'b> {
 
     /// Add a strip as cell.
     pub fn strip(&mut self, strip_builder: impl FnOnce(StripBuilder<'_>)) {
-        let clip = self.layout.clip;
+        let clip = self.clip;
         self.cell(|ui| {
             strip_builder(StripBuilder::new(ui).clip(clip));
         });

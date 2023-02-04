@@ -4,7 +4,7 @@
 use eframe::egui;
 
 #[cfg(not(target_arch = "wasm32"))]
-fn main() {
+fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(550.0, 610.0)),
         multisampling: 8,
@@ -16,7 +16,7 @@ fn main() {
         "Custom 3D painting in eframe!",
         options,
         Box::new(|cc| Box::new(MyApp::new(cc))),
-    );
+    )
 }
 
 pub struct MyApp {

@@ -14,7 +14,7 @@ fn heading3() -> TextStyle {
 }
 
 fn configure_text_styles(ctx: &egui::Context) {
-    use FontFamily::Proportional;
+    use FontFamily::{Monospace, Proportional};
 
     let mut style = (*ctx.style()).clone();
     style.text_styles = [
@@ -22,7 +22,7 @@ fn configure_text_styles(ctx: &egui::Context) {
         (heading2(), FontId::new(22.0, Proportional)),
         (heading3(), FontId::new(19.0, Proportional)),
         (TextStyle::Body, FontId::new(16.0, Proportional)),
-        (TextStyle::Monospace, FontId::new(12.0, Proportional)),
+        (TextStyle::Monospace, FontId::new(12.0, Monospace)),
         (TextStyle::Button, FontId::new(12.0, Proportional)),
         (TextStyle::Small, FontId::new(8.0, Proportional)),
     ]
@@ -36,7 +36,7 @@ fn content(ui: &mut egui::Ui) {
     ui.label(LOREM_IPSUM);
     ui.add_space(15.);
     ui.label(RichText::new("Sub Heading").text_style(heading2()).strong());
-    ui.label(LOREM_IPSUM);
+    ui.monospace(LOREM_IPSUM);
     ui.add_space(15.);
     ui.label(RichText::new("Context").text_style(heading3()).strong());
     ui.add_space(5.);
@@ -58,14 +58,14 @@ impl eframe::App for MyApp {
     }
 }
 
-fn main() {
+fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions::default();
 
     eframe::run_native(
         "egui example: global font style",
         options,
         Box::new(|cc| Box::new(MyApp::new(cc))),
-    );
+    )
 }
 
 pub const LOREM_IPSUM: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";

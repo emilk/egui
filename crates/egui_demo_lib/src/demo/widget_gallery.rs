@@ -20,7 +20,7 @@ pub struct WidgetGallery {
 
     #[cfg(feature = "chrono")]
     #[cfg_attr(feature = "serde", serde(skip))]
-    date: Option<chrono::Date<chrono::Utc>>,
+    date: Option<chrono::NaiveDate>,
 
     #[cfg_attr(feature = "serde", serde(skip))]
     texture: Option<egui::TextureHandle>,
@@ -175,6 +175,8 @@ impl WidgetGallery {
         egui::ComboBox::from_label("Take your pick")
             .selected_text(format!("{:?}", radio))
             .show_ui(ui, |ui| {
+                ui.style_mut().wrap = Some(false);
+                ui.set_min_width(60.0);
                 ui.selectable_value(radio, Enum::First, "First");
                 ui.selectable_value(radio, Enum::Second, "Second");
                 ui.selectable_value(radio, Enum::Third, "Third");
@@ -218,7 +220,7 @@ impl WidgetGallery {
 
         #[cfg(feature = "chrono")]
         {
-            let date = date.get_or_insert_with(|| chrono::offset::Utc::now().date());
+            let date = date.get_or_insert_with(|| chrono::offset::Utc::now().date_naive());
             ui.add(doc_link_label("DatePickerButton", "DatePickerButton"));
             ui.add(egui_extras::DatePickerButton::new(date));
             ui.end_row();

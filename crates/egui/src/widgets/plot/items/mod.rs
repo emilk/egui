@@ -34,6 +34,7 @@ pub(super) struct PlotConfig<'a> {
 pub(super) trait PlotItem {
     fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>);
 
+    /// For plot-items which are generated based on x values (plotting functions).
     fn initialize(&mut self, x_range: RangeInclusive<f64>);
 
     fn name(&self) -> &str;
@@ -176,7 +177,7 @@ impl HLine {
 }
 
 impl PlotItem for HLine {
-    fn shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let HLine {
             y,
             stroke,
@@ -184,9 +185,15 @@ impl PlotItem for HLine {
             style,
             ..
         } = self;
+
+        // Round to minimize aliasing:
         let points = vec![
-            transform.position_from_point(&PlotPoint::new(transform.bounds().min[0], *y)),
-            transform.position_from_point(&PlotPoint::new(transform.bounds().max[0], *y)),
+            ui.ctx().round_pos_to_pixels(
+                transform.position_from_point(&PlotPoint::new(transform.bounds().min[0], *y)),
+            ),
+            ui.ctx().round_pos_to_pixels(
+                transform.position_from_point(&PlotPoint::new(transform.bounds().max[0], *y)),
+            ),
         ];
         style.style_line(points, *stroke, *highlight, shapes);
     }
@@ -286,7 +293,7 @@ impl VLine {
 }
 
 impl PlotItem for VLine {
-    fn shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
         let VLine {
             x,
             stroke,
@@ -294,9 +301,15 @@ impl PlotItem for VLine {
             style,
             ..
         } = self;
+
+        // Round to minimize aliasing:
         let points = vec![
-            transform.position_from_point(&PlotPoint::new(*x, transform.bounds().min[1])),
-            transform.position_from_point(&PlotPoint::new(*x, transform.bounds().max[1])),
+            ui.ctx().round_pos_to_pixels(
+                transform.position_from_point(&PlotPoint::new(*x, transform.bounds().min[1])),
+            ),
+            ui.ctx().round_pos_to_pixels(
+                transform.position_from_point(&PlotPoint::new(*x, transform.bounds().max[1])),
+            ),
         ];
         style.style_line(points, *stroke, *highlight, shapes);
     }
@@ -406,7 +419,7 @@ impl Line {
 /// a horizontal line at the given y-coordinate.
 fn y_intersection(p1: &Pos2, p2: &Pos2, y: f32) -> Option<f32> {
     ((p1.y > y && p2.y < y) || (p1.y < y && p2.y > y))
-        .then(|| ((y * (p1.x - p2.x)) - (p1.x * p2.y - p1.y * p2.x)) / (p1.y - p2.y))
+        .then_some(((y * (p1.x - p2.x)) - (p1.x * p2.y - p1.y * p2.x)) / (p1.y - p2.y))
 }
 
 impl PlotItem for Line {
@@ -593,7 +606,7 @@ impl PlotItem for Polygon {
 
         let fill = Rgba::from(stroke.color).to_opaque().multiply(fill_alpha);
 
-        let shape = Shape::convex_polygon(values_tf.clone(), fill, Stroke::none());
+        let shape = Shape::convex_polygon(values_tf.clone(), fill, Stroke::NONE);
         shapes.push(shape);
         values_tf.push(*values_tf.first().unwrap());
         style.style_line(values_tf, *stroke, *highlight, shapes);
@@ -843,10 +856,11 @@ impl PlotItem for Points {
 
         let default_stroke = Stroke::new(stroke_size, *color);
         let mut stem_stroke = default_stroke;
-        let stroke = (!filled)
-            .then(|| default_stroke)
-            .unwrap_or_else(Stroke::none);
-        let fill = filled.then(|| *color).unwrap_or_default();
+        let (fill, stroke) = if *filled {
+            (*color, Stroke::NONE)
+        } else {
+            (Color32::TRANSPARENT, default_stroke)
+        };
 
         if *highlight {
             radius *= 2f32.sqrt();
@@ -1634,6 +1648,7 @@ fn add_rulers_and_text(
         let mut text = elem.name().to_owned(); // could be empty
 
         if show_values {
+            text.push('\n');
             text.push_str(&elem.default_values_format(plot.transform));
         }
 
@@ -1643,14 +1658,16 @@ fn add_rulers_and_text(
     let font_id = TextStyle::Body.resolve(plot.ui.style());
 
     let corner_value = elem.corner_value();
-    shapes.push(Shape::text(
-        &*plot.ui.fonts(),
-        plot.transform.position_from_point(&corner_value) + vec2(3.0, -2.0),
-        Align2::LEFT_BOTTOM,
-        text,
-        font_id,
-        plot.ui.visuals().text_color(),
-    ));
+    plot.ui.fonts(|f| {
+        shapes.push(Shape::text(
+            f,
+            plot.transform.position_from_point(&corner_value) + vec2(3.0, -2.0),
+            Align2::LEFT_BOTTOM,
+            text,
+            font_id,
+            plot.ui.visuals().text_color(),
+        ));
+    });
 }
 
 /// Draws a cross of horizontal and vertical ruler at the `pointer` position.
@@ -1680,8 +1697,8 @@ pub(super) fn rulers_at_value(
 
     let text = {
         let scale = plot.transform.dvalue_dpos();
-        let x_decimals = ((-scale[0].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
-        let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).at_most(6);
+        let x_decimals = ((-scale[0].abs().log10()).ceil().at_least(0.0) as usize).clamp(1, 6);
+        let y_decimals = ((-scale[1].abs().log10()).ceil().at_least(0.0) as usize).clamp(1, 6);
         if let Some(custom_label) = label_formatter {
             custom_label(name, &value)
         } else if plot.show_x && plot.show_y {
@@ -1699,15 +1716,16 @@ pub(super) fn rulers_at_value(
     };
 
     let font_id = TextStyle::Body.resolve(plot.ui.style());
-
-    shapes.push(Shape::text(
-        &*plot.ui.fonts(),
-        pointer + vec2(3.0, -2.0),
-        Align2::LEFT_BOTTOM,
-        text,
-        font_id,
-        plot.ui.visuals().text_color(),
-    ));
+    plot.ui.fonts(|f| {
+        shapes.push(Shape::text(
+            f,
+            pointer + vec2(3.0, -2.0),
+            Align2::LEFT_BOTTOM,
+            text,
+            font_id,
+            plot.ui.visuals().text_color(),
+        ));
+    });
 }
 
 fn find_closest_rect<'a, T>(

@@ -2,16 +2,16 @@ mod button;
 mod popup;
 
 pub use button::DatePickerButton;
-use chrono::{Date, Datelike, Duration, NaiveDate, Utc, Weekday};
+use chrono::{Datelike, Duration, NaiveDate, Weekday};
 
 #[derive(Debug)]
 struct Week {
     number: u8,
-    days: Vec<Date<Utc>>,
+    days: Vec<NaiveDate>,
 }
 
 fn month_data(year: i32, month: u32) -> Vec<Week> {
-    let first = Date::from_utc(NaiveDate::from_ymd(year, month, 1), Utc);
+    let first = NaiveDate::from_ymd_opt(year, month, 1).expect("Could not create NaiveDate");
     let mut start = first;
     while start.weekday() != Weekday::Mon {
         start = start.checked_sub_signed(Duration::days(1)).unwrap();

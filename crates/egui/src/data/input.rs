@@ -133,7 +133,7 @@ impl RawInput {
 }
 
 /// A file about to be dropped into egui.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct HoveredFile {
     /// Set by the `egui-winit` backend.
@@ -144,7 +144,7 @@ pub struct HoveredFile {
 }
 
 /// A file dropped into egui.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DroppedFile {
     /// Set by the `egui-winit` backend.
@@ -186,6 +186,15 @@ pub enum Event {
 
         /// Was it pressed or released?
         pressed: bool,
+
+        /// If this is a `pressed` event, is it a key-repeat?
+        ///
+        /// On many platforms, holding down a key produces many repeated "pressed" events for it, so called key-repeats.
+        /// Sometimes you will want to ignore such events, and this lets you do that.
+        ///
+        /// egui will automatically detect such repeat events and mark them as such here.
+        /// Therefore, if you are writing an egui integration, you do not need to set this (just set it to `false`).
+        repeat: bool,
 
         /// The state of the modifier keys at the time of the event.
         modifiers: Modifiers,
@@ -268,6 +277,10 @@ pub enum Event {
         /// The value is in the range from 0.0 (no pressure) to 1.0 (maximum pressure).
         force: f32,
     },
+
+    /// An assistive technology (e.g. screen reader) requested an action.
+    #[cfg(feature = "accesskit")]
+    AccessKitActionRequest(accesskit::ActionRequest),
 }
 
 /// Mouse button (or similar for touch input)
@@ -301,7 +314,7 @@ pub const NUM_POINTER_BUTTONS: usize = 5;
 /// NOTE: For cross-platform uses, ALT+SHIFT is a bad combination of modifiers
 /// as on mac that is how you type special characters,
 /// so those key presses are usually not reported to egui.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Modifiers {
     /// Either of the alt keys are down (option ⌥ on Mac).
@@ -546,7 +559,7 @@ impl<'a> ModifierNames<'a> {
             append_if(modifiers.alt, self.alt);
             append_if(modifiers.mac_cmd || modifiers.command, self.mac_cmd);
         } else {
-            append_if(modifiers.ctrl, self.ctrl);
+            append_if(modifiers.ctrl || modifiers.command, self.ctrl);
             append_if(modifiers.alt, self.alt);
             append_if(modifiers.shift, self.shift);
         }
@@ -764,7 +777,7 @@ impl Key {
 ///
 /// Can be used with [`crate::InputState::consume_shortcut`]
 /// and [`crate::Context::format_shortcut`].
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct KeyboardShortcut {
     pub modifiers: Modifiers,
     pub key: Key,
@@ -787,6 +800,21 @@ impl KeyboardShortcut {
         }
         s
     }
+}
+
+#[test]
+fn format_kb_shortcut() {
+    let cmd_shift_f = KeyboardShortcut::new(Modifiers::COMMAND | Modifiers::SHIFT, Key::F);
+    assert_eq!(
+        cmd_shift_f.format(&ModifierNames::NAMES, false),
+        "Ctrl+Shift+F"
+    );
+    assert_eq!(
+        cmd_shift_f.format(&ModifierNames::NAMES, true),
+        "Shift+Cmd+F"
+    );
+    assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, false), "^⇧F");
+    assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, true), "⇧⌘F");
 }
 
 // ----------------------------------------------------------------------------

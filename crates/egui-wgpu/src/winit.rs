@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use egui::mutex::RwLock;
 use tracing::error;
 use wgpu::{Adapter, Instance, Surface};
+
+use epaint::mutex::RwLock;
 
 use crate::{renderer, RenderState, Renderer, SurfaceErrorAction, WgpuConfiguration};
 
@@ -41,12 +42,15 @@ impl Painter {
     /// a [`winit::window::Window`] with a valid `.raw_window_handle()`
     /// associated.
     pub fn new(configuration: WgpuConfiguration, msaa_samples: u32, depth_bits: u8) -> Self {
-        let instance = wgpu::Instance::new(configuration.backends);
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: configuration.backends,
+            dx12_shader_compiler: Default::default(), //
+        });
 
         Self {
             configuration,
             msaa_samples,
-            depth_format: (depth_bits > 0).then(|| wgpu::TextureFormat::Depth32Float),
+            depth_format: (depth_bits > 0).then_some(wgpu::TextureFormat::Depth32Float),
             depth_texture_view: None,
 
             instance,
@@ -60,26 +64,27 @@ impl Painter {
     ///
     /// Will return [`None`] if the render state has not been initialized yet.
     pub fn render_state(&self) -> Option<RenderState> {
-        self.render_state.as_ref().cloned()
+        self.render_state.clone()
     }
 
     async fn init_render_state(
         &self,
         adapter: &Adapter,
         target_format: wgpu::TextureFormat,
-    ) -> RenderState {
-        let (device, queue) =
-            pollster::block_on(adapter.request_device(&self.configuration.device_descriptor, None))
-                .unwrap();
-
-        let renderer = Renderer::new(&device, target_format, self.depth_format, self.msaa_samples);
-
-        RenderState {
-            device: Arc::new(device),
-            queue: Arc::new(queue),
-            target_format,
-            renderer: Arc::new(RwLock::new(renderer)),
-        }
+    ) -> Result<RenderState, wgpu::RequestDeviceError> {
+        adapter
+            .request_device(&self.configuration.device_descriptor, None)
+            .await
+            .map(|(device, queue)| {
+                let renderer =
+                    Renderer::new(&device, target_format, self.depth_format, self.msaa_samples);
+                RenderState {
+                    device: Arc::new(device),
+                    queue: Arc::new(queue),
+                    target_format,
+                    renderer: Arc::new(RwLock::new(renderer)),
+                }
+            })
     }
 
     // We want to defer the initialization of our render state until we have a surface
@@ -87,25 +92,33 @@ impl Painter {
     //
     // After we've initialized our render state once though we expect all future surfaces
     // will have the same format and so this render state will remain valid.
-    fn ensure_render_state_for_surface(&mut self, surface: &Surface) {
-        self.adapter.get_or_insert_with(|| {
-            pollster::block_on(self.instance.request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: self.configuration.power_preference,
-                compatible_surface: Some(surface),
-                force_fallback_adapter: false,
-            }))
-            .unwrap()
-        });
-
-        if self.render_state.is_none() {
-            let adapter = self.adapter.as_ref().unwrap();
-
-            let swapchain_format =
-                crate::preferred_framebuffer_format(&surface.get_supported_formats(adapter));
-
-            let rs = pollster::block_on(self.init_render_state(adapter, swapchain_format));
-            self.render_state = Some(rs);
+    async fn ensure_render_state_for_surface(
+        &mut self,
+        surface: &Surface,
+    ) -> Result<(), wgpu::RequestDeviceError> {
+        if self.adapter.is_none() {
+            self.adapter = self
+                .instance
+                .request_adapter(&wgpu::RequestAdapterOptions {
+                    power_preference: self.configuration.power_preference,
+                    compatible_surface: Some(surface),
+                    force_fallback_adapter: false,
+                })
+                .await;
         }
+        if self.render_state.is_none() {
+            match &self.adapter {
+                Some(adapter) => {
+                    let swapchain_format = crate::preferred_framebuffer_format(
+                        &surface.get_capabilities(adapter).formats,
+                    );
+                    let rs = self.init_render_state(adapter, swapchain_format).await?;
+                    self.render_state = Some(rs);
+                }
+                None => return Err(wgpu::RequestDeviceError {}),
+            }
+        }
+        Ok(())
     }
 
     fn configure_surface(&mut self, width_in_pixels: u32, height_in_pixels: u32) {
@@ -124,6 +137,7 @@ impl Painter {
             height: height_in_pixels,
             present_mode: self.configuration.present_mode,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            view_formats: vec![format],
         };
 
         let surface_state = self
@@ -161,12 +175,18 @@ impl Painter {
     /// The raw Window handle associated with the given `window` must be a valid object to create a
     /// surface upon and must remain valid for the lifetime of the created surface. (The surface may
     /// be cleared by passing `None`).
-    pub unsafe fn set_window(&mut self, window: Option<&winit::window::Window>) {
+    ///
+    /// # Errors
+    /// If the provided wgpu configuration does not match an available device.
+    pub async unsafe fn set_window(
+        &mut self,
+        window: Option<&winit::window::Window>,
+    ) -> Result<(), crate::WgpuError> {
         match window {
             Some(window) => {
-                let surface = self.instance.create_surface(&window);
+                let surface = self.instance.create_surface(&window)?;
 
-                self.ensure_render_state_for_surface(&surface);
+                self.ensure_render_state_for_surface(&surface).await?;
 
                 let size = window.inner_size();
                 let width = size.width;
@@ -176,12 +196,13 @@ impl Painter {
                     width,
                     height,
                 });
-                self.configure_surface(width, height);
+                self.resize_and_generate_depth_texture_view(width, height);
             }
             None => {
                 self.surface_state = None;
             }
         }
+        Ok(())
     }
 
     /// Returns the maximum texture dimension supported if known
@@ -195,28 +216,37 @@ impl Painter {
             .map(|rs| rs.device.limits().max_texture_dimension_2d as usize)
     }
 
+    fn resize_and_generate_depth_texture_view(
+        &mut self,
+        width_in_pixels: u32,
+        height_in_pixels: u32,
+    ) {
+        self.configure_surface(width_in_pixels, height_in_pixels);
+        let device = &self.render_state.as_ref().unwrap().device;
+        self.depth_texture_view = self.depth_format.map(|depth_format| {
+            device
+                .create_texture(&wgpu::TextureDescriptor {
+                    label: Some("egui_depth_texture"),
+                    size: wgpu::Extent3d {
+                        width: width_in_pixels,
+                        height: height_in_pixels,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: depth_format,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                        | wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[depth_format],
+                })
+                .create_view(&wgpu::TextureViewDescriptor::default())
+        });
+    }
+
     pub fn on_window_resized(&mut self, width_in_pixels: u32, height_in_pixels: u32) {
         if self.surface_state.is_some() {
-            self.configure_surface(width_in_pixels, height_in_pixels);
-            let device = &self.render_state.as_ref().unwrap().device;
-            self.depth_texture_view = self.depth_format.map(|depth_format| {
-                device
-                    .create_texture(&wgpu::TextureDescriptor {
-                        label: Some("egui_depth_texture"),
-                        size: wgpu::Extent3d {
-                            width: width_in_pixels,
-                            height: height_in_pixels,
-                            depth_or_array_layers: 1,
-                        },
-                        mip_level_count: 1,
-                        sample_count: 1,
-                        dimension: wgpu::TextureDimension::D2,
-                        format: depth_format,
-                        usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                            | wgpu::TextureUsages::TEXTURE_BINDING,
-                    })
-                    .create_view(&wgpu::TextureViewDescriptor::default())
-            });
+            self.resize_and_generate_depth_texture_view(width_in_pixels, height_in_pixels);
         } else {
             error!("Ignoring window resize notification with no surface created via Painter::set_window()");
         }
@@ -225,9 +255,9 @@ impl Painter {
     pub fn paint_and_update_textures(
         &mut self,
         pixels_per_point: f32,
-        clear_color: egui::Rgba,
-        clipped_primitives: &[egui::ClippedPrimitive],
-        textures_delta: &egui::TexturesDelta,
+        clear_color: [f32; 4],
+        clipped_primitives: &[epaint::ClippedPrimitive],
+        textures_delta: &epaint::textures::TexturesDelta,
     ) {
         crate::profile_function!();
 
@@ -305,10 +335,10 @@ impl Painter {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: clear_color.r() as f64,
-                            g: clear_color.g() as f64,
-                            b: clear_color.b() as f64,
-                            a: clear_color.a() as f64,
+                            r: clear_color[0] as f64,
+                            g: clear_color[1] as f64,
+                            b: clear_color[2] as f64,
+                            a: clear_color[3] as f64,
                         }),
                         store: true,
                     },

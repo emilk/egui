@@ -35,7 +35,6 @@ cargo doc --document-private-items --no-deps --all-features
 (cd crates/egui_demo_app && cargo check --no-default-features --features "wgpu")
 (cd crates/egui_demo_lib && cargo check --no-default-features)
 (cd crates/egui_extras && cargo check --no-default-features)
-(cd crates/egui_glium && cargo check --no-default-features)
 (cd crates/egui_glow && cargo check --no-default-features)
 (cd crates/egui-winit && cargo check --no-default-features --features "wayland")
 (cd crates/egui-winit && cargo check --no-default-features --features "winit/x11")
@@ -47,7 +46,6 @@ cargo doc --document-private-items --no-deps --all-features
 (cd crates/egui && cargo check --all-features)
 (cd crates/egui_demo_app && cargo check --all-features)
 (cd crates/egui_extras && cargo check --all-features)
-(cd crates/egui_glium && cargo check --all-features)
 (cd crates/egui_glow && cargo check --all-features)
 (cd crates/egui-winit && cargo check --all-features)
 (cd crates/emath && cargo check --all-features)
@@ -58,7 +56,9 @@ cargo doc --document-private-items --no-deps --all-features
 cargo cranky --target wasm32-unknown-unknown --all-features -p egui_demo_app --lib -- -D warnings
 
 # cargo install cargo-deny
-cargo deny check
+cargo deny --all-features --log-level error check
+cargo deny --all-features --log-level error --target wasm32-unknown-unknown check
+cargo deny --all-features --log-level error --target x86_64-unknown-linux-musl check
 
 # TODO(emilk): consider using https://github.com/taiki-e/cargo-hack or https://github.com/frewsxcv/cargo-all-features
 

@@ -20,13 +20,13 @@
 //!
 
 #![allow(clippy::float_cmp)]
-#![allow(clippy::manual_range_contains)]
 
 use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 
 // ----------------------------------------------------------------------------
 
 pub mod align;
+mod history;
 mod numeric;
 mod pos2;
 mod rect;
@@ -37,6 +37,7 @@ mod vec2;
 
 pub use {
     align::{Align, Align2},
+    history::History,
     numeric::*,
     pos2::*,
     rect::*,
@@ -86,6 +87,14 @@ impl Real for f64 {}
 // ----------------------------------------------------------------------------
 
 /// Linear interpolation.
+///
+/// ```
+/// # use emath::lerp;
+/// assert_eq!(lerp(1.0..=5.0, 0.0), 1.0);
+/// assert_eq!(lerp(1.0..=5.0, 0.5), 3.0);
+/// assert_eq!(lerp(1.0..=5.0, 1.0), 5.0);
+/// assert_eq!(lerp(1.0..=5.0, 2.0), 9.0);
+/// ```
 #[inline(always)]
 pub fn lerp<R, T>(range: RangeInclusive<R>, t: T) -> R
 where
@@ -93,6 +102,34 @@ where
     R: Copy + Add<R, Output = R>,
 {
     (T::one() - t) * *range.start() + t * *range.end()
+}
+
+/// Where in the range is this value? Returns 0-1 if within the range.
+///
+/// Returns <0 if before and >1 if after.
+///
+/// Returns `None` if the input range is zero-width.
+///
+/// ```
+/// # use emath::inverse_lerp;
+/// assert_eq!(inverse_lerp(1.0..=5.0, 1.0), Some(0.0));
+/// assert_eq!(inverse_lerp(1.0..=5.0, 3.0), Some(0.5));
+/// assert_eq!(inverse_lerp(1.0..=5.0, 5.0), Some(1.0));
+/// assert_eq!(inverse_lerp(1.0..=5.0, 9.0), Some(2.0));
+/// assert_eq!(inverse_lerp(1.0..=1.0, 3.0), None);
+/// ```
+#[inline]
+pub fn inverse_lerp<R>(range: RangeInclusive<R>, value: R) -> Option<R>
+where
+    R: Copy + PartialEq + Sub<R, Output = R> + Div<R, Output = R>,
+{
+    let min = *range.start();
+    let max = *range.end();
+    if min == max {
+        None
+    } else {
+        Some((value - min) / (max - min))
+    }
 }
 
 /// Linearly remap a value from one range to another,
@@ -241,9 +278,11 @@ fn test_remap() {
 /// Extends `f32`, [`Vec2`] etc with `at_least` and `at_most` as aliases for `max` and `min`.
 pub trait NumExt {
     /// More readable version of `self.max(lower_limit)`
+    #[must_use]
     fn at_least(self, lower_limit: Self) -> Self;
 
     /// More readable version of `self.min(upper_limit)`
+    #[must_use]
     fn at_most(self, upper_limit: Self) -> Self;
 }
 

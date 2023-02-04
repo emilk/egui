@@ -92,7 +92,8 @@ fn test_egui_zero_window_size() {
         let clipped_primitives = ctx.tessellate(full_output.shapes);
         assert!(
             clipped_primitives.is_empty(),
-            "There should be nothing to show"
+            "There should be nothing to show, has at least one primitive with clip_rect: {:?}",
+            clipped_primitives[0].clip_rect
         );
     }
 }
@@ -102,6 +103,6 @@ fn test_egui_zero_window_size() {
 /// Detect narrow screens. This is used to show a simpler UI on mobile devices,
 /// especially for the web demo at <https://egui.rs>.
 pub fn is_mobile(ctx: &egui::Context) -> bool {
-    let screen_size = ctx.input().screen_rect().size();
+    let screen_size = ctx.screen_rect().size();
     screen_size.x < 550.0
 }

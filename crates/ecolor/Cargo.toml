@@ -1,0 +1,50 @@
+[package]
+name = "ecolor"
+version = "0.20.0"
+authors = [
+  "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
+  "Andreas Reich <reichandreas@gmx.de>",
+]
+description = "Color structs and color conversion utilities"
+edition = "2021"
+rust-version = "1.65"
+homepage = "https://github.com/emilk/egui"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/emilk/egui"
+categories = ["mathematics", "encoding"]
+keywords = ["gui", "color", "conversion", "gamedev", "images"]
+include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lib]
+
+
+[features]
+default = []
+
+## Enable additional checks if debug assertions are enabled (debug builds).
+extra_debug_asserts = []
+## Always enable additional checks.
+extra_asserts = []
+
+
+[dependencies]
+#! ### Optional dependencies
+
+## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast `ecolor` types to `&[u8]`.
+bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
+
+## [`cint`](https://docs.rs/cint) enables interopability with other color libraries.
+cint = { version = "0.3.1", optional = true }
+
+## Enable the [`hex_color`] macro.
+color-hex = { version = "0.2.0", optional = true }
+
+## Enable this when generating docs.
+document-features = { version = "0.2", optional = true }
+
+## Allow serialization using [`serde`](https://docs.rs/serde).
+serde = { version = "1", optional = true, features = ["derive"] }

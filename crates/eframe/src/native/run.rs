@@ -1,19 +1,35 @@
 //! Note that this file contains two similar paths - one for [`glow`], one for [`wgpu`].
 //! When making changes to one you often also want to apply it to the other.
 
-use std::time::Duration;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
-use egui_winit::winit;
 use winit::event_loop::{
     ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget,
 };
 
+#[cfg(feature = "accesskit")]
+use egui_winit::accesskit_winit;
+use egui_winit::winit;
+
+use crate::{epi, Result};
+
 use super::epi_integration::{self, EpiIntegration};
-use crate::epi;
+
+// ----------------------------------------------------------------------------
 
 #[derive(Debug)]
-pub struct RequestRepaintEvent;
+pub enum UserEvent {
+    RequestRepaint,
+    #[cfg(feature = "accesskit")]
+    AccessKitActionRequest(accesskit_winit::ActionRequestEvent),
+}
+
+#[cfg(feature = "accesskit")]
+impl From<accesskit_winit::ActionRequestEvent> for UserEvent {
+    fn from(inner: accesskit_winit::ActionRequestEvent) -> Self {
+        Self::AccessKitActionRequest(inner)
+    }
+}
 
 // ----------------------------------------------------------------------------
 
@@ -45,14 +61,14 @@ trait WinitApp {
     fn paint(&mut self) -> EventResult;
     fn on_event(
         &mut self,
-        event_loop: &EventLoopWindowTarget<RequestRepaintEvent>,
-        event: &winit::event::Event<'_, RequestRepaintEvent>,
-    ) -> EventResult;
+        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event: &winit::event::Event<'_, UserEvent>,
+    ) -> Result<EventResult>;
 }
 
 fn create_event_loop_builder(
     native_options: &mut epi::NativeOptions,
-) -> EventLoopBuilder<RequestRepaintEvent> {
+) -> EventLoopBuilder<UserEvent> {
     let mut event_loop_builder = winit::event_loop::EventLoopBuilder::with_user_event();
 
     if let Some(hook) = std::mem::take(&mut native_options.event_loop_builder) {
@@ -66,12 +82,12 @@ fn create_event_loop_builder(
 ///
 /// We reuse the event-loop so we can support closing and opening an eframe window
 /// multiple times. This is just a limitation of winit.
-fn with_event_loop(
+fn with_event_loop<R>(
     mut native_options: epi::NativeOptions,
-    f: impl FnOnce(&mut EventLoop<RequestRepaintEvent>, NativeOptions),
-) {
+    f: impl FnOnce(&mut EventLoop<UserEvent>, NativeOptions) -> R,
+) -> R {
     use std::cell::RefCell;
-    thread_local!(static EVENT_LOOP: RefCell<Option<EventLoop<RequestRepaintEvent>>> = RefCell::new(None));
+    thread_local!(static EVENT_LOOP: RefCell<Option<EventLoop<UserEvent>>> = RefCell::new(None));
 
     EVENT_LOOP.with(|event_loop| {
         // Since we want to reference NativeOptions when creating the EventLoop we can't
@@ -80,22 +96,31 @@ fn with_event_loop(
         let mut event_loop = event_loop.borrow_mut();
         let event_loop = event_loop
             .get_or_insert_with(|| create_event_loop_builder(&mut native_options).build());
-        f(event_loop, native_options);
-    });
+        f(event_loop, native_options)
+    })
 }
 
-fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app: impl WinitApp) {
+fn run_and_return(
+    event_loop: &mut EventLoop<UserEvent>,
+    mut winit_app: impl WinitApp,
+) -> Result<()> {
     use winit::platform::run_return::EventLoopExtRunReturn as _;
 
-    tracing::debug!("event_loop.run_return");
+    tracing::debug!("Entering the winit event loop (run_return)…");
 
     let mut next_repaint_time = Instant::now();
+
+    let mut returned_result = Ok(());
 
     event_loop.run_return(|event, event_loop, control_flow| {
         let event_result = match &event {
             winit::event::Event::LoopDestroyed => {
-                tracing::debug!("winit::event::Event::LoopDestroyed");
-                EventResult::Exit
+                // On Mac, Cmd-Q we get here and then `run_return` doesn't return (despite its name),
+                // so we need to save state now:
+                tracing::debug!("Received Event::LoopDestroyed - saving app state…");
+                winit_app.save_and_destroy();
+                *control_flow = ControlFlow::Exit;
+                return;
             }
 
             // Platform-dependent event handlers to workaround a winit bug
@@ -110,7 +135,7 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
                 winit_app.paint()
             }
 
-            winit::event::Event::UserEvent(RequestRepaintEvent)
+            winit::event::Event::UserEvent(UserEvent::RequestRepaint)
             | winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
                 ..
             }) => EventResult::RepaintNext,
@@ -124,15 +149,28 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
                 EventResult::Wait
             }
 
-            event => winit_app.on_event(event_loop, event),
+            event => match winit_app.on_event(event_loop, event) {
+                Ok(event_result) => event_result,
+                Err(err) => {
+                    returned_result = Err(err);
+                    tracing::debug!("Exiting because of an error");
+                    EventResult::Exit
+                }
+            },
         };
 
         match event_result {
             EventResult::Wait => {}
             EventResult::RepaintNow => {
                 tracing::trace!("Repaint caused by winit::Event: {:?}", event);
-                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
-                winit_app.paint();
+                if cfg!(windows) {
+                    // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
+                    next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                    winit_app.paint();
+                } else {
+                    // Fix for https://github.com/emilk/egui/issues/2425
+                    next_repaint_time = Instant::now();
+                }
             }
             EventResult::RepaintNext => {
                 tracing::trace!("Repaint caused by winit::Event: {:?}", event);
@@ -142,10 +180,7 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
                 next_repaint_time = next_repaint_time.min(repaint_time);
             }
             EventResult::Exit => {
-                // On Cmd-Q we get here and then `run_return` doesn't return,
-                // so we need to save state now:
-                tracing::debug!("Exiting event loop - saving app state…");
-                winit_app.save_and_destroy();
+                tracing::debug!("Asking to exit event loop…");
                 *control_flow = ControlFlow::Exit;
                 return;
             }
@@ -174,19 +209,21 @@ fn run_and_return(event_loop: &mut EventLoop<RequestRepaintEvent>, mut winit_app
     event_loop.run_return(|_, _, control_flow| {
         control_flow.set_exit();
     });
+
+    returned_result
 }
 
-fn run_and_exit(
-    event_loop: EventLoop<RequestRepaintEvent>,
-    mut winit_app: impl WinitApp + 'static,
-) -> ! {
-    tracing::debug!("event_loop.run");
+fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp + 'static) -> ! {
+    tracing::debug!("Entering the winit event loop (run)…");
 
     let mut next_repaint_time = Instant::now();
 
     event_loop.run(move |event, event_loop, control_flow| {
         let event_result = match event {
-            winit::event::Event::LoopDestroyed => EventResult::Exit,
+            winit::event::Event::LoopDestroyed => {
+                tracing::debug!("Received Event::LoopDestroyed");
+                EventResult::Exit
+            }
 
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
@@ -200,19 +237,30 @@ fn run_and_exit(
                 winit_app.paint()
             }
 
-            winit::event::Event::UserEvent(RequestRepaintEvent)
+            winit::event::Event::UserEvent(UserEvent::RequestRepaint)
             | winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
                 ..
             }) => EventResult::RepaintNext,
 
-            event => winit_app.on_event(event_loop, &event),
+            event => match winit_app.on_event(event_loop, &event) {
+                Ok(event_result) => event_result,
+                Err(err) => {
+                    panic!("eframe encountered a fatal error: {err}");
+                }
+            },
         };
 
         match event_result {
             EventResult::Wait => {}
             EventResult::RepaintNow => {
-                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
-                winit_app.paint();
+                if cfg!(windows) {
+                    // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
+                    next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                    winit_app.paint();
+                } else {
+                    // Fix for https://github.com/emilk/egui/issues/2425
+                    next_repaint_time = Instant::now();
+                }
             }
             EventResult::RepaintNext => {
                 next_repaint_time = Instant::now();
@@ -221,7 +269,7 @@ fn run_and_exit(
                 next_repaint_time = next_repaint_time.min(repaint_time);
             }
             EventResult::Exit => {
-                tracing::debug!("Quitting…");
+                tracing::debug!("Quitting - saving app state…");
                 winit_app.save_and_destroy();
                 #[allow(clippy::exit)]
                 std::process::exit(0);
@@ -242,32 +290,13 @@ fn run_and_exit(
     })
 }
 
-fn centere_window_pos(
-    monitor: Option<winit::monitor::MonitorHandle>,
-    native_options: &mut epi::NativeOptions,
-) {
-    // Get the current_monitor.
-    if let Some(monitor) = monitor {
-        let monitor_size = monitor.size();
-        let inner_size = native_options
-            .initial_window_size
-            .unwrap_or(egui::Vec2 { x: 800.0, y: 600.0 });
-        if monitor_size.width > 0 && monitor_size.height > 0 {
-            let x = (monitor_size.width - inner_size.x as u32) / 2;
-            let y = (monitor_size.height - inner_size.y as u32) / 2;
-            native_options.initial_window_pos = Some(egui::Pos2 {
-                x: x as _,
-                y: y as _,
-            });
-        }
-    }
-}
-
 // ----------------------------------------------------------------------------
 /// Run an egui app
 #[cfg(feature = "glow")]
 mod glow_integration {
     use std::sync::Arc;
+
+    use egui::NumExt as _;
 
     use super::*;
 
@@ -295,11 +324,134 @@ mod glow_integration {
 
         // Conceptually this will be split out eventually so that the rest of the state
         // can be persistent.
-        gl_window: glutin::WindowedContext<glutin::PossiblyCurrent>,
+        gl_window: GlutinWindowContext,
+    }
+    struct GlutinWindowContext {
+        window: winit::window::Window,
+        gl_context: glutin::context::PossiblyCurrentContext,
+        gl_display: glutin::display::Display,
+        gl_surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
+    }
+
+    impl GlutinWindowContext {
+        // refactor this function to use `glutin-winit` crate eventually.
+        // preferably add android support at the same time.
+        #[allow(unsafe_code)]
+        unsafe fn new(
+            winit_window: winit::window::Window,
+            native_options: &epi::NativeOptions,
+        ) -> Result<Self> {
+            use glutin::prelude::*;
+            use raw_window_handle::*;
+            let hardware_acceleration = match native_options.hardware_acceleration {
+                crate::HardwareAcceleration::Required => Some(true),
+                crate::HardwareAcceleration::Preferred => None,
+                crate::HardwareAcceleration::Off => Some(false),
+            };
+
+            let raw_display_handle = winit_window.raw_display_handle();
+            let raw_window_handle = winit_window.raw_window_handle();
+
+            // EGL is crossplatform and the official khronos way
+            // but sometimes platforms/drivers may not have it, so we use back up options where possible.
+            // TODO: check whether we can expose these options as "features", so that users can select the relevant backend they want.
+
+            // try egl and fallback to windows wgl. Windows is the only platform that *requires* window handle to create display.
+            #[cfg(target_os = "windows")]
+            let preference =
+                glutin::display::DisplayApiPreference::EglThenWgl(Some(raw_window_handle));
+            // try egl and fallback to x11 glx
+            #[cfg(target_os = "linux")]
+            let preference = glutin::display::DisplayApiPreference::EglThenGlx(Box::new(
+                winit::platform::x11::register_xlib_error_hook,
+            ));
+            #[cfg(target_os = "macos")]
+            let preference = glutin::display::DisplayApiPreference::Cgl;
+            #[cfg(target_os = "android")]
+            let preference = glutin::display::DisplayApiPreference::Egl;
+
+            let gl_display = glutin::display::Display::new(raw_display_handle, preference)?;
+            let swap_interval = if native_options.vsync {
+                glutin::surface::SwapInterval::Wait(std::num::NonZeroU32::new(1).unwrap())
+            } else {
+                glutin::surface::SwapInterval::DontWait
+            };
+
+            let config_template = glutin::config::ConfigTemplateBuilder::new()
+                .prefer_hardware_accelerated(hardware_acceleration)
+                .with_depth_size(native_options.depth_buffer);
+            // we don't know if multi sampling option is set. so, check if its more than 0.
+            let config_template = if native_options.multisampling > 0 {
+                config_template.with_multisampling(
+                    native_options
+                        .multisampling
+                        .try_into()
+                        .expect("failed to fit multisamples into u8"),
+                )
+            } else {
+                config_template
+            };
+            let config_template = config_template
+                .with_stencil_size(native_options.stencil_buffer)
+                .with_transparency(native_options.transparent)
+                .compatible_with_native_window(raw_window_handle)
+                .build();
+            // finds all valid configurations supported by this display that match the config_template
+            // this is where we will try to get a "fallback" config if we are okay with ignoring some native
+            // options required by user like multi sampling, srgb, transparency etc..
+            // TODO: need to figure out a good fallback config template
+            let config = gl_display
+                .find_configs(config_template.clone())?
+                .next()
+                .ok_or(crate::Error::NoGlutinConfigs(config_template))?;
+
+            let context_attributes =
+                glutin::context::ContextAttributesBuilder::new().build(Some(raw_window_handle));
+            // for surface creation.
+            let (width, height): (u32, u32) = winit_window.inner_size().into();
+            let width = std::num::NonZeroU32::new(width.at_least(1)).unwrap();
+            let height = std::num::NonZeroU32::new(height.at_least(1)).unwrap();
+            let surface_attributes =
+                glutin::surface::SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new()
+                    .build(raw_window_handle, width, height);
+            // start creating the gl objects
+            let gl_context = gl_display.create_context(&config, &context_attributes)?;
+
+            let gl_surface = gl_display.create_window_surface(&config, &surface_attributes)?;
+            let gl_context = gl_context.make_current(&gl_surface)?;
+            gl_surface.set_swap_interval(&gl_context, swap_interval)?;
+            Ok(GlutinWindowContext {
+                window: winit_window,
+                gl_context,
+                gl_display,
+                gl_surface,
+            })
+        }
+
+        fn window(&self) -> &winit::window::Window {
+            &self.window
+        }
+
+        fn resize(&self, physical_size: winit::dpi::PhysicalSize<u32>) {
+            use glutin::surface::GlSurface;
+            let width = std::num::NonZeroU32::new(physical_size.width.at_least(1)).unwrap();
+            let height = std::num::NonZeroU32::new(physical_size.height.at_least(1)).unwrap();
+            self.gl_surface.resize(&self.gl_context, width, height);
+        }
+
+        fn swap_buffers(&self) -> glutin::error::Result<()> {
+            use glutin::surface::GlSurface;
+            self.gl_surface.swap_buffers(&self.gl_context)
+        }
+
+        fn get_proc_address(&self, addr: &std::ffi::CStr) -> *const std::ffi::c_void {
+            use glutin::display::GlDisplay;
+            self.gl_display.get_proc_address(addr)
+        }
     }
 
     struct GlowWinitApp {
-        repaint_proxy: Arc<egui::mutex::Mutex<EventLoopProxy<RequestRepaintEvent>>>,
+        repaint_proxy: Arc<egui::mutex::Mutex<EventLoopProxy<UserEvent>>>,
         app_name: String,
         native_options: epi::NativeOptions,
         running: Option<GlowWinitRunning>,
@@ -309,11 +461,13 @@ mod glow_integration {
         // suspends and resumes.
         app_creator: Option<epi::AppCreator>,
         is_focused: bool,
+
+        frame_nr: u64,
     }
 
     impl GlowWinitApp {
         fn new(
-            event_loop: &EventLoop<RequestRepaintEvent>,
+            event_loop: &EventLoop<UserEvent>,
             app_name: &str,
             native_options: epi::NativeOptions,
             app_creator: epi::AppCreator,
@@ -325,54 +479,39 @@ mod glow_integration {
                 running: None,
                 app_creator: Some(app_creator),
                 is_focused: true,
+                frame_nr: 0,
             }
         }
 
         #[allow(unsafe_code)]
         fn create_glutin_windowed_context(
-            event_loop: &EventLoopWindowTarget<RequestRepaintEvent>,
+            event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<&dyn epi::Storage>,
-            title: &String,
+            title: &str,
             native_options: &NativeOptions,
-        ) -> (
-            glutin::WindowedContext<glutin::PossiblyCurrent>,
-            glow::Context,
-        ) {
+        ) -> Result<(GlutinWindowContext, glow::Context)> {
             crate::profile_function!();
 
-            use crate::HardwareAcceleration;
-
-            let hardware_acceleration = match native_options.hardware_acceleration {
-                HardwareAcceleration::Required => Some(true),
-                HardwareAcceleration::Preferred => None,
-                HardwareAcceleration::Off => Some(false),
-            };
             let window_settings = epi_integration::load_window_settings(storage);
 
-            let window_builder = epi_integration::window_builder(native_options, &window_settings)
-                .with_title(title)
-                .with_visible(false); // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
+            let winit_window =
+                epi_integration::build_window(event_loop, title, native_options, window_settings)?;
+            // a lot of the code below has been lifted from glutin example in their repo.
+            let glutin_window_context =
+                unsafe { GlutinWindowContext::new(winit_window, native_options)? };
+            let gl = unsafe {
+                glow::Context::from_loader_function(|s| {
+                    let s = std::ffi::CString::new(s)
+                        .expect("failed to construct C string from string for gl proc address");
 
-            let gl_window = unsafe {
-                glutin::ContextBuilder::new()
-                    .with_hardware_acceleration(hardware_acceleration)
-                    .with_depth_buffer(native_options.depth_buffer)
-                    .with_multisampling(native_options.multisampling)
-                    .with_stencil_buffer(native_options.stencil_buffer)
-                    .with_vsync(native_options.vsync)
-                    .build_windowed(window_builder, event_loop)
-                    .unwrap()
-                    .make_current()
-                    .unwrap()
+                    glutin_window_context.get_proc_address(&s)
+                })
             };
 
-            let gl =
-                unsafe { glow::Context::from_loader_function(|s| gl_window.get_proc_address(s)) };
-
-            (gl_window, gl)
+            Ok((glutin_window_context, gl))
         }
 
-        fn init_run_state(&mut self, event_loop: &EventLoopWindowTarget<RequestRepaintEvent>) {
+        fn init_run_state(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
             let storage = epi_integration::create_storage(&self.app_name);
 
             let (gl_window, gl) = Self::create_glutin_windowed_context(
@@ -380,7 +519,7 @@ mod glow_integration {
                 storage.as_deref(),
                 &self.app_name,
                 &self.native_options,
-            );
+            )?;
             let gl = Arc::new(gl);
 
             let painter =
@@ -398,6 +537,10 @@ mod glow_integration {
                 #[cfg(feature = "wgpu")]
                 None,
             );
+            #[cfg(feature = "accesskit")]
+            {
+                integration.init_accesskit(gl_window.window(), self.repaint_proxy.lock().clone());
+            }
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
 
@@ -409,7 +552,10 @@ mod glow_integration {
             {
                 let event_loop_proxy = self.repaint_proxy.clone();
                 integration.egui_ctx.set_request_repaint_callback(move || {
-                    event_loop_proxy.lock().send_event(RequestRepaintEvent).ok();
+                    event_loop_proxy
+                        .lock()
+                        .send_event(UserEvent::RequestRepaint)
+                        .ok();
                 });
             }
 
@@ -435,6 +581,8 @@ mod glow_integration {
                 integration,
                 app,
             });
+
+            Ok(())
         }
     }
 
@@ -515,6 +663,26 @@ mod glow_integration {
 
                 integration.post_present(window);
 
+                #[cfg(feature = "__screenshot")]
+                // give it time to settle:
+                if self.frame_nr == 2 {
+                    if let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO") {
+                        assert!(
+                            path.ends_with(".png"),
+                            "Expected EFRAME_SCREENSHOT_TO to end with '.png', got {path:?}"
+                        );
+                        let [w, h] = screen_size_in_pixels;
+                        let pixels = painter.read_screen_rgba(screen_size_in_pixels);
+                        let image = image::RgbaImage::from_vec(w, h, pixels).unwrap();
+                        let image = image::imageops::flip_vertical(&image);
+                        image.save(&path).unwrap_or_else(|err| {
+                            panic!("Failed to save screenshot to {path:?}: {err}");
+                        });
+                        eprintln!("Screenshot saved to {path:?}.");
+                        std::process::exit(0);
+                    }
+                }
+
                 let control_flow = if integration.should_close() {
                     EventResult::Exit
                 } else if repaint_after.is_zero() {
@@ -544,6 +712,8 @@ mod glow_integration {
                     std::thread::sleep(std::time::Duration::from_millis(10));
                 }
 
+                self.frame_nr += 1;
+
                 control_flow
             } else {
                 EventResult::Wait
@@ -552,13 +722,13 @@ mod glow_integration {
 
         fn on_event(
             &mut self,
-            event_loop: &EventLoopWindowTarget<RequestRepaintEvent>,
-            event: &winit::event::Event<'_, RequestRepaintEvent>,
-        ) -> EventResult {
-            match event {
+            event_loop: &EventLoopWindowTarget<UserEvent>,
+            event: &winit::event::Event<'_, UserEvent>,
+        ) -> Result<EventResult> {
+            Ok(match event {
                 winit::event::Event::Resumed => {
                     if self.running.is_none() {
-                        self.init_run_state(event_loop);
+                        self.init_run_state(event_loop)?;
                     }
                     EventResult::RepaintNow
                 }
@@ -621,7 +791,8 @@ mod glow_integration {
                             winit::event::WindowEvent::CloseRequested
                                 if running.integration.should_close() =>
                             {
-                                return EventResult::Exit
+                                tracing::debug!("Received WindowEvent::CloseRequested");
+                                return Ok(EventResult::Exit);
                             }
                             _ => {}
                         }
@@ -644,8 +815,23 @@ mod glow_integration {
                         EventResult::Wait
                     }
                 }
+                #[cfg(feature = "accesskit")]
+                winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
+                    accesskit_winit::ActionRequestEvent { request, .. },
+                )) => {
+                    if let Some(running) = &mut self.running {
+                        running
+                            .integration
+                            .on_accesskit_action_request(request.clone());
+                        // As a form of user input, accessibility actions should
+                        // lead to a repaint.
+                        EventResult::RepaintNext
+                    } else {
+                        EventResult::Wait
+                    }
+                }
                 _ => EventResult::Wait,
-            }
+            })
         }
     }
 
@@ -653,24 +839,15 @@ mod glow_integration {
         app_name: &str,
         mut native_options: epi::NativeOptions,
         app_creator: epi::AppCreator,
-    ) {
+    ) -> Result<()> {
         if native_options.run_and_return {
-            with_event_loop(native_options, |event_loop, mut native_options| {
-                if native_options.centered {
-                    centere_window_pos(event_loop.available_monitors().next(), &mut native_options);
-                }
-
+            with_event_loop(native_options, |event_loop, native_options| {
                 let glow_eframe =
                     GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
-                run_and_return(event_loop, glow_eframe);
-            });
+                run_and_return(event_loop, glow_eframe)
+            })
         } else {
             let event_loop = create_event_loop_builder(&mut native_options).build();
-
-            if native_options.centered {
-                centere_window_pos(event_loop.available_monitors().next(), &mut native_options);
-            }
-
             let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, glow_eframe);
         }
@@ -697,7 +874,7 @@ mod wgpu_integration {
     }
 
     struct WgpuWinitApp {
-        repaint_proxy: Arc<std::sync::Mutex<EventLoopProxy<RequestRepaintEvent>>>,
+        repaint_proxy: Arc<std::sync::Mutex<EventLoopProxy<UserEvent>>>,
         app_name: String,
         native_options: epi::NativeOptions,
         app_creator: Option<epi::AppCreator>,
@@ -711,11 +888,17 @@ mod wgpu_integration {
 
     impl WgpuWinitApp {
         fn new(
-            event_loop: &EventLoop<RequestRepaintEvent>,
+            event_loop: &EventLoop<UserEvent>,
             app_name: &str,
             native_options: epi::NativeOptions,
             app_creator: epi::AppCreator,
         ) -> Self {
+            #[cfg(feature = "__screenshot")]
+            assert!(
+                std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
+                "EFRAME_SCREENSHOT_TO not yet implemented for wgpu backend"
+            );
+
             Self {
                 repaint_proxy: Arc::new(std::sync::Mutex::new(event_loop.create_proxy())),
                 app_name: app_name.to_owned(),
@@ -728,46 +911,47 @@ mod wgpu_integration {
         }
 
         fn create_window(
-            event_loop: &EventLoopWindowTarget<RequestRepaintEvent>,
+            event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<&dyn epi::Storage>,
-            title: &String,
+            title: &str,
             native_options: &NativeOptions,
-        ) -> winit::window::Window {
+        ) -> std::result::Result<winit::window::Window, winit::error::OsError> {
             let window_settings = epi_integration::load_window_settings(storage);
-            epi_integration::window_builder(native_options, &window_settings)
-                .with_title(title)
-                .with_visible(false) // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
-                .build(event_loop)
-                .unwrap()
+            epi_integration::build_window(event_loop, title, native_options, window_settings)
         }
 
         #[allow(unsafe_code)]
-        fn set_window(&mut self, window: winit::window::Window) {
+        fn set_window(
+            &mut self,
+            window: winit::window::Window,
+        ) -> std::result::Result<(), egui_wgpu::WgpuError> {
             self.window = Some(window);
             if let Some(running) = &mut self.running {
                 unsafe {
-                    running.painter.set_window(self.window.as_ref());
+                    pollster::block_on(running.painter.set_window(self.window.as_ref()))?;
                 }
             }
+            Ok(())
         }
 
         #[allow(unsafe_code)]
         #[cfg(target_os = "android")]
-        fn drop_window(&mut self) {
+        fn drop_window(&mut self) -> std::result::Result<(), egui_wgpu::WgpuError> {
             self.window = None;
             if let Some(running) = &mut self.running {
                 unsafe {
-                    running.painter.set_window(None);
+                    pollster::block_on(running.painter.set_window(None))?;
                 }
             }
+            Ok(())
         }
 
         fn init_run_state(
             &mut self,
-            event_loop: &EventLoopWindowTarget<RequestRepaintEvent>,
+            event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<Box<dyn epi::Storage>>,
             window: winit::window::Window,
-        ) {
+        ) -> std::result::Result<(), egui_wgpu::WgpuError> {
             #[allow(unsafe_code, unused_mut, unused_unsafe)]
             let painter = unsafe {
                 let mut painter = egui_wgpu::winit::Painter::new(
@@ -775,7 +959,7 @@ mod wgpu_integration {
                     self.native_options.multisampling.max(1) as _,
                     self.native_options.depth_buffer,
                 );
-                painter.set_window(Some(&window));
+                pollster::block_on(painter.set_window(Some(&window)))?;
                 painter
             };
 
@@ -792,6 +976,10 @@ mod wgpu_integration {
                 None,
                 wgpu_render_state.clone(),
             );
+            #[cfg(feature = "accesskit")]
+            {
+                integration.init_accesskit(&window, self.repaint_proxy.lock().unwrap().clone());
+            }
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
 
@@ -803,7 +991,7 @@ mod wgpu_integration {
                     event_loop_proxy
                         .lock()
                         .unwrap()
-                        .send_event(RequestRepaintEvent)
+                        .send_event(UserEvent::RequestRepaint)
                         .ok();
                 });
             }
@@ -829,6 +1017,8 @@ mod wgpu_integration {
                 app,
             });
             self.window = Some(window);
+
+            Ok(())
         }
     }
 
@@ -934,10 +1124,10 @@ mod wgpu_integration {
 
         fn on_event(
             &mut self,
-            event_loop: &EventLoopWindowTarget<RequestRepaintEvent>,
-            event: &winit::event::Event<'_, RequestRepaintEvent>,
-        ) -> EventResult {
-            match event {
+            event_loop: &EventLoopWindowTarget<UserEvent>,
+            event: &winit::event::Event<'_, UserEvent>,
+        ) -> Result<EventResult> {
+            Ok(match event {
                 winit::event::Event::Resumed => {
                     if let Some(running) = &self.running {
                         if self.window.is_none() {
@@ -946,8 +1136,8 @@ mod wgpu_integration {
                                 running.integration.frame.storage(),
                                 &self.app_name,
                                 &self.native_options,
-                            );
-                            self.set_window(window);
+                            )?;
+                            self.set_window(window)?;
                         }
                     } else {
                         let storage = epi_integration::create_storage(&self.app_name);
@@ -956,14 +1146,14 @@ mod wgpu_integration {
                             storage.as_deref(),
                             &self.app_name,
                             &self.native_options,
-                        );
-                        self.init_run_state(event_loop, storage, window);
+                        )?;
+                        self.init_run_state(event_loop, storage, window)?;
                     }
                     EventResult::RepaintNow
                 }
                 winit::event::Event::Suspended => {
                     #[cfg(target_os = "android")]
-                    self.drop_window();
+                    self.drop_window()?;
                     EventResult::Wait
                 }
 
@@ -1013,7 +1203,8 @@ mod wgpu_integration {
                             winit::event::WindowEvent::CloseRequested
                                 if running.integration.should_close() =>
                             {
-                                return EventResult::Exit
+                                tracing::debug!("Received WindowEvent::CloseRequested");
+                                return Ok(EventResult::Exit);
                             }
                             _ => {}
                         };
@@ -1035,8 +1226,23 @@ mod wgpu_integration {
                         EventResult::Wait
                     }
                 }
+                #[cfg(feature = "accesskit")]
+                winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
+                    accesskit_winit::ActionRequestEvent { request, .. },
+                )) => {
+                    if let Some(running) = &mut self.running {
+                        running
+                            .integration
+                            .on_accesskit_action_request(request.clone());
+                        // As a form of user input, accessibility actions should
+                        // lead to a repaint.
+                        EventResult::RepaintNext
+                    } else {
+                        EventResult::Wait
+                    }
+                }
                 _ => EventResult::Wait,
-            }
+            })
         }
     }
 
@@ -1044,24 +1250,15 @@ mod wgpu_integration {
         app_name: &str,
         mut native_options: epi::NativeOptions,
         app_creator: epi::AppCreator,
-    ) {
+    ) -> Result<()> {
         if native_options.run_and_return {
-            with_event_loop(native_options, |event_loop, mut native_options| {
-                if native_options.centered {
-                    centere_window_pos(event_loop.available_monitors().next(), &mut native_options);
-                }
-
+            with_event_loop(native_options, |event_loop, native_options| {
                 let wgpu_eframe =
                     WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
-                run_and_return(event_loop, wgpu_eframe);
-            });
+                run_and_return(event_loop, wgpu_eframe)
+            })
         } else {
             let event_loop = create_event_loop_builder(&mut native_options).build();
-
-            if native_options.centered {
-                centere_window_pos(event_loop.available_monitors().next(), &mut native_options);
-            }
-
             let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, wgpu_eframe);
         }

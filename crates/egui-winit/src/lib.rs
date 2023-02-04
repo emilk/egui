@@ -11,26 +11,19 @@
 
 use std::os::raw::c_void;
 
+#[cfg(feature = "accesskit")]
+pub use accesskit_winit;
 pub use egui;
+#[cfg(feature = "accesskit")]
+use egui::accesskit;
 pub use winit;
 
 pub mod clipboard;
-pub mod screen_reader;
 mod window_settings;
 
 pub use window_settings::WindowSettings;
 
 use winit::event_loop::EventLoopWindowTarget;
-
-#[cfg(feature = "wayland")]
-#[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-))]
-use winit::platform::unix::EventLoopWindowTargetExtUnix;
 
 pub fn native_pixels_per_point(window: &winit::window::Window) -> f32 {
     window.scale_factor() as f32
@@ -71,7 +64,6 @@ pub struct State {
     current_pixels_per_point: f32,
 
     clipboard: clipboard::Clipboard,
-    screen_reader: screen_reader::ScreenReader,
 
     /// If `true`, mouse inputs will be treated as touches.
     /// Useful for debugging touch support in egui.
@@ -86,6 +78,9 @@ pub struct State {
 
     /// track ime state
     input_method_editor_started: bool,
+
+    #[cfg(feature = "accesskit")]
+    accesskit: Option<accesskit_winit::Adapter>,
 }
 
 impl State {
@@ -108,13 +103,29 @@ impl State {
             current_pixels_per_point: 1.0,
 
             clipboard: clipboard::Clipboard::new(wayland_display),
-            screen_reader: screen_reader::ScreenReader::default(),
 
             simulate_touch_screen: false,
             pointer_touch_id: None,
 
             input_method_editor_started: false,
+
+            #[cfg(feature = "accesskit")]
+            accesskit: None,
         }
+    }
+
+    #[cfg(feature = "accesskit")]
+    pub fn init_accesskit<T: From<accesskit_winit::ActionRequestEvent> + Send>(
+        &mut self,
+        window: &winit::window::Window,
+        event_loop_proxy: winit::event_loop::EventLoopProxy<T>,
+        initial_tree_update_factory: impl 'static + FnOnce() -> accesskit::TreeUpdate + Send,
+    ) {
+        self.accesskit = Some(accesskit_winit::Adapter::new(
+            window,
+            initial_tree_update_factory,
+            event_loop_proxy,
+        ));
     }
 
     /// Call this once a graphics context has been created to update the maximum texture dimensions
@@ -356,8 +367,9 @@ impl State {
                     consumed: false,
                 }
             }
-            WindowEvent::AxisMotion { .. }
-            | WindowEvent::CloseRequested
+
+            // Things that may require repaint:
+            WindowEvent::CloseRequested
             | WindowEvent::CursorEntered { .. }
             | WindowEvent::Destroyed
             | WindowEvent::Occluded(_)
@@ -367,11 +379,37 @@ impl State {
                 repaint: true,
                 consumed: false,
             },
-            WindowEvent::Moved(_) => EventResponse {
-                repaint: false, // moving a window doesn't warrant a repaint
+
+            // Things we completely ignore:
+            WindowEvent::AxisMotion { .. }
+            | WindowEvent::Moved(_)
+            | WindowEvent::SmartMagnify { .. }
+            | WindowEvent::TouchpadRotate { .. } => EventResponse {
+                repaint: false,
                 consumed: false,
             },
+
+            WindowEvent::TouchpadMagnify { delta, .. } => {
+                // Positive delta values indicate magnification (zooming in).
+                // Negative delta values indicate shrinking (zooming out).
+                let zoom_factor = (*delta as f32).exp();
+                self.egui_input.events.push(egui::Event::Zoom(zoom_factor));
+                EventResponse {
+                    repaint: true,
+                    consumed: egui_ctx.wants_pointer_input(),
+                }
+            }
         }
+    }
+
+    /// Call this when there is a new [`accesskit::ActionRequest`].
+    ///
+    /// The result can be found in [`Self::egui_input`] and be extracted with [`Self::take_egui_input`].
+    #[cfg(feature = "accesskit")]
+    pub fn on_accesskit_action_request(&mut self, request: accesskit::ActionRequest) {
+        self.egui_input
+            .events
+            .push(egui::Event::AccessKitActionRequest(request));
     }
 
     fn on_mouse_button_input(
@@ -560,6 +598,7 @@ impl State {
                 self.egui_input.events.push(egui::Event::Key {
                     key,
                     pressed,
+                    repeat: false, // egui will fill this in for us!
                     modifiers: self.egui_input.modifiers,
                 });
             }
@@ -580,11 +619,6 @@ impl State {
         egui_ctx: &egui::Context,
         platform_output: egui::PlatformOutput,
     ) {
-        if egui_ctx.options().screen_reader {
-            self.screen_reader
-                .speak(&platform_output.events_description());
-        }
-
         let egui::PlatformOutput {
             cursor_icon,
             open_url,
@@ -592,6 +626,8 @@ impl State {
             events: _,                    // handled above
             mutable_text_under_cursor: _, // only used in eframe web
             text_cursor_pos,
+            #[cfg(feature = "accesskit")]
+            accesskit_update,
         } = platform_output;
         self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
 
@@ -608,11 +644,18 @@ impl State {
         if let Some(egui::Pos2 { x, y }) = text_cursor_pos {
             window.set_ime_position(winit::dpi::LogicalPosition { x, y });
         }
+
+        #[cfg(feature = "accesskit")]
+        if let Some(accesskit) = self.accesskit.as_ref() {
+            if let Some(update) = accesskit_update {
+                accesskit.update_if_active(|| update);
+            }
+        }
     }
 
     fn set_cursor_icon(&mut self, window: &winit::window::Window, cursor_icon: egui::CursorIcon) {
-        // prevent flickering near frame boundary when Windows OS tries to control cursor icon for window resizing
-        #[cfg(windows)]
+        // Prevent flickering near frame boundary when Windows OS tries to control cursor icon for window resizing.
+        // On other platforms: just early-out to save CPU.
         if self.current_cursor_icon == cursor_icon {
             return;
         }
@@ -835,6 +878,7 @@ fn wayland_display<T>(_event_loop: &EventLoopWindowTarget<T>) -> Option<*mut c_v
         target_os = "openbsd"
     ))]
     {
+        use winit::platform::wayland::EventLoopWindowTargetExtWayland as _;
         return _event_loop.wayland_display();
     }
 

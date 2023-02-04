@@ -38,7 +38,7 @@ impl Widget for Link {
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Link, text_galley.text()));
 
         if response.hovered() {
-            ui.ctx().output().cursor_icon = CursorIcon::PointingHand;
+            ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
         }
 
         if ui.is_rect_visible(response.rect) {
@@ -48,7 +48,7 @@ impl Widget for Link {
             let underline = if response.hovered() || response.has_focus() {
                 Stroke::new(visuals.fg_stroke.width, color)
             } else {
-                Stroke::none()
+                Stroke::NONE
             };
 
             ui.painter().add(epaint::TextShape {
@@ -110,16 +110,20 @@ impl Widget for Hyperlink {
 
         let response = ui.add(Link::new(text));
         if response.clicked() {
-            let modifiers = ui.ctx().input().modifiers;
-            ui.ctx().output().open_url = Some(crate::output::OpenUrl {
-                url: url.clone(),
-                new_tab: modifiers.any(),
+            let modifiers = ui.ctx().input(|i| i.modifiers);
+            ui.ctx().output_mut(|o| {
+                o.open_url = Some(crate::output::OpenUrl {
+                    url: url.clone(),
+                    new_tab: modifiers.any(),
+                });
             });
         }
         if response.middle_clicked() {
-            ui.ctx().output().open_url = Some(crate::output::OpenUrl {
-                url: url.clone(),
-                new_tab: true,
+            ui.ctx().output_mut(|o| {
+                o.open_url = Some(crate::output::OpenUrl {
+                    url: url.clone(),
+                    new_tab: true,
+                });
             });
         }
         response.on_hover_text(url)

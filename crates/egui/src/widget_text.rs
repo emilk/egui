@@ -293,12 +293,12 @@ impl RichText {
         let underline = if underline {
             crate::Stroke::new(1.0, line_color)
         } else {
-            crate::Stroke::none()
+            crate::Stroke::NONE
         };
         let strikethrough = if strikethrough {
             crate::Stroke::new(1.0, line_color)
         } else {
-            crate::Stroke::none()
+            crate::Stroke::NONE
         };
 
         let valign = if raised {
@@ -573,14 +573,14 @@ impl WidgetText {
                 let mut text_job = text.into_text_job(ui.style(), fallback_font.into(), valign);
                 text_job.job.wrap.max_width = wrap_width;
                 WidgetTextGalley {
-                    galley: ui.fonts().layout_job(text_job.job),
+                    galley: ui.fonts(|f| f.layout_job(text_job.job)),
                     galley_has_color: text_job.job_has_color,
                 }
             }
             Self::LayoutJob(mut job) => {
                 job.wrap.max_width = wrap_width;
                 WidgetTextGalley {
-                    galley: ui.fonts().layout_job(job),
+                    galley: ui.fonts(|f| f.layout_job(job)),
                     galley_has_color: true,
                 }
             }

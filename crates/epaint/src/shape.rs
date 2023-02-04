@@ -648,7 +648,7 @@ impl TextShape {
         Self {
             pos,
             galley,
-            underline: Stroke::none(),
+            underline: Stroke::NONE,
             override_text_color: None,
             angle: 0.0,
         }
@@ -768,7 +768,7 @@ pub struct ViewportInPixels {
     /// Viewport width in physical pixels.
     pub width_px: f32,
 
-    /// Viewport width in physical pixels.
+    /// Viewport height in physical pixels.
     pub height_px: f32,
 }
 

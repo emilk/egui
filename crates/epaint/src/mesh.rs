@@ -5,7 +5,7 @@ use emath::*;
 ///
 /// Should be friendly to send to GPU as is.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vertex {
@@ -23,7 +23,7 @@ pub struct Vertex {
 }
 
 /// Textured triangles in two dimensions.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Mesh {
     /// Draw as triangles (i.e. the length is always multiple of three).
@@ -191,9 +191,9 @@ impl Mesh {
     pub fn split_to_u16(self) -> Vec<Mesh16> {
         crate::epaint_assert!(self.is_valid());
 
-        const MAX_SIZE: u32 = 1 << 16;
+        const MAX_SIZE: u32 = std::u16::MAX as u32;
 
-        if self.vertices.len() < MAX_SIZE as usize {
+        if self.vertices.len() <= MAX_SIZE as usize {
             // Common-case optimization:
             return vec![Mesh16 {
                 indices: self.indices.iter().map(|&i| i as u16).collect(),
@@ -218,7 +218,8 @@ impl Mesh {
                     new_max = new_max.max(idx);
                 }
 
-                if new_max - new_min < MAX_SIZE {
+                let new_span_size = new_max - new_min + 1; // plus one, because it is an inclusive range
+                if new_span_size <= MAX_SIZE {
                     // Triangle fits
                     min_vindex = new_min;
                     max_vindex = new_max;

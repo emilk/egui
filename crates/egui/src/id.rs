@@ -69,6 +69,11 @@ impl Id {
     pub(crate) fn value(&self) -> u64 {
         self.0
     }
+
+    #[cfg(feature = "accesskit")]
+    pub(crate) fn accesskit_id(&self) -> accesskit::NodeId {
+        std::num::NonZeroU64::new(self.0).unwrap().into()
+    }
 }
 
 impl std::fmt::Debug for Id {
@@ -81,6 +86,13 @@ impl std::fmt::Debug for Id {
 impl From<&'static str> for Id {
     #[inline]
     fn from(string: &'static str) -> Self {
+        Self::new(string)
+    }
+}
+
+impl From<String> for Id {
+    #[inline]
+    fn from(string: String) -> Self {
         Self::new(string)
     }
 }
@@ -155,6 +167,9 @@ impl std::hash::BuildHasher for BuilIdHasher {
         IdHasher::default()
     }
 }
+
+/// `IdSet` is a `HashSet<Id>` optimized by knowing that [`Id`] has good entropy, and doesn't need more hashing.
+pub type IdSet = std::collections::HashSet<Id, BuilIdHasher>;
 
 /// `IdMap<V>` is a `HashMap<Id, V>` optimized by knowing that [`Id`] has good entropy, and doesn't need more hashing.
 pub type IdMap<V> = std::collections::HashMap<Id, V, BuilIdHasher>;

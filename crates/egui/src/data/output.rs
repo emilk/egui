@@ -70,7 +70,7 @@ pub struct PlatformOutput {
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// if ui.button("📋").clicked() {
-    ///     ui.output().copied_text = "some_text".to_string();
+    ///     ui.output_mut(|o| o.copied_text = "some_text".to_string());
     /// }
     /// # });
     /// ```
@@ -85,6 +85,9 @@ pub struct PlatformOutput {
 
     /// Screen-space position of text edit cursor (used for IME).
     pub text_cursor_pos: Option<crate::Pos2>,
+
+    #[cfg(feature = "accesskit")]
+    pub accesskit_update: Option<accesskit::TreeUpdate>,
 }
 
 impl PlatformOutput {
@@ -121,6 +124,8 @@ impl PlatformOutput {
             mut events,
             mutable_text_under_cursor,
             text_cursor_pos,
+            #[cfg(feature = "accesskit")]
+            accesskit_update,
         } = newer;
 
         self.cursor_icon = cursor_icon;
@@ -133,6 +138,13 @@ impl PlatformOutput {
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.text_cursor_pos = text_cursor_pos.or(self.text_cursor_pos);
+
+        #[cfg(feature = "accesskit")]
+        {
+            // egui produces a complete AccessKit tree for each frame,
+            // so overwrite rather than appending.
+            self.accesskit_update = accesskit_update;
+        }
     }
 
     /// Take everything ephemeral (everything except `cursor_icon` currently)
@@ -144,7 +156,7 @@ impl PlatformOutput {
 }
 
 /// What URL to open, and how.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct OpenUrl {
     pub url: String,
@@ -178,7 +190,7 @@ impl OpenUrl {
 /// egui emits a [`CursorIcon`] in [`PlatformOutput`] each frame as a request to the integration.
 ///
 /// Loosely based on <https://developer.mozilla.org/en-US/docs/Web/CSS/cursor>.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum CursorIcon {
     /// Normal cursor icon, whatever that is.
@@ -370,6 +382,19 @@ pub enum OutputEvent {
 
     /// A widget's value changed.
     ValueChanged(WidgetInfo),
+}
+
+impl OutputEvent {
+    pub fn widget_info(&self) -> &WidgetInfo {
+        match self {
+            OutputEvent::Clicked(info)
+            | OutputEvent::DoubleClicked(info)
+            | OutputEvent::TripleClicked(info)
+            | OutputEvent::FocusGained(info)
+            | OutputEvent::TextSelectionChanged(info)
+            | OutputEvent::ValueChanged(info) => info,
+        }
+    }
 }
 
 impl std::fmt::Debug for OutputEvent {

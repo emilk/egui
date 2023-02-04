@@ -1,6 +1,6 @@
 use super::*;
 use crate::LOREM_IPSUM;
-use egui::{color::*, epaint::text::TextWrapping, *};
+use egui::{epaint::text::TextWrapping, *};
 
 /// Showcase some ui code
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -202,7 +202,7 @@ impl Widgets {
 
         ui.horizontal_wrapped(|ui| {
             // Trick so we don't have to add spaces in the text below:
-            let width = ui.fonts().glyph_width(&TextStyle::Body.resolve(ui.style()), ' ');
+            let width = ui.fonts(|f|f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
             ui.spacing_mut().item_spacing.x = width;
 
             ui.label(RichText::new("Text can have").color(Color32::from_rgb(110, 255, 110)));

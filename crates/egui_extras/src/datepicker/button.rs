@@ -1,15 +1,14 @@
 use super::popup::DatePickerPopup;
-use chrono::{Date, Utc};
+use chrono::NaiveDate;
 use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget};
 
-#[derive(Default, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Default, Clone, serde::Deserialize, serde::Serialize)]
 pub(crate) struct DatePickerButtonState {
     pub picker_visible: bool,
 }
 
 pub struct DatePickerButton<'a> {
-    selection: &'a mut Date<Utc>,
+    selection: &'a mut NaiveDate,
     id_source: Option<&'a str>,
     combo_boxes: bool,
     arrows: bool,
@@ -18,7 +17,7 @@ pub struct DatePickerButton<'a> {
 }
 
 impl<'a> DatePickerButton<'a> {
-    pub fn new(selection: &'a mut Date<Utc>) -> Self {
+    pub fn new(selection: &'a mut NaiveDate) -> Self {
         Self {
             selection,
             id_source: None,
@@ -63,11 +62,9 @@ impl<'a> DatePickerButton<'a> {
 
 impl<'a> Widget for DatePickerButton<'a> {
     fn ui(self, ui: &mut Ui) -> egui::Response {
-        let id = ui.make_persistent_id(&self.id_source);
+        let id = ui.make_persistent_id(self.id_source);
         let mut button_state = ui
-            .memory()
-            .data
-            .get_persisted::<DatePickerButtonState>(id)
+            .memory_mut(|mem| mem.data.get_persisted::<DatePickerButtonState>(id))
             .unwrap_or_default();
 
         let mut text = RichText::new(format!("{} 📆", self.selection.format("%Y-%m-%d")));
@@ -77,12 +74,12 @@ impl<'a> Widget for DatePickerButton<'a> {
         }
         let mut button = Button::new(text);
         if button_state.picker_visible {
-            button = button.fill(visuals.bg_fill).stroke(visuals.bg_stroke);
+            button = button.fill(visuals.weak_bg_fill).stroke(visuals.bg_stroke);
         }
         let mut button_response = ui.add(button);
         if button_response.clicked() {
             button_state.picker_visible = true;
-            ui.memory().data.insert_persisted(id, button_state.clone());
+            ui.memory_mut(|mem| mem.data.insert_persisted(id, button_state.clone()));
         }
 
         if button_state.picker_visible {
@@ -104,7 +101,7 @@ impl<'a> Widget for DatePickerButton<'a> {
             let InnerResponse {
                 inner: saved,
                 response: area_response,
-            } = Area::new(ui.make_persistent_id(&self.id_source))
+            } = Area::new(ui.make_persistent_id(self.id_source))
                 .order(Order::Foreground)
                 .fixed_pos(pos)
                 .show(ui.ctx(), |ui| {
@@ -132,10 +129,10 @@ impl<'a> Widget for DatePickerButton<'a> {
             }
 
             if !button_response.clicked()
-                && (ui.input().key_pressed(Key::Escape) || area_response.clicked_elsewhere())
+                && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
             {
                 button_state.picker_visible = false;
-                ui.memory().data.insert_persisted(id, button_state);
+                ui.memory_mut(|mem| mem.data.insert_persisted(id, button_state));
             }
         }
 

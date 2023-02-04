@@ -4,14 +4,13 @@ use std::num::NonZeroU64;
 use std::ops::Range;
 use std::{borrow::Cow, collections::HashMap, num::NonZeroU32};
 
-use egui::epaint::Vertex;
-use egui::NumExt;
-use egui::{epaint::Primitive, PaintCallbackInfo};
 use type_map::concurrent::TypeMap;
 use wgpu;
 use wgpu::util::DeviceExt as _;
 
-/// A callback function that can be used to compose an [`egui::PaintCallback`] for custom WGPU
+use epaint::{emath::NumExt, PaintCallbackInfo, Primitive, Vertex};
+
+/// A callback function that can be used to compose an [`epaint::PaintCallback`] for custom WGPU
 /// rendering.
 ///
 /// The callback is composed of two functions: `prepare` and `paint`:
@@ -154,11 +153,11 @@ pub struct Renderer {
     /// Map of egui texture IDs to textures and their associated bindgroups (texture view +
     /// sampler). The texture may be None if the TextureId is just a handle to a user-provided
     /// sampler.
-    textures: HashMap<egui::TextureId, (Option<wgpu::Texture>, wgpu::BindGroup)>,
+    textures: HashMap<epaint::TextureId, (Option<wgpu::Texture>, wgpu::BindGroup)>,
     next_user_texture_id: u64,
-    samplers: HashMap<egui::TextureOptions, wgpu::Sampler>,
+    samplers: HashMap<epaint::textures::TextureOptions, wgpu::Sampler>,
 
-    /// Storage for use by [`egui::PaintCallback`]'s that need to store resources such as render
+    /// Storage for use by [`epaint::PaintCallback`]'s that need to store resources such as render
     /// pipelines that must have the lifetime of the renderpass.
     pub paint_callback_resources: TypeMap,
 }
@@ -346,7 +345,7 @@ impl Renderer {
     pub fn render<'rp>(
         &'rp self,
         render_pass: &mut wgpu::RenderPass<'rp>,
-        paint_jobs: &[egui::epaint::ClippedPrimitive],
+        paint_jobs: &[epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) {
         crate::profile_function!();
@@ -361,7 +360,7 @@ impl Renderer {
         let mut index_buffer_slices = self.index_buffer.slices.iter();
         let mut vertex_buffer_slices = self.vertex_buffer.slices.iter();
 
-        for egui::ClippedPrimitive {
+        for epaint::ClippedPrimitive {
             clip_rect,
             primitive,
         } in paint_jobs
@@ -475,8 +474,8 @@ impl Renderer {
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        id: egui::TextureId,
-        image_delta: &egui::epaint::ImageDelta,
+        id: epaint::TextureId,
+        image_delta: &epaint::ImageDelta,
     ) {
         crate::profile_function!();
 
@@ -490,7 +489,7 @@ impl Renderer {
         };
 
         let data_color32 = match &image_delta.image {
-            egui::ImageData::Color(image) => {
+            epaint::ImageData::Color(image) => {
                 assert_eq!(
                     width as usize * height as usize,
                     image.pixels.len(),
@@ -498,7 +497,7 @@ impl Renderer {
                 );
                 Cow::Borrowed(&image.pixels)
             }
-            egui::ImageData::Font(image) => {
+            epaint::ImageData::Font(image) => {
                 assert_eq!(
                     width as usize * height as usize,
                     image.pixels.len(),
@@ -555,6 +554,7 @@ impl Renderer {
                 dimension: wgpu::TextureDimension::D2,
                 format: wgpu::TextureFormat::Rgba8UnormSrgb, // Minspec for wgpu WebGL emulation is WebGL2, so this should always be supported.
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
             });
             let sampler = self
                 .samplers
@@ -582,7 +582,7 @@ impl Renderer {
         };
     }
 
-    pub fn free_texture(&mut self, id: &egui::TextureId) {
+    pub fn free_texture(&mut self, id: &epaint::TextureId) {
         self.textures.remove(id);
     }
 
@@ -590,15 +590,15 @@ impl Renderer {
     ///
     /// This could be used by custom paint hooks to render images that have been added through with
     /// [`egui_extras::RetainedImage`](https://docs.rs/egui_extras/latest/egui_extras/image/struct.RetainedImage.html)
-    /// or [`egui::Context::load_texture`].
+    /// or [`epaint::Context::load_texture`](https://docs.rs/egui/latest/egui/struct.Context.html#method.load_texture).
     pub fn texture(
         &self,
-        id: &egui::TextureId,
+        id: &epaint::TextureId,
     ) -> Option<&(Option<wgpu::Texture>, wgpu::BindGroup)> {
         self.textures.get(id)
     }
 
-    /// Registers a `wgpu::Texture` with a `egui::TextureId`.
+    /// Registers a `wgpu::Texture` with a `epaint::TextureId`.
     ///
     /// This enables the application to reference the texture inside an image ui element.
     /// This effectively enables off-screen rendering inside the egui UI. Texture must have
@@ -609,7 +609,7 @@ impl Renderer {
         device: &wgpu::Device,
         texture: &wgpu::TextureView,
         texture_filter: wgpu::FilterMode,
-    ) -> egui::TextureId {
+    ) -> epaint::TextureId {
         self.register_native_texture_with_sampler_options(
             device,
             texture,
@@ -622,7 +622,7 @@ impl Renderer {
         )
     }
 
-    /// Registers a `wgpu::Texture` with an existing `egui::TextureId`.
+    /// Registers a `wgpu::Texture` with an existing `epaint::TextureId`.
     ///
     /// This enables applications to reuse `TextureId`s.
     pub fn update_egui_texture_from_wgpu_texture(
@@ -630,7 +630,7 @@ impl Renderer {
         device: &wgpu::Device,
         texture: &wgpu::TextureView,
         texture_filter: wgpu::FilterMode,
-        id: egui::TextureId,
+        id: epaint::TextureId,
     ) {
         self.update_egui_texture_from_wgpu_texture_with_sampler_options(
             device,
@@ -645,7 +645,7 @@ impl Renderer {
         );
     }
 
-    /// Registers a `wgpu::Texture` with a `egui::TextureId` while also accepting custom
+    /// Registers a `wgpu::Texture` with a `epaint::TextureId` while also accepting custom
     /// `wgpu::SamplerDescriptor` options.
     ///
     /// This allows applications to specify individual minification/magnification filters as well as
@@ -660,7 +660,7 @@ impl Renderer {
         device: &wgpu::Device,
         texture: &wgpu::TextureView,
         sampler_descriptor: wgpu::SamplerDescriptor<'_>,
-    ) -> egui::TextureId {
+    ) -> epaint::TextureId {
         crate::profile_function!();
 
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
@@ -683,14 +683,14 @@ impl Renderer {
             ],
         });
 
-        let id = egui::TextureId::User(self.next_user_texture_id);
+        let id = epaint::TextureId::User(self.next_user_texture_id);
         self.textures.insert(id, (None, bind_group));
         self.next_user_texture_id += 1;
 
         id
     }
 
-    /// Registers a `wgpu::Texture` with an existing `egui::TextureId` while also accepting custom
+    /// Registers a `wgpu::Texture` with an existing `epaint::TextureId` while also accepting custom
     /// `wgpu::SamplerDescriptor` options.
     ///
     /// This allows applications to reuse `TextureId`s created with custom sampler options.
@@ -700,7 +700,7 @@ impl Renderer {
         device: &wgpu::Device,
         texture: &wgpu::TextureView,
         sampler_descriptor: wgpu::SamplerDescriptor<'_>,
-        id: egui::TextureId,
+        id: epaint::TextureId,
     ) {
         crate::profile_function!();
 
@@ -741,7 +741,7 @@ impl Renderer {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
-        paint_jobs: &[egui::epaint::ClippedPrimitive],
+        paint_jobs: &[epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) -> Vec<wgpu::CommandBuffer> {
         crate::profile_function!();
@@ -801,7 +801,7 @@ impl Renderer {
         let mut user_cmd_bufs = Vec::new(); // collect user command buffers
 
         crate::profile_scope!("primitives");
-        for egui::ClippedPrimitive { primitive, .. } in paint_jobs.iter() {
+        for epaint::ClippedPrimitive { primitive, .. } in paint_jobs.iter() {
             match primitive {
                 Primitive::Mesh(mesh) => {
                     {
@@ -844,14 +844,17 @@ impl Renderer {
     }
 }
 
-fn create_sampler(options: egui::TextureOptions, device: &wgpu::Device) -> wgpu::Sampler {
+fn create_sampler(
+    options: epaint::textures::TextureOptions,
+    device: &wgpu::Device,
+) -> wgpu::Sampler {
     let mag_filter = match options.magnification {
-        egui::TextureFilter::Nearest => wgpu::FilterMode::Nearest,
-        egui::TextureFilter::Linear => wgpu::FilterMode::Linear,
+        epaint::textures::TextureFilter::Nearest => wgpu::FilterMode::Nearest,
+        epaint::textures::TextureFilter::Linear => wgpu::FilterMode::Linear,
     };
     let min_filter = match options.minification {
-        egui::TextureFilter::Nearest => wgpu::FilterMode::Nearest,
-        egui::TextureFilter::Linear => wgpu::FilterMode::Linear,
+        epaint::textures::TextureFilter::Nearest => wgpu::FilterMode::Nearest,
+        epaint::textures::TextureFilter::Linear => wgpu::FilterMode::Linear,
     };
     device.create_sampler(&wgpu::SamplerDescriptor {
         label: Some(&format!(
@@ -893,7 +896,7 @@ struct ScissorRect {
 }
 
 impl ScissorRect {
-    fn new(clip_rect: &egui::Rect, pixels_per_point: f32, target_size: [u32; 2]) -> Self {
+    fn new(clip_rect: &epaint::Rect, pixels_per_point: f32, target_size: [u32; 2]) -> Self {
         // Transform clip rect to physical pixels:
         let clip_min_x = pixels_per_point * clip_rect.min.x;
         let clip_min_y = pixels_per_point * clip_rect.min.y;

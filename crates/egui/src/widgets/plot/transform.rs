@@ -18,6 +18,10 @@ impl PlotBounds {
         max: [-f64::INFINITY; 2],
     };
 
+    pub fn from_min_max(min: [f64; 2], max: [f64; 2]) -> Self {
+        Self { min, max }
+    }
+
     pub fn min(&self) -> [f64; 2] {
         self.min
     }
@@ -220,6 +224,7 @@ impl ScreenTransform {
         }
     }
 
+    /// ui-space rectangle.
     pub fn frame(&self) -> &Rect {
         &self.frame
     }
@@ -259,18 +264,27 @@ impl ScreenTransform {
         }
     }
 
-    pub fn position_from_point(&self, value: &PlotPoint) -> Pos2 {
-        let x = remap(
-            value.x,
+    pub fn position_from_point_x(&self, value: f64) -> f32 {
+        remap(
+            value,
             self.bounds.min[0]..=self.bounds.max[0],
             (self.frame.left() as f64)..=(self.frame.right() as f64),
-        );
-        let y = remap(
-            value.y,
+        ) as f32
+    }
+
+    pub fn position_from_point_y(&self, value: f64) -> f32 {
+        remap(
+            value,
             self.bounds.min[1]..=self.bounds.max[1],
             (self.frame.bottom() as f64)..=(self.frame.top() as f64), // negated y axis!
-        );
-        pos2(x as f32, y as f32)
+        ) as f32
+    }
+
+    pub fn position_from_point(&self, value: &PlotPoint) -> Pos2 {
+        pos2(
+            self.position_from_point_x(value.x),
+            self.position_from_point_y(value.y),
+        )
     }
 
     pub fn value_from_position(&self, pos: Pos2) -> PlotPoint {

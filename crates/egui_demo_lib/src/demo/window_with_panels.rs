@@ -1,4 +1,4 @@
-#[derive(Clone, PartialEq, Default)]
+#[derive(Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WindowWithPanels {}
 
@@ -84,6 +84,8 @@ fn lorem_ipsum(ui: &mut egui::Ui) {
     ui.with_layout(
         egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(true),
         |ui| {
+            ui.label(egui::RichText::new(crate::LOREM_IPSUM_LONG).small().weak());
+            ui.add(egui::Separator::default().grow(8.0));
             ui.label(egui::RichText::new(crate::LOREM_IPSUM_LONG).small().weak());
         },
     );

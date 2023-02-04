@@ -41,7 +41,7 @@ where
 {
     /// Example:
     /// ```
-    /// # use egui::util::History;
+    /// # use emath::History;
     /// # fn now() -> f64 { 0.0 }
     /// // Drop events that are older than one second,
     /// // as long we keep at least two events. Never keep more than a hundred events.
@@ -125,7 +125,7 @@ where
     /// Values must be added with a monotonically increasing time, or at least not decreasing.
     pub fn add(&mut self, now: f64, value: T) {
         if let Some((last_time, _)) = self.values.back() {
-            crate::egui_assert!(now >= *last_time, "Time shouldn't move backwards");
+            crate::emath_assert!(now >= *last_time, "Time shouldn't move backwards");
         }
         self.total_count += 1;
         self.values.push_back((now, value));

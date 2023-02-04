@@ -3,8 +3,19 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 
 
 ## Unreleased
-* The default features of the `winit` crate are not enabled if the default features of `egui-winit` are disabled too ([#1971](https://github.com/emilk/egui/pull/1971))
-* Added new feature `wayland` which enables Wayland support ([#1971](https://github.com/emilk/egui/pull/1971))
+* Update to `winit` 0.28, adding support for mac trackpad zoom ([#2654](https://github.com/emilk/egui/pull/2654)).
+* Remove the `screen_reader` feature. Use the `accesskit` feature flag instead ([#2669](https://github.com/emilk/egui/pull/2669)).
+
+
+## 0.20.1 - 2022-12-11
+* Fix docs.rs build ([#2420](https://github.com/emilk/egui/pull/2420)).
+
+
+## 0.20.0 - 2022-12-08
+* The default features of the `winit` crate are not enabled if the default features of `egui-winit` are disabled too ([#1971](https://github.com/emilk/egui/pull/1971)).
+* Added new feature `wayland` which enables Wayland support ([#1971](https://github.com/emilk/egui/pull/1971)).
+* Don't repaint when just moving window ([#1980](https://github.com/emilk/egui/pull/1980)).
+* Added optional integration with [AccessKit](https://accesskit.dev/) for implementing platform accessibility APIs ([#2294](https://github.com/emilk/egui/pull/2294)).
 
 ## 0.19.0 - 2022-08-20
 * MSRV (Minimum Supported Rust Version) is now `1.61.0` ([#1846](https://github.com/emilk/egui/pull/1846)).

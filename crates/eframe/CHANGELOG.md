@@ -5,18 +5,45 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 
 ## Unreleased
-* Added `NativeOptions::fullsize_content` option on Mac to build titlebar-less windows with floating window controls ([#2049](https://github.com/emilk/egui/pull/2049)).
+* ⚠️ BREAKING: `App::clear_color` now expects you to return a raw float array ([#2666](https://github.com/emilk/egui/pull/2666)).
+* The `screen_reader` feature has now been renamed `web_screen_reader` and only work on web. On other platforms, use the `accesskit` feature flag instead ([#2669](https://github.com/emilk/egui/pull/2669)).
+
+#### Desktop/Native:
+* `eframe::run_native` now returns a `Result` ([#2433](https://github.com/emilk/egui/pull/2433)).
+* Update to `winit` 0.28, adding support for mac trackpad zoom ([#2654](https://github.com/emilk/egui/pull/2654)).
+
+#### Web:
+* Prevent ctrl-P/cmd-P from opening the print dialog ([#2598](https://github.com/emilk/egui/pull/2598)).
+
+
+## 0.20.1 - 2022-12-11
+* Fix docs.rs build ([#2420](https://github.com/emilk/egui/pull/2420)).
+
+
+## 0.20.0 - 2022-12-08 - AccessKit integration and `wgpu` web support
+* MSRV (Minimum Supported Rust Version) is now `1.65.0` ([#2314](https://github.com/emilk/egui/pull/2314)).
+* Allow empty textures with the glow renderer.
+
+#### Desktop/Native:
+* Don't repaint when just moving window ([#1980](https://github.com/emilk/egui/pull/1980)).
 * Added `NativeOptions::event_loop_builder` hook for apps to change platform specific event loop options ([#1952](https://github.com/emilk/egui/pull/1952)).
 * Enabled deferred render state initialization to support Android ([#1952](https://github.com/emilk/egui/pull/1952)).
-* Allow empty textures with the glow renderer.
 * Added `shader_version` to `NativeOptions` for cross compiling support on different target OpenGL | ES versions (on native `glow` renderer only) ([#1993](https://github.com/emilk/egui/pull/1993)).
 * Fix: app state is now saved when user presses Cmd-Q on Mac ([#2013](https://github.com/emilk/egui/pull/2013)).
 * Added `center` to `NativeOptions` and `monitor_size` to `WindowInfo` on desktop ([#2035](https://github.com/emilk/egui/pull/2035)).
-* Web: you can access your application from JS using `AppRunner::app_mut`. See `crates/egui_demo_app/src/lib.rs`.
-* Web: You can now use WebGL on top of `wgpu` by enabling the `wgpu` feature (and disabling `glow` via disabling default features) ([#2107](https://github.com/emilk/egui/pull/2107)).
-* Web: Add `WebInfo::user_agent` ([#2202](https://github.com/emilk/egui/pull/2202)).
+* Improve IME support ([#2046](https://github.com/emilk/egui/pull/2046)).
+* Added mouse-passthrough option ([#2080](https://github.com/emilk/egui/pull/2080)).
+* Added `NativeOptions::fullsize_content` option on Mac to build titlebar-less windows with floating window controls ([#2049](https://github.com/emilk/egui/pull/2049)).
 * Wgpu device/adapter/surface creation has now various configuration options exposed via `NativeOptions/WebOptions::wgpu_options` ([#2207](https://github.com/emilk/egui/pull/2207)).
 * Fix: Make sure that `native_pixels_per_point` is updated ([#2256](https://github.com/emilk/egui/pull/2256)).
+* Added optional, but enabled by default, integration with [AccessKit](https://accesskit.dev/) for implementing platform accessibility APIs ([#2294](https://github.com/emilk/egui/pull/2294)).
+* Fix: Less flickering on resize on Windows ([#2280](https://github.com/emilk/egui/pull/2280)).
+
+#### Web:
+* ⚠️ BREAKING: `start_web` is a now `async` ([#2107](https://github.com/emilk/egui/pull/2107)).
+* Web: You can now use WebGL on top of `wgpu` by enabling the `wgpu` feature (and disabling `glow` via disabling default features) ([#2107](https://github.com/emilk/egui/pull/2107)).
+* Web: Add `WebInfo::user_agent` ([#2202](https://github.com/emilk/egui/pull/2202)).
+* Web: you can access your application from JS using `AppRunner::app_mut`. See `crates/egui_demo_app/src/lib.rs` ([#1886](https://github.com/emilk/egui/pull/1886)).
 
 
 ## 0.19.0 - 2022-08-20
@@ -108,7 +135,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 
 ## 0.15.0 - 2021-10-24
-* `Frame` now provides `set_window_title` to set window title dynamically
+* `Frame` now provides `set_window_title` to set window title dynamically ([#828](https://github.com/emilk/egui/pull/828)).
 * `Frame` now provides `set_decorations` to set whether to show window decorations.
 * Remove "http" feature (use https://github.com/emilk/ehttp instead!).
 * Added `App::persist_native_window` and `App::persist_egui_memory` to control what gets persisted.

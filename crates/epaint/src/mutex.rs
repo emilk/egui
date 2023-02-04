@@ -183,7 +183,7 @@ mod rw_lock_impl {
         type Target = T;
 
         fn deref(&self) -> &Self::Target {
-            &**self.guard.as_ref().unwrap()
+            self.guard.as_ref().unwrap()
         }
     }
 
@@ -222,13 +222,13 @@ mod rw_lock_impl {
         type Target = T;
 
         fn deref(&self) -> &Self::Target {
-            &**self.guard.as_ref().unwrap()
+            self.guard.as_ref().unwrap()
         }
     }
 
     impl<'a, T> DerefMut for RwLockWriteGuard<'a, T> {
         fn deref_mut(&mut self) -> &mut Self::Target {
-            &mut **self.guard.as_mut().unwrap()
+            self.guard.as_mut().unwrap()
         }
     }
 

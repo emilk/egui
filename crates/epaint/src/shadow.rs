@@ -14,6 +14,11 @@ pub struct Shadow {
 }
 
 impl Shadow {
+    pub const NONE: Self = Self {
+        extrusion: 0.0,
+        color: Color32::TRANSPARENT,
+    };
+
     /// Tooltips, menus, …, for dark mode.
     pub fn small_dark() -> Self {
         Self {
@@ -30,7 +35,7 @@ impl Shadow {
         }
     }
 
-    /// Used for widnows in dark mode.
+    /// Used for egui windows in dark mode.
     pub fn big_dark() -> Self {
         Self {
             extrusion: 32.0,
@@ -38,7 +43,7 @@ impl Shadow {
         }
     }
 
-    /// Used for widnows in light mode.
+    /// Used for egui windows in light mode.
     pub fn big_light() -> Self {
         Self {
             extrusion: 32.0,
@@ -46,7 +51,7 @@ impl Shadow {
         }
     }
 
-    pub fn tessellate(&self, rect: emath::Rect, rounding: impl Into<Rounding>) -> Mesh {
+    pub fn tessellate(&self, rect: Rect, rounding: impl Into<Rounding>) -> Mesh {
         // tessellator.clip_rect = clip_rect; // TODO(emilk): culling
 
         let Self { extrusion, color } = *self;

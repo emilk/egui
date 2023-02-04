@@ -43,7 +43,7 @@ impl ImageData {
 // ----------------------------------------------------------------------------
 
 /// A 2D RGBA color image in RAM.
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ColorImage {
     /// width, height.
@@ -127,7 +127,7 @@ impl ColorImage {
                 let s = 1.0;
                 let v = 1.0;
                 let a = y as f32 / height as f32;
-                img[(x, y)] = crate::color::Hsva { h, s, v, a }.into();
+                img[(x, y)] = crate::Hsva { h, s, v, a }.into();
             }
         }
         img

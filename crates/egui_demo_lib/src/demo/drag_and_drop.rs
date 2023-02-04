@@ -1,7 +1,7 @@
 use egui::*;
 
 pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
-    let is_being_dragged = ui.memory().is_being_dragged(id);
+    let is_being_dragged = ui.memory(|mem| mem.is_being_dragged(id));
 
     if !is_being_dragged {
         let response = ui.scope(body).response;
@@ -9,10 +9,10 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
         // Check for drags:
         let response = ui.interact(response.rect, id, Sense::drag());
         if response.hovered() {
-            ui.output().cursor_icon = CursorIcon::Grab;
+            ui.ctx().set_cursor_icon(CursorIcon::Grab);
         }
     } else {
-        ui.output().cursor_icon = CursorIcon::Grabbing;
+        ui.ctx().set_cursor_icon(CursorIcon::Grabbing);
 
         // Paint the body to a new layer:
         let layer_id = LayerId::new(Order::Tooltip, id);
@@ -37,7 +37,7 @@ pub fn drop_target<R>(
     can_accept_what_is_being_dragged: bool,
     body: impl FnOnce(&mut Ui) -> R,
 ) -> InnerResponse<R> {
-    let is_being_dragged = ui.memory().is_anything_being_dragged();
+    let is_being_dragged = ui.memory(|mem| mem.is_anything_being_dragged());
 
     let margin = Vec2::splat(4.0);
 
@@ -58,9 +58,8 @@ pub fn drop_target<R>(
     let mut fill = style.bg_fill;
     let mut stroke = style.bg_stroke;
     if is_being_dragged && !can_accept_what_is_being_dragged {
-        // gray out:
-        fill = color::tint_color_towards(fill, ui.visuals().window_fill());
-        stroke.color = color::tint_color_towards(stroke.color, ui.visuals().window_fill());
+        fill = ui.visuals().gray_out(fill);
+        stroke.color = ui.visuals().gray_out(stroke.color);
     }
 
     ui.painter().set(
@@ -76,7 +75,7 @@ pub fn drop_target<R>(
     InnerResponse::new(ret, response)
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DragAndDropDemo {
     /// columns with items
@@ -140,7 +139,7 @@ impl super::View for DragAndDropDemo {
                             });
                         });
 
-                        if ui.memory().is_being_dragged(item_id) {
+                        if ui.memory(|mem| mem.is_being_dragged(item_id)) {
                             source_col_row = Some((col_idx, row_idx));
                         }
                     }
@@ -154,7 +153,7 @@ impl super::View for DragAndDropDemo {
                     }
                 });
 
-                let is_being_dragged = ui.memory().is_anything_being_dragged();
+                let is_being_dragged = ui.memory(|mem| mem.is_anything_being_dragged());
                 if is_being_dragged && can_accept_what_is_being_dragged && response.hovered() {
                     drop_col = Some(col_idx);
                 }
@@ -163,7 +162,7 @@ impl super::View for DragAndDropDemo {
 
         if let Some((source_col, source_row)) = source_col_row {
             if let Some(drop_col) = drop_col {
-                if ui.input().pointer.any_released() {
+                if ui.input(|i| i.pointer.any_released()) {
                     // do the drop:
                     let item = self.columns[source_col].remove(source_row);
                     self.columns[drop_col].push(item);

@@ -66,7 +66,7 @@ impl std::ops::SubAssign<usize> for CCursor {
 }
 
 /// Row Cursor
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RCursor {
     /// 0 is first row, and so on.
@@ -113,7 +113,7 @@ impl PartialEq for PCursor {
 /// They all point to the same place, but in their own different ways.
 /// pcursor/rcursor can also point to after the end of the paragraph/row.
 /// Does not implement `PartialEq` because you must think which cursor should be equivalent.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Cursor {
     pub ccursor: CCursor,

@@ -1,11 +1,11 @@
-use super::{web_painter::WebPainter, *};
-use crate::epi;
-
 use egui::{
     mutex::{Mutex, MutexGuard},
     TexturesDelta,
 };
-pub use egui::{pos2, Color32};
+
+use crate::{epi, App};
+
+use super::{web_painter::WebPainter, *};
 
 // ----------------------------------------------------------------------------
 
@@ -284,7 +284,7 @@ impl AppRunner {
     /// Get mutable access to the concrete [`App`] we enclose.
     ///
     /// This will panic if your app does not implement [`App::as_any_mut`].
-    pub fn app_mut<ConreteApp: 'static + crate::App>(&mut self) -> &mut ConreteApp {
+    pub fn app_mut<ConreteApp: 'static + App>(&mut self) -> &mut ConreteApp {
         self.app
             .as_any_mut()
             .expect("Your app must implement `as_any_mut`, but it doesn't")
@@ -313,10 +313,11 @@ impl AppRunner {
 
     pub fn warm_up(&mut self) -> Result<(), JsValue> {
         if self.app.warm_up_enabled() {
-            let saved_memory: egui::Memory = self.egui_ctx.memory().clone();
-            self.egui_ctx.memory().set_everything_is_visible(true);
+            let saved_memory: egui::Memory = self.egui_ctx.memory(|m| m.clone());
+            self.egui_ctx
+                .memory_mut(|m| m.set_everything_is_visible(true));
             self.logic()?;
-            *self.egui_ctx.memory() = saved_memory; // We don't want to remember that windows were huge.
+            self.egui_ctx.memory_mut(|m| *m = saved_memory); // We don't want to remember that windows were huge.
             self.egui_ctx.clear_animations();
         }
         Ok(())
@@ -388,7 +389,7 @@ impl AppRunner {
     }
 
     fn handle_platform_output(&mut self, platform_output: egui::PlatformOutput) {
-        if self.egui_ctx.options().screen_reader {
+        if self.egui_ctx.options(|o| o.screen_reader) {
             self.screen_reader
                 .speak(&platform_output.events_description());
         }
@@ -400,6 +401,8 @@ impl AppRunner {
             events: _, // already handled
             mutable_text_under_cursor,
             text_cursor_pos,
+            #[cfg(feature = "accesskit")]
+                accesskit_update: _, // not currently implemented
         } = platform_output;
 
         set_cursor_icon(cursor_icon);

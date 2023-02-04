@@ -1,12 +1,19 @@
 use std::ops::RangeInclusive;
 
-use crate::*;
+use crate::{id::IdSet, *};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct TooltipFrameState {
     pub common_id: Id,
     pub rect: Rect,
     pub count: usize,
+}
+
+#[cfg(feature = "accesskit")]
+#[derive(Clone)]
+pub(crate) struct AccessKitFrameState {
+    pub(crate) nodes: IdMap<Box<accesskit::Node>>,
+    pub(crate) parent_stack: Vec<Id>,
 }
 
 /// State that is collected during a frame and then cleared.
@@ -41,6 +48,15 @@ pub(crate) struct FrameState {
 
     /// horizontal, vertical
     pub(crate) scroll_target: [Option<(RangeInclusive<f32>, Option<Align>)>; 2],
+
+    #[cfg(feature = "accesskit")]
+    pub(crate) accesskit_state: Option<AccessKitFrameState>,
+
+    /// Highlight these widgets this next frame. Read from this.
+    pub(crate) highlight_this_frame: IdSet,
+
+    /// Highlight these widgets the next frame. Write to this.
+    pub(crate) highlight_next_frame: IdSet,
 }
 
 impl Default for FrameState {
@@ -53,6 +69,10 @@ impl Default for FrameState {
             tooltip_state: None,
             scroll_delta: Vec2::ZERO,
             scroll_target: [None, None],
+            #[cfg(feature = "accesskit")]
+            accesskit_state: None,
+            highlight_this_frame: Default::default(),
+            highlight_next_frame: Default::default(),
         }
     }
 }
@@ -67,6 +87,10 @@ impl FrameState {
             tooltip_state,
             scroll_delta,
             scroll_target,
+            #[cfg(feature = "accesskit")]
+            accesskit_state,
+            highlight_this_frame,
+            highlight_next_frame,
         } = self;
 
         used_ids.clear();
@@ -76,6 +100,13 @@ impl FrameState {
         *tooltip_state = None;
         *scroll_delta = input.scroll_delta;
         *scroll_target = [None, None];
+
+        #[cfg(feature = "accesskit")]
+        {
+            *accesskit_state = None;
+        }
+
+        *highlight_this_frame = std::mem::take(highlight_next_frame);
     }
 
     /// How much space is still available after panels has been added.

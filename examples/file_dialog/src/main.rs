@@ -2,16 +2,17 @@
 
 use eframe::egui;
 
-fn main() {
+fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         drag_and_drop_support: true,
+        initial_window_size: Some(egui::vec2(320.0, 240.0)),
         ..Default::default()
     };
     eframe::run_native(
         "Native file dialogs and drag-and-drop files",
         options,
         Box::new(|_cc| Box::new(MyApp::default())),
-    );
+    )
 }
 
 #[derive(Default)]
@@ -64,9 +65,11 @@ impl eframe::App for MyApp {
         preview_files_being_dropped(ctx);
 
         // Collect dropped files:
-        if !ctx.input().raw.dropped_files.is_empty() {
-            self.dropped_files = ctx.input().raw.dropped_files.clone();
-        }
+        ctx.input(|i| {
+            if !i.raw.dropped_files.is_empty() {
+                self.dropped_files = i.raw.dropped_files.clone();
+            }
+        });
     }
 }
 
@@ -75,22 +78,25 @@ fn preview_files_being_dropped(ctx: &egui::Context) {
     use egui::*;
     use std::fmt::Write as _;
 
-    if !ctx.input().raw.hovered_files.is_empty() {
-        let mut text = "Dropping files:\n".to_owned();
-        for file in &ctx.input().raw.hovered_files {
-            if let Some(path) = &file.path {
-                write!(text, "\n{}", path.display()).ok();
-            } else if !file.mime.is_empty() {
-                write!(text, "\n{}", file.mime).ok();
-            } else {
-                text += "\n???";
+    if !ctx.input(|i| i.raw.hovered_files.is_empty()) {
+        let text = ctx.input(|i| {
+            let mut text = "Dropping files:\n".to_owned();
+            for file in &i.raw.hovered_files {
+                if let Some(path) = &file.path {
+                    write!(text, "\n{}", path.display()).ok();
+                } else if !file.mime.is_empty() {
+                    write!(text, "\n{}", file.mime).ok();
+                } else {
+                    text += "\n???";
+                }
             }
-        }
+            text
+        });
 
         let painter =
             ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
 
-        let screen_rect = ctx.input().screen_rect();
+        let screen_rect = ctx.screen_rect();
         painter.rect_filled(screen_rect, 0.0, Color32::from_black_alpha(192));
         painter.text(
             screen_rect.center(),

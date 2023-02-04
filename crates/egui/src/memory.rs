@@ -52,9 +52,10 @@ pub struct Memory {
     /// type CharCountCache<'a> = FrameCache<usize, CharCounter>;
     ///
     /// # let mut ctx = egui::Context::default();
-    /// let mut memory = ctx.memory();
-    /// let cache = memory.caches.cache::<CharCountCache<'_>>();
-    /// assert_eq!(cache.get("hello"), 5);
+    /// ctx.memory_mut(|mem| {
+    ///     let cache = mem.caches.cache::<CharCountCache<'_>>();
+    ///     assert_eq!(cache.get("hello"), 5);
+    /// });
     /// ```
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub caches: crate::util::cache::CacheStorage,
@@ -102,9 +103,15 @@ pub struct Options {
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,
 
-    /// This does not at all change the behavior of egui,
-    /// but is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
+    /// This is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
+    ///
+    /// The only change to egui is that labels can be focused by pressing tab.
+    ///
     /// Screen readers is an experimental feature of egui, and not supported on all platforms.
+    ///
+    /// `eframe` supports it only on web, using the `web_screen_reader` feature flag,
+    /// but you should consider using [AccessKit](https://github.com/AccessKit/accesskit) instead,
+    /// which `eframe` supports.
     pub screen_reader: bool,
 
     /// If true, the most common glyphs (ASCII) are pre-rendered to the texture atlas.
@@ -166,13 +173,16 @@ pub(crate) struct Interaction {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Focus {
     /// The widget with keyboard focus (i.e. a text input field).
-    id: Option<Id>,
+    pub(crate) id: Option<Id>,
 
     /// What had keyboard focus previous frame?
     id_previous_frame: Option<Id>,
 
     /// Give focus to this widget next frame
     id_next_frame: Option<Id>,
+
+    #[cfg(feature = "accesskit")]
+    id_requested_by_accesskit: Option<accesskit::NodeId>,
 
     /// If set, the next widget that is interested in focus will automatically get it.
     /// Probably because the user pressed Tab.
@@ -231,6 +241,11 @@ impl Focus {
             self.id = Some(id);
         }
 
+        #[cfg(feature = "accesskit")]
+        {
+            self.id_requested_by_accesskit = None;
+        }
+
         self.pressed_tab = false;
         self.pressed_shift_tab = false;
         for event in &new_input.events {
@@ -240,6 +255,7 @@ impl Focus {
                     key: crate::Key::Escape,
                     pressed: true,
                     modifiers: _,
+                    ..
                 }
             ) {
                 self.id = None;
@@ -251,6 +267,7 @@ impl Focus {
                 key: crate::Key::Tab,
                 pressed: true,
                 modifiers,
+                ..
             } = event
             {
                 if !self.is_focus_locked {
@@ -259,6 +276,18 @@ impl Focus {
                     } else {
                         self.pressed_tab = true;
                     }
+                }
+            }
+
+            #[cfg(feature = "accesskit")]
+            {
+                if let crate::Event::AccessKitActionRequest(accesskit::ActionRequest {
+                    action: accesskit::Action::Focus,
+                    target,
+                    data: None,
+                }) = event
+                {
+                    self.id_requested_by_accesskit = Some(*target);
                 }
             }
         }
@@ -281,6 +310,17 @@ impl Focus {
     }
 
     fn interested_in_focus(&mut self, id: Id) {
+        #[cfg(feature = "accesskit")]
+        {
+            if self.id_requested_by_accesskit == Some(id.accesskit_id()) {
+                self.id = Some(id);
+                self.id_requested_by_accesskit = None;
+                self.give_to_next = false;
+                self.pressed_tab = false;
+                self.pressed_shift_tab = false;
+            }
+        }
+
         if self.give_to_next && !self.had_focus_last_frame(id) {
             self.id = Some(id);
             self.give_to_next = false;
@@ -293,7 +333,7 @@ impl Focus {
                 self.id_next_frame = self.last_interested; // frame-delay so gained_focus works
                 self.pressed_shift_tab = false;
             }
-        } else if self.pressed_tab && self.id == None && !self.give_to_next {
+        } else if self.pressed_tab && self.id.is_none() && !self.give_to_next {
             // nothing has focus and the user pressed tab - give focus to the first widgets that wants it:
             self.id = Some(id);
             self.pressed_tab = false;
@@ -372,7 +412,7 @@ impl Memory {
     }
 
     /// Is the keyboard focus locked on this widget? If so the focus won't move even if the user presses the tab key.
-    pub fn has_lock_focus(&mut self, id: Id) -> bool {
+    pub fn has_lock_focus(&self, id: Id) -> bool {
         if self.had_focus_last_frame(id) && self.has_focus(id) {
             self.interaction.focus.is_focus_locked
         } else {
@@ -400,8 +440,13 @@ impl Memory {
 
     /// Register this widget as being interested in getting keyboard focus.
     /// This will allow the user to select it with tab and shift-tab.
+    /// This is normally done automatically when handling interactions,
+    /// but it is sometimes useful to pre-register interest in focus,
+    /// e.g. before deciding which type of underlying widget to use,
+    /// as in the [`crate::DragValue`] widget, so a widget can be focused
+    /// and rendered correctly in a single frame.
     #[inline(always)]
-    pub(crate) fn interested_in_focus(&mut self, id: Id) {
+    pub fn interested_in_focus(&mut self, id: Id) {
         self.interaction.focus.interested_in_focus(id);
     }
 
@@ -439,6 +484,10 @@ impl Memory {
 impl Memory {
     pub fn is_popup_open(&self, popup_id: Id) -> bool {
         self.popup == Some(popup_id) || self.everything_is_visible()
+    }
+
+    pub fn any_popup_open(&self) -> bool {
+        self.popup.is_some() || self.everything_is_visible()
     }
 
     pub fn open_popup(&mut self, popup_id: Id) {
@@ -551,8 +600,8 @@ impl Areas {
     pub fn visible_layer_ids(&self) -> ahash::HashSet<LayerId> {
         self.visible_last_frame
             .iter()
-            .cloned()
-            .chain(self.visible_current_frame.iter().cloned())
+            .copied()
+            .chain(self.visible_current_frame.iter().copied())
             .collect()
     }
 
