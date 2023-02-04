@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, cell::Cell};
 
 use tracing::error;
 use wgpu::{Adapter, Instance, Surface};
@@ -13,42 +13,64 @@ struct SurfaceState {
     height: u32,
 }
 
-struct CaptureBuffer {
-    buffer: wgpu::Buffer,
-    size: u32,
+struct BufferPadding {
+    unpadded_bytes_per_row: u32,
+    padded_bytes_per_row: u32,
 }
 
-impl CaptureBuffer{
-    fn new(size: u32, device: &wgpu::Device) -> Self{
-        dbg!("idk");
-        let buffer = device.create_buffer(
-            &wgpu::BufferDescriptor{
+impl BufferPadding {
+    fn new(width: u32) -> Self {
+        let bytes_per_pixel = std::mem::size_of::<u32>() as u32;
+        let unpadded_bytes_per_row = width * bytes_per_pixel;
+        let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as u32;
+        let padded_bytes_per_row_padding = (align - unpadded_bytes_per_row % align) % align;
+        let padded_bytes_per_row = unpadded_bytes_per_row + padded_bytes_per_row_padding;
+        Self {
+            unpadded_bytes_per_row,
+            padded_bytes_per_row,
+        }
+    }
+}
+
+struct CaptureState {
+    texture: wgpu::Texture,
+    buffer: wgpu::Buffer,
+    padding: BufferPadding,
+}
+
+impl CaptureState{
+    fn new(device: &Arc<wgpu::Device>, surface_texture: &wgpu::Texture) -> Self{
+        let texture = device.create_texture(
+            &wgpu::TextureDescriptor{
                 label: None,
-                size: size as u64,
-                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-                mapped_at_creation: false,
+                size: surface_texture.size(),
+                mip_level_count: surface_texture.mip_level_count(),
+                sample_count: surface_texture.sample_count(),
+                dimension: surface_texture.dimension(),
+                format: surface_texture.format(),
+                // format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+                view_formats: &[]
             }
         );
+
+        let padding = BufferPadding::new(surface_texture.width());
+        
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor{
+            label: None,
+            size: (padding.padded_bytes_per_row * surface_texture.height()) as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
         Self{
+            texture,
             buffer,
-            size,
+            padding,
         }
     }
 
-    fn update(existing: &mut Option<Self>, size: u32, device: &wgpu::Device){
-        match existing{
-            Some(cap_buffer) => {
-                if cap_buffer.size == size{
-                    return
-                } else {
-                    *cap_buffer = CaptureBuffer::new(size, device);
-                }
-            },
-            None => { *existing = Some(CaptureBuffer::new(size, device)) },
-        }
-    }
 }
-
 
 /// Everything you need to paint egui with [`wgpu`] on [`winit`].
 ///
@@ -58,7 +80,7 @@ pub struct Painter {
     msaa_samples: u32,
     depth_format: Option<wgpu::TextureFormat>,
     depth_texture_view: Option<wgpu::TextureView>,
-    screen_capture_buffer: Option<CaptureBuffer>,
+    screen_capture_state: Option<CaptureState>,
 
     instance: Instance,
     adapter: Option<Adapter>,
@@ -67,6 +89,23 @@ pub struct Painter {
 }
 
 impl Painter {
+    fn update_capture_state(screen_capture_state: &mut Option<CaptureState>, surface_texture: &wgpu::SurfaceTexture, render_state: &RenderState) -> Option<()>{
+        let surface_texture = &surface_texture.texture;
+        // let mut screen_capture_state = self.screen_capture_state.take();
+        match screen_capture_state{
+            Some(capture_state) => {
+                if capture_state.texture.size() != surface_texture.size(){
+                    *capture_state = CaptureState::new(&render_state.device, &surface_texture);
+                }
+            },
+            None => {
+                *screen_capture_state = Some(CaptureState::new(&render_state.device, &surface_texture));
+            }
+        }
+        // screen_capture_state.set(screen_capture_state);
+        Some(())
+    }
+    
     /// Manages [`wgpu`] state, including surface state, required to render egui.
     ///
     /// Only the [`wgpu::Instance`] is initialized here. Device selection and the initialization
@@ -90,7 +129,7 @@ impl Painter {
             msaa_samples,
             depth_format: (depth_bits > 0).then_some(wgpu::TextureFormat::Depth32Float),
             depth_texture_view: None,
-            screen_capture_buffer: None,
+            screen_capture_state: None,
 
             instance,
             adapter: None,
@@ -170,7 +209,10 @@ impl Painter {
         let format = render_state.target_format;
 
         let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+            // | wgpu::TextureUsages::COPY_SRC
+            | wgpu::TextureUsages::COPY_DST
+            ,
             format,
             width: width_in_pixels,
             height: height_in_pixels,
@@ -291,26 +333,33 @@ impl Painter {
         }
     }
 
-    pub fn read_screen_rgba(&mut self, tex: &wgpu::Texture) -> Option<Vec<u8>>{
+    fn read_screen_rgba(
+        screen_capture_state: &CaptureState,
+        render_state: &RenderState,
+        output_frame: &wgpu::SurfaceTexture,
+    ) -> Option<Vec<u8>>{
         // let surface_state = self.surface_state.as_ref()?;
         // let w = surface_state.width;
         // let h = surface_state.height;
         // let surface = &surface_state.surface;
         // let tex = &surface.get_current_texture().ok()?.texture;
-        dbg!(tex.format());
-        let device = &self.render_state()?.device;
-        let queue = &self.render_state()?.queue;
+        // dbg!(tex.format());
+        // let screen_capture_state = self.screen_capture_state.take()?;
+        let tex = &screen_capture_state.texture;
+        let buffer = &screen_capture_state.buffer;
+        let buf_dims = &screen_capture_state.padding;
         
-        let buf_dims = BufferPadding::new(tex.width());
+        let device = &render_state.device;
+        let queue = &render_state.queue;
+        
 
-        CaptureBuffer::update(&mut self.screen_capture_buffer, buf_dims.padded_bytes_per_row * tex.height(), device);
-        let buffer = &self.screen_capture_buffer.as_ref()?.buffer;
+        // CaptureBuffer::update(&mut self.screen_capture_buffer, buf_dims.padded_bytes_per_row * tex.height(), device);
 
 
-        let idk = self.surface_state.as_ref()?.surface.get_capabilities(self.adapter.as_ref()?).formats;
-        dbg!(
-            idk
-        );
+        // let idk = self.surface_state.as_ref()?.surface.get_capabilities(self.adapter.as_ref()?).formats;
+        // dbg!(
+        //     idk
+        // );
         // let tex_extent = wgpu::Extent3d{
         //     width: w,
         //     height: h,
@@ -337,6 +386,13 @@ impl Painter {
             tex_extent,
         );
 
+        encoder.copy_texture_to_texture(
+            tex.as_image_copy(),
+            output_frame.texture.as_image_copy(),
+            tex.size(),
+        );
+        
+
         let id = queue.submit(Some(encoder.finish()));
         let buffer_slice = buffer.slice(..);
         // let (sender, receiver) = std::sync::mpsc::channel();
@@ -352,6 +408,7 @@ impl Painter {
         
         // drop(buffer_slice);
         buffer.unmap();
+        // self.screen_capture_state.set(Some(screen_capture_state));
         // drop(buffer);
         
         Some(pixels)
@@ -360,10 +417,10 @@ impl Painter {
     pub fn paint_and_update_textures(
         &mut self,
         pixels_per_point: f32,
-        clear_color: [f32; 4],
+        clear_color: epaint::Rgba,
         clipped_primitives: &[epaint::ClippedPrimitive],
         textures_delta: &epaint::textures::TexturesDelta,
-        capture: &bool,
+        capture: bool,
     ) -> Option<Vec<u8>> {
         crate::profile_function!();
 
@@ -432,19 +489,24 @@ impl Painter {
 
         {
             let renderer = render_state.renderer.read();
-            let frame_view = output_frame
+            let frame_view = if capture{
+                Self::update_capture_state(&mut self.screen_capture_state, &output_frame, render_state);
+                self.screen_capture_state.as_ref()?.texture.create_view(&wgpu::TextureViewDescriptor::default())
+            } else {
+                output_frame
                 .texture
-                .create_view(&wgpu::TextureViewDescriptor::default());
+                .create_view(&wgpu::TextureViewDescriptor::default())
+            };
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &frame_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: clear_color[0] as f64,
-                            g: clear_color[1] as f64,
-                            b: clear_color[2] as f64,
-                            a: clear_color[3] as f64,
+                            r: clear_color.r() as f64,
+                            g: clear_color.g() as f64,
+                            b: clear_color.b() as f64,
+                            a: clear_color.a() as f64,
                         }),
                         store: true,
                     },
@@ -485,8 +547,9 @@ impl Painter {
                 .submit(user_cmd_bufs.into_iter().chain(std::iter::once(encoded)));
         };
 
-        let out = if *capture{
-            self.read_screen_rgba(&output_frame.texture)
+        let out = if capture{
+            let screen_capture_state = self.screen_capture_state.as_ref()?;
+            Self::read_screen_rgba(screen_capture_state, render_state, &output_frame)
         } else {
             None
         };
@@ -507,21 +570,3 @@ impl Painter {
 }
 
 
-struct BufferPadding {
-    unpadded_bytes_per_row: u32,
-    padded_bytes_per_row: u32,
-}
-
-impl BufferPadding {
-    fn new(width: u32) -> Self {
-        let bytes_per_pixel = std::mem::size_of::<u32>() as u32;
-        let unpadded_bytes_per_row = width * bytes_per_pixel;
-        let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as u32;
-        let padded_bytes_per_row_padding = (align - unpadded_bytes_per_row % align) % align;
-        let padded_bytes_per_row = unpadded_bytes_per_row + padded_bytes_per_row_padding;
-        Self {
-            unpadded_bytes_per_row,
-            padded_bytes_per_row,
-        }
-    }
-}
