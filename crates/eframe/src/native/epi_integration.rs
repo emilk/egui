@@ -12,6 +12,14 @@ use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
 
 use crate::{epi, Theme, WindowInfo};
 
+#[derive(Default)]
+pub struct WindowState {
+    // We cannot simply call `winit::Window::is_minimized/is_maximized`
+    // because that deadlocks on mac.
+    pub minimized: bool,
+    pub maximized: bool,
+}
+
 pub fn points_to_size(points: egui::Vec2) -> winit::dpi::LogicalSize<f64> {
     winit::dpi::LogicalSize {
         width: points.x as f64,
@@ -19,7 +27,11 @@ pub fn points_to_size(points: egui::Vec2) -> winit::dpi::LogicalSize<f64> {
     }
 }
 
-pub fn read_window_info(window: &winit::window::Window, pixels_per_point: f32) -> WindowInfo {
+pub fn read_window_info(
+    window: &winit::window::Window,
+    pixels_per_point: f32,
+    window_state: &WindowState,
+) -> WindowInfo {
     let position = window
         .outer_position()
         .ok()
@@ -38,9 +50,13 @@ pub fn read_window_info(window: &winit::window::Window, pixels_per_point: f32) -
         .inner_size()
         .to_logical::<f32>(pixels_per_point.into());
 
+    // NOTE: calling window.is_minimized() or window.is_maximized() deadlocks on Mac.
+
     WindowInfo {
         position,
         fullscreen: window.fullscreen().is_some(),
+        minimized: window_state.minimized,
+        maximized: window_state.maximized,
         size: egui::Vec2 {
             x: size.width,
             y: size.height,
@@ -198,6 +214,7 @@ pub fn handle_app_output(
     window: &winit::window::Window,
     current_pixels_per_point: f32,
     app_output: epi::backend::AppOutput,
+    window_state: &mut WindowState,
 ) {
     let epi::backend::AppOutput {
         close: _,
@@ -257,10 +274,12 @@ pub fn handle_app_output(
 
     if let Some(minimized) = minimized {
         window.set_minimized(minimized);
+        window_state.minimized = minimized;
     }
 
     if let Some(maximized) = maximized {
         window.set_maximized(maximized);
+        window_state.maximized = maximized;
     }
 }
 
@@ -287,6 +306,7 @@ pub struct EpiIntegration {
     /// When set, it is time to close the native window.
     close: bool,
     can_drag_window: bool,
+    window_state: WindowState,
 }
 
 impl EpiIntegration {
@@ -306,12 +326,17 @@ impl EpiIntegration {
 
         let native_pixels_per_point = window.scale_factor() as f32;
 
+        let window_state = WindowState {
+            minimized: window.is_minimized().unwrap_or(false),
+            maximized: window.is_maximized(),
+        };
+
         let frame = epi::Frame {
             info: epi::IntegrationInfo {
                 system_theme,
                 cpu_usage: None,
                 native_pixels_per_point: Some(native_pixels_per_point),
-                window_info: read_window_info(window, egui_ctx.pixels_per_point()),
+                window_info: read_window_info(window, egui_ctx.pixels_per_point(), &window_state),
             },
             output: epi::backend::AppOutput {
                 visible: Some(true),
@@ -336,6 +361,7 @@ impl EpiIntegration {
             pending_full_output: Default::default(),
             close: false,
             can_drag_window: false,
+            window_state,
         }
     }
 
@@ -417,12 +443,16 @@ impl EpiIntegration {
     ) -> egui::FullOutput {
         let frame_start = std::time::Instant::now();
 
-        self.frame.info.window_info = read_window_info(window, self.egui_ctx.pixels_per_point());
+        self.frame.info.window_info =
+            read_window_info(window, self.egui_ctx.pixels_per_point(), &self.window_state);
         let raw_input = self.egui_winit.take_egui_input(window);
+
+        // Run user code:
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             crate::profile_scope!("App::update");
             app.update(egui_ctx, &mut self.frame);
         });
+
         self.pending_full_output.append(full_output);
         let full_output = std::mem::take(&mut self.pending_full_output);
 
@@ -435,7 +465,12 @@ impl EpiIntegration {
                 tracing::debug!("App::on_close_event returned {}", self.close);
             }
             self.frame.output.visible = app_output.visible; // this is handled by post_present
-            handle_app_output(window, self.egui_ctx.pixels_per_point(), app_output);
+            handle_app_output(
+                window,
+                self.egui_ctx.pixels_per_point(),
+                app_output,
+                &mut self.window_state,
+            );
         }
 
         let frame_time = frame_start.elapsed().as_secs_f64() as f32;
