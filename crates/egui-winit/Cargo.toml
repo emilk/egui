@@ -70,3 +70,6 @@ smithay-clipboard = { version = "0.6.3", optional = true }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 arboard = { version = "3.2", optional = true, default-features = false }
+
+[target.'cfg(target_os = "android")'.dependencies]
+android-activity = { version = "0.4", features = ["native-activity"] }

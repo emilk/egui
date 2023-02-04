@@ -1379,6 +1379,7 @@ name = "egui-winit"
 version = "0.20.1"
 dependencies = [
  "accesskit_winit",
+ "android-activity",
  "arboard",
  "document-features",
  "egui",
