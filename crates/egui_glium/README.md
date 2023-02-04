@@ -15,3 +15,7 @@ sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev lib
 ```
 
 This crate depends on [`egui-winit`](https://github.com/emilk/egui/tree/master/crates/egui-winit).
+
+
+## DEPRECATED - Looking for new maintainer
+This crate is no longer being updated. If you are interested in keeping `egui_glium` updated, then fork it to its own repository, make a PR to the egui repo removing it, and then I will give you access to it on crates.io so you can publish new `egui_glium` crates.
