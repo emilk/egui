@@ -642,10 +642,9 @@ impl<'a> Slider<'a> {
             let center = self.marker_center(position_1d, &rail_rect);
 
             // Decide if we should add trailing fill.
-            let trailing_fill = match self.trailing_fill {
-                Some(override_bool) => override_bool,
-                None => ui.visuals().slider_trailing_fill,
-            };
+            let trailing_fill = self
+                .trailing_fill
+                .unwrap_or_else(|| ui.visuals().slider_trailing_fill);
 
             // Paint trailing fill.
             if trailing_fill {
