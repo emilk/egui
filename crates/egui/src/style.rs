@@ -509,6 +509,11 @@ pub struct Visuals {
     /// Wether or not Grids and Tables should be striped by default
     /// (have alternating rows differently colored).
     pub striped: bool,
+
+    /// Show trailing color behind the circle of a [`Slider`]. Default is OFF.
+    ///
+    /// Enabling this will affect ALL sliders, and can be enabled/disabled per slider with [`Slider::trailing_fill`].
+    pub slider_trailing_fill: bool,
 }
 
 impl Visuals {
@@ -768,6 +773,8 @@ impl Visuals {
             indent_has_left_vline: true,
 
             striped: false,
+
+            slider_trailing_fill: false,
         }
     }
 
@@ -1333,6 +1340,8 @@ impl Visuals {
             indent_has_left_vline,
 
             striped,
+
+            slider_trailing_fill,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1394,6 +1403,8 @@ impl Visuals {
         );
 
         ui.checkbox(striped, "By default, add stripes to grids and tables?");
+
+        ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
