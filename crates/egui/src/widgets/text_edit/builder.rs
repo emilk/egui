@@ -666,7 +666,7 @@ impl<'t> TextEdit<'t> {
 
         #[cfg(feature = "accesskit")]
         {
-            let parent_id = ui.ctx().accesskit_node(response.id, |node| {
+            let parent_id = ui.ctx().accesskit_node_builder(response.id, |builder| {
                 use accesskit::{TextPosition, TextSelection};
 
                 let parent_id = response.id;
@@ -674,7 +674,7 @@ impl<'t> TextEdit<'t> {
                 if let Some(cursor_range) = &cursor_range {
                     let anchor = &cursor_range.secondary.rcursor;
                     let focus = &cursor_range.primary.rcursor;
-                    node.text_selection = Some(TextSelection {
+                    builder.set_text_selection(TextSelection {
                         anchor: TextPosition {
                             node: parent_id.with(anchor.row).accesskit_id(),
                             character_index: anchor.column,
@@ -686,8 +686,10 @@ impl<'t> TextEdit<'t> {
                     });
                 }
 
-                node.default_action_verb = Some(accesskit::DefaultActionVerb::Focus);
-                node.multiline = self.multiline;
+                builder.set_default_action_verb(accesskit::DefaultActionVerb::Focus);
+                if self.multiline {
+                    builder.set_multiline();
+                }
 
                 parent_id
             });
@@ -699,16 +701,16 @@ impl<'t> TextEdit<'t> {
                 ui.ctx().with_accessibility_parent(parent_id, || {
                     for (i, row) in galley.rows.iter().enumerate() {
                         let id = parent_id.with(i);
-                        ui.ctx().accesskit_node(id, |node| {
-                            node.role = Role::InlineTextBox;
+                        ui.ctx().accesskit_node_builder(id, |builder| {
+                            builder.set_role(Role::InlineTextBox);
                             let rect = row.rect.translate(text_draw_pos.to_vec2());
-                            node.bounds = Some(accesskit::kurbo::Rect {
+                            builder.set_bounds(accesskit::Rect {
                                 x0: rect.min.x.into(),
                                 y0: rect.min.y.into(),
                                 x1: rect.max.x.into(),
                                 y1: rect.max.y.into(),
                             });
-                            node.text_direction = Some(TextDirection::LeftToRight);
+                            builder.set_text_direction(TextDirection::LeftToRight);
                             // TODO(mwcampbell): Set more node fields for the row
                             // once AccessKit adapters expose text formatting info.
 
@@ -748,11 +750,11 @@ impl<'t> TextEdit<'t> {
                             }
                             word_lengths.push((character_lengths.len() - last_word_start) as _);
 
-                            node.value = Some(value.into());
-                            node.character_lengths = character_lengths.into();
-                            node.character_positions = Some(character_positions.into());
-                            node.character_widths = Some(character_widths.into());
-                            node.word_lengths = word_lengths.into();
+                            builder.set_value(value);
+                            builder.set_character_lengths(character_lengths);
+                            builder.set_character_positions(character_positions);
+                            builder.set_character_widths(character_widths);
+                            builder.set_word_lengths(word_lengths);
                         });
                     }
                 });
