@@ -300,6 +300,9 @@ pub struct Spacing {
 
     pub scroll_bar_width: f32,
 
+    /// Make sure the scroll handle is at least this big
+    pub scroll_handle_min_length: f32,
+
     /// Margin between contents and scroll bar.
     pub scroll_bar_inner_margin: f32,
     /// Margin between scroll bar and the outer container (e.g. right of a vertical scroll bar).
@@ -506,6 +509,11 @@ pub struct Visuals {
     /// Wether or not Grids and Tables should be striped by default
     /// (have alternating rows differently colored).
     pub striped: bool,
+
+    /// Show trailing color behind the circle of a [`Slider`]. Default is OFF.
+    ///
+    /// Enabling this will affect ALL sliders, and can be enabled/disabled per slider with [`Slider::trailing_fill`].
+    pub slider_trailing_fill: bool,
 }
 
 impl Visuals {
@@ -713,6 +721,7 @@ impl Default for Spacing {
             tooltip_width: 600.0,
             combo_height: 200.0,
             scroll_bar_width: 8.0,
+            scroll_handle_min_length: 12.0,
             scroll_bar_inner_margin: 4.0,
             scroll_bar_outer_margin: 0.0,
             indent_ends_with_horizontal_line: false,
@@ -764,6 +773,8 @@ impl Visuals {
             indent_has_left_vline: true,
 
             striped: false,
+
+            slider_trailing_fill: false,
         }
     }
 
@@ -1040,6 +1051,7 @@ impl Spacing {
             indent_ends_with_horizontal_line,
             combo_height,
             scroll_bar_width,
+            scroll_handle_min_length,
             scroll_bar_inner_margin,
             scroll_bar_outer_margin,
         } = self;
@@ -1071,6 +1083,10 @@ impl Spacing {
         ui.horizontal(|ui| {
             ui.add(DragValue::new(scroll_bar_width).clamp_range(0.0..=32.0));
             ui.label("Scroll-bar width");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(scroll_handle_min_length).clamp_range(0.0..=32.0));
+            ui.label("Scroll-bar handle min length");
         });
         ui.horizontal(|ui| {
             ui.add(DragValue::new(scroll_bar_inner_margin).clamp_range(0.0..=32.0));
@@ -1324,6 +1340,8 @@ impl Visuals {
             indent_has_left_vline,
 
             striped,
+
+            slider_trailing_fill,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1385,6 +1403,8 @@ impl Visuals {
         );
 
         ui.checkbox(striped, "By default, add stripes to grids and tables?");
+
+        ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }

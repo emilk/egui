@@ -255,7 +255,7 @@ impl Painter {
     pub fn paint_and_update_textures(
         &mut self,
         pixels_per_point: f32,
-        clear_color: epaint::Rgba,
+        clear_color: [f32; 4],
         clipped_primitives: &[epaint::ClippedPrimitive],
         textures_delta: &epaint::textures::TexturesDelta,
     ) {
@@ -335,10 +335,10 @@ impl Painter {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: clear_color.r() as f64,
-                            g: clear_color.g() as f64,
-                            b: clear_color.b() as f64,
-                            a: clear_color.a() as f64,
+                            r: clear_color[0] as f64,
+                            g: clear_color[1] as f64,
+                            b: clear_color[2] as f64,
+                            a: clear_color[3] as f64,
                         }),
                         store: true,
                     },

@@ -92,7 +92,8 @@ fn test_egui_zero_window_size() {
         let clipped_primitives = ctx.tessellate(full_output.shapes);
         assert!(
             clipped_primitives.is_empty(),
-            "There should be nothing to show"
+            "There should be nothing to show, has at least one primitive with clip_rect: {:?}",
+            clipped_primitives[0].clip_rect
         );
     }
 }

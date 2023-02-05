@@ -49,7 +49,7 @@ wgpu = "0.15.0"
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
 
-winit = { version = "0.27.2", optional = true }
+winit = { version = "0.28", optional = true }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

@@ -54,6 +54,10 @@ persistence = ["serde", "epaint/serde", "ron"]
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = ["dep:serde", "epaint/serde", "accesskit?/serde"]
 
+## Change Vertex layout to be compatible with unity
+unity = ["epaint/unity"]
+
+
 [dependencies]
 epaint = { version = "0.20.0", path = "../epaint", default-features = false }
 

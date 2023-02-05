@@ -3,7 +3,7 @@ use std::sync::Arc;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
-use egui::{mutex::RwLock, Rgba};
+use egui::mutex::RwLock;
 use egui_wgpu::{renderer::ScreenDescriptor, RenderState, SurfaceErrorAction};
 
 use crate::WebOptions;
@@ -135,7 +135,7 @@ impl WebPainter for WebPainterWgpu {
 
     fn paint_and_update_textures(
         &mut self,
-        clear_color: Rgba,
+        clear_color: [f32; 4],
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
         textures_delta: &egui::TexturesDelta,
@@ -228,10 +228,10 @@ impl WebPainter for WebPainterWgpu {
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: clear_color.r() as f64,
-                                g: clear_color.g() as f64,
-                                b: clear_color.b() as f64,
-                                a: clear_color.a() as f64,
+                                r: clear_color[0] as f64,
+                                g: clear_color[1] as f64,
+                                b: clear_color[2] as f64,
+                                a: clear_color[3] as f64,
                             }),
                             store: true,
                         },

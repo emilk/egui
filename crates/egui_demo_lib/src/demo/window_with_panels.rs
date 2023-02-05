@@ -85,6 +85,8 @@ fn lorem_ipsum(ui: &mut egui::Ui) {
         egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(true),
         |ui| {
             ui.label(egui::RichText::new(crate::LOREM_IPSUM_LONG).small().weak());
+            ui.add(egui::Separator::default().grow(8.0));
+            ui.label(egui::RichText::new(crate::LOREM_IPSUM_LONG).small().weak());
         },
     );
 }

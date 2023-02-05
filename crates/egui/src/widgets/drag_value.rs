@@ -507,6 +507,12 @@ impl<'a> Widget for DragValue<'a> {
                     mem.drag_value.edit_string = None;
                     mem.request_focus(id);
                 });
+                let mut state = TextEdit::load_state(ui.ctx(), id).unwrap_or_default();
+                state.set_ccursor_range(Some(text::CCursorRange::two(
+                    epaint::text::cursor::CCursor::default(),
+                    epaint::text::cursor::CCursor::new(value_text.chars().count()),
+                )));
+                state.store(ui.ctx(), response.id);
             } else if response.dragged() {
                 ui.ctx().set_cursor_icon(CursorIcon::ResizeHorizontal);
 
