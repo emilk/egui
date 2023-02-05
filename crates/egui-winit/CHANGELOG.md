@@ -6,6 +6,7 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 * Fixed window position persistence for Windows ([#2583](https://github.com/emilk/egui/issues/2583)).
 * Update to `winit` 0.28, adding support for mac trackpad zoom ([#2654](https://github.com/emilk/egui/pull/2654)).
 * Remove the `screen_reader` feature. Use the `accesskit` feature flag instead ([#2669](https://github.com/emilk/egui/pull/2669)).
+* Fix bug where the cursor could get stuck using the wrong icon.
 
 
 ## 0.20.1 - 2022-12-11
