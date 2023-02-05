@@ -9,7 +9,6 @@ use egui::NumExt as _;
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
-use std::cell::Cell;
 
 use crate::{epi, Theme, WindowInfo};
 
@@ -349,7 +348,7 @@ impl EpiIntegration {
             gl,
             #[cfg(feature = "wgpu")]
             wgpu_render_state,
-            pixel_data: Cell::new(None),
+            pixel_data: std::cell::Cell::new(None),
         };
 
         let mut egui_winit = egui_winit::State::new(event_loop);

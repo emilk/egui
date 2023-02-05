@@ -8,7 +8,6 @@
 
 #[cfg(target_arch = "wasm32")]
 use std::any::Any;
-use std::cell::Cell;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use crate::native::run::UserEvent;
@@ -653,7 +652,7 @@ pub struct Frame {
     #[cfg(feature = "wgpu")]
     pub(crate) wgpu_render_state: Option<egui_wgpu::RenderState>,
 
-    pub(crate) pixel_data: Cell<Option<Vec<u8>>>,
+    pub(crate) pixel_data: std::cell::Cell<Option<Vec<u8>>>,
 }
 
 impl Frame {
