@@ -1332,7 +1332,7 @@ impl Visuals {
 
             striped,
 
-            slider_trailing_fill: _,
+            slider_trailing_fill,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1394,6 +1394,8 @@ impl Visuals {
         );
 
         ui.checkbox(striped, "By default, add stripes to grids and tables?");
+
+        ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
