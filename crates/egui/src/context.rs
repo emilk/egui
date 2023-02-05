@@ -70,6 +70,8 @@ struct ContextImpl {
 
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
+    #[cfg(feature = "accesskit")]
+    accesskit_node_classes: accesskit::NodeClassSet,
 }
 
 impl ContextImpl {
@@ -113,17 +115,14 @@ impl ContextImpl {
         if self.is_accesskit_enabled {
             use crate::frame_state::AccessKitFrameState;
             let id = crate::accesskit_root_id();
-            let node = Box::new(accesskit::Node {
-                role: accesskit::Role::Window,
-                transform: Some(
-                    accesskit::kurbo::Affine::scale(self.input.pixels_per_point().into()).into(),
-                ),
-                ..Default::default()
-            });
-            let mut nodes = IdMap::default();
-            nodes.insert(id, node);
+            let mut builder = accesskit::NodeBuilder::new(accesskit::Role::Window);
+            builder.set_transform(accesskit::Affine::scale(
+                self.input.pixels_per_point().into(),
+            ));
+            let mut node_builders = IdMap::default();
+            node_builders.insert(id, builder);
             self.frame_state.accesskit_state = Some(AccessKitFrameState {
-                nodes,
+                node_builders,
                 parent_stack: vec![id],
             });
         }
@@ -156,16 +155,16 @@ impl ContextImpl {
     }
 
     #[cfg(feature = "accesskit")]
-    fn accesskit_node(&mut self, id: Id) -> &mut accesskit::Node {
+    fn accesskit_node_builder(&mut self, id: Id) -> &mut accesskit::NodeBuilder {
         let state = self.frame_state.accesskit_state.as_mut().unwrap();
-        let nodes = &mut state.nodes;
-        if let std::collections::hash_map::Entry::Vacant(entry) = nodes.entry(id) {
+        let builders = &mut state.node_builders;
+        if let std::collections::hash_map::Entry::Vacant(entry) = builders.entry(id) {
             entry.insert(Default::default());
             let parent_id = state.parent_stack.last().unwrap();
-            let parent = nodes.get_mut(parent_id).unwrap();
-            parent.children.push(id.accesskit_id());
+            let parent_builder = builders.get_mut(parent_id).unwrap();
+            parent_builder.push_child(id.accesskit_id());
         }
-        nodes.get_mut(&id).unwrap()
+        builders.get_mut(&id).unwrap()
     }
 }
 
@@ -655,7 +654,7 @@ impl Context {
             // Make sure anything that can receive focus has an AccessKit node.
             // TODO(mwcampbell): For nodes that are filled from widget info,
             // some information is written to the node twice.
-            self.accesskit_node(id, |node| response.fill_accesskit_node_common(node));
+            self.accesskit_node_builder(id, |builder| response.fill_accesskit_node_common(builder));
         }
 
         let clicked_elsewhere = response.clicked_elsewhere();
@@ -1128,12 +1127,20 @@ impl Context {
             if let Some(state) = state {
                 let has_focus = self.input(|i| i.raw.has_focus);
                 let root_id = crate::accesskit_root_id().accesskit_id();
-                platform_output.accesskit_update = Some(accesskit::TreeUpdate {
-                    nodes: state
-                        .nodes
+                let nodes = self.write(|ctx| {
+                    state
+                        .node_builders
                         .into_iter()
-                        .map(|(id, node)| (id.accesskit_id(), Arc::from(node)))
-                        .collect(),
+                        .map(|(id, builder)| {
+                            (
+                                id.accesskit_id(),
+                                builder.build(&mut ctx.accesskit_node_classes),
+                            )
+                        })
+                        .collect()
+                });
+                platform_output.accesskit_update = Some(accesskit::TreeUpdate {
+                    nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
                     focus: has_focus.then(|| {
                         let focus_id = self.memory(|mem| mem.interaction.focus.id);
@@ -1720,8 +1727,8 @@ impl Context {
     }
 
     /// If AccessKit support is active for the current frame, get or create
-    /// a node with the specified ID and return a mutable reference to it.
-    /// For newly crated nodes, the parent is the node with the ID at the top
+    /// a node builder with the specified ID and return a mutable reference to it.
+    /// For newly created nodes, the parent is the node with the ID at the top
     /// of the stack managed by [`Context::with_accessibility_parent`].
     ///
     /// The `Context` lock is held while the given closure is called!
@@ -1729,16 +1736,16 @@ impl Context {
     /// Returns `None` if acesskit is off.
     // TODO: consider making both RO and RW versions
     #[cfg(feature = "accesskit")]
-    pub fn accesskit_node<R>(
+    pub fn accesskit_node_builder<R>(
         &self,
         id: Id,
-        writer: impl FnOnce(&mut accesskit::Node) -> R,
+        writer: impl FnOnce(&mut accesskit::NodeBuilder) -> R,
     ) -> Option<R> {
         self.write(|ctx| {
             ctx.frame_state
                 .accesskit_state
                 .is_some()
-                .then(|| ctx.accesskit_node(id))
+                .then(|| ctx.accesskit_node_builder(id))
                 .map(writer)
         })
     }
@@ -1750,11 +1757,29 @@ impl Context {
     /// being called by the AccessKit adapter to provide the initial tree update,
     /// then it should do so, to provide a complete AccessKit tree to the adapter
     /// immediately. Otherwise, it should enqueue a repaint and use the
-    /// placeholder tree update from [`crate::accesskit_placeholder_tree_update`]
+    /// placeholder tree update from [`Context::accesskit_placeholder_tree_update`]
     /// in the meantime.
     #[cfg(feature = "accesskit")]
     pub fn enable_accesskit(&self) {
         self.write(|ctx| ctx.is_accesskit_enabled = true);
+    }
+
+    /// Return a tree update that the egui integration should provide to the
+    /// AccessKit adapter if it cannot immediately run the egui application
+    /// to get a full tree update after running [`Context::enable_accesskit`].
+    #[cfg(feature = "accesskit")]
+    pub fn accesskit_placeholder_tree_update(&self) -> accesskit::TreeUpdate {
+        use accesskit::{NodeBuilder, Role, Tree, TreeUpdate};
+
+        let root_id = crate::accesskit_root_id().accesskit_id();
+        self.write(|ctx| TreeUpdate {
+            nodes: vec![(
+                root_id,
+                NodeBuilder::new(Role::Window).build(&mut ctx.accesskit_node_classes),
+            )],
+            tree: Some(Tree::new(root_id)),
+            focus: None,
+        })
     }
 }
 

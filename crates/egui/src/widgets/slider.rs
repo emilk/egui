@@ -792,18 +792,20 @@ impl<'a> Slider<'a> {
         response.widget_info(|| WidgetInfo::slider(value, self.text.text()));
 
         #[cfg(feature = "accesskit")]
-        ui.ctx().accesskit_node(response.id, |node| {
+        ui.ctx().accesskit_node_builder(response.id, |builder| {
             use accesskit::Action;
-            node.min_numeric_value = Some(*self.range.start());
-            node.max_numeric_value = Some(*self.range.end());
-            node.numeric_value_step = self.step;
-            node.actions |= Action::SetValue;
+            builder.set_min_numeric_value(*self.range.start());
+            builder.set_max_numeric_value(*self.range.end());
+            if let Some(step) = self.step {
+                builder.set_numeric_value_step(step);
+            }
+            builder.add_action(Action::SetValue);
             let clamp_range = self.clamp_range();
             if value < *clamp_range.end() {
-                node.actions |= Action::Increment;
+                builder.add_action(Action::Increment);
             }
             if value > *clamp_range.start() {
-                node.actions |= Action::Decrement;
+                builder.add_action(Action::Decrement);
             }
         });
 

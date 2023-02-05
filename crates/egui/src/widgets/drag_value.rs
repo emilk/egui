@@ -557,28 +557,28 @@ impl<'a> Widget for DragValue<'a> {
         response.widget_info(|| WidgetInfo::drag_value(value));
 
         #[cfg(feature = "accesskit")]
-        ui.ctx().accesskit_node(response.id, |node| {
+        ui.ctx().accesskit_node_builder(response.id, |builder| {
             use accesskit::Action;
             // If either end of the range is unbounded, it's better
             // to leave the corresponding AccessKit field set to None,
             // to allow for platform-specific default behavior.
             if clamp_range.start().is_finite() {
-                node.min_numeric_value = Some(*clamp_range.start());
+                builder.set_min_numeric_value(*clamp_range.start());
             }
             if clamp_range.end().is_finite() {
-                node.max_numeric_value = Some(*clamp_range.end());
+                builder.set_max_numeric_value(*clamp_range.end());
             }
-            node.numeric_value_step = Some(speed);
-            node.actions |= Action::SetValue;
+            builder.set_numeric_value_step(speed);
+            builder.add_action(Action::SetValue);
             if value < *clamp_range.end() {
-                node.actions |= Action::Increment;
+                builder.add_action(Action::Increment);
             }
             if value > *clamp_range.start() {
-                node.actions |= Action::Decrement;
+                builder.add_action(Action::Decrement);
             }
             // The name field is set to the current value by the button,
             // but we don't want it set that way on this widget type.
-            node.name = None;
+            builder.clear_name();
             // Always expose the value as a string. This makes the widget
             // more stable to accessibility users as it switches
             // between edit and button modes. This is particularly important
@@ -599,7 +599,7 @@ impl<'a> Widget for DragValue<'a> {
             // when in edit mode.
             if !is_kb_editing {
                 let value_text = format!("{}{}{}", prefix, value_text, suffix);
-                node.value = Some(value_text.into());
+                builder.set_value(value_text);
             }
         });
 

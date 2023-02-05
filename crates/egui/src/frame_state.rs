@@ -12,7 +12,7 @@ pub(crate) struct TooltipFrameState {
 #[cfg(feature = "accesskit")]
 #[derive(Clone)]
 pub(crate) struct AccessKitFrameState {
-    pub(crate) nodes: IdMap<Box<accesskit::Node>>,
+    pub(crate) node_builders: IdMap<accesskit::NodeBuilder>,
     pub(crate) parent_stack: Vec<Id>,
 }
 
