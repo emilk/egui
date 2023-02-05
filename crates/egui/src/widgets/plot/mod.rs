@@ -747,9 +747,11 @@ impl Plot {
                 if let Some(linked_bounds) = link_groups.0.get(id) {
                     if axes.x {
                         bounds.set_x(linked_bounds);
+                        bounds_modified.x = true;
                     }
                     if axes.y {
                         bounds.set_y(linked_bounds);
+                        bounds_modified.y = true;
                     }
                 };
             });
