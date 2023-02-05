@@ -466,7 +466,9 @@ impl<'a> Widget for DragValue<'a> {
                 .memory_mut(|mem| mem.drag_value.edit_string.take())
                 .unwrap_or_else(|| value_text.clone());
             let response = ui.add(
-                TextEdit::singleline_button(&mut value_text, ui.layout().horizontal_align())
+                TextEdit::singleline(&mut value_text)
+                    .clip_text(false)
+                    .align(ui.layout().horizontal_align())
                     .id(id)
                     .desired_width(button_width)
                     .font(text_style),
