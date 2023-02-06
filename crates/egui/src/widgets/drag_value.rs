@@ -461,16 +461,18 @@ impl<'a> Widget for DragValue<'a> {
         // some clones below are redundant if AccessKit is disabled
         #[allow(clippy::redundant_clone)]
         let mut response = if is_kb_editing {
-            let button_width = ui.spacing().interact_size.x;
             let mut value_text = ui
                 .memory_mut(|mem| mem.drag_value.edit_string.take())
                 .unwrap_or_else(|| value_text.clone());
             let response = ui.add(
                 TextEdit::singleline(&mut value_text)
                     .clip_text(false)
-                    .align(ui.layout().horizontal_align())
+                    .horizontal_align(ui.layout().horizontal_align())
+                    .vertical_align(ui.layout().vertical_align())
+                    .margin(ui.spacing().button_padding)
+                    .min_size(ui.spacing().interact_size)
                     .id(id)
-                    .desired_width(button_width)
+                    .desired_width(ui.spacing().interact_size.x)
                     .font(text_style),
             );
             let parsed_value = match custom_parser {

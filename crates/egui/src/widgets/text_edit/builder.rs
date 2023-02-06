@@ -67,7 +67,8 @@ pub struct TextEdit<'t> {
     desired_height_rows: usize,
     lock_focus: bool,
     cursor_at_end: bool,
-    align: Align,
+    min_size: Vec2,
+    align: Align2,
     clip_text: bool,
 }
 
@@ -115,7 +116,8 @@ impl<'t> TextEdit<'t> {
             desired_height_rows: 4,
             lock_focus: false,
             cursor_at_end: true,
-            align: Align::Min,
+            min_size: Vec2::ZERO,
+            align: Align2::LEFT_TOP,
             clip_text: false,
         }
     }
@@ -289,8 +291,20 @@ impl<'t> TextEdit<'t> {
     }
 
     /// Set the horizontal align of the inner text.
-    pub fn align(mut self, align: Align) -> Self {
-        self.align = align;
+    pub fn horizontal_align(mut self, align: Align) -> Self {
+        self.align.0[0] = align;
+        self
+    }
+
+    /// Set the vertical align of the inner text.
+    pub fn vertical_align(mut self, align: Align) -> Self {
+        self.align.0[1] = align;
+        self
+    }
+
+    /// Set the minimum size of the [`TextEdit`].
+    pub fn min_size(mut self, min_size: Vec2) -> Self {
+        self.min_size = min_size;
         self
     }
 }
@@ -395,6 +409,7 @@ impl<'t> TextEdit<'t> {
             desired_height_rows,
             lock_focus,
             cursor_at_end,
+            min_size,
             align,
             clip_text,
         } = self;
@@ -438,7 +453,8 @@ impl<'t> TextEdit<'t> {
             galley.size().x.max(wrap_width)
         };
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
-        let desired_size = vec2(desired_width, galley.size().y.max(desired_height));
+        let desired_size = vec2(desired_width, galley.size().y.max(desired_height))
+            .at_least(min_size - margin * 2.0);
 
         let (auto_id, rect) = ui.allocate_space(desired_size);
 
@@ -573,8 +589,8 @@ impl<'t> TextEdit<'t> {
             cursor_range = Some(new_cursor_range);
         }
 
-        let mut text_draw_pos = Align2([align, Align::TOP])
-            .align_size_within_rect(Vec2::new(galley.size().x, 0.0), response.rect)
+        let mut text_draw_pos = align
+            .align_size_within_rect(galley.size(), response.rect)
             .intersect(response.rect) // limit pos to the response rect area
             .min;
         let align_offset = response.rect.left() - text_draw_pos.x;
