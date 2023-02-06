@@ -197,7 +197,7 @@ impl Painter {
                     {
                         wgpu::CompositeAlphaMode::PostMultiplied
                     } else {
-                        warn!("Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency.");
+                        tracing::warn!("Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency.");
                         wgpu::CompositeAlphaMode::Auto
                     }
                 } else {
