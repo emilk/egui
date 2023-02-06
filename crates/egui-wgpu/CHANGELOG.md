@@ -7,6 +7,7 @@ All notable changes to the `egui-wgpu` integration will be noted in this file.
 * Return `Err` instead of panic if we can't find a device ([#2428](https://github.com/emilk/egui/pull/2428)).
 * `winit::Painter::set_window` is now `async` ([#2434](https://github.com/emilk/egui/pull/2434)).
 * `egui-wgpu` now only depends on `epaint` instead of the entire `egui` ([#2438](https://github.com/emilk/egui/pull/2438)).
+* `winit::Painter` now supports transparent backbuffer ([#2684](https://github.com/emilk/egui/pull/2684)).
 
 
 ## 0.20.0 - 2022-12-08 - web support
