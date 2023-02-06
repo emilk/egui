@@ -84,6 +84,7 @@ pub struct Slider<'a> {
     max_decimals: Option<usize>,
     custom_formatter: Option<NumFormatter<'a>>,
     custom_parser: Option<NumParser<'a>>,
+    trailing_fill: Option<bool>,
 }
 
 impl<'a> Slider<'a> {
@@ -129,6 +130,7 @@ impl<'a> Slider<'a> {
             max_decimals: None,
             custom_formatter: None,
             custom_parser: None,
+            trailing_fill: None,
         }
     }
 
@@ -266,6 +268,17 @@ impl<'a> Slider<'a> {
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
         self.min_decimals = num_decimals;
         self.max_decimals = Some(num_decimals);
+        self
+    }
+
+    /// Display trailing color behind the slider's circle. Default is OFF.
+    ///
+    /// This setting can be enabled globally for all sliders with [`Visuals::slider_trailing_fill`].
+    /// Toggling it here will override the above setting ONLY for this individual slider.
+    ///
+    /// The fill color will be taken from `selection.bg_fill` in your [`Visuals`], the same as a [`ProgressBar`].
+    pub fn trailing_fill(mut self, trailing_fill: bool) -> Self {
+        self.trailing_fill = Some(trailing_fill);
         self
     }
 
@@ -616,17 +629,39 @@ impl<'a> Slider<'a> {
             let rail_radius = ui.painter().round_to_pixel(self.rail_radius_limit(rect));
             let rail_rect = self.rail_rect(rect, rail_radius);
 
-            let position_1d = self.position_from_value(value, position_range);
-
             let visuals = ui.style().interact(response);
-            ui.painter().add(epaint::RectShape {
-                rect: rail_rect,
-                rounding: ui.visuals().widgets.inactive.rounding,
-                fill: ui.visuals().widgets.inactive.bg_fill,
-                stroke: Default::default(),
-            });
+            let widget_visuals = &ui.visuals().widgets;
 
+            ui.painter().rect_filled(
+                rail_rect,
+                widget_visuals.inactive.rounding,
+                widget_visuals.inactive.bg_fill,
+            );
+
+            let position_1d = self.position_from_value(value, position_range);
             let center = self.marker_center(position_1d, &rail_rect);
+
+            // Decide if we should add trailing fill.
+            let trailing_fill = self
+                .trailing_fill
+                .unwrap_or_else(|| ui.visuals().slider_trailing_fill);
+
+            // Paint trailing fill.
+            if trailing_fill {
+                let mut trailing_rail_rect = rail_rect;
+
+                // The trailing rect has to be drawn differently depending on the orientation.
+                match self.orientation {
+                    SliderOrientation::Vertical => trailing_rail_rect.min.y = center.y,
+                    SliderOrientation::Horizontal => trailing_rail_rect.max.x = center.x,
+                };
+
+                ui.painter().rect_filled(
+                    trailing_rail_rect,
+                    widget_visuals.inactive.rounding,
+                    ui.visuals().selection.bg_fill,
+                );
+            }
 
             ui.painter().add(epaint::CircleShape {
                 center,
@@ -757,18 +792,20 @@ impl<'a> Slider<'a> {
         response.widget_info(|| WidgetInfo::slider(value, self.text.text()));
 
         #[cfg(feature = "accesskit")]
-        ui.ctx().accesskit_node(response.id, |node| {
+        ui.ctx().accesskit_node_builder(response.id, |builder| {
             use accesskit::Action;
-            node.min_numeric_value = Some(*self.range.start());
-            node.max_numeric_value = Some(*self.range.end());
-            node.numeric_value_step = self.step;
-            node.actions |= Action::SetValue;
+            builder.set_min_numeric_value(*self.range.start());
+            builder.set_max_numeric_value(*self.range.end());
+            if let Some(step) = self.step {
+                builder.set_numeric_value_step(step);
+            }
+            builder.add_action(Action::SetValue);
             let clamp_range = self.clamp_range();
             if value < *clamp_range.end() {
-                node.actions |= Action::Increment;
+                builder.add_action(Action::Increment);
             }
             if value > *clamp_range.start() {
-                node.actions |= Action::Decrement;
+                builder.add_action(Action::Decrement);
             }
         });
 

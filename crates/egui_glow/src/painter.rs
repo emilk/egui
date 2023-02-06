@@ -5,7 +5,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use egui::{
     emath::Rect,
-    epaint::{Color32, Mesh, PaintCallbackInfo, Primitive, Vertex},
+    epaint::{Mesh, PaintCallbackInfo, Primitive, Vertex},
 };
 use glow::HasContext as _;
 use memoffset::offset_of;
@@ -665,7 +665,7 @@ impl Painter {
     }
 }
 
-pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: egui::Rgba) {
+pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: [f32; 4]) {
     crate::profile_function!();
     unsafe {
         gl.disable(glow::SCISSOR_TEST);
@@ -676,24 +676,12 @@ pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: e
             screen_size_in_pixels[0] as i32,
             screen_size_in_pixels[1] as i32,
         );
-
-        if true {
-            // verified to be correct on eframe native (on Mac).
-            gl.clear_color(
-                clear_color[0],
-                clear_color[1],
-                clear_color[2],
-                clear_color[3],
-            );
-        } else {
-            let clear_color: Color32 = clear_color.into();
-            gl.clear_color(
-                clear_color[0] as f32 / 255.0,
-                clear_color[1] as f32 / 255.0,
-                clear_color[2] as f32 / 255.0,
-                clear_color[3] as f32 / 255.0,
-            );
-        }
+        gl.clear_color(
+            clear_color[0],
+            clear_color[1],
+            clear_color[2],
+            clear_color[3],
+        );
         gl.clear(glow::COLOR_BUFFER_BIT);
     }
 }
