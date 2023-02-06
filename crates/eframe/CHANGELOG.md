@@ -13,6 +13,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 * Fixed window position persistence for Windows ([#2583](https://github.com/emilk/egui/issues/2583)).
 * Update to `winit` 0.28, adding support for mac trackpad zoom ([#2654](https://github.com/emilk/egui/pull/2654)).
 * Fix bug where the cursor could get stuck using the wrong icon.
+* `NativeOptions::transparent` now works with the wgpu backend ([#2684](https://github.com/emilk/egui/pull/2684)).
 
 #### Web:
 * Prevent ctrl-P/cmd-P from opening the print dialog ([#2598](https://github.com/emilk/egui/pull/2598)).
