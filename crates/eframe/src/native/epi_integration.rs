@@ -382,7 +382,7 @@ impl EpiIntegration {
                 egui_ctx.enable_accesskit();
                 // Enqueue a repaint so we'll receive a full tree update soon.
                 egui_ctx.request_repaint();
-                egui::accesskit_placeholder_tree_update()
+                egui_ctx.accesskit_placeholder_tree_update()
             });
     }
 

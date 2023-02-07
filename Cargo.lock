@@ -20,20 +20,19 @@ checksum = "c71b1793ee61086797f5c80b6efa2b8ffa6d5dd703f118545808a7f2e27f7046"
 
 [[package]]
 name = "accesskit"
-version = "0.8.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3083ac5a97521e35388ca80cf365b6be5210962cc59f11ee238cd92ac2fa9524"
+checksum = "4803cf8c252f374ae6bfbb341e49e5a37f7601f2ce74a105927a663eba952c67"
 dependencies = [
- "enumset",
- "kurbo",
+ "enumn",
  "serde",
 ]
 
 [[package]]
 name = "accesskit_consumer"
-version = "0.12.1"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f47393f706a2d2f9d1ebd109351f886afd256a09d2308861a6dec0853a625e2"
+checksum = "cee8cf1202a4f94d31837f1902ab0a75c77b65bf59719e093703abe83efd74ec"
 dependencies = [
  "accesskit",
  "parking_lot",
@@ -41,9 +40,9 @@ dependencies = [
 
 [[package]]
 name = "accesskit_macos"
-version = "0.4.2"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fabafb94d8a4dd6b20fe4112f943756ff8dc9778e3d742fb5478bf7f000a3282"
+checksum = "10be25f2b27bc33aa1647072e86b948b41596f1af1ae43a2b4b9be5d2011cbda"
 dependencies = [
  "accesskit",
  "accesskit_consumer",
@@ -54,9 +53,9 @@ dependencies = [
 
 [[package]]
 name = "accesskit_unix"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fbf322ecf51ac3fb9d3016382e5515122650d3fe70afe544322215e9a54f68f"
+checksum = "630e7ee8f93c6246478bf0df6760db899b28d9ad54353a5f2d3157138ba817fc"
 dependencies = [
  "accesskit",
  "accesskit_consumer",
@@ -70,9 +69,9 @@ dependencies = [
 
 [[package]]
 name = "accesskit_windows"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "620160ad7d0aec2b4ae487bc8fbf0367982651d27bf8908a49d03548cfce73ec"
+checksum = "a13c462fabdd950ef14308a9390b07fa2e2e3aabccba1f3ea36ea2231bb942ab"
 dependencies = [
  "accesskit",
  "accesskit_consumer",
@@ -85,9 +84,9 @@ dependencies = [
 
 [[package]]
 name = "accesskit_winit"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad401ccee3adde31edbbf7e8c7dd3fcb3fb916f7e519c135608b6b5231d633d4"
+checksum = "17727888757ec027ec221db33070e226ee07df44425b583bc67684204d35eff9"
 dependencies = [
  "accesskit",
  "accesskit_macos",
@@ -1071,18 +1070,8 @@ version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a01d95850c592940db9b8194bc39f4bc0e89dee5c4265e4b1807c34a9aba453c"
 dependencies = [
- "darling_core 0.13.4",
- "darling_macro 0.13.4",
-]
-
-[[package]]
-name = "darling"
-version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0dd3cd20dc6b5a876612a6e5accfe7f3dd883db6d07acfbf14c128f61550dfa"
-dependencies = [
- "darling_core 0.14.2",
- "darling_macro 0.14.2",
+ "darling_core",
+ "darling_macro",
 ]
 
 [[package]]
@@ -1100,36 +1089,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "darling_core"
-version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a784d2ccaf7c98501746bf0be29b2022ba41fd62a2e622af997a03e9f972859f"
-dependencies = [
- "fnv",
- "ident_case",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "darling_macro"
 version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c972679f83bdf9c42bd905396b6c3588a843a17f0f16dfcfa3e2c5d57441835"
 dependencies = [
- "darling_core 0.13.4",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "darling_macro"
-version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7618812407e9402654622dd402b0a89dff9ba93badd6540781526117b92aab7e"
-dependencies = [
- "darling_core 0.14.2",
+ "darling_core",
  "quote",
  "syn",
 ]
@@ -1519,22 +1484,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "enumset"
-version = "1.0.12"
+name = "enumn"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19be8061a06ab6f3a6cf21106c873578bf01bd42ad15e0311a9c76161cb1c753"
+checksum = "e88bcb3a067a6555d577aba299e75eff9942da276e6506fc6274327daa026132"
 dependencies = [
- "enumset_derive",
- "serde",
-]
-
-[[package]]
-name = "enumset_derive"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03e7b551eba279bf0fa88b83a46330168c1560a52a94f5126f892f0b364ab3e0"
-dependencies = [
- "darling 0.14.2",
  "proc-macro2",
  "quote",
  "syn",
@@ -2223,7 +2177,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a53776d271cfb873b17c618af0298445c88afc52837f3e948fa3fafd131f449"
 dependencies = [
  "arrayvec",
- "serde",
 ]
 
 [[package]]
@@ -2451,7 +2404,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0df7ac00c4672f9d5aece54ee3347520b7e20f158656c7db2e6de01902eb7a6c"
 dependencies = [
- "darling 0.13.4",
+ "darling",
  "proc-macro-crate",
  "proc-macro2",
  "quote",

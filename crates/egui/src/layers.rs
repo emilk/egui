@@ -39,6 +39,7 @@ impl Order {
         Self::Tooltip,
         Self::Debug,
     ];
+    pub const TOP: Self = Self::Debug;
 
     #[inline(always)]
     pub fn allow_interaction(&self) -> bool {

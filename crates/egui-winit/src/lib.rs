@@ -59,7 +59,7 @@ pub struct State {
     egui_input: egui::RawInput,
     pointer_pos_in_points: Option<egui::Pos2>,
     any_pointer_button_down: bool,
-    current_cursor_icon: egui::CursorIcon,
+    current_cursor_icon: Option<egui::CursorIcon>,
     /// What egui uses.
     current_pixels_per_point: f32,
 
@@ -99,7 +99,7 @@ impl State {
             egui_input,
             pointer_pos_in_points: None,
             any_pointer_button_down: false,
-            current_cursor_icon: egui::CursorIcon::Default,
+            current_cursor_icon: None,
             current_pixels_per_point: 1.0,
 
             clipboard: clipboard::Clipboard::new(wayland_display),
@@ -654,22 +654,25 @@ impl State {
     }
 
     fn set_cursor_icon(&mut self, window: &winit::window::Window, cursor_icon: egui::CursorIcon) {
-        // Prevent flickering near frame boundary when Windows OS tries to control cursor icon for window resizing.
-        // On other platforms: just early-out to save CPU.
-        if self.current_cursor_icon == cursor_icon {
+        if self.current_cursor_icon == Some(cursor_icon) {
+            // Prevent flickering near frame boundary when Windows OS tries to control cursor icon for window resizing.
+            // On other platforms: just early-out to save CPU.
             return;
         }
-        self.current_cursor_icon = cursor_icon;
 
-        if let Some(cursor_icon) = translate_cursor(cursor_icon) {
-            window.set_cursor_visible(true);
+        let is_pointer_in_window = self.pointer_pos_in_points.is_some();
+        if is_pointer_in_window {
+            self.current_cursor_icon = Some(cursor_icon);
 
-            let is_pointer_in_window = self.pointer_pos_in_points.is_some();
-            if is_pointer_in_window {
-                window.set_cursor_icon(cursor_icon);
+            if let Some(winit_cursor_icon) = translate_cursor(cursor_icon) {
+                window.set_cursor_visible(true);
+                window.set_cursor_icon(winit_cursor_icon);
+            } else {
+                window.set_cursor_visible(false);
             }
         } else {
-            window.set_cursor_visible(false);
+            // Remember to set the cursor again once the cursor returns to the screen:
+            self.current_cursor_icon = None;
         }
     }
 }

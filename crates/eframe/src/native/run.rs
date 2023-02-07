@@ -958,6 +958,7 @@ mod wgpu_integration {
                     self.native_options.wgpu_options.clone(),
                     self.native_options.multisampling.max(1) as _,
                     self.native_options.depth_buffer,
+                    self.native_options.transparent,
                 );
                 pollster::block_on(painter.set_window(Some(&window)))?;
                 painter

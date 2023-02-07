@@ -67,6 +67,9 @@ pub struct TextEdit<'t> {
     desired_height_rows: usize,
     lock_focus: bool,
     cursor_at_end: bool,
+    min_size: Vec2,
+    align: Align2,
+    clip_text: bool,
 }
 
 impl<'t> WidgetWithState for TextEdit<'t> {
@@ -89,6 +92,7 @@ impl<'t> TextEdit<'t> {
         Self {
             desired_height_rows: 1,
             multiline: false,
+            clip_text: true,
             ..Self::multiline(text)
         }
     }
@@ -112,6 +116,9 @@ impl<'t> TextEdit<'t> {
             desired_height_rows: 4,
             lock_focus: false,
             cursor_at_end: true,
+            min_size: Vec2::ZERO,
+            align: Align2::LEFT_TOP,
+            clip_text: false,
         }
     }
 
@@ -269,6 +276,37 @@ impl<'t> TextEdit<'t> {
         self.cursor_at_end = b;
         self
     }
+
+    /// When `true` (default), overflowing text will be clipped.
+    ///
+    /// When `false`, widget width will expand to make all text visible.
+    ///
+    /// This only works for singleline [`TextEdit`].
+    pub fn clip_text(mut self, b: bool) -> Self {
+        // always show everything in multiline
+        if !self.multiline {
+            self.clip_text = b;
+        }
+        self
+    }
+
+    /// Set the horizontal align of the inner text.
+    pub fn horizontal_align(mut self, align: Align) -> Self {
+        self.align.0[0] = align;
+        self
+    }
+
+    /// Set the vertical align of the inner text.
+    pub fn vertical_align(mut self, align: Align) -> Self {
+        self.align.0[1] = align;
+        self
+    }
+
+    /// Set the minimum size of the [`TextEdit`].
+    pub fn min_size(mut self, min_size: Vec2) -> Self {
+        self.min_size = min_size;
+        self
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -364,13 +402,16 @@ impl<'t> TextEdit<'t> {
             layouter,
             password,
             frame: _,
-            margin: _,
+            margin,
             multiline,
             interactive,
             desired_width,
             desired_height_rows,
             lock_focus,
             cursor_at_end,
+            min_size,
+            align,
+            clip_text,
         } = self;
 
         let text_color = text_color
@@ -389,7 +430,7 @@ impl<'t> TextEdit<'t> {
             available_width
         } else {
             desired_width.min(available_width)
-        };
+        } - margin.x * 2.0;
 
         let font_id_clone = font_id.clone();
         let mut default_layouter = move |ui: &Ui, text: &str, wrap_width: f32| {
@@ -406,13 +447,14 @@ impl<'t> TextEdit<'t> {
 
         let mut galley = layouter(ui, text.as_str(), wrap_width);
 
-        let desired_width = if multiline {
-            galley.size().x.max(wrap_width) // always show everything in multiline
+        let desired_width = if clip_text {
+            wrap_width // visual clipping with scroll in singleline input.
         } else {
-            wrap_width // visual clipping with scroll in singleline input. TODO(emilk): opt-in/out?
+            galley.size().x.max(wrap_width)
         };
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
-        let desired_size = vec2(desired_width, galley.size().y.max(desired_height));
+        let desired_size = vec2(desired_width, galley.size().y.max(desired_height))
+            .at_least(min_size - margin * 2.0);
 
         let (auto_id, rect) = ui.allocate_space(desired_size);
 
@@ -547,10 +589,14 @@ impl<'t> TextEdit<'t> {
             cursor_range = Some(new_cursor_range);
         }
 
-        let mut text_draw_pos = response.rect.min;
+        let mut text_draw_pos = align
+            .align_size_within_rect(galley.size(), response.rect)
+            .intersect(response.rect) // limit pos to the response rect area
+            .min;
+        let align_offset = response.rect.left() - text_draw_pos.x;
 
         // Visual clipping for singleline text editor with text larger than width
-        if !multiline {
+        if clip_text && align_offset == 0.0 {
             let cursor_pos = match (cursor_range, ui.memory(|mem| mem.has_focus(id))) {
                 (Some(cursor_range), true) => galley.pos_from_cursor(&cursor_range.primary).min.x,
                 _ => 0.0,
@@ -573,6 +619,8 @@ impl<'t> TextEdit<'t> {
 
             state.singleline_offset = offset_x;
             text_draw_pos -= vec2(offset_x, 0.0);
+        } else {
+            state.singleline_offset = align_offset;
         }
 
         let selection_changed = if let (Some(cursor_range), Some(prev_cursor_range)) =
@@ -666,7 +714,7 @@ impl<'t> TextEdit<'t> {
 
         #[cfg(feature = "accesskit")]
         {
-            let parent_id = ui.ctx().accesskit_node(response.id, |node| {
+            let parent_id = ui.ctx().accesskit_node_builder(response.id, |builder| {
                 use accesskit::{TextPosition, TextSelection};
 
                 let parent_id = response.id;
@@ -674,7 +722,7 @@ impl<'t> TextEdit<'t> {
                 if let Some(cursor_range) = &cursor_range {
                     let anchor = &cursor_range.secondary.rcursor;
                     let focus = &cursor_range.primary.rcursor;
-                    node.text_selection = Some(TextSelection {
+                    builder.set_text_selection(TextSelection {
                         anchor: TextPosition {
                             node: parent_id.with(anchor.row).accesskit_id(),
                             character_index: anchor.column,
@@ -686,8 +734,10 @@ impl<'t> TextEdit<'t> {
                     });
                 }
 
-                node.default_action_verb = Some(accesskit::DefaultActionVerb::Focus);
-                node.multiline = self.multiline;
+                builder.set_default_action_verb(accesskit::DefaultActionVerb::Focus);
+                if self.multiline {
+                    builder.set_multiline();
+                }
 
                 parent_id
             });
@@ -699,16 +749,16 @@ impl<'t> TextEdit<'t> {
                 ui.ctx().with_accessibility_parent(parent_id, || {
                     for (i, row) in galley.rows.iter().enumerate() {
                         let id = parent_id.with(i);
-                        ui.ctx().accesskit_node(id, |node| {
-                            node.role = Role::InlineTextBox;
+                        ui.ctx().accesskit_node_builder(id, |builder| {
+                            builder.set_role(Role::InlineTextBox);
                             let rect = row.rect.translate(text_draw_pos.to_vec2());
-                            node.bounds = Some(accesskit::kurbo::Rect {
+                            builder.set_bounds(accesskit::Rect {
                                 x0: rect.min.x.into(),
                                 y0: rect.min.y.into(),
                                 x1: rect.max.x.into(),
                                 y1: rect.max.y.into(),
                             });
-                            node.text_direction = Some(TextDirection::LeftToRight);
+                            builder.set_text_direction(TextDirection::LeftToRight);
                             // TODO(mwcampbell): Set more node fields for the row
                             // once AccessKit adapters expose text formatting info.
 
@@ -748,11 +798,11 @@ impl<'t> TextEdit<'t> {
                             }
                             word_lengths.push((character_lengths.len() - last_word_start) as _);
 
-                            node.value = Some(value.into());
-                            node.character_lengths = character_lengths.into();
-                            node.character_positions = Some(character_positions.into());
-                            node.character_widths = Some(character_widths.into());
-                            node.word_lengths = word_lengths.into();
+                            builder.set_value(value);
+                            builder.set_character_lengths(character_lengths);
+                            builder.set_character_positions(character_positions);
+                            builder.set_character_widths(character_widths);
+                            builder.set_word_lengths(word_lengths);
                         });
                     }
                 });
