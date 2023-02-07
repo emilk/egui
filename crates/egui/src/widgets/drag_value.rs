@@ -398,22 +398,8 @@ impl<'a> Widget for DragValue<'a> {
         let change = ui.input_mut(|input| {
             let mut change = 0.0;
 
-            if is_kb_editing {
-                // This deliberately doesn't listen for left and right arrow keys,
-                // because when editing, these are used to move the caret.
-                // This behavior is consistent with other editable spinner/stepper
-                // implementations, such as Chromium's (for HTML5 number input).
-                // It is also normal for such controls to go directly into edit mode
-                // when they receive keyboard focus, and some screen readers
-                // assume this behavior, so having a separate mode for incrementing
-                // and decrementing, that supports all arrow keys, would be
-                // problematic.
-                change += input.count_and_consume_key(Modifiers::NONE, Key::ArrowUp) as f64
-                    - input.count_and_consume_key(Modifiers::NONE, Key::ArrowDown) as f64;
-            }
-
             #[cfg(feature = "accesskit")]
-            {
+            if !is_kb_editing {
                 use accesskit::Action;
                 change += input.num_accesskit_action_requests(id, Action::Increment) as f64
                     - input.num_accesskit_action_requests(id, Action::Decrement) as f64;
@@ -475,13 +461,15 @@ impl<'a> Widget for DragValue<'a> {
                     .desired_width(ui.spacing().interact_size.x)
                     .font(text_style),
             );
-            let parsed_value = match custom_parser {
-                Some(parser) => parser(&value_text),
-                None => value_text.parse().ok(),
-            };
-            if let Some(parsed_value) = parsed_value {
-                let parsed_value = clamp_to_range(parsed_value, clamp_range.clone());
-                set(&mut get_set_value, parsed_value);
+            if response.lost_focus() {
+                let parsed_value = match custom_parser {
+                    Some(parser) => parser(&value_text),
+                    None => value_text.parse().ok(),
+                };
+                if let Some(parsed_value) = parsed_value {
+                    let parsed_value = clamp_to_range(parsed_value, clamp_range.clone());
+                    set(&mut get_set_value, parsed_value);
+                }
             }
             ui.memory_mut(|mem| mem.drag_value.edit_string = Some(value_text));
             response
