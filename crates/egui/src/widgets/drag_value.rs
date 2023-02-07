@@ -395,22 +395,21 @@ impl<'a> Widget for DragValue<'a> {
         let max_decimals = max_decimals.unwrap_or(auto_decimals + 2);
         let auto_decimals = auto_decimals.clamp(min_decimals, max_decimals);
 
-        let change = ui.input_mut(|input| {
-            let mut change = 0.0;
-
-            #[cfg(feature = "accesskit")]
-            if !is_kb_editing {
-                use accesskit::Action;
-                change += input.num_accesskit_action_requests(id, Action::Increment) as f64
-                    - input.num_accesskit_action_requests(id, Action::Decrement) as f64;
-            }
-
-            change
-        });
-
         #[cfg(feature = "accesskit")]
         {
             use accesskit::{Action, ActionData};
+
+            let change = ui.input_mut(|input| {
+                let mut change = 0.0;
+
+                if !is_kb_editing {
+                    change += input.num_accesskit_action_requests(id, Action::Increment) as f64
+                        - input.num_accesskit_action_requests(id, Action::Decrement) as f64;
+                }
+
+                change
+            });
+
             ui.input(|input| {
                 for request in input.accesskit_action_requests(id, Action::SetValue) {
                     if let Some(ActionData::NumericValue(new_value)) = request.data {
@@ -418,11 +417,11 @@ impl<'a> Widget for DragValue<'a> {
                     }
                 }
             });
-        }
 
-        if change != 0.0 {
-            value += speed * change;
-            value = emath::round_to_decimals(value, auto_decimals);
+            if change != 0.0 {
+                value += speed * change;
+                value = emath::round_to_decimals(value, auto_decimals);
+            }
         }
 
         value = clamp_to_range(value, clamp_range.clone());
