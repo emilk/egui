@@ -64,6 +64,7 @@ pub fn read_window_info(
         monitor_size,
     }
 }
+
 pub fn window_builder<E>(
     event_loop: &EventLoopWindowTarget<E>,
     title: &str,
@@ -159,23 +160,17 @@ pub fn window_builder<E>(
     }
     window_builder
 }
-pub fn build_window<E>(
-    event_loop: &EventLoopWindowTarget<E>,
-    title: &str,
-    native_options: &epi::NativeOptions,
-    window_settings: Option<WindowSettings>,
-) -> Result<winit::window::Window, winit::error::OsError> {
-    let window_builder = window_builder(event_loop, title, native_options, window_settings);
-    let window = window_builder.build(event_loop)?;
 
+pub fn apply_native_options_to_window(
+    window: &winit::window::Window,
+    native_options: &crate::NativeOptions,
+) {
     use winit::window::WindowLevel;
     window.set_window_level(if native_options.always_on_top {
         WindowLevel::AlwaysOnTop
     } else {
         WindowLevel::Normal
     });
-
-    Ok(window)
 }
 
 fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui::Vec2 {
