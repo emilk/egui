@@ -685,7 +685,7 @@ impl Frame {
 
     /// Cancel a request made with [`Frame::request_screenshot`].
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn cancel_request_screenshot(&mut self) {
+    pub fn cancel_screenshot_request(&mut self) {
         self.output.screenshot_requested = false;
     }
 
@@ -696,7 +696,39 @@ impl Frame {
     /// * Called in [`App::update`]
     /// * [`Frame::request_screenshot`] wasn't called on this frame during [`App::update`]
     /// * The rendering backend doesn't support this feature (yet). Currently implemented for wgpu and glow, but not with wasm as target.
-    /// * Retrieving the data was unsuccesful in some way.
+    /// * Retrieving the data was unsuccessful in some way.
+    ///
+    /// See also [`egui::ColorImage::region`]
+    ///
+    /// ## Example generating a capture of everything within a square of 100 pixels located at the top left of the app and saving it with the [`image`](crates.io/crates/image) crate:
+    /// ```
+    /// impl eframe::App for MyApp{
+    ///     fn update(ctx: &egui::Context, frame: &mut eframe::Frame){
+    ///         ... // In real code the app would render something here
+    ///         frame.request_screenshot()
+    ///         ... // Things that are added to the frame after the call to
+    ///             // request_screenshot() will still be included.
+    ///     }
+    ///
+    ///     fn post_rendering(&mut self, _window_size: [u32; 2], frame: &eframe::Frame){
+    ///         if let Some(screenshot) = frame.screenshot(){
+    ///             let pixels_per_point = frame.info().native_pixels_per_point;
+    ///             let region = egui::Rect::from_two_pos(
+    ///                 egui::Pos2::ZERO,
+    ///                 egui::Pos2{ x: 100., y: 100. },
+    ///             );
+    ///             let top_left_corner = screenshot.region(&region, pixels_per_point);
+    ///             image::save_buffer(
+    ///                 "top_left.png",
+    ///                 top_left_corner.as_raw(),
+    ///                 top_left_corner.width() as u32,
+    ///                 top_left_corner.height() as u32,
+    ///                 image::ColorType::Rgba8,
+    ///             ).unwrap();
+    ///         }
+    ///     }
+    /// }
+    /// ```
     #[cfg(not(target_arch = "wasm32"))]
     pub fn screenshot(&self) -> Option<egui::ColorImage> {
         self.pixel_data.take()

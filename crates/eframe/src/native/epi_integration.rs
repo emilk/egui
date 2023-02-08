@@ -226,7 +226,7 @@ pub fn handle_app_output(
         window_pos,
         visible: _, // handled in post_present
         always_on_top,
-        screenshot_requested: _ // handled by the rendering backend,
+        screenshot_requested: _, // handled by the rendering backend,
         minimized,
         maximized,
     } = app_output;

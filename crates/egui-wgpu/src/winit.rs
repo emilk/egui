@@ -411,8 +411,8 @@ impl Painter {
             wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
             _ => {
                 tracing::error!("Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}", tex.format());
-                return None
-            },
+                return None;
+            }
         };
 
         let mut pixels = Vec::with_capacity((tex.width() * tex.height()) as usize);
