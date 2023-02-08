@@ -120,7 +120,7 @@ impl ColorImage {
         bytemuck::cast_slice_mut(&mut self.pixels)
     }
 
-    /// Reinterpret the underlying data as Vec<u8> instead of Vec<egui::Color32>. Useful for e.g. interoperating with other crates such as image. This
+    /// Reinterpret the underlying data as Vec<u8> instead of Vec<egui::Color32>. Useful for interoperating with other crates such as [`image`](crates.io/crates/image). This
     /// is a no-copy, but uses unsafe code internally. For a safer alternative, you can use [`Self::as_raw`] and manually copy into a new collection.
     pub fn into_raw(mut self) -> Vec<u8> {
         let ratio = std::mem::size_of::<Color32>() / std::mem::size_of::<u8>();
@@ -139,17 +139,17 @@ impl ColorImage {
     ///
     ///
     /// ## Example generating a capture of everything within a square of 100 pixels located at the top left of the app, using [`eframe`](https://docs.rs/eframe/0.20.1/eframe/) and the [`image`](crates.io/crates/image) crate:
-    /// Remember to call `request_pixels` during [`update`](https://docs.rs/eframe/latest/eframe/trait.App.html#tymethod.update).
+    /// Remember to call `request_screenshot` during [`update`](https://docs.rs/eframe/latest/eframe/trait.App.html#tymethod.update).
     /// ```
     /// impl eframe::App for MyApp{
     ///     fn update(ctx: &egui::Context, frame: &mut eframe::Frame){
     ///         ...
-    ///         frame.request_pixels()
+    ///         frame.request_screenshot()
     ///         ...
     ///     }
-    ///     
-    ///     fn post_rendering(_window_size: [u32; 2], frame: &eframe::Frame){
-    ///         if let Some(screenshot) = frame.frame_pixels(){
+    ///
+    ///     fn post_rendering(&mut self, _window_size: [u32; 2], frame: &eframe::Frame){
+    ///         if let Some(screenshot) = frame.screenshot(){
     ///             let pixels_per_point = frame.info().native_pixels_per_point;
     ///             let region = egui::Rect::from_two_pos(egui::Pos2::ZERO, egui::Pos2{ x: 100., y: 100. });
     ///             let top_left_corner = screenshot.region(region, pixels_per_point);

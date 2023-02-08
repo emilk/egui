@@ -27,8 +27,8 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * You can turn off the vertical line left of indented regions with `Visuals::indent_has_left_vline` ([#2636](https://github.com/emilk/egui/pull/2636)).
 * Add `Response.highlight` to highlight a widget ([#2632](https://github.com/emilk/egui/pull/2632)).
 * Add `Separator::grow` and `Separator::shrink` ([#2665](https://github.com/emilk/egui/pull/2665)).
-* Add `Frame::request_pixels` and `Frame::frame_pixels` to communicate to the backend that a screenshot of the current frame should be exposed by `Frame` during `App::post_rendering`
-* Add `read_screan_rgba` to the egui-wgpu `Painter`, to allow for capturing the current frame when using wgpu. Used in conjuction with `Frame::request_pixels`
+* Add `Frame::request_screenshot` and `Frame::screenshot` to communicate to the backend that a screenshot of the current frame should be exposed by `Frame` during `App::post_rendering`
+* Add `read_screan_rgba` to the egui-wgpu `Painter`, to allow for capturing the current frame when using wgpu. Used in conjuction with `Frame::request_screenshot`
 
 ### Changed 🔧
 * Improved plot grid appearance ([#2412](https://github.com/emilk/egui/pull/2412)).

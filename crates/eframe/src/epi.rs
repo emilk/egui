@@ -674,26 +674,26 @@ impl Frame {
         self.storage.as_deref()
     }
 
-    /// Request the current frame's pixel data. Needs to be retrieved by calling [`Frame::frame_pixels`]
+    /// Request the current frame's pixel data. Needs to be retrieved by calling [`Frame::screenshot`]
     /// during [`App::post_rendering`].
-    pub fn request_pixels(&mut self) {
+    pub fn request_screenshot(&mut self) {
         self.output.pixels_requested = true;
     }
 
-    /// Cancel a request made with [`Frame::request_pixels`].
-    pub fn cancel_request_pixels(&mut self) {
+    /// Cancel a request made with [`Frame::request_screenshot`].
+    pub fn cancel_request_screenshot(&mut self) {
         self.output.pixels_requested = false;
     }
 
     /// During [`App::post_rendering`], use this to retrieve the pixel data that was requested during
-    /// [`App::update`] via [`Frame::request_pixels`].
+    /// [`App::update`] via [`Frame::request_screenshot`].
     ///
     /// Returns None if:
     /// * Called in [`App::update`]
-    /// * [`Frame::request_pixels`] wasn't called on this frame during [`App::update`]
+    /// * [`Frame::request_screenshot`] wasn't called on this frame during [`App::update`]
     /// * The rendering backend doesn't support this feature (yet). Currently implemented for wgpu and glow.
     /// * Retrieving the data was unsuccesful in some way.
-    pub fn frame_pixels(&self) -> Option<egui::ColorImage> {
+    pub fn screenshot(&self) -> Option<egui::ColorImage> {
         self.pixel_data.take()
     }
 

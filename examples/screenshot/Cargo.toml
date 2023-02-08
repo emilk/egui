@@ -1,7 +1,10 @@
 [package]
 name = "screenshot"
 version = "0.1.0"
-authors = ["René Rössler <rene@freshx.de>"]
+authors = [
+    "René Rössler <rene@freshx.de>",
+    "Andreas Faber <andreas.mfaber@gmail.com",
+]
 license = "MIT OR Apache-2.0"
 edition = "2021"
 rust-version = "1.65"
@@ -14,3 +17,4 @@ eframe = { path = "../../crates/eframe", features = [
     "wgpu",
 ] }
 itertools = "0.10.3"
+image = "0.24"

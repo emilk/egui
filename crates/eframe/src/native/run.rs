@@ -682,7 +682,7 @@ mod glow_integration {
                         let [w, h] = screen_size_in_pixels;
                         let pixels = painter.read_screen_rgba(screen_size_in_pixels);
                         let image =
-                            image::RgbaImage::from_vec(w, h, unsafe { pixels.into_raw() }).unwrap();
+                            image::RgbaImage::from_vec(w, h, pixels.into_raw()).unwrap();
                         image.save(&path).unwrap_or_else(|err| {
                             panic!("Failed to save screenshot to {path:?}: {err}");
                         });
