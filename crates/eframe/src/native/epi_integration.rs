@@ -354,7 +354,7 @@ impl EpiIntegration {
             gl,
             #[cfg(feature = "wgpu")]
             wgpu_render_state,
-            pixel_data: std::cell::Cell::new(None),
+            screenshot: std::cell::Cell::new(None),
         };
 
         let mut egui_winit = egui_winit::State::new(event_loop);

@@ -653,7 +653,7 @@ pub struct Frame {
     pub(crate) wgpu_render_state: Option<egui_wgpu::RenderState>,
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) pixel_data: std::cell::Cell<Option<egui::ColorImage>>,
+    pub(crate) screenshot: std::cell::Cell<Option<egui::ColorImage>>,
 }
 
 impl Frame {
@@ -731,7 +731,7 @@ impl Frame {
     /// ```
     #[cfg(not(target_arch = "wasm32"))]
     pub fn screenshot(&self) -> Option<egui::ColorImage> {
-        self.pixel_data.take()
+        self.screenshot.take()
     }
 
     /// A place where you can store custom data in a way that persists when you restart the app.

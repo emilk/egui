@@ -790,8 +790,8 @@ mod glow_integration {
 
                 if *screenshot_requested == true {
                     *screenshot_requested = false;
-                    let pixel_data = painter.read_screen_rgba(screen_size_in_pixels);
-                    integration.frame.pixel_data.set(Some(pixel_data));
+                    let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
+                    integration.frame.screenshot.set(Some(screenshot));
                 }
 
                 integration.post_rendering(app.as_mut(), window);
@@ -1217,7 +1217,7 @@ mod wgpu_integration {
 
                 let screenshot_requested = &mut integration.frame.output.screenshot_requested;
 
-                let pixel_data = painter.paint_and_update_textures(
+                let screenshot = painter.paint_and_update_textures(
                     integration.egui_ctx.pixels_per_point(),
                     app.clear_color(&integration.egui_ctx.style().visuals),
                     &clipped_primitives,
@@ -1225,7 +1225,7 @@ mod wgpu_integration {
                     *screenshot_requested,
                 );
                 *screenshot_requested = false;
-                integration.frame.pixel_data.set(pixel_data);
+                integration.frame.screenshot.set(screenshot);
 
                 integration.post_rendering(app.as_mut(), window);
                 integration.post_present(window);

@@ -582,7 +582,7 @@ impl Painter {
                 .submit(user_cmd_bufs.into_iter().chain(std::iter::once(encoded)));
         };
 
-        let pixel_data = if capture {
+        let screenshot = if capture {
             let screen_capture_state = self.screen_capture_state.as_ref()?;
             Self::read_screen_rgba(screen_capture_state, render_state, &output_frame)
         } else {
@@ -593,7 +593,7 @@ impl Painter {
             crate::profile_scope!("present");
             output_frame.present();
         }
-        pixel_data
+        screenshot
     }
 
     #[allow(clippy::unused_self)]
