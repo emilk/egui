@@ -43,6 +43,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * The `button_padding` style option works closer as expected with image+text buttons now ([#2510](https://github.com/emilk/egui/pull/2510)).
 * Fixed rendering of `…` (ellipsis).
 * Menus are now moved to fit on the screen.
+* Fix `Window::pivot` causing windows to move around ([#2694](https://github.com/emilk/egui/pull/2694)).
 
 
 ## 0.20.1 - 2022-12-11 - Fix key-repeat
