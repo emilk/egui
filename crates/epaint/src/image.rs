@@ -120,17 +120,6 @@ impl ColorImage {
         bytemuck::cast_slice_mut(&mut self.pixels)
     }
 
-    /// Reinterpret the underlying data as `Vec<u8>` instead of `Vec<egui::Color32>`. Useful for interoperating with other crates such as [`image`](crates.io/crates/image). This
-    /// is a no-copy, but uses unsafe code internally. For a safer alternative, you can use [`Self::as_raw`] and manually copy into a new collection.
-    pub fn into_raw(mut self) -> Vec<u8> {
-        let ratio = std::mem::size_of::<Color32>() / std::mem::size_of::<u8>();
-        let length = self.pixels.len() * ratio;
-        let capacity = self.pixels.capacity() * ratio;
-        let ptr = self.pixels.as_mut_ptr() as *mut u8;
-        std::mem::forget(self.pixels);
-        unsafe { Vec::from_raw_parts(ptr, length, capacity) }
-    }
-
     /// Create a new Image from a patch of the current image. This method is especially convenient for screenshotting a part of the app
     /// since `region` can be interpreted as screen coordinates of the entire screenshot if `pixels_per_point` is provided for the native application.
     /// The floats of [`egui::Rect`] are cast to usize, rounding them down in order to interpret them as indices to the image data.
