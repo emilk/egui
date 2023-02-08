@@ -438,9 +438,12 @@ impl<'open> Window<'open> {
             content_inner
         };
 
-        area.state_mut().pos = ctx
-            .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
-            .min;
+        {
+            let pos = ctx
+                .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
+                .left_top();
+            area.state_mut().set_left_top_pos(pos);
+        }
 
         let full_response = area.end(ctx, area_content_ui);
 
@@ -550,7 +553,7 @@ fn interact(
     let new_rect = ctx.constrain_window_rect_to_area(new_rect, area.drag_bounds());
 
     // TODO(emilk): add this to a Window state instead as a command "move here next frame"
-    area.state_mut().pos = new_rect.min;
+    area.state_mut().set_left_top_pos(new_rect.left_top());
 
     if window_interaction.is_resize() {
         if let Some(mut state) = resize::State::load(ctx, resize_id) {
