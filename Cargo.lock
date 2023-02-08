@@ -1278,6 +1278,7 @@ dependencies = [
  "egui_glow",
  "glow 0.11.2",
  "glutin",
+ "glutin-winit",
  "image",
  "js-sys",
  "percent-encoding",
@@ -1404,6 +1405,7 @@ dependencies = [
  "egui-winit",
  "glow 0.11.2",
  "glutin",
+ "glutin-winit",
  "memoffset",
  "puffin",
  "raw-window-handle",
@@ -1815,6 +1817,18 @@ dependencies = [
  "wayland-sys 0.30.1",
  "windows-sys 0.36.1",
  "x11-dl",
+]
+
+[[package]]
+name = "glutin-winit"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "629a873fc04062830bfe8f97c03773bcd7b371e23bcc465d0a61448cd1588fa4"
+dependencies = [
+ "cfg_aliases",
+ "glutin",
+ "raw-window-handle",
+ "winit",
 ]
 
 [[package]]
