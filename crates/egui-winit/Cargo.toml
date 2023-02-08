@@ -1,6 +1,6 @@
 [package]
 name = "egui-winit"
-version = "0.20.1"
+version = "0.21.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui with winit"
 edition = "2021"
@@ -43,7 +43,7 @@ serde = ["egui/serde", "dep:serde"]
 wayland = ["winit/wayland"]
 
 [dependencies]
-egui = { version = "0.20.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.21.0", path = "../egui", default-features = false, features = [
   "tracing",
 ] }
 instant = { version = "0.1", features = [
