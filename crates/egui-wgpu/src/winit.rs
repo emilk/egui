@@ -14,11 +14,11 @@ struct SurfaceState {
     height: u32,
 }
 
-// A texture and a buffer for reading the rendered frame back to the cpu.
-// The texture is required since wgpu::TextureUsages::COPY_DST is not an allowed
-// flag for the surface texture on all platforms. This means that anytime we want to
-// capture the frame, we first render it to this texture, and then we can copy it to
-// both the surface texture and the buffer, from where we can pull it back to the cpu.
+/// A texture and a buffer for reading the rendered frame back to the cpu.
+/// The texture is required since wgpu::TextureUsages::COPY_DST is not an allowed
+/// flag for the surface texture on all platforms. This means that anytime we want to
+/// capture the frame, we first render it to this texture, and then we can copy it to
+/// both the surface texture and the buffer, from where we can pull it back to the cpu.
 struct CaptureState {
     texture: wgpu::Texture,
     buffer: wgpu::Buffer,
