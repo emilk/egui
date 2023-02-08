@@ -64,15 +64,13 @@ pub fn read_window_info(
         monitor_size,
     }
 }
-
-pub fn build_window<E>(
+pub fn window_builder<E>(
     event_loop: &EventLoopWindowTarget<E>,
     title: &str,
     native_options: &epi::NativeOptions,
     window_settings: Option<WindowSettings>,
-) -> Result<winit::window::Window, winit::error::OsError> {
+) -> winit::window::WindowBuilder {
     let epi::NativeOptions {
-        always_on_top,
         maximized,
         decorated,
         fullscreen,
@@ -159,11 +157,19 @@ pub fn build_window<E>(
             }
         }
     }
-
+    window_builder
+}
+pub fn build_window<E>(
+    event_loop: &EventLoopWindowTarget<E>,
+    title: &str,
+    native_options: &epi::NativeOptions,
+    window_settings: Option<WindowSettings>,
+) -> Result<winit::window::Window, winit::error::OsError> {
+    let window_builder = window_builder(event_loop, title, native_options, window_settings);
     let window = window_builder.build(event_loop)?;
 
     use winit::window::WindowLevel;
-    window.set_window_level(if *always_on_top {
+    window.set_window_level(if native_options.always_on_top {
         WindowLevel::AlwaysOnTop
     } else {
         WindowLevel::Normal

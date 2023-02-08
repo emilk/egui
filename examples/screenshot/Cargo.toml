@@ -17,4 +17,4 @@ eframe = { path = "../../crates/eframe", features = [
     "wgpu",
 ] }
 itertools = "0.10.3"
-image = "0.24"
+image = { version = "0.24", default-features = false, features = ["png"] }

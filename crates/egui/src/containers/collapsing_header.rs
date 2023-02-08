@@ -141,9 +141,10 @@ impl CollapsingState {
         add_header: impl FnOnce(&mut Ui) -> HeaderRet,
     ) -> HeaderResponse<'_, HeaderRet> {
         let header_response = ui.horizontal(|ui| {
+            let prev_item_spacing = ui.spacing_mut().item_spacing;
             ui.spacing_mut().item_spacing.x = 0.0; // the toggler button uses the full indent width
             let collapser = self.show_default_button_indented(ui);
-            ui.spacing_mut().item_spacing.x = ui.spacing_mut().icon_spacing; // Restore spacing
+            ui.spacing_mut().item_spacing = prev_item_spacing;
             (collapser, add_header(ui))
         });
         HeaderResponse {

@@ -9,8 +9,10 @@ use crate::*;
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
-    /// Last known pos
-    pub pos: Pos2,
+    /// Last known pos of the pivot
+    pub pivot_pos: Pos2,
+
+    pub pivot: Align2,
 
     /// Last know size. Used for catching clicks.
     pub size: Vec2,
@@ -21,8 +23,22 @@ pub(crate) struct State {
 }
 
 impl State {
+    pub fn left_top_pos(&self) -> Pos2 {
+        pos2(
+            self.pivot_pos.x - self.pivot.x().to_factor() * self.size.x,
+            self.pivot_pos.y - self.pivot.y().to_factor() * self.size.y,
+        )
+    }
+
+    pub fn set_left_top_pos(&mut self, pos: Pos2) {
+        self.pivot_pos = pos2(
+            pos.x + self.pivot.x().to_factor() * self.size.x,
+            pos.y + self.pivot.y().to_factor() * self.size.y,
+        );
+    }
+
     pub fn rect(&self) -> Rect {
-        Rect::from_min_size(self.pos, self.size)
+        Rect::from_min_size(self.left_top_pos(), self.size)
     }
 }
 
@@ -237,21 +253,19 @@ impl Area {
             ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place
         }
         let mut state = state.unwrap_or_else(|| State {
-            pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
+            pivot_pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
+            pivot,
             size: Vec2::ZERO,
             interactable,
         });
-        state.pos = new_pos.unwrap_or(state.pos);
+        state.pivot_pos = new_pos.unwrap_or(state.pivot_pos);
         state.interactable = interactable;
-
-        if pivot != Align2::LEFT_TOP {
-            state.pos.x -= pivot.x().to_factor() * state.size.x;
-            state.pos.y -= pivot.y().to_factor() * state.size.y;
-        }
 
         if let Some((anchor, offset)) = anchor {
             let screen = ctx.available_rect();
-            state.pos = anchor.align_size_within_rect(state.size, screen).min + offset;
+            state.set_left_top_pos(
+                anchor.align_size_within_rect(state.size, screen).left_top() + offset,
+            );
         }
 
         // interact right away to prevent frame-delay
@@ -278,12 +292,13 @@ impl Area {
             // Important check - don't try to move e.g. a combobox popup!
             if movable {
                 if move_response.dragged() {
-                    state.pos += ctx.input(|i| i.pointer.delta());
+                    state.pivot_pos += ctx.input(|i| i.pointer.delta());
                 }
 
-                state.pos = ctx
-                    .constrain_window_rect_to_area(state.rect(), drag_bounds)
-                    .min;
+                state.set_left_top_pos(
+                    ctx.constrain_window_rect_to_area(state.rect(), drag_bounds)
+                        .min,
+                );
             }
 
             if (move_response.dragged() || move_response.clicked())
@@ -297,12 +312,13 @@ impl Area {
             move_response
         };
 
-        state.pos = ctx.round_pos_to_pixels(state.pos);
+        state.set_left_top_pos(ctx.round_pos_to_pixels(state.left_top_pos()));
 
         if constrain {
-            state.pos = ctx
-                .constrain_window_rect_to_area(state.rect(), drag_bounds)
-                .min;
+            state.set_left_top_pos(
+                ctx.constrain_window_rect_to_area(state.rect(), drag_bounds)
+                    .left_top(),
+            );
         }
 
         Prepared {
@@ -374,14 +390,16 @@ impl Prepared {
         };
 
         let max_rect = Rect::from_min_max(
-            self.state.pos,
-            bounds.max.at_least(self.state.pos + Vec2::splat(32.0)),
+            self.state.left_top_pos(),
+            bounds
+                .max
+                .at_least(self.state.left_top_pos() + Vec2::splat(32.0)),
         );
 
         let shadow_radius = ctx.style().visuals.window_shadow.extrusion; // hacky
         let clip_rect_margin = ctx.style().visuals.clip_rect_margin.max(shadow_radius);
 
-        let clip_rect = Rect::from_min_max(self.state.pos, bounds.max)
+        let clip_rect = Rect::from_min_max(self.state.left_top_pos(), bounds.max)
             .expand(clip_rect_margin)
             .intersect(bounds);
 

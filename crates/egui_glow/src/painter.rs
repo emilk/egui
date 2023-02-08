@@ -106,6 +106,23 @@ impl Painter {
         crate::profile_function!();
         crate::check_for_gl_error_even_in_release!(&gl, "before Painter::new");
 
+        // some useful debug info. all three of them are present in gl 1.1.
+        unsafe {
+            let version = gl.get_parameter_string(glow::VERSION);
+            let renderer = gl.get_parameter_string(glow::RENDERER);
+            let vendor = gl.get_parameter_string(glow::VENDOR);
+            tracing::debug!(
+                "\nopengl version: {version}\nopengl renderer: {renderer}\nopengl vendor: {vendor}"
+            );
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        if gl.version().major < 2 {
+            // this checks on desktop that we are not using opengl 1.1 microsoft sw rendering context.
+            // ShaderVersion::get fn will segfault due to SHADING_LANGUAGE_VERSION (added in gl2.0)
+            return Err("egui_glow requires opengl 2.0+. ".to_owned());
+        }
+
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
         let shader_version = shader_version.unwrap_or_else(|| ShaderVersion::get(&gl));
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
