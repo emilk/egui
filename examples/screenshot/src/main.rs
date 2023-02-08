@@ -3,7 +3,7 @@
 use eframe::egui::{self, ColorImage};
 
 fn main() -> Result<(), eframe::Error> {
-    let options = eframe::NativeOptions{
+    let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
         ..Default::default()
     };
@@ -37,9 +37,6 @@ impl eframe::App for MyApp {
                     &mut self.continuously_take_screenshots,
                     "continuously take screenshots",
                 );
-                let painter = ui.painter_at(egui::Rect { min: egui::Pos2::ZERO, max: egui::pos2(20., 20.) });
-                painter.rect_filled(egui::Rect { min: egui::Pos2::ZERO, max: egui::pos2(20., 20.) }, 0.,
-                    egui::Color32::from_rgba_premultiplied(0u8, 255, 0, 255));
 
                 ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
                     if self.continuously_take_screenshots {
@@ -70,7 +67,7 @@ impl eframe::App for MyApp {
 
     #[allow(unsafe_code)]
     fn post_rendering(&mut self, _screen_size_px: [u32; 2], frame: &eframe::Frame) {
-        if let Some(pixels) = frame.frame_pixels(){
+        if let Some(pixels) = frame.frame_pixels() {
             self.screenshot = Some(pixels)
         }
     }

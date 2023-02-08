@@ -674,24 +674,25 @@ impl Frame {
         self.storage.as_deref()
     }
 
-    /// Request the current frame's pixel data. Needs to be retrieved by calling [`eframe::Frame::frame_pixels`]
-    /// during [`eframe::App::post_rendering`].
+    /// Request the current frame's pixel data. Needs to be retrieved by calling [`Frame::frame_pixels`]
+    /// during [`App::post_rendering`].
     pub fn request_pixels(&mut self) {
         self.output.pixels_requested = true;
     }
 
-    /// Cancel a request made with [`eframe::Frame::request_pixels`].
+    /// Cancel a request made with [`Frame::request_pixels`].
     pub fn cancel_request_pixels(&mut self) {
         self.output.pixels_requested = false;
     }
 
-    /// During [`eframe::App::post_rendering`], use this to retrieve the pixel data that was requested during
-    /// [`eframe::App::update`] via [`eframe::Frame::request_pixels`]. Currently only implemented with wgpu backend.
-    /// Returns None if
-    ///     Called in [`eframe::App::update`]
-    ///     [`eframe::Frame::request_pixels`] wasn't called on this frame during [`eframe::App::update`]
-    ///     The rendering backend doesn't support this feature (yet). Currently only implemented for the wgpu backend.
-    ///     Retrieving the data was unsuccesful in some way.
+    /// During [`App::post_rendering`], use this to retrieve the pixel data that was requested during
+    /// [`App::update`] via [`Frame::request_pixels`].
+    ///
+    /// Returns None if:
+    /// * Called in [`App::update`]
+    /// * [`Frame::request_pixels`] wasn't called on this frame during [`App::update`]
+    /// * The rendering backend doesn't support this feature (yet). Currently implemented for wgpu and glow.
+    /// * Retrieving the data was unsuccesful in some way.
     pub fn frame_pixels(&self) -> Option<egui::ColorImage> {
         self.pixel_data.take()
     }

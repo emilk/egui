@@ -653,15 +653,15 @@ mod glow_integration {
                     &clipped_primitives,
                     &textures_delta,
                 );
-                
+
                 let pixels_requested = &mut integration.frame.output.pixels_requested;
 
-                if *pixels_requested == true{
+                if *pixels_requested == true {
                     *pixels_requested = false;
                     let pixel_data = painter.read_screen_rgba(screen_size_in_pixels);
                     integration.frame.pixel_data.set(Some(pixel_data));
                 }
-                
+
                 integration.post_rendering(app.as_mut(), window);
 
                 {
@@ -681,7 +681,8 @@ mod glow_integration {
                         );
                         let [w, h] = screen_size_in_pixels;
                         let pixels = painter.read_screen_rgba(screen_size_in_pixels);
-                        let image = image::RgbaImage::from_vec(w, h, unsafe{ pixels.into_raw() }).unwrap();
+                        let image =
+                            image::RgbaImage::from_vec(w, h, unsafe { pixels.into_raw() }).unwrap();
                         image.save(&path).unwrap_or_else(|err| {
                             panic!("Failed to save screenshot to {path:?}: {err}");
                         });

@@ -429,7 +429,10 @@ impl Painter {
         }
         buffer.unmap();
 
-        Some(epaint::ColorImage { size: [tex.width() as usize, tex.height() as usize], pixels })
+        Some(epaint::ColorImage {
+            size: [tex.width() as usize, tex.height() as usize],
+            pixels,
+        })
     }
 
     // Returns a vector with the frame's pixel data if it was requested.

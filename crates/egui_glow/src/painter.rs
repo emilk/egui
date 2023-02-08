@@ -619,12 +619,13 @@ impl Painter {
             );
         }
         let mut flipped = Vec::with_capacity((w * h * 4) as usize);
-        for row in pixels.chunks_exact((w * 4) as usize).rev(){
-            flipped.extend_from_slice(
-                bytemuck::cast_slice(row)
-            )
+        for row in pixels.chunks_exact((w * 4) as usize).rev() {
+            flipped.extend_from_slice(bytemuck::cast_slice(row))
         }
-        let image = egui::ColorImage { size: [w as usize, h as usize], pixels: flipped };
+        let image = egui::ColorImage {
+            size: [w as usize, h as usize],
+            pixels: flipped,
+        };
         image
     }
 
