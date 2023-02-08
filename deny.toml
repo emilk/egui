@@ -46,7 +46,6 @@ skip-tree = [
     { name = "darling" },       # old version via tts
     { name = "foreign-types" }, # old version from wgpu
     { name = "rfd" },           # example dependency
-    { name = "three-d" },       # example dependency
 ]
 
 
