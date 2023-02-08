@@ -654,10 +654,10 @@ mod glow_integration {
                     &textures_delta,
                 );
 
-                let pixels_requested = &mut integration.frame.output.pixels_requested;
+                let screenshot_requested = &mut integration.frame.output.screenshot_requested;
 
-                if *pixels_requested == true {
-                    *pixels_requested = false;
+                if *screenshot_requested == true {
+                    *screenshot_requested = false;
                     let pixel_data = painter.read_screen_rgba(screen_size_in_pixels);
                     integration.frame.pixel_data.set(Some(pixel_data));
                 }
@@ -681,8 +681,7 @@ mod glow_integration {
                         );
                         let [w, h] = screen_size_in_pixels;
                         let pixels = painter.read_screen_rgba(screen_size_in_pixels);
-                        let image =
-                            image::RgbaImage::from_vec(w, h, pixels.into_raw()).unwrap();
+                        let image = image::RgbaImage::from_vec(w, h, pixels.into_raw()).unwrap();
                         image.save(&path).unwrap_or_else(|err| {
                             panic!("Failed to save screenshot to {path:?}: {err}");
                         });
@@ -1086,16 +1085,16 @@ mod wgpu_integration {
                     integration.egui_ctx.tessellate(shapes)
                 };
 
-                let pixels_requested = &mut integration.frame.output.pixels_requested;
+                let screenshot_requested = &mut integration.frame.output.screenshot_requested;
 
                 let pixel_data = painter.paint_and_update_textures(
                     integration.egui_ctx.pixels_per_point(),
                     app.clear_color(&integration.egui_ctx.style().visuals),
                     &clipped_primitives,
                     &textures_delta,
-                    *pixels_requested,
+                    *screenshot_requested,
                 );
-                *pixels_requested = false;
+                *screenshot_requested = false;
                 integration.frame.pixel_data.set(pixel_data);
 
                 integration.post_rendering(app.as_mut(), window);

@@ -652,6 +652,7 @@ pub struct Frame {
     #[cfg(feature = "wgpu")]
     pub(crate) wgpu_render_state: Option<egui_wgpu::RenderState>,
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) pixel_data: std::cell::Cell<Option<egui::ColorImage>>,
 }
 
@@ -670,19 +671,22 @@ impl Frame {
     }
 
     /// A place where you can store custom data in a way that persists when you restart the app.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn storage(&self) -> Option<&dyn Storage> {
         self.storage.as_deref()
     }
 
     /// Request the current frame's pixel data. Needs to be retrieved by calling [`Frame::screenshot`]
     /// during [`App::post_rendering`].
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn request_screenshot(&mut self) {
-        self.output.pixels_requested = true;
+        self.output.screenshot_requested = true;
     }
 
     /// Cancel a request made with [`Frame::request_screenshot`].
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn cancel_request_screenshot(&mut self) {
-        self.output.pixels_requested = false;
+        self.output.screenshot_requested = false;
     }
 
     /// During [`App::post_rendering`], use this to retrieve the pixel data that was requested during
@@ -691,8 +695,9 @@ impl Frame {
     /// Returns None if:
     /// * Called in [`App::update`]
     /// * [`Frame::request_screenshot`] wasn't called on this frame during [`App::update`]
-    /// * The rendering backend doesn't support this feature (yet). Currently implemented for wgpu and glow.
+    /// * The rendering backend doesn't support this feature (yet). Currently implemented for wgpu and glow, but not with wasm as target.
     /// * Retrieving the data was unsuccesful in some way.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn screenshot(&self) -> Option<egui::ColorImage> {
         self.pixel_data.take()
     }
@@ -1063,6 +1068,7 @@ pub(crate) mod backend {
         #[cfg(not(target_arch = "wasm32"))]
         pub maximized: Option<bool>,
 
-        pub pixels_requested: bool,
+        #[cfg(not(target_arch = "wasm32"))]
+        pub screenshot_requested: bool,
     }
 }

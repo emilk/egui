@@ -226,7 +226,7 @@ pub fn handle_app_output(
         window_pos,
         visible: _, // handled in post_present
         always_on_top,
-        pixels_requested: _,
+        screenshot_requested: _ // handled by the rendering backend,
         minimized,
         maximized,
     } = app_output;
@@ -467,7 +467,7 @@ impl EpiIntegration {
                 tracing::debug!("App::on_close_event returned {}", self.close);
             }
             self.frame.output.visible = app_output.visible; // this is handled by post_present
-            self.frame.output.pixels_requested = app_output.pixels_requested;
+            self.frame.output.screenshot_requested = app_output.screenshot_requested;
             handle_app_output(
                 window,
                 self.egui_ctx.pixels_per_point(),
