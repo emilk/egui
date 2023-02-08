@@ -92,7 +92,7 @@ egui-winit = { version = "0.20.0", path = "../egui-winit", default-features = fa
   "links",
 ] }
 raw-window-handle = { version = "0.5.0" }
-winit = "0.28"
+winit = "0.28.1"
 
 # optional native:
 dark-light = { version = "1.0", optional = true }
