@@ -139,14 +139,16 @@ impl ColorImage {
         let max_x = (region.max.x * pixels_per_point) as usize;
         let min_y = (region.min.y * pixels_per_point) as usize;
         let max_y = (region.max.y * pixels_per_point) as usize;
-        let mut output = Vec::with_capacity((max_x - min_x) * (max_y - min_y));
+        let width = max_x - min_x;
+        let height = max_y - min_y;
+        let mut output = Vec::with_capacity(width * height);
         let row_stride = self.size[0];
 
         for row in min_y..max_y{
             output.extend_from_slice(&self.pixels[row*row_stride + min_x..row*row_stride + max_x]);
         }
         Self{
-            size: [max_x - min_x, max_y - min_y],
+            size: [width, height],
             pixels: output,
         }
     }
