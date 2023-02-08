@@ -71,7 +71,6 @@ pub fn window_builder<E>(
     window_settings: Option<WindowSettings>,
 ) -> winit::window::WindowBuilder {
     let epi::NativeOptions {
-        always_on_top,
         maximized,
         decorated,
         fullscreen,
