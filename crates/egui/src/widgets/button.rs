@@ -269,6 +269,10 @@ impl<'a> Checkbox<'a> {
             text: text.into(),
         }
     }
+
+    pub fn without_text(checked: &'a mut bool) -> Self {
+        Self::new(checked, WidgetText::default())
+    }
 }
 
 impl<'a> Widget for Checkbox<'a> {

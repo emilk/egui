@@ -24,8 +24,9 @@ ignore = [
 multiple-versions = "deny"
 wildcards = "allow" # at least until https://github.com/EmbarkStudios/cargo-deny/issues/241 is fixed
 deny = [
-    { name = "openssl" },     # prefer rustls
+    { name = "cmake" },       # Lord no
     { name = "openssl-sys" }, # prefer rustls
+    { name = "openssl" },     # prefer rustls
 ]
 
 skip = [
@@ -46,7 +47,6 @@ skip-tree = [
     { name = "darling" },       # old version via tts
     { name = "foreign-types" }, # old version from wgpu
     { name = "rfd" },           # example dependency
-    { name = "three-d" },       # example dependency
 ]
 
 
