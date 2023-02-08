@@ -652,7 +652,7 @@ pub struct Frame {
     #[cfg(feature = "wgpu")]
     pub(crate) wgpu_render_state: Option<egui_wgpu::RenderState>,
 
-    pub(crate) pixel_data: std::cell::Cell<Option<Vec<u8>>>,
+    pub(crate) pixel_data: std::cell::Cell<Option<egui::ColorImage>>,
 }
 
 impl Frame {
@@ -692,7 +692,7 @@ impl Frame {
     ///     [`eframe::Frame::request_pixels`] wasn't called on this frame during [`eframe::App::update`]
     ///     The rendering backend doesn't support this feature (yet). Currently only implemented for the wgpu backend.
     ///     Retrieving the data was unsuccesful in some way.
-    pub fn frame_pixels(&self) -> Option<Vec<u8>> {
+    pub fn frame_pixels(&self) -> Option<egui::ColorImage> {
         self.pixel_data.take()
     }
 

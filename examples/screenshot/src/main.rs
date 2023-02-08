@@ -1,13 +1,12 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::{
-    egui::{self, ColorImage},
-    glow::{self, HasContext},
-};
-use itertools::Itertools as _;
+use eframe::egui::{self, ColorImage};
 
 fn main() -> Result<(), eframe::Error> {
-    let options = eframe::NativeOptions::default();
+    let options = eframe::NativeOptions{
+        renderer: eframe::Renderer::Wgpu,
+        ..Default::default()
+    };
     eframe::run_native(
         "Take screenshots and display with eframe/egui",
         options,
@@ -18,13 +17,12 @@ fn main() -> Result<(), eframe::Error> {
 #[derive(Default)]
 struct MyApp {
     continuously_take_screenshots: bool,
-    take_screenshot: bool,
     texture: Option<egui::TextureHandle>,
     screenshot: Option<ColorImage>,
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(screenshot) = self.screenshot.take() {
                 self.texture = Some(ui.ctx().load_texture(
@@ -39,6 +37,9 @@ impl eframe::App for MyApp {
                     &mut self.continuously_take_screenshots,
                     "continuously take screenshots",
                 );
+                let painter = ui.painter_at(egui::Rect { min: egui::Pos2::ZERO, max: egui::pos2(20., 20.) });
+                painter.rect_filled(egui::Rect { min: egui::Pos2::ZERO, max: egui::pos2(20., 20.) }, 0.,
+                    egui::Color32::from_rgba_premultiplied(0u8, 255, 0, 255));
 
                 ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
                     if self.continuously_take_screenshots {
@@ -50,8 +51,9 @@ impl eframe::App for MyApp {
                         } else {
                             ctx.set_visuals(egui::Visuals::light());
                         };
+                        frame.request_pixels();
                     } else if ui.button("take screenshot!").clicked() {
-                        self.take_screenshot = true;
+                        frame.request_pixels();
                     }
                 });
             });
@@ -67,42 +69,9 @@ impl eframe::App for MyApp {
     }
 
     #[allow(unsafe_code)]
-    fn post_rendering(&mut self, screen_size_px: [u32; 2], frame: &eframe::Frame) {
-        if !self.take_screenshot && !self.continuously_take_screenshots {
-            return;
-        }
-
-        self.take_screenshot = false;
-        if let Some(gl) = frame.gl() {
-            let [w, h] = screen_size_px;
-            let mut buf = vec![0u8; w as usize * h as usize * 4];
-            let pixels = glow::PixelPackData::Slice(&mut buf[..]);
-            unsafe {
-                gl.read_pixels(
-                    0,
-                    0,
-                    w as i32,
-                    h as i32,
-                    glow::RGBA,
-                    glow::UNSIGNED_BYTE,
-                    pixels,
-                );
-            }
-
-            // Flip vertically:
-            let mut rows: Vec<Vec<u8>> = buf
-                .into_iter()
-                .chunks(w as usize * 4)
-                .into_iter()
-                .map(|chunk| chunk.collect())
-                .collect();
-            rows.reverse();
-            let buf: Vec<u8> = rows.into_iter().flatten().collect();
-
-            self.screenshot = Some(ColorImage::from_rgba_unmultiplied(
-                [screen_size_px[0] as usize, screen_size_px[1] as usize],
-                &buf[..],
-            ));
+    fn post_rendering(&mut self, _screen_size_px: [u32; 2], frame: &eframe::Frame) {
+        if let Some(pixels) = frame.frame_pixels(){
+            self.screenshot = Some(pixels)
         }
     }
 }

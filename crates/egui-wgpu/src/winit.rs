@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use epaint::mutex::RwLock;
+use epaint::{self, mutex::RwLock};
+// use epaint;
 
 use tracing::error;
 
@@ -364,7 +365,7 @@ impl Painter {
         screen_capture_state: &CaptureState,
         render_state: &RenderState,
         output_frame: &wgpu::SurfaceTexture,
-    ) -> Option<Vec<u8>> {
+    ) -> Option<epaint::ColorImage> {
         let CaptureState {
             texture: tex,
             buffer,
@@ -418,15 +419,17 @@ impl Painter {
         {
             let row = &padded_row[..padding.unpadded_bytes_per_row as usize];
             for color in row.chunks(4) {
-                pixels.push(color[to_rgba[0]]);
-                pixels.push(color[to_rgba[1]]);
-                pixels.push(color[to_rgba[2]]);
-                pixels.push(color[to_rgba[3]]);
+                pixels.push(epaint::Color32::from_rgba_premultiplied(
+                    color[to_rgba[0]],
+                    color[to_rgba[1]],
+                    color[to_rgba[2]],
+                    color[to_rgba[3]],
+                ))
             }
         }
         buffer.unmap();
 
-        Some(pixels)
+        Some(epaint::ColorImage { size: [tex.width() as usize, tex.height() as usize], pixels })
     }
 
     // Returns a vector with the frame's pixel data if it was requested.
@@ -437,7 +440,7 @@ impl Painter {
         clipped_primitives: &[epaint::ClippedPrimitive],
         textures_delta: &epaint::textures::TexturesDelta,
         capture: bool,
-    ) -> Option<Vec<u8>> {
+    ) -> Option<epaint::ColorImage> {
         crate::profile_function!();
 
         let render_state = match self.render_state.as_mut() {

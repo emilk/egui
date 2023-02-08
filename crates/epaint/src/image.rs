@@ -101,6 +101,56 @@ impl ColorImage {
         Self { size, pixels }
     }
 
+    pub fn from_rgba_premultiplied(size: [usize; 2], rgba: &[u8]) -> Self {
+        assert_eq!(size[0] * size[1] * 4, rgba.len());
+        let pixels = rgba
+            .chunks_exact(4)
+            .map(|p| Color32::from_rgba_premultiplied(p[0], p[1], p[2], p[3]))
+            .collect();
+        Self { size, pixels }
+    }
+    
+    /// A view of the underlying data as &[u8]
+    pub fn as_raw(&self) -> &[u8]{
+        bytemuck::cast_slice(&self.pixels)
+    }
+    
+    /// A view of the underlying data as &mut [u8]
+    pub fn as_raw_mut(&mut self) -> &mut [u8]{
+        bytemuck::cast_slice_mut(&mut self.pixels)
+    }
+
+    /// Reinterpret the underlying data as Vec<u8> instead of Vec<egui::Color32>. Useful for e.g. interoperating with other crates such as image. This 
+    /// is a no-copy, but uses unsafe code internally. For a safer alternative, you can use [Self::as_raw] and manually copy into a new collection.
+    pub fn into_raw(mut self) -> Vec<u8>{
+        let ratio = std::mem::size_of::<Color32>() / std::mem::size_of::<u8>();
+        let length = self.pixels.len() * ratio;
+        let capacity = self.pixels.capacity() * ratio;
+        let ptr = self.pixels.as_mut_ptr() as *mut u8;
+        std::mem::forget(self.pixels);
+        unsafe{
+            Vec::from_raw_parts(ptr, length, capacity)
+        }
+    }
+
+    pub fn region(&self, region: &emath::Rect, pixels_per_point: Option<f32>) -> Self{
+        let pixels_per_point = pixels_per_point.unwrap_or(1.0);
+        let min_x = (region.min.x * pixels_per_point) as usize;
+        let max_x = (region.max.x * pixels_per_point) as usize;
+        let min_y = (region.min.y * pixels_per_point) as usize;
+        let max_y = (region.max.y * pixels_per_point) as usize;
+        let mut output = Vec::with_capacity((max_x - min_x) * (max_y - min_y));
+        let row_stride = self.size[0];
+
+        for row in min_y..max_y{
+            output.extend_from_slice(&self.pixels[row*row_stride + min_x..row*row_stride + max_x]);
+        }
+        Self{
+            size: [max_x - min_x, max_y - min_y],
+            pixels: output,
+        }
+    }
+
     /// Create a [`ColorImage`] from flat RGB data.
     ///
     /// This is what you want to use after having loaded an image file (and if

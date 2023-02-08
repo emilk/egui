@@ -605,7 +605,7 @@ impl Painter {
         }
     }
 
-    pub fn read_screen_rgba(&self, [w, h]: [u32; 2]) -> Vec<u8> {
+    pub fn read_screen_rgba(&self, [w, h]: [u32; 2]) -> egui::ColorImage {
         let mut pixels = vec![0_u8; (w * h * 4) as usize];
         unsafe {
             self.gl.read_pixels(
@@ -618,7 +618,14 @@ impl Painter {
                 glow::PixelPackData::Slice(&mut pixels),
             );
         }
-        pixels
+        let mut flipped = Vec::with_capacity((w * h * 4) as usize);
+        for row in pixels.chunks_exact((w * 4) as usize).rev(){
+            flipped.extend_from_slice(
+                bytemuck::cast_slice(row)
+            )
+        }
+        let image = egui::ColorImage { size: [w as usize, h as usize], pixels: flipped };
+        image
     }
 
     pub fn read_screen_rgb(&self, [w, h]: [u32; 2]) -> Vec<u8> {
