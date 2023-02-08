@@ -4,6 +4,7 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 
 ## Unreleased
 * Remove the `screen_reader` feature ([#2669](https://github.com/emilk/egui/pull/2669)).
+* Update to `glow` 0.12 ([#2695](https://github.com/emilk/egui/pull/2695)).
 
 
 ## 0.20.1 - 2022-12-11
