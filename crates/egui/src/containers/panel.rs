@@ -28,7 +28,7 @@ pub struct PanelState {
 
 impl PanelState {
     pub fn load(ctx: &Context, bar_id: Id) -> Option<Self> {
-        ctx.data().get_persisted(bar_id)
+        ctx.data_mut(|d| d.get_persisted(bar_id))
     }
 
     /// The size of the panel (from previous frame).
@@ -37,7 +37,7 @@ impl PanelState {
     }
 
     fn store(self, ctx: &Context, bar_id: Id) {
-        ctx.data().insert_persisted(bar_id, self);
+        ctx.data_mut(|d| d.insert_persisted(bar_id, self));
     }
 }
 
@@ -245,11 +245,12 @@ impl SidePanel {
                     && (resize_x - pointer.x).abs()
                         <= ui.style().interaction.resize_grab_radius_side;
 
-                let any_pressed = ui.input().pointer.any_pressed(); // avoid deadlocks
-                if any_pressed && ui.input().pointer.any_down() && mouse_over_resize_line {
-                    ui.memory().set_dragged_id(resize_id);
+                if ui.input(|i| i.pointer.any_pressed() && i.pointer.any_down())
+                    && mouse_over_resize_line
+                {
+                    ui.memory_mut(|mem| mem.set_dragged_id(resize_id));
                 }
-                is_resizing = ui.memory().is_being_dragged(resize_id);
+                is_resizing = ui.memory(|mem| mem.is_being_dragged(resize_id));
                 if is_resizing {
                     let width = (pointer.x - side.side_x(panel_rect)).abs();
                     let width =
@@ -257,12 +258,12 @@ impl SidePanel {
                     side.set_rect_width(&mut panel_rect, width);
                 }
 
-                let any_down = ui.input().pointer.any_down(); // avoid deadlocks
-                let dragging_something_else = any_down || ui.input().pointer.any_pressed();
+                let dragging_something_else =
+                    ui.input(|i| i.pointer.any_down() || i.pointer.any_pressed());
                 resize_hover = mouse_over_resize_line && !dragging_something_else;
 
                 if resize_hover || is_resizing {
-                    ui.output().cursor_icon = CursorIcon::ResizeHorizontal;
+                    ui.ctx().set_cursor_icon(CursorIcon::ResizeHorizontal);
                 }
             }
         }
@@ -296,12 +297,12 @@ impl SidePanel {
 
         {
             let stroke = if is_resizing {
-                ui.style().visuals.widgets.active.bg_stroke
+                ui.style().visuals.widgets.active.fg_stroke // highly visible
             } else if resize_hover {
-                ui.style().visuals.widgets.hovered.bg_stroke
+                ui.style().visuals.widgets.hovered.fg_stroke // highly visible
             } else if show_separator_line {
                 // TOOD(emilk): distinguish resizable from non-resizable
-                ui.style().visuals.widgets.noninteractive.bg_stroke
+                ui.style().visuals.widgets.noninteractive.bg_stroke // dim
             } else {
                 Stroke::NONE
             };
@@ -334,19 +335,19 @@ impl SidePanel {
         let layer_id = LayerId::background();
         let side = self.side;
         let available_rect = ctx.available_rect();
-        let clip_rect = ctx.input().screen_rect();
+        let clip_rect = ctx.screen_rect();
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, self.id, available_rect, clip_rect);
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
         let rect = inner_response.response.rect;
 
         match side {
-            Side::Left => ctx
-                .frame_state()
-                .allocate_left_panel(Rect::from_min_max(available_rect.min, rect.max)),
-            Side::Right => ctx
-                .frame_state()
-                .allocate_right_panel(Rect::from_min_max(rect.min, available_rect.max)),
+            Side::Left => ctx.frame_state_mut(|state| {
+                state.allocate_left_panel(Rect::from_min_max(available_rect.min, rect.max));
+            }),
+            Side::Right => ctx.frame_state_mut(|state| {
+                state.allocate_right_panel(Rect::from_min_max(rect.min, available_rect.max));
+            }),
         }
         inner_response
     }
@@ -682,7 +683,7 @@ impl TopBottomPanel {
         let mut is_resizing = false;
         if resizable {
             let resize_id = id.with("__resize");
-            let latest_pos = ui.input().pointer.latest_pos();
+            let latest_pos = ui.input(|i| i.pointer.latest_pos());
             if let Some(pointer) = latest_pos {
                 let we_are_on_top = ui
                     .ctx()
@@ -695,13 +696,12 @@ impl TopBottomPanel {
                     && (resize_y - pointer.y).abs()
                         <= ui.style().interaction.resize_grab_radius_side;
 
-                if ui.input().pointer.any_pressed()
-                    && ui.input().pointer.any_down()
+                if ui.input(|i| i.pointer.any_pressed() && i.pointer.any_down())
                     && mouse_over_resize_line
                 {
-                    ui.memory().interaction.drag_id = Some(resize_id);
+                    ui.memory_mut(|mem| mem.interaction.drag_id = Some(resize_id));
                 }
-                is_resizing = ui.memory().interaction.drag_id == Some(resize_id);
+                is_resizing = ui.memory(|mem| mem.interaction.drag_id == Some(resize_id));
                 if is_resizing {
                     let height = (pointer.y - side.side_y(panel_rect)).abs();
                     let height = clamp_to_range(height, height_range.clone())
@@ -709,12 +709,12 @@ impl TopBottomPanel {
                     side.set_rect_height(&mut panel_rect, height);
                 }
 
-                let any_down = ui.input().pointer.any_down(); // avoid deadlocks
-                let dragging_something_else = any_down || ui.input().pointer.any_pressed();
+                let dragging_something_else =
+                    ui.input(|i| i.pointer.any_down() || i.pointer.any_pressed());
                 resize_hover = mouse_over_resize_line && !dragging_something_else;
 
                 if resize_hover || is_resizing {
-                    ui.output().cursor_icon = CursorIcon::ResizeVertical;
+                    ui.ctx().set_cursor_icon(CursorIcon::ResizeVertical);
                 }
             }
         }
@@ -748,12 +748,12 @@ impl TopBottomPanel {
 
         {
             let stroke = if is_resizing {
-                ui.style().visuals.widgets.active.bg_stroke
+                ui.style().visuals.widgets.active.fg_stroke // highly visible
             } else if resize_hover {
-                ui.style().visuals.widgets.hovered.bg_stroke
+                ui.style().visuals.widgets.hovered.fg_stroke // highly visible
             } else if show_separator_line {
                 // TOOD(emilk): distinguish resizable from non-resizable
-                ui.style().visuals.widgets.noninteractive.bg_stroke
+                ui.style().visuals.widgets.noninteractive.bg_stroke // dim
             } else {
                 Stroke::NONE
             };
@@ -787,7 +787,7 @@ impl TopBottomPanel {
         let available_rect = ctx.available_rect();
         let side = self.side;
 
-        let clip_rect = ctx.input().screen_rect();
+        let clip_rect = ctx.screen_rect();
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, self.id, available_rect, clip_rect);
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
@@ -795,12 +795,14 @@ impl TopBottomPanel {
 
         match side {
             TopBottomSide::Top => {
-                ctx.frame_state()
-                    .allocate_top_panel(Rect::from_min_max(available_rect.min, rect.max));
+                ctx.frame_state_mut(|state| {
+                    state.allocate_top_panel(Rect::from_min_max(available_rect.min, rect.max));
+                });
             }
             TopBottomSide::Bottom => {
-                ctx.frame_state()
-                    .allocate_bottom_panel(Rect::from_min_max(rect.min, available_rect.max));
+                ctx.frame_state_mut(|state| {
+                    state.allocate_bottom_panel(Rect::from_min_max(rect.min, available_rect.max));
+                });
             }
         }
 
@@ -1042,14 +1044,13 @@ impl CentralPanel {
         let layer_id = LayerId::background();
         let id = Id::new("central_panel");
 
-        let clip_rect = ctx.input().screen_rect();
+        let clip_rect = ctx.screen_rect();
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, available_rect, clip_rect);
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
 
         // Only inform ctx about what we actually used, so we can shrink the native window to fit.
-        ctx.frame_state()
-            .allocate_central_panel(inner_response.response.rect);
+        ctx.frame_state_mut(|state| state.allocate_central_panel(inner_response.response.rect));
 
         inner_response
     }

@@ -26,13 +26,14 @@ pub struct CollapsingState {
 
 impl CollapsingState {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data()
-            .get_persisted::<InnerState>(id)
-            .map(|state| Self { id, state })
+        ctx.data_mut(|d| {
+            d.get_persisted::<InnerState>(id)
+                .map(|state| Self { id, state })
+        })
     }
 
     pub fn store(&self, ctx: &Context) {
-        ctx.data().insert_persisted(self.id, self.state);
+        ctx.data_mut(|d| d.insert_persisted(self.id, self.state));
     }
 
     pub fn id(&self) -> Id {
@@ -64,7 +65,7 @@ impl CollapsingState {
 
     /// 0 for closed, 1 for open, with tweening
     pub fn openness(&self, ctx: &Context) -> f32 {
-        if ctx.memory().everything_is_visible() {
+        if ctx.memory(|mem| mem.everything_is_visible()) {
             1.0
         } else {
             ctx.animate_bool(self.id, self.state.open)
@@ -111,10 +112,7 @@ impl CollapsingState {
             response.rect.center().y,
         ));
         let openness = self.openness(ui.ctx());
-        let small_icon_response = Response {
-            rect: icon_rect,
-            ..response.clone()
-        };
+        let small_icon_response = response.clone().with_new_rect(icon_rect);
         icon_fn(ui, openness, &small_icon_response);
         response
     }
@@ -143,9 +141,10 @@ impl CollapsingState {
         add_header: impl FnOnce(&mut Ui) -> HeaderRet,
     ) -> HeaderResponse<'_, HeaderRet> {
         let header_response = ui.horizontal(|ui| {
+            let prev_item_spacing = ui.spacing_mut().item_spacing;
             ui.spacing_mut().item_spacing.x = 0.0; // the toggler button uses the full indent width
             let collapser = self.show_default_button_indented(ui);
-            ui.spacing_mut().item_spacing.x = ui.spacing_mut().icon_spacing; // Restore spacing
+            ui.spacing_mut().item_spacing = prev_item_spacing;
             (collapser, add_header(ui))
         });
         HeaderResponse {
@@ -555,7 +554,7 @@ impl CollapsingHeader {
                 ui.painter().add(epaint::RectShape {
                     rect: header_response.rect.expand(visuals.expansion),
                     rounding: visuals.rounding,
-                    fill: visuals.bg_fill,
+                    fill: visuals.weak_bg_fill,
                     stroke: visuals.bg_stroke,
                     // stroke: Default::default(),
                 });
@@ -575,10 +574,7 @@ impl CollapsingHeader {
                     header_response.rect.left() + ui.spacing().indent / 2.0,
                     header_response.rect.center().y,
                 ));
-                let icon_response = Response {
-                    rect: icon_rect,
-                    ..header_response.clone()
-                };
+                let icon_response = header_response.clone().with_new_rect(icon_rect);
                 if let Some(icon) = icon {
                     icon(ui, openness, &icon_response);
                 } else {

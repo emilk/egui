@@ -290,27 +290,6 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
     })
 }
 
-fn center_window_pos(
-    monitor: Option<winit::monitor::MonitorHandle>,
-    native_options: &mut epi::NativeOptions,
-) {
-    // Get the current_monitor.
-    if let Some(monitor) = monitor {
-        let monitor_size = monitor.size();
-        let inner_size = native_options
-            .initial_window_size
-            .unwrap_or(egui::Vec2 { x: 800.0, y: 600.0 });
-        if monitor_size.width > 0 && monitor_size.height > 0 {
-            let x = (monitor_size.width - inner_size.x as u32) / 2;
-            let y = (monitor_size.height - inner_size.y as u32) / 2;
-            native_options.initial_window_pos = Some(egui::Pos2 {
-                x: x as _,
-                y: y as _,
-            });
-        }
-    }
-}
-
 // ----------------------------------------------------------------------------
 /// Run an egui app
 #[cfg(feature = "glow")]
@@ -402,9 +381,7 @@ mod glow_integration {
                 2. choose between special extensions like glx or egl or wgl and use them to create config/display
                 3. opengl context configuration
                 4. opengl context creation
-
             */
-
             // start building config for gl display
             let config_template_builder = glutin::config::ConfigTemplateBuilder::new()
                 .prefer_hardware_accelerated(hardware_acceleration)
@@ -650,7 +627,6 @@ mod glow_integration {
 
             let winit_window_builder =
                 epi_integration::window_builder(event_loop, title, native_options, window_settings);
-            // a lot of the code below has been lifted from glutin example in their repo.
             let mut glutin_window_context = unsafe {
                 GlutinWindowContext::new(winit_window_builder, native_options, event_loop)?
             };
@@ -995,22 +971,13 @@ mod glow_integration {
         app_creator: epi::AppCreator,
     ) -> Result<()> {
         if native_options.run_and_return {
-            with_event_loop(native_options, |event_loop, mut native_options| {
-                if native_options.centered {
-                    center_window_pos(event_loop.available_monitors().next(), &mut native_options);
-                }
-
+            with_event_loop(native_options, |event_loop, native_options| {
                 let glow_eframe =
                     GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
                 run_and_return(event_loop, glow_eframe)
             })
         } else {
             let event_loop = create_event_loop_builder(&mut native_options).build();
-
-            if native_options.centered {
-                center_window_pos(event_loop.available_monitors().next(), &mut native_options);
-            }
-
             let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, glow_eframe);
         }
@@ -1078,19 +1045,16 @@ mod wgpu_integration {
             storage: Option<&dyn epi::Storage>,
             title: &str,
             native_options: &NativeOptions,
-        ) -> Result<winit::window::Window> {
+        ) -> std::result::Result<winit::window::Window, winit::error::OsError> {
             let window_settings = epi_integration::load_window_settings(storage);
-            Ok(
-                epi_integration::window_builder(event_loop, title, native_options, window_settings)
-                    .build(event_loop)?,
-            )
+            epi_integration::build_window(event_loop, title, native_options, window_settings)
         }
 
         #[allow(unsafe_code)]
         fn set_window(
             &mut self,
             window: winit::window::Window,
-        ) -> std::result::Result<(), wgpu::RequestDeviceError> {
+        ) -> std::result::Result<(), egui_wgpu::WgpuError> {
             self.window = Some(window);
             if let Some(running) = &mut self.running {
                 unsafe {
@@ -1102,7 +1066,7 @@ mod wgpu_integration {
 
         #[allow(unsafe_code)]
         #[cfg(target_os = "android")]
-        fn drop_window(&mut self) -> std::result::Result<(), wgpu::RequestDeviceError> {
+        fn drop_window(&mut self) -> std::result::Result<(), egui_wgpu::WgpuError> {
             self.window = None;
             if let Some(running) = &mut self.running {
                 unsafe {
@@ -1117,13 +1081,14 @@ mod wgpu_integration {
             event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<Box<dyn epi::Storage>>,
             window: winit::window::Window,
-        ) -> std::result::Result<(), wgpu::RequestDeviceError> {
+        ) -> std::result::Result<(), egui_wgpu::WgpuError> {
             #[allow(unsafe_code, unused_mut, unused_unsafe)]
             let painter = unsafe {
                 let mut painter = egui_wgpu::winit::Painter::new(
                     self.native_options.wgpu_options.clone(),
                     self.native_options.multisampling.max(1) as _,
                     self.native_options.depth_buffer,
+                    self.native_options.transparent,
                 );
                 pollster::block_on(painter.set_window(Some(&window)))?;
                 painter
@@ -1418,22 +1383,13 @@ mod wgpu_integration {
         app_creator: epi::AppCreator,
     ) -> Result<()> {
         if native_options.run_and_return {
-            with_event_loop(native_options, |event_loop, mut native_options| {
-                if native_options.centered {
-                    center_window_pos(event_loop.available_monitors().next(), &mut native_options);
-                }
-
+            with_event_loop(native_options, |event_loop, native_options| {
                 let wgpu_eframe =
                     WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
                 run_and_return(event_loop, wgpu_eframe)
             })
         } else {
             let event_loop = create_event_loop_builder(&mut native_options).build();
-
-            if native_options.centered {
-                center_window_pos(event_loop.available_monitors().next(), &mut native_options);
-            }
-
             let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, wgpu_eframe);
         }

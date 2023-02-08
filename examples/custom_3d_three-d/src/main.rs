@@ -7,7 +7,7 @@ use eframe::egui;
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(550.0, 610.0)),
-        multisampling: 8,
+        multisampling: 4,
         renderer: eframe::Renderer::Glow,
         depth_buffer: 24,
         ..Default::default()

@@ -108,11 +108,11 @@ struct PlotMemory {
 
 impl PlotMemory {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data().get_persisted(id)
+        ctx.data_mut(|d| d.get_persisted(id))
     }
 
     pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data().insert_persisted(id, self);
+        ctx.data_mut(|d| d.insert_persisted(id, self));
     }
 }
 
@@ -742,7 +742,7 @@ impl Plot {
         });
 
         let PlotMemory {
-            mut bounds_modified,
+            bounds_modified,
             mut hovered_entry,
             mut hidden_items,
             last_screen_transform,
@@ -754,6 +754,7 @@ impl Plot {
             items: Vec::new(),
             next_auto_color_idx: 0,
             last_screen_transform,
+            bounds_modified,
             response,
             ctx: ui.ctx().clone(),
         };
@@ -762,6 +763,7 @@ impl Plot {
             mut items,
             mut response,
             last_screen_transform,
+            mut bounds_modified,
             ..
         } = plot_ui;
 
@@ -953,9 +955,9 @@ impl Plot {
         if let Some(hover_pos) = response.hover_pos() {
             if allow_zoom {
                 let zoom_factor = if data_aspect.is_some() {
-                    Vec2::splat(ui.input().zoom_delta())
+                    Vec2::splat(ui.input(|i| i.zoom_delta()))
                 } else {
-                    ui.input().zoom_delta_2d()
+                    ui.input(|i| i.zoom_delta_2d())
                 };
                 if zoom_factor != Vec2::splat(1.0) {
                     transform.zoom(zoom_factor, hover_pos);
@@ -963,7 +965,7 @@ impl Plot {
                 }
             }
             if allow_scroll {
-                let scroll_delta = ui.input().scroll_delta;
+                let scroll_delta = ui.input(|i| i.scroll_delta);
                 if scroll_delta != Vec2::ZERO {
                     transform.translate_bounds(-scroll_delta);
                     bounds_modified = true.into();
@@ -1042,6 +1044,7 @@ pub struct PlotUi {
     items: Vec<Box<dyn PlotItem>>,
     next_auto_color_idx: usize,
     last_screen_transform: ScreenTransform,
+    bounds_modified: AxisBools,
     response: Response,
     ctx: Context,
 }
@@ -1069,11 +1072,13 @@ impl PlotUi {
     /// Set the plot bounds. Can be useful for implementing alternative plot navigation methods.
     pub fn set_plot_bounds(&mut self, plot_bounds: PlotBounds) {
         self.last_screen_transform.set_bounds(plot_bounds);
+        self.bounds_modified = true.into();
     }
 
     /// Move the plot bounds. Can be useful for implementing alternative plot navigation methods.
     pub fn translate_bounds(&mut self, delta_pos: Vec2) {
         self.last_screen_transform.translate_bounds(delta_pos);
+        self.bounds_modified = true.into();
     }
 
     /// Returns `true` if the plot area is currently hovered.
@@ -1094,7 +1099,7 @@ impl PlotUi {
     /// The pointer position in plot coordinates. Independent of whether the pointer is in the plot area.
     pub fn pointer_coordinate(&self) -> Option<PlotPoint> {
         // We need to subtract the drag delta to keep in sync with the frame-delayed screen transform:
-        let last_pos = self.ctx().input().pointer.latest_pos()? - self.response.drag_delta();
+        let last_pos = self.ctx().input(|i| i.pointer.latest_pos())? - self.response.drag_delta();
         let value = self.plot_from_screen(last_pos);
         Some(value)
     }
