@@ -768,7 +768,7 @@ pub struct ViewportInPixels {
     /// Viewport width in physical pixels.
     pub width_px: f32,
 
-    /// Viewport width in physical pixels.
+    /// Viewport height in physical pixels.
     pub height_px: f32,
 }
 

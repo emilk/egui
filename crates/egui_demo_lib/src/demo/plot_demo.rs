@@ -270,7 +270,7 @@ impl LineDemo {
         self.options_ui(ui);
         if self.animate {
             ui.ctx().request_repaint();
-            self.time += ui.input().unstable_dt.at_most(1.0 / 30.0) as f64;
+            self.time += ui.input(|i| i.unstable_dt).at_most(1.0 / 30.0) as f64;
         };
         let mut plot = Plot::new("lines_demo").legend(Legend::default());
         if self.square {

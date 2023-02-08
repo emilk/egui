@@ -479,7 +479,7 @@ impl TableState {
         let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
         ui.ctx().check_for_id_clash(state_id, rect, "Table");
 
-        if let Some(state) = ui.data().get_persisted::<Self>(state_id) {
+        if let Some(state) = ui.data_mut(|d| d.get_persisted::<Self>(state_id)) {
             // make sure that the stored widths aren't out-dated
             if state.column_widths.len() == default_widths.len() {
                 return (true, state);
@@ -495,7 +495,7 @@ impl TableState {
     }
 
     fn store(self, ui: &egui::Ui, state_id: egui::Id) {
-        ui.data().insert_persisted(state_id, self);
+        ui.data_mut(|d| d.insert_persisted(state_id, self));
     }
 }
 
@@ -680,14 +680,12 @@ impl<'a> Table<'a> {
                     }
                 }
 
-                let dragging_something_else = {
-                    let pointer = &ui.input().pointer;
-                    pointer.any_down() || pointer.any_pressed()
-                };
+                let dragging_something_else =
+                    ui.input(|i| i.pointer.any_down() || i.pointer.any_pressed());
                 let resize_hover = resize_response.hovered() && !dragging_something_else;
 
                 if resize_hover || resize_response.dragged() {
-                    ui.output().cursor_icon = egui::CursorIcon::ResizeColumn;
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeColumn);
                 }
 
                 let stroke = if resize_response.dragged() {

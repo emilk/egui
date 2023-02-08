@@ -50,7 +50,7 @@ impl super::Demo for WindowOptions {
             anchor_offset,
         } = self.clone();
 
-        let enabled = ctx.input().time - disabled_time > 2.0;
+        let enabled = ctx.input(|i| i.time) - disabled_time > 2.0;
         if !enabled {
             ctx.request_repaint();
         }
@@ -132,7 +132,7 @@ impl super::View for WindowOptions {
 
         ui.horizontal(|ui| {
             if ui.button("Disable for 2 seconds").clicked() {
-                self.disabled_time = ui.input().time;
+                self.disabled_time = ui.input(|i| i.time);
             }
             egui::reset_button(ui, self);
             ui.add(crate::egui_github_link_file!());

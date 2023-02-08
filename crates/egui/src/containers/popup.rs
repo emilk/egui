@@ -13,11 +13,11 @@ pub(crate) struct TooltipState {
 
 impl TooltipState {
     pub fn load(ctx: &Context) -> Option<Self> {
-        ctx.data().get_temp(Id::null())
+        ctx.data_mut(|d| d.get_temp(Id::null()))
     }
 
     fn store(self, ctx: &Context) {
-        ctx.data().insert_temp(Id::null(), self);
+        ctx.data_mut(|d| d.insert_temp(Id::null(), self));
     }
 
     fn individual_tooltip_size(&self, common_id: Id, index: usize) -> Option<Vec2> {
@@ -95,9 +95,7 @@ pub fn show_tooltip_at_pointer<R>(
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     let suggested_pos = ctx
-        .input()
-        .pointer
-        .hover_pos()
+        .input(|i| i.pointer.hover_pos())
         .map(|pointer_pos| pointer_pos + vec2(16.0, 16.0));
     show_tooltip_at(ctx, id, suggested_pos, add_contents)
 }
@@ -112,7 +110,7 @@ pub fn show_tooltip_for<R>(
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
     let expanded_rect = rect.expand2(vec2(2.0, 4.0));
-    let (above, position) = if ctx.input().any_touches() {
+    let (above, position) = if ctx.input(|i| i.any_touches()) {
         (true, expanded_rect.left_top())
     } else {
         (false, expanded_rect.left_bottom())
@@ -159,8 +157,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
 
     // if there are multiple tooltips open they should use the same common_id for the `tooltip_size` caching to work.
     let mut frame_state =
-        ctx.frame_state()
-            .tooltip_state
+        ctx.frame_state(|fs| fs.tooltip_state)
             .unwrap_or(crate::frame_state::TooltipFrameState {
                 common_id: individual_id,
                 rect: Rect::NOTHING,
@@ -176,7 +173,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         }
     } else if let Some(position) = suggested_position {
         position
-    } else if ctx.memory().everything_is_visible() {
+    } else if ctx.memory(|mem| mem.everything_is_visible()) {
         Pos2::ZERO
     } else {
         return None; // No good place for a tooltip :(
@@ -191,7 +188,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         position.y -= expected_size.y;
     }
 
-    position = position.at_most(ctx.input().screen_rect().max - expected_size);
+    position = position.at_most(ctx.screen_rect().max - expected_size);
 
     // check if we intersect the avoid_rect
     {
@@ -209,7 +206,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         }
     }
 
-    let position = position.at_least(ctx.input().screen_rect().min);
+    let position = position.at_least(ctx.screen_rect().min);
 
     let area_id = frame_state.common_id.with(frame_state.count);
 
@@ -226,7 +223,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
 
     frame_state.count += 1;
     frame_state.rect = frame_state.rect.union(response.rect);
-    ctx.frame_state().tooltip_state = Some(frame_state);
+    ctx.frame_state_mut(|fs| fs.tooltip_state = Some(frame_state));
 
     Some(inner)
 }
@@ -263,8 +260,9 @@ fn show_tooltip_area_dyn<'c, R>(
     Area::new(area_id)
         .order(Order::Tooltip)
         .fixed_pos(window_pos)
+        .constrain(true)
         .interactable(false)
-        .drag_bounds(Rect::EVERYTHING) // disable clip rect
+        .drag_bounds(ctx.screen_rect())
         .show(ctx, |ui| {
             Frame::popup(&ctx.style())
                 .show(ui, |ui| {
@@ -283,7 +281,7 @@ pub fn was_tooltip_open_last_frame(ctx: &Context, tooltip_id: Id) -> bool {
                 if *individual_id == tooltip_id {
                     let area_id = common_id.with(count);
                     let layer_id = LayerId::new(Order::Tooltip, area_id);
-                    if ctx.memory().areas.visible_last_frame(&layer_id) {
+                    if ctx.memory(|mem| mem.areas.visible_last_frame(&layer_id)) {
                         return true;
                     }
                 }
@@ -314,6 +312,8 @@ pub fn popup_below_widget<R>(
 ///
 /// Useful for drop-down menus (combo boxes) or suggestion menus under text fields.
 ///
+/// The opened popup will have the same width as the parent.
+///
 /// You must open the popup with [`Memory::open_popup`] or  [`Memory::toggle_popup`].
 ///
 /// Returns `None` if the popup is not open.
@@ -323,7 +323,7 @@ pub fn popup_below_widget<R>(
 /// let response = ui.button("Open popup");
 /// let popup_id = ui.make_persistent_id("my_unique_id");
 /// if response.clicked() {
-///     ui.memory().toggle_popup(popup_id);
+///     ui.memory_mut(|mem| mem.toggle_popup(popup_id));
 /// }
 /// let below = egui::AboveOrBelow::Below;
 /// egui::popup::popup_above_or_below_widget(ui, popup_id, &response, below, |ui| {
@@ -340,7 +340,7 @@ pub fn popup_above_or_below_widget<R>(
     above_or_below: AboveOrBelow,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> Option<R> {
-    if ui.memory().is_popup_open(popup_id) {
+    if ui.memory(|mem| mem.is_popup_open(popup_id)) {
         let (pos, pivot) = match above_or_below {
             AboveOrBelow::Above => (widget_response.rect.left_top(), Align2::LEFT_BOTTOM),
             AboveOrBelow::Below => (widget_response.rect.left_bottom(), Align2::LEFT_TOP),
@@ -368,8 +368,8 @@ pub fn popup_above_or_below_widget<R>(
             })
             .inner;
 
-        if ui.input().key_pressed(Key::Escape) || widget_response.clicked_elsewhere() {
-            ui.memory().close_popup();
+        if ui.input(|i| i.key_pressed(Key::Escape)) || widget_response.clicked_elsewhere() {
+            ui.memory_mut(|mem| mem.close_popup());
         }
         Some(inner)
     } else {

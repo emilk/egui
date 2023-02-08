@@ -221,12 +221,12 @@ pub enum Error {
     Glutin(#[from] glutin::error::Error),
 
     #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
-    #[error("Found no glutin configs matching the template: {0:?}")]
-    NoGlutinConfigs(glutin::config::ConfigTemplate),
+    #[error("Found no glutin configs matching the template: {0:?}. error: {1:?}")]
+    NoGlutinConfigs(glutin::config::ConfigTemplate, Box<dyn std::error::Error>),
 
     #[cfg(feature = "wgpu")]
     #[error("WGPU error: {0}")]
-    Wgpu(#[from] wgpu::RequestDeviceError),
+    Wgpu(#[from] egui_wgpu::WgpuError),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

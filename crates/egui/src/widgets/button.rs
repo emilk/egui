@@ -30,6 +30,7 @@ pub struct Button {
     small: bool,
     frame: Option<bool>,
     min_size: Vec2,
+    rounding: Option<Rounding>,
     image: Option<widgets::Image>,
 }
 
@@ -45,6 +46,7 @@ impl Button {
             small: false,
             frame: None,
             min_size: Vec2::ZERO,
+            rounding: None,
             image: None,
         }
     }
@@ -117,6 +119,12 @@ impl Button {
         self
     }
 
+    /// Set the rounding of the button.
+    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
+        self.rounding = Some(rounding.into());
+        self
+    }
+
     /// Show some text on the right side of the button, in weak color.
     ///
     /// Designed for menu buttons, for setting a keyboard shortcut text (e.g. `Ctrl+S`).
@@ -140,6 +148,7 @@ impl Widget for Button {
             small,
             frame,
             min_size,
+            rounding,
             image,
         } = self;
 
@@ -171,10 +180,10 @@ impl Widget for Button {
             desired_size.x += ui.spacing().item_spacing.x + shortcut_text.size().x;
             desired_size.y = desired_size.y.max(shortcut_text.size().y);
         }
+        desired_size += 2.0 * button_padding;
         if !small {
             desired_size.y = desired_size.y.at_least(ui.spacing().interact_size.y);
         }
-        desired_size += 2.0 * button_padding;
         desired_size = desired_size.at_least(min_size);
 
         let (rect, response) = ui.allocate_at_least(desired_size, sense);
@@ -184,14 +193,11 @@ impl Widget for Button {
             let visuals = ui.style().interact(&response);
 
             if frame {
-                let fill = fill.unwrap_or(visuals.bg_fill);
+                let fill = fill.unwrap_or(visuals.weak_bg_fill);
                 let stroke = stroke.unwrap_or(visuals.bg_stroke);
-                ui.painter().rect(
-                    rect.expand(visuals.expansion),
-                    visuals.rounding,
-                    fill,
-                    stroke,
-                );
+                let rounding = rounding.unwrap_or(visuals.rounding);
+                ui.painter()
+                    .rect(rect.expand(visuals.expansion), rounding, fill, stroke);
             }
 
             let text_pos = if let Some(image) = image {
@@ -221,7 +227,10 @@ impl Widget for Button {
 
             if let Some(image) = image {
                 let image_rect = Rect::from_min_size(
-                    pos2(rect.min.x, rect.center().y - 0.5 - (image.size().y / 2.0)),
+                    pos2(
+                        rect.min.x + button_padding.x,
+                        rect.center().y - 0.5 - (image.size().y / 2.0),
+                    ),
                     image.size(),
                 );
                 image.paint_at(ui, image_rect);
@@ -259,6 +268,10 @@ impl<'a> Checkbox<'a> {
             checked,
             text: text.into(),
         }
+    }
+
+    pub fn without_text(checked: &'a mut bool) -> Self {
+        Self::new(checked, WidgetText::default())
     }
 }
 
@@ -531,7 +544,7 @@ impl Widget for ImageButton {
                 (
                     expansion,
                     visuals.rounding,
-                    visuals.bg_fill,
+                    visuals.weak_bg_fill,
                     visuals.bg_stroke,
                 )
             } else {

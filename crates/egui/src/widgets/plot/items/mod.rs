@@ -1658,14 +1658,16 @@ fn add_rulers_and_text(
     let font_id = TextStyle::Body.resolve(plot.ui.style());
 
     let corner_value = elem.corner_value();
-    shapes.push(Shape::text(
-        &plot.ui.fonts(),
-        plot.transform.position_from_point(&corner_value) + vec2(3.0, -2.0),
-        Align2::LEFT_BOTTOM,
-        text,
-        font_id,
-        plot.ui.visuals().text_color(),
-    ));
+    plot.ui.fonts(|f| {
+        shapes.push(Shape::text(
+            f,
+            plot.transform.position_from_point(&corner_value) + vec2(3.0, -2.0),
+            Align2::LEFT_BOTTOM,
+            text,
+            font_id,
+            plot.ui.visuals().text_color(),
+        ));
+    });
 }
 
 /// Draws a cross of horizontal and vertical ruler at the `pointer` position.
@@ -1714,15 +1716,16 @@ pub(super) fn rulers_at_value(
     };
 
     let font_id = TextStyle::Body.resolve(plot.ui.style());
-
-    shapes.push(Shape::text(
-        &plot.ui.fonts(),
-        pointer + vec2(3.0, -2.0),
-        Align2::LEFT_BOTTOM,
-        text,
-        font_id,
-        plot.ui.visuals().text_color(),
-    ));
+    plot.ui.fonts(|f| {
+        shapes.push(Shape::text(
+            f,
+            pointer + vec2(3.0, -2.0),
+            Align2::LEFT_BOTTOM,
+            text,
+            font_id,
+            plot.ui.visuals().text_color(),
+        ));
+    });
 }
 
 fn find_closest_rect<'a, T>(
