@@ -10,17 +10,18 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 #### Desktop/Native:
 * `eframe::run_native` now returns a `Result` ([#2433](https://github.com/emilk/egui/pull/2433)).
-* Fixed window position persistence for Windows ([#2583](https://github.com/emilk/egui/issues/2583)).
 * Update to `winit` 0.28, adding support for mac trackpad zoom ([#2654](https://github.com/emilk/egui/pull/2654)).
 * Fix bug where the cursor could get stuck using the wrong icon.
 * `NativeOptions::transparent` now works with the wgpu backend ([#2684](https://github.com/emilk/egui/pull/2684)).
+* Add `Frame::set_minimized` and `set_maximized` ([#2292](https://github.com/emilk/egui/pull/2292), [#2672](https://github.com/emilk/egui/pull/2672)).
+* Fixed persistence of native window position on Windows OS ([#2583](https://github.com/emilk/egui/issues/2583)).
 
 #### Web:
 * Prevent ctrl-P/cmd-P from opening the print dialog ([#2598](https://github.com/emilk/egui/pull/2598)).
 
 
 ## 0.20.1 - 2022-12-11
-* Fix docs.rs build ([#2420](https://github.com/emilk/egui/pull/2420)).
+* Fix [docs.rs](https://docs.rs/eframe) build ([#2420](https://github.com/emilk/egui/pull/2420)).
 
 
 ## 0.20.0 - 2022-12-08 - AccessKit integration and `wgpu` web support
