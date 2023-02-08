@@ -352,11 +352,12 @@ mod glow_integration {
         // can be persistent.
         gl_window: GlutinWindowContext,
     }
+
     /// This struct will contain both persistent and temporary glutin state.
     ///
     /// Platform Quirks:
-    /// Microsoft Windows: requires that we create a window before opengl context.
-    /// Android: window and surface should be destroyed when we receive a suspend event. recreate on resume event.
+    /// * Microsoft Windows: requires that we create a window before opengl context.
+    /// * Android: window and surface should be destroyed when we receive a suspend event. recreate on resume event.
     ///
     /// winit guarantees that we will get a Resumed event on startup on all platforms.
     /// * Before Resumed event: `gl_config`, `gl_context` can be created at any time. on windows, a window must be created to get `gl_context`.
@@ -471,7 +472,7 @@ mod glow_integration {
             {
                 Ok(it) => it,
                 Err(err) => {
-                    tracing::error!("failed to create context using default context attributes {context_attributes:?} due to error: {err}");
+                    tracing::warn!("failed to create context using default context attributes {context_attributes:?} due to error: {err}");
                     tracing::debug!("retrying with fallback context attributes: {fallback_context_attributes:?}");
                     gl_config
                         .display()
@@ -898,7 +899,6 @@ mod glow_integration {
                     EventResult::RepaintNow
                 }
                 winit::event::Event::Suspended => {
-                    tracing::warn!("suspending app");
                     self.running.as_mut().unwrap().gl_window.on_suspend()?;
 
                     EventResult::Wait
