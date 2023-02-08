@@ -457,6 +457,7 @@ mod glow_integration {
                 }
             };
             let not_current_gl_context = Some(gl_context);
+
             // the fun part with opengl gl is that we never know whether there is an error. the context creation might have failed, but
             // it could keep working until we try to make surface current or swap buffers or something else. future glutin improvements might
             // help us start from scratch again if we fail context creation and go back to preferEgl or try with different config etc..
@@ -471,6 +472,7 @@ mod glow_integration {
                 not_current_gl_context,
             })
         }
+
         /// This will be run after `new`. on android, it might be called multiple times over the course of the app's lifetime.
         /// roughly,
         /// 1. check if window already exists. otherwise, create one now.
@@ -546,6 +548,7 @@ mod glow_integration {
             }
             Ok(())
         }
+
         fn window(&self) -> &winit::window::Window {
             self.window.as_ref().expect("winit window doesn't exist")
         }
@@ -631,6 +634,11 @@ mod glow_integration {
                 GlutinWindowContext::new(winit_window_builder, native_options, event_loop)?
             };
             glutin_window_context.on_resume(event_loop)?;
+
+            if let Some(window) = &glutin_window_context.window {
+                epi_integration::apply_native_options_to_window(window, native_options);
+            }
+
             let gl = unsafe {
                 glow::Context::from_loader_function(|s| {
                     let s = std::ffi::CString::new(s)
@@ -1058,7 +1066,11 @@ mod wgpu_integration {
             native_options: &NativeOptions,
         ) -> std::result::Result<winit::window::Window, winit::error::OsError> {
             let window_settings = epi_integration::load_window_settings(storage);
-            epi_integration::build_window(event_loop, title, native_options, window_settings)
+            let window_builder =
+                epi_integration::window_builder(event_loop, title, native_options, window_settings);
+            let window = window_builder.build(event_loop)?;
+            epi_integration::apply_native_options_to_window(&window, native_options);
+            Ok(window)
         }
 
         #[allow(unsafe_code)]

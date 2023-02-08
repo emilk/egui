@@ -8,7 +8,6 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * ⚠️ BREAKING: `egui::Context` now use closures for locking ([#2625](https://github.com/emilk/egui/pull/2625)):
   * `ctx.input().key_pressed(Key::A)` -> `ctx.input(|i| i.key_pressed(Key::A))`
   * `ui.memory().toggle_popup(popup_id)` -> `ui.memory_mut(|mem| mem.toggle_popup(popup_id))`
-* Add `Slider::trailing_fill` for trailing color behind the circle like a `ProgressBar` ([#2660](https://github.com/emilk/egui/pull/2660)).
 
 ### Added ⭐
 * Add `Response::drag_started_by` and `Response::drag_released_by` for convenience, similar to `dragged` and `dragged_by` ([#2507](https://github.com/emilk/egui/pull/2507)).
@@ -27,6 +26,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * You can turn off the vertical line left of indented regions with `Visuals::indent_has_left_vline` ([#2636](https://github.com/emilk/egui/pull/2636)).
 * Add `Response.highlight` to highlight a widget ([#2632](https://github.com/emilk/egui/pull/2632)).
 * Add `Separator::grow` and `Separator::shrink` ([#2665](https://github.com/emilk/egui/pull/2665)).
+* Add `Slider::trailing_fill` for trailing color behind the circle like a `ProgressBar` ([#2660](https://github.com/emilk/egui/pull/2660)).
 * Add `Frame::request_screenshot` and `Frame::screenshot` to communicate to the backend that a screenshot of the current frame should be exposed by `Frame` during `App::post_rendering`
 * Add `read_screan_rgba` to the egui-wgpu `Painter`, to allow for capturing the current frame when using wgpu. Used in conjuction with `Frame::request_screenshot`
 
@@ -37,13 +37,13 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * `DragValue` and `Slider` now use the proportional font ([#2638](https://github.com/emilk/egui/pull/2638)).
 * `ScrollArea` is less aggressive about clipping its contents ([#2665](https://github.com/emilk/egui/pull/2665)).
 * Updated to be compatible with a major breaking change in AccessKit that drastically reduces memory usage when accessibility is enabled ([#2678](https://github.com/emilk/egui/pull/2678)).
+* Improve `DragValue` behavior ([#2649](https://github.com/emilk/egui/pull/2649), [#2650](https://github.com/emilk/egui/pull/2650), [#2688](https://github.com/emilk/egui/pull/2688), [#2638](https://github.com/emilk/egui/pull/2638)).
 
 ### Fixed 🐛
 * Trigger `PointerEvent::Released` for drags ([#2507](https://github.com/emilk/egui/pull/2507)).
 * Expose `TextEdit`'s multiline flag to AccessKit ([#2448](https://github.com/emilk/egui/pull/2448)).
 * Don't render `\r` (Carriage Return) ([#2452](https://github.com/emilk/egui/pull/2452)).
 * The `button_padding` style option works closer as expected with image+text buttons now ([#2510](https://github.com/emilk/egui/pull/2510)).
-* Fixed rendering of `…` (ellipsis).
 * Menus are now moved to fit on the screen.
 * Fix `Window::pivot` causing windows to move around ([#2694](https://github.com/emilk/egui/pull/2694)).
 
