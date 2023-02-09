@@ -218,7 +218,9 @@ impl<'a> Slider<'a> {
         self
     }
 
-    /// Set specific points for the slider to snap to. These points are visualized with small dots.
+    /// Set specific points for the slider to snap to.
+    ///
+    /// These points are visualized with small dots.
     /// This only has an effect when [`smart_aim`] is ON. `snap_radius` defines the range around
     /// the mouse where the slider will snap to the given values. To be useful, this should be
     /// somewhat large (and definitely larger than [`InputState::aim_radius`]). Default is 0.1.
