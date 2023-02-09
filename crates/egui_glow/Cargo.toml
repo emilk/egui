@@ -1,6 +1,6 @@
 [package]
 name = "egui_glow"
-version = "0.20.1"
+version = "0.21.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glow library"
 edition = "2021"
@@ -20,8 +20,7 @@ include = [
 ]
 
 [package.metadata.docs.rs]
-# Avoid speech-dispatcher dependencies - see https://docs.rs/crate/egui_glow/0.20.0/builds/695194
-features = ["document-features"]
+all-features = true
 
 
 [features]
@@ -37,9 +36,6 @@ clipboard = ["egui-winit?/clipboard"]
 ## enable opening links in a browser when an egui hyperlink is clicked.
 links = ["egui-winit?/links"]
 
-## Experimental support for a screen reader.
-screen_reader = ["egui-winit?/screen_reader"]
-
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 puffin = ["dep:puffin", "egui-winit?/puffin"]
 
@@ -48,12 +44,12 @@ winit = ["egui-winit"]
 
 
 [dependencies]
-egui = { version = "0.20.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.21.0", path = "../egui", default-features = false, features = [
   "bytemuck",
 ] }
 
 bytemuck = "1.7"
-glow = "0.11"
+glow = "0.12"
 memoffset = "0.6"
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 
@@ -63,7 +59,7 @@ document-features = { version = "0.2", optional = true }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.20.0", path = "../egui-winit", optional = true, default-features = false }
+egui-winit = { version = "0.21.0", path = "../egui-winit", optional = true, default-features = false }
 puffin = { version = "0.14", optional = true }
 
 # Web:
@@ -73,8 +69,9 @@ wasm-bindgen = { version = "0.2" }
 
 
 [dev-dependencies]
-glutin = "0.30.2"           # examples/pure_glow
+glutin = "0.30"             # examples/pure_glow
 raw-window-handle = "0.5.0"
+glutin-winit = "0.3.0"
 
 
 [[example]]

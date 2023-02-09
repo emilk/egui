@@ -112,10 +112,7 @@ impl CollapsingState {
             response.rect.center().y,
         ));
         let openness = self.openness(ui.ctx());
-        let small_icon_response = Response {
-            rect: icon_rect,
-            ..response.clone()
-        };
+        let small_icon_response = response.clone().with_new_rect(icon_rect);
         icon_fn(ui, openness, &small_icon_response);
         response
     }
@@ -144,9 +141,10 @@ impl CollapsingState {
         add_header: impl FnOnce(&mut Ui) -> HeaderRet,
     ) -> HeaderResponse<'_, HeaderRet> {
         let header_response = ui.horizontal(|ui| {
+            let prev_item_spacing = ui.spacing_mut().item_spacing;
             ui.spacing_mut().item_spacing.x = 0.0; // the toggler button uses the full indent width
             let collapser = self.show_default_button_indented(ui);
-            ui.spacing_mut().item_spacing.x = ui.spacing_mut().icon_spacing; // Restore spacing
+            ui.spacing_mut().item_spacing = prev_item_spacing;
             (collapser, add_header(ui))
         });
         HeaderResponse {
@@ -576,10 +574,7 @@ impl CollapsingHeader {
                     header_response.rect.left() + ui.spacing().indent / 2.0,
                     header_response.rect.center().y,
                 ));
-                let icon_response = Response {
-                    rect: icon_rect,
-                    ..header_response.clone()
-                };
+                let icon_response = header_response.clone().with_new_rect(icon_rect);
                 if let Some(icon) = icon {
                     icon(ui, openness, &icon_response);
                 } else {

@@ -2,7 +2,6 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
-use egui::Rgba;
 use egui_glow::glow;
 
 use crate::{WebGlContextOption, WebOptions};
@@ -49,7 +48,7 @@ impl WebPainter for WebPainterGlow {
 
     fn paint_and_update_textures(
         &mut self,
-        clear_color: Rgba,
+        clear_color: [f32; 4],
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
         textures_delta: &egui::TexturesDelta,

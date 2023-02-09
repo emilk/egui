@@ -33,6 +33,10 @@ impl UvRect {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GlyphInfo {
+    /// Used for pair-kerning.
+    ///
+    /// Doesn't need to be unique.
+    /// Use `ab_glyph::GlyphId(0)` if you just want to have an id, and don't care.
     pub(crate) id: ab_glyph::GlyphId,
 
     /// Unit: points.

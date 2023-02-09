@@ -173,7 +173,7 @@ impl Widget for Label {
         if ui.is_rect_visible(response.rect) {
             let response_color = ui.style().interact(&response).text_color();
 
-            let underline = if response.has_focus() {
+            let underline = if response.has_focus() || response.highlighted() {
                 Stroke::new(1.0, response_color)
             } else {
                 Stroke::NONE

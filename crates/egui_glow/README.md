@@ -14,7 +14,13 @@ To write web apps using `glow` you can use [`eframe`](https://github.com/emilk/e
 To use on Linux, first run:
 
 ```
-sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
+sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
 ```
 
 This crate optionally depends on [`egui-winit`](https://github.com/emilk/egui/tree/master/crates/egui-winit).
+
+Text the example with:
+
+``` sh
+cargo run -p egui_glow --example pure_glow --features=winit,egui/default_fonts
+```

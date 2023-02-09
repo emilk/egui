@@ -168,5 +168,8 @@ impl std::hash::BuildHasher for BuilIdHasher {
     }
 }
 
+/// `IdSet` is a `HashSet<Id>` optimized by knowing that [`Id`] has good entropy, and doesn't need more hashing.
+pub type IdSet = std::collections::HashSet<Id, BuilIdHasher>;
+
 /// `IdMap<V>` is a `HashMap<Id, V>` optimized by knowing that [`Id`] has good entropy, and doesn't need more hashing.
 pub type IdMap<V> = std::collections::HashMap<Id, V, BuilIdHasher>;

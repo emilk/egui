@@ -19,6 +19,7 @@ pub struct Sliders {
     pub integer: bool,
     pub vertical: bool,
     pub value: f64,
+    pub trailing_fill: bool,
 }
 
 impl Default for Sliders {
@@ -37,6 +38,7 @@ impl Default for Sliders {
             integer: false,
             vertical: false,
             value: 10.0,
+            trailing_fill: false,
         }
     }
 }
@@ -73,6 +75,7 @@ impl super::View for Sliders {
             integer,
             vertical,
             value,
+            trailing_fill,
         } = self;
 
         ui.label("You can click a slider value to edit it with the keyboard.");
@@ -105,7 +108,8 @@ impl super::View for Sliders {
                     .snap_values(snap_values.clone(), *snap_values_only)
                     .orientation(orientation)
                     .text("i32 demo slider")
-                    .step_by(istep),
+                    .step_by(istep)
+                    .trailing_fill(*trailing_fill),
             );
             *value = value_i32 as f64;
         } else {
@@ -117,7 +121,8 @@ impl super::View for Sliders {
                     .snap_values(snap_values.clone(), *snap_values_only)
                     .orientation(orientation)
                     .text("f64 demo slider")
-                    .step_by(istep),
+                    .step_by(istep)
+                    .trailing_fill(*trailing_fill),
             );
 
             ui.label(
@@ -137,13 +142,15 @@ impl super::View for Sliders {
             Slider::new(min, type_min..=type_max)
                 .logarithmic(true)
                 .smart_aim(*smart_aim)
-                .text("left"),
+                .text("left")
+                .trailing_fill(*trailing_fill),
         );
         ui.add(
             Slider::new(max, type_min..=type_max)
                 .logarithmic(true)
                 .smart_aim(*smart_aim)
-                .text("right"),
+                .text("right")
+                .trailing_fill(*trailing_fill),
         );
 
         if *snap_aim {
@@ -154,6 +161,11 @@ impl super::View for Sliders {
         } else {
             *snap_values = vec![];
         }
+
+        ui.separator();
+
+        ui.checkbox(trailing_fill, "Toggle trailing color");
+        ui.label("When enabled, trailing color will be painted up until the circle.");
 
         ui.separator();
 

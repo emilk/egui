@@ -16,65 +16,86 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
+
       - uses: actions-rs/toolchain@v1
         with:
           profile: default
           toolchain: 1.65.0
           override: true
+
       - name: Install packages (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libgtk-3-dev # libgtk-3-dev is used by rfd
+        #uses: awalsh128/cache-apt-pkgs-action@v1.2.2
+        #TODO(emilk) use upstream when https://github.com/awalsh128/cache-apt-pkgs-action/pull/90 is merged
+        uses: rerun-io/cache-apt-pkgs-action@59534850182063abf1b2c11bb3686722a12a8397
+        with:
+          packages: libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libgtk-3-dev # libgtk-3-dev is used by rfd
+          version: 1.0
+          execute_install_scripts: true
+
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+
       - name: Rustfmt
         uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all -- --check
+
       - name: Install cargo-cranky
         uses: baptiste0928/cargo-install@v1
         with:
           crate: cargo-cranky
+
       - name: Check all features
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --locked --all-features
+          args: --locked --all-features --all-targets
+
       - name: Check default features
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --locked
+          args: --locked --all-targets
+
       - name: Check no default features
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --locked --no-default-features --lib
+          args: --locked --no-default-features --lib --all-targets
+
       - name: Test doc-tests
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --doc --all-features
+
       - name: cargo doc --lib
         uses: actions-rs/cargo@v1
         with:
           command: doc
           args: --lib --no-deps --all-features
+
       - name: cargo doc --document-private-items
         uses: actions-rs/cargo@v1
         with:
           command: doc
           args: --document-private-items --no-deps --all-features
+
       - name: Test
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --all-features
+
       - name: Cranky
         uses: actions-rs/cargo@v1
         with:
           command: cranky
           args: --all-targets --all-features -- -D warnings
+
+  # ---------------------------------------------------------------------------
 
   check_wasm:
     name: Check wasm32 + wasm-bindgen
@@ -119,7 +140,7 @@ jobs:
       - name: wasm-bindgen
         uses: jetli/wasm-bindgen-action@v0.1.0
         with:
-          version: "0.2.83"
+          version: "0.2.84"
 
       - run: ./sh/wasm_bindgen_check.sh --skip-setup
 
@@ -128,6 +149,8 @@ jobs:
         with:
           command: cranky
           args: --target wasm32-unknown-unknown --all-features -p egui_demo_app --lib -- -D warnings
+
+  # ---------------------------------------------------------------------------
 
   cargo-deny:
     name: cargo deny
@@ -138,18 +161,45 @@ jobs:
         with:
           rust-version: "1.65.0"
 
+  # ---------------------------------------------------------------------------
+
   android:
     name: android
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
+
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: 1.65.0
           target: aarch64-linux-android
           override: true
+
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
+
       - run: cargo check --features wgpu --target aarch64-linux-android
         working-directory: crates/eframe
+
+  # ---------------------------------------------------------------------------
+
+  windows:
+    name: Check Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.65.0
+          override: true
+
+      - name: Set up cargo cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all-targets --all-features

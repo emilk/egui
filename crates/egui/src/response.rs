@@ -13,6 +13,7 @@ use crate::{
 ///
 /// Whenever something gets added to a [`Ui`], a [`Response`] object is returned.
 /// [`ui.add`] returns a [`Response`], as does [`ui.button`], and all similar shortcuts.
+// TODO(emilk): we should be using bit sets instead of so many bools
 #[derive(Clone)]
 pub struct Response {
     // CONTEXT:
@@ -42,6 +43,10 @@ pub struct Response {
     #[doc(hidden)]
     pub hovered: bool,
 
+    /// The widget is highlighted via a call to [`Self::highlight`] or [`Context::highlight_widget`].
+    #[doc(hidden)]
+    pub highlighted: bool,
+
     /// The pointer clicked this thing this frame.
     #[doc(hidden)]
     pub clicked: [bool; NUM_POINTER_BUTTONS],
@@ -52,7 +57,7 @@ pub struct Response {
     pub double_clicked: [bool; NUM_POINTER_BUTTONS],
 
     /// The thing was triple-clicked.
-    pub(crate) triple_clicked: [bool; NUM_POINTER_BUTTONS],
+    pub triple_clicked: [bool; NUM_POINTER_BUTTONS],
 
     /// The widgets is being dragged
     #[doc(hidden)]
@@ -90,6 +95,7 @@ impl std::fmt::Debug for Response {
             sense,
             enabled,
             hovered,
+            highlighted,
             clicked,
             double_clicked,
             triple_clicked,
@@ -106,6 +112,7 @@ impl std::fmt::Debug for Response {
             .field("sense", sense)
             .field("enabled", enabled)
             .field("hovered", hovered)
+            .field("highlighted", highlighted)
             .field("clicked", clicked)
             .field("double_clicked", double_clicked)
             .field("triple_clicked", triple_clicked)
@@ -211,6 +218,12 @@ impl Response {
     #[inline(always)]
     pub fn hovered(&self) -> bool {
         self.hovered
+    }
+
+    /// The widget is highlighted via a call to [`Self::highlight`] or [`Context::highlight_widget`].
+    #[doc(hidden)]
+    pub fn highlighted(&self) -> bool {
+        self.highlighted
     }
 
     /// This widget has the keyboard focus (i.e. is receiving key presses).
@@ -454,6 +467,17 @@ impl Response {
         })
     }
 
+    /// Highlight this widget, to make it look like it is hovered, even if it isn't.
+    ///
+    /// The highlight takes on frame to take effect if you call this after the widget has been fully rendered.
+    ///
+    /// See also [`Context::highlight_widget`].
+    pub fn highlight(mut self) -> Self {
+        self.ctx.highlight_widget(self.id);
+        self.highlighted = true;
+        self
+    }
+
     /// Show this text when hovering if the widget is disabled.
     pub fn on_disabled_hover_text(self, text: impl Into<WidgetText>) -> Self {
         self.on_disabled_hover_ui(|ui| {
@@ -549,47 +573,47 @@ impl Response {
             self.output_event(event);
         } else {
             #[cfg(feature = "accesskit")]
-            self.ctx.accesskit_node(self.id, |node| {
-                self.fill_accesskit_node_from_widget_info(node, make_info());
+            self.ctx.accesskit_node_builder(self.id, |builder| {
+                self.fill_accesskit_node_from_widget_info(builder, make_info());
             });
         }
     }
 
     pub fn output_event(&self, event: crate::output::OutputEvent) {
         #[cfg(feature = "accesskit")]
-        self.ctx.accesskit_node(self.id, |node| {
-            self.fill_accesskit_node_from_widget_info(node, event.widget_info().clone());
+        self.ctx.accesskit_node_builder(self.id, |builder| {
+            self.fill_accesskit_node_from_widget_info(builder, event.widget_info().clone());
         });
         self.ctx.output_mut(|o| o.events.push(event));
     }
 
     #[cfg(feature = "accesskit")]
-    pub(crate) fn fill_accesskit_node_common(&self, node: &mut accesskit::Node) {
-        node.bounds = Some(accesskit::kurbo::Rect {
+    pub(crate) fn fill_accesskit_node_common(&self, builder: &mut accesskit::NodeBuilder) {
+        builder.set_bounds(accesskit::Rect {
             x0: self.rect.min.x.into(),
             y0: self.rect.min.y.into(),
             x1: self.rect.max.x.into(),
             y1: self.rect.max.y.into(),
         });
         if self.sense.focusable {
-            node.focusable = true;
+            builder.add_action(accesskit::Action::Focus);
         }
-        if self.sense.click && node.default_action_verb.is_none() {
-            node.default_action_verb = Some(accesskit::DefaultActionVerb::Click);
+        if self.sense.click && builder.default_action_verb().is_none() {
+            builder.set_default_action_verb(accesskit::DefaultActionVerb::Click);
         }
     }
 
     #[cfg(feature = "accesskit")]
     fn fill_accesskit_node_from_widget_info(
         &self,
-        node: &mut accesskit::Node,
+        builder: &mut accesskit::NodeBuilder,
         info: crate::WidgetInfo,
     ) {
         use crate::WidgetType;
         use accesskit::{CheckedState, Role};
 
-        self.fill_accesskit_node_common(node);
-        node.role = match info.typ {
+        self.fill_accesskit_node_common(builder);
+        builder.set_role(match info.typ {
             WidgetType::Label => Role::StaticText,
             WidgetType::Link => Role::Link,
             WidgetType::TextEdit => Role::TextField,
@@ -604,18 +628,18 @@ impl Response {
             WidgetType::DragValue => Role::SpinButton,
             WidgetType::ColorButton => Role::ColorWell,
             WidgetType::Other => Role::Unknown,
-        };
+        });
         if let Some(label) = info.label {
-            node.name = Some(label.into());
+            builder.set_name(label);
         }
         if let Some(value) = info.current_text_value {
-            node.value = Some(value.into());
+            builder.set_value(value);
         }
         if let Some(value) = info.value {
-            node.numeric_value = Some(value);
+            builder.set_numeric_value(value);
         }
         if let Some(selected) = info.selected {
-            node.checked_state = Some(if selected {
+            builder.set_checked_state(if selected {
                 CheckedState::True
             } else {
                 CheckedState::False
@@ -638,8 +662,9 @@ impl Response {
     /// ```
     pub fn labelled_by(self, id: Id) -> Self {
         #[cfg(feature = "accesskit")]
-        self.ctx
-            .accesskit_node(self.id, |node| node.labelled_by.push(id.accesskit_id()));
+        self.ctx.accesskit_node_builder(self.id, |builder| {
+            builder.push_labelled_by(id.accesskit_id());
+        });
         #[cfg(not(feature = "accesskit"))]
         {
             let _ = id;
@@ -688,6 +713,7 @@ impl Response {
             sense: self.sense.union(other.sense),
             enabled: self.enabled || other.enabled,
             hovered: self.hovered || other.hovered,
+            highlighted: self.highlighted || other.highlighted,
             clicked: [
                 self.clicked[0] || other.clicked[0],
                 self.clicked[1] || other.clicked[1],
@@ -716,6 +742,13 @@ impl Response {
             interact_pointer_pos: self.interact_pointer_pos.or(other.interact_pointer_pos),
             changed: self.changed || other.changed,
         }
+    }
+}
+
+impl Response {
+    /// Returns a response with a modified [`Self::rect`].
+    pub fn with_new_rect(self, rect: Rect) -> Self {
+        Self { rect, ..self }
     }
 }
 
