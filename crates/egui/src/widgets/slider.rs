@@ -220,10 +220,13 @@ impl<'a> Slider<'a> {
 
     /// Set specific points for the slider to snap to.
     ///
-    /// These points are visualized with small dots.
-    /// This only has an effect when [`smart_aim`] is ON. `snap_radius` defines the range around
-    /// the mouse where the slider will snap to the given values. To be useful, this should be
-    /// somewhat large (and definitely larger than [`InputState::aim_radius`]). Default is 0.1.
+    /// These points are visualized with small dots. The slider will snap to these points if
+    /// the user drags the slider close to them. Enabling `snap_values_only` will make the slider
+    /// only snap to these points, and not allow the user to drag the slider values in between
+    /// the snap points.
+    ///
+    /// Default: snap_values = `vec![]` (no snap points).
+    /// Default: snap_values_only = `false` (slider can be dragged to points in between snap values).
     pub fn snap_values<Num: emath::Numeric>(
         mut self,
         snap_values: Vec<Num>,
