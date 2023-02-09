@@ -2174,7 +2174,6 @@ impl Ui {
         }
     }
 
-    #[inline]
     /// Create a menu button with an image that when clicked will show the given menu.
     ///
     /// If called from within a menu this will instead create a button for a sub-menu.
@@ -2198,6 +2197,7 @@ impl Ui {
     /// ```
     ///
     /// See also: [`Self::close_menu`] and [`Response::context_menu`].
+    #[inline]
     pub fn menu_image_button<R>(
         &mut self,
         texture_id: TextureId,
