@@ -64,9 +64,9 @@ struct ContextImpl {
     requested_repaint_last_frame: bool,
 
     /// Written to during the frame.
-    layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
+    layer_rects_this_frame: ahash::HashMap<AreaLayerId, Vec<(Id, layers::ZOrder, Rect)>>,
     /// Read
-    layer_rects_prev_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
+    layer_rects_prev_frame: ahash::HashMap<AreaLayerId, Vec<(Id, layers::ZOrder, Rect)>>,
 
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
@@ -103,7 +103,7 @@ impl ContextImpl {
         // Ensure we register the background area so panels and background ui can catch clicks:
         let screen_rect = self.input.screen_rect();
         self.memory.areas.set_state(
-            LayerId::background(),
+            AreaLayerId::background(),
             containers::area::State {
                 pivot_pos: screen_rect.left_top(),
                 pivot: Align2::LEFT_TOP,
@@ -534,7 +534,7 @@ impl Context {
         &self,
         clip_rect: Rect,
         item_spacing: Vec2,
-        layer_id: LayerId,
+        layer: layers::ZLayer,
         id: Id,
         rect: Rect,
         sense: Sense,
@@ -551,13 +551,13 @@ impl Context {
 
         // Respect clip rectangle when interacting
         let interact_rect = clip_rect.intersect(interact_rect);
-        let mut hovered = self.rect_contains_pointer(layer_id, interact_rect);
+        let mut hovered = self.rect_contains_pointer(layer.area_layer, interact_rect);
 
         // This solves the problem of overlapping widgets.
         // Whichever widget is added LAST (=on top) gets the input:
         if interact_rect.is_positive() && sense.interactive() {
             if self.style().debug.show_interactive_widgets {
-                Self::layer_painter(self, LayerId::debug()).rect(
+                Self::layer_painter(self, AreaLayerId::debug()).rect(
                     interact_rect,
                     0.0,
                     Color32::YELLOW.additive().linear_multiply(0.005),
@@ -567,16 +567,18 @@ impl Context {
 
             self.write(|ctx| {
                 ctx.layer_rects_this_frame
-                    .entry(layer_id)
+                    .entry(layer.area_layer)
                     .or_default()
-                    .push((id, interact_rect));
+                    .push((id, layer.z, interact_rect));
 
                 if hovered {
                     let pointer_pos = ctx.input.pointer.interact_pos();
                     if let Some(pointer_pos) = pointer_pos {
-                        if let Some(rects) = ctx.layer_rects_prev_frame.get(&layer_id) {
-                            for &(prev_id, prev_rect) in rects.iter().rev() {
-                                if prev_id == id {
+                        if let Some(rects) = ctx.layer_rects_prev_frame.get_mut(&layer.area_layer) {
+                            rects.sort_by_key(|(_id, z, ..)| *z);
+
+                            for &(prev_id, prev_z, prev_rect) in rects.iter().rev() {
+                                if prev_id == id && prev_z <= layer.z {
                                     break; // there is no other interactive widget covering us at the pointer position.
                                 }
                                 if prev_rect.contains(pointer_pos) {
@@ -584,12 +586,12 @@ impl Context {
                                     // so we aren't hovered.
 
                                     if ctx.memory.options.style.debug.show_blocking_widget {
-                                        Self::layer_painter(self, LayerId::debug()).debug_rect(
+                                        Self::layer_painter(self, AreaLayerId::debug()).debug_rect(
                                             interact_rect,
                                             Color32::GREEN,
                                             "Covered",
                                         );
-                                        Self::layer_painter(self, LayerId::debug()).debug_rect(
+                                        Self::layer_painter(self, AreaLayerId::debug()).debug_rect(
                                             prev_rect,
                                             Color32::LIGHT_BLUE,
                                             "On top",
@@ -606,13 +608,13 @@ impl Context {
             });
         }
 
-        self.interact_with_hovered(layer_id, id, rect, sense, enabled, hovered)
+        self.interact_with_hovered(layer.area_layer, id, rect, sense, enabled, hovered)
     }
 
     /// You specify if a thing is hovered, and the function gives a [`Response`].
     pub(crate) fn interact_with_hovered(
         &self,
-        layer_id: LayerId,
+        layer_id: AreaLayerId,
         id: Id,
         rect: Rect,
         sense: Sense,
@@ -762,14 +764,14 @@ impl Context {
     }
 
     /// Get a full-screen painter for a new or existing layer
-    pub fn layer_painter(&self, layer_id: LayerId) -> Painter {
+    pub fn layer_painter(&self, layer_id: AreaLayerId) -> Painter {
         let screen_rect = self.screen_rect();
         Painter::new(self.clone(), layer_id, screen_rect)
     }
 
     /// Paint on top of everything else
     pub fn debug_painter(&self) -> Painter {
-        Self::layer_painter(self, LayerId::debug())
+        Self::layer_painter(self, AreaLayerId::debug())
     }
 
     /// What operating system are we running on?
@@ -1342,14 +1344,14 @@ impl Context {
     /// Move all the graphics at the given layer.
     ///
     /// Can be used to implement drag-and-drop (see relevant demo).
-    pub fn translate_layer(&self, layer_id: LayerId, delta: Vec2) {
+    pub fn translate_layer(&self, layer_id: AreaLayerId, delta: Vec2) {
         if delta != Vec2::ZERO {
             self.graphics_mut(|g| g.list(layer_id).translate(delta));
         }
     }
 
     /// Top-most layer at the given position.
-    pub fn layer_id_at(&self, pos: Pos2) -> Option<LayerId> {
+    pub fn layer_id_at(&self, pos: Pos2) -> Option<AreaLayerId> {
         self.memory(|mem| {
             mem.layer_id_at(pos, mem.options.style.interaction.resize_grab_radius_side)
         })
@@ -1358,11 +1360,11 @@ impl Context {
     /// Moves the given area to the top in its [`Order`].
     ///
     /// [`Area`]:s and [`Window`]:s also do this automatically when being clicked on or interacted with.
-    pub fn move_to_top(&self, layer_id: LayerId) {
+    pub fn move_to_top(&self, layer_id: AreaLayerId) {
         self.memory_mut(|mem| mem.areas.move_to_top(layer_id));
     }
 
-    pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
+    pub(crate) fn rect_contains_pointer(&self, layer_id: AreaLayerId, rect: Rect) -> bool {
         rect.is_positive() && {
             let pointer_pos = self.input(|i| i.pointer.interact_pos());
             if let Some(pointer_pos) = pointer_pos {
@@ -1619,7 +1621,7 @@ impl Context {
         ui.indent("areas", |ui| {
             ui.label("Visible areas, ordered back to front.");
             ui.label("Hover to highlight");
-            let layers_ids: Vec<LayerId> = self.memory(|mem| mem.areas.order().to_vec());
+            let layers_ids: Vec<AreaLayerId> = self.memory(|mem| mem.areas.order().to_vec());
             for layer_id in layers_ids {
                 let area = self.memory(|mem| mem.areas.get(layer_id.id).copied());
                 if let Some(area) = area {

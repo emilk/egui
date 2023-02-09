@@ -361,7 +361,7 @@ pub use {
     grid::Grid,
     id::{Id, IdMap},
     input_state::{InputState, MultiTouchInfo, PointerState},
-    layers::{LayerId, Order},
+    layers::{AreaLayerId, Order, ZOffset, ZOrder},
     layout::*,
     memory::{Memory, Options},
     painter::Painter,
@@ -373,6 +373,9 @@ pub use {
     widget_text::{RichText, WidgetText},
     widgets::*,
 };
+
+#[allow(deprecated)]
+pub use layers::LayerId;
 
 // ----------------------------------------------------------------------------
 

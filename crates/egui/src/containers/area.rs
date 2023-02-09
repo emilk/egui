@@ -93,8 +93,8 @@ impl Area {
         self
     }
 
-    pub fn layer(&self) -> LayerId {
-        LayerId::new(self.order, self.id)
+    pub fn layer(&self) -> AreaLayerId {
+        AreaLayerId::new(self.order, self.id)
     }
 
     /// If false, no content responds to click
@@ -203,7 +203,7 @@ impl Area {
 }
 
 pub(crate) struct Prepared {
-    layer_id: LayerId,
+    layer_id: AreaLayerId,
     state: State,
     move_response: Response,
     enabled: bool,
@@ -245,7 +245,7 @@ impl Area {
             constrain,
         } = self;
 
-        let layer_id = LayerId::new(order, id);
+        let layer_id = AreaLayerId::new(order, id);
 
         let state = ctx.memory(|mem| mem.areas.get(id).copied());
         let is_new = state.is_none();
@@ -282,7 +282,7 @@ impl Area {
             let move_response = ctx.interact(
                 Rect::EVERYTHING,
                 ctx.style().spacing.item_spacing,
-                layer_id,
+                layers::ZLayer::from_area_layer(layer_id),
                 interact_id,
                 state.rect(),
                 sense,
@@ -344,7 +344,7 @@ impl Area {
             return;
         }
 
-        let layer_id = LayerId::new(self.order, self.id);
+        let layer_id = AreaLayerId::new(self.order, self.id);
         let area_rect = ctx.memory(|mem| mem.areas.get(self.id).map(|area| area.rect()));
         if let Some(area_rect) = area_rect {
             let clip_rect = ctx.available_rect();
@@ -434,7 +434,7 @@ impl Prepared {
     }
 }
 
-fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
+fn pointer_pressed_on_area(ctx: &Context, layer_id: AreaLayerId) -> bool {
     if let Some(pointer_pos) = ctx.pointer_interact_pos() {
         let any_pressed = ctx.input(|i| i.pointer.any_pressed());
         any_pressed && ctx.layer_id_at(pointer_pos) == Some(layer_id)

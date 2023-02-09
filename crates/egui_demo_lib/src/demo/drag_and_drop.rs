@@ -15,7 +15,7 @@ pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
         ui.ctx().set_cursor_icon(CursorIcon::Grabbing);
 
         // Paint the body to a new layer:
-        let layer_id = LayerId::new(Order::Tooltip, id);
+        let layer_id = AreaLayerId::new(Order::Tooltip, id);
         let response = ui.with_layer_id(layer_id, body).response;
 
         // Now we move the visuals of the body to where the mouse is.

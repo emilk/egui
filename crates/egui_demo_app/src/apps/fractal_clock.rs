@@ -41,7 +41,7 @@ impl FractalClock {
 
         let painter = Painter::new(
             ui.ctx().clone(),
-            ui.layer_id(),
+            ui.area_layer_id(),
             ui.available_rect_before_wrap(),
         );
         self.paint(&painter);

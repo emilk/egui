@@ -237,7 +237,7 @@ impl SidePanel {
                 let we_are_on_top = ui
                     .ctx()
                     .layer_id_at(pointer)
-                    .map_or(true, |top_layer_id| top_layer_id == ui.layer_id());
+                    .map_or(true, |top_layer_id| top_layer_id == ui.area_layer_id());
 
                 let resize_x = side.opposite().side_x(panel_rect);
                 let mouse_over_resize_line = we_are_on_top
@@ -306,12 +306,13 @@ impl SidePanel {
             } else {
                 Stroke::NONE
             };
-            // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
-            // In the meantime: nudge the line so its inside the panel, so it won't be covered by neighboring panel
-            // (hence the shrink).
-            let resize_x = side.opposite().side_x(rect.shrink(1.0));
+            let resize_x = side.opposite().side_x(rect);
             let resize_x = ui.painter().round_to_pixel(resize_x);
-            ui.painter().vline(resize_x, rect.y_range(), stroke);
+            ui.painter().clone().with_z(layers::ZOrder::FRONT).vline(
+                resize_x,
+                rect.y_range(),
+                stroke,
+            );
         }
 
         inner_response
@@ -332,7 +333,7 @@ impl SidePanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let layer_id = LayerId::background();
+        let layer_id = AreaLayerId::background();
         let side = self.side;
         let available_rect = ctx.available_rect();
         let clip_rect = ctx.screen_rect();
@@ -688,7 +689,7 @@ impl TopBottomPanel {
                 let we_are_on_top = ui
                     .ctx()
                     .layer_id_at(pointer)
-                    .map_or(true, |top_layer_id| top_layer_id == ui.layer_id());
+                    .map_or(true, |top_layer_id| top_layer_id == ui.area_layer_id());
 
                 let resize_y = side.opposite().side_y(panel_rect);
                 let mouse_over_resize_line = we_are_on_top
@@ -757,12 +758,13 @@ impl TopBottomPanel {
             } else {
                 Stroke::NONE
             };
-            // TODO(emilk): draw line on top of all panels in this ui when https://github.com/emilk/egui/issues/1516 is done
-            // In the meantime: nudge the line so its inside the panel, so it won't be covered by neighboring panel
-            // (hence the shrink).
-            let resize_y = side.opposite().side_y(rect.shrink(1.0));
+            let resize_y = side.opposite().side_y(rect);
             let resize_y = ui.painter().round_to_pixel(resize_y);
-            ui.painter().hline(rect.x_range(), resize_y, stroke);
+            ui.painter().clone().with_z(layers::ZOrder::FRONT).hline(
+                rect.x_range(),
+                resize_y,
+                stroke,
+            );
         }
 
         inner_response
@@ -783,7 +785,7 @@ impl TopBottomPanel {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
-        let layer_id = LayerId::background();
+        let layer_id = AreaLayerId::background();
         let available_rect = ctx.available_rect();
         let side = self.side;
 
@@ -1041,7 +1043,7 @@ impl CentralPanel {
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> InnerResponse<R> {
         let available_rect = ctx.available_rect();
-        let layer_id = LayerId::background();
+        let layer_id = AreaLayerId::background();
         let id = Id::new("central_panel");
 
         let clip_rect = ctx.screen_rect();
