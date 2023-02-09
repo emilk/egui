@@ -569,7 +569,7 @@ impl<'a> Slider<'a> {
         if let Some(pointer_position_2d) = response.interact_pointer_pos() {
             let position = self.pointer_position(pointer_position_2d);
             let mut new_value = if self.smart_aim {
-                let aim_radius = ui.input().aim_radius();
+                let aim_radius = ui.input(|i| i.aim_radius());
                 emath::smart_aim::best_in_range_f64(
                     self.value_from_position(position - aim_radius, position_range.clone()),
                     self.value_from_position(position + aim_radius, position_range.clone()),
@@ -578,23 +578,23 @@ impl<'a> Slider<'a> {
                 self.value_from_position(position, position_range.clone())
             };
             if !self.snap_values.is_empty() {
+                // We use ui points as the unit for the measurements:
                 let mut closest_snap = 0.0;
-                let norm_value = normalized_from_value(new_value, self.range.clone(), &self.spec);
-                let mut closest_distance = f64::INFINITY;
-                for snap in self.snap_values.iter().copied() {
-                    let snap_norm_value =
-                        normalized_from_value(snap, self.range.clone(), &self.spec);
-                    let distance = (norm_value - snap_norm_value).abs();
+                let new_value_pos = self.position_from_value(new_value, position_range.clone());
+                let mut closest_distance = f32::INFINITY;
+                for snap_value in self.snap_values.iter().copied() {
+                    let snap_pos = self.position_from_value(snap_value, position_range.clone());
+                    let distance = (new_value_pos - snap_pos).abs();
                     if distance < closest_distance {
-                        closest_snap = snap;
+                        closest_snap = snap_value;
                         closest_distance = distance;
                     } else {
                         break;
                     }
                 }
 
-                // Divide aim_radius by the granularity we want
-                if self.snap_values_only || closest_distance < ui.input().aim_radius() as f64 / 15.0 {
+                // Multiply aim_radius by the granularity we want
+                if self.snap_values_only || closest_distance < ui.input(|i| i.aim_radius()) * 5.0 {
                     new_value = closest_snap;
                 }
             }
