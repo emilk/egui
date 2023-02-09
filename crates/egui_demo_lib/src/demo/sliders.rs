@@ -149,7 +149,7 @@ impl super::View for Sliders {
         if *snap_aim {
             let range = *max - *min;
 
-            // Set the smart aim values to 1/3 and 2/3 of the range, for demo-ing
+            // Set the snap values to 1/3 and 2/3 of the range, for demo-ing
             *snap_values = vec![0.0, range / 3.0, range * 2.0 / 3.0, range];
         } else {
             *snap_values = vec![];

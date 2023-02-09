@@ -675,9 +675,9 @@ impl<'a> Slider<'a> {
                 stroke: Default::default(),
             });
 
-            for smart_aim_value in &self.snap_values {
+            for snap_value in &self.snap_values {
                 let snap_position_1d =
-                    self.position_from_value(*smart_aim_value, position_range.clone());
+                    self.position_from_value(*snap_value, position_range.clone());
                 let center = self.marker_center(snap_position_1d, &rail_rect);
                 ui.painter().add(epaint::CircleShape {
                     center,
