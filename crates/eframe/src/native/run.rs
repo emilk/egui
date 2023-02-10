@@ -38,6 +38,7 @@ pub use epi::NativeOptions;
 #[derive(Debug)]
 enum EventResult {
     Wait,
+
     /// Causes a synchronous repaint inside the event handler. This should only
     /// be used in special situations if the window must be repainted while
     /// handling a specific event. This occurs on Windows when handling resizes.
@@ -45,20 +46,28 @@ enum EventResult {
     /// `RepaintNow` creates a new frame synchronously, and should therefore
     /// only be used for extremely urgent repaints.
     RepaintNow,
+
     /// Queues a repaint for once the event loop handles its next redraw. Exists
     /// so that multiple input events can be handled in one frame. Does not
     /// cause any delay like `RepaintNow`.
     RepaintNext,
+
     RepaintAt(Instant),
+
     Exit,
 }
 
 trait WinitApp {
     fn is_focused(&self) -> bool;
+
     fn integration(&self) -> Option<&EpiIntegration>;
+
     fn window(&self) -> Option<&winit::window::Window>;
+
     fn save_and_destroy(&mut self);
+
     fn paint(&mut self) -> EventResult;
+
     fn on_event(
         &mut self,
         event_loop: &EventLoopWindowTarget<UserEvent>,

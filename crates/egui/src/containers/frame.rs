@@ -19,11 +19,16 @@ use epaint::*;
 pub struct Frame {
     /// Margin within the painted frame.
     pub inner_margin: Margin,
+
     /// Margin outside the painted frame.
     pub outer_margin: Margin,
+
     pub rounding: Rounding,
+
     pub shadow: Shadow,
+
     pub fill: Color32,
+
     pub stroke: Stroke,
 }
 
