@@ -46,7 +46,7 @@ impl Ease {
     /// Given a `time` within `0..=1`, remaps this using a shaping function to a new value. The new
     /// value may be outside of this range.
     pub fn remap(&self, time: f32) -> f32 {
-        debug_assert!((0.0..=1.0).contains(&time));
+        let time = time.clamp(0.0, 1.0);
         match *self {
             Ease::Linear => time,
             Ease::CubicBezier(p1x, p1y, p2x, p2y) => {
@@ -57,7 +57,7 @@ impl Ease {
         }
     }
 
-    /// Compute the bezier position at the given time `t` using De Casteljau's method.
+    /// Compute the bezier position at the given `t` using De Casteljau's method.
     pub(crate) fn bezier_position(t: f32, p1x: f32, p2x: f32) -> f32 {
         let p0x = 0.0;
         let p3x = 1.0;
@@ -81,15 +81,22 @@ impl Ease {
     pub(crate) fn find_t(x: f32, p1x: f32, p2x: f32) -> f32 {
         // We will use the desired value x as our initial guess for t. This is a good estimate, as
         // cubic bezier curves for animation are usually near the line where x = t.
-        (0..Self::MAX_ITERS).fold(x, |guess, _| {
-            if (x - guess).abs() < Self::EPSILON {
-                guess
-            } else {
-                let position = Self::bezier_position(guess, p1x, p2x);
-                let slope = Self::bezier_slope(guess, p1x, p2x);
-                guess - position / slope
+        let mut guess = x;
+        let mut error = f32::MAX;
+        for _ in 0..Self::MAX_ITERS {
+            let position = Self::bezier_position(guess, p1x, p2x);
+            error = position - x;
+            if error.abs() <= Self::EPSILON {
+                return guess;
             }
-        })
+            let slope = Self::bezier_slope(guess, p1x, p2x);
+            guess -= error / slope;
+        }
+        if error.abs() <= Self::EPSILON {
+            guess
+        } else {
+            x // fallback to linear
+        }
     }
 
     /// Material Design "Standard curve".
