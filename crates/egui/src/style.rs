@@ -268,8 +268,12 @@ pub struct Spacing {
     /// Anything clickable should be (at least) this size.
     pub interact_size: Vec2, // TODO(emilk): rename min_interact_size ?
 
-    /// Default width of a [`Slider`].
+    /// Default width (length) of a [`Slider`].
+    /// This controls the height when the [`Slider`] is vertical.
     pub slider_width: f32,
+
+    /// Default thickness of a [`Slider`].
+    pub slider_thickness: f32,
 
     /// Default (minimum) width of a [`ComboBox`](crate::ComboBox).
     pub combo_width: f32,
@@ -715,6 +719,7 @@ impl Default for Spacing {
             indent: 18.0, // match checkbox/radio-button with `button_padding.x + icon_width + icon_spacing`
             interact_size: vec2(40.0, 18.0),
             slider_width: 100.0,
+            slider_thickness: 12.5, // This is the default size of `TextStyle::Body`
             combo_width: 100.0,
             text_edit_width: 280.0,
             icon_width: 14.0,
@@ -1044,6 +1049,7 @@ impl Spacing {
             indent,
             interact_size,
             slider_width,
+            slider_thickness,
             combo_width,
             text_edit_width,
             icon_width,
@@ -1073,6 +1079,10 @@ impl Spacing {
         ui.horizontal(|ui| {
             ui.add(DragValue::new(slider_width).clamp_range(0.0..=1000.0));
             ui.label("Slider width");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(slider_thickness).clamp_range(0.0..=1000.0));
+            ui.label("Slider thickness");
         });
         ui.horizontal(|ui| {
             ui.add(DragValue::new(combo_width).clamp_range(0.0..=1000.0));

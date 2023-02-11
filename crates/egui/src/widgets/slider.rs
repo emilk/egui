@@ -85,6 +85,8 @@ pub struct Slider<'a> {
     custom_formatter: Option<NumFormatter<'a>>,
     custom_parser: Option<NumParser<'a>>,
     trailing_fill: Option<bool>,
+    thickness: Option<f32>,
+    circle_size: Option<f32>,
 }
 
 impl<'a> Slider<'a> {
@@ -131,6 +133,8 @@ impl<'a> Slider<'a> {
             custom_formatter: None,
             custom_parser: None,
             trailing_fill: None,
+            thickness: None,
+            circle_size: None,
         }
     }
 
@@ -279,6 +283,21 @@ impl<'a> Slider<'a> {
     /// The fill color will be taken from `selection.bg_fill` in your [`Visuals`], the same as a [`ProgressBar`].
     pub fn trailing_fill(mut self, trailing_fill: bool) -> Self {
         self.trailing_fill = Some(trailing_fill);
+        self
+    }
+
+    /// Set the thickness (not the width/length!) of the [`Slider`].
+    ///
+    /// NOTE: Past a certain thickness you may also need to use [`Slider::circle_size`]
+    /// due to the ends of the rectangle parts of the [`Slider`] poking out of the circle.
+    pub fn thickness(mut self, thickness: f32) -> Self {
+        self.thickness = Some(thickness);
+        self
+    }
+
+    /// Set the size of the [`Slider`] circle.
+    pub fn circle_size(mut self, circle_size: f32) -> Self {
+        self.circle_size = Some(circle_size);
         self
     }
 
@@ -663,9 +682,12 @@ impl<'a> Slider<'a> {
                 );
             }
 
+            let radius =
+                self.circle_size.unwrap_or_else(|| self.handle_radius(rect)) + visuals.expansion;
+
             ui.painter().add(epaint::CircleShape {
                 center,
-                radius: self.handle_radius(rect) + visuals.expansion,
+                radius,
                 fill: visuals.bg_fill,
                 stroke: visuals.fg_stroke,
             });
@@ -716,7 +738,7 @@ impl<'a> Slider<'a> {
             SliderOrientation::Horizontal => rect.height(),
             SliderOrientation::Vertical => rect.width(),
         };
-        limit / 2.5
+        limit / 2.2
     }
 
     fn rail_radius_limit(&self, rect: &Rect) -> f32 {
@@ -781,8 +803,10 @@ impl<'a> Slider<'a> {
     fn add_contents(&mut self, ui: &mut Ui) -> Response {
         let old_value = self.get_value();
 
-        let thickness = ui
-            .text_style_height(&TextStyle::Body)
+        // Use override thickness if it exists.
+        let thickness = self
+            .thickness
+            .unwrap_or_else(|| ui.spacing().slider_thickness)
             .at_least(ui.spacing().interact_size.y);
         let mut response = self.allocate_slider_space(ui, thickness);
         self.slider_ui(ui, &response);
