@@ -1271,6 +1271,7 @@ dependencies = [
  "document-features",
  "epaint",
  "puffin",
+ "raw-window-handle",
  "tracing",
  "type-map",
  "wgpu",

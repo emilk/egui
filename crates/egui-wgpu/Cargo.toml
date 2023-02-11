@@ -44,7 +44,7 @@ bytemuck = "1.7"
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 type-map = "0.5.0"
 wgpu = "0.15.0"
-
+raw-window-handle = "0.5.0"
 #! ### Optional dependencies
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }

@@ -17,6 +17,8 @@ pub use renderer::Renderer;
 #[cfg(feature = "winit")]
 pub mod winit;
 
+pub mod painter;
+
 use std::sync::Arc;
 
 use epaint::mutex::RwLock;
