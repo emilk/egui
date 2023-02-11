@@ -994,6 +994,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "custom_plot_manipulation"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_plot",
+ "env_logger",
+]
+
+[[package]]
 name = "custom_window_frame"
 version = "0.1.0"
 dependencies = [
