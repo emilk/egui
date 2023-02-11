@@ -5,7 +5,7 @@
 
 #![allow(clippy::needless_range_loop)]
 
-use crate::*;
+use crate::{animation_manager::Ease, *};
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -106,6 +106,8 @@ pub struct ScrollArea {
     /// end position until user manually changes position. It will become true
     /// again once scroll handle makes contact with end.
     stick_to_end: [bool; 2],
+
+    easing: Ease,
 }
 
 impl ScrollArea {
@@ -145,6 +147,7 @@ impl ScrollArea {
             scrolling_enabled: true,
             drag_to_scroll: true,
             stick_to_end: [false; 2],
+            easing: Ease::standard(),
         }
     }
 
@@ -337,6 +340,7 @@ struct Prepared {
     viewport: Rect,
     scrolling_enabled: bool,
     stick_to_end: [bool; 2],
+    easing: Ease,
 }
 
 impl ScrollArea {
@@ -353,6 +357,7 @@ impl ScrollArea {
             scrolling_enabled,
             drag_to_scroll,
             stick_to_end,
+            easing,
         } = self;
 
         let ctx = ui.ctx().clone();
@@ -376,7 +381,9 @@ impl ScrollArea {
         } else if always_show_scroll {
             max_scroll_bar_width
         } else {
-            max_scroll_bar_width * ui.ctx().animate_bool(id.with("h"), state.show_scroll[0])
+            max_scroll_bar_width
+                * ui.ctx()
+                    .animate_bool(id.with("h"), state.show_scroll[0], easing)
         };
 
         let current_vscroll_bar_width = if !has_bar[1] {
@@ -384,7 +391,9 @@ impl ScrollArea {
         } else if always_show_scroll {
             max_scroll_bar_width
         } else {
-            max_scroll_bar_width * ui.ctx().animate_bool(id.with("v"), state.show_scroll[1])
+            max_scroll_bar_width
+                * ui.ctx()
+                    .animate_bool(id.with("v"), state.show_scroll[1], easing)
         };
 
         let current_bar_use = vec2(current_vscroll_bar_width, current_hscroll_bar_height);
@@ -507,6 +516,7 @@ impl ScrollArea {
             viewport,
             scrolling_enabled,
             stick_to_end,
+            easing,
         }
     }
 
@@ -617,6 +627,7 @@ impl Prepared {
             viewport: _,
             scrolling_enabled,
             stick_to_end,
+            easing,
         } = self;
 
         let content_size = content_ui.min_size();
@@ -715,10 +726,12 @@ impl Prepared {
 
         // Avoid frame delay; start showing scroll bar right away:
         if show_scroll_this_frame[0] && current_bar_use.y <= 0.0 {
-            current_bar_use.y = max_scroll_bar_width * ui.ctx().animate_bool(id.with("h"), true);
+            current_bar_use.y =
+                max_scroll_bar_width * ui.ctx().animate_bool(id.with("h"), true, easing);
         }
         if show_scroll_this_frame[1] && current_bar_use.x <= 0.0 {
-            current_bar_use.x = max_scroll_bar_width * ui.ctx().animate_bool(id.with("v"), true);
+            current_bar_use.x =
+                max_scroll_bar_width * ui.ctx().animate_bool(id.with("v"), true, easing);
         }
 
         for d in 0..2 {

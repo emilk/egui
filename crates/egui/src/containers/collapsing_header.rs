@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use crate::*;
+use crate::{animation_manager::Ease, *};
 use epaint::Shape;
 
 #[derive(Clone, Copy, Debug)]
@@ -63,12 +63,12 @@ impl CollapsingState {
         ui.ctx().request_repaint();
     }
 
-    /// 0 for closed, 1 for open, with tweening
-    pub fn openness(&self, ctx: &Context) -> f32 {
+    /// 0 for closed, 1 for open, with easing
+    pub fn openness(&self, ctx: &Context, easing: Ease) -> f32 {
         if ctx.memory(|mem| mem.everything_is_visible()) {
             1.0
         } else {
-            ctx.animate_bool(self.id, self.state.open)
+            ctx.animate_bool(self.id, self.state.open, easing)
         }
     }
 
@@ -77,20 +77,21 @@ impl CollapsingState {
         &mut self,
         ui: &mut Ui,
         button_size: Vec2,
+        easing: Ease,
     ) -> Response {
         let (_id, rect) = ui.allocate_space(button_size);
         let response = ui.interact(rect, self.id, Sense::click());
         if response.clicked() {
             self.toggle(ui);
         }
-        let openness = self.openness(ui.ctx());
+        let openness = self.openness(ui.ctx(), easing);
         paint_default_icon(ui, openness, &response);
         response
     }
 
     /// Will toggle when clicked, etc.
-    fn show_default_button_indented(&mut self, ui: &mut Ui) -> Response {
-        self.show_button_indented(ui, paint_default_icon)
+    fn show_default_button_indented(&mut self, ui: &mut Ui, easing: Ease) -> Response {
+        self.show_button_indented(ui, paint_default_icon, easing)
     }
 
     /// Will toggle when clicked, etc.
@@ -98,6 +99,7 @@ impl CollapsingState {
         &mut self,
         ui: &mut Ui,
         icon_fn: impl FnOnce(&mut Ui, f32, &Response) + 'static,
+        easing: Ease,
     ) -> Response {
         let size = vec2(ui.spacing().indent, ui.spacing().icon_width);
         let (_id, rect) = ui.allocate_space(size);
@@ -111,7 +113,7 @@ impl CollapsingState {
             response.rect.left() + ui.spacing().indent / 2.0,
             response.rect.center().y,
         ));
-        let openness = self.openness(ui.ctx());
+        let openness = self.openness(ui.ctx(), easing);
         let small_icon_response = response.clone().with_new_rect(icon_rect);
         icon_fn(ui, openness, &small_icon_response);
         response
@@ -139,11 +141,12 @@ impl CollapsingState {
         mut self,
         ui: &mut Ui,
         add_header: impl FnOnce(&mut Ui) -> HeaderRet,
+        easing: Ease,
     ) -> HeaderResponse<'_, HeaderRet> {
         let header_response = ui.horizontal(|ui| {
             let prev_item_spacing = ui.spacing_mut().item_spacing;
             ui.spacing_mut().item_spacing.x = 0.0; // the toggler button uses the full indent width
-            let collapser = self.show_default_button_indented(ui);
+            let collapser = self.show_default_button_indented(ui, easing);
             ui.spacing_mut().item_spacing = prev_item_spacing;
             (collapser, add_header(ui))
         });
@@ -165,11 +168,12 @@ impl CollapsingState {
     pub fn show_body_indented<R>(
         &mut self,
         header_response: &Response,
+        easing: Ease,
         ui: &mut Ui,
         add_body: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
         let id = self.id;
-        self.show_body_unindented(ui, |ui| {
+        self.show_body_unindented(easing, ui, |ui| {
             ui.indent(id, |ui| {
                 // make as wide as the header:
                 ui.expand_to_include_x(header_response.rect.right());
@@ -183,10 +187,11 @@ impl CollapsingState {
     /// Will also store the state.
     pub fn show_body_unindented<R>(
         &mut self,
+        easing: Ease,
         ui: &mut Ui,
         add_body: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let openness = self.openness(ui.ctx());
+        let openness = self.openness(ui.ctx(), easing);
         if openness <= 0.0 {
             self.store(ui.ctx()); // we store any earlier toggling as promised in the docstring
             None
@@ -251,10 +256,11 @@ impl CollapsingState {
     /// ```
     pub fn show_toggle_button(
         &mut self,
+        easing: Ease,
         ui: &mut Ui,
         icon_fn: impl FnOnce(&mut Ui, f32, &Response) + 'static,
     ) -> Response {
-        self.show_button_indented(ui, icon_fn)
+        self.show_button_indented(ui, icon_fn, easing)
     }
 }
 
@@ -271,15 +277,19 @@ impl<'ui, HeaderRet> HeaderResponse<'ui, HeaderRet> {
     /// Returns the response of the collapsing button, the custom header, and the custom body.
     pub fn body<BodyRet>(
         mut self,
+        easing: Ease,
         add_body: impl FnOnce(&mut Ui) -> BodyRet,
     ) -> (
         Response,
         InnerResponse<HeaderRet>,
         Option<InnerResponse<BodyRet>>,
     ) {
-        let body_response =
-            self.state
-                .show_body_indented(&self.header_response.response, self.ui, add_body);
+        let body_response = self.state.show_body_indented(
+            &self.header_response.response,
+            easing,
+            self.ui,
+            add_body,
+        );
         (
             self.toggle_button_response,
             self.header_response,
@@ -290,13 +300,14 @@ impl<'ui, HeaderRet> HeaderResponse<'ui, HeaderRet> {
     /// Returns the response of the collapsing button, the custom header, and the custom body, without indentation.
     pub fn body_unindented<BodyRet>(
         mut self,
+        easing: Ease,
         add_body: impl FnOnce(&mut Ui) -> BodyRet,
     ) -> (
         Response,
         InnerResponse<HeaderRet>,
         Option<InnerResponse<BodyRet>>,
     ) {
-        let body_response = self.state.show_body_unindented(self.ui, add_body);
+        let body_response = self.state.show_body_unindented(easing, self.ui, add_body);
         (
             self.toggle_button_response,
             self.header_response,
@@ -359,6 +370,7 @@ pub struct CollapsingHeader {
     selected: bool,
     show_background: bool,
     icon: Option<IconPainter>,
+    easing: Ease,
 }
 
 impl CollapsingHeader {
@@ -381,6 +393,7 @@ impl CollapsingHeader {
             selected: false,
             show_background: false,
             icon: None,
+            easing: Ease::standard(),
         }
     }
 
@@ -502,6 +515,7 @@ impl CollapsingHeader {
             selectable,
             selected,
             show_background,
+            easing,
         } = self;
 
         // TODO(emilk): horizontal layout, with icon and text as labels. Insert background behind using Frame.
@@ -545,7 +559,7 @@ impl CollapsingHeader {
         header_response
             .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, text.text()));
 
-        let openness = state.openness(ui.ctx());
+        let openness = state.openness(ui.ctx(), easing);
 
         if ui.is_rect_visible(rect) {
             let visuals = ui.style().interact_selectable(&header_response, selected);
@@ -621,6 +635,7 @@ impl CollapsingHeader {
         ui.vertical(|ui| {
             ui.set_enabled(self.enabled);
 
+            let easing = self.easing;
             let Prepared {
                 header_response,
                 mut state,
@@ -628,9 +643,9 @@ impl CollapsingHeader {
             } = self.begin(ui); // show the header
 
             let ret_response = if indented {
-                state.show_body_indented(&header_response, ui, add_body)
+                state.show_body_indented(&header_response, easing, ui, add_body)
             } else {
-                state.show_body_unindented(ui, add_body)
+                state.show_body_unindented(easing, ui, add_body)
             };
 
             if let Some(ret_response) = ret_response {
