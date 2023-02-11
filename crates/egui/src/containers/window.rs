@@ -1,6 +1,6 @@
 // WARNING: the code in here is horrible. It is a behemoth that needs breaking up into simpler parts.
 
-use crate::collapsing_header::CollapsingState;
+use crate::{animation_manager::Ease, collapsing_header::CollapsingState};
 use crate::{widget_text::WidgetTextGalley, *};
 use epaint::*;
 
@@ -32,6 +32,7 @@ pub struct Window<'open> {
     collapsible: bool,
     default_open: bool,
     with_title_bar: bool,
+    easing: Ease,
 }
 
 impl<'open> Window<'open> {
@@ -54,6 +55,7 @@ impl<'open> Window<'open> {
             collapsible: true,
             default_open: true,
             with_title_bar: true,
+            easing: Ease::standard(),
         }
     }
 
@@ -297,13 +299,14 @@ impl<'open> Window<'open> {
             collapsible,
             default_open,
             with_title_bar,
+            easing,
         } = self;
 
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
         let is_explicitly_closed = matches!(open, Some(false));
         let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
-        area.show_open_close_animation(ctx, &frame, is_open);
+        area.show_open_close_animation(ctx, &frame, is_open, easing);
 
         if !is_open {
             return None;
@@ -377,6 +380,7 @@ impl<'open> Window<'open> {
                     show_close_button,
                     &mut collapsing,
                     collapsible,
+                    easing,
                 );
                 resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
                 Some(title_bar)
@@ -385,7 +389,7 @@ impl<'open> Window<'open> {
             };
 
             let (content_inner, content_response) = collapsing
-                .show_body_unindented(&mut frame.content_ui, |ui| {
+                .show_body_unindented(easing, &mut frame.content_ui, |ui| {
                     resize.show(ui, |ui| {
                         if title_bar.is_some() {
                             ui.add_space(title_content_spacing);
@@ -824,6 +828,7 @@ fn show_title_bar(
     show_close_button: bool,
     collapsing: &mut CollapsingState,
     collapsible: bool,
+    easing: Ease,
 ) -> TitleBar {
     let inner_response = ui.horizontal(|ui| {
         let height = ui
@@ -838,7 +843,7 @@ fn show_title_bar(
 
         if collapsible {
             ui.add_space(pad);
-            collapsing.show_default_button_with_size(ui, button_size);
+            collapsing.show_default_button_with_size(ui, button_size, easing);
         }
 
         let title_galley = title.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Heading);

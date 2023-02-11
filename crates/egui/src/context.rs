@@ -2,9 +2,16 @@
 use std::sync::Arc;
 
 use crate::{
-    animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
-    input_state::*, layers::GraphicLayers, memory::Options, os::OperatingSystem,
-    output::FullOutput, util::IdTypeMap, TextureHandle, *,
+    animation_manager::{AnimationManager, Ease},
+    data::output::PlatformOutput,
+    frame_state::FrameState,
+    input_state::*,
+    layers::GraphicLayers,
+    memory::Options,
+    os::OperatingSystem,
+    output::FullOutput,
+    util::IdTypeMap,
+    TextureHandle, *,
 };
 use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
 
@@ -1391,16 +1398,22 @@ impl Context {
     /// The function will call [`Self::request_repaint()`] when appropriate.
     ///
     /// The animation time is taken from [`Style::animation_time`].
-    pub fn animate_bool(&self, id: Id, value: bool) -> f32 {
+    pub fn animate_bool(&self, id: Id, value: bool, easing: Ease) -> f32 {
         let animation_time = self.style().animation_time;
-        self.animate_bool_with_time(id, value, animation_time)
+        self.animate_bool_with_time(id, value, animation_time, easing)
     }
 
     /// Like [`Self::animate_bool`] but allows you to control the animation time.
-    pub fn animate_bool_with_time(&self, id: Id, target_value: bool, animation_time: f32) -> f32 {
+    pub fn animate_bool_with_time(
+        &self,
+        id: Id,
+        target_value: bool,
+        animation_time: f32,
+        easing: Ease,
+    ) -> f32 {
         let animated_value = self.write(|ctx| {
             ctx.animation_manager
-                .animate_bool(&ctx.input, animation_time, id, target_value)
+                .animate_bool(&ctx.input, animation_time, id, target_value, easing)
         });
         let animation_in_progress = 0.0 < animated_value && animated_value < 1.0;
         if animation_in_progress {
@@ -1413,10 +1426,21 @@ impl Context {
     ///
     /// At the first call the value is written to memory.
     /// When it is called with a new value, it linearly interpolates to it in the given time.
-    pub fn animate_value_with_time(&self, id: Id, target_value: f32, animation_time: f32) -> f32 {
+    pub fn animate_value_with_time(
+        &self,
+        id: Id,
+        target_value: f32,
+        animation_time: f32,
+        easing: Ease,
+    ) -> f32 {
         let animated_value = self.write(|ctx| {
-            ctx.animation_manager
-                .animate_value(&ctx.input, animation_time, id, target_value)
+            ctx.animation_manager.animate_value(
+                &ctx.input,
+                animation_time,
+                id,
+                target_value,
+                easing,
+            )
         });
         let animation_in_progress = animated_value != target_value;
         if animation_in_progress {
