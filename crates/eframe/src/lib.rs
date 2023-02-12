@@ -137,6 +137,7 @@ pub async fn start_web(
 // When compiling natively
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 mod native;
 
 /// This is how you start a native (desktop) app.
@@ -179,6 +180,7 @@ mod native;
 /// This function can fail if we fail to set up a graphics context.
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(clippy::needless_pass_by_value)]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 pub fn run_native(
     app_name: &str,
     native_options: NativeOptions,
@@ -233,24 +235,28 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 // ---------------------------------------------------------------------------
 
-/// Profiling macro for feature "puffin"
 #[cfg(not(target_arch = "wasm32"))]
-macro_rules! profile_function {
+#[cfg(any(feature = "glow", feature = "wgpu"))]
+mod profiling_scopes {
+    /// Profiling macro for feature "puffin"
+    macro_rules! profile_function {
     ($($arg: tt)*) => {
         #[cfg(feature = "puffin")]
         puffin::profile_function!($($arg)*);
     };
 }
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) use profile_function;
+    pub(crate) use profile_function;
 
-/// Profiling macro for feature "puffin"
-#[cfg(not(target_arch = "wasm32"))]
-macro_rules! profile_scope {
+    /// Profiling macro for feature "puffin"
+    macro_rules! profile_scope {
     ($($arg: tt)*) => {
         #[cfg(feature = "puffin")]
         puffin::profile_scope!($($arg)*);
     };
 }
+    pub(crate) use profile_scope;
+}
+
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) use profile_scope;
+#[cfg(any(feature = "glow", feature = "wgpu"))]
+pub(crate) use profiling_scopes::*;
