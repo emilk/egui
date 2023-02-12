@@ -128,15 +128,17 @@ impl WindowSettings {
                 active_monitor.position().x as f32,
                 active_monitor.position().y as f32,
             );
-            let monitor_size = active_monitor.size();
-            *position = position.clamp(
-                monitor_position,
-                // To get the maximum position, we get the rightmost corner of the display, then subtract
-                // the size of the window to get the bottom right most value window.position can have.
-                monitor_position
-                    + egui::Vec2::new(monitor_size.width as f32, monitor_size.height as f32)
-                    - inner_size_pixels,
+            let monitor_size = egui::Vec2::new(
+                active_monitor.size().width as f32,
+                active_monitor.size().height as f32,
             );
+
+            // Window size cannot be negative or the subsequent `clamp` will panic.
+            let window_size = (monitor_size - inner_size_pixels).max(egui::Vec2::ZERO);
+            // To get the maximum position, we get the rightmost corner of the display, then
+            // subtract the size of the window to get the bottom right most value window.position
+            // can have.
+            *position = position.clamp(monitor_position, monitor_position + window_size);
         }
     }
 }
