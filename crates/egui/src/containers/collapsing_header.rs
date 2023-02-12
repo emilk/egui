@@ -131,10 +131,10 @@ impl CollapsingState {
     /// # egui::__run_test_ui(|ui| {
     /// let id = ui.make_persistent_id("my_collapsing_header");
     /// egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
-    ///     .show_header(egui::animation::EASE_IN_OUT, ui, |ui| {
+    ///     .show_header(egui::animation::css::EASE_IN_OUT, ui, |ui| {
     ///         ui.label("Header"); // you can put checkboxes or whatever here
     ///     })
-    ///     .body(egui::animation::EASE_IN_OUT, |ui| ui.label("Body"));
+    ///     .body(egui::animation::css::EASE_IN_OUT, |ui| ui.label("Body"));
     /// # });
     /// ```
     pub fn show_header<HeaderRet>(
@@ -249,10 +249,10 @@ impl CollapsingState {
     ///
     /// let header_res = ui.horizontal(|ui| {
     ///     ui.label("Header");
-    ///     state.show_toggle_button(EASE_IN_OUT, ui, circle_icon);
+    ///     state.show_toggle_button(css::EASE_IN_OUT, ui, circle_icon);
     /// });
     ///
-    /// state.show_body_indented(&header_res.response, EASE_IN_OUT, ui, |ui| ui.label("Body"));
+    /// state.show_body_indented(&header_res.response, css::EASE_IN_OUT, ui, |ui| ui.label("Body"));
     /// # });
     /// ```
     pub fn show_toggle_button(
