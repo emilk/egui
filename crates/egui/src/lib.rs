@@ -352,7 +352,7 @@ pub mod text {
 }
 
 pub use {
-    animation_manager::Ease,
+    animation_manager::{preset as animation, Ease},
     containers::*,
     context::Context,
     data::{

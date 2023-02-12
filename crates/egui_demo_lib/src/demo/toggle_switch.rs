@@ -48,7 +48,7 @@ pub fn toggle_ui(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
         // returns an animated value in the 0-1 range for how much "on" we are.
         let how_on = ui
             .ctx()
-            .animate_bool(response.id, *on, egui::Ease::standard());
+            .animate_bool(response.id, *on, egui::animation::EASE);
         // We will follow the current style by asking
         // "how should something that is being interacted with be painted?".
         // This will, for instance, give us different colors when the widget is hovered or clicked.
@@ -84,7 +84,7 @@ fn toggle_ui_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
     if ui.is_rect_visible(rect) {
         let how_on = ui
             .ctx()
-            .animate_bool(response.id, *on, egui::Ease::standard());
+            .animate_bool(response.id, *on, egui::animation::EASE);
         let visuals = ui.style().interact_selectable(&response, *on);
         let rect = rect.expand(visuals.expansion);
         let radius = 0.5 * rect.height();

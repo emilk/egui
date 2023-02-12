@@ -17,7 +17,7 @@
 
 use std::ops::RangeInclusive;
 
-use crate::{animation_manager::Ease, *};
+use crate::*;
 
 /// State regarding panels.
 #[derive(Clone, Copy, Debug)]
@@ -124,7 +124,7 @@ impl SidePanel {
             show_separator_line: true,
             default_width: 200.0,
             width_range: 96.0..=f32::INFINITY,
-            easing: Ease::ease_in(),
+            easing: animation::CUBIC,
         }
     }
 

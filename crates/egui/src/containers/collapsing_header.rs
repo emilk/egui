@@ -131,17 +131,17 @@ impl CollapsingState {
     /// # egui::__run_test_ui(|ui| {
     /// let id = ui.make_persistent_id("my_collapsing_header");
     /// egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
-    ///     .show_header(ui, |ui| {
+    ///     .show_header(egui::animation::EASE_IN_OUT, ui, |ui| {
     ///         ui.label("Header"); // you can put checkboxes or whatever here
     ///     })
-    ///     .body(|ui| ui.label("Body"));
+    ///     .body(egui::animation::EASE_IN_OUT, |ui| ui.label("Body"));
     /// # });
     /// ```
     pub fn show_header<HeaderRet>(
         mut self,
+        easing: Ease,
         ui: &mut Ui,
         add_header: impl FnOnce(&mut Ui) -> HeaderRet,
-        easing: Ease,
     ) -> HeaderResponse<'_, HeaderRet> {
         let header_response = ui.horizontal(|ui| {
             let prev_item_spacing = ui.spacing_mut().item_spacing;
@@ -233,6 +233,7 @@ impl CollapsingState {
 
     /// Paint this [CollapsingState](CollapsingState)'s toggle button. Takes an [IconPainter](IconPainter) as the icon.
     /// ```
+    /// # use egui::animation::*;
     /// # egui::__run_test_ui(|ui| {
     /// fn circle_icon(ui: &mut egui::Ui, openness: f32, response: &egui::Response) {
     ///     let stroke = ui.style().interact(&response).fg_stroke;
@@ -248,10 +249,10 @@ impl CollapsingState {
     ///
     /// let header_res = ui.horizontal(|ui| {
     ///     ui.label("Header");
-    ///     state.show_toggle_button(ui, circle_icon);
+    ///     state.show_toggle_button(EASE_IN_OUT, ui, circle_icon);
     /// });
     ///
-    /// state.show_body_indented(&header_res.response, ui, |ui| ui.label("Body"));
+    /// state.show_body_indented(&header_res.response, EASE_IN_OUT, ui, |ui| ui.label("Body"));
     /// # });
     /// ```
     pub fn show_toggle_button(
@@ -393,7 +394,7 @@ impl CollapsingHeader {
             selected: false,
             show_background: false,
             icon: None,
-            easing: Ease::standard(),
+            easing: animation::EASE,
         }
     }
 

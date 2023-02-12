@@ -392,16 +392,12 @@ impl CustomCollapsingHeader {
 
         let id = ui.make_persistent_id("my_collapsing_header");
         egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, true)
-            .show_header(
-                ui,
-                |ui| {
-                    ui.toggle_value(&mut self.selected, "Click to select/unselect");
-                    ui.radio_value(&mut self.radio_value, false, "");
-                    ui.radio_value(&mut self.radio_value, true, "");
-                },
-                Ease::standard(),
-            )
-            .body(Ease::standard(), |ui| {
+            .show_header(animation::EASE_IN_OUT, ui, |ui| {
+                ui.toggle_value(&mut self.selected, "Click to select/unselect");
+                ui.radio_value(&mut self.radio_value, false, "");
+                ui.radio_value(&mut self.radio_value, true, "");
+            })
+            .body(animation::EASE_IN_OUT, |ui| {
                 ui.label("The body is always custom");
             });
 

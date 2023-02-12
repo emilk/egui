@@ -24,16 +24,34 @@ struct ValueAnim {
     toggle_time: f64,
 }
 
+pub mod preset {
+    use super::Ease;
+
+    pub const LINEAR: Ease = Ease::Linear;
+
+    // From the W3C CSS Easing Functions
+    pub const EASE: Ease = Ease::CubicBezier(0.25, 0.1, 0.25, 1.0);
+    pub const EASE_IN: Ease = Ease::CubicBezier(0.42, 0.0, 1.0, 1.0);
+    pub const EASE_OUT: Ease = Ease::CubicBezier(0.0, 0.0, 0.58, 1.0);
+    pub const EASE_IN_OUT: Ease = Ease::CubicBezier(0.42, 0.0, 0.58, 1.0);
+
+    pub const QUADRATIC: Ease = Ease::Equation(|t| t.powi(2));
+    pub const CUBIC: Ease = Ease::Equation(|t| t.powi(3));
+    pub const QUARTIC: Ease = Ease::Equation(|t| t.powi(4));
+    pub const QUINTIC: Ease = Ease::Equation(|t| t.powi(5));
+}
+
+/// Easing shaping functions
 #[derive(Clone, Copy, Debug)]
 pub enum Ease {
     /// Simple linear easing.
     Linear,
     /// Cubic bezier curve, corresponding to the control points `P1.x`, `P1.y`, `P2.x`, `P2.y`.
-    /// Extremely versatile for animation.
+    /// Extremely versatile for smooth animation.
     CubicBezier(f32, f32, f32, f32),
     /// User defined shaping function. Given a `time` within `0..=1`, this function should remap to
     /// a new value, usually - but not necessarily -  within the same range.
-    Custom(fn(f32) -> f32),
+    Equation(fn(f32) -> f32),
 }
 
 impl Ease {
@@ -53,7 +71,7 @@ impl Ease {
                 let t = Self::find_t(time, p1x, p2x);
                 Self::bezier_position(t, p1y, p2y)
             }
-            Ease::Custom(f) => f(time),
+            Ease::Equation(f) => f(time),
         }
     }
 
@@ -98,27 +116,6 @@ impl Ease {
             x // fallback to linear
         }
     }
-
-    /// Material Design "Standard curve".
-    pub const fn standard() -> Self {
-        Self::CubicBezier(0.4, 0.0, 0.2, 1.0)
-    }
-
-    /// Material Design "Deceleration curve" useful for objects leaving the screen.
-    pub const fn ease_out() -> Self {
-        Self::CubicBezier(0.0, 0.0, 0.2, 1.0)
-    }
-
-    /// Material Design "Acceleration curve" useful for objects entering the screen.
-    pub const fn ease_in() -> Self {
-        Self::CubicBezier(0.4, 0.0, 1.0, 1.0)
-    }
-
-    /// Material Design "Sharp curve" useful for objects exiting the screen that may return
-    /// onscreen.
-    pub const fn ease_in_out() -> Self {
-        Self::CubicBezier(0.4, 0.0, 0.6, 1.0)
-    }
 }
 
 impl AnimationManager {
@@ -161,7 +158,7 @@ impl AnimationManager {
                 let eased_value = easing.remap(time_since_toggle / animation_time);
 
                 if value {
-                    // Don't need to use remap_clamp because the range is already 0..=1.
+                    // Don't need to use remap because the range is already 0..=1.
                     f32::clamp(eased_value, 0.0, 1.0)
                 } else {
                     remap_clamp(eased_value, 0.0..=1.0, 1.0..=0.0)

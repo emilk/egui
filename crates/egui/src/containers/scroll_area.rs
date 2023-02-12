@@ -5,7 +5,7 @@
 
 #![allow(clippy::needless_range_loop)]
 
-use crate::{animation_manager::Ease, *};
+use crate::{animation_manager::preset, *};
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -147,7 +147,7 @@ impl ScrollArea {
             scrolling_enabled: true,
             drag_to_scroll: true,
             stick_to_end: [false; 2],
-            easing: Ease::standard(),
+            easing: preset::EASE,
         }
     }
 
