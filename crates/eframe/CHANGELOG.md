@@ -5,7 +5,10 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 
 ## Unreleased
-* Allow compiling with `--no-default-features` ([#2728](https://github.com/emilk/egui/pull/2728)).
+
+
+## 0.21.2 - 2023-02-12
+* Allow compiling `eframe` with `--no-default-features` ([#2728](https://github.com/emilk/egui/pull/2728)).
 
 
 ## 0.21.1 - 2023-02-12
