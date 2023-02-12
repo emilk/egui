@@ -1015,7 +1015,7 @@ mod wgpu_integration {
     /// a Resumed event. On Android this ensures that any graphics state is only
     /// initialized once the application has an associated `SurfaceView`.
     struct WgpuWinitRunning {
-        painter: egui_wgpu::winit::Painter,
+        painter: egui_wgpu::painter::Painter,
         integration: epi_integration::EpiIntegration,
         app: Box<dyn epi::App>,
     }
@@ -1078,8 +1078,18 @@ mod wgpu_integration {
         ) -> std::result::Result<(), egui_wgpu::WgpuError> {
             self.window = Some(window);
             if let Some(running) = &mut self.running {
+                let size = self
+                    .window
+                    .as_ref()
+                    .map(|w| w.inner_size())
+                    .unwrap_or_default();
+
                 unsafe {
-                    pollster::block_on(running.painter.set_window(self.window.as_ref()))?;
+                    pollster::block_on(running.painter.set_window(
+                        self.window.as_ref(),
+                        size.width,
+                        size.height,
+                    ))?;
                 }
             }
             Ok(())
@@ -1105,13 +1115,14 @@ mod wgpu_integration {
         ) -> std::result::Result<(), egui_wgpu::WgpuError> {
             #[allow(unsafe_code, unused_mut, unused_unsafe)]
             let painter = unsafe {
-                let mut painter = egui_wgpu::winit::Painter::new(
+                let mut painter = egui_wgpu::painter::Painter::new(
                     self.native_options.wgpu_options.clone(),
                     self.native_options.multisampling.max(1) as _,
                     self.native_options.depth_buffer,
                     self.native_options.transparent,
                 );
-                pollster::block_on(painter.set_window(Some(&window)))?;
+                let size = window.inner_size();
+                pollster::block_on(painter.set_window(Some(&window), size.width, size.height))?;
                 painter
             };
 
