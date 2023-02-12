@@ -170,14 +170,17 @@ pub struct FontTweak {
     ///
     /// Example value: `2.0`.
     pub y_offset: f32,
+
+    pub baseline_offset_factor: f32, // can this replace `y offset`?
 }
 
 impl Default for FontTweak {
     fn default() -> Self {
         Self {
             scale: 1.0,
-            y_offset_factor: -0.2, // makes the default fonts look more centered in buttons and such
+            y_offset_factor: 0.0,
             y_offset: 0.0,
+            baseline_offset_factor: -0.0333, // makes the default fonts look more centered in buttons and such
         }
     }
 }
@@ -272,9 +275,8 @@ impl Default for FontDefinitions {
             "NotoEmoji-Regular".to_owned(),
             FontData::from_static(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")).tweak(
                 FontTweak {
-                    scale: 0.81,           // make it smaller
-                    y_offset_factor: -0.2, // move it up
-                    y_offset: 0.0,
+                    scale: 0.81, // make it smaller
+                    ..Default::default()
                 },
             ),
         );
@@ -284,9 +286,8 @@ impl Default for FontDefinitions {
             "emoji-icon-font".to_owned(),
             FontData::from_static(include_bytes!("../../fonts/emoji-icon-font.ttf")).tweak(
                 FontTweak {
-                    scale: 0.88,           // make it smaller
-                    y_offset_factor: 0.07, // move it down slightly
-                    y_offset: 0.0,
+                    scale: 0.88, // make it smaller
+                    ..Default::default()
                 },
             ),
         );
@@ -772,6 +773,11 @@ impl FontImplCache {
             scale_in_points * tweak.y_offset_factor
         } + tweak.y_offset;
 
+        let baseline_offset = {
+            let scale_in_points = scale_in_pixels as f32 / self.pixels_per_point;
+            scale_in_points * tweak.baseline_offset_factor
+        };
+
         self.cache
             .entry((scale_in_pixels, font_name.to_owned()))
             .or_insert_with(|| {
@@ -782,6 +788,7 @@ impl FontImplCache {
                     ab_glyph_font,
                     scale_in_pixels,
                     y_offset_points,
+                    baseline_offset,
                 ))
             })
             .clone()

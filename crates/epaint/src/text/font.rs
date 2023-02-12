@@ -42,6 +42,10 @@ pub struct GlyphInfo {
     /// Unit: points.
     pub advance_width: f32,
 
+    pub ascent: f32,
+
+    pub row_height: f32,
+
     /// Texture coordinates.
     pub uv_rect: UvRect,
 }
@@ -52,6 +56,8 @@ impl Default for GlyphInfo {
         Self {
             id: ab_glyph::GlyphId(0),
             advance_width: 0.0,
+            ascent: 0.0,
+            row_height: 0.0,
             uv_rect: Default::default(),
         }
     }
@@ -69,6 +75,7 @@ pub struct FontImpl {
     height_in_points: f32,
     // move each character by this much (hack)
     y_offset: f32,
+    ascent: f32,
     pixels_per_point: f32,
     glyph_info_cache: RwLock<ahash::HashMap<char, GlyphInfo>>, // TODO(emilk): standard Mutex
     atlas: Arc<Mutex<TextureAtlas>>,
@@ -82,18 +89,16 @@ impl FontImpl {
         ab_glyph_font: ab_glyph::FontArc,
         scale_in_pixels: u32,
         y_offset_points: f32,
+        baseline_offset: f32,
     ) -> FontImpl {
         assert!(scale_in_pixels > 0);
         assert!(pixels_per_point > 0.0);
 
-        let height_in_points = scale_in_pixels as f32 / pixels_per_point;
-
-        // TODO(emilk): use these font metrics?
-        // use ab_glyph::ScaleFont as _;
-        // let scaled = ab_glyph_font.as_scaled(scale_in_pixels as f32);
-        // dbg!(scaled.ascent());
-        // dbg!(scaled.descent());
-        // dbg!(scaled.line_gap());
+        use ab_glyph::*;
+        let scaled = ab_glyph_font.as_scaled(scale_in_pixels as f32);
+        let ascent = scaled.ascent() / pixels_per_point;
+        let descent = scaled.descent() / pixels_per_point;
+        let line_gap = scaled.line_gap() / pixels_per_point;
 
         // Round to closest pixel:
         let y_offset = (y_offset_points * pixels_per_point).round() / pixels_per_point;
@@ -102,8 +107,9 @@ impl FontImpl {
             name,
             ab_glyph_font,
             scale_in_pixels,
-            height_in_points,
+            height_in_points: ascent - descent + line_gap,
             y_offset,
+            ascent: ascent + baseline_offset,
             pixels_per_point,
             glyph_info_cache: Default::default(),
             atlas,
@@ -194,15 +200,7 @@ impl FontImpl {
         if glyph_id.0 == 0 {
             None // unsupported character
         } else {
-            let glyph_info = allocate_glyph(
-                &mut self.atlas.lock(),
-                &self.ab_glyph_font,
-                glyph_id,
-                self.scale_in_pixels as f32,
-                self.y_offset,
-                self.pixels_per_point,
-            );
-
+            let glyph_info = self.allocate_glyph(glyph_id);
             self.glyph_info_cache.write().insert(c, glyph_info);
             Some(glyph_info)
         }
@@ -230,6 +228,62 @@ impl FontImpl {
     #[inline(always)]
     pub fn pixels_per_point(&self) -> f32 {
         self.pixels_per_point
+    }
+
+    fn allocate_glyph(&self, glyph_id: ab_glyph::GlyphId) -> GlyphInfo {
+        assert!(glyph_id.0 != 0);
+        use ab_glyph::{Font as _, ScaleFont};
+
+        let glyph = glyph_id.with_scale_and_position(
+            self.scale_in_pixels as f32,
+            ab_glyph::Point { x: 0.0, y: 0.0 },
+        );
+
+        let uv_rect = self.ab_glyph_font.outline_glyph(glyph).map(|glyph| {
+            let bb = glyph.px_bounds();
+            let glyph_width = bb.width() as usize;
+            let glyph_height = bb.height() as usize;
+            if glyph_width == 0 || glyph_height == 0 {
+                UvRect::default()
+            } else {
+                let atlas = &mut self.atlas.lock();
+                let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
+                glyph.draw(|x, y, v| {
+                    if v > 0.0 {
+                        let px = glyph_pos.0 + x as usize;
+                        let py = glyph_pos.1 + y as usize;
+                        image[(px, py)] = v;
+                    }
+                });
+
+                let offset_in_pixels = vec2(bb.min.x, bb.min.y);
+                let offset = offset_in_pixels / self.pixels_per_point + self.y_offset * Vec2::Y;
+                UvRect {
+                    offset,
+                    size: vec2(glyph_width as f32, glyph_height as f32) / self.pixels_per_point,
+                    min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
+                    max: [
+                        (glyph_pos.0 + glyph_width) as u16,
+                        (glyph_pos.1 + glyph_height) as u16,
+                    ],
+                }
+            }
+        });
+        let uv_rect = uv_rect.unwrap_or_default();
+
+        let advance_width_in_points = self
+            .ab_glyph_font
+            .as_scaled(self.scale_in_pixels as f32)
+            .h_advance(glyph_id)
+            / self.pixels_per_point;
+
+        GlyphInfo {
+            id: glyph_id,
+            advance_width: advance_width_in_points,
+            ascent: self.ascent,
+            row_height: self.row_height(),
+            uv_rect,
+        }
     }
 }
 
@@ -428,59 +482,4 @@ fn invisible_char(c: char) -> bool {
             | '\u{206F}' // NOMINAL DIGIT SHAPES
             | '\u{FEFF}' // ZERO WIDTH NO-BREAK SPACE
     )
-}
-
-fn allocate_glyph(
-    atlas: &mut TextureAtlas,
-    font: &ab_glyph::FontArc,
-    glyph_id: ab_glyph::GlyphId,
-    scale_in_pixels: f32,
-    y_offset: f32,
-    pixels_per_point: f32,
-) -> GlyphInfo {
-    assert!(glyph_id.0 != 0);
-    use ab_glyph::{Font as _, ScaleFont};
-
-    let glyph =
-        glyph_id.with_scale_and_position(scale_in_pixels, ab_glyph::Point { x: 0.0, y: 0.0 });
-
-    let uv_rect = font.outline_glyph(glyph).map(|glyph| {
-        let bb = glyph.px_bounds();
-        let glyph_width = bb.width() as usize;
-        let glyph_height = bb.height() as usize;
-        if glyph_width == 0 || glyph_height == 0 {
-            UvRect::default()
-        } else {
-            let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
-            glyph.draw(|x, y, v| {
-                if v > 0.0 {
-                    let px = glyph_pos.0 + x as usize;
-                    let py = glyph_pos.1 + y as usize;
-                    image[(px, py)] = v;
-                }
-            });
-
-            let offset_in_pixels = vec2(bb.min.x, scale_in_pixels + bb.min.y);
-            let offset = offset_in_pixels / pixels_per_point + y_offset * Vec2::Y;
-            UvRect {
-                offset,
-                size: vec2(glyph_width as f32, glyph_height as f32) / pixels_per_point,
-                min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
-                max: [
-                    (glyph_pos.0 + glyph_width) as u16,
-                    (glyph_pos.1 + glyph_height) as u16,
-                ],
-            }
-        }
-    });
-    let uv_rect = uv_rect.unwrap_or_default();
-
-    let advance_width_in_points =
-        font.as_scaled(scale_in_pixels).h_advance(glyph_id) / pixels_per_point;
-
-    GlyphInfo {
-        id: glyph_id,
-        advance_width: advance_width_in_points,
-        uv_rect,
-    }
 }
