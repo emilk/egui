@@ -2,7 +2,7 @@
 //! It has no frame or own size. It is potentially movable.
 //! It is the foundation for windows and popups.
 
-use crate::{animation_manager::Ease, *};
+use crate::*;
 
 /// State that is persisted between frames.
 // TODO(emilk): this is not currently stored in `Memory::data`, but maybe it should be?

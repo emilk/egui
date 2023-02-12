@@ -1,6 +1,6 @@
 // WARNING: the code in here is horrible. It is a behemoth that needs breaking up into simpler parts.
 
-use crate::{animation_manager::preset, collapsing_header::CollapsingState};
+use crate::collapsing_header::CollapsingState;
 use crate::{widget_text::WidgetTextGalley, *};
 use epaint::*;
 
@@ -55,7 +55,7 @@ impl<'open> Window<'open> {
             collapsible: true,
             default_open: true,
             with_title_bar: true,
-            easing: preset::EASE,
+            easing: animation::EASE,
         }
     }
 

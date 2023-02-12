@@ -1433,8 +1433,8 @@ impl Context {
 
     /// Smoothly animate an `f32` value.
     ///
-    /// At the first call the value is written to memory.
-    /// When it is called with a new value, it linearly interpolates to it in the given time.
+    /// At the first call the value is written to memory. When it is called with a new value, it
+    /// interpolates to it in the given time using the supplied easing function.
     pub fn animate_value_with_time(
         &self,
         id: Id,

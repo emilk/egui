@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use crate::{animation_manager::Ease, *};
+use crate::*;
 use epaint::Shape;
 
 #[derive(Clone, Copy, Debug)]
