@@ -394,7 +394,7 @@ impl CollapsingHeader {
             selected: false,
             show_background: false,
             icon: None,
-            easing: animation::EASE,
+            easing: animation::material::STANDARD,
         }
     }
 

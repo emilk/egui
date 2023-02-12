@@ -25,15 +25,25 @@ struct ValueAnim {
 }
 
 pub mod preset {
-    use crate::Ease::{self, CubicBezier, Equation, Linear};
+    use crate::Ease::{self, Equation, Linear};
 
     pub const LINEAR: Ease = Linear;
 
-    // From the W3C CSS Easing Functions
-    pub const EASE: Ease = CubicBezier(0.25, 0.1, 0.25, 1.0);
-    pub const EASE_IN: Ease = CubicBezier(0.42, 0.0, 1.0, 1.0);
-    pub const EASE_OUT: Ease = CubicBezier(0.0, 0.0, 0.58, 1.0);
-    pub const EASE_IN_OUT: Ease = CubicBezier(0.42, 0.0, 0.58, 1.0);
+    pub mod material {
+        use crate::Ease::{self, CubicBezier};
+        pub const STANDARD: Ease = CubicBezier(0.4, 0.0, 0.2, 1.0);
+        pub const DECELERATION: Ease = CubicBezier(0.0, 0.0, 0.2, 1.0);
+        pub const ACCELERATION: Ease = CubicBezier(0.4, 0.0, 1.0, 1.0);
+        pub const SHARP: Ease = CubicBezier(0.4, 0.0, 0.6, 1.0);
+    }
+
+    pub mod css {
+        use crate::Ease::{self, CubicBezier};
+        pub const EASE: Ease = CubicBezier(0.25, 0.1, 0.25, 1.0);
+        pub const EASE_IN: Ease = CubicBezier(0.42, 0.0, 1.0, 1.0);
+        pub const EASE_OUT: Ease = CubicBezier(0.0, 0.0, 0.58, 1.0);
+        pub const EASE_IN_OUT: Ease = CubicBezier(0.42, 0.0, 0.58, 1.0);
+    }
 
     pub const QUADRATIC: Ease = Equation(|t| t.powi(2));
     pub const CUBIC: Ease = Equation(|t| t.powi(3));

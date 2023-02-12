@@ -147,7 +147,7 @@ impl ScrollArea {
             scrolling_enabled: true,
             drag_to_scroll: true,
             stick_to_end: [false; 2],
-            easing: animation::EASE,
+            easing: animation::material::STANDARD,
         }
     }
 

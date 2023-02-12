@@ -55,7 +55,7 @@ impl<'open> Window<'open> {
             collapsible: true,
             default_open: true,
             with_title_bar: true,
-            easing: animation::EASE,
+            easing: animation::material::STANDARD,
         }
     }
 
