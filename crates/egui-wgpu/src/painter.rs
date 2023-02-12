@@ -39,7 +39,7 @@ impl Painter {
     ///
     /// Before calling [`paint_and_update_textures()`](Self::paint_and_update_textures) a
     /// [`wgpu::Surface`] must be initialized (and corresponding render state) by calling
-    /// [`set_window()`](Self::set_window) once you have a valid raw window handle`
+    /// [`set_window()`](Self::set_window) once you have a valid raw window handle
     /// associated.
     pub fn new(
         configuration: WgpuConfiguration,
