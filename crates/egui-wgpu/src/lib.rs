@@ -15,6 +15,7 @@ pub use renderer::Renderer;
 
 /// Module for painting [`egui`](https://github.com/emilk/egui) with [`wgpu`] on [`winit`].
 #[cfg(feature = "winit")]
+#[deprecated = "Use egui_wgpu::painter instead"]
 pub mod winit;
 
 pub mod painter;
