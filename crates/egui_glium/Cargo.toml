@@ -39,7 +39,7 @@ links = ["egui-winit/links"]
 egui = { version = "0.21.0", path = "../egui", default-features = false, features = [
   "bytemuck",
 ] }
-egui-winit = { version = "0.21.0", path = "../egui-winit", default-features = false }
+egui-winit = { version = "0.21.1", path = "../egui-winit", default-features = false }
 
 ahash = { version = "0.8.1", default-features = false, features = [
   "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
