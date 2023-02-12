@@ -47,23 +47,29 @@ jobs:
         with:
           crate: cargo-cranky
 
-      - name: Check all features
+      - name: check --all-features
         uses: actions-rs/cargo@v1
         with:
           command: check
           args: --locked --all-features --all-targets
 
-      - name: Check default features
+      - name: check default features
         uses: actions-rs/cargo@v1
         with:
           command: check
           args: --locked --all-targets
 
-      - name: Check no default features
+      - name: check --no-default-features
         uses: actions-rs/cargo@v1
         with:
           command: check
           args: --locked --no-default-features --lib --all-targets
+
+      - name: check eframe --no-default-features
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked --no-default-features --lib --all-targets -p eframe
 
       - name: Test doc-tests
         uses: actions-rs/cargo@v1

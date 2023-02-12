@@ -1,6 +1,6 @@
 [package]
 name = "eframe"
-version = "0.21.1"
+version = "0.21.2"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition = "2021"
