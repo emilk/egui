@@ -75,7 +75,7 @@ pub struct ScrollAreaOutput<R> {
 }
 
 /// Indicate whether the horizontal and vertical scroll bars must be always visible, hidden or visible when needed.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ScrollBarVisibility {
     AlwaysVisible,
     VisibleWhenNeeded,
