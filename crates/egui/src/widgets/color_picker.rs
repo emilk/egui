@@ -244,15 +244,18 @@ fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>, alpha: Alpha) {
     });
 }
 
-fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
+fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
+    if let Some(edited) = srgba_edit_ui(ui, *hsvag, alpha) {
+        *hsvag = edited
+    }
     let current_color_size = vec2(ui.spacing().slider_width, ui.spacing().interact_size.y);
-    show_color(ui, *hsva, current_color_size).on_hover_text("Selected color");
+    show_color(ui, *hsvag, current_color_size).on_hover_text("Selected color");
 
-    color_text_ui(ui, *hsva, alpha);
+    color_text_ui(ui, *hsvag, alpha);
 
     if alpha == Alpha::BlendOrAdditive {
         // We signal additive blending by storing a negative alpha (a bit ironic).
-        let a = &mut hsva.a;
+        let a = &mut hsvag.a;
         let mut additive = *a < 0.0;
         ui.horizontal(|ui| {
             ui.label("Blending:");
@@ -268,14 +271,14 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
             }
         });
     }
-    let additive = hsva.a < 0.0;
+    let additive = hsvag.a < 0.0;
 
-    let opaque = HsvaGamma { a: 1.0, ..*hsva };
+    let opaque = HsvaGamma { a: 1.0, ..*hsvag };
 
     if alpha == Alpha::Opaque {
-        hsva.a = 1.0;
+        hsvag.a = 1.0;
     } else {
-        let a = &mut hsva.a;
+        let a = &mut hsvag.a;
 
         if alpha == Alpha::OnlyBlend {
             if *a < 0.0 {
@@ -287,7 +290,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
         }
     }
 
-    let HsvaGamma { h, s, v, a: _ } = hsva;
+    let HsvaGamma { h, s, v, a: _ } = hsvag;
 
     color_slider_1d(ui, h, |h| {
         HsvaGamma {
@@ -309,6 +312,50 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
     }
 
     color_slider_2d(ui, v, s, |v, s| HsvaGamma { s, v, ..opaque }.into());
+}
+
+fn srgba_edit_ui(ui: &mut Ui, hsvag: HsvaGamma, alpha: Alpha) -> Option<HsvaGamma> {
+    let [mut r, mut g, mut b, mut a] = Color32::from(hsvag).to_array();
+
+    let limit = gamma_u8_from_linear_f32(linear_f32_from_linear_u8(a));
+    let exceeds_the_graph = r > limit || g > limit || b > limit;
+
+    let (mut rgb_changed, mut a_changed, mut multiply) = (false, false, false);
+
+    ui.horizontal(|ui| {
+        if ui.add(DragValue::new(&mut r).speed(0.5)).changed() {
+            rgb_changed = true;
+        }
+        if ui.add(DragValue::new(&mut g).speed(0.5)).changed() {
+            rgb_changed = true;
+        }
+        if ui.add(DragValue::new(&mut b).speed(0.5)).changed() {
+            rgb_changed = true;
+        }
+        if ui.add(DragValue::new(&mut a).speed(0.5)).changed() {
+            a_changed = true;
+        }
+        // A positive color.a indicates normal blending instead of additive.
+        if hsvag.a.is_sign_positive() && exceeds_the_graph {
+            if ui
+                .button("*")
+                .on_hover_text("Colors must have premultiplied alpha")
+                .clicked()
+            {
+                multiply = true;
+            }
+        }
+    });
+
+    return if multiply {
+        Some(HsvaGamma::from(Color32::from_rgba_unmultiplied(r, g, b, a)))
+    } else if rgb_changed || a_changed {
+        Some(HsvaGamma::from(Color32::from_rgba_premultiplied(
+            r, g, b, a,
+        )))
+    } else {
+        None
+    };
 }
 
 //// Shows a color picker where the user can change the given [`Hsva`] color.
