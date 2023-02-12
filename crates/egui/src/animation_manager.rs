@@ -25,20 +25,20 @@ struct ValueAnim {
 }
 
 pub mod preset {
-    use super::Ease;
+    use crate::Ease::{self, CubicBezier, Equation, Linear};
 
-    pub const LINEAR: Ease = Ease::Linear;
+    pub const LINEAR: Ease = Linear;
 
     // From the W3C CSS Easing Functions
-    pub const EASE: Ease = Ease::CubicBezier(0.25, 0.1, 0.25, 1.0);
-    pub const EASE_IN: Ease = Ease::CubicBezier(0.42, 0.0, 1.0, 1.0);
-    pub const EASE_OUT: Ease = Ease::CubicBezier(0.0, 0.0, 0.58, 1.0);
-    pub const EASE_IN_OUT: Ease = Ease::CubicBezier(0.42, 0.0, 0.58, 1.0);
+    pub const EASE: Ease = CubicBezier(0.25, 0.1, 0.25, 1.0);
+    pub const EASE_IN: Ease = CubicBezier(0.42, 0.0, 1.0, 1.0);
+    pub const EASE_OUT: Ease = CubicBezier(0.0, 0.0, 0.58, 1.0);
+    pub const EASE_IN_OUT: Ease = CubicBezier(0.42, 0.0, 0.58, 1.0);
 
-    pub const QUADRATIC: Ease = Ease::Equation(|t| t.powi(2));
-    pub const CUBIC: Ease = Ease::Equation(|t| t.powi(3));
-    pub const QUARTIC: Ease = Ease::Equation(|t| t.powi(4));
-    pub const QUINTIC: Ease = Ease::Equation(|t| t.powi(5));
+    pub const QUADRATIC: Ease = Equation(|t| t.powi(2));
+    pub const CUBIC: Ease = Equation(|t| t.powi(3));
+    pub const QUARTIC: Ease = Equation(|t| t.powi(4));
+    pub const QUINTIC: Ease = Equation(|t| t.powi(5));
 }
 
 /// Easing shaping functions

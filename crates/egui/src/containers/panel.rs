@@ -125,7 +125,7 @@ impl SidePanel {
             default_width: 200.0,
             width_range: 96.0..=f32::INFINITY,
             // Move fast initially, then settle into place:
-            easing: Ease::CubicBezier(0.0, 0.0, 0.1, 1.0),
+            easing: animation::EASE_IN,
         }
     }
 
