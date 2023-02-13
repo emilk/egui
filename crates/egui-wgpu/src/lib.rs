@@ -105,11 +105,13 @@ pub enum WgpuError {
     DeviceError(wgpu::RequestDeviceError),
     SurfaceError(wgpu::CreateSurfaceError),
 }
+
 impl std::fmt::Display for WgpuError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Debug::fmt(self, f)
     }
 }
+
 impl std::error::Error for WgpuError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
@@ -118,11 +120,13 @@ impl std::error::Error for WgpuError {
         }
     }
 }
+
 impl From<wgpu::RequestDeviceError> for WgpuError {
     fn from(e: wgpu::RequestDeviceError) -> Self {
         Self::DeviceError(e)
     }
 }
+
 impl From<wgpu::CreateSurfaceError> for WgpuError {
     fn from(e: wgpu::CreateSurfaceError) -> Self {
         Self::SurfaceError(e)

@@ -7,6 +7,14 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 ## Unreleased
 
 
+## 0.21.2 - 2023-02-12
+* Allow compiling `eframe` with `--no-default-features` ([#2728](https://github.com/emilk/egui/pull/2728)).
+
+
+## 0.21.1 - 2023-02-12
+* Fixed crash when native window position is in an invalid state, which could happen e.g. due to changes in monitor size or DPI ([#2722](https://github.com/emilk/egui/issues/2722)).
+
+
 ## 0.21.0 - 2023-02-08 - Update to `winit` 0.28
 * ⚠️ BREAKING: `App::clear_color` now expects you to return a raw float array ([#2666](https://github.com/emilk/egui/pull/2666)).
 * The `screen_reader` feature has now been renamed `web_screen_reader` and only work on web. On other platforms, use the `accesskit` feature flag instead ([#2669](https://github.com/emilk/egui/pull/2669)).
