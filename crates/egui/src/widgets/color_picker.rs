@@ -245,8 +245,8 @@ fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>, alpha: Alpha) {
 }
 
 fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
-    if let Some(edited) = srgba_edit_ui(ui, *hsvag, alpha) {
-        *hsvag = edited
+    if let Some(edited) = srgba_edit_ui(ui, *hsvag) {
+        *hsvag = edited;
     }
     let current_color_size = vec2(ui.spacing().slider_width, ui.spacing().interact_size.y);
     show_color(ui, *hsvag, current_color_size).on_hover_text("Selected color");
@@ -314,7 +314,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
     color_slider_2d(ui, v, s, |v, s| HsvaGamma { s, v, ..opaque }.into());
 }
 
-fn srgba_edit_ui(ui: &mut Ui, hsvag: HsvaGamma, alpha: Alpha) -> Option<HsvaGamma> {
+fn srgba_edit_ui(ui: &mut Ui, hsvag: HsvaGamma) -> Option<HsvaGamma> {
     let [mut r, mut g, mut b, mut a] = Color32::from(hsvag).to_array();
 
     let limit = gamma_u8_from_linear_f32(linear_f32_from_linear_u8(a));
@@ -337,8 +337,9 @@ fn srgba_edit_ui(ui: &mut Ui, hsvag: HsvaGamma, alpha: Alpha) -> Option<HsvaGamm
         }
         // A positive color.a indicates normal blending instead of additive.
         if hsvag.a.is_sign_positive() && exceeds_the_graph {
+            let multiply_btn = Button::new("*");
             if ui
-                .button("*")
+                .add(multiply_btn)
                 .on_hover_text("Colors must have premultiplied alpha")
                 .clicked()
             {
@@ -347,7 +348,7 @@ fn srgba_edit_ui(ui: &mut Ui, hsvag: HsvaGamma, alpha: Alpha) -> Option<HsvaGamm
         }
     });
 
-    return if multiply {
+    if multiply {
         Some(HsvaGamma::from(Color32::from_rgba_unmultiplied(r, g, b, a)))
     } else if rgb_changed || a_changed {
         Some(HsvaGamma::from(Color32::from_rgba_premultiplied(
@@ -355,7 +356,7 @@ fn srgba_edit_ui(ui: &mut Ui, hsvag: HsvaGamma, alpha: Alpha) -> Option<HsvaGamm
         )))
     } else {
         None
-    };
+    }
 }
 
 //// Shows a color picker where the user can change the given [`Hsva`] color.
