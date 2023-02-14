@@ -30,10 +30,12 @@ pub(super) struct PlotConfig<'a> {
     pub show_y: bool,
 }
 
+///
 #[derive(PartialEq, Clone, Debug)]
 pub struct SourceIndex {
     pub group_name: String,
-    pub index_overide: usize,
+    pub index_overide: Vec<usize>,
+    pub sub_index: bool,
 }
 
 /// Trait shared by things that can be drawn in the plot.
@@ -150,12 +152,14 @@ impl HLine {
     }
 
     /// Group name and index are used to retrieve the source index of the hover event.
+    /// sub_index is used to retrieve the nested index if it part a line for example.
     /// When you use it: each element you want to bind must be defined and
     /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
         self.group = Some(SourceIndex {
             group_name: name.to_string(),
             index_overide: index,
+            sub_index,
         });
         self
     }
@@ -283,12 +287,14 @@ impl VLine {
     }
 
     /// Group name and index are used to retrieve the source index of the hover event.
+    /// sub_index is used to retrieve the nested index if it part a line for example.
     /// When you use it: each element you want to bind must be defined and
     /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
         self.group = Some(SourceIndex {
             group_name: name.to_string(),
             index_overide: index,
+            sub_index,
         });
         self
     }
@@ -417,12 +423,14 @@ impl Line {
     }
 
     /// Group name and index are used to retrieve the source index of the hover event.
+    /// sub_index is used to retrieve the nested index if it part a line for example.
     /// When you use it: each element you want to bind must be defined and
     /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
         self.group = Some(SourceIndex {
             group_name: name.to_string(),
             index_overide: index,
+            sub_index,
         });
         self
     }
@@ -602,12 +610,14 @@ impl Polygon {
     }
 
     /// Group name and index are used to retrieve the source index of the hover event.
+    /// sub_index is used to retrieve the nested index if it part a line for example.
     /// When you use it: each element you want to bind must be defined and
     /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
         self.group = Some(SourceIndex {
             group_name: name.to_string(),
             index_overide: index,
+            sub_index,
         });
         self
     }
@@ -749,12 +759,14 @@ impl Text {
     }
 
     /// Group name and index are used to retrieve the source index of the hover event.
+    /// sub_index is used to retrieve the nested index if it part a line for example.
     /// When you use it: each element you want to bind must be defined and
     /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
         self.group = Some(SourceIndex {
             group_name: name.to_string(),
             index_overide: index,
+            sub_index,
         });
         self
     }
@@ -894,12 +906,14 @@ impl Points {
     }
 
     /// Group name and index are used to retrieve the source index of the hover event.
+    /// sub_index is used to retrieve the nested index if it part a line for example.
     /// When you use it: each element you want to bind must be defined and
     /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
         self.group = Some(SourceIndex {
             group_name: name.to_string(),
             index_overide: index,
+            sub_index,
         });
         self
     }
@@ -1132,12 +1146,14 @@ impl Arrows {
     }
 
     /// Group name and index are used to retrieve the source index of the hover event.
+    /// sub_index is used to retrieve the nested index if it part a line for example.
     /// When you use it: each element you want to bind must be defined and
     /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
         self.group = Some(SourceIndex {
             group_name: name.to_string(),
             index_overide: index,
+            sub_index,
         });
         self
     }
@@ -1276,12 +1292,14 @@ impl PlotImage {
     }
 
     /// Group name and index are used to retrieve the source index of the hover event.
+    /// sub_index is used to retrieve the nested index if it part a line for example.
     /// When you use it: each element you want to bind must be defined and
     /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
         self.group = Some(SourceIndex {
             group_name: name.to_string(),
             index_overide: index,
+            sub_index,
         });
         self
     }
@@ -1483,12 +1501,14 @@ impl BarChart {
     }
 
     /// Group name and index are used to retrieve the source index of the hover event.
+    /// sub_index is used to retrieve the nested index if it part a line for example.
     /// When you use it: each element you want to bind must be defined and
     /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
         self.group = Some(SourceIndex {
             group_name: name.to_string(),
             index_overide: index,
+            sub_index,
         });
         self
     }
@@ -1664,12 +1684,14 @@ impl BoxPlot {
     }
 
     /// Group name and index are used to retrieve the source index of the hover event.
+    /// sub_index is used to retrieve the nested index if it part a line for example.
     /// When you use it: each element you want to bind must be defined and
     /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: impl ToString, index: usize) -> Self {
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
         self.group = Some(SourceIndex {
             group_name: name.to_string(),
             index_overide: index,
+            sub_index,
         });
         self
     }

@@ -749,8 +749,18 @@ impl ItemsDemo {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Default, PartialEq)]
-struct InteractionDemo {}
+#[derive(PartialEq)]
+struct InteractionDemo {
+    nested_points: Vec<Vec<Vec<[f64; 2]>>>,
+}
+
+impl Default for InteractionDemo {
+    fn default() -> Self {
+        Self {
+            nested_points: vec![vec![vec![[0.0, 0.0], [0.0, 0.5]]], vec![vec![[0.0, 1.0]]]],
+        }
+    }
+}
 
 impl InteractionDemo {
     #[allow(clippy::unused_self)]
@@ -784,7 +794,7 @@ impl InteractionDemo {
                     100,
                 ))
                 .name("Sin")
-                .group("line A", 0),
+                .group(&"Group A", vec![0], true),
             );
             plot_ui.line(
                 Line::new(PlotPoints::from_explicit_callback(
@@ -793,7 +803,7 @@ impl InteractionDemo {
                     200,
                 ))
                 .name("cos")
-                .group("line A", 1),
+                .group(&"line A", vec![1], true),
             );
             plot_ui.line(
                 Line::new(PlotPoints::from_explicit_callback(
@@ -801,15 +811,28 @@ impl InteractionDemo {
                     ..,
                     200,
                 ))
-                .name("sin/2"),
+                .name("sin/2")
+                .group(&"line B", vec![0], true),
             );
+
+            for i in 0..self.nested_points.len() {
+                for j in 0..self.nested_points[i].len() {
+                    for k in 0..self.nested_points[i][j].len() {
+                        let point = Points::new(PlotPoints::from(self.nested_points[i][j][k]))
+                            .radius(5.0)
+                            .name(&format!("point {} {} {}", i, j, k))
+                            .group(&"Group point A", vec![i, j, k], false);
+                        plot_ui.points(point);
+                    }
+                }
+            }
             (
                 plot_ui.screen_from_plot(PlotPoint::new(0.0, 0.0)),
                 plot_ui.pointer_coordinate(),
                 plot_ui.pointer_coordinate_drag_delta(),
                 plot_ui.plot_bounds(),
                 plot_ui.plot_hovered(),
-                plot_ui.plot_hover_indexes(),
+                plot_ui.hover_indexes(),
             )
         });
 
@@ -840,22 +863,23 @@ impl InteractionDemo {
 
         let indexes = if hover_indexes.is_some() {
             let src_hover = hover_indexes.as_ref().unwrap();
-            let group = if src_hover.group.is_some() {
-                let src_gr = src_hover.group.as_ref().unwrap();
+            let index_overidexes_string = src_hover
+                .index_overide
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>()
+                .join(", ");
+
+            if !src_hover.group_name.is_empty() && !src_hover.index_overide.is_empty() {
                 format!(
-                    "{} [{}]",
-                    src_gr.group_name.to_string(),
-                    src_gr.index_overide.to_string(),
+                    "group name: {}, index_overided :[{}]",
+                    src_hover.group_name, index_overidexes_string,
                 )
+            } else if !src_hover.index_overide.is_empty() {
+                format!("index_retain :[{}]", index_overidexes_string)
             } else {
                 "None".to_owned()
-            };
-            format!(
-                "retained: {} sub: {} group: {}",
-                src_hover.retained.to_string(),
-                src_hover.sub.to_string(),
-                group
-            )
+            }
         } else {
             "None".to_owned()
         };
@@ -939,6 +963,7 @@ impl ChartsDemo {
         Plot::new("Normal Distribution Demo")
             .legend(Legend::default())
             .clamp_grid(true)
+            // .highlight_hovered(true)
             .show(ui, |plot_ui| plot_ui.bar_chart(chart))
             .response
     }
@@ -952,7 +977,8 @@ impl ChartsDemo {
             Bar::new(4.5, 4.0).name("Day 5"),
         ])
         .width(0.7)
-        .name("Set 1");
+        .name("Set 1")
+        .highlight(false);
 
         let mut chart2 = BarChart::new(vec![
             Bar::new(0.5, 1.0),
@@ -963,7 +989,8 @@ impl ChartsDemo {
         ])
         .width(0.7)
         .name("Set 2")
-        .stack_on(&[&chart1]);
+        .stack_on(&[&chart1])
+        .highlight(false);
 
         let mut chart3 = BarChart::new(vec![
             Bar::new(0.5, -0.5),
@@ -974,7 +1001,8 @@ impl ChartsDemo {
         ])
         .width(0.7)
         .name("Set 3")
-        .stack_on(&[&chart1, &chart2]);
+        .stack_on(&[&chart1, &chart2])
+        .highlight(false);
 
         let mut chart4 = BarChart::new(vec![
             Bar::new(0.5, 0.5),
@@ -985,6 +1013,7 @@ impl ChartsDemo {
         ])
         .width(0.7)
         .name("Set 4")
+        .highlight(false)
         .stack_on(&[&chart1, &chart2, &chart3]);
 
         if !self.vertical {
