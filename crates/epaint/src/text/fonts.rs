@@ -287,6 +287,11 @@ impl Default for FontDefinitions {
             FontData::from_static(include_bytes!("../../fonts/emoji-icon-font.ttf")).tweak(
                 FontTweak {
                     scale: 0.88, // make it smaller
+
+                    // metrics of this font seems somewhat weird
+                    // (or i might be wrong somewhere else?)
+                    y_offset_factor: 0.11,         // move it down a bit
+                    baseline_offset_factor: -0.11, // ...but don't do that when it is alone (mainly for submenu icons)
                     ..Default::default()
                 },
             ),
@@ -761,25 +766,11 @@ impl FontImplCache {
         let font_scaling = ab_glyph_font.height_unscaled() / units_per_em;
         let scale_in_pixels = scale_in_pixels * font_scaling;
 
-        // Tweak the scale as the user desired:
-        let scale_in_pixels = scale_in_pixels * tweak.scale;
-
-        // Round to an even number of physical pixels to get even kerning.
-        // See https://github.com/emilk/egui/issues/382
-        let scale_in_pixels = scale_in_pixels.round() as u32;
-
-        let y_offset_points = {
-            let scale_in_points = scale_in_pixels as f32 / self.pixels_per_point;
-            scale_in_points * tweak.y_offset_factor
-        } + tweak.y_offset;
-
-        let baseline_offset = {
-            let scale_in_points = scale_in_pixels as f32 / self.pixels_per_point;
-            scale_in_points * tweak.baseline_offset_factor
-        };
-
         self.cache
-            .entry((scale_in_pixels, font_name.to_owned()))
+            .entry((
+                (scale_in_pixels * tweak.scale).round() as u32,
+                font_name.to_owned(),
+            ))
             .or_insert_with(|| {
                 Arc::new(FontImpl::new(
                     self.atlas.clone(),
@@ -787,8 +778,7 @@ impl FontImplCache {
                     font_name.to_owned(),
                     ab_glyph_font,
                     scale_in_pixels,
-                    y_offset_points,
-                    baseline_offset,
+                    tweak,
                 ))
             })
             .clone()

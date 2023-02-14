@@ -1,5 +1,6 @@
 use crate::{
     mutex::{Mutex, RwLock},
+    text::FontTweak,
     TextureAtlas,
 };
 use emath::{vec2, Vec2};
@@ -87,18 +88,38 @@ impl FontImpl {
         pixels_per_point: f32,
         name: String,
         ab_glyph_font: ab_glyph::FontArc,
-        scale_in_pixels: u32,
-        y_offset_points: f32,
-        baseline_offset: f32,
+        scale_in_pixels: f32,
+        tweak: FontTweak,
     ) -> FontImpl {
-        assert!(scale_in_pixels > 0);
+        assert!(scale_in_pixels > 0.0);
         assert!(pixels_per_point > 0.0);
 
         use ab_glyph::*;
-        let scaled = ab_glyph_font.as_scaled(scale_in_pixels as f32);
+        let scaled = ab_glyph_font.as_scaled(scale_in_pixels);
         let ascent = scaled.ascent() / pixels_per_point;
         let descent = scaled.descent() / pixels_per_point;
         let line_gap = scaled.line_gap() / pixels_per_point;
+
+        // Tweak the scale as the user desired
+        // this is only for visual effects and does not affect layout behaviors
+        let scale_in_pixels = scale_in_pixels * tweak.scale;
+
+        let baseline_offset = {
+            let scale_in_points = scale_in_pixels / pixels_per_point;
+            scale_in_points * tweak.baseline_offset_factor
+        };
+
+        let y_offset_points = {
+            let scale_in_points = scale_in_pixels / pixels_per_point;
+            scale_in_points * tweak.y_offset_factor
+        } + tweak.y_offset;
+
+        // center scaled glyphs properly
+        let y_offset_points = y_offset_points + (tweak.scale - 1.0) * 0.5 * (ascent + descent);
+
+        // Round to an even number of physical pixels to get even kerning.
+        // See https://github.com/emilk/egui/issues/382
+        let scale_in_pixels = scale_in_pixels.round() as u32;
 
         // Round to closest pixel:
         let y_offset = (y_offset_points * pixels_per_point).round() / pixels_per_point;
