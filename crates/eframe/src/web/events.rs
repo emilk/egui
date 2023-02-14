@@ -31,7 +31,6 @@ pub fn paint_and_schedule(
         runner_ref: AppRunnerRef,
         panicked: Arc<AtomicBool>,
     ) -> Result<(), JsValue> {
-        use wasm_bindgen::JsCast;
         let window = web_sys::window().unwrap();
         let closure = Closure::once(move || paint_and_schedule(&runner_ref, panicked));
         window.request_animation_frame(closure.as_ref().unchecked_ref())?;
@@ -404,7 +403,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
                 }
                 web_sys::WheelEvent::DOM_DELTA_LINE => {
                     #[allow(clippy::let_and_return)]
-                    let points_per_scroll_line = 8.0; // Note that this is intentionally different from what we use in egui_glium / winit.
+                    let points_per_scroll_line = 8.0; // Note that this is intentionally different from what we use in winit.
                     points_per_scroll_line
                 }
                 _ => 1.0, // DOM_DELTA_PIXEL

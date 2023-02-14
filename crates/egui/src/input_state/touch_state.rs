@@ -96,10 +96,14 @@ struct GestureState {
 struct DynGestureState {
     /// used for proportional zooming
     avg_distance: f32,
+
     /// used for non-proportional zooming
     avg_abs_distance2: Vec2,
+
     avg_pos: Pos2,
+
     avg_force: f32,
+
     heading: f32,
 }
 

@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use tracing::error;
-use wgpu::{Adapter, Instance, Surface};
-
 use epaint::mutex::RwLock;
+
+use tracing::error;
 
 use crate::{renderer, RenderState, Renderer, SurfaceErrorAction, WgpuConfiguration};
 
 struct SurfaceState {
-    surface: Surface,
+    surface: wgpu::Surface,
+    alpha_mode: wgpu::CompositeAlphaMode,
     width: u32,
     height: u32,
 }
@@ -19,11 +19,12 @@ struct SurfaceState {
 pub struct Painter {
     configuration: WgpuConfiguration,
     msaa_samples: u32,
+    support_transparent_backbuffer: bool,
     depth_format: Option<wgpu::TextureFormat>,
     depth_texture_view: Option<wgpu::TextureView>,
 
-    instance: Instance,
-    adapter: Option<Adapter>,
+    instance: wgpu::Instance,
+    adapter: Option<wgpu::Adapter>,
     render_state: Option<RenderState>,
     surface_state: Option<SurfaceState>,
 }
@@ -41,12 +42,21 @@ impl Painter {
     /// [`set_window()`](Self::set_window) once you have
     /// a [`winit::window::Window`] with a valid `.raw_window_handle()`
     /// associated.
-    pub fn new(configuration: WgpuConfiguration, msaa_samples: u32, depth_bits: u8) -> Self {
-        let instance = wgpu::Instance::new(configuration.backends);
+    pub fn new(
+        configuration: WgpuConfiguration,
+        msaa_samples: u32,
+        depth_bits: u8,
+        support_transparent_backbuffer: bool,
+    ) -> Self {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: configuration.backends,
+            dx12_shader_compiler: Default::default(), //
+        });
 
         Self {
             configuration,
             msaa_samples,
+            support_transparent_backbuffer,
             depth_format: (depth_bits > 0).then_some(wgpu::TextureFormat::Depth32Float),
             depth_texture_view: None,
 
@@ -66,7 +76,7 @@ impl Painter {
 
     async fn init_render_state(
         &self,
-        adapter: &Adapter,
+        adapter: &wgpu::Adapter,
         target_format: wgpu::TextureFormat,
     ) -> Result<RenderState, wgpu::RequestDeviceError> {
         adapter
@@ -91,7 +101,7 @@ impl Painter {
     // will have the same format and so this render state will remain valid.
     async fn ensure_render_state_for_surface(
         &mut self,
-        surface: &Surface,
+        surface: &wgpu::Surface,
     ) -> Result<(), wgpu::RequestDeviceError> {
         if self.adapter.is_none() {
             self.adapter = self
@@ -107,7 +117,7 @@ impl Painter {
             match &self.adapter {
                 Some(adapter) => {
                     let swapchain_format = crate::preferred_framebuffer_format(
-                        &surface.get_supported_formats(adapter),
+                        &surface.get_capabilities(adapter).formats,
                     );
                     let rs = self.init_render_state(adapter, swapchain_format).await?;
                     self.render_state = Some(rs);
@@ -118,33 +128,23 @@ impl Painter {
         Ok(())
     }
 
-    fn configure_surface(&mut self, width_in_pixels: u32, height_in_pixels: u32) {
-        crate::profile_function!();
-
-        let render_state = self
-            .render_state
-            .as_ref()
-            .expect("Render state should exist before surface configuration");
-        let format = render_state.target_format;
-
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format,
-            width: width_in_pixels,
-            height: height_in_pixels,
-            present_mode: self.configuration.present_mode,
-            alpha_mode: wgpu::CompositeAlphaMode::Auto,
-        };
-
-        let surface_state = self
-            .surface_state
-            .as_mut()
-            .expect("Surface state should exist before surface configuration");
-        surface_state
-            .surface
-            .configure(&render_state.device, &config);
-        surface_state.width = width_in_pixels;
-        surface_state.height = height_in_pixels;
+    fn configure_surface(
+        surface_state: &SurfaceState,
+        render_state: &RenderState,
+        present_mode: wgpu::PresentMode,
+    ) {
+        surface_state.surface.configure(
+            &render_state.device,
+            &wgpu::SurfaceConfiguration {
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                format: render_state.target_format,
+                width: surface_state.width,
+                height: surface_state.height,
+                present_mode,
+                alpha_mode: surface_state.alpha_mode,
+                view_formats: vec![render_state.target_format],
+            },
+        );
     }
 
     /// Updates (or clears) the [`winit::window::Window`] associated with the [`Painter`]
@@ -177,22 +177,41 @@ impl Painter {
     pub async unsafe fn set_window(
         &mut self,
         window: Option<&winit::window::Window>,
-    ) -> Result<(), wgpu::RequestDeviceError> {
+    ) -> Result<(), crate::WgpuError> {
         match window {
             Some(window) => {
-                let surface = self.instance.create_surface(&window);
+                let surface = self.instance.create_surface(&window)?;
 
                 self.ensure_render_state_for_surface(&surface).await?;
 
+                let alpha_mode = if self.support_transparent_backbuffer {
+                    let supported_alpha_modes = surface
+                        .get_capabilities(self.adapter.as_ref().unwrap())
+                        .alpha_modes;
+
+                    // Prefer pre multiplied over post multiplied!
+                    if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
+                        wgpu::CompositeAlphaMode::PreMultiplied
+                    } else if supported_alpha_modes
+                        .contains(&wgpu::CompositeAlphaMode::PostMultiplied)
+                    {
+                        wgpu::CompositeAlphaMode::PostMultiplied
+                    } else {
+                        tracing::warn!("Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency.");
+                        wgpu::CompositeAlphaMode::Auto
+                    }
+                } else {
+                    wgpu::CompositeAlphaMode::Auto
+                };
+
                 let size = window.inner_size();
-                let width = size.width;
-                let height = size.height;
                 self.surface_state = Some(SurfaceState {
                     surface,
-                    width,
-                    height,
+                    width: size.width,
+                    height: size.height,
+                    alpha_mode,
                 });
-                self.resize_and_generate_depth_texture_view(width, height);
+                self.resize_and_generate_depth_texture_view(size.width, size.height);
             }
             None => {
                 self.surface_state = None;
@@ -217,10 +236,17 @@ impl Painter {
         width_in_pixels: u32,
         height_in_pixels: u32,
     ) {
-        self.configure_surface(width_in_pixels, height_in_pixels);
-        let device = &self.render_state.as_ref().unwrap().device;
+        let render_state = self.render_state.as_ref().unwrap();
+        let surface_state = self.surface_state.as_mut().unwrap();
+
+        surface_state.width = width_in_pixels;
+        surface_state.height = height_in_pixels;
+
+        Self::configure_surface(surface_state, render_state, self.configuration.present_mode);
+
         self.depth_texture_view = self.depth_format.map(|depth_format| {
-            device
+            render_state
+                .device
                 .create_texture(&wgpu::TextureDescriptor {
                     label: Some("egui_depth_texture"),
                     size: wgpu::Extent3d {
@@ -234,6 +260,7 @@ impl Painter {
                     format: depth_format,
                     usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                         | wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[depth_format],
                 })
                 .create_view(&wgpu::TextureViewDescriptor::default())
         });
@@ -250,7 +277,7 @@ impl Painter {
     pub fn paint_and_update_textures(
         &mut self,
         pixels_per_point: f32,
-        clear_color: epaint::Rgba,
+        clear_color: [f32; 4],
         clipped_primitives: &[epaint::ClippedPrimitive],
         textures_delta: &epaint::textures::TexturesDelta,
     ) {
@@ -264,7 +291,6 @@ impl Painter {
             Some(rs) => rs,
             None => return,
         };
-        let (width, height) = (surface_state.width, surface_state.height);
 
         let output_frame = {
             crate::profile_scope!("get_current_texture");
@@ -277,7 +303,11 @@ impl Painter {
             #[allow(clippy::single_match_else)]
             Err(e) => match (*self.configuration.on_surface_error)(e) {
                 SurfaceErrorAction::RecreateSurface => {
-                    self.configure_surface(width, height);
+                    Self::configure_surface(
+                        surface_state,
+                        render_state,
+                        self.configuration.present_mode,
+                    );
                     return;
                 }
                 SurfaceErrorAction::SkipFrame => {
@@ -295,7 +325,7 @@ impl Painter {
 
         // Upload all resources for the GPU.
         let screen_descriptor = renderer::ScreenDescriptor {
-            size_in_pixels: [width, height],
+            size_in_pixels: [surface_state.width, surface_state.height],
             pixels_per_point,
         };
 
@@ -330,10 +360,10 @@ impl Painter {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: clear_color.r() as f64,
-                            g: clear_color.g() as f64,
-                            b: clear_color.b() as f64,
-                            a: clear_color.a() as f64,
+                            r: clear_color[0] as f64,
+                            g: clear_color[1] as f64,
+                            b: clear_color[2] as f64,
+                            a: clear_color[3] as f64,
                         }),
                         store: true,
                     },

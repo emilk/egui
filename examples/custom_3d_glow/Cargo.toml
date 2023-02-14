@@ -10,7 +10,7 @@ publish = false
 
 [dependencies]
 eframe = { path = "../../crates/eframe", features = [
-    "__screenshot", # __screenshot is so we can dump a ascreenshot using EFRAME_SCREENSHOT_TO
+    "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
 ] }
 egui_glow = { path = "../../crates/egui_glow" }
-glow = "0.11"
+glow = "0.12"

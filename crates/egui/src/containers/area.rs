@@ -5,12 +5,14 @@
 use crate::*;
 
 /// State that is persisted between frames.
-// TODO(emilk): this is not currently stored in `memory().data`, but maybe it should be?
+// TODO(emilk): this is not currently stored in `Memory::data`, but maybe it should be?
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct State {
-    /// Last known pos
-    pub pos: Pos2,
+    /// Last known pos of the pivot
+    pub pivot_pos: Pos2,
+
+    pub pivot: Align2,
 
     /// Last know size. Used for catching clicks.
     pub size: Vec2,
@@ -21,8 +23,22 @@ pub(crate) struct State {
 }
 
 impl State {
+    pub fn left_top_pos(&self) -> Pos2 {
+        pos2(
+            self.pivot_pos.x - self.pivot.x().to_factor() * self.size.x,
+            self.pivot_pos.y - self.pivot.y().to_factor() * self.size.y,
+        )
+    }
+
+    pub fn set_left_top_pos(&mut self, pos: Pos2) {
+        self.pivot_pos = pos2(
+            pos.x + self.pivot.x().to_factor() * self.size.x,
+            pos.y + self.pivot.y().to_factor() * self.size.y,
+        );
+    }
+
     pub fn rect(&self) -> Rect {
-        Rect::from_min_size(self.pos, self.size)
+        Rect::from_min_size(self.left_top_pos(), self.size)
     }
 }
 
@@ -231,27 +247,25 @@ impl Area {
 
         let layer_id = LayerId::new(order, id);
 
-        let state = ctx.memory().areas.get(id).copied();
+        let state = ctx.memory(|mem| mem.areas.get(id).copied());
         let is_new = state.is_none();
         if is_new {
             ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place
         }
         let mut state = state.unwrap_or_else(|| State {
-            pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
+            pivot_pos: default_pos.unwrap_or_else(|| automatic_area_position(ctx)),
+            pivot,
             size: Vec2::ZERO,
             interactable,
         });
-        state.pos = new_pos.unwrap_or(state.pos);
+        state.pivot_pos = new_pos.unwrap_or(state.pivot_pos);
         state.interactable = interactable;
-
-        if pivot != Align2::LEFT_TOP {
-            state.pos.x -= pivot.x().to_factor() * state.size.x;
-            state.pos.y -= pivot.y().to_factor() * state.size.y;
-        }
 
         if let Some((anchor, offset)) = anchor {
             let screen = ctx.available_rect();
-            state.pos = anchor.align_size_within_rect(state.size, screen).min + offset;
+            state.set_left_top_pos(
+                anchor.align_size_within_rect(state.size, screen).left_top() + offset,
+            );
         }
 
         // interact right away to prevent frame-delay
@@ -278,31 +292,33 @@ impl Area {
             // Important check - don't try to move e.g. a combobox popup!
             if movable {
                 if move_response.dragged() {
-                    state.pos += ctx.input().pointer.delta();
+                    state.pivot_pos += ctx.input(|i| i.pointer.delta());
                 }
 
-                state.pos = ctx
-                    .constrain_window_rect_to_area(state.rect(), drag_bounds)
-                    .min;
+                state.set_left_top_pos(
+                    ctx.constrain_window_rect_to_area(state.rect(), drag_bounds)
+                        .min,
+                );
             }
 
             if (move_response.dragged() || move_response.clicked())
                 || pointer_pressed_on_area(ctx, layer_id)
-                || !ctx.memory().areas.visible_last_frame(&layer_id)
+                || !ctx.memory(|m| m.areas.visible_last_frame(&layer_id))
             {
-                ctx.memory().areas.move_to_top(layer_id);
+                ctx.memory_mut(|m| m.areas.move_to_top(layer_id));
                 ctx.request_repaint();
             }
 
             move_response
         };
 
-        state.pos = ctx.round_pos_to_pixels(state.pos);
+        state.set_left_top_pos(ctx.round_pos_to_pixels(state.left_top_pos()));
 
         if constrain {
-            state.pos = ctx
-                .constrain_window_rect_to_area(state.rect(), drag_bounds)
-                .min;
+            state.set_left_top_pos(
+                ctx.constrain_window_rect_to_area(state.rect(), drag_bounds)
+                    .left_top(),
+            );
         }
 
         Prepared {
@@ -329,7 +345,7 @@ impl Area {
         }
 
         let layer_id = LayerId::new(self.order, self.id);
-        let area_rect = ctx.memory().areas.get(self.id).map(|area| area.rect());
+        let area_rect = ctx.memory(|mem| mem.areas.get(self.id).map(|area| area.rect()));
         if let Some(area_rect) = area_rect {
             let clip_rect = ctx.available_rect();
             let painter = Painter::new(ctx.clone(), layer_id, clip_rect);
@@ -358,7 +374,7 @@ impl Prepared {
     }
 
     pub(crate) fn content_ui(&self, ctx: &Context) -> Ui {
-        let screen_rect = ctx.input().screen_rect();
+        let screen_rect = ctx.screen_rect();
 
         let bounds = if let Some(bounds) = self.drag_bounds {
             bounds.intersect(screen_rect) // protect against infinite bounds
@@ -374,14 +390,16 @@ impl Prepared {
         };
 
         let max_rect = Rect::from_min_max(
-            self.state.pos,
-            bounds.max.at_least(self.state.pos + Vec2::splat(32.0)),
+            self.state.left_top_pos(),
+            bounds
+                .max
+                .at_least(self.state.left_top_pos() + Vec2::splat(32.0)),
         );
 
         let shadow_radius = ctx.style().visuals.window_shadow.extrusion; // hacky
         let clip_rect_margin = ctx.style().visuals.clip_rect_margin.max(shadow_radius);
 
-        let clip_rect = Rect::from_min_max(self.state.pos, bounds.max)
+        let clip_rect = Rect::from_min_max(self.state.left_top_pos(), bounds.max)
             .expand(clip_rect_margin)
             .intersect(bounds);
 
@@ -410,7 +428,7 @@ impl Prepared {
 
         state.size = content_ui.min_rect().size();
 
-        ctx.memory().areas.set_state(layer_id, state);
+        ctx.memory_mut(|m| m.areas.set_state(layer_id, state));
 
         move_response
     }
@@ -418,7 +436,7 @@ impl Prepared {
 
 fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
     if let Some(pointer_pos) = ctx.pointer_interact_pos() {
-        let any_pressed = ctx.input().pointer.any_pressed();
+        let any_pressed = ctx.input(|i| i.pointer.any_pressed());
         any_pressed && ctx.layer_id_at(pointer_pos) == Some(layer_id)
     } else {
         false
@@ -426,13 +444,13 @@ fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
 }
 
 fn automatic_area_position(ctx: &Context) -> Pos2 {
-    let mut existing: Vec<Rect> = ctx
-        .memory()
-        .areas
-        .visible_windows()
-        .into_iter()
-        .map(State::rect)
-        .collect();
+    let mut existing: Vec<Rect> = ctx.memory(|mem| {
+        mem.areas
+            .visible_windows()
+            .into_iter()
+            .map(State::rect)
+            .collect()
+    });
     existing.sort_by_key(|r| r.left().round() as i32);
 
     let available_rect = ctx.available_rect();

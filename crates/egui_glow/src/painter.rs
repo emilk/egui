@@ -5,7 +5,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use egui::{
     emath::Rect,
-    epaint::{Color32, Mesh, PaintCallbackInfo, Primitive, Vertex},
+    epaint::{Mesh, PaintCallbackInfo, Primitive, Vertex},
 };
 use glow::HasContext as _;
 use memoffset::offset_of;
@@ -105,6 +105,23 @@ impl Painter {
     ) -> Result<Painter, String> {
         crate::profile_function!();
         crate::check_for_gl_error_even_in_release!(&gl, "before Painter::new");
+
+        // some useful debug info. all three of them are present in gl 1.1.
+        unsafe {
+            let version = gl.get_parameter_string(glow::VERSION);
+            let renderer = gl.get_parameter_string(glow::RENDERER);
+            let vendor = gl.get_parameter_string(glow::VENDOR);
+            tracing::debug!(
+                "\nopengl version: {version}\nopengl renderer: {renderer}\nopengl vendor: {vendor}"
+            );
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        if gl.version().major < 2 {
+            // this checks on desktop that we are not using opengl 1.1 microsoft sw rendering context.
+            // ShaderVersion::get fn will segfault due to SHADING_LANGUAGE_VERSION (added in gl2.0)
+            return Err("egui_glow requires opengl 2.0+. ".to_owned());
+        }
 
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
         let shader_version = shader_version.unwrap_or_else(|| ShaderVersion::get(&gl));
@@ -665,7 +682,7 @@ impl Painter {
     }
 }
 
-pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: egui::Rgba) {
+pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: [f32; 4]) {
     crate::profile_function!();
     unsafe {
         gl.disable(glow::SCISSOR_TEST);
@@ -676,24 +693,12 @@ pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: e
             screen_size_in_pixels[0] as i32,
             screen_size_in_pixels[1] as i32,
         );
-
-        if true {
-            // verified to be correct on eframe native (on Mac).
-            gl.clear_color(
-                clear_color[0],
-                clear_color[1],
-                clear_color[2],
-                clear_color[3],
-            );
-        } else {
-            let clear_color: Color32 = clear_color.into();
-            gl.clear_color(
-                clear_color[0] as f32 / 255.0,
-                clear_color[1] as f32 / 255.0,
-                clear_color[2] as f32 / 255.0,
-                clear_color[3] as f32 / 255.0,
-            );
-        }
+        gl.clear_color(
+            clear_color[0],
+            clear_color[1],
+            clear_color[2],
+            clear_color[3],
+        );
         gl.clear(glow::COLOR_BUFFER_BIT);
     }
 }

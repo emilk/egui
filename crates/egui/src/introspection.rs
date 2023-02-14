@@ -2,7 +2,7 @@
 use crate::*;
 
 pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
-    let families = ui.fonts().families();
+    let families = ui.fonts(|f| f.families());
     ui.horizontal(|ui| {
         for alternative in families {
             let text = alternative.to_string();
@@ -12,7 +12,7 @@ pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
 }
 
 pub fn font_id_ui(ui: &mut Ui, font_id: &mut FontId) {
-    let families = ui.fonts().families();
+    let families = ui.fonts(|f| f.families());
     ui.horizontal(|ui| {
         ui.add(Slider::new(&mut font_id.size, 4.0..=40.0).max_decimals(1));
         for alternative in families {

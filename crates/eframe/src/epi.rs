@@ -10,9 +10,11 @@
 use std::any::Any;
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 pub use crate::native::run::UserEvent;
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 pub use winit::event_loop::EventLoopBuilder;
 
 /// Hook into the building of an event loop before it is run
@@ -20,6 +22,7 @@ pub use winit::event_loop::EventLoopBuilder;
 /// You can configure any platform specific details required on top of the default configuration
 /// done by `EFrame`.
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)>;
 
 /// This is how your app is created.
@@ -149,13 +152,21 @@ pub trait App {
         egui::Vec2::INFINITY
     }
 
-    /// Background color for the app, e.g. what is sent to `gl.clearColor`.
+    /// Background color values for the app, e.g. what is sent to `gl.clearColor`.
+    ///
     /// This is the background of your windows if you don't set a central panel.
-    fn clear_color(&self, _visuals: &egui::Visuals) -> egui::Rgba {
+    ///
+    /// ATTENTION:
+    /// Since these float values go to the render as-is, any color space conversion as done
+    /// e.g. by converting from [`egui::Color32`] to [`egui::Rgba`] may cause incorrect results.
+    /// egui recommends that rendering backends use a normal "gamma-space" (non-sRGB-aware) blending,
+    ///  which means the values you return here should also be in `sRGB` gamma-space in the 0-1 range.
+    /// You can use [`egui::Color32::to_normalized_gamma_f32`] for this.
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
         // NOTE: a bright gray makes the shadows of the windows look weird.
         // We use a bit of transparency so that if the user switches on the
         // `transparent()` option they get immediate results.
-        egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).into()
+        egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).to_normalized_gamma_f32()
 
         // _visuals.window_fill() would also be a natural choice
     }
@@ -173,7 +184,7 @@ pub trait App {
     }
 
     /// If `true` a warm-up call to [`Self::update`] will be issued where
-    /// `ctx.memory().everything_is_visible()` will be set to `true`.
+    /// `ctx.memory(|mem| mem.everything_is_visible())` will be set to `true`.
     ///
     /// This can help pre-caching resources loaded by different parts of the UI, preventing stutter later on.
     ///
@@ -309,6 +320,7 @@ pub struct NativeOptions {
     pub hardware_acceleration: HardwareAcceleration,
 
     /// What rendering backend to use.
+    #[cfg(any(feature = "glow", feature = "wgpu"))]
     pub renderer: Renderer,
 
     /// Only used if the `dark-light` feature is enabled:
@@ -347,6 +359,7 @@ pub struct NativeOptions {
     /// event loop before it is run.
     ///
     /// Note: A [`NativeOptions`] clone will not include any `event_loop_builder` hook.
+    #[cfg(any(feature = "glow", feature = "wgpu"))]
     pub event_loop_builder: Option<EventLoopBuilderHook>,
 
     #[cfg(feature = "glow")]
@@ -373,9 +386,13 @@ impl Clone for NativeOptions {
     fn clone(&self) -> Self {
         Self {
             icon_data: self.icon_data.clone(),
+
+            #[cfg(any(feature = "glow", feature = "wgpu"))]
             event_loop_builder: None, // Skip any builder callbacks if cloning
+
             #[cfg(feature = "wgpu")]
             wgpu_options: self.wgpu_options.clone(),
+
             ..*self
         }
     }
@@ -389,8 +406,10 @@ impl Default for NativeOptions {
             maximized: false,
             decorated: true,
             fullscreen: false,
+
             #[cfg(target_os = "macos")]
             fullsize_content: false,
+
             drag_and_drop_support: true,
             icon_data: None,
             initial_window_pos: None,
@@ -405,14 +424,22 @@ impl Default for NativeOptions {
             depth_buffer: 0,
             stencil_buffer: 0,
             hardware_acceleration: HardwareAcceleration::Preferred,
+
+            #[cfg(any(feature = "glow", feature = "wgpu"))]
             renderer: Renderer::default(),
+
             follow_system_theme: cfg!(target_os = "macos") || cfg!(target_os = "windows"),
             default_theme: Theme::Dark,
             run_and_return: true,
+
+            #[cfg(any(feature = "glow", feature = "wgpu"))]
             event_loop_builder: None,
+
             #[cfg(feature = "glow")]
             shader_version: None,
+
             centered: false,
+
             #[cfg(feature = "wgpu")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
         }
@@ -429,6 +456,7 @@ impl NativeOptions {
             match dark_light::detect() {
                 dark_light::Mode::Dark => Some(Theme::Dark),
                 dark_light::Mode::Light => Some(Theme::Light),
+                dark_light::Mode::Default => None,
             }
         } else {
             None
@@ -550,6 +578,7 @@ pub enum WebGlContextOption {
 /// What rendering backend to use.
 ///
 /// You need to enable the "glow" and "wgpu" features to have a choice.
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
@@ -563,6 +592,7 @@ pub enum Renderer {
     Wgpu,
 }
 
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 impl Default for Renderer {
     fn default() -> Self {
         #[cfg(feature = "glow")]
@@ -578,6 +608,7 @@ impl Default for Renderer {
     }
 }
 
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 impl std::fmt::Display for Renderer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -590,6 +621,7 @@ impl std::fmt::Display for Renderer {
     }
 }
 
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 impl std::str::FromStr for Renderer {
     type Err = String;
 
@@ -709,6 +741,18 @@ impl Frame {
         self.output.close = true;
     }
 
+    /// Minimize or unminimize window. (native only)
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn set_minimized(&mut self, minimized: bool) {
+        self.output.minimized = Some(minimized);
+    }
+
+    /// Maximize or unmaximize window. (native only)
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn set_maximized(&mut self, maximized: bool) {
+        self.output.maximized = Some(maximized);
+    }
+
     /// Tell `eframe` to close the desktop window.
     #[cfg(not(target_arch = "wasm32"))]
     #[deprecated = "Renamed `close`"]
@@ -790,6 +834,7 @@ impl Frame {
     }
 
     /// for integrations only: call once per frame
+    #[cfg(any(feature = "glow", feature = "wgpu"))]
     pub(crate) fn take_app_output(&mut self) -> backend::AppOutput {
         std::mem::take(&mut self.output)
     }
@@ -819,6 +864,12 @@ pub struct WindowInfo {
 
     /// Are we in fullscreen mode?
     pub fullscreen: bool,
+
+    /// Are we minimized?
+    pub minimized: bool,
+
+    /// Are we maximized?
+    pub maximized: bool,
 
     /// Window inner size in egui points (logical pixels).
     pub size: egui::Vec2,
@@ -1002,5 +1053,13 @@ pub(crate) mod backend {
         /// Set to some bool to tell the window always on top.
         #[cfg(not(target_arch = "wasm32"))]
         pub always_on_top: Option<bool>,
+
+        /// Set to some bool to minimize or unminimize window.
+        #[cfg(not(target_arch = "wasm32"))]
+        pub minimized: Option<bool>,
+
+        /// Set to some bool to maximize or unmaximize window.
+        #[cfg(not(target_arch = "wasm32"))]
+        pub maximized: Option<bool>,
     }
 }

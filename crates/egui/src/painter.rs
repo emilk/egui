@@ -7,7 +7,6 @@ use crate::{
     Color32, Context, FontId,
 };
 use epaint::{
-    mutex::{RwLockReadGuard, RwLockWriteGuard},
     text::{Fonts, Galley},
     CircleShape, RectShape, Rounding, Shape, Stroke,
 };
@@ -105,10 +104,12 @@ impl Painter {
         &self.ctx
     }
 
-    /// Available fonts.
+    /// Read-only access to the shared [`Fonts`].
+    ///
+    /// See [`Context`] documentation for how locks work.
     #[inline(always)]
-    pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
-        self.ctx.fonts()
+    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+        self.ctx.fonts(reader)
     }
 
     /// Where we paint
@@ -152,8 +153,9 @@ impl Painter {
 
 /// ## Low level
 impl Painter {
-    fn paint_list(&self) -> RwLockWriteGuard<'_, PaintList> {
-        RwLockWriteGuard::map(self.ctx.graphics(), |g| g.list(self.layer_id))
+    #[inline]
+    fn paint_list<R>(&self, writer: impl FnOnce(&mut PaintList) -> R) -> R {
+        self.ctx.graphics_mut(|g| writer(g.list(self.layer_id)))
     }
 
     fn transform_shape(&self, shape: &mut Shape) {
@@ -167,11 +169,11 @@ impl Painter {
     /// NOTE: all coordinates are screen coordinates!
     pub fn add(&self, shape: impl Into<Shape>) -> ShapeIdx {
         if self.fade_to_color == Some(Color32::TRANSPARENT) {
-            self.paint_list().add(self.clip_rect, Shape::Noop)
+            self.paint_list(|l| l.add(self.clip_rect, Shape::Noop))
         } else {
             let mut shape = shape.into();
             self.transform_shape(&mut shape);
-            self.paint_list().add(self.clip_rect, shape)
+            self.paint_list(|l| l.add(self.clip_rect, shape))
         }
     }
 
@@ -187,9 +189,9 @@ impl Painter {
                 self.transform_shape(&mut shape);
                 shape
             });
-            self.paint_list().extend(self.clip_rect, shapes);
+            self.paint_list(|l| l.extend(self.clip_rect, shapes));
         } else {
-            self.paint_list().extend(self.clip_rect, shapes);
+            self.paint_list(|l| l.extend(self.clip_rect, shapes));
         };
     }
 
@@ -200,7 +202,7 @@ impl Painter {
         }
         let mut shape = shape.into();
         self.transform_shape(&mut shape);
-        self.paint_list().set(idx, self.clip_rect, shape);
+        self.paint_list(|l| l.set(idx, self.clip_rect, shape));
     }
 }
 
@@ -405,7 +407,7 @@ impl Painter {
         color: crate::Color32,
         wrap_width: f32,
     ) -> Arc<Galley> {
-        self.fonts().layout(text, font_id, color, wrap_width)
+        self.fonts(|f| f.layout(text, font_id, color, wrap_width))
     }
 
     /// Will line break at `\n`.
@@ -418,7 +420,7 @@ impl Painter {
         font_id: FontId,
         color: crate::Color32,
     ) -> Arc<Galley> {
-        self.fonts().layout(text, font_id, color, f32::INFINITY)
+        self.fonts(|f| f.layout(text, font_id, color, f32::INFINITY))
     }
 
     /// Paint text that has already been layed out in a [`Galley`].

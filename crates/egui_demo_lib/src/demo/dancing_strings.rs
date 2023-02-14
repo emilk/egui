@@ -30,7 +30,7 @@ impl super::View for DancingStrings {
 
         Frame::canvas(ui.style()).show(ui, |ui| {
             ui.ctx().request_repaint();
-            let time = ui.input().time;
+            let time = ui.input(|i| i.time);
 
             let desired_size = ui.available_width() * vec2(1.0, 0.35);
             let (_id, rect) = ui.allocate_space(desired_size);

@@ -973,12 +973,16 @@ pub struct Tessellator {
     pixels_per_point: f32,
     options: TessellationOptions,
     font_tex_size: [usize; 2],
+
     /// See [`TextureAtlas::prepared_discs`].
     prepared_discs: Vec<PreparedDisc>,
+
     /// size of feathering in points. normally the size of a physical pixel. 0.0 if disabled
     feathering: f32,
+
     /// Only used for culling
     clip_rect: Rect,
+
     scratchpad_points: Vec<Pos2>,
     scratchpad_path: Path,
 }
