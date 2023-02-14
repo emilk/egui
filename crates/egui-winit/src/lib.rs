@@ -60,6 +60,7 @@ pub struct State {
     pointer_pos_in_points: Option<egui::Pos2>,
     any_pointer_button_down: bool,
     current_cursor_icon: Option<egui::CursorIcon>,
+
     /// What egui uses.
     current_pixels_per_point: f32,
 

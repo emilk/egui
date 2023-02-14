@@ -305,6 +305,7 @@ pub struct Spacing {
 
     /// Margin between contents and scroll bar.
     pub scroll_bar_inner_margin: f32,
+
     /// Margin between scroll bar and the outer container (e.g. right of a vertical scroll bar).
     pub scroll_bar_outer_margin: f32,
 }
@@ -491,6 +492,7 @@ pub struct Visuals {
     pub resize_corner_size: f32,
 
     pub text_cursor_width: f32,
+
     /// show where the text cursor would be if you clicked
     pub text_cursor_preview: bool,
 

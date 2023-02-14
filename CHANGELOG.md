@@ -5,10 +5,12 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 
 ## Unreleased
+
+
+## 0.21.0 - 2023-02-08 - Deadlock fix and style customizability
 * ⚠️ BREAKING: `egui::Context` now use closures for locking ([#2625](https://github.com/emilk/egui/pull/2625)):
   * `ctx.input().key_pressed(Key::A)` -> `ctx.input(|i| i.key_pressed(Key::A))`
   * `ui.memory().toggle_popup(popup_id)` -> `ui.memory_mut(|mem| mem.toggle_popup(popup_id))`
-* Add `Slider::trailing_fill` for trailing color behind the circle like a `ProgressBar` ([#2660](https://github.com/emilk/egui/pull/2660)).
 
 ### Added ⭐
 * Add `Response::drag_started_by` and `Response::drag_released_by` for convenience, similar to `dragged` and `dragged_by` ([#2507](https://github.com/emilk/egui/pull/2507)).
@@ -27,6 +29,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * You can turn off the vertical line left of indented regions with `Visuals::indent_has_left_vline` ([#2636](https://github.com/emilk/egui/pull/2636)).
 * Add `Response.highlight` to highlight a widget ([#2632](https://github.com/emilk/egui/pull/2632)).
 * Add `Separator::grow` and `Separator::shrink` ([#2665](https://github.com/emilk/egui/pull/2665)).
+* Add `Slider::trailing_fill` for trailing color behind the circle like a `ProgressBar` ([#2660](https://github.com/emilk/egui/pull/2660)).
 
 ### Changed 🔧
 * Improved plot grid appearance ([#2412](https://github.com/emilk/egui/pull/2412)).
@@ -35,14 +38,15 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * `DragValue` and `Slider` now use the proportional font ([#2638](https://github.com/emilk/egui/pull/2638)).
 * `ScrollArea` is less aggressive about clipping its contents ([#2665](https://github.com/emilk/egui/pull/2665)).
 * Updated to be compatible with a major breaking change in AccessKit that drastically reduces memory usage when accessibility is enabled ([#2678](https://github.com/emilk/egui/pull/2678)).
+* Improve `DragValue` behavior ([#2649](https://github.com/emilk/egui/pull/2649), [#2650](https://github.com/emilk/egui/pull/2650), [#2688](https://github.com/emilk/egui/pull/2688), [#2638](https://github.com/emilk/egui/pull/2638)).
 
 ### Fixed 🐛
 * Trigger `PointerEvent::Released` for drags ([#2507](https://github.com/emilk/egui/pull/2507)).
 * Expose `TextEdit`'s multiline flag to AccessKit ([#2448](https://github.com/emilk/egui/pull/2448)).
 * Don't render `\r` (Carriage Return) ([#2452](https://github.com/emilk/egui/pull/2452)).
 * The `button_padding` style option works closer as expected with image+text buttons now ([#2510](https://github.com/emilk/egui/pull/2510)).
-* Fixed rendering of `…` (ellipsis).
 * Menus are now moved to fit on the screen.
+* Fix `Window::pivot` causing windows to move around ([#2694](https://github.com/emilk/egui/pull/2694)).
 
 
 ## 0.20.1 - 2022-12-11 - Fix key-repeat

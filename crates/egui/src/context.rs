@@ -65,6 +65,7 @@ struct ContextImpl {
 
     /// Written to during the frame.
     layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
+
     /// Read
     layer_rects_prev_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
 
@@ -105,7 +106,8 @@ impl ContextImpl {
         self.memory.areas.set_state(
             LayerId::background(),
             containers::area::State {
-                pos: screen_rect.min,
+                pivot_pos: screen_rect.left_top(),
+                pivot: Align2::LEFT_TOP,
                 size: screen_rect.size(),
                 interactable: true,
             },

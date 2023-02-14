@@ -15,6 +15,7 @@ use crate::*;
 pub struct Pos2 {
     /// How far to the right.
     pub x: f32,
+
     /// How far down.
     pub y: f32,
     // implicit w = 1

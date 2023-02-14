@@ -447,8 +447,10 @@ impl InputState {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Click {
     pub pos: Pos2,
+
     /// 1 or 2 (double-click) or 3 (triple-click)
     pub count: u32,
+
     /// Allows you to check for e.g. shift-click
     pub modifiers: Modifiers,
 }

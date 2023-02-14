@@ -513,18 +513,30 @@ pub mod special_emojis {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WidgetType {
     Label, // TODO(emilk): emit Label events
+
     /// e.g. a hyperlink
     Link,
+
     TextEdit,
+
     Button,
+
     Checkbox,
+
     RadioButton,
+
     SelectableLabel,
+
     ComboBox,
+
     Slider,
+
     DragValue,
+
     ColorButton,
+
     ImageButton,
+
     CollapsingHeader,
 
     /// If you cannot fit any of the above slots.

@@ -10,9 +10,11 @@
 use std::any::Any;
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 pub use crate::native::run::UserEvent;
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 pub use winit::event_loop::EventLoopBuilder;
 
 /// Hook into the building of an event loop before it is run
@@ -20,6 +22,7 @@ pub use winit::event_loop::EventLoopBuilder;
 /// You can configure any platform specific details required on top of the default configuration
 /// done by `EFrame`.
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)>;
 
 /// This is how your app is created.
@@ -317,6 +320,7 @@ pub struct NativeOptions {
     pub hardware_acceleration: HardwareAcceleration,
 
     /// What rendering backend to use.
+    #[cfg(any(feature = "glow", feature = "wgpu"))]
     pub renderer: Renderer,
 
     /// Only used if the `dark-light` feature is enabled:
@@ -355,6 +359,7 @@ pub struct NativeOptions {
     /// event loop before it is run.
     ///
     /// Note: A [`NativeOptions`] clone will not include any `event_loop_builder` hook.
+    #[cfg(any(feature = "glow", feature = "wgpu"))]
     pub event_loop_builder: Option<EventLoopBuilderHook>,
 
     #[cfg(feature = "glow")]
@@ -381,9 +386,13 @@ impl Clone for NativeOptions {
     fn clone(&self) -> Self {
         Self {
             icon_data: self.icon_data.clone(),
+
+            #[cfg(any(feature = "glow", feature = "wgpu"))]
             event_loop_builder: None, // Skip any builder callbacks if cloning
+
             #[cfg(feature = "wgpu")]
             wgpu_options: self.wgpu_options.clone(),
+
             ..*self
         }
     }
@@ -397,8 +406,10 @@ impl Default for NativeOptions {
             maximized: false,
             decorated: true,
             fullscreen: false,
+
             #[cfg(target_os = "macos")]
             fullsize_content: false,
+
             drag_and_drop_support: true,
             icon_data: None,
             initial_window_pos: None,
@@ -413,14 +424,22 @@ impl Default for NativeOptions {
             depth_buffer: 0,
             stencil_buffer: 0,
             hardware_acceleration: HardwareAcceleration::Preferred,
+
+            #[cfg(any(feature = "glow", feature = "wgpu"))]
             renderer: Renderer::default(),
+
             follow_system_theme: cfg!(target_os = "macos") || cfg!(target_os = "windows"),
             default_theme: Theme::Dark,
             run_and_return: true,
+
+            #[cfg(any(feature = "glow", feature = "wgpu"))]
             event_loop_builder: None,
+
             #[cfg(feature = "glow")]
             shader_version: None,
+
             centered: false,
+
             #[cfg(feature = "wgpu")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
         }
@@ -559,6 +578,7 @@ pub enum WebGlContextOption {
 /// What rendering backend to use.
 ///
 /// You need to enable the "glow" and "wgpu" features to have a choice.
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
@@ -572,6 +592,7 @@ pub enum Renderer {
     Wgpu,
 }
 
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 impl Default for Renderer {
     fn default() -> Self {
         #[cfg(feature = "glow")]
@@ -587,6 +608,7 @@ impl Default for Renderer {
     }
 }
 
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 impl std::fmt::Display for Renderer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -599,6 +621,7 @@ impl std::fmt::Display for Renderer {
     }
 }
 
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 impl std::str::FromStr for Renderer {
     type Err = String;
 
@@ -811,6 +834,7 @@ impl Frame {
     }
 
     /// for integrations only: call once per frame
+    #[cfg(any(feature = "glow", feature = "wgpu"))]
     pub(crate) fn take_app_output(&mut self) -> backend::AppOutput {
         std::mem::take(&mut self.output)
     }

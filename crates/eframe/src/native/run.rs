@@ -38,6 +38,7 @@ pub use epi::NativeOptions;
 #[derive(Debug)]
 enum EventResult {
     Wait,
+
     /// Causes a synchronous repaint inside the event handler. This should only
     /// be used in special situations if the window must be repainted while
     /// handling a specific event. This occurs on Windows when handling resizes.
@@ -45,20 +46,28 @@ enum EventResult {
     /// `RepaintNow` creates a new frame synchronously, and should therefore
     /// only be used for extremely urgent repaints.
     RepaintNow,
+
     /// Queues a repaint for once the event loop handles its next redraw. Exists
     /// so that multiple input events can be handled in one frame. Does not
     /// cause any delay like `RepaintNow`.
     RepaintNext,
+
     RepaintAt(Instant),
+
     Exit,
 }
 
 trait WinitApp {
     fn is_focused(&self) -> bool;
+
     fn integration(&self) -> Option<&EpiIntegration>;
+
     fn window(&self) -> Option<&winit::window::Window>;
+
     fn save_and_destroy(&mut self);
+
     fn paint(&mut self) -> EventResult;
+
     fn on_event(
         &mut self,
         event_loop: &EventLoopWindowTarget<UserEvent>,
@@ -152,8 +161,8 @@ fn run_and_return(
             event => match winit_app.on_event(event_loop, event) {
                 Ok(event_result) => event_result,
                 Err(err) => {
+                    tracing::error!("Exiting because of error: {err:?} on event {event:?}");
                     returned_result = Err(err);
-                    tracing::debug!("Exiting because of an error");
                     EventResult::Exit
                 }
             },
@@ -297,6 +306,12 @@ mod glow_integration {
     use std::sync::Arc;
 
     use egui::NumExt as _;
+    use glutin::{
+        display::GetGlDisplay,
+        prelude::{GlDisplay, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentGlContext},
+        surface::GlSurface,
+    };
+    use raw_window_handle::HasRawWindowHandle;
 
     use super::*;
 
@@ -321,132 +336,260 @@ mod glow_integration {
         painter: egui_glow::Painter,
         integration: epi_integration::EpiIntegration,
         app: Box<dyn epi::App>,
-
         // Conceptually this will be split out eventually so that the rest of the state
         // can be persistent.
         gl_window: GlutinWindowContext,
     }
+
+    /// This struct will contain both persistent and temporary glutin state.
+    ///
+    /// Platform Quirks:
+    /// * Microsoft Windows: requires that we create a window before opengl context.
+    /// * Android: window and surface should be destroyed when we receive a suspend event. recreate on resume event.
+    ///
+    /// winit guarantees that we will get a Resumed event on startup on all platforms.
+    /// * Before Resumed event: `gl_config`, `gl_context` can be created at any time. on windows, a window must be created to get `gl_context`.
+    /// * Resumed: `gl_surface` will be created here. `window` will be re-created here for android.
+    /// * Suspended: on android, we drop window + surface.  on other platforms, we don't get Suspended event.
+    ///
+    /// The setup is divided between the `new` fn and `on_resume` fn. we can just assume that `on_resume` is a continuation of
+    /// `new` fn on all platforms. only on android, do we get multiple resumed events because app can be suspended.
     struct GlutinWindowContext {
-        window: winit::window::Window,
-        gl_context: glutin::context::PossiblyCurrentContext,
-        gl_display: glutin::display::Display,
-        gl_surface: glutin::surface::Surface<glutin::surface::WindowSurface>,
+        builder: winit::window::WindowBuilder,
+        swap_interval: glutin::surface::SwapInterval,
+        gl_config: glutin::config::Config,
+        current_gl_context: Option<glutin::context::PossiblyCurrentContext>,
+        gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
+        not_current_gl_context: Option<glutin::context::NotCurrentContext>,
+        window: Option<winit::window::Window>,
     }
 
     impl GlutinWindowContext {
-        // refactor this function to use `glutin-winit` crate eventually.
-        // preferably add android support at the same time.
+        /// There is a lot of complexity with opengl creation, so prefer extensivve logging to get all the help we can to debug issues.
+        ///
         #[allow(unsafe_code)]
         unsafe fn new(
-            winit_window: winit::window::Window,
+            winit_window_builder: winit::window::WindowBuilder,
             native_options: &epi::NativeOptions,
+            event_loop: &EventLoopWindowTarget<UserEvent>,
         ) -> Result<Self> {
             use glutin::prelude::*;
-            use raw_window_handle::*;
+            // convert native options to glutin options
             let hardware_acceleration = match native_options.hardware_acceleration {
                 crate::HardwareAcceleration::Required => Some(true),
                 crate::HardwareAcceleration::Preferred => None,
                 crate::HardwareAcceleration::Off => Some(false),
             };
-
-            let raw_display_handle = winit_window.raw_display_handle();
-            let raw_window_handle = winit_window.raw_window_handle();
-
-            // EGL is crossplatform and the official khronos way
-            // but sometimes platforms/drivers may not have it, so we use back up options where possible.
-            // TODO: check whether we can expose these options as "features", so that users can select the relevant backend they want.
-
-            // try egl and fallback to windows wgl. Windows is the only platform that *requires* window handle to create display.
-            #[cfg(target_os = "windows")]
-            let preference =
-                glutin::display::DisplayApiPreference::EglThenWgl(Some(raw_window_handle));
-            // try egl and fallback to x11 glx
-            #[cfg(target_os = "linux")]
-            let preference = glutin::display::DisplayApiPreference::EglThenGlx(Box::new(
-                winit::platform::x11::register_xlib_error_hook,
-            ));
-            #[cfg(target_os = "macos")]
-            let preference = glutin::display::DisplayApiPreference::Cgl;
-            #[cfg(target_os = "android")]
-            let preference = glutin::display::DisplayApiPreference::Egl;
-
-            let gl_display = glutin::display::Display::new(raw_display_handle, preference)?;
             let swap_interval = if native_options.vsync {
                 glutin::surface::SwapInterval::Wait(std::num::NonZeroU32::new(1).unwrap())
             } else {
                 glutin::surface::SwapInterval::DontWait
             };
-
-            let config_template = glutin::config::ConfigTemplateBuilder::new()
+            /*  opengl setup flow goes like this:
+                1. we create a configuration for opengl "Display" / "Config" creation
+                2. choose between special extensions like glx or egl or wgl and use them to create config/display
+                3. opengl context configuration
+                4. opengl context creation
+            */
+            // start building config for gl display
+            let config_template_builder = glutin::config::ConfigTemplateBuilder::new()
                 .prefer_hardware_accelerated(hardware_acceleration)
-                .with_depth_size(native_options.depth_buffer);
+                .with_depth_size(native_options.depth_buffer)
+                .with_stencil_size(native_options.stencil_buffer)
+                .with_transparency(native_options.transparent);
             // we don't know if multi sampling option is set. so, check if its more than 0.
-            let config_template = if native_options.multisampling > 0 {
-                config_template.with_multisampling(
+            let config_template_builder = if native_options.multisampling > 0 {
+                config_template_builder.with_multisampling(
                     native_options
                         .multisampling
                         .try_into()
-                        .expect("failed to fit multisamples into u8"),
+                        .expect("failed to fit multisamples option of native_options into u8"),
                 )
             } else {
-                config_template
+                config_template_builder
             };
-            let config_template = config_template
-                .with_stencil_size(native_options.stencil_buffer)
-                .with_transparency(native_options.transparent)
-                .compatible_with_native_window(raw_window_handle)
-                .build();
-            // finds all valid configurations supported by this display that match the config_template
-            // this is where we will try to get a "fallback" config if we are okay with ignoring some native
-            // options required by user like multi sampling, srgb, transparency etc..
-            // TODO: need to figure out a good fallback config template
-            let config = gl_display
-                .find_configs(config_template.clone())?
-                .next()
-                .ok_or(crate::Error::NoGlutinConfigs(config_template))?;
 
+            tracing::debug!(
+                "trying to create glutin Display with config: {:?}",
+                &config_template_builder
+            );
+            // create gl display. this may probably create a window too on most platforms. definitely on `MS windows`. never on android.
+            let (window, gl_config) = glutin_winit::DisplayBuilder::new()
+                // we might want to expose this option to users in the future. maybe using an env var or using native_options.
+                .with_preference(glutin_winit::ApiPrefence::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
+                .with_window_builder(Some(winit_window_builder.clone()))
+                .build(
+                    event_loop,
+                    config_template_builder.clone(),
+                    |mut config_iterator| {
+                        let config = config_iterator.next().expect(
+                            "failed to find a matching configuration for creating glutin config",
+                        );
+                        tracing::debug!(
+                            "using the first config from config picker closure. config: {:?}",
+                            &config
+                        );
+                        config
+                    },
+                )
+                .map_err(|e| crate::Error::NoGlutinConfigs(config_template_builder.build(), e))?;
+
+            let gl_display = gl_config.display();
+            tracing::debug!(
+                "successfully created GL Display with version: {} and supported features: {:?}",
+                gl_display.version_string(),
+                gl_display.supported_features()
+            );
+            let raw_window_handle = window.as_ref().map(|w| w.raw_window_handle());
+            tracing::debug!(
+                "creating gl context using raw window handle: {:?}",
+                raw_window_handle
+            );
+
+            // create gl context. if core context cannot be created, try gl es context as fallback.
             let context_attributes =
-                glutin::context::ContextAttributesBuilder::new().build(Some(raw_window_handle));
-            // for surface creation.
-            let (width, height): (u32, u32) = winit_window.inner_size().into();
+                glutin::context::ContextAttributesBuilder::new().build(raw_window_handle);
+            let fallback_context_attributes = glutin::context::ContextAttributesBuilder::new()
+                .with_context_api(glutin::context::ContextApi::Gles(None))
+                .build(raw_window_handle);
+            let gl_context = match gl_config
+                .display()
+                .create_context(&gl_config, &context_attributes)
+            {
+                Ok(it) => it,
+                Err(err) => {
+                    tracing::warn!("failed to create context using default context attributes {context_attributes:?} due to error: {err}");
+                    tracing::debug!("retrying with fallback context attributes: {fallback_context_attributes:?}");
+                    gl_config
+                        .display()
+                        .create_context(&gl_config, &fallback_context_attributes)?
+                }
+            };
+            let not_current_gl_context = Some(gl_context);
+
+            // the fun part with opengl gl is that we never know whether there is an error. the context creation might have failed, but
+            // it could keep working until we try to make surface current or swap buffers or something else. future glutin improvements might
+            // help us start from scratch again if we fail context creation and go back to preferEgl or try with different config etc..
+            // https://github.com/emilk/egui/pull/2541#issuecomment-1370767582
+            Ok(GlutinWindowContext {
+                builder: winit_window_builder,
+                swap_interval,
+                gl_config,
+                current_gl_context: None,
+                window,
+                gl_surface: None,
+                not_current_gl_context,
+            })
+        }
+
+        /// This will be run after `new`. on android, it might be called multiple times over the course of the app's lifetime.
+        /// roughly,
+        /// 1. check if window already exists. otherwise, create one now.
+        /// 2. create attributes for surface creation.
+        /// 3. create surface.
+        /// 4. make surface and context current.
+        ///
+        /// we presently assume that we will
+        #[allow(unsafe_code)]
+        fn on_resume(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
+            if self.gl_surface.is_some() {
+                tracing::warn!(
+                    "on_resume called even thought we already have a surface. early return"
+                );
+                return Ok(());
+            }
+            tracing::debug!("running on_resume fn.");
+            // make sure we have a window or create one.
+            let window = self.window.take().unwrap_or_else(|| {
+                tracing::debug!("window doesn't exist yet. creating one now with finalize_window");
+                glutin_winit::finalize_window(event_loop, self.builder.clone(), &self.gl_config)
+                    .expect("failed to finalize glutin window")
+            });
+            // surface attributes
+            let (width, height): (u32, u32) = window.inner_size().into();
             let width = std::num::NonZeroU32::new(width.at_least(1)).unwrap();
             let height = std::num::NonZeroU32::new(height.at_least(1)).unwrap();
             let surface_attributes =
                 glutin::surface::SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new()
-                    .build(raw_window_handle, width, height);
-            // start creating the gl objects
-            let gl_context = gl_display.create_context(&config, &context_attributes)?;
+                    .build(window.raw_window_handle(), width, height);
+            tracing::debug!(
+                "creating surface with attributes: {:?}",
+                &surface_attributes
+            );
+            // create surface
+            let gl_surface = unsafe {
+                self.gl_config
+                    .display()
+                    .create_window_surface(&self.gl_config, &surface_attributes)?
+            };
+            tracing::debug!("surface created successfully: {gl_surface:?}.making context current");
+            // make surface and context current.
+            let not_current_gl_context = self
+                .not_current_gl_context
+                .take()
+                .expect("failed to get not current context after resume event. impossible!");
+            let current_gl_context = not_current_gl_context.make_current(&gl_surface)?;
+            // try setting swap interval. but its not absolutely necessary, so don't panic on failure.
+            tracing::debug!("made context current. setting swap interval for surface");
+            if let Err(e) = gl_surface.set_swap_interval(&current_gl_context, self.swap_interval) {
+                tracing::error!("failed to set swap interval due to error: {e:?}");
+            }
+            // we will reach this point only once in most platforms except android.
+            // create window/surface/make context current once and just use them forever.
+            self.gl_surface = Some(gl_surface);
+            self.current_gl_context = Some(current_gl_context);
+            self.window = Some(window);
+            Ok(())
+        }
 
-            let gl_surface = gl_display.create_window_surface(&config, &surface_attributes)?;
-            let gl_context = gl_context.make_current(&gl_surface)?;
-            gl_surface.set_swap_interval(&gl_context, swap_interval)?;
-            Ok(GlutinWindowContext {
-                window: winit_window,
-                gl_context,
-                gl_display,
-                gl_surface,
-            })
+        /// only applies for android. but we basically drop surface + window and make context not current
+        fn on_suspend(&mut self) -> Result<()> {
+            tracing::debug!("received suspend event. dropping window and surface");
+            self.gl_surface.take();
+            self.window.take();
+            if let Some(current) = self.current_gl_context.take() {
+                tracing::debug!("context is current, so making it non-current");
+                self.not_current_gl_context = Some(current.make_not_current()?);
+            } else {
+                tracing::debug!(
+                    "context is already not current??? could be duplicate suspend event"
+                );
+            }
+            Ok(())
         }
 
         fn window(&self) -> &winit::window::Window {
-            &self.window
+            self.window.as_ref().expect("winit window doesn't exist")
         }
 
         fn resize(&self, physical_size: winit::dpi::PhysicalSize<u32>) {
-            use glutin::surface::GlSurface;
             let width = std::num::NonZeroU32::new(physical_size.width.at_least(1)).unwrap();
             let height = std::num::NonZeroU32::new(physical_size.height.at_least(1)).unwrap();
-            self.gl_surface.resize(&self.gl_context, width, height);
+            self.gl_surface
+                .as_ref()
+                .expect("failed to get surface to resize")
+                .resize(
+                    self.current_gl_context
+                        .as_ref()
+                        .expect("failed to get current context to resize surface"),
+                    width,
+                    height,
+                );
         }
 
         fn swap_buffers(&self) -> glutin::error::Result<()> {
-            use glutin::surface::GlSurface;
-            self.gl_surface.swap_buffers(&self.gl_context)
+            self.gl_surface
+                .as_ref()
+                .expect("failed to get surface to swap buffers")
+                .swap_buffers(
+                    self.current_gl_context
+                        .as_ref()
+                        .expect("failed to get current context to swap buffers"),
+                )
         }
 
         fn get_proc_address(&self, addr: &std::ffi::CStr) -> *const std::ffi::c_void {
-            use glutin::display::GlDisplay;
-            self.gl_display.get_proc_address(addr)
+            self.gl_config.display().get_proc_address(addr)
         }
     }
 
@@ -494,11 +637,17 @@ mod glow_integration {
 
             let window_settings = epi_integration::load_window_settings(storage);
 
-            let winit_window =
-                epi_integration::build_window(event_loop, title, native_options, window_settings)?;
-            // a lot of the code below has been lifted from glutin example in their repo.
-            let glutin_window_context =
-                unsafe { GlutinWindowContext::new(winit_window, native_options)? };
+            let winit_window_builder =
+                epi_integration::window_builder(event_loop, title, native_options, window_settings);
+            let mut glutin_window_context = unsafe {
+                GlutinWindowContext::new(winit_window_builder, native_options, event_loop)?
+            };
+            glutin_window_context.on_resume(event_loop)?;
+
+            if let Some(window) = &glutin_window_context.window {
+                epi_integration::apply_native_options_to_window(window, native_options);
+            }
+
             let gl = unsafe {
                 glow::Context::from_loader_function(|s| {
                     let s = std::ffi::CString::new(s)
@@ -727,26 +876,24 @@ mod glow_integration {
         ) -> Result<EventResult> {
             Ok(match event {
                 winit::event::Event::Resumed => {
+                    // first resume event.
+                    // we can actually move this outside of event loop.
+                    // and just run the on_resume fn of gl_window
                     if self.running.is_none() {
                         self.init_run_state(event_loop)?;
+                    } else {
+                        // not the first resume event. create whatever you need.
+                        self.running
+                            .as_mut()
+                            .unwrap()
+                            .gl_window
+                            .on_resume(event_loop)?;
                     }
                     EventResult::RepaintNow
                 }
                 winit::event::Event::Suspended => {
-                    #[cfg(target_os = "android")]
-                    {
-                        tracing::error!("Suspended app can't destroy Window surface state with current Egui Glow backend (undefined behaviour)");
-                        // Instead of destroying everything which we _know_ we can't re-create
-                        // we instead currently just try our luck with not destroying anything.
-                        //
-                        // When the application resumes then it will get a new `SurfaceView` but
-                        // we have no practical way currently of creating a new EGL surface
-                        // via the Glutin API while keeping the GL context and the rest of
-                        // our app state. This will likely result in a black screen or
-                        // frozen screen.
-                        //
-                        //self.running = None;
-                    }
+                    self.running.as_mut().unwrap().gl_window.on_suspend()?;
+
                     EventResult::Wait
                 }
 
@@ -917,7 +1064,11 @@ mod wgpu_integration {
             native_options: &NativeOptions,
         ) -> std::result::Result<winit::window::Window, winit::error::OsError> {
             let window_settings = epi_integration::load_window_settings(storage);
-            epi_integration::build_window(event_loop, title, native_options, window_settings)
+            let window_builder =
+                epi_integration::window_builder(event_loop, title, native_options, window_settings);
+            let window = window_builder.build(event_loop)?;
+            epi_integration::apply_native_options_to_window(&window, native_options);
+            Ok(window)
         }
 
         #[allow(unsafe_code)]

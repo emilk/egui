@@ -10,6 +10,7 @@ publish = false
 
 [dependencies]
 eframe = { path = "../../crates/eframe", features = [
+    "puffin",
     "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
 ] }
 puffin = "0.14"
