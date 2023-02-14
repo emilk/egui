@@ -513,18 +513,30 @@ pub mod special_emojis {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WidgetType {
     Label, // TODO(emilk): emit Label events
+
     /// e.g. a hyperlink
     Link,
+
     TextEdit,
+
     Button,
+
     Checkbox,
+
     RadioButton,
+
     SelectableLabel,
+
     ComboBox,
+
     Slider,
+
     DragValue,
+
     ColorButton,
+
     ImageButton,
+
     CollapsingHeader,
 
     /// If you cannot fit any of the above slots.
@@ -558,26 +570,4 @@ pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
 #[cfg(feature = "accesskit")]
 pub fn accesskit_root_id() -> Id {
     Id::new("accesskit_root")
-}
-
-/// Return a tree update that the egui integration should provide to the
-/// AccessKit adapter if it cannot immediately run the egui application
-/// to get a full tree update after running [`Context::enable_accesskit`].
-#[cfg(feature = "accesskit")]
-pub fn accesskit_placeholder_tree_update() -> accesskit::TreeUpdate {
-    use accesskit::{Node, Role, Tree, TreeUpdate};
-    use std::sync::Arc;
-
-    let root_id = accesskit_root_id().accesskit_id();
-    TreeUpdate {
-        nodes: vec![(
-            root_id,
-            Arc::new(Node {
-                role: Role::Window,
-                ..Default::default()
-            }),
-        )],
-        tree: Some(Tree::new(root_id)),
-        focus: None,
-    }
 }

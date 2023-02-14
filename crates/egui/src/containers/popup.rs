@@ -260,8 +260,9 @@ fn show_tooltip_area_dyn<'c, R>(
     Area::new(area_id)
         .order(Order::Tooltip)
         .fixed_pos(window_pos)
+        .constrain(true)
         .interactable(false)
-        .drag_bounds(Rect::EVERYTHING) // disable clip rect
+        .drag_bounds(ctx.screen_rect())
         .show(ctx, |ui| {
             Frame::popup(&ctx.style())
                 .show(ui, |ui| {

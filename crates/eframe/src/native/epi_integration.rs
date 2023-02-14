@@ -65,14 +65,13 @@ pub fn read_window_info(
     }
 }
 
-pub fn build_window<E>(
+pub fn window_builder<E>(
     event_loop: &EventLoopWindowTarget<E>,
     title: &str,
     native_options: &epi::NativeOptions,
     window_settings: Option<WindowSettings>,
-) -> Result<winit::window::Window, winit::error::OsError> {
+) -> winit::window::WindowBuilder {
     let epi::NativeOptions {
-        always_on_top,
         maximized,
         decorated,
         fullscreen,
@@ -159,17 +158,19 @@ pub fn build_window<E>(
             }
         }
     }
+    window_builder
+}
 
-    let window = window_builder.build(event_loop)?;
-
+pub fn apply_native_options_to_window(
+    window: &winit::window::Window,
+    native_options: &crate::NativeOptions,
+) {
     use winit::window::WindowLevel;
-    window.set_window_level(if *always_on_top {
+    window.set_window_level(if native_options.always_on_top {
         WindowLevel::AlwaysOnTop
     } else {
         WindowLevel::Normal
     });
-
-    Ok(window)
 }
 
 fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui::Vec2 {
@@ -380,7 +381,7 @@ impl EpiIntegration {
                 egui_ctx.enable_accesskit();
                 // Enqueue a repaint so we'll receive a full tree update soon.
                 egui_ctx.request_repaint();
-                egui::accesskit_placeholder_tree_update()
+                egui_ctx.accesskit_placeholder_tree_update()
             });
     }
 
