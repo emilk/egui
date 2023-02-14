@@ -30,7 +30,9 @@ pub(super) struct PlotConfig<'a> {
     pub show_y: bool,
 }
 
-///
+/// When Group is defined, it returns the index_overide based on the hover event and the optional sub_index.
+/// The optional sub_index is used to retrieve the nested index if it is part of a line for example.
+/// if Group is not defined, it returns the hover event retain index with sub_index.
 #[derive(PartialEq, Clone, Debug)]
 pub struct SourceIndex {
     pub group_name: String,
