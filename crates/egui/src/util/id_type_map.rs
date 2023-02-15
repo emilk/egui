@@ -170,6 +170,14 @@ impl Element {
     }
 
     #[inline]
+    pub(crate) fn get_temp<T: 'static>(&self) -> Option<&T> {
+        match self {
+            Self::Value { value, .. } => value.downcast_ref(),
+            Self::Serialized { .. } => None,
+        }
+    }
+
+    #[inline]
     pub(crate) fn get_mut_temp<T: 'static>(&mut self) -> Option<&mut T> {
         match self {
             Self::Value { value, .. } => value.downcast_mut(),
@@ -355,11 +363,11 @@ impl IdTypeMap {
     ///
     /// The call clones the value (if found), so make sure it is cheap to clone!
     #[inline]
-    pub fn get_temp<T: 'static + Clone>(&mut self, id: Id) -> Option<T> {
+    pub fn get_temp<T: 'static + Clone>(&self, id: Id) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
         self.0
-            .get_mut(&hash)
-            .and_then(|x| x.get_mut_temp())
+            .get(&hash)
+            .and_then(|x| x.get_temp())
             .cloned()
     }
 
