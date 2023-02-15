@@ -309,6 +309,7 @@ use crate::Id;
 ///
 /// Values are cloned when read, so keep them small and light.
 /// If you want to store something bigger, wrap them in `Arc<Mutex<…>>`.
+/// Also try `Arc<ArcSwap<…>>`.
 ///
 /// Values can either be "persisted" (serializable) or "temporary" (cleared when egui is shut down).
 ///
