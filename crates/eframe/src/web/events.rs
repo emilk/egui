@@ -94,7 +94,11 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
                 // egui wants to use tab to move to the next text field.
                 true
             } else if egui_key == Some(Key::P) {
-                true // Prevent ctrl-P opening the print dialog. Users may want to use it for a command palette.
+                if modifiers.ctrl || modifiers.command || modifiers.mac_cmd {
+                    true // Prevent ctrl-P opening the print dialog. Users may want to use it for a command palette.
+                } else {
+                    false // let normal P:s through
+                }
             } else if egui_wants_keyboard {
                 matches!(
                     event.key().as_str(),
