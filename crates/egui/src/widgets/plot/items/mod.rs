@@ -30,10 +30,7 @@ pub(super) struct PlotConfig<'a> {
     pub show_y: bool,
 }
 
-/// When Group is defined, it returns the index_overide based on the hover event and the optional sub_index.
-/// The optional sub_index is used to retrieve the nested index if it is part of a line for example.
-/// if Group is not defined, it returns the hover event retain index with sub_index.
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct SourceIndex {
     pub group_name: String,
     pub index_overide: Vec<usize>,
@@ -153,19 +150,6 @@ impl HLine {
         self
     }
 
-    /// Group name and index are used to retrieve the source index of the hover event.
-    /// sub_index is used to retrieve the nested index if it part a line for example.
-    /// When you use it: each element you want to bind must be defined and
-    /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
-        self.group = Some(SourceIndex {
-            group_name: name.to_string(),
-            index_overide: index,
-            sub_index,
-        });
-        self
-    }
-
     /// Add a stroke.
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = stroke.into();
@@ -199,6 +183,21 @@ impl HLine {
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
+        self
+    }
+
+    /// When Group is defined, the indexes of the source and group can be retrieve using `Plot::hover_indexes`
+    /// it returns the `group_name` and `index_overide` based on the hover event and the optional `sub_index`.
+    /// The optional `sub_index` is used to retrieve the nested index if it is part of a line for example.
+    /// if Group is not defined, it returns index of the hover event with current retain items.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+            sub_index,
+        });
         self
     }
 }
@@ -288,19 +287,6 @@ impl VLine {
         self
     }
 
-    /// Group name and index are used to retrieve the source index of the hover event.
-    /// sub_index is used to retrieve the nested index if it part a line for example.
-    /// When you use it: each element you want to bind must be defined and
-    /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
-        self.group = Some(SourceIndex {
-            group_name: name.to_string(),
-            index_overide: index,
-            sub_index,
-        });
-        self
-    }
-
     /// Add a stroke.
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = stroke.into();
@@ -334,6 +320,21 @@ impl VLine {
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
+        self
+    }
+
+    /// When Group is defined, the indexes of the source and group can be retrieve using `Plot::hover_indexes`
+    /// it returns the `group_name` and `index_overide` based on the hover event and the optional `sub_index`.
+    /// The optional `sub_index` is used to retrieve the nested index if it is part of a line for example.
+    /// if Group is not defined, it returns index of the hover event with current retain items.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+            sub_index,
+        });
         self
     }
 }
@@ -424,19 +425,6 @@ impl Line {
         self
     }
 
-    /// Group name and index are used to retrieve the source index of the hover event.
-    /// sub_index is used to retrieve the nested index if it part a line for example.
-    /// When you use it: each element you want to bind must be defined and
-    /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
-        self.group = Some(SourceIndex {
-            group_name: name.to_string(),
-            index_overide: index,
-            sub_index,
-        });
-        self
-    }
-
     /// Add a stroke.
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = stroke.into();
@@ -476,6 +464,21 @@ impl Line {
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
+        self
+    }
+
+    /// When Group is defined, the indexes of the source and group can be retrieve using `Plot::hover_indexes`
+    /// it returns the `group_name` and `index_overide` based on the hover event and the optional `sub_index`.
+    /// The optional `sub_index` is used to retrieve the nested index if it is part of a line for example.
+    /// if Group is not defined, it returns index of the hover event with current retain items.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+            sub_index,
+        });
         self
     }
 }
@@ -611,19 +614,6 @@ impl Polygon {
         self
     }
 
-    /// Group name and index are used to retrieve the source index of the hover event.
-    /// sub_index is used to retrieve the nested index if it part a line for example.
-    /// When you use it: each element you want to bind must be defined and
-    /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
-        self.group = Some(SourceIndex {
-            group_name: name.to_string(),
-            index_overide: index,
-            sub_index,
-        });
-        self
-    }
-
     /// Add a custom stroke.
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = stroke.into();
@@ -663,6 +653,21 @@ impl Polygon {
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
+        self
+    }
+
+    /// When Group is defined, the indexes of the source and group can be retrieve using `Plot::hover_indexes`
+    /// it returns the `group_name` and `index_overide` based on the hover event and the optional `sub_index`.
+    /// The optional `sub_index` is used to retrieve the nested index if it is part of a line for example.
+    /// if Group is not defined, it returns index of the hover event with current retain items.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+            sub_index,
+        });
         self
     }
 }
@@ -760,19 +765,6 @@ impl Text {
         self
     }
 
-    /// Group name and index are used to retrieve the source index of the hover event.
-    /// sub_index is used to retrieve the nested index if it part a line for example.
-    /// When you use it: each element you want to bind must be defined and
-    /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
-        self.group = Some(SourceIndex {
-            group_name: name.to_string(),
-            index_overide: index,
-            sub_index,
-        });
-        self
-    }
-
     /// Text color.
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.color = color.into();
@@ -794,6 +786,21 @@ impl Text {
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
+        self
+    }
+
+    /// When Group is defined, the indexes of the source and group can be retrieve using `Plot::hover_indexes`
+    /// it returns the `group_name` and `index_overide` based on the hover event and the optional `sub_index`.
+    /// The optional `sub_index` is used to retrieve the nested index if it is part of a line for example.
+    /// if Group is not defined, it returns index of the hover event with current retain items.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+            sub_index,
+        });
         self
     }
 }
@@ -907,19 +914,6 @@ impl Points {
         self
     }
 
-    /// Group name and index are used to retrieve the source index of the hover event.
-    /// sub_index is used to retrieve the nested index if it part a line for example.
-    /// When you use it: each element you want to bind must be defined and
-    /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
-        self.group = Some(SourceIndex {
-            group_name: name.to_string(),
-            index_overide: index,
-            sub_index,
-        });
-        self
-    }
-
     /// Set the marker's color.
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.color = color.into();
@@ -953,6 +947,21 @@ impl Points {
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
+        self
+    }
+
+    /// When Group is defined, the indexes of the source and group can be retrieve using `Plot::hover_indexes`
+    /// it returns the `group_name` and `index_overide` based on the hover event and the optional `sub_index`.
+    /// The optional `sub_index` is used to retrieve the nested index if it is part of a line for example.
+    /// if Group is not defined, it returns index of the hover event with current retain items.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+            sub_index,
+        });
         self
     }
 }
@@ -1147,19 +1156,6 @@ impl Arrows {
         self
     }
 
-    /// Group name and index are used to retrieve the source index of the hover event.
-    /// sub_index is used to retrieve the nested index if it part a line for example.
-    /// When you use it: each element you want to bind must be defined and
-    /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
-        self.group = Some(SourceIndex {
-            group_name: name.to_string(),
-            index_overide: index,
-            sub_index,
-        });
-        self
-    }
-
     /// Set the arrows' color.
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.color = color.into();
@@ -1175,6 +1171,21 @@ impl Arrows {
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
+        self
+    }
+
+    /// When Group is defined, the indexes of the source and group can be retrieve using `Plot::hover_indexes`
+    /// it returns the `group_name` and `index_overide` based on the hover event and the optional `sub_index`.
+    /// The optional `sub_index` is used to retrieve the nested index if it is part of a line for example.
+    /// if Group is not defined, it returns index of the hover event with current retain items.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+            sub_index,
+        });
         self
     }
 }
@@ -1293,19 +1304,6 @@ impl PlotImage {
         self
     }
 
-    /// Group name and index are used to retrieve the source index of the hover event.
-    /// sub_index is used to retrieve the nested index if it part a line for example.
-    /// When you use it: each element you want to bind must be defined and
-    /// must have a set of unique index dependent on a group name.
-    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
-        self.group = Some(SourceIndex {
-            group_name: name.to_string(),
-            index_overide: index,
-            sub_index,
-        });
-        self
-    }
-
     /// Select UV range. Default is (0,0) in top-left, (1,1) bottom right.
     pub fn uv(mut self, uv: impl Into<Rect>) -> Self {
         self.uv = uv.into();
@@ -1333,6 +1331,21 @@ impl PlotImage {
     #[allow(clippy::needless_pass_by_value)]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
+        self
+    }
+
+    /// When Group is defined, the indexes of the source and group can be retrieve using `Plot::hover_indexes`
+    /// it returns the `group_name` and `index_overide` based on the hover event and the optional `sub_index`.
+    /// The optional `sub_index` is used to retrieve the nested index if it is part of a line for example.
+    /// if Group is not defined, it returns index of the hover event with current retain items.
+    /// When you use it: each element you want to bind must be defined and
+    /// must have a set of unique index dependent on a group name.
+    pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
+        self.group = Some(SourceIndex {
+            group_name: name.to_string(),
+            index_overide: index,
+            sub_index,
+        });
         self
     }
 }
@@ -1502,8 +1515,10 @@ impl BarChart {
         self
     }
 
-    /// Group name and index are used to retrieve the source index of the hover event.
-    /// sub_index is used to retrieve the nested index if it part a line for example.
+    /// When Group is defined, the indexes of the source and group can be retrieve using `Plot::hover_indexes`
+    /// it returns the `group_name` and `index_overide` based on the hover event and the optional `sub_index`.
+    /// The optional `sub_index` is used to retrieve the nested index if it is part of a line for example.
+    /// if Group is not defined, it returns index of the hover event with current retain items.
     /// When you use it: each element you want to bind must be defined and
     /// must have a set of unique index dependent on a group name.
     pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {
@@ -1685,8 +1700,10 @@ impl BoxPlot {
         self
     }
 
-    /// Group name and index are used to retrieve the source index of the hover event.
-    /// sub_index is used to retrieve the nested index if it part a line for example.
+    /// When Group is defined, the indexes of the source and group can be retrieve using `Plot::hover_indexes`
+    /// it returns the `group_name` and `index_overide` based on the hover event and the optional `sub_index`.
+    /// The optional `sub_index` is used to retrieve the nested index if it is part of a line for example.
+    /// if Group is not defined, it returns index of the hover event with current retain items.
     /// When you use it: each element you want to bind must be defined and
     /// must have a set of unique index dependent on a group name.
     pub fn group(mut self, name: &impl ToString, index: Vec<usize>, sub_index: bool) -> Self {

@@ -1094,7 +1094,7 @@ impl PlotUi {
         self.response.hovered()
     }
 
-    ///
+    /// Return the indexes of the source (or retain items) and `group_name`, based on the hover event.
     pub fn hover_indexes(&self) -> Option<SourceIndex> {
         self.hover_indexes.clone()
     }
