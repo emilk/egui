@@ -373,6 +373,9 @@ impl IdTypeMap {
 
     /// Read a value, optionally deserializing it if available.
     ///
+    /// NOTE: A mutable `self` is needed because internally this deserializes on first call
+    /// and caches the result (caching requires self-mutability).
+    ///
     /// The call clones the value (if found), so make sure it is cheap to clone!
     #[inline]
     pub fn get_persisted<T: SerializableAny>(&mut self, id: Id) -> Option<T> {
