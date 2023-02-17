@@ -89,6 +89,8 @@ pub fn item_ui(ui: &mut Ui, item: easy_mark::Item<'_>) {
 fn rich_text_from_style(text: &str, style: &easy_mark::Style) -> RichText {
     let easy_mark::Style {
         heading,
+        heading1,
+        heading2,
         quoted,
         code,
         strong,
