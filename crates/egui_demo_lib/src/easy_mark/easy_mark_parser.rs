@@ -233,14 +233,14 @@ impl<'a> Iterator for Parser<'a> {
                 if let Some(after) = self.s.strip_prefix("# ") {
                     self.s = after;
                     self.start_of_line = false;
-                    self.style.heading2 = true;
+                    self.style.heading3 = true;
                     continue;
                 }
 
                 if let Some(after) = self.s.strip_prefix("## ") {
                     self.s = after;
                     self.start_of_line = false;
-                    self.style.heading3 = true;
+                    self.style.heading2 = true;
                     continue;
                 }
 
