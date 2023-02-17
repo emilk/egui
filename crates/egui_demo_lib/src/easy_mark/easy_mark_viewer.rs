@@ -107,6 +107,12 @@ fn rich_text_from_style(text: &str, style: &easy_mark::Style) -> RichText {
     if heading && !small {
         rich_text = rich_text.heading().strong();
     }
+    if heading2 && !small {
+        rich_text = rich_text.heading2().strong();
+    }
+    if heading3 && !small {
+        rich_text = rich_text.heading3().strong();
+    }
     if small && !heading {
         rich_text = rich_text.small();
     }
