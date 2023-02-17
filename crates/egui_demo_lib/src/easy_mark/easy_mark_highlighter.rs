@@ -1,4 +1,4 @@
-use crate::easy_mark::easy_mark_parser;
+use crate::easy_mark::easy_mark#_parser;
 
 /// Highlight easymark, memoizing previous output to save CPU.
 ///
@@ -64,6 +64,12 @@ pub fn highlight_easymark(egui_style: &egui::Style, mut text: &str) -> egui::tex
             // we don't preview indentation, because it is confusing
             skip = 1;
         } else if start_of_line && text.starts_with("# ") {
+            style.heading = true;
+            skip = 2;
+        } else if start_of_line && text.starts_with("## ") {
+            style.heading = true;
+            skip = 2;
+        } else if start_of_line && text.starts_with("## ") {
             style.heading = true;
             skip = 2;
         } else if start_of_line && text.starts_with("> ") {
