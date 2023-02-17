@@ -145,7 +145,7 @@ impl RichText {
         self.text_style(TextStyle::Heading2)
     }
 
-    pub fn heading2(self) -> Self {
+    pub fn heading3(self) -> Self {
         self.text_style(TextStyle::Heading3)
     }
 
