@@ -1,4 +1,4 @@
-use crate::easy_mark::easy_mark#_parser;
+use crate::easy_mark::easy_mark_parser;
 
 /// Highlight easymark, memoizing previous output to save CPU.
 ///
