@@ -218,11 +218,7 @@ fn add_color_scheme_change_event_listener(
             &media_query_list,
             "change",
             |event, mut runner_lock| {
-                let theme = if event.matches() {
-                    Theme::Dark
-                } else {
-                    Theme::Light
-                };
+                let theme = Theme::dark_mode(event.matches());
                 runner_lock.frame.info.system_theme = Some(theme);
                 runner_lock.egui_ctx().set_visuals(theme.egui_visuals());
             },

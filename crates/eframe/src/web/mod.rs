@@ -79,7 +79,7 @@ pub fn system_theme() -> Option<Theme> {
         .and_then(|window| prefers_color_scheme_dark(&window).transpose())?
         .ok()?
         .matches();
-    Some(if dark_mode { Theme::Dark } else { Theme::Light })
+    Some(Theme::dark_mode(dark_mode))
 }
 
 fn prefers_color_scheme_dark(window: &web_sys::Window) -> Result<Option<MediaQueryList>, JsValue> {

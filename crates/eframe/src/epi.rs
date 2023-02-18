@@ -562,6 +562,15 @@ impl Theme {
             winit::window::Theme::Light => Theme::Light,
         }
     }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn dark_mode(dark_mode: bool) -> Self {
+        if dark_mode {
+            Theme::Dark
+        } else {
+            Theme::Light
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
