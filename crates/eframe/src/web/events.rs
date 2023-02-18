@@ -53,8 +53,6 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
 
-    add_color_scheme_change_event_listener(&window, runner_container)?;
-
     runner_container.add_event_listener(
         &document,
         "keydown",
@@ -209,11 +207,12 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
     Ok(())
 }
 
-fn add_color_scheme_change_event_listener(
-    window: &web_sys::Window,
+pub fn install_color_scheme_change_event(
     runner_container: &mut AppRunnerContainer,
 ) -> Result<(), JsValue> {
-    if let Some(media_query_list) = prefers_color_scheme_dark(window)? {
+    let window = web_sys::window().unwrap();
+
+    if let Some(media_query_list) = prefers_color_scheme_dark(&window)? {
         runner_container.add_event_listener::<web_sys::MediaQueryListEvent>(
             &media_query_list,
             "change",
