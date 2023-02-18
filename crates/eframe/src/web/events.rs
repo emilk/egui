@@ -53,6 +53,8 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
 
+    add_color_scheme_change_event_listener(&window, runner_container)?;
+
     runner_container.add_event_listener(
         &document,
         "keydown",
@@ -203,6 +205,29 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
             runner_lock.frame.info.web_info.location.hash = location_hash();
         },
     )?;
+
+    Ok(())
+}
+
+fn add_color_scheme_change_event_listener(
+    window: &web_sys::Window,
+    runner_container: &mut AppRunnerContainer,
+) -> Result<(), JsValue> {
+    if let Some(media_query_list) = prefers_color_scheme_dark(&window)? {
+        runner_container.add_event_listener::<web_sys::MediaQueryListEvent>(
+            &media_query_list,
+            "change",
+            |event, mut runner_lock| {
+                let theme = if event.matches() {
+                    Theme::Dark
+                } else {
+                    Theme::Light
+                };
+                runner_lock.frame.info.system_theme = Some(theme);
+                runner_lock.egui_ctx().set_visuals(theme.egui_visuals());
+            },
+        )?;
+    }
 
     Ok(())
 }

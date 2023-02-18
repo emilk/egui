@@ -149,6 +149,7 @@ web-sys = { version = "0.3.58", features = [
   "KeyboardEvent",
   "Location",
   "MediaQueryList",
+  "MediaQueryListEvent",
   "MouseEvent",
   "Navigator",
   "Performance",
