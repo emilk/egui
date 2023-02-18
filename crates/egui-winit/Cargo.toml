@@ -1,6 +1,6 @@
 [package]
 name = "egui-winit"
-version = "0.21.0"
+version = "0.21.1"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui with winit"
 edition = "2021"
