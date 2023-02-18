@@ -3,7 +3,7 @@
 //! | fixed size | all available space/minimum | 30% of available width | fixed size |
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
-use egui::{Align, NumExt as _, Rect, Response, ScrollArea, Ui, Vec2};
+use egui::{Align, NumExt as _, Rect, Response, ScrollArea, Sense, Ui, Vec2};
 
 use crate::{
     layout::{CellDirection, CellSize},
@@ -1026,6 +1026,18 @@ impl<'a, 'b> TableRow<'a, 'b> {
     /// Return the used space (`min_rect`) plus the [`Response`] of the whole cell.
     #[cfg_attr(debug_assertions, track_caller)]
     pub fn col(&mut self, add_cell_contents: impl FnOnce(&mut Ui)) -> (Rect, Response) {
+        self.col_sense(Sense::hover(), add_cell_contents)
+    }
+
+    /// Add the contents of a column, also specifies which Sense is used to allocate the UI
+    ///
+    /// Return the used space (`min_rect`) plus the [`Response`] of the whole cell.
+    #[cfg_attr(debug_assertions, track_caller)]
+    pub fn col_sense(
+        &mut self,
+        sense: Sense,
+        add_cell_contents: impl FnOnce(&mut Ui),
+    ) -> (Rect, Response) {
         let col_index = self.col_index;
 
         let clip = self.columns.get(col_index).map_or(false, |c| c.clip);
@@ -1046,7 +1058,7 @@ impl<'a, 'b> TableRow<'a, 'b> {
 
         let (used_rect, response) =
             self.layout
-                .add(clip, self.striped, width, height, add_cell_contents);
+                .add(clip, self.striped, width, height, add_cell_contents, sense);
 
         if let Some(max_w) = self.max_used_widths.get_mut(col_index) {
             *max_w = max_w.max(used_rect.width());

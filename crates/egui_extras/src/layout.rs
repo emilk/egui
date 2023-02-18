@@ -97,6 +97,7 @@ impl<'l> StripLayout<'l> {
         width: CellSize,
         height: CellSize,
         add_cell_contents: impl FnOnce(&mut Ui),
+        sense: Sense,
     ) -> (Rect, Response) {
         let max_rect = self.cell_rect(&width, &height);
 
@@ -119,7 +120,7 @@ impl<'l> StripLayout<'l> {
             max_rect.union(used_rect)
         };
 
-        let response = self.ui.allocate_rect(allocation_rect, Sense::click());
+        let response = self.ui.allocate_rect(allocation_rect, sense);
 
         (used_rect, response)
     }

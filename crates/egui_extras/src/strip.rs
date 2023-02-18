@@ -3,7 +3,7 @@ use crate::{
     sizing::Sizing,
     Size,
 };
-use egui::{Response, Ui};
+use egui::{Response, Sense, Ui};
 
 /// Builder for creating a new [`Strip`].
 ///
@@ -168,8 +168,14 @@ impl<'a, 'b> Strip<'a, 'b> {
     pub fn cell(&mut self, add_contents: impl FnOnce(&mut Ui)) {
         let (width, height) = self.next_cell_size();
         let striped = false;
-        self.layout
-            .add(self.clip, striped, width, height, add_contents);
+        self.layout.add(
+            self.clip,
+            striped,
+            width,
+            height,
+            add_contents,
+            Sense::hover(),
+        );
     }
 
     /// Add an empty cell.
