@@ -124,7 +124,7 @@ pub fn window_builder<E>(
         // Restore pos/size from previous session
         window_settings.clamp_to_sane_values(largest_monitor_point_size(event_loop));
         #[cfg(windows)]
-        window_settings.clamp_window_to_sane_position(&event_loop);
+        window_settings.clamp_window_to_sane_position(event_loop);
         window_builder = window_settings.initialize_window(window_builder);
         window_settings.inner_size_points()
     } else {
