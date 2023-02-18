@@ -119,7 +119,7 @@ impl<'l> StripLayout<'l> {
             max_rect.union(used_rect)
         };
 
-        let response = self.ui.allocate_rect(allocation_rect, Sense::hover());
+        let response = self.ui.allocate_rect(allocation_rect, Sense::click());
 
         (used_rect, response)
     }
