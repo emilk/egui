@@ -312,6 +312,7 @@ pub struct EpiIntegration {
 }
 
 impl EpiIntegration {
+    #[allow(clippy::too_many_arguments)]
     pub fn new<E>(
         event_loop: &EventLoopWindowTarget<E>,
         max_texture_side: usize,
