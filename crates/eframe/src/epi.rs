@@ -554,6 +554,16 @@ impl Theme {
     }
 }
 
+impl Theme {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn from_winit_theme(theme: winit::window::Theme) -> Self {
+        match theme {
+            winit::window::Theme::Dark => Theme::Dark,
+            winit::window::Theme::Light => Theme::Light,
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// WebGL Context options

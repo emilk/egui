@@ -308,6 +308,7 @@ pub struct EpiIntegration {
     close: bool,
     can_drag_window: bool,
     window_state: WindowState,
+    follow_system_theme: bool,
 }
 
 impl EpiIntegration {
@@ -316,6 +317,7 @@ impl EpiIntegration {
         max_texture_side: usize,
         window: &winit::window::Window,
         system_theme: Option<Theme>,
+        follow_system_theme: bool,
         storage: Option<Box<dyn epi::Storage>>,
         #[cfg(feature = "glow")] gl: Option<std::sync::Arc<glow::Context>>,
         #[cfg(feature = "wgpu")] wgpu_render_state: Option<egui_wgpu::RenderState>,
@@ -363,6 +365,7 @@ impl EpiIntegration {
             close: false,
             can_drag_window: false,
             window_state,
+            follow_system_theme,
         }
     }
 
@@ -425,6 +428,12 @@ impl EpiIntegration {
             } => self.can_drag_window = true,
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 self.frame.info.native_pixels_per_point = Some(*scale_factor as _);
+            }
+            #[cfg(feature = "dark-light")]
+            WindowEvent::ThemeChanged(winit_theme) if self.follow_system_theme => {
+                let theme = Theme::from_winit_theme(*winit_theme);
+                self.frame.info.system_theme = Some(theme);
+                self.egui_ctx.set_visuals(theme.egui_visuals());
             }
             _ => {}
         }
