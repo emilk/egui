@@ -434,7 +434,7 @@ impl EpiIntegration {
             }
             #[cfg(feature = "dark-light")]
             WindowEvent::ThemeChanged(winit_theme) if self.follow_system_theme => {
-                let theme = Theme::from_winit_theme(*winit_theme);
+                let theme = theme_from_winit_theme(*winit_theme);
                 self.frame.info.system_theme = Some(theme);
                 self.egui_ctx.set_visuals(theme.egui_visuals());
             }
@@ -576,4 +576,12 @@ pub fn load_egui_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Mem
     }
     #[cfg(not(feature = "persistence"))]
     None
+}
+
+#[cfg(feature = "dark-light")]
+pub(crate) fn theme_from_winit_theme(theme: winit::window::Theme) -> Theme {
+    match theme {
+        winit::window::Theme::Dark => Theme::Dark,
+        winit::window::Theme::Light => Theme::Light,
+    }
 }

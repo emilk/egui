@@ -556,25 +556,6 @@ impl Theme {
     }
 }
 
-impl Theme {
-    #[cfg(all(not(target_arch = "wasm32"), feature = "dark-light"))]
-    pub(crate) fn from_winit_theme(theme: winit::window::Theme) -> Self {
-        match theme {
-            winit::window::Theme::Dark => Theme::Dark,
-            winit::window::Theme::Light => Theme::Light,
-        }
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub(crate) fn dark_mode(dark_mode: bool) -> Self {
-        if dark_mode {
-            Theme::Dark
-        } else {
-            Theme::Light
-        }
-    }
-}
-
 // ----------------------------------------------------------------------------
 
 /// WebGL Context options

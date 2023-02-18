@@ -78,11 +78,19 @@ pub fn system_theme() -> Option<Theme> {
     let dark_mode = prefers_color_scheme_dark(&web_sys::window()?)
         .ok()??
         .matches();
-    Some(Theme::dark_mode(dark_mode))
+    Some(theme_from_dark_mode(dark_mode))
 }
 
 fn prefers_color_scheme_dark(window: &web_sys::Window) -> Result<Option<MediaQueryList>, JsValue> {
     window.match_media("(prefers-color-scheme: dark)")
+}
+
+fn theme_from_dark_mode(dark_mode: bool) -> Theme {
+    if dark_mode {
+        Theme::Dark
+    } else {
+        Theme::Light
+    }
 }
 
 pub fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
