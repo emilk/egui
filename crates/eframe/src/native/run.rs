@@ -681,6 +681,7 @@ mod glow_integration {
                 painter.max_texture_side(),
                 gl_window.window(),
                 system_theme,
+                #[cfg(feature = "dark-light")]
                 self.native_options.follow_system_theme,
                 storage,
                 Some(gl.clone()),
@@ -1124,6 +1125,7 @@ mod wgpu_integration {
                 painter.max_texture_side().unwrap_or(2048),
                 &window,
                 system_theme,
+                #[cfg(feature = "dark-light")]
                 self.native_options.follow_system_theme,
                 storage,
                 #[cfg(feature = "glow")]

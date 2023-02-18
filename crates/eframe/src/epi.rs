@@ -557,7 +557,7 @@ impl Theme {
 }
 
 impl Theme {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "dark-light"))]
     pub(crate) fn from_winit_theme(theme: winit::window::Theme) -> Self {
         match theme {
             winit::window::Theme::Dark => Theme::Dark,
