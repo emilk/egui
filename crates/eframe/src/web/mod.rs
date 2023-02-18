@@ -75,9 +75,8 @@ pub fn native_pixels_per_point() -> f32 {
 }
 
 pub fn system_theme() -> Option<Theme> {
-    let dark_mode = web_sys::window()
-        .and_then(|window| prefers_color_scheme_dark(&window).transpose())?
-        .ok()?
+    let dark_mode = prefers_color_scheme_dark(&web_sys::window()?)
+        .ok()??
         .matches();
     Some(Theme::dark_mode(dark_mode))
 }
