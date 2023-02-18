@@ -221,6 +221,7 @@ fn add_color_scheme_change_event_listener(
                 let theme = theme_from_dark_mode(event.matches());
                 runner_lock.frame.info.system_theme = Some(theme);
                 runner_lock.egui_ctx().set_visuals(theme.egui_visuals());
+                runner_lock.needs_repaint.repaint_asap();
             },
         )?;
     }
