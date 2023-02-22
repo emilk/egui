@@ -7,6 +7,10 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 ## Unreleased
 
 
+## 0.21.3 - 2023-02-15
+* Fix typing the letter 'P' on web ([#2740](https://github.com/emilk/egui/pull/2740)).
+
+
 ## 0.21.2 - 2023-02-12
 * Allow compiling `eframe` with `--no-default-features` ([#2728](https://github.com/emilk/egui/pull/2728)).
 
