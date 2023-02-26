@@ -45,7 +45,7 @@ pub fn read_window_info(
             .unwrap()
             .size()
             .to_logical::<f32>(pixels_per_point.into());
-        Some(egui::vec2(size.width as _, size.height as _))
+        Some(egui::vec2(size.width, size.height))
     } else {
         None
     };
