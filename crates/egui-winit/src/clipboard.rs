@@ -29,7 +29,7 @@ impl Clipboard {
     ///
     /// # Safety
     ///
-    /// The returned `Clipboard` must not outive the input `_event_loop`.
+    /// The returned `Clipboard` must not outlive the input `_event_loop`.
     pub fn new<T>(_event_loop: &EventLoopWindowTarget<T>) -> Self {
         Self {
             #[cfg(all(feature = "arboard", not(target_os = "android")))]

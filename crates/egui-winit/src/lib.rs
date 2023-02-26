@@ -87,7 +87,7 @@ impl State {
     ///
     /// # Safety
     ///
-    /// The returned `State` must not outive the input `_event_loop`.
+    /// The returned `State` must not outlive the input `_event_loop`.
     pub fn new<T>(event_loop: &EventLoopWindowTarget<T>) -> Self {
         let egui_input = egui::RawInput {
             has_focus: false, // winit will tell us when we have focus
