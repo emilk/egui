@@ -1,4 +1,4 @@
-use std::os::raw::c_void;
+use winit::event_loop::EventLoopWindowTarget;
 
 /// Handles interfacing with the OS clipboard.
 ///
@@ -25,8 +25,13 @@ pub struct Clipboard {
 }
 
 impl Clipboard {
+    /// Construct a new instance
+    ///
+    /// # Safety
+    ///
+    /// The returned `Clipboard` must not outive the input `_event_loop`.
     #[allow(unused_variables)]
-    pub fn new(#[allow(unused_variables)] wayland_display: Option<*mut c_void>) -> Self {
+    pub fn new<T>(_event_loop: &EventLoopWindowTarget<T>) -> Self {
         Self {
             #[cfg(all(feature = "arboard", not(target_os = "android")))]
             arboard: init_arboard(),
@@ -41,7 +46,7 @@ impl Clipboard {
                 ),
                 feature = "smithay-clipboard"
             ))]
-            smithay: init_smithay_clipboard(wayland_display),
+            smithay: init_smithay_clipboard(_event_loop),
 
             clipboard: Default::default(),
         }
@@ -132,15 +137,20 @@ fn init_arboard() -> Option<arboard::Clipboard> {
     ),
     feature = "smithay-clipboard"
 ))]
-fn init_smithay_clipboard(
-    wayland_display: Option<*mut c_void>,
+fn init_smithay_clipboard<T>(
+    _event_loop: &EventLoopWindowTarget<T>,
 ) -> Option<smithay_clipboard::Clipboard> {
-    if let Some(display) = wayland_display {
-        tracing::debug!("Initializing smithay clipboard…");
-        #[allow(unsafe_code)]
-        Some(unsafe { smithay_clipboard::Clipboard::new(display) })
-    } else {
-        tracing::debug!("Cannot initialize smithay clipboard without a display handle");
-        None
+    // Note: ideally "smithay-clipboard" would imply "wayland", but it doesn't.
+    #[cfg(feature = "wayland")]
+    {
+        use winit::platform::wayland::EventLoopWindowTargetExtWayland as _;
+        if let Some(display) = _event_loop.wayland_display() {
+            tracing::debug!("Initializing smithay clipboard…");
+            #[allow(unsafe_code)]
+            return Some(unsafe { smithay_clipboard::Clipboard::new(display) });
+        }
     }
+
+    tracing::debug!("Cannot initialize smithay clipboard without a display handle");
+    None
 }
