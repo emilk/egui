@@ -237,10 +237,13 @@ pub fn handle_app_output(
     }
 
     if let Some(window_size) = window_size {
-        window.set_inner_size(winit::dpi::LogicalSize {
-            width: window_size.x.round(),
-            height: window_size.y.round(),
-        });
+        window.set_inner_size(
+            winit::dpi::PhysicalSize {
+                width: (current_pixels_per_point * window_size.x).round(),
+                height: (current_pixels_per_point * window_size.y).round(),
+            }
+            .to_logical::<f32>(native_pixels_per_point(window) as f64),
+        );
     }
 
     if let Some(fullscreen) = fullscreen {
