@@ -826,7 +826,8 @@ mod glow_integration {
                             screenshot.width() as u32,
                             screenshot.height() as u32,
                             image::ColorType::Rgba8,
-                        ).unwrap_or_else(|err| {
+                        )
+                        .unwrap_or_else(|err| {
                             panic!("Failed to save screenshot to {path:?}: {err}");
                         });
                         eprintln!("Screenshot saved to {path:?}.");
