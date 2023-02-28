@@ -1218,7 +1218,7 @@ dependencies = [
 
 [[package]]
 name = "eframe"
-version = "0.21.0"
+version = "0.21.3"
 dependencies = [
  "bytemuck",
  "dark-light",
@@ -1279,7 +1279,7 @@ dependencies = [
 
 [[package]]
 name = "egui-winit"
-version = "0.21.0"
+version = "0.21.1"
 dependencies = [
  "accesskit_winit",
  "android-activity",

@@ -9,6 +9,7 @@ pub(crate) struct AnimationManager {
 #[derive(Clone, Debug)]
 struct BoolAnim {
     value: bool,
+
     /// when did `value` last toggle?
     toggle_time: f64,
 }
@@ -16,7 +17,9 @@ struct BoolAnim {
 #[derive(Clone, Debug)]
 struct ValueAnim {
     from_value: f32,
+
     to_value: f32,
+
     /// when did `value` last toggle?
     toggle_time: f64,
 }
