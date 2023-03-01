@@ -82,7 +82,7 @@ impl eframe::App for MyApp {
                     .width(width)
                     .legend(Legend::default());
 
-                let graph: Vec<[f64; 2]> = vec![[0.0, 1.0], [2.0, 3.0], [3.0, 2.0]];  // dummy data
+                let graph: Vec<[f64; 2]> = vec![[0.0, 1.0], [2.0, 3.0], [3.0, 2.0]]; // dummy data
                 my_plot.show(ui, |plot_ui| {
                     plot_ui.line(Line::new(PlotPoints::from(graph)).name("curve"));
                 });
@@ -161,7 +161,7 @@ fn save_image(img: &ColorImage, file_path: &PathBuf) -> ImageResult<()> {
     let height = img.height();
     let width = img.width();
     let mut raw: Vec<u8> = vec![];
-    for p in img.pixels.clone().iter() {
+    for p in &img.pixels {
         raw.push(p.r());
         raw.push(p.g());
         raw.push(p.b());
