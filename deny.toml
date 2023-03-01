@@ -41,6 +41,7 @@ skip = [
     { name = "windows_x86_64_msvc" }, # old version via glutin
     { name = "windows-sys" },         # old version via glutin
     { name = "windows" },             # old version via accesskit
+    { name = "base64" },              # new version via syntect
 ]
 skip-tree = [
     { name = "criterion" },     # dev-dependency

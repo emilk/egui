@@ -1,7 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use eframe::egui::{self, ColorImage};
-use image;
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
@@ -89,7 +88,7 @@ impl eframe::App for MyApp {
                 .unwrap();
                 self.save_to_file = false;
             }
-            self.screenshot = Some(screenshot)
+            self.screenshot = Some(screenshot);
         }
     }
 }
