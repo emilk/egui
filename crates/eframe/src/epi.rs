@@ -197,7 +197,7 @@ pub trait App {
 
     /// Called each time after the rendering the UI.
     ///
-    /// Can be used to access pixel data with `get_pixels`
+    /// Can be used to access pixel data with [`Frame::screenshot`]
     fn post_rendering(&mut self, _window_size_px: [u32; 2], _frame: &Frame) {}
 }
 
@@ -675,6 +675,8 @@ pub struct Frame {
     #[cfg(feature = "wgpu")]
     pub(crate) wgpu_render_state: Option<egui_wgpu::RenderState>,
 
+    /// If [`Frame::request_screenshot`] was called during a frame, this field will store the screenshot
+    /// such that it can be retrieved during [`App::post_rendering`] with [`Frame::screenshot`]
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) screenshot: std::cell::Cell<Option<egui::ColorImage>>,
 }

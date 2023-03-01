@@ -91,29 +91,6 @@ pub struct Painter {
 }
 
 impl Painter {
-    // CaptureState only needs to be updated when the size of the two textures don't match and we want to
-    // capture a frame
-    fn update_capture_state(
-        screen_capture_state: &mut Option<CaptureState>,
-        surface_texture: &wgpu::SurfaceTexture,
-        render_state: &RenderState,
-    ) -> Option<()> {
-        let surface_texture = &surface_texture.texture;
-        match screen_capture_state {
-            Some(capture_state) => {
-                if capture_state.texture.size() != surface_texture.size() {
-                    *capture_state = CaptureState::new(&render_state.device, surface_texture);
-                }
-            }
-            None => {
-                *screen_capture_state =
-                    Some(CaptureState::new(&render_state.device, surface_texture));
-            }
-        }
-        // screen_capture_state.set(screen_capture_state);
-        Some(())
-    }
-
     /// Manages [`wgpu`] state, including surface state, required to render egui.
     ///
     /// Only the [`wgpu::Instance`] is initialized here. Device selection and the initialization
@@ -359,6 +336,29 @@ impl Painter {
         }
     }
 
+    // CaptureState only needs to be updated when the size of the two textures don't match and we want to
+    // capture a frame
+    fn update_capture_state(
+        screen_capture_state: &mut Option<CaptureState>,
+        surface_texture: &wgpu::SurfaceTexture,
+        render_state: &RenderState,
+    ) -> Option<()> {
+        let surface_texture = &surface_texture.texture;
+        match screen_capture_state {
+            Some(capture_state) => {
+                if capture_state.texture.size() != surface_texture.size() {
+                    *capture_state = CaptureState::new(&render_state.device, surface_texture);
+                }
+            }
+            None => {
+                *screen_capture_state =
+                    Some(CaptureState::new(&render_state.device, surface_texture));
+            }
+        }
+        // screen_capture_state.set(screen_capture_state);
+        Some(())
+    }
+    
     // Handles copying from the CaptureState texture to the surface texture and the cpu
     fn read_screen_rgba(
         screen_capture_state: &CaptureState,

@@ -40,10 +40,9 @@ impl eframe::App for MyApp {
                     "continuously take screenshots",
                 );
 
-                if self.continuously_take_screenshots {
-                    if ui.button("save to 'top_left.png'").clicked() {
-                        self.save_to_file = true;
-                    }
+                if ui.button("save to 'top_left.png'").clicked() {
+                    self.save_to_file = true;
+                    frame.request_screenshot();
                 }
 
                 ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
