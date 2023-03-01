@@ -38,6 +38,9 @@ default_fonts = ["egui/default_fonts"]
 ## Use [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/master/crates/egui_glow).
 glow = ["dep:glow", "dep:egui_glow", "dep:glutin", "dep:glutin-winit"]
 
+## Enables wayland support and fixes clipboard issue.
+wayland = ["egui-winit/wayland"]
+
 ## Enable saving app state to disk.
 persistence = [
   "directories-next",
@@ -90,7 +93,6 @@ serde = { version = "1", optional = true, features = ["derive"] }
 egui-winit = { version = "0.21.1", path = "../egui-winit", default-features = false, features = [
   "clipboard",
   "links",
-  "wayland",
 ] }
 raw-window-handle = { version = "0.5.0" }
 winit = "0.28.1"
