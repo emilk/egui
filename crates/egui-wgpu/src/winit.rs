@@ -358,7 +358,7 @@ impl Painter {
         // screen_capture_state.set(screen_capture_state);
         Some(())
     }
-    
+
     // Handles copying from the CaptureState texture to the surface texture and the cpu
     fn read_screen_rgba(
         screen_capture_state: &CaptureState,
