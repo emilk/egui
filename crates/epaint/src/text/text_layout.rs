@@ -456,8 +456,8 @@ fn galley_from_rows(point_scale: PointScale, job: Arc<LayoutJob>, mut rows: Vec<
             let align_offset = match format.valign {
                 Align::Center | Align::Max => row_ascent,
 
-                // raised text. might not work very well..?
-                Align::Min => glyph.size.y,
+                // raised text.
+                Align::Min => glyph.ascent,
             };
             glyph.pos.y = cursor_y + align_offset;
         }
