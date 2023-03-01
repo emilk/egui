@@ -122,7 +122,7 @@ impl ColorImage {
 
     /// Create a new Image from a patch of the current image. This method is especially convenient for screenshotting a part of the app
     /// since `region` can be interpreted as screen coordinates of the entire screenshot if `pixels_per_point` is provided for the native application.
-    /// The floats of [`egui::Rect`] are cast to usize, rounding them down in order to interpret them as indices to the image data.
+    /// The floats of [`emath::Rect`] are cast to usize, rounding them down in order to interpret them as indices to the image data.
     ///
     /// Panics if `region.min.x > region.max.x || region.min.y > region.max.y`, or if a region larger than the image is passed.
     pub fn region(&self, region: &emath::Rect, pixels_per_point: Option<f32>) -> Self {
