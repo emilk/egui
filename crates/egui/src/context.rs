@@ -565,6 +565,7 @@ impl Context {
                     Stroke::new(1.0, Color32::YELLOW.additive().linear_multiply(0.05)),
                 );
             }
+            let mut show_blocking_widget = None;
 
             self.write(|ctx| {
                 ctx.layer_rects_this_frame
@@ -585,16 +586,9 @@ impl Context {
                                     // so we aren't hovered.
 
                                     if ctx.memory.options.style.debug.show_blocking_widget {
-                                        Self::layer_painter(self, LayerId::debug()).debug_rect(
-                                            interact_rect,
-                                            Color32::GREEN,
-                                            "Covered",
-                                        );
-                                        Self::layer_painter(self, LayerId::debug()).debug_rect(
-                                            prev_rect,
-                                            Color32::LIGHT_BLUE,
-                                            "On top",
-                                        );
+                                        // Store the rects to use them outside the write() call to
+                                        // avoid deadlock
+                                        show_blocking_widget = Some((interact_rect, prev_rect));
                                     }
 
                                     hovered = false;
@@ -605,6 +599,19 @@ impl Context {
                     }
                 }
             });
+
+            if let Some((interact_rect, prev_rect)) = show_blocking_widget {
+                Self::layer_painter(self, LayerId::debug()).debug_rect(
+                    interact_rect,
+                    Color32::GREEN,
+                    "Covered",
+                );
+                Self::layer_painter(self, LayerId::debug()).debug_rect(
+                    prev_rect,
+                    Color32::LIGHT_BLUE,
+                    "On top",
+                );
+            }
         }
 
         self.interact_with_hovered(layer_id, id, rect, sense, enabled, hovered)
