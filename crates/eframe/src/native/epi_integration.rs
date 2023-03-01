@@ -40,8 +40,12 @@ pub fn read_window_info(
 
     let monitor = window.current_monitor().is_some();
     let monitor_size = if monitor {
-        let size = window.current_monitor().unwrap().size();
-        Some(egui::vec2(size.width as _, size.height as _))
+        let size = window
+            .current_monitor()
+            .unwrap()
+            .size()
+            .to_logical::<f32>(pixels_per_point.into());
+        Some(egui::vec2(size.width, size.height))
     } else {
         None
     };
@@ -146,15 +150,12 @@ pub fn window_builder<E>(
 
     if *centered {
         if let Some(monitor) = event_loop.available_monitors().next() {
-            let monitor_size = monitor.size();
+            let monitor_size = monitor.size().to_logical::<f64>(monitor.scale_factor());
             let inner_size = inner_size_points.unwrap_or(egui::Vec2 { x: 800.0, y: 600.0 });
-            if monitor_size.width > 0 && monitor_size.height > 0 {
-                let x = (monitor_size.width - inner_size.x as u32) / 2;
-                let y = (monitor_size.height - inner_size.y as u32) / 2;
-                window_builder = window_builder.with_position(winit::dpi::LogicalPosition {
-                    x: x as f64,
-                    y: y as f64,
-                });
+            if monitor_size.width > 0.0 && monitor_size.height > 0.0 {
+                let x = (monitor_size.width - inner_size.x as f64) / 2.0;
+                let y = (monitor_size.height - inner_size.y as f64) / 2.0;
+                window_builder = window_builder.with_position(winit::dpi::LogicalPosition { x, y });
             }
         }
     }
@@ -254,7 +255,7 @@ pub fn handle_app_output(
     }
 
     if let Some(window_pos) = window_pos {
-        window.set_outer_position(winit::dpi::PhysicalPosition {
+        window.set_outer_position(winit::dpi::LogicalPosition {
             x: window_pos.x as f64,
             y: window_pos.y as f64,
         });
