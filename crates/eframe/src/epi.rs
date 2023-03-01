@@ -725,16 +725,16 @@ impl Frame {
     ///
     /// ## Example generating a capture of everything within a square of 100 pixels located at the top left of the app and saving it with the [`image`](crates.io/crates/image) crate:
     /// ```
-    /// impl eframe::App for MyApp{
-    ///     fn update(ctx: &egui::Context, frame: &mut eframe::Frame){
-    ///         ... // In real code the app would render something here
+    /// impl eframe::App for MyApp {
+    ///     fn update(ctx: &egui::Context, frame: &mut eframe::Frame) {
+    ///         // In real code the app would render something here
     ///         frame.request_screenshot()
-    ///         ... // Things that are added to the frame after the call to
-    ///             // request_screenshot() will still be included.
+    ///         // Things that are added to the frame after the call to
+    ///         // request_screenshot() will still be included.
     ///     }
     ///
-    ///     fn post_rendering(&mut self, _window_size: [u32; 2], frame: &eframe::Frame){
-    ///         if let Some(screenshot) = frame.screenshot(){
+    ///     fn post_rendering(&mut self, _window_size: [u32; 2], frame: &eframe::Frame) {
+    ///         if let Some(screenshot) = frame.screenshot() {
     ///             let pixels_per_point = frame.info().native_pixels_per_point;
     ///             let region = egui::Rect::from_two_pos(
     ///                 egui::Pos2::ZERO,
