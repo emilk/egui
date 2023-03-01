@@ -14,7 +14,7 @@ struct SurfaceState {
 }
 
 /// A texture and a buffer for reading the rendered frame back to the cpu.
-/// The texture is required since wgpu::TextureUsages::COPY_DST is not an allowed
+/// The texture is required since [`wgpu::TextureUsages::COPY_DST`] is not an allowed
 /// flag for the surface texture on all platforms. This means that anytime we want to
 /// capture the frame, we first render it to this texture, and then we can copy it to
 /// both the surface texture and the buffer, from where we can pull it back to the cpu.
@@ -63,7 +63,7 @@ impl BufferPadding {
     fn new(width: u32) -> Self {
         let bytes_per_pixel = std::mem::size_of::<u32>() as u32;
         let unpadded_bytes_per_row = width * bytes_per_pixel;
-        let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT as u32;
+        let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
         let padded_bytes_per_row_padding = (align - unpadded_bytes_per_row % align) % align;
         let padded_bytes_per_row = unpadded_bytes_per_row + padded_bytes_per_row_padding;
         Self {
@@ -342,7 +342,7 @@ impl Painter {
         screen_capture_state: &mut Option<CaptureState>,
         surface_texture: &wgpu::SurfaceTexture,
         render_state: &RenderState,
-    ) -> Option<()> {
+    ) {
         let surface_texture = &surface_texture.texture;
         match screen_capture_state {
             Some(capture_state) => {
@@ -355,8 +355,6 @@ impl Painter {
                     Some(CaptureState::new(&render_state.device, surface_texture));
             }
         }
-        // screen_capture_state.set(screen_capture_state);
-        Some(())
     }
 
     // Handles copying from the CaptureState texture to the surface texture and the cpu
@@ -426,7 +424,7 @@ impl Painter {
                     color[to_rgba[1]],
                     color[to_rgba[2]],
                     color[to_rgba[3]],
-                ))
+                ));
             }
         }
         buffer.unmap();

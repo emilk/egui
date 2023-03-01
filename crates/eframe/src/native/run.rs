@@ -831,7 +831,7 @@ mod glow_integration {
                         let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
                         image::save_buffer(
                             &path,
-                            &screenshot.as_raw(),
+                            screenshot.as_raw(),
                             screenshot.width() as u32,
                             screenshot.height() as u32,
                             image::ColorType::Rgba8,
