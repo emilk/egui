@@ -805,7 +805,7 @@ mod glow_integration {
 
                 let screenshot_requested = &mut integration.frame.output.screenshot_requested;
 
-                if *screenshot_requested == true {
+                if *screenshot_requested {
                     *screenshot_requested = false;
                     let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
                     integration.frame.screenshot.set(Some(screenshot));
