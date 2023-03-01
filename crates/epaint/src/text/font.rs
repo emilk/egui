@@ -43,8 +43,15 @@ pub struct GlyphInfo {
     /// Unit: points.
     pub advance_width: f32,
 
+    /// `ascent` value from the font metrics.
+    /// this is the distance from the top to the baseline.
+    ///
+    /// Unit: points.
     pub ascent: f32,
 
+    /// row height computed from the font metrics.
+    ///
+    /// Unit: points.
     pub row_height: f32,
 
     /// Texture coordinates.
@@ -101,7 +108,6 @@ impl FontImpl {
         let line_gap = scaled.line_gap() / pixels_per_point;
 
         // Tweak the scale as the user desired
-        // this is only for visual effects and does not affect layout behaviors
         let scale_in_pixels = scale_in_pixels * tweak.scale;
 
         let baseline_offset = {

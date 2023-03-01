@@ -153,12 +153,14 @@ impl FontData {
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FontTweak {
-    /// Scale the font by this much.
+    /// Scale the font's glyphs by this much.
+    /// this is only a visual effect and does not affect the text layout.
     ///
     /// Default: `1.0` (no scaling).
     pub scale: f32,
 
-    /// Shift font downwards by this fraction of the font size (in points).
+    /// Shift font's glyphs downwards by this fraction of the font size (in points).
+    /// this is only a visual effect and does not affect the text layout.
     ///
     /// A positive value shifts the text downwards.
     /// A negative value shifts it upwards.
@@ -166,12 +168,18 @@ pub struct FontTweak {
     /// Example value: `-0.2`.
     pub y_offset_factor: f32,
 
-    /// Shift font downwards by this amount of logical points.
+    /// Shift font's glyphs downwards by this amount of logical points.
+    /// this is only a visual effect and does not affect the text layout.
     ///
     /// Example value: `2.0`.
     pub y_offset: f32,
 
-    pub baseline_offset_factor: f32, // can this replace `y offset`?
+    /// When using this font's metrics to layout a row,
+    /// shift the entire row downwards by this fraction of the font size (in points).
+    ///
+    /// A positive value shifts the text downwards.
+    /// A negative value shifts it upwards.
+    pub baseline_offset_factor: f32,
 }
 
 impl Default for FontTweak {
@@ -288,10 +296,9 @@ impl Default for FontDefinitions {
                 FontTweak {
                     scale: 0.88, // make it smaller
 
-                    // metrics of this font seems somewhat weird
-                    // (or i might be wrong somewhere else?)
-                    y_offset_factor: 0.11,         // move it down a bit
-                    baseline_offset_factor: -0.11, // ...but don't do that when it is alone (mainly for submenu icons)
+                    // probably not correct, but this does make texts look better (#2724 for details)
+                    y_offset_factor: 0.11, // move glyphs down to better align with common fonts
+                    baseline_offset_factor: -0.11, // ...now the entire row is a bit down so shift it back
                     ..Default::default()
                 },
             ),
