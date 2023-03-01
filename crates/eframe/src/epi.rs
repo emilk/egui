@@ -728,7 +728,7 @@ impl Frame {
     /// ## Example generating a capture of everything within a square of 100 pixels located at the top left of the app and saving it with the [`image`](crates.io/crates/image) crate:
     /// ```
     /// struct MyApp;
-    /// 
+    ///
     /// impl eframe::App for MyApp {
     ///     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
     ///         // In real code the app would render something here
