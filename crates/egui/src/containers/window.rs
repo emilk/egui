@@ -703,10 +703,10 @@ fn hover(
         Some(WindowInteraction {
             area_layer_id,
             start_rect: rect,
-            left,
-            right,
-            top,
-            bottom,
+            left: false,
+            right: false,
+            top: false,
+            bottom: false
         })
     } else {
         None
