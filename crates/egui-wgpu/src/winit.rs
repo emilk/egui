@@ -27,7 +27,7 @@ struct CaptureState {
 impl CaptureState {
     fn new(device: &Arc<wgpu::Device>, surface_texture: &wgpu::Texture) -> Self {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: None,
+            label: Some("egui_screen_capture_texture"),
             size: surface_texture.size(),
             mip_level_count: surface_texture.mip_level_count(),
             sample_count: surface_texture.sample_count(),
@@ -40,7 +40,7 @@ impl CaptureState {
         let padding = BufferPadding::new(surface_texture.width());
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: None,
+            label: Some("egui_screen_capture_buffer"),
             size: (padding.padded_bytes_per_row * texture.height()) as u64,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,
@@ -63,9 +63,8 @@ impl BufferPadding {
     fn new(width: u32) -> Self {
         let bytes_per_pixel = std::mem::size_of::<u32>() as u32;
         let unpadded_bytes_per_row = width * bytes_per_pixel;
-        let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
-        let padded_bytes_per_row_padding = (align - unpadded_bytes_per_row % align) % align;
-        let padded_bytes_per_row = unpadded_bytes_per_row + padded_bytes_per_row_padding;
+        let padded_bytes_per_row =
+            wgpu::util::align_to(unpadded_bytes_per_row, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
         Self {
             unpadded_bytes_per_row,
             padded_bytes_per_row,
