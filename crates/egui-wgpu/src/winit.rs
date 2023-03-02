@@ -63,7 +63,8 @@ impl BufferPadding {
     fn new(width: u32) -> Self {
         let bytes_per_pixel = std::mem::size_of::<u32>() as u32;
         let unpadded_bytes_per_row = width * bytes_per_pixel;
-        let padded_bytes_per_row = wgpu::util::align_to(unpadded_bytes_per_row, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
+        let padded_bytes_per_row =
+            wgpu::util::align_to(unpadded_bytes_per_row, wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
         Self {
             unpadded_bytes_per_row,
             padded_bytes_per_row,
