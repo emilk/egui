@@ -308,7 +308,6 @@ pub struct EpiIntegration {
     close: bool,
     can_drag_window: bool,
     window_state: WindowState,
-    #[cfg(feature = "dark-light")]
     follow_system_theme: bool,
 }
 
@@ -319,7 +318,7 @@ impl EpiIntegration {
         max_texture_side: usize,
         window: &winit::window::Window,
         system_theme: Option<Theme>,
-        #[cfg(feature = "dark-light")] follow_system_theme: bool,
+        follow_system_theme: bool,
         storage: Option<Box<dyn epi::Storage>>,
         #[cfg(feature = "glow")] gl: Option<std::sync::Arc<glow::Context>>,
         #[cfg(feature = "wgpu")] wgpu_render_state: Option<egui_wgpu::RenderState>,
@@ -367,7 +366,6 @@ impl EpiIntegration {
             close: false,
             can_drag_window: false,
             window_state,
-            #[cfg(feature = "dark-light")]
             follow_system_theme,
         }
     }
@@ -432,7 +430,6 @@ impl EpiIntegration {
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 self.frame.info.native_pixels_per_point = Some(*scale_factor as _);
             }
-            #[cfg(feature = "dark-light")]
             WindowEvent::ThemeChanged(winit_theme) if self.follow_system_theme => {
                 let theme = theme_from_winit_theme(*winit_theme);
                 self.frame.info.system_theme = Some(theme);
@@ -578,7 +575,6 @@ pub fn load_egui_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Mem
     None
 }
 
-#[cfg(feature = "dark-light")]
 pub(crate) fn theme_from_winit_theme(theme: winit::window::Theme) -> Theme {
     match theme {
         winit::window::Theme::Dark => Theme::Dark,
