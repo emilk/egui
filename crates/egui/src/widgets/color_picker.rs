@@ -245,9 +245,35 @@ fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>, alpha: Alpha) {
 }
 
 fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
-    if let Some(edited) = srgba_edit_ui(ui, *hsvag) {
-        *hsvag = edited;
+    let srgba = (std::convert::Into::<Hsva>::into(*hsvag)).to_srgba_unmultiplied();
+    let c32_premultiplied =
+        Color32::from_rgba_premultiplied(srgba[0], srgba[1], srgba[2], srgba[3]);
+    // Send an Opaque Alpha also when Alpha is BlendOrAdditive with negative alpha value (signals Additive blending),
+    // so to hide the alpha's DragValue in both cases.
+    let alpha_control = if alpha == Alpha::Opaque || hsvag.a < 0.0 {
+        Alpha::Opaque
+    } else {
+        alpha
+    };
+    // Update hsvag only if the converted srgba is changed, this is beacause hsvag is made of f32,
+    // and the convertion between u8 and f32 loses a bit of the color precision, causing little flickering on hsvag based ui widgets.
+    if let Some(mut edited) = srgba_edit_ui(ui, c32_premultiplied, alpha_control) {
+        // Additive blending, signaled by the negative Alpha.
+        if hsvag.a < 0.0 {
+            let stored_a = hsvag.a;
+            // Alpha to 0 instead of negative, so it wont pop back to Normal blending when RGB are modified.
+            edited[3] = 0;
+            *hsvag = HsvaGamma::from(Hsva::from_srgba_unmultiplied(edited.to_array()));
+            // Keeps the Alpha set during Normal blending so that in case we alter RGB in Additive blending
+            // and the switch back to Normal blending it gets that Alpha value back.
+            hsvag.a = stored_a;
+        }
+        // Normal blending.
+        else {
+            *hsvag = HsvaGamma::from(Hsva::from_srgba_unmultiplied(edited.to_array()));
+        }
     }
+
     let current_color_size = vec2(ui.spacing().slider_width, ui.spacing().interact_size.y);
     show_color(ui, *hsvag, current_color_size).on_hover_text("Selected color");
 
@@ -314,46 +340,44 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
     color_slider_2d(ui, v, s, |v, s| HsvaGamma { s, v, ..opaque }.into());
 }
 
-fn srgba_edit_ui(ui: &mut Ui, hsvag: HsvaGamma) -> Option<HsvaGamma> {
-    let [mut r, mut g, mut b, mut a] = Color32::from(hsvag).to_array();
+/// Shows 4 `DragValue` widgets to be used to edit the Color32's RGBA values.
+/// Alpha's `DragValue` is hidden when `Alpha::Opaque`.
+///
+/// Returns `Some(Color32)` on change.
+fn srgba_edit_ui(ui: &mut Ui, rgba: Color32, alpha: Alpha) -> Option<Color32> {
+    let [mut r, mut g, mut b, mut a] = rgba.to_array();
 
-    let limit = gamma_u8_from_linear_f32(linear_f32_from_linear_u8(a));
-    let exceeds_the_graph = r > limit || g > limit || b > limit;
-
-    let (mut rgb_changed, mut a_changed, mut multiply) = (false, false, false);
-
+    let mut edited = false;
     ui.horizontal(|ui| {
-        if ui.add(DragValue::new(&mut r).speed(0.5).prefix("R: ")).changed() {
-            rgb_changed = true;
+        if ui
+            .add(DragValue::new(&mut r).speed(0.5).prefix("R: "))
+            .changed()
+        {
+            edited = true;
         }
-        if ui.add(DragValue::new(&mut g).speed(0.5).prefix("G: ")).changed() {
-            rgb_changed = true;
+        if ui
+            .add(DragValue::new(&mut g).speed(0.5).prefix("G: "))
+            .changed()
+        {
+            edited = true;
         }
-        if ui.add(DragValue::new(&mut b).speed(0.5).prefix("B: ")).changed() {
-            rgb_changed = true;
+        if ui
+            .add(DragValue::new(&mut b).speed(0.5).prefix("B: "))
+            .changed()
+        {
+            edited = true;
         }
-        if ui.add(DragValue::new(&mut a).speed(0.5).prefix("A: ")).changed() {
-            a_changed = true;
-        }
-        // A positive color.a indicates normal blending instead of additive.
-        if hsvag.a.is_sign_positive() && exceeds_the_graph {
-            let multiply_btn = Button::new("*");
-            if ui
-                .add(multiply_btn)
-                .on_hover_text("Colors must have premultiplied alpha")
-                .clicked()
-            {
-                multiply = true;
-            }
+        if alpha != Alpha::Opaque
+            && ui
+                .add(DragValue::new(&mut a).speed(0.5).prefix("A: "))
+                .changed()
+        {
+            edited = true;
         }
     });
 
-    if multiply {
-        Some(HsvaGamma::from(Color32::from_rgba_unmultiplied(r, g, b, a)))
-    } else if rgb_changed || a_changed {
-        Some(HsvaGamma::from(Color32::from_rgba_premultiplied(
-            r, g, b, a,
-        )))
+    if edited {
+        Some(Color32::from_rgba_premultiplied(r, g, b, a))
     } else {
         None
     }
