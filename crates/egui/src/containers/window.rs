@@ -32,6 +32,7 @@ pub struct Window<'open> {
     collapsible: bool,
     default_open: bool,
     with_title_bar: bool,
+    move_title_bar_only: bool,
 }
 
 impl<'open> Window<'open> {
@@ -54,6 +55,7 @@ impl<'open> Window<'open> {
             collapsible: true,
             default_open: true,
             with_title_bar: true,
+            move_title_bar_only: false,
         }
     }
 
@@ -88,6 +90,12 @@ impl<'open> Window<'open> {
     /// If `false` the window will be immovable.
     pub fn movable(mut self, movable: bool) -> Self {
         self.area = self.area.movable(movable);
+        self
+    }
+
+    /// Only allow moving by dragging from the title bar.
+    pub fn movable_from_contents(mut self, movable: bool) -> Self {
+        self.move_title_bar_only = !movable;
         self
     }
 
@@ -297,6 +305,7 @@ impl<'open> Window<'open> {
             collapsible,
             default_open,
             with_title_bar,
+            move_title_bar_only,
         } = self;
 
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
@@ -327,23 +336,33 @@ impl<'open> Window<'open> {
         let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
 
         // First interact (move etc) to avoid frame delay:
+
+        // Calculate roughly how much larger the window size is compared to the inner rect
+        let title_bar_height = if with_title_bar {
+            let style = ctx.style();
+            ctx.fonts(|f| title.font_height(f, &style)) + title_content_spacing
+        } else {
+            0.0
+        };
+
         let last_frame_outer_rect = area.state().rect();
+        let move_interaction_rect = match move_title_bar_only && with_title_bar {
+            true => {
+                let mut copy = last_frame_outer_rect;
+                copy.set_bottom(title_bar_height);
+                copy
+            }
+            false => { last_frame_outer_rect }
+        };
         let interaction = if possible.movable || possible.resizable() {
             window_interaction(
                 ctx,
                 possible,
                 area_layer_id,
                 area_id.with("frame_resize"),
-                last_frame_outer_rect,
+                move_interaction_rect,
             )
             .and_then(|window_interaction| {
-                // Calculate roughly how much larger the window size is compared to the inner rect
-                let title_bar_height = if with_title_bar {
-                    let style = ctx.style();
-                    ctx.fonts(|f| title.font_height(f, &style)) + title_content_spacing
-                } else {
-                    0.0
-                };
                 let margins = frame.outer_margin.sum()
                     + frame.inner_margin.sum()
                     + vec2(0.0, title_bar_height);
