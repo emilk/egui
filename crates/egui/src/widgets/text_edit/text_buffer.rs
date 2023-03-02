@@ -123,5 +123,5 @@ fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
             return bi;
         }
     }
-    s.len()
+    s.as_bytes().len()
 }
