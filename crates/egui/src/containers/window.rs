@@ -361,6 +361,7 @@ impl<'open> Window<'open> {
                 area_layer_id,
                 area_id.with("frame_resize"),
                 move_interaction_rect,
+                last_frame_outer_rect,
             )
             .and_then(|window_interaction| {
                 let margins = frame.outer_margin.sum()
@@ -631,7 +632,8 @@ fn window_interaction(
     possible: PossibleInteractions,
     area_layer_id: LayerId,
     id: Id,
-    rect: Rect,
+    rect_move: Rect,
+    rect_resize: Rect
 ) -> Option<WindowInteraction> {
     {
         let drag_id = ctx.memory(|mem| mem.interaction.drag_id);
@@ -644,8 +646,10 @@ fn window_interaction(
     let mut window_interaction = ctx.memory(|mem| mem.window_interaction);
 
     if window_interaction.is_none() {
-        if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect) {
+        if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect_resize) {
             hover_window_interaction.set_cursor(ctx);
+        }
+        if let Some(hover_window_interaction) = hover(ctx, possible, area_layer_id, rect_move) {
             if ctx.input(|i| i.pointer.any_pressed() && i.pointer.primary_down()) {
                 ctx.memory_mut(|mem| {
                     mem.interaction.drag_id = Some(id);
@@ -666,6 +670,47 @@ fn window_interaction(
     }
 
     None
+}
+
+fn hover(
+    ctx: &Context,
+    possible: PossibleInteractions,
+    area_layer_id: LayerId,
+    rect: Rect
+) -> Option<WindowInteraction> {
+    let pointer = ctx.input(|i| i.pointer.interact_pos())?;
+
+    if ctx.input(|i| i.pointer.any_down() && !i.pointer.any_pressed()) {
+        return None; // already dragging (something)
+    }
+
+    if let Some(top_layer_id) = ctx.layer_id_at(pointer) {
+        if top_layer_id != area_layer_id && top_layer_id.order != Order::Background {
+            return None; // Another window is on top here
+        }
+    }
+
+    if ctx.memory(|mem| mem.interaction.drag_interest) {
+        // Another widget will become active if we drag here
+        return None;
+    }
+
+    if !rect.contains(pointer) {
+        return None;
+    }
+
+    if possible.movable {
+        Some(WindowInteraction {
+            area_layer_id,
+            start_rect: rect,
+            left,
+            right,
+            top,
+            bottom,
+        })
+    } else {
+        None
+    }
 }
 
 fn resize_hover(
@@ -734,22 +779,19 @@ fn resize_hover(
 
     let any_resize = left || right || top || bottom;
 
-    if !any_resize && !possible.movable {
+    if !any_resize {
         return None;
     }
 
-    if any_resize || possible.movable {
-        Some(WindowInteraction {
-            area_layer_id,
-            start_rect: rect,
-            left,
-            right,
-            top,
-            bottom,
-        })
-    } else {
-        None
-    }
+
+    Some(WindowInteraction {
+        area_layer_id,
+        start_rect: rect,
+        left,
+        right,
+        top,
+        bottom,
+    })
 }
 
 /// Fill in parts of the window frame when we resize by dragging that part
