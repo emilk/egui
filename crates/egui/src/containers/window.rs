@@ -648,6 +648,7 @@ fn window_interaction(
     if window_interaction.is_none() {
         if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect_resize) {
             hover_window_interaction.set_cursor(ctx);
+            window_interaction = Some(hover_window_interaction);
         }
         if let Some(hover_window_interaction) = hover(ctx, possible, area_layer_id, rect_move) {
             if ctx.input(|i| i.pointer.any_pressed() && i.pointer.primary_down()) {
