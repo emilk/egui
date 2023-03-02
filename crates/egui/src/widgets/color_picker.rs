@@ -323,16 +323,16 @@ fn srgba_edit_ui(ui: &mut Ui, hsvag: HsvaGamma) -> Option<HsvaGamma> {
     let (mut rgb_changed, mut a_changed, mut multiply) = (false, false, false);
 
     ui.horizontal(|ui| {
-        if ui.add(DragValue::new(&mut r).speed(0.5)).changed() {
+        if ui.add(DragValue::new(&mut r).speed(0.5).prefix("R: ")).changed() {
             rgb_changed = true;
         }
-        if ui.add(DragValue::new(&mut g).speed(0.5)).changed() {
+        if ui.add(DragValue::new(&mut g).speed(0.5).prefix("G: ")).changed() {
             rgb_changed = true;
         }
-        if ui.add(DragValue::new(&mut b).speed(0.5)).changed() {
+        if ui.add(DragValue::new(&mut b).speed(0.5).prefix("B: ")).changed() {
             rgb_changed = true;
         }
-        if ui.add(DragValue::new(&mut a).speed(0.5)).changed() {
+        if ui.add(DragValue::new(&mut a).speed(0.5).prefix("A: ")).changed() {
             a_changed = true;
         }
         // A positive color.a indicates normal blending instead of additive.
