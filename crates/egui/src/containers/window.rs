@@ -349,7 +349,7 @@ impl<'open> Window<'open> {
         let move_interaction_rect = match move_title_bar_only && with_title_bar {
             true => {
                 let mut copy = last_frame_outer_rect;
-                copy.set_bottom(title_bar_height);
+                copy.set_bottom(copy.top() + title_bar_height);
                 copy
             }
             false => { last_frame_outer_rect }
