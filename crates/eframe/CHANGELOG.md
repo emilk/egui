@@ -5,7 +5,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 
 ## Unreleased
-
+* Expose raw window and display handles in `CreationContext` and `Frame`
 
 ## 0.22.0 - 2023-05-23
 * Fix: `request_repaint_after` works even when called from background thread [#2939](https://github.com/emilk/egui/pull/2939)
