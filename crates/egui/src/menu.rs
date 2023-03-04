@@ -144,7 +144,8 @@ pub(crate) fn menu_ui<'c, R>(
     let area = Area::new(menu_id)
         .order(Order::Foreground)
         .constrain(true)
-        .fixed_pos(pos)
+        .default_pos(pos)
+        .movable(false)
         .interactable(true)
         .drag_bounds(ctx.screen_rect());
     let inner_response = area.show(ctx, |ui| {
@@ -594,7 +595,13 @@ impl MenuState {
 
     /// Check if position is in the menu hierarchy's area.
     pub fn area_contains(&self, pos: Pos2) -> bool {
-        self.rect.contains(pos)
+        // HACK: hard-coded 5.0 but it should use the same logic as `Context::layer_id_at` to be correct as that's the
+        // source of truth on whether something is "on top" or not.
+        // Two options:
+        //   1. Change layer_id_at to not grow the rect for menu layers
+        //   2. Change `area_contains` to use `resize_grab_radius_side`
+        // Number 1 is probably better because menus are not rezisable.
+        self.rect.expand(5.0).contains(pos)
             || self
                 .sub_menu
                 .as_ref()
