@@ -600,8 +600,9 @@ impl MenuState {
         // Two options:
         //   1. Change layer_id_at to not grow the rect for menu layers
         //   2. Change `area_contains` to use `resize_grab_radius_side`
-        // Number 1 is probably better because menus are not rezisable.
-        self.rect.expand(5.0).contains(pos)
+        // Number 1 is probably better because menus are not resizable.
+        let resize_grab_radius_side = 5.0;
+        self.rect.expand(resize_grab_radius_side).contains(pos)
             || self
                 .sub_menu
                 .as_ref()
