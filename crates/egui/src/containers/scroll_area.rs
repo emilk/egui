@@ -146,7 +146,7 @@ impl ScrollArea {
             auto_shrink: [true; 2],
             max_size: Vec2::INFINITY,
             min_scrolled_size: Vec2::splat(64.0),
-            scroll_bar_visibility: ScrollBarVisibility::AlwaysHidden,
+            scroll_bar_visibility: ScrollBarVisibility::VisibleWhenNeeded,
             id_source: None,
             offset_x: None,
             offset_y: None,
