@@ -278,6 +278,22 @@ pub enum Event {
         force: f32,
     },
 
+    /// A raw mouse wheel event as sent by the backend (minus the z coordinate),
+    /// for implementing alternative custom controls.
+    /// If this event is handled, Zoom and Scroll should be ignored, as they might be duplicates
+    /// coming from the same input device.
+    MouseWheel {
+        /// The unit of scrolling: pixels, lines etc
+        unit: MouseWheelUnit,
+
+        /// The amount scrolled horizontally and vertically. The amount and direction corresponding
+        /// to one step of the wheel depends on the platform.
+        delta: Vec2,
+
+        /// The state of the modifier keys at the time of the event.
+        modifiers: Modifiers,
+    },
+
     /// An assistive technology (e.g. screen reader) requested an action.
     #[cfg(feature = "accesskit")]
     AccessKitActionRequest(accesskit::ActionRequest),
@@ -889,6 +905,20 @@ pub enum TouchPhase {
     /// maybe a pop-up alert or any other kind of interruption which may not have
     /// been intended by the user)
     Cancel,
+}
+
+/// The unit associated with the numeric value of a mouse wheel event
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum MouseWheelUnit {
+    /// Number of pixels
+    Pixel,
+
+    /// Number of lines
+    Line,
+
+    /// Number of pages
+    Page,
 }
 
 impl From<u64> for TouchId {

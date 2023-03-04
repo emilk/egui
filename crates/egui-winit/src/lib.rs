@@ -549,6 +549,24 @@ impl State {
     }
 
     fn on_mouse_wheel(&mut self, delta: winit::event::MouseScrollDelta) {
+        let mut push_raw_event = || {
+            let (unit, delta) = match delta {
+                winit::event::MouseScrollDelta::LineDelta(x, y) => {
+                    (egui::MouseWheelUnit::Line, egui::vec2(x, y))
+                }
+                winit::event::MouseScrollDelta::PixelDelta(winit::dpi::PhysicalPosition {
+                    x,
+                    y,
+                }) => (egui::MouseWheelUnit::Pixel, egui::vec2(x as f32, y as f32)),
+            };
+            let modifiers = self.egui_input.modifiers;
+            self.egui_input.events.push(egui::Event::MouseWheel {
+                unit,
+                delta,
+                modifiers,
+            });
+        };
+        push_raw_event();
         let delta = match delta {
             winit::event::MouseScrollDelta::LineDelta(x, y) => {
                 let points_per_scroll_line = 50.0; // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461

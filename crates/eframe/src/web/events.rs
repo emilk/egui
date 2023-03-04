@@ -402,6 +402,23 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
         &canvas,
         "wheel",
         |event: web_sys::WheelEvent, mut runner_lock| {
+            let mut push_raw_event = || {
+                let unit = match event.delta_mode() {
+                    web_sys::WheelEvent::DOM_DELTA_PIXEL => egui::MouseWheelUnit::Pixel,
+                    web_sys::WheelEvent::DOM_DELTA_LINE => egui::MouseWheelUnit::Line,
+                    web_sys::WheelEvent::DOM_DELTA_PAGE => egui::MouseWheelUnit::Page,
+                    3u32..=u32::MAX => return,
+                };
+                let delta = egui::vec2(event.delta_x() as f32, event.delta_y() as f32);
+                let modifiers = runner_lock.input.raw.modifiers;
+
+                runner_lock.input.raw.events.push(egui::Event::MouseWheel {
+                    unit,
+                    delta,
+                    modifiers,
+                });
+            };
+            push_raw_event();
             let scroll_multiplier = match event.delta_mode() {
                 web_sys::WheelEvent::DOM_DELTA_PAGE => {
                     canvas_size_in_points(runner_lock.canvas_id()).y
