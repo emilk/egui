@@ -142,7 +142,7 @@ impl Area {
 
     /// Positions the window and prevents it from being moved
     pub fn fixed_pos(mut self, fixed_pos: impl Into<Pos2>) -> Self {
-        self.new_pos = Some(fixed_pos.into());
+        self.default_pos = Some(fixed_pos.into());
         self.movable = false;
         self
     }
