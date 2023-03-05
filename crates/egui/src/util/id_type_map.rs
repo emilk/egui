@@ -366,10 +366,7 @@ impl IdTypeMap {
     #[inline]
     pub fn get_temp<T: 'static + Clone>(&self, id: Id) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
-        self.0
-            .get(&hash)
-            .and_then(|x| x.get_temp())
-            .cloned()
+        self.0.get(&hash).and_then(|x| x.get_temp()).cloned()
     }
 
     /// Read a value, optionally deserializing it if available.
