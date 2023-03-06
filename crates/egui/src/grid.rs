@@ -328,12 +328,16 @@ impl Grid {
     /// This can make a table easier to read.
     /// Default is whatever is in [`crate::Visuals::striped`].
     pub fn striped(self, striped: bool) -> Self {
-        self.with_row_color(move |row, style| {
-            if striped && row % 2 == 1 {
-                return Some(Rgba::from(style.visuals.faint_bg_color));
-            }
-            None
-        })
+        if striped {
+            self.with_row_color(move |row, style| {
+                if row % 2 == 1 {
+                    return Some(Rgba::from(style.visuals.faint_bg_color));
+                }
+                None
+            })
+        } else {
+            self
+        }
     }
 
     /// Set minimum width of each column.
