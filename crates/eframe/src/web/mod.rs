@@ -113,8 +113,10 @@ pub fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2
     let canvas = canvas_element(canvas_id)?;
     let parent = canvas.parent_element()?;
 
-    let width = parent.scroll_width();
-    let height = parent.scroll_height();
+    // Prefer the client width and height so that if the parent
+    // element is resized that the egui canvas resizes appropriately.
+    let width = parent.client_width();
+    let height = parent.client_height();
 
     let canvas_real_size = Vec2 {
         x: width as f32,
