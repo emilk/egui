@@ -926,12 +926,13 @@ fn events(
                 if !text_to_insert.is_empty() {
                     let mut ccursor = delete_selected(text, &cursor_range);
 
-                    if !multiline && char_limit.is_some() {
-                        let mut new_string = text_to_insert.clone();
-                        new_string.truncate(char_limit.unwrap() - text.as_str().len());
-                        insert_text(&mut ccursor, text, &new_string);
-                    } else {
-                        insert_text(&mut ccursor, text, &text_to_insert);
+                    match char_limit {
+                        Some(limit) if !multiline => {
+                            let mut new_string = text_to_insert.clone();
+                            new_string.truncate(limit - text.as_str().len());
+                            insert_text(&mut ccursor, text, &new_string);
+                        }
+                        _ => insert_text(&mut ccursor, text, text_to_insert),
                     }
 
                     Some(CCursorRange::one(ccursor))
@@ -944,12 +945,13 @@ fn events(
                 if !text_to_insert.is_empty() && text_to_insert != "\n" && text_to_insert != "\r" {
                     let mut ccursor = delete_selected(text, &cursor_range);
 
-                    if !multiline && char_limit.is_some() {
-                        let mut new_string = text_to_insert.clone();
-                        new_string.truncate(char_limit.unwrap() - text.as_str().len());
-                        insert_text(&mut ccursor, text, &new_string);
-                    } else {
-                        insert_text(&mut ccursor, text, &text_to_insert);
+                    match char_limit {
+                        Some(limit) if !multiline => {
+                            let mut new_string = text_to_insert.clone();
+                            new_string.truncate(limit - text.as_str().len());
+                            insert_text(&mut ccursor, text, &new_string);
+                        }
+                        _ => insert_text(&mut ccursor, text, text_to_insert),
                     }
 
                     Some(CCursorRange::one(ccursor))
