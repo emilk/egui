@@ -929,7 +929,14 @@ fn events(
                     match char_limit {
                         Some(limit) if !multiline => {
                             let mut new_string = text_to_insert.clone();
-                            new_string.truncate(limit - text.as_str().len());
+                            // Avoid subtract with overflow panic
+                            let cutoff = limit.saturating_sub(text.as_str().len());
+
+                            new_string = match new_string.char_indices().nth(cutoff) {
+                                None => new_string,
+                                Some((idx, _)) => new_string[..idx].to_owned(),
+                            };
+
                             insert_text(&mut ccursor, text, &new_string);
                         }
                         _ => insert_text(&mut ccursor, text, text_to_insert),
@@ -948,7 +955,14 @@ fn events(
                     match char_limit {
                         Some(limit) if !multiline => {
                             let mut new_string = text_to_insert.clone();
-                            new_string.truncate(limit - text.as_str().len());
+                            // Avoid subtract with overflow panic
+                            let cutoff = limit.saturating_sub(text.as_str().len());
+
+                            new_string = match new_string.char_indices().nth(cutoff) {
+                                None => new_string,
+                                Some((idx, _)) => new_string[..idx].to_owned(),
+                            };
+
                             insert_text(&mut ccursor, text, &new_string);
                         }
                         _ => insert_text(&mut ccursor, text, text_to_insert),
