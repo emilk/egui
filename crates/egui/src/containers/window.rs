@@ -268,6 +268,12 @@ impl<'open> Window<'open> {
         self.area = self.area.drag_bounds(bounds);
         self
     }
+
+    /// Set `order(Order::Foreground)` for a Window that should always be on top
+    pub fn order(mut self, order: Order) -> Self {
+        self.area = self.area.order(order);
+        self
+    }
 }
 
 impl<'open> Window<'open> {
