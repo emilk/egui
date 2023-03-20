@@ -199,6 +199,9 @@ pub(crate) struct Focus {
 
     /// Set at the beginning of the frame, set to `false` when "used".
     pressed_shift_tab: bool,
+
+    /// If `true`, calls to [`Memory::interested_in_focus`] will be ignored.
+    prevent_focus: bool,
 }
 
 impl Interaction {
@@ -447,7 +450,22 @@ impl Memory {
     /// and rendered correctly in a single frame.
     #[inline(always)]
     pub fn interested_in_focus(&mut self, id: Id) {
-        self.interaction.focus.interested_in_focus(id);
+        if !self.interaction.focus.prevent_focus {
+            self.interaction.focus.interested_in_focus(id);
+        }
+    }
+
+    /// Prevent new widgets from being interested in focus, until a
+    /// subsequent call to [`Memory::allow_focus`].
+    ///
+    /// Works by turning [`Memory::interested_in_focus`] into a no-op.
+    pub fn prevent_focus(&mut self) {
+        self.interaction.focus.prevent_focus = true;
+    }
+
+    /// Allow new widgets to be focused. Used with [`Memory::prevent_focus`].
+    pub fn allow_focus(&mut self) {
+        self.interaction.focus.prevent_focus = false;
     }
 
     /// Stop editing of active [`TextEdit`](crate::TextEdit) (if any).
