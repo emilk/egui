@@ -70,7 +70,3 @@ smithay-clipboard = { version = "0.6.3", optional = true }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 arboard = { version = "3.2", optional = true, default-features = false }
-
-[target.'cfg(target_os = "android")'.dependencies]
-# TODO(emilk): this is probably not the right place for specifying native-activity, but we need to do it somewhere for the CI
-android-activity = { version = "0.4", features = ["native-activity"] }
