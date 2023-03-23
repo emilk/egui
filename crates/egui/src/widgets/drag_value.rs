@@ -475,18 +475,6 @@ impl<'a> Widget for DragValue<'a> {
                     .desired_width(ui.spacing().interact_size.x)
                     .font(text_style),
             );
-            // Only update the value when the user presses enter, or clicks elsewhere. NOT every frame.
-            // See https://github.com/emilk/egui/issues/2687
-            if response.lost_focus() {
-                let parsed_value = match custom_parser {
-                    Some(parser) => parser(&value_text),
-                    None => value_text.parse().ok(),
-                };
-                if let Some(parsed_value) = parsed_value {
-                    let parsed_value = clamp_to_range(parsed_value, clamp_range.clone());
-                    set(&mut get_set_value, parsed_value);
-                }
-            }
             ui.memory_mut(|mem| mem.drag_value.edit_string = Some(value_text));
             response
         } else {
@@ -559,6 +547,28 @@ impl<'a> Widget for DragValue<'a> {
 
             response
         };
+
+        // If focus is lost, check for pending edits from is_kb_editing mode and apply them,
+        // clearing the stored edit to ensure it isn't mistakenly used for a different drag value.
+        //
+        // We must check this outside of is_kb_editing because is_kb_editing mode is only active
+        // while we still have focus.
+        // See https://github.com/emilk/egui/issues/2818
+        //
+        // We do this on lost_focus so the value isn't modified every frame or while you are typing.
+        // See https://github.com/emilk/egui/issues/2687
+        if response.lost_focus() {
+            if let Some(value_text) = ui.memory_mut(|mem| mem.drag_value.edit_string.take()) {
+                let parsed_value = match custom_parser {
+                    Some(parser) => parser(&value_text),
+                    None => value_text.parse().ok(),
+                };
+                if let Some(parsed_value) = parsed_value {
+                    let parsed_value = clamp_to_range(parsed_value, clamp_range.clone());
+                    set(&mut get_set_value, parsed_value);
+                }
+            }
+        }
 
         response.changed = get(&mut get_set_value) != old_value;
 
