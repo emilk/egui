@@ -748,8 +748,6 @@ impl FontImplCache {
             .unwrap_or_else(|| panic!("No font data found for {:?}", font_name))
             .clone();
 
-        let scale_in_pixels = self.pixels_per_point * scale_in_points;
-
         // Scale the font properly (see https://github.com/emilk/egui/issues/2068).
         let units_per_em = ab_glyph_font.units_per_em().unwrap_or_else(|| {
             panic!(
@@ -758,29 +756,26 @@ impl FontImplCache {
             )
         });
         let font_scaling = ab_glyph_font.height_unscaled() / units_per_em;
-        let scale_in_pixels = scale_in_pixels * font_scaling;
+        let scale_in_points = scale_in_points * font_scaling;
 
         // Tweak the scale as the user desired:
-        let scale_in_pixels = scale_in_pixels * tweak.scale;
+        let scale_in_points = scale_in_points * tweak.scale;
 
         // Round to an even number of physical pixels to get even kerning.
         // See https://github.com/emilk/egui/issues/382
-        let scale_in_pixels = scale_in_pixels.round() as u32;
+        let scale_in_points = scale_in_points.round();
 
-        let y_offset_points = {
-            let scale_in_points = scale_in_pixels as f32 / self.pixels_per_point;
-            scale_in_points * tweak.y_offset_factor
-        } + tweak.y_offset;
+        let y_offset_points = scale_in_points * tweak.y_offset_factor + tweak.y_offset;
 
         self.cache
-            .entry((scale_in_pixels, font_name.to_owned()))
+            .entry((scale_in_points as u32, font_name.to_owned()))
             .or_insert_with(|| {
                 Arc::new(FontImpl::new(
                     self.atlas.clone(),
                     self.pixels_per_point,
                     font_name.to_owned(),
                     ab_glyph_font,
-                    scale_in_pixels,
+                    scale_in_points,
                     y_offset_points,
                 ))
             })

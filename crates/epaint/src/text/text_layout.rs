@@ -129,7 +129,26 @@ fn layout_section(
             });
 
             paragraph.cursor_x += glyph_info.advance_width;
-            paragraph.cursor_x = font.round_to_pixel(paragraph.cursor_x);
+
+            // This opt-in feature flag makes fixed width fonts scale proportionally to their
+            // surroundings regardless of the `pixels_per_point` setting. I.e., the text bounding
+            // box will be proportionally identical even when the window is moved between displays
+            // with varying DPIs.
+            //
+            // By default this feature is off, and text layout will nudge glyph positions to align
+            // with the pixel grid to retain the appearance of decent spacing between characters.
+            //
+            // See https://github.com/emilk/egui/pull/2490 for additional details.
+            #[cfg(feature = "proportional_font_scaling")]
+            {
+                paragraph.cursor_x = paragraph.cursor_x.round();
+            }
+
+            #[cfg(not(feature = "proportional_font_scaling"))]
+            {
+                paragraph.cursor_x = font.round_to_pixel(paragraph.cursor_x);
+            }
+
             last_glyph_id = Some(glyph_info.id);
         }
     }
@@ -817,6 +836,36 @@ fn test_zero_max_width() {
     layout_job.wrap.max_width = 0.0;
     let galley = super::layout(&mut fonts, layout_job.into());
     assert_eq!(galley.rows.len(), 1);
+}
+
+#[test]
+fn test_font_scaling() {
+    fn measure_max_glyph_size(pixels_per_point: f32) -> Vec2 {
+        let mut fonts = FontsImpl::new(pixels_per_point, 1024, super::FontDefinitions::default());
+        let layout_job = LayoutJob::single_section(
+            "Hello, world!".into(),
+            super::TextFormat {
+                font_id: super::FontId::monospace(14.0),
+                ..Default::default()
+            },
+        );
+        let galley = super::layout(&mut fonts, layout_job.into());
+
+        galley
+            .rows
+            .iter()
+            .flat_map(|row| row.glyphs.iter().map(|g| g.size))
+            .fold(Vec2::ZERO, |acc, size| acc.max(size))
+    }
+
+    let expected_size = Vec2::new(8.275167, 16.0);
+
+    assert_eq!(measure_max_glyph_size(1.0), expected_size);
+    assert_eq!(measure_max_glyph_size(1.15), expected_size);
+    assert_eq!(measure_max_glyph_size(1.5), expected_size);
+    assert_eq!(measure_max_glyph_size(2.0), expected_size);
+    assert_eq!(measure_max_glyph_size(3.0), expected_size);
+    assert_eq!(measure_max_glyph_size(3.333), expected_size);
 }
 
 #[test]
