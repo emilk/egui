@@ -21,7 +21,8 @@ pub struct ContextMenus {
     plot: Plot,
     show_axes: [bool; 2],
     allow_drag: bool,
-    allow_zoom: bool,
+    allow_zoom_x: bool,
+    allow_zoom_y: bool,
     allow_scroll: bool,
     center_x_axis: bool,
     center_y_axis: bool,
@@ -35,7 +36,8 @@ impl Default for ContextMenus {
             plot: Plot::Sin,
             show_axes: [true, true],
             allow_drag: true,
-            allow_zoom: true,
+            allow_zoom_x: true,
+            allow_zoom_y: true,
             allow_scroll: true,
             center_x_axis: false,
             center_y_axis: false,
@@ -101,7 +103,8 @@ impl super::View for ContextMenus {
                     ui.checkbox(&mut self.show_axes[1], "y-Axis");
                     ui.end_row();
                     if ui.checkbox(&mut self.allow_drag, "Drag").changed()
-                        || ui.checkbox(&mut self.allow_zoom, "Zoom").changed()
+                        || ui.checkbox(&mut self.allow_zoom_x, "Zoom x").changed()
+                        || ui.checkbox(&mut self.allow_zoom_y, "Zoom y").changed()
                         || ui.checkbox(&mut self.allow_scroll, "Scroll").changed()
                     {
                         ui.close_menu();
@@ -135,7 +138,8 @@ impl ContextMenus {
         egui::plot::Plot::new("example_plot")
             .show_axes(self.show_axes)
             .allow_drag(self.allow_drag)
-            .allow_zoom(self.allow_zoom)
+            .allow_zoom_x(self.allow_zoom_x)
+            .allow_zoom_y(self.allow_zoom_y)
             .allow_scroll(self.allow_scroll)
             .center_x_axis(self.center_x_axis)
             .center_x_axis(self.center_y_axis)

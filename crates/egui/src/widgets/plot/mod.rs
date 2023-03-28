@@ -263,7 +263,7 @@ pub struct Plot {
 
     center_x_axis: bool,
     center_y_axis: bool,
-    allow_zoom: bool,
+    allow_zoom: AxisBools,
     allow_drag: bool,
     allow_scroll: bool,
     allow_double_click_reset: bool,
@@ -305,7 +305,7 @@ impl Plot {
 
             center_x_axis: false,
             center_y_axis: false,
-            allow_zoom: true,
+            allow_zoom: true.into(),
             allow_drag: true,
             allow_scroll: true,
             allow_double_click_reset: true,
@@ -402,9 +402,15 @@ impl Plot {
         self
     }
 
-    /// Whether to allow zooming in the plot. Default: `true`.
-    pub fn allow_zoom(mut self, on: bool) -> Self {
-        self.allow_zoom = on;
+    /// Whether to allow zooming in the plot's x-axis. Default: `true`.
+    pub fn allow_zoom_x(mut self, on: bool) -> Self {
+        self.allow_zoom.x = on;
+        self
+    }
+
+    /// Whether to allow zooming in the plot's y-axis. Default: `true`.
+    pub fn allow_zoom_y(mut self, on: bool) -> Self {
+        self.allow_zoom.y = on;
         self
     }
 
@@ -953,12 +959,18 @@ impl Plot {
         }
 
         if let Some(hover_pos) = response.hover_pos() {
-            if allow_zoom {
-                let zoom_factor = if data_aspect.is_some() {
+            if allow_zoom.x || allow_zoom.y {
+                let mut zoom_factor = if data_aspect.is_some() {
                     Vec2::splat(ui.input(|i| i.zoom_delta()))
                 } else {
                     ui.input(|i| i.zoom_delta_2d())
                 };
+                if !allow_zoom.x {
+                    zoom_factor.x = 1.0;
+                }
+                if !allow_zoom.y {
+                    zoom_factor.y = 1.0;
+                }
                 if zoom_factor != Vec2::splat(1.0) {
                     transform.zoom(zoom_factor, hover_pos);
                     bounds_modified = true.into();
