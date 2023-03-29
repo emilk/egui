@@ -675,12 +675,13 @@ mod glow_integration {
                 egui_glow::Painter::new(gl.clone(), "", self.native_options.shader_version)
                     .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
 
-            let system_theme = self.native_options.system_theme();
+            let system_theme = system_theme(gl_window.window(), &self.native_options);
             let mut integration = epi_integration::EpiIntegration::new(
                 event_loop,
                 painter.max_texture_side(),
                 gl_window.window(),
                 system_theme,
+                self.native_options.follow_system_theme,
                 storage,
                 Some(gl.clone()),
                 #[cfg(feature = "wgpu")]
@@ -1129,12 +1130,13 @@ mod wgpu_integration {
 
             let wgpu_render_state = painter.render_state();
 
-            let system_theme = self.native_options.system_theme();
+            let system_theme = system_theme(&window, &self.native_options);
             let mut integration = epi_integration::EpiIntegration::new(
                 event_loop,
                 painter.max_texture_side().unwrap_or(2048),
                 &window,
                 system_theme,
+                self.native_options.follow_system_theme,
                 storage,
                 #[cfg(feature = "glow")]
                 None,
@@ -1438,3 +1440,22 @@ mod wgpu_integration {
 
 #[cfg(feature = "wgpu")]
 pub use wgpu_integration::run_wgpu;
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+fn system_theme(window: &winit::window::Window, options: &NativeOptions) -> Option<crate::Theme> {
+    if options.follow_system_theme {
+        window
+            .theme()
+            .map(super::epi_integration::theme_from_winit_theme)
+    } else {
+        None
+    }
+}
+
+// Winit only reads the system theme on macOS and Windows.
+// On Linux we have to fall back on dark-light (if enabled).
+// See: https://github.com/rust-windowing/winit/issues/1549
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+fn system_theme(_window: &winit::window::Window, options: &NativeOptions) -> Option<crate::Theme> {
+    options.system_theme()
+}

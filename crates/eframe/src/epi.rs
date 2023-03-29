@@ -323,12 +323,14 @@ pub struct NativeOptions {
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     pub renderer: Renderer,
 
-    /// Only used if the `dark-light` feature is enabled:
-    ///
     /// Try to detect and follow the system preferred setting for dark vs light mode.
     ///
     /// By default, this is `true` on Mac and Windows, but `false` on Linux
     /// due to <https://github.com/frewsxcv/rust-dark-light/issues/17>.
+    ///
+    /// On Mac and Windows the theme will automatically change when the dark vs light mode preference is changed.
+    ///
+    /// This only works on Linux if the `dark-light` feature is enabled.
     ///
     /// See also [`Self::default_theme`].
     pub follow_system_theme: bool,
