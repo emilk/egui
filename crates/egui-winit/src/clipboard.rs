@@ -153,6 +153,8 @@ fn init_smithay_clipboard<T>(
         }
     }
 
-    tracing::debug!("You need to enable the 'wayland' feature of 'egui-winit' to get a working clipboard");
+    tracing::debug!(
+        "You need to enable the 'wayland' feature of 'egui-winit' to get a working clipboard"
+    );
     None
 }
