@@ -445,14 +445,8 @@ impl Painter {
     ) -> Option<epaint::ColorImage> {
         crate::profile_function!();
 
-        let render_state = match self.render_state.as_mut() {
-            Some(rs) => rs,
-            None => return None,
-        };
-        let surface_state = match self.surface_state.as_ref() {
-            Some(rs) => rs,
-            None => return None,
-        };
+        let render_state = self.render_state.as_mut()?;
+        let surface_state = self.surface_state.as_ref()?;
 
         let output_frame = {
             crate::profile_scope!("get_current_texture");
