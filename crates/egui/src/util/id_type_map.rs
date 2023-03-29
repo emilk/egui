@@ -170,6 +170,14 @@ impl Element {
     }
 
     #[inline]
+    pub(crate) fn get_temp<T: 'static>(&self) -> Option<&T> {
+        match self {
+            Self::Value { value, .. } => value.downcast_ref(),
+            Self::Serialized { .. } => None,
+        }
+    }
+
+    #[inline]
     pub(crate) fn get_mut_temp<T: 'static>(&mut self) -> Option<&mut T> {
         match self {
             Self::Value { value, .. } => value.downcast_mut(),
@@ -301,6 +309,7 @@ use crate::Id;
 ///
 /// Values are cloned when read, so keep them small and light.
 /// If you want to store something bigger, wrap them in `Arc<Mutex<…>>`.
+/// Also try `Arc<ArcSwap<…>>`.
 ///
 /// Values can either be "persisted" (serializable) or "temporary" (cleared when egui is shut down).
 ///
@@ -355,15 +364,15 @@ impl IdTypeMap {
     ///
     /// The call clones the value (if found), so make sure it is cheap to clone!
     #[inline]
-    pub fn get_temp<T: 'static + Clone>(&mut self, id: Id) -> Option<T> {
+    pub fn get_temp<T: 'static + Clone>(&self, id: Id) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
-        self.0
-            .get_mut(&hash)
-            .and_then(|x| x.get_mut_temp())
-            .cloned()
+        self.0.get(&hash).and_then(|x| x.get_temp()).cloned()
     }
 
     /// Read a value, optionally deserializing it if available.
+    ///
+    /// NOTE: A mutable `self` is needed because internally this deserializes on first call
+    /// and caches the result (caching requires self-mutability).
     ///
     /// The call clones the value (if found), so make sure it is cheap to clone!
     #[inline]
