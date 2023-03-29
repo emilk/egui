@@ -255,17 +255,18 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
     } else {
         alpha
     };
-    // Update hsvag only if the converted srgba is changed, this is beacause hsvag is made of f32,
+    // Update hsvag only if the converted srgba is changed, this is because hsvag is made of f32,
     // and the convertion between u8 and f32 loses a bit of the color precision, causing little flickering on hsvag based ui widgets.
     if let Some(mut edited) = srgba_edit_ui(ui, c32_premultiplied, alpha_control) {
         // Additive blending, signaled by the negative Alpha.
         if hsvag.a < 0.0 {
             let stored_a = hsvag.a;
-            // Alpha to 0 instead of negative, so it wont pop back to Normal blending when RGB are modified.
+            // Alpha to 0 instead of negative, so it won't pop back to Normal blending when RGB are modified.
             edited[3] = 0;
+            // This conversion above sets Alpha to 0 in case it was negative, stored_a is used to back-up that value.
             *hsvag = HsvaGamma::from(Hsva::from_srgba_unmultiplied(edited.to_array()));
-            // Keeps the Alpha set during Normal blending so that in case we alter RGB in Additive blending
-            // and the switch back to Normal blending it gets that Alpha value back.
+            // stored_a keeps the Alpha value that was set during Normal blending so that in case we alter RGB in Additive blending (negative Alpha)
+            // and then switch back to Normal blending it gets that Alpha value back.
             hsvag.a = stored_a;
         }
         // Normal blending.
@@ -343,7 +344,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
 /// Shows 4 `DragValue` widgets to be used to edit the Color32's RGBA values.
 /// Alpha's `DragValue` is hidden when `Alpha::Opaque`.
 ///
-/// Returns `Some(Color32)` on change.
+/// Returns `Some(Color32)` on change, with unmultiplied alpha values.
 fn srgba_edit_ui(ui: &mut Ui, rgba: Color32, alpha: Alpha) -> Option<Color32> {
     let [mut r, mut g, mut b, mut a] = rgba.to_array();
 
