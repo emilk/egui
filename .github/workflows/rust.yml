@@ -175,6 +175,8 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
+      - name: Set up cargo cache
+        uses: Swatinem/rust-cache@v2
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
           rust-version: "1.65.0"
