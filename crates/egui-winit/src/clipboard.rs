@@ -146,15 +146,18 @@ fn init_smithay_clipboard<T>(
         if let Some(display) = _event_loop.wayland_display() {
             tracing::debug!("Initializing smithay clipboard…");
             #[allow(unsafe_code)]
-            return Some(unsafe { smithay_clipboard::Clipboard::new(display) });
+            Some(unsafe { smithay_clipboard::Clipboard::new(display) })
         } else {
             tracing::debug!("Cannot initialize smithay clipboard without a display handle");
-            return;
+            None
         }
     }
 
-    tracing::debug!(
-        "You need to enable the 'wayland' feature of 'egui-winit' to get a working clipboard"
-    );
-    None
+    #[cfg(not(feature = "wayland"))]
+    {
+        tracing::debug!(
+            "You need to enable the 'wayland' feature of 'egui-winit' to get a working clipboard"
+        );
+        None
+    }
 }
