@@ -135,7 +135,7 @@ struct UniformBuffer {
 
 impl PartialEq for UniformBuffer {
     fn eq(&self, other: &Self) -> bool {
-        self.screen_size_in_points == other.screen_size_in_points && self._padding == other._padding
+        self.screen_size_in_points == other.screen_size_in_points
     }
 }
 
