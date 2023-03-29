@@ -5,7 +5,6 @@ use eframe::glow;
 
 #[cfg(target_arch = "wasm32")]
 use core::any::Any;
-use std::fmt::{Display, Formatter};
 
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -89,8 +88,23 @@ enum Anchor {
     Colors,
 }
 
-impl Display for Anchor {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl Anchor {
+    fn all() -> Vec<Self> {
+        vec![
+            Anchor::Demo,
+            Anchor::EasyMarkEditor,
+            #[cfg(feature = "http")]
+            Anchor::Http,
+            Anchor::Clock,
+            #[cfg(any(feature = "glow", feature = "wgpu"))]
+            Anchor::Custom3d,
+            Anchor::Colors,
+        ]
+    }
+}
+
+impl std::fmt::Display for Anchor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")
     }
 }
@@ -214,17 +228,7 @@ impl eframe::App for WrapApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         #[cfg(target_arch = "wasm32")]
         if let Some(anchor) = frame.info().web_info.location.hash.strip_prefix('#') {
-            let anchors = vec![
-                Anchor::Demo,
-                Anchor::EasyMarkEditor,
-                #[cfg(feature = "http")]
-                Anchor::Http,
-                Anchor::Clock,
-                #[cfg(any(feature = "glow", feature = "wgpu"))]
-                Anchor::Custom3d,
-                Anchor::Colors,
-            ];
-            let anchor = anchors.into_iter().find(|x| x.to_string() == anchor);
+            let anchor = Anchor::all().find(|x| x.to_string() == anchor);
             if let Some(v) = anchor {
                 self.state.selected_anchor = v;
             }
