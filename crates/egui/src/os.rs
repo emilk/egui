@@ -36,7 +36,7 @@ impl OperatingSystem {
         } else if cfg!(target_os = "macos") {
             Self::Mac
         } else if cfg!(target_os = "windows") {
-            Self::Android
+            Self::Windows
         } else if cfg!(target_os = "linux")
             || cfg!(target_os = "dragonfly")
             || cfg!(target_os = "freebsd")
