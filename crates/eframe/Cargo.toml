@@ -38,6 +38,9 @@ default_fonts = ["egui/default_fonts"]
 ## Use [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/master/crates/egui_glow).
 glow = ["dep:glow", "dep:egui_glow", "dep:glutin", "dep:glutin-winit"]
 
+## Enables wayland support and fixes clipboard issue.
+wayland = ["egui-winit/wayland"]
+
 ## Enable saving app state to disk.
 persistence = [
   "directories-next",
@@ -149,6 +152,7 @@ web-sys = { version = "0.3.58", features = [
   "KeyboardEvent",
   "Location",
   "MediaQueryList",
+  "MediaQueryListEvent",
   "MouseEvent",
   "Navigator",
   "Performance",
