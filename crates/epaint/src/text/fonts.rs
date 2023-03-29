@@ -153,12 +153,14 @@ impl FontData {
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FontTweak {
-    /// Scale the font by this much.
+    /// Scale the font's glyphs by this much.
+    /// this is only a visual effect and does not affect the text layout.
     ///
     /// Default: `1.0` (no scaling).
     pub scale: f32,
 
-    /// Shift font downwards by this fraction of the font size (in points).
+    /// Shift font's glyphs downwards by this fraction of the font size (in points).
+    /// this is only a visual effect and does not affect the text layout.
     ///
     /// A positive value shifts the text downwards.
     /// A negative value shifts it upwards.
@@ -166,18 +168,27 @@ pub struct FontTweak {
     /// Example value: `-0.2`.
     pub y_offset_factor: f32,
 
-    /// Shift font downwards by this amount of logical points.
+    /// Shift font's glyphs downwards by this amount of logical points.
+    /// this is only a visual effect and does not affect the text layout.
     ///
     /// Example value: `2.0`.
     pub y_offset: f32,
+
+    /// When using this font's metrics to layout a row,
+    /// shift the entire row downwards by this fraction of the font size (in points).
+    ///
+    /// A positive value shifts the text downwards.
+    /// A negative value shifts it upwards.
+    pub baseline_offset_factor: f32,
 }
 
 impl Default for FontTweak {
     fn default() -> Self {
         Self {
             scale: 1.0,
-            y_offset_factor: -0.2, // makes the default fonts look more centered in buttons and such
+            y_offset_factor: 0.0,
             y_offset: 0.0,
+            baseline_offset_factor: -0.0333, // makes the default fonts look more centered in buttons and such
         }
     }
 }
@@ -272,9 +283,8 @@ impl Default for FontDefinitions {
             "NotoEmoji-Regular".to_owned(),
             FontData::from_static(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")).tweak(
                 FontTweak {
-                    scale: 0.81,           // make it smaller
-                    y_offset_factor: -0.2, // move it up
-                    y_offset: 0.0,
+                    scale: 0.81, // make it smaller
+                    ..Default::default()
                 },
             ),
         );
@@ -284,9 +294,12 @@ impl Default for FontDefinitions {
             "emoji-icon-font".to_owned(),
             FontData::from_static(include_bytes!("../../fonts/emoji-icon-font.ttf")).tweak(
                 FontTweak {
-                    scale: 0.88,           // make it smaller
-                    y_offset_factor: 0.07, // move it down slightly
-                    y_offset: 0.0,
+                    scale: 0.88, // make it smaller
+
+                    // probably not correct, but this does make texts look better (#2724 for details)
+                    y_offset_factor: 0.11, // move glyphs down to better align with common fonts
+                    baseline_offset_factor: -0.11, // ...now the entire row is a bit down so shift it back
+                    ..Default::default()
                 },
             ),
         );
@@ -760,20 +773,11 @@ impl FontImplCache {
         let font_scaling = ab_glyph_font.height_unscaled() / units_per_em;
         let scale_in_pixels = scale_in_pixels * font_scaling;
 
-        // Tweak the scale as the user desired:
-        let scale_in_pixels = scale_in_pixels * tweak.scale;
-
-        // Round to an even number of physical pixels to get even kerning.
-        // See https://github.com/emilk/egui/issues/382
-        let scale_in_pixels = scale_in_pixels.round() as u32;
-
-        let y_offset_points = {
-            let scale_in_points = scale_in_pixels as f32 / self.pixels_per_point;
-            scale_in_points * tweak.y_offset_factor
-        } + tweak.y_offset;
-
         self.cache
-            .entry((scale_in_pixels, font_name.to_owned()))
+            .entry((
+                (scale_in_pixels * tweak.scale).round() as u32,
+                font_name.to_owned(),
+            ))
             .or_insert_with(|| {
                 Arc::new(FontImpl::new(
                     self.atlas.clone(),
@@ -781,7 +785,7 @@ impl FontImplCache {
                     font_name.to_owned(),
                     ab_glyph_font,
                     scale_in_pixels,
-                    y_offset_points,
+                    tweak,
                 ))
             })
             .clone()

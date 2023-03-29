@@ -5,6 +5,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 
 ## Unreleased
+* Add `Frame::request_screenshot` and `Frame::screenshot` to communicate to the backend that a screenshot of the current frame should be exposed by `Frame` during `App::post_rendering` ([#2676](https://github.com/emilk/egui/pull/2676))
 
 
 ## 0.21.3 - 2023-02-15

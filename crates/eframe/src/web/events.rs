@@ -207,6 +207,27 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
     Ok(())
 }
 
+pub fn install_color_scheme_change_event(
+    runner_container: &mut AppRunnerContainer,
+) -> Result<(), JsValue> {
+    let window = web_sys::window().unwrap();
+
+    if let Some(media_query_list) = prefers_color_scheme_dark(&window)? {
+        runner_container.add_event_listener::<web_sys::MediaQueryListEvent>(
+            &media_query_list,
+            "change",
+            |event, mut runner_lock| {
+                let theme = theme_from_dark_mode(event.matches());
+                runner_lock.frame.info.system_theme = Some(theme);
+                runner_lock.egui_ctx().set_visuals(theme.egui_visuals());
+                runner_lock.needs_repaint.repaint_asap();
+            },
+        )?;
+    }
+
+    Ok(())
+}
+
 pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Result<(), JsValue> {
     let canvas = canvas_element(runner_container.runner.lock().canvas_id()).unwrap();
 
