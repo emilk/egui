@@ -128,7 +128,7 @@ pub fn window_builder<E>(
         // Restore pos/size from previous session
         window_settings.clamp_to_sane_values(largest_monitor_point_size(event_loop));
         #[cfg(windows)]
-        window_settings.clamp_window_to_sane_position(&event_loop);
+        window_settings.clamp_window_to_sane_position(event_loop);
         window_builder = window_settings.initialize_window(window_builder);
         window_settings.inner_size_points()
     } else {
@@ -228,6 +228,7 @@ pub fn handle_app_output(
         window_pos,
         visible: _, // handled in post_present
         always_on_top,
+        screenshot_requested: _, // handled by the rendering backend,
         minimized,
         maximized,
     } = app_output;
@@ -349,6 +350,7 @@ impl EpiIntegration {
             gl,
             #[cfg(feature = "wgpu")]
             wgpu_render_state,
+            screenshot: std::cell::Cell::new(None),
         };
 
         let mut egui_winit = egui_winit::State::new(event_loop);
@@ -467,6 +469,7 @@ impl EpiIntegration {
                 tracing::debug!("App::on_close_event returned {}", self.close);
             }
             self.frame.output.visible = app_output.visible; // this is handled by post_present
+            self.frame.output.screenshot_requested = app_output.screenshot_requested;
             handle_app_output(
                 window,
                 self.egui_ctx.pixels_per_point(),

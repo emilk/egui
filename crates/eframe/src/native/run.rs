@@ -803,6 +803,14 @@ mod glow_integration {
                     &textures_delta,
                 );
 
+                let screenshot_requested = &mut integration.frame.output.screenshot_requested;
+
+                if *screenshot_requested {
+                    *screenshot_requested = false;
+                    let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
+                    integration.frame.screenshot.set(Some(screenshot));
+                }
+
                 integration.post_rendering(app.as_mut(), window);
 
                 {
@@ -820,11 +828,15 @@ mod glow_integration {
                             path.ends_with(".png"),
                             "Expected EFRAME_SCREENSHOT_TO to end with '.png', got {path:?}"
                         );
-                        let [w, h] = screen_size_in_pixels;
-                        let pixels = painter.read_screen_rgba(screen_size_in_pixels);
-                        let image = image::RgbaImage::from_vec(w, h, pixels).unwrap();
-                        let image = image::imageops::flip_vertical(&image);
-                        image.save(&path).unwrap_or_else(|err| {
+                        let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
+                        image::save_buffer(
+                            &path,
+                            screenshot.as_raw(),
+                            screenshot.width() as u32,
+                            screenshot.height() as u32,
+                            image::ColorType::Rgba8,
+                        )
+                        .unwrap_or_else(|err| {
                             panic!("Failed to save screenshot to {path:?}: {err}");
                         });
                         eprintln!("Screenshot saved to {path:?}.");
@@ -1229,12 +1241,17 @@ mod wgpu_integration {
                     integration.egui_ctx.tessellate(shapes)
                 };
 
-                painter.paint_and_update_textures(
+                let screenshot_requested = &mut integration.frame.output.screenshot_requested;
+
+                let screenshot = painter.paint_and_update_textures(
                     integration.egui_ctx.pixels_per_point(),
                     app.clear_color(&integration.egui_ctx.style().visuals),
                     &clipped_primitives,
                     &textures_delta,
+                    *screenshot_requested,
                 );
+                *screenshot_requested = false;
+                integration.frame.screenshot.set(screenshot);
 
                 integration.post_rendering(app.as_mut(), window);
                 integration.post_present(window);
