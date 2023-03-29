@@ -675,12 +675,13 @@ mod glow_integration {
                 egui_glow::Painter::new(gl.clone(), "", self.native_options.shader_version)
                     .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
 
-            let system_theme = self.native_options.system_theme();
+            let system_theme = system_theme(gl_window.window(), &self.native_options);
             let mut integration = epi_integration::EpiIntegration::new(
                 event_loop,
                 painter.max_texture_side(),
                 gl_window.window(),
                 system_theme,
+                self.native_options.follow_system_theme,
                 storage,
                 Some(gl.clone()),
                 #[cfg(feature = "wgpu")]
@@ -803,6 +804,14 @@ mod glow_integration {
                     &textures_delta,
                 );
 
+                let screenshot_requested = &mut integration.frame.output.screenshot_requested;
+
+                if *screenshot_requested {
+                    *screenshot_requested = false;
+                    let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
+                    integration.frame.screenshot.set(Some(screenshot));
+                }
+
                 integration.post_rendering(app.as_mut(), window);
 
                 {
@@ -820,11 +829,15 @@ mod glow_integration {
                             path.ends_with(".png"),
                             "Expected EFRAME_SCREENSHOT_TO to end with '.png', got {path:?}"
                         );
-                        let [w, h] = screen_size_in_pixels;
-                        let pixels = painter.read_screen_rgba(screen_size_in_pixels);
-                        let image = image::RgbaImage::from_vec(w, h, pixels).unwrap();
-                        let image = image::imageops::flip_vertical(&image);
-                        image.save(&path).unwrap_or_else(|err| {
+                        let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
+                        image::save_buffer(
+                            &path,
+                            screenshot.as_raw(),
+                            screenshot.width() as u32,
+                            screenshot.height() as u32,
+                            image::ColorType::Rgba8,
+                        )
+                        .unwrap_or_else(|err| {
                             panic!("Failed to save screenshot to {path:?}: {err}");
                         });
                         eprintln!("Screenshot saved to {path:?}.");
@@ -1117,12 +1130,13 @@ mod wgpu_integration {
 
             let wgpu_render_state = painter.render_state();
 
-            let system_theme = self.native_options.system_theme();
+            let system_theme = system_theme(&window, &self.native_options);
             let mut integration = epi_integration::EpiIntegration::new(
                 event_loop,
                 painter.max_texture_side().unwrap_or(2048),
                 &window,
                 system_theme,
+                self.native_options.follow_system_theme,
                 storage,
                 #[cfg(feature = "glow")]
                 None,
@@ -1229,12 +1243,17 @@ mod wgpu_integration {
                     integration.egui_ctx.tessellate(shapes)
                 };
 
-                painter.paint_and_update_textures(
+                let screenshot_requested = &mut integration.frame.output.screenshot_requested;
+
+                let screenshot = painter.paint_and_update_textures(
                     integration.egui_ctx.pixels_per_point(),
                     app.clear_color(&integration.egui_ctx.style().visuals),
                     &clipped_primitives,
                     &textures_delta,
+                    *screenshot_requested,
                 );
+                *screenshot_requested = false;
+                integration.frame.screenshot.set(screenshot);
 
                 integration.post_rendering(app.as_mut(), window);
                 integration.post_present(window);
@@ -1421,3 +1440,22 @@ mod wgpu_integration {
 
 #[cfg(feature = "wgpu")]
 pub use wgpu_integration::run_wgpu;
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+fn system_theme(window: &winit::window::Window, options: &NativeOptions) -> Option<crate::Theme> {
+    if options.follow_system_theme {
+        window
+            .theme()
+            .map(super::epi_integration::theme_from_winit_theme)
+    } else {
+        None
+    }
+}
+
+// Winit only reads the system theme on macOS and Windows.
+// On Linux we have to fall back on dark-light (if enabled).
+// See: https://github.com/rust-windowing/winit/issues/1549
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+fn system_theme(_window: &winit::window::Window, options: &NativeOptions) -> Option<crate::Theme> {
+    options.system_theme()
+}

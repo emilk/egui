@@ -36,7 +36,7 @@ use std::sync::{
 
 use egui::Vec2;
 use wasm_bindgen::prelude::*;
-use web_sys::EventTarget;
+use web_sys::{EventTarget, MediaQueryList};
 
 use input::*;
 
@@ -75,11 +75,22 @@ pub fn native_pixels_per_point() -> f32 {
 }
 
 pub fn system_theme() -> Option<Theme> {
-    let dark_mode = web_sys::window()?
-        .match_media("(prefers-color-scheme: dark)")
+    let dark_mode = prefers_color_scheme_dark(&web_sys::window()?)
         .ok()??
         .matches();
-    Some(if dark_mode { Theme::Dark } else { Theme::Light })
+    Some(theme_from_dark_mode(dark_mode))
+}
+
+fn prefers_color_scheme_dark(window: &web_sys::Window) -> Result<Option<MediaQueryList>, JsValue> {
+    window.match_media("(prefers-color-scheme: dark)")
+}
+
+fn theme_from_dark_mode(dark_mode: bool) -> Theme {
+    if dark_mode {
+        Theme::Dark
+    } else {
+        Theme::Light
+    }
 }
 
 pub fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
@@ -113,8 +124,10 @@ pub fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2
     let canvas = canvas_element(canvas_id)?;
     let parent = canvas.parent_element()?;
 
-    let width = parent.scroll_width();
-    let height = parent.scroll_height();
+    // Prefer the client width and height so that if the parent
+    // element is resized that the egui canvas resizes appropriately.
+    let width = parent.client_width();
+    let height = parent.client_height();
 
     let canvas_real_size = Vec2 {
         x: width as f32,

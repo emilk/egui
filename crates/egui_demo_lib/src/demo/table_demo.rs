@@ -126,15 +126,11 @@ impl TableDemo {
 
         let mut table = TableBuilder::new(ui)
             .striped(self.striped)
+            .resizable(self.resizable)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
             .column(Column::auto())
-            .column(Column::initial(100.0).range(40.0..=300.0).resizable(true))
-            .column(
-                Column::initial(100.0)
-                    .at_least(40.0)
-                    .resizable(true)
-                    .clip(true),
-            )
+            .column(Column::initial(100.0).range(40.0..=300.0))
+            .column(Column::initial(100.0).at_least(40.0).clip(true))
             .column(Column::remainder())
             .min_scrolled_height(0.0);
 
