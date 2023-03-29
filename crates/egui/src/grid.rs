@@ -425,7 +425,7 @@ impl Grid {
                 if is_color {
                     let mut cursor = ui.cursor();
                     let painter = ui.painter();
-                    grid.paint_row(&mut cursor, &painter);
+                    grid.paint_row(&mut cursor, painter);
                 }
 
                 ui.set_grid(grid);
