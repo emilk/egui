@@ -285,7 +285,6 @@ pub struct NativeOptions {
     pub mouse_passthrough: bool,
 
     /// Whether grant focus when window initially opened. True by default.
-    #[cfg(target_os = "windows")]
     pub active: bool,
 
     /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
