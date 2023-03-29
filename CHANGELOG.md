@@ -5,6 +5,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 
 ## Unreleased
+* ⚠️ BREAKING: `Plot::link_axis` and `Plot::link_cursor` now take the name of the group ([#2410](https://github.com/emilk/egui/pull/2410)).
 
 
 ## 0.21.0 - 2023-02-08 - Deadlock fix and style customizability
@@ -32,7 +33,6 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Add `Slider::trailing_fill` for trailing color behind the circle like a `ProgressBar` ([#2660](https://github.com/emilk/egui/pull/2660)).
 
 ### Changed 🔧
-* ⚠️ BREAKING: `Plot::link_axis` and `Plot::link_cursor` now take the name of the group ([#2410](https://github.com/emilk/egui/pull/2410)).
 * Improved plot grid appearance ([#2412](https://github.com/emilk/egui/pull/2412)).
 * Improved the algorithm for picking the number of decimals to show when hovering values in the `Plot`.
 * Default `ComboBox` is now controlled with `Spacing::combo_width` ([#2621](https://github.com/emilk/egui/pull/2621)).
