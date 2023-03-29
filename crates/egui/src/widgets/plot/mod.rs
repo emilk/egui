@@ -264,7 +264,7 @@ pub struct Plot {
     center_x_axis: bool,
     center_y_axis: bool,
     allow_zoom: AxisBools,
-    allow_drag: bool,
+    allow_drag: AxisBools,
     allow_scroll: bool,
     allow_double_click_reset: bool,
     allow_boxed_zoom: bool,
@@ -306,7 +306,7 @@ impl Plot {
             center_x_axis: false,
             center_y_axis: false,
             allow_zoom: true.into(),
-            allow_drag: true,
+            allow_drag: true.into(),
             allow_scroll: true,
             allow_double_click_reset: true,
             allow_boxed_zoom: true,
@@ -449,9 +449,15 @@ impl Plot {
         self
     }
 
-    /// Whether to allow dragging in the plot to move the bounds. Default: `true`.
-    pub fn allow_drag(mut self, on: bool) -> Self {
-        self.allow_drag = on;
+    /// Whether to allow dragging in the plot to move the bounds in the x direction. Default: `true`.
+    pub fn allow_drag_x(mut self, on: bool) -> Self {
+        self.allow_drag.x = on;
+        self
+    }
+
+    /// Whether to allow dragging in the plot to move the bounds in the y direction. Default: `true`.
+    pub fn allow_drag_y(mut self, on: bool) -> Self {
+        self.allow_drag.y = on;
         self
     }
 
@@ -900,9 +906,16 @@ impl Plot {
         }
 
         // Dragging
-        if allow_drag && response.dragged_by(PointerButton::Primary) {
+        if (allow_drag.x || allow_drag.y) && response.dragged_by(PointerButton::Primary) {
             response = response.on_hover_cursor(CursorIcon::Grabbing);
-            transform.translate_bounds(-response.drag_delta());
+            let mut delta = -response.drag_delta();
+            if !allow_drag.x {
+                delta.x = 0.0;
+            }
+            if !allow_drag.y {
+                delta.y = 0.0;
+            }
+            transform.translate_bounds(delta);
             bounds_modified = true.into();
         }
 
