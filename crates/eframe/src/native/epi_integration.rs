@@ -128,7 +128,7 @@ pub fn window_builder<E>(
         // Restore pos/size from previous session
         window_settings.clamp_to_sane_values(largest_monitor_point_size(event_loop));
         #[cfg(windows)]
-        window_settings.clamp_window_to_sane_position(&event_loop);
+        window_settings.clamp_window_to_sane_position(event_loop);
         window_builder = window_settings.initialize_window(window_builder);
         window_settings.inner_size_points()
     } else {
@@ -228,6 +228,7 @@ pub fn handle_app_output(
         window_pos,
         visible: _, // handled in post_present
         always_on_top,
+        screenshot_requested: _, // handled by the rendering backend,
         minimized,
         maximized,
     } = app_output;
@@ -309,14 +310,17 @@ pub struct EpiIntegration {
     close: bool,
     can_drag_window: bool,
     window_state: WindowState,
+    follow_system_theme: bool,
 }
 
 impl EpiIntegration {
+    #[allow(clippy::too_many_arguments)]
     pub fn new<E>(
         event_loop: &EventLoopWindowTarget<E>,
         max_texture_side: usize,
         window: &winit::window::Window,
         system_theme: Option<Theme>,
+        follow_system_theme: bool,
         storage: Option<Box<dyn epi::Storage>>,
         #[cfg(feature = "glow")] gl: Option<std::sync::Arc<glow::Context>>,
         #[cfg(feature = "wgpu")] wgpu_render_state: Option<egui_wgpu::RenderState>,
@@ -349,6 +353,7 @@ impl EpiIntegration {
             gl,
             #[cfg(feature = "wgpu")]
             wgpu_render_state,
+            screenshot: std::cell::Cell::new(None),
         };
 
         let mut egui_winit = egui_winit::State::new(event_loop);
@@ -364,6 +369,7 @@ impl EpiIntegration {
             close: false,
             can_drag_window: false,
             window_state,
+            follow_system_theme,
         }
     }
 
@@ -427,6 +433,11 @@ impl EpiIntegration {
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 self.frame.info.native_pixels_per_point = Some(*scale_factor as _);
             }
+            WindowEvent::ThemeChanged(winit_theme) if self.follow_system_theme => {
+                let theme = theme_from_winit_theme(*winit_theme);
+                self.frame.info.system_theme = Some(theme);
+                self.egui_ctx.set_visuals(theme.egui_visuals());
+            }
             _ => {}
         }
 
@@ -467,6 +478,7 @@ impl EpiIntegration {
                 tracing::debug!("App::on_close_event returned {}", self.close);
             }
             self.frame.output.visible = app_output.visible; // this is handled by post_present
+            self.frame.output.screenshot_requested = app_output.screenshot_requested;
             handle_app_output(
                 window,
                 self.egui_ctx.pixels_per_point(),
@@ -565,4 +577,11 @@ pub fn load_egui_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Mem
     }
     #[cfg(not(feature = "persistence"))]
     None
+}
+
+pub(crate) fn theme_from_winit_theme(theme: winit::window::Theme) -> Theme {
+    match theme {
+        winit::window::Theme::Dark => Theme::Dark,
+        winit::window::Theme::Light => Theme::Light,
+    }
 }

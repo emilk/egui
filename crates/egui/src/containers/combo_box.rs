@@ -198,16 +198,16 @@ impl ComboBox {
     ///     ui,
     ///     &mut selected,
     ///     alternatives.len(),
-    ///     |i| alternatives[i].to_owned()
+    ///     |i| alternatives[i]
     /// );
     /// # });
     /// ```
-    pub fn show_index(
+    pub fn show_index<Text: Into<WidgetText>>(
         self,
         ui: &mut Ui,
         selected: &mut usize,
         len: usize,
-        get: impl Fn(usize) -> String,
+        get: impl Fn(usize) -> Text,
     ) -> Response {
         let slf = self.selected_text(get(*selected));
 

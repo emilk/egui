@@ -197,7 +197,7 @@ pub trait App {
 
     /// Called each time after the rendering the UI.
     ///
-    /// Can be used to access pixel data with `get_pixels`
+    /// Can be used to access pixel data with [`Frame::screenshot`]
     fn post_rendering(&mut self, _window_size_px: [u32; 2], _frame: &Frame) {}
 }
 
@@ -323,12 +323,14 @@ pub struct NativeOptions {
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     pub renderer: Renderer,
 
-    /// Only used if the `dark-light` feature is enabled:
-    ///
     /// Try to detect and follow the system preferred setting for dark vs light mode.
     ///
     /// By default, this is `true` on Mac and Windows, but `false` on Linux
     /// due to <https://github.com/frewsxcv/rust-dark-light/issues/17>.
+    ///
+    /// On Mac and Windows the theme will automatically change when the dark vs light mode preference is changed.
+    ///
+    /// This only works on Linux if the `dark-light` feature is enabled.
     ///
     /// See also [`Self::default_theme`].
     pub follow_system_theme: bool,
@@ -674,6 +676,11 @@ pub struct Frame {
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
     pub(crate) wgpu_render_state: Option<egui_wgpu::RenderState>,
+
+    /// If [`Frame::request_screenshot`] was called during a frame, this field will store the screenshot
+    /// such that it can be retrieved during [`App::post_rendering`] with [`Frame::screenshot`]
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) screenshot: std::cell::Cell<Option<egui::ColorImage>>,
 }
 
 impl Frame {
@@ -693,6 +700,66 @@ impl Frame {
     /// A place where you can store custom data in a way that persists when you restart the app.
     pub fn storage(&self) -> Option<&dyn Storage> {
         self.storage.as_deref()
+    }
+
+    /// Request the current frame's pixel data. Needs to be retrieved by calling [`Frame::screenshot`]
+    /// during [`App::post_rendering`].
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn request_screenshot(&mut self) {
+        self.output.screenshot_requested = true;
+    }
+
+    /// Cancel a request made with [`Frame::request_screenshot`].
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn cancel_screenshot_request(&mut self) {
+        self.output.screenshot_requested = false;
+    }
+
+    /// During [`App::post_rendering`], use this to retrieve the pixel data that was requested during
+    /// [`App::update`] via [`Frame::request_screenshot`].
+    ///
+    /// Returns None if:
+    /// * Called in [`App::update`]
+    /// * [`Frame::request_screenshot`] wasn't called on this frame during [`App::update`]
+    /// * The rendering backend doesn't support this feature (yet). Currently implemented for wgpu and glow, but not with wasm as target.
+    /// * Retrieving the data was unsuccessful in some way.
+    ///
+    /// See also [`egui::ColorImage::region`]
+    ///
+    /// ## Example generating a capture of everything within a square of 100 pixels located at the top left of the app and saving it with the [`image`](crates.io/crates/image) crate:
+    /// ```
+    /// struct MyApp;
+    ///
+    /// impl eframe::App for MyApp {
+    ///     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    ///         // In real code the app would render something here
+    ///         frame.request_screenshot();
+    ///         // Things that are added to the frame after the call to
+    ///         // request_screenshot() will still be included.
+    ///     }
+    ///
+    ///     fn post_rendering(&mut self, _window_size: [u32; 2], frame: &eframe::Frame) {
+    ///         if let Some(screenshot) = frame.screenshot() {
+    ///             let pixels_per_point = frame.info().native_pixels_per_point;
+    ///             let region = egui::Rect::from_two_pos(
+    ///                 egui::Pos2::ZERO,
+    ///                 egui::Pos2{ x: 100., y: 100. },
+    ///             );
+    ///             let top_left_corner = screenshot.region(&region, pixels_per_point);
+    ///             image::save_buffer(
+    ///                 "top_left.png",
+    ///                 top_left_corner.as_raw(),
+    ///                 top_left_corner.width() as u32,
+    ///                 top_left_corner.height() as u32,
+    ///                 image::ColorType::Rgba8,
+    ///             ).unwrap();
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn screenshot(&self) -> Option<egui::ColorImage> {
+        self.screenshot.take()
     }
 
     /// A place where you can store custom data in a way that persists when you restart the app.
@@ -1061,5 +1128,8 @@ pub(crate) mod backend {
         /// Set to some bool to maximize or unmaximize window.
         #[cfg(not(target_arch = "wasm32"))]
         pub maximized: Option<bool>,
+
+        #[cfg(not(target_arch = "wasm32"))]
+        pub screenshot_requested: bool,
     }
 }
