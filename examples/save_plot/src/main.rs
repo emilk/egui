@@ -87,13 +87,15 @@ impl eframe::App for MyApp {
                     .width(width)
                     .legend(Legend::default());
 
-                let graph: Vec<[f64; 2]> = vec![[0.0, 1.0], [2.0, 3.0], [3.0, 2.0]]; // dummy data
+                // let's create a dummy line in the plot
+                let graph: Vec<[f64; 2]> = vec![[0.0, 1.0], [2.0, 3.0], [3.0, 2.0]];
                 my_plot.show(ui, |plot_ui| {
                     plot_ui.line(Line::new(PlotPoints::from(graph)).name("curve"));
                 });
             });
 
-            ui.add_space(border_y); // add some whitespace in y direction
+            // add some whitespace in y direction
+            ui.add_space(border_y);
         });
 
         match &self.screenshot {
@@ -119,8 +121,10 @@ impl eframe::App for MyApp {
                     },
                 );
 
+                // only select the plot region from the screenshot
                 let plot = screenshot.region(&region, Some(1.0));
 
+                // save the plot to png
                 image::save_buffer(
                     &self.picked_path_plot,
                     plot.as_raw(),
