@@ -3157,6 +3157,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "save_plot"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "image",
+ "rfd",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "scoped-tls"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
