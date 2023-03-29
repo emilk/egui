@@ -404,7 +404,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
         |event: web_sys::WheelEvent, mut runner_lock| {
             let mut push_raw_event = || {
                 let unit = match event.delta_mode() {
-                    web_sys::WheelEvent::DOM_DELTA_PIXEL => egui::MouseWheelUnit::Pixel,
+                    web_sys::WheelEvent::DOM_DELTA_PIXEL => egui::MouseWheelUnit::Point,
                     web_sys::WheelEvent::DOM_DELTA_LINE => egui::MouseWheelUnit::Line,
                     web_sys::WheelEvent::DOM_DELTA_PAGE => egui::MouseWheelUnit::Page,
                     3u32..=u32::MAX => return,

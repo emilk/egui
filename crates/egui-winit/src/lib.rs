@@ -557,7 +557,10 @@ impl State {
                 winit::event::MouseScrollDelta::PixelDelta(winit::dpi::PhysicalPosition {
                     x,
                     y,
-                }) => (egui::MouseWheelUnit::Pixel, egui::vec2(x as f32, y as f32)),
+                }) => (
+                    egui::MouseWheelUnit::Point,
+                    egui::vec2(x as f32, y as f32) / self.pixels_per_point(),
+                ),
             };
             let modifiers = self.egui_input.modifiers;
             self.egui_input.events.push(egui::Event::MouseWheel {

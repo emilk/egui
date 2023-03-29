@@ -280,10 +280,10 @@ pub enum Event {
 
     /// A raw mouse wheel event as sent by the backend (minus the z coordinate),
     /// for implementing alternative custom controls.
-    /// If this event is handled, Zoom and Scroll should be ignored, as they might be duplicates
-    /// coming from the same input device.
+    /// Note that the same event can also trigger [`Self::Zoom`] and [`Self::Scroll`],
+    /// so you probably want to handle only one of them.
     MouseWheel {
-        /// The unit of scrolling: pixels, lines etc
+        /// The unit of scrolling: points, lines, or pages.
         unit: MouseWheelUnit,
 
         /// The amount scrolled horizontally and vertically. The amount and direction corresponding
@@ -911,8 +911,8 @@ pub enum TouchPhase {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum MouseWheelUnit {
-    /// Number of pixels
-    Pixel,
+    /// Number of ui points (logical pixels)
+    Point,
 
     /// Number of lines
     Line,
