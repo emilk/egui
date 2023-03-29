@@ -696,7 +696,6 @@ impl Frame {
     }
 
     /// A place where you can store custom data in a way that persists when you restart the app.
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn storage(&self) -> Option<&dyn Storage> {
         self.storage.as_deref()
     }
