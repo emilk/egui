@@ -183,8 +183,8 @@ mod native;
 /// # Errors
 /// This function can fail if we fail to set up a graphics context.
 #[cfg(not(target_arch = "wasm32"))]
-#[allow(clippy::needless_pass_by_value)]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
+#[allow(clippy::needless_pass_by_value)]
 pub fn run_native(
     app_name: &str,
     native_options: NativeOptions,
@@ -246,6 +246,7 @@ pub fn run_native(
 /// # Errors
 /// This function can fail if we fail to set up a graphics context.
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 pub fn run_simple_native(
     app_name: &str,
     native_options: NativeOptions,
