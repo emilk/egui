@@ -217,7 +217,7 @@ impl GridLayout {
         self.col += 1;
     }
 
-    pub(crate) fn paint_row(&mut self, cursor: &mut Rect, painter: &Painter) {
+    fn paint_row(&mut self, cursor: &mut Rect, painter: &Painter) {
         // handle row color painting based on color-picker function
         let Some(color_picker) = self.color_picker.as_ref() else { return };
         let Some(row_color)    = color_picker(self.row, &self.style) else { return };
