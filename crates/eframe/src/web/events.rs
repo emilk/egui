@@ -407,7 +407,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
                     web_sys::WheelEvent::DOM_DELTA_PIXEL => egui::MouseWheelUnit::Point,
                     web_sys::WheelEvent::DOM_DELTA_LINE => egui::MouseWheelUnit::Line,
                     web_sys::WheelEvent::DOM_DELTA_PAGE => egui::MouseWheelUnit::Page,
-                    3u32..=u32::MAX => return,
+                    _ => return,
                 };
                 let delta = egui::vec2(event.delta_x() as f32, event.delta_y() as f32);
                 let modifiers = runner_lock.input.raw.modifiers;
