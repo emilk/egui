@@ -23,8 +23,8 @@ fn main() -> Result<(), eframe::Error> {
 
 struct MyApp {
     picked_path_plot: PathBuf,
-    plot_location: [f32; 4],
-    save_plot: bool,
+    /// Unit: fraction of full screen
+    plot_location: egui::Rect,
     screenshot: Option<ColorImage>,
 }
 
@@ -32,8 +32,7 @@ impl Default for MyApp {
     fn default() -> Self {
         Self {
             picked_path_plot: PathBuf::default(),
-            plot_location: [0.0; 4],
-            save_plot: false,
+            plot_location: egui::Rect::EVERYTHING,
             screenshot: None,
         }
     }
@@ -56,12 +55,7 @@ impl eframe::App for MyApp {
             ui.add_space(border_y);
 
             if ui.button("Save Plot").clicked() {
-                if let Some(mut path) = rfd::FileDialog::new().save_file() {
-                    path.set_extension("png");
-                    frame.request_screenshot();
-                    self.save_plot = true;
-                    self.picked_path_plot = path;
-                }
+                frame.request_screenshot();
             }
 
             // add some whitespace in y direction
@@ -77,11 +71,21 @@ impl eframe::App for MyApp {
                 let plot_location_x = window_width - ui.available_size().x;
 
                 // lets set the relative plot location for plot saving purposes
-                self.plot_location[0] = plot_location_x / window_width; // lower bound x
-                self.plot_location[1] = plot_location_y / window_height; // lower bound y
-                self.plot_location[2] = (plot_location_x + width) / window_width; // upper bound x
-                self.plot_location[3] = (plot_location_y + height) / window_height; // upper bound y
+                // self.plot_location[0] = plot_location_x / window_width; // lower bound x
+                // self.plot_location[1] = plot_location_y / window_height; // lower bound y
+                // self.plot_location[2] = (plot_location_x + width) / window_width; // upper bound x
+                // self.plot_location[3] = (plot_location_y + height) / window_height; // upper bound y
 
+                self.plot_location = egui::Rect::from_two_pos(
+                  egui::Pos2{
+                      x: plot_location_x / window_width,
+                      y: plot_location_y / window_height,
+                  } ,
+                  egui::Pos2{
+                      x: (plot_location_x + width) / window_width,
+                      y: (plot_location_y + height) / window_height,
+                  }
+                );
                 let my_plot = Plot::new("My Plot")
                     .height(height)
                     .width(width)
@@ -98,9 +102,10 @@ impl eframe::App for MyApp {
             ui.add_space(border_y);
         });
 
-        match &self.screenshot {
-            None => {}
-            Some(screenshot) => {
+        if let Some(screenshot) = self.screenshot.take() {
+            if let Some(mut path) = rfd::FileDialog::new().save_file() {
+                path.set_extension("png");
+
                 // for a full size application, we should put this in a different thread,
                 // so that the GUI doesn't lag during saving
 
@@ -112,12 +117,12 @@ impl eframe::App for MyApp {
                 let screenshot_height = screenshot.size[1] as f32;
                 let region = egui::Rect::from_two_pos(
                     egui::Pos2 {
-                        x: self.plot_location[0] * screenshot_width,
-                        y: self.plot_location[1] * screenshot_height,
+                        x: self.plot_location.min.x * screenshot_width,
+                        y: self.plot_location.min.y * screenshot_height,
                     },
                     egui::Pos2 {
-                        x: self.plot_location[2] * screenshot_width,
-                        y: self.plot_location[3] * screenshot_height,
+                        x: self.plot_location.max.x * screenshot_width,
+                        y: self.plot_location.max.y * screenshot_height,
                     },
                 );
 
@@ -126,15 +131,14 @@ impl eframe::App for MyApp {
 
                 // save the plot to png
                 image::save_buffer(
-                    &self.picked_path_plot,
+                    &path,
                     plot.as_raw(),
                     plot.width() as u32,
                     plot.height() as u32,
                     image::ColorType::Rgba8,
                 )
-                .unwrap();
+                    .unwrap();
 
-                self.screenshot = None;
             }
         }
     }
