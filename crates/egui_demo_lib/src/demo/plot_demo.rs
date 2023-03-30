@@ -749,8 +749,18 @@ impl ItemsDemo {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Default, PartialEq)]
-struct InteractionDemo {}
+#[derive(PartialEq)]
+struct InteractionDemo {
+    nested_points: Vec<Vec<Vec<[f64; 2]>>>,
+}
+
+impl Default for InteractionDemo {
+    fn default() -> Self {
+        Self {
+            nested_points: vec![vec![vec![[0.0, 0.0], [0.0, 0.5]]], vec![vec![[0.0, 1.0]]]],
+        }
+    }
+}
 
 impl InteractionDemo {
     #[allow(clippy::unused_self)]
@@ -759,14 +769,70 @@ impl InteractionDemo {
 
         let InnerResponse {
             response,
-            inner: (screen_pos, pointer_coordinate, pointer_coordinate_drag_delta, bounds, hovered),
+            inner:
+                (
+                    screen_pos,
+                    pointer_coordinate,
+                    pointer_coordinate_drag_delta,
+                    bounds,
+                    hovered,
+                    hover_indexes,
+                ),
         } = plot.show(ui, |plot_ui| {
+            plot_ui.line(
+                Line::new(PlotPoints::from_explicit_callback(
+                    move |x| x.cos() / 2.0,
+                    ..,
+                    200,
+                ))
+                .name("cos/2"),
+            );
+            plot_ui.line(
+                Line::new(PlotPoints::from_explicit_callback(
+                    move |x| x.sin(),
+                    ..,
+                    100,
+                ))
+                .name("Sin")
+                .group(&"Group A", vec![0], true),
+            );
+            plot_ui.line(
+                Line::new(PlotPoints::from_explicit_callback(
+                    move |x| x.cos(),
+                    ..,
+                    200,
+                ))
+                .name("cos")
+                .group(&"line A", vec![1], true),
+            );
+            plot_ui.line(
+                Line::new(PlotPoints::from_explicit_callback(
+                    move |x| x.sin() / 2.0,
+                    ..,
+                    200,
+                ))
+                .name("sin/2")
+                .group(&"line B", vec![0], true),
+            );
+
+            for i in 0..self.nested_points.len() {
+                for j in 0..self.nested_points[i].len() {
+                    for k in 0..self.nested_points[i][j].len() {
+                        let point = Points::new(PlotPoints::from(self.nested_points[i][j][k]))
+                            .radius(5.0)
+                            .name(&format!("point {} {} {}", i, j, k))
+                            .group(&"Group point A", vec![i, j, k], false);
+                        plot_ui.points(point);
+                    }
+                }
+            }
             (
                 plot_ui.screen_from_plot(PlotPoint::new(0.0, 0.0)),
                 plot_ui.pointer_coordinate(),
                 plot_ui.pointer_coordinate_drag_delta(),
                 plot_ui.plot_bounds(),
                 plot_ui.plot_hovered(),
+                plot_ui.hover_indexes(),
             )
         });
 
@@ -794,6 +860,30 @@ impl InteractionDemo {
             "pointer coordinate drag delta: {}",
             coordinate_text
         ));
+
+        let indexes = if hover_indexes.is_some() {
+            let src_hover = hover_indexes.as_ref().unwrap();
+            let index_overidexes_string = src_hover
+                .index_overide
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>()
+                .join(", ");
+
+            if !src_hover.group_name.is_empty() && !src_hover.index_overide.is_empty() {
+                format!(
+                    "group name: {}, index_overided :[{}]",
+                    src_hover.group_name, index_overidexes_string,
+                )
+            } else if !src_hover.index_overide.is_empty() {
+                format!("index_retain :[{}]", index_overidexes_string)
+            } else {
+                "None".to_owned()
+            }
+        } else {
+            "None".to_owned()
+        };
+        ui.label(format!("hover indexes: {}", indexes));
 
         response
     }
