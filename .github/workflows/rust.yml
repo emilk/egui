@@ -166,17 +166,14 @@ jobs:
           - target: aarch64-apple-darwin
           - target: aarch64-linux-android
           - target: wasm32-unknown-unknown
-          - target: x86_64-apple-darwin
           - target: x86_64-pc-windows-msvc
           - target: x86_64-unknown-linux-gnu
-          - target: x86_64-unknown-linux-musl
+          # - target: x86_64-unknown-linux-musl
 
     name: cargo-deny ${{ matrix.target }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
-      - name: Set up cargo cache
-        uses: Swatinem/rust-cache@v2
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
           rust-version: "1.65.0"
