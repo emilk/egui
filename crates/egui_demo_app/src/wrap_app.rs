@@ -75,6 +75,53 @@ impl eframe::App for ColorTestApp {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+enum Anchor {
+    Demo,
+    EasyMarkEditor,
+    #[cfg(feature = "http")]
+    Http,
+    Clock,
+    #[cfg(any(feature = "glow", feature = "wgpu"))]
+    Custom3d,
+    Colors,
+}
+
+impl Anchor {
+    #[cfg(target_arch = "wasm32")]
+    fn all() -> Vec<Self> {
+        vec![
+            Anchor::Demo,
+            Anchor::EasyMarkEditor,
+            #[cfg(feature = "http")]
+            Anchor::Http,
+            Anchor::Clock,
+            #[cfg(any(feature = "glow", feature = "wgpu"))]
+            Anchor::Custom3d,
+            Anchor::Colors,
+        ]
+    }
+}
+
+impl std::fmt::Display for Anchor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
+impl From<Anchor> for egui::WidgetText {
+    fn from(value: Anchor) -> Self {
+        Self::RichText(egui::RichText::new(value.to_string()))
+    }
+}
+
+impl Default for Anchor {
+    fn default() -> Self {
+        Self::Demo
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// The state that we persist (serialize).
@@ -89,7 +136,7 @@ pub struct State {
     clock: FractalClockApp,
     color_test: ColorTestApp,
 
-    selected_anchor: String,
+    selected_anchor: Anchor,
     backend_panel: super::backend_panel::BackendPanel,
 }
 
@@ -125,27 +172,27 @@ impl WrapApp {
         slf
     }
 
-    fn apps_iter_mut(&mut self) -> impl Iterator<Item = (&str, &str, &mut dyn eframe::App)> {
+    fn apps_iter_mut(&mut self) -> impl Iterator<Item = (&str, Anchor, &mut dyn eframe::App)> {
         let mut vec = vec![
             (
                 "✨ Demos",
-                "demo",
+                Anchor::Demo,
                 &mut self.state.demo as &mut dyn eframe::App,
             ),
             (
                 "🖹 EasyMark editor",
-                "easymark",
+                Anchor::EasyMarkEditor,
                 &mut self.state.easy_mark_editor as &mut dyn eframe::App,
             ),
             #[cfg(feature = "http")]
             (
                 "⬇ HTTP",
-                "http",
+                Anchor::Http,
                 &mut self.state.http as &mut dyn eframe::App,
             ),
             (
                 "🕑 Fractal Clock",
-                "clock",
+                Anchor::Clock,
                 &mut self.state.clock as &mut dyn eframe::App,
             ),
         ];
@@ -154,14 +201,14 @@ impl WrapApp {
         if let Some(custom3d) = &mut self.custom3d {
             vec.push((
                 "🔺 3D painting",
-                "custom3d",
+                Anchor::Custom3d,
                 custom3d as &mut dyn eframe::App,
             ));
         }
 
         vec.push((
             "🎨 Color test",
-            "colors",
+            Anchor::Colors,
             &mut self.state.color_test as &mut dyn eframe::App,
         ));
 
@@ -182,12 +229,10 @@ impl eframe::App for WrapApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         #[cfg(target_arch = "wasm32")]
         if let Some(anchor) = frame.info().web_info.location.hash.strip_prefix('#') {
-            self.state.selected_anchor = anchor.to_owned();
-        }
-
-        if self.state.selected_anchor.is_empty() {
-            let selected_anchor = self.apps_iter_mut().next().unwrap().0.to_owned();
-            self.state.selected_anchor = selected_anchor;
+            let anchor = Anchor::all().into_iter().find(|x| x.to_string() == anchor);
+            if let Some(v) = anchor {
+                self.state.selected_anchor = v;
+            }
         }
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -277,16 +322,11 @@ impl WrapApp {
     }
 
     fn show_selected_app(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        let mut found_anchor = false;
-        let selected_anchor = self.state.selected_anchor.clone();
+        let selected_anchor = self.state.selected_anchor;
         for (_name, anchor, app) in self.apps_iter_mut() {
             if anchor == selected_anchor || ctx.memory(|mem| mem.everything_is_visible()) {
                 app.update(ctx, frame);
-                found_anchor = true;
             }
-        }
-        if !found_anchor {
-            self.state.selected_anchor = "demo".into();
         }
     }
 
@@ -306,13 +346,13 @@ impl WrapApp {
 
         ui.separator();
 
-        let mut selected_anchor = self.state.selected_anchor.clone();
+        let mut selected_anchor = self.state.selected_anchor;
         for (name, anchor, _app) in self.apps_iter_mut() {
             if ui
                 .selectable_label(selected_anchor == anchor, name)
                 .clicked()
             {
-                selected_anchor = anchor.to_owned();
+                selected_anchor = anchor;
                 if frame.is_web() {
                     ui.output_mut(|o| o.open_url(format!("#{}", anchor)));
                 }
@@ -324,7 +364,7 @@ impl WrapApp {
             if false {
                 // TODO(emilk): fix the overlap on small screens
                 if clock_button(ui, crate::seconds_since_midnight()).clicked() {
-                    self.state.selected_anchor = "clock".to_owned();
+                    self.state.selected_anchor = Anchor::Clock;
                     if frame.is_web() {
                         ui.output_mut(|o| o.open_url("#clock"));
                     }
