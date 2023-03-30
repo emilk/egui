@@ -1,7 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use std::path::PathBuf;
-
 use eframe::egui;
 use eframe::egui::plot::{Legend, Line, Plot, PlotPoints};
 use eframe::egui::ColorImage;
