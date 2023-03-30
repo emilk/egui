@@ -73,14 +73,14 @@ impl eframe::App for MyApp {
                 // lets set the relative plot location for plot saving purposes
 
                 self.plot_location = egui::Rect::from_two_pos(
-                  egui::Pos2{
-                      x: plot_location_x / window_width,
-                      y: plot_location_y / window_height,
-                  } ,
-                  egui::Pos2{
-                      x: (plot_location_x + width) / window_width,
-                      y: (plot_location_y + height) / window_height,
-                  }
+                    egui::Pos2 {
+                        x: plot_location_x / window_width,
+                        y: plot_location_y / window_height,
+                    },
+                    egui::Pos2 {
+                        x: (plot_location_x + width) / window_width,
+                        y: (plot_location_y + height) / window_height,
+                    },
                 );
                 let my_plot = Plot::new("My Plot")
                     .height(height)
@@ -133,8 +133,7 @@ impl eframe::App for MyApp {
                     plot.height() as u32,
                     image::ColorType::Rgba8,
                 )
-                    .unwrap();
-
+                .unwrap();
             }
         }
     }
