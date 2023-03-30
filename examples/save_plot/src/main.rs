@@ -39,11 +39,13 @@ impl Default for MyApp {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
+            // these are just some dummy variables for the example
             let height = 200.0;
             let border_x = 11.0;
             let border_y = 18.0;
             let width = 300.0;
 
+            // get the size of the window
             let window_width = ui.available_size().x;
             let window_height = ui.available_size().y;
 
@@ -69,7 +71,6 @@ impl eframe::App for MyApp {
                 let plot_location_x = window_width - ui.available_size().x;
 
                 // lets set the relative plot location for plot saving purposes
-
                 self.plot_location = egui::Rect::from_two_pos(
                     egui::Pos2 {
                         x: plot_location_x / window_width,
