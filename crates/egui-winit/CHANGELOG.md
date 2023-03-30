@@ -3,7 +3,7 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 
 
 ## Unreleased
-
+* Fix unsafe API: remove `State::new_with_wayland_display`; change `Clipboard::new` to take `&EventLoopWindowTarget<T>`.
 
 ## 0.21.1 - 2023-02-12
 * Fixed crash when window position is in an invalid state, which could happen e.g. due to changes in monitor size or DPI ([#2722](https://github.com/emilk/egui/issues/2722)).
