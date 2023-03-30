@@ -548,6 +548,7 @@ fn start_runner(app_runner: AppRunner, follow_system_theme: bool) -> Result<AppR
 
     super::events::install_canvas_events(&mut runner_container)?;
     super::events::install_document_events(&mut runner_container)?;
+    super::events::install_window_events(&mut runner_container)?;
     text_agent::install_text_agent(&mut runner_container)?;
 
     if follow_system_theme {
