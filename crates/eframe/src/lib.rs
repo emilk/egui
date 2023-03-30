@@ -153,9 +153,9 @@ mod native;
 /// ``` no_run
 /// use eframe::egui;
 ///
-/// fn main() {
+/// fn main() -> eframe::Result<()> {
 ///     let native_options = eframe::NativeOptions::default();
-///     eframe::run_native("MyApp", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))));
+///     eframe::run_native("MyApp", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))))
 /// }
 ///
 /// #[derive(Default)]
@@ -221,26 +221,28 @@ pub fn run_native(
 ///
 /// # Example
 /// ``` no_run
-/// // Our application state:
-/// let mut name = "Arthur".to_owned();
-/// let mut age = 42;
+/// fn main() -> eframe::Result<()> {
+///     // Our application state:
+///     let mut name = "Arthur".to_owned();
+///     let mut age = 42;
 ///
-/// let options = eframe::NativeOptions::default();
-/// eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
-///     egui::CentralPanel::default().show(ctx, |ui| {
-///         ui.heading("My egui Application");
-///         ui.horizontal(|ui| {
-///             let name_label = ui.label("Your name: ");
-///             ui.text_edit_singleline(&mut name)
-///                 .labelled_by(name_label.id);
+///     let options = eframe::NativeOptions::default();
+///     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
+///         egui::CentralPanel::default().show(ctx, |ui| {
+///             ui.heading("My egui Application");
+///             ui.horizontal(|ui| {
+///                 let name_label = ui.label("Your name: ");
+///                 ui.text_edit_singleline(&mut name)
+///                     .labelled_by(name_label.id);
+///             });
+///             ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
+///             if ui.button("Click each year").clicked() {
+///                 age += 1;
+///             }
+///             ui.label(format!("Hello '{}', age {}", name, age));
 ///         });
-///         ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
-///         if ui.button("Click each year").clicked() {
-///             age += 1;
-///         }
-///         ui.label(format!("Hello '{}', age {}", name, age));
-///     });
-/// })
+///     })
+/// }
 /// ```
 ///
 /// # Errors
