@@ -71,10 +71,6 @@ impl eframe::App for MyApp {
                 let plot_location_x = window_width - ui.available_size().x;
 
                 // lets set the relative plot location for plot saving purposes
-                // self.plot_location[0] = plot_location_x / window_width; // lower bound x
-                // self.plot_location[1] = plot_location_y / window_height; // lower bound y
-                // self.plot_location[2] = (plot_location_x + width) / window_width; // upper bound x
-                // self.plot_location[3] = (plot_location_y + height) / window_height; // upper bound y
 
                 self.plot_location = egui::Rect::from_two_pos(
                   egui::Pos2{
@@ -111,8 +107,6 @@ impl eframe::App for MyApp {
 
                 // we need to use relative coordinates since the plot location comes
                 // in relative coordinates.
-                // since we scale it by screenshot.size, we do not need pixels_per_point,
-                // thus i can be set to 1.0
                 let screenshot_width = screenshot.size[0] as f32;
                 let screenshot_height = screenshot.size[1] as f32;
                 let region = egui::Rect::from_two_pos(
@@ -127,6 +121,8 @@ impl eframe::App for MyApp {
                 );
 
                 // only select the plot region from the screenshot
+                // since we scale it by screenshot.size, we do not need pixels_per_point,
+                // thus i can be set to 1.0
                 let plot = screenshot.region(&region, Some(1.0));
 
                 // save the plot to png
