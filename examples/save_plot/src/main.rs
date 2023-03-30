@@ -22,7 +22,6 @@ fn main() -> Result<(), eframe::Error> {
 }
 
 struct MyApp {
-    picked_path_plot: PathBuf,
     /// Unit: fraction of full screen
     plot_location: egui::Rect,
     screenshot: Option<ColorImage>,
@@ -31,7 +30,6 @@ struct MyApp {
 impl Default for MyApp {
     fn default() -> Self {
         Self {
-            picked_path_plot: PathBuf::default(),
             plot_location: egui::Rect::EVERYTHING,
             screenshot: None,
         }
