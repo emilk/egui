@@ -89,6 +89,7 @@ enum Anchor {
 }
 
 impl Anchor {
+    #[cfg(target_arch = "wasm32")]
     fn all() -> Vec<Self> {
         vec![
             Anchor::Demo,
@@ -228,7 +229,7 @@ impl eframe::App for WrapApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         #[cfg(target_arch = "wasm32")]
         if let Some(anchor) = frame.info().web_info.location.hash.strip_prefix('#') {
-            let anchor = Anchor::all().find(|x| x.to_string() == anchor);
+            let anchor = Anchor::all().into_iter().find(|x| x.to_string() == anchor);
             if let Some(v) = anchor {
                 self.state.selected_anchor = v;
             }
