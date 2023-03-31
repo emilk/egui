@@ -37,15 +37,12 @@ impl Default for MyApp {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            // these are just some dummy variables for the example
+            // these are just some dummy variables for the example,
+            // such that the plot is not at position (0,0)
             let height = 200.0;
             let border_x = 11.0;
             let border_y = 18.0;
             let width = 300.0;
-
-            // get the size of the window
-            let window_width = ui.available_size().x;
-            let window_height = ui.available_size().y;
 
             ui.heading("My egui Application");
 
@@ -59,26 +56,10 @@ impl eframe::App for MyApp {
             // add some whitespace in y direction
             ui.add_space(border_y);
 
-            // this needs to be outside of the ui.horizontal()
-            let plot_location_y = window_height - ui.available_size().y;
             ui.horizontal(|ui| {
                 // add some whitespace in x direction
                 ui.add_space(border_x);
 
-                // obviously this needs to be after the last ui.add_space
-                let plot_location_x = window_width - ui.available_size().x;
-
-                // lets set the relative plot location for plot saving purposes
-                self.plot_location = egui::Rect::from_two_pos(
-                    egui::Pos2 {
-                        x: plot_location_x / window_width,
-                        y: plot_location_y / window_height,
-                    },
-                    egui::Pos2 {
-                        x: (plot_location_x + width) / window_width,
-                        y: (plot_location_y + height) / window_height,
-                    },
-                );
                 let my_plot = Plot::new("My Plot")
                     .height(height)
                     .width(width)
@@ -86,9 +67,11 @@ impl eframe::App for MyApp {
 
                 // let's create a dummy line in the plot
                 let graph: Vec<[f64; 2]> = vec![[0.0, 1.0], [2.0, 3.0], [3.0, 2.0]];
-                my_plot.show(ui, |plot_ui| {
+                let inner = my_plot.show(ui, |plot_ui| {
                     plot_ui.line(Line::new(PlotPoints::from(graph)).name("curve"));
                 });
+                // pass along the position of the plot
+                self.plot_location = inner.response.rect;
             });
 
             // add some whitespace in y direction
@@ -102,25 +85,8 @@ impl eframe::App for MyApp {
                 // for a full size application, we should put this in a different thread,
                 // so that the GUI doesn't lag during saving
 
-                // we need to use relative coordinates since the plot location comes
-                // in relative coordinates.
-                let screenshot_width = screenshot.size[0] as f32;
-                let screenshot_height = screenshot.size[1] as f32;
-                let region = egui::Rect::from_two_pos(
-                    egui::Pos2 {
-                        x: self.plot_location.min.x * screenshot_width,
-                        y: self.plot_location.min.y * screenshot_height,
-                    },
-                    egui::Pos2 {
-                        x: self.plot_location.max.x * screenshot_width,
-                        y: self.plot_location.max.y * screenshot_height,
-                    },
-                );
-
-                // only select the plot region from the screenshot
-                // since we scale it by screenshot.size, we do not need pixels_per_point,
-                // thus i can be set to 1.0
-                let plot = screenshot.region(&region, Some(1.0));
+                let pixels_per_point = frame.info().native_pixels_per_point;
+                let plot = screenshot.region(&self.plot_location, pixels_per_point);
 
                 // save the plot to png
                 image::save_buffer(
