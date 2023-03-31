@@ -70,6 +70,7 @@ pub struct TextEdit<'t> {
     min_size: Vec2,
     align: Align2,
     clip_text: bool,
+    char_limit: usize,
 }
 
 impl<'t> WidgetWithState for TextEdit<'t> {
@@ -119,6 +120,7 @@ impl<'t> TextEdit<'t> {
             min_size: Vec2::ZERO,
             align: Align2::LEFT_TOP,
             clip_text: false,
+            char_limit: usize::MAX,
         }
     }
 
@@ -290,6 +292,14 @@ impl<'t> TextEdit<'t> {
         self
     }
 
+    /// Sets the limit for the amount of characters can be entered
+    ///
+    /// This only works for singleline [`TextEdit`]
+    pub fn char_limit(mut self, limit: usize) -> Self {
+        self.char_limit = limit;
+        self
+    }
+
     /// Set the horizontal align of the inner text.
     pub fn horizontal_align(mut self, align: Align) -> Self {
         self.align.0[0] = align;
@@ -412,6 +422,7 @@ impl<'t> TextEdit<'t> {
             min_size,
             align,
             clip_text,
+            char_limit,
         } = self;
 
         let text_color = text_color
@@ -581,6 +592,7 @@ impl<'t> TextEdit<'t> {
                 multiline,
                 password,
                 default_cursor_range,
+                char_limit,
             );
 
             if changed {
@@ -871,6 +883,7 @@ fn events(
     multiline: bool,
     password: bool,
     default_cursor_range: CursorRange,
+    char_limit: usize,
 ) -> (bool, CursorRange) {
     let mut cursor_range = state.cursor_range(galley).unwrap_or(default_cursor_range);
 
@@ -912,7 +925,9 @@ fn events(
             Event::Paste(text_to_insert) => {
                 if !text_to_insert.is_empty() {
                     let mut ccursor = delete_selected(text, &cursor_range);
-                    insert_text(&mut ccursor, text, text_to_insert);
+
+                    insert_text(&mut ccursor, text, text_to_insert, char_limit);
+
                     Some(CCursorRange::one(ccursor))
                 } else {
                     None
@@ -922,7 +937,9 @@ fn events(
                 // Newlines are handled by `Key::Enter`.
                 if !text_to_insert.is_empty() && text_to_insert != "\n" && text_to_insert != "\r" {
                     let mut ccursor = delete_selected(text, &cursor_range);
-                    insert_text(&mut ccursor, text, text_to_insert);
+
+                    insert_text(&mut ccursor, text, text_to_insert, char_limit);
+
                     Some(CCursorRange::one(ccursor))
                 } else {
                     None
@@ -940,7 +957,7 @@ fn events(
                         // TODO(emilk): support removing indentation over a selection?
                         decrease_identation(&mut ccursor, text);
                     } else {
-                        insert_text(&mut ccursor, text, "\t");
+                        insert_text(&mut ccursor, text, "\t", char_limit);
                     }
                     Some(CCursorRange::one(ccursor))
                 } else {
@@ -954,7 +971,7 @@ fn events(
             } => {
                 if multiline {
                     let mut ccursor = delete_selected(text, &cursor_range);
-                    insert_text(&mut ccursor, text, "\n");
+                    insert_text(&mut ccursor, text, "\n", char_limit);
                     // TODO(emilk): if code editor, auto-indent by same leading tabs, + one if the lines end on an opening bracket
                     Some(CCursorRange::one(ccursor))
                 } else {
@@ -1000,7 +1017,7 @@ fn events(
                     let mut ccursor = delete_selected(text, &cursor_range);
                     let start_cursor = ccursor;
                     if !text_mark.is_empty() {
-                        insert_text(&mut ccursor, text, text_mark);
+                        insert_text(&mut ccursor, text, text_mark, char_limit);
                     }
                     Some(CCursorRange::two(start_cursor, ccursor))
                 } else {
@@ -1013,7 +1030,7 @@ fn events(
                     state.has_ime = false;
                     let mut ccursor = delete_selected(text, &cursor_range);
                     if !prediction.is_empty() {
-                        insert_text(&mut ccursor, text, prediction);
+                        insert_text(&mut ccursor, text, prediction, char_limit);
                     }
                     Some(CCursorRange::one(ccursor))
                 } else {
@@ -1159,8 +1176,26 @@ fn selected_str<'s>(text: &'s dyn TextBuffer, cursor_range: &CursorRange) -> &'s
     text.char_range(min.ccursor.index..max.ccursor.index)
 }
 
-fn insert_text(ccursor: &mut CCursor, text: &mut dyn TextBuffer, text_to_insert: &str) {
-    ccursor.index += text.insert_text(text_to_insert, ccursor.index);
+fn insert_text(
+    ccursor: &mut CCursor,
+    text: &mut dyn TextBuffer,
+    text_to_insert: &str,
+    char_limit: usize,
+) {
+    if char_limit < usize::MAX {
+        let mut new_string = text_to_insert;
+        // Avoid subtract with overflow panic
+        let cutoff = char_limit.saturating_sub(text.as_str().len());
+
+        new_string = match new_string.char_indices().nth(cutoff) {
+            None => new_string,
+            Some((idx, _)) => &new_string[..idx],
+        };
+
+        ccursor.index += text.insert_text(new_string, ccursor.index);
+    } else {
+        ccursor.index += text.insert_text(text_to_insert, ccursor.index);
+    }
 }
 
 // ----------------------------------------------------------------------------

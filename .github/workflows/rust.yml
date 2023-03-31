@@ -159,13 +159,27 @@ jobs:
   # ---------------------------------------------------------------------------
 
   cargo-deny:
-    name: cargo deny
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+          - target: aarch64-linux-android
+          - target: wasm32-unknown-unknown
+          - target: x86_64-pc-windows-msvc
+          - target: x86_64-unknown-linux-gnu
+          # - target: x86_64-unknown-linux-musl
+
+    name: cargo-deny ${{ matrix.target }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
           rust-version: "1.65.0"
+          log-level: error
+          command: check
+          arguments: ${{ matrix.flags }} --target  ${{ matrix.target }}
 
   # ---------------------------------------------------------------------------
 
