@@ -60,7 +60,9 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
             let closure =
                 move |_event: web_sys::MouseEvent,
                       mut runner_lock: egui::mutex::MutexGuard<'_, AppRunner>| {
-                    runner_lock.input.raw.modifiers = egui::Modifiers::default();
+                    let has_focus = event_name == "focus";
+                    runner_lock.input.on_web_page_focus_change(has_focus);
+                    runner_lock.egui_ctx().request_repaint();
                     // tracing::debug!("{event_name:?}");
                 };
 

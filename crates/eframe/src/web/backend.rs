@@ -30,6 +30,13 @@ impl WebInput {
             ..self.raw.take()
         }
     }
+
+    pub fn on_web_page_focus_change(&mut self, has_focus: bool) {
+        self.raw.modifiers = egui::Modifiers::default();
+        self.raw.has_focus = has_focus;
+        self.latest_touch_pos = None;
+        self.latest_touch_pos_id = None;
+    }
 }
 
 // ----------------------------------------------------------------------------
