@@ -409,7 +409,8 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
                     web_sys::WheelEvent::DOM_DELTA_PAGE => egui::MouseWheelUnit::Page,
                     _ => return,
                 };
-                let delta = egui::vec2(event.delta_x() as f32, event.delta_y() as f32);
+                // delta sign is flipped to match native convention
+                let delta = -egui::vec2(event.delta_x() as f32, event.delta_y() as f32);
                 let modifiers = runner_lock.input.raw.modifiers;
 
                 runner_lock.input.raw.events.push(egui::Event::MouseWheel {
