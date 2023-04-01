@@ -91,6 +91,7 @@ fn create_event_loop_builder(
 ///
 /// We reuse the event-loop so we can support closing and opening an eframe window
 /// multiple times. This is just a limitation of winit.
+#[cfg(not(target_os = "ios"))]
 fn with_event_loop<R>(
     mut native_options: epi::NativeOptions,
     f: impl FnOnce(&mut EventLoop<UserEvent>, NativeOptions) -> R,
@@ -109,6 +110,7 @@ fn with_event_loop<R>(
     })
 }
 
+#[cfg(not(target_os = "ios"))]
 fn run_and_return(
     event_loop: &mut EventLoop<UserEvent>,
     mut winit_app: impl WinitApp,
@@ -1422,17 +1424,18 @@ mod wgpu_integration {
         mut native_options: epi::NativeOptions,
         app_creator: epi::AppCreator,
     ) -> Result<()> {
+        #[cfg(not(target_os = "ios"))]
         if native_options.run_and_return {
-            with_event_loop(native_options, |event_loop, native_options| {
+            return with_event_loop(native_options, |event_loop, native_options| {
                 let wgpu_eframe =
                     WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
                 run_and_return(event_loop, wgpu_eframe)
-            })
-        } else {
-            let event_loop = create_event_loop_builder(&mut native_options).build();
-            let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
-            run_and_exit(event_loop, wgpu_eframe);
+            });
         }
+
+        let event_loop = create_event_loop_builder(&mut native_options).build();
+        let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
+        run_and_exit(event_loop, wgpu_eframe);
     }
 }
 
