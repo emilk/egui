@@ -150,7 +150,7 @@ impl PlatformOutput {
     /// Take everything ephemeral (everything except `cursor_icon` currently)
     pub fn take(&mut self) -> Self {
         let taken = std::mem::take(self);
-        self.cursor_icon = taken.cursor_icon; // eveything else is ephemeral
+        self.cursor_icon = taken.cursor_icon; // everything else is ephemeral
         taken
     }
 }

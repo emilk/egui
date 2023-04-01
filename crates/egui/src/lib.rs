@@ -112,7 +112,7 @@
 //! ``` no_run
 //! # fn handle_platform_output(_: egui::PlatformOutput) {}
 //! # fn gather_input() -> egui::RawInput { egui::RawInput::default() }
-//! # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
+//! # fn paint(textures_delta: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
 //! let mut ctx = egui::Context::default();
 //!
 //! // Game loop:

@@ -808,7 +808,7 @@ pub struct PaintCallback {
     /// `glow` backend requires that callback be an `egui_glow::CallbackFn` while the `wgpu`
     /// backend requires a `egui_wgpu::CallbackFn`.
     ///
-    /// If the type cannnot be downcast to the type expected by the current backend the callback
+    /// If the type cannot be downcast to the type expected by the current backend the callback
     /// will not be drawn.
     ///
     /// The rendering backend is responsible for first setting the active viewport to

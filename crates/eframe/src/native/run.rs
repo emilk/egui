@@ -365,7 +365,7 @@ mod glow_integration {
     }
 
     impl GlutinWindowContext {
-        /// There is a lot of complexity with opengl creation, so prefer extensivve logging to get all the help we can to debug issues.
+        /// There is a lot of complexity with opengl creation, so prefer extensive logging to get all the help we can to debug issues.
         ///
         #[allow(unsafe_code)]
         unsafe fn new(
