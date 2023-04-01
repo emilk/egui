@@ -37,7 +37,7 @@ extra_asserts = []
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast `ecolor` types to `&[u8]`.
 bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
 
-## [`cint`](https://docs.rs/cint) enables interopability with other color libraries.
+## [`cint`](https://docs.rs/cint) enables interoperability with other color libraries.
 cint = { version = "0.3.1", optional = true }
 
 ## Enable the [`hex_color`] macro.
