@@ -28,6 +28,8 @@ fn main() -> Result<(), eframe::Error> {
                 age += 1;
             }
             ui.label(format!("Hello '{}', age {}", name, age));
+            ui.label(format!("你好 '{}'，年龄 {}", name, age));
+            ui.label(format!("こんにちは '{}'、年齢 {}", name, age));
         });
     })
 }

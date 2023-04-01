@@ -85,6 +85,8 @@ document-features = { version = "0.2", optional = true }
 
 ## Allow serialization using [`serde`](https://docs.rs/serde) .
 serde = { version = "1", optional = true, features = ["derive", "rc"] }
+walkdir = "2.3.3"
+dirs = "5.0.0"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

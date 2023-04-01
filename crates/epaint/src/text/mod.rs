@@ -2,6 +2,7 @@
 
 pub mod cursor;
 mod font;
+mod font_searcher;
 mod fonts;
 mod text_layout;
 mod text_layout_types;

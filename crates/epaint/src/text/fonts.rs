@@ -29,7 +29,7 @@ impl Default for FontId {
     fn default() -> Self {
         Self {
             size: 14.0,
-            family: FontFamily::Proportional,
+            family: FontFamily::default(),
         }
     }
 }
@@ -48,6 +48,11 @@ impl FontId {
     #[inline]
     pub const fn monospace(size: f32) -> Self {
         Self::new(size, FontFamily::Monospace)
+    }
+
+    #[inline]
+    pub const fn system(size: f32) -> Self {
+        Self::new(size, FontFamily::System)
     }
 }
 
@@ -80,6 +85,11 @@ pub enum FontFamily {
     /// Useful for code snippets, or when you need to align numbers or text.
     Monospace,
 
+    /// A font from system font directories.
+    ///
+    /// It should be default font family to display CJK characters.
+    System,
+
     /// One of the names in [`FontDefinitions::families`].
     ///
     /// ```
@@ -94,7 +104,7 @@ pub enum FontFamily {
 impl Default for FontFamily {
     #[inline]
     fn default() -> Self {
-        FontFamily::Proportional
+        FontFamily::System
     }
 }
 
@@ -103,6 +113,7 @@ impl std::fmt::Display for FontFamily {
         match self {
             Self::Monospace => "Monospace".fmt(f),
             Self::Proportional => "Proportional".fmt(f),
+            Self::System => "System".fmt(f),
             Self::Name(name) => (*name).fmt(f),
         }
     }
@@ -269,6 +280,45 @@ impl Default for FontDefinitions {
 
         let mut families = BTreeMap::new();
 
+        let mut font_searcher = super::font_searcher::FontSearcher::new();
+        font_searcher.search_system();
+
+        let mut system_font = None;
+        let mut system_mono_font = None;
+
+        for (file, font) in font_searcher.fonts {
+            let font_name = file
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("system font unknown")
+                .to_owned();
+            let font_name_capital = font_name.to_ascii_uppercase();
+
+            if system_font.is_none() {
+                system_font = Some((font_name, font));
+                continue;
+            }
+
+            if font_name_capital.contains("MONO") {
+                system_mono_font = Some((font_name, font));
+                break;
+            }
+        }
+
+        if let Some((name, font)) = system_font {
+            font_data.insert(name.clone(), FontData::from_owned(font));
+            families.insert(FontFamily::System, vec![name]);
+        } else {
+            families.insert(
+                FontFamily::System,
+                vec![
+                    "Ubuntu-Light".to_owned(),
+                    "NotoEmoji-Regular".to_owned(),
+                    "emoji-icon-font".to_owned(),
+                ],
+            );
+        }
+
         font_data.insert(
             "Hack".to_owned(),
             FontData::from_static(include_bytes!("../../fonts/Hack-Regular.ttf")),
@@ -304,15 +354,25 @@ impl Default for FontDefinitions {
             ),
         );
 
-        families.insert(
-            FontFamily::Monospace,
+        let mono_fonts = if let Some((name, font)) = system_mono_font {
+            font_data.insert(name.clone(), FontData::from_owned(font));
+            vec![
+                name, // CJK compatibale font, hopefully
+                "Hack".to_owned(),
+                "Ubuntu-Light".to_owned(), // fallback for √ etc
+                "NotoEmoji-Regular".to_owned(),
+                "emoji-icon-font".to_owned(),
+            ]
+        } else {
             vec![
                 "Hack".to_owned(),
                 "Ubuntu-Light".to_owned(), // fallback for √ etc
                 "NotoEmoji-Regular".to_owned(),
                 "emoji-icon-font".to_owned(),
-            ],
-        );
+            ]
+        };
+
+        families.insert(FontFamily::Monospace, mono_fonts);
         families.insert(
             FontFamily::Proportional,
             vec![

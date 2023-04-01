@@ -675,13 +675,13 @@ pub struct DebugOptions {
 
 /// The default text styles of the default egui theme.
 pub fn default_text_styles() -> BTreeMap<TextStyle, FontId> {
-    use FontFamily::{Monospace, Proportional};
+    use FontFamily::{Monospace, System};
 
     [
-        (TextStyle::Small, FontId::new(9.0, Proportional)),
-        (TextStyle::Body, FontId::new(12.5, Proportional)),
-        (TextStyle::Button, FontId::new(12.5, Proportional)),
-        (TextStyle::Heading, FontId::new(18.0, Proportional)),
+        (TextStyle::Small, FontId::new(9.0, System)),
+        (TextStyle::Body, FontId::new(12.5, System)),
+        (TextStyle::Button, FontId::new(12.5, System)),
+        (TextStyle::Heading, FontId::new(18.0, System)),
         (TextStyle::Monospace, FontId::new(12.0, Monospace)),
     ]
     .into()

@@ -52,6 +52,8 @@ impl ThreadState {
                     self.age += 1;
                 }
                 ui.label(format!("Hello '{}', age {}", self.name, self.age));
+                ui.label(format!("你好 '{}'，年龄 {}", self.name, self.age));
+                ui.label(format!("こんにちは '{}'、年齢 {}", self.name, self.age));
             });
     }
 }
