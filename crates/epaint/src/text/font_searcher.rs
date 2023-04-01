@@ -62,6 +62,36 @@ impl FontSearcher {
         }
     }
 
+    #[cfg(windows)]
+    fn contains_cjk(s: &str) -> bool {
+        for c in s.chars() {
+            if c >= '\u{4e00}' && c <= '\u{9fff}' {
+                return true;
+            }
+        }
+        false
+    }
+
+    #[cfg(windows)]
+    /// Index the fonts in the file at the given path.
+    pub fn search_file(&mut self, path: impl AsRef<Path>) {
+        let content = read(path.as_ref()).unwrap();
+        let count = ttf_parser::fonts_in_collection(&content).unwrap_or(1);
+        for index in 0..count {
+            if let Ok(x) = ttf_parser::Face::parse(&content, index) {
+                for x in x.names() {
+                    if x.name_id != 4 {
+                        continue;
+                    }
+                    if x.to_string().map(|x| Self::contains_cjk(&x)) == Some(true) {
+                        self.fonts.push((path.as_ref().to_path_buf(), content));
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    #[cfg(not(windows))]
     /// Index the fonts in the file at the given path.
     pub fn search_file(&mut self, path: impl AsRef<Path>) {
         let content = read(path.as_ref()).unwrap();

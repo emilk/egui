@@ -1475,6 +1475,7 @@ dependencies = [
  "nohash-hasher",
  "parking_lot",
  "serde",
+ "ttf-parser",
  "walkdir",
 ]
 
