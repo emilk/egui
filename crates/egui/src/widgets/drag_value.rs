@@ -477,7 +477,7 @@ impl<'a> Widget for DragValue<'a> {
             );
             // Only update the value when the user presses enter, or clicks elsewhere. NOT every frame.
             // See https://github.com/emilk/egui/issues/2687
-            if response.lost_focus() {
+            if response.changed() {
                 let parsed_value = match custom_parser {
                     Some(parser) => parser(&value_text),
                     None => value_text.parse().ok(),
