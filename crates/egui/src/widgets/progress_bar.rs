@@ -16,6 +16,7 @@ pub struct ProgressBar {
     text: Option<ProgressBarText>,
     fill: Option<Color32>,
     animate: bool,
+    rounding: Option<Rounding>,
 }
 
 impl ProgressBar {
@@ -28,6 +29,7 @@ impl ProgressBar {
             text: None,
             fill: None,
             animate: false,
+            rounding: None,
         }
     }
 
@@ -74,6 +76,14 @@ impl ProgressBar {
         self.animate = animate;
         self
     }
+
+    /// Set the rounding of the progress bar.
+    /// If this option is set, the [`Self::animate`] option is ignored, since the loading animation
+    /// requires a perfect circle to render correctly.
+    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
+        self.rounding = Some(rounding.into());
+        self
+    }
 }
 
 impl Widget for ProgressBar {
@@ -85,6 +95,7 @@ impl Widget for ProgressBar {
             text,
             fill,
             animate,
+            rounding,
         } = self;
 
         let animate = animate && progress < 1.0;
@@ -101,16 +112,18 @@ impl Widget for ProgressBar {
             }
 
             let visuals = ui.style().visuals.clone();
-            let rounding = outer_rect.height() / 2.0;
+            let is_custom_rounding = rounding.is_some();
+            let corner_radius = outer_rect.height() / 2.0;
+            let rounding = rounding.unwrap_or_else(|| corner_radius.into());
             ui.painter()
                 .rect(outer_rect, rounding, visuals.extreme_bg_color, Stroke::NONE);
-            let inner_rect = Rect::from_min_size(
-                outer_rect.min,
-                vec2(
-                    (outer_rect.width() * progress).at_least(outer_rect.height()),
-                    outer_rect.height(),
-                ),
-            );
+            let min_width = rounding
+                .sw
+                .at_least(rounding.nw)
+                .at_most(2.0 * corner_radius);
+            let filled_width = (outer_rect.width() * progress).at_least(min_width);
+            let inner_rect =
+                Rect::from_min_size(outer_rect.min, vec2(filled_width, outer_rect.height()));
 
             let (dark, bright) = (0.7, 1.0);
             let color_factor = if animate {
@@ -129,19 +142,19 @@ impl Widget for ProgressBar {
                 Stroke::NONE,
             );
 
-            if animate {
+            if animate && !is_custom_rounding {
                 let n_points = 20;
                 let time = ui.input(|i| i.time);
                 let start_angle = time * std::f64::consts::TAU;
                 let end_angle = start_angle + 240f64.to_radians() * time.sin();
-                let circle_radius = rounding - 2.0;
+                let circle_radius = corner_radius - 2.0;
                 let points: Vec<Pos2> = (0..n_points)
                     .map(|i| {
                         let angle = lerp(start_angle..=end_angle, i as f64 / n_points as f64);
                         let (sin, cos) = angle.sin_cos();
                         inner_rect.right_center()
                             + circle_radius * vec2(cos as f32, sin as f32)
-                            + vec2(-rounding, 0.0)
+                            + vec2(-corner_radius, 0.0)
                     })
                     .collect();
                 ui.painter()
