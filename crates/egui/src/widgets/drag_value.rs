@@ -475,7 +475,7 @@ impl<'a> Widget for DragValue<'a> {
                     .desired_width(ui.spacing().interact_size.x)
                     .font(text_style),
             );
-            // Only update the value when the user presses enter, or clicks elsewhere. NOT every frame.
+            // Only update when the edit content has changed. NOT every frame.
             // See https://github.com/emilk/egui/issues/2687
             if response.changed() {
                 let parsed_value = match custom_parser {
