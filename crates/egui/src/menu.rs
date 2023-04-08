@@ -137,6 +137,7 @@ pub(crate) fn menu_ui<'c, R>(
 ) -> InnerResponse<R> {
     let pos = {
         let mut menu_state = menu_state_arc.write();
+
         menu_state.entry_count = 0;
         menu_state.rect.min
     };
@@ -147,20 +148,24 @@ pub(crate) fn menu_ui<'c, R>(
         .fixed_pos(pos)
         .interactable(true)
         .drag_bounds(ctx.screen_rect());
+
     let inner_response = area.show(ctx, |ui| {
         set_menu_style(ui.style_mut());
 
-        Frame::menu(ui.style())
-            .show(ui, |ui| {
-                const DEFAULT_MENU_WIDTH: f32 = 150.0; // TODO(emilk): add to ui.spacing
-                ui.set_max_width(DEFAULT_MENU_WIDTH);
-                ui.set_menu_state(Some(menu_state_arc.clone()));
-                ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents)
-                    .inner
-            })
-            .inner
+        let frame = Frame::menu(ui.style()).show(ui, |ui| {
+            const DEFAULT_MENU_WIDTH: f32 = 150.0; // TODO(emilk): add to ui.spacing
+            ui.set_max_width(DEFAULT_MENU_WIDTH);
+            ui.set_menu_state(Some(menu_state_arc.clone()));
+            let layout = ui.with_layout(Layout::top_down_justified(Align::LEFT), add_contents);
+
+            layout.inner
+        });
+
+        menu_state_arc.write().rect = frame.response.rect;
+
+        frame.inner
     });
-    menu_state_arc.write().rect = inner_response.response.rect;
+
     inner_response
 }
 
@@ -293,8 +298,7 @@ impl MenuRoot {
         if self.id == response.id {
             let inner_response =
                 MenuState::show(&response.ctx, &self.menu_state, self.id, add_contents);
-            let mut menu_state = self.menu_state.write();
-            menu_state.rect = inner_response.response.rect;
+            let menu_state = self.menu_state.read();
 
             if menu_state.response.is_close() {
                 return (MenuResponse::Close, Some(inner_response));
