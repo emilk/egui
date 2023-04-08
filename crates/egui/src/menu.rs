@@ -137,7 +137,6 @@ pub(crate) fn menu_ui<'c, R>(
 ) -> InnerResponse<R> {
     let pos = {
         let mut menu_state = menu_state_arc.write();
-
         menu_state.entry_count = 0;
         menu_state.rect.min
     };
@@ -149,7 +148,7 @@ pub(crate) fn menu_ui<'c, R>(
         .interactable(true)
         .drag_bounds(ctx.screen_rect());
 
-    let inner_response = area.show(ctx, |ui| {
+    inner_response = area.show(ctx, |ui| {
         set_menu_style(ui.style_mut());
 
         let frame = Frame::menu(ui.style()).show(ui, |ui| {
@@ -165,8 +164,6 @@ pub(crate) fn menu_ui<'c, R>(
 
         frame.inner
     });
-
-    inner_response
 }
 
 /// Build a top level menu with a button.
