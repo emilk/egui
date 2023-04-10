@@ -3,6 +3,7 @@ All notable changes to the `egui_extras` integration will be noted in this file.
 
 
 ## Unreleased
+* Added `RetainedImage::load_texture` to preemptively load images into textures.
 
 
 ## 0.21.0 - 2023-02-08

@@ -8,6 +8,16 @@ pub use usvg::FitTo;
 /// Load once, and save somewhere in your app state.
 ///
 /// Use the `svg` and `image` features to enable more constructors.
+///
+/// ## Note
+/// [`RetainedImage`] is loaded _lazily_, meaning it will be converted
+/// to a viewable texture on the spot when you first call [`RetainedImage::show`].
+///
+/// This may lead to your GUI freezing if you're loading many images.
+///
+/// To avoid this, you can preemptively load these images with [`RetainedImage::load`].
+///
+/// This is akin to using [`egui::Context::load_texture`].
 pub struct RetainedImage {
     debug_name: String,
     size: [usize; 2],
@@ -147,7 +157,22 @@ impl RetainedImage {
         &self.debug_name
     }
 
-    /// The texture if for this image.
+	/// Allocates a texture for a [`RetainedImage`].
+	///
+	/// This function does nothing if the texture already exists.
+	///
+	/// This is akin to using [`egui::Context::load_texture`].
+    pub fn load_texture(&self, ctx: &egui::Context) {
+        self.texture
+            .lock()
+            .get_or_insert_with(|| {
+                let image: &mut ColorImage = &mut self.image.lock();
+                let image = std::mem::take(image);
+                ctx.load_texture(&self.debug_name, image, self.options)
+            });
+    }
+
+    /// The texture id for this image.
     pub fn texture_id(&self, ctx: &egui::Context) -> egui::TextureId {
         self.texture
             .lock()
