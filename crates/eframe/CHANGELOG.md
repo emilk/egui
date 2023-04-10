@@ -5,7 +5,12 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 
 ## Unreleased
+#### Desktop/Native:
+* Add `Frame::request_screenshot` and `Frame::screenshot` to communicate to the backend that a screenshot of the current frame should be exposed by `Frame` during `App::post_rendering` ([#2676](https://github.com/emilk/egui/pull/2676)).
+* Add `eframe::run_simple_native` - a simple API for simple apps ([#2453](https://github.com/emilk/egui/pull/2453)).
 
+#### Web:
+* Bug fix: modifiers keys getting stuck on alt-tab ([#2857](https://github.com/emilk/egui/pull/2857)).
 
 ## 0.21.3 - 2023-02-15
 * Fix typing the letter 'P' on web ([#2740](https://github.com/emilk/egui/pull/2740)).

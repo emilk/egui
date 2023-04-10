@@ -50,8 +50,25 @@ pub fn paint_and_schedule(
 }
 
 pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Result<(), JsValue> {
-    let window = web_sys::window().unwrap();
-    let document = window.document().unwrap();
+    let document = web_sys::window().unwrap().document().unwrap();
+
+    {
+        // Avoid sticky modifier keys on alt-tab:
+        let clear_modifiers = ["blur", "focus"];
+
+        for event_name in clear_modifiers {
+            let closure =
+                move |_event: web_sys::MouseEvent,
+                      mut runner_lock: egui::mutex::MutexGuard<'_, AppRunner>| {
+                    let has_focus = event_name == "focus";
+                    runner_lock.input.on_web_page_focus_change(has_focus);
+                    runner_lock.egui_ctx().request_repaint();
+                    // tracing::debug!("{event_name:?}");
+                };
+
+            runner_container.add_event_listener(&document, event_name, closure)?;
+        }
+    }
 
     runner_container.add_event_listener(
         &document,
@@ -185,6 +202,12 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
         },
     )?;
 
+    Ok(())
+}
+
+pub fn install_window_events(runner_container: &mut AppRunnerContainer) -> Result<(), JsValue> {
+    let window = web_sys::window().unwrap();
+
     for event_name in &["load", "pagehide", "pageshow", "resize"] {
         runner_container.add_event_listener(
             &window,
@@ -207,27 +230,50 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
     Ok(())
 }
 
+pub fn install_color_scheme_change_event(
+    runner_container: &mut AppRunnerContainer,
+) -> Result<(), JsValue> {
+    let window = web_sys::window().unwrap();
+
+    if let Some(media_query_list) = prefers_color_scheme_dark(&window)? {
+        runner_container.add_event_listener::<web_sys::MediaQueryListEvent>(
+            &media_query_list,
+            "change",
+            |event, mut runner_lock| {
+                let theme = theme_from_dark_mode(event.matches());
+                runner_lock.frame.info.system_theme = Some(theme);
+                runner_lock.egui_ctx().set_visuals(theme.egui_visuals());
+                runner_lock.needs_repaint.repaint_asap();
+            },
+        )?;
+    }
+
+    Ok(())
+}
+
 pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Result<(), JsValue> {
     let canvas = canvas_element(runner_container.runner.lock().canvas_id()).unwrap();
 
-    let prevent_default_events = [
-        // By default, right-clicks open a context menu.
-        // We don't want to do that (right clicks is handled by egui):
-        "contextmenu",
-        // Allow users to use ctrl-p for e.g. a command palette
-        "afterprint",
-    ];
+    {
+        let prevent_default_events = [
+            // By default, right-clicks open a context menu.
+            // We don't want to do that (right clicks is handled by egui):
+            "contextmenu",
+            // Allow users to use ctrl-p for e.g. a command palette:
+            "afterprint",
+        ];
 
-    for event_name in prevent_default_events {
-        let closure =
-            move |event: web_sys::MouseEvent,
-                  mut _runner_lock: egui::mutex::MutexGuard<'_, AppRunner>| {
-                event.prevent_default();
-                // event.stop_propagation();
-                // tracing::debug!("Preventing event {:?}", event_name);
-            };
+        for event_name in prevent_default_events {
+            let closure =
+                move |event: web_sys::MouseEvent,
+                      mut _runner_lock: egui::mutex::MutexGuard<'_, AppRunner>| {
+                    event.prevent_default();
+                    // event.stop_propagation();
+                    // tracing::debug!("Preventing event {event_name:?}");
+                };
 
-        runner_container.add_event_listener(&canvas, event_name, closure)?;
+            runner_container.add_event_listener(&canvas, event_name, closure)?;
+        }
     }
 
     runner_container.add_event_listener(

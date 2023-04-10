@@ -3,6 +3,8 @@ All notable changes to the `egui-wgpu` integration will be noted in this file.
 
 
 ## Unreleased
+* Add `read_screan_rgba` to the egui-wgpu `Painter`, to allow for capturing the current frame when using wgpu. Used in conjuction with `Frame::request_screenshot`. ([#2676](https://github.com/emilk/egui/pull/2676))
+* Improve performance of `update_buffers` ([#2820](https://github.com/emilk/egui/pull/2820))
 
 
 ## 0.21.0 - 2023-02-08

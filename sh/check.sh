@@ -55,10 +55,7 @@ cargo doc --document-private-items --no-deps --all-features
 
 cargo cranky --target wasm32-unknown-unknown --all-features -p egui_demo_app --lib -- -D warnings
 
-# cargo install cargo-deny
-cargo deny --all-features --log-level error check
-cargo deny --all-features --log-level error --target wasm32-unknown-unknown check
-cargo deny --all-features --log-level error --target x86_64-unknown-linux-musl check
+./sh/cargo_deny.sh
 
 # TODO(emilk): consider using https://github.com/taiki-e/cargo-hack or https://github.com/frewsxcv/cargo-all-features
 

@@ -54,6 +54,10 @@
 //! }
 //! ```
 //!
+//! ## Simplified usage
+//! If your app is only for native, and you don't need advanced features like state persistence,
+//! then you can use the simpler function [`run_simple_native`].
+//!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
@@ -149,9 +153,9 @@ mod native;
 /// ``` no_run
 /// use eframe::egui;
 ///
-/// fn main() {
+/// fn main() -> eframe::Result<()> {
 ///     let native_options = eframe::NativeOptions::default();
-///     eframe::run_native("MyApp", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))));
+///     eframe::run_native("MyApp", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))))
 /// }
 ///
 /// #[derive(Default)]
@@ -179,8 +183,8 @@ mod native;
 /// # Errors
 /// This function can fail if we fail to set up a graphics context.
 #[cfg(not(target_arch = "wasm32"))]
-#[allow(clippy::needless_pass_by_value)]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
+#[allow(clippy::needless_pass_by_value)]
 pub fn run_native(
     app_name: &str,
     native_options: NativeOptions,
@@ -207,6 +211,63 @@ pub fn run_native(
             native::run::run_wgpu(app_name, native_options, app_creator)
         }
     }
+}
+
+// ----------------------------------------------------------------------------
+
+/// The simplest way to get started when writing a native app.
+///
+/// This does NOT support persistence. For that you need to use [`run_native`].
+///
+/// # Example
+/// ``` no_run
+/// fn main() -> eframe::Result<()> {
+///     // Our application state:
+///     let mut name = "Arthur".to_owned();
+///     let mut age = 42;
+///
+///     let options = eframe::NativeOptions::default();
+///     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
+///         egui::CentralPanel::default().show(ctx, |ui| {
+///             ui.heading("My egui Application");
+///             ui.horizontal(|ui| {
+///                 let name_label = ui.label("Your name: ");
+///                 ui.text_edit_singleline(&mut name)
+///                     .labelled_by(name_label.id);
+///             });
+///             ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
+///             if ui.button("Click each year").clicked() {
+///                 age += 1;
+///             }
+///             ui.label(format!("Hello '{}', age {}", name, age));
+///         });
+///     })
+/// }
+/// ```
+///
+/// # Errors
+/// This function can fail if we fail to set up a graphics context.
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
+pub fn run_simple_native(
+    app_name: &str,
+    native_options: NativeOptions,
+    update_fun: impl FnMut(&egui::Context, &mut Frame) + 'static,
+) -> Result<()> {
+    struct SimpleApp<U> {
+        update_fun: U,
+    }
+    impl<U: FnMut(&egui::Context, &mut Frame)> App for SimpleApp<U> {
+        fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
+            (self.update_fun)(ctx, frame);
+        }
+    }
+
+    run_native(
+        app_name,
+        native_options,
+        Box::new(|_cc| Box::new(SimpleApp { update_fun })),
+    )
 }
 
 // ----------------------------------------------------------------------------
