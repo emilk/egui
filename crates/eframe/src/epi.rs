@@ -814,6 +814,15 @@ impl Frame {
         self.output.minimized = Some(minimized);
     }
 
+    /// Bring the window into focus (native only). Has no effect on Wayland, or if the window is minimized or invisible.
+    ///
+    /// This method puts the window on top of other applications and takes input focus away from them,
+    /// which, if unexpected, will disturb the user.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn focus(&mut self) {
+        self.output.focus = Some(true);
+    }
+
     /// Maximize or unmaximize window. (native only)
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_maximized(&mut self, maximized: bool) {
@@ -1131,6 +1140,10 @@ pub(crate) mod backend {
         /// Set to some bool to maximize or unmaximize window.
         #[cfg(not(target_arch = "wasm32"))]
         pub maximized: Option<bool>,
+
+        /// Set to some bool to focus window.
+        #[cfg(not(target_arch = "wasm32"))]
+        pub focus: Option<bool>,
 
         #[cfg(not(target_arch = "wasm32"))]
         pub screenshot_requested: bool,

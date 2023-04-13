@@ -232,6 +232,7 @@ pub fn handle_app_output(
         screenshot_requested: _, // handled by the rendering backend,
         minimized,
         maximized,
+        focus,
     } = app_output;
 
     if let Some(decorated) = decorated {
@@ -284,6 +285,10 @@ pub fn handle_app_output(
     if let Some(maximized) = maximized {
         window.set_maximized(maximized);
         window_state.maximized = maximized;
+    }
+
+    if focus == Some(true) {
+        window.focus_window();
     }
 }
 
