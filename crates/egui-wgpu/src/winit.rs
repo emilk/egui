@@ -555,8 +555,9 @@ impl Painter {
             let (view, resolve_target) = (self.msaa_samples > 1)
                 .then_some(self.msaa_texture_view.as_ref())
                 .flatten()
-                .map(|texture_view| (texture_view, Some(&frame_view)))
-                .unwrap_or((&frame_view, None));
+                .map_or((&frame_view, None), |texture_view| {
+                    (texture_view, Some(&frame_view))
+                });
 
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
