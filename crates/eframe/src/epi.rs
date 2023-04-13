@@ -938,6 +938,9 @@ pub struct WindowInfo {
     /// Are we maximized?
     pub maximized: bool,
 
+    /// Is the window focused and able to receive input?
+    pub active: bool,
+
     /// Window inner size in egui points (logical pixels).
     pub size: egui::Vec2,
 

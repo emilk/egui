@@ -61,6 +61,7 @@ pub fn read_window_info(
         fullscreen: window.fullscreen().is_some(),
         minimized: window_state.minimized,
         maximized: window_state.maximized,
+        active: window.has_focus(),
         size: egui::Vec2 {
             x: size.width,
             y: size.height,
