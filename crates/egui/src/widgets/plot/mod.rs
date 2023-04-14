@@ -779,9 +779,6 @@ impl Plot {
                     bounds.translate(delta);
                     bounds_modified = true.into();
                 }
-                BoundsModification::Auto => {
-                    bounds_modified = false.into();
-                }
             }
         }
 
@@ -993,7 +990,6 @@ impl Plot {
 }
 
 enum BoundsModification {
-    Auto,
     Set(PlotBounds),
     Translate(Vec2),
 }
@@ -1027,12 +1023,6 @@ impl PlotUi {
     /// not change until the plot is drawn.
     pub fn plot_bounds(&self) -> PlotBounds {
         *self.last_screen_transform.bounds()
-    }
-
-    /// Set plot bounds automatically based on plot contents. Continue to do so until plot bounds are set
-    /// otherwise (manually, or by panning/zooming).
-    pub fn set_bounds_auto(&mut self) {
-        self.bounds_modifications.push(BoundsModification::Auto);
     }
 
     /// Set the plot bounds. Can be useful for implementing alternative plot navigation methods.
