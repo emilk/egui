@@ -818,6 +818,10 @@ impl Default for Chart {
 struct ChartsDemo {
     chart: Chart,
     vertical: bool,
+    allow_zoom_x: bool,
+    allow_zoom_y: bool,
+    allow_drag_x: bool,
+    allow_drag_y: bool,
 }
 
 impl Default for ChartsDemo {
@@ -825,22 +829,46 @@ impl Default for ChartsDemo {
         Self {
             vertical: true,
             chart: Chart::default(),
+            allow_zoom_x: true,
+            allow_zoom_y: true,
+            allow_drag_x: true,
+            allow_drag_y: true,
         }
     }
 }
 
 impl ChartsDemo {
     fn ui(&mut self, ui: &mut Ui) -> Response {
-        ui.label("Type:");
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.chart, Chart::GaussBars, "Histogram");
-            ui.selectable_value(&mut self.chart, Chart::StackedBars, "Stacked Bar Chart");
-            ui.selectable_value(&mut self.chart, Chart::BoxPlot, "Box Plot");
-        });
-        ui.label("Orientation:");
-        ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.vertical, true, "Vertical");
-            ui.selectable_value(&mut self.vertical, false, "Horizontal");
+            ui.vertical(|ui| {
+                ui.label("Type:");
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut self.chart, Chart::GaussBars, "Histogram");
+                    ui.selectable_value(&mut self.chart, Chart::StackedBars, "Stacked Bar Chart");
+                    ui.selectable_value(&mut self.chart, Chart::BoxPlot, "Box Plot");
+                });
+                ui.label("Orientation:");
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut self.vertical, true, "Vertical");
+                    ui.selectable_value(&mut self.vertical, false, "Horizontal");
+                });
+            });
+            ui.vertical(|ui| {
+                ui.group(|ui| {
+                    ui.add_enabled_ui(self.chart != Chart::StackedBars, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("Allow zoom:");
+                            ui.checkbox(&mut self.allow_zoom_x, "X");
+                            ui.checkbox(&mut self.allow_zoom_y, "Y");
+                        });
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Allow drag:");
+                        ui.checkbox(&mut self.allow_drag_x, "X");
+                        ui.checkbox(&mut self.allow_drag_y, "Y");
+                    });
+                });
+            });
         });
         match self.chart {
             Chart::GaussBars => self.bar_gauss(ui),
@@ -873,6 +901,10 @@ impl ChartsDemo {
         Plot::new("Normal Distribution Demo")
             .legend(Legend::default())
             .clamp_grid(true)
+            .allow_zoom_x(self.allow_zoom_x)
+            .allow_zoom_y(self.allow_zoom_y)
+            .allow_drag_x(self.allow_drag_x)
+            .allow_drag_y(self.allow_drag_y)
             .show(ui, |plot_ui| plot_ui.bar_chart(chart))
             .response
     }
@@ -931,6 +963,8 @@ impl ChartsDemo {
         Plot::new("Stacked Bar Chart Demo")
             .legend(Legend::default())
             .data_aspect(1.0)
+            .allow_drag_x(self.allow_drag_x)
+            .allow_drag_y(self.allow_drag_y)
             .show(ui, |plot_ui| {
                 plot_ui.bar_chart(chart1);
                 plot_ui.bar_chart(chart2);
@@ -974,6 +1008,10 @@ impl ChartsDemo {
 
         Plot::new("Box Plot Demo")
             .legend(Legend::default())
+            .allow_zoom_x(self.allow_zoom_x)
+            .allow_zoom_y(self.allow_zoom_y)
+            .allow_drag_x(self.allow_drag_x)
+            .allow_drag_y(self.allow_drag_y)
             .show(ui, |plot_ui| {
                 plot_ui.box_plot(box1);
                 plot_ui.box_plot(box2);

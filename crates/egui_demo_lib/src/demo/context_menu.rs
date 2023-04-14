@@ -20,10 +20,8 @@ fn sigmoid(x: f64) -> f64 {
 pub struct ContextMenus {
     plot: Plot,
     show_axes: [bool; 2],
-    allow_drag_x: bool,
-    allow_drag_y: bool,
-    allow_zoom_x: bool,
-    allow_zoom_y: bool,
+    allow_drag: bool,
+    allow_zoom: bool,
     allow_scroll: bool,
     center_x_axis: bool,
     center_y_axis: bool,
@@ -36,10 +34,8 @@ impl Default for ContextMenus {
         Self {
             plot: Plot::Sin,
             show_axes: [true, true],
-            allow_drag_x: true,
-            allow_drag_y: true,
-            allow_zoom_x: true,
-            allow_zoom_y: true,
+            allow_drag: true,
+            allow_zoom: true,
             allow_scroll: true,
             center_x_axis: false,
             center_y_axis: false,
@@ -104,14 +100,8 @@ impl super::View for ContextMenus {
                     ui.checkbox(&mut self.show_axes[0], "x-Axis");
                     ui.checkbox(&mut self.show_axes[1], "y-Axis");
                     ui.end_row();
-                    let drag_changed = ui.checkbox(&mut self.allow_drag_x, "Drag x").changed()
-                        || ui.checkbox(&mut self.allow_drag_y, "Drag y").changed();
-                    ui.end_row();
-                    let zoom_changed = ui.checkbox(&mut self.allow_zoom_x, "Zoom x").changed()
-                        || ui.checkbox(&mut self.allow_zoom_y, "Zoom y").changed();
-                    ui.end_row();
-                    if drag_changed
-                        || zoom_changed
+                    if ui.checkbox(&mut self.allow_drag, "Drag").changed()
+                        || ui.checkbox(&mut self.allow_zoom, "Zoom").changed()
                         || ui.checkbox(&mut self.allow_scroll, "Scroll").changed()
                     {
                         ui.close_menu();
@@ -144,13 +134,14 @@ impl ContextMenus {
         );
         egui::plot::Plot::new("example_plot")
             .show_axes(self.show_axes)
-            .allow_drag_x(self.allow_drag_x)
-            .allow_drag_y(self.allow_drag_y)
-            .allow_zoom_x(self.allow_zoom_x)
-            .allow_zoom_y(self.allow_zoom_y)
+            .allow_drag_x(self.allow_drag)
+            .allow_drag_y(self.allow_drag)
+            .allow_zoom_x(self.allow_zoom)
+            .allow_zoom_y(self.allow_zoom)
             .allow_scroll(self.allow_scroll)
             .center_x_axis(self.center_x_axis)
             .center_x_axis(self.center_y_axis)
+            .allow_boxed_zoom(false)
             .width(self.width)
             .height(self.height)
             .data_aspect(1.0)
