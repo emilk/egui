@@ -403,12 +403,16 @@ impl Plot {
     }
 
     /// Whether to allow zooming in the plot's x-axis. Default: `true`.
+    ///
+    /// Note: Allowing zoom in x but not y (or vice versa) may lead to unexpected results if used in combination with `data_aspect`.
     pub fn allow_zoom_x(mut self, on: bool) -> Self {
         self.allow_zoom.x = on;
         self
     }
 
     /// Whether to allow zooming in the plot's y-axis. Default: `true`.
+    ///
+    /// Note: Allowing zoom in x but not y (or vice versa) may lead to unexpected results if used in combination with `data_aspect`.
     pub fn allow_zoom_y(mut self, on: bool) -> Self {
         self.allow_zoom.y = on;
         self
