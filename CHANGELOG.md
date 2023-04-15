@@ -5,7 +5,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 
 ## Unreleased
-
+* Add `TableRow::col_sense` which does the same as `TableRow::col` but allows to specify a `Sense`. It allows for detecting clicks on rows ([Discussion #1519](https://github.com/emilk/egui/discussions/1519))
 
 ## 0.21.0 - 2023-02-08 - Deadlock fix and style customizability
 * ⚠️ BREAKING: `egui::Context` now use closures for locking ([#2625](https://github.com/emilk/egui/pull/2625)):
