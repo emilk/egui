@@ -823,6 +823,20 @@ impl Frame {
         self.output.focus = Some(true);
     }
 
+    /// If the window is unfocused, attract the user's attention (native only).
+    ///
+    /// Typically, this means that the window will flash on the taskbar, or bounce, until it is interacted with.
+    ///
+    /// When the window comes into focus, or if `None` is passed, the attention request will be automatically reset.
+    ///
+    /// See [winit's documentation][user_attention_details] for platform-specific effect details.
+    ///
+    /// [user_attention_details]: https://docs.rs/winit/latest/winit/window/enum.UserAttentionType.html
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn request_user_attention(&mut self, kind: Option<egui::UserAttentionType>) {
+        self.output.attention = Some(kind);
+    }
+
     /// Maximize or unmaximize window. (native only)
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_maximized(&mut self, maximized: bool) {
@@ -1144,6 +1158,10 @@ pub(crate) mod backend {
         /// Set to some bool to focus window.
         #[cfg(not(target_arch = "wasm32"))]
         pub focus: Option<bool>,
+
+        /// Set to request a user's attention to the native window. Setting this to `None` resets the attention request.
+        #[cfg(not(target_arch = "wasm32"))]
+        pub attention: Option<Option<egui::UserAttentionType>>,
 
         #[cfg(not(target_arch = "wasm32"))]
         pub screenshot_requested: bool,

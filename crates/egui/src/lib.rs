@@ -357,7 +357,7 @@ pub use {
     context::Context,
     data::{
         input::*,
-        output::{self, CursorIcon, FullOutput, PlatformOutput, WidgetInfo},
+        output::{self, CursorIcon, FullOutput, PlatformOutput, UserAttentionType, WidgetInfo},
     },
     grid::Grid,
     id::{Id, IdMap},

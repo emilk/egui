@@ -185,6 +185,17 @@ impl OpenUrl {
     }
 }
 
+/// Types of attention to request from a user when a native window is not in focus.
+///
+/// See [winit's documentation][user_attention_type] for platform-specific meaning of the attention types.
+///
+/// [user_attention_type]: https://docs.rs/winit/latest/winit/window/enum.UserAttentionType.html
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UserAttentionType {
+    Critical,
+    Informational,
+}
+
 /// A mouse cursor icon.
 ///
 /// egui emits a [`CursorIcon`] in [`PlatformOutput`] each frame as a request to the integration.
