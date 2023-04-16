@@ -293,10 +293,11 @@ pub fn handle_app_output(
             window.focus_window();
         } else if let Some(attention) = attention {
             use winit::window::UserAttentionType;
-            window.request_user_attention(attention.map(|a| match a {
-                egui::UserAttentionType::Critical => UserAttentionType::Critical,
-                egui::UserAttentionType::Informational => UserAttentionType::Informational,
-            }));
+            window.request_user_attention(match attention {
+                egui::UserAttentionType::Reset => None,
+                egui::UserAttentionType::Critical => Some(UserAttentionType::Critical),
+                egui::UserAttentionType::Informational => Some(UserAttentionType::Informational),
+            });
         }
     }
 }

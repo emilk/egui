@@ -833,7 +833,7 @@ impl Frame {
     ///
     /// [user_attention_details]: https://docs.rs/winit/latest/winit/window/enum.UserAttentionType.html
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn request_user_attention(&mut self, kind: Option<egui::UserAttentionType>) {
+    pub fn request_user_attention(&mut self, kind: egui::UserAttentionType) {
         self.output.attention = Some(kind);
     }
 
@@ -1161,7 +1161,7 @@ pub(crate) mod backend {
 
         /// Set to request a user's attention to the native window. Setting this to `None` resets the attention request.
         #[cfg(not(target_arch = "wasm32"))]
-        pub attention: Option<Option<egui::UserAttentionType>>,
+        pub attention: Option<egui::UserAttentionType>,
 
         #[cfg(not(target_arch = "wasm32"))]
         pub screenshot_requested: bool,
