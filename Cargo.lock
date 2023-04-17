@@ -1242,6 +1242,7 @@ dependencies = [
  "instant",
  "log",
  "puffin",
+ "raw-window-handle",
  "serde",
  "smithay-clipboard",
  "webbrowser",
