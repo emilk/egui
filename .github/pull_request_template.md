@@ -3,7 +3,6 @@ Please read the "Making a PR" section of [`CONTRIBUTING.md`](https://github.com/
 
 * Keep your PR:s small and focused.
 * If applicable, add a screenshot or gif.
-* Unless this is a trivial change, add a line to the relevant `CHANGELOG.md` under "Unreleased".
 * If it is a non-trivial addition, consider adding a demo for it to `egui_demo_lib`.
 * Remember to run `cargo fmt` and `cargo clippy`.
 * Open the PR as a draft until you have self-reviewed it and run `./scripts/check.sh`.
