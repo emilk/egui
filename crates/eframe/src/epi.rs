@@ -328,18 +328,15 @@ pub struct NativeOptions {
 
     /// Try to detect and follow the system preferred setting for dark vs light mode.
     ///
-    /// By default, this is `true` on Mac and Windows, but `false` on Linux
-    /// due to <https://github.com/frewsxcv/rust-dark-light/issues/17>.
+    /// The theme will automatically change when the dark vs light mode preference is changed.
     ///
-    /// On Mac and Windows the theme will automatically change when the dark vs light mode preference is changed.
-    ///
-    /// This only works on Linux if the `dark-light` feature is enabled.
+    /// Does not work on Linux (see <https://github.com/rust-windowing/winit/issues/1549>).
     ///
     /// See also [`Self::default_theme`].
     pub follow_system_theme: bool,
 
     /// Which theme to use in case [`Self::follow_system_theme`] is `false`
-    /// or the `dark-light` feature is disabled.
+    /// or eframe fails to detect the system theme.
     ///
     /// Default: [`Theme::Dark`].
     pub default_theme: Theme,
@@ -451,30 +448,6 @@ impl Default for NativeOptions {
             #[cfg(feature = "wgpu")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
         }
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl NativeOptions {
-    /// The theme used by the system.
-    #[cfg(feature = "dark-light")]
-    pub fn system_theme(&self) -> Option<Theme> {
-        if self.follow_system_theme {
-            crate::profile_scope!("dark_light::detect");
-            match dark_light::detect() {
-                dark_light::Mode::Dark => Some(Theme::Dark),
-                dark_light::Mode::Light => Some(Theme::Light),
-                dark_light::Mode::Default => None,
-            }
-        } else {
-            None
-        }
-    }
-
-    /// The theme used by the system.
-    #[cfg(not(feature = "dark-light"))]
-    pub fn system_theme(&self) -> Option<Theme> {
-        None
     }
 }
 

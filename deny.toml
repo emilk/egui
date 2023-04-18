@@ -36,9 +36,7 @@ deny = [
 ]
 
 skip = [
-    { name = "ahash" },               # old version via dark-light
     { name = "arrayvec" },            # old version via tiny-skiaz
-    { name = "hashbrown" },           # old version via dark-light
     { name = "nix" },                 # old version via winit
     { name = "redox_syscall" },       # old version via winit
     { name = "time" },                # old version pulled in by unmaintianed crate 'chrono'

@@ -1450,9 +1450,8 @@ fn system_theme(window: &winit::window::Window, options: &NativeOptions) -> Opti
 }
 
 // Winit only reads the system theme on macOS and Windows.
-// On Linux we have to fall back on dark-light (if enabled).
 // See: https://github.com/rust-windowing/winit/issues/1549
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-fn system_theme(_window: &winit::window::Window, options: &NativeOptions) -> Option<crate::Theme> {
-    options.system_theme()
+fn system_theme(_window: &winit::window::Window, _options: &NativeOptions) -> Option<crate::Theme> {
+    None
 }
