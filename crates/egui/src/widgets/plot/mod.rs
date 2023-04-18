@@ -910,7 +910,7 @@ impl Plot {
         }
 
         // Dragging
-        if (allow_drag.x || allow_drag.y) && response.dragged_by(PointerButton::Primary) {
+        if allow_drag.any() && response.dragged_by(PointerButton::Primary) {
             response = response.on_hover_cursor(CursorIcon::Grabbing);
             let mut delta = -response.drag_delta();
             if !allow_drag.x {
@@ -976,7 +976,7 @@ impl Plot {
         }
 
         if let Some(hover_pos) = response.hover_pos() {
-            if allow_zoom.x || allow_zoom.y {
+            if allow_zoom.any() {
                 let mut zoom_factor = if data_aspect.is_some() {
                     Vec2::splat(ui.input(|i| i.zoom_delta()))
                 } else {
