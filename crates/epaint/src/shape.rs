@@ -625,7 +625,7 @@ pub struct TextShape {
     /// Top left corner of the first character.
     pub pos: Pos2,
 
-    /// The layed out text, from [`Fonts::layout_job`].
+    /// The laid out text, from [`Fonts::layout_job`].
     pub galley: Arc<Galley>,
 
     /// Add this underline to the whole text.

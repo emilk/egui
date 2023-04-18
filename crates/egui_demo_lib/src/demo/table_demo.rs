@@ -2,7 +2,7 @@
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum DemoType {
     Manual,
-    ManyHomogenous,
+    ManyHomogeneous,
     ManyHeterogenous,
 }
 
@@ -61,7 +61,7 @@ impl super::View for TableDemo {
             ui.radio_value(&mut self.demo, DemoType::Manual, "Few, manual rows");
             ui.radio_value(
                 &mut self.demo,
-                DemoType::ManyHomogenous,
+                DemoType::ManyHomogeneous,
                 "Thousands of rows of same height",
             );
             ui.radio_value(
@@ -179,7 +179,7 @@ impl TableDemo {
                         });
                     }
                 }
-                DemoType::ManyHomogenous => {
+                DemoType::ManyHomogeneous => {
                     body.rows(text_height, self.num_rows, |row_index, mut row| {
                         row.col(|ui| {
                             ui.label(row_index.to_string());

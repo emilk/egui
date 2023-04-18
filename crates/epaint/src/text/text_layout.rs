@@ -70,7 +70,7 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
         for (i, row) in rows.iter_mut().enumerate() {
             let is_last_row = i + 1 == num_rows;
             let justify_row = justify && !row.ends_with_newline && !is_last_row;
-            halign_and_jusitfy_row(
+            halign_and_justify_row(
                 point_scale,
                 row,
                 job.halign,
@@ -337,7 +337,7 @@ fn replace_last_glyph_with_overflow_character(
     }
 }
 
-fn halign_and_jusitfy_row(
+fn halign_and_justify_row(
     point_scale: PointScale,
     row: &mut Row,
     halign: Align,

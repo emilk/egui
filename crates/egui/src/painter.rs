@@ -423,7 +423,7 @@ impl Painter {
         self.fonts(|f| f.layout(text, font_id, color, f32::INFINITY))
     }
 
-    /// Paint text that has already been layed out in a [`Galley`].
+    /// Paint text that has already been laid out in a [`Galley`].
     ///
     /// You can create the [`Galley`] with [`Self::layout`].
     ///
@@ -435,7 +435,7 @@ impl Painter {
         }
     }
 
-    /// Paint text that has already been layed out in a [`Galley`].
+    /// Paint text that has already been laid out in a [`Galley`].
     ///
     /// You can create the [`Galley`] with [`Self::layout`].
     ///
