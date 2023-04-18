@@ -6,6 +6,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 ## Unreleased
 * Add `char_limit` to `TextEdit` singleline mode to limit the amount of characters
+* Update `Plot::allow_zoom` and `Plot::allow_drag` to allow setting those values for X and Y axes independently ([#2901](https://github.com/emilk/egui/pull/2901)).
 
 ## 0.21.0 - 2023-02-08 - Deadlock fix and style customizability
 * ⚠️ BREAKING: `egui::Context` now use closures for locking ([#2625](https://github.com/emilk/egui/pull/2625)):

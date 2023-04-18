@@ -1,3 +1,5 @@
+use egui::plot::AxisBools;
+
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum Plot {
@@ -134,10 +136,8 @@ impl ContextMenus {
         );
         egui::plot::Plot::new("example_plot")
             .show_axes(self.show_axes)
-            .allow_drag_x(self.allow_drag)
-            .allow_drag_y(self.allow_drag)
-            .allow_zoom_x(self.allow_zoom)
-            .allow_zoom_y(self.allow_zoom)
+            .allow_drag(self.allow_drag)
+            .allow_zoom(self.allow_zoom)
             .allow_scroll(self.allow_scroll)
             .center_x_axis(self.center_x_axis)
             .center_x_axis(self.center_y_axis)

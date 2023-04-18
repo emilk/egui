@@ -73,15 +73,19 @@ impl Default for CoordinatesFormatter {
 const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO(emilk): large enough for a wide label
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Copy, Clone)]
-struct AxisBools {
-    x: bool,
-    y: bool,
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct AxisBools {
+    pub x: bool,
+    pub y: bool,
 }
 
 impl AxisBools {
+    pub fn new(x: bool, y: bool) -> Self {
+        Self { x, y }
+    }
+
     #[inline]
-    fn any(&self) -> bool {
+    pub fn any(&self) -> bool {
         self.x || self.y
     }
 }
@@ -402,19 +406,14 @@ impl Plot {
         self
     }
 
-    /// Whether to allow zooming in the plot's x-axis. Default: `true`.
+    /// Whether to allow zooming in the plot. Default: `true`.
     ///
-    /// Note: Allowing zoom in x but not y (or vice versa) may lead to unexpected results if used in combination with `data_aspect`.
-    pub fn allow_zoom_x(mut self, on: bool) -> Self {
-        self.allow_zoom.x = on;
-        self
-    }
-
-    /// Whether to allow zooming in the plot's y-axis. Default: `true`.
-    ///
-    /// Note: Allowing zoom in x but not y (or vice versa) may lead to unexpected results if used in combination with `data_aspect`.
-    pub fn allow_zoom_y(mut self, on: bool) -> Self {
-        self.allow_zoom.y = on;
+    /// Note: Allowing zoom in one axis but not the other may lead to unexpected results if used in combination with `data_aspect`.
+    pub fn allow_zoom<T>(mut self, on: T) -> Self
+    where
+        T: Into<AxisBools>,
+    {
+        self.allow_zoom = on.into();
         self
     }
 
@@ -453,15 +452,12 @@ impl Plot {
         self
     }
 
-    /// Whether to allow dragging in the plot to move the bounds in the x direction. Default: `true`.
-    pub fn allow_drag_x(mut self, on: bool) -> Self {
-        self.allow_drag.x = on;
-        self
-    }
-
-    /// Whether to allow dragging in the plot to move the bounds in the y direction. Default: `true`.
-    pub fn allow_drag_y(mut self, on: bool) -> Self {
-        self.allow_drag.y = on;
+    /// Whether to allow dragging in the plot to move the bounds. Default: `true`.
+    pub fn allow_drag<T>(mut self, on: T) -> Self
+    where
+        T: Into<AxisBools>,
+    {
+        self.allow_drag = on.into();
         self
     }
 

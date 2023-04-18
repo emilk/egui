@@ -1,7 +1,7 @@
 use std::f64::consts::TAU;
 use std::ops::RangeInclusive;
 
-use egui::plot::{GridInput, GridMark};
+use egui::plot::{AxisBools, GridInput, GridMark};
 use egui::*;
 use plot::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter, Corner, HLine,
@@ -818,10 +818,8 @@ impl Default for Chart {
 struct ChartsDemo {
     chart: Chart,
     vertical: bool,
-    allow_zoom_x: bool,
-    allow_zoom_y: bool,
-    allow_drag_x: bool,
-    allow_drag_y: bool,
+    allow_zoom: AxisBools,
+    allow_drag: AxisBools,
 }
 
 impl Default for ChartsDemo {
@@ -829,10 +827,8 @@ impl Default for ChartsDemo {
         Self {
             vertical: true,
             chart: Chart::default(),
-            allow_zoom_x: true,
-            allow_zoom_y: true,
-            allow_drag_x: true,
-            allow_drag_y: true,
+            allow_zoom: true.into(),
+            allow_drag: true.into(),
         }
     }
 }
@@ -858,14 +854,14 @@ impl ChartsDemo {
                     ui.add_enabled_ui(self.chart != Chart::StackedBars, |ui| {
                         ui.horizontal(|ui| {
                             ui.label("Allow zoom:");
-                            ui.checkbox(&mut self.allow_zoom_x, "X");
-                            ui.checkbox(&mut self.allow_zoom_y, "Y");
+                            ui.checkbox(&mut self.allow_zoom.x, "X");
+                            ui.checkbox(&mut self.allow_zoom.y, "Y");
                         });
                     });
                     ui.horizontal(|ui| {
                         ui.label("Allow drag:");
-                        ui.checkbox(&mut self.allow_drag_x, "X");
-                        ui.checkbox(&mut self.allow_drag_y, "Y");
+                        ui.checkbox(&mut self.allow_drag.x, "X");
+                        ui.checkbox(&mut self.allow_drag.y, "Y");
                     });
                 });
             });
@@ -901,10 +897,8 @@ impl ChartsDemo {
         Plot::new("Normal Distribution Demo")
             .legend(Legend::default())
             .clamp_grid(true)
-            .allow_zoom_x(self.allow_zoom_x)
-            .allow_zoom_y(self.allow_zoom_y)
-            .allow_drag_x(self.allow_drag_x)
-            .allow_drag_y(self.allow_drag_y)
+            .allow_zoom(self.allow_zoom)
+            .allow_drag(self.allow_drag)
             .show(ui, |plot_ui| plot_ui.bar_chart(chart))
             .response
     }
@@ -963,8 +957,7 @@ impl ChartsDemo {
         Plot::new("Stacked Bar Chart Demo")
             .legend(Legend::default())
             .data_aspect(1.0)
-            .allow_drag_x(self.allow_drag_x)
-            .allow_drag_y(self.allow_drag_y)
+            .allow_drag(self.allow_drag)
             .show(ui, |plot_ui| {
                 plot_ui.bar_chart(chart1);
                 plot_ui.bar_chart(chart2);
@@ -1008,10 +1001,8 @@ impl ChartsDemo {
 
         Plot::new("Box Plot Demo")
             .legend(Legend::default())
-            .allow_zoom_x(self.allow_zoom_x)
-            .allow_zoom_y(self.allow_zoom_y)
-            .allow_drag_x(self.allow_drag_x)
-            .allow_drag_y(self.allow_drag_y)
+            .allow_zoom(self.allow_zoom)
+            .allow_drag(self.allow_drag)
             .show(ui, |plot_ui| {
                 plot_ui.box_plot(box1);
                 plot_ui.box_plot(box2);
