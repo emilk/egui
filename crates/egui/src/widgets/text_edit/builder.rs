@@ -955,7 +955,7 @@ fn events(
                     let mut ccursor = delete_selected(text, &cursor_range);
                     if modifiers.shift {
                         // TODO(emilk): support removing indentation over a selection?
-                        decrease_identation(&mut ccursor, text);
+                        decrease_indentation(&mut ccursor, text);
                     } else {
                         insert_text(&mut ccursor, text, "\t", char_limit);
                     }
@@ -1619,7 +1619,7 @@ fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
     }
 }
 
-fn decrease_identation(ccursor: &mut CCursor, text: &mut dyn TextBuffer) {
+fn decrease_indentation(ccursor: &mut CCursor, text: &mut dyn TextBuffer) {
     let line_start = find_line_start(text.as_str(), *ccursor);
 
     let remove_len = if text.as_str()[line_start.index..].starts_with('\t') {

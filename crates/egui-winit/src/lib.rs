@@ -279,7 +279,7 @@ impl State {
                 // - On MacOS, only when user explicit enable/disable ime. No Disabled
                 // after Commit.
                 //
-                // We use input_method_editor_started to mannualy insert CompositionStart
+                // We use input_method_editor_started to manually insert CompositionStart
                 // between Commits.
                 match ime {
                     winit::event::Ime::Enabled | winit::event::Ime::Disabled => (),

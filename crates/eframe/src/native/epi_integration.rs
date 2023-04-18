@@ -522,7 +522,7 @@ impl EpiIntegration {
     }
 
     // ------------------------------------------------------------------------
-    // Persistance stuff:
+    // Persistence stuff:
 
     pub fn maybe_autosave(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
         let now = std::time::Instant::now();
