@@ -48,15 +48,15 @@ wayland = ["winit/wayland"]
 # - It's also important that we don't impose an android-activity backend by taking this choice away from applications.
 
 ## Enable the `native-activity` backend via Winit on Android
-android-native-activity = [ "winit/android-native-activity" ]
+android-native-activity = ["winit/android-native-activity"]
 ## Enable the `game-activity` backend via Winit on Android
-android-game-activity = [ "winit/android-game-activity" ]
+android-game-activity = ["winit/android-game-activity"]
 
 [dependencies]
 egui = { version = "0.21.0", path = "../egui", default-features = false, features = [
-  "tracing",
+  "log",
 ] }
-tracing = { version = "0.1", default-features = false, features = ["std"] }
+log = { version = "0.4", features = ["std"] }
 winit = { version = "0.28", default-features = false }
 
 #! ### Optional dependencies
@@ -85,4 +85,3 @@ smithay-clipboard = { version = "0.6.3", optional = true }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 arboard = { version = "3.2", optional = true, default-features = false }
-

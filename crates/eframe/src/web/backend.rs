@@ -187,7 +187,7 @@ pub struct AppRunner {
 
 impl Drop for AppRunner {
     fn drop(&mut self) {
-        tracing::debug!("AppRunner has fully dropped");
+        log::debug!("AppRunner has fully dropped");
     }
 }
 
@@ -336,10 +336,10 @@ impl AppRunner {
         let is_destroyed_already = self.is_destroyed.fetch();
 
         if is_destroyed_already {
-            tracing::warn!("App was destroyed already");
+            log::warn!("App was destroyed already");
             Ok(())
         } else {
-            tracing::debug!("Destroying");
+            log::debug!("Destroying");
             for x in self.events_to_unsubscribe.drain(..) {
                 x.unsubscribe()?;
             }
@@ -536,7 +536,7 @@ pub async fn start(
     app_creator: epi::AppCreator,
 ) -> Result<AppRunnerRef, JsValue> {
     #[cfg(not(web_sys_unstable_apis))]
-    tracing::warn!(
+    log::warn!(
         "eframe compiled without RUSTFLAGS='--cfg=web_sys_unstable_apis'. Copying text won't work."
     );
     let follow_system_theme = web_options.follow_system_theme;
@@ -572,7 +572,7 @@ fn start_runner(app_runner: AppRunner, follow_system_theme: bool) -> Result<AppR
     runner_container.runner.lock().events_to_unsubscribe = runner_container.events;
 
     std::panic::set_hook(Box::new(move |panic_info| {
-        tracing::info!("egui disabled all event handlers due to panic");
+        log::info!("egui disabled all event handlers due to panic");
         runner_container.panicked.store(true, SeqCst);
 
         // Propagate panic info to the previously registered panic hook

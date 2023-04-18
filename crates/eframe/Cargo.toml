@@ -75,17 +75,17 @@ wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
 # - It's also important that we don't impose an android-activity backend by taking this choice away from applications.
 
 ## Enable the `native-activity` backend via `egui-winit` on Android
-android-native-activity = [ "egui-winit/android-native-activity" ]
+android-native-activity = ["egui-winit/android-native-activity"]
 ## Enable the `game-activity` backend via `egui-winit` on Android
-android-game-activity = [ "egui-winit/android-game-activity" ]
+android-game-activity = ["egui-winit/android-game-activity"]
 
 [dependencies]
 egui = { version = "0.21.0", path = "../egui", default-features = false, features = [
   "bytemuck",
-  "tracing",
+  "log",
 ] }
+log = { version = "0.4", features = ["std"] }
 thiserror = "1.0.37"
-tracing = { version = "0.1", default-features = false, features = ["std"] }
 
 #! ### Optional dependencies
 ## Enable this when generating docs.

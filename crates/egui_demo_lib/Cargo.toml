@@ -33,7 +33,7 @@ syntax_highlighting = ["syntect"]
 egui = { version = "0.21.0", path = "../egui", default-features = false }
 egui_extras = { version = "0.21.0", path = "../egui_extras" }
 enum-map = { version = "2", features = ["serde"] }
-tracing = { version = "0.1", default-features = false, features = ["std"] }
+log = { version = "0.4", features = ["std"] }
 unicode_names2 = { version = "0.6.0", default-features = false }
 
 #! ### Optional dependencies

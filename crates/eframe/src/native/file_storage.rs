@@ -26,7 +26,7 @@ impl FileStorage {
     /// Store the state in this .ron file.
     pub fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Self {
         let ron_filepath: PathBuf = ron_filepath.into();
-        tracing::debug!("Loading app state from {:?}…", ron_filepath);
+        log::debug!("Loading app state from {:?}…", ron_filepath);
         Self {
             kv: read_ron(&ron_filepath).unwrap_or_default(),
             ron_filepath,
@@ -40,7 +40,7 @@ impl FileStorage {
         if let Some(proj_dirs) = directories_next::ProjectDirs::from("", "", app_name) {
             let data_dir = proj_dirs.data_dir().to_path_buf();
             if let Err(err) = std::fs::create_dir_all(&data_dir) {
-                tracing::warn!(
+                log::warn!(
                     "Saving disabled: Failed to create app path at {:?}: {}",
                     data_dir,
                     err
@@ -50,7 +50,7 @@ impl FileStorage {
                 Some(Self::from_ron_filepath(data_dir.join("app.ron")))
             }
         } else {
-            tracing::warn!("Saving disabled: Failed to find path to data_dir.");
+            log::warn!("Saving disabled: Failed to find path to data_dir.");
             None
         }
     }
@@ -84,7 +84,7 @@ impl crate::Storage for FileStorage {
                 let file = std::fs::File::create(&file_path).unwrap();
                 let config = Default::default();
                 ron::ser::to_writer_pretty(file, &kv, config).unwrap();
-                tracing::trace!("Persisted to {:?}", file_path);
+                log::trace!("Persisted to {:?}", file_path);
             });
 
             self.last_save_join_handle = Some(join_handle);
@@ -104,7 +104,7 @@ where
             match ron::de::from_reader(reader) {
                 Ok(value) => Some(value),
                 Err(err) => {
-                    tracing::warn!("Failed to parse RON: {}", err);
+                    log::warn!("Failed to parse RON: {}", err);
                     None
                 }
             }

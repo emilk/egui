@@ -296,7 +296,7 @@ impl Renderer {
             fragment: Some(wgpu::FragmentState {
                 module: &module,
                 entry_point: if output_color_format.describe().srgb {
-                    tracing::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_color_format);
+                    log::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_color_format);
                     "fs_main_linear_framebuffer"
                 } else {
                     "fs_main_gamma_framebuffer" // this is what we prefer
@@ -428,7 +428,7 @@ impl Renderer {
                         );
                         render_pass.draw_indexed(0..mesh.indices.len() as u32, 0, 0..1);
                     } else {
-                        tracing::warn!("Missing texture: {:?}", mesh.texture_id);
+                        log::warn!("Missing texture: {:?}", mesh.texture_id);
                     }
                 }
                 Primitive::Callback(callback) => {
@@ -871,9 +871,7 @@ impl Renderer {
                         let cbfn = if let Some(c) = callback.callback.downcast_ref::<CallbackFn>() {
                             c
                         } else {
-                            tracing::warn!(
-                                "Unknown paint callback: expected `egui_wgpu::CallbackFn`"
-                            );
+                            log::warn!("Unknown paint callback: expected `egui_wgpu::CallbackFn`");
                             continue;
                         };
 
