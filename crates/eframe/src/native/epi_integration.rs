@@ -91,6 +91,7 @@ pub fn window_builder<E>(
         resizable,
         transparent,
         centered,
+        active,
         ..
     } = native_options;
 
@@ -104,6 +105,7 @@ pub fn window_builder<E>(
         .with_resizable(*resizable)
         .with_transparent(*transparent)
         .with_window_icon(window_icon)
+        .with_active(*active)
         // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
         // We must also keep the window hidden until AccessKit is initialized.
         .with_visible(false);

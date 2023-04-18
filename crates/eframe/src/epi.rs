@@ -284,6 +284,9 @@ pub struct NativeOptions {
     /// Generally you would use this in conjunction with always_on_top
     pub mouse_passthrough: bool,
 
+    /// Whether grant focus when window initially opened. True by default.
+    pub active: bool,
+
     /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
     ///
     /// The default is `true`.
@@ -421,6 +424,9 @@ impl Default for NativeOptions {
             resizable: true,
             transparent: false,
             mouse_passthrough: false,
+
+            active: true,
+
             vsync: true,
             multisampling: 0,
             depth_buffer: 0,
