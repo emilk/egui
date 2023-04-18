@@ -935,7 +935,7 @@ fn create_index_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
     })
 }
 
-/// A Rect in physical pixel space, used for setting cliipping rectangles.
+/// A Rect in physical pixel space, used for setting clipping rectangles.
 struct ScissorRect {
     x: u32,
     y: u32,

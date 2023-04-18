@@ -61,6 +61,7 @@ pub fn read_window_info(
         fullscreen: window.fullscreen().is_some(),
         minimized: window_state.minimized,
         maximized: window_state.maximized,
+        focused: window.has_focus(),
         size: egui::Vec2 {
             x: size.width,
             y: size.height,
@@ -90,6 +91,7 @@ pub fn window_builder<E>(
         resizable,
         transparent,
         centered,
+        active,
         ..
     } = native_options;
 
@@ -103,6 +105,7 @@ pub fn window_builder<E>(
         .with_resizable(*resizable)
         .with_transparent(*transparent)
         .with_window_icon(window_icon)
+        .with_active(*active)
         // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
         // We must also keep the window hidden until AccessKit is initialized.
         .with_visible(false);
@@ -231,6 +234,7 @@ pub fn handle_app_output(
         screenshot_requested: _, // handled by the rendering backend,
         minimized,
         maximized,
+        focus,
     } = app_output;
 
     if let Some(decorated) = decorated {
@@ -283,6 +287,10 @@ pub fn handle_app_output(
     if let Some(maximized) = maximized {
         window.set_maximized(maximized);
         window_state.maximized = maximized;
+    }
+
+    if focus == Some(true) {
+        window.focus_window();
     }
 }
 
@@ -516,7 +524,7 @@ impl EpiIntegration {
     }
 
     // ------------------------------------------------------------------------
-    // Persistance stuff:
+    // Persistence stuff:
 
     pub fn maybe_autosave(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
         let now = std::time::Instant::now();

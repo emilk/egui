@@ -291,11 +291,11 @@ impl AppRunner {
     /// Get mutable access to the concrete [`App`] we enclose.
     ///
     /// This will panic if your app does not implement [`App::as_any_mut`].
-    pub fn app_mut<ConreteApp: 'static + App>(&mut self) -> &mut ConreteApp {
+    pub fn app_mut<ConcreteApp: 'static + App>(&mut self) -> &mut ConcreteApp {
         self.app
             .as_any_mut()
             .expect("Your app must implement `as_any_mut`, but it doesn't")
-            .downcast_mut::<ConreteApp>()
+            .downcast_mut::<ConcreteApp>()
             .unwrap()
     }
 

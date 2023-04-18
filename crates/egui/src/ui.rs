@@ -424,7 +424,7 @@ impl Ui {
 /// # Sizes etc
 impl Ui {
     /// Where and how large the [`Ui`] is already.
-    /// All widgets that have been added ot this [`Ui`] fits within this rectangle.
+    /// All widgets that have been added to this [`Ui`] fits within this rectangle.
     ///
     /// No matter what, the final Ui will be at least this large.
     ///

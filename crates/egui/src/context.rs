@@ -203,7 +203,7 @@ impl ContextImpl {
 ///
 /// ``` no_run
 /// # fn handle_platform_output(_: egui::PlatformOutput) {}
-/// # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
+/// # fn paint(textures_delta: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
 /// let mut ctx = egui::Context::default();
 ///
 /// // Game loop:
@@ -890,7 +890,7 @@ impl Context {
     /// Duration begins at the next frame. lets say for example that its a very inefficient app
     /// and takes 500 milliseconds per frame at 2 fps. The widget / user might want a repaint in
     /// next 500 milliseconds. Now, app takes 1000 ms per frame (1 fps) because the backend event
-    /// timeout takes 500 milli seconds AFTER the vsync swap buffer.
+    /// timeout takes 500 milliseconds AFTER the vsync swap buffer.
     /// So, its not that we are requesting repaint within X duration. We are rather timing out
     /// during app idle time where we are not receiving any new input events.
     pub fn request_repaint_after(&self, duration: std::time::Duration) {

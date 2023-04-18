@@ -284,6 +284,9 @@ pub struct NativeOptions {
     /// Generally you would use this in conjunction with always_on_top
     pub mouse_passthrough: bool,
 
+    /// Whether grant focus when window initially opened. True by default.
+    pub active: bool,
+
     /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
     ///
     /// The default is `true`.
@@ -421,6 +424,9 @@ impl Default for NativeOptions {
             resizable: true,
             transparent: false,
             mouse_passthrough: false,
+
+            active: true,
+
             vsync: true,
             multisampling: 0,
             depth_buffer: 0,
@@ -814,6 +820,15 @@ impl Frame {
         self.output.minimized = Some(minimized);
     }
 
+    /// Bring the window into focus (native only). Has no effect on Wayland, or if the window is minimized or invisible.
+    ///
+    /// This method puts the window on top of other applications and takes input focus away from them,
+    /// which, if unexpected, will disturb the user.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn focus(&mut self) {
+        self.output.focus = Some(true);
+    }
+
     /// Maximize or unmaximize window. (native only)
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_maximized(&mut self, maximized: bool) {
@@ -937,6 +952,9 @@ pub struct WindowInfo {
 
     /// Are we maximized?
     pub maximized: bool,
+
+    /// Is the window focused and able to receive input?
+    pub focused: bool,
 
     /// Window inner size in egui points (logical pixels).
     pub size: egui::Vec2,
@@ -1128,6 +1146,10 @@ pub(crate) mod backend {
         /// Set to some bool to maximize or unmaximize window.
         #[cfg(not(target_arch = "wasm32"))]
         pub maximized: Option<bool>,
+
+        /// Set to some bool to focus window.
+        #[cfg(not(target_arch = "wasm32"))]
+        pub focus: Option<bool>,
 
         #[cfg(not(target_arch = "wasm32"))]
         pub screenshot_requested: bool,

@@ -42,6 +42,16 @@ serde = ["egui/serde", "dep:serde"]
 ## Enables Wayland support.
 wayland = ["winit/wayland"]
 
+# Allow crates to choose an android-activity backend via Winit
+# - It's important that most applications should not have to depend on android-activity directly, and can
+#   rely on Winit to pull in a suitable version (unlike most Rust crates, any version conflicts won't link)
+# - It's also important that we don't impose an android-activity backend by taking this choice away from applications.
+
+## Enable the `native-activity` backend via Winit on Android
+android-native-activity = [ "winit/android-native-activity" ]
+## Enable the `game-activity` backend via Winit on Android
+android-game-activity = [ "winit/android-game-activity" ]
+
 [dependencies]
 egui = { version = "0.21.0", path = "../egui", default-features = false, features = [
   "tracing",
@@ -76,6 +86,3 @@ smithay-clipboard = { version = "0.6.3", optional = true }
 [target.'cfg(not(target_os = "android"))'.dependencies]
 arboard = { version = "3.2", optional = true, default-features = false }
 
-[target.'cfg(target_os = "android")'.dependencies]
-# TODO(emilk): this is probably not the right place for specifying native-activity, but we need to do it somewhere for the CI
-android-activity = { version = "0.4", features = ["native-activity"] }

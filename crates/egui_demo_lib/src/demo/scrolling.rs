@@ -86,7 +86,7 @@ impl super::View for Scrolling {
 
 fn huge_content_lines(ui: &mut egui::Ui) {
     ui.label(
-        "A lot of rows, but only the visible ones are layed out, so performance is still good:",
+        "A lot of rows, but only the visible ones are laid out, so performance is still good:",
     );
     ui.add_space(4.0);
 
