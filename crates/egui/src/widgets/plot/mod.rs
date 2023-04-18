@@ -72,15 +72,19 @@ impl Default for CoordinatesFormatter {
 const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO(emilk): large enough for a wide label
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Copy, Clone)]
-struct AxisBools {
-    x: bool,
-    y: bool,
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct AxisBools {
+    pub x: bool,
+    pub y: bool,
 }
 
 impl AxisBools {
+    pub fn new(x: bool, y: bool) -> Self {
+        Self { x, y }
+    }
+
     #[inline]
-    fn any(&self) -> bool {
+    pub fn any(&self) -> bool {
         self.x || self.y
     }
 }
@@ -165,8 +169,8 @@ pub struct Plot {
 
     center_x_axis: bool,
     center_y_axis: bool,
-    allow_zoom: bool,
-    allow_drag: bool,
+    allow_zoom: AxisBools,
+    allow_drag: AxisBools,
     allow_scroll: bool,
     allow_double_click_reset: bool,
     allow_boxed_zoom: bool,
@@ -207,8 +211,8 @@ impl Plot {
 
             center_x_axis: false,
             center_y_axis: false,
-            allow_zoom: true,
-            allow_drag: true,
+            allow_zoom: true.into(),
+            allow_drag: true.into(),
             allow_scroll: true,
             allow_double_click_reset: true,
             allow_boxed_zoom: true,
@@ -305,8 +309,13 @@ impl Plot {
     }
 
     /// Whether to allow zooming in the plot. Default: `true`.
-    pub fn allow_zoom(mut self, on: bool) -> Self {
-        self.allow_zoom = on;
+    ///
+    /// Note: Allowing zoom in one axis but not the other may lead to unexpected results if used in combination with `data_aspect`.
+    pub fn allow_zoom<T>(mut self, on: T) -> Self
+    where
+        T: Into<AxisBools>,
+    {
+        self.allow_zoom = on.into();
         self
     }
 
@@ -346,8 +355,11 @@ impl Plot {
     }
 
     /// Whether to allow dragging in the plot to move the bounds. Default: `true`.
-    pub fn allow_drag(mut self, on: bool) -> Self {
-        self.allow_drag = on;
+    pub fn allow_drag<T>(mut self, on: T) -> Self
+    where
+        T: Into<AxisBools>,
+    {
+        self.allow_drag = on.into();
         self
     }
 
@@ -829,9 +841,16 @@ impl Plot {
         }
 
         // Dragging
-        if allow_drag && response.dragged_by(PointerButton::Primary) {
+        if allow_drag.any() && response.dragged_by(PointerButton::Primary) {
             response = response.on_hover_cursor(CursorIcon::Grabbing);
-            transform.translate_bounds(-response.drag_delta());
+            let mut delta = -response.drag_delta();
+            if !allow_drag.x {
+                delta.x = 0.0;
+            }
+            if !allow_drag.y {
+                delta.y = 0.0;
+            }
+            transform.translate_bounds(delta);
             bounds_modified = true.into();
         }
 
@@ -889,12 +908,18 @@ impl Plot {
 
         let hover_pos = response.hover_pos();
         if let Some(hover_pos) = hover_pos {
-            if allow_zoom {
-                let zoom_factor = if data_aspect.is_some() {
+            if allow_zoom.any() {
+                let mut zoom_factor = if data_aspect.is_some() {
                     Vec2::splat(ui.input(|i| i.zoom_delta()))
                 } else {
                     ui.input(|i| i.zoom_delta_2d())
                 };
+                if !allow_zoom.x {
+                    zoom_factor.x = 1.0;
+                }
+                if !allow_zoom.y {
+                    zoom_factor.y = 1.0;
+                }
                 if zoom_factor != Vec2::splat(1.0) {
                     transform.zoom(zoom_factor, hover_pos);
                     bounds_modified = true.into();
