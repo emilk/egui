@@ -330,7 +330,7 @@ pub struct NativeOptions {
     ///
     /// The theme will automatically change when the dark vs light mode preference is changed.
     ///
-    /// Does not work on Linux (see https://github.com/rust-windowing/winit/issues/1549).
+    /// Does not work on Linux (see <https://github.com/rust-windowing/winit/issues/1549>).
     ///
     /// See also [`Self::default_theme`].
     pub follow_system_theme: bool,
