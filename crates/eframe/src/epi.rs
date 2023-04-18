@@ -1159,7 +1159,7 @@ pub(crate) mod backend {
         #[cfg(not(target_arch = "wasm32"))]
         pub focus: Option<bool>,
 
-        /// Set to request a user's attention to the native window. Setting this to `None` resets the attention request.
+        /// Set to request a user's attention to the native window.
         #[cfg(not(target_arch = "wasm32"))]
         pub attention: Option<egui::UserAttentionType>,
 
