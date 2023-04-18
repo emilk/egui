@@ -1,5 +1,3 @@
-use egui::plot::AxisBools;
-
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum Plot {
