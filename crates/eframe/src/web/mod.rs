@@ -8,6 +8,9 @@ mod input;
 pub mod screen_reader;
 pub mod storage;
 mod text_agent;
+mod web_logger;
+
+pub use web_logger::WebLogger;
 
 #[cfg(not(any(feature = "glow", feature = "wgpu")))]
 compile_error!("You must enable either the 'glow' or 'wgpu' feature");
