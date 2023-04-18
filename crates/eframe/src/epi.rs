@@ -423,7 +423,6 @@ impl Default for NativeOptions {
             transparent: false,
             mouse_passthrough: false,
 
-            #[cfg(target_os = "windows")]
             active: true,
 
             vsync: true,
