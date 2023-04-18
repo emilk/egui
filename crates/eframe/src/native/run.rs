@@ -190,6 +190,7 @@ fn run_and_return(
             }
             EventResult::Exit => {
                 tracing::debug!("Asking to exit event loop…");
+                winit_app.save_and_destroy();
                 *control_flow = ControlFlow::Exit;
                 return;
             }

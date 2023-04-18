@@ -65,6 +65,12 @@ jobs:
           command: check
           args: --locked --no-default-features --lib --all-targets
 
+      - name: check epaint --no-default-features
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked --no-default-features --lib --all-targets -p epaint
+
       - name: check eframe --no-default-features
         uses: actions-rs/cargo@v1
         with:
@@ -159,13 +165,27 @@ jobs:
   # ---------------------------------------------------------------------------
 
   cargo-deny:
-    name: cargo deny
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+          - target: aarch64-linux-android
+          - target: wasm32-unknown-unknown
+          - target: x86_64-pc-windows-msvc
+          - target: x86_64-unknown-linux-gnu
+          # - target: x86_64-unknown-linux-musl
+
+    name: cargo-deny ${{ matrix.target }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
           rust-version: "1.65.0"
+          log-level: error
+          command: check
+          arguments: ${{ matrix.flags }} --target  ${{ matrix.target }}
 
   # ---------------------------------------------------------------------------
 
@@ -185,7 +205,7 @@ jobs:
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
-      - run: cargo check --features wgpu --target aarch64-linux-android
+      - run: cargo check --features wgpu,android-native-activity --target aarch64-linux-android
         working-directory: crates/eframe
 
   # ---------------------------------------------------------------------------

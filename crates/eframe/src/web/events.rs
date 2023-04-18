@@ -50,8 +50,25 @@ pub fn paint_and_schedule(
 }
 
 pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Result<(), JsValue> {
-    let window = web_sys::window().unwrap();
-    let document = window.document().unwrap();
+    let document = web_sys::window().unwrap().document().unwrap();
+
+    {
+        // Avoid sticky modifier keys on alt-tab:
+        let clear_modifiers = ["blur", "focus"];
+
+        for event_name in clear_modifiers {
+            let closure =
+                move |_event: web_sys::MouseEvent,
+                      mut runner_lock: egui::mutex::MutexGuard<'_, AppRunner>| {
+                    let has_focus = event_name == "focus";
+                    runner_lock.input.on_web_page_focus_change(has_focus);
+                    runner_lock.egui_ctx().request_repaint();
+                    // tracing::debug!("{event_name:?}");
+                };
+
+            runner_container.add_event_listener(&document, event_name, closure)?;
+        }
+    }
 
     runner_container.add_event_listener(
         &document,
@@ -185,6 +202,12 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
         },
     )?;
 
+    Ok(())
+}
+
+pub fn install_window_events(runner_container: &mut AppRunnerContainer) -> Result<(), JsValue> {
+    let window = web_sys::window().unwrap();
+
     for event_name in &["load", "pagehide", "pageshow", "resize"] {
         runner_container.add_event_listener(
             &window,
@@ -231,24 +254,26 @@ pub fn install_color_scheme_change_event(
 pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Result<(), JsValue> {
     let canvas = canvas_element(runner_container.runner.lock().canvas_id()).unwrap();
 
-    let prevent_default_events = [
-        // By default, right-clicks open a context menu.
-        // We don't want to do that (right clicks is handled by egui):
-        "contextmenu",
-        // Allow users to use ctrl-p for e.g. a command palette
-        "afterprint",
-    ];
+    {
+        let prevent_default_events = [
+            // By default, right-clicks open a context menu.
+            // We don't want to do that (right clicks is handled by egui):
+            "contextmenu",
+            // Allow users to use ctrl-p for e.g. a command palette:
+            "afterprint",
+        ];
 
-    for event_name in prevent_default_events {
-        let closure =
-            move |event: web_sys::MouseEvent,
-                  mut _runner_lock: egui::mutex::MutexGuard<'_, AppRunner>| {
-                event.prevent_default();
-                // event.stop_propagation();
-                // tracing::debug!("Preventing event {:?}", event_name);
-            };
+        for event_name in prevent_default_events {
+            let closure =
+                move |event: web_sys::MouseEvent,
+                      mut _runner_lock: egui::mutex::MutexGuard<'_, AppRunner>| {
+                    event.prevent_default();
+                    // event.stop_propagation();
+                    // tracing::debug!("Preventing event {event_name:?}");
+                };
 
-        runner_container.add_event_listener(&canvas, event_name, closure)?;
+            runner_container.add_event_listener(&canvas, event_name, closure)?;
+        }
     }
 
     runner_container.add_event_listener(
@@ -423,20 +448,33 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
         &canvas,
         "wheel",
         |event: web_sys::WheelEvent, mut runner_lock| {
-            let scroll_multiplier = match event.delta_mode() {
-                web_sys::WheelEvent::DOM_DELTA_PAGE => {
-                    canvas_size_in_points(runner_lock.canvas_id()).y
-                }
-                web_sys::WheelEvent::DOM_DELTA_LINE => {
+            let unit = match event.delta_mode() {
+                web_sys::WheelEvent::DOM_DELTA_PIXEL => egui::MouseWheelUnit::Point,
+                web_sys::WheelEvent::DOM_DELTA_LINE => egui::MouseWheelUnit::Line,
+                web_sys::WheelEvent::DOM_DELTA_PAGE => egui::MouseWheelUnit::Page,
+                _ => return,
+            };
+            // delta sign is flipped to match native (winit) convention.
+            let delta = -egui::vec2(event.delta_x() as f32, event.delta_y() as f32);
+            let modifiers = runner_lock.input.raw.modifiers;
+
+            runner_lock.input.raw.events.push(egui::Event::MouseWheel {
+                unit,
+                delta,
+                modifiers,
+            });
+
+            let scroll_multiplier = match unit {
+                egui::MouseWheelUnit::Page => canvas_size_in_points(runner_lock.canvas_id()).y,
+                egui::MouseWheelUnit::Line => {
                     #[allow(clippy::let_and_return)]
                     let points_per_scroll_line = 8.0; // Note that this is intentionally different from what we use in winit.
                     points_per_scroll_line
                 }
-                _ => 1.0, // DOM_DELTA_PIXEL
+                egui::MouseWheelUnit::Point => 1.0,
             };
 
-            let mut delta =
-                -scroll_multiplier * egui::vec2(event.delta_x() as f32, event.delta_y() as f32);
+            let mut delta = scroll_multiplier * delta;
 
             // Report a zoom event in case CTRL (on Windows or Linux) or CMD (on Mac) is pressed.
             // This if-statement is equivalent to how `Modifiers.command` is determined in

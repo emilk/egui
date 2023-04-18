@@ -9,8 +9,6 @@
 
 #![allow(clippy::manual_range_contains)]
 
-use std::os::raw::c_void;
-
 #[cfg(feature = "accesskit")]
 pub use accesskit_winit;
 pub use egui;
@@ -85,11 +83,12 @@ pub struct State {
 }
 
 impl State {
+    /// Construct a new instance
+    ///
+    /// # Safety
+    ///
+    /// The returned `State` must not outlive the input `_event_loop`.
     pub fn new<T>(event_loop: &EventLoopWindowTarget<T>) -> Self {
-        Self::new_with_wayland_display(wayland_display(event_loop))
-    }
-
-    pub fn new_with_wayland_display(wayland_display: Option<*mut c_void>) -> Self {
         let egui_input = egui::RawInput {
             has_focus: false, // winit will tell us when we have focus
             ..Default::default()
@@ -103,7 +102,7 @@ impl State {
             current_cursor_icon: None,
             current_pixels_per_point: 1.0,
 
-            clipboard: clipboard::Clipboard::new(wayland_display),
+            clipboard: clipboard::Clipboard::new(event_loop),
 
             simulate_touch_screen: false,
             pointer_touch_id: None,
@@ -549,6 +548,26 @@ impl State {
     }
 
     fn on_mouse_wheel(&mut self, delta: winit::event::MouseScrollDelta) {
+        {
+            let (unit, delta) = match delta {
+                winit::event::MouseScrollDelta::LineDelta(x, y) => {
+                    (egui::MouseWheelUnit::Line, egui::vec2(x, y))
+                }
+                winit::event::MouseScrollDelta::PixelDelta(winit::dpi::PhysicalPosition {
+                    x,
+                    y,
+                }) => (
+                    egui::MouseWheelUnit::Point,
+                    egui::vec2(x as f32, y as f32) / self.pixels_per_point(),
+                ),
+            };
+            let modifiers = self.egui_input.modifiers;
+            self.egui_input.events.push(egui::Event::MouseWheel {
+                unit,
+                delta,
+                modifiers,
+            });
+        }
         let delta = match delta {
             winit::event::MouseScrollDelta::LineDelta(x, y) => {
                 let points_per_scroll_line = 50.0; // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
@@ -868,28 +887,6 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
         egui::CursorIcon::Wait => Some(winit::window::CursorIcon::Wait),
         egui::CursorIcon::ZoomIn => Some(winit::window::CursorIcon::ZoomIn),
         egui::CursorIcon::ZoomOut => Some(winit::window::CursorIcon::ZoomOut),
-    }
-}
-
-/// Returns a Wayland display handle if the target is running Wayland
-fn wayland_display<T>(_event_loop: &EventLoopWindowTarget<T>) -> Option<*mut c_void> {
-    #[cfg(feature = "wayland")]
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-    ))]
-    {
-        use winit::platform::wayland::EventLoopWindowTargetExtWayland as _;
-        return _event_loop.wayland_display();
-    }
-
-    #[allow(unreachable_code)]
-    {
-        let _ = _event_loop;
-        None
     }
 }
 
