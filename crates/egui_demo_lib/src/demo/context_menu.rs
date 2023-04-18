@@ -139,7 +139,6 @@ impl ContextMenus {
             .allow_scroll(self.allow_scroll)
             .center_x_axis(self.center_x_axis)
             .center_x_axis(self.center_y_axis)
-            .allow_boxed_zoom(false)
             .width(self.width)
             .height(self.height)
             .data_aspect(1.0)
