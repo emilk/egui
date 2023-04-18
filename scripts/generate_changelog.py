@@ -94,10 +94,18 @@ def get_commit_info(commit: Any) -> CommitInfo:
         return CommitInfo(hexsha=commit.hexsha, title=commit.summary, pr_number=None)
 
 
-def print_section(title: str, items: List[str]) -> None:
+def remove_prefix(text, prefix):
+    if text.startswith(prefix):
+        return text[len(prefix):]
+    return text  # or whatever
+
+
+def print_section(crate: str, items: List[str]) -> None:
     if 0 < len(items):
-        print(f"#### {title}")
+        print(f"#### {crate}")
         for line in items:
+            line = remove_prefix(line, f"{crate}: ")
+            line = remove_prefix(line, f"[{crate}] ")
             print(f"- {line}")
     print()
 
@@ -117,7 +125,9 @@ def main() -> None:
         )
     )
 
-    section_names = [
+    ignore_labels = ["CI", "dependencies"]
+
+    crate_names = [
         "ecolor",
         "eframe",
         "egui_extras",
@@ -128,7 +138,8 @@ def main() -> None:
         "epaint",
     ]
     sections = {}
-    unsorted = []
+    unsorted_prs = []
+    unsorted_commits = []
 
     for commit_info, pr_info in zip(commit_infos, pr_infos):
         hexsha = commit_info.hexsha
@@ -138,7 +149,7 @@ def main() -> None:
         if pr_number is None:
             # Someone committed straight to main:
             summary = f"{title} [{hexsha}](https://github.com/{OWNER}/{REPO}/commit/{hexsha})"
-            unsorted.append(summary)
+            unsorted_commits.append(summary)
         else:
             title = pr_info.pr_title if pr_info else title  # We prefer the PR title if available
             labels = pr_info.labels if pr_info else []
@@ -154,18 +165,22 @@ def main() -> None:
                     summary += f" (thanks [@{gh_user_name}](https://github.com/{gh_user_name})!)"
 
             added = False
-            for section_name in section_names:
-                if section_names in labels:
-                    sections.setdefault(section_name, []).append(summary)
+            for crate in crate_names:
+                if crate in labels:
+                    sections.setdefault(crate, []).append(summary)
                     added = True
 
             if not added:
-                unsorted.append(summary)
+                if not any(label in labels for label in ignore_labels):
+                    unsorted_prs.append(summary)
 
     print()
-    for (crate, summaries) in sections:
-        print_section(crate, summaries)
-    print_section("Unsorted", unsorted)
+    for crate in crate_names:
+        if crate in sections:
+            summary = sections[crate]
+            print_section(crate, summary)
+    print_section("Unsorted PRs", unsorted_prs)
+    print_section("Unsorted commits", unsorted_commits)
 
 
 if __name__ == "__main__":
