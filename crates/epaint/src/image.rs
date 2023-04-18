@@ -111,11 +111,13 @@ impl ColorImage {
     }
 
     /// A view of the underlying data as `&[u8]`
+    #[cfg(feature = "bytemuck")]
     pub fn as_raw(&self) -> &[u8] {
         bytemuck::cast_slice(&self.pixels)
     }
 
     /// A view of the underlying data as `&mut [u8]`
+    #[cfg(feature = "bytemuck")]
     pub fn as_raw_mut(&mut self) -> &mut [u8] {
         bytemuck::cast_slice_mut(&mut self.pixels)
     }
