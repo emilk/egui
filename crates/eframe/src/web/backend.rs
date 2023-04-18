@@ -299,19 +299,21 @@ impl AppRunner {
             .unwrap()
     }
 
-    pub fn auto_save(&mut self) {
-        let now = now_sec();
-        let time_since_last_save = now - self.last_save_time;
-
+    pub fn auto_save_if_needed(&mut self) {
+        let time_since_last_save = now_sec() - self.last_save_time;
         if time_since_last_save > self.app.auto_save_interval().as_secs_f64() {
-            if self.app.persist_egui_memory() {
-                save_memory(&self.egui_ctx);
-            }
-            if let Some(storage) = self.frame.storage_mut() {
-                self.app.save(storage);
-            }
-            self.last_save_time = now;
+            self.save();
         }
+    }
+
+    pub fn save(&mut self) {
+        if self.app.persist_egui_memory() {
+            save_memory(&self.egui_ctx);
+        }
+        if let Some(storage) = self.frame.storage_mut() {
+            self.app.save(storage);
+        }
+        self.last_save_time = now_sec();
     }
 
     pub fn canvas_id(&self) -> &str {
