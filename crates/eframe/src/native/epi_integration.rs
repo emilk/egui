@@ -61,6 +61,7 @@ pub fn read_window_info(
         fullscreen: window.fullscreen().is_some(),
         minimized: window_state.minimized,
         maximized: window_state.maximized,
+        focused: window.has_focus(),
         size: egui::Vec2 {
             x: size.width,
             y: size.height,
@@ -231,6 +232,7 @@ pub fn handle_app_output(
         screenshot_requested: _, // handled by the rendering backend,
         minimized,
         maximized,
+        focus,
     } = app_output;
 
     if let Some(decorated) = decorated {
@@ -283,6 +285,10 @@ pub fn handle_app_output(
     if let Some(maximized) = maximized {
         window.set_maximized(maximized);
         window_state.maximized = maximized;
+    }
+
+    if focus == Some(true) {
+        window.focus_window();
     }
 }
 
