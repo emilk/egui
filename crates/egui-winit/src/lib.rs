@@ -268,7 +268,7 @@ impl State {
                 }
             }
             WindowEvent::Ime(ime) => {
-                // on Mac even Cmd-C is preessed during ime, a `c` is pushed to Preedit.
+                // on Mac even Cmd-C is pressed during ime, a `c` is pushed to Preedit.
                 // So no need to check is_mac_cmd.
                 //
                 // How winit produce `Ime::Enabled` and `Ime::Disabled` differs in MacOS
@@ -279,7 +279,7 @@ impl State {
                 // - On MacOS, only when user explicit enable/disable ime. No Disabled
                 // after Commit.
                 //
-                // We use input_method_editor_started to mannualy insert CompositionStart
+                // We use input_method_editor_started to manually insert CompositionStart
                 // between Commits.
                 match ime {
                     winit::event::Ime::Enabled | winit::event::Ime::Disabled => (),
@@ -510,7 +510,7 @@ impl State {
                 None => 0_f32,
             },
         });
-        // If we're not yet tanslating a touch or we're translating this very
+        // If we're not yet translating a touch or we're translating this very
         // touch …
         if self.pointer_touch_id.is_none() || self.pointer_touch_id.unwrap() == touch.id {
             // … emit PointerButton resp. PointerMoved events to emulate mouse
