@@ -171,10 +171,16 @@ jobs:
         include:
           - target: aarch64-apple-darwin
           - target: aarch64-linux-android
+          - target: i686-pc-windows-gnu
+          - target: i686-pc-windows-msvc
+          - target: i686-unknown-linux-gnu
           - target: wasm32-unknown-unknown
+          - target: x86_64-apple-darwin
+          - target: x86_64-pc-windows-gnu
           - target: x86_64-pc-windows-msvc
           - target: x86_64-unknown-linux-gnu
-          # - target: x86_64-unknown-linux-musl
+          - target: x86_64-unknown-linux-musl
+          - target: x86_64-unknown-redox
 
     name: cargo-deny ${{ matrix.target }}
     runs-on: ubuntu-22.04
