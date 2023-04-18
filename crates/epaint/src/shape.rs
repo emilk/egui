@@ -322,8 +322,8 @@ impl Shape {
                 bezier_shape.points[1] += delta;
                 bezier_shape.points[2] += delta;
             }
-            Shape::CubicBezier(cubie_curve) => {
-                for p in &mut cubie_curve.points {
+            Shape::CubicBezier(cubic_curve) => {
+                for p in &mut cubic_curve.points {
                     *p += delta;
                 }
             }

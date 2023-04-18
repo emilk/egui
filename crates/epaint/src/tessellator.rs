@@ -1219,7 +1219,7 @@ impl Tessellator {
         out.append_ref(mesh);
     }
 
-    /// Tessellate a line segment between the two points with the given stoken into a [`Mesh`].
+    /// Tessellate a line segment between the two points with the given stroke into a [`Mesh`].
     ///
     /// * `shape`: the mesh to tessellate.
     /// * `out`: triangles are appended to this.

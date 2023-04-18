@@ -1441,7 +1441,7 @@ impl DebugOptions {
 
         ui.checkbox(
             show_blocking_widget,
-            "Show wha widget blocks the interaction of another widget",
+            "Show which widget blocks the interaction of another widget",
         );
 
         ui.vertical_centered(|ui| reset_button(ui, self));
