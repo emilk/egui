@@ -26,11 +26,6 @@ default = ["accesskit", "default_fonts", "glow"]
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
 accesskit = ["egui/accesskit", "egui-winit/accesskit"]
 
-## Detect dark mode system preference using [`dark-light`](https://docs.rs/dark-light).
-##
-## See also [`NativeOptions::follow_system_theme`] and [`NativeOptions::default_theme`].
-dark-light = ["dep:dark-light"]
-
 ## If set, egui will use `include_bytes!` to bundle some fonts.
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
@@ -75,9 +70,9 @@ wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
 # - It's also important that we don't impose an android-activity backend by taking this choice away from applications.
 
 ## Enable the `native-activity` backend via `egui-winit` on Android
-android-native-activity = [ "egui-winit/android-native-activity" ]
+android-native-activity = ["egui-winit/android-native-activity"]
 ## Enable the `game-activity` backend via `egui-winit` on Android
-android-game-activity = [ "egui-winit/android-game-activity" ]
+android-game-activity = ["egui-winit/android-game-activity"]
 
 [dependencies]
 egui = { version = "0.21.0", path = "../egui", default-features = false, features = [
@@ -107,7 +102,6 @@ raw-window-handle = { version = "0.5.0" }
 winit = "0.28.1"
 
 # optional native:
-dark-light = { version = "1.0", optional = true }
 directories-next = { version = "2", optional = true }
 egui-wgpu = { version = "0.21.0", path = "../egui-wgpu", optional = true, features = [
   "winit",
