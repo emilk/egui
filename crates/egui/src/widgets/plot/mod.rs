@@ -989,6 +989,8 @@ impl Plot {
     }
 }
 
+/// User-requested modifications to the plot bounds. We collect them in the plot build function to later apply
+/// them at the right time, as other modifications need to happen first.
 enum BoundsModification {
     Set(PlotBounds),
     Translate(Vec2),
