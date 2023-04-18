@@ -8,7 +8,7 @@ then
   echo "Skipping setup_web.sh"
 else
   echo "Running setup_web.sh"
-  ./sh/setup_web.sh
+  ./scripts/setup_web.sh
 fi
 
 CRATE_NAME="egui_demo_app"

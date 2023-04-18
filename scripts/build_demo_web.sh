@@ -39,7 +39,7 @@ while test $# -gt 0; do
   esac
 done
 
-./sh/setup_web.sh
+./scripts/setup_web.sh
 
 # This is required to enable the web_sys clipboard API which eframe web uses
 # https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html

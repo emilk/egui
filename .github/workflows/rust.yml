@@ -154,7 +154,7 @@ jobs:
         with:
           version: "0.2.84"
 
-      - run: ./sh/wasm_bindgen_check.sh --skip-setup
+      - run: ./scripts/wasm_bindgen_check.sh --skip-setup
 
       - name: Cranky wasm32
         uses: actions-rs/cargo@v1
