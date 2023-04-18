@@ -21,7 +21,7 @@ pub fn paint_and_schedule(
             runner_lock
                 .needs_repaint
                 .repaint_after(repaint_after.as_secs_f64());
-            runner_lock.auto_save();
+            runner_lock.auto_save_if_needed();
         }
 
         Ok(IsDestroyed(is_destroyed))
@@ -54,13 +54,17 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
 
     {
         // Avoid sticky modifier keys on alt-tab:
-        let clear_modifiers = ["blur", "focus"];
-
-        for event_name in clear_modifiers {
+        for event_name in ["blur", "focus"] {
             let closure =
                 move |_event: web_sys::MouseEvent,
                       mut runner_lock: egui::mutex::MutexGuard<'_, AppRunner>| {
                     let has_focus = event_name == "focus";
+
+                    if !has_focus {
+                        // We lost focus - good idea to save
+                        runner_lock.save();
+                    }
+
                     runner_lock.input.on_web_page_focus_change(has_focus);
                     runner_lock.egui_ctx().request_repaint();
                     // tracing::debug!("{event_name:?}");
@@ -207,6 +211,15 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
 
 pub fn install_window_events(runner_container: &mut AppRunnerContainer) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
+
+    // Save-on-close
+    runner_container.add_event_listener(
+        &window,
+        "onbeforeunload",
+        |_: web_sys::Event, mut runner_lock| {
+            runner_lock.save();
+        },
+    )?;
 
     for event_name in &["load", "pagehide", "pageshow", "resize"] {
         runner_container.add_event_listener(
