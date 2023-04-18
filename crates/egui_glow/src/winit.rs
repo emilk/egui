@@ -22,7 +22,7 @@ impl EguiGlow {
     ) -> Self {
         let painter = crate::Painter::new(gl, "", shader_version)
             .map_err(|error| {
-                tracing::error!("error occurred in initializing painter:\n{}", error);
+                log::error!("error occurred in initializing painter:\n{}", error);
             })
             .unwrap();
 

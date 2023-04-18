@@ -57,7 +57,7 @@ impl WebPainterWgpu {
 
     #[allow(unused)] // only used if `wgpu` is the only active feature.
     pub async fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String> {
-        tracing::debug!("Creating wgpu painter");
+        log::debug!("Creating wgpu painter");
 
         let canvas = super::canvas_element_or_die(canvas_id);
 
@@ -108,7 +108,7 @@ impl WebPainterWgpu {
             view_formats: vec![target_format],
         };
 
-        tracing::debug!("wgpu painter initialized.");
+        log::debug!("wgpu painter initialized.");
 
         Ok(Self {
             canvas,

@@ -66,7 +66,7 @@ impl Clipboard {
             return match clipboard.load() {
                 Ok(text) => Some(text),
                 Err(err) => {
-                    tracing::error!("smithay paste error: {err}");
+                    log::error!("smithay paste error: {err}");
                     None
                 }
             };
@@ -77,7 +77,7 @@ impl Clipboard {
             return match clipboard.get_text() {
                 Ok(text) => Some(text),
                 Err(err) => {
-                    tracing::error!("arboard paste error: {err}");
+                    log::error!("arboard paste error: {err}");
                     None
                 }
             };
@@ -105,7 +105,7 @@ impl Clipboard {
         #[cfg(all(feature = "arboard", not(target_os = "android")))]
         if let Some(clipboard) = &mut self.arboard {
             if let Err(err) = clipboard.set_text(text) {
-                tracing::error!("arboard copy/cut error: {err}");
+                log::error!("arboard copy/cut error: {err}");
             }
             return;
         }
@@ -116,11 +116,11 @@ impl Clipboard {
 
 #[cfg(all(feature = "arboard", not(target_os = "android")))]
 fn init_arboard() -> Option<arboard::Clipboard> {
-    tracing::debug!("Initializing arboard clipboard…");
+    log::debug!("Initializing arboard clipboard…");
     match arboard::Clipboard::new() {
         Ok(clipboard) => Some(clipboard),
         Err(err) => {
-            tracing::warn!("Failed to initialize arboard clipboard: {err}");
+            log::warn!("Failed to initialize arboard clipboard: {err}");
             None
         }
     }
@@ -144,18 +144,18 @@ fn init_smithay_clipboard<T>(
     {
         use winit::platform::wayland::EventLoopWindowTargetExtWayland as _;
         if let Some(display) = _event_loop.wayland_display() {
-            tracing::debug!("Initializing smithay clipboard…");
+            log::debug!("Initializing smithay clipboard…");
             #[allow(unsafe_code)]
             Some(unsafe { smithay_clipboard::Clipboard::new(display) })
         } else {
-            tracing::debug!("Cannot initialize smithay clipboard without a display handle");
+            log::debug!("Cannot initialize smithay clipboard without a display handle");
             None
         }
     }
 
     #[cfg(not(feature = "wayland"))]
     {
-        tracing::debug!(
+        log::debug!(
             "You need to enable the 'wayland' feature of 'egui-winit' to get a working clipboard"
         );
         None

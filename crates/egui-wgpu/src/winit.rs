@@ -2,8 +2,6 @@ use std::sync::Arc;
 
 use epaint::{self, mutex::RwLock};
 
-use tracing::error;
-
 use crate::{renderer, RenderState, Renderer, SurfaceErrorAction, WgpuConfiguration};
 
 struct SurfaceState {
@@ -260,7 +258,7 @@ impl Painter {
                     {
                         wgpu::CompositeAlphaMode::PostMultiplied
                     } else {
-                        tracing::warn!("Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency.");
+                        log::warn!("Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency.");
                         wgpu::CompositeAlphaMode::Auto
                     }
                 } else {
@@ -360,7 +358,7 @@ impl Painter {
                 height_in_pixels,
             );
         } else {
-            error!("Ignoring window resize notification with no surface created via Painter::set_window()");
+            log::error!("Ignoring window resize notification with no surface created via Painter::set_window()");
         }
     }
 
@@ -435,7 +433,7 @@ impl Painter {
             wgpu::TextureFormat::Rgba8Unorm => [0, 1, 2, 3],
             wgpu::TextureFormat::Bgra8Unorm => [2, 1, 0, 3],
             _ => {
-                tracing::error!("Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}", tex.format());
+                log::error!("Screen can't be captured unless the surface format is Rgba8Unorm or Bgra8Unorm. Current surface format is {:?}", tex.format());
                 return None;
             }
         };

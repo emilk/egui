@@ -79,7 +79,7 @@ impl Default for WgpuConfiguration {
                     // Silently return here to prevent spamming the console with:
                     // "The underlying surface has changed, and therefore the swap chain must be updated"
                 } else {
-                    tracing::warn!("Dropped frame with error: {err}");
+                    log::warn!("Dropped frame with error: {err}");
                 }
                 SurfaceErrorAction::SkipFrame
             }),

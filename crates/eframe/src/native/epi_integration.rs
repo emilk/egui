@@ -425,12 +425,12 @@ impl EpiIntegration {
 
         match event {
             WindowEvent::CloseRequested => {
-                tracing::debug!("Received WindowEvent::CloseRequested");
+                log::debug!("Received WindowEvent::CloseRequested");
                 self.close = app.on_close_event();
-                tracing::debug!("App::on_close_event returned {}", self.close);
+                log::debug!("App::on_close_event returned {}", self.close);
             }
             WindowEvent::Destroyed => {
-                tracing::debug!("Received WindowEvent::Destroyed");
+                log::debug!("Received WindowEvent::Destroyed");
                 self.close = true;
             }
             WindowEvent::MouseInput {
@@ -483,7 +483,7 @@ impl EpiIntegration {
             self.can_drag_window = false;
             if app_output.close {
                 self.close = app.on_close_event();
-                tracing::debug!("App::on_close_event returned {}", self.close);
+                log::debug!("App::on_close_event returned {}", self.close);
             }
             self.frame.output.visible = app_output.visible; // this is handled by post_present
             self.frame.output.screenshot_requested = app_output.screenshot_requested;

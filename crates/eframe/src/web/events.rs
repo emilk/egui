@@ -63,7 +63,7 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
                     let has_focus = event_name == "focus";
                     runner_lock.input.on_web_page_focus_change(has_focus);
                     runner_lock.egui_ctx().request_repaint();
-                    // tracing::debug!("{event_name:?}");
+                    // log::debug!("{event_name:?}");
                 };
 
             runner_container.add_event_listener(&document, event_name, closure)?;
@@ -131,7 +131,7 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
                 false
             };
 
-            // tracing::debug!(
+            // log::debug!(
             //     "On key-down {:?}, egui_wants_keyboard: {}, prevent_default: {}",
             //     event.key().as_str(),
             //     egui_wants_keyboard,
@@ -269,7 +269,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
                       mut _runner_lock: egui::mutex::MutexGuard<'_, AppRunner>| {
                     event.prevent_default();
                     // event.stop_propagation();
-                    // tracing::debug!("Preventing event {event_name:?}");
+                    // log::debug!("Preventing event {event_name:?}");
                 };
 
             runner_container.add_event_listener(&canvas, event_name, closure)?;
@@ -551,7 +551,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
                             let last_modified = std::time::UNIX_EPOCH
                                 + std::time::Duration::from_millis(file.last_modified() as u64);
 
-                            tracing::debug!("Loading {:?} ({} bytes)…", name, file.size());
+                            log::debug!("Loading {:?} ({} bytes)…", name, file.size());
 
                             let future = wasm_bindgen_futures::JsFuture::from(file.array_buffer());
 
@@ -560,11 +560,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
                                 match future.await {
                                     Ok(array_buffer) => {
                                         let bytes = js_sys::Uint8Array::new(&array_buffer).to_vec();
-                                        tracing::debug!(
-                                            "Loaded {:?} ({} bytes).",
-                                            name,
-                                            bytes.len()
-                                        );
+                                        log::debug!("Loaded {:?} ({} bytes).", name, bytes.len());
 
                                         // Re-lock the mutex on the other side of the await point
                                         let mut runner_lock = runner_ref.lock();
@@ -579,7 +575,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
                                         runner_lock.needs_repaint.repaint_asap();
                                     }
                                     Err(err) => {
-                                        tracing::error!("Failed to read file: {:?}", err);
+                                        log::error!("Failed to read file: {:?}", err);
                                     }
                                 }
                             };
