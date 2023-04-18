@@ -65,6 +65,12 @@ jobs:
           command: check
           args: --locked --no-default-features --lib --all-targets
 
+      - name: check epaint --no-default-features
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked --no-default-features --lib --all-targets -p epaint
+
       - name: check eframe --no-default-features
         uses: actions-rs/cargo@v1
         with:
