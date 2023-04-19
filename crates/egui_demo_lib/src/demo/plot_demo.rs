@@ -1,7 +1,7 @@
 use std::f64::consts::TAU;
 use std::ops::RangeInclusive;
 
-use egui::plot::{AxisBools, GridInput, GridMark};
+use egui::plot::{AxisBools, GridInput, GridMark, PlotResponse};
 use egui::*;
 use plot::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter, Corner, HLine,
@@ -751,9 +751,10 @@ impl InteractionDemo {
     fn ui(&mut self, ui: &mut Ui) -> Response {
         let plot = Plot::new("interaction_demo").height(300.0);
 
-        let InnerResponse {
+        let PlotResponse {
             response,
             inner: (screen_pos, pointer_coordinate, pointer_coordinate_drag_delta, bounds, hovered),
+            ..
         } = plot.show(ui, |plot_ui| {
             (
                 plot_ui.screen_from_plot(PlotPoint::new(0.0, 0.0)),

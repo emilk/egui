@@ -148,6 +148,20 @@ struct BoundsLinkGroups(HashMap<Id, LinkedBounds>);
 
 // ----------------------------------------------------------------------------
 
+/// What [`Plot::show`] returns.
+pub struct PlotResponse<R> {
+    /// What the user closure returned.
+    pub inner: R,
+
+    /// The response of the plot.
+    pub response: Response,
+
+    /// The transform between screen coordinates and plot coordinates.
+    pub transform: PlotTransform,
+}
+
+// ----------------------------------------------------------------------------
+
 /// A 2D plot, e.g. a graph of a function.
 ///
 /// [`Plot`] supports multiple lines and points.
@@ -570,7 +584,7 @@ impl Plot {
     }
 
     /// Interact with and add items to the plot and finally draw it.
-    pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> InnerResponse<R> {
+    pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> PlotResponse<R> {
         self.show_dyn(ui, Box::new(build_fn))
     }
 
@@ -578,7 +592,7 @@ impl Plot {
         self,
         ui: &mut Ui,
         build_fn: Box<dyn FnOnce(&mut PlotUi) -> R + 'a>,
-    ) -> InnerResponse<R> {
+    ) -> PlotResponse<R> {
         let Self {
             id_source,
             center_x_axis,
@@ -946,7 +960,7 @@ impl Plot {
             coordinates_formatter,
             axis_formatters,
             show_axes,
-            transform: transform.clone(),
+            transform,
             draw_cursor_x: linked_cursors.as_ref().map_or(false, |(_, group)| group.x),
             draw_cursor_y: linked_cursors.as_ref().map_or(false, |(_, group)| group.y),
             draw_cursors,
@@ -1009,7 +1023,11 @@ impl Plot {
             response
         };
 
-        InnerResponse { inner, response }
+        PlotResponse {
+            inner,
+            response,
+            transform,
+        }
     }
 }
 

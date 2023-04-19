@@ -183,7 +183,7 @@ impl PlotBounds {
 
 /// Contains the screen rectangle and the plot bounds and provides methods to transform between them.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug)]
 pub struct PlotTransform {
     /// The screen rectangle.
     frame: Rect,
