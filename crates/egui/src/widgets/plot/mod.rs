@@ -15,7 +15,7 @@ pub use items::{
     Orientation, PlotImage, PlotPoint, PlotPoints, Points, Polygon, Text, VLine,
 };
 pub use legend::{Corner, Legend};
-pub use transform::{PlotBounds, ScreenTransform};
+pub use transform::{PlotBounds, PlotTransform};
 
 use self::items::{horizontal_line, rulers_color, vertical_line};
 
@@ -103,7 +103,7 @@ struct PlotMemory {
     bounds_modified: AxisBools,
     hovered_entry: Option<String>,
     hidden_items: ahash::HashSet<String>,
-    last_screen_transform: ScreenTransform,
+    last_plot_transform: PlotTransform,
     /// Allows to remember the first click position when performing a boxed zoom
     last_click_pos_for_zoom: Option<Pos2>,
 }
@@ -660,7 +660,7 @@ impl Plot {
             bounds_modified: false.into(),
             hovered_entry: None,
             hidden_items: Default::default(),
-            last_screen_transform: ScreenTransform::new(
+            last_plot_transform: PlotTransform::new(
                 rect,
                 min_auto_bounds,
                 center_x_axis,
@@ -673,7 +673,7 @@ impl Plot {
             mut bounds_modified,
             mut hovered_entry,
             mut hidden_items,
-            last_screen_transform,
+            last_plot_transform,
             mut last_click_pos_for_zoom,
         } = memory;
 
@@ -681,7 +681,7 @@ impl Plot {
         let mut plot_ui = PlotUi {
             items: Vec::new(),
             next_auto_color_idx: 0,
-            last_screen_transform,
+            last_plot_transform,
             response,
             bounds_modifications: Vec::new(),
             ctx: ui.ctx().clone(),
@@ -690,7 +690,7 @@ impl Plot {
         let PlotUi {
             mut items,
             mut response,
-            last_screen_transform,
+            last_plot_transform,
             bounds_modifications,
             ..
         } = plot_ui;
@@ -726,7 +726,7 @@ impl Plot {
         items.sort_by_key(|item| item.highlighted());
 
         // --- Bound computation ---
-        let mut bounds = *last_screen_transform.bounds();
+        let mut bounds = *last_plot_transform.bounds();
 
         // Find the cursors from other plots we need to draw
         let draw_cursors: Vec<Cursor> = if let Some((id, _)) = linked_cursors.as_ref() {
@@ -825,7 +825,7 @@ impl Plot {
             }
         }
 
-        let mut transform = ScreenTransform::new(rect, bounds, center_x_axis, center_y_axis);
+        let mut transform = PlotTransform::new(rect, bounds, center_x_axis, center_y_axis);
 
         // Enforce aspect ratio
         if let Some(data_aspect) = data_aspect {
@@ -998,7 +998,7 @@ impl Plot {
             bounds_modified,
             hovered_entry,
             hidden_items,
-            last_screen_transform: transform,
+            last_plot_transform: transform,
             last_click_pos_for_zoom,
         };
         memory.store(ui.ctx(), plot_id);
@@ -1025,7 +1025,7 @@ enum BoundsModification {
 pub struct PlotUi {
     items: Vec<Box<dyn PlotItem>>,
     next_auto_color_idx: usize,
-    last_screen_transform: ScreenTransform,
+    last_plot_transform: PlotTransform,
     response: Response,
     bounds_modifications: Vec<BoundsModification>,
     ctx: Context,
@@ -1048,7 +1048,7 @@ impl PlotUi {
     /// further specified in the plot builder, this will return bounds centered on the origin. The bounds do
     /// not change until the plot is drawn.
     pub fn plot_bounds(&self) -> PlotBounds {
-        *self.last_screen_transform.bounds()
+        *self.last_plot_transform.bounds()
     }
 
     /// Set the plot bounds. Can be useful for implementing alternative plot navigation methods.
@@ -1089,23 +1089,23 @@ impl PlotUi {
     /// The pointer drag delta in plot coordinates.
     pub fn pointer_coordinate_drag_delta(&self) -> Vec2 {
         let delta = self.response.drag_delta();
-        let dp_dv = self.last_screen_transform.dpos_dvalue();
+        let dp_dv = self.last_plot_transform.dpos_dvalue();
         Vec2::new(delta.x / dp_dv[0] as f32, delta.y / dp_dv[1] as f32)
     }
 
     /// Read the transform netween plot coordinates and screen coordinates.
-    pub fn transform(&self) -> &ScreenTransform {
-        &self.last_screen_transform
+    pub fn transform(&self) -> &PlotTransform {
+        &self.last_plot_transform
     }
 
     /// Transform the plot coordinates to screen coordinates.
     pub fn screen_from_plot(&self, position: PlotPoint) -> Pos2 {
-        self.last_screen_transform.position_from_point(&position)
+        self.last_plot_transform.position_from_point(&position)
     }
 
     /// Transform the screen coordinates to plot coordinates.
     pub fn plot_from_screen(&self, position: Pos2) -> PlotPoint {
-        self.last_screen_transform.value_from_position(position)
+        self.last_plot_transform.value_from_position(position)
     }
 
     /// Add a data line.
@@ -1303,7 +1303,7 @@ struct PreparedPlot {
     coordinates_formatter: Option<(Corner, CoordinatesFormatter)>,
     axis_formatters: [AxisFormatter; 2],
     show_axes: [bool; 2],
-    transform: ScreenTransform,
+    transform: PlotTransform,
     draw_cursor_x: bool,
     draw_cursor_y: bool,
     draw_cursors: Vec<Cursor>,
