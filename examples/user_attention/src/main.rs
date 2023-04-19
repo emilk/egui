@@ -114,7 +114,7 @@ impl eframe::App for Application {
     }
 }
 
-fn main() {
+fn main() -> eframe::Result<()> {
     let native_options = NativeOptions {
         initial_window_size: Some(eframe::egui::vec2(400., 200.)),
         ..Default::default()
@@ -124,5 +124,4 @@ fn main() {
         native_options,
         Box::new(|cc| Box::new(Application::new(cc))),
     )
-    .unwrap();
 }
