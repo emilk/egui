@@ -3,6 +3,8 @@
 use eframe::egui;
 
 fn main() -> Result<(), eframe::Error> {
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
+
     if cfg!(target_os = "macos") {
         eprintln!("WARNING: this example does not work on Mac! See https://github.com/emilk/egui/issues/1918");
     }

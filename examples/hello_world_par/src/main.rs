@@ -8,6 +8,7 @@ use std::thread::JoinHandle;
 use eframe::egui;
 
 fn main() -> Result<(), eframe::Error> {
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(1024.0, 768.0)),
         ..Default::default()

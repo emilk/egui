@@ -3,6 +3,17 @@
 use eframe::egui;
 use egui::{FontFamily, FontId, RichText, TextStyle};
 
+fn main() -> Result<(), eframe::Error> {
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
+    let options = eframe::NativeOptions::default();
+
+    eframe::run_native(
+        "egui example: global font style",
+        options,
+        Box::new(|cc| Box::new(MyApp::new(cc))),
+    )
+}
+
 #[inline]
 fn heading2() -> TextStyle {
     TextStyle::Name("Heading2".into())
@@ -56,16 +67,6 @@ impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, content);
     }
-}
-
-fn main() -> Result<(), eframe::Error> {
-    let options = eframe::NativeOptions::default();
-
-    eframe::run_native(
-        "egui example: global font style",
-        options,
-        Box::new(|cc| Box::new(MyApp::new(cc))),
-    )
 }
 
 pub const LOREM_IPSUM: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";

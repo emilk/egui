@@ -15,8 +15,7 @@ fn main() -> Result<(), eframe::Error> {
         std::env::set_var("RUST_LOG", rust_log);
     }
 
-    // Log to stderr (if you run with `RUST_LOG=debug`).
-    env_logger::init();
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
     let options = eframe::NativeOptions {
         drag_and_drop_support: true,

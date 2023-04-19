@@ -1,7 +1,22 @@
-use eframe::egui::{Button, CentralPanel, Context, UserAttentionType};
-use eframe::{CreationContext, NativeOptions};
+use eframe::{
+    egui::{Button, CentralPanel, Context, UserAttentionType},
+    CreationContext, NativeOptions,
+};
 
 use std::time::{Duration, SystemTime};
+
+fn main() -> eframe::Result<()> {
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
+    let native_options = NativeOptions {
+        initial_window_size: Some(eframe::egui::vec2(400., 200.)),
+        ..Default::default()
+    };
+    eframe::run_native(
+        "User attention test",
+        native_options,
+        Box::new(|cc| Box::new(Application::new(cc))),
+    )
+}
 
 fn repr(attention: UserAttentionType) -> String {
     format!("{:?}", attention)
@@ -115,16 +130,4 @@ impl eframe::App for Application {
 
         ctx.request_repaint_after(Self::repaint_max_timeout());
     }
-}
-
-fn main() -> eframe::Result<()> {
-    let native_options = NativeOptions {
-        initial_window_size: Some(eframe::egui::vec2(400., 200.)),
-        ..Default::default()
-    };
-    eframe::run_native(
-        "User attention test",
-        native_options,
-        Box::new(|cc| Box::new(Application::new(cc))),
-    )
 }

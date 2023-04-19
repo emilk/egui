@@ -3,8 +3,8 @@
 use eframe::egui;
 
 fn main() -> Result<(), eframe::Error> {
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     start_puffin_server(); // NOTE: you may only want to call this if the users specifies some flag or clicks a button!
-
     let options = eframe::NativeOptions::default();
     eframe::run_native(
         "My egui App",
