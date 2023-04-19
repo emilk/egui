@@ -185,6 +185,23 @@ impl OpenUrl {
     }
 }
 
+/// Types of attention to request from a user when a native window is not in focus.
+///
+/// See [winit's documentation][user_attention_type] for platform-specific meaning of the attention types.
+///
+/// [user_attention_type]: https://docs.rs/winit/latest/winit/window/enum.UserAttentionType.html
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UserAttentionType {
+    /// Request an elevated amount of animations and flair for the window and the task bar or dock icon.
+    Critical,
+
+    /// Request a standard amount of attention-grabbing actions.
+    Informational,
+
+    /// Reset the attention request and interrupt related animations and flashes.
+    Reset,
+}
+
 /// A mouse cursor icon.
 ///
 /// egui emits a [`CursorIcon`] in [`PlatformOutput`] each frame as a request to the integration.

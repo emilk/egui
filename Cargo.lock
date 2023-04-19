@@ -3814,6 +3814,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "user_attention"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+]
+
+[[package]]
 name = "usvg"
 version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

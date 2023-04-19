@@ -235,6 +235,7 @@ pub fn handle_app_output(
         minimized,
         maximized,
         focus,
+        attention,
     } = app_output;
 
     if let Some(decorated) = decorated {
@@ -289,8 +290,17 @@ pub fn handle_app_output(
         window_state.maximized = maximized;
     }
 
-    if focus == Some(true) {
-        window.focus_window();
+    if !window.has_focus() {
+        if focus == Some(true) {
+            window.focus_window();
+        } else if let Some(attention) = attention {
+            use winit::window::UserAttentionType;
+            window.request_user_attention(match attention {
+                egui::UserAttentionType::Reset => None,
+                egui::UserAttentionType::Critical => Some(UserAttentionType::Critical),
+                egui::UserAttentionType::Informational => Some(UserAttentionType::Informational),
+            });
+        }
     }
 }
 
@@ -487,6 +497,9 @@ impl EpiIntegration {
             }
             self.frame.output.visible = app_output.visible; // this is handled by post_present
             self.frame.output.screenshot_requested = app_output.screenshot_requested;
+            if self.frame.output.attention.is_some() {
+                self.frame.output.attention = None;
+            }
             handle_app_output(
                 window,
                 self.egui_ctx.pixels_per_point(),
