@@ -2,7 +2,7 @@ use crate::emath::NumExt;
 use crate::epaint::{Color32, RectShape, Rounding, Shape, Stroke};
 
 use super::{add_rulers_and_text, highlighted_color, Orientation, PlotConfig, RectElement};
-use crate::plot::{BoxPlot, Cursor, PlotPoint, ScreenTransform};
+use crate::plot::{BoxPlot, Cursor, PlotPoint, PlotTransform};
 
 /// Contains the values of a single box in a box plot.
 #[derive(Clone, Debug, PartialEq)]
@@ -136,7 +136,7 @@ impl BoxElem {
 
     pub(super) fn add_shapes(
         &self,
-        transform: &ScreenTransform,
+        transform: &PlotTransform,
         highlighted: bool,
         shapes: &mut Vec<Shape>,
     ) {
@@ -267,7 +267,7 @@ impl RectElement for BoxElem {
         self.point_at(self.argument, self.spread.upper_whisker)
     }
 
-    fn default_values_format(&self, transform: &ScreenTransform) -> String {
+    fn default_values_format(&self, transform: &PlotTransform) -> String {
         let scale = transform.dvalue_dpos();
         let scale = match self.orientation {
             Orientation::Horizontal => scale[0],

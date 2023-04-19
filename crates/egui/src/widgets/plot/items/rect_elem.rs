@@ -1,5 +1,5 @@
 use super::{Orientation, PlotPoint};
-use crate::plot::transform::{PlotBounds, ScreenTransform};
+use crate::plot::transform::{PlotBounds, PlotTransform};
 use epaint::emath::NumExt;
 use epaint::{Color32, Rgba, Stroke};
 
@@ -48,7 +48,7 @@ pub(super) trait RectElement {
     }
 
     /// Debug formatting for hovered-over value, if none is specified by the user
-    fn default_values_format(&self, transform: &ScreenTransform) -> String;
+    fn default_values_format(&self, transform: &PlotTransform) -> String;
 }
 
 // ----------------------------------------------------------------------------
