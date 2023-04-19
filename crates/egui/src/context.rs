@@ -1139,7 +1139,7 @@ impl Context {
         {
             let state = self.frame_state_mut(|fs| fs.accesskit_state.take());
             if let Some(state) = state {
-                let has_focus = self.input(|i| i.raw.has_focus);
+                let has_focus = self.input(|i| i.raw.focused);
                 let root_id = crate::accesskit_root_id().accesskit_id();
                 let nodes = self.write(|ctx| {
                     state

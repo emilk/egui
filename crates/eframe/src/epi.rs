@@ -927,6 +927,8 @@ pub struct WindowInfo {
     pub maximized: bool,
 
     /// Is the window focused and able to receive input?
+    ///
+    /// This should be the same as [`egui::InputState::focused`].
     pub focused: bool,
 
     /// Window inner size in egui points (logical pixels).
