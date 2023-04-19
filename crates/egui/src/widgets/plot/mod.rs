@@ -9,14 +9,13 @@ use epaint::Hsva;
 
 use items::PlotItem;
 use legend::LegendWidget;
-use transform::ScreenTransform;
 
 pub use items::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, HLine, Line, LineStyle, MarkerShape,
     Orientation, PlotImage, PlotPoint, PlotPoints, Points, Polygon, Text, VLine,
 };
 pub use legend::{Corner, Legend};
-pub use transform::PlotBounds;
+pub use transform::{PlotBounds, ScreenTransform};
 
 use self::items::{horizontal_line, rulers_color, vertical_line};
 
@@ -1092,6 +1091,11 @@ impl PlotUi {
         let delta = self.response.drag_delta();
         let dp_dv = self.last_screen_transform.dpos_dvalue();
         Vec2::new(delta.x / dp_dv[0] as f32, delta.y / dp_dv[1] as f32)
+    }
+
+    /// Read the transform netween plot coordinates and screen coordinates.
+    pub fn transform(&self) -> &ScreenTransform {
+        &self.last_screen_transform
     }
 
     /// Transform the plot coordinates to screen coordinates.
