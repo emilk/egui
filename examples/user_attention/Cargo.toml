@@ -9,4 +9,3 @@ publish = false
 
 [dependencies]
 eframe = { path = "../../crates/eframe" }
-chrono = "0.4.23"

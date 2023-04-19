@@ -1,7 +1,7 @@
 use eframe::egui::{Button, CentralPanel, Context, UserAttentionType};
 use eframe::{CreationContext, NativeOptions};
 
-use chrono::{DateTime, Duration, Utc};
+use std::time::{Duration, SystemTime};
 
 fn repr(attention: UserAttentionType) -> String {
     format!("{:?}", attention)
@@ -9,10 +9,10 @@ fn repr(attention: UserAttentionType) -> String {
 
 struct Application {
     attention: UserAttentionType,
-    request_at: Option<DateTime<Utc>>,
+    request_at: Option<SystemTime>,
 
     auto_reset: bool,
-    reset_at: Option<DateTime<Utc>>,
+    reset_at: Option<SystemTime>,
 }
 
 impl Application {
@@ -26,33 +26,33 @@ impl Application {
     }
 
     fn attention_reset_timeout() -> Duration {
-        Duration::seconds(3)
+        Duration::from_secs(3)
     }
 
     fn attention_request_timeout() -> Duration {
-        Duration::seconds(2)
+        Duration::from_secs(2)
     }
 
-    fn repaint_max_timeout() -> std::time::Duration {
-        std::time::Duration::from_secs(1)
+    fn repaint_max_timeout() -> Duration {
+        Duration::from_secs(1)
     }
 }
 
 impl eframe::App for Application {
     fn update(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
         if let Some(request_at) = self.request_at {
-            if request_at < Utc::now() {
+            if request_at < SystemTime::now() {
                 self.request_at = None;
                 frame.request_user_attention(self.attention);
                 if self.auto_reset {
                     self.auto_reset = false;
-                    self.reset_at = Some(Utc::now() + Self::attention_reset_timeout());
+                    self.reset_at = Some(SystemTime::now() + Self::attention_reset_timeout());
                 }
             }
         }
 
         if let Some(reset_at) = self.reset_at {
-            if reset_at < Utc::now() {
+            if reset_at < SystemTime::now() {
                 self.reset_at = None;
                 frame.request_user_attention(UserAttentionType::Reset);
             }
@@ -74,24 +74,27 @@ impl eframe::App for Application {
                         })
                 });
 
-                let enabled = self.request_at.is_none() && self.reset_at.is_none();
-                let resp = ui
-                    .add_enabled(
-                        enabled,
-                        Button::new(match enabled {
-                            true => format!(
-                                "Request in {} seconds",
-                                Self::attention_request_timeout().num_seconds()
-                            ),
-                            false => match self.reset_at {
-                                None => "Unfocus the window, fast!".to_owned(),
-                                Some(t) => format!(
-                                    "Resetting attention in {} s...",
-                                    (t - Utc::now()).num_seconds()
-                                ),
-                            },
-                        }),
+                let button_enabled = self.request_at.is_none() && self.reset_at.is_none();
+                let button_text = if button_enabled {
+                    format!(
+                        "Request in {} seconds",
+                        Self::attention_request_timeout().as_secs()
                     )
+                } else {
+                    match self.reset_at {
+                        None => "Unfocus the window, fast!".to_owned(),
+                        Some(t) => {
+                            if let Ok(elapsed) = t.duration_since(SystemTime::now()) {
+                                format!("Resetting attention in {} s...", elapsed.as_secs())
+                            } else {
+                                "Resetting attention...".to_owned()
+                            }
+                        }
+                    }
+                };
+
+                let resp = ui
+                    .add_enabled(button_enabled, Button::new(button_text))
                     .on_hover_text_at_pointer(
                         "After clicking, unfocus the application's window to see the effect",
                     );
@@ -100,12 +103,12 @@ impl eframe::App for Application {
                     &mut self.auto_reset,
                     format!(
                         "Reset after {} seconds",
-                        Self::attention_reset_timeout().num_seconds()
+                        Self::attention_reset_timeout().as_secs()
                     ),
                 );
 
                 if resp.clicked() {
-                    self.request_at = Some(Utc::now() + Self::attention_request_timeout());
+                    self.request_at = Some(SystemTime::now() + Self::attention_request_timeout());
                 }
             });
         });
