@@ -21,7 +21,7 @@ mod window_settings;
 
 pub use window_settings::WindowSettings;
 
-use winit::event_loop::EventLoopWindowTarget;
+use raw_window_handle::HasRawDisplayHandle;
 
 pub fn native_pixels_per_point(window: &winit::window::Window) -> f32 {
     window.scale_factor() as f32
@@ -87,8 +87,8 @@ impl State {
     ///
     /// # Safety
     ///
-    /// The returned `State` must not outlive the input `_event_loop`.
-    pub fn new<T>(event_loop: &EventLoopWindowTarget<T>) -> Self {
+    /// The returned `State` must not outlive the input `display_target`.
+    pub fn new(display_target: &dyn HasRawDisplayHandle) -> Self {
         let egui_input = egui::RawInput {
             has_focus: false, // winit will tell us when we have focus
             ..Default::default()
@@ -102,7 +102,7 @@ impl State {
             current_cursor_icon: None,
             current_pixels_per_point: 1.0,
 
-            clipboard: clipboard::Clipboard::new(event_loop),
+            clipboard: clipboard::Clipboard::new(display_target),
 
             simulate_touch_screen: false,
             pointer_touch_id: None,
