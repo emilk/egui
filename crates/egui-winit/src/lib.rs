@@ -90,7 +90,7 @@ impl State {
     /// The returned `State` must not outlive the input `display_target`.
     pub fn new(display_target: &dyn HasRawDisplayHandle) -> Self {
         let egui_input = egui::RawInput {
-            has_focus: false, // winit will tell us when we have focus
+            focused: false, // winit will tell us when we have focus
             ..Default::default()
         };
 
@@ -314,11 +314,14 @@ impl State {
                     consumed,
                 }
             }
-            WindowEvent::Focused(has_focus) => {
-                self.egui_input.has_focus = *has_focus;
+            WindowEvent::Focused(focused) => {
+                self.egui_input.focused = *focused;
                 // We will not be given a KeyboardInput event when the modifiers are released while
                 // the window does not have focus. Unset all modifier state to be safe.
                 self.egui_input.modifiers = egui::Modifiers::default();
+                self.egui_input
+                    .events
+                    .push(egui::Event::WindowFocused(*focused));
                 EventResponse {
                     repaint: true,
                     consumed: false,
