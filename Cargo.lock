@@ -764,6 +764,7 @@ name = "confirm_exit"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "env_logger",
 ]
 
 [[package]]
@@ -910,6 +911,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui_glow",
+ "env_logger",
  "glow",
 ]
 
@@ -918,6 +920,7 @@ name = "custom_font"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "env_logger",
 ]
 
 [[package]]
@@ -925,6 +928,7 @@ name = "custom_font_style"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "env_logger",
 ]
 
 [[package]]
@@ -932,6 +936,7 @@ name = "custom_window_frame"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "env_logger",
 ]
 
 [[package]]
@@ -1129,6 +1134,7 @@ dependencies = [
  "eframe",
  "egui_extras",
  "ehttp",
+ "env_logger",
  "image",
  "poll-promise",
 ]
@@ -1505,6 +1511,7 @@ name = "file_dialog"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "env_logger",
  "rfd",
 ]
 
@@ -1929,6 +1936,7 @@ name = "hello_world_par"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "env_logger",
 ]
 
 [[package]]
@@ -2851,6 +2859,7 @@ name = "puffin_profiler"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "env_logger",
  "puffin",
  "puffin_http",
 ]
@@ -2996,6 +3005,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui_extras",
+ "env_logger",
  "image",
 ]
 
@@ -3173,6 +3183,7 @@ name = "screenshot"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "env_logger",
  "image",
  "itertools",
 ]
@@ -3247,6 +3258,7 @@ name = "serial_windows"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "env_logger",
 ]
 
 [[package]]
@@ -3413,6 +3425,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui_extras",
+ "env_logger",
 ]
 
 [[package]]
@@ -3818,6 +3831,7 @@ name = "user_attention"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "env_logger",
 ]
 
 [[package]]
