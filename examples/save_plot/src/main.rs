@@ -19,23 +19,14 @@ fn main() -> Result<(), eframe::Error> {
     )
 }
 
+#[derive(Default)]
 struct MyApp {
-    /// Unit: fraction of full screen
-    plot_location: egui::Rect,
     screenshot: Option<ColorImage>,
-}
-
-impl Default for MyApp {
-    fn default() -> Self {
-        Self {
-            plot_location: egui::Rect::EVERYTHING,
-            screenshot: None,
-        }
-    }
 }
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        let mut plot_rect = None;
         egui::CentralPanel::default().show(ctx, |ui| {
             // these are just some dummy variables for the example,
             // such that the plot is not at position (0,0)
@@ -71,7 +62,7 @@ impl eframe::App for MyApp {
                     plot_ui.line(Line::new(PlotPoints::from(graph)).name("curve"));
                 });
                 // pass along the position of the plot
-                self.plot_location = inner.response.rect;
+                plot_rect = Some(inner.response.rect);
             });
 
             // add some whitespace in y direction
@@ -86,17 +77,18 @@ impl eframe::App for MyApp {
                 // so that the GUI doesn't lag during saving
 
                 let pixels_per_point = frame.info().native_pixels_per_point;
-                let plot = screenshot.region(&self.plot_location, pixels_per_point);
-
-                // save the plot to png
-                image::save_buffer(
-                    &path,
-                    plot.as_raw(),
-                    plot.width() as u32,
-                    plot.height() as u32,
-                    image::ColorType::Rgba8,
-                )
-                .unwrap();
+                if let Some(plot_location) = plot_rect {
+                    let plot = screenshot.region(&plot_location, pixels_per_point);
+                    // save the plot to png
+                    image::save_buffer(
+                        &path,
+                        plot.as_raw(),
+                        plot.width() as u32,
+                        plot.height() as u32,
+                        image::ColorType::Rgba8,
+                    )
+                    .unwrap();
+                }
             }
         }
     }
