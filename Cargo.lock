@@ -1272,7 +1272,9 @@ dependencies = [
  "log",
  "poll-promise",
  "serde",
+ "wasm-bindgen",
  "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]

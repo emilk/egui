@@ -265,8 +265,7 @@ impl BackendPanel {
                     {
                         log::info!("Waiting 2s before requesting repaint...");
                         let ctx = ui.ctx().clone();
-                        std::thread::spawn(move || {
-                            std::thread::sleep(std::time::Duration::from_secs(2));
+                        call_after_delay(std::time::Duration::from_secs(2), move || {
                             log::info!("Request a repaint in 3s...");
                             ctx.request_repaint_after(std::time::Duration::from_secs(3));
                         });
@@ -384,4 +383,29 @@ impl EguiWindows {
                     });
             });
     }
+}
+
+// ----------------------------------------------------------------------------
+
+#[cfg(not(target_arch = "wasm32"))]
+fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'static) {
+    std::thread::spawn(move || {
+        std::thread::sleep(delay);
+        f();
+    });
+}
+
+#[cfg(target_arch = "wasm32")]
+fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'static) {
+    use wasm_bindgen::prelude::*;
+    let window = web_sys::window().unwrap();
+    let closure = Closure::once(f);
+    let delay_ms = delay.as_millis() as _;
+    window
+        .set_timeout_with_callback_and_timeout_and_arguments_0(
+            closure.as_ref().unchecked_ref(),
+            delay_ms,
+        )
+        .unwrap();
+    closure.forget(); // We must forget it, or else the callback is canceled on drop
 }
