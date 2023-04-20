@@ -32,10 +32,7 @@ pub use events::*;
 pub use storage::*;
 
 use std::collections::BTreeMap;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
+use std::sync::Arc;
 
 use egui::Vec2;
 use wasm_bindgen::prelude::*;

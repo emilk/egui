@@ -1,7 +1,3 @@
-use std::sync::atomic::Ordering;
-
-use egui::Key;
-
 use super::*;
 
 /// Calls `request_animation_frame` to schedule repaint.
@@ -36,7 +32,7 @@ pub fn paint_and_schedule(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     }
 
     // Only paint and schedule if there has been no panic
-    if !runner_ref.lock().panicked.load(Ordering::SeqCst) {
+    if !runner_ref.lock().has_panicked() {
         let is_destroyed = paint_if_needed(runner_ref)?;
         if !is_destroyed.0 {
             request_animation_frame(runner_ref.clone())?;
@@ -107,11 +103,11 @@ pub fn install_document_events(app_runner: &AppRunnerRef) -> Result<(), JsValue>
             let egui_wants_keyboard = runner_lock.egui_ctx().wants_keyboard_input();
 
             #[allow(clippy::if_same_then_else)]
-            let prevent_default = if egui_key == Some(Key::Tab) {
+            let prevent_default = if egui_key == Some(egui::Key::Tab) {
                 // Always prevent moving cursor to url bar.
                 // egui wants to use tab to move to the next text field.
                 true
-            } else if egui_key == Some(Key::P) {
+            } else if egui_key == Some(egui::Key::P) {
                 #[allow(clippy::needless_bool)]
                 if modifiers.ctrl || modifiers.command || modifiers.mac_cmd {
                     true // Prevent ctrl-P opening the print dialog. Users may want to use it for a command palette.

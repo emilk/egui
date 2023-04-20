@@ -170,9 +170,63 @@ fn test_parse_query() {
 
 // ----------------------------------------------------------------------------
 
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn error(msg: String);
+
+    type Error;
+
+    #[wasm_bindgen(constructor)]
+    fn new() -> Error;
+
+    #[wasm_bindgen(structural, method, getter)]
+    fn stack(error: &Error) -> String;
+}
+
+#[derive(Clone, Debug)]
+pub struct PanicSummary {
+    pub message: String,
+    pub callstack: String,
+}
+
+impl PanicSummary {
+    pub fn new(info: &std::panic::PanicInfo<'_>) -> Self {
+        let message = info.to_string();
+        let callstack = Error::new().stack();
+        Self { message, callstack }
+    }
+}
+
+/// Handle to information about any panic than has occurred
+#[derive(Clone)]
+pub struct PanicHandle(Arc<Mutex<Option<PanicSummary>>>);
+
+impl Default for PanicHandle {
+    fn default() -> Self {
+        Self(Arc::new(Mutex::new(None)))
+    }
+}
+
+impl PanicHandle {
+    pub fn has_panicked(&self) -> bool {
+        self.0.lock().is_some()
+    }
+
+    pub fn panic_summary(&self) -> Option<PanicSummary> {
+        self.0.lock().clone()
+    }
+
+    pub fn set_panic_summary(&self, panic_summary: PanicSummary) {
+        *self.0.lock() = Some(panic_summary);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 pub struct AppRunner {
     /// Have we ever panicked?
-    pub panicked: Arc<AtomicBool>,
+    panic_handle: PanicHandle,
 
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
@@ -186,7 +240,7 @@ pub struct AppRunner {
     pub(crate) text_cursor_pos: Option<egui::Pos2>,
     pub(crate) mutable_text_under_cursor: bool,
     textures_delta: TexturesDelta,
-    pub events_to_unsubscribe: Vec<EventToUnsubscribe>,
+    events_to_unsubscribe: Vec<EventToUnsubscribe>,
 }
 
 impl Drop for AppRunner {
@@ -268,7 +322,7 @@ impl AppRunner {
         }
 
         let mut runner = Self {
-            panicked: Arc::new(AtomicBool::new(false)),
+            panic_handle: PanicHandle::default(),
             frame,
             egui_ctx,
             painter,
@@ -287,6 +341,16 @@ impl AppRunner {
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
 
         Ok(runner)
+    }
+
+    /// Returns `Some` if there has been a panic.
+    pub fn panic_summary(&self) -> Option<PanicSummary> {
+        self.panic_handle.panic_summary()
+    }
+
+    /// Returns true if there has been a panic.
+    pub fn has_panicked(&self) -> bool {
+        self.panic_handle.has_panicked()
     }
 
     pub fn egui_ctx(&self) -> &egui::Context {
@@ -472,7 +536,7 @@ impl AppRunnerRef {
                 let runner_lock = runner_ref.lock();
 
                 // Only call the wrapped closure if the egui code has not panicked
-                if !runner_lock.panicked.load(Ordering::SeqCst) {
+                if !runner_lock.has_panicked() {
                     // Cast the event to the expected event type
                     let event = event.unchecked_into::<E>();
 
@@ -602,11 +666,11 @@ pub async fn start_web(
     {
         // Disable all event handlers on panic
         let previous_hook = std::panic::take_hook();
-        let panicked = app_runner_ref.lock().panicked.clone();
+        let panic_handle = app_runner_ref.lock().panic_handle.clone();
 
         std::panic::set_hook(Box::new(move |panic_info| {
             log::info!("egui disabled all event handlers due to panic");
-            panicked.store(true, SeqCst);
+            panic_handle.set_panic_summary(PanicSummary::new(panic_info));
 
             // Propagate panic info to the previously registered panic hook
             previous_hook(panic_info);
