@@ -1,11 +1,12 @@
 //! The text agent is an `<input>` element used to trigger
 //! mobile keyboard and IME input.
+//!
+use std::{cell::Cell, rc::Rc};
 
-use super::{canvas_element, AppRunner, AppRunnerContainer};
 use egui::mutex::MutexGuard;
-use std::cell::Cell;
-use std::rc::Rc;
 use wasm_bindgen::prelude::*;
+
+use super::{canvas_element, AppRunner, AppRunnerRef};
 
 static AGENT_ID: &str = "egui_text_agent";
 
@@ -21,7 +22,7 @@ pub fn text_agent() -> web_sys::HtmlInputElement {
 }
 
 /// Text event handler,
-pub fn install_text_agent(runner_container: &mut AppRunnerContainer) -> Result<(), JsValue> {
+pub fn install_text_agent(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
     let body = document.body().expect("document should have a body");
@@ -44,7 +45,7 @@ pub fn install_text_agent(runner_container: &mut AppRunnerContainer) -> Result<(
     input.set_hidden(true);
 
     // When IME is off
-    runner_container.add_event_listener(&input, "input", {
+    app_runner.add_event_listener(&input, "input", {
         let input_clone = input.clone();
         let is_composing = is_composing.clone();
 
@@ -60,7 +61,7 @@ pub fn install_text_agent(runner_container: &mut AppRunnerContainer) -> Result<(
 
     {
         // When IME is on, handle composition event
-        runner_container.add_event_listener(&input, "compositionstart", {
+        app_runner.add_event_listener(&input, "compositionstart", {
             let input_clone = input.clone();
             let is_composing = is_composing.clone();
 
@@ -77,7 +78,7 @@ pub fn install_text_agent(runner_container: &mut AppRunnerContainer) -> Result<(
             }
         })?;
 
-        runner_container.add_event_listener(
+        app_runner.add_event_listener(
             &input,
             "compositionupdate",
             move |event: web_sys::CompositionEvent, mut runner_lock: MutexGuard<'_, AppRunner>| {
@@ -88,7 +89,7 @@ pub fn install_text_agent(runner_container: &mut AppRunnerContainer) -> Result<(
             },
         )?;
 
-        runner_container.add_event_listener(&input, "compositionend", {
+        app_runner.add_event_listener(&input, "compositionend", {
             let input_clone = input.clone();
 
             move |event: web_sys::CompositionEvent, mut runner_lock: MutexGuard<'_, AppRunner>| {
@@ -105,20 +106,16 @@ pub fn install_text_agent(runner_container: &mut AppRunnerContainer) -> Result<(
 
     // When input lost focus, focus on it again.
     // It is useful when user click somewhere outside canvas.
-    runner_container.add_event_listener(
-        &input,
-        "focusout",
-        move |_event: web_sys::MouseEvent, _| {
-            // Delay 10 ms, and focus again.
-            let func = js_sys::Function::new_no_args(&format!(
-                "document.getElementById('{}').focus()",
-                AGENT_ID
-            ));
-            window
-                .set_timeout_with_callback_and_timeout_and_arguments_0(&func, 10)
-                .unwrap();
-        },
-    )?;
+    app_runner.add_event_listener(&input, "focusout", move |_event: web_sys::MouseEvent, _| {
+        // Delay 10 ms, and focus again.
+        let func = js_sys::Function::new_no_args(&format!(
+            "document.getElementById('{}').focus()",
+            AGENT_ID
+        ));
+        window
+            .set_timeout_with_callback_and_timeout_and_arguments_0(&func, 10)
+            .unwrap();
+    })?;
 
     body.append_child(&input)?;
 

@@ -171,6 +171,9 @@ fn test_parse_query() {
 // ----------------------------------------------------------------------------
 
 pub struct AppRunner {
+    /// Have we ever panicked?
+    pub panicked: Arc<AtomicBool>,
+
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
     painter: ActiveWebPainter,
@@ -265,6 +268,7 @@ impl AppRunner {
         }
 
         let mut runner = Self {
+            panicked: Arc::new(AtomicBool::new(false)),
             frame,
             egui_ctx,
             painter,
@@ -439,7 +443,62 @@ impl AppRunner {
 
 // ----------------------------------------------------------------------------
 
-pub type AppRunnerRef = Arc<Mutex<AppRunner>>;
+#[derive(Clone)]
+pub struct AppRunnerRef(Arc<Mutex<AppRunner>>);
+
+impl AppRunnerRef {
+    pub fn new(runner: AppRunner) -> Self {
+        Self(Arc::new(Mutex::new(runner)))
+    }
+
+    pub fn lock(&self) -> egui::mutex::MutexGuard<'_, AppRunner> {
+        self.0.lock()
+    }
+
+    /// Convenience function to reduce boilerplate and ensure that all event handlers
+    /// are dealt with in the same way
+    pub fn add_event_listener<E: wasm_bindgen::JsCast>(
+        &self,
+        target: &EventTarget,
+        event_name: &'static str,
+        mut closure: impl FnMut(E, MutexGuard<'_, AppRunner>) + 'static,
+    ) -> Result<(), JsValue> {
+        // Create a JS closure based on the FnMut provided
+        let closure = Closure::wrap({
+            // Clone atomics
+            let runner_ref = self.clone();
+
+            Box::new(move |event: web_sys::Event| {
+                let runner_lock = runner_ref.lock();
+
+                // Only call the wrapped closure if the egui code has not panicked
+                if !runner_lock.panicked.load(Ordering::SeqCst) {
+                    // Cast the event to the expected event type
+                    let event = event.unchecked_into::<E>();
+
+                    closure(event, runner_lock);
+                }
+            }) as Box<dyn FnMut(web_sys::Event)>
+        });
+
+        // Add the event listener to the target
+        target.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+
+        let handle = TargetEvent {
+            target: target.clone(),
+            event_name: event_name.to_owned(),
+            closure,
+        };
+
+        self.lock()
+            .events_to_unsubscribe
+            .push(EventToUnsubscribe::TargetEvent(handle));
+
+        Ok(())
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 pub struct TargetEvent {
     target: EventTarget,
@@ -454,7 +513,7 @@ pub struct IntervalHandle {
 
 pub enum EventToUnsubscribe {
     TargetEvent(TargetEvent),
-    #[allow(dead_code)]
+
     IntervalHandle(IntervalHandle),
 }
 
@@ -474,58 +533,6 @@ impl EventToUnsubscribe {
                 Ok(())
             }
         }
-    }
-}
-
-pub struct AppRunnerContainer {
-    pub runner: AppRunnerRef,
-
-    /// Set to `true` if there is a panic.
-    /// Used to ignore callbacks after a panic.
-    pub panicked: Arc<AtomicBool>,
-}
-
-impl AppRunnerContainer {
-    /// Convenience function to reduce boilerplate and ensure that all event handlers
-    /// are dealt with in the same way
-    pub fn add_event_listener<E: wasm_bindgen::JsCast>(
-        &mut self,
-        target: &EventTarget,
-        event_name: &'static str,
-        mut closure: impl FnMut(E, MutexGuard<'_, AppRunner>) + 'static,
-    ) -> Result<(), JsValue> {
-        // Create a JS closure based on the FnMut provided
-        let closure = Closure::wrap({
-            // Clone atomics
-            let runner_ref = self.runner.clone();
-            let panicked = self.panicked.clone();
-
-            Box::new(move |event: web_sys::Event| {
-                // Only call the wrapped closure if the egui code has not panicked
-                if !panicked.load(Ordering::SeqCst) {
-                    // Cast the event to the expected event type
-                    let event = event.unchecked_into::<E>();
-
-                    closure(event, runner_ref.lock());
-                }
-            }) as Box<dyn FnMut(web_sys::Event)>
-        });
-
-        // Add the event listener to the target
-        target.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
-
-        let handle = TargetEvent {
-            target: target.clone(),
-            event_name: event_name.to_owned(),
-            closure,
-        };
-
-        self.runner
-            .lock()
-            .events_to_unsubscribe
-            .push(EventToUnsubscribe::TargetEvent(handle));
-
-        Ok(())
     }
 }
 
@@ -577,40 +584,36 @@ pub async fn start_web(
 
     let mut runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
     runner.warm_up()?;
-    start_runner(runner, follow_system_theme)
-}
+    let app_runner_ref = AppRunnerRef::new(runner);
 
-/// Install event listeners to register different input events
-/// and starts running the given [`AppRunner`].
-fn start_runner(app_runner: AppRunner, follow_system_theme: bool) -> Result<AppRunnerRef, JsValue> {
-    let mut runner_container = AppRunnerContainer {
-        runner: Arc::new(Mutex::new(app_runner)),
-        panicked: Arc::new(AtomicBool::new(false)),
-    };
-
-    super::events::install_canvas_events(&mut runner_container)?;
-    super::events::install_document_events(&mut runner_container)?;
-    super::events::install_window_events(&mut runner_container)?;
-    text_agent::install_text_agent(&mut runner_container)?;
-
-    if follow_system_theme {
-        super::events::install_color_scheme_change_event(&mut runner_container)?;
+    // Install events:
+    {
+        super::events::install_canvas_events(&app_runner_ref)?;
+        super::events::install_document_events(&app_runner_ref)?;
+        super::events::install_window_events(&app_runner_ref)?;
+        text_agent::install_text_agent(&app_runner_ref)?;
+        if follow_system_theme {
+            super::events::install_color_scheme_change_event(&app_runner_ref)?;
+        }
+        super::events::paint_and_schedule(&app_runner_ref)?;
     }
 
-    super::events::paint_and_schedule(&runner_container.runner, runner_container.panicked.clone())?;
+    // Instal panic handler:
+    {
+        // Disable all event handlers on panic
+        let previous_hook = std::panic::take_hook();
+        let panicked = app_runner_ref.lock().panicked.clone();
 
-    // Disable all event handlers on panic
-    let previous_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |panic_info| {
+            log::info!("egui disabled all event handlers due to panic");
+            panicked.store(true, SeqCst);
 
-    std::panic::set_hook(Box::new(move |panic_info| {
-        log::info!("egui disabled all event handlers due to panic");
-        runner_container.panicked.store(true, SeqCst);
+            // Propagate panic info to the previously registered panic hook
+            previous_hook(panic_info);
+        }));
+    }
 
-        // Propagate panic info to the previously registered panic hook
-        previous_hook(panic_info);
-    }));
-
-    Ok(runner_container.runner)
+    Ok(app_runner_ref)
 }
 
 // ----------------------------------------------------------------------------

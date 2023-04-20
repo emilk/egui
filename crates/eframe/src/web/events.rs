@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
 
 use egui::Key;
 
@@ -7,10 +7,7 @@ use super::*;
 /// Calls `request_animation_frame` to schedule repaint.
 ///
 /// It will only paint if needed, but will always call `request_animation_frame` immediately.
-pub fn paint_and_schedule(
-    runner_ref: &AppRunnerRef,
-    panicked: Arc<AtomicBool>,
-) -> Result<(), JsValue> {
+pub fn paint_and_schedule(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     struct IsDestroyed(pub bool);
 
     fn paint_if_needed(runner_ref: &AppRunnerRef) -> Result<IsDestroyed, JsValue> {
@@ -30,29 +27,26 @@ pub fn paint_and_schedule(
         Ok(IsDestroyed(is_destroyed))
     }
 
-    fn request_animation_frame(
-        runner_ref: AppRunnerRef,
-        panicked: Arc<AtomicBool>,
-    ) -> Result<(), JsValue> {
+    fn request_animation_frame(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
         let window = web_sys::window().unwrap();
-        let closure = Closure::once(move || paint_and_schedule(&runner_ref, panicked));
+        let closure = Closure::once(move || paint_and_schedule(&runner_ref));
         window.request_animation_frame(closure.as_ref().unchecked_ref())?;
         closure.forget(); // We must forget it, or else the callback is canceled on drop
         Ok(())
     }
 
     // Only paint and schedule if there has been no panic
-    if !panicked.load(Ordering::SeqCst) {
+    if !runner_ref.lock().panicked.load(Ordering::SeqCst) {
         let is_destroyed = paint_if_needed(runner_ref)?;
         if !is_destroyed.0 {
-            request_animation_frame(runner_ref.clone(), panicked)?;
+            request_animation_frame(runner_ref.clone())?;
         }
     }
 
     Ok(())
 }
 
-pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Result<(), JsValue> {
+pub fn install_document_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
     let document = web_sys::window().unwrap().document().unwrap();
 
     {
@@ -73,11 +67,11 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
                     // log::debug!("{event_name:?}");
                 };
 
-            runner_container.add_event_listener(&document, event_name, closure)?;
+            app_runner.add_event_listener(&document, event_name, closure)?;
         }
     }
 
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &document,
         "keydown",
         |event: web_sys::KeyboardEvent, mut runner_lock| {
@@ -152,7 +146,7 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
         },
     )?;
 
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &document,
         "keyup",
         |event: web_sys::KeyboardEvent, mut runner_lock| {
@@ -171,7 +165,7 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
     )?;
 
     #[cfg(web_sys_unstable_apis)]
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &document,
         "paste",
         |event: web_sys::ClipboardEvent, mut runner_lock| {
@@ -190,7 +184,7 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
     )?;
 
     #[cfg(web_sys_unstable_apis)]
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &document,
         "cut",
         |_: web_sys::ClipboardEvent, mut runner_lock| {
@@ -200,7 +194,7 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
     )?;
 
     #[cfg(web_sys_unstable_apis)]
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &document,
         "copy",
         |_: web_sys::ClipboardEvent, mut runner_lock| {
@@ -212,11 +206,11 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
     Ok(())
 }
 
-pub fn install_window_events(runner_container: &mut AppRunnerContainer) -> Result<(), JsValue> {
+pub fn install_window_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
 
     // Save-on-close
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &window,
         "onbeforeunload",
         |_: web_sys::Event, mut runner_lock| {
@@ -225,16 +219,12 @@ pub fn install_window_events(runner_container: &mut AppRunnerContainer) -> Resul
     )?;
 
     for event_name in &["load", "pagehide", "pageshow", "resize"] {
-        runner_container.add_event_listener(
-            &window,
-            event_name,
-            |_: web_sys::Event, runner_lock| {
-                runner_lock.needs_repaint.repaint_asap();
-            },
-        )?;
+        app_runner.add_event_listener(&window, event_name, |_: web_sys::Event, runner_lock| {
+            runner_lock.needs_repaint.repaint_asap();
+        })?;
     }
 
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &window,
         "hashchange",
         |_: web_sys::Event, mut runner_lock| {
@@ -246,13 +236,11 @@ pub fn install_window_events(runner_container: &mut AppRunnerContainer) -> Resul
     Ok(())
 }
 
-pub fn install_color_scheme_change_event(
-    runner_container: &mut AppRunnerContainer,
-) -> Result<(), JsValue> {
+pub fn install_color_scheme_change_event(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
 
     if let Some(media_query_list) = prefers_color_scheme_dark(&window)? {
-        runner_container.add_event_listener::<web_sys::MediaQueryListEvent>(
+        app_runner.add_event_listener::<web_sys::MediaQueryListEvent>(
             &media_query_list,
             "change",
             |event, mut runner_lock| {
@@ -267,8 +255,8 @@ pub fn install_color_scheme_change_event(
     Ok(())
 }
 
-pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Result<(), JsValue> {
-    let canvas = canvas_element(runner_container.runner.lock().canvas_id()).unwrap();
+pub fn install_canvas_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
+    let canvas = canvas_element(app_runner.lock().canvas_id()).unwrap();
 
     {
         let prevent_default_events = [
@@ -288,11 +276,11 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
                     // log::debug!("Preventing event {event_name:?}");
                 };
 
-            runner_container.add_event_listener(&canvas, event_name, closure)?;
+            app_runner.add_event_listener(&canvas, event_name, closure)?;
         }
     }
 
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &canvas,
         "mousedown",
         |event: web_sys::MouseEvent, mut runner_lock: egui::mutex::MutexGuard<'_, AppRunner>| {
@@ -316,7 +304,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
         },
     )?;
 
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &canvas,
         "mousemove",
         |event: web_sys::MouseEvent, mut runner_lock| {
@@ -332,7 +320,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
         },
     )?;
 
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &canvas,
         "mouseup",
         |event: web_sys::MouseEvent, mut runner_lock| {
@@ -358,7 +346,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
         },
     )?;
 
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &canvas,
         "mouseleave",
         |event: web_sys::MouseEvent, mut runner_lock| {
@@ -369,7 +357,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
         },
     )?;
 
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &canvas,
         "touchstart",
         |event: web_sys::TouchEvent, mut runner_lock| {
@@ -397,7 +385,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
         },
     )?;
 
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &canvas,
         "touchmove",
         |event: web_sys::TouchEvent, mut runner_lock| {
@@ -419,7 +407,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
         },
     )?;
 
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &canvas,
         "touchend",
         |event: web_sys::TouchEvent, mut runner_lock| {
@@ -450,7 +438,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
         },
     )?;
 
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &canvas,
         "touchcancel",
         |event: web_sys::TouchEvent, mut runner_lock| {
@@ -460,7 +448,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
         },
     )?;
 
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &canvas,
         "wheel",
         |event: web_sys::WheelEvent, mut runner_lock| {
@@ -518,7 +506,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
         },
     )?;
 
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &canvas,
         "dragover",
         |event: web_sys::DragEvent, mut runner_lock| {
@@ -539,7 +527,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
         },
     )?;
 
-    runner_container.add_event_listener(
+    app_runner.add_event_listener(
         &canvas,
         "dragleave",
         |event: web_sys::DragEvent, mut runner_lock| {
@@ -550,8 +538,8 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
         },
     )?;
 
-    runner_container.add_event_listener(&canvas, "drop", {
-        let runner_ref = runner_container.runner.clone();
+    app_runner.add_event_listener(&canvas, "drop", {
+        let runner_ref = app_runner.clone();
 
         move |event: web_sys::DragEvent, mut runner_lock| {
             if let Some(data_transfer) = event.data_transfer() {
