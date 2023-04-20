@@ -519,7 +519,7 @@ impl AppRunnerRef {
     }
 
     /// Returns true if there has been a panic.
-    fn unsubscibe_if_panicked(&self) {
+    fn unsubscribe_if_panicked(&self) {
         if self.panic_handler.lock().has_panicked() {
             // Unsubscribe from all events so that we don't get any more callbacks
             // that will try to access the poisoned runner.
@@ -541,13 +541,13 @@ impl AppRunnerRef {
 
     /// Returns true if there has been a panic.
     pub fn has_panicked(&self) -> bool {
-        self.unsubscibe_if_panicked();
+        self.unsubscribe_if_panicked();
         self.panic_handler.lock().has_panicked()
     }
 
     /// Returns `Some` if there has been a panic.
     pub fn panic_summary(&self) -> Option<PanicSummary> {
-        self.unsubscibe_if_panicked();
+        self.unsubscribe_if_panicked();
         self.panic_handler.lock().panic_summary()
     }
 
