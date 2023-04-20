@@ -6,6 +6,10 @@
 
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
+mod icon_data;
+
+pub use icon_data::IconData;
+
 #[cfg(target_arch = "wasm32")]
 use std::any::Any;
 
@@ -620,19 +624,6 @@ impl std::str::FromStr for Renderer {
 }
 
 // ----------------------------------------------------------------------------
-
-/// Image data for an application icon.
-#[derive(Clone)]
-pub struct IconData {
-    /// RGBA pixels, unmultiplied.
-    pub rgba: Vec<u8>,
-
-    /// Image width. This should be a multiple of 4.
-    pub width: u32,
-
-    /// Image height. This should be a multiple of 4.
-    pub height: u32,
-}
 
 /// Represents the surroundings of your app.
 ///

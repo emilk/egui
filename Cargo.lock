@@ -698,6 +698,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "cocoa"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f425db7937052c684daec3bd6375c8abe2d146dca4b8b143d6db777c39138f3a"
+dependencies = [
+ "bitflags",
+ "block",
+ "cocoa-foundation",
+ "core-foundation",
+ "core-graphics",
+ "foreign-types",
+ "libc",
+ "objc",
+]
+
+[[package]]
 name = "cocoa-foundation"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1182,6 +1198,7 @@ name = "eframe"
 version = "0.21.3"
 dependencies = [
  "bytemuck",
+ "cocoa",
  "directories-next",
  "document-features",
  "egui",
@@ -1194,6 +1211,7 @@ dependencies = [
  "image",
  "js-sys",
  "log",
+ "objc",
  "percent-encoding",
  "pollster",
  "puffin",
@@ -1206,6 +1224,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "wgpu",
+ "winapi",
  "winit",
 ]
 

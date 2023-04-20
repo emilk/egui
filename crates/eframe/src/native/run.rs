@@ -702,7 +702,8 @@ mod glow_integration {
                 painter.max_texture_side(),
                 gl_window.window(),
                 system_theme,
-                self.native_options.follow_system_theme,
+                &self.app_name,
+                &self.native_options,
                 storage,
                 Some(gl.clone()),
                 #[cfg(feature = "wgpu")]
@@ -1166,7 +1167,8 @@ mod wgpu_integration {
                 painter.max_texture_side().unwrap_or(2048),
                 &window,
                 system_theme,
-                self.native_options.follow_system_theme,
+                &self.app_name,
+                &self.native_options,
                 storage,
                 #[cfg(feature = "glow")]
                 None,
