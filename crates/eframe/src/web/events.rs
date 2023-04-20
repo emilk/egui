@@ -21,7 +21,7 @@ pub fn paint_and_schedule(
             runner_lock
                 .needs_repaint
                 .repaint_after(repaint_after.as_secs_f64());
-            runner_lock.auto_save();
+            runner_lock.auto_save_if_needed();
         }
 
         Ok(IsDestroyed(is_destroyed))
@@ -54,16 +54,20 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
 
     {
         // Avoid sticky modifier keys on alt-tab:
-        let clear_modifiers = ["blur", "focus"];
-
-        for event_name in clear_modifiers {
+        for event_name in ["blur", "focus"] {
             let closure =
                 move |_event: web_sys::MouseEvent,
                       mut runner_lock: egui::mutex::MutexGuard<'_, AppRunner>| {
                     let has_focus = event_name == "focus";
+
+                    if !has_focus {
+                        // We lost focus - good idea to save
+                        runner_lock.save();
+                    }
+
                     runner_lock.input.on_web_page_focus_change(has_focus);
                     runner_lock.egui_ctx().request_repaint();
-                    // tracing::debug!("{event_name:?}");
+                    // log::debug!("{event_name:?}");
                 };
 
             runner_container.add_event_listener(&document, event_name, closure)?;
@@ -131,7 +135,7 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
                 false
             };
 
-            // tracing::debug!(
+            // log::debug!(
             //     "On key-down {:?}, egui_wants_keyboard: {}, prevent_default: {}",
             //     event.key().as_str(),
             //     egui_wants_keyboard,
@@ -208,6 +212,15 @@ pub fn install_document_events(runner_container: &mut AppRunnerContainer) -> Res
 pub fn install_window_events(runner_container: &mut AppRunnerContainer) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
 
+    // Save-on-close
+    runner_container.add_event_listener(
+        &window,
+        "onbeforeunload",
+        |_: web_sys::Event, mut runner_lock| {
+            runner_lock.save();
+        },
+    )?;
+
     for event_name in &["load", "pagehide", "pageshow", "resize"] {
         runner_container.add_event_listener(
             &window,
@@ -269,7 +282,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
                       mut _runner_lock: egui::mutex::MutexGuard<'_, AppRunner>| {
                     event.prevent_default();
                     // event.stop_propagation();
-                    // tracing::debug!("Preventing event {event_name:?}");
+                    // log::debug!("Preventing event {event_name:?}");
                 };
 
             runner_container.add_event_listener(&canvas, event_name, closure)?;
@@ -448,20 +461,33 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
         &canvas,
         "wheel",
         |event: web_sys::WheelEvent, mut runner_lock| {
-            let scroll_multiplier = match event.delta_mode() {
-                web_sys::WheelEvent::DOM_DELTA_PAGE => {
-                    canvas_size_in_points(runner_lock.canvas_id()).y
-                }
-                web_sys::WheelEvent::DOM_DELTA_LINE => {
+            let unit = match event.delta_mode() {
+                web_sys::WheelEvent::DOM_DELTA_PIXEL => egui::MouseWheelUnit::Point,
+                web_sys::WheelEvent::DOM_DELTA_LINE => egui::MouseWheelUnit::Line,
+                web_sys::WheelEvent::DOM_DELTA_PAGE => egui::MouseWheelUnit::Page,
+                _ => return,
+            };
+            // delta sign is flipped to match native (winit) convention.
+            let delta = -egui::vec2(event.delta_x() as f32, event.delta_y() as f32);
+            let modifiers = runner_lock.input.raw.modifiers;
+
+            runner_lock.input.raw.events.push(egui::Event::MouseWheel {
+                unit,
+                delta,
+                modifiers,
+            });
+
+            let scroll_multiplier = match unit {
+                egui::MouseWheelUnit::Page => canvas_size_in_points(runner_lock.canvas_id()).y,
+                egui::MouseWheelUnit::Line => {
                     #[allow(clippy::let_and_return)]
                     let points_per_scroll_line = 8.0; // Note that this is intentionally different from what we use in winit.
                     points_per_scroll_line
                 }
-                _ => 1.0, // DOM_DELTA_PIXEL
+                egui::MouseWheelUnit::Point => 1.0,
             };
 
-            let mut delta =
-                -scroll_multiplier * egui::vec2(event.delta_x() as f32, event.delta_y() as f32);
+            let mut delta = scroll_multiplier * delta;
 
             // Report a zoom event in case CTRL (on Windows or Linux) or CMD (on Mac) is pressed.
             // This if-statement is equivalent to how `Modifiers.command` is determined in
@@ -538,7 +564,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
                             let last_modified = std::time::UNIX_EPOCH
                                 + std::time::Duration::from_millis(file.last_modified() as u64);
 
-                            tracing::debug!("Loading {:?} ({} bytes)…", name, file.size());
+                            log::debug!("Loading {:?} ({} bytes)…", name, file.size());
 
                             let future = wasm_bindgen_futures::JsFuture::from(file.array_buffer());
 
@@ -547,11 +573,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
                                 match future.await {
                                     Ok(array_buffer) => {
                                         let bytes = js_sys::Uint8Array::new(&array_buffer).to_vec();
-                                        tracing::debug!(
-                                            "Loaded {:?} ({} bytes).",
-                                            name,
-                                            bytes.len()
-                                        );
+                                        log::debug!("Loaded {:?} ({} bytes).", name, bytes.len());
 
                                         // Re-lock the mutex on the other side of the await point
                                         let mut runner_lock = runner_ref.lock();
@@ -566,7 +588,7 @@ pub fn install_canvas_events(runner_container: &mut AppRunnerContainer) -> Resul
                                         runner_lock.needs_repaint.repaint_asap();
                                     }
                                     Err(err) => {
-                                        tracing::error!("Failed to read file: {:?}", err);
+                                        log::error!("Failed to read file: {:?}", err);
                                     }
                                 }
                             };

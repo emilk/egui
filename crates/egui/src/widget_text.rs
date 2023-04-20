@@ -344,7 +344,7 @@ impl RichText {
 /// Often a [`WidgetText`] is just a simple [`String`],
 /// but it can be a [`RichText`] (text with color, style, etc),
 /// a [`LayoutJob`] (for when you want full control of how the text looks)
-/// or text that has already been layed out in a [`Galley`].
+/// or text that has already been laid out in a [`Galley`].
 #[derive(Clone)]
 pub enum WidgetText {
     RichText(RichText),
@@ -662,7 +662,7 @@ impl WidgetTextJob {
 
 // ----------------------------------------------------------------------------
 
-/// Text that has been layed out and ready to be painted.
+/// Text that has been laid out and ready to be painted.
 #[derive(Clone, PartialEq)]
 pub struct WidgetTextGalley {
     pub galley: Arc<Galley>,
@@ -670,13 +670,13 @@ pub struct WidgetTextGalley {
 }
 
 impl WidgetTextGalley {
-    /// Size of the layed out text.
+    /// Size of the laid out text.
     #[inline]
     pub fn size(&self) -> crate::Vec2 {
         self.galley.size()
     }
 
-    /// Size of the layed out text.
+    /// Size of the laid out text.
     #[inline]
     pub fn text(&self) -> &str {
         self.galley.text()

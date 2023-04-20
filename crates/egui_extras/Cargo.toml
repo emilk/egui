@@ -32,8 +32,8 @@ datepicker = ["chrono"]
 ## Support loading svg images.
 svg = ["resvg", "tiny-skia", "usvg"]
 
-## Log warnings using `tracing` crate.
-tracing = ["dep:tracing", "egui/tracing"]
+## Log warnings using [`log`](https://docs.rs/log) crate.
+log = ["dep:log", "egui/log"]
 
 
 [dependencies]
@@ -57,12 +57,10 @@ document-features = { version = "0.2", optional = true }
 ## ```
 image = { version = "0.24", optional = true, default-features = false }
 
+# feature "log"
+log = { version = "0.4", optional = true, features = ["std"] }
+
 # svg feature
 resvg = { version = "0.28", optional = true, default-features = false }
 tiny-skia = { version = "0.8", optional = true, default-features = false } # must be updated in lock-step with resvg
 usvg = { version = "0.28", optional = true, default-features = false }
-
-# feature "tracing"
-tracing = { version = "0.1", optional = true, default-features = false, features = [
-  "std",
-] }

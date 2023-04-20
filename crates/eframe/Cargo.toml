@@ -26,11 +26,6 @@ default = ["accesskit", "default_fonts", "glow"]
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
 accesskit = ["egui/accesskit", "egui-winit/accesskit"]
 
-## Detect dark mode system preference using [`dark-light`](https://docs.rs/dark-light).
-##
-## See also [`NativeOptions::follow_system_theme`] and [`NativeOptions::default_theme`].
-dark-light = ["dep:dark-light"]
-
 ## If set, egui will use `include_bytes!` to bundle some fonts.
 ## If you plan on specifying your own fonts you may disable this feature.
 default_fonts = ["egui/default_fonts"]
@@ -69,14 +64,23 @@ __screenshot = ["dep:image"]
 ## This overrides the `glow` feature.
 wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
 
+# Allow crates to choose an android-activity backend via Winit
+# - It's important that most applications should not have to depend on android-activity directly, and can
+#   rely on Winit to pull in a suitable version (unlike most Rust crates, any version conflicts won't link)
+# - It's also important that we don't impose an android-activity backend by taking this choice away from applications.
+
+## Enable the `native-activity` backend via `egui-winit` on Android
+android-native-activity = ["egui-winit/android-native-activity"]
+## Enable the `game-activity` backend via `egui-winit` on Android
+android-game-activity = ["egui-winit/android-game-activity"]
 
 [dependencies]
 egui = { version = "0.21.0", path = "../egui", default-features = false, features = [
   "bytemuck",
-  "tracing",
+  "log",
 ] }
+log = { version = "0.4", features = ["std"] }
 thiserror = "1.0.37"
-tracing = { version = "0.1", default-features = false, features = ["std"] }
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
@@ -98,7 +102,6 @@ raw-window-handle = { version = "0.5.0" }
 winit = "0.28.1"
 
 # optional native:
-dark-light = { version = "1.0", optional = true }
 directories-next = { version = "2", optional = true }
 egui-wgpu = { version = "0.21.0", path = "../egui-wgpu", optional = true, features = [
   "winit",

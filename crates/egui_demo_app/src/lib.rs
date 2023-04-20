@@ -39,7 +39,7 @@ impl WebHandle {
     }
 
     #[wasm_bindgen]
-    pub fn set_some_content_from_javasript(&mut self, _some_data: &str) {
+    pub fn set_some_content_from_javascript(&mut self, _some_data: &str) {
         let _app = self.handle.lock().app_mut::<WrapApp>();
         // _app.data = some_data;
     }
@@ -52,7 +52,7 @@ pub fn init_wasm_hooks() {
     console_error_panic_hook::set_once();
 
     // Redirect tracing to console.log and friends:
-    tracing_wasm::set_as_global_default();
+    eframe::web::WebLogger::init(log::LevelFilter::Debug).ok();
 }
 
 #[cfg(target_arch = "wasm32")]

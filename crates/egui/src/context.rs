@@ -203,7 +203,7 @@ impl ContextImpl {
 ///
 /// ``` no_run
 /// # fn handle_platform_output(_: egui::PlatformOutput) {}
-/// # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
+/// # fn paint(textures_delta: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
 /// let mut ctx = egui::Context::default();
 ///
 /// // Game loop:
@@ -463,67 +463,72 @@ impl Context {
     /// because that's where the warning will be painted. If you don't know what size to pick, just pick [`Vec2::ZERO`].
     pub fn check_for_id_clash(&self, id: Id, new_rect: Rect, what: &str) {
         let prev_rect = self.frame_state_mut(move |state| state.used_ids.insert(id, new_rect));
-        if let Some(prev_rect) = prev_rect {
-            // it is ok to reuse the same ID for e.g. a frame around a widget,
-            // or to check for interaction with the same widget twice:
-            if prev_rect.expand(0.1).contains_rect(new_rect)
-                || new_rect.expand(0.1).contains_rect(prev_rect)
-            {
-                return;
-            }
 
-            let show_error = |widget_rect: Rect, text: String| {
-                let text = format!("🔥 {}", text);
-                let color = self.style().visuals.error_fg_color;
-                let painter = self.debug_painter();
-                painter.rect_stroke(widget_rect, 0.0, (1.0, color));
+        if !self.options(|opt| opt.warn_on_id_clash) {
+            return;
+        }
 
-                let below = widget_rect.bottom() + 32.0 < self.input(|i| i.screen_rect.bottom());
+        let Some(prev_rect) = prev_rect else { return };
 
-                let text_rect = if below {
-                    painter.debug_text(
-                        widget_rect.left_bottom() + vec2(0.0, 2.0),
-                        Align2::LEFT_TOP,
-                        color,
-                        text,
-                    )
-                } else {
-                    painter.debug_text(
-                        widget_rect.left_top() - vec2(0.0, 2.0),
-                        Align2::LEFT_BOTTOM,
-                        color,
-                        text,
-                    )
-                };
+        // it is ok to reuse the same ID for e.g. a frame around a widget,
+        // or to check for interaction with the same widget twice:
+        if prev_rect.expand(0.1).contains_rect(new_rect)
+            || new_rect.expand(0.1).contains_rect(prev_rect)
+        {
+            return;
+        }
 
-                if let Some(pointer_pos) = self.pointer_hover_pos() {
-                    if text_rect.contains(pointer_pos) {
-                        let tooltip_pos = if below {
-                            text_rect.left_bottom() + vec2(2.0, 4.0)
-                        } else {
-                            text_rect.left_top() + vec2(2.0, -4.0)
-                        };
+        let show_error = |widget_rect: Rect, text: String| {
+            let text = format!("🔥 {}", text);
+            let color = self.style().visuals.error_fg_color;
+            let painter = self.debug_painter();
+            painter.rect_stroke(widget_rect, 0.0, (1.0, color));
 
-                        painter.error(
-                            tooltip_pos,
-                            format!("Widget is {} this text.\n\n\
+            let below = widget_rect.bottom() + 32.0 < self.input(|i| i.screen_rect.bottom());
+
+            let text_rect = if below {
+                painter.debug_text(
+                    widget_rect.left_bottom() + vec2(0.0, 2.0),
+                    Align2::LEFT_TOP,
+                    color,
+                    text,
+                )
+            } else {
+                painter.debug_text(
+                    widget_rect.left_top() - vec2(0.0, 2.0),
+                    Align2::LEFT_BOTTOM,
+                    color,
+                    text,
+                )
+            };
+
+            if let Some(pointer_pos) = self.pointer_hover_pos() {
+                if text_rect.contains(pointer_pos) {
+                    let tooltip_pos = if below {
+                        text_rect.left_bottom() + vec2(2.0, 4.0)
+                    } else {
+                        text_rect.left_top() + vec2(2.0, -4.0)
+                    };
+
+                    painter.error(
+                        tooltip_pos,
+                        format!("Widget is {} this text.\n\n\
                              ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
                              or when things like Plot and Grid:s aren't given unique id_source:s.\n\n\
                              Sometimes the solution is to use ui.push_id.",
-                             if below { "above" } else { "below" })
-                        );
-                    }
+                         if below { "above" } else { "below" })
+                    );
                 }
-            };
-
-            let id_str = id.short_debug_format();
-
-            if prev_rect.min.distance(new_rect.min) < 4.0 {
-                show_error(new_rect, format!("Double use of {} ID {}", what, id_str));
-            } else {
-                show_error(prev_rect, format!("First use of {} ID {}", what, id_str));
-                show_error(new_rect, format!("Second use of {} ID {}", what, id_str));
             }
+        };
+
+        let id_str = id.short_debug_format();
+
+        if prev_rect.min.distance(new_rect.min) < 4.0 {
+            show_error(new_rect, format!("Double use of {} ID {}", what, id_str));
+        } else {
+            show_error(prev_rect, format!("First use of {} ID {}", what, id_str));
+            show_error(new_rect, format!("Second use of {} ID {}", what, id_str));
         }
     }
 
@@ -890,7 +895,7 @@ impl Context {
     /// Duration begins at the next frame. lets say for example that its a very inefficient app
     /// and takes 500 milliseconds per frame at 2 fps. The widget / user might want a repaint in
     /// next 500 milliseconds. Now, app takes 1000 ms per frame (1 fps) because the backend event
-    /// timeout takes 500 milli seconds AFTER the vsync swap buffer.
+    /// timeout takes 500 milliseconds AFTER the vsync swap buffer.
     /// So, its not that we are requesting repaint within X duration. We are rather timing out
     /// during app idle time where we are not receiving any new input events.
     pub fn request_repaint_after(&self, duration: std::time::Duration) {
@@ -1134,7 +1139,7 @@ impl Context {
         {
             let state = self.frame_state_mut(|fs| fs.accesskit_state.take());
             if let Some(state) = state {
-                let has_focus = self.input(|i| i.raw.has_focus);
+                let has_focus = self.input(|i| i.raw.focused);
                 let root_id = crate::accesskit_root_id().accesskit_id();
                 let nodes = self.write(|ctx| {
                     state

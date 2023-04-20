@@ -31,9 +31,10 @@ impl WebInput {
         }
     }
 
-    pub fn on_web_page_focus_change(&mut self, has_focus: bool) {
+    pub fn on_web_page_focus_change(&mut self, focused: bool) {
         self.raw.modifiers = egui::Modifiers::default();
-        self.raw.has_focus = has_focus;
+        self.raw.focused = focused;
+        self.raw.events.push(egui::Event::WindowFocused(focused));
         self.latest_touch_pos = None;
         self.latest_touch_pos_id = None;
     }
@@ -187,7 +188,7 @@ pub struct AppRunner {
 
 impl Drop for AppRunner {
     fn drop(&mut self) {
-        tracing::debug!("AppRunner has fully dropped");
+        log::debug!("AppRunner has fully dropped");
     }
 }
 
@@ -291,27 +292,29 @@ impl AppRunner {
     /// Get mutable access to the concrete [`App`] we enclose.
     ///
     /// This will panic if your app does not implement [`App::as_any_mut`].
-    pub fn app_mut<ConreteApp: 'static + App>(&mut self) -> &mut ConreteApp {
+    pub fn app_mut<ConcreteApp: 'static + App>(&mut self) -> &mut ConcreteApp {
         self.app
             .as_any_mut()
             .expect("Your app must implement `as_any_mut`, but it doesn't")
-            .downcast_mut::<ConreteApp>()
+            .downcast_mut::<ConcreteApp>()
             .unwrap()
     }
 
-    pub fn auto_save(&mut self) {
-        let now = now_sec();
-        let time_since_last_save = now - self.last_save_time;
-
+    pub fn auto_save_if_needed(&mut self) {
+        let time_since_last_save = now_sec() - self.last_save_time;
         if time_since_last_save > self.app.auto_save_interval().as_secs_f64() {
-            if self.app.persist_egui_memory() {
-                save_memory(&self.egui_ctx);
-            }
-            if let Some(storage) = self.frame.storage_mut() {
-                self.app.save(storage);
-            }
-            self.last_save_time = now;
+            self.save();
         }
+    }
+
+    pub fn save(&mut self) {
+        if self.app.persist_egui_memory() {
+            save_memory(&self.egui_ctx);
+        }
+        if let Some(storage) = self.frame.storage_mut() {
+            self.app.save(storage);
+        }
+        self.last_save_time = now_sec();
     }
 
     pub fn canvas_id(&self) -> &str {
@@ -334,10 +337,10 @@ impl AppRunner {
         let is_destroyed_already = self.is_destroyed.fetch();
 
         if is_destroyed_already {
-            tracing::warn!("App was destroyed already");
+            log::warn!("App was destroyed already");
             Ok(())
         } else {
-            tracing::debug!("Destroying");
+            log::debug!("Destroying");
             for x in self.events_to_unsubscribe.drain(..) {
                 x.unsubscribe()?;
             }
@@ -534,7 +537,7 @@ pub async fn start(
     app_creator: epi::AppCreator,
 ) -> Result<AppRunnerRef, JsValue> {
     #[cfg(not(web_sys_unstable_apis))]
-    tracing::warn!(
+    log::warn!(
         "eframe compiled without RUSTFLAGS='--cfg=web_sys_unstable_apis'. Copying text won't work."
     );
     let follow_system_theme = web_options.follow_system_theme;
@@ -570,7 +573,7 @@ fn start_runner(app_runner: AppRunner, follow_system_theme: bool) -> Result<AppR
     runner_container.runner.lock().events_to_unsubscribe = runner_container.events;
 
     std::panic::set_hook(Box::new(move |panic_info| {
-        tracing::info!("egui disabled all event handlers due to panic");
+        log::info!("egui disabled all event handlers due to panic");
         runner_container.panicked.store(true, SeqCst);
 
         // Propagate panic info to the previously registered panic hook

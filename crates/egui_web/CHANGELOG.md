@@ -110,7 +110,7 @@ Contributors: [n2](https://github.com/n2)
 ### Added ⭐
 * A simple HTTP fetch API (wraps `web_sys`).
 * Added ability to request a repaint
-* Copy/cut/paste suppoert
+* Copy/cut/paste support
 
 ### Changed 🔧
 * Automatic repaint every second

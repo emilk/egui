@@ -284,6 +284,9 @@ pub struct NativeOptions {
     /// Generally you would use this in conjunction with always_on_top
     pub mouse_passthrough: bool,
 
+    /// Whether grant focus when window initially opened. True by default.
+    pub active: bool,
+
     /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
     ///
     /// The default is `true`.
@@ -325,18 +328,15 @@ pub struct NativeOptions {
 
     /// Try to detect and follow the system preferred setting for dark vs light mode.
     ///
-    /// By default, this is `true` on Mac and Windows, but `false` on Linux
-    /// due to <https://github.com/frewsxcv/rust-dark-light/issues/17>.
+    /// The theme will automatically change when the dark vs light mode preference is changed.
     ///
-    /// On Mac and Windows the theme will automatically change when the dark vs light mode preference is changed.
-    ///
-    /// This only works on Linux if the `dark-light` feature is enabled.
+    /// Does not work on Linux (see <https://github.com/rust-windowing/winit/issues/1549>).
     ///
     /// See also [`Self::default_theme`].
     pub follow_system_theme: bool,
 
     /// Which theme to use in case [`Self::follow_system_theme`] is `false`
-    /// or the `dark-light` feature is disabled.
+    /// or eframe fails to detect the system theme.
     ///
     /// Default: [`Theme::Dark`].
     pub default_theme: Theme,
@@ -421,6 +421,9 @@ impl Default for NativeOptions {
             resizable: true,
             transparent: false,
             mouse_passthrough: false,
+
+            active: true,
+
             vsync: true,
             multisampling: 0,
             depth_buffer: 0,
@@ -445,30 +448,6 @@ impl Default for NativeOptions {
             #[cfg(feature = "wgpu")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
         }
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl NativeOptions {
-    /// The theme used by the system.
-    #[cfg(feature = "dark-light")]
-    pub fn system_theme(&self) -> Option<Theme> {
-        if self.follow_system_theme {
-            crate::profile_scope!("dark_light::detect");
-            match dark_light::detect() {
-                dark_light::Mode::Dark => Some(Theme::Dark),
-                dark_light::Mode::Light => Some(Theme::Light),
-                dark_light::Mode::Default => None,
-            }
-        } else {
-            None
-        }
-    }
-
-    /// The theme used by the system.
-    #[cfg(not(feature = "dark-light"))]
-    pub fn system_theme(&self) -> Option<Theme> {
-        None
     }
 }
 
@@ -804,7 +783,7 @@ impl Frame {
     #[doc(alias = "exit")]
     #[doc(alias = "quit")]
     pub fn close(&mut self) {
-        tracing::debug!("eframe::Frame::close called");
+        log::debug!("eframe::Frame::close called");
         self.output.close = true;
     }
 
@@ -812,6 +791,29 @@ impl Frame {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_minimized(&mut self, minimized: bool) {
         self.output.minimized = Some(minimized);
+    }
+
+    /// Bring the window into focus (native only). Has no effect on Wayland, or if the window is minimized or invisible.
+    ///
+    /// This method puts the window on top of other applications and takes input focus away from them,
+    /// which, if unexpected, will disturb the user.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn focus(&mut self) {
+        self.output.focus = Some(true);
+    }
+
+    /// If the window is unfocused, attract the user's attention (native only).
+    ///
+    /// Typically, this means that the window will flash on the taskbar, or bounce, until it is interacted with.
+    ///
+    /// When the window comes into focus, or if `None` is passed, the attention request will be automatically reset.
+    ///
+    /// See [winit's documentation][user_attention_details] for platform-specific effect details.
+    ///
+    /// [user_attention_details]: https://docs.rs/winit/latest/winit/window/enum.UserAttentionType.html
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn request_user_attention(&mut self, kind: egui::UserAttentionType) {
+        self.output.attention = Some(kind);
     }
 
     /// Maximize or unmaximize window. (native only)
@@ -937,6 +939,11 @@ pub struct WindowInfo {
 
     /// Are we maximized?
     pub maximized: bool,
+
+    /// Is the window focused and able to receive input?
+    ///
+    /// This should be the same as [`egui::InputState::focused`].
+    pub focused: bool,
 
     /// Window inner size in egui points (logical pixels).
     pub size: egui::Vec2,
@@ -1070,7 +1077,7 @@ pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &st
 pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, value: &T) {
     match ron::ser::to_string(value) {
         Ok(string) => storage.set_string(key, string),
-        Err(err) => tracing::error!("eframe failed to encode data using ron: {}", err),
+        Err(err) => log::error!("eframe failed to encode data using ron: {}", err),
     }
 }
 
@@ -1128,6 +1135,14 @@ pub(crate) mod backend {
         /// Set to some bool to maximize or unmaximize window.
         #[cfg(not(target_arch = "wasm32"))]
         pub maximized: Option<bool>,
+
+        /// Set to some bool to focus window.
+        #[cfg(not(target_arch = "wasm32"))]
+        pub focus: Option<bool>,
+
+        /// Set to request a user's attention to the native window.
+        #[cfg(not(target_arch = "wasm32"))]
+        pub attention: Option<egui::UserAttentionType>,
 
         #[cfg(not(target_arch = "wasm32"))]
         pub screenshot_requested: bool,

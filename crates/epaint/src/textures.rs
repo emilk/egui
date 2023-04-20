@@ -22,7 +22,7 @@ impl TextureManager {
     /// The returned [`TextureId`] will be [`TextureId::Managed`], with an index
     /// starting from zero and increasing with each call to [`Self::alloc`].
     ///
-    /// The first texture you allocate will be `TextureId::Managed(0) == TexureId::default()` and
+    /// The first texture you allocate will be `TextureId::Managed(0) == TextureId::default()` and
     /// MUST have a white pixel at (0,0) ([`crate::WHITE_UV`]).
     ///
     /// The texture is given a retain-count of `1`, requiring one call to [`Self::free`] to free it.

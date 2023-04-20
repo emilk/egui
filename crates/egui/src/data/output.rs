@@ -150,7 +150,7 @@ impl PlatformOutput {
     /// Take everything ephemeral (everything except `cursor_icon` currently)
     pub fn take(&mut self) -> Self {
         let taken = std::mem::take(self);
-        self.cursor_icon = taken.cursor_icon; // eveything else is ephemeral
+        self.cursor_icon = taken.cursor_icon; // everything else is ephemeral
         taken
     }
 }
@@ -183,6 +183,23 @@ impl OpenUrl {
             new_tab: true,
         }
     }
+}
+
+/// Types of attention to request from a user when a native window is not in focus.
+///
+/// See [winit's documentation][user_attention_type] for platform-specific meaning of the attention types.
+///
+/// [user_attention_type]: https://docs.rs/winit/latest/winit/window/enum.UserAttentionType.html
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UserAttentionType {
+    /// Request an elevated amount of animations and flair for the window and the task bar or dock icon.
+    Critical,
+
+    /// Request a standard amount of attention-grabbing actions.
+    Informational,
+
+    /// Reset the attention request and interrupt related animations and flashes.
+    Reset,
 }
 
 /// A mouse cursor icon.

@@ -263,7 +263,7 @@ mod rw_lock_impl {
         pub fn read(&self) -> RwLockReadGuard<'_, T> {
             let tid = std::thread::current().id();
 
-            // If it is write-locked, and we locked it (re-entrancy deadlock)
+            // If it is write-locked, and we locked it (reentrancy deadlock)
             let would_deadlock =
                 self.lock.is_locked_exclusive() && self.holders.lock().contains_key(&tid);
             assert!(
@@ -291,7 +291,7 @@ mod rw_lock_impl {
         pub fn write(&self) -> RwLockWriteGuard<'_, T> {
             let tid = std::thread::current().id();
 
-            // If it is locked in any way, and we locked it (re-entrancy deadlock)
+            // If it is locked in any way, and we locked it (reentrancy deadlock)
             let would_deadlock = self.lock.is_locked() && self.holders.lock().contains_key(&tid);
             assert!(
                 !would_deadlock,

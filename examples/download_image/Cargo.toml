@@ -14,5 +14,6 @@ eframe = { path = "../../crates/eframe", features = [
 ] }
 egui_extras = { path = "../../crates/egui_extras", features = ["image"] }
 ehttp = "0.2"
+env_logger = "0.10"
 image = { version = "0.24", default-features = false, features = ["jpeg"] }
 poll-promise = "0.2"

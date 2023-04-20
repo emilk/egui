@@ -115,7 +115,7 @@ fn run_and_return(
 ) -> Result<()> {
     use winit::platform::run_return::EventLoopExtRunReturn as _;
 
-    tracing::debug!("Entering the winit event loop (run_return)…");
+    log::debug!("Entering the winit event loop (run_return)…");
 
     let mut next_repaint_time = Instant::now();
 
@@ -126,7 +126,7 @@ fn run_and_return(
             winit::event::Event::LoopDestroyed => {
                 // On Mac, Cmd-Q we get here and then `run_return` doesn't return (despite its name),
                 // so we need to save state now:
-                tracing::debug!("Received Event::LoopDestroyed - saving app state…");
+                log::debug!("Received Event::LoopDestroyed - saving app state…");
                 winit_app.save_and_destroy();
                 *control_flow = ControlFlow::Exit;
                 return;
@@ -161,7 +161,7 @@ fn run_and_return(
             event => match winit_app.on_event(event_loop, event) {
                 Ok(event_result) => event_result,
                 Err(err) => {
-                    tracing::error!("Exiting because of error: {err:?} on event {event:?}");
+                    log::error!("Exiting because of error: {err:?} on event {event:?}");
                     returned_result = Err(err);
                     EventResult::Exit
                 }
@@ -171,7 +171,7 @@ fn run_and_return(
         match event_result {
             EventResult::Wait => {}
             EventResult::RepaintNow => {
-                tracing::trace!("Repaint caused by winit::Event: {:?}", event);
+                log::trace!("Repaint caused by winit::Event: {:?}", event);
                 if cfg!(windows) {
                     // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                     next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
@@ -182,14 +182,15 @@ fn run_and_return(
                 }
             }
             EventResult::RepaintNext => {
-                tracing::trace!("Repaint caused by winit::Event: {:?}", event);
+                log::trace!("Repaint caused by winit::Event: {:?}", event);
                 next_repaint_time = Instant::now();
             }
             EventResult::RepaintAt(repaint_time) => {
                 next_repaint_time = next_repaint_time.min(repaint_time);
             }
             EventResult::Exit => {
-                tracing::debug!("Asking to exit event loop…");
+                log::debug!("Asking to exit event loop…");
+                winit_app.save_and_destroy();
                 *control_flow = ControlFlow::Exit;
                 return;
             }
@@ -209,7 +210,7 @@ fn run_and_return(
         }
     });
 
-    tracing::debug!("eframe window closed");
+    log::debug!("eframe window closed");
 
     drop(winit_app);
 
@@ -223,14 +224,14 @@ fn run_and_return(
 }
 
 fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp + 'static) -> ! {
-    tracing::debug!("Entering the winit event loop (run)…");
+    log::debug!("Entering the winit event loop (run)…");
 
     let mut next_repaint_time = Instant::now();
 
     event_loop.run(move |event, event_loop, control_flow| {
         let event_result = match event {
             winit::event::Event::LoopDestroyed => {
-                tracing::debug!("Received Event::LoopDestroyed");
+                log::debug!("Received Event::LoopDestroyed");
                 EventResult::Exit
             }
 
@@ -278,7 +279,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                 next_repaint_time = next_repaint_time.min(repaint_time);
             }
             EventResult::Exit => {
-                tracing::debug!("Quitting - saving app state…");
+                log::debug!("Quitting - saving app state…");
                 winit_app.save_and_destroy();
                 #[allow(clippy::exit)]
                 std::process::exit(0);
@@ -365,7 +366,7 @@ mod glow_integration {
     }
 
     impl GlutinWindowContext {
-        /// There is a lot of complexity with opengl creation, so prefer extensivve logging to get all the help we can to debug issues.
+        /// There is a lot of complexity with opengl creation, so prefer extensive logging to get all the help we can to debug issues.
         ///
         #[allow(unsafe_code)]
         unsafe fn new(
@@ -409,7 +410,7 @@ mod glow_integration {
                 config_template_builder
             };
 
-            tracing::debug!(
+            log::debug!(
                 "trying to create glutin Display with config: {:?}",
                 &config_template_builder
             );
@@ -425,7 +426,7 @@ mod glow_integration {
                         let config = config_iterator.next().expect(
                             "failed to find a matching configuration for creating glutin config",
                         );
-                        tracing::debug!(
+                        log::debug!(
                             "using the first config from config picker closure. config: {:?}",
                             &config
                         );
@@ -435,13 +436,13 @@ mod glow_integration {
                 .map_err(|e| crate::Error::NoGlutinConfigs(config_template_builder.build(), e))?;
 
             let gl_display = gl_config.display();
-            tracing::debug!(
+            log::debug!(
                 "successfully created GL Display with version: {} and supported features: {:?}",
                 gl_display.version_string(),
                 gl_display.supported_features()
             );
             let raw_window_handle = window.as_ref().map(|w| w.raw_window_handle());
-            tracing::debug!(
+            log::debug!(
                 "creating gl context using raw window handle: {:?}",
                 raw_window_handle
             );
@@ -458,8 +459,8 @@ mod glow_integration {
             {
                 Ok(it) => it,
                 Err(err) => {
-                    tracing::warn!("failed to create context using default context attributes {context_attributes:?} due to error: {err}");
-                    tracing::debug!("retrying with fallback context attributes: {fallback_context_attributes:?}");
+                    log::warn!("failed to create context using default context attributes {context_attributes:?} due to error: {err}");
+                    log::debug!("retrying with fallback context attributes: {fallback_context_attributes:?}");
                     gl_config
                         .display()
                         .create_context(&gl_config, &fallback_context_attributes)?
@@ -493,15 +494,13 @@ mod glow_integration {
         #[allow(unsafe_code)]
         fn on_resume(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
             if self.gl_surface.is_some() {
-                tracing::warn!(
-                    "on_resume called even thought we already have a surface. early return"
-                );
+                log::warn!("on_resume called even thought we already have a surface. early return");
                 return Ok(());
             }
-            tracing::debug!("running on_resume fn.");
+            log::debug!("running on_resume fn.");
             // make sure we have a window or create one.
             let window = self.window.take().unwrap_or_else(|| {
-                tracing::debug!("window doesn't exist yet. creating one now with finalize_window");
+                log::debug!("window doesn't exist yet. creating one now with finalize_window");
                 glutin_winit::finalize_window(event_loop, self.builder.clone(), &self.gl_config)
                     .expect("failed to finalize glutin window")
             });
@@ -512,7 +511,7 @@ mod glow_integration {
             let surface_attributes =
                 glutin::surface::SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new()
                     .build(window.raw_window_handle(), width, height);
-            tracing::debug!(
+            log::debug!(
                 "creating surface with attributes: {:?}",
                 &surface_attributes
             );
@@ -522,7 +521,7 @@ mod glow_integration {
                     .display()
                     .create_window_surface(&self.gl_config, &surface_attributes)?
             };
-            tracing::debug!("surface created successfully: {gl_surface:?}.making context current");
+            log::debug!("surface created successfully: {gl_surface:?}.making context current");
             // make surface and context current.
             let not_current_gl_context = self
                 .not_current_gl_context
@@ -530,9 +529,9 @@ mod glow_integration {
                 .expect("failed to get not current context after resume event. impossible!");
             let current_gl_context = not_current_gl_context.make_current(&gl_surface)?;
             // try setting swap interval. but its not absolutely necessary, so don't panic on failure.
-            tracing::debug!("made context current. setting swap interval for surface");
+            log::debug!("made context current. setting swap interval for surface");
             if let Err(e) = gl_surface.set_swap_interval(&current_gl_context, self.swap_interval) {
-                tracing::error!("failed to set swap interval due to error: {e:?}");
+                log::error!("failed to set swap interval due to error: {e:?}");
             }
             // we will reach this point only once in most platforms except android.
             // create window/surface/make context current once and just use them forever.
@@ -544,16 +543,14 @@ mod glow_integration {
 
         /// only applies for android. but we basically drop surface + window and make context not current
         fn on_suspend(&mut self) -> Result<()> {
-            tracing::debug!("received suspend event. dropping window and surface");
+            log::debug!("received suspend event. dropping window and surface");
             self.gl_surface.take();
             self.window.take();
             if let Some(current) = self.current_gl_context.take() {
-                tracing::debug!("context is current, so making it non-current");
+                log::debug!("context is current, so making it non-current");
                 self.not_current_gl_context = Some(current.make_not_current()?);
             } else {
-                tracing::debug!(
-                    "context is already not current??? could be duplicate suspend event"
-                );
+                log::debug!("context is already not current??? could be duplicate suspend event");
             }
             Ok(())
         }
@@ -951,7 +948,7 @@ mod glow_integration {
                             winit::event::WindowEvent::CloseRequested
                                 if running.integration.should_close() =>
                             {
-                                tracing::debug!("Received WindowEvent::CloseRequested");
+                                log::debug!("Received WindowEvent::CloseRequested");
                                 return Ok(EventResult::Exit);
                             }
                             _ => {}
@@ -1374,7 +1371,7 @@ mod wgpu_integration {
                             winit::event::WindowEvent::CloseRequested
                                 if running.integration.should_close() =>
                             {
-                                tracing::debug!("Received WindowEvent::CloseRequested");
+                                log::debug!("Received WindowEvent::CloseRequested");
                                 return Ok(EventResult::Exit);
                             }
                             _ => {}
@@ -1453,9 +1450,8 @@ fn system_theme(window: &winit::window::Window, options: &NativeOptions) -> Opti
 }
 
 // Winit only reads the system theme on macOS and Windows.
-// On Linux we have to fall back on dark-light (if enabled).
 // See: https://github.com/rust-windowing/winit/issues/1549
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-fn system_theme(_window: &winit::window::Window, options: &NativeOptions) -> Option<crate::Theme> {
-    options.system_theme()
+fn system_theme(_window: &winit::window::Window, _options: &NativeOptions) -> Option<crate::Theme> {
+    None
 }

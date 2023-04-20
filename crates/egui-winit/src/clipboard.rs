@@ -1,4 +1,4 @@
-use winit::event_loop::EventLoopWindowTarget;
+use raw_window_handle::HasRawDisplayHandle;
 
 /// Handles interfacing with the OS clipboard.
 ///
@@ -29,8 +29,8 @@ impl Clipboard {
     ///
     /// # Safety
     ///
-    /// The returned `Clipboard` must not outlive the input `_event_loop`.
-    pub fn new<T>(_event_loop: &EventLoopWindowTarget<T>) -> Self {
+    /// The returned `Clipboard` must not outlive the input `_display_target`.
+    pub fn new(_display_target: &dyn HasRawDisplayHandle) -> Self {
         Self {
             #[cfg(all(feature = "arboard", not(target_os = "android")))]
             arboard: init_arboard(),
@@ -45,7 +45,7 @@ impl Clipboard {
                 ),
                 feature = "smithay-clipboard"
             ))]
-            smithay: init_smithay_clipboard(_event_loop),
+            smithay: init_smithay_clipboard(_display_target),
 
             clipboard: Default::default(),
         }
@@ -66,7 +66,7 @@ impl Clipboard {
             return match clipboard.load() {
                 Ok(text) => Some(text),
                 Err(err) => {
-                    tracing::error!("smithay paste error: {err}");
+                    log::error!("smithay paste error: {err}");
                     None
                 }
             };
@@ -77,7 +77,7 @@ impl Clipboard {
             return match clipboard.get_text() {
                 Ok(text) => Some(text),
                 Err(err) => {
-                    tracing::error!("arboard paste error: {err}");
+                    log::error!("arboard paste error: {err}");
                     None
                 }
             };
@@ -105,7 +105,7 @@ impl Clipboard {
         #[cfg(all(feature = "arboard", not(target_os = "android")))]
         if let Some(clipboard) = &mut self.arboard {
             if let Err(err) = clipboard.set_text(text) {
-                tracing::error!("arboard copy/cut error: {err}");
+                log::error!("arboard copy/cut error: {err}");
             }
             return;
         }
@@ -116,11 +116,11 @@ impl Clipboard {
 
 #[cfg(all(feature = "arboard", not(target_os = "android")))]
 fn init_arboard() -> Option<arboard::Clipboard> {
-    tracing::debug!("Initializing arboard clipboard…");
+    log::debug!("Initializing arboard clipboard…");
     match arboard::Clipboard::new() {
         Ok(clipboard) => Some(clipboard),
         Err(err) => {
-            tracing::warn!("Failed to initialize arboard clipboard: {err}");
+            log::warn!("Failed to initialize arboard clipboard: {err}");
             None
         }
     }
@@ -136,27 +136,20 @@ fn init_arboard() -> Option<arboard::Clipboard> {
     ),
     feature = "smithay-clipboard"
 ))]
-fn init_smithay_clipboard<T>(
-    _event_loop: &EventLoopWindowTarget<T>,
+fn init_smithay_clipboard(
+    _display_target: &dyn HasRawDisplayHandle,
 ) -> Option<smithay_clipboard::Clipboard> {
-    // Note: ideally "smithay-clipboard" would imply "wayland", but it doesn't.
-    #[cfg(feature = "wayland")]
-    {
-        use winit::platform::wayland::EventLoopWindowTargetExtWayland as _;
-        if let Some(display) = _event_loop.wayland_display() {
-            tracing::debug!("Initializing smithay clipboard…");
-            #[allow(unsafe_code)]
-            Some(unsafe { smithay_clipboard::Clipboard::new(display) })
-        } else {
-            tracing::debug!("Cannot initialize smithay clipboard without a display handle");
-            None
-        }
-    }
-
-    #[cfg(not(feature = "wayland"))]
-    {
-        tracing::debug!(
-            "You need to enable the 'wayland' feature of 'egui-winit' to get a working clipboard"
+    use raw_window_handle::RawDisplayHandle;
+    if let RawDisplayHandle::Wayland(display) = _display_target.raw_display_handle() {
+        log::debug!("Initializing smithay clipboard…");
+        #[allow(unsafe_code)]
+        Some(unsafe { smithay_clipboard::Clipboard::new(display.display) })
+    } else {
+        #[cfg(feature = "wayland")]
+        log::debug!("Cannot init smithay clipboard without a Wayland display handle");
+        #[cfg(not(feature = "wayland"))]
+        log::debug!(
+            "Cannot init smithay clipboard: the 'wayland' feature of 'egui-winit' is not enabled"
         );
         None
     }
