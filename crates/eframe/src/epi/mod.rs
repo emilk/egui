@@ -6,8 +6,10 @@
 
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
+#[cfg(not(target_arch = "wasm32"))]
 mod icon_data;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub use icon_data::IconData;
 
 #[cfg(target_arch = "wasm32")]
