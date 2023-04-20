@@ -91,6 +91,7 @@
                 transform: rotate(360deg);
             }
         }
+
     </style>
 </head>
 
@@ -133,14 +134,32 @@
             console.debug("wasm loaded. starting app…");
 
             // This call installs a bunch of callbacks and then returns:
-            const handle = wasm_bindgen.start("the_canvas_id");
-
+            const handle = wasm_bindgen.start("the_canvas_id").await;
             // call `handle.stop_web()` to stop
             // uncomment to quick result
             // setTimeout(() => {handle.stop_web(); handle.free())}, 2000)
 
             console.debug("app started.");
-            document.getElementById("center_text").remove();
+            document.getElementById("center_text").innerHTML = '';
+
+            // TODO(emilk): check for panic messages, and display them
+            // setInterval(function () {
+            //     let panic_message = handle.has_panicked();
+            //     if (panic_message) {
+            //         console.error("The egui app has crashed.");
+            //         document.getElementById("the_canvas_id").remove();
+            //         document.getElementById("center_text").innerHTML = `
+            //             <p>
+            //                 The egui app has crashed:
+            //             </p>
+            //             <p style="font-family:Courier New">
+            //                 ${panic_message}
+            //             </p>
+            //             <p style="font-size:14px">
+            //                 Reload the page to try again.
+            //             </p>`;
+            //     }
+            // }, 1000);
         }
 
         function on_wasm_error(error) {

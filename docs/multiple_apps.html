@@ -17,10 +17,10 @@
             /* Light mode background color for what is not covered by the egui canvas,
             or where the egui canvas is translucent. */
             background: #909090;
-            display:flex;
+            display: flex;
         }
 
-        .canvas_wrap{
+        .canvas_wrap {
             /* height: 200px; */
             width: 400px;
         }
@@ -52,8 +52,8 @@
             top: 0%;
             left: 50%;
             transform: translate(-50%, 0%); */
-            width:90%;
-            height:90%;
+            width: 90%;
+            height: 90%;
         }
 
         .centered {
@@ -99,6 +99,7 @@
                 transform: rotate(360deg);
             }
         }
+
     </style>
 </head>
 
@@ -108,14 +109,14 @@
     <div>controls</div>
 
     <button class="stop_one">
-    stop    
+        stop
     </button>
 
     <div class="canvas_wrap one">
         <canvas id="the_canvas_id_one"></canvas>
     </div>
 
-    <div  class="canvas_wrap two">
+    <div class="canvas_wrap two">
         <canvas id="the_canvas_id_two"></canvas>
     </div>
 
@@ -158,18 +159,16 @@
 
             // This call installs a bunch of callbacks and then returns:
 
-            wasm_bindgen.init_wasm_hooks()
-
-            const handle_one = wasm_bindgen.start_separate("the_canvas_id_one");
-            const handle_two = wasm_bindgen.start_separate("the_canvas_id_two");
+            const handle_one = wasm_bindgen.start("the_canvas_id_one").await;
+            const handle_two = wasm_bindgen.start("the_canvas_id_two").await;
 
             const button = document.getElementsByClassName("stop_one")[0]
 
-            button.addEventListener("click", ()=>{
+            button.addEventListener("click", () => {
                 handle_one.stop_web()
                 handle_one.free()
             });
-    
+
 
             // call `handle.stop_web()` to stop
             // uncomment to quick result
