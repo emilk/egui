@@ -145,16 +145,21 @@
             document.getElementById("center_text").innerHTML = '';
 
             function check_for_panic() {
-                let panic_message = handle.has_panicked();
-                if (panic_message) {
-                    console.error("The egui app has crashed.");
+                if (handle.has_panicked()) {
+                    console.error("The egui app has crashed");
+
+                    // egui_demo_app already logs these on panic, but you can
+                    // access them like this if you want to show them in the html:
+                    // console.error(`${handle.panic_message()}`);
+                    // console.error(`${handle.panic_callstack()}`);
+
                     document.getElementById("the_canvas_id").remove();
                     document.getElementById("center_text").innerHTML = `
                         <p>
-                            The egui app has crashed:
+                            The egui app has crashed.
                         </p>
-                        <p style="font-family:Courier New">
-                            ${panic_message}
+                        <p style="font-size:14px">
+                            See the console for details.
                         </p>
                         <p style="font-size:14px">
                             Reload the page to try again.

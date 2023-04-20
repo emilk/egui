@@ -186,8 +186,8 @@ extern "C" {
 
 #[derive(Clone, Debug)]
 pub struct PanicSummary {
-    pub message: String,
-    pub callstack: String,
+    message: String,
+    callstack: String,
 }
 
 impl PanicSummary {
@@ -195,6 +195,14 @@ impl PanicSummary {
         let message = info.to_string();
         let callstack = Error::new().stack();
         Self { message, callstack }
+    }
+
+    pub fn message(&self) -> String {
+        self.message.clone()
+    }
+
+    pub fn callstack(&self) -> String {
+        self.callstack.clone()
     }
 }
 

@@ -25,6 +25,16 @@ impl WebHandle {
     pub fn has_panicked(&self) -> bool {
         self.runner.panic_summary().is_some()
     }
+
+    #[wasm_bindgen]
+    pub fn panic_message(&self) -> Option<String> {
+        self.runner.panic_summary().map(|s| s.message())
+    }
+
+    #[wasm_bindgen]
+    pub fn panic_callstack(&self) -> Option<String> {
+        self.runner.panic_summary().map(|s| s.callstack())
+    }
 }
 
 /// This is the entry-point for all the web-assembly.
