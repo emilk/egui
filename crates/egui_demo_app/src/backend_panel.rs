@@ -1,5 +1,3 @@
-use egui::Widget;
-
 /// How often we repaint the demo app by default
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum RunMode {
@@ -43,6 +41,7 @@ impl Default for RunMode {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct BackendPanel {
@@ -52,9 +51,6 @@ pub struct BackendPanel {
     // go back to [`RunMode::Reactive`] mode each time we start
     run_mode: RunMode,
 
-    #[cfg_attr(feature = "serde", serde(skip))]
-    repaint_after_seconds: f32,
-
     /// current slider value for current gui scale
     #[cfg_attr(feature = "serde", serde(skip))]
     pixels_per_point: Option<f32>,
@@ -63,19 +59,6 @@ pub struct BackendPanel {
     frame_history: crate::frame_history::FrameHistory,
 
     egui_windows: EguiWindows,
-}
-
-impl Default for BackendPanel {
-    fn default() -> Self {
-        Self {
-            open: false,
-            run_mode: Default::default(),
-            repaint_after_seconds: 1.0,
-            pixels_per_point: None,
-            frame_history: Default::default(),
-            egui_windows: Default::default(),
-        }
-    }
 }
 
 impl BackendPanel {
@@ -90,9 +73,6 @@ impl BackendPanel {
             }
             RunMode::Reactive => {
                 // let the computer rest for a bit
-                ctx.request_repaint_after(std::time::Duration::from_secs_f32(
-                    self.repaint_after_seconds,
-                ));
             }
         }
     }
@@ -271,17 +251,28 @@ impl BackendPanel {
         } else {
             ui.label("Only running UI code when there are animations or input.");
 
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 0.0;
-                ui.label("(but at least every ");
-                egui::DragValue::new(&mut self.repaint_after_seconds)
-                    .clamp_range(0.1..=10.0)
-                    .speed(0.1)
-                    .suffix(" s")
-                    .ui(ui)
-                    .on_hover_text("Repaint this often, even if there is no input.");
-                ui.label(")");
-            });
+            // Add a test for `request_repaint_after`, but onl in debug
+            // builds to keep the noise down in the official demo.
+            if cfg!(debug_assertions) {
+                ui.collapsing("More…", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Frame number:");
+                        ui.monospace(ui.ctx().frame_nr().to_string());
+                    });
+                    if ui
+                        .button("Wait 2s, then request repaint after another 3s")
+                        .clicked()
+                    {
+                        log::info!("Waiting 2s before requesting repaint...");
+                        let ctx = ui.ctx().clone();
+                        std::thread::spawn(move || {
+                            std::thread::sleep(std::time::Duration::from_secs(2));
+                            log::info!("Request a repaint in 3s...");
+                            ctx.request_repaint_after(std::time::Duration::from_secs(3));
+                        });
+                    }
+                });
+            }
         }
     }
 }

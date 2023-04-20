@@ -34,12 +34,6 @@ impl FrameHistory {
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         ui.label(format!(
-            "Total frames painted: {}",
-            self.frame_times.total_count()
-        ))
-        .on_hover_text("Includes this frame.");
-
-        ui.label(format!(
             "Mean CPU usage: {:.2} ms / frame",
             1e3 * self.mean_frame_time()
         ))
