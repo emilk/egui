@@ -487,6 +487,7 @@ impl AppRunner {
 /// This is cheap to clone.
 #[derive(Clone)]
 pub struct AppRunnerRef {
+    // TODO: use std::sync::Mutex instead? Or even Rc/RefCell?
     /// If we ever panic during running, this mutex is poisoned.
     /// So before we use it, we need to check `panic_handler`.
     runner: Arc<Mutex<AppRunner>>,
@@ -542,10 +543,13 @@ impl AppRunnerRef {
         self.panic_handler.lock().panic_summary()
     }
 
-    // TODO: turn this into a try_lock
-    pub fn lock(&self) -> egui::mutex::MutexGuard<'_, AppRunner> {
-        assert!(!self.has_panicked());
-        self.runner.lock()
+    /// Returns `None` if there has been a panic. In that case, just return to JS.
+    pub fn try_lock(&self) -> Option<egui::mutex::MutexGuard<'_, AppRunner>> {
+        if self.has_panicked() {
+            None
+        } else {
+            Some(self.runner.lock())
+        }
     }
 
     /// Convenience function to reduce boilerplate and ensure that all event handlers
@@ -563,9 +567,7 @@ impl AppRunnerRef {
 
             Box::new(move |event: web_sys::Event| {
                 // Only call the wrapped closure if the egui code has not panicked
-                if !runner_ref.has_panicked() {
-                    let runner_lock = runner_ref.lock();
-
+                if let Some(runner_lock) = runner_ref.try_lock() {
                     // Cast the event to the expected event type
                     let event = event.unchecked_into::<E>();
 

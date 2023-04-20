@@ -152,16 +152,22 @@
         console.debug("loading wasm…");
         wasm_bindgen("./egui_demo_app_bg.wasm")
             .then(on_wasm_loaded)
-            .catch(on_wasm_error);
+            .catch(on_error);
 
         function on_wasm_loaded() {
             console.debug("wasm loaded. starting app…");
 
             // This call installs a bunch of callbacks and then returns:
 
-            const handle_one = wasm_bindgen.start("the_canvas_id_one").await;
-            const handle_two = wasm_bindgen.start("the_canvas_id_two").await;
+            const handle_one = wasm_bindgen.start("the_canvas_id_one");
+            const handle_two = wasm_bindgen.start("the_canvas_id_two");
 
+            Promise.all([handle_one, handle_two]).then((handles) => {
+                on_apps_started(handles[0], handles[1])
+            }).catch(on_error);
+        }
+
+        function on_apps_started(handle_one, handle_two) {
             const button = document.getElementsByClassName("stop_one")[0]
 
             button.addEventListener("click", () => {
@@ -178,7 +184,7 @@
             document.getElementById("center_text").remove();
         }
 
-        function on_wasm_error(error) {
+        function on_error(error) {
             console.error("Failed to start: " + error);
             document.getElementById("center_text").innerHTML = `
                 <p>

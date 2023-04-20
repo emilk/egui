@@ -4,13 +4,8 @@ use super::*;
 ///
 /// It will only paint if needed, but will always call `request_animation_frame` immediately.
 pub fn paint_and_schedule(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
-    struct IsDestroyed(pub bool);
-
-    fn paint_if_needed(runner_ref: &AppRunnerRef) -> Result<IsDestroyed, JsValue> {
-        let mut runner_lock = runner_ref.lock();
-        let is_destroyed = runner_lock.is_destroyed.fetch();
-
-        if !is_destroyed && runner_lock.needs_repaint.when_to_repaint() <= now_sec() {
+    fn paint_if_needed(runner_lock: &mut AppRunner) -> Result<(), JsValue> {
+        if runner_lock.needs_repaint.when_to_repaint() <= now_sec() {
             runner_lock.needs_repaint.clear();
             let (repaint_after, clipped_primitives) = runner_lock.logic()?;
             runner_lock.paint(&clipped_primitives)?;
@@ -19,8 +14,7 @@ pub fn paint_and_schedule(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
                 .repaint_after(repaint_after.as_secs_f64());
             runner_lock.auto_save_if_needed();
         }
-
-        Ok(IsDestroyed(is_destroyed))
+        Ok(())
     }
 
     fn request_animation_frame(runner_ref: AppRunnerRef) -> Result<(), JsValue> {
@@ -32,11 +26,10 @@ pub fn paint_and_schedule(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     }
 
     // Only paint and schedule if there has been no panic
-    if !runner_ref.has_panicked() {
-        let is_destroyed = paint_if_needed(runner_ref)?;
-        if !is_destroyed.0 {
-            request_animation_frame(runner_ref.clone())?;
-        }
+    if let Some(mut runner_lock) = runner_ref.try_lock() {
+        paint_if_needed(&mut runner_lock)?;
+        drop(runner_lock);
+        request_animation_frame(runner_ref.clone())?;
     }
 
     Ok(())
@@ -252,7 +245,7 @@ pub fn install_color_scheme_change_event(app_runner: &AppRunnerRef) -> Result<()
 }
 
 pub fn install_canvas_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
-    let canvas = canvas_element(app_runner.lock().canvas_id()).unwrap();
+    let canvas = canvas_element(app_runner.try_lock().unwrap().canvas_id()).unwrap();
 
     {
         let prevent_default_events = [
@@ -563,16 +556,17 @@ pub fn install_canvas_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
                                         log::debug!("Loaded {:?} ({} bytes).", name, bytes.len());
 
                                         // Re-lock the mutex on the other side of the await point
-                                        let mut runner_lock = runner_ref.lock();
-                                        runner_lock.input.raw.dropped_files.push(
-                                            egui::DroppedFile {
-                                                name,
-                                                last_modified: Some(last_modified),
-                                                bytes: Some(bytes.into()),
-                                                ..Default::default()
-                                            },
-                                        );
-                                        runner_lock.needs_repaint.repaint_asap();
+                                        if let Some(mut runner_lock) = runner_ref.try_lock() {
+                                            runner_lock.input.raw.dropped_files.push(
+                                                egui::DroppedFile {
+                                                    name,
+                                                    last_modified: Some(last_modified),
+                                                    bytes: Some(bytes.into()),
+                                                    ..Default::default()
+                                                },
+                                            );
+                                            runner_lock.needs_repaint.repaint_asap();
+                                        }
                                     }
                                     Err(err) => {
                                         log::error!("Failed to read file: {:?}", err);

@@ -14,8 +14,11 @@ pub struct WebHandle {
 impl WebHandle {
     #[wasm_bindgen]
     pub fn stop_web(&self) -> Result<(), wasm_bindgen::JsValue> {
-        let mut app = self.runner.lock();
-        app.destroy()
+        if let Some(mut app) = self.runner.try_lock() {
+            app.destroy()
+        } else {
+            Ok(())
+        }
     }
 
     #[wasm_bindgen]
