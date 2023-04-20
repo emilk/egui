@@ -51,7 +51,9 @@ cargo doc --document-private-items --no-deps --all-features
 (cd crates/emath && cargo check --all-features)
 (cd crates/epaint && cargo check --all-features)
 
-./scripts/clippy_wasm.sh
+./scripts/wasm_bindgen_check.sh
+
+cargo cranky --target wasm32-unknown-unknown --all-features -p egui_demo_app --lib -- -D warnings
 
 ./scripts/cargo_deny.sh
 

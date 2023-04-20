@@ -154,11 +154,15 @@ jobs:
         with:
           version: "0.2.84"
 
-      - name: Cranky wasm32
-        run: ./scripts/clippy_wasm.sh
+      - run: ./scripts/wasm_bindgen_check.sh --skip-setup
 
-      - name: Build web demo
-        run: ./scripts/build_demo_web.sh
+      - run: ./scripts/clippy_wasm.sh
+
+      - name: Cranky wasm32
+        uses: actions-rs/cargo@v1
+        with:
+          command: cranky
+          args: --target wasm32-unknown-unknown --all-features -p egui_demo_app --lib -- -D warnings
 
   # ---------------------------------------------------------------------------
 
