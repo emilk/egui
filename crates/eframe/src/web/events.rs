@@ -4,12 +4,15 @@ use egui::Key;
 
 use super::*;
 
-struct IsDestroyed(pub bool);
-
+/// Calls `request_animation_frame` to schedule repaint.
+///
+/// It will only paint if needed, but will always call `request_animation_frame` immediately.
 pub fn paint_and_schedule(
     runner_ref: &AppRunnerRef,
     panicked: Arc<AtomicBool>,
 ) -> Result<(), JsValue> {
+    struct IsDestroyed(pub bool);
+
     fn paint_if_needed(runner_ref: &AppRunnerRef) -> Result<IsDestroyed, JsValue> {
         let mut runner_lock = runner_ref.lock();
         let is_destroyed = runner_lock.is_destroyed.fetch();

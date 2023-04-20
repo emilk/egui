@@ -3,29 +3,41 @@ set -eu
 script_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 cd "$script_path/.."
 
+./scripts/setup_web.sh
+
+# This is required to enable the web_sys clipboard API which eframe web uses
+# https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html
+# https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html
+export RUSTFLAGS=--cfg=web_sys_unstable_apis
+
 CRATE_NAME="egui_demo_app"
+
  # NOTE: persistence use up about 400kB (10%) of the WASM!
 FEATURES="glow,http,persistence,web_screen_reader"
 
 OPEN=false
 OPTIMIZE=false
+BUILD=debug
+BUILD_FLAGS=""
 
 while test $# -gt 0; do
   case "$1" in
     -h|--help)
-      echo "build_demo_web.sh [--optimize] [--open]"
+      echo "build_demo_web.sh [--release] [--open]"
       echo ""
-      echo "  --optimize: Enable optimization step"
-      echo "              Runs wasm-opt."
-      echo "              NOTE: --optimize also removes debug symbols which are otherwise useful for in-browser profiling."
+      echo "  --release: Build with --release, and enable extra optimization step"
+      echo "             Runs wasm-opt."
+      echo "             NOTE: --release also removes debug symbols which are otherwise useful for in-browser profiling."
       echo ""
       echo "  --open:     Open the result in a browser"
       exit 0
       ;;
 
-    -O|--optimize)
+    --release)
       shift
       OPTIMIZE=true
+      BUILD="release"
+      BUILD_FLAGS="--release"
       ;;
 
     --open)
@@ -39,22 +51,14 @@ while test $# -gt 0; do
   esac
 done
 
-./scripts/setup_web.sh
-
-# This is required to enable the web_sys clipboard API which eframe web uses
-# https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html
-# https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html
-export RUSTFLAGS=--cfg=web_sys_unstable_apis
-
 # Clear output from old stuff:
 rm -f "docs/${CRATE_NAME}_bg.wasm"
 
 echo "Building rust…"
-BUILD=release
 
 (cd crates/$CRATE_NAME &&
   cargo build \
-    --release \
+    ${BUILD_FLAGS} \
     --lib \
     --target wasm32-unknown-unknown \
     --no-default-features \
