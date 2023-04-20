@@ -32,7 +32,7 @@ pub fn paint_and_schedule(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     }
 
     // Only paint and schedule if there has been no panic
-    if !runner_ref.lock().has_panicked() {
+    if !runner_ref.has_panicked() {
         let is_destroyed = paint_if_needed(runner_ref)?;
         if !is_destroyed.0 {
             request_animation_frame(runner_ref.clone())?;

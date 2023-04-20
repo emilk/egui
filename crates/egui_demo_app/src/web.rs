@@ -20,7 +20,7 @@ impl WebHandle {
 
     #[wasm_bindgen]
     pub fn has_panicked(&self) -> bool {
-        self.runner.lock().panic_summary().is_some()
+        self.runner.panic_summary().is_some()
     }
 }
 

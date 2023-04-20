@@ -199,35 +199,28 @@ impl PanicSummary {
 }
 
 /// Handle to information about any panic than has occurred
-#[derive(Clone)]
-pub struct PanicHandle(Arc<Mutex<Option<PanicSummary>>>);
-
-impl Default for PanicHandle {
-    fn default() -> Self {
-        Self(Arc::new(Mutex::new(None)))
-    }
+#[derive(Clone, Default)]
+pub struct PanicHandler {
+    summary: Option<PanicSummary>,
 }
 
-impl PanicHandle {
+impl PanicHandler {
     pub fn has_panicked(&self) -> bool {
-        self.0.lock().is_some()
+        self.summary.is_some()
     }
 
     pub fn panic_summary(&self) -> Option<PanicSummary> {
-        self.0.lock().clone()
+        self.summary.clone()
     }
 
-    pub fn set_panic_summary(&self, panic_summary: PanicSummary) {
-        *self.0.lock() = Some(panic_summary);
+    pub fn on_panic(&mut self, info: &std::panic::PanicInfo<'_>) {
+        self.summary = Some(PanicSummary::new(info));
     }
 }
 
 // ----------------------------------------------------------------------------
 
 pub struct AppRunner {
-    /// Have we ever panicked?
-    panic_handle: PanicHandle,
-
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
     painter: ActiveWebPainter,
@@ -240,7 +233,6 @@ pub struct AppRunner {
     pub(crate) text_cursor_pos: Option<egui::Pos2>,
     pub(crate) mutable_text_under_cursor: bool,
     textures_delta: TexturesDelta,
-    events_to_unsubscribe: Vec<EventToUnsubscribe>,
 }
 
 impl Drop for AppRunner {
@@ -322,7 +314,6 @@ impl AppRunner {
         }
 
         let mut runner = Self {
-            panic_handle: PanicHandle::default(),
             frame,
             egui_ctx,
             painter,
@@ -335,22 +326,11 @@ impl AppRunner {
             text_cursor_pos: None,
             mutable_text_under_cursor: false,
             textures_delta: Default::default(),
-            events_to_unsubscribe: Default::default(),
         };
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
 
         Ok(runner)
-    }
-
-    /// Returns `Some` if there has been a panic.
-    pub fn panic_summary(&self) -> Option<PanicSummary> {
-        self.panic_handle.panic_summary()
-    }
-
-    /// Returns true if there has been a panic.
-    pub fn has_panicked(&self) -> bool {
-        self.panic_handle.has_panicked()
     }
 
     pub fn egui_ctx(&self) -> &egui::Context {
@@ -409,10 +389,6 @@ impl AppRunner {
             Ok(())
         } else {
             log::debug!("Destroying");
-            for x in self.events_to_unsubscribe.drain(..) {
-                x.unsubscribe()?;
-            }
-
             self.painter.destroy();
             self.is_destroyed.set_true();
             Ok(())
@@ -507,16 +483,69 @@ impl AppRunner {
 
 // ----------------------------------------------------------------------------
 
+/// This is how we access the [`AppRunner`].
+/// This is cheap to clone.
 #[derive(Clone)]
-pub struct AppRunnerRef(Arc<Mutex<AppRunner>>);
+pub struct AppRunnerRef {
+    /// If we ever panic during running, this mutex is poisoned.
+    /// So before we use it, we need to check `panic_handler`.
+    runner: Arc<Mutex<AppRunner>>,
+
+    /// Have we ever panicked?
+    panic_handler: Arc<Mutex<PanicHandler>>,
+
+    /// In case of a panic, unsubscribe these.
+    /// They have to be in a separate `Arc` so that we don't need to pass them to
+    /// the panic handler, since they aren't `Send`.
+    events_to_unsubscribe: Arc<Mutex<Vec<EventToUnsubscribe>>>,
+}
 
 impl AppRunnerRef {
     pub fn new(runner: AppRunner) -> Self {
-        Self(Arc::new(Mutex::new(runner)))
+        Self {
+            runner: Arc::new(Mutex::new(runner)),
+            panic_handler: Arc::new(Mutex::new(Default::default())),
+            events_to_unsubscribe: Arc::new(Mutex::new(Default::default())),
+        }
     }
 
+    /// Returns true if there has been a panic.
+    fn unsubscibe_if_panicked(&self) {
+        if self.panic_handler.lock().has_panicked() {
+            // Unsubscribe from all events so that we don't get any more callbacks
+            // that will try to access the poisoned runner.
+            let events_to_unsubscribe: Vec<_> =
+                std::mem::take(&mut *self.events_to_unsubscribe.lock());
+            if !events_to_unsubscribe.is_empty() {
+                log::debug!(
+                    "Unsubscribing from {} events due to panic",
+                    events_to_unsubscribe.len()
+                );
+                for x in events_to_unsubscribe {
+                    if let Err(err) = x.unsubscribe() {
+                        log::error!("Failed to unsubscribe from event: {err:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    /// Returns true if there has been a panic.
+    pub fn has_panicked(&self) -> bool {
+        self.unsubscibe_if_panicked();
+        self.panic_handler.lock().has_panicked()
+    }
+
+    /// Returns `Some` if there has been a panic.
+    pub fn panic_summary(&self) -> Option<PanicSummary> {
+        self.unsubscibe_if_panicked();
+        self.panic_handler.lock().panic_summary()
+    }
+
+    // TODO: turn this into a try_lock
     pub fn lock(&self) -> egui::mutex::MutexGuard<'_, AppRunner> {
-        self.0.lock()
+        assert!(!self.has_panicked());
+        self.runner.lock()
     }
 
     /// Convenience function to reduce boilerplate and ensure that all event handlers
@@ -533,10 +562,10 @@ impl AppRunnerRef {
             let runner_ref = self.clone();
 
             Box::new(move |event: web_sys::Event| {
-                let runner_lock = runner_ref.lock();
-
                 // Only call the wrapped closure if the egui code has not panicked
-                if !runner_lock.has_panicked() {
+                if !runner_ref.has_panicked() {
+                    let runner_lock = runner_ref.lock();
+
                     // Cast the event to the expected event type
                     let event = event.unchecked_into::<E>();
 
@@ -554,8 +583,10 @@ impl AppRunnerRef {
             closure,
         };
 
-        self.lock()
-            .events_to_unsubscribe
+        // Remember it so we unsubscribe on panic.
+        // Otherwise we get calls into `self.runner` after it has been poisoned by a panic.
+        self.events_to_unsubscribe
+            .lock()
             .push(EventToUnsubscribe::TargetEvent(handle));
 
         Ok(())
@@ -666,11 +697,11 @@ pub async fn start_web(
     {
         // Disable all event handlers on panic
         let previous_hook = std::panic::take_hook();
-        let panic_handle = app_runner_ref.lock().panic_handle.clone();
+        let panic_handler = app_runner_ref.panic_handler.clone();
 
         std::panic::set_hook(Box::new(move |panic_info| {
-            log::info!("egui disabled all event handlers due to panic");
-            panic_handle.set_panic_summary(PanicSummary::new(panic_info));
+            log::info!("eframe detected a panic");
+            panic_handler.lock().on_panic(panic_info);
 
             // Propagate panic info to the previously registered panic hook
             previous_hook(panic_info);
