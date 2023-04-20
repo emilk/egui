@@ -108,11 +108,10 @@ impl BackendPanel {
             ui.ctx().set_debug_on_hover(debug_on_hover);
         }
 
-        ui.separator();
-
         #[cfg(target_arch = "wasm32")]
         #[cfg(feature = "web_screen-reader")]
         {
+            ui.separator();
             let mut screen_reader = ui.ctx().options(|o| o.screen_reader);
             ui.checkbox(&mut screen_reader, "🔈 Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
             ui.ctx().options_mut(|o| o.screen_reader = screen_reader);
@@ -123,6 +122,15 @@ impl BackendPanel {
             ui.separator();
             if ui.button("Quit").clicked() {
                 frame.close();
+            }
+        }
+
+        if cfg!(debug_assertions) && cfg!(target_arch = "wasm32") {
+            ui.separator();
+            // For testing panic handling on web:
+            #[allow(clippy::manual_assert)]
+            if ui.button("panic!()").clicked() {
+                panic!("intentional panic!");
             }
         }
     }

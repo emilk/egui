@@ -148,8 +148,8 @@
                 if (handle.has_panicked()) {
                     console.error("The egui app has crashed");
 
-                    // egui_demo_app already logs these on panic, but you can
-                    // access them like this if you want to show them in the html:
+                    // The demo app already logs the panic message and callstack, but you
+                    // can access them like this if you want to show them in the html:
                     // console.error(`${handle.panic_message()}`);
                     // console.error(`${handle.panic_callstack()}`);
 
