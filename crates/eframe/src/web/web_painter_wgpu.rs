@@ -66,7 +66,7 @@ impl WebPainterWgpu {
             dx12_shader_compiler: Default::default(),
         });
         let surface = instance
-            .create_surface_from_canvas(&canvas)
+            .create_surface_from_canvas(canvas.clone())
             .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
 
         let adapter = instance
