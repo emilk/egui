@@ -29,6 +29,73 @@ impl Default for WrappedTextureManager {
 }
 
 // ----------------------------------------------------------------------------
+
+/// Logic related to repainting the ui.
+struct Repaint {
+    /// the duration backend will poll for new events, before forcing another egui update
+    /// even if there's no new events.
+    repaint_after: std::time::Duration,
+
+    /// While positive, keep requesting repaints. Decrement at the end of each frame.
+    repaint_requests: u32,
+    request_repaint_callback: Option<Box<dyn Fn() + Send + Sync>>,
+
+    /// used to suppress multiple calls to [`Self::request_repaint_callback`] during the same frame.
+    has_requested_repaint_this_frame: bool,
+
+    requested_repaint_last_frame: bool,
+}
+
+impl Default for Repaint {
+    fn default() -> Self {
+        Self {
+            repaint_after: std::time::Duration::from_millis(100),
+            // Start with painting an extra frame to compensate for some widgets
+            // that take two frames before they "settle":
+            repaint_requests: 1,
+            request_repaint_callback: None,
+            has_requested_repaint_this_frame: false,
+            requested_repaint_last_frame: false,
+        }
+    }
+}
+
+impl Repaint {
+    fn request_repaint(&mut self) {
+        self.repaint_requests = 2;
+        if let Some(callback) = &self.request_repaint_callback {
+            if !self.has_requested_repaint_this_frame {
+                (callback)();
+                self.has_requested_repaint_this_frame = true;
+            }
+        }
+    }
+
+    fn request_repaint_after(&mut self, duration: std::time::Duration) {
+        self.repaint_after = self.repaint_after.min(duration);
+    }
+
+    // returns how long to wait until repaint
+    fn end_frame(&mut self) -> std::time::Duration {
+        // if repaint_requests is greater than zero. just set the duration to zero for immediate
+        // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
+        let repaint_after = if self.repaint_requests > 0 {
+            self.repaint_requests -= 1;
+            std::time::Duration::ZERO
+        } else {
+            self.repaint_after
+        };
+        self.repaint_after = std::time::Duration::MAX;
+
+        self.requested_repaint_last_frame = repaint_after.is_zero();
+        self.has_requested_repaint_this_frame = false; // allow new calls between frames
+
+        repaint_after
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 #[derive(Default)]
 struct ContextImpl {
     /// `None` until the start of the first frame.
@@ -50,18 +117,7 @@ struct ContextImpl {
 
     paint_stats: PaintStats,
 
-    /// the duration backend will poll for new events, before forcing another egui update
-    /// even if there's no new events.
-    repaint_after: std::time::Duration,
-
-    /// While positive, keep requesting repaints. Decrement at the end of each frame.
-    repaint_requests: u32,
-    request_repaint_callback: Option<Box<dyn Fn() + Send + Sync>>,
-
-    /// used to suppress multiple calls to [`Self::request_repaint_callback`] during the same frame.
-    has_requested_repaint_this_frame: bool,
-
-    requested_repaint_last_frame: bool,
+    repaint: Repaint,
 
     /// Written to during the frame.
     layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
@@ -77,7 +133,7 @@ struct ContextImpl {
 
 impl ContextImpl {
     fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
-        self.has_requested_repaint_this_frame = false; // allow new calls during the frame
+        self.repaint.has_requested_repaint_this_frame = false; // allow new calls during the frame
 
         if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
             new_raw_input.pixels_per_point = Some(new_pixels_per_point);
@@ -95,7 +151,7 @@ impl ContextImpl {
         self.memory.begin_frame(&self.input, &new_raw_input);
 
         self.input = std::mem::take(&mut self.input)
-            .begin_frame(new_raw_input, self.requested_repaint_last_frame);
+            .begin_frame(new_raw_input, self.repaint.requested_repaint_last_frame);
 
         self.frame_state.begin_frame(&self.input);
 
@@ -239,12 +295,7 @@ impl std::cmp::PartialEq for Context {
 
 impl Default for Context {
     fn default() -> Self {
-        Self(Arc::new(RwLock::new(ContextImpl {
-            // Start with painting an extra frame to compensate for some widgets
-            // that take two frames before they "settle":
-            repaint_requests: 1,
-            ..ContextImpl::default()
-        })))
+        Self(Arc::new(RwLock::new(ContextImpl::default())))
     }
 }
 
@@ -860,15 +911,7 @@ impl Context {
     /// (this will work on `eframe`).
     pub fn request_repaint(&self) {
         // request two frames of repaint, just to cover some corner cases (frame delays):
-        self.write(|ctx| {
-            ctx.repaint_requests = 2;
-            if let Some(callback) = &ctx.request_repaint_callback {
-                if !ctx.has_requested_repaint_this_frame {
-                    (callback)();
-                    ctx.has_requested_repaint_this_frame = true;
-                }
-            }
-        });
+        self.write(|ctx| ctx.repaint.request_repaint());
     }
 
     /// Request repaint after the specified duration elapses in the case of no new input
@@ -900,7 +943,7 @@ impl Context {
     /// during app idle time where we are not receiving any new input events.
     pub fn request_repaint_after(&self, duration: std::time::Duration) {
         // Maybe we can check if duration is ZERO, and call self.request_repaint()?
-        self.write(|ctx| ctx.repaint_after = ctx.repaint_after.min(duration));
+        self.write(|ctx| ctx.repaint.request_repaint_after(duration));
     }
 
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
@@ -910,7 +953,7 @@ impl Context {
     /// Note that only one callback can be set. Any new call overrides the previous callback.
     pub fn set_request_repaint_callback(&self, callback: impl Fn() + Send + Sync + 'static) {
         let callback = Box::new(callback);
-        self.write(|ctx| ctx.request_repaint_callback = Some(callback));
+        self.write(|ctx| ctx.repaint.request_repaint_callback = Some(callback));
     }
 
     /// Tell `egui` which fonts to use.
@@ -1164,28 +1207,7 @@ impl Context {
             }
         }
 
-        // if repaint_requests is greater than zero. just set the duration to zero for immediate
-        // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
-        let repaint_after = self.write(|ctx| {
-            if ctx.repaint_requests > 0 {
-                ctx.repaint_requests -= 1;
-                std::time::Duration::ZERO
-            } else {
-                ctx.repaint_after
-            }
-        });
-
-        self.write(|ctx| {
-            ctx.requested_repaint_last_frame = repaint_after.is_zero();
-
-            ctx.has_requested_repaint_this_frame = false; // allow new calls between frames
-
-            // make sure we reset the repaint_after duration.
-            // otherwise, if repaint_after is low, then any widget setting repaint_after next frame,
-            // will fail to overwrite the previous lower value. and thus, repaints will never
-            // go back to higher values.
-            ctx.repaint_after = std::time::Duration::MAX;
-        });
+        let repaint_after = self.write(|ctx| ctx.repaint.end_frame());
         let shapes = self.drain_paint_lists();
 
         FullOutput {
