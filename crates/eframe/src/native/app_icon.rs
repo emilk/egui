@@ -1,3 +1,7 @@
+//! Set the native app icon at runtime.
+//!
+//! TODO(emilk): port this to [`winit`].
+
 use crate::IconData;
 
 pub struct AppTitleIconSetter {
@@ -52,7 +56,7 @@ fn set_title_and_icon(_title: &str, _icon_data: Option<&IconData>) -> AppIconSta
     #[cfg(target_os = "windows")]
     {
         if let Some(icon_data) = _icon_data {
-            return set_app_icon_windows(_icon_data);
+            return set_app_icon_windows(icon_data);
         }
     }
 
@@ -86,7 +90,7 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
     }
 
     fn create_hicon_with_scale(
-        unscaled_image: &image::DynamicImage,
+        unscaled_image: &image::RgbaImage,
         target_size: i32,
     ) -> winapi::shared::windef::HICON {
         let image_scaled = image::imageops::resize(
