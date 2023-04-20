@@ -35,6 +35,7 @@ enum AppIconStatus {
     NotSetTryAgain,
 
     /// We successfully set the icon and it should be visible now.
+    #[allow(dead_code)] // Not used on Linux
     Set,
 }
 
@@ -45,18 +46,18 @@ enum AppIconStatus {
 ///
 /// Since window creation can be lazy, call this every frame until it's either successfully or gave up.
 /// (See [`AppIconStatus`])
-fn set_title_and_icon(_title: &str, icon_data: Option<&IconData>) -> AppIconStatus {
+fn set_title_and_icon(_title: &str, _icon_data: Option<&IconData>) -> AppIconStatus {
     crate::profile_function!();
 
     #[cfg(target_os = "windows")]
     {
-        if let Some(icon_data) = icon_data {
-            return set_app_icon_windows(icon_data);
+        if let Some(icon_data) = _icon_data {
+            return set_app_icon_windows(_icon_data);
         }
     }
 
     #[cfg(target_os = "macos")]
-    return set_title_and_icon_mac(_title, icon_data);
+    return set_title_and_icon_mac(_title, _icon_data);
 
     #[allow(unreachable_code)]
     AppIconStatus::NotSetIgnored
