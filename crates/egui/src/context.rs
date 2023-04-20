@@ -106,8 +106,10 @@ impl Repaint {
         }
     }
 
-    #[allow(clippy::unused_self)]
-    fn start_frame(&mut self) {}
+    fn start_frame(&mut self) {
+        // We are repainting; no need to reschedule a repaint unless the user asks for it again.
+        self.repaint_after = std::time::Duration::MAX;
+    }
 
     // returns how long to wait until repaint
     fn end_frame(&mut self) -> std::time::Duration {
@@ -122,6 +124,7 @@ impl Repaint {
         self.repaint_after = std::time::Duration::MAX;
 
         self.requested_repaint_last_frame = repaint_after.is_zero();
+        self.frame_nr += 1;
 
         repaint_after
     }
@@ -956,8 +959,10 @@ impl Context {
         self.write(|ctx| ctx.repaint.request_repaint());
     }
 
-    /// Request repaint after the specified duration elapses in the case of no new input
-    /// events being received.
+    /// Request repaint after at most the specified duration elapses.
+    ///
+    /// The backend can chose to repaint sooner, for instance if some other code called
+    /// this method with a lower duration, or if new events arrived.
     ///
     /// The function can be multiple times, but only the *smallest* duration will be considered.
     /// So, if the function is called two times with `1 second` and `2 seconds`, egui will repaint

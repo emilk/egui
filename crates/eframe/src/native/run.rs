@@ -1,7 +1,7 @@
 //! Note that this file contains two similar paths - one for [`glow`], one for [`wgpu`].
 //! When making changes to one you often also want to apply it to the other.
 
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use winit::event_loop::{
     ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget,
@@ -144,11 +144,11 @@ fn run_and_return(
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
             winit::event::Event::RedrawEventsCleared if cfg!(windows) => {
-                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint()
             }
             winit::event::Event::RedrawRequested(_) if !cfg!(windows) => {
-                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint()
             }
 
@@ -164,7 +164,10 @@ fn run_and_return(
 
             winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
                 ..
-            }) => EventResult::Wait, // We just woke up to check next_repaint_time
+            }) => {
+                log::trace!("Woke up to check next_repaint_time");
+                EventResult::Wait
+            }
 
             winit::event::Event::WindowEvent { window_id, .. }
                 if winit_app.window().is_none()
@@ -191,7 +194,7 @@ fn run_and_return(
                 log::trace!("Repaint caused by winit::Event: {:?}", event);
                 if cfg!(windows) {
                     // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-                    next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                    next_repaint_time = extremely_far_future();
                     winit_app.run_ui_and_paint();
                 } else {
                     // Fix for https://github.com/emilk/egui/issues/2425
@@ -218,9 +221,13 @@ fn run_and_return(
                 log::trace!("request_redraw");
                 window.request_redraw();
             }
-            next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+            next_repaint_time = extremely_far_future();
             ControlFlow::Poll
         } else {
+            let time_until_next = next_repaint_time.saturating_duration_since(Instant::now());
+            if time_until_next < std::time::Duration::from_secs(10_000) {
+                log::trace!("WaitUntil {time_until_next:?}");
+            }
             ControlFlow::WaitUntil(next_repaint_time)
         };
     });
@@ -254,11 +261,11 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
             winit::event::Event::RedrawEventsCleared if cfg!(windows) => {
-                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint()
             }
             winit::event::Event::RedrawRequested(_) if !cfg!(windows) => {
-                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint()
             }
 
@@ -287,7 +294,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             EventResult::RepaintNow => {
                 if cfg!(windows) {
                     // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-                    next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+                    next_repaint_time = extremely_far_future();
                     winit_app.run_ui_and_paint();
                 } else {
                     // Fix for https://github.com/emilk/egui/issues/2425
@@ -312,7 +319,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             if let Some(window) = winit_app.window() {
                 window.request_redraw();
             }
-            next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+            next_repaint_time = extremely_far_future();
             ControlFlow::Poll
         } else {
             ControlFlow::WaitUntil(next_repaint_time)
@@ -1470,12 +1477,11 @@ mod wgpu_integration {
     }
 }
 
-// ----------------------------------------------------------------------------
-
 #[cfg(feature = "wgpu")]
 pub use wgpu_integration::run_wgpu;
 
-#[cfg(any(target_os = "windows", target_os = "macos"))]
+// ----------------------------------------------------------------------------
+
 fn system_theme(window: &winit::window::Window, options: &NativeOptions) -> Option<crate::Theme> {
     if options.follow_system_theme {
         window
@@ -1486,9 +1492,8 @@ fn system_theme(window: &winit::window::Window, options: &NativeOptions) -> Opti
     }
 }
 
-// Winit only reads the system theme on macOS and Windows.
-// See: https://github.com/rust-windowing/winit/issues/1549
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
-fn system_theme(_window: &winit::window::Window, _options: &NativeOptions) -> Option<crate::Theme> {
-    None
+// ----------------------------------------------------------------------------
+
+fn extremely_far_future() -> std::time::Instant {
+    std::time::Instant::now() + std::time::Duration::from_secs(10_000_000_000)
 }
