@@ -19,7 +19,12 @@ use super::epi_integration::{self, EpiIntegration};
 
 #[derive(Debug)]
 pub enum UserEvent {
-    RequestRepaint,
+    RequestRepaint {
+        when: Instant,
+        /// What the frame number was when the repaint was _requested_.
+        frame_nr: u64,
+    },
+
     #[cfg(feature = "accesskit")]
     AccessKitActionRequest(accesskit_winit::ActionRequestEvent),
 }
@@ -58,6 +63,9 @@ enum EventResult {
 }
 
 trait WinitApp {
+    /// The current frame number, as reported by egui.
+    fn frame_nr(&self) -> u64;
+
     fn is_focused(&self) -> bool;
 
     fn integration(&self) -> Option<&EpiIntegration>;
@@ -66,7 +74,7 @@ trait WinitApp {
 
     fn save_and_destroy(&mut self);
 
-    fn paint(&mut self) -> EventResult;
+    fn run_ui_and_paint(&mut self) -> EventResult;
 
     fn on_event(
         &mut self,
@@ -137,17 +145,26 @@ fn run_and_return(
             // See: https://github.com/rust-windowing/winit/issues/1619
             winit::event::Event::RedrawEventsCleared if cfg!(windows) => {
                 next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
-                winit_app.paint()
+                winit_app.run_ui_and_paint()
             }
             winit::event::Event::RedrawRequested(_) if !cfg!(windows) => {
                 next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
-                winit_app.paint()
+                winit_app.run_ui_and_paint()
             }
 
-            winit::event::Event::UserEvent(UserEvent::RequestRepaint)
-            | winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
+            winit::event::Event::UserEvent(UserEvent::RequestRepaint { when, frame_nr }) => {
+                if winit_app.frame_nr() == *frame_nr {
+                    log::trace!("UserEvent::RequestRepaint scheduling repaint at {when:?}");
+                    EventResult::RepaintAt(*when)
+                } else {
+                    log::trace!("Got outdated UserEvent::RequestRepaint");
+                    EventResult::Wait // old request - we've already repainted
+                }
+            }
+
+            winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
                 ..
-            }) => EventResult::RepaintNext,
+            }) => EventResult::Wait, // We just woke up to check next_repaint_time
 
             winit::event::Event::WindowEvent { window_id, .. }
                 if winit_app.window().is_none()
@@ -175,7 +192,7 @@ fn run_and_return(
                 if cfg!(windows) {
                     // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                     next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
-                    winit_app.paint();
+                    winit_app.run_ui_and_paint();
                 } else {
                     // Fix for https://github.com/emilk/egui/issues/2425
                     next_repaint_time = Instant::now();
@@ -196,18 +213,16 @@ fn run_and_return(
             }
         }
 
-        *control_flow = match next_repaint_time.checked_duration_since(Instant::now()) {
-            None => {
-                if let Some(window) = winit_app.window() {
-                    window.request_redraw();
-                }
-                next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
-                ControlFlow::Poll
+        *control_flow = if next_repaint_time <= Instant::now() {
+            if let Some(window) = winit_app.window() {
+                log::trace!("request_redraw");
+                window.request_redraw();
             }
-            Some(time_until_next_repaint) => {
-                ControlFlow::WaitUntil(Instant::now() + time_until_next_repaint)
-            }
-        }
+            next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+            ControlFlow::Poll
+        } else {
+            ControlFlow::WaitUntil(next_repaint_time)
+        };
     });
 
     log::debug!("eframe window closed");
@@ -240,17 +255,24 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             // See: https://github.com/rust-windowing/winit/issues/1619
             winit::event::Event::RedrawEventsCleared if cfg!(windows) => {
                 next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
-                winit_app.paint()
+                winit_app.run_ui_and_paint()
             }
             winit::event::Event::RedrawRequested(_) if !cfg!(windows) => {
                 next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
-                winit_app.paint()
+                winit_app.run_ui_and_paint()
             }
 
-            winit::event::Event::UserEvent(UserEvent::RequestRepaint)
-            | winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
+            winit::event::Event::UserEvent(UserEvent::RequestRepaint { when, frame_nr }) => {
+                if winit_app.frame_nr() == frame_nr {
+                    EventResult::RepaintAt(when)
+                } else {
+                    EventResult::Wait // old request - we've already repainted
+                }
+            }
+
+            winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
                 ..
-            }) => EventResult::RepaintNext,
+            }) => EventResult::Wait, // We just woke up to check next_repaint_time
 
             event => match winit_app.on_event(event_loop, &event) {
                 Ok(event_result) => event_result,
@@ -266,7 +288,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                 if cfg!(windows) {
                     // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                     next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
-                    winit_app.paint();
+                    winit_app.run_ui_and_paint();
                 } else {
                     // Fix for https://github.com/emilk/egui/issues/2425
                     next_repaint_time = Instant::now();
@@ -286,17 +308,15 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             }
         }
 
-        *control_flow = match next_repaint_time.checked_duration_since(Instant::now()) {
-            None => {
-                if let Some(window) = winit_app.window() {
-                    window.request_redraw();
-                }
-                ControlFlow::Poll
+        *control_flow = if next_repaint_time <= Instant::now() {
+            if let Some(window) = winit_app.window() {
+                window.request_redraw();
             }
-            Some(time_until_next_repaint) => {
-                ControlFlow::WaitUntil(Instant::now() + time_until_next_repaint)
-            }
-        }
+            next_repaint_time = Instant::now() + Duration::from_secs(1_000_000_000);
+            ControlFlow::Poll
+        } else {
+            ControlFlow::WaitUntil(next_repaint_time)
+        };
     })
 }
 
@@ -601,8 +621,6 @@ mod glow_integration {
         // suspends and resumes.
         app_creator: Option<epi::AppCreator>,
         is_focused: bool,
-
-        frame_nr: u64,
     }
 
     impl GlowWinitApp {
@@ -619,7 +637,6 @@ mod glow_integration {
                 running: None,
                 app_creator: Some(app_creator),
                 is_focused: true,
-                frame_nr: 0,
             }
         }
 
@@ -698,12 +715,17 @@ mod glow_integration {
 
             {
                 let event_loop_proxy = self.repaint_proxy.clone();
-                integration.egui_ctx.set_request_repaint_callback(move || {
-                    event_loop_proxy
-                        .lock()
-                        .send_event(UserEvent::RequestRepaint)
-                        .ok();
-                });
+                integration
+                    .egui_ctx
+                    .set_request_repaint_callback(move |info| {
+                        log::trace!("request_repaint_callback: {info:?}");
+                        let when = Instant::now() + info.after;
+                        let frame_nr = info.current_frame_nr;
+                        event_loop_proxy
+                            .lock()
+                            .send_event(UserEvent::RequestRepaint { when, frame_nr })
+                            .ok();
+                    });
             }
 
             let app_creator = std::mem::take(&mut self.app_creator)
@@ -734,6 +756,12 @@ mod glow_integration {
     }
 
     impl WinitApp for GlowWinitApp {
+        fn frame_nr(&self) -> u64 {
+            self.running
+                .as_ref()
+                .map_or(0, |r| r.integration.egui_ctx.frame_nr())
+        }
+
         fn is_focused(&self) -> bool {
             self.is_focused
         }
@@ -756,7 +784,7 @@ mod glow_integration {
             }
         }
 
-        fn paint(&mut self) -> EventResult {
+        fn run_ui_and_paint(&mut self) -> EventResult {
             if let Some(running) = &mut self.running {
                 #[cfg(feature = "puffin")]
                 puffin::GlobalProfiler::lock().new_frame();
@@ -820,7 +848,7 @@ mod glow_integration {
 
                 #[cfg(feature = "__screenshot")]
                 // give it time to settle:
-                if self.frame_nr == 2 {
+                if integration.egui_ctx.frame_nr() == 2 {
                     if let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO") {
                         assert!(
                             path.ends_with(".png"),
@@ -870,8 +898,6 @@ mod glow_integration {
                     crate::profile_scope!("bg_sleep");
                     std::thread::sleep(std::time::Duration::from_millis(10));
                 }
-
-                self.frame_nr += 1;
 
                 control_flow
             } else {
@@ -1150,13 +1176,18 @@ mod wgpu_integration {
 
             {
                 let event_loop_proxy = self.repaint_proxy.clone();
-                integration.egui_ctx.set_request_repaint_callback(move || {
-                    event_loop_proxy
-                        .lock()
-                        .unwrap()
-                        .send_event(UserEvent::RequestRepaint)
-                        .ok();
-                });
+                integration
+                    .egui_ctx
+                    .set_request_repaint_callback(move |info| {
+                        log::trace!("request_repaint_callback: {info:?}");
+                        let when = Instant::now() + info.after;
+                        let frame_nr = info.current_frame_nr;
+                        event_loop_proxy
+                            .lock()
+                            .unwrap()
+                            .send_event(UserEvent::RequestRepaint { when, frame_nr })
+                            .ok();
+                    });
             }
 
             let app_creator = std::mem::take(&mut self.app_creator)
@@ -1186,6 +1217,12 @@ mod wgpu_integration {
     }
 
     impl WinitApp for WgpuWinitApp {
+        fn frame_nr(&self) -> u64 {
+            self.running
+                .as_ref()
+                .map_or(0, |r| r.integration.egui_ctx.frame_nr())
+        }
+
         fn is_focused(&self) -> bool {
             self.is_focused
         }
@@ -1214,7 +1251,7 @@ mod wgpu_integration {
             }
         }
 
-        fn paint(&mut self) -> EventResult {
+        fn run_ui_and_paint(&mut self) -> EventResult {
             if let (Some(running), Some(window)) = (&mut self.running, &self.window) {
                 #[cfg(feature = "puffin")]
                 puffin::GlobalProfiler::lock().new_frame();

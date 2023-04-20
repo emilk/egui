@@ -8,6 +8,21 @@ use crate::{
 };
 use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
 
+/// Information given to the backend about when it is time to repaint the ui.
+///
+/// This is given in the callback set by [`Context::set_request_repaint_callback`].
+#[derive(Clone, Copy, Debug)]
+pub struct RequestRepaintInfo {
+    /// Repaint after this duration. If zero, repaint as soon as possible.
+    pub after: std::time::Duration,
+
+    /// The curent frame number.
+    ///
+    /// This can be compared to [`Context::frame_nr`] to see if we've already
+    /// triggered the painting of the next frame.
+    pub current_frame_nr: u64,
+}
+
 // ----------------------------------------------------------------------------
 
 struct WrappedTextureManager(Arc<RwLock<epaint::TextureManager>>);
@@ -32,16 +47,20 @@ impl Default for WrappedTextureManager {
 
 /// Logic related to repainting the ui.
 struct Repaint {
-    /// the duration backend will poll for new events, before forcing another egui update
+    /// The current frame number.
+    ///
+    /// Incremented at the end of each frame.
+    frame_nr: u64,
+
+    /// The duration backend will poll for new events, before forcing another egui update
     /// even if there's no new events.
+    ///
+    /// Also used to suppress multiple calls to the repaint callback during the same frame.
     repaint_after: std::time::Duration,
 
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
     repaint_requests: u32,
-    request_repaint_callback: Option<Box<dyn Fn() + Send + Sync>>,
-
-    /// used to suppress multiple calls to [`Self::request_repaint_callback`] during the same frame.
-    has_requested_repaint_this_frame: bool,
+    request_repaint_callback: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
 
     requested_repaint_last_frame: bool,
 }
@@ -49,12 +68,12 @@ struct Repaint {
 impl Default for Repaint {
     fn default() -> Self {
         Self {
+            frame_nr: 0,
             repaint_after: std::time::Duration::from_millis(100),
             // Start with painting an extra frame to compensate for some widgets
             // that take two frames before they "settle":
             repaint_requests: 1,
             request_repaint_callback: None,
-            has_requested_repaint_this_frame: false,
             requested_repaint_last_frame: false,
         }
     }
@@ -62,18 +81,33 @@ impl Default for Repaint {
 
 impl Repaint {
     fn request_repaint(&mut self) {
-        self.repaint_requests = 2;
-        if let Some(callback) = &self.request_repaint_callback {
-            if !self.has_requested_repaint_this_frame {
-                (callback)();
-                self.has_requested_repaint_this_frame = true;
+        self.request_repaint_after(std::time::Duration::ZERO);
+    }
+
+    fn request_repaint_after(&mut self, after: std::time::Duration) {
+        if after == std::time::Duration::ZERO {
+            // Do a few extra frames to let things settle.
+            // This is a bit of a hack, and we don't support it for `repaint_after` callbacks yet.
+            self.repaint_requests = 2;
+        }
+
+        // We only re-call the callback if we get a lower duration,
+        // otherwise it's already been covered by the previous callback.
+        if after < self.repaint_after {
+            self.repaint_after = after;
+
+            if let Some(callback) = &self.request_repaint_callback {
+                let info = RequestRepaintInfo {
+                    after,
+                    current_frame_nr: self.frame_nr,
+                };
+                (callback)(info);
             }
         }
     }
 
-    fn request_repaint_after(&mut self, duration: std::time::Duration) {
-        self.repaint_after = self.repaint_after.min(duration);
-    }
+    #[allow(clippy::unused_self)]
+    fn start_frame(&mut self) {}
 
     // returns how long to wait until repaint
     fn end_frame(&mut self) -> std::time::Duration {
@@ -88,7 +122,6 @@ impl Repaint {
         self.repaint_after = std::time::Duration::MAX;
 
         self.requested_repaint_last_frame = repaint_after.is_zero();
-        self.has_requested_repaint_this_frame = false; // allow new calls between frames
 
         repaint_after
     }
@@ -133,7 +166,7 @@ struct ContextImpl {
 
 impl ContextImpl {
     fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
-        self.repaint.has_requested_repaint_this_frame = false; // allow new calls during the frame
+        self.repaint.start_frame();
 
         if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
             new_raw_input.pixels_per_point = Some(new_pixels_per_point);
@@ -901,6 +934,15 @@ impl Context {
         }
     }
 
+    /// The current frame number.
+    ///
+    /// Starts at zero, and is incremented at the end of [`Self::run`] or by [`Self::end_frame`].
+    ///
+    /// Between calls to [`Self::run`], this is the frame number of the coming frame.
+    pub fn frame_nr(&self) -> u64 {
+        self.read(|ctx| ctx.repaint.frame_nr)
+    }
+
     /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
     ///
     /// If this is called at least once in a frame, then there will be another frame right after this.
@@ -951,7 +993,10 @@ impl Context {
     /// This lets you wake up a sleeping UI thread.
     ///
     /// Note that only one callback can be set. Any new call overrides the previous callback.
-    pub fn set_request_repaint_callback(&self, callback: impl Fn() + Send + Sync + 'static) {
+    pub fn set_request_repaint_callback(
+        &self,
+        callback: impl Fn(RequestRepaintInfo) + Send + Sync + 'static,
+    ) {
         let callback = Box::new(callback);
         self.write(|ctx| ctx.repaint.request_repaint_callback = Some(callback));
     }
