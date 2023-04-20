@@ -12,13 +12,32 @@ pub struct WebHandle {
 
 #[wasm_bindgen]
 impl WebHandle {
+    /// This is the entry-point for all the web-assembly.
+    ///
+    /// This is called once from the HTML.
+    /// It loads the app, installs some callbacks, then returns.
+    #[wasm_bindgen(constructor)]
+    pub async fn new(canvas_id: &str) -> Result<WebHandle, wasm_bindgen::JsValue> {
+        // Redirect tracing to console.log and friends:
+        eframe::web::WebLogger::init(log::LevelFilter::Debug).ok();
+
+        // Make sure panics are logged using `console.error`.
+        console_error_panic_hook::set_once();
+
+        let web_options = eframe::WebOptions::default();
+        let runner = eframe::start_web(
+            canvas_id,
+            web_options,
+            Box::new(|cc| Box::new(WrapApp::new(cc))),
+        )
+        .await?;
+
+        Ok(WebHandle { runner })
+    }
+
     #[wasm_bindgen]
-    pub fn stop_web(&self) -> Result<(), wasm_bindgen::JsValue> {
-        if let Some(mut app) = self.runner.try_lock() {
-            app.destroy()
-        } else {
-            Ok(())
-        }
+    pub fn destroy(&self) {
+        self.runner.destroy();
     }
 
     #[wasm_bindgen]
@@ -35,27 +54,4 @@ impl WebHandle {
     pub fn panic_callstack(&self) -> Option<String> {
         self.runner.panic_summary().map(|s| s.callstack())
     }
-}
-
-/// This is the entry-point for all the web-assembly.
-/// This is called once from the HTML.
-/// It loads the app, installs some callbacks, then returns.
-/// You can add more callbacks like this if you want to call in to your code.
-#[wasm_bindgen]
-pub async fn start(canvas_id: &str) -> Result<WebHandle, wasm_bindgen::JsValue> {
-    // Make sure panics are logged using `console.error`.
-    console_error_panic_hook::set_once();
-
-    // Redirect tracing to console.log and friends:
-    eframe::web::WebLogger::init(log::LevelFilter::Debug).ok();
-
-    let web_options = eframe::WebOptions::default();
-    let runner = eframe::start_web(
-        canvas_id,
-        web_options,
-        Box::new(|cc| Box::new(WrapApp::new(cc))),
-    )
-    .await?;
-
-    Ok(WebHandle { runner })
 }

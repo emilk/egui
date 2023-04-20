@@ -389,17 +389,13 @@ impl AppRunner {
         Ok(())
     }
 
-    pub fn destroy(&mut self) -> Result<(), JsValue> {
-        let is_destroyed_already = self.is_destroyed.fetch();
-
-        if is_destroyed_already {
+    fn destroy(&mut self) {
+        if self.is_destroyed.fetch() {
             log::warn!("App was destroyed already");
-            Ok(())
         } else {
             log::debug!("Destroying");
             self.painter.destroy();
             self.is_destroyed.set_true();
-            Ok(())
         }
     }
 
@@ -551,12 +547,24 @@ impl AppRunnerRef {
         self.panic_handler.lock().panic_summary()
     }
 
-    /// Returns `None` if there has been a panic. In that case, just return to JS.
+    pub fn destroy(&self) {
+        if let Some(mut runner) = self.try_lock() {
+            runner.destroy();
+        }
+    }
+
+    /// Returns `None` if there has been a panic, or if we have been destroyed.
+    /// In that case, just return to JS.
     pub fn try_lock(&self) -> Option<egui::mutex::MutexGuard<'_, AppRunner>> {
         if self.has_panicked() {
             None
         } else {
-            Some(self.runner.lock())
+            let lock = self.runner.lock();
+            if lock.is_destroyed.fetch() {
+                None
+            } else {
+                Some(lock)
+            }
         }
     }
 

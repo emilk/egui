@@ -125,23 +125,24 @@
         // We'll defer our execution until the wasm is ready to go.
         // Here we tell bindgen the path to the wasm file so it can start
         // initialization and return to us a promise when it's done.
-        console.debug("loading wasm…");
+        console.debug("Loading wasm…");
         wasm_bindgen("./egui_demo_app_bg.wasm")
             .then(on_wasm_loaded)
             .catch(on_error);
 
         function on_wasm_loaded() {
-            console.debug("wasm loaded. starting app…");
+            console.debug("Wasm loaded. Starting app…");
 
             // This call installs a bunch of callbacks and then returns:
-            wasm_bindgen.start("the_canvas_id").then(on_app_started).catch(on_error);;
+            let handle = new wasm_bindgen.WebHandle("the_canvas_id");
+            handle.then(on_app_started).catch(on_error);
         }
 
         function on_app_started(handle) {
-            // Call `handle.stop_web()` to stop. Uncomment to quick result:
-            // setTimeout(() => { handle.stop_web(); handle.free()) }, 2000)
+            // Call `handle.destroy()` to stop. Uncomment to quick result:
+            // setTimeout(() => { handle.destroy(); handle.free()) }, 2000)
 
-            console.debug("app started.");
+            console.debug("App started.");
             document.getElementById("center_text").innerHTML = '';
 
             function check_for_panic() {
