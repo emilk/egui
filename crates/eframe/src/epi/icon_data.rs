@@ -46,7 +46,7 @@ impl IconData {
         image::RgbaImage::from_raw(width, height, rgba).ok_or_else(|| "Invalid IconData".to_owned())
     }
 
-    /// Enocde as PNG.
+    /// Encode as PNG.
     ///
     /// # Errors
     /// The image is invalid, or the PNG encoder failed.
