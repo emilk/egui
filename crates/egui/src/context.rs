@@ -16,7 +16,7 @@ pub struct RequestRepaintInfo {
     /// Repaint after this duration. If zero, repaint as soon as possible.
     pub after: std::time::Duration,
 
-    /// The curent frame number.
+    /// The current frame number.
     ///
     /// This can be compared to [`Context::frame_nr`] to see if we've already
     /// triggered the painting of the next frame.

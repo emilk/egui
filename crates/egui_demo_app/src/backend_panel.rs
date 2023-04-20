@@ -251,7 +251,7 @@ impl BackendPanel {
         } else {
             ui.label("Only running UI code when there are animations or input.");
 
-            // Add a test for `request_repaint_after`, but onl in debug
+            // Add a test for `request_repaint_after`, but only in debug
             // builds to keep the noise down in the official demo.
             if cfg!(debug_assertions) {
                 ui.collapsing("More…", |ui| {
