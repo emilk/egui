@@ -12,7 +12,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Native file dialogs and drag-and-drop files",
         options,
-        Box::new(|_cc| Box::new(MyApp::default())),
+        Box::new(|_cc| Box::<MyApp>::default()),
     )
 }
 

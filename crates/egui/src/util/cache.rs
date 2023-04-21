@@ -126,7 +126,7 @@ impl CacheStorage {
     pub fn cache<FrameCache: CacheTrait + Default>(&mut self) -> &mut FrameCache {
         self.caches
             .entry(std::any::TypeId::of::<FrameCache>())
-            .or_insert_with(|| Box::new(FrameCache::default()))
+            .or_insert_with(|| Box::<FrameCache>::default())
             .as_any_mut()
             .downcast_mut::<FrameCache>()
             .unwrap()

@@ -15,7 +15,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "svg example",
         options,
-        Box::new(|_cc| Box::new(MyApp::default())),
+        Box::new(|_cc| Box::<MyApp>::default()),
     )
 }
 

@@ -206,7 +206,7 @@ impl TableDemo {
                         }
                     }
                     body.heterogeneous_rows(
-                        (0..self.num_rows).into_iter().map(row_thickness),
+                        (0..self.num_rows).map(row_thickness),
                         |row_index, mut row| {
                             row.col(|ui| {
                                 ui.label(row_index.to_string());

@@ -11,7 +11,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Take screenshots and display with eframe/egui",
         options,
-        Box::new(|_cc| Box::new(MyApp::default())),
+        Box::new(|_cc| Box::<MyApp>::default()),
     )
 }
 
