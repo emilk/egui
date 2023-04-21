@@ -35,7 +35,7 @@ pub fn paint_and_schedule(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     Ok(())
 }
 
-pub fn install_document_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
+pub fn install_document_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     let document = web_sys::window().unwrap().document().unwrap();
 
     {
@@ -54,11 +54,11 @@ pub fn install_document_events(app_runner: &AppRunnerRef) -> Result<(), JsValue>
                 // log::debug!("{event_name:?}");
             };
 
-            app_runner.add_event_listener(&document, event_name, closure)?;
+            runner_ref.add_event_listener(&document, event_name, closure)?;
         }
     }
 
-    app_runner.add_event_listener(
+    runner_ref.add_event_listener(
         &document,
         "keydown",
         |event: web_sys::KeyboardEvent, runner| {
@@ -133,7 +133,7 @@ pub fn install_document_events(app_runner: &AppRunnerRef) -> Result<(), JsValue>
         },
     )?;
 
-    app_runner.add_event_listener(
+    runner_ref.add_event_listener(
         &document,
         "keyup",
         |event: web_sys::KeyboardEvent, runner| {
@@ -152,7 +152,7 @@ pub fn install_document_events(app_runner: &AppRunnerRef) -> Result<(), JsValue>
     )?;
 
     #[cfg(web_sys_unstable_apis)]
-    app_runner.add_event_listener(
+    runner_ref.add_event_listener(
         &document,
         "paste",
         |event: web_sys::ClipboardEvent, runner| {
@@ -171,13 +171,13 @@ pub fn install_document_events(app_runner: &AppRunnerRef) -> Result<(), JsValue>
     )?;
 
     #[cfg(web_sys_unstable_apis)]
-    app_runner.add_event_listener(&document, "cut", |_: web_sys::ClipboardEvent, runner| {
+    runner_ref.add_event_listener(&document, "cut", |_: web_sys::ClipboardEvent, runner| {
         runner.input.raw.events.push(egui::Event::Cut);
         runner.needs_repaint.repaint_asap();
     })?;
 
     #[cfg(web_sys_unstable_apis)]
-    app_runner.add_event_listener(&document, "copy", |_: web_sys::ClipboardEvent, runner| {
+    runner_ref.add_event_listener(&document, "copy", |_: web_sys::ClipboardEvent, runner| {
         runner.input.raw.events.push(egui::Event::Copy);
         runner.needs_repaint.repaint_asap();
     })?;
@@ -185,21 +185,21 @@ pub fn install_document_events(app_runner: &AppRunnerRef) -> Result<(), JsValue>
     Ok(())
 }
 
-pub fn install_window_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
+pub fn install_window_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
 
     // Save-on-close
-    app_runner.add_event_listener(&window, "onbeforeunload", |_: web_sys::Event, runner| {
+    runner_ref.add_event_listener(&window, "onbeforeunload", |_: web_sys::Event, runner| {
         runner.save();
     })?;
 
     for event_name in &["load", "pagehide", "pageshow", "resize"] {
-        app_runner.add_event_listener(&window, event_name, |_: web_sys::Event, runner| {
+        runner_ref.add_event_listener(&window, event_name, |_: web_sys::Event, runner| {
             runner.needs_repaint.repaint_asap();
         })?;
     }
 
-    app_runner.add_event_listener(&window, "hashchange", |_: web_sys::Event, runner| {
+    runner_ref.add_event_listener(&window, "hashchange", |_: web_sys::Event, runner| {
         // `epi::Frame::info(&self)` clones `epi::IntegrationInfo`, but we need to modify the original here
         runner.frame.info.web_info.location.hash = location_hash();
     })?;
@@ -207,11 +207,11 @@ pub fn install_window_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
     Ok(())
 }
 
-pub fn install_color_scheme_change_event(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
+pub fn install_color_scheme_change_event(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
 
     if let Some(media_query_list) = prefers_color_scheme_dark(&window)? {
-        app_runner.add_event_listener::<web_sys::MediaQueryListEvent>(
+        runner_ref.add_event_listener::<web_sys::MediaQueryListEvent>(
             &media_query_list,
             "change",
             |event, runner| {
@@ -226,8 +226,8 @@ pub fn install_color_scheme_change_event(app_runner: &AppRunnerRef) -> Result<()
     Ok(())
 }
 
-pub fn install_canvas_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
-    let canvas = canvas_element(app_runner.try_lock().unwrap().canvas_id()).unwrap();
+pub fn install_canvas_events(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
+    let canvas = canvas_element(runner_ref.try_lock().unwrap().canvas_id()).unwrap();
 
     {
         let prevent_default_events = [
@@ -245,11 +245,11 @@ pub fn install_canvas_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
                 // log::debug!("Preventing event {event_name:?}");
             };
 
-            app_runner.add_event_listener(&canvas, event_name, closure)?;
+            runner_ref.add_event_listener(&canvas, event_name, closure)?;
         }
     }
 
-    app_runner.add_event_listener(
+    runner_ref.add_event_listener(
         &canvas,
         "mousedown",
         |event: web_sys::MouseEvent, runner: &mut AppRunner| {
@@ -269,7 +269,7 @@ pub fn install_canvas_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
         },
     )?;
 
-    app_runner.add_event_listener(
+    runner_ref.add_event_listener(
         &canvas,
         "mousemove",
         |event: web_sys::MouseEvent, runner| {
@@ -281,7 +281,7 @@ pub fn install_canvas_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
         },
     )?;
 
-    app_runner.add_event_listener(&canvas, "mouseup", |event: web_sys::MouseEvent, runner| {
+    runner_ref.add_event_listener(&canvas, "mouseup", |event: web_sys::MouseEvent, runner| {
         if let Some(button) = button_from_mouse_event(&event) {
             let pos = pos_from_mouse_event(runner.canvas_id(), &event);
             let modifiers = runner.input.raw.modifiers;
@@ -299,7 +299,7 @@ pub fn install_canvas_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
         event.prevent_default();
     })?;
 
-    app_runner.add_event_listener(
+    runner_ref.add_event_listener(
         &canvas,
         "mouseleave",
         |event: web_sys::MouseEvent, runner| {
@@ -310,7 +310,7 @@ pub fn install_canvas_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
         },
     )?;
 
-    app_runner.add_event_listener(
+    runner_ref.add_event_listener(
         &canvas,
         "touchstart",
         |event: web_sys::TouchEvent, runner| {
@@ -333,7 +333,7 @@ pub fn install_canvas_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
         },
     )?;
 
-    app_runner.add_event_listener(
+    runner_ref.add_event_listener(
         &canvas,
         "touchmove",
         |event: web_sys::TouchEvent, runner| {
@@ -350,7 +350,7 @@ pub fn install_canvas_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
         },
     )?;
 
-    app_runner.add_event_listener(&canvas, "touchend", |event: web_sys::TouchEvent, runner| {
+    runner_ref.add_event_listener(&canvas, "touchend", |event: web_sys::TouchEvent, runner| {
         if let Some(pos) = runner.input.latest_touch_pos {
             let modifiers = runner.input.raw.modifiers;
             // First release mouse to click:
@@ -373,7 +373,7 @@ pub fn install_canvas_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
         text_agent::update_text_agent(runner);
     })?;
 
-    app_runner.add_event_listener(
+    runner_ref.add_event_listener(
         &canvas,
         "touchcancel",
         |event: web_sys::TouchEvent, runner| {
@@ -383,7 +383,7 @@ pub fn install_canvas_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
         },
     )?;
 
-    app_runner.add_event_listener(&canvas, "wheel", |event: web_sys::WheelEvent, runner| {
+    runner_ref.add_event_listener(&canvas, "wheel", |event: web_sys::WheelEvent, runner| {
         let unit = match event.delta_mode() {
             web_sys::WheelEvent::DOM_DELTA_PIXEL => egui::MouseWheelUnit::Point,
             web_sys::WheelEvent::DOM_DELTA_LINE => egui::MouseWheelUnit::Line,
@@ -433,7 +433,7 @@ pub fn install_canvas_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
         event.prevent_default();
     })?;
 
-    app_runner.add_event_listener(&canvas, "dragover", |event: web_sys::DragEvent, runner| {
+    runner_ref.add_event_listener(&canvas, "dragover", |event: web_sys::DragEvent, runner| {
         if let Some(data_transfer) = event.data_transfer() {
             runner.input.raw.hovered_files.clear();
             for i in 0..data_transfer.items().length() {
@@ -450,15 +450,15 @@ pub fn install_canvas_events(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
         }
     })?;
 
-    app_runner.add_event_listener(&canvas, "dragleave", |event: web_sys::DragEvent, runner| {
+    runner_ref.add_event_listener(&canvas, "dragleave", |event: web_sys::DragEvent, runner| {
         runner.input.raw.hovered_files.clear();
         runner.needs_repaint.repaint_asap();
         event.stop_propagation();
         event.prevent_default();
     })?;
 
-    app_runner.add_event_listener(&canvas, "drop", {
-        let runner_ref = app_runner.clone();
+    runner_ref.add_event_listener(&canvas, "drop", {
+        let runner_ref = runner_ref.clone();
 
         move |event: web_sys::DragEvent, runner| {
             if let Some(data_transfer) = event.data_transfer() {

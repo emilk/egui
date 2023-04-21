@@ -21,7 +21,7 @@ pub fn text_agent() -> web_sys::HtmlInputElement {
 }
 
 /// Text event handler,
-pub fn install_text_agent(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
+pub fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
     let body = document.body().expect("document should have a body");
@@ -44,7 +44,7 @@ pub fn install_text_agent(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
     input.set_hidden(true);
 
     // When IME is off
-    app_runner.add_event_listener(&input, "input", {
+    runner_ref.add_event_listener(&input, "input", {
         let input_clone = input.clone();
         let is_composing = is_composing.clone();
 
@@ -60,7 +60,7 @@ pub fn install_text_agent(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
 
     {
         // When IME is on, handle composition event
-        app_runner.add_event_listener(&input, "compositionstart", {
+        runner_ref.add_event_listener(&input, "compositionstart", {
             let input_clone = input.clone();
             let is_composing = is_composing.clone();
 
@@ -73,7 +73,7 @@ pub fn install_text_agent(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
             }
         })?;
 
-        app_runner.add_event_listener(
+        runner_ref.add_event_listener(
             &input,
             "compositionupdate",
             move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
@@ -84,7 +84,7 @@ pub fn install_text_agent(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
             },
         )?;
 
-        app_runner.add_event_listener(&input, "compositionend", {
+        runner_ref.add_event_listener(&input, "compositionend", {
             let input_clone = input.clone();
 
             move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
@@ -101,7 +101,7 @@ pub fn install_text_agent(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
 
     // When input lost focus, focus on it again.
     // It is useful when user click somewhere outside canvas.
-    app_runner.add_event_listener(&input, "focusout", move |_event: web_sys::MouseEvent, _| {
+    runner_ref.add_event_listener(&input, "focusout", move |_event: web_sys::MouseEvent, _| {
         // Delay 10 ms, and focus again.
         let func = js_sys::Function::new_no_args(&format!(
             "document.getElementById('{}').focus()",

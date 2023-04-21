@@ -695,25 +695,25 @@ pub async fn start_web(
 
     let mut runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
     runner.warm_up()?;
-    let app_runner_ref = AppRunnerRef::new(runner);
+    let runner_ref = AppRunnerRef::new(runner);
 
     // Install events:
     {
-        super::events::install_canvas_events(&app_runner_ref)?;
-        super::events::install_document_events(&app_runner_ref)?;
-        super::events::install_window_events(&app_runner_ref)?;
-        text_agent::install_text_agent(&app_runner_ref)?;
+        super::events::install_canvas_events(&runner_ref)?;
+        super::events::install_document_events(&runner_ref)?;
+        super::events::install_window_events(&runner_ref)?;
+        text_agent::install_text_agent(&runner_ref)?;
         if follow_system_theme {
-            super::events::install_color_scheme_change_event(&app_runner_ref)?;
+            super::events::install_color_scheme_change_event(&runner_ref)?;
         }
-        super::events::paint_and_schedule(&app_runner_ref)?;
+        super::events::paint_and_schedule(&runner_ref)?;
     }
 
     // Instal panic handler:
     {
         // Disable all event handlers on panic
         let previous_hook = std::panic::take_hook();
-        let panic_handler = app_runner_ref.panic_handler.clone();
+        let panic_handler = runner_ref.panic_handler.clone();
 
         std::panic::set_hook(Box::new(move |panic_info| {
             log::info!("eframe detected a panic");
@@ -724,7 +724,7 @@ pub async fn start_web(
         }));
     }
 
-    Ok(app_runner_ref)
+    Ok(runner_ref)
 }
 
 // ----------------------------------------------------------------------------
