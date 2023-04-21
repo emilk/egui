@@ -407,7 +407,7 @@ impl Painter {
                 buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(std::num::NonZeroU32::new(padding.padded_bytes_per_row)?),
+                    bytes_per_row: Some(padding.padded_bytes_per_row),
                     rows_per_image: None,
                 },
             },

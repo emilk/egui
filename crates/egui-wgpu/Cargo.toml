@@ -43,7 +43,7 @@ epaint = { version = "0.21.0", path = "../epaint", default-features = false, fea
 bytemuck = "1.7"
 log = { version = "0.4", features = ["std"] }
 type-map = "0.5.0"
-wgpu = "0.15.0"
+wgpu = "0.16.0"
 
 #! ### Optional dependencies
 ## Enable this when generating docs.

@@ -2,7 +2,7 @@
 
 use std::num::NonZeroU64;
 use std::ops::Range;
-use std::{borrow::Cow, collections::HashMap, num::NonZeroU32};
+use std::{borrow::Cow, collections::HashMap};
 
 use type_map::concurrent::TypeMap;
 use wgpu;
@@ -295,7 +295,7 @@ impl Renderer {
 
             fragment: Some(wgpu::FragmentState {
                 module: &module,
-                entry_point: if output_color_format.describe().srgb {
+                entry_point: if output_color_format.is_srgb() {
                     log::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_color_format);
                     "fs_main_linear_framebuffer"
                 } else {
@@ -535,8 +535,8 @@ impl Renderer {
                 data_bytes,
                 wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: NonZeroU32::new(4 * width),
-                    rows_per_image: NonZeroU32::new(height),
+                    bytes_per_row: Some(4 * width),
+                    rows_per_image: Some(height),
                 },
                 size,
             );
