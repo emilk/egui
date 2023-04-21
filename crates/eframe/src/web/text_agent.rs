@@ -3,7 +3,6 @@
 //!
 use std::{cell::Cell, rc::Rc};
 
-use egui::mutex::MutexGuard;
 use wasm_bindgen::prelude::*;
 
 use super::{canvas_element, AppRunner, AppRunnerRef};
@@ -49,12 +48,12 @@ pub fn install_text_agent(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
         let input_clone = input.clone();
         let is_composing = is_composing.clone();
 
-        move |_event: web_sys::InputEvent, mut runner_lock| {
+        move |_event: web_sys::InputEvent, runner| {
             let text = input_clone.value();
             if !text.is_empty() && !is_composing.get() {
                 input_clone.set_value("");
-                runner_lock.input.raw.events.push(egui::Event::Text(text));
-                runner_lock.needs_repaint.repaint_asap();
+                runner.input.raw.events.push(egui::Event::Text(text));
+                runner.needs_repaint.repaint_asap();
             }
         }
     })?;
@@ -65,26 +64,22 @@ pub fn install_text_agent(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
             let input_clone = input.clone();
             let is_composing = is_composing.clone();
 
-            move |_event: web_sys::CompositionEvent, mut runner_lock: MutexGuard<'_, AppRunner>| {
+            move |_event: web_sys::CompositionEvent, runner: &mut AppRunner| {
                 is_composing.set(true);
                 input_clone.set_value("");
 
-                runner_lock
-                    .input
-                    .raw
-                    .events
-                    .push(egui::Event::CompositionStart);
-                runner_lock.needs_repaint.repaint_asap();
+                runner.input.raw.events.push(egui::Event::CompositionStart);
+                runner.needs_repaint.repaint_asap();
             }
         })?;
 
         app_runner.add_event_listener(
             &input,
             "compositionupdate",
-            move |event: web_sys::CompositionEvent, mut runner_lock: MutexGuard<'_, AppRunner>| {
+            move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
                 if let Some(event) = event.data().map(egui::Event::CompositionUpdate) {
-                    runner_lock.input.raw.events.push(event);
-                    runner_lock.needs_repaint.repaint_asap();
+                    runner.input.raw.events.push(event);
+                    runner.needs_repaint.repaint_asap();
                 }
             },
         )?;
@@ -92,13 +87,13 @@ pub fn install_text_agent(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
         app_runner.add_event_listener(&input, "compositionend", {
             let input_clone = input.clone();
 
-            move |event: web_sys::CompositionEvent, mut runner_lock: MutexGuard<'_, AppRunner>| {
+            move |event: web_sys::CompositionEvent, runner: &mut AppRunner| {
                 is_composing.set(false);
                 input_clone.set_value("");
 
                 if let Some(event) = event.data().map(egui::Event::CompositionEnd) {
-                    runner_lock.input.raw.events.push(event);
-                    runner_lock.needs_repaint.repaint_asap();
+                    runner.input.raw.events.push(event);
+                    runner.needs_repaint.repaint_asap();
                 }
             }
         })?;
@@ -123,7 +118,7 @@ pub fn install_text_agent(app_runner: &AppRunnerRef) -> Result<(), JsValue> {
 }
 
 /// Focus or blur text agent to toggle mobile keyboard.
-pub fn update_text_agent(runner: MutexGuard<'_, AppRunner>) -> Option<()> {
+pub fn update_text_agent(runner: &mut AppRunner) -> Option<()> {
     use web_sys::HtmlInputElement;
     let window = web_sys::window()?;
     let document = window.document()?;
@@ -163,9 +158,6 @@ pub fn update_text_agent(runner: MutexGuard<'_, AppRunner>) -> Option<()> {
             }
         }
     } else {
-        // Drop runner lock
-        drop(runner);
-
         // Holding the runner lock while calling input.blur() causes a panic.
         // This is most probably caused by the browser running the event handler
         // for the triggered blur event synchronously, meaning that the mutex
@@ -175,13 +167,31 @@ pub fn update_text_agent(runner: MutexGuard<'_, AppRunner>) -> Option<()> {
         // and this apparently is the fix for it
         //
         // ¯\_(ツ)_/¯ - @DusterTheFirst
-        input.blur().ok()?;
 
-        input.set_hidden(true);
-        canvas_style.set_property("position", "absolute").ok()?;
-        canvas_style.set_property("top", "0%").ok()?; // move back to normal position
+        // So since we are inside a runner lock here, we just postpone the blur/hide:
+
+        call_after_delay(std::time::Duration::from_millis(0), move || {
+            input.blur().ok();
+            input.set_hidden(true);
+            canvas_style.set_property("position", "absolute").ok();
+            canvas_style.set_property("top", "0%").ok(); // move back to normal position
+        });
     }
     Some(())
+}
+
+fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + 'static) {
+    use wasm_bindgen::prelude::*;
+    let window = web_sys::window().unwrap();
+    let closure = Closure::once(f);
+    let delay_ms = delay.as_millis() as _;
+    window
+        .set_timeout_with_callback_and_timeout_and_arguments_0(
+            closure.as_ref().unchecked_ref(),
+            delay_ms,
+        )
+        .unwrap();
+    closure.forget(); // We must forget it, or else the callback is canceled on drop
 }
 
 /// If context is running under mobile device?

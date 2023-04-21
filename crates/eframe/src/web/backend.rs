@@ -1,7 +1,6 @@
-use egui::{
-    mutex::{Mutex, MutexGuard},
-    TexturesDelta,
-};
+use std::{cell::RefCell, rc::Rc};
+
+use egui::{mutex::Mutex, TexturesDelta};
 
 use crate::{epi, App};
 
@@ -491,10 +490,9 @@ impl AppRunner {
 /// This is cheap to clone.
 #[derive(Clone)]
 pub struct AppRunnerRef {
-    // TODO: use std::sync::Mutex instead? Or even Rc/RefCell?
     /// If we ever panic during running, this mutex is poisoned.
     /// So before we use it, we need to check `panic_handler`.
-    runner: Arc<Mutex<AppRunner>>,
+    runner: Rc<RefCell<AppRunner>>,
 
     /// Have we ever panicked?
     panic_handler: Arc<Mutex<PanicHandler>>,
@@ -502,15 +500,15 @@ pub struct AppRunnerRef {
     /// In case of a panic, unsubscribe these.
     /// They have to be in a separate `Arc` so that we don't need to pass them to
     /// the panic handler, since they aren't `Send`.
-    events_to_unsubscribe: Arc<Mutex<Vec<EventToUnsubscribe>>>,
+    events_to_unsubscribe: Rc<RefCell<Vec<EventToUnsubscribe>>>,
 }
 
 impl AppRunnerRef {
     pub fn new(runner: AppRunner) -> Self {
         Self {
-            runner: Arc::new(Mutex::new(runner)),
+            runner: Rc::new(RefCell::new(runner)),
             panic_handler: Arc::new(Mutex::new(Default::default())),
-            events_to_unsubscribe: Arc::new(Mutex::new(Default::default())),
+            events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
         }
     }
 
@@ -520,7 +518,7 @@ impl AppRunnerRef {
             // Unsubscribe from all events so that we don't get any more callbacks
             // that will try to access the poisoned runner.
             let events_to_unsubscribe: Vec<_> =
-                std::mem::take(&mut *self.events_to_unsubscribe.lock());
+                std::mem::take(&mut *self.events_to_unsubscribe.borrow_mut());
             if !events_to_unsubscribe.is_empty() {
                 log::debug!(
                     "Unsubscribing from {} events due to panic",
@@ -555,11 +553,11 @@ impl AppRunnerRef {
 
     /// Returns `None` if there has been a panic, or if we have been destroyed.
     /// In that case, just return to JS.
-    pub fn try_lock(&self) -> Option<egui::mutex::MutexGuard<'_, AppRunner>> {
+    pub fn try_lock(&self) -> Option<std::cell::RefMut<'_, AppRunner>> {
         if self.has_panicked() {
             None
         } else {
-            let lock = self.runner.lock();
+            let lock = self.runner.borrow_mut();
             if lock.is_destroyed.fetch() {
                 None
             } else {
@@ -574,7 +572,7 @@ impl AppRunnerRef {
         &self,
         target: &EventTarget,
         event_name: &'static str,
-        mut closure: impl FnMut(E, MutexGuard<'_, AppRunner>) + 'static,
+        mut closure: impl FnMut(E, &mut AppRunner) + 'static,
     ) -> Result<(), JsValue> {
         // Create a JS closure based on the FnMut provided
         let closure = Closure::wrap({
@@ -583,11 +581,11 @@ impl AppRunnerRef {
 
             Box::new(move |event: web_sys::Event| {
                 // Only call the wrapped closure if the egui code has not panicked
-                if let Some(runner_lock) = runner_ref.try_lock() {
+                if let Some(mut runner_lock) = runner_ref.try_lock() {
                     // Cast the event to the expected event type
                     let event = event.unchecked_into::<E>();
 
-                    closure(event, runner_lock);
+                    closure(event, &mut runner_lock);
                 }
             }) as Box<dyn FnMut(web_sys::Event)>
         });
@@ -604,7 +602,7 @@ impl AppRunnerRef {
         // Remember it so we unsubscribe on panic.
         // Otherwise we get calls into `self.runner` after it has been poisoned by a panic.
         self.events_to_unsubscribe
-            .lock()
+            .borrow_mut()
             .push(EventToUnsubscribe::TargetEvent(handle));
 
         Ok(())
