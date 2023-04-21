@@ -498,8 +498,8 @@ impl Default for WebOptions {
 
             #[cfg(feature = "wgpu")]
             wgpu_options: egui_wgpu::WgpuConfiguration {
-                // WebGPU is not stable enough yet, use WebGL emulation
-                backends: wgpu::Backends::GL,
+                // Use WebGPU or WebGL. Note that WebGL needs to be opted in via a wgpu feature.
+                backends: wgpu::Backends::BROWSER_WEBGPU | wgpu::Backends::GL,
                 device_descriptor: wgpu::DeviceDescriptor {
                     label: Some("egui wgpu device"),
                     features: wgpu::Features::default(),

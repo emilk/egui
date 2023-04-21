@@ -68,6 +68,8 @@ impl Default for WgpuConfiguration {
                 features: wgpu::Features::default(),
                 limits: wgpu::Limits::default(),
             },
+            // Add GL backend, primarily because WebGPU is not stable enough yet.
+            // (note however, that the GL backend needs to be opted-in via a wgpu feature flag)
             backends: wgpu::Backends::PRIMARY | wgpu::Backends::GL,
             present_mode: wgpu::PresentMode::AutoVsync,
             power_preference: wgpu::PowerPreference::HighPerformance,
