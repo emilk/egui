@@ -517,17 +517,19 @@ impl AppRunnerRef {
         if self.panic_handler.lock().has_panicked() {
             // Unsubscribe from all events so that we don't get any more callbacks
             // that will try to access the poisoned runner.
-            let events_to_unsubscribe: Vec<_> =
-                std::mem::take(&mut *self.events_to_unsubscribe.borrow_mut());
-            if !events_to_unsubscribe.is_empty() {
-                log::debug!(
-                    "Unsubscribing from {} events due to panic",
-                    events_to_unsubscribe.len()
-                );
-                for x in events_to_unsubscribe {
-                    if let Err(err) = x.unsubscribe() {
-                        log::error!("Failed to unsubscribe from event: {err:?}");
-                    }
+            self.unsubscribe_from_all_events();
+        }
+    }
+
+    fn unsubscribe_from_all_events(&self) {
+        let events_to_unsubscribe: Vec<_> =
+            std::mem::take(&mut *self.events_to_unsubscribe.borrow_mut());
+
+        if !events_to_unsubscribe.is_empty() {
+            log::debug!("Unsubscribing from {} events", events_to_unsubscribe.len());
+            for x in events_to_unsubscribe {
+                if let Err(err) = x.unsubscribe() {
+                    log::error!("Failed to unsubscribe from event: {err:?}");
                 }
             }
         }
@@ -546,6 +548,7 @@ impl AppRunnerRef {
     }
 
     pub fn destroy(&self) {
+        self.unsubscribe_from_all_events();
         if let Some(mut runner) = self.try_lock() {
             runner.destroy();
         }
@@ -574,21 +577,17 @@ impl AppRunnerRef {
         event_name: &'static str,
         mut closure: impl FnMut(E, &mut AppRunner) + 'static,
     ) -> Result<(), JsValue> {
+        let runner_ref = self.clone();
+
         // Create a JS closure based on the FnMut provided
-        let closure = Closure::wrap({
-            // Clone atomics
-            let runner_ref = self.clone();
-
-            Box::new(move |event: web_sys::Event| {
-                // Only call the wrapped closure if the egui code has not panicked
-                if let Some(mut runner_lock) = runner_ref.try_lock() {
-                    // Cast the event to the expected event type
-                    let event = event.unchecked_into::<E>();
-
-                    closure(event, &mut runner_lock);
-                }
-            }) as Box<dyn FnMut(web_sys::Event)>
-        });
+        let closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
+            // Only call the wrapped closure if the egui code has not panicked
+            if let Some(mut runner_lock) = runner_ref.try_lock() {
+                // Cast the event to the expected event type
+                let event = event.unchecked_into::<E>();
+                closure(event, &mut runner_lock);
+            }
+        }) as Box<dyn FnMut(web_sys::Event)>);
 
         // Add the event listener to the target
         target.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
