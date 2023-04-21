@@ -58,7 +58,7 @@ web_screen_reader = ["tts"]
 
 ## If set, eframe will look for the env-var `EFRAME_SCREENSHOT_TO` and write a screenshot to that location, and then quit.
 ## This is used to generate images for the examples.
-__screenshot = ["dep:image"]
+__screenshot = []
 
 ## Use [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui-wgpu`](https://github.com/emilk/egui/tree/master/crates/egui-wgpu)).
 ## This overrides the `glow` feature.
@@ -98,6 +98,9 @@ egui-winit = { version = "0.21.1", path = "../egui-winit", default-features = fa
   "clipboard",
   "links",
 ] }
+image = { version = "0.24", default-features = false, features = [
+  "png",
+] } # Needed for app icon
 raw-window-handle = { version = "0.5.0" }
 winit = "0.28.1"
 
@@ -112,11 +115,17 @@ pollster = { version = "0.3", optional = true } # needed for wgpu
 # this can be done at the same time we expose x11/wayland features of winit crate.
 glutin = { version = "0.30", optional = true }
 glutin-winit = { version = "0.3.0", optional = true }
-image = { version = "0.24", optional = true, default-features = false, features = [
-  "png",
-] }
 puffin = { version = "0.14", optional = true }
 wgpu = { version = "0.16.0", optional = true }
+
+# mac:
+[target.'cfg(any(target_os = "macos"))'.dependencies]
+cocoa = "0.24.1"
+objc = "0.2.7"
+
+# windows:
+[target.'cfg(any(target_os = "windows"))'.dependencies]
+winapi = "0.3.9"
 
 # -------------------------------------------
 # web:

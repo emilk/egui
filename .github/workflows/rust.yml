@@ -157,10 +157,7 @@ jobs:
       - run: ./scripts/wasm_bindgen_check.sh --skip-setup
 
       - name: Cranky wasm32
-        uses: actions-rs/cargo@v1
-        with:
-          command: cranky
-          args: --target wasm32-unknown-unknown --all-features -p egui_demo_app --lib -- -D warnings
+        run: ./scripts/clippy_wasm.sh
 
   # ---------------------------------------------------------------------------
 

@@ -1,5 +1,3 @@
-use egui::Widget;
-
 /// How often we repaint the demo app by default
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum RunMode {
@@ -43,6 +41,7 @@ impl Default for RunMode {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct BackendPanel {
@@ -52,9 +51,6 @@ pub struct BackendPanel {
     // go back to [`RunMode::Reactive`] mode each time we start
     run_mode: RunMode,
 
-    #[cfg_attr(feature = "serde", serde(skip))]
-    repaint_after_seconds: f32,
-
     /// current slider value for current gui scale
     #[cfg_attr(feature = "serde", serde(skip))]
     pixels_per_point: Option<f32>,
@@ -63,19 +59,6 @@ pub struct BackendPanel {
     frame_history: crate::frame_history::FrameHistory,
 
     egui_windows: EguiWindows,
-}
-
-impl Default for BackendPanel {
-    fn default() -> Self {
-        Self {
-            open: false,
-            run_mode: Default::default(),
-            repaint_after_seconds: 1.0,
-            pixels_per_point: None,
-            frame_history: Default::default(),
-            egui_windows: Default::default(),
-        }
-    }
 }
 
 impl BackendPanel {
@@ -90,9 +73,6 @@ impl BackendPanel {
             }
             RunMode::Reactive => {
                 // let the computer rest for a bit
-                ctx.request_repaint_after(std::time::Duration::from_secs_f32(
-                    self.repaint_after_seconds,
-                ));
             }
         }
     }
@@ -128,11 +108,10 @@ impl BackendPanel {
             ui.ctx().set_debug_on_hover(debug_on_hover);
         }
 
-        ui.separator();
-
         #[cfg(target_arch = "wasm32")]
         #[cfg(feature = "web_screen-reader")]
         {
+            ui.separator();
             let mut screen_reader = ui.ctx().options(|o| o.screen_reader);
             ui.checkbox(&mut screen_reader, "🔈 Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
             ui.ctx().options_mut(|o| o.screen_reader = screen_reader);
@@ -143,6 +122,15 @@ impl BackendPanel {
             ui.separator();
             if ui.button("Quit").clicked() {
                 frame.close();
+            }
+        }
+
+        if cfg!(debug_assertions) && cfg!(target_arch = "wasm32") {
+            ui.separator();
+            // For testing panic handling on web:
+            #[allow(clippy::manual_assert)]
+            if ui.button("panic!()").clicked() {
+                panic!("intentional panic!");
             }
         }
     }
@@ -271,17 +259,27 @@ impl BackendPanel {
         } else {
             ui.label("Only running UI code when there are animations or input.");
 
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 0.0;
-                ui.label("(but at least every ");
-                egui::DragValue::new(&mut self.repaint_after_seconds)
-                    .clamp_range(0.1..=10.0)
-                    .speed(0.1)
-                    .suffix(" s")
-                    .ui(ui)
-                    .on_hover_text("Repaint this often, even if there is no input.");
-                ui.label(")");
-            });
+            // Add a test for `request_repaint_after`, but only in debug
+            // builds to keep the noise down in the official demo.
+            if cfg!(debug_assertions) {
+                ui.collapsing("More…", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Frame number:");
+                        ui.monospace(ui.ctx().frame_nr().to_string());
+                    });
+                    if ui
+                        .button("Wait 2s, then request repaint after another 3s")
+                        .clicked()
+                    {
+                        log::info!("Waiting 2s before requesting repaint...");
+                        let ctx = ui.ctx().clone();
+                        call_after_delay(std::time::Duration::from_secs(2), move || {
+                            log::info!("Request a repaint in 3s...");
+                            ctx.request_repaint_after(std::time::Duration::from_secs(3));
+                        });
+                    }
+                });
+            }
         }
     }
 }
@@ -393,4 +391,29 @@ impl EguiWindows {
                     });
             });
     }
+}
+
+// ----------------------------------------------------------------------------
+
+#[cfg(not(target_arch = "wasm32"))]
+fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'static) {
+    std::thread::spawn(move || {
+        std::thread::sleep(delay);
+        f();
+    });
+}
+
+#[cfg(target_arch = "wasm32")]
+fn call_after_delay(delay: std::time::Duration, f: impl FnOnce() + Send + 'static) {
+    use wasm_bindgen::prelude::*;
+    let window = web_sys::window().unwrap();
+    let closure = Closure::once(f);
+    let delay_ms = delay.as_millis() as _;
+    window
+        .set_timeout_with_callback_and_timeout_and_arguments_0(
+            closure.as_ref().unchecked_ref(),
+            delay_ms,
+        )
+        .unwrap();
+    closure.forget(); // We must forget it, or else the callback is canceled on drop
 }

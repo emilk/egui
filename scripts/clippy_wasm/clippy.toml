@@ -1,0 +1,29 @@
+# This is used by `scripts/clippy_wasm.sh` so we can forbid some methods that are not available in wasm.
+#
+# We cannot forbid all these methods in the main `clippy.toml` because of
+# https://github.com/rust-lang/rust-clippy/issues/10406
+
+msrv = "1.65"
+
+# https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_methods
+disallowed-methods = [
+  "std::time::Instant::now",      # use `instant` crate instead for wasm/web compatibility
+  "std::time::Duration::elapsed", # use `instant` crate instead for wasm/web compatibility
+  "std::time::SystemTime::now",   # use `instant` or `time` crates instead for wasm/web compatibility
+
+  # Cannot spawn threads on wasm:
+  "std::thread::spawn",
+]
+
+# https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_types
+disallowed-types = [
+  # Cannot spawn threads on wasm:
+  "std::thread::Builder",
+]
+
+# Allow-list of words for markdown in dosctrings https://rust-lang.github.io/rust-clippy/master/index.html#doc_markdown
+doc-valid-idents = [
+  # You must also update the same list in the root `clippy.toml`!
+  "AccessKit",
+  "..",
+]

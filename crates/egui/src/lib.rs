@@ -354,7 +354,7 @@ pub mod text {
 
 pub use {
     containers::*,
-    context::Context,
+    context::{Context, RequestRepaintInfo},
     data::{
         input::*,
         output::{self, CursorIcon, FullOutput, PlatformOutput, UserAttentionType, WidgetInfo},
