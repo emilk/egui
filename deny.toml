@@ -46,6 +46,7 @@ skip = [
     { name = "windows_x86_64_msvc" }, # old version via glutin
     { name = "windows-sys" },         # old version via glutin
     { name = "windows" },             # old version via accesskit
+    { name = "libloading" },          # wgpu-hal itself depends on 0.8 while some of its dependencies, like ash and d3d12, depend on 0.7
 ]
 skip-tree = [
     { name = "criterion" },     # dev-dependency
