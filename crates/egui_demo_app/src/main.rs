@@ -15,13 +15,17 @@ fn main() -> Result<(), eframe::Error> {
         std::env::set_var("RUST_LOG", rust_log);
     }
 
-    // Log to stdout (if you run with `RUST_LOG=debug`).
-    tracing_subscriber::fmt::init();
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
     let options = eframe::NativeOptions {
         drag_and_drop_support: true,
 
         initial_window_size: Some([1280.0, 1024.0].into()),
+
+        icon_data: Some(
+            eframe::IconData::try_from_png_bytes(&include_bytes!("../../../media/icon.png")[..])
+                .unwrap(),
+        ),
 
         #[cfg(feature = "wgpu")]
         renderer: eframe::Renderer::Wgpu,

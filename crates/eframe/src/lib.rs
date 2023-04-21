@@ -82,60 +82,16 @@ pub use epi::*;
 // When compiling for web
 
 #[cfg(target_arch = "wasm32")]
-pub mod web;
-
-#[cfg(target_arch = "wasm32")]
 pub use wasm_bindgen;
-
-#[cfg(target_arch = "wasm32")]
-use web::AppRunnerRef;
 
 #[cfg(target_arch = "wasm32")]
 pub use web_sys;
 
-/// Install event listeners to register different input events
-/// and start running the given app.
-///
-/// ``` no_run
-/// #[cfg(target_arch = "wasm32")]
-/// use wasm_bindgen::prelude::*;
-///
-/// /// This is the entry-point for all the web-assembly.
-/// /// This is called from the HTML.
-/// /// It loads the app, installs some callbacks, then returns.
-/// /// It returns a handle to the running app that can be stopped calling `AppRunner::stop_web`.
-/// /// You can add more callbacks like this if you want to call in to your code.
-/// #[cfg(target_arch = "wasm32")]
-/// #[wasm_bindgen]
-/// pub struct WebHandle {
-///     handle: AppRunnerRef,
-/// }
-/// #[cfg(target_arch = "wasm32")]
-/// #[wasm_bindgen]
-/// pub async fn start(canvas_id: &str) -> Result<WebHandle, eframe::wasm_bindgen::JsValue> {
-///     let web_options = eframe::WebOptions::default();
-///     eframe::start_web(
-///         canvas_id,
-///         web_options,
-///         Box::new(|cc| Box::new(MyEguiApp::new(cc))),
-///     )
-///     .await
-///     .map(|handle| WebHandle { handle })
-/// }
-/// ```
-///
-/// # Errors
-/// Failing to initialize WebGL graphics.
 #[cfg(target_arch = "wasm32")]
-pub async fn start_web(
-    canvas_id: &str,
-    web_options: WebOptions,
-    app_creator: AppCreator,
-) -> std::result::Result<AppRunnerRef, wasm_bindgen::JsValue> {
-    let handle = web::start(canvas_id, web_options, app_creator).await?;
+pub mod web;
 
-    Ok(handle)
-}
+#[cfg(target_arch = "wasm32")]
+pub use web::start_web;
 
 // ----------------------------------------------------------------------------
 // When compiling natively
@@ -201,13 +157,13 @@ pub fn run_native(
     match renderer {
         #[cfg(feature = "glow")]
         Renderer::Glow => {
-            tracing::debug!("Using the glow renderer");
+            log::debug!("Using the glow renderer");
             native::run::run_glow(app_name, native_options, app_creator)
         }
 
         #[cfg(feature = "wgpu")]
         Renderer::Wgpu => {
-            tracing::debug!("Using the wgpu renderer");
+            log::debug!("Using the wgpu renderer");
             native::run::run_wgpu(app_name, native_options, app_creator)
         }
     }

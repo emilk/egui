@@ -48,11 +48,14 @@ impl super::Demo for IdTest {
 
 impl super::View for IdTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
+        // Make sure the warnings are on (by default they are only on in debug builds).
+        ui.ctx().options_mut(|opt| opt.warn_on_id_clash = true);
+
         ui.heading("Name collision example");
 
         ui.label("\
             Widgets that store state require unique and persisting identifiers so we can track their state between frames.\n\
-            For instance, collapsable headers needs to store whether or not they are open. \
+            For instance, collapsible headers needs to store whether or not they are open. \
             Their Id:s are derived from their names. \
             If you fail to give them unique names then clicking one will open both. \
             To help you debug this, an error message is printed on screen:");
@@ -70,7 +73,7 @@ impl super::View for IdTest {
             As long as elements are not added or removed, the Id stays the same. \
             This is fine, because during interaction (i.e. while dragging a slider), \
             the number of widgets previously in the same window is most likely not changing \
-            (and if it is, the window will have a new layout, and the slider will endup somewhere else, and so aborthing the interaction probably makes sense).");
+            (and if it is, the window will have a new layout, and the slider will end up somewhere else, and so aborting the interaction probably makes sense).");
 
         ui.label("So these buttons have automatic Id:s, and therefore there is no name clash:");
         let _ = ui.button("Button");

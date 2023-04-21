@@ -7,7 +7,7 @@ use epaint::Mesh;
 
 use crate::*;
 
-use super::{Cursor, LabelFormatter, PlotBounds, ScreenTransform};
+use super::{Cursor, LabelFormatter, PlotBounds, PlotTransform};
 use rect_elem::*;
 use values::{ClosestElem, PlotGeometry};
 
@@ -25,14 +25,14 @@ const DEFAULT_FILL_ALPHA: f32 = 0.05;
 /// Container to pass-through several parameters related to plot visualization
 pub(super) struct PlotConfig<'a> {
     pub ui: &'a Ui,
-    pub transform: &'a ScreenTransform,
+    pub transform: &'a PlotTransform,
     pub show_x: bool,
     pub show_y: bool,
 }
 
 /// Trait shared by things that can be drawn in the plot.
 pub(super) trait PlotItem {
-    fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>);
+    fn shapes(&self, ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>);
 
     /// For plot-items which are generated based on x values (plotting functions).
     fn initialize(&mut self, x_range: RangeInclusive<f64>);
@@ -49,7 +49,7 @@ pub(super) trait PlotItem {
 
     fn bounds(&self) -> PlotBounds;
 
-    fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<ClosestElem> {
+    fn find_closest(&self, point: Pos2, transform: &PlotTransform) -> Option<ClosestElem> {
         match self.geometry() {
             PlotGeometry::None => None,
 
@@ -177,7 +177,7 @@ impl HLine {
 }
 
 impl PlotItem for HLine {
-    fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let HLine {
             y,
             stroke,
@@ -293,7 +293,7 @@ impl VLine {
 }
 
 impl PlotItem for VLine {
-    fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let VLine {
             x,
             stroke,
@@ -423,7 +423,7 @@ fn y_intersection(p1: &Pos2, p2: &Pos2, y: f32) -> Option<f32> {
 }
 
 impl PlotItem for Line {
-    fn shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let Self {
             series,
             stroke,
@@ -584,7 +584,7 @@ impl Polygon {
 }
 
 impl PlotItem for Polygon {
-    fn shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let Self {
             series,
             stroke,
@@ -696,7 +696,7 @@ impl Text {
 }
 
 impl PlotItem for Text {
-    fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let color = if self.color == Color32::TRANSPARENT {
             ui.style().visuals.text_color()
         } else {
@@ -836,7 +836,7 @@ impl Points {
 }
 
 impl PlotItem for Points {
-    fn shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let sqrt_3 = 3_f32.sqrt();
         let frac_sqrt_3_2 = 3_f32.sqrt() / 2.0;
         let frac_1_sqrt_2 = 1.0 / 2_f32.sqrt();
@@ -1039,7 +1039,7 @@ impl Arrows {
 }
 
 impl PlotItem for Arrows {
-    fn shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         use crate::emath::*;
         let Self {
             origins,
@@ -1178,7 +1178,7 @@ impl PlotImage {
 }
 
 impl PlotItem for PlotImage {
-    fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let Self {
             position,
             texture_id,
@@ -1369,7 +1369,7 @@ impl BarChart {
 }
 
 impl PlotItem for BarChart {
-    fn shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         for b in &self.bars {
             b.add_shapes(transform, self.highlight, shapes);
         }
@@ -1407,7 +1407,7 @@ impl PlotItem for BarChart {
         bounds
     }
 
-    fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<ClosestElem> {
+    fn find_closest(&self, point: Pos2, transform: &PlotTransform) -> Option<ClosestElem> {
         find_closest_rect(&self.bars, point, transform)
     }
 
@@ -1512,7 +1512,7 @@ impl BoxPlot {
 }
 
 impl PlotItem for BoxPlot {
-    fn shapes(&self, _ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         for b in &self.boxes {
             b.add_shapes(transform, self.highlight, shapes);
         }
@@ -1550,7 +1550,7 @@ impl PlotItem for BoxPlot {
         bounds
     }
 
-    fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<ClosestElem> {
+    fn find_closest(&self, point: Pos2, transform: &PlotTransform) -> Option<ClosestElem> {
         find_closest_rect(&self.boxes, point, transform)
     }
 
@@ -1582,7 +1582,7 @@ pub(crate) fn rulers_color(ui: &Ui) -> Color32 {
 
 pub(crate) fn vertical_line(
     pointer: Pos2,
-    transform: &ScreenTransform,
+    transform: &PlotTransform,
     line_color: Color32,
 ) -> Shape {
     let frame = transform.frame();
@@ -1597,7 +1597,7 @@ pub(crate) fn vertical_line(
 
 pub(crate) fn horizontal_line(
     pointer: Pos2,
-    transform: &ScreenTransform,
+    transform: &PlotTransform,
     line_color: Color32,
 ) -> Shape {
     let frame = transform.frame();
@@ -1731,7 +1731,7 @@ pub(super) fn rulers_at_value(
 fn find_closest_rect<'a, T>(
     rects: impl IntoIterator<Item = &'a T>,
     point: Pos2,
-    transform: &ScreenTransform,
+    transform: &PlotTransform,
 ) -> Option<ClosestElem>
 where
     T: 'a + RectElement,

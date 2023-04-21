@@ -37,7 +37,7 @@ egui = { version = "0.21.0", path = "../egui", features = [
 egui_demo_lib = { version = "0.21.0", path = "../egui_demo_lib", features = [
   "chrono",
 ] }
-tracing = "0.1"
+log = { version = "0.4", features = ["std"] }
 
 # Optional dependencies:
 
@@ -58,10 +58,11 @@ serde = { version = "1", optional = true, features = ["derive"] }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tracing-subscriber = "0.3"
+env_logger = "0.10"
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
-tracing-wasm = "0.2"
+wasm-bindgen = "=0.2.84"
 wasm-bindgen-futures = "0.4"
+web-sys = "0.3"

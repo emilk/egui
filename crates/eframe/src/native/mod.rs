@@ -1,3 +1,4 @@
+mod app_icon;
 mod epi_integration;
 pub mod run;
 

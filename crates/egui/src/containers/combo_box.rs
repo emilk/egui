@@ -2,7 +2,7 @@ use epaint::Shape;
 
 use crate::{style::WidgetVisuals, *};
 
-/// Indicate wether or not a popup will be shown above or below the box.
+/// Indicate whether or not a popup will be shown above or below the box.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum AboveOrBelow {
     Above,

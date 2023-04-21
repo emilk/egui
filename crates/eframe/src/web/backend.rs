@@ -1,7 +1,6 @@
-use egui::{
-    mutex::{Mutex, MutexGuard},
-    TexturesDelta,
-};
+use std::{cell::RefCell, rc::Rc};
+
+use egui::{mutex::Mutex, TexturesDelta};
 
 use crate::{epi, App};
 
@@ -31,9 +30,10 @@ impl WebInput {
         }
     }
 
-    pub fn on_web_page_focus_change(&mut self, has_focus: bool) {
+    pub fn on_web_page_focus_change(&mut self, focused: bool) {
         self.raw.modifiers = egui::Modifiers::default();
-        self.raw.has_focus = has_focus;
+        self.raw.focused = focused;
+        self.raw.events.push(egui::Event::WindowFocused(focused));
         self.latest_touch_pos = None;
         self.latest_touch_pos_id = None;
     }
@@ -169,6 +169,64 @@ fn test_parse_query() {
 
 // ----------------------------------------------------------------------------
 
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn error(msg: String);
+
+    type Error;
+
+    #[wasm_bindgen(constructor)]
+    fn new() -> Error;
+
+    #[wasm_bindgen(structural, method, getter)]
+    fn stack(error: &Error) -> String;
+}
+
+#[derive(Clone, Debug)]
+pub struct PanicSummary {
+    message: String,
+    callstack: String,
+}
+
+impl PanicSummary {
+    pub fn new(info: &std::panic::PanicInfo<'_>) -> Self {
+        let message = info.to_string();
+        let callstack = Error::new().stack();
+        Self { message, callstack }
+    }
+
+    pub fn message(&self) -> String {
+        self.message.clone()
+    }
+
+    pub fn callstack(&self) -> String {
+        self.callstack.clone()
+    }
+}
+
+/// Handle to information about any panic than has occurred
+#[derive(Clone, Default)]
+pub struct PanicHandler {
+    summary: Option<PanicSummary>,
+}
+
+impl PanicHandler {
+    pub fn has_panicked(&self) -> bool {
+        self.summary.is_some()
+    }
+
+    pub fn panic_summary(&self) -> Option<PanicSummary> {
+        self.summary.clone()
+    }
+
+    pub fn on_panic(&mut self, info: &std::panic::PanicInfo<'_>) {
+        self.summary = Some(PanicSummary::new(info));
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 pub struct AppRunner {
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
@@ -182,12 +240,11 @@ pub struct AppRunner {
     pub(crate) text_cursor_pos: Option<egui::Pos2>,
     pub(crate) mutable_text_under_cursor: bool,
     textures_delta: TexturesDelta,
-    pub events_to_unsubscribe: Vec<EventToUnsubscribe>,
 }
 
 impl Drop for AppRunner {
     fn drop(&mut self) {
-        tracing::debug!("AppRunner has fully dropped");
+        log::debug!("AppRunner has fully dropped");
     }
 }
 
@@ -258,8 +315,8 @@ impl AppRunner {
         let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();
         {
             let needs_repaint = needs_repaint.clone();
-            egui_ctx.set_request_repaint_callback(move || {
-                needs_repaint.repaint_asap();
+            egui_ctx.set_request_repaint_callback(move |info| {
+                needs_repaint.repaint_after(info.after.as_secs_f64());
             });
         }
 
@@ -276,7 +333,6 @@ impl AppRunner {
             text_cursor_pos: None,
             mutable_text_under_cursor: false,
             textures_delta: Default::default(),
-            events_to_unsubscribe: Default::default(),
         };
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
@@ -291,27 +347,29 @@ impl AppRunner {
     /// Get mutable access to the concrete [`App`] we enclose.
     ///
     /// This will panic if your app does not implement [`App::as_any_mut`].
-    pub fn app_mut<ConreteApp: 'static + App>(&mut self) -> &mut ConreteApp {
+    pub fn app_mut<ConcreteApp: 'static + App>(&mut self) -> &mut ConcreteApp {
         self.app
             .as_any_mut()
             .expect("Your app must implement `as_any_mut`, but it doesn't")
-            .downcast_mut::<ConreteApp>()
+            .downcast_mut::<ConcreteApp>()
             .unwrap()
     }
 
-    pub fn auto_save(&mut self) {
-        let now = now_sec();
-        let time_since_last_save = now - self.last_save_time;
-
+    pub fn auto_save_if_needed(&mut self) {
+        let time_since_last_save = now_sec() - self.last_save_time;
         if time_since_last_save > self.app.auto_save_interval().as_secs_f64() {
-            if self.app.persist_egui_memory() {
-                save_memory(&self.egui_ctx);
-            }
-            if let Some(storage) = self.frame.storage_mut() {
-                self.app.save(storage);
-            }
-            self.last_save_time = now;
+            self.save();
         }
+    }
+
+    pub fn save(&mut self) {
+        if self.app.persist_egui_memory() {
+            save_memory(&self.egui_ctx);
+        }
+        if let Some(storage) = self.frame.storage_mut() {
+            self.app.save(storage);
+        }
+        self.last_save_time = now_sec();
     }
 
     pub fn canvas_id(&self) -> &str {
@@ -330,21 +388,13 @@ impl AppRunner {
         Ok(())
     }
 
-    pub fn destroy(&mut self) -> Result<(), JsValue> {
-        let is_destroyed_already = self.is_destroyed.fetch();
-
-        if is_destroyed_already {
-            tracing::warn!("App was destroyed already");
-            Ok(())
+    fn destroy(&mut self) {
+        if self.is_destroyed.fetch() {
+            log::warn!("App was destroyed already");
         } else {
-            tracing::debug!("Destroying");
-            for x in self.events_to_unsubscribe.drain(..) {
-                x.unsubscribe()?;
-            }
-
+            log::debug!("Destroying");
             self.painter.destroy();
             self.is_destroyed.set_true();
-            Ok(())
         }
     }
 
@@ -436,7 +486,129 @@ impl AppRunner {
 
 // ----------------------------------------------------------------------------
 
-pub type AppRunnerRef = Arc<Mutex<AppRunner>>;
+/// This is how we access the [`AppRunner`].
+/// This is cheap to clone.
+#[derive(Clone)]
+pub struct AppRunnerRef {
+    /// If we ever panic during running, this mutex is poisoned.
+    /// So before we use it, we need to check `panic_handler`.
+    runner: Rc<RefCell<AppRunner>>,
+
+    /// Have we ever panicked?
+    panic_handler: Arc<Mutex<PanicHandler>>,
+
+    /// In case of a panic, unsubscribe these.
+    /// They have to be in a separate `Arc` so that we don't need to pass them to
+    /// the panic handler, since they aren't `Send`.
+    events_to_unsubscribe: Rc<RefCell<Vec<EventToUnsubscribe>>>,
+}
+
+impl AppRunnerRef {
+    pub fn new(runner: AppRunner) -> Self {
+        Self {
+            runner: Rc::new(RefCell::new(runner)),
+            panic_handler: Arc::new(Mutex::new(Default::default())),
+            events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
+        }
+    }
+
+    /// Returns true if there has been a panic.
+    fn unsubscribe_if_panicked(&self) {
+        if self.panic_handler.lock().has_panicked() {
+            // Unsubscribe from all events so that we don't get any more callbacks
+            // that will try to access the poisoned runner.
+            self.unsubscribe_from_all_events();
+        }
+    }
+
+    fn unsubscribe_from_all_events(&self) {
+        let events_to_unsubscribe: Vec<_> =
+            std::mem::take(&mut *self.events_to_unsubscribe.borrow_mut());
+
+        if !events_to_unsubscribe.is_empty() {
+            log::debug!("Unsubscribing from {} events", events_to_unsubscribe.len());
+            for x in events_to_unsubscribe {
+                if let Err(err) = x.unsubscribe() {
+                    log::error!("Failed to unsubscribe from event: {err:?}");
+                }
+            }
+        }
+    }
+
+    /// Returns true if there has been a panic.
+    pub fn has_panicked(&self) -> bool {
+        self.unsubscribe_if_panicked();
+        self.panic_handler.lock().has_panicked()
+    }
+
+    /// Returns `Some` if there has been a panic.
+    pub fn panic_summary(&self) -> Option<PanicSummary> {
+        self.unsubscribe_if_panicked();
+        self.panic_handler.lock().panic_summary()
+    }
+
+    pub fn destroy(&self) {
+        self.unsubscribe_from_all_events();
+        if let Some(mut runner) = self.try_lock() {
+            runner.destroy();
+        }
+    }
+
+    /// Returns `None` if there has been a panic, or if we have been destroyed.
+    /// In that case, just return to JS.
+    pub fn try_lock(&self) -> Option<std::cell::RefMut<'_, AppRunner>> {
+        if self.has_panicked() {
+            None
+        } else {
+            let lock = self.runner.borrow_mut();
+            if lock.is_destroyed.fetch() {
+                None
+            } else {
+                Some(lock)
+            }
+        }
+    }
+
+    /// Convenience function to reduce boilerplate and ensure that all event handlers
+    /// are dealt with in the same way
+    pub fn add_event_listener<E: wasm_bindgen::JsCast>(
+        &self,
+        target: &EventTarget,
+        event_name: &'static str,
+        mut closure: impl FnMut(E, &mut AppRunner) + 'static,
+    ) -> Result<(), JsValue> {
+        let runner_ref = self.clone();
+
+        // Create a JS closure based on the FnMut provided
+        let closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
+            // Only call the wrapped closure if the egui code has not panicked
+            if let Some(mut runner_lock) = runner_ref.try_lock() {
+                // Cast the event to the expected event type
+                let event = event.unchecked_into::<E>();
+                closure(event, &mut runner_lock);
+            }
+        }) as Box<dyn FnMut(web_sys::Event)>);
+
+        // Add the event listener to the target
+        target.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+
+        let handle = TargetEvent {
+            target: target.clone(),
+            event_name: event_name.to_owned(),
+            closure,
+        };
+
+        // Remember it so we unsubscribe on panic.
+        // Otherwise we get calls into `self.runner` after it has been poisoned by a panic.
+        self.events_to_unsubscribe
+            .borrow_mut()
+            .push(EventToUnsubscribe::TargetEvent(handle));
+
+        Ok(())
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 pub struct TargetEvent {
     target: EventTarget,
@@ -451,7 +623,7 @@ pub struct IntervalHandle {
 
 pub enum EventToUnsubscribe {
     TargetEvent(TargetEvent),
-    #[allow(dead_code)]
+
     IntervalHandle(IntervalHandle),
 }
 
@@ -474,110 +646,84 @@ impl EventToUnsubscribe {
     }
 }
 
-pub struct AppRunnerContainer {
-    pub runner: AppRunnerRef,
-
-    /// Set to `true` if there is a panic.
-    /// Used to ignore callbacks after a panic.
-    pub panicked: Arc<AtomicBool>,
-    pub events: Vec<EventToUnsubscribe>,
-}
-
-impl AppRunnerContainer {
-    /// Convenience function to reduce boilerplate and ensure that all event handlers
-    /// are dealt with in the same way
-    pub fn add_event_listener<E: wasm_bindgen::JsCast>(
-        &mut self,
-        target: &EventTarget,
-        event_name: &'static str,
-        mut closure: impl FnMut(E, MutexGuard<'_, AppRunner>) + 'static,
-    ) -> Result<(), JsValue> {
-        // Create a JS closure based on the FnMut provided
-        let closure = Closure::wrap({
-            // Clone atomics
-            let runner_ref = self.runner.clone();
-            let panicked = self.panicked.clone();
-
-            Box::new(move |event: web_sys::Event| {
-                // Only call the wrapped closure if the egui code has not panicked
-                if !panicked.load(Ordering::SeqCst) {
-                    // Cast the event to the expected event type
-                    let event = event.unchecked_into::<E>();
-
-                    closure(event, runner_ref.lock());
-                }
-            }) as Box<dyn FnMut(web_sys::Event)>
-        });
-
-        // Add the event listener to the target
-        target.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
-
-        let handle = TargetEvent {
-            target: target.clone(),
-            event_name: event_name.to_owned(),
-            closure,
-        };
-
-        self.events.push(EventToUnsubscribe::TargetEvent(handle));
-
-        Ok(())
-    }
-}
-
 // ----------------------------------------------------------------------------
 
 /// Install event listeners to register different input events
 /// and start running the given app.
-pub async fn start(
+///
+/// ``` no_run
+/// #[cfg(target_arch = "wasm32")]
+/// use wasm_bindgen::prelude::*;
+///
+/// /// This is the entry-point for all the web-assembly.
+/// /// This is called from the HTML.
+/// /// It loads the app, installs some callbacks, then returns.
+/// /// It returns a handle to the running app that can be stopped calling `AppRunner::stop_web`.
+/// /// You can add more callbacks like this if you want to call in to your code.
+/// #[cfg(target_arch = "wasm32")]
+/// #[wasm_bindgen]
+/// pub struct WebHandle {
+///     handle: AppRunnerRef,
+/// }
+/// #[cfg(target_arch = "wasm32")]
+/// #[wasm_bindgen]
+/// pub async fn start(canvas_id: &str) -> Result<WebHandle, eframe::wasm_bindgen::JsValue> {
+///     let web_options = eframe::WebOptions::default();
+///     eframe::start_web(
+///         canvas_id,
+///         web_options,
+///         Box::new(|cc| Box::new(MyEguiApp::new(cc))),
+///     )
+///     .await
+///     .map(|handle| WebHandle { handle })
+/// }
+/// ```
+///
+/// # Errors
+/// Failing to initialize WebGL graphics.
+pub async fn start_web(
     canvas_id: &str,
     web_options: crate::WebOptions,
     app_creator: epi::AppCreator,
 ) -> Result<AppRunnerRef, JsValue> {
     #[cfg(not(web_sys_unstable_apis))]
-    tracing::warn!(
+    log::warn!(
         "eframe compiled without RUSTFLAGS='--cfg=web_sys_unstable_apis'. Copying text won't work."
     );
     let follow_system_theme = web_options.follow_system_theme;
 
     let mut runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
     runner.warm_up()?;
-    start_runner(runner, follow_system_theme)
-}
+    let runner_ref = AppRunnerRef::new(runner);
 
-/// Install event listeners to register different input events
-/// and starts running the given [`AppRunner`].
-fn start_runner(app_runner: AppRunner, follow_system_theme: bool) -> Result<AppRunnerRef, JsValue> {
-    let mut runner_container = AppRunnerContainer {
-        runner: Arc::new(Mutex::new(app_runner)),
-        panicked: Arc::new(AtomicBool::new(false)),
-        events: Vec::with_capacity(20),
-    };
-
-    super::events::install_canvas_events(&mut runner_container)?;
-    super::events::install_document_events(&mut runner_container)?;
-    super::events::install_window_events(&mut runner_container)?;
-    text_agent::install_text_agent(&mut runner_container)?;
-
-    if follow_system_theme {
-        super::events::install_color_scheme_change_event(&mut runner_container)?;
+    // Install events:
+    {
+        super::events::install_canvas_events(&runner_ref)?;
+        super::events::install_document_events(&runner_ref)?;
+        super::events::install_window_events(&runner_ref)?;
+        text_agent::install_text_agent(&runner_ref)?;
+        if follow_system_theme {
+            super::events::install_color_scheme_change_event(&runner_ref)?;
+        }
+        super::events::paint_and_schedule(&runner_ref)?;
     }
 
-    super::events::paint_and_schedule(&runner_container.runner, runner_container.panicked.clone())?;
+    // Instal panic handler:
+    {
+        // Disable all event handlers on panic
+        let previous_hook = std::panic::take_hook();
+        let panic_handler = runner_ref.panic_handler.clone();
 
-    // Disable all event handlers on panic
-    let previous_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |panic_info| {
+            log::info!("eframe detected a panic");
+            panic_handler.lock().on_panic(panic_info);
 
-    runner_container.runner.lock().events_to_unsubscribe = runner_container.events;
+            // Propagate panic info to the previously registered panic hook
+            previous_hook(panic_info);
+        }));
+    }
 
-    std::panic::set_hook(Box::new(move |panic_info| {
-        tracing::info!("egui disabled all event handlers due to panic");
-        runner_container.panicked.store(true, SeqCst);
-
-        // Propagate panic info to the previously registered panic hook
-        previous_hook(panic_info);
-    }));
-
-    Ok(runner_container.runner)
+    Ok(runner_ref)
 }
 
 // ----------------------------------------------------------------------------

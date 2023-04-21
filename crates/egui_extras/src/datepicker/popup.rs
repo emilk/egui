@@ -155,7 +155,7 @@ impl<'a> DatePickerPopup<'a> {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                                     if ui
                                         .button("<<<")
-                                        .on_hover_text("substract one year")
+                                        .on_hover_text("subtract one year")
                                         .clicked()
                                     {
                                         popup_state.year -= 1;
@@ -171,7 +171,7 @@ impl<'a> DatePickerPopup<'a> {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                                     if ui
                                         .button("<<")
-                                        .on_hover_text("substract one month")
+                                        .on_hover_text("subtract one month")
                                         .clicked()
                                     {
                                         popup_state.month -= 1;
@@ -189,7 +189,7 @@ impl<'a> DatePickerPopup<'a> {
                             });
                             strip.cell(|ui| {
                                 ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
-                                    if ui.button("<").on_hover_text("substract one day").clicked() {
+                                    if ui.button("<").on_hover_text("subtract one day").clicked() {
                                         popup_state.day -= 1;
                                         if popup_state.day == 0 {
                                             popup_state.month -= 1;

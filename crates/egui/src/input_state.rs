@@ -104,6 +104,11 @@ pub struct InputState {
     /// and will effectively slow down the animation when FPS drops below 10.
     pub stable_dt: f32,
 
+    /// The native window has the keyboard focus (i.e. is receiving key presses).
+    ///
+    /// False when the user alt-tab away from the application, for instance.
+    pub focused: bool,
+
     /// Which modifier keys are down at the start of the frame?
     pub modifiers: Modifiers,
 
@@ -129,6 +134,7 @@ impl Default for InputState {
             unstable_dt: 1.0 / 60.0,
             predicted_dt: 1.0 / 60.0,
             stable_dt: 1.0 / 60.0,
+            focused: false,
             modifiers: Default::default(),
             keys_down: Default::default(),
             events: Default::default(),
@@ -189,6 +195,20 @@ impl InputState {
             }
         }
 
+        let mut modifiers = new.modifiers;
+
+        let focused_changed = self.focused != new.focused
+            || new
+                .events
+                .iter()
+                .any(|e| matches!(e, Event::WindowFocused(_)));
+        if focused_changed {
+            // It is very common for keys to become stuck when we alt-tab, or a save-dialog opens by Ctrl+S.
+            // Therefore we clear all the modifiers and down keys here to avoid that.
+            modifiers = Default::default();
+            keys_down = Default::default();
+        }
+
         InputState {
             pointer,
             touch_states: self.touch_states,
@@ -201,7 +221,8 @@ impl InputState {
             unstable_dt,
             predicted_dt: new.predicted_dt,
             stable_dt,
-            modifiers: new.modifiers,
+            focused: new.focused,
+            modifiers,
             keys_down,
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
@@ -926,6 +947,7 @@ impl InputState {
             unstable_dt,
             predicted_dt,
             stable_dt,
+            focused,
             modifiers,
             keys_down,
             events,
@@ -969,6 +991,7 @@ impl InputState {
         ));
         ui.label(format!("predicted_dt: {:.1} ms", 1e3 * predicted_dt));
         ui.label(format!("stable_dt:    {:.1} ms", 1e3 * stable_dt));
+        ui.label(format!("focused:   {}", focused));
         ui.label(format!("modifiers: {:#?}", modifiers));
         ui.label(format!("keys_down: {:?}", keys_down));
         ui.scope(|ui| {

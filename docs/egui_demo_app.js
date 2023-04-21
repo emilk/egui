@@ -351,10 +351,10 @@ class WebHandle {
     /**
     * @param {string} _some_data
     */
-    set_some_content_from_javasript(_some_data) {
+    set_some_content_from_javascript(_some_data) {
         const ptr0 = passStringToWasm0(_some_data, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
-        wasm.webhandle_set_some_content_from_javasript(this.ptr, ptr0, len0);
+        wasm.webhandle_set_some_content_from_javascript(this.ptr, ptr0, len0);
     }
 }
 __exports.WebHandle = WebHandle;

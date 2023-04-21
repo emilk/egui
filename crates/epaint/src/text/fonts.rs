@@ -67,12 +67,13 @@ impl std::hash::Hash for FontId {
 ///
 /// Which style of font: [`Monospace`][`FontFamily::Monospace`], [`Proportional`][`FontFamily::Proportional`],
 /// or by user-chosen name.
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum FontFamily {
     /// A font where some characters are wider than other (e.g. 'w' is wider than 'i').
     ///
     /// Proportional fonts are easier to read and should be the preferred choice in most situations.
+    #[default]
     Proportional,
 
     /// A font where each character is the same width (`w` is the same width as `i`).
@@ -89,13 +90,6 @@ pub enum FontFamily {
     /// FontFamily::Name("serif".into());
     /// ```
     Name(Arc<str>),
-}
-
-impl Default for FontFamily {
-    #[inline]
-    fn default() -> Self {
-        FontFamily::Proportional
-    }
 }
 
 impl std::fmt::Display for FontFamily {

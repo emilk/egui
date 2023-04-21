@@ -6,6 +6,8 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 ## Unreleased
 * Add `char_limit` to `TextEdit` singleline mode to limit the amount of characters
+* ⚠️ BREAKING: `Plot::link_axis` and `Plot::link_cursor` now take the name of the group ([#2410](https://github.com/emilk/egui/pull/2410)).
+* Update `Plot::allow_zoom` and `Plot::allow_drag` to allow setting those values for X and Y axes independently ([#2901](https://github.com/emilk/egui/pull/2901)).
 
 ## 0.21.0 - 2023-02-08 - Deadlock fix and style customizability
 * ⚠️ BREAKING: `egui::Context` now use closures for locking ([#2625](https://github.com/emilk/egui/pull/2625)):
@@ -390,7 +392,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * `Fonts::layout_job`: New text layout engine allowing mixing fonts, colors and styles, with underlining and strikethrough.
 * Added `ui.add_enabled(bool, widget)` to easily add a possibly disabled widget.
 * Added `ui.add_enabled_ui(bool, |ui| …)` to create a possibly disabled UI section.
-* Added feature `"serialize"` separatedly from `"persistence"`.
+* Added feature `"serialize"` separately from `"persistence"`.
 * Added `egui::widgets::global_dark_light_mode_buttons` to easily add buttons for switching the egui theme.
 * `TextEdit` can now be used to show text which can be selected and copied, but not edited.
 * Added `Memory::caches` for caching things from one frame to the next.
@@ -405,7 +407,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * MSRV (Minimum Supported Rust Version) is now `1.54.0`.
 * By default, `DragValue`s no longer show a tooltip when hovered. Change with `Style::explanation_tooltips`.
 * Smaller and nicer color picker.
-* `ScrollArea` will auto-shrink to content size unless told otherwise using `ScollArea::auto_shrink`.
+* `ScrollArea` will auto-shrink to content size unless told otherwise using `ScrollArea::auto_shrink`.
 * By default, `Slider`'s `clamp_to_range` is set to true.
 * Renamed `TextEdit::enabled` to `TextEdit::interactive`.
 * `ui.label` (and friends) now take `impl ToString` as argument instead of `impl Into<Label>`.
@@ -597,8 +599,8 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Fixed bug that would close a popup (e.g. the color picker) when clicking inside of it.
 
 ### Deprecated ☢️
-* Deprectated `combo_box_with_label` in favor of new `ComboBox`.
-* Deprectated type-specific constructors for `Slider` and `DragValue` (`Slider::f32`, `DragValue::usize` etc).
+* Deprecated `combo_box_with_label` in favor of new `ComboBox`.
+* Deprecated type-specific constructors for `Slider` and `DragValue` (`Slider::f32`, `DragValue::usize` etc).
 
 
 ## 0.10.0 - 2021-02-28 - Plot and polish
@@ -686,7 +688,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 ### Changed 🔧
 * Renamed `Srgba` to `Color32`.
-* All color contructions now starts with `from_`, e.g. `Color32::from_rgb`.
+* All color constructors now starts with `from_`, e.g. `Color32::from_rgb`.
 * Renamed `FontFamily::VariableWidth` to `FontFamily::Proportional`.
 * Removed `pixels_per_point` from `FontDefinitions`.
 

@@ -1,13 +1,19 @@
 # https://embarkstudios.github.io/cargo-deny/
 
+# Note: running just `cargo deny check` without a `--target` can result in
+# false positives due to https://github.com/EmbarkStudios/cargo-deny/issues/324
 targets = [
     { triple = "aarch64-apple-darwin" },
-    { triple = "aarch64-linux-android" },
+    { triple = "i686-pc-windows-gnu" },
+    { triple = "i686-pc-windows-msvc" },
+    { triple = "i686-unknown-linux-gnu" },
     { triple = "wasm32-unknown-unknown" },
     { triple = "x86_64-apple-darwin" },
+    { triple = "x86_64-pc-windows-gnu" },
     { triple = "x86_64-pc-windows-msvc" },
     { triple = "x86_64-unknown-linux-gnu" },
     { triple = "x86_64-unknown-linux-musl" },
+    { triple = "x86_64-unknown-redox" },
 ]
 
 [advisories]
@@ -30,10 +36,10 @@ deny = [
 ]
 
 skip = [
-    { name = "ahash" },               # old version via dark-light
     { name = "arrayvec" },            # old version via tiny-skiaz
-    { name = "hashbrown" },           # old version via dark-light
+    { name = "libloading" },          # wgpu-hal itself depends on 0.8 while some of its dependencies, like ash and d3d12, depend on 0.7
     { name = "nix" },                 # old version via winit
+    { name = "redox_syscall" },       # old version via winit
     { name = "time" },                # old version pulled in by unmaintianed crate 'chrono'
     { name = "tiny-skia" },           # winit uses a different version from egui_extras (TODO(emilk): update egui_extras!)
     { name = "ttf-parser" },          # different versions pulled in by ab_glyph and usvg

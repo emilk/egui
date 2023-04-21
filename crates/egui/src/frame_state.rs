@@ -21,7 +21,6 @@ pub(crate) struct AccessKitFrameState {
 #[derive(Clone)]
 pub(crate) struct FrameState {
     /// All [`Id`]s that were used this frame.
-    /// Used to debug [`Id`] clashes of widgets.
     pub(crate) used_ids: IdMap<Rect>,
 
     /// Starts off as the screen_rect, shrinks as panels are added.

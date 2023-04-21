@@ -3,10 +3,11 @@
 use crate::*;
 
 /// left/center/right or top/center/bottom alignment for e.g. anchors and layouts.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Align {
     /// Left or top.
+    #[default]
     Min,
 
     /// Horizontal or vertical center.
@@ -133,13 +134,6 @@ impl Align {
             }
             Self::Max => max - size..=max,
         }
-    }
-}
-
-impl Default for Align {
-    #[inline(always)]
-    fn default() -> Align {
-        Align::Min
     }
 }
 

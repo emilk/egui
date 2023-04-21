@@ -57,7 +57,7 @@ impl WebPainterWgpu {
 
     #[allow(unused)] // only used if `wgpu` is the only active feature.
     pub async fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String> {
-        tracing::debug!("Creating wgpu painter");
+        log::debug!("Creating wgpu painter");
 
         let canvas = super::canvas_element_or_die(canvas_id);
 
@@ -66,7 +66,7 @@ impl WebPainterWgpu {
             dx12_shader_compiler: Default::default(),
         });
         let surface = instance
-            .create_surface_from_canvas(&canvas)
+            .create_surface_from_canvas(canvas.clone())
             .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
 
         let adapter = instance
@@ -108,7 +108,7 @@ impl WebPainterWgpu {
             view_formats: vec![target_format],
         };
 
-        tracing::debug!("wgpu painter initialized.");
+        log::debug!("wgpu painter initialized.");
 
         Ok(Self {
             canvas,

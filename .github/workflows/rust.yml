@@ -65,6 +65,12 @@ jobs:
           command: check
           args: --locked --no-default-features --lib --all-targets
 
+      - name: check epaint --no-default-features
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked --no-default-features --lib --all-targets -p epaint
+
       - name: check eframe --no-default-features
         uses: actions-rs/cargo@v1
         with:
@@ -148,13 +154,10 @@ jobs:
         with:
           version: "0.2.84"
 
-      - run: ./sh/wasm_bindgen_check.sh --skip-setup
+      - run: ./scripts/wasm_bindgen_check.sh --skip-setup
 
       - name: Cranky wasm32
-        uses: actions-rs/cargo@v1
-        with:
-          command: cranky
-          args: --target wasm32-unknown-unknown --all-features -p egui_demo_app --lib -- -D warnings
+        run: ./scripts/clippy_wasm.sh
 
   # ---------------------------------------------------------------------------
 
@@ -165,10 +168,16 @@ jobs:
         include:
           - target: aarch64-apple-darwin
           - target: aarch64-linux-android
+          - target: i686-pc-windows-gnu
+          - target: i686-pc-windows-msvc
+          - target: i686-unknown-linux-gnu
           - target: wasm32-unknown-unknown
+          - target: x86_64-apple-darwin
+          - target: x86_64-pc-windows-gnu
           - target: x86_64-pc-windows-msvc
           - target: x86_64-unknown-linux-gnu
-          # - target: x86_64-unknown-linux-musl
+          - target: x86_64-unknown-linux-musl
+          - target: x86_64-unknown-redox
 
     name: cargo-deny ${{ matrix.target }}
     runs-on: ubuntu-22.04
@@ -199,7 +208,7 @@ jobs:
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2
 
-      - run: cargo check --features wgpu --target aarch64-linux-android
+      - run: cargo check --features wgpu,android-native-activity --target aarch64-linux-android
         working-directory: crates/eframe
 
   # ---------------------------------------------------------------------------

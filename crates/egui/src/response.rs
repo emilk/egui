@@ -57,6 +57,7 @@ pub struct Response {
     pub double_clicked: [bool; NUM_POINTER_BUTTONS],
 
     /// The thing was triple-clicked.
+    #[doc(hidden)]
     pub triple_clicked: [bool; NUM_POINTER_BUTTONS],
 
     /// The widgets is being dragged
@@ -232,7 +233,7 @@ impl Response {
     /// also has the keyboard focus. That makes this function suitable
     /// for style choices, e.g. a thicker border around focused widgets.
     pub fn has_focus(&self) -> bool {
-        self.ctx.input(|i| i.raw.has_focus) && self.ctx.memory(|mem| mem.has_focus(self.id))
+        self.ctx.input(|i| i.focused) && self.ctx.memory(|mem| mem.has_focus(self.id))
     }
 
     /// True if this widget has keyboard focus this frame, but didn't last frame.

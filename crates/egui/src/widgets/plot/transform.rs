@@ -181,10 +181,10 @@ impl PlotBounds {
     }
 }
 
-/// Contains the screen rectangle and the plot bounds and provides methods to transform them.
+/// Contains the screen rectangle and the plot bounds and provides methods to transform between them.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Clone)]
-pub(crate) struct ScreenTransform {
+#[derive(Clone, Copy, Debug)]
+pub struct PlotTransform {
     /// The screen rectangle.
     frame: Rect,
 
@@ -198,7 +198,7 @@ pub(crate) struct ScreenTransform {
     y_centered: bool,
 }
 
-impl ScreenTransform {
+impl PlotTransform {
     pub fn new(frame: Rect, mut bounds: PlotBounds, x_centered: bool, y_centered: bool) -> Self {
         // Make sure they are not empty.
         if !bounds.is_valid_x() {
@@ -229,15 +229,16 @@ impl ScreenTransform {
         &self.frame
     }
 
+    /// Plot-space bounds.
     pub fn bounds(&self) -> &PlotBounds {
         &self.bounds
     }
 
-    pub fn set_bounds(&mut self, bounds: PlotBounds) {
+    pub(crate) fn set_bounds(&mut self, bounds: PlotBounds) {
         self.bounds = bounds;
     }
 
-    pub fn translate_bounds(&mut self, mut delta_pos: Vec2) {
+    pub(crate) fn translate_bounds(&mut self, mut delta_pos: Vec2) {
         if self.x_centered {
             delta_pos.x = 0.;
         }
@@ -250,7 +251,7 @@ impl ScreenTransform {
     }
 
     /// Zoom by a relative factor with the given screen position as center.
-    pub fn zoom(&mut self, zoom_factor: Vec2, center: Pos2) {
+    pub(crate) fn zoom(&mut self, zoom_factor: Vec2, center: Pos2) {
         let center = self.value_from_position(center);
 
         let mut new_bounds = self.bounds;
@@ -280,6 +281,7 @@ impl ScreenTransform {
         ) as f32
     }
 
+    /// Screen/ui position from point on plot.
     pub fn position_from_point(&self, value: &PlotPoint) -> Pos2 {
         pos2(
             self.position_from_point_x(value.x),
@@ -287,6 +289,7 @@ impl ScreenTransform {
         )
     }
 
+    /// Plot point from screen/ui position.
     pub fn value_from_position(&self, pos: Pos2) -> PlotPoint {
         let x = remap(
             pos.x as f64,
@@ -335,6 +338,7 @@ impl ScreenTransform {
         [1.0 / self.dpos_dvalue_x(), 1.0 / self.dpos_dvalue_y()]
     }
 
+    /// width / height aspect ratio
     fn aspect(&self) -> f64 {
         let rw = self.frame.width() as f64;
         let rh = self.frame.height() as f64;
@@ -344,7 +348,7 @@ impl ScreenTransform {
     /// Sets the aspect ratio by expanding the x- or y-axis.
     ///
     /// This never contracts, so we don't miss out on any data.
-    pub fn set_aspect_by_expanding(&mut self, aspect: f64) {
+    pub(crate) fn set_aspect_by_expanding(&mut self, aspect: f64) {
         let current_aspect = self.aspect();
 
         let epsilon = 1e-5;
@@ -363,7 +367,7 @@ impl ScreenTransform {
     }
 
     /// Sets the aspect ratio by changing either the X or Y axis (callers choice).
-    pub fn set_aspect_by_changing_axis(&mut self, aspect: f64, change_x: bool) {
+    pub(crate) fn set_aspect_by_changing_axis(&mut self, aspect: f64, change_x: bool) {
         let current_aspect = self.aspect();
 
         let epsilon = 1e-5;

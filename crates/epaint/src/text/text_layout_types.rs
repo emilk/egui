@@ -850,7 +850,7 @@ impl Galley {
                 // keep same X coord
                 let x = self.pos_from_cursor(cursor).center().x;
                 let column = if x > self.rows[new_row].rect.right() {
-                    // beyond the end of this row - keep same colum
+                    // beyond the end of this row - keep same column
                     cursor.rcursor.column
                 } else {
                     self.rows[new_row].char_at(x)

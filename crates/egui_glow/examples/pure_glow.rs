@@ -39,7 +39,7 @@ impl GlutinWindowContext {
             .with_stencil_size(0)
             .with_transparency(false);
 
-        tracing::debug!("trying to get gl_config");
+        log::debug!("trying to get gl_config");
         let (mut window, gl_config) =
             glutin_winit::DisplayBuilder::new() // let glutin-winit helper crate handle the complex parts of opengl context creation
                 .with_preference(glutin_winit::ApiPrefence::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
@@ -55,10 +55,10 @@ impl GlutinWindowContext {
                 )
                 .expect("failed to create gl_config");
         let gl_display = gl_config.display();
-        tracing::debug!("found gl_config: {:?}", &gl_config);
+        log::debug!("found gl_config: {:?}", &gl_config);
 
         let raw_window_handle = window.as_ref().map(|w| w.raw_window_handle());
-        tracing::debug!("raw window handle: {:?}", raw_window_handle);
+        log::debug!("raw window handle: {:?}", raw_window_handle);
         let context_attributes =
             glutin::context::ContextAttributesBuilder::new().build(raw_window_handle);
         // by default, glutin will try to create a core opengl context. but, if it is not available, try to create a gl-es context using this fallback attributes
@@ -69,7 +69,7 @@ impl GlutinWindowContext {
             gl_display
                     .create_context(&gl_config, &context_attributes)
                     .unwrap_or_else(|_| {
-                        tracing::debug!("failed to create gl_context with attributes: {:?}. retrying with fallback context attributes: {:?}",
+                        log::debug!("failed to create gl_context with attributes: {:?}. retrying with fallback context attributes: {:?}",
                             &context_attributes,
                             &fallback_context_attributes);
                         gl_config
@@ -81,7 +81,7 @@ impl GlutinWindowContext {
 
         // this is where the window is created, if it has not been created while searching for suitable gl_config
         let window = window.take().unwrap_or_else(|| {
-            tracing::debug!("window doesn't exist yet. creating one now with finalize_window");
+            log::debug!("window doesn't exist yet. creating one now with finalize_window");
             glutin_winit::finalize_window(event_loop, winit_window_builder.clone(), &gl_config)
                 .expect("failed to finalize glutin window")
         });
@@ -91,7 +91,7 @@ impl GlutinWindowContext {
         let surface_attributes =
             glutin::surface::SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new()
                 .build(window.raw_window_handle(), width, height);
-        tracing::debug!(
+        log::debug!(
             "creating surface with attributes: {:?}",
             &surface_attributes
         );
@@ -100,7 +100,7 @@ impl GlutinWindowContext {
                 .create_window_surface(&gl_config, &surface_attributes)
                 .unwrap()
         };
-        tracing::debug!("surface created successfully: {gl_surface:?}.making context current");
+        log::debug!("surface created successfully: {gl_surface:?}.making context current");
         let gl_context = not_current_gl_context.make_current(&gl_surface).unwrap();
 
         gl_surface

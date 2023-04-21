@@ -63,8 +63,10 @@ pub struct RawInput {
     /// drag-and-drop support using `eframe::NativeOptions`.
     pub dropped_files: Vec<DroppedFile>,
 
-    /// The window has the keyboard focus (i.e. is receiving key presses).
-    pub has_focus: bool,
+    /// The native window has the keyboard focus (i.e. is receiving key presses).
+    ///
+    /// False when the user alt-tab away from the application, for instance.
+    pub focused: bool,
 }
 
 impl Default for RawInput {
@@ -79,7 +81,7 @@ impl Default for RawInput {
             events: vec![],
             hovered_files: Default::default(),
             dropped_files: Default::default(),
-            has_focus: true, // integrations opt into global focus tracking
+            focused: true, // integrations opt into global focus tracking
         }
     }
 }
@@ -100,7 +102,7 @@ impl RawInput {
             events: std::mem::take(&mut self.events),
             hovered_files: self.hovered_files.clone(),
             dropped_files: std::mem::take(&mut self.dropped_files),
-            has_focus: self.has_focus,
+            focused: self.focused,
         }
     }
 
@@ -116,7 +118,7 @@ impl RawInput {
             mut events,
             mut hovered_files,
             mut dropped_files,
-            has_focus,
+            focused,
         } = newer;
 
         self.screen_rect = screen_rect.or(self.screen_rect);
@@ -128,7 +130,7 @@ impl RawInput {
         self.events.append(&mut events);
         self.hovered_files.append(&mut hovered_files);
         self.dropped_files.append(&mut dropped_files);
-        self.has_focus = has_focus;
+        self.focused = focused;
     }
 }
 
@@ -277,6 +279,25 @@ pub enum Event {
         /// The value is in the range from 0.0 (no pressure) to 1.0 (maximum pressure).
         force: f32,
     },
+
+    /// A raw mouse wheel event as sent by the backend (minus the z coordinate),
+    /// for implementing alternative custom controls.
+    /// Note that the same event can also trigger [`Self::Zoom`] and [`Self::Scroll`],
+    /// so you probably want to handle only one of them.
+    MouseWheel {
+        /// The unit of scrolling: points, lines, or pages.
+        unit: MouseWheelUnit,
+
+        /// The amount scrolled horizontally and vertically. The amount and direction corresponding
+        /// to one step of the wheel depends on the platform.
+        delta: Vec2,
+
+        /// The state of the modifier keys at the time of the event.
+        modifiers: Modifiers,
+    },
+
+    /// The native window gained or lost focused (e.g. the user clicked alt-tab).
+    WindowFocused(bool),
 
     /// An assistive technology (e.g. screen reader) requested an action.
     #[cfg(feature = "accesskit")]
@@ -831,7 +852,7 @@ impl RawInput {
             events,
             hovered_files,
             dropped_files,
-            has_focus,
+            focused,
         } = self;
 
         ui.label(format!("screen_rect: {:?} points", screen_rect));
@@ -849,7 +870,7 @@ impl RawInput {
         ui.label(format!("modifiers: {:#?}", modifiers));
         ui.label(format!("hovered_files: {}", hovered_files.len()));
         ui.label(format!("dropped_files: {}", dropped_files.len()));
-        ui.label(format!("has_focus: {}", has_focus));
+        ui.label(format!("focused: {}", focused));
         ui.scope(|ui| {
             ui.set_min_height(150.0);
             ui.label(format!("events: {:#?}", events))
@@ -889,6 +910,20 @@ pub enum TouchPhase {
     /// maybe a pop-up alert or any other kind of interruption which may not have
     /// been intended by the user)
     Cancel,
+}
+
+/// The unit associated with the numeric value of a mouse wheel event
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum MouseWheelUnit {
+    /// Number of ui points (logical pixels)
+    Point,
+
+    /// Number of lines
+    Line,
+
+    /// Number of pages
+    Page,
 }
 
 impl From<u64> for TouchId {

@@ -37,7 +37,7 @@ bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
 
-## [`mint`](https://docs.rs/mint) enables interopability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
+## [`mint`](https://docs.rs/mint) enables interoperability with other math libraries such as [`glam`](https://docs.rs/glam) and [`nalgebra`](https://docs.rs/nalgebra).
 mint = { version = "0.5.6", optional = true }
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
