@@ -12,6 +12,7 @@ use super::web_painter::WebPainter;
 
 struct EguiWebWindow(u32);
 
+#[allow(unsafe_code)]
 unsafe impl raw_window_handle::HasRawWindowHandle for EguiWebWindow {
     fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
         let mut window_handle = raw_window_handle::WebWindowHandle::empty();
@@ -20,6 +21,7 @@ unsafe impl raw_window_handle::HasRawWindowHandle for EguiWebWindow {
     }
 }
 
+#[allow(unsafe_code)]
 unsafe impl raw_window_handle::HasRawDisplayHandle for EguiWebWindow {
     fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
         raw_window_handle::RawDisplayHandle::Web(raw_window_handle::WebDisplayHandle::empty())
@@ -87,6 +89,7 @@ impl WebPainterWgpu {
             dx12_shader_compiler: Default::default(),
         });
 
+        #[allow(unsafe_code)]
         let surface = unsafe { instance.create_surface(&raw_window) }
             .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
 
