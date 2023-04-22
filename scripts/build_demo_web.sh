@@ -13,21 +13,24 @@ export RUSTFLAGS=--cfg=web_sys_unstable_apis
 CRATE_NAME="egui_demo_app"
 
  # NOTE: persistence use up about 400kB (10%) of the WASM!
-FEATURES="glow,http,persistence,web_screen_reader"
+FEATURES="http,persistence,web_screen_reader"
 
 OPEN=false
 OPTIMIZE=false
 BUILD=debug
 BUILD_FLAGS=""
+WEB_GPU=false
 
 while test $# -gt 0; do
   case "$1" in
     -h|--help)
-      echo "build_demo_web.sh [--release] [--open]"
+      echo "build_demo_web.sh [--release] [--webgpu] [--open]"
       echo ""
       echo "  --release: Build with --release, and enable extra optimization step"
       echo "             Runs wasm-opt."
       echo "             NOTE: --release also removes debug symbols which are otherwise useful for in-browser profiling."
+      echo ""
+      echo "  --webgpu:  Build a binary for WebGPU instead of WebGL"
       echo ""
       echo "  --open:     Open the result in a browser"
       exit 0
@@ -40,6 +43,11 @@ while test $# -gt 0; do
       BUILD_FLAGS="--release"
       ;;
 
+    --webgpu)
+      shift
+      WEB_GPU=true
+      ;;
+
     --open)
       shift
       OPEN=true
@@ -50,6 +58,12 @@ while test $# -gt 0; do
       ;;
   esac
 done
+
+if [[ "${WEB_GPU}" == true ]]; then
+  FEATURES="${FEATURES},wgpu"
+else
+  FEATURES="${FEATURES},glow"
+fi
 
 # Clear output from old stuff:
 rm -f "docs/${CRATE_NAME}_bg.wasm"
