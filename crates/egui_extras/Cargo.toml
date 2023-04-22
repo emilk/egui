@@ -39,6 +39,11 @@ log = ["dep:log", "egui/log"]
 [dependencies]
 egui = { version = "0.21.0", path = "../egui", default-features = false }
 
+# For dock:
+# required to make rand work on wasm, see https://github.com/rust-random/rand#wasm-support
+getrandom = { version = "0.2", features = ["js"] }
+rand = { version = "0.8.5", features = ["getrandom", "small_rng"] }
+
 serde = { version = "1", features = ["derive"] }
 
 #! ### Optional dependencies

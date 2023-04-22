@@ -13,6 +13,7 @@
 #[cfg(feature = "chrono")]
 mod datepicker;
 
+pub mod dock;
 pub mod image;
 mod layout;
 mod sizing;
