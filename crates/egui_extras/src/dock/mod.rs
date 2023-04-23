@@ -86,8 +86,7 @@ pub enum NodeLayout<Leaf> {
     Leaf(Leaf),
     Tabs(Tabs),
     Horizontal(Horizontal),
-    // Vertical(Vertical)
-    // Grid(Grid)
+    Vertical(Vertical),
 }
 
 impl<Leaf> NodeLayout<Leaf> {
@@ -96,6 +95,7 @@ impl<Leaf> NodeLayout<Leaf> {
             NodeLayout::Leaf(_) => "Leaf",
             NodeLayout::Tabs(_) => "Tabs",
             NodeLayout::Horizontal(_) => "Horizontal",
+            NodeLayout::Vertical(_) => "Vertical",
         }
     }
 }
@@ -108,6 +108,12 @@ pub struct Tabs {
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Horizontal {
+    pub children: Vec<NodeId>,
+    pub shares: Shares,
+}
+
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct Vertical {
     pub children: Vec<NodeId>,
     pub shares: Shares,
 }
@@ -224,6 +230,10 @@ impl<Leaf> Dock<Leaf> {
 }
 
 impl<Leaf> Nodes<Leaf> {
+    pub fn get(&self, node_id: NodeId) -> Option<&NodeLayout<Leaf>> {
+        self.nodes.get(&node_id).map(|node| &node.layout)
+    }
+
     #[must_use]
     pub fn insert_node(&mut self, node: NodeState<Leaf>) -> NodeId {
         let id = NodeId::random();
@@ -254,8 +264,83 @@ impl<Leaf> Nodes<Leaf> {
         self.insert_node(NodeLayout::Horizontal(horizontal).into())
     }
 
-    pub fn get(&self, node_id: NodeId) -> Option<&NodeLayout<Leaf>> {
-        self.nodes.get(&node_id).map(|node| &node.layout)
+    fn remove_node_id_from_parent(&mut self, it: NodeId, remove: NodeId) {
+        let Some(mut node) = self.nodes.remove(&it) else { return; };
+        match &mut node.layout {
+            NodeLayout::Leaf(_) => {}
+            NodeLayout::Tabs(Tabs { children, .. })
+            | NodeLayout::Horizontal(Horizontal { children, .. })
+            | NodeLayout::Vertical(Vertical { children, .. }) => {
+                children.retain(|&child| {
+                    self.remove_node_id_from_parent(child, remove);
+                    child != remove
+                });
+            }
+        }
+        self.nodes.insert(it, node);
+    }
+
+    fn insert(&mut self, insertion_point: InsertionPoint, child: NodeId) {
+        let InsertionPoint {
+            parent_id,
+            layout_type,
+            index,
+        } = insertion_point;
+        let Some(mut node) = self.nodes.remove(&parent_id) else {
+            #[cfg(feature = "log")]
+            log::warn!("failed to insert");
+            return;
+        };
+        match layout_type {
+            LayoutType::Tabs => {
+                if let NodeLayout::Tabs(layout) = &mut node.layout {
+                    let index = index.min(layout.children.len());
+                    layout.children.insert(index, child);
+                    self.nodes.insert(parent_id, node);
+                } else {
+                    let new_node_id = self.insert_node(node);
+                    let mut layout = Tabs {
+                        children: vec![new_node_id],
+                        active: new_node_id,
+                    };
+                    layout.children.insert(index.min(1), child);
+                    self.nodes
+                        .insert(parent_id, NodeLayout::Tabs(layout).into());
+                }
+            }
+            LayoutType::Horizontal => {
+                if let NodeLayout::Horizontal(layout) = &mut node.layout {
+                    let index = index.min(layout.children.len());
+                    layout.children.insert(index, child);
+                    self.nodes.insert(parent_id, node);
+                } else {
+                    let new_node_id = self.insert_node(node);
+                    let mut layout = Horizontal {
+                        children: vec![new_node_id],
+                        shares: Default::default(),
+                    };
+                    layout.children.insert(index.min(1), child);
+                    self.nodes
+                        .insert(parent_id, NodeLayout::Horizontal(layout).into());
+                }
+            }
+            LayoutType::Vertical => {
+                if let NodeLayout::Vertical(layout) = &mut node.layout {
+                    let index = index.min(layout.children.len());
+                    layout.children.insert(index, child);
+                    self.nodes.insert(parent_id, node);
+                } else {
+                    let new_node_id = self.insert_node(node);
+                    let mut layout = Vertical {
+                        children: vec![new_node_id],
+                        shares: Default::default(),
+                    };
+                    layout.children.insert(index.min(1), child);
+                    self.nodes
+                        .insert(parent_id, NodeLayout::Vertical(layout).into());
+                }
+            }
+        }
     }
 }
 
@@ -275,12 +360,22 @@ impl<Leaf> Dock<Leaf> {
             self.root,
         );
 
-        self.nodes.node_ui(behavior, ui, self.root);
-
         // Check if anything is being dragged:
-        let mouse_pos = ui.input(|i| i.pointer.hover_pos());
-        let dragged_id = self.dragged_id(ui.ctx());
-        if let (Some(mouse_pos), Some(dragged_node_id)) = (mouse_pos, dragged_id) {
+        let mut drop_context = DropContext {
+            active: true,
+            dragged_node_id: self.dragged_id(ui.ctx()),
+            mouse_pos: ui.input(|i| i.pointer.hover_pos()),
+            best_dist_sq: f32::INFINITY,
+            best_insertion: None,
+            preview_rect: None,
+        };
+
+        self.nodes
+            .node_ui(behavior, &mut drop_context, ui, self.root);
+
+        if let (Some(mouse_pos), Some(dragged_node_id)) =
+            (drop_context.mouse_pos, drop_context.dragged_node_id)
+        {
             // Preview what is being dragged:
             egui::Area::new(Id::new((dragged_node_id, "preview")))
                 .pivot(egui::Align2::CENTER_CENTER)
@@ -294,36 +389,28 @@ impl<Leaf> Dock<Leaf> {
                     });
                 });
 
-            let mut drop_context = DropContext {
-                dragged_node_id,
-                mouse_pos,
-                best_dist_sq: f32::INFINITY,
-                target_node_id: None,
-                preview_rect: None,
-            };
-            self.nodes.find_drop_target(&mut drop_context, self.root);
-
             if let Some(preview_rect) = drop_context.preview_rect {
-                ui.painter().rect_filled(
+                ui.painter().rect(
                     preview_rect,
                     1.0,
                     Color32::LIGHT_BLUE.gamma_multiply(0.5),
+                    (1.0, Color32::LIGHT_BLUE),
                 );
             }
 
-            // if ui.input(|i| i.pointer.any_released()) {
-            //     ui.memory_mut(|mem| mem.stop_dragging());
-            //     if let Some(target_node_id) = drop_context.target_node_id {
-            //         self.remove_node_id_from_parent(dragged_node_id);
-            //         // self.drop_node(behavior, target_node_id, dragged_node_id); // TODO
-            //     }
-            // }
+            if ui.input(|i| i.pointer.any_released()) {
+                ui.memory_mut(|mem| mem.stop_dragging());
+                if let Some(insertion_point) = drop_context.best_insertion {
+                    self.remove_node_id_from_parent(dragged_node_id);
+                    self.nodes.insert(insertion_point, dragged_node_id);
+                }
+            }
         }
     }
 
     /// Find the currently dragged node, if any.
     fn dragged_id(&self, ctx: &egui::Context) -> Option<NodeId> {
-        if ctx.input(|i| i.pointer.could_any_button_be_click()) {
+        if !is_possible_drag(ctx) {
             // We're not sure we're dragging _at all_ yet.
             return None;
         }
@@ -354,6 +441,10 @@ impl<Leaf> Dock<Leaf> {
     }
 }
 
+fn is_possible_drag(ctx: &egui::Context) -> bool {
+    ctx.input(|i| !i.pointer.could_any_button_be_click() && !i.pointer.any_pressed())
+}
+
 // ----------------------------------------------------------------------------
 // gc
 
@@ -367,6 +458,12 @@ impl<Leaf> Nodes<Leaf> {
     fn gc_root(&mut self, behavior: &mut dyn Behavior<Leaf>, root_id: NodeId) {
         let mut visited = HashSet::default();
         self.gc_node_id(behavior, &mut visited, root_id);
+
+        #[cfg(feature = "log")]
+        if visited.len() < self.nodes.len() {
+            log::warn!("GC collection {} nodes", self.nodes.len() - visited.len());
+        }
+
         self.nodes.retain(|node_id, _| visited.contains(node_id));
     }
 
@@ -379,7 +476,7 @@ impl<Leaf> Nodes<Leaf> {
         let Some(mut node) = self.nodes.remove(&node_id) else { return GcAction::Remove; };
         if !visited.insert(node_id) {
             #[cfg(feature = "log")]
-            log::warn!("Cycle detected in egui_extras::dock");
+            log::warn!("Cycle or duplication detected");
             return GcAction::Remove;
         }
 
@@ -390,7 +487,8 @@ impl<Leaf> Nodes<Leaf> {
                 }
             }
             NodeLayout::Tabs(Tabs { children, .. })
-            | NodeLayout::Horizontal(Horizontal { children, .. }) => {
+            | NodeLayout::Horizontal(Horizontal { children, .. })
+            | NodeLayout::Vertical(Vertical { children, .. }) => {
                 children
                     .retain(|&child| self.gc_node_id(behavior, visited, child) == GcAction::Keep);
             }
@@ -422,6 +520,9 @@ impl<Leaf> Nodes<Leaf> {
             NodeLayout::Horizontal(horizontal) => {
                 self.layout_horizontal(style, behavior, rect, horizontal);
             }
+            NodeLayout::Vertical(vertical) => {
+                self.layout_vertical(style, behavior, rect, vertical);
+            }
         }
 
         self.nodes.insert(node_id, node);
@@ -452,25 +553,48 @@ impl<Leaf> Nodes<Leaf> {
         style: &Style,
         behavior: &mut dyn Behavior<Leaf>,
         rect: Rect,
-        horizontal: &Horizontal,
+        layout: &Horizontal,
     ) {
-        if horizontal.children.is_empty() {
+        if layout.children.is_empty() {
             return;
         }
-        let num_gaps = horizontal.children.len() - 1;
+        let num_gaps = layout.children.len() - 1;
         let gap_width = behavior.gap_width(style);
         let total_gap_width = gap_width * num_gaps as f32;
         let available_width = (rect.width() - total_gap_width).at_least(0.0);
 
-        let widths = horizontal
-            .shares
-            .split(&horizontal.children, available_width);
+        let widths = layout.shares.split(&layout.children, available_width);
 
         let mut x = rect.min.x;
-        for (child, width) in horizontal.children.iter().zip(widths) {
+        for (child, width) in layout.children.iter().zip(widths) {
             let child_rect = Rect::from_min_size(pos2(x, rect.min.y), vec2(width, rect.height()));
             self.layout_node(style, behavior, child_rect, *child);
             x += width + gap_width;
+        }
+    }
+
+    fn layout_vertical(
+        &mut self,
+        style: &Style,
+        behavior: &mut dyn Behavior<Leaf>,
+        rect: Rect,
+        layout: &Vertical,
+    ) {
+        if layout.children.is_empty() {
+            return;
+        }
+        let num_gaps = layout.children.len() - 1;
+        let gap_height = behavior.gap_width(style);
+        let total_gap_height = gap_height * num_gaps as f32;
+        let available_height = (rect.height() - total_gap_height).at_least(0.0);
+
+        let heights = layout.shares.split(&layout.children, available_height);
+
+        let mut y = rect.min.y;
+        for (child, height) in layout.children.iter().zip(heights) {
+            let child_rect = Rect::from_min_size(pos2(rect.min.x, y), vec2(rect.width(), height));
+            self.layout_node(style, behavior, child_rect, *child);
+            y += height + gap_height;
         }
     }
 }
@@ -478,36 +602,140 @@ impl<Leaf> Nodes<Leaf> {
 // ----------------------------------------------------------------------------
 // ui
 
+enum LayoutType {
+    Tabs,
+    Horizontal,
+    Vertical,
+}
+
+struct InsertionPoint {
+    parent_id: NodeId,
+
+    layout_type: LayoutType,
+
+    /// Where in the parent?
+    index: usize,
+}
+
+struct DropContext {
+    active: bool,
+    dragged_node_id: Option<NodeId>,
+    mouse_pos: Option<Pos2>,
+
+    best_insertion: Option<InsertionPoint>,
+    best_dist_sq: f32,
+    preview_rect: Option<Rect>,
+}
+
+impl DropContext {
+    fn on_node(&mut self, parent_id: NodeId, rect: Rect) {
+        self.suggest_point(
+            InsertionPoint {
+                parent_id,
+                layout_type: LayoutType::Horizontal,
+                index: 0,
+            },
+            rect.left_center(),
+            rect.split_left_right_at_fraction(0.5).0,
+        );
+        self.suggest_point(
+            InsertionPoint {
+                parent_id,
+                layout_type: LayoutType::Horizontal,
+                index: usize::MAX,
+            },
+            rect.right_center(),
+            rect.split_left_right_at_fraction(0.5).1,
+        );
+        self.suggest_point(
+            InsertionPoint {
+                parent_id,
+                layout_type: LayoutType::Vertical,
+                index: 0,
+            },
+            rect.center_top(),
+            rect.split_top_bottom_at_fraction(0.5).0,
+        );
+        self.suggest_point(
+            InsertionPoint {
+                parent_id,
+                layout_type: LayoutType::Vertical,
+                index: usize::MAX,
+            },
+            rect.center_bottom(),
+            rect.split_top_bottom_at_fraction(0.5).1,
+        );
+        self.suggest_point(
+            InsertionPoint {
+                parent_id,
+                layout_type: LayoutType::Tabs,
+                index: 1,
+            },
+            rect.center(),
+            rect,
+        );
+    }
+
+    fn suggest_point(&mut self, insertion: InsertionPoint, target_point: Pos2, preview_rect: Rect) {
+        if let Some(mouse_pos) = self.mouse_pos {
+            let dist_sq = mouse_pos.distance_sq(target_point);
+            if dist_sq < self.best_dist_sq {
+                self.best_dist_sq = dist_sq;
+                self.best_insertion = Some(insertion);
+                self.preview_rect = Some(preview_rect);
+            }
+        }
+    }
+}
+
 impl<Leaf> Nodes<Leaf> {
-    fn node_ui(&mut self, behavior: &mut dyn Behavior<Leaf>, ui: &mut Ui, node_id: NodeId) {
+    fn node_ui(
+        &mut self,
+        behavior: &mut dyn Behavior<Leaf>,
+        drop_context: &mut DropContext,
+        ui: &mut Ui,
+        node_id: NodeId,
+    ) {
         let Some(mut node) = self.nodes.remove(&node_id) else { return };
+
+        let drop_context_was_active = drop_context.active;
+        if Some(node_id) == drop_context.dragged_node_id {
+            // Can't drag a node onto self or any children
+            drop_context.active = true;
+        }
+        drop_context.on_node(node_id, node.rect);
 
         match &mut node.layout {
             NodeLayout::Leaf(leaf) => {
                 let mut leaf_ui = ui.child_ui(node.rect, *ui.layout());
                 behavior.leaf_ui(&mut leaf_ui, node_id, leaf);
             }
-            NodeLayout::Tabs(tabs) => self.tabs_ui(behavior, ui, node.rect, tabs),
+            NodeLayout::Tabs(tabs) => {
+                self.tabs_ui(behavior, drop_context, ui, node.rect, node_id, tabs);
+            }
             NodeLayout::Horizontal(horizontal) => {
-                self.horizontal_ui(behavior, ui, node.rect, horizontal);
+                self.horizontal_ui(behavior, drop_context, ui, node_id, horizontal);
+            }
+            NodeLayout::Vertical(vertical) => {
+                self.vertical_ui(behavior, drop_context, ui, node_id, vertical);
             }
         };
+
         self.nodes.insert(node_id, node);
+        drop_context.active = drop_context_was_active;
     }
 
     fn tabs_ui(
         &mut self,
         behavior: &mut dyn Behavior<Leaf>,
+        drop_context: &mut DropContext,
         ui: &mut Ui,
         rect: Rect,
+        parent_id: NodeId,
         tabs: &mut Tabs,
     ) {
         let tab_bar_height = behavior.tab_bar_height(ui.style());
-        let tab_bar_rect = {
-            let mut r = rect;
-            r.max.y = r.min.y + tab_bar_height;
-            r
-        };
+        let tab_bar_rect = rect.split_top_bottom_at_y(rect.top() + tab_bar_height).0;
         let mut tab_bar_ui = ui.child_ui(tab_bar_rect, *ui.layout());
 
         // Show tab bar:
@@ -516,134 +744,53 @@ impl<Leaf> Nodes<Leaf> {
                 let selected = child_id == tabs.active;
                 let id = child_id.id();
 
-                let is_node_being_dragged = ui.memory(|mem| mem.is_being_dragged(id))
-                    && !ui.input(|i| i.pointer.could_any_button_be_click());
-                if is_node_being_dragged {
-                    continue; // leave a gap!
-                }
+                // let is_node_being_dragged = ui.memory(|mem| mem.is_being_dragged(id))
+                //     && is_possible_drag(ui.ctx());
+                // if is_node_being_dragged {
+                //     continue; // leave a gap!
+                // }
 
                 let response = behavior.tab_ui(self, ui, id, child_id, selected);
                 let response = response.on_hover_cursor(CursorIcon::Grab);
-                if response.clicked() || response.drag_started() {
+                if response.clicked() {
                     tabs.active = child_id;
+                }
+
+                if let Some(mouse_pos) = drop_context.mouse_pos {
+                    if drop_context.dragged_node_id.is_some() && response.rect.contains(mouse_pos) {
+                        // Expand this tab - maybe the user wants to drop something into it!
+                        tabs.active = child_id;
+                    }
                 }
             }
         });
 
-        self.node_ui(behavior, ui, tabs.active);
+        self.node_ui(behavior, drop_context, ui, tabs.active);
     }
 
     fn horizontal_ui(
         &mut self,
         behavior: &mut dyn Behavior<Leaf>,
+        drop_context: &mut DropContext,
         ui: &mut Ui,
-        _rect: Rect,
+        parent_id: NodeId,
         horizontal: &mut Horizontal,
     ) {
         for child in &horizontal.children {
-            self.node_ui(behavior, ui, *child);
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-// Dropping
-
-struct DropContext {
-    dragged_node_id: NodeId,
-    mouse_pos: Pos2,
-
-    target_node_id: Option<NodeId>,
-    best_dist_sq: f32,
-    preview_rect: Option<Rect>,
-}
-
-impl DropContext {
-    fn suggest_point(&mut self, node_id: NodeId, target_point: Pos2, preview_rect: Rect) {
-        let dist_sq = self.mouse_pos.distance_sq(target_point);
-        if dist_sq < self.best_dist_sq {
-            self.best_dist_sq = dist_sq;
-            self.target_node_id = Some(node_id);
-            self.preview_rect = Some(preview_rect);
-        }
-    }
-}
-
-impl<Leaf> Nodes<Leaf> {
-    fn find_drop_target(&self, drop_context: &mut DropContext, node_id: NodeId) {
-        if drop_context.dragged_node_id == node_id {
-            // Can't drag a node onto self or any children
-            return;
-        }
-        let Some(node) = self.nodes.get(&node_id) else { return; };
-
-        drop_context.suggest_point(
-            node_id,
-            node.rect.left_center(),
-            node.rect.split_left_right_at_fraction(0.5).0,
-        );
-        drop_context.suggest_point(
-            node_id,
-            node.rect.right_center(),
-            node.rect.split_left_right_at_fraction(0.5).1,
-        );
-        drop_context.suggest_point(
-            node_id,
-            node.rect.center_top(),
-            node.rect.split_top_bottom_at_fraction(0.5).0,
-        );
-        drop_context.suggest_point(
-            node_id,
-            node.rect.center_bottom(),
-            node.rect.split_top_bottom_at_fraction(0.5).1,
-        );
-        drop_context.suggest_point(node_id, node.rect.center(), node.rect);
-
-        match &node.layout {
-            NodeLayout::Leaf(_) => {}
-            NodeLayout::Tabs(Tabs { active, .. }) => {
-                if let Some(active_node) = self.nodes.get(active) {
-                    // Suggest dropping into tab bar
-                    let tabs_rect = active_node
-                        .rect
-                        .split_top_bottom_at_y(active_node.rect.top())
-                        .0;
-                    if tabs_rect.contains(drop_context.mouse_pos) {
-                        drop_context.suggest_point(node_id, drop_context.mouse_pos, tabs_rect)
-                    }
-                }
-
-                self.find_drop_target(drop_context, *active);
-            }
-            NodeLayout::Horizontal(Horizontal { children, .. }) => {
-                for &child in children {
-                    self.find_drop_target(drop_context, child);
-                }
-            }
+            self.node_ui(behavior, drop_context, ui, *child);
         }
     }
 
-    // fn drop_node(
-    //     behavior: &mut dyn Behavior<Leaf>,
-    //     dropped_node_id: NodeId,
-    //     target_node_id: NodeId,
-    //     mouse_pos: Pos2,
-    // ) {
-    //     // TODO
-    // }
-
-    fn remove_node_id_from_parent(&mut self, it: NodeId, remove: NodeId) {
-        let Some(mut node) = self.nodes.remove(&it) else { return; };
-        match &mut node.layout {
-            NodeLayout::Leaf(_) => {}
-            NodeLayout::Tabs(Tabs { children, .. })
-            | NodeLayout::Horizontal(Horizontal { children, .. }) => {
-                children.retain(|&child| {
-                    self.remove_node_id_from_parent(child, remove);
-                    child != remove
-                });
-            }
+    fn vertical_ui(
+        &mut self,
+        behavior: &mut dyn Behavior<Leaf>,
+        drop_context: &mut DropContext,
+        ui: &mut Ui,
+        parent_id: NodeId,
+        vertical: &mut Vertical,
+    ) {
+        for child in &vertical.children {
+            self.node_ui(behavior, drop_context, ui, *child);
         }
-        self.nodes.insert(it, node);
     }
 }

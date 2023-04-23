@@ -104,8 +104,13 @@ fn tree_ui(
                     tree_ui(ui, behavior, nodes, child);
                 }
             }
-            dock::NodeLayout::Horizontal(horizontal) => {
-                for &child in &horizontal.children {
+            dock::NodeLayout::Horizontal(layout) => {
+                for &child in &layout.children {
+                    tree_ui(ui, behavior, nodes, child);
+                }
+            }
+            dock::NodeLayout::Vertical(layout) => {
+                for &child in &layout.children {
                     tree_ui(ui, behavior, nodes, child);
                 }
             }
