@@ -895,7 +895,7 @@ impl PointerState {
 
     /// If the pointer button is down, will it register as a click when released?
     #[inline(always)]
-    pub(crate) fn could_any_button_be_click(&self) -> bool {
+    pub fn could_any_button_be_click(&self) -> bool {
         if !self.any_down() {
             return false;
         }

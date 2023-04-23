@@ -1,6 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use egui::{pos2, vec2, CursorIcon, NumExt, Rect, WidgetText};
+use egui::{
+    pos2, vec2, CursorIcon, Id, Key, NumExt, Rect, Response, Sense, Style, TextStyle, Ui,
+    WidgetText,
+};
 
 // ----------------------------------------------------------------------------
 // Types required for state
@@ -17,6 +20,11 @@ impl NodeId {
     pub fn random() -> Self {
         use rand::Rng as _;
         Self(rand::thread_rng().gen())
+    }
+
+    /// Corresponding [`egui::Id`], used for dragging.
+    pub fn id(&self) -> Id {
+        Id::new(self)
     }
 }
 
@@ -157,9 +165,9 @@ pub trait Behavior<Leaf> {
     /// Show this leaf node in the given [`egui::Ui`].
     ///
     /// If this is an unknown node, return [`NodeAction::Remove`] and the node will be removed.
-    fn leaf_ui(&mut self, _ui: &mut egui::Ui, _node_id: NodeId, _leaf: &mut Leaf);
+    fn leaf_ui(&mut self, _ui: &mut Ui, _node_id: NodeId, _leaf: &mut Leaf);
 
-    fn tab_text_for_leaf(&mut self, leaf: &Leaf) -> egui::WidgetText;
+    fn tab_text_for_leaf(&mut self, leaf: &Leaf) -> WidgetText;
 
     fn tab_text_for_node(&mut self, nodes: &Nodes<Leaf>, node_id: NodeId) -> WidgetText {
         match &nodes.nodes[&node_id].layout {
@@ -171,14 +179,16 @@ pub trait Behavior<Leaf> {
     fn tab_ui(
         &mut self,
         nodes: &Nodes<Leaf>,
-        ui: &mut egui::Ui,
+        ui: &mut Ui,
+        id: Id,
         node_id: NodeId,
         selected: bool,
-    ) -> egui::Response {
+    ) -> Response {
         let text = self.tab_text_for_node(nodes, node_id);
-        let font_id = egui::TextStyle::Button.resolve(ui.style());
+        let font_id = TextStyle::Button.resolve(ui.style());
         let galley = text.into_galley(ui, Some(false), f32::INFINITY, font_id);
-        let (rect, response) = ui.allocate_exact_size(galley.size(), egui::Sense::click_and_drag());
+        let (_, rect) = ui.allocate_space(galley.size());
+        let response = ui.interact(rect, id, Sense::click_and_drag());
         let widget_style = ui.style().interact_selectable(&response, selected);
         ui.painter()
             .galley_with_color(rect.min, galley.galley, widget_style.text_color());
@@ -194,12 +204,12 @@ pub trait Behavior<Leaf> {
     // Settings:
 
     /// The height of the bar holding tab names.
-    fn tab_bar_height(&self, _style: &egui::Style) -> f32 {
+    fn tab_bar_height(&self, _style: &Style) -> f32 {
         20.0
     }
 
     /// Width of the gap between nodes in a horizontal or vertical layout
-    fn gap_width(&self, _style: &egui::Style) -> f32 {
+    fn gap_width(&self, _style: &Style) -> f32 {
         1.0
     }
 }
@@ -255,7 +265,7 @@ impl<Leaf> Dock<Leaf> {
         self.root
     }
 
-    pub fn ui(&mut self, behavior: &mut dyn Behavior<Leaf>, ui: &mut egui::Ui) {
+    pub fn ui(&mut self, behavior: &mut dyn Behavior<Leaf>, ui: &mut Ui) {
         self.nodes.gc_root(behavior, self.root);
 
         self.nodes.layout_node(
@@ -266,6 +276,41 @@ impl<Leaf> Dock<Leaf> {
         );
 
         self.nodes.node_ui(behavior, ui, self.root);
+
+        if let Some(mouse_pos) = ui.input(|i| {
+            if i.pointer.could_any_button_be_click() {
+                // Wait until the mouse has move a bit or been down long enough
+                // before registerint a drag
+                None
+            } else {
+                i.pointer.hover_pos()
+            }
+        }) {
+            // Check if anything is being dragged:
+            for (node_id, node) in &self.nodes.nodes {
+                let id = node_id.id();
+                if ui.memory(|mem| mem.is_being_dragged(id)) {
+                    // Abort on escape:
+                    if ui.input(|i| i.key_pressed(Key::Escape)) {
+                        ui.memory_mut(|mem| mem.stop_dragging());
+                        continue;
+                    }
+
+                    // This node is being dragged!
+                    egui::Area::new(id.with("preview"))
+                        .pivot(egui::Align2::CENTER_CENTER)
+                        .current_pos(mouse_pos)
+                        .interactable(false)
+                        .show(ui.ctx(), |ui| {
+                            egui::Frame::popup(ui.style()).show(ui, |ui| {
+                                // TODO: preview contents
+                                let text = behavior.tab_text_for_node(&self.nodes, *node_id);
+                                ui.label(text);
+                            });
+                        });
+                }
+            }
+        }
     }
 }
 
@@ -326,7 +371,7 @@ impl<Leaf> Nodes<Leaf> {
 impl<Leaf> Nodes<Leaf> {
     fn layout_node(
         &mut self,
-        style: &egui::Style,
+        style: &Style,
         behavior: &mut dyn Behavior<Leaf>,
         rect: Rect,
         node_id: NodeId,
@@ -349,7 +394,7 @@ impl<Leaf> Nodes<Leaf> {
 
     fn layout_tabs(
         &mut self,
-        style: &egui::Style,
+        style: &Style,
         behavior: &mut dyn Behavior<Leaf>,
         rect: Rect,
         tabs: &Tabs,
@@ -369,7 +414,7 @@ impl<Leaf> Nodes<Leaf> {
 
     fn layout_horizontal(
         &mut self,
-        style: &egui::Style,
+        style: &Style,
         behavior: &mut dyn Behavior<Leaf>,
         rect: Rect,
         horizontal: &Horizontal,
@@ -399,7 +444,7 @@ impl<Leaf> Nodes<Leaf> {
 // ui
 
 impl<Leaf> Nodes<Leaf> {
-    fn node_ui(&mut self, behavior: &mut dyn Behavior<Leaf>, ui: &mut egui::Ui, node_id: NodeId) {
+    fn node_ui(&mut self, behavior: &mut dyn Behavior<Leaf>, ui: &mut Ui, node_id: NodeId) {
         let Some(mut node) = self.nodes.remove(&node_id) else { return };
 
         match &mut node.layout {
@@ -418,7 +463,7 @@ impl<Leaf> Nodes<Leaf> {
     fn tabs_ui(
         &mut self,
         behavior: &mut dyn Behavior<Leaf>,
-        ui: &mut egui::Ui,
+        ui: &mut Ui,
         rect: Rect,
         tabs: &mut Tabs,
     ) {
@@ -434,7 +479,8 @@ impl<Leaf> Nodes<Leaf> {
         tab_bar_ui.horizontal(|ui| {
             for &child_id in &tabs.children {
                 let selected = child_id == tabs.active;
-                let response = behavior.tab_ui(self, ui, child_id, selected);
+                let id = child_id.id();
+                let response = behavior.tab_ui(self, ui, id, child_id, selected);
                 let response = response.on_hover_cursor(CursorIcon::Grab);
                 if response.clicked() {
                     tabs.active = child_id;
@@ -448,7 +494,7 @@ impl<Leaf> Nodes<Leaf> {
     fn horizontal_ui(
         &mut self,
         behavior: &mut dyn Behavior<Leaf>,
-        ui: &mut egui::Ui,
+        ui: &mut Ui,
         _rect: Rect,
         horizontal: &mut Horizontal,
     ) {

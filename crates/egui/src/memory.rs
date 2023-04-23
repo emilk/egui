@@ -477,6 +477,11 @@ impl Memory {
         self.interaction.drag_id = Some(id);
     }
 
+    #[inline(always)]
+    pub fn stop_dragging(&mut self) {
+        self.interaction.drag_id = None;
+    }
+
     /// Forget window positions, sizes etc.
     /// Can be used to auto-layout windows.
     pub fn reset_areas(&mut self) {
