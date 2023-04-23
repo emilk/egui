@@ -8,7 +8,7 @@ use egui_extras::dock;
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(320.0, 240.0)),
+        initial_window_size: Some(egui::vec2(800.0, 600.0)),
         ..Default::default()
     };
     eframe::run_native("Dock", options, Box::new(|_cc| Box::<MyApp>::default()))
@@ -22,7 +22,7 @@ pub struct View {
 impl View {
     pub fn with_nr(i: usize) -> Self {
         Self {
-            title: format!("Node {}", i),
+            title: format!("View {i}"),
             color: egui::epaint::Hsva::new(0.1 * i as f32, 0.5, 0.5, 1.0).into(),
         }
     }

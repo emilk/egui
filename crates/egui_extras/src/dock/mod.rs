@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use egui::{
-    pos2, vec2, CursorIcon, Id, Key, NumExt, Rect, Response, Sense, Style, TextStyle, Ui,
-    WidgetText,
+    pos2, vec2, Color32, CursorIcon, Id, Key, NumExt, Pos2, Rect, Response, Sense, Style,
+    TextStyle, Ui, WidgetText,
 };
 
 // ----------------------------------------------------------------------------
@@ -277,40 +277,80 @@ impl<Leaf> Dock<Leaf> {
 
         self.nodes.node_ui(behavior, ui, self.root);
 
-        if let Some(mouse_pos) = ui.input(|i| {
-            if i.pointer.could_any_button_be_click() {
-                // Wait until the mouse has move a bit or been down long enough
-                // before registerint a drag
-                None
-            } else {
-                i.pointer.hover_pos()
-            }
-        }) {
-            // Check if anything is being dragged:
-            for (node_id, node) in &self.nodes.nodes {
-                let id = node_id.id();
-                if ui.memory(|mem| mem.is_being_dragged(id)) {
-                    // Abort on escape:
-                    if ui.input(|i| i.key_pressed(Key::Escape)) {
-                        ui.memory_mut(|mem| mem.stop_dragging());
-                        continue;
-                    }
+        // Check if anything is being dragged:
+        let mouse_pos = ui.input(|i| i.pointer.hover_pos());
+        let dragged_id = self.dragged_id(ui.ctx());
+        if let (Some(mouse_pos), Some(dragged_node_id)) = (mouse_pos, dragged_id) {
+            // Preview what is being dragged:
+            egui::Area::new(Id::new((dragged_node_id, "preview")))
+                .pivot(egui::Align2::CENTER_CENTER)
+                .current_pos(mouse_pos)
+                .interactable(false)
+                .show(ui.ctx(), |ui| {
+                    egui::Frame::popup(ui.style()).show(ui, |ui| {
+                        // TODO: preview contents
+                        let text = behavior.tab_text_for_node(&self.nodes, dragged_node_id);
+                        ui.label(text);
+                    });
+                });
 
-                    // This node is being dragged!
-                    egui::Area::new(id.with("preview"))
-                        .pivot(egui::Align2::CENTER_CENTER)
-                        .current_pos(mouse_pos)
-                        .interactable(false)
-                        .show(ui.ctx(), |ui| {
-                            egui::Frame::popup(ui.style()).show(ui, |ui| {
-                                // TODO: preview contents
-                                let text = behavior.tab_text_for_node(&self.nodes, *node_id);
-                                ui.label(text);
-                            });
-                        });
+            let mut drop_context = DropContext {
+                dragged_node_id,
+                mouse_pos,
+                best_dist_sq: f32::INFINITY,
+                target_node_id: None,
+                preview_rect: None,
+            };
+            self.nodes.find_drop_target(&mut drop_context, self.root);
+
+            if let Some(preview_rect) = drop_context.preview_rect {
+                ui.painter().rect_filled(
+                    preview_rect,
+                    1.0,
+                    Color32::LIGHT_BLUE.gamma_multiply(0.5),
+                );
+            }
+
+            // if ui.input(|i| i.pointer.any_released()) {
+            //     ui.memory_mut(|mem| mem.stop_dragging());
+            //     if let Some(target_node_id) = drop_context.target_node_id {
+            //         self.remove_node_id_from_parent(dragged_node_id);
+            //         // self.drop_node(behavior, target_node_id, dragged_node_id); // TODO
+            //     }
+            // }
+        }
+    }
+
+    /// Find the currently dragged node, if any.
+    fn dragged_id(&self, ctx: &egui::Context) -> Option<NodeId> {
+        if ctx.input(|i| i.pointer.could_any_button_be_click()) {
+            // We're not sure we're dragging _at all_ yet.
+            return None;
+        }
+
+        for &node_id in self.nodes.nodes.keys() {
+            if node_id == self.root {
+                continue; // now allowed to drag root
+            }
+
+            let id = node_id.id();
+            let is_node_being_dragged = ctx.memory(|mem| mem.is_being_dragged(id));
+            if is_node_being_dragged {
+                // Abort drags on escape:
+                if ctx.input(|i| i.key_pressed(Key::Escape)) {
+                    ctx.memory_mut(|mem| mem.stop_dragging());
+                    return None;
                 }
+
+                return Some(node_id);
             }
         }
+        None
+    }
+
+    fn remove_node_id_from_parent(&mut self, dragged_node_id: NodeId) {
+        self.nodes
+            .remove_node_id_from_parent(self.root, dragged_node_id);
     }
 }
 
@@ -349,14 +389,9 @@ impl<Leaf> Nodes<Leaf> {
                     return GcAction::Remove;
                 }
             }
-            NodeLayout::Tabs(layout) => {
-                layout
-                    .children
-                    .retain(|&child| self.gc_node_id(behavior, visited, child) == GcAction::Keep);
-            }
-            NodeLayout::Horizontal(layout) => {
-                layout
-                    .children
+            NodeLayout::Tabs(Tabs { children, .. })
+            | NodeLayout::Horizontal(Horizontal { children, .. }) => {
+                children
                     .retain(|&child| self.gc_node_id(behavior, visited, child) == GcAction::Keep);
             }
         }
@@ -480,9 +515,16 @@ impl<Leaf> Nodes<Leaf> {
             for &child_id in &tabs.children {
                 let selected = child_id == tabs.active;
                 let id = child_id.id();
+
+                let is_node_being_dragged = ui.memory(|mem| mem.is_being_dragged(id))
+                    && !ui.input(|i| i.pointer.could_any_button_be_click());
+                if is_node_being_dragged {
+                    continue; // leave a gap!
+                }
+
                 let response = behavior.tab_ui(self, ui, id, child_id, selected);
                 let response = response.on_hover_cursor(CursorIcon::Grab);
-                if response.clicked() {
+                if response.clicked() || response.drag_started() {
                     tabs.active = child_id;
                 }
             }
@@ -501,5 +543,107 @@ impl<Leaf> Nodes<Leaf> {
         for child in &horizontal.children {
             self.node_ui(behavior, ui, *child);
         }
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Dropping
+
+struct DropContext {
+    dragged_node_id: NodeId,
+    mouse_pos: Pos2,
+
+    target_node_id: Option<NodeId>,
+    best_dist_sq: f32,
+    preview_rect: Option<Rect>,
+}
+
+impl DropContext {
+    fn suggest_point(&mut self, node_id: NodeId, target_point: Pos2, preview_rect: Rect) {
+        let dist_sq = self.mouse_pos.distance_sq(target_point);
+        if dist_sq < self.best_dist_sq {
+            self.best_dist_sq = dist_sq;
+            self.target_node_id = Some(node_id);
+            self.preview_rect = Some(preview_rect);
+        }
+    }
+}
+
+impl<Leaf> Nodes<Leaf> {
+    fn find_drop_target(&self, drop_context: &mut DropContext, node_id: NodeId) {
+        if drop_context.dragged_node_id == node_id {
+            // Can't drag a node onto self or any children
+            return;
+        }
+        let Some(node) = self.nodes.get(&node_id) else { return; };
+
+        drop_context.suggest_point(
+            node_id,
+            node.rect.left_center(),
+            node.rect.split_left_right_at_fraction(0.5).0,
+        );
+        drop_context.suggest_point(
+            node_id,
+            node.rect.right_center(),
+            node.rect.split_left_right_at_fraction(0.5).1,
+        );
+        drop_context.suggest_point(
+            node_id,
+            node.rect.center_top(),
+            node.rect.split_top_bottom_at_fraction(0.5).0,
+        );
+        drop_context.suggest_point(
+            node_id,
+            node.rect.center_bottom(),
+            node.rect.split_top_bottom_at_fraction(0.5).1,
+        );
+        drop_context.suggest_point(node_id, node.rect.center(), node.rect);
+
+        match &node.layout {
+            NodeLayout::Leaf(_) => {}
+            NodeLayout::Tabs(Tabs { active, .. }) => {
+                if let Some(active_node) = self.nodes.get(active) {
+                    // Suggest dropping into tab bar
+                    let tabs_rect = active_node
+                        .rect
+                        .split_top_bottom_at_y(active_node.rect.top())
+                        .0;
+                    if tabs_rect.contains(drop_context.mouse_pos) {
+                        drop_context.suggest_point(node_id, drop_context.mouse_pos, tabs_rect)
+                    }
+                }
+
+                self.find_drop_target(drop_context, *active);
+            }
+            NodeLayout::Horizontal(Horizontal { children, .. }) => {
+                for &child in children {
+                    self.find_drop_target(drop_context, child);
+                }
+            }
+        }
+    }
+
+    // fn drop_node(
+    //     behavior: &mut dyn Behavior<Leaf>,
+    //     dropped_node_id: NodeId,
+    //     target_node_id: NodeId,
+    //     mouse_pos: Pos2,
+    // ) {
+    //     // TODO
+    // }
+
+    fn remove_node_id_from_parent(&mut self, it: NodeId, remove: NodeId) {
+        let Some(mut node) = self.nodes.remove(&it) else { return; };
+        match &mut node.layout {
+            NodeLayout::Leaf(_) => {}
+            NodeLayout::Tabs(Tabs { children, .. })
+            | NodeLayout::Horizontal(Horizontal { children, .. }) => {
+                children.retain(|&child| {
+                    self.remove_node_id_from_parent(child, remove);
+                    child != remove
+                });
+            }
+        }
+        self.nodes.insert(it, node);
     }
 }

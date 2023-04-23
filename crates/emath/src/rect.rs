@@ -521,6 +521,30 @@ impl Rect {
     pub fn right_bottom(&self) -> Pos2 {
         pos2(self.right(), self.bottom())
     }
+
+    /// Split rectangle in left and right halfs. `t` is expected to be in the (0,1) range.
+    pub fn split_left_right_at_fraction(&self, t: f32) -> (Rect, Rect) {
+        self.split_left_right_at_x(lerp(self.min.x..=self.max.x, t))
+    }
+
+    /// Split rectangle in left and right halfs at the given `x` coordinate.
+    pub fn split_left_right_at_x(&self, split_x: f32) -> (Rect, Rect) {
+        let left = Rect::from_min_max(self.min, Pos2::new(split_x, self.max.y));
+        let right = Rect::from_min_max(Pos2::new(split_x, self.min.y), self.max);
+        (left, right)
+    }
+
+    /// Split rectangle in top and bottom halfs. `t` is expected to be in the (0,1) range.
+    pub fn split_top_bottom_at_fraction(&self, t: f32) -> (Rect, Rect) {
+        self.split_top_bottom_at_y(lerp(self.min.y..=self.max.y, t))
+    }
+
+    /// Split rectangle in top and bottom halfs at the given `y` coordinate.
+    pub fn split_top_bottom_at_y(&self, split_y: f32) -> (Rect, Rect) {
+        let top = Rect::from_min_max(self.min, Pos2::new(self.max.x, split_y));
+        let bottom = Rect::from_min_max(Pos2::new(self.min.x, split_y), self.max);
+        (top, bottom)
+    }
 }
 
 impl std::fmt::Debug for Rect {
