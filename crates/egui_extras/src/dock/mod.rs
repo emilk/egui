@@ -263,6 +263,10 @@ impl<Leaf> Nodes<Leaf> {
         self.nodes.get(&node_id).map(|node| &node.layout)
     }
 
+    pub fn get_mut(&mut self, node_id: NodeId) -> Option<&mut NodeLayout<Leaf>> {
+        self.nodes.get_mut(&node_id).map(|node| &mut node.layout)
+    }
+
     #[must_use]
     pub fn insert_node(&mut self, node: NodeState<Leaf>) -> NodeId {
         let id = NodeId::random();
@@ -456,6 +460,20 @@ impl<Leaf> Dock<Leaf> {
                     Color32::LIGHT_BLUE.gamma_multiply(0.5),
                     (1.0, Color32::LIGHT_BLUE),
                 );
+
+                let preview_child = false;
+                if preview_child {
+                    // Preview actual child?
+                    if preview_rect.width() > 32.0 && preview_rect.height() > 32.0 {
+                        if let Some(NodeLayout::Leaf(leaf)) = self.nodes.get_mut(dragged_node_id) {
+                            let _ = behavior.leaf_ui(
+                                &mut ui.child_ui(preview_rect, *ui.layout()),
+                                dragged_node_id,
+                                leaf,
+                            );
+                        }
+                    }
+                }
             }
 
             if ui.input(|i| i.pointer.any_released()) {
@@ -528,6 +546,10 @@ fn is_possible_drag(ctx: &egui::Context) -> bool {
             && !input.pointer.could_any_button_be_click()
             && !input.pointer.any_click()
     })
+}
+
+fn is_being_dragged(ctx: &egui::Context, node_id: NodeId) -> bool {
+    ctx.memory(|mem| mem.is_being_dragged(node_id.id())) && is_possible_drag(ctx)
 }
 
 // ----------------------------------------------------------------------------
@@ -727,35 +749,39 @@ struct DropContext {
 }
 
 impl DropContext {
-    fn on_node(&mut self, parent_id: NodeId, rect: Rect) {
+    fn on_node<Leaf>(&mut self, parent_id: NodeId, node: &NodeState<Leaf>) {
         if !self.active {
             return;
         }
-        self.suggest_point(
-            InsertionPoint::new(parent_id, LayoutType::Horizontal, 0),
-            rect.left_center(),
-            rect.split_left_right_at_fraction(0.5).0,
-        );
-        self.suggest_point(
-            InsertionPoint::new(parent_id, LayoutType::Horizontal, usize::MAX),
-            rect.right_center(),
-            rect.split_left_right_at_fraction(0.5).1,
-        );
-        self.suggest_point(
-            InsertionPoint::new(parent_id, LayoutType::Vertical, 0),
-            rect.center_top(),
-            rect.split_top_bottom_at_fraction(0.5).0,
-        );
-        self.suggest_point(
-            InsertionPoint::new(parent_id, LayoutType::Vertical, usize::MAX),
-            rect.center_bottom(),
-            rect.split_top_bottom_at_fraction(0.5).1,
-        );
-        self.suggest_point(
-            InsertionPoint::new(parent_id, LayoutType::Tabs, 1),
-            rect.center(),
-            rect,
-        );
+        let rect = node.rect;
+
+        if !matches!(node.layout, NodeLayout::Horizontal(_)) {
+            self.suggest_rect(
+                InsertionPoint::new(parent_id, LayoutType::Horizontal, 0),
+                rect.split_left_right_at_fraction(0.5).0,
+            );
+            self.suggest_rect(
+                InsertionPoint::new(parent_id, LayoutType::Horizontal, usize::MAX),
+                rect.split_left_right_at_fraction(0.5).1,
+            );
+        }
+
+        if !matches!(node.layout, NodeLayout::Vertical(_)) {
+            self.suggest_rect(
+                InsertionPoint::new(parent_id, LayoutType::Vertical, 0),
+                rect.split_top_bottom_at_fraction(0.5).0,
+            );
+            self.suggest_rect(
+                InsertionPoint::new(parent_id, LayoutType::Vertical, usize::MAX),
+                rect.split_top_bottom_at_fraction(0.5).1,
+            );
+        }
+
+        // self.suggest_rect(InsertionPoint::new(parent_id, LayoutType::Tabs, 1), rect);
+    }
+
+    fn suggest_rect(&mut self, insertion: InsertionPoint, preview_rect: Rect) {
+        self.suggest_point(insertion, preview_rect.center(), preview_rect);
     }
 
     fn suggest_point(&mut self, insertion: InsertionPoint, target_point: Pos2, preview_rect: Rect) {
@@ -788,7 +814,14 @@ impl<Leaf> Nodes<Leaf> {
             // Can't drag a node onto self or any children
             drop_context.active = false;
         }
-        drop_context.on_node(node_id, node.rect);
+        drop_context.on_node(node_id, &node);
+
+        drop_context.suggest_rect(
+            InsertionPoint::new(node_id, LayoutType::Tabs, usize::MAX),
+            node.rect
+                .split_top_bottom_at_y(node.rect.top() + behavior.tab_bar_height(ui.style()))
+                .1,
+        );
 
         match &mut node.layout {
             NodeLayout::Leaf(leaf) => {
@@ -833,17 +866,15 @@ impl<Leaf> Nodes<Leaf> {
         // Show tab bar:
         tab_bar_ui.horizontal(|ui| {
             let mut prev_tab_rect: Option<Rect> = None;
-            let mut insertion_index = 0; // skips over drag-source, if any
+            let mut insertion_index = 0; // skips over drag-source, if any, beacuse it will be removed then re-inserted
 
-            for (child_index, &child_id) in tabs.children.iter().enumerate() {
-                let selected = child_id == tabs.active;
-                let id = child_id.id();
-
-                let is_node_being_dragged =
-                    ui.memory(|mem| mem.is_being_dragged(id)) && is_possible_drag(ui.ctx());
-                if is_node_being_dragged {
+            for (i, &child_id) in tabs.children.iter().enumerate() {
+                if is_being_dragged(ui.ctx(), child_id) {
                     continue; // leave a gap!
                 }
+
+                let selected = child_id == tabs.active;
+                let id = child_id.id();
 
                 let response = behavior.tab_ui(self, ui, id, child_id, selected);
                 let response = response.on_hover_cursor(CursorIcon::Grab);
@@ -858,38 +889,33 @@ impl<Leaf> Nodes<Leaf> {
                     }
                 }
 
+                let rect = response.rect;
+
                 {
                     // suggest dropping before this tab:
                     let before_point = if let Some(prev_tab_rect) = prev_tab_rect {
                         // between
-                        prev_tab_rect
-                            .right_center()
-                            .lerp(response.rect.left_center(), 0.5)
+                        prev_tab_rect.right_center().lerp(rect.left_center(), 0.5)
                     } else {
                         // before first
-                        response.rect.left_center()
+                        rect.left_center()
                     };
 
-                    drop_context.suggest_point(
+                    drop_context.suggest_rect(
                         InsertionPoint::new(node_id, LayoutType::Tabs, insertion_index),
-                        before_point,
-                        Rect::from_center_size(before_point, vec2(4.0, response.rect.height())),
+                        Rect::from_center_size(before_point, vec2(4.0, rect.height())),
                     );
                 }
 
-                if child_index + 1 == tabs.children.len() {
+                if i + 1 == tabs.children.len() {
                     // suggest dropping after last tab:
-                    drop_context.suggest_point(
+                    drop_context.suggest_rect(
                         InsertionPoint::new(node_id, LayoutType::Tabs, insertion_index + 1),
-                        response.rect.right_center(),
-                        Rect::from_center_size(
-                            response.rect.right_center(),
-                            vec2(4.0, response.rect.height()),
-                        ),
+                        Rect::from_center_size(rect.right_center(), vec2(4.0, rect.height())),
                     );
                 }
 
-                prev_tab_rect = Some(response.rect);
+                prev_tab_rect = Some(rect);
                 insertion_index += 1;
             }
         });
@@ -910,8 +936,46 @@ impl<Leaf> Nodes<Leaf> {
         parent_id: NodeId,
         horizontal: &mut Horizontal,
     ) {
-        for child in &horizontal.children {
-            self.node_ui(behavior, drop_context, ui, *child);
+        let mut prev_rect: Option<Rect> = None;
+        let mut insertion_index = 0; // skips over drag-source, if any, beacuse it will be removed then re-inserted
+
+        for (i, &child) in horizontal.children.iter().enumerate() {
+            let rect = self.nodes[&child].rect;
+
+            if is_being_dragged(ui.ctx(), child) {
+                // suggest self as drop-target:
+                drop_context.suggest_rect(
+                    InsertionPoint::new(parent_id, LayoutType::Horizontal, i),
+                    rect,
+                );
+            } else {
+                self.node_ui(behavior, drop_context, ui, child);
+
+                if let Some(prev_rect) = prev_rect {
+                    // Suggest dropping between the rects:
+                    drop_context.suggest_rect(
+                        InsertionPoint::new(parent_id, LayoutType::Horizontal, insertion_index),
+                        Rect::from_min_max(prev_rect.center_top(), rect.center_bottom()),
+                    );
+                } else {
+                    // Suggest dropping before the first child:
+                    drop_context.suggest_rect(
+                        InsertionPoint::new(parent_id, LayoutType::Horizontal, 0),
+                        rect.split_left_right_at_fraction(0.66).0,
+                    );
+                }
+
+                if i + 1 == horizontal.children.len() {
+                    // Suggest dropping after the last child:
+                    drop_context.suggest_rect(
+                        InsertionPoint::new(parent_id, LayoutType::Horizontal, insertion_index + 1),
+                        rect.split_left_right_at_fraction(0.33).1,
+                    );
+                }
+                insertion_index += 1;
+            }
+
+            prev_rect = Some(rect);
         }
     }
 
