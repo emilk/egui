@@ -29,9 +29,11 @@ impl View {
 
     pub fn ui(&mut self, ui: &mut egui::Ui) -> dock::UiResponse {
         ui.painter().rect_filled(ui.max_rect(), 0.0, self.color);
-        ui.label(&self.title);
         let dragged = ui
-            .add(egui::Button::new("Drag me to drag view").sense(egui::Sense::drag()))
+            .add(
+                egui::Button::new(format!("Contents of {}. Drag me!", self.title))
+                    .sense(egui::Sense::drag()),
+            )
             .on_hover_cursor(egui::CursorIcon::Grab)
             .dragged();
         if dragged {
@@ -42,8 +44,33 @@ impl View {
     }
 }
 
+#[derive(Default)]
+struct DockBehavior {
+    simplification_options: dock::SimplificationOptions,
+}
+
+impl dock::Behavior<View> for DockBehavior {
+    fn leaf_ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        _node_id: dock::NodeId,
+        view: &mut View,
+    ) -> dock::UiResponse {
+        view.ui(ui)
+    }
+
+    fn tab_text_for_leaf(&mut self, view: &View) -> egui::WidgetText {
+        view.title.clone().into()
+    }
+
+    fn simplification_options(&self) -> dock::SimplificationOptions {
+        self.simplification_options
+    }
+}
+
 struct MyApp {
     dock: dock::Dock<View>,
+    behavior: DockBehavior,
 }
 
 impl Default for MyApp {
@@ -66,32 +93,43 @@ impl Default for MyApp {
         let tab2 = {
             let a = nodes.insert_leaf(gen_view());
             let b = nodes.insert_leaf(gen_view());
-            nodes.insert_horizontal_node(vec![a, b])
+            let c = nodes.insert_leaf(gen_view());
+            let d = nodes.insert_leaf(gen_view());
+            let e = nodes.insert_leaf(gen_view());
+            nodes.insert_horizontal_node(vec![a, b, c, d, e])
         };
 
         let root = nodes.insert_tab_node(vec![tab0, tab1, tab2]);
 
         let dock = dock::Dock::new(root, nodes);
 
-        Self { dock }
+        Self {
+            dock,
+            behavior: Default::default(),
+        }
     }
 }
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let mut behavior = DockBehavior {};
-
         egui::SidePanel::left("tree").show(ctx, |ui| {
             if ui.button("Reset").clicked() {
                 *self = Default::default();
             }
+            ui.checkbox(
+                &mut self
+                    .behavior
+                    .simplification_options
+                    .all_leaves_must_have_tabs,
+                "All views have tabs",
+            );
             ui.separator();
 
-            tree_ui(ui, &mut behavior, &self.dock.nodes, self.dock.root);
+            tree_ui(ui, &mut self.behavior, &self.dock.nodes, self.dock.root);
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            self.dock.ui(&mut behavior, ui);
+            self.dock.ui(&mut self.behavior, ui);
         });
     }
 }
@@ -135,21 +173,4 @@ fn tree_ui(
                 }
             }
         });
-}
-
-struct DockBehavior {}
-
-impl dock::Behavior<View> for DockBehavior {
-    fn leaf_ui(
-        &mut self,
-        ui: &mut egui::Ui,
-        _node_id: dock::NodeId,
-        view: &mut View,
-    ) -> dock::UiResponse {
-        view.ui(ui)
-    }
-
-    fn tab_text_for_leaf(&mut self, view: &View) -> egui::WidgetText {
-        view.title.clone().into()
-    }
 }

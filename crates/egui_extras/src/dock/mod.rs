@@ -173,11 +173,13 @@ pub enum UiResponse {
     DragStarted,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct SimplificationOptions {
     pub prune_empty_tabs: bool,
     pub prune_single_child_tabs: bool,
     pub prune_empty_layouts: bool,
     pub prune_single_child_layouts: bool,
+    pub all_leaves_must_have_tabs: bool,
 }
 
 impl Default for SimplificationOptions {
@@ -187,6 +189,7 @@ impl Default for SimplificationOptions {
             prune_single_child_tabs: true,
             prune_empty_layouts: true,
             prune_single_child_layouts: true,
+            all_leaves_must_have_tabs: false,
         }
     }
 }
@@ -410,7 +413,12 @@ impl<Leaf> Dock<Leaf> {
     }
 
     pub fn ui(&mut self, behavior: &mut dyn Behavior<Leaf>, ui: &mut Ui) {
-        self.simplify(&behavior.simplification_options());
+        let options = behavior.simplification_options();
+        self.simplify(&options);
+        if options.all_leaves_must_have_tabs {
+            self.nodes
+                .make_all_leaves_children_of_tabs(false, self.root);
+        }
         self.nodes.gc_root(behavior, self.root);
 
         self.nodes.layout_node(
@@ -1020,12 +1028,18 @@ impl<Leaf> Nodes<Leaf> {
                 });
 
                 if options.prune_empty_tabs && children.is_empty() {
-                    log::debug!("Simplify: removing empty tabs");
+                    log::debug!("Simplify: removing empty tabs node");
                     return SimplifyAction::Remove;
                 }
                 if options.prune_single_child_tabs && children.len() == 1 {
-                    log::debug!("Simplify: removing single-child tabs");
-                    return SimplifyAction::Replace(children[0]);
+                    if options.all_leaves_must_have_tabs
+                        && matches!(self.get(children[0]), Some(NodeLayout::Leaf(_)))
+                    {
+                        // Keep it
+                    } else {
+                        log::debug!("Simplify: collapsing single-child tabs node");
+                        return SimplifyAction::Replace(children[0]);
+                    }
                 }
             }
 
@@ -1042,11 +1056,11 @@ impl<Leaf> Nodes<Leaf> {
                 });
 
                 if options.prune_empty_layouts && children.is_empty() {
-                    log::debug!("Simplify: removing empty layout");
+                    log::debug!("Simplify: removing empty layout node");
                     return SimplifyAction::Remove;
                 }
                 if options.prune_single_child_layouts && children.len() == 1 {
-                    log::debug!("Simplify: removing single-child layout");
+                    log::debug!("Simplify: collapsing single-child layout node");
                     return SimplifyAction::Replace(children[0]);
                 }
             }
@@ -1054,5 +1068,41 @@ impl<Leaf> Nodes<Leaf> {
 
         self.nodes.insert(it, node);
         SimplifyAction::Keep
+    }
+}
+
+impl<Leaf> Nodes<Leaf> {
+    fn make_all_leaves_children_of_tabs(&mut self, parent_is_tabs: bool, it: NodeId) {
+        let Some(mut node) = self.nodes.remove(&it) else { return; };
+
+        match &mut node.layout {
+            NodeLayout::Leaf(_) => {
+                if !parent_is_tabs {
+                    // Add tabs to this leaf:
+                    let new_id = NodeId::random();
+                    self.nodes.insert(new_id, node);
+                    let tabs = NodeState::from(NodeLayout::Tabs(Tabs {
+                        children: vec![new_id],
+                        active: new_id,
+                    }));
+                    self.nodes.insert(it, tabs);
+                    return;
+                }
+            }
+            NodeLayout::Tabs(Tabs { children, .. }) => {
+                for child in children {
+                    self.make_all_leaves_children_of_tabs(true, *child);
+                }
+            }
+
+            NodeLayout::Horizontal(Horizontal { children, .. })
+            | NodeLayout::Vertical(Vertical { children, .. }) => {
+                for child in children {
+                    self.make_all_leaves_children_of_tabs(false, *child);
+                }
+            }
+        }
+
+        self.nodes.insert(it, node);
     }
 }
