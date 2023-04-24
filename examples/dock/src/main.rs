@@ -27,9 +27,18 @@ impl View {
         }
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui) {
+    pub fn ui(&mut self, ui: &mut egui::Ui) -> dock::UiResponse {
         ui.painter().rect_filled(ui.max_rect(), 0.0, self.color);
         ui.label(&self.title);
+        let dragged = ui
+            .add(egui::Button::new("Drag me to drag view").sense(egui::Sense::drag()))
+            .on_hover_cursor(egui::CursorIcon::Grab)
+            .dragged();
+        if dragged {
+            dock::UiResponse::DragStarted
+        } else {
+            dock::UiResponse::None
+        }
     }
 }
 
@@ -73,6 +82,11 @@ impl eframe::App for MyApp {
         let mut behavior = DockBehavior {};
 
         egui::SidePanel::left("tree").show(ctx, |ui| {
+            if ui.button("Reset").clicked() {
+                *self = Default::default();
+            }
+            ui.separator();
+
             tree_ui(ui, &mut behavior, &self.dock.nodes, self.dock.root);
         });
 
@@ -96,6 +110,7 @@ fn tree_ui(
     // }
 
     egui::CollapsingHeader::new(behavior.tab_text_for_node(nodes, node_id))
+        .id_source((node_id, "tree"))
         .default_open(true)
         .show(ui, |ui| match node {
             dock::NodeLayout::Leaf(_) => {}
@@ -120,8 +135,13 @@ fn tree_ui(
 struct DockBehavior {}
 
 impl dock::Behavior<View> for DockBehavior {
-    fn leaf_ui(&mut self, ui: &mut egui::Ui, _node_id: dock::NodeId, view: &mut View) {
-        view.ui(ui);
+    fn leaf_ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        _node_id: dock::NodeId,
+        view: &mut View,
+    ) -> dock::UiResponse {
+        view.ui(ui)
     }
 
     fn tab_text_for_leaf(&mut self, view: &View) -> egui::WidgetText {

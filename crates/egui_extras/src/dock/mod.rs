@@ -160,10 +160,13 @@ impl<Leaf> From<Horizontal> for NodeLayout<Leaf> {
 
 // ----------------------------------------------------------------------------
 
+#[must_use]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum NodeAction {
-    Keep,
-    Remove,
+pub enum UiResponse {
+    None,
+
+    /// The viewer is being dragged via some element in the Leaf
+    DragStarted,
 }
 
 /// Trait defining how the [`Dock`] and its leaf should be shown.
@@ -171,7 +174,7 @@ pub trait Behavior<Leaf> {
     /// Show this leaf node in the given [`egui::Ui`].
     ///
     /// If this is an unknown node, return [`NodeAction::Remove`] and the node will be removed.
-    fn leaf_ui(&mut self, _ui: &mut Ui, _node_id: NodeId, _leaf: &mut Leaf);
+    fn leaf_ui(&mut self, _ui: &mut Ui, _node_id: NodeId, _leaf: &mut Leaf) -> UiResponse;
 
     fn tab_text_for_leaf(&mut self, leaf: &Leaf) -> WidgetText;
 
@@ -264,23 +267,47 @@ impl<Leaf> Nodes<Leaf> {
         self.insert_node(NodeLayout::Horizontal(horizontal).into())
     }
 
-    fn remove_node_id_from_parent(&mut self, it: NodeId, remove: NodeId) {
-        let Some(mut node) = self.nodes.remove(&it) else { return; };
+    fn remove_node_id_from_parent(&mut self, it: NodeId, remove: NodeId) -> GcAction {
+        if it == remove {
+            return GcAction::Remove;
+        }
+        let Some(mut node) = self.nodes.remove(&it) else { return GcAction::Remove; };
         match &mut node.layout {
             NodeLayout::Leaf(_) => {}
-            NodeLayout::Tabs(Tabs { children, .. })
-            | NodeLayout::Horizontal(Horizontal { children, .. })
+            NodeLayout::Tabs(Tabs { children, .. }) => {
+                children.retain(|&child| {
+                    self.remove_node_id_from_parent(child, remove) == GcAction::Keep
+                });
+
+                // Simplify:
+                if children.is_empty() {
+                    return GcAction::Remove;
+                }
+            }
+            NodeLayout::Horizontal(Horizontal { children, .. })
             | NodeLayout::Vertical(Vertical { children, .. }) => {
                 children.retain(|&child| {
-                    self.remove_node_id_from_parent(child, remove);
-                    child != remove
+                    self.remove_node_id_from_parent(child, remove) == GcAction::Keep
                 });
+
+                // Simplify:
+                if children.is_empty() {
+                    return GcAction::Remove;
+                }
+                if children.len() == 1 {
+                    // Remove `node` link parent directly to the only remaining child:
+                    if let Some(child) = self.nodes.remove(&children[0]) {
+                        self.nodes.insert(it, child);
+                        return GcAction::Keep;
+                    }
+                }
             }
         }
         self.nodes.insert(it, node);
+        GcAction::Keep
     }
 
-    fn insert(&mut self, insertion_point: InsertionPoint, child: NodeId) {
+    fn insert(&mut self, insertion_point: InsertionPoint, child_id: NodeId) {
         let InsertionPoint {
             parent_id,
             layout_type,
@@ -295,7 +322,7 @@ impl<Leaf> Nodes<Leaf> {
             LayoutType::Tabs => {
                 if let NodeLayout::Tabs(layout) = &mut node.layout {
                     let index = index.min(layout.children.len());
-                    layout.children.insert(index, child);
+                    layout.children.insert(index, child_id);
                     self.nodes.insert(parent_id, node);
                 } else {
                     let new_node_id = self.insert_node(node);
@@ -303,7 +330,7 @@ impl<Leaf> Nodes<Leaf> {
                         children: vec![new_node_id],
                         active: new_node_id,
                     };
-                    layout.children.insert(index.min(1), child);
+                    layout.children.insert(index.min(1), child_id);
                     self.nodes
                         .insert(parent_id, NodeLayout::Tabs(layout).into());
                 }
@@ -311,7 +338,7 @@ impl<Leaf> Nodes<Leaf> {
             LayoutType::Horizontal => {
                 if let NodeLayout::Horizontal(layout) = &mut node.layout {
                     let index = index.min(layout.children.len());
-                    layout.children.insert(index, child);
+                    layout.children.insert(index, child_id);
                     self.nodes.insert(parent_id, node);
                 } else {
                     let new_node_id = self.insert_node(node);
@@ -319,7 +346,7 @@ impl<Leaf> Nodes<Leaf> {
                         children: vec![new_node_id],
                         shares: Default::default(),
                     };
-                    layout.children.insert(index.min(1), child);
+                    layout.children.insert(index.min(1), child_id);
                     self.nodes
                         .insert(parent_id, NodeLayout::Horizontal(layout).into());
                 }
@@ -327,7 +354,7 @@ impl<Leaf> Nodes<Leaf> {
             LayoutType::Vertical => {
                 if let NodeLayout::Vertical(layout) = &mut node.layout {
                     let index = index.min(layout.children.len());
-                    layout.children.insert(index, child);
+                    layout.children.insert(index, child_id);
                     self.nodes.insert(parent_id, node);
                 } else {
                     let new_node_id = self.insert_node(node);
@@ -335,7 +362,7 @@ impl<Leaf> Nodes<Leaf> {
                         children: vec![new_node_id],
                         shares: Default::default(),
                     };
-                    layout.children.insert(index.min(1), child);
+                    layout.children.insert(index.min(1), child_id);
                     self.nodes
                         .insert(parent_id, NodeLayout::Vertical(layout).into());
                 }
@@ -376,6 +403,8 @@ impl<Leaf> Dock<Leaf> {
         if let (Some(mouse_pos), Some(dragged_node_id)) =
             (drop_context.mouse_pos, drop_context.dragged_node_id)
         {
+            ui.output_mut(|o| o.cursor_icon = CursorIcon::Grabbing);
+
             // Preview what is being dragged:
             egui::Area::new(Id::new((dragged_node_id, "preview")))
                 .pivot(egui::Align2::CENTER_CENTER)
@@ -442,7 +471,11 @@ impl<Leaf> Dock<Leaf> {
 }
 
 fn is_possible_drag(ctx: &egui::Context) -> bool {
-    ctx.input(|i| !i.pointer.could_any_button_be_click() && !i.pointer.any_pressed())
+    ctx.input(|input| {
+        !input.pointer.any_pressed()
+            && !input.pointer.could_any_button_be_click()
+            && !input.pointer.any_click()
+    })
 }
 
 // ----------------------------------------------------------------------------
@@ -677,6 +710,9 @@ impl DropContext {
     }
 
     fn suggest_point(&mut self, insertion: InsertionPoint, target_point: Pos2, preview_rect: Rect) {
+        if !self.active {
+            return;
+        }
         if let Some(mouse_pos) = self.mouse_pos {
             let dist_sq = mouse_pos.distance_sq(target_point);
             if dist_sq < self.best_dist_sq {
@@ -701,14 +737,16 @@ impl<Leaf> Nodes<Leaf> {
         let drop_context_was_active = drop_context.active;
         if Some(node_id) == drop_context.dragged_node_id {
             // Can't drag a node onto self or any children
-            drop_context.active = true;
+            drop_context.active = false;
         }
         drop_context.on_node(node_id, node.rect);
 
         match &mut node.layout {
             NodeLayout::Leaf(leaf) => {
                 let mut leaf_ui = ui.child_ui(node.rect, *ui.layout());
-                behavior.leaf_ui(&mut leaf_ui, node_id, leaf);
+                if behavior.leaf_ui(&mut leaf_ui, node_id, leaf) == UiResponse::DragStarted {
+                    ui.memory_mut(|mem| mem.set_dragged_id(node_id.id()));
+                }
             }
             NodeLayout::Tabs(tabs) => {
                 self.tabs_ui(behavior, drop_context, ui, node.rect, node_id, tabs);
@@ -734,6 +772,11 @@ impl<Leaf> Nodes<Leaf> {
         parent_id: NodeId,
         tabs: &mut Tabs,
     ) {
+        if !tabs.children.iter().any(|&child| child == tabs.active) {
+            // Make sure something is active:
+            tabs.active = tabs.children.first().copied().unwrap_or_default();
+        }
+
         let tab_bar_height = behavior.tab_bar_height(ui.style());
         let tab_bar_rect = rect.split_top_bottom_at_y(rect.top() + tab_bar_height).0;
         let mut tab_bar_ui = ui.child_ui(tab_bar_rect, *ui.layout());
