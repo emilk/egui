@@ -31,7 +31,7 @@ while test $# -gt 0; do
       echo "             NOTE: --release also removes debug symbols which are otherwise useful for in-browser profiling."
       echo ""
       echo "  --webgpu:  Build a binary for WebGPU instead of WebGL"
-      echo "             Note that the resuling wasm will ONLY work on browsers with WebGPU."
+      echo "             Note that the resulting wasm will ONLY work on browsers with WebGPU."
       echo ""
       echo "  --open:    Open the result in a browser"
       exit 0
