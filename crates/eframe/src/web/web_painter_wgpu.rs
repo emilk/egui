@@ -161,8 +161,7 @@ impl WebPainter for WebPainterWgpu {
     fn max_texture_side(&self) -> usize {
         self.render_state
             .as_ref()
-            .map(|state| state.device.limits().max_texture_dimension_2d as _)
-            .unwrap_or(0)
+            .map_or(0, |state| state.device.limits().max_texture_dimension_2d as _)
     }
 
     fn paint_and_update_textures(
