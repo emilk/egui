@@ -65,7 +65,8 @@ impl Default for WgpuConfiguration {
         Self {
             // Add GL backend, primarily because WebGPU is not stable enough yet.
             // (note however, that the GL backend needs to be opted-in via a wgpu feature flag)
-            supported_backends: wgpu::Backends::PRIMARY | wgpu::Backends::GL,
+            supported_backends: wgpu::util::backend_bits_from_env()
+                .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL),
             device_descriptor: Arc::new(|adapter| {
                 let base_limits = if adapter.get_info().backend == wgpu::Backend::Gl {
                     wgpu::Limits::downlevel_webgl2_defaults()

@@ -497,11 +497,7 @@ impl Default for WebOptions {
             webgl_context_option: WebGlContextOption::BestFirst,
 
             #[cfg(feature = "wgpu")]
-            wgpu_options: egui_wgpu::WgpuConfiguration {
-                // Use WebGPU or WebGL. Note that WebGL needs to be opted in via a wgpu feature.
-                supported_backends: wgpu::Backends::BROWSER_WEBGPU | wgpu::Backends::GL,
-                ..Default::default()
-            },
+            wgpu_options: egui_wgpu::WgpuConfiguration::default(),
         }
     }
 }

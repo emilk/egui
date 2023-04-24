@@ -109,7 +109,7 @@ impl Painter {
     ) -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: configuration.supported_backends,
-            dx12_shader_compiler: Default::default(), //
+            dx12_shader_compiler: Default::default(),
         });
 
         Self {
