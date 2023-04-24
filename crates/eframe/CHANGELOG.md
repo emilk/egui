@@ -12,6 +12,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 #### Web:
 * Bug fix: modifiers keys getting stuck on alt-tab ([#2857](https://github.com/emilk/egui/pull/2857)).
+* ⚠️ BREAKING: WebGPU is now the default web renderer when using the `wgpu` feature of `eframe`. To use WebGL with `wgpu`, you need to add `wgpu = { version = "0.16.0", features = ["webgl"] }` to your own `Cargo.toml`. ([#2945](https://github.com/emilk/egui/pull/2945))
 
 ## 0.21.3 - 2023-02-15
 * Fix typing the letter 'P' on web ([#2740](https://github.com/emilk/egui/pull/2740)).

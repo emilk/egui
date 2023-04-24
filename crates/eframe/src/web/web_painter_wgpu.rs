@@ -10,6 +10,24 @@ use crate::WebOptions;
 
 use super::web_painter::WebPainter;
 
+struct EguiWebWindow(u32);
+
+#[allow(unsafe_code)]
+unsafe impl raw_window_handle::HasRawWindowHandle for EguiWebWindow {
+    fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
+        let mut window_handle = raw_window_handle::WebWindowHandle::empty();
+        window_handle.id = self.0;
+        raw_window_handle::RawWindowHandle::Web(window_handle)
+    }
+}
+
+#[allow(unsafe_code)]
+unsafe impl raw_window_handle::HasRawDisplayHandle for EguiWebWindow {
+    fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
+        raw_window_handle::RawDisplayHandle::Web(raw_window_handle::WebDisplayHandle::empty())
+    }
+}
+
 pub(crate) struct WebPainterWgpu {
     canvas: HtmlCanvasElement,
     canvas_id: String,
@@ -59,15 +77,28 @@ impl WebPainterWgpu {
     pub async fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
 
-        let canvas = super::canvas_element_or_die(canvas_id);
-
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: options.wgpu_options.backends,
             dx12_shader_compiler: Default::default(),
         });
-        let surface = instance
-            .create_surface_from_canvas(canvas.clone())
-            .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
+
+        let canvas = super::canvas_element_or_die(canvas_id);
+
+        let surface = if false {
+            instance.create_surface_from_canvas(canvas.clone())
+        } else {
+            // Workaround for https://github.com/gfx-rs/wgpu/issues/3710:
+            // Don't use `create_surface_from_canvas`, but `create_surface` instead!
+            let raw_window =
+                EguiWebWindow(egui::util::hash(&format!("egui on wgpu {canvas_id}")) as u32);
+            canvas.set_attribute("data-raw-handle", &raw_window.0.to_string());
+
+            #[allow(unsafe_code)]
+            unsafe {
+                instance.create_surface(&raw_window)
+            }
+        }
+        .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
