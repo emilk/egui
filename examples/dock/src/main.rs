@@ -109,7 +109,12 @@ fn tree_ui(
     //     return;
     // }
 
-    egui::CollapsingHeader::new(behavior.tab_text_for_node(nodes, node_id))
+    let text = format!(
+        "{} - {node_id:?}",
+        behavior.tab_text_for_node(nodes, node_id).text()
+    );
+
+    egui::CollapsingHeader::new(text)
         .id_source((node_id, "tree"))
         .default_open(true)
         .show(ui, |ui| match node {

@@ -29,27 +29,13 @@ pub use crate::sizing::Size;
 pub use crate::strip::*;
 pub use crate::table::*;
 
-/// Log an error with either `log` or `eprintln`
-macro_rules! log_err {
-    ($fmt: literal, $($arg: tt)*) => {{
-        #[cfg(feature = "log")]
-        log::error!($fmt, $($arg)*);
-
-        #[cfg(not(feature = "log"))]
-        eprintln!(
-            concat!("egui_extras: ", $fmt), $($arg)*
-        );
-    }};
-}
-pub(crate) use log_err;
-
 /// Panic in debug builds, log otherwise.
 macro_rules! log_or_panic {
     ($fmt: literal, $($arg: tt)*) => {{
         if cfg!(debug_assertions) {
             panic!($fmt, $($arg)*);
         } else {
-            $crate::log_err!($fmt, $($arg)*);
+            log::error!($fmt, $($arg)*);
         }
     }};
 }

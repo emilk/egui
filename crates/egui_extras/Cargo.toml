@@ -32,9 +32,6 @@ datepicker = ["chrono"]
 ## Support loading svg images.
 svg = ["resvg", "tiny-skia", "usvg"]
 
-## Log warnings using [`log`](https://docs.rs/log) crate.
-log = ["dep:log", "egui/log"]
-
 
 [dependencies]
 egui = { version = "0.21.0", path = "../egui", default-features = false }
@@ -42,6 +39,7 @@ egui = { version = "0.21.0", path = "../egui", default-features = false }
 # For dock:
 # required to make rand work on wasm, see https://github.com/rust-random/rand#wasm-support
 getrandom = { version = "0.2", features = ["js"] }
+log = { version = "0.4", features = ["std"] }
 rand = { version = "0.8.5", features = ["getrandom", "small_rng"] }
 
 serde = { version = "1", features = ["derive"] }
@@ -62,8 +60,6 @@ document-features = { version = "0.2", optional = true }
 ## ```
 image = { version = "0.24", optional = true, default-features = false }
 
-# feature "log"
-log = { version = "0.4", optional = true, features = ["std"] }
 
 # svg feature
 resvg = { version = "0.28", optional = true, default-features = false }

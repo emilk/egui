@@ -9,9 +9,7 @@ use egui::{
 // Types required for state
 
 /// An identifier for a node in the dock tree, be it a branch or a leaf.
-#[derive(
-    Clone, Copy, Debug, Default, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize,
-)]
+#[derive(Clone, Copy, Default, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct NodeId(u128);
 
 impl NodeId {
@@ -25,6 +23,12 @@ impl NodeId {
     /// Corresponding [`egui::Id`], used for dragging.
     pub fn id(&self) -> Id {
         Id::new(self)
+    }
+}
+
+impl std::fmt::Debug for NodeId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:08X}", self.0 as u32)
     }
 }
 
@@ -169,6 +173,24 @@ pub enum UiResponse {
     DragStarted,
 }
 
+pub struct SimplificationOptions {
+    pub prune_empty_tabs: bool,
+    pub prune_single_child_tabs: bool,
+    pub prune_empty_layouts: bool,
+    pub prune_single_child_layouts: bool,
+}
+
+impl Default for SimplificationOptions {
+    fn default() -> Self {
+        Self {
+            prune_empty_tabs: true,
+            prune_single_child_tabs: true,
+            prune_empty_layouts: true,
+            prune_single_child_layouts: true,
+        }
+    }
+}
+
 /// Trait defining how the [`Dock`] and its leaf should be shown.
 pub trait Behavior<Leaf> {
     /// Show this leaf node in the given [`egui::Ui`].
@@ -221,6 +243,10 @@ pub trait Behavior<Leaf> {
     fn gap_width(&self, _style: &Style) -> f32 {
         1.0
     }
+
+    fn simplification_options(&self) -> SimplificationOptions {
+        SimplificationOptions::default()
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -267,6 +293,26 @@ impl<Leaf> Nodes<Leaf> {
         self.insert_node(NodeLayout::Horizontal(horizontal).into())
     }
 
+    fn parent(&self, it: NodeId, needle_child: NodeId) -> Option<NodeId> {
+        match &self.nodes.get(&it)?.layout {
+            NodeLayout::Leaf(_) => None,
+            NodeLayout::Tabs(Tabs { children, .. })
+            | NodeLayout::Horizontal(Horizontal { children, .. })
+            | NodeLayout::Vertical(Vertical { children, .. }) => {
+                for &child in children {
+                    if child == needle_child {
+                        return Some(it);
+                    }
+                    if let Some(parent) = self.parent(child, needle_child) {
+                        return Some(parent);
+                    }
+                }
+                None
+            }
+        }
+    }
+
+    /// Performs no simplifcations!
     fn remove_node_id_from_parent(&mut self, it: NodeId, remove: NodeId) -> GcAction {
         if it == remove {
             return GcAction::Remove;
@@ -278,29 +324,12 @@ impl<Leaf> Nodes<Leaf> {
                 children.retain(|&child| {
                     self.remove_node_id_from_parent(child, remove) == GcAction::Keep
                 });
-
-                // Simplify:
-                if children.is_empty() {
-                    return GcAction::Remove;
-                }
             }
             NodeLayout::Horizontal(Horizontal { children, .. })
             | NodeLayout::Vertical(Vertical { children, .. }) => {
                 children.retain(|&child| {
                     self.remove_node_id_from_parent(child, remove) == GcAction::Keep
                 });
-
-                // Simplify:
-                if children.is_empty() {
-                    return GcAction::Remove;
-                }
-                if children.len() == 1 {
-                    // Remove `node` link parent directly to the only remaining child:
-                    if let Some(child) = self.nodes.remove(&children[0]) {
-                        self.nodes.insert(it, child);
-                        return GcAction::Keep;
-                    }
-                }
             }
         }
         self.nodes.insert(it, node);
@@ -314,8 +343,7 @@ impl<Leaf> Nodes<Leaf> {
             index,
         } = insertion_point;
         let Some(mut node) = self.nodes.remove(&parent_id) else {
-            #[cfg(feature = "log")]
-            log::warn!("failed to insert");
+            log::warn!("Failed to insert: could not find parent {parent_id:?}");
             return;
         };
         match layout_type {
@@ -378,6 +406,7 @@ impl<Leaf> Dock<Leaf> {
     }
 
     pub fn ui(&mut self, behavior: &mut dyn Behavior<Leaf>, ui: &mut Ui) {
+        self.simplify(&behavior.simplification_options());
         self.nodes.gc_root(behavior, self.root);
 
         self.nodes.layout_node(
@@ -430,11 +459,31 @@ impl<Leaf> Dock<Leaf> {
             if ui.input(|i| i.pointer.any_released()) {
                 ui.memory_mut(|mem| mem.stop_dragging());
                 if let Some(insertion_point) = drop_context.best_insertion {
-                    self.remove_node_id_from_parent(dragged_node_id);
-                    self.nodes.insert(insertion_point, dragged_node_id);
+                    self.move_node(dragged_node_id, insertion_point);
                 }
             }
         }
+    }
+
+    fn simplify(&mut self, options: &SimplificationOptions) {
+        match self.nodes.simplify(options, self.root) {
+            SimplifyAction::Remove => {
+                log::warn!("Tried to simplify root node!"); // TODO: handle this
+            }
+            SimplifyAction::Keep => {}
+            SimplifyAction::Replace(new_root) => {
+                self.root = new_root;
+            }
+        }
+    }
+
+    fn move_node(&mut self, moved_node_id: NodeId, insertion_point: InsertionPoint) {
+        log::debug!(
+            "Moving {moved_node_id:?} into {:?}",
+            insertion_point.parent_id
+        );
+        self.remove_node_id_from_parent(moved_node_id);
+        self.nodes.insert(insertion_point, moved_node_id);
     }
 
     /// Find the currently dragged node, if any.
@@ -464,6 +513,7 @@ impl<Leaf> Dock<Leaf> {
         None
     }
 
+    /// Performs no simplifcations!
     fn remove_node_id_from_parent(&mut self, dragged_node_id: NodeId) {
         self.nodes
             .remove_node_id_from_parent(self.root, dragged_node_id);
@@ -492,9 +542,14 @@ impl<Leaf> Nodes<Leaf> {
         let mut visited = HashSet::default();
         self.gc_node_id(behavior, &mut visited, root_id);
 
-        #[cfg(feature = "log")]
         if visited.len() < self.nodes.len() {
-            log::warn!("GC collection {} nodes", self.nodes.len() - visited.len());
+            log::warn!(
+                "GC collecting nodes: {:?}",
+                self.nodes
+                    .keys()
+                    .filter(|id| !visited.contains(id))
+                    .collect::<Vec<_>>()
+            );
         }
 
         self.nodes.retain(|node_id, _| visited.contains(node_id));
@@ -508,7 +563,6 @@ impl<Leaf> Nodes<Leaf> {
     ) -> GcAction {
         let Some(mut node) = self.nodes.remove(&node_id) else { return GcAction::Remove; };
         if !visited.insert(node_id) {
-            #[cfg(feature = "log")]
             log::warn!("Cycle or duplication detected");
             return GcAction::Remove;
         }
@@ -835,5 +889,68 @@ impl<Leaf> Nodes<Leaf> {
         for child in &vertical.children {
             self.node_ui(behavior, drop_context, ui, *child);
         }
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Simplification
+
+#[must_use]
+enum SimplifyAction {
+    Remove,
+    Keep,
+    Replace(NodeId),
+}
+
+impl<Leaf> Nodes<Leaf> {
+    fn simplify(&mut self, options: &SimplificationOptions, it: NodeId) -> SimplifyAction {
+        let Some(mut node) = self.nodes.remove(&it) else { return SimplifyAction::Remove; };
+
+        match &mut node.layout {
+            NodeLayout::Leaf(_) => {}
+            NodeLayout::Tabs(Tabs { children, .. }) => {
+                children.retain_mut(|child| match self.simplify(options, *child) {
+                    SimplifyAction::Remove => false,
+                    SimplifyAction::Keep => true,
+                    SimplifyAction::Replace(new) => {
+                        *child = new;
+                        true
+                    }
+                });
+
+                if options.prune_empty_tabs && children.is_empty() {
+                    log::debug!("Simplify: removing empty tabs");
+                    return SimplifyAction::Remove;
+                }
+                if options.prune_single_child_tabs && children.len() == 1 {
+                    log::debug!("Simplify: removing single-child tabs");
+                    return SimplifyAction::Replace(children[0]);
+                }
+            }
+
+            NodeLayout::Horizontal(Horizontal { children, .. })
+            | NodeLayout::Vertical(Vertical { children, .. }) => {
+                children.retain_mut(|child| match self.simplify(options, *child) {
+                    SimplifyAction::Remove => false,
+                    SimplifyAction::Keep => true,
+                    SimplifyAction::Replace(new) => {
+                        *child = new;
+                        true
+                    }
+                });
+
+                if options.prune_empty_layouts && children.is_empty() {
+                    log::debug!("Simplify: removing empty layout");
+                    return SimplifyAction::Remove;
+                }
+                if options.prune_single_child_layouts && children.len() == 1 {
+                    log::debug!("Simplify: removing single-child layout");
+                    return SimplifyAction::Replace(children[0]);
+                }
+            }
+        }
+
+        self.nodes.insert(it, node);
+        SimplifyAction::Keep
     }
 }
