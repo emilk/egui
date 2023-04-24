@@ -33,7 +33,6 @@ pub(crate) struct WebPainterWgpu {
     canvas_id: String,
     surface: wgpu::Surface,
     surface_configuration: wgpu::SurfaceConfiguration,
-    limits: wgpu::Limits,
     render_state: Option<RenderState>,
     on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
     depth_format: Option<wgpu::TextureFormat>,
@@ -78,7 +77,7 @@ impl WebPainterWgpu {
         log::debug!("Creating wgpu painter");
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: options.wgpu_options.backends,
+            backends: options.wgpu_options.supported_backends,
             dx12_shader_compiler: Default::default(),
         });
 
@@ -111,7 +110,7 @@ impl WebPainterWgpu {
 
         let (device, queue) = adapter
             .request_device(
-                &options.wgpu_options.device_descriptor,
+                &(*options.wgpu_options.device_descriptor)(&adapter),
                 None, // Capture doesn't work in the browser environment.
             )
             .await
@@ -149,7 +148,6 @@ impl WebPainterWgpu {
             surface_configuration,
             depth_format,
             depth_texture_view: None,
-            limits: options.wgpu_options.device_descriptor.limits.clone(),
             on_surface_error: options.wgpu_options.on_surface_error.clone(),
         })
     }
@@ -161,7 +159,10 @@ impl WebPainter for WebPainterWgpu {
     }
 
     fn max_texture_side(&self) -> usize {
-        self.limits.max_texture_dimension_2d as _
+        self.render_state
+            .as_ref()
+            .map(|state| state.device.limits().max_texture_dimension_2d as _)
+            .unwrap_or(0)
     }
 
     fn paint_and_update_textures(

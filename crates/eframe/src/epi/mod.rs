@@ -499,17 +499,7 @@ impl Default for WebOptions {
             #[cfg(feature = "wgpu")]
             wgpu_options: egui_wgpu::WgpuConfiguration {
                 // Use WebGPU or WebGL. Note that WebGL needs to be opted in via a wgpu feature.
-                backends: wgpu::Backends::BROWSER_WEBGPU | wgpu::Backends::GL,
-                device_descriptor: wgpu::DeviceDescriptor {
-                    label: Some("egui wgpu device"),
-                    features: wgpu::Features::default(),
-                    limits: wgpu::Limits {
-                        // When using a depth buffer, we have to be able to create a texture
-                        // large enough for the entire surface, and we want to support 4k+ displays.
-                        max_texture_dimension_2d: 8192,
-                        ..wgpu::Limits::downlevel_webgl2_defaults()
-                    },
-                },
+                supported_backends: wgpu::Backends::BROWSER_WEBGPU | wgpu::Backends::GL,
                 ..Default::default()
             },
         }

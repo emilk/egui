@@ -42,11 +42,11 @@ pub enum SurfaceErrorAction {
 /// Configuration for using wgpu with eframe or the egui-wgpu winit feature.
 #[derive(Clone)]
 pub struct WgpuConfiguration {
-    /// Configuration passed on device request.
-    pub device_descriptor: wgpu::DeviceDescriptor<'static>,
-
     /// Backends that should be supported (wgpu will pick one of these)
-    pub backends: wgpu::Backends,
+    pub supported_backends: wgpu::Backends,
+
+    /// Configuration passed on device request, given an adapter
+    pub device_descriptor: Arc<dyn Fn(&wgpu::Adapter) -> wgpu::DeviceDescriptor<'static>>,
 
     /// Present mode used for the primary surface.
     pub present_mode: wgpu::PresentMode,
@@ -63,16 +63,30 @@ pub struct WgpuConfiguration {
 impl Default for WgpuConfiguration {
     fn default() -> Self {
         Self {
-            device_descriptor: wgpu::DeviceDescriptor {
-                label: Some("egui wgpu device"),
-                features: wgpu::Features::default(),
-                limits: wgpu::Limits::default(),
-            },
             // Add GL backend, primarily because WebGPU is not stable enough yet.
             // (note however, that the GL backend needs to be opted-in via a wgpu feature flag)
-            backends: wgpu::Backends::PRIMARY | wgpu::Backends::GL,
+            supported_backends: wgpu::Backends::PRIMARY | wgpu::Backends::GL,
+            device_descriptor: Arc::new(|adapter| {
+                let base_limits = if adapter.get_info().backend == wgpu::Backend::Gl {
+                    wgpu::Limits::downlevel_webgl2_defaults()
+                } else {
+                    wgpu::Limits::default()
+                };
+
+                wgpu::DeviceDescriptor {
+                    label: Some("egui wgpu device"),
+                    features: wgpu::Features::default(),
+                    limits: wgpu::Limits {
+                        // When using a depth buffer, we have to be able to create a texture
+                        // large enough for the entire surface, and we want to support 4k+ displays.
+                        max_texture_dimension_2d: 8192,
+                        ..base_limits
+                    },
+                }
+            }),
             present_mode: wgpu::PresentMode::AutoVsync,
-            power_preference: wgpu::PowerPreference::HighPerformance,
+            power_preference: wgpu::util::power_preference_from_env()
+                .unwrap_or(wgpu::PowerPreference::HighPerformance),
             depth_format: None,
 
             on_surface_error: Arc::new(|err| {
