@@ -440,7 +440,9 @@ impl<Leaf> Dock<Leaf> {
                 .current_pos(mouse_pos)
                 .interactable(false)
                 .show(ui.ctx(), |ui| {
-                    egui::Frame::popup(ui.style()).show(ui, |ui| {
+                    let mut frame = egui::Frame::popup(ui.style());
+                    frame.fill = frame.fill.gamma_multiply(0.5); // Make see-through
+                    frame.show(ui, |ui| {
                         // TODO: preview contents
                         let text = behavior.tab_text_for_node(&self.nodes, dragged_node_id);
                         ui.label(text);
@@ -704,6 +706,16 @@ struct InsertionPoint {
     index: usize,
 }
 
+impl InsertionPoint {
+    fn new(parent_id: NodeId, layout_type: LayoutType, index: usize) -> Self {
+        Self {
+            parent_id,
+            layout_type,
+            index,
+        }
+    }
+}
+
 struct DropContext {
     active: bool,
     dragged_node_id: Option<NodeId>,
@@ -716,48 +728,31 @@ struct DropContext {
 
 impl DropContext {
     fn on_node(&mut self, parent_id: NodeId, rect: Rect) {
+        if !self.active {
+            return;
+        }
         self.suggest_point(
-            InsertionPoint {
-                parent_id,
-                layout_type: LayoutType::Horizontal,
-                index: 0,
-            },
+            InsertionPoint::new(parent_id, LayoutType::Horizontal, 0),
             rect.left_center(),
             rect.split_left_right_at_fraction(0.5).0,
         );
         self.suggest_point(
-            InsertionPoint {
-                parent_id,
-                layout_type: LayoutType::Horizontal,
-                index: usize::MAX,
-            },
+            InsertionPoint::new(parent_id, LayoutType::Horizontal, usize::MAX),
             rect.right_center(),
             rect.split_left_right_at_fraction(0.5).1,
         );
         self.suggest_point(
-            InsertionPoint {
-                parent_id,
-                layout_type: LayoutType::Vertical,
-                index: 0,
-            },
+            InsertionPoint::new(parent_id, LayoutType::Vertical, 0),
             rect.center_top(),
             rect.split_top_bottom_at_fraction(0.5).0,
         );
         self.suggest_point(
-            InsertionPoint {
-                parent_id,
-                layout_type: LayoutType::Vertical,
-                index: usize::MAX,
-            },
+            InsertionPoint::new(parent_id, LayoutType::Vertical, usize::MAX),
             rect.center_bottom(),
             rect.split_top_bottom_at_fraction(0.5).1,
         );
         self.suggest_point(
-            InsertionPoint {
-                parent_id,
-                layout_type: LayoutType::Tabs,
-                index: 1,
-            },
+            InsertionPoint::new(parent_id, LayoutType::Tabs, 1),
             rect.center(),
             rect,
         );
@@ -823,7 +818,7 @@ impl<Leaf> Nodes<Leaf> {
         drop_context: &mut DropContext,
         ui: &mut Ui,
         rect: Rect,
-        parent_id: NodeId,
+        node_id: NodeId,
         tabs: &mut Tabs,
     ) {
         if !tabs.children.iter().any(|&child| child == tabs.active) {
@@ -837,15 +832,18 @@ impl<Leaf> Nodes<Leaf> {
 
         // Show tab bar:
         tab_bar_ui.horizontal(|ui| {
-            for &child_id in &tabs.children {
+            let mut prev_tab_rect: Option<Rect> = None;
+            let mut insertion_index = 0; // skips over drag-source, if any
+
+            for (child_index, &child_id) in tabs.children.iter().enumerate() {
                 let selected = child_id == tabs.active;
                 let id = child_id.id();
 
-                // let is_node_being_dragged = ui.memory(|mem| mem.is_being_dragged(id))
-                //     && is_possible_drag(ui.ctx());
-                // if is_node_being_dragged {
-                //     continue; // leave a gap!
-                // }
+                let is_node_being_dragged =
+                    ui.memory(|mem| mem.is_being_dragged(id)) && is_possible_drag(ui.ctx());
+                if is_node_being_dragged {
+                    continue; // leave a gap!
+                }
 
                 let response = behavior.tab_ui(self, ui, id, child_id, selected);
                 let response = response.on_hover_cursor(CursorIcon::Grab);
@@ -859,10 +857,49 @@ impl<Leaf> Nodes<Leaf> {
                         tabs.active = child_id;
                     }
                 }
+
+                {
+                    // suggest dropping before this tab:
+                    let before_point = if let Some(prev_tab_rect) = prev_tab_rect {
+                        // between
+                        prev_tab_rect
+                            .right_center()
+                            .lerp(response.rect.left_center(), 0.5)
+                    } else {
+                        // before first
+                        response.rect.left_center()
+                    };
+
+                    drop_context.suggest_point(
+                        InsertionPoint::new(node_id, LayoutType::Tabs, insertion_index),
+                        before_point,
+                        Rect::from_center_size(before_point, vec2(4.0, response.rect.height())),
+                    );
+                }
+
+                if child_index + 1 == tabs.children.len() {
+                    // suggest dropping after last tab:
+                    drop_context.suggest_point(
+                        InsertionPoint::new(node_id, LayoutType::Tabs, insertion_index + 1),
+                        response.rect.right_center(),
+                        Rect::from_center_size(
+                            response.rect.right_center(),
+                            vec2(4.0, response.rect.height()),
+                        ),
+                    );
+                }
+
+                prev_tab_rect = Some(response.rect);
+                insertion_index += 1;
             }
         });
 
-        self.node_ui(behavior, drop_context, ui, tabs.active);
+        // When dragged, don't show it (it is "being held")
+        let is_active_being_dragged =
+            ui.memory(|mem| mem.is_being_dragged(tabs.active.id())) && is_possible_drag(ui.ctx());
+        if !is_active_being_dragged {
+            self.node_ui(behavior, drop_context, ui, tabs.active);
+        }
     }
 
     fn horizontal_ui(
@@ -930,6 +967,7 @@ impl<Leaf> Nodes<Leaf> {
 
             NodeLayout::Horizontal(Horizontal { children, .. })
             | NodeLayout::Vertical(Vertical { children, .. }) => {
+                // TODO: join nested versions of the same thing
                 children.retain_mut(|child| match self.simplify(options, *child) {
                     SimplifyAction::Remove => false,
                     SimplifyAction::Keep => true,
