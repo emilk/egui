@@ -58,6 +58,7 @@ egui = { version = "0.21.0", path = "../egui", default-features = false, feature
 ] }
 log = { version = "0.4", features = ["std"] }
 winit = { version = "0.28", default-features = false }
+raw-window-handle = "0.5.0"
 
 #! ### Optional dependencies
 
@@ -74,7 +75,6 @@ webbrowser = { version = "0.8.3", optional = true }
 
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
 instant = { version = "0.1" }
-raw-window-handle = "0.5.0"
 
 [target.'cfg(target_arch="wasm32")'.dependencies]
 instant = { version = "0.1", features = [
