@@ -79,17 +79,17 @@ pub enum Node<Leaf> {
 }
 
 impl<Leaf> Node<Leaf> {
-    fn branch_type(&self) -> Option<BranchType> {
+    fn layout(&self) -> Option<Layout> {
         match self {
             Node::Leaf(_) => None,
-            Node::Branch(branch) => Some(branch.typ),
+            Node::Branch(branch) => Some(branch.layout),
         }
     }
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Branch {
-    pub typ: BranchType,
+    pub layout: Layout,
     pub children: Vec<NodeId>,
 
     /// Only if [`Self.typ`] == [`BranchType::Tab`]
@@ -100,10 +100,10 @@ pub struct Branch {
 }
 
 impl Branch {
-    pub fn new(typ: BranchType, children: Vec<NodeId>) -> Self {
+    pub fn new(layout: Layout, children: Vec<NodeId>) -> Self {
         let active_tab = children.first().copied().unwrap_or_default();
         Self {
-            typ,
+            layout,
             children,
             active_tab,
             ..Default::default()
@@ -111,7 +111,7 @@ impl Branch {
     }
 
     pub fn new_tabs(children: Vec<NodeId>) -> Self {
-        Self::new(BranchType::Tabs, children)
+        Self::new(Layout::Tabs, children)
     }
 }
 
@@ -144,28 +144,32 @@ impl Shares {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum BranchType {
+pub enum Layout {
     #[default]
     Tabs,
     Horizontal,
     Vertical,
 }
 
+impl Layout {
+    pub const ALL: [Self; 3] = [Self::Tabs, Self::Horizontal, Self::Vertical];
+}
+
 #[derive(Clone, Copy, Debug)]
 struct InsertionPoint {
     parent_id: NodeId,
 
-    branch_type: BranchType,
+    layout: Layout,
 
     /// Where in the parent?
     index: usize,
 }
 
 impl InsertionPoint {
-    fn new(parent_id: NodeId, branch_type: BranchType, index: usize) -> Self {
+    fn new(parent_id: NodeId, layout: Layout, index: usize) -> Self {
         Self {
             parent_id,
-            branch_type,
+            layout,
             index,
         }
     }
@@ -215,7 +219,7 @@ pub trait Behavior<Leaf> {
     fn tab_text_for_node(&mut self, nodes: &Nodes<Leaf>, node_id: NodeId) -> WidgetText {
         match &nodes.nodes[&node_id] {
             Node::Leaf(leaf) => self.tab_text_for_leaf(leaf),
-            Node::Branch(branch) => format!("{:?}", branch.typ).into(),
+            Node::Branch(branch) => format!("{:?}", branch.layout).into(),
         }
     }
 
@@ -311,12 +315,12 @@ impl<Leaf> Nodes<Leaf> {
 
     #[must_use]
     pub fn insert_horizontal_node(&mut self, children: Vec<NodeId>) -> NodeId {
-        self.insert_node(Node::Branch(Branch::new(BranchType::Horizontal, children)))
+        self.insert_node(Node::Branch(Branch::new(Layout::Horizontal, children)))
     }
 
     #[must_use]
     pub fn insert_vertical_node(&mut self, children: Vec<NodeId>) -> NodeId {
-        self.insert_node(Node::Branch(Branch::new(BranchType::Vertical, children)))
+        self.insert_node(Node::Branch(Branch::new(Layout::Vertical, children)))
     }
 
     fn parent(&self, it: NodeId, needle_child: NodeId) -> Option<NodeId> {
@@ -354,7 +358,7 @@ impl<Leaf> Nodes<Leaf> {
     fn insert(&mut self, insertion_point: InsertionPoint, child_id: NodeId) {
         let InsertionPoint {
             parent_id,
-            branch_type,
+            layout: branch_type,
             index,
         } = insertion_point;
         let Some(mut node) = self.nodes.remove(&parent_id) else {
@@ -362,9 +366,9 @@ impl<Leaf> Nodes<Leaf> {
             return;
         };
         match branch_type {
-            BranchType::Tabs => {
+            Layout::Tabs => {
                 if let Node::Branch(Branch {
-                    typ: BranchType::Tabs,
+                    layout: Layout::Tabs,
                     children,
                     ..
                 }) = &mut node
@@ -379,9 +383,9 @@ impl<Leaf> Nodes<Leaf> {
                     self.nodes.insert(parent_id, Node::Branch(branch));
                 }
             }
-            BranchType::Horizontal => {
+            Layout::Horizontal => {
                 if let Node::Branch(Branch {
-                    typ: BranchType::Horizontal,
+                    layout: Layout::Horizontal,
                     children,
                     ..
                 }) = &mut node
@@ -391,14 +395,14 @@ impl<Leaf> Nodes<Leaf> {
                     self.nodes.insert(parent_id, node);
                 } else {
                     let new_node_id = self.insert_node(node);
-                    let mut branch = Branch::new(BranchType::Horizontal, vec![new_node_id]);
+                    let mut branch = Branch::new(Layout::Horizontal, vec![new_node_id]);
                     branch.children.insert(index.min(1), child_id);
                     self.nodes.insert(parent_id, Node::Branch(branch));
                 }
             }
-            BranchType::Vertical => {
+            Layout::Vertical => {
                 if let Node::Branch(Branch {
-                    typ: BranchType::Vertical,
+                    layout: Layout::Vertical,
                     children,
                     ..
                 }) = &mut node
@@ -408,7 +412,7 @@ impl<Leaf> Nodes<Leaf> {
                     self.nodes.insert(parent_id, node);
                 } else {
                     let new_node_id = self.insert_node(node);
-                    let mut branch = Branch::new(BranchType::Vertical, vec![new_node_id]);
+                    let mut branch = Branch::new(Layout::Vertical, vec![new_node_id]);
                     branch.children.insert(index.min(1), child_id);
                     self.nodes.insert(parent_id, Node::Branch(branch));
                 }
@@ -689,10 +693,10 @@ impl<Leaf> Nodes<Leaf> {
         rect: Rect,
         branch: &Branch,
     ) {
-        match branch.typ {
-            BranchType::Tabs => self.layout_tabs(style, behavior, rect, branch),
-            BranchType::Horizontal => self.layout_horizontal(style, behavior, rect, branch),
-            BranchType::Vertical => self.layout_vertical(style, behavior, rect, branch),
+        match branch.layout {
+            Layout::Tabs => self.layout_tabs(style, behavior, rect, branch),
+            Layout::Horizontal => self.layout_horizontal(style, behavior, rect, branch),
+            Layout::Vertical => self.layout_vertical(style, behavior, rect, branch),
         }
     }
 
@@ -790,24 +794,24 @@ impl DropContext {
             return;
         }
 
-        if node.branch_type() != Some(BranchType::Horizontal) {
+        if node.layout() != Some(Layout::Horizontal) {
             self.suggest_rect(
-                InsertionPoint::new(parent_id, BranchType::Horizontal, 0),
+                InsertionPoint::new(parent_id, Layout::Horizontal, 0),
                 rect.split_left_right_at_fraction(0.5).0,
             );
             self.suggest_rect(
-                InsertionPoint::new(parent_id, BranchType::Horizontal, usize::MAX),
+                InsertionPoint::new(parent_id, Layout::Horizontal, usize::MAX),
                 rect.split_left_right_at_fraction(0.5).1,
             );
         }
 
-        if node.branch_type() != Some(BranchType::Vertical) {
+        if node.layout() != Some(Layout::Vertical) {
             self.suggest_rect(
-                InsertionPoint::new(parent_id, BranchType::Vertical, 0),
+                InsertionPoint::new(parent_id, Layout::Vertical, 0),
                 rect.split_top_bottom_at_fraction(0.5).0,
             );
             self.suggest_rect(
-                InsertionPoint::new(parent_id, BranchType::Vertical, usize::MAX),
+                InsertionPoint::new(parent_id, Layout::Vertical, usize::MAX),
                 rect.split_top_bottom_at_fraction(0.5).1,
             );
         }
@@ -852,7 +856,7 @@ impl<Leaf> Nodes<Leaf> {
         drop_context.on_node(node_id, rect, &node);
 
         drop_context.suggest_rect(
-            InsertionPoint::new(node_id, BranchType::Tabs, usize::MAX),
+            InsertionPoint::new(node_id, Layout::Tabs, usize::MAX),
             rect.split_top_bottom_at_y(rect.top() + behavior.tab_bar_height(ui.style()))
                 .1,
         );
@@ -882,14 +886,14 @@ impl<Leaf> Nodes<Leaf> {
         node_id: NodeId,
         branch: &mut Branch,
     ) {
-        match branch.typ {
-            BranchType::Tabs => {
+        match branch.layout {
+            Layout::Tabs => {
                 self.tabs_ui(behavior, drop_context, ui, rect, node_id, branch);
             }
-            BranchType::Horizontal => {
+            Layout::Horizontal => {
                 self.horizontal_ui(behavior, drop_context, ui, node_id, branch);
             }
-            BranchType::Vertical => {
+            Layout::Vertical => {
                 self.vertical_ui(behavior, drop_context, ui, node_id, branch);
             }
         }
@@ -956,7 +960,7 @@ impl<Leaf> Nodes<Leaf> {
                     };
 
                     drop_context.suggest_rect(
-                        InsertionPoint::new(node_id, BranchType::Tabs, insertion_index),
+                        InsertionPoint::new(node_id, Layout::Tabs, insertion_index),
                         Rect::from_center_size(before_point, vec2(4.0, rect.height())),
                     );
                 }
@@ -964,7 +968,7 @@ impl<Leaf> Nodes<Leaf> {
                 if i + 1 == branch.children.len() {
                     // suggest dropping after last tab:
                     drop_context.suggest_rect(
-                        InsertionPoint::new(node_id, BranchType::Tabs, insertion_index + 1),
+                        InsertionPoint::new(node_id, Layout::Tabs, insertion_index + 1),
                         Rect::from_center_size(rect.right_center(), vec2(4.0, rect.height())),
                     );
                 }
@@ -998,23 +1002,21 @@ impl<Leaf> Nodes<Leaf> {
 
             if is_being_dragged(ui.ctx(), child) {
                 // Leave a hole, and suggest that hole as drop-target:
-                drop_context.suggest_rect(
-                    InsertionPoint::new(parent_id, BranchType::Horizontal, i),
-                    rect,
-                );
+                drop_context
+                    .suggest_rect(InsertionPoint::new(parent_id, Layout::Horizontal, i), rect);
             } else {
                 self.node_ui(behavior, drop_context, ui, child);
 
                 if let Some(prev_rect) = prev_rect {
                     // Suggest dropping between the rects:
                     drop_context.suggest_rect(
-                        InsertionPoint::new(parent_id, BranchType::Horizontal, insertion_index),
+                        InsertionPoint::new(parent_id, Layout::Horizontal, insertion_index),
                         Rect::from_min_max(prev_rect.center_top(), rect.center_bottom()),
                     );
                 } else {
                     // Suggest dropping before the first child:
                     drop_context.suggest_rect(
-                        InsertionPoint::new(parent_id, BranchType::Horizontal, 0),
+                        InsertionPoint::new(parent_id, Layout::Horizontal, 0),
                         rect.split_left_right_at_fraction(0.66).0,
                     );
                 }
@@ -1022,7 +1024,7 @@ impl<Leaf> Nodes<Leaf> {
                 if i + 1 == branch.children.len() {
                     // Suggest dropping after the last child:
                     drop_context.suggest_rect(
-                        InsertionPoint::new(parent_id, BranchType::Horizontal, insertion_index + 1),
+                        InsertionPoint::new(parent_id, Layout::Horizontal, insertion_index + 1),
                         rect.split_left_right_at_fraction(0.33).1,
                     );
                 }
@@ -1061,7 +1063,12 @@ impl<Leaf> Nodes<Leaf> {
     fn simplify(&mut self, options: &SimplificationOptions, it: NodeId) -> SimplifyAction {
         let Some(mut node) = self.nodes.remove(&it) else { return SimplifyAction::Remove; };
 
-        if let Node::Branch(Branch { typ, children, .. }) = &mut node {
+        if let Node::Branch(Branch {
+            layout: typ,
+            children,
+            ..
+        }) = &mut node
+        {
             // TODO: join nested versions of the same horizontal/vertical layouts
 
             children.retain_mut(|child| match self.simplify(options, *child) {
@@ -1074,7 +1081,7 @@ impl<Leaf> Nodes<Leaf> {
             });
 
             match typ {
-                BranchType::Tabs => {
+                Layout::Tabs => {
                     if options.prune_empty_tabs && children.is_empty() {
                         log::debug!("Simplify: removing empty tabs node");
                         return SimplifyAction::Remove;
@@ -1090,7 +1097,7 @@ impl<Leaf> Nodes<Leaf> {
                         }
                     }
                 }
-                BranchType::Horizontal | BranchType::Vertical => {
+                Layout::Horizontal | Layout::Vertical => {
                     if options.prune_empty_layouts && children.is_empty() {
                         log::debug!("Simplify: removing empty layout node");
                         return SimplifyAction::Remove;
@@ -1123,8 +1130,12 @@ impl<Leaf> Nodes<Leaf> {
                     return;
                 }
             }
-            Node::Branch(Branch { typ, children, .. }) => {
-                let is_tabs = *typ == BranchType::Tabs;
+            Node::Branch(Branch {
+                layout: typ,
+                children,
+                ..
+            }) => {
+                let is_tabs = *typ == Layout::Tabs;
                 for child in children {
                     self.make_all_leaves_children_of_tabs(is_tabs, *child);
                 }

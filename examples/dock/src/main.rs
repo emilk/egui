@@ -141,7 +141,7 @@ impl eframe::App for MyApp {
             );
             ui.separator();
 
-            tree_ui(ui, &mut self.behavior, &self.dock.nodes, self.dock.root);
+            tree_ui(ui, &mut self.behavior, &mut self.dock.nodes, self.dock.root);
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -157,30 +157,36 @@ impl eframe::App for MyApp {
 fn tree_ui(
     ui: &mut egui::Ui,
     behavior: &mut dyn dock::Behavior<View>,
-    nodes: &dock::Nodes<View>,
+    nodes: &mut dock::Nodes<View>,
     node_id: dock::NodeId,
 ) {
-    let Some(node) = nodes.get(node_id) else { return; };
-
-    // if let dock::NodeLayout::Leaf(view) = node {
-    //     ui.label(&view.title);
-    //     return;
-    // }
-
     let text = format!(
         "{} - {node_id:?}",
         behavior.tab_text_for_node(nodes, node_id).text()
     );
 
+    let Some(mut node) = nodes.nodes.remove(&node_id) else { return; };
+
     egui::CollapsingHeader::new(text)
         .id_source((node_id, "tree"))
         .default_open(true)
-        .show(ui, |ui| match node {
+        .show(ui, |ui| match &mut node {
             dock::Node::Leaf(_) => {}
             dock::Node::Branch(branch) => {
+                egui::ComboBox::from_label("Layout")
+                    .selected_text(format!("{:?}", branch.layout))
+                    .show_ui(ui, |ui| {
+                        for typ in dock::Layout::ALL {
+                            ui.selectable_value(&mut branch.layout, typ, format!("{:?}", typ))
+                                .clicked();
+                        }
+                    });
+
                 for &child in &branch.children {
                     tree_ui(ui, behavior, nodes, child);
                 }
             }
         });
+
+    nodes.nodes.insert(node_id, node);
 }
