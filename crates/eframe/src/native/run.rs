@@ -1122,9 +1122,7 @@ mod wgpu_integration {
         ) -> std::result::Result<(), egui_wgpu::WgpuError> {
             self.window = Some(window);
             if let Some(running) = &mut self.running {
-                unsafe {
-                    pollster::block_on(running.painter.set_window(self.window.as_ref()))?;
-                }
+                pollster::block_on(running.painter.set_window(self.window.as_ref()))?;
             }
             Ok(())
         }
@@ -1152,7 +1150,10 @@ mod wgpu_integration {
                 let mut painter = egui_wgpu::winit::Painter::new(
                     self.native_options.wgpu_options.clone(),
                     self.native_options.multisampling.max(1) as _,
-                    self.native_options.depth_buffer,
+                    egui_wgpu::depth_format_from_bits(
+                        self.native_options.depth_buffer,
+                        self.native_options.stencil_buffer,
+                    ),
                     self.native_options.transparent,
                 );
                 pollster::block_on(painter.set_window(Some(&window)))?;

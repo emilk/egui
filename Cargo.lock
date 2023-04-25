@@ -1251,6 +1251,7 @@ dependencies = [
  "epaint",
  "log",
  "puffin",
+ "thiserror",
  "type-map",
  "wgpu",
  "winit",

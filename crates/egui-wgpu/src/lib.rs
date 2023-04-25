@@ -21,13 +21,75 @@ use std::sync::Arc;
 
 use epaint::mutex::RwLock;
 
+#[derive(thiserror::Error, Debug)]
+pub enum WgpuError {
+    #[error("Failed to create wgpu adapter, no suitable adapter found.")]
+    NoSuitableAdapterFound,
+
+    #[error(transparent)]
+    RequestDeviceError(#[from] wgpu::RequestDeviceError),
+
+    #[error(transparent)]
+    CreateSurfaceError(#[from] wgpu::CreateSurfaceError),
+}
+
 /// Access to the render state for egui.
 #[derive(Clone)]
 pub struct RenderState {
+    /// Wgpu adapter used for rendering.
+    pub adapter: Arc<wgpu::Adapter>,
+
+    /// Wgpu device used for rendering, created from the adapter.
     pub device: Arc<wgpu::Device>,
+
+    /// Wgpu queue used for rendering, created from the adapter.
     pub queue: Arc<wgpu::Queue>,
+
+    /// The target texture format used for presenting to the window.
     pub target_format: wgpu::TextureFormat,
+
+    /// Egui renderer responsible for drawing the UI.
     pub renderer: Arc<RwLock<Renderer>>,
+}
+
+impl RenderState {
+    /// Creates a new `RenderState`, containing everything needed for drawing egui with wgpu.
+    ///
+    /// # Errors
+    ///     Wgpu initialization may fail due to incompatible hardware or driver for a given config.
+    pub async fn create(
+        config: &WgpuConfiguration,
+        instance: &wgpu::Instance,
+        surface: &wgpu::Surface,
+        depth_format: Option<wgpu::TextureFormat>,
+        msaa_samples: u32,
+    ) -> Result<Self, WgpuError> {
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: config.power_preference,
+                compatible_surface: Some(surface),
+                force_fallback_adapter: false,
+            })
+            .await
+            .ok_or(WgpuError::NoSuitableAdapterFound)?;
+
+        let target_format =
+            crate::preferred_framebuffer_format(&surface.get_capabilities(&adapter).formats);
+
+        let (device, queue) = adapter
+            .request_device(&(*config.device_descriptor)(&adapter), None)
+            .await?;
+
+        let renderer = Renderer::new(&device, target_format, depth_format, msaa_samples);
+
+        Ok(RenderState {
+            adapter: Arc::new(adapter),
+            device: Arc::new(device),
+            queue: Arc::new(queue),
+            target_format,
+            renderer: Arc::new(RwLock::new(renderer)),
+        })
+    }
 }
 
 /// Specifies which action should be taken as consequence of a [`wgpu::SurfaceError`]
@@ -56,8 +118,6 @@ pub struct WgpuConfiguration {
 
     /// Callback for surface errors.
     pub on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
-
-    pub depth_format: Option<wgpu::TextureFormat>,
 }
 
 impl Default for WgpuConfiguration {
@@ -88,7 +148,6 @@ impl Default for WgpuConfiguration {
             present_mode: wgpu::PresentMode::AutoVsync,
             power_preference: wgpu::util::power_preference_from_env()
                 .unwrap_or(wgpu::PowerPreference::HighPerformance),
-            depth_format: None,
 
             on_surface_error: Arc::new(|err| {
                 if err == wgpu::SurfaceError::Outdated {
@@ -116,39 +175,20 @@ pub fn preferred_framebuffer_format(formats: &[wgpu::TextureFormat]) -> wgpu::Te
     }
     formats[0] // take the first
 }
-// maybe use this-error?
-#[derive(Debug)]
-pub enum WgpuError {
-    DeviceError(wgpu::RequestDeviceError),
-    SurfaceError(wgpu::CreateSurfaceError),
-}
 
-impl std::fmt::Display for WgpuError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Debug::fmt(self, f)
+/// Take's epi's depth/stencil bits and returns the corresponding wgpu format.
+pub fn depth_format_from_bits(depth_buffer: u8, stencil_buffer: u8) -> Option<wgpu::TextureFormat> {
+    match (depth_buffer, stencil_buffer) {
+        (0, 8) => Some(wgpu::TextureFormat::Stencil8),
+        (16, 0) => Some(wgpu::TextureFormat::Depth16Unorm),
+        (24, 0) => Some(wgpu::TextureFormat::Depth24Plus),
+        (24, 8) => Some(wgpu::TextureFormat::Depth24PlusStencil8),
+        (32, 0) => Some(wgpu::TextureFormat::Depth32Float),
+        (32, 8) => Some(wgpu::TextureFormat::Depth32FloatStencil8),
+        _ => None,
     }
 }
 
-impl std::error::Error for WgpuError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            WgpuError::DeviceError(e) => e.source(),
-            WgpuError::SurfaceError(e) => e.source(),
-        }
-    }
-}
-
-impl From<wgpu::RequestDeviceError> for WgpuError {
-    fn from(e: wgpu::RequestDeviceError) -> Self {
-        Self::DeviceError(e)
-    }
-}
-
-impl From<wgpu::CreateSurfaceError> for WgpuError {
-    fn from(e: wgpu::CreateSurfaceError) -> Self {
-        Self::SurfaceError(e)
-    }
-}
 // ---------------------------------------------------------------------------
 
 /// Profiling macro for feature "puffin"

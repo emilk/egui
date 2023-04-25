@@ -33,3 +33,6 @@ opt-level = 2 # fast and small wasm, basically same as `opt-level = 's'`
 # Optimize all dependencies even in debug builds (does not affect workspace packages):
 [profile.dev.package."*"]
 opt-level = 2
+
+[workspace.dependencies]
+thiserror = "1.0.37"
