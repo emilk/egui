@@ -108,8 +108,8 @@ impl Painter {
         support_transparent_backbuffer: bool,
     ) -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: configuration.backends,
-            dx12_shader_compiler: Default::default(), //
+            backends: configuration.supported_backends,
+            dx12_shader_compiler: Default::default(),
         });
 
         Self {
@@ -141,7 +141,7 @@ impl Painter {
         target_format: wgpu::TextureFormat,
     ) -> Result<RenderState, wgpu::RequestDeviceError> {
         adapter
-            .request_device(&self.configuration.device_descriptor, None)
+            .request_device(&(*self.configuration.device_descriptor)(adapter), None)
             .await
             .map(|(device, queue)| {
                 let renderer =
