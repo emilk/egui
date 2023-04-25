@@ -56,7 +56,7 @@ impl RenderState {
     /// Creates a new `RenderState`, containing everything needed for drawing egui with wgpu.
     ///
     /// # Errors
-    ///     Wgpu initialization may fail due to incompatible hardware or driver for a given config.
+    /// Wgpu initialization may fail due to incompatible hardware or driver for a given config.
     pub async fn create(
         config: &WgpuConfiguration,
         instance: &wgpu::Instance,
