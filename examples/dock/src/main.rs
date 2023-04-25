@@ -43,10 +43,7 @@ impl View {
     pub fn ui(&mut self, ui: &mut egui::Ui) -> dock::UiResponse {
         ui.painter().rect_filled(ui.max_rect(), 0.0, self.color);
         let dragged = ui
-            .add(
-                egui::Button::new(format!("Contents of {}. Drag me!", self.title))
-                    .sense(egui::Sense::drag()),
-            )
+            .allocate_rect(ui.max_rect(), egui::Sense::drag())
             .on_hover_cursor(egui::CursorIcon::Grab)
             .dragged();
         if dragged {
