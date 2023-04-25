@@ -153,22 +153,34 @@ impl Default for MyApp {
 
         let mut nodes = dock::Nodes::default();
 
-        let tab0 = { nodes.insert_leaf(gen_view()) };
-        let tab1 = {
+        let mut tabs = vec![];
+        tabs.push(nodes.insert_leaf(gen_view()));
+        tabs.push({
             let a = nodes.insert_leaf(gen_view());
             let b = nodes.insert_leaf(gen_view());
-            nodes.insert_tab_node(vec![a, b])
-        };
-        let tab2 = {
+            let c = nodes.insert_leaf(gen_view());
+            let d = nodes.insert_leaf(gen_view());
+            let e = nodes.insert_leaf(gen_view());
+            nodes.insert_tab_node(vec![a, b, c, d, e])
+        });
+        tabs.push({
             let a = nodes.insert_leaf(gen_view());
             let b = nodes.insert_leaf(gen_view());
             let c = nodes.insert_leaf(gen_view());
             let d = nodes.insert_leaf(gen_view());
             let e = nodes.insert_leaf(gen_view());
             nodes.insert_horizontal_node(vec![a, b, c, d, e])
-        };
+        });
+        tabs.push({
+            let a = nodes.insert_leaf(gen_view());
+            let b = nodes.insert_leaf(gen_view());
+            let c = nodes.insert_leaf(gen_view());
+            let d = nodes.insert_leaf(gen_view());
+            let e = nodes.insert_leaf(gen_view());
+            nodes.insert_grid_node(vec![a, b, c, d, e])
+        });
 
-        let root = nodes.insert_tab_node(vec![tab0, tab1, tab2]);
+        let root = nodes.insert_tab_node(tabs);
 
         let dock = dock::Dock::new(root, nodes);
 

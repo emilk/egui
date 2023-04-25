@@ -161,6 +161,12 @@ pub struct Shares {
 }
 
 impl Shares {
+    fn replace_with(&mut self, a: NodeId, b: NodeId) {
+        if let Some(share) = self.shares.remove(&a) {
+            self.shares.insert(b, share);
+        }
+    }
+
     fn split(&self, children: &[NodeId], available_width: f32) -> Vec<f32> {
         let mut num_shares = 0.0;
         for child in children {
@@ -362,6 +368,11 @@ impl<Leaf> Nodes<Leaf> {
     #[must_use]
     pub fn insert_vertical_node(&mut self, children: Vec<NodeId>) -> NodeId {
         self.insert_node(Node::Branch(Branch::new(Layout::Vertical, children)))
+    }
+
+    #[must_use]
+    pub fn insert_grid_node(&mut self, children: Vec<NodeId>) -> NodeId {
+        self.insert_node(Node::Branch(Branch::new(Layout::Grid, children)))
     }
 
     fn parent(&self, it: NodeId, needle_child: NodeId) -> Option<NodeId> {
@@ -786,6 +797,7 @@ impl<Leaf> Nodes<Leaf> {
             );
         } else {
             // Layout all nodes in case the user switches active tab
+            // TODO: only layout active tab, or don't register drop-zones during layout.
             for &child_id in &branch.children {
                 self.layout_node(style, behavior, drop_context, active_rect, child_id);
             }
@@ -1061,15 +1073,21 @@ impl<Leaf> Nodes<Leaf> {
                 .1,
         );
 
+        let mut ui = egui::Ui::new(
+            ui.ctx().clone(),
+            ui.layer_id(),
+            ui.id().with(node_id),
+            rect,
+            rect,
+        );
         match &mut node {
             Node::Leaf(leaf) => {
-                let mut leaf_ui = ui.child_ui(rect, *ui.layout());
-                if behavior.leaf_ui(&mut leaf_ui, node_id, leaf) == UiResponse::DragStarted {
+                if behavior.leaf_ui(&mut ui, node_id, leaf) == UiResponse::DragStarted {
                     ui.memory_mut(|mem| mem.set_dragged_id(node_id.id()));
                 }
             }
             Node::Branch(branch) => {
-                self.branch_ui(behavior, drop_context, ui, rect, node_id, branch);
+                self.branch_ui(behavior, drop_context, &mut ui, rect, node_id, branch);
             }
         };
 
@@ -1289,48 +1307,53 @@ impl<Leaf> Nodes<Leaf> {
     fn simplify(&mut self, options: &SimplificationOptions, it: NodeId) -> SimplifyAction {
         let Some(mut node) = self.nodes.remove(&it) else { return SimplifyAction::Remove; };
 
-        if let Node::Branch(Branch {
-            layout: typ,
-            children,
-            ..
-        }) = &mut node
-        {
+        if let Node::Branch(branch) = &mut node {
             // TODO: join nested versions of the same horizontal/vertical layouts
 
-            children.retain_mut(|child| match self.simplify(options, *child) {
-                SimplifyAction::Remove => false,
-                SimplifyAction::Keep => true,
-                SimplifyAction::Replace(new) => {
-                    *child = new;
-                    true
-                }
-            });
+            branch
+                .children
+                .retain_mut(|child| match self.simplify(options, *child) {
+                    SimplifyAction::Remove => false,
+                    SimplifyAction::Keep => true,
+                    SimplifyAction::Replace(new) => {
+                        if branch.active_tab == *child {
+                            branch.active_tab = new;
+                        }
+                        branch.linear_shares.replace_with(*child, new);
+                        if let Some(loc) = branch.grid_locations.remove(child) {
+                            branch.grid_locations.insert(new, loc);
+                        }
 
-            match typ {
+                        *child = new;
+                        true
+                    }
+                });
+
+            match branch.layout {
                 Layout::Tabs => {
-                    if options.prune_empty_tabs && children.is_empty() {
+                    if options.prune_empty_tabs && branch.children.is_empty() {
                         log::debug!("Simplify: removing empty tabs node");
                         return SimplifyAction::Remove;
                     }
-                    if options.prune_single_child_tabs && children.len() == 1 {
+                    if options.prune_single_child_tabs && branch.children.len() == 1 {
                         if options.all_leaves_must_have_tabs
-                            && matches!(self.get(children[0]), Some(Node::Leaf(_)))
+                            && matches!(self.get(branch.children[0]), Some(Node::Leaf(_)))
                         {
                             // Keep it
                         } else {
                             log::debug!("Simplify: collapsing single-child tabs node");
-                            return SimplifyAction::Replace(children[0]);
+                            return SimplifyAction::Replace(branch.children[0]);
                         }
                     }
                 }
                 Layout::Horizontal | Layout::Vertical | Layout::Grid => {
-                    if options.prune_empty_layouts && children.is_empty() {
+                    if options.prune_empty_layouts && branch.children.is_empty() {
                         log::debug!("Simplify: removing empty layout node");
                         return SimplifyAction::Remove;
                     }
-                    if options.prune_single_child_layouts && children.len() == 1 {
+                    if options.prune_single_child_layouts && branch.children.len() == 1 {
                         log::debug!("Simplify: collapsing single-child layout node");
-                        return SimplifyAction::Replace(children[0]);
+                        return SimplifyAction::Replace(branch.children[0]);
                     }
                 }
             }
