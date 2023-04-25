@@ -26,6 +26,9 @@ pub enum WgpuError {
     #[error("Failed to create wgpu adapter, no suitable adapter found.")]
     NoSuitableAdapterFound,
 
+    #[error("There was no valid format for the surface at all.")]
+    NoSurfaceFormatsAvailable,
+
     #[error(transparent)]
     RequestDeviceError(#[from] wgpu::RequestDeviceError),
 
@@ -74,7 +77,7 @@ impl RenderState {
             .ok_or(WgpuError::NoSuitableAdapterFound)?;
 
         let target_format =
-            crate::preferred_framebuffer_format(&surface.get_capabilities(&adapter).formats);
+            crate::preferred_framebuffer_format(&surface.get_capabilities(&adapter).formats)?;
 
         let (device, queue) = adapter
             .request_device(&(*config.device_descriptor)(&adapter), None)
@@ -164,16 +167,25 @@ impl Default for WgpuConfiguration {
 }
 
 /// Find the framebuffer format that egui prefers
-pub fn preferred_framebuffer_format(formats: &[wgpu::TextureFormat]) -> wgpu::TextureFormat {
+///
+/// # Errors
+/// Returns [`WgpuError::NoSurfaceFormatsAvailable`] if the given list of formats is empty.
+pub fn preferred_framebuffer_format(
+    formats: &[wgpu::TextureFormat],
+) -> Result<wgpu::TextureFormat, WgpuError> {
     for &format in formats {
         if matches!(
             format,
             wgpu::TextureFormat::Rgba8Unorm | wgpu::TextureFormat::Bgra8Unorm
         ) {
-            return format;
+            return Ok(format);
         }
     }
-    formats[0] // take the first
+
+    formats
+        .get(0)
+        .copied()
+        .ok_or(WgpuError::NoSurfaceFormatsAvailable)
 }
 
 /// Take's epi's depth/stencil bits and returns the corresponding wgpu format.
