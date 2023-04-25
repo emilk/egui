@@ -75,38 +75,44 @@ impl<Leaf> Default for Nodes<Leaf> {
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Node<Leaf> {
     Leaf(Leaf),
-    Tabs(Tabs),
-    Horizontal(Horizontal),
-    Vertical(Vertical),
+    Branch(Branch),
 }
 
 impl<Leaf> Node<Leaf> {
-    pub fn name(&self) -> &'static str {
+    fn branch_type(&self) -> Option<BranchType> {
         match self {
-            Node::Leaf(_) => "Leaf",
-            Node::Tabs(_) => "Tabs",
-            Node::Horizontal(_) => "Horizontal",
-            Node::Vertical(_) => "Vertical",
+            Node::Leaf(_) => None,
+            Node::Branch(branch) => Some(branch.typ),
         }
     }
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
-pub struct Tabs {
+pub struct Branch {
+    pub typ: BranchType,
     pub children: Vec<NodeId>,
-    pub active: NodeId,
+
+    /// Only if [`Self.typ`] == [`BranchType::Tab`]
+    pub active_tab: NodeId,
+
+    /// Only for linear layouts (horizontal or vertical).
+    pub linear_shares: Shares,
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
-pub struct Horizontal {
-    pub children: Vec<NodeId>,
-    pub shares: Shares,
-}
+impl Branch {
+    pub fn new(typ: BranchType, children: Vec<NodeId>) -> Self {
+        let active_tab = children.first().copied().unwrap_or_default();
+        Self {
+            typ,
+            children,
+            active_tab,
+            ..Default::default()
+        }
+    }
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
-pub struct Vertical {
-    pub children: Vec<NodeId>,
-    pub shares: Shares,
+    pub fn new_tabs(children: Vec<NodeId>) -> Self {
+        Self::new(BranchType::Tabs, children)
+    }
 }
 
 /// How large of a share of space each child has, on a 1D axis.
@@ -137,20 +143,9 @@ impl Shares {
     }
 }
 
-impl<Leaf> From<Tabs> for Node<Leaf> {
-    fn from(tabs: Tabs) -> Self {
-        Node::Tabs(tabs)
-    }
-}
-
-impl<Leaf> From<Horizontal> for Node<Leaf> {
-    fn from(horizontal: Horizontal) -> Self {
-        Node::Horizontal(horizontal)
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-enum BranchType {
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum BranchType {
+    #[default]
     Tabs,
     Horizontal,
     Vertical,
@@ -220,7 +215,7 @@ pub trait Behavior<Leaf> {
     fn tab_text_for_node(&mut self, nodes: &Nodes<Leaf>, node_id: NodeId) -> WidgetText {
         match &nodes.nodes[&node_id] {
             Node::Leaf(leaf) => self.tab_text_for_leaf(leaf),
-            layout => layout.name().into(),
+            Node::Branch(branch) => format!("{:?}", branch.typ).into(),
         }
     }
 
@@ -300,34 +295,34 @@ impl<Leaf> Nodes<Leaf> {
     }
 
     #[must_use]
+    pub fn insert_branch(&mut self, branch: Branch) -> NodeId {
+        self.insert_node(Node::Branch(branch))
+    }
+
+    #[must_use]
     pub fn insert_leaf(&mut self, leaf: Leaf) -> NodeId {
         self.insert_node(Node::Leaf(leaf))
     }
 
     #[must_use]
     pub fn insert_tab_node(&mut self, children: Vec<NodeId>) -> NodeId {
-        let tabs = Tabs {
-            active: children.first().copied().unwrap_or_default(),
-            children,
-        };
-        self.insert_node(Node::Tabs(tabs))
+        self.insert_node(Node::Branch(Branch::new_tabs(children)))
     }
 
     #[must_use]
     pub fn insert_horizontal_node(&mut self, children: Vec<NodeId>) -> NodeId {
-        let horizontal = Horizontal {
-            children,
-            shares: Default::default(),
-        };
-        self.insert_node(Node::Horizontal(horizontal))
+        self.insert_node(Node::Branch(Branch::new(BranchType::Horizontal, children)))
+    }
+
+    #[must_use]
+    pub fn insert_vertical_node(&mut self, children: Vec<NodeId>) -> NodeId {
+        self.insert_node(Node::Branch(Branch::new(BranchType::Vertical, children)))
     }
 
     fn parent(&self, it: NodeId, needle_child: NodeId) -> Option<NodeId> {
         match &self.nodes.get(&it)? {
             Node::Leaf(_) => None,
-            Node::Tabs(Tabs { children, .. })
-            | Node::Horizontal(Horizontal { children, .. })
-            | Node::Vertical(Vertical { children, .. }) => {
+            Node::Branch(Branch { children, .. }) => {
                 for &child in children {
                     if child == needle_child {
                         return Some(it);
@@ -347,19 +342,10 @@ impl<Leaf> Nodes<Leaf> {
             return GcAction::Remove;
         }
         let Some(mut node) = self.nodes.remove(&it) else { return GcAction::Remove; };
-        match &mut node {
-            Node::Leaf(_) => {}
-            Node::Tabs(Tabs { children, .. }) => {
-                children.retain(|&child| {
-                    self.remove_node_id_from_parent(child, remove) == GcAction::Keep
-                });
-            }
-            Node::Horizontal(Horizontal { children, .. })
-            | Node::Vertical(Vertical { children, .. }) => {
-                children.retain(|&child| {
-                    self.remove_node_id_from_parent(child, remove) == GcAction::Keep
-                });
-            }
+        if let Node::Branch(branch) = &mut node {
+            branch
+                .children
+                .retain(|&child| self.remove_node_id_from_parent(child, remove) == GcAction::Keep);
         }
         self.nodes.insert(it, node);
         GcAction::Keep
@@ -377,48 +363,54 @@ impl<Leaf> Nodes<Leaf> {
         };
         match branch_type {
             BranchType::Tabs => {
-                if let Node::Tabs(layout) = &mut node {
-                    let index = index.min(layout.children.len());
-                    layout.children.insert(index, child_id);
+                if let Node::Branch(Branch {
+                    typ: BranchType::Tabs,
+                    children,
+                    ..
+                }) = &mut node
+                {
+                    let index = index.min(children.len());
+                    children.insert(index, child_id);
                     self.nodes.insert(parent_id, node);
                 } else {
                     let new_node_id = self.insert_node(node);
-                    let mut layout = Tabs {
-                        children: vec![new_node_id],
-                        active: new_node_id,
-                    };
-                    layout.children.insert(index.min(1), child_id);
-                    self.nodes.insert(parent_id, Node::Tabs(layout));
+                    let mut branch = Branch::new_tabs(vec![new_node_id]);
+                    branch.children.insert(index.min(1), child_id);
+                    self.nodes.insert(parent_id, Node::Branch(branch));
                 }
             }
             BranchType::Horizontal => {
-                if let Node::Horizontal(layout) = &mut node {
-                    let index = index.min(layout.children.len());
-                    layout.children.insert(index, child_id);
+                if let Node::Branch(Branch {
+                    typ: BranchType::Horizontal,
+                    children,
+                    ..
+                }) = &mut node
+                {
+                    let index = index.min(children.len());
+                    children.insert(index, child_id);
                     self.nodes.insert(parent_id, node);
                 } else {
                     let new_node_id = self.insert_node(node);
-                    let mut layout = Horizontal {
-                        children: vec![new_node_id],
-                        shares: Default::default(),
-                    };
-                    layout.children.insert(index.min(1), child_id);
-                    self.nodes.insert(parent_id, Node::Horizontal(layout));
+                    let mut branch = Branch::new(BranchType::Horizontal, vec![new_node_id]);
+                    branch.children.insert(index.min(1), child_id);
+                    self.nodes.insert(parent_id, Node::Branch(branch));
                 }
             }
             BranchType::Vertical => {
-                if let Node::Vertical(layout) = &mut node {
-                    let index = index.min(layout.children.len());
-                    layout.children.insert(index, child_id);
+                if let Node::Branch(Branch {
+                    typ: BranchType::Vertical,
+                    children,
+                    ..
+                }) = &mut node
+                {
+                    let index = index.min(children.len());
+                    children.insert(index, child_id);
                     self.nodes.insert(parent_id, node);
                 } else {
                     let new_node_id = self.insert_node(node);
-                    let mut layout = Vertical {
-                        children: vec![new_node_id],
-                        shares: Default::default(),
-                    };
-                    layout.children.insert(index.min(1), child_id);
-                    self.nodes.insert(parent_id, Node::Vertical(layout));
+                    let mut branch = Branch::new(BranchType::Vertical, vec![new_node_id]);
+                    branch.children.insert(index.min(1), child_id);
+                    self.nodes.insert(parent_id, Node::Branch(branch));
                 }
             }
         }
@@ -466,7 +458,7 @@ impl<Leaf> Dock<Leaf> {
 
         // Check if anything is being dragged:
         let mut drop_context = DropContext {
-            active: true,
+            enabled: true,
             dragged_node_id: self.dragged_id(ui.ctx()),
             mouse_pos: ui.input(|i| i.pointer.hover_pos()),
             best_dist_sq: f32::INFINITY,
@@ -656,9 +648,7 @@ impl<Leaf> Nodes<Leaf> {
                     return GcAction::Remove;
                 }
             }
-            Node::Tabs(Tabs { children, .. })
-            | Node::Horizontal(Horizontal { children, .. })
-            | Node::Vertical(Vertical { children, .. }) => {
+            Node::Branch(Branch { children, .. }) => {
                 children
                     .retain(|&child| self.gc_node_id(behavior, visited, child) == GcAction::Keep);
             }
@@ -684,18 +674,26 @@ impl<Leaf> Nodes<Leaf> {
 
         match &node {
             Node::Leaf(_) => {}
-            Node::Tabs(tabs) => {
-                self.layout_tabs(style, behavior, rect, tabs);
-            }
-            Node::Horizontal(horizontal) => {
-                self.layout_horizontal(style, behavior, rect, horizontal);
-            }
-            Node::Vertical(vertical) => {
-                self.layout_vertical(style, behavior, rect, vertical);
+            Node::Branch(branch) => {
+                self.layout_branch(style, behavior, rect, branch);
             }
         }
 
         self.nodes.insert(node_id, node);
+    }
+
+    fn layout_branch(
+        &mut self,
+        style: &Style,
+        behavior: &mut dyn Behavior<Leaf>,
+        rect: Rect,
+        branch: &Branch,
+    ) {
+        match branch.typ {
+            BranchType::Tabs => self.layout_tabs(style, behavior, rect, branch),
+            BranchType::Horizontal => self.layout_horizontal(style, behavior, rect, branch),
+            BranchType::Vertical => self.layout_vertical(style, behavior, rect, branch),
+        }
     }
 
     fn layout_tabs(
@@ -703,16 +701,16 @@ impl<Leaf> Nodes<Leaf> {
         style: &Style,
         behavior: &mut dyn Behavior<Leaf>,
         rect: Rect,
-        tabs: &Tabs,
+        branch: &Branch,
     ) {
         let mut active_rect = rect;
         active_rect.min.y += behavior.tab_bar_height(style);
 
         if false {
-            self.layout_node(style, behavior, active_rect, tabs.active);
+            self.layout_node(style, behavior, active_rect, branch.active_tab);
         } else {
             // Layout all nodes in case the user switches active tab
-            for &child_id in &tabs.children {
+            for &child_id in &branch.children {
                 self.layout_node(style, behavior, active_rect, child_id);
             }
         }
@@ -723,20 +721,22 @@ impl<Leaf> Nodes<Leaf> {
         style: &Style,
         behavior: &mut dyn Behavior<Leaf>,
         rect: Rect,
-        layout: &Horizontal,
+        branch: &Branch,
     ) {
-        if layout.children.is_empty() {
+        if branch.children.is_empty() {
             return;
         }
-        let num_gaps = layout.children.len() - 1;
+        let num_gaps = branch.children.len() - 1;
         let gap_width = behavior.gap_width(style);
         let total_gap_width = gap_width * num_gaps as f32;
         let available_width = (rect.width() - total_gap_width).at_least(0.0);
 
-        let widths = layout.shares.split(&layout.children, available_width);
+        let widths = branch
+            .linear_shares
+            .split(&branch.children, available_width);
 
         let mut x = rect.min.x;
-        for (child, width) in layout.children.iter().zip(widths) {
+        for (child, width) in branch.children.iter().zip(widths) {
             let child_rect = Rect::from_min_size(pos2(x, rect.min.y), vec2(width, rect.height()));
             self.layout_node(style, behavior, child_rect, *child);
             x += width + gap_width;
@@ -748,20 +748,22 @@ impl<Leaf> Nodes<Leaf> {
         style: &Style,
         behavior: &mut dyn Behavior<Leaf>,
         rect: Rect,
-        layout: &Vertical,
+        branch: &Branch,
     ) {
-        if layout.children.is_empty() {
+        if branch.children.is_empty() {
             return;
         }
-        let num_gaps = layout.children.len() - 1;
+        let num_gaps = branch.children.len() - 1;
         let gap_height = behavior.gap_width(style);
         let total_gap_height = gap_height * num_gaps as f32;
         let available_height = (rect.height() - total_gap_height).at_least(0.0);
 
-        let heights = layout.shares.split(&layout.children, available_height);
+        let heights = branch
+            .linear_shares
+            .split(&branch.children, available_height);
 
         let mut y = rect.min.y;
-        for (child, height) in layout.children.iter().zip(heights) {
+        for (child, height) in branch.children.iter().zip(heights) {
             let child_rect = Rect::from_min_size(pos2(rect.min.x, y), vec2(rect.width(), height));
             self.layout_node(style, behavior, child_rect, *child);
             y += height + gap_height;
@@ -773,7 +775,7 @@ impl<Leaf> Nodes<Leaf> {
 // ui
 
 struct DropContext {
-    active: bool,
+    enabled: bool,
     dragged_node_id: Option<NodeId>,
     mouse_pos: Option<Pos2>,
 
@@ -783,12 +785,12 @@ struct DropContext {
 }
 
 impl DropContext {
-    fn on_node<Leaf>(&mut self, parent_id: NodeId, rect: Rect, layout: &Node<Leaf>) {
-        if !self.active {
+    fn on_node<Leaf>(&mut self, parent_id: NodeId, rect: Rect, node: &Node<Leaf>) {
+        if !self.enabled {
             return;
         }
 
-        if !matches!(layout, Node::Horizontal(_)) {
+        if node.branch_type() != Some(BranchType::Horizontal) {
             self.suggest_rect(
                 InsertionPoint::new(parent_id, BranchType::Horizontal, 0),
                 rect.split_left_right_at_fraction(0.5).0,
@@ -799,7 +801,7 @@ impl DropContext {
             );
         }
 
-        if !matches!(layout, Node::Vertical(_)) {
+        if node.branch_type() != Some(BranchType::Vertical) {
             self.suggest_rect(
                 InsertionPoint::new(parent_id, BranchType::Vertical, 0),
                 rect.split_top_bottom_at_fraction(0.5).0,
@@ -818,7 +820,7 @@ impl DropContext {
     }
 
     fn suggest_point(&mut self, insertion: InsertionPoint, target_point: Pos2, preview_rect: Rect) {
-        if !self.active {
+        if !self.enabled {
             return;
         }
         if let Some(mouse_pos) = self.mouse_pos {
@@ -842,10 +844,10 @@ impl<Leaf> Nodes<Leaf> {
     ) {
         let (Some(rect), Some(mut node)) = (self.rect(node_id), self.nodes.remove(&node_id)) else { return };
 
-        let drop_context_was_active = drop_context.active;
+        let drop_context_was_enabled = drop_context.enabled;
         if Some(node_id) == drop_context.dragged_node_id {
             // Can't drag a node onto self or any children
-            drop_context.active = false;
+            drop_context.enabled = false;
         }
         drop_context.on_node(node_id, rect, &node);
 
@@ -862,19 +864,35 @@ impl<Leaf> Nodes<Leaf> {
                     ui.memory_mut(|mem| mem.set_dragged_id(node_id.id()));
                 }
             }
-            Node::Tabs(tabs) => {
-                self.tabs_ui(behavior, drop_context, ui, rect, node_id, tabs);
-            }
-            Node::Horizontal(horizontal) => {
-                self.horizontal_ui(behavior, drop_context, ui, node_id, horizontal);
-            }
-            Node::Vertical(vertical) => {
-                self.vertical_ui(behavior, drop_context, ui, node_id, vertical);
+            Node::Branch(branch) => {
+                self.branch_ui(behavior, drop_context, ui, rect, node_id, branch);
             }
         };
 
         self.nodes.insert(node_id, node);
-        drop_context.active = drop_context_was_active;
+        drop_context.enabled = drop_context_was_enabled;
+    }
+
+    fn branch_ui(
+        &mut self,
+        behavior: &mut dyn Behavior<Leaf>,
+        drop_context: &mut DropContext,
+        ui: &mut Ui,
+        rect: Rect,
+        node_id: NodeId,
+        branch: &mut Branch,
+    ) {
+        match branch.typ {
+            BranchType::Tabs => {
+                self.tabs_ui(behavior, drop_context, ui, rect, node_id, branch);
+            }
+            BranchType::Horizontal => {
+                self.horizontal_ui(behavior, drop_context, ui, node_id, branch);
+            }
+            BranchType::Vertical => {
+                self.vertical_ui(behavior, drop_context, ui, node_id, branch);
+            }
+        }
     }
 
     fn tabs_ui(
@@ -884,11 +902,15 @@ impl<Leaf> Nodes<Leaf> {
         ui: &mut Ui,
         rect: Rect,
         node_id: NodeId,
-        tabs: &mut Tabs,
+        branch: &mut Branch,
     ) {
-        if !tabs.children.iter().any(|&child| child == tabs.active) {
+        if !branch
+            .children
+            .iter()
+            .any(|&child| child == branch.active_tab)
+        {
             // Make sure something is active:
-            tabs.active = tabs.children.first().copied().unwrap_or_default();
+            branch.active_tab = branch.children.first().copied().unwrap_or_default();
         }
 
         let tab_bar_height = behavior.tab_bar_height(ui.style());
@@ -900,24 +922,24 @@ impl<Leaf> Nodes<Leaf> {
             let mut prev_tab_rect: Option<Rect> = None;
             let mut insertion_index = 0; // skips over drag-source, if any, beacuse it will be removed then re-inserted
 
-            for (i, &child_id) in tabs.children.iter().enumerate() {
+            for (i, &child_id) in branch.children.iter().enumerate() {
                 if is_being_dragged(ui.ctx(), child_id) {
                     continue; // leave a gap!
                 }
 
-                let selected = child_id == tabs.active;
+                let selected = child_id == branch.active_tab;
                 let id = child_id.id();
 
                 let response = behavior.tab_ui(self, ui, id, child_id, selected);
                 let response = response.on_hover_cursor(CursorIcon::Grab);
                 if response.clicked() {
-                    tabs.active = child_id;
+                    branch.active_tab = child_id;
                 }
 
                 if let Some(mouse_pos) = drop_context.mouse_pos {
                     if drop_context.dragged_node_id.is_some() && response.rect.contains(mouse_pos) {
                         // Expand this tab - maybe the user wants to drop something into it!
-                        tabs.active = child_id;
+                        branch.active_tab = child_id;
                     }
                 }
 
@@ -939,7 +961,7 @@ impl<Leaf> Nodes<Leaf> {
                     );
                 }
 
-                if i + 1 == tabs.children.len() {
+                if i + 1 == branch.children.len() {
                     // suggest dropping after last tab:
                     drop_context.suggest_rect(
                         InsertionPoint::new(node_id, BranchType::Tabs, insertion_index + 1),
@@ -953,10 +975,10 @@ impl<Leaf> Nodes<Leaf> {
         });
 
         // When dragged, don't show it (it is "being held")
-        let is_active_being_dragged =
-            ui.memory(|mem| mem.is_being_dragged(tabs.active.id())) && is_possible_drag(ui.ctx());
+        let is_active_being_dragged = ui.memory(|mem| mem.is_being_dragged(branch.active_tab.id()))
+            && is_possible_drag(ui.ctx());
         if !is_active_being_dragged {
-            self.node_ui(behavior, drop_context, ui, tabs.active);
+            self.node_ui(behavior, drop_context, ui, branch.active_tab);
         }
     }
 
@@ -966,12 +988,12 @@ impl<Leaf> Nodes<Leaf> {
         drop_context: &mut DropContext,
         ui: &mut Ui,
         parent_id: NodeId,
-        horizontal: &mut Horizontal,
+        branch: &mut Branch,
     ) {
         let mut prev_rect: Option<Rect> = None;
         let mut insertion_index = 0; // skips over drag-source, if any, beacuse it will be removed then re-inserted
 
-        for (i, &child) in horizontal.children.iter().enumerate() {
+        for (i, &child) in branch.children.iter().enumerate() {
             let Some(rect) = self.rect(child) else { continue; };
 
             if is_being_dragged(ui.ctx(), child) {
@@ -997,7 +1019,7 @@ impl<Leaf> Nodes<Leaf> {
                     );
                 }
 
-                if i + 1 == horizontal.children.len() {
+                if i + 1 == branch.children.len() {
                     // Suggest dropping after the last child:
                     drop_context.suggest_rect(
                         InsertionPoint::new(parent_id, BranchType::Horizontal, insertion_index + 1),
@@ -1017,9 +1039,9 @@ impl<Leaf> Nodes<Leaf> {
         drop_context: &mut DropContext,
         ui: &mut Ui,
         parent_id: NodeId,
-        vertical: &mut Vertical,
+        branch: &mut Branch,
     ) {
-        for child in &vertical.children {
+        for child in &branch.children {
             self.node_ui(behavior, drop_context, ui, *child);
         }
     }
@@ -1039,53 +1061,44 @@ impl<Leaf> Nodes<Leaf> {
     fn simplify(&mut self, options: &SimplificationOptions, it: NodeId) -> SimplifyAction {
         let Some(mut node) = self.nodes.remove(&it) else { return SimplifyAction::Remove; };
 
-        match &mut node {
-            Node::Leaf(_) => {}
-            Node::Tabs(Tabs { children, .. }) => {
-                children.retain_mut(|child| match self.simplify(options, *child) {
-                    SimplifyAction::Remove => false,
-                    SimplifyAction::Keep => true,
-                    SimplifyAction::Replace(new) => {
-                        *child = new;
-                        true
-                    }
-                });
+        if let Node::Branch(Branch { typ, children, .. }) = &mut node {
+            // TODO: join nested versions of the same horizontal/vertical layouts
 
-                if options.prune_empty_tabs && children.is_empty() {
-                    log::debug!("Simplify: removing empty tabs node");
-                    return SimplifyAction::Remove;
+            children.retain_mut(|child| match self.simplify(options, *child) {
+                SimplifyAction::Remove => false,
+                SimplifyAction::Keep => true,
+                SimplifyAction::Replace(new) => {
+                    *child = new;
+                    true
                 }
-                if options.prune_single_child_tabs && children.len() == 1 {
-                    if options.all_leaves_must_have_tabs
-                        && matches!(self.get(children[0]), Some(Node::Leaf(_)))
-                    {
-                        // Keep it
-                    } else {
-                        log::debug!("Simplify: collapsing single-child tabs node");
+            });
+
+            match typ {
+                BranchType::Tabs => {
+                    if options.prune_empty_tabs && children.is_empty() {
+                        log::debug!("Simplify: removing empty tabs node");
+                        return SimplifyAction::Remove;
+                    }
+                    if options.prune_single_child_tabs && children.len() == 1 {
+                        if options.all_leaves_must_have_tabs
+                            && matches!(self.get(children[0]), Some(Node::Leaf(_)))
+                        {
+                            // Keep it
+                        } else {
+                            log::debug!("Simplify: collapsing single-child tabs node");
+                            return SimplifyAction::Replace(children[0]);
+                        }
+                    }
+                }
+                BranchType::Horizontal | BranchType::Vertical => {
+                    if options.prune_empty_layouts && children.is_empty() {
+                        log::debug!("Simplify: removing empty layout node");
+                        return SimplifyAction::Remove;
+                    }
+                    if options.prune_single_child_layouts && children.len() == 1 {
+                        log::debug!("Simplify: collapsing single-child layout node");
                         return SimplifyAction::Replace(children[0]);
                     }
-                }
-            }
-
-            Node::Horizontal(Horizontal { children, .. })
-            | Node::Vertical(Vertical { children, .. }) => {
-                // TODO: join nested versions of the same thing
-                children.retain_mut(|child| match self.simplify(options, *child) {
-                    SimplifyAction::Remove => false,
-                    SimplifyAction::Keep => true,
-                    SimplifyAction::Replace(new) => {
-                        *child = new;
-                        true
-                    }
-                });
-
-                if options.prune_empty_layouts && children.is_empty() {
-                    log::debug!("Simplify: removing empty layout node");
-                    return SimplifyAction::Remove;
-                }
-                if options.prune_single_child_layouts && children.len() == 1 {
-                    log::debug!("Simplify: collapsing single-child layout node");
-                    return SimplifyAction::Replace(children[0]);
                 }
             }
         }
@@ -1105,24 +1118,15 @@ impl<Leaf> Nodes<Leaf> {
                     // Add tabs to this leaf:
                     let new_id = NodeId::random();
                     self.nodes.insert(new_id, node);
-                    let tabs = Node::Tabs(Tabs {
-                        children: vec![new_id],
-                        active: new_id,
-                    });
-                    self.nodes.insert(it, tabs);
+                    self.nodes
+                        .insert(it, Node::Branch(Branch::new_tabs(vec![new_id])));
                     return;
                 }
             }
-            Node::Tabs(Tabs { children, .. }) => {
+            Node::Branch(Branch { typ, children, .. }) => {
+                let is_tabs = *typ == BranchType::Tabs;
                 for child in children {
-                    self.make_all_leaves_children_of_tabs(true, *child);
-                }
-            }
-
-            Node::Horizontal(Horizontal { children, .. })
-            | Node::Vertical(Vertical { children, .. }) => {
-                for child in children {
-                    self.make_all_leaves_children_of_tabs(false, *child);
+                    self.make_all_leaves_children_of_tabs(is_tabs, *child);
                 }
             }
         }
