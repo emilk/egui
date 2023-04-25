@@ -133,30 +133,6 @@ impl Painter {
         self.render_state.clone()
     }
 
-    // We want to defer the initialization of our render state until we have a surface
-    // so we can take its format into account.
-    //
-    // After we've initialized our render state once though we expect all future surfaces
-    // will have the same format and so this render state will remain valid.
-    async fn ensure_render_state_for_surface(
-        &mut self,
-        surface: &wgpu::Surface,
-    ) -> Result<(), WgpuError> {
-        if self.render_state.is_none() {
-            self.render_state = Some(
-                RenderState::create(
-                    &self.configuration,
-                    &self.instance,
-                    surface,
-                    self.depth_format,
-                    self.msaa_samples,
-                )
-                .await?,
-            );
-        }
-        Ok(())
-    }
-
     fn configure_surface(
         surface_state: &SurfaceState,
         render_state: &RenderState,
@@ -211,8 +187,19 @@ impl Painter {
             Some(window) => {
                 let surface = unsafe { self.instance.create_surface(&window)? };
 
-                self.ensure_render_state_for_surface(&surface).await?;
-                let render_state = self.render_state.as_ref().unwrap();
+                let render_state = if let Some(render_state) = &self.render_state {
+                    render_state
+                } else {
+                    let render_state = RenderState::create(
+                        &self.configuration,
+                        &self.instance,
+                        &surface,
+                        self.depth_format,
+                        self.msaa_samples,
+                    )
+                    .await?;
+                    self.render_state.get_or_insert(render_state)
+                };
 
                 let alpha_mode = if self.support_transparent_backbuffer {
                     let supported_alpha_modes =
