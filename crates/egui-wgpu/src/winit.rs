@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use epaint::{self};
-
-use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration, WgpuError};
+use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
 
 struct SurfaceState {
     surface: wgpu::Surface,
