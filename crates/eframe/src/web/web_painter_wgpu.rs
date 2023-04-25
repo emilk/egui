@@ -3,7 +3,6 @@ use std::sync::Arc;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
-use egui::mutex::RwLock;
 use egui_wgpu::{renderer::ScreenDescriptor, RenderState, SurfaceErrorAction};
 
 use crate::WebOptions;
@@ -99,43 +98,20 @@ impl WebPainterWgpu {
         }
         .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
 
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: options.wgpu_options.power_preference,
-                force_fallback_adapter: false,
-                compatible_surface: None,
-            })
-            .await
-            .ok_or_else(|| "No suitable GPU adapters found on the system".to_owned())?;
-
-        let (device, queue) = adapter
-            .request_device(
-                &(*options.wgpu_options.device_descriptor)(&adapter),
-                None, // Capture doesn't work in the browser environment.
-            )
-            .await
-            .map_err(|err| format!("Failed to find wgpu device: {}", err))?;
-
-        let target_format =
-            egui_wgpu::preferred_framebuffer_format(&surface.get_capabilities(&adapter).formats);
-
-        let depth_format = options.wgpu_options.depth_format;
-        let renderer = egui_wgpu::Renderer::new(&device, target_format, depth_format, 1);
-        let render_state = RenderState {
-            device: Arc::new(device),
-            queue: Arc::new(queue),
-            target_format,
-            renderer: Arc::new(RwLock::new(renderer)),
-        };
+        let depth_format = egui_wgpu::depth_format_from_bits(options.depth_buffer, 0);
+        let render_state =
+            RenderState::create(&options.wgpu_options, &instance, &surface, depth_format, 1)
+                .await
+                .map_err(|err| err.to_string())?;
 
         let surface_configuration = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: target_format,
+            format: render_state.target_format,
             width: 0,
             height: 0,
             present_mode: options.wgpu_options.present_mode,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
-            view_formats: vec![target_format],
+            view_formats: vec![render_state.target_format],
         };
 
         log::debug!("wgpu painter initialized.");

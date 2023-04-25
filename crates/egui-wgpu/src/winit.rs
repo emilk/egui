@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use epaint::{self, mutex::RwLock};
-
-use crate::{renderer, RenderState, Renderer, SurfaceErrorAction, WgpuConfiguration};
+use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
 
 struct SurfaceState {
     surface: wgpu::Surface,
@@ -83,7 +81,6 @@ pub struct Painter {
     screen_capture_state: Option<CaptureState>,
 
     instance: wgpu::Instance,
-    adapter: Option<wgpu::Adapter>,
     render_state: Option<RenderState>,
     surface_state: Option<SurfaceState>,
 }
@@ -104,7 +101,7 @@ impl Painter {
     pub fn new(
         configuration: WgpuConfiguration,
         msaa_samples: u32,
-        depth_bits: u8,
+        depth_format: Option<wgpu::TextureFormat>,
         support_transparent_backbuffer: bool,
     ) -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -116,12 +113,11 @@ impl Painter {
             configuration,
             msaa_samples,
             support_transparent_backbuffer,
-            depth_format: (depth_bits > 0).then_some(wgpu::TextureFormat::Depth32Float),
+            depth_format,
             depth_texture_view: None,
             screen_capture_state: None,
 
             instance,
-            adapter: None,
             render_state: None,
             surface_state: None,
             msaa_texture_view: None,
@@ -133,60 +129,6 @@ impl Painter {
     /// Will return [`None`] if the render state has not been initialized yet.
     pub fn render_state(&self) -> Option<RenderState> {
         self.render_state.clone()
-    }
-
-    async fn init_render_state(
-        &self,
-        adapter: &wgpu::Adapter,
-        target_format: wgpu::TextureFormat,
-    ) -> Result<RenderState, wgpu::RequestDeviceError> {
-        adapter
-            .request_device(&(*self.configuration.device_descriptor)(adapter), None)
-            .await
-            .map(|(device, queue)| {
-                let renderer =
-                    Renderer::new(&device, target_format, self.depth_format, self.msaa_samples);
-                RenderState {
-                    device: Arc::new(device),
-                    queue: Arc::new(queue),
-                    target_format,
-                    renderer: Arc::new(RwLock::new(renderer)),
-                }
-            })
-    }
-
-    // We want to defer the initialization of our render state until we have a surface
-    // so we can take its format into account.
-    //
-    // After we've initialized our render state once though we expect all future surfaces
-    // will have the same format and so this render state will remain valid.
-    async fn ensure_render_state_for_surface(
-        &mut self,
-        surface: &wgpu::Surface,
-    ) -> Result<(), wgpu::RequestDeviceError> {
-        if self.adapter.is_none() {
-            self.adapter = self
-                .instance
-                .request_adapter(&wgpu::RequestAdapterOptions {
-                    power_preference: self.configuration.power_preference,
-                    compatible_surface: Some(surface),
-                    force_fallback_adapter: false,
-                })
-                .await;
-        }
-        if self.render_state.is_none() {
-            match &self.adapter {
-                Some(adapter) => {
-                    let swapchain_format = crate::preferred_framebuffer_format(
-                        &surface.get_capabilities(adapter).formats,
-                    );
-                    let rs = self.init_render_state(adapter, swapchain_format).await?;
-                    self.render_state = Some(rs);
-                }
-                None => return Err(wgpu::RequestDeviceError {}),
-            }
-        }
-        Ok(())
     }
 
     fn configure_surface(
@@ -235,20 +177,31 @@ impl Painter {
     ///
     /// # Errors
     /// If the provided wgpu configuration does not match an available device.
-    pub async unsafe fn set_window(
+    pub async fn set_window(
         &mut self,
         window: Option<&winit::window::Window>,
     ) -> Result<(), crate::WgpuError> {
         match window {
             Some(window) => {
-                let surface = self.instance.create_surface(&window)?;
+                let surface = unsafe { self.instance.create_surface(&window)? };
 
-                self.ensure_render_state_for_surface(&surface).await?;
+                let render_state = if let Some(render_state) = &self.render_state {
+                    render_state
+                } else {
+                    let render_state = RenderState::create(
+                        &self.configuration,
+                        &self.instance,
+                        &surface,
+                        self.depth_format,
+                        self.msaa_samples,
+                    )
+                    .await?;
+                    self.render_state.get_or_insert(render_state)
+                };
 
                 let alpha_mode = if self.support_transparent_backbuffer {
-                    let supported_alpha_modes = surface
-                        .get_capabilities(self.adapter.as_ref().unwrap())
-                        .alpha_modes;
+                    let supported_alpha_modes =
+                        surface.get_capabilities(&render_state.adapter).alpha_modes;
 
                     // Prefer pre multiplied over post multiplied!
                     if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
