@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use egui::{
-    pos2, vec2, Color32, CursorIcon, Id, Key, NumExt, Pos2, Rect, Response, Sense, Style,
-    TextStyle, Ui, WidgetText,
+    pos2, vec2, CursorIcon, Id, Key, NumExt, Pos2, Rect, Response, Sense, Style, TextStyle, Ui,
+    WidgetText,
 };
 
 // ----------------------------------------------------------------------------
@@ -57,12 +57,17 @@ impl<Leaf> Default for Dock<Leaf> {
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Nodes<Leaf> {
     pub nodes: HashMap<NodeId, NodeState<Leaf>>,
+
+    /// Filled in by the layout step at the start of each frame.
+    #[serde(default, skip)]
+    pub rects: HashMap<NodeId, Rect>,
 }
 
 impl<Leaf> Default for Nodes<Leaf> {
     fn default() -> Self {
         Self {
             nodes: Default::default(),
+            rects: Default::default(),
         }
     }
 }
@@ -70,23 +75,11 @@ impl<Leaf> Default for Nodes<Leaf> {
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct NodeState<Leaf> {
     pub layout: NodeLayout<Leaf>,
-
-    /// Filled in by the layout step at the start of each frame.
-    #[serde(skip)]
-    #[serde(default = "nan_rect")]
-    pub rect: Rect,
-}
-
-fn nan_rect() -> Rect {
-    Rect::NAN
 }
 
 impl<Leaf> From<NodeLayout<Leaf>> for NodeState<Leaf> {
     fn from(layout: NodeLayout<Leaf>) -> Self {
-        Self {
-            layout,
-            rect: Rect::NAN,
-        }
+        Self { layout }
     }
 }
 
@@ -164,6 +157,33 @@ impl<Leaf> From<Tabs> for NodeLayout<Leaf> {
 impl<Leaf> From<Horizontal> for NodeLayout<Leaf> {
     fn from(horizontal: Horizontal) -> Self {
         NodeLayout::Horizontal(horizontal)
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum BranchType {
+    Tabs,
+    Horizontal,
+    Vertical,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct InsertionPoint {
+    parent_id: NodeId,
+
+    branch_type: BranchType,
+
+    /// Where in the parent?
+    index: usize,
+}
+
+impl InsertionPoint {
+    fn new(parent_id: NodeId, branch_type: BranchType, index: usize) -> Self {
+        Self {
+            parent_id,
+            branch_type,
+            index,
+        }
     }
 }
 
@@ -271,6 +291,10 @@ impl<Leaf> Dock<Leaf> {
 }
 
 impl<Leaf> Nodes<Leaf> {
+    pub fn rect(&self, node_id: NodeId) -> Option<Rect> {
+        self.rects.get(&node_id).copied()
+    }
+
     pub fn get(&self, node_id: NodeId) -> Option<&NodeLayout<Leaf>> {
         self.nodes.get(&node_id).map(|node| &node.layout)
     }
@@ -355,15 +379,15 @@ impl<Leaf> Nodes<Leaf> {
     fn insert(&mut self, insertion_point: InsertionPoint, child_id: NodeId) {
         let InsertionPoint {
             parent_id,
-            layout_type,
+            branch_type,
             index,
         } = insertion_point;
         let Some(mut node) = self.nodes.remove(&parent_id) else {
             log::warn!("Failed to insert: could not find parent {parent_id:?}");
             return;
         };
-        match layout_type {
-            LayoutType::Tabs => {
+        match branch_type {
+            BranchType::Tabs => {
                 if let NodeLayout::Tabs(layout) = &mut node.layout {
                     let index = index.min(layout.children.len());
                     layout.children.insert(index, child_id);
@@ -379,7 +403,7 @@ impl<Leaf> Nodes<Leaf> {
                         .insert(parent_id, NodeLayout::Tabs(layout).into());
                 }
             }
-            LayoutType::Horizontal => {
+            BranchType::Horizontal => {
                 if let NodeLayout::Horizontal(layout) = &mut node.layout {
                     let index = index.min(layout.children.len());
                     layout.children.insert(index, child_id);
@@ -395,7 +419,7 @@ impl<Leaf> Nodes<Leaf> {
                         .insert(parent_id, NodeLayout::Horizontal(layout).into());
                 }
             }
-            LayoutType::Vertical => {
+            BranchType::Vertical => {
                 if let NodeLayout::Vertical(layout) = &mut node.layout {
                     let index = index.min(layout.children.len());
                     layout.children.insert(index, child_id);
@@ -446,6 +470,7 @@ impl<Leaf> Dock<Leaf> {
         }
         self.nodes.gc_root(behavior, self.root);
 
+        self.nodes.rects.clear();
         self.nodes.layout_node(
             ui.style(),
             behavior,
@@ -493,9 +518,9 @@ impl<Leaf> Dock<Leaf> {
                 let preview_color = preview_stroke.color;
 
                 if let Some(insertion_point) = &drop_context.best_insertion {
-                    if let Some(node) = self.nodes.nodes.get(&insertion_point.parent_id) {
+                    if let Some(parent_rect) = self.nodes.rect(insertion_point.parent_id) {
                         // Show which parent we will be dropped into
-                        ui.painter().rect_stroke(node.rect, 1.0, preview_stroke);
+                        ui.painter().rect_stroke(parent_rect, 1.0, preview_stroke);
                     }
                 }
 
@@ -668,8 +693,8 @@ impl<Leaf> Nodes<Leaf> {
         rect: Rect,
         node_id: NodeId,
     ) {
-        let Some(mut node) = self.nodes.remove(&node_id) else { return; };
-        node.rect = rect;
+        let Some(node) = self.nodes.remove(&node_id) else { return; };
+        self.rects.insert(node_id, rect);
 
         match &node.layout {
             NodeLayout::Leaf(_) => {}
@@ -761,33 +786,6 @@ impl<Leaf> Nodes<Leaf> {
 // ----------------------------------------------------------------------------
 // ui
 
-#[derive(Clone, Copy, Debug)]
-enum LayoutType {
-    Tabs,
-    Horizontal,
-    Vertical,
-}
-
-#[derive(Clone, Copy, Debug)]
-struct InsertionPoint {
-    parent_id: NodeId,
-
-    layout_type: LayoutType,
-
-    /// Where in the parent?
-    index: usize,
-}
-
-impl InsertionPoint {
-    fn new(parent_id: NodeId, layout_type: LayoutType, index: usize) -> Self {
-        Self {
-            parent_id,
-            layout_type,
-            index,
-        }
-    }
-}
-
 struct DropContext {
     active: bool,
     dragged_node_id: Option<NodeId>,
@@ -799,30 +797,29 @@ struct DropContext {
 }
 
 impl DropContext {
-    fn on_node<Leaf>(&mut self, parent_id: NodeId, node: &NodeState<Leaf>) {
+    fn on_node<Leaf>(&mut self, parent_id: NodeId, rect: Rect, layout: &NodeLayout<Leaf>) {
         if !self.active {
             return;
         }
-        let rect = node.rect;
 
-        if !matches!(node.layout, NodeLayout::Horizontal(_)) {
+        if !matches!(layout, NodeLayout::Horizontal(_)) {
             self.suggest_rect(
-                InsertionPoint::new(parent_id, LayoutType::Horizontal, 0),
+                InsertionPoint::new(parent_id, BranchType::Horizontal, 0),
                 rect.split_left_right_at_fraction(0.5).0,
             );
             self.suggest_rect(
-                InsertionPoint::new(parent_id, LayoutType::Horizontal, usize::MAX),
+                InsertionPoint::new(parent_id, BranchType::Horizontal, usize::MAX),
                 rect.split_left_right_at_fraction(0.5).1,
             );
         }
 
-        if !matches!(node.layout, NodeLayout::Vertical(_)) {
+        if !matches!(layout, NodeLayout::Vertical(_)) {
             self.suggest_rect(
-                InsertionPoint::new(parent_id, LayoutType::Vertical, 0),
+                InsertionPoint::new(parent_id, BranchType::Vertical, 0),
                 rect.split_top_bottom_at_fraction(0.5).0,
             );
             self.suggest_rect(
-                InsertionPoint::new(parent_id, LayoutType::Vertical, usize::MAX),
+                InsertionPoint::new(parent_id, BranchType::Vertical, usize::MAX),
                 rect.split_top_bottom_at_fraction(0.5).1,
             );
         }
@@ -857,31 +854,30 @@ impl<Leaf> Nodes<Leaf> {
         ui: &mut Ui,
         node_id: NodeId,
     ) {
-        let Some(mut node) = self.nodes.remove(&node_id) else { return };
+        let (Some(rect), Some(mut node)) = (self.rect(node_id), self.nodes.remove(&node_id)) else { return };
 
         let drop_context_was_active = drop_context.active;
         if Some(node_id) == drop_context.dragged_node_id {
             // Can't drag a node onto self or any children
             drop_context.active = false;
         }
-        drop_context.on_node(node_id, &node);
+        drop_context.on_node(node_id, rect, &node.layout);
 
         drop_context.suggest_rect(
-            InsertionPoint::new(node_id, LayoutType::Tabs, usize::MAX),
-            node.rect
-                .split_top_bottom_at_y(node.rect.top() + behavior.tab_bar_height(ui.style()))
+            InsertionPoint::new(node_id, BranchType::Tabs, usize::MAX),
+            rect.split_top_bottom_at_y(rect.top() + behavior.tab_bar_height(ui.style()))
                 .1,
         );
 
         match &mut node.layout {
             NodeLayout::Leaf(leaf) => {
-                let mut leaf_ui = ui.child_ui(node.rect, *ui.layout());
+                let mut leaf_ui = ui.child_ui(rect, *ui.layout());
                 if behavior.leaf_ui(&mut leaf_ui, node_id, leaf) == UiResponse::DragStarted {
                     ui.memory_mut(|mem| mem.set_dragged_id(node_id.id()));
                 }
             }
             NodeLayout::Tabs(tabs) => {
-                self.tabs_ui(behavior, drop_context, ui, node.rect, node_id, tabs);
+                self.tabs_ui(behavior, drop_context, ui, rect, node_id, tabs);
             }
             NodeLayout::Horizontal(horizontal) => {
                 self.horizontal_ui(behavior, drop_context, ui, node_id, horizontal);
@@ -952,7 +948,7 @@ impl<Leaf> Nodes<Leaf> {
                     };
 
                     drop_context.suggest_rect(
-                        InsertionPoint::new(node_id, LayoutType::Tabs, insertion_index),
+                        InsertionPoint::new(node_id, BranchType::Tabs, insertion_index),
                         Rect::from_center_size(before_point, vec2(4.0, rect.height())),
                     );
                 }
@@ -960,7 +956,7 @@ impl<Leaf> Nodes<Leaf> {
                 if i + 1 == tabs.children.len() {
                     // suggest dropping after last tab:
                     drop_context.suggest_rect(
-                        InsertionPoint::new(node_id, LayoutType::Tabs, insertion_index + 1),
+                        InsertionPoint::new(node_id, BranchType::Tabs, insertion_index + 1),
                         Rect::from_center_size(rect.right_center(), vec2(4.0, rect.height())),
                     );
                 }
@@ -990,12 +986,12 @@ impl<Leaf> Nodes<Leaf> {
         let mut insertion_index = 0; // skips over drag-source, if any, beacuse it will be removed then re-inserted
 
         for (i, &child) in horizontal.children.iter().enumerate() {
-            let rect = self.nodes[&child].rect;
+            let Some(rect) = self.rect(child) else { continue; };
 
             if is_being_dragged(ui.ctx(), child) {
                 // Leave a hole, and suggest that hole as drop-target:
                 drop_context.suggest_rect(
-                    InsertionPoint::new(parent_id, LayoutType::Horizontal, i),
+                    InsertionPoint::new(parent_id, BranchType::Horizontal, i),
                     rect,
                 );
             } else {
@@ -1004,13 +1000,13 @@ impl<Leaf> Nodes<Leaf> {
                 if let Some(prev_rect) = prev_rect {
                     // Suggest dropping between the rects:
                     drop_context.suggest_rect(
-                        InsertionPoint::new(parent_id, LayoutType::Horizontal, insertion_index),
+                        InsertionPoint::new(parent_id, BranchType::Horizontal, insertion_index),
                         Rect::from_min_max(prev_rect.center_top(), rect.center_bottom()),
                     );
                 } else {
                     // Suggest dropping before the first child:
                     drop_context.suggest_rect(
-                        InsertionPoint::new(parent_id, LayoutType::Horizontal, 0),
+                        InsertionPoint::new(parent_id, BranchType::Horizontal, 0),
                         rect.split_left_right_at_fraction(0.66).0,
                     );
                 }
@@ -1018,7 +1014,7 @@ impl<Leaf> Nodes<Leaf> {
                 if i + 1 == horizontal.children.len() {
                     // Suggest dropping after the last child:
                     drop_context.suggest_rect(
-                        InsertionPoint::new(parent_id, LayoutType::Horizontal, insertion_index + 1),
+                        InsertionPoint::new(parent_id, BranchType::Horizontal, insertion_index + 1),
                         rect.split_left_right_at_fraction(0.33).1,
                     );
                 }
