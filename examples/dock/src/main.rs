@@ -11,9 +11,22 @@ fn main() -> Result<(), eframe::Error> {
         initial_window_size: Some(egui::vec2(800.0, 600.0)),
         ..Default::default()
     };
-    eframe::run_native("Dock", options, Box::new(|_cc| Box::<MyApp>::default()))
+    eframe::run_native(
+        "Dock",
+        options,
+        Box::new(|cc| {
+            let mut app = MyApp::default();
+            if let Some(storage) = cc.storage {
+                if let Some(state) = eframe::get_value(storage, eframe::APP_KEY) {
+                    app = state;
+                }
+            }
+            Box::new(app)
+        }),
+    )
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct View {
     title: String,
     color: Color32,
@@ -68,8 +81,11 @@ impl dock::Behavior<View> for DockBehavior {
     }
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
 struct MyApp {
     dock: dock::Dock<View>,
+
+    #[serde(skip, default)]
     behavior: DockBehavior,
 }
 
@@ -131,6 +147,10 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             self.dock.ui(&mut self.behavior, ui);
         });
+    }
+
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, eframe::APP_KEY, &self);
     }
 }
 
