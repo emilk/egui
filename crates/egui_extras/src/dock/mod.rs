@@ -56,7 +56,7 @@ impl<Leaf> Default for Dock<Leaf> {
 /// Contains all node state, but no root.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Nodes<Leaf> {
-    pub nodes: HashMap<NodeId, NodeState<Leaf>>,
+    pub nodes: HashMap<NodeId, Node<Leaf>>,
 
     /// Filled in by the layout step at the start of each frame.
     #[serde(default, skip)]
@@ -73,31 +73,20 @@ impl<Leaf> Default for Nodes<Leaf> {
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct NodeState<Leaf> {
-    pub layout: NodeLayout<Leaf>,
-}
-
-impl<Leaf> From<NodeLayout<Leaf>> for NodeState<Leaf> {
-    fn from(layout: NodeLayout<Leaf>) -> Self {
-        Self { layout }
-    }
-}
-
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub enum NodeLayout<Leaf> {
+pub enum Node<Leaf> {
     Leaf(Leaf),
     Tabs(Tabs),
     Horizontal(Horizontal),
     Vertical(Vertical),
 }
 
-impl<Leaf> NodeLayout<Leaf> {
+impl<Leaf> Node<Leaf> {
     pub fn name(&self) -> &'static str {
         match self {
-            NodeLayout::Leaf(_) => "Leaf",
-            NodeLayout::Tabs(_) => "Tabs",
-            NodeLayout::Horizontal(_) => "Horizontal",
-            NodeLayout::Vertical(_) => "Vertical",
+            Node::Leaf(_) => "Leaf",
+            Node::Tabs(_) => "Tabs",
+            Node::Horizontal(_) => "Horizontal",
+            Node::Vertical(_) => "Vertical",
         }
     }
 }
@@ -148,15 +137,15 @@ impl Shares {
     }
 }
 
-impl<Leaf> From<Tabs> for NodeLayout<Leaf> {
+impl<Leaf> From<Tabs> for Node<Leaf> {
     fn from(tabs: Tabs) -> Self {
-        NodeLayout::Tabs(tabs)
+        Node::Tabs(tabs)
     }
 }
 
-impl<Leaf> From<Horizontal> for NodeLayout<Leaf> {
+impl<Leaf> From<Horizontal> for Node<Leaf> {
     fn from(horizontal: Horizontal) -> Self {
-        NodeLayout::Horizontal(horizontal)
+        Node::Horizontal(horizontal)
     }
 }
 
@@ -229,8 +218,8 @@ pub trait Behavior<Leaf> {
     fn tab_text_for_leaf(&mut self, leaf: &Leaf) -> WidgetText;
 
     fn tab_text_for_node(&mut self, nodes: &Nodes<Leaf>, node_id: NodeId) -> WidgetText {
-        match &nodes.nodes[&node_id].layout {
-            NodeLayout::Leaf(leaf) => self.tab_text_for_leaf(leaf),
+        match &nodes.nodes[&node_id] {
+            Node::Leaf(leaf) => self.tab_text_for_leaf(leaf),
             layout => layout.name().into(),
         }
     }
@@ -295,16 +284,16 @@ impl<Leaf> Nodes<Leaf> {
         self.rects.get(&node_id).copied()
     }
 
-    pub fn get(&self, node_id: NodeId) -> Option<&NodeLayout<Leaf>> {
-        self.nodes.get(&node_id).map(|node| &node.layout)
+    pub fn get(&self, node_id: NodeId) -> Option<&Node<Leaf>> {
+        self.nodes.get(&node_id)
     }
 
-    pub fn get_mut(&mut self, node_id: NodeId) -> Option<&mut NodeLayout<Leaf>> {
-        self.nodes.get_mut(&node_id).map(|node| &mut node.layout)
+    pub fn get_mut(&mut self, node_id: NodeId) -> Option<&mut Node<Leaf>> {
+        self.nodes.get_mut(&node_id)
     }
 
     #[must_use]
-    pub fn insert_node(&mut self, node: NodeState<Leaf>) -> NodeId {
+    pub fn insert_node(&mut self, node: Node<Leaf>) -> NodeId {
         let id = NodeId::random();
         self.nodes.insert(id, node);
         id
@@ -312,7 +301,7 @@ impl<Leaf> Nodes<Leaf> {
 
     #[must_use]
     pub fn insert_leaf(&mut self, leaf: Leaf) -> NodeId {
-        self.insert_node(NodeLayout::Leaf(leaf).into())
+        self.insert_node(Node::Leaf(leaf))
     }
 
     #[must_use]
@@ -321,7 +310,7 @@ impl<Leaf> Nodes<Leaf> {
             active: children.first().copied().unwrap_or_default(),
             children,
         };
-        self.insert_node(NodeLayout::Tabs(tabs).into())
+        self.insert_node(Node::Tabs(tabs))
     }
 
     #[must_use]
@@ -330,15 +319,15 @@ impl<Leaf> Nodes<Leaf> {
             children,
             shares: Default::default(),
         };
-        self.insert_node(NodeLayout::Horizontal(horizontal).into())
+        self.insert_node(Node::Horizontal(horizontal))
     }
 
     fn parent(&self, it: NodeId, needle_child: NodeId) -> Option<NodeId> {
-        match &self.nodes.get(&it)?.layout {
-            NodeLayout::Leaf(_) => None,
-            NodeLayout::Tabs(Tabs { children, .. })
-            | NodeLayout::Horizontal(Horizontal { children, .. })
-            | NodeLayout::Vertical(Vertical { children, .. }) => {
+        match &self.nodes.get(&it)? {
+            Node::Leaf(_) => None,
+            Node::Tabs(Tabs { children, .. })
+            | Node::Horizontal(Horizontal { children, .. })
+            | Node::Vertical(Vertical { children, .. }) => {
                 for &child in children {
                     if child == needle_child {
                         return Some(it);
@@ -358,15 +347,15 @@ impl<Leaf> Nodes<Leaf> {
             return GcAction::Remove;
         }
         let Some(mut node) = self.nodes.remove(&it) else { return GcAction::Remove; };
-        match &mut node.layout {
-            NodeLayout::Leaf(_) => {}
-            NodeLayout::Tabs(Tabs { children, .. }) => {
+        match &mut node {
+            Node::Leaf(_) => {}
+            Node::Tabs(Tabs { children, .. }) => {
                 children.retain(|&child| {
                     self.remove_node_id_from_parent(child, remove) == GcAction::Keep
                 });
             }
-            NodeLayout::Horizontal(Horizontal { children, .. })
-            | NodeLayout::Vertical(Vertical { children, .. }) => {
+            Node::Horizontal(Horizontal { children, .. })
+            | Node::Vertical(Vertical { children, .. }) => {
                 children.retain(|&child| {
                     self.remove_node_id_from_parent(child, remove) == GcAction::Keep
                 });
@@ -388,7 +377,7 @@ impl<Leaf> Nodes<Leaf> {
         };
         match branch_type {
             BranchType::Tabs => {
-                if let NodeLayout::Tabs(layout) = &mut node.layout {
+                if let Node::Tabs(layout) = &mut node {
                     let index = index.min(layout.children.len());
                     layout.children.insert(index, child_id);
                     self.nodes.insert(parent_id, node);
@@ -399,12 +388,11 @@ impl<Leaf> Nodes<Leaf> {
                         active: new_node_id,
                     };
                     layout.children.insert(index.min(1), child_id);
-                    self.nodes
-                        .insert(parent_id, NodeLayout::Tabs(layout).into());
+                    self.nodes.insert(parent_id, Node::Tabs(layout));
                 }
             }
             BranchType::Horizontal => {
-                if let NodeLayout::Horizontal(layout) = &mut node.layout {
+                if let Node::Horizontal(layout) = &mut node {
                     let index = index.min(layout.children.len());
                     layout.children.insert(index, child_id);
                     self.nodes.insert(parent_id, node);
@@ -415,12 +403,11 @@ impl<Leaf> Nodes<Leaf> {
                         shares: Default::default(),
                     };
                     layout.children.insert(index.min(1), child_id);
-                    self.nodes
-                        .insert(parent_id, NodeLayout::Horizontal(layout).into());
+                    self.nodes.insert(parent_id, Node::Horizontal(layout));
                 }
             }
             BranchType::Vertical => {
-                if let NodeLayout::Vertical(layout) = &mut node.layout {
+                if let Node::Vertical(layout) = &mut node {
                     let index = index.min(layout.children.len());
                     layout.children.insert(index, child_id);
                     self.nodes.insert(parent_id, node);
@@ -431,8 +418,7 @@ impl<Leaf> Nodes<Leaf> {
                         shares: Default::default(),
                     };
                     layout.children.insert(index.min(1), child_id);
-                    self.nodes
-                        .insert(parent_id, NodeLayout::Vertical(layout).into());
+                    self.nodes.insert(parent_id, Node::Vertical(layout));
                 }
             }
         }
@@ -535,7 +521,7 @@ impl<Leaf> Dock<Leaf> {
                 if preview_child {
                     // Preview actual child?
                     if preview_rect.width() > 32.0 && preview_rect.height() > 32.0 {
-                        if let Some(NodeLayout::Leaf(leaf)) = self.nodes.get_mut(dragged_node_id) {
+                        if let Some(Node::Leaf(leaf)) = self.nodes.get_mut(dragged_node_id) {
                             let _ = behavior.leaf_ui(
                                 &mut ui.child_ui(preview_rect, *ui.layout()),
                                 dragged_node_id,
@@ -664,15 +650,15 @@ impl<Leaf> Nodes<Leaf> {
             return GcAction::Remove;
         }
 
-        match &mut node.layout {
-            NodeLayout::Leaf(leaf) => {
+        match &mut node {
+            Node::Leaf(leaf) => {
                 if !behavior.retain_leaf(leaf) {
                     return GcAction::Remove;
                 }
             }
-            NodeLayout::Tabs(Tabs { children, .. })
-            | NodeLayout::Horizontal(Horizontal { children, .. })
-            | NodeLayout::Vertical(Vertical { children, .. }) => {
+            Node::Tabs(Tabs { children, .. })
+            | Node::Horizontal(Horizontal { children, .. })
+            | Node::Vertical(Vertical { children, .. }) => {
                 children
                     .retain(|&child| self.gc_node_id(behavior, visited, child) == GcAction::Keep);
             }
@@ -696,15 +682,15 @@ impl<Leaf> Nodes<Leaf> {
         let Some(node) = self.nodes.remove(&node_id) else { return; };
         self.rects.insert(node_id, rect);
 
-        match &node.layout {
-            NodeLayout::Leaf(_) => {}
-            NodeLayout::Tabs(tabs) => {
+        match &node {
+            Node::Leaf(_) => {}
+            Node::Tabs(tabs) => {
                 self.layout_tabs(style, behavior, rect, tabs);
             }
-            NodeLayout::Horizontal(horizontal) => {
+            Node::Horizontal(horizontal) => {
                 self.layout_horizontal(style, behavior, rect, horizontal);
             }
-            NodeLayout::Vertical(vertical) => {
+            Node::Vertical(vertical) => {
                 self.layout_vertical(style, behavior, rect, vertical);
             }
         }
@@ -797,12 +783,12 @@ struct DropContext {
 }
 
 impl DropContext {
-    fn on_node<Leaf>(&mut self, parent_id: NodeId, rect: Rect, layout: &NodeLayout<Leaf>) {
+    fn on_node<Leaf>(&mut self, parent_id: NodeId, rect: Rect, layout: &Node<Leaf>) {
         if !self.active {
             return;
         }
 
-        if !matches!(layout, NodeLayout::Horizontal(_)) {
+        if !matches!(layout, Node::Horizontal(_)) {
             self.suggest_rect(
                 InsertionPoint::new(parent_id, BranchType::Horizontal, 0),
                 rect.split_left_right_at_fraction(0.5).0,
@@ -813,7 +799,7 @@ impl DropContext {
             );
         }
 
-        if !matches!(layout, NodeLayout::Vertical(_)) {
+        if !matches!(layout, Node::Vertical(_)) {
             self.suggest_rect(
                 InsertionPoint::new(parent_id, BranchType::Vertical, 0),
                 rect.split_top_bottom_at_fraction(0.5).0,
@@ -861,7 +847,7 @@ impl<Leaf> Nodes<Leaf> {
             // Can't drag a node onto self or any children
             drop_context.active = false;
         }
-        drop_context.on_node(node_id, rect, &node.layout);
+        drop_context.on_node(node_id, rect, &node);
 
         drop_context.suggest_rect(
             InsertionPoint::new(node_id, BranchType::Tabs, usize::MAX),
@@ -869,20 +855,20 @@ impl<Leaf> Nodes<Leaf> {
                 .1,
         );
 
-        match &mut node.layout {
-            NodeLayout::Leaf(leaf) => {
+        match &mut node {
+            Node::Leaf(leaf) => {
                 let mut leaf_ui = ui.child_ui(rect, *ui.layout());
                 if behavior.leaf_ui(&mut leaf_ui, node_id, leaf) == UiResponse::DragStarted {
                     ui.memory_mut(|mem| mem.set_dragged_id(node_id.id()));
                 }
             }
-            NodeLayout::Tabs(tabs) => {
+            Node::Tabs(tabs) => {
                 self.tabs_ui(behavior, drop_context, ui, rect, node_id, tabs);
             }
-            NodeLayout::Horizontal(horizontal) => {
+            Node::Horizontal(horizontal) => {
                 self.horizontal_ui(behavior, drop_context, ui, node_id, horizontal);
             }
-            NodeLayout::Vertical(vertical) => {
+            Node::Vertical(vertical) => {
                 self.vertical_ui(behavior, drop_context, ui, node_id, vertical);
             }
         };
@@ -1053,9 +1039,9 @@ impl<Leaf> Nodes<Leaf> {
     fn simplify(&mut self, options: &SimplificationOptions, it: NodeId) -> SimplifyAction {
         let Some(mut node) = self.nodes.remove(&it) else { return SimplifyAction::Remove; };
 
-        match &mut node.layout {
-            NodeLayout::Leaf(_) => {}
-            NodeLayout::Tabs(Tabs { children, .. }) => {
+        match &mut node {
+            Node::Leaf(_) => {}
+            Node::Tabs(Tabs { children, .. }) => {
                 children.retain_mut(|child| match self.simplify(options, *child) {
                     SimplifyAction::Remove => false,
                     SimplifyAction::Keep => true,
@@ -1071,7 +1057,7 @@ impl<Leaf> Nodes<Leaf> {
                 }
                 if options.prune_single_child_tabs && children.len() == 1 {
                     if options.all_leaves_must_have_tabs
-                        && matches!(self.get(children[0]), Some(NodeLayout::Leaf(_)))
+                        && matches!(self.get(children[0]), Some(Node::Leaf(_)))
                     {
                         // Keep it
                     } else {
@@ -1081,8 +1067,8 @@ impl<Leaf> Nodes<Leaf> {
                 }
             }
 
-            NodeLayout::Horizontal(Horizontal { children, .. })
-            | NodeLayout::Vertical(Vertical { children, .. }) => {
+            Node::Horizontal(Horizontal { children, .. })
+            | Node::Vertical(Vertical { children, .. }) => {
                 // TODO: join nested versions of the same thing
                 children.retain_mut(|child| match self.simplify(options, *child) {
                     SimplifyAction::Remove => false,
@@ -1113,28 +1099,28 @@ impl<Leaf> Nodes<Leaf> {
     fn make_all_leaves_children_of_tabs(&mut self, parent_is_tabs: bool, it: NodeId) {
         let Some(mut node) = self.nodes.remove(&it) else { return; };
 
-        match &mut node.layout {
-            NodeLayout::Leaf(_) => {
+        match &mut node {
+            Node::Leaf(_) => {
                 if !parent_is_tabs {
                     // Add tabs to this leaf:
                     let new_id = NodeId::random();
                     self.nodes.insert(new_id, node);
-                    let tabs = NodeState::from(NodeLayout::Tabs(Tabs {
+                    let tabs = Node::Tabs(Tabs {
                         children: vec![new_id],
                         active: new_id,
-                    }));
+                    });
                     self.nodes.insert(it, tabs);
                     return;
                 }
             }
-            NodeLayout::Tabs(Tabs { children, .. }) => {
+            Node::Tabs(Tabs { children, .. }) => {
                 for child in children {
                     self.make_all_leaves_children_of_tabs(true, *child);
                 }
             }
 
-            NodeLayout::Horizontal(Horizontal { children, .. })
-            | NodeLayout::Vertical(Vertical { children, .. }) => {
+            Node::Horizontal(Horizontal { children, .. })
+            | Node::Vertical(Vertical { children, .. }) => {
                 for child in children {
                     self.make_all_leaves_children_of_tabs(false, *child);
                 }

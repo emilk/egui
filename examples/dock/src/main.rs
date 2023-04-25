@@ -176,18 +176,18 @@ fn tree_ui(
         .id_source((node_id, "tree"))
         .default_open(true)
         .show(ui, |ui| match node {
-            dock::NodeLayout::Leaf(_) => {}
-            dock::NodeLayout::Tabs(tabs) => {
+            dock::Node::Leaf(_) => {}
+            dock::Node::Tabs(tabs) => {
                 for &child in &tabs.children {
                     tree_ui(ui, behavior, nodes, child);
                 }
             }
-            dock::NodeLayout::Horizontal(layout) => {
+            dock::Node::Horizontal(layout) => {
                 for &child in &layout.children {
                     tree_ui(ui, behavior, nodes, child);
                 }
             }
-            dock::NodeLayout::Vertical(layout) => {
+            dock::Node::Vertical(layout) => {
                 for &child in &layout.children {
                     tree_ui(ui, behavior, nodes, child);
                 }
