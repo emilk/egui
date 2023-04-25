@@ -361,10 +361,25 @@ impl Rect {
 
     /// Linearly interpolate so that `[0, 0]` is [`Self::min`] and
     /// `[1, 1]` is [`Self::max`].
+    #[deprecated = "Use `lerp_inside` instead"]
     pub fn lerp(&self, t: Vec2) -> Pos2 {
+        self.lerp_inside(t)
+    }
+
+    /// Linearly interpolate so that `[0, 0]` is [`Self::min`] and
+    /// `[1, 1]` is [`Self::max`].
+    pub fn lerp_inside(&self, t: Vec2) -> Pos2 {
         Pos2 {
             x: lerp(self.min.x..=self.max.x, t.x),
             y: lerp(self.min.y..=self.max.y, t.y),
+        }
+    }
+
+    /// Linearly self towards other rect.
+    pub fn lerp_towards(&self, other: &Rect, t: f32) -> Self {
+        Self {
+            min: self.min.lerp(other.min, t),
+            max: self.max.lerp(other.max, t),
         }
     }
 

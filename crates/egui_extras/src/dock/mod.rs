@@ -37,6 +37,10 @@ impl std::fmt::Debug for NodeId {
 pub struct Dock<Leaf> {
     pub root: NodeId,
     pub nodes: Nodes<Leaf>,
+
+    /// Smoothed avaerage of preview
+    #[serde(skip)]
+    pub smoothed_preview_rect: Option<Rect>,
 }
 
 impl<Leaf> Default for Dock<Leaf> {
@@ -44,6 +48,7 @@ impl<Leaf> Default for Dock<Leaf> {
         Self {
             root: Default::default(),
             nodes: Default::default(),
+            smoothed_preview_rect: None,
         }
     }
 }
@@ -257,7 +262,11 @@ pub trait Behavior<Leaf> {
 
 impl<Leaf> Dock<Leaf> {
     pub fn new(root: NodeId, nodes: Nodes<Leaf>) -> Self {
-        Self { root, nodes }
+        Self {
+            root,
+            nodes,
+            smoothed_preview_rect: None,
+        }
     }
 }
 
@@ -412,6 +421,22 @@ impl<Leaf> Dock<Leaf> {
         self.root
     }
 
+    fn smooth_preview_rect(&mut self, ctx: &egui::Context, new_rect: Rect) -> Rect {
+        let dt = ctx.input(|input| input.stable_dt).at_most(0.1);
+        let t = egui::emath::exponential_smooth_factor(0.9, 0.05, dt);
+
+        let smoothed = self.smoothed_preview_rect.get_or_insert(new_rect);
+        *smoothed = smoothed.lerp_towards(&new_rect, t);
+
+        let diff = smoothed.min.distance(new_rect.min) + smoothed.max.distance(new_rect.max);
+        if diff < 0.5 {
+            *smoothed = new_rect;
+        } else {
+            ctx.request_repaint();
+        }
+        *smoothed
+    }
+
     pub fn ui(&mut self, behavior: &mut dyn Behavior<Leaf>, ui: &mut Ui) {
         let options = behavior.simplification_options();
         self.simplify(&options);
@@ -462,11 +487,23 @@ impl<Leaf> Dock<Leaf> {
                 });
 
             if let Some(preview_rect) = drop_context.preview_rect {
+                let preview_rect = self.smooth_preview_rect(ui.ctx(), preview_rect);
+
+                let preview_stroke = ui.visuals().selection.stroke;
+                let preview_color = preview_stroke.color;
+
+                if let Some(insertion_point) = &drop_context.best_insertion {
+                    if let Some(node) = self.nodes.nodes.get(&insertion_point.parent_id) {
+                        // Show which parent we will be dropped into
+                        ui.painter().rect_stroke(node.rect, 1.0, preview_stroke);
+                    }
+                }
+
                 ui.painter().rect(
                     preview_rect,
                     1.0,
-                    Color32::LIGHT_BLUE.gamma_multiply(0.5),
-                    (1.0, Color32::LIGHT_BLUE),
+                    preview_color.gamma_multiply(0.5),
+                    preview_stroke,
                 );
 
                 let preview_child = false;
@@ -489,7 +526,10 @@ impl<Leaf> Dock<Leaf> {
                 if let Some(insertion_point) = drop_context.best_insertion {
                     self.move_node(dragged_node_id, insertion_point);
                 }
+                self.smoothed_preview_rect = None;
             }
+        } else {
+            self.smoothed_preview_rect = None;
         }
     }
 
@@ -721,12 +761,14 @@ impl<Leaf> Nodes<Leaf> {
 // ----------------------------------------------------------------------------
 // ui
 
+#[derive(Clone, Copy, Debug)]
 enum LayoutType {
     Tabs,
     Horizontal,
     Vertical,
 }
 
+#[derive(Clone, Copy, Debug)]
 struct InsertionPoint {
     parent_id: NodeId,
 
@@ -951,7 +993,7 @@ impl<Leaf> Nodes<Leaf> {
             let rect = self.nodes[&child].rect;
 
             if is_being_dragged(ui.ctx(), child) {
-                // suggest self as drop-target:
+                // Leave a hole, and suggest that hole as drop-target:
                 drop_context.suggest_rect(
                     InsertionPoint::new(parent_id, LayoutType::Horizontal, i),
                     rect,
