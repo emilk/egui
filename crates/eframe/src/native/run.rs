@@ -1132,9 +1132,7 @@ mod wgpu_integration {
         fn drop_window(&mut self) -> std::result::Result<(), egui_wgpu::WgpuError> {
             self.window = None;
             if let Some(running) = &mut self.running {
-                unsafe {
-                    pollster::block_on(running.painter.set_window(None))?;
-                }
+                pollster::block_on(running.painter.set_window(None))?;
             }
             Ok(())
         }
@@ -1146,19 +1144,16 @@ mod wgpu_integration {
             window: winit::window::Window,
         ) -> std::result::Result<(), egui_wgpu::WgpuError> {
             #[allow(unsafe_code, unused_mut, unused_unsafe)]
-            let painter = unsafe {
-                let mut painter = egui_wgpu::winit::Painter::new(
-                    self.native_options.wgpu_options.clone(),
-                    self.native_options.multisampling.max(1) as _,
-                    egui_wgpu::depth_format_from_bits(
-                        self.native_options.depth_buffer,
-                        self.native_options.stencil_buffer,
-                    ),
-                    self.native_options.transparent,
-                );
-                pollster::block_on(painter.set_window(Some(&window)))?;
-                painter
-            };
+            let mut painter = egui_wgpu::winit::Painter::new(
+                self.native_options.wgpu_options.clone(),
+                self.native_options.multisampling.max(1) as _,
+                egui_wgpu::depth_format_from_bits(
+                    self.native_options.depth_buffer,
+                    self.native_options.stencil_buffer,
+                ),
+                self.native_options.transparent,
+            );
+            pollster::block_on(painter.set_window(Some(&window)))?;
 
             let wgpu_render_state = painter.render_state();
 
