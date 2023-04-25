@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use egui::{
     pos2, vec2, CursorIcon, Id, Key, NumExt, Pos2, Rect, Response, Sense, Style, TextStyle, Ui,
@@ -87,16 +87,51 @@ impl<Leaf> Node<Leaf> {
     }
 }
 
+/// Where in a grid?
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+pub struct GridLoc {
+    // Row first for sorting
+    pub row: usize,
+    pub col: usize,
+}
+
+impl GridLoc {
+    pub fn from_col_row(col: usize, row: usize) -> Self {
+        Self { col, row }
+    }
+}
+
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Branch {
     pub layout: Layout,
     pub children: Vec<NodeId>,
 
-    /// Only if [`Self.typ`] == [`BranchType::Tab`]
+    /// Only if [`Self.typ`] == [`Layout::Tab`]
     pub active_tab: NodeId,
 
     /// Only for linear layouts (horizontal or vertical).
     pub linear_shares: Shares,
+
+    /// Only if [`Self.typ`] == [`Layout::Grid`].
+    /// col,row
+    pub grid_locations: HashMap<NodeId, GridLoc>,
+
+    /// Share of the avilable width assigned to each column.
+    pub grid_col_shares: Vec<f32>,
+    /// Share of the avilable height assigned to each row.
+    pub grid_row_shares: Vec<f32>,
 }
 
 impl Branch {
@@ -149,10 +184,11 @@ pub enum Layout {
     Tabs,
     Horizontal,
     Vertical,
+    Grid,
 }
 
 impl Layout {
-    pub const ALL: [Self; 3] = [Self::Tabs, Self::Horizontal, Self::Vertical];
+    pub const ALL: [Self; 4] = [Self::Tabs, Self::Horizontal, Self::Vertical, Self::Grid];
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -417,6 +453,30 @@ impl<Leaf> Nodes<Leaf> {
                     self.nodes.insert(parent_id, Node::Branch(branch));
                 }
             }
+            Layout::Grid => {
+                if let Node::Branch(Branch {
+                    layout: Layout::Grid,
+                    children,
+                    grid_locations: grid_positions,
+                    ..
+                }) = &mut node
+                {
+                    // The order of the children only matters with auto-layout
+                    // Swap the positions of the children
+                    let index = index.min(children.len());
+                    let replaced_node_id = children.get(index).copied().unwrap_or_default();
+                    children.insert(index, child_id);
+                    if let Some(pos) = grid_positions.remove(&replaced_node_id) {
+                        grid_positions.insert(child_id, pos);
+                    }
+                    self.nodes.insert(parent_id, node);
+                } else {
+                    let new_node_id = self.insert_node(node);
+                    let mut branch = Branch::new(Layout::Grid, vec![new_node_id]);
+                    branch.children.insert(index.min(1), child_id);
+                    self.nodes.insert(parent_id, Node::Branch(branch));
+                }
+            }
         }
     }
 }
@@ -554,7 +614,8 @@ impl<Leaf> Dock<Leaf> {
 
     fn move_node(&mut self, moved_node_id: NodeId, insertion_point: InsertionPoint) {
         log::debug!(
-            "Moving {moved_node_id:?} into {:?}",
+            "Moving {moved_node_id:?} into {:?} {:?}",
+            insertion_point.layout,
             insertion_point.parent_id
         );
         self.remove_node_id_from_parent(moved_node_id);
@@ -673,10 +734,10 @@ impl<Leaf> Nodes<Leaf> {
         rect: Rect,
         node_id: NodeId,
     ) {
-        let Some(node) = self.nodes.remove(&node_id) else { return; };
+        let Some(mut node) = self.nodes.remove(&node_id) else { return; };
         self.rects.insert(node_id, rect);
 
-        match &node {
+        match &mut node {
             Node::Leaf(_) => {}
             Node::Branch(branch) => {
                 self.layout_branch(style, behavior, rect, branch);
@@ -691,12 +752,13 @@ impl<Leaf> Nodes<Leaf> {
         style: &Style,
         behavior: &mut dyn Behavior<Leaf>,
         rect: Rect,
-        branch: &Branch,
+        branch: &mut Branch,
     ) {
         match branch.layout {
             Layout::Tabs => self.layout_tabs(style, behavior, rect, branch),
             Layout::Horizontal => self.layout_horizontal(style, behavior, rect, branch),
             Layout::Vertical => self.layout_vertical(style, behavior, rect, branch),
+            Layout::Grid => self.layout_grid(style, behavior, rect, branch),
         }
     }
 
@@ -772,6 +834,108 @@ impl<Leaf> Nodes<Leaf> {
             self.layout_node(style, behavior, child_rect, *child);
             y += height + gap_height;
         }
+    }
+
+    fn layout_grid(
+        &mut self,
+        style: &Style,
+        behavior: &mut dyn Behavior<Leaf>,
+        rect: Rect,
+        branch: &mut Branch,
+    ) {
+        if branch.children.is_empty() {
+            return;
+        }
+
+        let child_ids: HashSet<NodeId> = branch.children.iter().copied().collect();
+
+        let mut num_cols = 2.min(branch.children.len()); // les than 2 and it is not a grid
+
+        // Where to place each node?
+        let mut node_id_from_location: BTreeMap<GridLoc, NodeId> = Default::default();
+        branch.grid_locations.retain(|&child_id, &mut loc| {
+            if child_ids.contains(&child_id) {
+                match node_id_from_location.entry(loc) {
+                    std::collections::btree_map::Entry::Occupied(_) => {
+                        false // two nodes assigned to the same position - forget this one for now
+                    }
+                    std::collections::btree_map::Entry::Vacant(entry) => {
+                        entry.insert(child_id);
+                        num_cols = num_cols.max(loc.col + 1);
+                        true
+                    }
+                }
+            } else {
+                false // child no longer exists
+            }
+        });
+
+        // Find location for nodes that don't have one yet
+        let mut next_pos = 0;
+        for &child_id in &branch.children {
+            if let std::collections::hash_map::Entry::Vacant(entry) =
+                branch.grid_locations.entry(child_id)
+            {
+                // find a position:
+                loop {
+                    let loc = GridLoc::from_col_row(next_pos % num_cols, next_pos / num_cols);
+                    if node_id_from_location.contains_key(&loc) {
+                        next_pos += 1;
+                        continue;
+                    }
+                    entry.insert(loc);
+                    node_id_from_location.insert(loc, child_id);
+                    break;
+                }
+            }
+        }
+
+        // Everything has a location - now we know how many rows we have:
+        let num_rows = node_id_from_location.keys().last().unwrap().row + 1;
+
+        // Figure out where each column and row goes:
+        branch.grid_col_shares.resize(num_cols, 1.0);
+        branch.grid_row_shares.resize(num_rows, 1.0);
+
+        let gap = behavior.gap_width(style);
+        let col_widths = sizes_from_shares(&branch.grid_col_shares, rect.width(), gap);
+        let row_heights = sizes_from_shares(&branch.grid_row_shares, rect.height(), gap);
+
+        let mut col_x = vec![rect.left()];
+        for &width in &col_widths {
+            col_x.push(col_x.last().unwrap() + width + gap);
+        }
+
+        let mut row_y = vec![rect.top()];
+        for &height in &row_heights {
+            row_y.push(row_y.last().unwrap() + height + gap);
+        }
+
+        // Place each node:
+        for child in &branch.children {
+            let loc = branch.grid_locations[child];
+            let child_rect = Rect::from_min_size(
+                pos2(col_x[loc.col], row_y[loc.row]),
+                vec2(col_widths[loc.col], row_heights[loc.row]),
+            );
+            self.layout_node(style, behavior, child_rect, *child);
+        }
+    }
+}
+
+fn sizes_from_shares(shares: &[f32], available_size: f32, gap_width: f32) -> Vec<f32> {
+    assert!(!shares.is_empty());
+    let available_size = available_size - gap_width * (shares.len() - 1) as f32;
+    let available_size = available_size.at_least(0.0);
+
+    let total_share: f32 = shares.iter().sum();
+    if total_share <= 0.0 {
+        vec![available_size / shares.len() as f32; shares.len()]
+    } else {
+        shares
+            .iter()
+            .map(|&share| share / total_share * available_size)
+            .collect()
     }
 }
 
@@ -895,6 +1059,9 @@ impl<Leaf> Nodes<Leaf> {
             }
             Layout::Vertical => {
                 self.vertical_ui(behavior, drop_context, ui, node_id, branch);
+            }
+            Layout::Grid => {
+                self.grid_ui(behavior, drop_context, ui, node_id, branch);
             }
         }
     }
@@ -1043,8 +1210,28 @@ impl<Leaf> Nodes<Leaf> {
         parent_id: NodeId,
         branch: &mut Branch,
     ) {
+        // TODO: drag-and-drop
         for child in &branch.children {
             self.node_ui(behavior, drop_context, ui, *child);
+        }
+    }
+
+    fn grid_ui(
+        &mut self,
+        behavior: &mut dyn Behavior<Leaf>,
+        drop_context: &mut DropContext,
+        ui: &mut Ui,
+        parent_id: NodeId,
+        branch: &mut Branch,
+    ) {
+        // TODO: drag-and-drop
+        for (i, &child) in branch.children.iter().enumerate() {
+            drop_context.suggest_rect(
+                InsertionPoint::new(parent_id, Layout::Grid, i),
+                self.rect(child).unwrap(),
+            );
+
+            self.node_ui(behavior, drop_context, ui, child);
         }
     }
 }
@@ -1097,7 +1284,7 @@ impl<Leaf> Nodes<Leaf> {
                         }
                     }
                 }
-                Layout::Horizontal | Layout::Vertical => {
+                Layout::Horizontal | Layout::Vertical | Layout::Grid => {
                     if options.prune_empty_layouts && children.is_empty() {
                         log::debug!("Simplify: removing empty layout node");
                         return SimplifyAction::Remove;
@@ -1123,6 +1310,7 @@ impl<Leaf> Nodes<Leaf> {
             Node::Leaf(_) => {
                 if !parent_is_tabs {
                     // Add tabs to this leaf:
+                    log::debug!("Auto-adding Tabs-parent to leaf {it:?}");
                     let new_id = NodeId::random();
                     self.nodes.insert(new_id, node);
                     self.nodes

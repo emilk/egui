@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::egui;
+use eframe::egui::{self, Style};
 use egui::Color32;
 
 use egui_extras::dock;
@@ -57,9 +57,54 @@ impl View {
     }
 }
 
-#[derive(Default)]
 struct DockBehavior {
     simplification_options: dock::SimplificationOptions,
+    tab_bar_height: f32,
+    gap_width: f32,
+}
+
+impl Default for DockBehavior {
+    fn default() -> Self {
+        Self {
+            simplification_options: Default::default(),
+            tab_bar_height: 20.0,
+            gap_width: 2.0,
+        }
+    }
+}
+
+impl DockBehavior {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        let Self {
+            simplification_options,
+            tab_bar_height,
+            gap_width,
+        } = self;
+
+        egui::Grid::new("behavior_ui")
+            .num_columns(2)
+            .show(ui, |ui| {
+                ui.label("All leaves must have tabs:");
+                ui.checkbox(&mut simplification_options.all_leaves_must_have_tabs, "");
+                ui.end_row();
+
+                ui.label("Tab bar height:");
+                ui.add(
+                    egui::DragValue::new(tab_bar_height)
+                        .clamp_range(0.0..=100.0)
+                        .speed(1.0),
+                );
+                ui.end_row();
+
+                ui.label("Gap width:");
+                ui.add(
+                    egui::DragValue::new(gap_width)
+                        .clamp_range(0.0..=20.0)
+                        .speed(1.0),
+                );
+                ui.end_row();
+            });
+    }
 }
 
 impl dock::Behavior<View> for DockBehavior {
@@ -74,6 +119,17 @@ impl dock::Behavior<View> for DockBehavior {
 
     fn tab_text_for_leaf(&mut self, view: &View) -> egui::WidgetText {
         view.title.clone().into()
+    }
+
+    // ---
+    // Settings:
+
+    fn tab_bar_height(&self, _style: &Style) -> f32 {
+        self.tab_bar_height
+    }
+
+    fn gap_width(&self, _style: &Style) -> f32 {
+        self.gap_width
     }
 
     fn simplification_options(&self) -> dock::SimplificationOptions {
@@ -132,13 +188,7 @@ impl eframe::App for MyApp {
             if ui.button("Reset").clicked() {
                 *self = Default::default();
             }
-            ui.checkbox(
-                &mut self
-                    .behavior
-                    .simplification_options
-                    .all_leaves_must_have_tabs,
-                "All views have tabs",
-            );
+            self.behavior.ui(ui);
             ui.separator();
 
             tree_ui(ui, &mut self.behavior, &mut self.dock.nodes, self.dock.root);
