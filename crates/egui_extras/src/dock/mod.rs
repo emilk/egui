@@ -4,7 +4,7 @@ use egui::{Id, Key, NumExt, Pos2, Rect, Response, Sense, TextStyle, Ui, WidgetTe
 
 mod branch;
 
-pub use branch::{Branch, Layout};
+pub use branch::{Branch, Grid, Layout, Linear, LinearDir, Tabs};
 
 // ----------------------------------------------------------------------------
 // Types required for state
@@ -83,7 +83,7 @@ impl<Leaf> Node<Leaf> {
     fn layout(&self) -> Option<Layout> {
         match self {
             Node::Leaf(_) => None,
-            Node::Branch(branch) => Some(branch.layout),
+            Node::Branch(branch) => Some(branch.get_layout()),
         }
     }
 }
@@ -183,7 +183,7 @@ pub trait Behavior<Leaf> {
     fn tab_text_for_node(&mut self, nodes: &Nodes<Leaf>, node_id: NodeId) -> WidgetText {
         match &nodes.nodes[&node_id] {
             Node::Leaf(leaf) => self.tab_text_for_leaf(leaf),
-            Node::Branch(branch) => format!("{:?}", branch.layout).into(),
+            Node::Branch(branch) => format!("{:?}", branch.get_layout()).into(),
         }
     }
 
@@ -279,24 +279,30 @@ impl<Leaf> Nodes<Leaf> {
 
     #[must_use]
     pub fn insert_horizontal_node(&mut self, children: Vec<NodeId>) -> NodeId {
-        self.insert_node(Node::Branch(Branch::new(Layout::Horizontal, children)))
+        self.insert_node(Node::Branch(Branch::new_linear(
+            LinearDir::Horizontal,
+            children,
+        )))
     }
 
     #[must_use]
     pub fn insert_vertical_node(&mut self, children: Vec<NodeId>) -> NodeId {
-        self.insert_node(Node::Branch(Branch::new(Layout::Vertical, children)))
+        self.insert_node(Node::Branch(Branch::new_linear(
+            LinearDir::Vertical,
+            children,
+        )))
     }
 
     #[must_use]
     pub fn insert_grid_node(&mut self, children: Vec<NodeId>) -> NodeId {
-        self.insert_node(Node::Branch(Branch::new(Layout::Grid, children)))
+        self.insert_node(Node::Branch(Branch::new_grid(children)))
     }
 
     fn parent(&self, it: NodeId, needle_child: NodeId) -> Option<NodeId> {
         match &self.nodes.get(&it)? {
             Node::Leaf(_) => None,
             Node::Branch(branch) => {
-                for &child in &branch.children {
+                for &child in branch.children() {
                     if child == needle_child {
                         return Some(it);
                     }
@@ -316,9 +322,7 @@ impl<Leaf> Nodes<Leaf> {
         }
         let Some(mut node) = self.nodes.remove(&it) else { return GcAction::Remove; };
         if let Node::Branch(branch) = &mut node {
-            branch
-                .children
-                .retain(|&child| self.remove_node_id_from_parent(child, remove) == GcAction::Keep);
+            branch.retain(|child| self.remove_node_id_from_parent(child, remove) == GcAction::Keep);
         }
         self.nodes.insert(it, node);
         GcAction::Keep
@@ -337,73 +341,66 @@ impl<Leaf> Nodes<Leaf> {
 
         match insertion {
             LayoutInsertion::Tabs(index) => {
-                if let Node::Branch(Branch {
-                    layout: Layout::Tabs,
-                    children,
-                    ..
-                }) = &mut node
-                {
-                    let index = index.min(children.len());
-                    children.insert(index, child_id);
+                if let Node::Branch(Branch::Tabs(tabs)) = &mut node {
+                    let index = index.min(tabs.children.len());
+                    tabs.children.insert(index, child_id);
                     self.nodes.insert(parent_id, node);
                 } else {
                     let new_node_id = self.insert_node(node);
-                    let mut branch = Branch::new_tabs(vec![new_node_id]);
-                    branch.children.insert(index.min(1), child_id);
-                    self.nodes.insert(parent_id, Node::Branch(branch));
+                    let mut tabs = Tabs::new(vec![new_node_id]);
+                    tabs.children.insert(index.min(1), child_id);
+                    self.nodes
+                        .insert(parent_id, Node::Branch(Branch::Tabs(tabs)));
                 }
             }
             LayoutInsertion::Horizontal(index) => {
-                if let Node::Branch(Branch {
-                    layout: Layout::Horizontal,
+                if let Node::Branch(Branch::Linear(Linear {
+                    dir: LinearDir::Horizontal,
                     children,
                     ..
-                }) = &mut node
+                })) = &mut node
                 {
                     let index = index.min(children.len());
                     children.insert(index, child_id);
                     self.nodes.insert(parent_id, node);
                 } else {
                     let new_node_id = self.insert_node(node);
-                    let mut branch = Branch::new(Layout::Horizontal, vec![new_node_id]);
-                    branch.children.insert(index.min(1), child_id);
-                    self.nodes.insert(parent_id, Node::Branch(branch));
+                    let mut linear = Linear::new(LinearDir::Horizontal, vec![new_node_id]);
+                    linear.children.insert(index.min(1), child_id);
+                    self.nodes
+                        .insert(parent_id, Node::Branch(Branch::Linear(linear)));
                 }
             }
             LayoutInsertion::Vertical(index) => {
-                if let Node::Branch(Branch {
-                    layout: Layout::Vertical,
+                if let Node::Branch(Branch::Linear(Linear {
+                    dir: LinearDir::Vertical,
                     children,
                     ..
-                }) = &mut node
+                })) = &mut node
                 {
                     let index = index.min(children.len());
                     children.insert(index, child_id);
                     self.nodes.insert(parent_id, node);
                 } else {
                     let new_node_id = self.insert_node(node);
-                    let mut branch = Branch::new(Layout::Vertical, vec![new_node_id]);
-                    branch.children.insert(index.min(1), child_id);
-                    self.nodes.insert(parent_id, Node::Branch(branch));
+                    let mut linear = Linear::new(LinearDir::Vertical, vec![new_node_id]);
+                    linear.children.insert(index.min(1), child_id);
+                    self.nodes
+                        .insert(parent_id, Node::Branch(Branch::Linear(linear)));
                 }
             }
             LayoutInsertion::Grid(insert_location) => {
-                if let Node::Branch(Branch {
-                    layout: Layout::Grid,
-                    grid_locations,
-                    children,
-                    ..
-                }) = &mut node
-                {
-                    grid_locations.retain(|_, pos| *pos != insert_location);
-                    grid_locations.insert(child_id, insert_location);
-                    children.push(child_id);
+                if let Node::Branch(Branch::Grid(grid)) = &mut node {
+                    grid.locations.retain(|_, pos| *pos != insert_location);
+                    grid.locations.insert(child_id, insert_location);
+                    grid.children.push(child_id);
                     self.nodes.insert(parent_id, node);
                 } else {
                     let new_node_id = self.insert_node(node);
-                    let mut branch = Branch::new(Layout::Grid, vec![new_node_id, child_id]);
-                    branch.grid_locations.insert(child_id, insert_location);
-                    self.nodes.insert(parent_id, Node::Branch(branch));
+                    let mut grid = Grid::new(vec![new_node_id, child_id]);
+                    grid.locations.insert(child_id, insert_location);
+                    self.nodes
+                        .insert(parent_id, Node::Branch(Branch::Grid(grid)));
                 }
             }
         }
@@ -645,9 +642,7 @@ impl<Leaf> Nodes<Leaf> {
                 }
             }
             Node::Branch(branch) => {
-                branch
-                    .children
-                    .retain(|&child| self.gc_node_id(behavior, visited, child) == GcAction::Keep);
+                branch.retain(|child| self.gc_node_id(behavior, visited, child) == GcAction::Keep);
             }
         }
         self.nodes.insert(node_id, node);
@@ -820,48 +815,31 @@ impl<Leaf> Nodes<Leaf> {
         if let Node::Branch(branch) = &mut node {
             // TODO: join nested versions of the same horizontal/vertical layouts
 
-            branch
-                .children
-                .retain_mut(|child| match self.simplify(options, *child) {
-                    SimplifyAction::Remove => false,
-                    SimplifyAction::Keep => true,
-                    SimplifyAction::Replace(new) => {
-                        if branch.active_tab == *child {
-                            branch.active_tab = new;
-                        }
-                        branch.linear_shares.replace_with(*child, new);
-                        if let Some(loc) = branch.grid_locations.remove(child) {
-                            branch.grid_locations.insert(new, loc);
-                        }
+            branch.simplify_children(|child| self.simplify(options, child));
 
-                        *child = new;
-                        true
-                    }
-                });
-
-            if branch.layout == Layout::Tabs {
-                if options.prune_empty_tabs && branch.children.is_empty() {
+            if branch.get_layout() == Layout::Tabs {
+                if options.prune_empty_tabs && branch.is_empty() {
                     log::debug!("Simplify: removing empty tabs node");
                     return SimplifyAction::Remove;
                 }
-                if options.prune_single_child_tabs && branch.children.len() == 1 {
+                if options.prune_single_child_tabs && branch.children().len() == 1 {
                     if options.all_leaves_must_have_tabs
-                        && matches!(self.get(branch.children[0]), Some(Node::Leaf(_)))
+                        && matches!(self.get(branch.children()[0]), Some(Node::Leaf(_)))
                     {
                         // Keep it
                     } else {
                         log::debug!("Simplify: collapsing single-child tabs node");
-                        return SimplifyAction::Replace(branch.children[0]);
+                        return SimplifyAction::Replace(branch.children()[0]);
                     }
                 }
             } else {
-                if options.prune_empty_layouts && branch.children.is_empty() {
+                if options.prune_empty_layouts && branch.is_empty() {
                     log::debug!("Simplify: removing empty layout node");
                     return SimplifyAction::Remove;
                 }
-                if options.prune_single_child_layouts && branch.children.len() == 1 {
+                if options.prune_single_child_layouts && branch.children().len() == 1 {
                     log::debug!("Simplify: collapsing single-child layout node");
-                    return SimplifyAction::Replace(branch.children[0]);
+                    return SimplifyAction::Replace(branch.children()[0]);
                 }
             }
         }
@@ -888,8 +866,8 @@ impl<Leaf> Nodes<Leaf> {
                 }
             }
             Node::Branch(branch) => {
-                let is_tabs = branch.layout == Layout::Tabs;
-                for &child in &branch.children {
+                let is_tabs = branch.get_layout() == Layout::Tabs;
+                for &child in branch.children() {
                     self.make_all_leaves_children_of_tabs(is_tabs, child);
                 }
             }

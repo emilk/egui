@@ -232,16 +232,20 @@ fn tree_ui(
         .show(ui, |ui| match &mut node {
             dock::Node::Leaf(_) => {}
             dock::Node::Branch(branch) => {
+                let mut layout = branch.get_layout();
                 egui::ComboBox::from_label("Layout")
-                    .selected_text(format!("{:?}", branch.layout))
+                    .selected_text(format!("{:?}", layout))
                     .show_ui(ui, |ui| {
                         for typ in dock::Layout::ALL {
-                            ui.selectable_value(&mut branch.layout, typ, format!("{:?}", typ))
+                            ui.selectable_value(&mut layout, typ, format!("{:?}", typ))
                                 .clicked();
                         }
                     });
+                if layout != branch.get_layout() {
+                    branch.set_layout(layout);
+                }
 
-                for &child in &branch.children {
+                for &child in branch.children() {
                     tree_ui(ui, behavior, nodes, child);
                 }
             }
