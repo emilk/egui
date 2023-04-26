@@ -4,7 +4,7 @@ use egui::{Id, Key, NumExt, Pos2, Rect, Response, Sense, TextStyle, Ui, WidgetTe
 
 mod branch;
 
-pub use branch::{Branch, Grid, Layout, Linear, LinearDir, Tabs};
+pub use branch::{Branch, Grid, GridLoc, Layout, Linear, LinearDir, Tabs};
 
 // ----------------------------------------------------------------------------
 // Types required for state
@@ -85,32 +85,6 @@ impl<Leaf> Node<Leaf> {
             Node::Leaf(_) => None,
             Node::Branch(branch) => Some(branch.get_layout()),
         }
-    }
-}
-
-/// Where in a grid?
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-)]
-pub struct GridLoc {
-    // Row first for sorting
-    pub row: usize,
-    pub col: usize,
-}
-
-impl GridLoc {
-    pub fn from_col_row(col: usize, row: usize) -> Self {
-        Self { col, row }
     }
 }
 
@@ -692,7 +666,7 @@ fn sizes_from_shares(shares: &[f32], available_size: f32, gap_width: f32) -> Vec
 // ----------------------------------------------------------------------------
 // ui
 
-struct DropContext {
+pub struct DropContext {
     enabled: bool,
     dragged_node_id: Option<NodeId>,
     mouse_pos: Option<Pos2>,
