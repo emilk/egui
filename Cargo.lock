@@ -622,7 +622,7 @@ dependencies = [
  "js-sys",
  "num-integer",
  "num-traits",
- "time 0.1.45",
+ "time 0.3.20",
  "wasm-bindgen",
  "winapi",
 ]
@@ -2773,7 +2773,7 @@ dependencies = [
  "line-wrap",
  "quick-xml",
  "serde",
- "time 0.3.17",
+ "time 0.3.20",
 ]
 
 [[package]]
