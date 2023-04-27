@@ -1051,7 +1051,13 @@ impl Storage for DummyStorage {
 pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &str) -> Option<T> {
     storage
         .get_string(key)
-        .and_then(|value| ron::from_str(&value).ok())
+        .and_then(|value| match ron::from_str(&value) {
+            Ok(value) => Some(value),
+            Err(err) => {
+                log::warn!("Failed to decode RON: {err}");
+                None
+            }
+        })
 }
 
 /// Serialize the given value as [RON](https://github.com/ron-rs/ron) and store with the given key.
