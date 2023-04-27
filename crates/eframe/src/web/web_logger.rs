@@ -37,7 +37,11 @@ impl log::Log for WebLogger {
             log::Level::Debug => console::debug(&msg),
             log::Level::Info => console::info(&msg),
             log::Level::Warn => console::warn(&msg),
-            log::Level::Error => console::error(&msg),
+
+            // Using console.error causes crashes for unknown reason
+            // https://github.com/emilk/egui/pull/2961
+            // log::Level::Error => console::error(&msg),
+            log::Level::Error => console::warn(&format!("ERROR: {msg}")),
         }
     }
 
@@ -66,9 +70,11 @@ mod console {
         #[wasm_bindgen(js_namespace = console)]
         pub fn warn(s: &str);
 
-        /// `console.error`
-        #[wasm_bindgen(js_namespace = console)]
-        pub fn error(s: &str);
+        // Using console.error causes crashes for unknown reason
+        // https://github.com/emilk/egui/pull/2961
+        // /// `console.error`
+        // #[wasm_bindgen(js_namespace = console)]
+        // pub fn error(s: &str);
     }
 }
 
