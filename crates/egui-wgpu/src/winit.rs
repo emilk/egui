@@ -311,7 +311,7 @@ impl Painter {
                 height_in_pixels,
             );
         } else {
-            log::error!("Ignoring window resize notification with no surface created via Painter::set_window()");
+            log::warn!("Ignoring window resize notification with no surface created via Painter::set_window()");
         }
     }
 
