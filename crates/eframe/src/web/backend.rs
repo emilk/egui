@@ -560,7 +560,7 @@ impl AppRunnerRef {
         if self.has_panicked() {
             None
         } else {
-            let lock = self.runner.borrow_mut();
+            let lock = self.runner.try_borrow_mut().ok()?;
             if lock.is_destroyed.fetch() {
                 None
             } else {
