@@ -529,7 +529,7 @@ impl AppRunnerRef {
             log::debug!("Unsubscribing from {} events", events_to_unsubscribe.len());
             for x in events_to_unsubscribe {
                 if let Err(err) = x.unsubscribe() {
-                    log::error!("Failed to unsubscribe from event: {err:?}");
+                    log::warn!("Failed to unsubscribe from event: {err:?}");
                 }
             }
         }
@@ -560,7 +560,7 @@ impl AppRunnerRef {
         if self.has_panicked() {
             None
         } else {
-            let lock = self.runner.borrow_mut();
+            let lock = self.runner.try_borrow_mut().ok()?;
             if lock.is_destroyed.fetch() {
                 None
             } else {
