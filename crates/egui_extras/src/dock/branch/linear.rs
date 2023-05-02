@@ -166,6 +166,7 @@ impl Linear {
 
         // ------------------------
         // resizing:
+
         let parent_rect = nodes.rect(parent_id).unwrap();
         for (i, (left, right)) in self.children.iter().tuple_windows().enumerate() {
             let resize_id = egui::Id::new((parent_id, "resize", i));
@@ -176,49 +177,46 @@ impl Linear {
 
             let mut resize_state = ResizeState::Idle;
             if let Some(pointer) = ui.ctx().pointer_latest_pos() {
-                let we_are_on_top = ui
-                    .ctx()
-                    .layer_id_at(pointer)
-                    .map_or(true, |top_layer_id| top_layer_id == ui.layer_id());
-
-                let mouse_over_resize_line = we_are_on_top
-                    && parent_rect.y_range().contains(&pointer.y)
-                    && (x - pointer.x).abs() <= ui.style().interaction.resize_grab_radius_side;
-
-                if ui.input(|i| i.pointer.any_pressed() && i.pointer.any_down())
-                    && mouse_over_resize_line
-                {
-                    ui.memory_mut(|mem| mem.set_dragged_id(resize_id));
-                }
-                if ui.memory(|mem| mem.is_being_dragged(resize_id)) {
+                let line_rect = Rect::from_center_size(
+                    pos2(x, parent_rect.center().y),
+                    vec2(
+                        2.0 * ui.style().interaction.resize_grab_radius_side,
+                        parent_rect.height(),
+                    ),
+                );
+                let response = ui.interact(line_rect, resize_id, egui::Sense::click_and_drag());
+                if response.double_clicked() {
+                    // double-click to center the split between left and right:
+                    let mean = 0.5 * (self.shares[*left] + self.shares[*right]);
+                    self.shares.insert(*left, mean);
+                    self.shares.insert(*right, mean);
+                } else if response.dragged() {
                     resize_state = ResizeState::Dragging;
-                } else {
-                    let dragging_something_else =
-                        ui.input(|i| i.pointer.any_down() || i.pointer.any_pressed());
-                    if mouse_over_resize_line && !dragging_something_else {
-                        resize_state = ResizeState::Hovering;
-                    }
+                } else if response.hovered() {
+                    resize_state = ResizeState::Hovering;
                 }
 
                 if resize_state == ResizeState::Dragging {
+                    let node_width = |node_id: NodeId| nodes.rect(node_id).unwrap().width();
+
                     let dx = pointer.x - x;
                     if pointer.x < x {
                         // Expand right, shrink stuff to the left:
-                        *self.shares.shares.entry(*right).or_insert(1.0) += shrink_shares(
+                        self.shares[*right] += shrink_shares(
                             behavior,
-                            nodes,
                             &mut self.shares,
                             &self.children[0..=i].iter().copied().rev().collect_vec(),
                             dx.abs(),
+                            node_width,
                         );
                     } else if x < pointer.x {
                         // Expand the left, shrink stuff to the right:
-                        *self.shares.shares.entry(*left).or_insert(1.0) += shrink_shares(
+                        self.shares[*left] += shrink_shares(
                             behavior,
-                            nodes,
                             &mut self.shares,
                             &self.children[i + 1..],
                             dx.abs(),
+                            node_width,
                         );
                     }
                 }
@@ -254,18 +252,20 @@ impl Linear {
 /// making sure no child gets smaller than its minimum size.
 fn shrink_shares<Leaf>(
     behavior: &dyn Behavior<Leaf>,
-    nodes: &Nodes<Leaf>,
     shares: &mut Shares,
     children: &[NodeId],
     target_in_points: f32,
+    size_in_point: impl Fn(NodeId) -> f32,
 ) -> f32 {
-    assert!(!children.is_empty());
+    if children.is_empty() {
+        return 0.0;
+    }
 
     let mut total_shares = 0.0;
     let mut total_points = 0.0;
     for &child in children {
-        total_shares += shares.shares.get(&child).copied().unwrap_or(1.0);
-        total_points += nodes.rect(child).unwrap().width();
+        total_shares += shares[child];
+        total_points += size_in_point(child);
     }
 
     let shares_per_point = total_shares / total_points;
@@ -276,7 +276,7 @@ fn shrink_shares<Leaf>(
     let mut total_shares_lost = 0.0;
 
     for &child in children {
-        let share = shares.shares.entry(child).or_insert(1.0);
+        let share = &mut shares[child];
         let shrink_by = (target_in_shares - total_shares_lost)
             .min(*share - min_size_in_points)
             .max(0.0);
