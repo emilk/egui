@@ -168,6 +168,7 @@ pub trait Behavior<Leaf> {
         id: Id,
         node_id: NodeId,
         selected: bool,
+        is_being_dragged: bool,
     ) -> Response {
         let text = self.tab_text_for_node(nodes, node_id);
         let font_id = TextStyle::Button.resolve(ui.style());
@@ -175,8 +176,16 @@ pub trait Behavior<Leaf> {
         let (_, rect) = ui.allocate_space(galley.size());
         let response = ui.interact(rect, id, Sense::click_and_drag());
         let widget_style = ui.style().interact_selectable(&response, selected);
-        ui.painter()
-            .galley_with_color(rect.min, galley.galley, widget_style.text_color());
+
+        // Show a gap when dragged
+        if ui.is_rect_visible(rect) && !is_being_dragged {
+            if selected {
+                ui.painter().rect_filled(rect, 0.0, widget_style.bg_fill);
+            }
+            ui.painter()
+                .galley_with_color(rect.min, galley.galley, widget_style.text_color());
+        }
+
         response
     }
 

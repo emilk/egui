@@ -28,15 +28,8 @@ impl Tabs {
         let mut active_rect = rect;
         active_rect.min.y += behavior.tab_bar_height(style);
 
-        if false {
-            nodes.layout_node(style, behavior, drop_context, active_rect, self.active);
-        } else {
-            // Layout all nodes in case the user switches active tab
-            // TODO: only layout active tab, or don't register drop-zones during layout.
-            for &child_id in &self.children {
-                nodes.layout_node(style, behavior, drop_context, active_rect, child_id);
-            }
-        }
+        // Only lay out the active tab (saves CPU):
+        nodes.layout_node(style, behavior, drop_context, active_rect, self.active);
     }
 
     pub fn ui<Leaf>(
@@ -57,29 +50,29 @@ impl Tabs {
         let tab_bar_rect = rect.split_top_bottom_at_y(rect.top() + tab_bar_height).0;
         let mut tab_bar_ui = ui.child_ui(tab_bar_rect, *ui.layout());
 
+        let mut next_active = self.active;
+
         // Show tab bar:
         tab_bar_ui.horizontal(|ui| {
             let mut prev_tab_rect: Option<Rect> = None;
             let mut insertion_index = 0; // skips over drag-source, if any, beacuse it will be removed then re-inserted
 
             for (i, &child_id) in self.children.iter().enumerate() {
-                if is_being_dragged(ui.ctx(), child_id) {
-                    continue; // leave a gap!
-                }
+                let is_being_dragged = is_being_dragged(ui.ctx(), child_id);
 
                 let selected = child_id == self.active;
                 let id = child_id.id();
 
-                let response = behavior.tab_ui(nodes, ui, id, child_id, selected);
+                let response = behavior.tab_ui(nodes, ui, id, child_id, selected, is_being_dragged);
                 let response = response.on_hover_cursor(egui::CursorIcon::Grab);
                 if response.clicked() {
-                    self.active = child_id;
+                    next_active = child_id;
                 }
 
                 if let Some(mouse_pos) = drop_context.mouse_pos {
                     if drop_context.dragged_node_id.is_some() && response.rect.contains(mouse_pos) {
                         // Expand this tab - maybe the user wants to drop something into it!
-                        self.active = child_id;
+                        next_active = child_id;
                     }
                 }
 
@@ -110,7 +103,10 @@ impl Tabs {
                 }
 
                 prev_tab_rect = Some(rect);
-                insertion_index += 1;
+
+                if !is_being_dragged {
+                    insertion_index += 1;
+                }
             }
         });
 
@@ -120,5 +116,8 @@ impl Tabs {
         if !is_active_being_dragged {
             nodes.node_ui(behavior, drop_context, ui, self.active);
         }
+
+        // We have only layed out the active tab, so we need to switch active tab after the ui pass:
+        self.active = next_active;
     }
 }
