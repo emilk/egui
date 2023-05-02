@@ -1,7 +1,9 @@
 use egui::{pos2, vec2, NumExt, Rect};
+use itertools::Itertools as _;
 
 use crate::dock::{
     is_being_dragged, Behavior, DropContext, InsertionPoint, LayoutInsertion, NodeId, Nodes,
+    ResizeState,
 };
 
 use super::Shares;
@@ -161,6 +163,74 @@ impl Linear {
 
             prev_rect = Some(rect);
         }
+
+        // ------------------------
+        // resizing:
+        let parent_rect = nodes.rect(parent_id).unwrap();
+        for (i, (left, right)) in self.children.iter().tuple_windows().enumerate() {
+            let resize_id = egui::Id::new((parent_id, "resize", i));
+
+            let left_rect = nodes.rect(*left).unwrap();
+            let right_rect = nodes.rect(*right).unwrap();
+            let x = egui::lerp(left_rect.right()..=right_rect.left(), 0.5);
+
+            let mut resize_state = ResizeState::Idle;
+            if let Some(pointer) = ui.ctx().pointer_latest_pos() {
+                let we_are_on_top = ui
+                    .ctx()
+                    .layer_id_at(pointer)
+                    .map_or(true, |top_layer_id| top_layer_id == ui.layer_id());
+
+                let mouse_over_resize_line = we_are_on_top
+                    && parent_rect.y_range().contains(&pointer.y)
+                    && (x - pointer.x).abs() <= ui.style().interaction.resize_grab_radius_side;
+
+                if ui.input(|i| i.pointer.any_pressed() && i.pointer.any_down())
+                    && mouse_over_resize_line
+                {
+                    ui.memory_mut(|mem| mem.set_dragged_id(resize_id));
+                }
+                if ui.memory(|mem| mem.is_being_dragged(resize_id)) {
+                    resize_state = ResizeState::Dragging;
+                } else {
+                    let dragging_something_else =
+                        ui.input(|i| i.pointer.any_down() || i.pointer.any_pressed());
+                    if mouse_over_resize_line && !dragging_something_else {
+                        resize_state = ResizeState::Hovering;
+                    }
+                }
+
+                if resize_state == ResizeState::Dragging {
+                    let dx = pointer.x - x;
+                    if pointer.x < x {
+                        // Expand right, shrink stuff to the left:
+                        *self.shares.shares.entry(*right).or_insert(1.0) += shrink_shares(
+                            behavior,
+                            nodes,
+                            &mut self.shares,
+                            &self.children[0..=i].iter().copied().rev().collect_vec(),
+                            dx.abs(),
+                        );
+                    } else if x < pointer.x {
+                        // Expand the left, shrink stuff to the right:
+                        *self.shares.shares.entry(*left).or_insert(1.0) += shrink_shares(
+                            behavior,
+                            nodes,
+                            &mut self.shares,
+                            &self.children[i + 1..],
+                            dx.abs(),
+                        );
+                    }
+                }
+
+                if resize_state != ResizeState::Idle {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal);
+                }
+            }
+
+            let stroke = behavior.resize_stroke(ui.style(), resize_state);
+            ui.painter().vline(x, parent_rect.y_range(), stroke);
+        }
     }
 
     fn vertical_ui<Leaf>(
@@ -175,5 +245,45 @@ impl Linear {
         for child in &self.children {
             nodes.node_ui(behavior, drop_context, ui, *child);
         }
+
+        // TODO: resizing
     }
+}
+
+/// Try shrink the children by a total of `target_in_points`,
+/// making sure no child gets smaller than its minimum size.
+fn shrink_shares<Leaf>(
+    behavior: &dyn Behavior<Leaf>,
+    nodes: &Nodes<Leaf>,
+    shares: &mut Shares,
+    children: &[NodeId],
+    target_in_points: f32,
+) -> f32 {
+    assert!(!children.is_empty());
+
+    let mut total_shares = 0.0;
+    let mut total_points = 0.0;
+    for &child in children {
+        total_shares += shares.shares.get(&child).copied().unwrap_or(1.0);
+        total_points += nodes.rect(child).unwrap().width();
+    }
+
+    let shares_per_point = total_shares / total_points;
+
+    let min_size_in_points = shares_per_point * behavior.min_size();
+
+    let target_in_shares = shares_per_point * target_in_points;
+    let mut total_shares_lost = 0.0;
+
+    for &child in children {
+        let share = shares.shares.entry(child).or_insert(1.0);
+        let shrink_by = (target_in_shares - total_shares_lost)
+            .min(*share - min_size_in_points)
+            .max(0.0);
+
+        *share -= shrink_by;
+        total_shares_lost += shrink_by;
+    }
+
+    total_shares_lost
 }

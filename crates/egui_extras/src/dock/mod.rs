@@ -1,3 +1,10 @@
+// # TODO
+// * A new ui for each node, nested
+// * Better drag-and-drop around the "empty" drag source
+// * Resizing of vertical layouts and grids
+// * Styling
+// * Handle rects without a lot of unwraps
+
 use std::collections::{HashMap, HashSet};
 
 use egui::{Id, Key, NumExt, Pos2, Rect, Response, Sense, TextStyle, Ui, WidgetText};
@@ -207,9 +214,29 @@ pub trait Behavior<Leaf> {
         1.0
     }
 
+    // No child should shrink below this size
+    fn min_size(&self) -> f32 {
+        32.0
+    }
+
     fn simplification_options(&self) -> SimplificationOptions {
         SimplificationOptions::default()
     }
+
+    fn resize_stroke(&self, style: &egui::Style, resize_state: ResizeState) -> egui::Stroke {
+        match resize_state {
+            ResizeState::Idle => egui::Stroke::NONE, // Let the gap speak for itself
+            ResizeState::Hovering => style.visuals.widgets.hovered.fg_stroke,
+            ResizeState::Dragging => style.visuals.widgets.active.fg_stroke,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ResizeState {
+    Idle,
+    Hovering,
+    Dragging,
 }
 
 // ----------------------------------------------------------------------------

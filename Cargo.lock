@@ -1331,6 +1331,7 @@ dependencies = [
  "egui",
  "getrandom",
  "image",
+ "itertools",
  "log",
  "rand",
  "resvg",
