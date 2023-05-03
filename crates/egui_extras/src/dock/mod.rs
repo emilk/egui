@@ -1,9 +1,8 @@
 // # TODO
 // * A new ui for each node, nested
-// * Better drag-and-drop around the "empty" drag source
-// * Resizing of vertical layouts and grids
+// * Better drag-and-drop around the "empty" tab
+// * Resizing of grids
 // * Styling
-// * Handle rects without a lot of unwraps
 
 use std::collections::{HashMap, HashSet};
 
@@ -360,11 +359,13 @@ impl<Leaf> Nodes<Leaf> {
                 if let Node::Branch(Branch::Tabs(tabs)) = &mut node {
                     let index = index.min(tabs.children.len());
                     tabs.children.insert(index, child_id);
+                    tabs.active = child_id;
                     self.nodes.insert(parent_id, node);
                 } else {
                     let new_node_id = self.insert_node(node);
                     let mut tabs = Tabs::new(vec![new_node_id]);
                     tabs.children.insert(index.min(1), child_id);
+                    tabs.active = child_id;
                     self.nodes
                         .insert(parent_id, Node::Branch(Branch::Tabs(tabs)));
                 }

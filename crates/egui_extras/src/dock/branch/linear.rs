@@ -8,7 +8,7 @@ use crate::dock::{
 
 use super::Shares;
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub enum LinearDir {
     #[default]
     Horizontal,
@@ -116,53 +116,18 @@ impl Linear {
         ui: &mut egui::Ui,
         parent_id: NodeId,
     ) {
-        let mut prev_rect: Option<Rect> = None;
-        let mut insertion_index = 0; // skips over drag-source, if any, beacuse it will be removed then re-inserted
-
-        for (i, &child) in self.children.iter().enumerate() {
-            let rect = nodes.rect(child);
-
-            if is_being_dragged(ui.ctx(), child) {
-                // Leave a hole, and suggest that hole as drop-target:
-                drop_context.suggest_rect(
-                    InsertionPoint::new(parent_id, LayoutInsertion::Horizontal(i)),
-                    rect,
-                );
-            } else {
+        for &child in &self.children {
+            if !is_being_dragged(ui.ctx(), child) {
                 nodes.node_ui(behavior, drop_context, ui, child);
-
-                if let Some(prev_rect) = prev_rect {
-                    // Suggest dropping between the rects:
-                    drop_context.suggest_rect(
-                        InsertionPoint::new(
-                            parent_id,
-                            LayoutInsertion::Horizontal(insertion_index),
-                        ),
-                        Rect::from_min_max(prev_rect.center_top(), rect.center_bottom()),
-                    );
-                } else {
-                    // Suggest dropping before the first child:
-                    drop_context.suggest_rect(
-                        InsertionPoint::new(parent_id, LayoutInsertion::Horizontal(0)),
-                        rect.split_left_right_at_fraction(0.66).0,
-                    );
-                }
-
-                if i + 1 == self.children.len() {
-                    // Suggest dropping after the last child:
-                    drop_context.suggest_rect(
-                        InsertionPoint::new(
-                            parent_id,
-                            LayoutInsertion::Horizontal(insertion_index + 1),
-                        ),
-                        rect.split_left_right_at_fraction(0.33).1,
-                    );
-                }
-                insertion_index += 1;
             }
-
-            prev_rect = Some(rect);
         }
+
+        drop_zones(ui.ctx(), nodes, &self.children, self.dir, |rect, i| {
+            drop_context.suggest_rect(
+                InsertionPoint::new(parent_id, LayoutInsertion::Horizontal(i)),
+                rect,
+            );
+        });
 
         // ------------------------
         // resizing:
@@ -214,10 +179,18 @@ impl Linear {
         ui: &mut egui::Ui,
         parent_id: NodeId,
     ) {
-        // TODO: drag-and-drop
-        for child in &self.children {
-            nodes.node_ui(behavior, drop_context, ui, *child);
+        for &child in &self.children {
+            if !is_being_dragged(ui.ctx(), child) {
+                nodes.node_ui(behavior, drop_context, ui, child);
+            }
         }
+
+        drop_zones(ui.ctx(), nodes, &self.children, self.dir, |rect, i| {
+            drop_context.suggest_rect(
+                InsertionPoint::new(parent_id, LayoutInsertion::Vertical(i)),
+                rect,
+            );
+        });
 
         // ------------------------
         // resizing:
@@ -340,4 +313,80 @@ fn shrink_shares<Leaf>(
     }
 
     total_shares_lost
+}
+
+fn drop_zones<Leaf>(
+    egui_ctx: &egui::Context,
+    nodes: &Nodes<Leaf>,
+    children: &[NodeId],
+    dir: LinearDir,
+    mut add_drop_drect: impl FnMut(Rect, usize),
+) {
+    let preview_thickness = 12.0;
+
+    let before_rect = |rect: Rect| match dir {
+        LinearDir::Horizontal => Rect::from_min_max(
+            rect.left_top(),
+            rect.left_bottom() + vec2(preview_thickness, 0.0),
+        ),
+        LinearDir::Vertical => Rect::from_min_max(
+            rect.left_top(),
+            rect.right_top() + vec2(0.0, preview_thickness),
+        ),
+    };
+    let afer_rect = |rect: Rect| match dir {
+        LinearDir::Horizontal => Rect::from_min_max(
+            rect.right_top() - vec2(preview_thickness, 0.0),
+            rect.right_bottom(),
+        ),
+        LinearDir::Vertical => Rect::from_min_max(
+            rect.left_bottom() - vec2(0.0, preview_thickness),
+            rect.right_bottom(),
+        ),
+    };
+    let between_rects = |a: Rect, b: Rect| match dir {
+        LinearDir::Horizontal => Rect::from_center_size(
+            a.right_center().lerp(b.left_center(), 0.5),
+            vec2(preview_thickness, a.height()),
+        ),
+        LinearDir::Vertical => Rect::from_center_size(
+            a.center_bottom().lerp(b.center_top(), 0.5),
+            vec2(a.width(), preview_thickness),
+        ),
+    };
+
+    let dragged_index = children
+        .iter()
+        .position(|&child| is_being_dragged(egui_ctx, child));
+
+    let mut prev_rect: Option<Rect> = None;
+    let mut insertion_index = 0; // skips over drag-source, if any, beacuse it will be removed before its re-inserted
+
+    for (i, &child) in children.iter().enumerate() {
+        let rect = nodes.rect(child);
+
+        if Some(i) == dragged_index {
+            // Suggest hole as a drop-target:
+            add_drop_drect(rect, i);
+        } else {
+            if let Some(prev_rect) = prev_rect {
+                if Some(i - 1) != dragged_index {
+                    // Suggest dropping between the rects:
+                    add_drop_drect(between_rects(prev_rect, rect), insertion_index);
+                }
+            } else {
+                // Suggest dropping before the first child:
+                add_drop_drect(before_rect(rect), 0);
+            }
+
+            insertion_index += 1;
+        }
+
+        prev_rect = Some(rect);
+    }
+
+    if let Some(last_rect) = prev_rect {
+        // Suggest dropping after the last child:
+        add_drop_drect(afer_rect(last_rect), insertion_index + 1);
+    }
 }
