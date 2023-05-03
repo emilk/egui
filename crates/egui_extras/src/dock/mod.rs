@@ -253,8 +253,14 @@ impl<Leaf> Dock<Leaf> {
 }
 
 impl<Leaf> Nodes<Leaf> {
-    pub fn rect(&self, node_id: NodeId) -> Option<Rect> {
+    pub fn try_rect(&self, node_id: NodeId) -> Option<Rect> {
         self.rects.get(&node_id).copied()
+    }
+
+    pub fn rect(&self, node_id: NodeId) -> Rect {
+        let rect = self.try_rect(node_id);
+        debug_assert!(rect.is_some(), "Failed to find rect for {node_id:?}");
+        rect.unwrap_or(egui::Rect::from_min_max(Pos2::ZERO, Pos2::ZERO))
     }
 
     pub fn get(&self, node_id: NodeId) -> Option<&Node<Leaf>> {
@@ -483,7 +489,7 @@ impl<Leaf> Dock<Leaf> {
                 let preview_color = preview_stroke.color;
 
                 if let Some(insertion_point) = &drop_context.best_insertion {
-                    if let Some(parent_rect) = self.nodes.rect(insertion_point.parent_id) {
+                    if let Some(parent_rect) = self.nodes.try_rect(insertion_point.parent_id) {
                         // Show which parent we will be dropped into
                         ui.painter().rect_stroke(parent_rect, 1.0, preview_stroke);
                     }
@@ -770,7 +776,7 @@ impl<Leaf> Nodes<Leaf> {
         ui: &mut Ui,
         node_id: NodeId,
     ) {
-        let (Some(rect), Some(mut node)) = (self.rect(node_id), self.nodes.remove(&node_id)) else { return };
+        let (Some(rect), Some(mut node)) = (self.try_rect(node_id), self.nodes.remove(&node_id)) else { return };
 
         let drop_context_was_enabled = drop_context.enabled;
         if Some(node_id) == drop_context.dragged_node_id {

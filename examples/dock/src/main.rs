@@ -177,6 +177,14 @@ impl Default for MyApp {
             let c = nodes.insert_leaf(gen_view());
             let d = nodes.insert_leaf(gen_view());
             let e = nodes.insert_leaf(gen_view());
+            nodes.insert_vertical_node(vec![a, b, c, d, e])
+        });
+        tabs.push({
+            let a = nodes.insert_leaf(gen_view());
+            let b = nodes.insert_leaf(gen_view());
+            let c = nodes.insert_leaf(gen_view());
+            let d = nodes.insert_leaf(gen_view());
+            let e = nodes.insert_leaf(gen_view());
             nodes.insert_grid_node(vec![a, b, c, d, e])
         });
 

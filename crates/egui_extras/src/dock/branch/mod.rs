@@ -40,10 +40,6 @@ pub struct Shares {
 }
 
 impl Shares {
-    pub fn insert(&mut self, id: NodeId, share: f32) {
-        self.shares.insert(id, share);
-    }
-
     pub fn replace_with(&mut self, a: NodeId, b: NodeId) {
         if let Some(share) = self.shares.remove(&a) {
             self.shares.insert(b, share);

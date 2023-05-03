@@ -120,7 +120,7 @@ impl Linear {
         let mut insertion_index = 0; // skips over drag-source, if any, beacuse it will be removed then re-inserted
 
         for (i, &child) in self.children.iter().enumerate() {
-            let Some(rect) = nodes.rect(child) else { continue; };
+            let rect = nodes.rect(child);
 
             if is_being_dragged(ui.ctx(), child) {
                 // Leave a hole, and suggest that hole as drop-target:
@@ -167,12 +167,12 @@ impl Linear {
         // ------------------------
         // resizing:
 
-        let parent_rect = nodes.rect(parent_id).unwrap();
-        for (i, (left, right)) in self.children.iter().tuple_windows().enumerate() {
+        let parent_rect = nodes.rect(parent_id);
+        for (i, (left, right)) in self.children.iter().copied().tuple_windows().enumerate() {
             let resize_id = egui::Id::new((parent_id, "resize", i));
 
-            let left_rect = nodes.rect(*left).unwrap();
-            let right_rect = nodes.rect(*right).unwrap();
+            let left_rect = nodes.rect(left);
+            let right_rect = nodes.rect(right);
             let x = egui::lerp(left_rect.right()..=right_rect.left(), 0.5);
 
             let mut resize_state = ResizeState::Idle;
@@ -185,41 +185,16 @@ impl Linear {
                     ),
                 );
                 let response = ui.interact(line_rect, resize_id, egui::Sense::click_and_drag());
-                if response.double_clicked() {
-                    // double-click to center the split between left and right:
-                    let mean = 0.5 * (self.shares[*left] + self.shares[*right]);
-                    self.shares.insert(*left, mean);
-                    self.shares.insert(*right, mean);
-                } else if response.dragged() {
-                    resize_state = ResizeState::Dragging;
-                } else if response.hovered() {
-                    resize_state = ResizeState::Hovering;
-                }
-
-                if resize_state == ResizeState::Dragging {
-                    let node_width = |node_id: NodeId| nodes.rect(node_id).unwrap().width();
-
-                    let dx = pointer.x - x;
-                    if pointer.x < x {
-                        // Expand right, shrink stuff to the left:
-                        self.shares[*right] += shrink_shares(
-                            behavior,
-                            &mut self.shares,
-                            &self.children[0..=i].iter().copied().rev().collect_vec(),
-                            dx.abs(),
-                            node_width,
-                        );
-                    } else if x < pointer.x {
-                        // Expand the left, shrink stuff to the right:
-                        self.shares[*left] += shrink_shares(
-                            behavior,
-                            &mut self.shares,
-                            &self.children[i + 1..],
-                            dx.abs(),
-                            node_width,
-                        );
-                    }
-                }
+                resize_state = resize_interaction(
+                    behavior,
+                    &mut self.shares,
+                    &self.children,
+                    &response,
+                    [left, right],
+                    ui.painter().round_to_pixel(pointer.x) - x,
+                    i,
+                    |node_id: NodeId| nodes.rect(node_id).width(),
+                );
 
                 if resize_state != ResizeState::Idle {
                     ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal);
@@ -244,7 +219,86 @@ impl Linear {
             nodes.node_ui(behavior, drop_context, ui, *child);
         }
 
-        // TODO: resizing
+        // ------------------------
+        // resizing:
+
+        let parent_rect = nodes.rect(parent_id);
+        for (i, (top, bottom)) in self.children.iter().copied().tuple_windows().enumerate() {
+            let resize_id = egui::Id::new((parent_id, "resize", i));
+
+            let top_rect = nodes.rect(top);
+            let bottom_rect = nodes.rect(bottom);
+            let y = egui::lerp(top_rect.bottom()..=bottom_rect.top(), 0.5);
+
+            let mut resize_state = ResizeState::Idle;
+            if let Some(pointer) = ui.ctx().pointer_latest_pos() {
+                let line_rect = Rect::from_center_size(
+                    pos2(parent_rect.center().x, y),
+                    vec2(
+                        parent_rect.width(),
+                        2.0 * ui.style().interaction.resize_grab_radius_side,
+                    ),
+                );
+                let response = ui.interact(line_rect, resize_id, egui::Sense::click_and_drag());
+                resize_state = resize_interaction(
+                    behavior,
+                    &mut self.shares,
+                    &self.children,
+                    &response,
+                    [top, bottom],
+                    ui.painter().round_to_pixel(pointer.y) - y,
+                    i,
+                    |node_id: NodeId| nodes.rect(node_id).height(),
+                );
+
+                if resize_state != ResizeState::Idle {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
+                }
+            }
+
+            let stroke = behavior.resize_stroke(ui.style(), resize_state);
+            ui.painter().hline(parent_rect.x_range(), y, stroke);
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn resize_interaction<Leaf>(
+    behavior: &mut dyn Behavior<Leaf>,
+    shares: &mut Shares,
+    children: &[NodeId],
+    splitter_response: &egui::Response,
+    [left, right]: [NodeId; 2],
+    dx: f32,
+    i: usize,
+    node_width: impl Fn(NodeId) -> f32,
+) -> ResizeState {
+    if splitter_response.double_clicked() {
+        // double-click to center the split between left and right:
+        let mean = 0.5 * (shares[left] + shares[right]);
+        shares[left] = mean;
+        shares[right] = mean;
+        ResizeState::Hovering
+    } else if splitter_response.dragged() {
+        if dx < 0.0 {
+            // Expand right, shrink stuff to the left:
+            shares[right] += shrink_shares(
+                behavior,
+                shares,
+                &children[0..=i].iter().copied().rev().collect_vec(),
+                dx.abs(),
+                node_width,
+            );
+        } else {
+            // Expand the left, shrink stuff to the right:
+            shares[left] +=
+                shrink_shares(behavior, shares, &children[i + 1..], dx.abs(), node_width);
+        }
+        ResizeState::Dragging
+    } else if splitter_response.hovered() {
+        ResizeState::Hovering
+    } else {
+        ResizeState::Idle
     }
 }
 
