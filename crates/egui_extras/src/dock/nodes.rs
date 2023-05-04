@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
-use egui::{Rect, Ui};
+use egui::{Pos2, Rect, Ui};
 
 use super::{
-    Behavior, Branch, DropContext, GcAction, InsertionPoint, Layout, LayoutInsertion, Node, NodeId,
-    SimplificationOptions, SimplifyAction, UiResponse,
+    Behavior, Branch, DropContext, GcAction, Grid, InsertionPoint, Layout, LayoutInsertion, Linear,
+    LinearDir, Node, NodeId, SimplificationOptions, SimplifyAction, Tabs, UiResponse,
 };
 
 /// Contains all node state, but no root.
@@ -29,6 +29,164 @@ impl<Leaf> Default for Nodes<Leaf> {
 // ----------------------------------------------------------------------------
 
 impl<Leaf> Nodes<Leaf> {
+    pub fn try_rect(&self, node_id: NodeId) -> Option<Rect> {
+        self.rects.get(&node_id).copied()
+    }
+
+    pub fn rect(&self, node_id: NodeId) -> Rect {
+        let rect = self.try_rect(node_id);
+        debug_assert!(rect.is_some(), "Failed to find rect for {node_id:?}");
+        rect.unwrap_or(egui::Rect::from_min_max(Pos2::ZERO, Pos2::ZERO))
+    }
+
+    pub fn get(&self, node_id: NodeId) -> Option<&Node<Leaf>> {
+        self.nodes.get(&node_id)
+    }
+
+    pub fn get_mut(&mut self, node_id: NodeId) -> Option<&mut Node<Leaf>> {
+        self.nodes.get_mut(&node_id)
+    }
+
+    #[must_use]
+    pub fn insert_node(&mut self, node: Node<Leaf>) -> NodeId {
+        let id = NodeId::random();
+        self.nodes.insert(id, node);
+        id
+    }
+
+    #[must_use]
+    pub fn insert_leaf(&mut self, leaf: Leaf) -> NodeId {
+        self.insert_node(Node::Leaf(leaf))
+    }
+
+    #[must_use]
+    pub fn insert_branch(&mut self, branch: Branch) -> NodeId {
+        self.insert_node(Node::Branch(branch))
+    }
+
+    #[must_use]
+    pub fn insert_tab_node(&mut self, children: Vec<NodeId>) -> NodeId {
+        self.insert_node(Node::Branch(Branch::new_tabs(children)))
+    }
+
+    #[must_use]
+    pub fn insert_horizontal_node(&mut self, children: Vec<NodeId>) -> NodeId {
+        self.insert_node(Node::Branch(Branch::new_linear(
+            LinearDir::Horizontal,
+            children,
+        )))
+    }
+
+    #[must_use]
+    pub fn insert_vertical_node(&mut self, children: Vec<NodeId>) -> NodeId {
+        self.insert_node(Node::Branch(Branch::new_linear(
+            LinearDir::Vertical,
+            children,
+        )))
+    }
+
+    #[must_use]
+    pub fn insert_grid_node(&mut self, children: Vec<NodeId>) -> NodeId {
+        self.insert_node(Node::Branch(Branch::new_grid(children)))
+    }
+
+    /// Performs no simplifcations!
+    /// // TODO: remove ?
+    pub(super) fn remove_node_id_from_parent(&mut self, it: NodeId, remove: NodeId) -> GcAction {
+        if it == remove {
+            return GcAction::Remove;
+        }
+        let Some(mut node) = self.nodes.remove(&it) else {
+            log::warn!("Unexpected missing node during removal");
+            return GcAction::Remove;
+        };
+        if let Node::Branch(branch) = &mut node {
+            branch.retain(|child| self.remove_node_id_from_parent(child, remove) == GcAction::Keep);
+        }
+        self.nodes.insert(it, node);
+        GcAction::Keep
+    }
+
+    pub fn insert(&mut self, insertion_point: InsertionPoint, child_id: NodeId) {
+        let InsertionPoint {
+            parent_id,
+            insertion,
+        } = insertion_point;
+
+        let Some(mut node) = self.nodes.remove(&parent_id) else {
+            log::warn!("Failed to insert: could not find parent {parent_id:?}");
+            return;
+        };
+
+        match insertion {
+            LayoutInsertion::Tabs(index) => {
+                if let Node::Branch(Branch::Tabs(tabs)) = &mut node {
+                    let index = index.min(tabs.children.len());
+                    tabs.children.insert(index, child_id);
+                    tabs.active = child_id;
+                    self.nodes.insert(parent_id, node);
+                } else {
+                    let new_node_id = self.insert_node(node);
+                    let mut tabs = Tabs::new(vec![new_node_id]);
+                    tabs.children.insert(index.min(1), child_id);
+                    tabs.active = child_id;
+                    self.nodes
+                        .insert(parent_id, Node::Branch(Branch::Tabs(tabs)));
+                }
+            }
+            LayoutInsertion::Horizontal(index) => {
+                if let Node::Branch(Branch::Linear(Linear {
+                    dir: LinearDir::Horizontal,
+                    children,
+                    ..
+                })) = &mut node
+                {
+                    let index = index.min(children.len());
+                    children.insert(index, child_id);
+                    self.nodes.insert(parent_id, node);
+                } else {
+                    let new_node_id = self.insert_node(node);
+                    let mut linear = Linear::new(LinearDir::Horizontal, vec![new_node_id]);
+                    linear.children.insert(index.min(1), child_id);
+                    self.nodes
+                        .insert(parent_id, Node::Branch(Branch::Linear(linear)));
+                }
+            }
+            LayoutInsertion::Vertical(index) => {
+                if let Node::Branch(Branch::Linear(Linear {
+                    dir: LinearDir::Vertical,
+                    children,
+                    ..
+                })) = &mut node
+                {
+                    let index = index.min(children.len());
+                    children.insert(index, child_id);
+                    self.nodes.insert(parent_id, node);
+                } else {
+                    let new_node_id = self.insert_node(node);
+                    let mut linear = Linear::new(LinearDir::Vertical, vec![new_node_id]);
+                    linear.children.insert(index.min(1), child_id);
+                    self.nodes
+                        .insert(parent_id, Node::Branch(Branch::Linear(linear)));
+                }
+            }
+            LayoutInsertion::Grid(insert_location) => {
+                if let Node::Branch(Branch::Grid(grid)) = &mut node {
+                    grid.locations.retain(|_, pos| *pos != insert_location);
+                    grid.locations.insert(child_id, insert_location);
+                    grid.children.push(child_id);
+                    self.nodes.insert(parent_id, node);
+                } else {
+                    let new_node_id = self.insert_node(node);
+                    let mut grid = Grid::new(vec![new_node_id, child_id]);
+                    grid.locations.insert(child_id, insert_location);
+                    self.nodes
+                        .insert(parent_id, Node::Branch(Branch::Grid(grid)));
+                }
+            }
+        }
+    }
+
     pub(super) fn gc_root(&mut self, behavior: &mut dyn Behavior<Leaf>, root_id: NodeId) {
         let mut visited = HashSet::default();
         self.gc_node_id(behavior, &mut visited, root_id);

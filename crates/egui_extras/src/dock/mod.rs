@@ -127,7 +127,7 @@ pub enum ResizeState {
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum LayoutInsertion {
+pub enum LayoutInsertion {
     Tabs(usize),
     Horizontal(usize),
     Vertical(usize),
@@ -135,11 +135,11 @@ enum LayoutInsertion {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct InsertionPoint {
-    parent_id: NodeId,
+pub struct InsertionPoint {
+    pub parent_id: NodeId,
 
     /// Where in the parent?
-    insertion: LayoutInsertion,
+    pub insertion: LayoutInsertion,
 }
 
 impl InsertionPoint {
