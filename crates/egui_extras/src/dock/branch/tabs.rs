@@ -85,7 +85,7 @@ impl Tabs {
             }
 
             let preview_thickness = 6.0;
-            let afer_rect = |rect: Rect| {
+            let after_rect = |rect: Rect| {
                 let dragged_size = if let Some(dragged_index) = dragged_index {
                     // We actually know the size of this thing
                     button_rects[&self.children[dragged_index]].size()
@@ -107,7 +107,7 @@ impl Tabs {
                     drop_context
                         .suggest_rect(InsertionPoint::new(node_id, LayoutInsertion::Tabs(i)), rect);
                 },
-                afer_rect,
+                after_rect,
             );
         });
 
@@ -118,7 +118,7 @@ impl Tabs {
             nodes.node_ui(behavior, drop_context, ui, self.active);
         }
 
-        // We have only layed out the active tab, so we need to switch active tab after the ui pass:
+        // We have only laid out the active tab, so we need to switch active tab after the ui pass:
         self.active = next_active;
     }
 }

@@ -327,7 +327,7 @@ fn linear_drop_zones<Leaf>(
         .iter()
         .position(|&child| is_being_dragged(egui_ctx, child));
 
-    let afer_rect = |rect: Rect| match dir {
+    let after_rect = |rect: Rect| match dir {
         LinearDir::Horizontal => Rect::from_min_max(
             rect.right_top() - vec2(preview_thickness, 0.0),
             rect.right_bottom(),
@@ -345,7 +345,7 @@ fn linear_drop_zones<Leaf>(
         dir,
         |node_id| nodes.rect(node_id),
         add_drop_drect,
-        afer_rect,
+        after_rect,
     );
 }
 
@@ -356,7 +356,7 @@ pub fn drop_zones(
     dir: LinearDir,
     get_rect: impl Fn(NodeId) -> Rect,
     mut add_drop_drect: impl FnMut(Rect, usize),
-    afer_rect: impl Fn(Rect) -> Rect,
+    after_rect: impl Fn(Rect) -> Rect,
 ) {
     let before_rect = |rect: Rect| match dir {
         LinearDir::Horizontal => Rect::from_min_max(
@@ -380,7 +380,7 @@ pub fn drop_zones(
     };
 
     let mut prev_rect: Option<Rect> = None;
-    let mut insertion_index = 0; // skips over drag-source, if any, beacuse it will be removed before its re-inserted
+    let mut insertion_index = 0; // skips over drag-source, if any, because it will be removed before its re-inserted
 
     for (i, &child) in children.iter().enumerate() {
         let rect = get_rect(child);
@@ -407,6 +407,6 @@ pub fn drop_zones(
 
     if let Some(last_rect) = prev_rect {
         // Suggest dropping after the last child:
-        add_drop_drect(afer_rect(last_rect), insertion_index + 1);
+        add_drop_drect(after_rect(last_rect), insertion_index + 1);
     }
 }

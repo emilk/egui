@@ -38,9 +38,9 @@ pub struct Grid {
 
     pub locations: HashMap<NodeId, GridLoc>,
 
-    /// Share of the avilable width assigned to each column.
+    /// Share of the available width assigned to each column.
     pub col_shares: Vec<f32>,
-    /// Share of the avilable height assigned to each row.
+    /// Share of the available height assigned to each row.
     pub row_shares: Vec<f32>,
 }
 

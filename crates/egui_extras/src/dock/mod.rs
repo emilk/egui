@@ -39,7 +39,7 @@ impl std::fmt::Debug for NodeId {
     }
 }
 
-/// The top level type. Contains all peristent state, including layouts and sizes.
+/// The top level type. Contains all persistent state, including layouts and sizes.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Dock<Leaf> {
     pub root: NodeId,
