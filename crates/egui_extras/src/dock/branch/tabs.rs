@@ -28,12 +28,17 @@ impl Tabs {
     }
 
     pub fn layout<Leaf>(
-        &self,
+        &mut self,
         nodes: &mut Nodes<Leaf>,
         style: &egui::Style,
         behavior: &mut dyn Behavior<Leaf>,
         rect: Rect,
     ) {
+        if !self.children.iter().any(|&child| child == self.active) {
+            // Make sure something is active:
+            self.active = self.children.first().copied().unwrap_or_default();
+        }
+
         let mut active_rect = rect;
         active_rect.min.y += behavior.tab_bar_height(style);
 
@@ -50,11 +55,6 @@ impl Tabs {
         rect: Rect,
         node_id: NodeId,
     ) {
-        if !self.children.iter().any(|&child| child == self.active) {
-            // Make sure something is active:
-            self.active = self.children.first().copied().unwrap_or_default();
-        }
-
         let next_active = self.tab_bar_ui(behavior, ui, rect, nodes, drop_context, node_id);
 
         // When dragged, don't show it (it is "being held")

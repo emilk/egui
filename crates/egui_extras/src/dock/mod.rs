@@ -44,7 +44,7 @@ impl std::fmt::Debug for NodeId {
 }
 
 /// The top level type. Contains all persistent state, including layouts and sizes.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct Dock<Leaf> {
     pub root: NodeId,
     pub nodes: Nodes<Leaf>,
@@ -61,6 +61,45 @@ impl<Leaf> Default for Dock<Leaf> {
             nodes: Default::default(),
             smoothed_preview_rect: None,
         }
+    }
+}
+
+impl<Leaf: std::fmt::Debug> std::fmt::Debug for Dock<Leaf> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        fn format_node<Leaf: std::fmt::Debug>(
+            f: &mut std::fmt::Formatter<'_>,
+            nodes: &Nodes<Leaf>,
+            indent: usize,
+            node_id: NodeId,
+        ) -> std::fmt::Result {
+            write!(f, "{} {node_id:?} ", "  ".repeat(indent))?;
+            if let Some(node) = nodes.get(node_id) {
+                match node {
+                    Node::Leaf(leaf) => writeln!(f, "Leaf {leaf:?}"),
+                    Node::Branch(branch) => {
+                        writeln!(
+                            f,
+                            "{}",
+                            match branch {
+                                Branch::Tabs(_) => "Tabs",
+                                Branch::Linear(_) => "Linear",
+                                Branch::Grid(_) => "Grid",
+                            }
+                        )?;
+                        for &child in branch.children() {
+                            format_node(f, nodes, indent + 1, child)?;
+                        }
+                        Ok(())
+                    }
+                }
+            } else {
+                write!(f, "DANGLING {node_id:?}")
+            }
+        }
+
+        writeln!(f, "Dock {{")?;
+        format_node(f, &self.nodes, 1, self.root)?;
+        write!(f, "\n}}")
     }
 }
 
@@ -362,6 +401,7 @@ impl<Leaf> Dock<Leaf> {
             self.nodes
                 .make_all_leaves_children_of_tabs(false, self.root);
         }
+
         self.nodes.gc_root(behavior, self.root);
 
         self.nodes.rects.clear();
@@ -702,7 +742,13 @@ impl<Leaf> Nodes<Leaf> {
         ui: &mut Ui,
         node_id: NodeId,
     ) {
-        let (Some(rect), Some(mut node)) = (self.try_rect(node_id), self.nodes.remove(&node_id)) else {
+        // NOTE: important that we get thr rect and node in two steps,
+        // otherwise we could loose the node when there is no rect.
+        let Some(rect) = self.try_rect(node_id) else {
+            log::warn!("Failed to find rect for node {node_id:?} during ui");
+            return
+        };
+        let Some(mut node) = self.nodes.remove(&node_id) else {
             log::warn!("Failed to find node {node_id:?} during ui");
             return
         };
@@ -755,7 +801,10 @@ enum SimplifyAction {
 
 impl<Leaf> Nodes<Leaf> {
     fn simplify(&mut self, options: &SimplificationOptions, it: NodeId) -> SimplifyAction {
-        let Some(mut node) = self.nodes.remove(&it) else { return SimplifyAction::Remove; };
+        let Some(mut node) = self.nodes.remove(&it) else {
+            log::warn!("Failed to find node {it:?} during simplify");
+            return SimplifyAction::Remove;
+        };
 
         if let Node::Branch(branch) = &mut node {
             // TODO: join nested versions of the same horizontal/vertical layouts

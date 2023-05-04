@@ -1,7 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::egui::{self, Style};
-use egui::Color32;
+use eframe::egui;
 
 use egui_extras::dock;
 
@@ -28,20 +27,23 @@ fn main() -> Result<(), eframe::Error> {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct View {
-    title: String,
-    color: Color32,
+    nr: usize,
+}
+
+impl std::fmt::Debug for View {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("View").field("nr", &self.nr).finish()
+    }
 }
 
 impl View {
-    pub fn with_nr(i: usize) -> Self {
-        Self {
-            title: format!("View {i}"),
-            color: egui::epaint::Hsva::new(0.1 * i as f32, 0.5, 0.5, 1.0).into(),
-        }
+    pub fn with_nr(nr: usize) -> Self {
+        Self { nr }
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui) -> dock::UiResponse {
-        ui.painter().rect_filled(ui.max_rect(), 0.0, self.color);
+        let color = egui::epaint::Hsva::new(0.1 * self.nr as f32, 0.5, 0.5, 1.0);
+        ui.painter().rect_filled(ui.max_rect(), 0.0, color);
         let dragged = ui
             .allocate_rect(ui.max_rect(), egui::Sense::drag())
             .on_hover_cursor(egui::CursorIcon::Grab)
@@ -118,7 +120,7 @@ impl dock::Behavior<View> for DockBehavior {
     }
 
     fn tab_text_for_leaf(&mut self, view: &View) -> egui::WidgetText {
-        view.title.clone().into()
+        format!("View {}", view.nr).into()
     }
 
     fn top_bar_rtl_ui(&mut self, ui: &mut egui::Ui, node_id: dock::NodeId) {
@@ -130,11 +132,11 @@ impl dock::Behavior<View> for DockBehavior {
     // ---
     // Settings:
 
-    fn tab_bar_height(&self, _style: &Style) -> f32 {
+    fn tab_bar_height(&self, _style: &egui::Style) -> f32 {
         self.tab_bar_height
     }
 
-    fn gap_width(&self, _style: &Style) -> f32 {
+    fn gap_width(&self, _style: &egui::Style) -> f32 {
         self.gap_width
     }
 
@@ -147,8 +149,11 @@ impl dock::Behavior<View> for DockBehavior {
 struct MyApp {
     dock: dock::Dock<View>,
 
-    #[serde(skip, default)]
+    #[serde(skip)]
     behavior: DockBehavior,
+
+    #[serde(skip)]
+    last_dock_debug: String,
 }
 
 impl Default for MyApp {
@@ -163,38 +168,24 @@ impl Default for MyApp {
         let mut nodes = dock::Nodes::default();
 
         let mut tabs = vec![];
-        tabs.push(nodes.insert_leaf(gen_view()));
+        let tab_node = {
+            let children = (0..7).map(|_| nodes.insert_leaf(gen_view())).collect();
+            nodes.insert_tab_node(children)
+        };
+        tabs.push(tab_node);
         tabs.push({
-            let a = nodes.insert_leaf(gen_view());
-            let b = nodes.insert_leaf(gen_view());
-            let c = nodes.insert_leaf(gen_view());
-            let d = nodes.insert_leaf(gen_view());
-            let e = nodes.insert_leaf(gen_view());
-            nodes.insert_tab_node(vec![a, b, c, d, e])
+            let children = (0..7).map(|_| nodes.insert_leaf(gen_view())).collect();
+            nodes.insert_horizontal_node(children)
         });
         tabs.push({
-            let a = nodes.insert_leaf(gen_view());
-            let b = nodes.insert_leaf(gen_view());
-            let c = nodes.insert_leaf(gen_view());
-            let d = nodes.insert_leaf(gen_view());
-            let e = nodes.insert_leaf(gen_view());
-            nodes.insert_horizontal_node(vec![a, b, c, d, e])
+            let children = (0..7).map(|_| nodes.insert_leaf(gen_view())).collect();
+            nodes.insert_vertical_node(children)
         });
         tabs.push({
-            let a = nodes.insert_leaf(gen_view());
-            let b = nodes.insert_leaf(gen_view());
-            let c = nodes.insert_leaf(gen_view());
-            let d = nodes.insert_leaf(gen_view());
-            let e = nodes.insert_leaf(gen_view());
-            nodes.insert_vertical_node(vec![a, b, c, d, e])
-        });
-        tabs.push({
-            let mut cells = vec![];
-            for _ in 0..12 {
-                cells.push(nodes.insert_leaf(gen_view()));
-            }
+            let cells = (0..12).map(|_| nodes.insert_leaf(gen_view())).collect();
             nodes.insert_grid_node(cells)
         });
+        tabs.push(nodes.insert_leaf(gen_view()));
 
         let root = nodes.insert_tab_node(tabs);
 
@@ -203,6 +194,7 @@ impl Default for MyApp {
         Self {
             dock,
             behavior: Default::default(),
+            last_dock_debug: Default::default(),
         }
     }
 }
@@ -217,14 +209,24 @@ impl eframe::App for MyApp {
             ui.separator();
 
             tree_ui(ui, &mut self.behavior, &mut self.dock.nodes, self.dock.root);
+
             if let Some(parent) = self.behavior.add_child_to.take() {
-                let new_child = self.dock.nodes.insert_leaf(View::with_nr(666));
+                let new_child = self.dock.nodes.insert_leaf(View::with_nr(100));
                 if let Some(dock::Node::Branch(dock::Branch::Tabs(tabs))) =
                     self.dock.nodes.get_mut(parent)
                 {
                     tabs.add_child(new_child);
                     tabs.set_active(new_child);
                 }
+            }
+
+            ui.separator();
+            ui.style_mut().wrap = Some(false);
+            let dock_debug = format!("{:#?}", self.dock);
+            ui.monospace(&dock_debug);
+            if self.last_dock_debug != dock_debug {
+                self.last_dock_debug = dock_debug;
+                log::debug!("{}", self.last_dock_debug);
             }
         });
 
@@ -244,7 +246,7 @@ fn tree_ui(
     nodes: &mut dock::Nodes<View>,
     node_id: dock::NodeId,
 ) {
-    // Get the name BEFORE we remove the node below
+    // Get the name BEFORE we remove the node below!
     let text = format!(
         "{} - {node_id:?}",
         behavior.tab_text_for_node(nodes, node_id).text()
