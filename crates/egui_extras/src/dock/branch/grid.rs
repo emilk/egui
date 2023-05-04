@@ -1,55 +1,12 @@
-use std::{
-    collections::{BTreeMap, HashMap, HashSet},
-    ops::RangeInclusive,
-};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
-use egui::{pos2, vec2, Rect};
+use egui::{emath::Rangef, pos2, vec2, Rect};
 use itertools::Itertools as _;
 
 use crate::dock::{
     sizes_from_shares, Behavior, DropContext, InsertionPoint, LayoutInsertion, NodeId, Nodes,
     ResizeState,
 };
-
-/// Includive range of floats, i.e. `min..=max`, but more ergonomic than [`RangeInclusive`].
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct Rangef {
-    pub min: f32,
-    pub max: f32,
-}
-
-impl Rangef {
-    #[inline]
-    pub fn new(min: f32, max: f32) -> Self {
-        Self { min, max }
-    }
-
-    #[inline]
-    pub fn span(&self) -> f32 {
-        self.max - self.min
-    }
-}
-
-impl From<RangeInclusive<f32>> for Rangef {
-    #[inline]
-    fn from(range: RangeInclusive<f32>) -> Self {
-        Self::new(*range.start(), *range.end())
-    }
-}
-
-impl From<&RangeInclusive<f32>> for Rangef {
-    #[inline]
-    fn from(range: &RangeInclusive<f32>) -> Self {
-        Self::new(*range.start(), *range.end())
-    }
-}
-
-impl From<Rangef> for RangeInclusive<f32> {
-    #[inline]
-    fn from(Rangef { min, max }: Rangef) -> Self {
-        min..=max
-    }
-}
 
 /// Where in a grid?
 #[derive(
