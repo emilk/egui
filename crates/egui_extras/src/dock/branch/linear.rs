@@ -37,14 +37,13 @@ impl Linear {
         nodes: &mut Nodes<Leaf>,
         style: &egui::Style,
         behavior: &mut dyn Behavior<Leaf>,
-        drop_context: &mut DropContext,
         rect: Rect,
     ) {
         match self.dir {
             LinearDir::Horizontal => {
-                self.layout_horizontal(nodes, style, behavior, drop_context, rect);
+                self.layout_horizontal(nodes, style, behavior, rect);
             }
-            LinearDir::Vertical => self.layout_vertical(nodes, style, behavior, drop_context, rect),
+            LinearDir::Vertical => self.layout_vertical(nodes, style, behavior, rect),
         }
     }
 
@@ -53,7 +52,6 @@ impl Linear {
         nodes: &mut Nodes<Leaf>,
         style: &egui::Style,
         behavior: &mut dyn Behavior<Leaf>,
-        drop_context: &mut DropContext,
         rect: Rect,
     ) {
         let num_gaps = self.children.len().saturating_sub(1);
@@ -66,7 +64,7 @@ impl Linear {
         let mut x = rect.min.x;
         for (child, width) in self.children.iter().zip(widths) {
             let child_rect = Rect::from_min_size(pos2(x, rect.min.y), vec2(width, rect.height()));
-            nodes.layout_node(style, behavior, drop_context, child_rect, *child);
+            nodes.layout_node(style, behavior, child_rect, *child);
             x += width + gap_width;
         }
     }
@@ -76,7 +74,6 @@ impl Linear {
         nodes: &mut Nodes<Leaf>,
         style: &egui::Style,
         behavior: &mut dyn Behavior<Leaf>,
-        drop_context: &mut DropContext,
         rect: Rect,
     ) {
         let num_gaps = self.children.len().saturating_sub(1);
@@ -89,7 +86,7 @@ impl Linear {
         let mut y = rect.min.y;
         for (child, height) in self.children.iter().zip(heights) {
             let child_rect = Rect::from_min_size(pos2(rect.min.x, y), vec2(rect.width(), height));
-            nodes.layout_node(style, behavior, drop_context, child_rect, *child);
+            nodes.layout_node(style, behavior, child_rect, *child);
             y += height + gap_height;
         }
     }

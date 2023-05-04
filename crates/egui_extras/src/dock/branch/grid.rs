@@ -1,10 +1,48 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    ops::RangeInclusive,
+};
 
 use egui::{pos2, vec2, Rect};
 
 use crate::dock::{
     sizes_from_shares, Behavior, DropContext, InsertionPoint, LayoutInsertion, NodeId, Nodes,
 };
+
+/// Includive range of floats, i.e. `min..=max`, but more ergonomic than [`RangeInclusive`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Rangef {
+    pub min: f32,
+    pub max: f32,
+}
+
+impl Rangef {
+    #[inline]
+    pub fn new(min: f32, max: f32) -> Self {
+        Self { min, max }
+    }
+}
+
+impl From<RangeInclusive<f32>> for Rangef {
+    #[inline]
+    fn from(range: RangeInclusive<f32>) -> Self {
+        Self::new(*range.start(), *range.end())
+    }
+}
+
+impl From<&RangeInclusive<f32>> for Rangef {
+    #[inline]
+    fn from(range: &RangeInclusive<f32>) -> Self {
+        Self::new(*range.start(), *range.end())
+    }
+}
+
+impl From<Rangef> for RangeInclusive<f32> {
+    #[inline]
+    fn from(Rangef { min, max }: Rangef) -> Self {
+        min..=max
+    }
+}
 
 /// Where in a grid?
 #[derive(
@@ -42,6 +80,14 @@ pub struct Grid {
     pub col_shares: Vec<f32>,
     /// Share of the available height assigned to each row.
     pub row_shares: Vec<f32>,
+
+    /// ui point x ranges for each column, recomputed during layout
+    #[serde(skip)]
+    col_ranges: Vec<Rangef>,
+
+    /// ui point y ranges for each row, recomputed during layout
+    #[serde(skip)]
+    row_ranges: Vec<Rangef>,
 }
 
 impl Grid {
@@ -57,9 +103,7 @@ impl Grid {
         nodes: &mut Nodes<Leaf>,
         style: &egui::Style,
         behavior: &mut dyn Behavior<Leaf>,
-        drop_context: &mut DropContext,
         rect: Rect,
-        node_id: NodeId,
     ) {
         let child_ids: HashSet<NodeId> = self.children.iter().copied().collect();
 
@@ -114,14 +158,21 @@ impl Grid {
         let col_widths = sizes_from_shares(&self.col_shares, rect.width(), gap);
         let row_heights = sizes_from_shares(&self.row_shares, rect.height(), gap);
 
-        let mut col_x = vec![rect.left()];
-        for &width in &col_widths {
-            col_x.push(col_x.last().unwrap() + width + gap);
+        {
+            let mut x = rect.left();
+            self.col_ranges.clear();
+            for &width in &col_widths {
+                self.col_ranges.push(Rangef::new(x, x + width));
+                x += width + gap;
+            }
         }
-
-        let mut row_y = vec![rect.top()];
-        for &height in &row_heights {
-            row_y.push(row_y.last().unwrap() + height + gap);
+        {
+            let mut y = rect.top();
+            self.row_ranges.clear();
+            for &height in &row_heights {
+                self.row_ranges.push(Rangef::new(y, y + height));
+                y += height + gap;
+            }
         }
 
         // Each child now has a location. Use this to order them, in case we will ater do auto-layouts:
@@ -130,28 +181,9 @@ impl Grid {
         // Place each child:
         for &child in &self.children {
             let loc = self.locations[&child];
-            let child_rect = Rect::from_min_size(
-                pos2(col_x[loc.col], row_y[loc.row]),
-                vec2(col_widths[loc.col], row_heights[loc.row]),
-            );
-            nodes.layout_node(style, behavior, drop_context, child_rect, child);
-        }
-
-        // Register drop-zones:
-        for col in 0..num_cols {
-            for row in 0..num_rows {
-                let cell_rect = Rect::from_min_size(
-                    pos2(col_x[col], row_y[row]),
-                    vec2(col_widths[col], row_heights[row]),
-                );
-                drop_context.suggest_rect(
-                    InsertionPoint::new(
-                        node_id,
-                        LayoutInsertion::Grid(GridLoc::from_col_row(col, row)),
-                    ),
-                    cell_rect,
-                );
-            }
+            let child_rect =
+                Rect::from_x_y_ranges(self.col_ranges[loc.col], self.row_ranges[loc.row]);
+            nodes.layout_node(style, behavior, child_rect, child);
         }
     }
 
@@ -161,11 +193,26 @@ impl Grid {
         behavior: &mut dyn Behavior<Leaf>,
         drop_context: &mut DropContext,
         ui: &mut egui::Ui,
+        node_id: NodeId,
     ) {
         // Grid drops are handled during layout. TODO: handle here instead.
 
         for &child in &self.children {
             nodes.node_ui(behavior, drop_context, ui, child);
+        }
+
+        // Register drop-zones:
+        for (col, &x_range) in self.col_ranges.iter().enumerate() {
+            for (row, &y_range) in self.row_ranges.iter().enumerate() {
+                let cell_rect = Rect::from_x_y_ranges(x_range, y_range);
+                drop_context.suggest_rect(
+                    InsertionPoint::new(
+                        node_id,
+                        LayoutInsertion::Grid(GridLoc::from_col_row(col, row)),
+                    ),
+                    cell_rect,
+                );
+            }
         }
     }
 }

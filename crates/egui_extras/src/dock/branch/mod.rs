@@ -188,20 +188,18 @@ impl Branch {
         nodes: &mut Nodes<Leaf>,
         style: &egui::Style,
         behavior: &mut dyn Behavior<Leaf>,
-        drop_context: &mut DropContext,
         rect: Rect,
-        node_id: NodeId,
     ) {
         if self.is_empty() {
             return;
         }
 
         match self {
-            Branch::Tabs(tabs) => tabs.layout(nodes, style, behavior, drop_context, rect),
+            Branch::Tabs(tabs) => tabs.layout(nodes, style, behavior, rect),
             Branch::Linear(linear) => {
-                linear.layout(nodes, style, behavior, drop_context, rect);
+                linear.layout(nodes, style, behavior, rect);
             }
-            Branch::Grid(grid) => grid.layout(nodes, style, behavior, drop_context, rect, node_id),
+            Branch::Grid(grid) => grid.layout(nodes, style, behavior, rect),
         }
     }
 }
@@ -224,7 +222,7 @@ impl Branch {
                 linear.ui(nodes, behavior, drop_context, ui, node_id);
             }
             Branch::Grid(grid) => {
-                grid.ui(nodes, behavior, drop_context, ui);
+                grid.ui(nodes, behavior, drop_context, ui, node_id);
             }
         }
     }

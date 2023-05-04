@@ -24,14 +24,13 @@ impl Tabs {
         nodes: &mut Nodes<Leaf>,
         style: &egui::Style,
         behavior: &mut dyn Behavior<Leaf>,
-        drop_context: &mut DropContext,
         rect: Rect,
     ) {
         let mut active_rect = rect;
         active_rect.min.y += behavior.tab_bar_height(style);
 
         // Only lay out the active tab (saves CPU):
-        nodes.layout_node(style, behavior, drop_context, active_rect, self.active);
+        nodes.layout_node(style, behavior, active_rect, self.active);
     }
 
     pub fn ui<Leaf>(

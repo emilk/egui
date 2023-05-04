@@ -455,7 +455,6 @@ impl<Leaf> Dock<Leaf> {
         self.nodes.layout_node(
             ui.style(),
             behavior,
-            &mut drop_context,
             ui.available_rect_before_wrap(),
             self.root,
         );
@@ -675,7 +674,6 @@ impl<Leaf> Nodes<Leaf> {
         &mut self,
         style: &egui::Style,
         behavior: &mut dyn Behavior<Leaf>,
-        drop_context: &mut DropContext,
         rect: Rect,
         node_id: NodeId,
     ) {
@@ -683,7 +681,7 @@ impl<Leaf> Nodes<Leaf> {
         self.rects.insert(node_id, rect);
 
         if let Node::Branch(branch) = &mut node {
-            branch.layout(self, style, behavior, drop_context, rect, node_id);
+            branch.layout(self, style, behavior, rect);
         }
 
         self.nodes.insert(node_id, node);

@@ -82,7 +82,12 @@ impl Rect {
     }
 
     #[inline(always)]
-    pub fn from_x_y_ranges(x_range: RangeInclusive<f32>, y_range: RangeInclusive<f32>) -> Self {
+    pub fn from_x_y_ranges(
+        x_range: impl Into<RangeInclusive<f32>>,
+        y_range: impl Into<RangeInclusive<f32>>,
+    ) -> Self {
+        let x_range = x_range.into();
+        let y_range = y_range.into();
         Rect {
             min: pos2(*x_range.start(), *y_range.start()),
             max: pos2(*x_range.end(), *y_range.end()),
