@@ -165,11 +165,7 @@ enum SimplifyAction {
 }
 
 fn is_possible_drag(ctx: &egui::Context) -> bool {
-    ctx.input(|input| {
-        !input.pointer.any_pressed()
-            && !input.pointer.could_any_button_be_click()
-            && !input.pointer.any_click()
-    })
+    ctx.input(|input| input.pointer.is_decidedly_dragging())
 }
 
 fn is_being_dragged(ctx: &egui::Context, node_id: NodeId) -> bool {

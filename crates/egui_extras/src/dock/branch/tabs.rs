@@ -3,8 +3,7 @@ use std::collections::HashMap;
 use egui::{vec2, Rect};
 
 use crate::dock::{
-    is_being_dragged, is_possible_drag, Behavior, DropContext, InsertionPoint, LayoutInsertion,
-    NodeId, Nodes,
+    is_being_dragged, Behavior, DropContext, InsertionPoint, LayoutInsertion, NodeId, Nodes,
 };
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -58,8 +57,7 @@ impl Tabs {
         let next_active = self.tab_bar_ui(behavior, ui, rect, nodes, drop_context, node_id);
 
         // When dragged, don't show it (it is "being held")
-        let is_active_being_dragged =
-            ui.memory(|mem| mem.is_being_dragged(self.active.id())) && is_possible_drag(ui.ctx());
+        let is_active_being_dragged = is_being_dragged(ui.ctx(), self.active);
         if !is_active_being_dragged {
             nodes.node_ui(behavior, drop_context, ui, self.active);
         }
