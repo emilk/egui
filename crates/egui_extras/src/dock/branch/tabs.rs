@@ -19,6 +19,14 @@ impl Tabs {
         Self { children, active }
     }
 
+    pub fn add_child(&mut self, child: NodeId) {
+        self.children.push(child);
+    }
+
+    pub fn set_active(&mut self, child: NodeId) {
+        self.active = child;
+    }
+
     pub fn layout<Leaf>(
         &self,
         nodes: &mut Nodes<Leaf>,
@@ -73,39 +81,46 @@ impl Tabs {
 
         let tab_bar_height = behavior.tab_bar_height(ui.style());
         let tab_bar_rect = rect.split_top_bottom_at_y(rect.top() + tab_bar_height).0;
-        let mut tab_bar_ui = ui.child_ui(tab_bar_rect, *ui.layout());
+        let mut ui = ui.child_ui(tab_bar_rect, *ui.layout());
 
         let mut button_rects = HashMap::new();
         let mut dragged_index = None;
 
-        tab_bar_ui.horizontal(|ui| {
-            ui.painter()
-                .rect_filled(ui.max_rect(), 0.0, behavior.tab_bar_color(ui.visuals()));
+        ui.painter()
+            .rect_filled(ui.max_rect(), 0.0, behavior.tab_bar_color(ui.visuals()));
 
-            for (i, &child_id) in self.children.iter().enumerate() {
-                let is_being_dragged = is_being_dragged(ui.ctx(), child_id);
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            behavior.top_bar_rtl_ui(ui, node_id);
 
-                let selected = child_id == self.active;
-                let id = child_id.id();
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                for (i, &child_id) in self.children.iter().enumerate() {
+                    let is_being_dragged = is_being_dragged(ui.ctx(), child_id);
 
-                let response = behavior.tab_ui(nodes, ui, id, child_id, selected, is_being_dragged);
-                let response = response.on_hover_cursor(egui::CursorIcon::Grab);
-                if response.clicked() {
-                    next_active = child_id;
-                }
+                    let selected = child_id == self.active;
+                    let id = child_id.id();
 
-                if let Some(mouse_pos) = drop_context.mouse_pos {
-                    if drop_context.dragged_node_id.is_some() && response.rect.contains(mouse_pos) {
-                        // Expand this tab - maybe the user wants to drop something into it!
+                    let response =
+                        behavior.tab_ui(nodes, ui, id, child_id, selected, is_being_dragged);
+                    let response = response.on_hover_cursor(egui::CursorIcon::Grab);
+                    if response.clicked() {
                         next_active = child_id;
                     }
-                }
 
-                button_rects.insert(child_id, response.rect);
-                if is_being_dragged {
-                    dragged_index = Some(i);
+                    if let Some(mouse_pos) = drop_context.mouse_pos {
+                        if drop_context.dragged_node_id.is_some()
+                            && response.rect.contains(mouse_pos)
+                        {
+                            // Expand this tab - maybe the user wants to drop something into it!
+                            next_active = child_id;
+                        }
+                    }
+
+                    button_rects.insert(child_id, response.rect);
+                    if is_being_dragged {
+                        dragged_index = Some(i);
+                    }
                 }
-            }
+            });
         });
 
         // -----------

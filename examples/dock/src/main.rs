@@ -58,6 +58,7 @@ struct DockBehavior {
     simplification_options: dock::SimplificationOptions,
     tab_bar_height: f32,
     gap_width: f32,
+    add_child_to: Option<dock::NodeId>,
 }
 
 impl Default for DockBehavior {
@@ -66,6 +67,7 @@ impl Default for DockBehavior {
             simplification_options: Default::default(),
             tab_bar_height: 20.0,
             gap_width: 2.0,
+            add_child_to: None,
         }
     }
 }
@@ -76,6 +78,7 @@ impl DockBehavior {
             simplification_options,
             tab_bar_height,
             gap_width,
+            add_child_to: _,
         } = self;
 
         egui::Grid::new("behavior_ui")
@@ -116,6 +119,12 @@ impl dock::Behavior<View> for DockBehavior {
 
     fn tab_text_for_leaf(&mut self, view: &View) -> egui::WidgetText {
         view.title.clone().into()
+    }
+
+    fn top_bar_rtl_ui(&mut self, ui: &mut egui::Ui, node_id: dock::NodeId) {
+        if ui.button("➕").clicked() {
+            self.add_child_to = Some(node_id);
+        }
     }
 
     // ---
@@ -208,6 +217,15 @@ impl eframe::App for MyApp {
             ui.separator();
 
             tree_ui(ui, &mut self.behavior, &mut self.dock.nodes, self.dock.root);
+            if let Some(parent) = self.behavior.add_child_to.take() {
+                let new_child = self.dock.nodes.insert_leaf(View::with_nr(666));
+                if let Some(dock::Node::Branch(dock::Branch::Tabs(tabs))) =
+                    self.dock.nodes.get_mut(parent)
+                {
+                    tabs.add_child(new_child);
+                    tabs.set_active(new_child);
+                }
+            }
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {

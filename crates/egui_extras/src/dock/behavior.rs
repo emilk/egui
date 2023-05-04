@@ -69,7 +69,15 @@ pub trait Behavior<Leaf> {
         true
     }
 
-    // ---
+    /// Adds some UI to the top right of the tab bar.
+    /// You can use this to, for instance, add a button for adding new tabs.
+    fn top_bar_rtl_ui(&mut self, _ui: &mut Ui, _node_id: NodeId) {
+        // if ui.button("➕").clicked() {
+        //     // TODO: add a new thing
+        // }
+    }
+
+    // --------
     // Settings:
 
     /// The height of the bar holding tab names.
@@ -102,16 +110,18 @@ pub trait Behavior<Leaf> {
 
     /// The background color of the tab bar
     fn tab_bar_color(&self, visuals: &Visuals) -> Color32 {
-        (Rgba::from(visuals.window_fill()) * Rgba::from_gray(0.7)).into()
+        if visuals.dark_mode {
+            Color32::BLACK
+        } else {
+            (Rgba::from(visuals.window_fill()) * Rgba::from_gray(0.8)).into()
+        }
     }
 
     fn tab_bg_color(&self, visuals: &Visuals, active: bool) -> Color32 {
         if active {
-            // blend it with the tab contents:
-            visuals.window_fill()
+            visuals.window_fill() // same as the tab contents
         } else {
-            // fade into background:
-            self.tab_bar_color(visuals)
+            Color32::TRANSPARENT // fade into background
         }
     }
 
