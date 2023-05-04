@@ -65,7 +65,7 @@ impl Default for DockBehavior {
     fn default() -> Self {
         Self {
             simplification_options: Default::default(),
-            tab_bar_height: 20.0,
+            tab_bar_height: 24.0,
             gap_width: 2.0,
             add_child_to: None,
         }

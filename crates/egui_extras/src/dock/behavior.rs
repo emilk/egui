@@ -35,34 +35,37 @@ pub trait Behavior<Leaf> {
         let text = self.tab_text_for_node(nodes, node_id);
         let font_id = TextStyle::Button.resolve(ui.style());
         let galley = text.into_galley(ui, Some(false), f32::INFINITY, font_id);
-        let (_, rect) = ui.allocate_space(galley.size());
+
+        let x_margin = self.tab_title_spacing(ui.visuals());
+        let (_, rect) = ui.allocate_space(vec2(
+            galley.size().x + 2.0 * x_margin,
+            ui.available_height(),
+        ));
         let response = ui.interact(rect, id, Sense::click_and_drag());
 
         // Show a gap when dragged
         if ui.is_rect_visible(rect) && !is_being_dragged {
-            {
-                let mut bg_rect = rect;
-                bg_rect.min.y = ui.max_rect().min.y;
-                bg_rect.max.y = ui.max_rect().max.y;
-                bg_rect = bg_rect.expand2(vec2(0.5 * ui.spacing().item_spacing.x, 0.0));
+            let bg_color = self.tab_bg_color(ui.visuals(), active);
+            let stroke = self.tab_outline_stroke(ui.visuals(), active);
+            ui.painter().rect(rect.shrink(0.5), 0.0, bg_color, stroke);
 
-                let bg_color = self.tab_bg_color(ui.visuals(), active);
-                let stroke = self.tab_outline_stroke(ui.visuals(), active);
-                ui.painter().rect(bg_rect, 0.0, bg_color, stroke);
-
-                if active {
-                    // Make the tab name area connect with the tab ui area:
-                    ui.painter().hline(
-                        bg_rect.x_range(),
-                        bg_rect.bottom(),
-                        Stroke::new(stroke.width + 1.0, bg_color),
-                    );
-                }
+            if active {
+                // Make the tab name area connect with the tab ui area:
+                ui.painter().hline(
+                    rect.x_range(),
+                    rect.bottom(),
+                    Stroke::new(stroke.width + 1.0, bg_color),
+                );
             }
 
             let text_color = self.tab_text_color(ui.visuals(), active);
-            ui.painter()
-                .galley_with_color(rect.min, galley.galley, text_color);
+            ui.painter().galley_with_color(
+                egui::Align2::CENTER_CENTER
+                    .align_size_within_rect(galley.size(), rect)
+                    .min,
+                galley.galley,
+                text_color,
+            );
         }
 
         response
@@ -74,10 +77,12 @@ pub trait Behavior<Leaf> {
     }
 
     /// Adds some UI to the top right of the tab bar.
+    ///
     /// You can use this to, for instance, add a button for adding new tabs.
+    ///
+    /// The widgets will be added right-to-left.
     fn top_bar_rtl_ui(&mut self, _ui: &mut Ui, _node_id: NodeId) {
         // if ui.button("➕").clicked() {
-        //     // TODO: add a new thing
         // }
     }
 
@@ -86,7 +91,7 @@ pub trait Behavior<Leaf> {
 
     /// The height of the bar holding tab names.
     fn tab_bar_height(&self, _style: &egui::Style) -> f32 {
-        20.0
+        24.0
     }
 
     /// Width of the gap between nodes in a horizontal or vertical layout,
@@ -110,6 +115,11 @@ pub trait Behavior<Leaf> {
             ResizeState::Hovering => style.visuals.widgets.hovered.fg_stroke,
             ResizeState::Dragging => style.visuals.widgets.active.fg_stroke,
         }
+    }
+
+    /// Extra spacing to left and right of tab titles.
+    fn tab_title_spacing(&self, _visuals: &Visuals) -> f32 {
+        8.0
     }
 
     /// The background color of the tab bar

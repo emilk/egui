@@ -92,6 +92,8 @@ impl Tabs {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             behavior.top_bar_rtl_ui(ui, node_id);
 
+            ui.spacing_mut().item_spacing.x = 0.0; // Tabs have spacing built-in
+
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                 for (i, &child_id) in self.children.iter().enumerate() {
                     let is_being_dragged = is_being_dragged(ui.ctx(), child_id);
