@@ -14,7 +14,7 @@ pub struct Nodes<Leaf> {
 
     /// Filled in by the layout step at the start of each frame.
     #[serde(default, skip)]
-    pub rects: HashMap<NodeId, Rect>,
+    pub(super) rects: HashMap<NodeId, Rect>,
 }
 
 impl<Leaf> Default for Nodes<Leaf> {
@@ -29,11 +29,11 @@ impl<Leaf> Default for Nodes<Leaf> {
 // ----------------------------------------------------------------------------
 
 impl<Leaf> Nodes<Leaf> {
-    pub fn try_rect(&self, node_id: NodeId) -> Option<Rect> {
+    pub(super) fn try_rect(&self, node_id: NodeId) -> Option<Rect> {
         self.rects.get(&node_id).copied()
     }
 
-    pub fn rect(&self, node_id: NodeId) -> Rect {
+    pub(super) fn rect(&self, node_id: NodeId) -> Rect {
         let rect = self.try_rect(node_id);
         debug_assert!(rect.is_some(), "Failed to find rect for {node_id:?}");
         rect.unwrap_or(egui::Rect::from_min_max(Pos2::ZERO, Pos2::ZERO))
@@ -88,23 +88,6 @@ impl<Leaf> Nodes<Leaf> {
     #[must_use]
     pub fn insert_grid_node(&mut self, children: Vec<NodeId>) -> NodeId {
         self.insert_node(Node::Branch(Branch::new_grid(children)))
-    }
-
-    /// Performs no simplifcations!
-    /// // TODO: remove ?
-    pub(super) fn remove_node_id_from_parent(&mut self, it: NodeId, remove: NodeId) -> GcAction {
-        if it == remove {
-            return GcAction::Remove;
-        }
-        let Some(mut node) = self.nodes.remove(&it) else {
-            log::warn!("Unexpected missing node during removal");
-            return GcAction::Remove;
-        };
-        if let Node::Branch(branch) = &mut node {
-            branch.retain(|child| self.remove_node_id_from_parent(child, remove) == GcAction::Keep);
-        }
-        self.nodes.insert(it, node);
-        GcAction::Keep
     }
 
     pub fn insert(&mut self, insertion_point: InsertionPoint, child_id: NodeId) {
@@ -257,7 +240,7 @@ impl<Leaf> Nodes<Leaf> {
         ui: &mut Ui,
         node_id: NodeId,
     ) {
-        // NOTE: important that we get thr rect and node in two steps,
+        // NOTE: important that we get the rect and node in two steps,
         // otherwise we could loose the node when there is no rect.
         let Some(rect) = self.try_rect(node_id) else {
             log::warn!("Failed to find rect for node {node_id:?} during ui");
@@ -273,14 +256,9 @@ impl<Leaf> Nodes<Leaf> {
             // Can't drag a node onto self or any children
             drop_context.enabled = false;
         }
-        drop_context.on_node(node_id, rect, &node);
+        drop_context.on_node(behavior, ui.style(), node_id, rect, &node);
 
-        drop_context.suggest_rect(
-            InsertionPoint::new(node_id, LayoutInsertion::Tabs(usize::MAX)),
-            rect.split_top_bottom_at_y(rect.top() + behavior.tab_bar_height(ui.style()))
-                .1,
-        );
-
+        // Each node gets its own `Ui`, nested inside each other, with proper clip rectangles.
         let mut ui = egui::Ui::new(
             ui.ctx().clone(),
             ui.layer_id(),
@@ -314,7 +292,7 @@ impl<Leaf> Nodes<Leaf> {
         };
 
         if let Node::Branch(branch) = &mut node {
-            // TODO: join nested versions of the same horizontal/vertical layouts
+            // TODO(emilk): join nested versions of the same horizontal/vertical layouts
 
             branch.simplify_children(|child| self.simplify(options, child));
 

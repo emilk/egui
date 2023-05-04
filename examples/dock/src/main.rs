@@ -119,7 +119,7 @@ impl dock::Behavior<View> for DockBehavior {
         view.ui(ui)
     }
 
-    fn tab_text_for_leaf(&mut self, view: &View) -> egui::WidgetText {
+    fn tab_title_for_leaf(&mut self, view: &View) -> egui::WidgetText {
         format!("View {}", view.nr).into()
     }
 
@@ -249,7 +249,7 @@ fn tree_ui(
     // Get the name BEFORE we remove the node below!
     let text = format!(
         "{} - {node_id:?}",
-        behavior.tab_text_for_node(nodes, node_id).text()
+        behavior.tab_title_for_node(nodes, node_id).text()
     );
 
     let Some(mut node) = nodes.nodes.remove(&node_id) else {

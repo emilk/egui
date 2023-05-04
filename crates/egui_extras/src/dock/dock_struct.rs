@@ -68,8 +68,6 @@ impl<Leaf: std::fmt::Debug> std::fmt::Debug for Dock<Leaf> {
 
 // ----------------------------------------------------------------------------
 
-// Construction
-
 impl<Leaf> Dock<Leaf> {
     pub fn new(root: NodeId, nodes: Nodes<Leaf>) -> Self {
         Self {
@@ -77,6 +75,10 @@ impl<Leaf> Dock<Leaf> {
             nodes,
             smoothed_preview_rect: None,
         }
+    }
+
+    pub fn root(&self) -> NodeId {
+        self.root
     }
 
     pub fn parent_of(&self, node_id: NodeId) -> Option<NodeId> {
@@ -92,15 +94,10 @@ impl<Leaf> Dock<Leaf> {
             })
             .map(|(id, _)| *id)
     }
-}
 
-// Usage
-impl<Leaf> Dock<Leaf> {
-    pub fn root(&self) -> NodeId {
-        self.root
-    }
-
-    /// Show all the leaves in the dock.
+    /// Show the dock in the given [`Ui`].
+    ///
+    /// The dock will use upp all the avilable space - nothing more, nothing less.
     pub fn ui(&mut self, behavior: &mut dyn Behavior<Leaf>, ui: &mut Ui) {
         let options = behavior.simplification_options();
         self.simplify(&options);
@@ -133,6 +130,15 @@ impl<Leaf> Dock<Leaf> {
         self.nodes
             .node_ui(behavior, &mut drop_context, ui, self.root);
 
+        self.preview_dragged_node(behavior, &drop_context, ui);
+    }
+
+    fn preview_dragged_node(
+        &mut self,
+        behavior: &mut dyn Behavior<Leaf>,
+        drop_context: &DropContext,
+        ui: &mut Ui,
+    ) {
         if let (Some(mouse_pos), Some(dragged_node_id)) =
             (drop_context.mouse_pos, drop_context.dragged_node_id)
         {
@@ -147,8 +153,8 @@ impl<Leaf> Dock<Leaf> {
                     let mut frame = egui::Frame::popup(ui.style());
                     frame.fill = frame.fill.gamma_multiply(0.5); // Make see-through
                     frame.show(ui, |ui| {
-                        // TODO: preview contents
-                        let text = behavior.tab_text_for_node(&self.nodes, dragged_node_id);
+                        // TODO(emilk): preview contents?
+                        let text = behavior.tab_title_for_node(&self.nodes, dragged_node_id);
                         ui.label(text);
                     });
                 });
@@ -156,26 +162,14 @@ impl<Leaf> Dock<Leaf> {
             if let Some(preview_rect) = drop_context.preview_rect {
                 let preview_rect = self.smooth_preview_rect(ui.ctx(), preview_rect);
 
-                let preview_stroke = ui.visuals().selection.stroke;
-                let preview_color = preview_stroke.color;
+                let parent_rect = drop_context
+                    .best_insertion
+                    .and_then(|insertion_point| self.nodes.try_rect(insertion_point.parent_id));
 
-                if let Some(insertion_point) = &drop_context.best_insertion {
-                    if let Some(parent_rect) = self.nodes.try_rect(insertion_point.parent_id) {
-                        // Show which parent we will be dropped into
-                        ui.painter().rect_stroke(parent_rect, 1.0, preview_stroke);
-                    }
-                }
+                behavior.paint_drag_preview(ui.visuals(), ui.painter(), parent_rect, preview_rect);
 
-                ui.painter().rect(
-                    preview_rect,
-                    1.0,
-                    preview_color.gamma_multiply(0.5),
-                    preview_stroke,
-                );
-
-                let preview_child = false;
-                if preview_child {
-                    // Preview actual child?
+                if behavior.preview_dragged_leaves() {
+                    // TODO(emilk): add support for previewing branches too.
                     if preview_rect.width() > 32.0 && preview_rect.height() > 32.0 {
                         if let Some(Node::Leaf(leaf)) = self.nodes.get_mut(dragged_node_id) {
                             let _ = behavior.leaf_ui(
@@ -200,6 +194,7 @@ impl<Leaf> Dock<Leaf> {
         }
     }
 
+    /// Take the preview rectangle and smooth it over time.
     fn smooth_preview_rect(&mut self, ctx: &egui::Context, new_rect: Rect) -> Rect {
         let dt = ctx.input(|input| input.stable_dt).at_most(0.1);
         let t = egui::emath::exponential_smooth_factor(0.9, 0.05, dt);
@@ -228,7 +223,8 @@ impl<Leaf> Dock<Leaf> {
         }
     }
 
-    fn move_node(&mut self, moved_node_id: NodeId, insertion_point: InsertionPoint) {
+    /// Move the given node to the given insertion point.
+    pub fn move_node(&mut self, moved_node_id: NodeId, insertion_point: InsertionPoint) {
         log::debug!(
             "Moving {moved_node_id:?} into {:?}",
             insertion_point.insertion
@@ -238,7 +234,7 @@ impl<Leaf> Dock<Leaf> {
     }
 
     /// Find the currently dragged node, if any.
-    fn dragged_id(&self, ctx: &egui::Context) -> Option<NodeId> {
+    pub fn dragged_id(&self, ctx: &egui::Context) -> Option<NodeId> {
         if !is_possible_drag(ctx) {
             // We're not sure we're dragging _at all_ yet.
             return None;
@@ -246,7 +242,7 @@ impl<Leaf> Dock<Leaf> {
 
         for &node_id in self.nodes.nodes.keys() {
             if node_id == self.root {
-                continue; // now allowed to drag root
+                continue; // not allowed to drag root
             }
 
             let id = node_id.id();
@@ -264,9 +260,12 @@ impl<Leaf> Dock<Leaf> {
         None
     }
 
-    /// Performs no simplifcations!
-    fn remove_node_id_from_parent(&mut self, dragged_node_id: NodeId) {
-        self.nodes
-            .remove_node_id_from_parent(self.root, dragged_node_id);
+    /// Performs no simplifcations, nor does it remove the actual [`Node`].
+    pub fn remove_node_id_from_parent(&mut self, remove_me: NodeId) {
+        for parent in self.nodes.nodes.values_mut() {
+            if let Node::Branch(branch) = parent {
+                branch.retain(|child| child != remove_me);
+            }
+        }
     }
 }

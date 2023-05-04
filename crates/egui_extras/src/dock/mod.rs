@@ -16,21 +16,36 @@
 //! The user needs to implement this in order to specify the `ui` of each `Leaf` and
 //! the tab name of leaves (if there are tab nodes).
 //!
-//! ## Implementation notes
-//! In many places we want to recursively visit all noted, while also mutating them.
-//! In order to not get into trouble with the borrow checker a trick is used:
-//! each [`Node`] is removed, mutated, recursed, and then re-added.
-//! You'll see this pattern many times reading the following code.
-//!
 //! ## Shortcomings
 //! We use real recursion, so if your trees get too deep you will get a stack overflow.
 //!
+//!
 //! ## Future improvements
-//! * A new ui for each node, nested
-//! * Per-tab close-buttons
+//! * Easy per-tab close-buttons
 //! * Scrolling of tab-bar
 //! * Vertical tab bar
-//! * Auto-grid layouts (re-arange as parent is resized)
+//! * Auto-join nested horizontal/vertical layouts in the simplify step
+
+// ## Implementation notes
+// In many places we want to recursively visit all noted, while also mutating them.
+// In order to not get into trouble with the borrow checker a trick is used:
+// each [`Node`] is removed, mutated, recursed, and then re-added.
+// You'll see this pattern many times reading the following code.
+//
+// Each frame consists of two passes: layout, and ui.
+// The layout pass figures out where each node should be placed.
+// The ui pass does all the painting.
+// These two passes could be combined into one pass if we wanted to,
+// but having them split up makes the code slightly simpler, and
+// leaves the door open for more complex layout (e.g. min/max sizes per node).
+//
+// Everything is quite dynamic, so we have a bunch of defensive coding that call `warn!` on failure.
+// These situations should not happen in normal use, but could happen if the user messes with
+// the internals of the tree, putting it in an invalid state.
+//
+// ## TODO before release:
+// * Auto-grid layouts (re-arange as parent is resized)
+// * Clip tab titles to not cover "add new tab" button
 
 use egui::{Id, Pos2, Rect};
 
@@ -96,6 +111,7 @@ pub enum UiResponse {
     DragStarted,
 }
 
+/// What are the rules for simplifying the tree?
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct SimplificationOptions {
     pub prune_empty_tabs: bool,
@@ -143,7 +159,7 @@ pub struct InsertionPoint {
 }
 
 impl InsertionPoint {
-    fn new(parent_id: NodeId, insertion: LayoutInsertion) -> Self {
+    pub fn new(parent_id: NodeId, insertion: LayoutInsertion) -> Self {
         Self {
             parent_id,
             insertion,
@@ -185,7 +201,14 @@ struct DropContext {
 }
 
 impl DropContext {
-    fn on_node<Leaf>(&mut self, parent_id: NodeId, rect: Rect, node: &Node<Leaf>) {
+    fn on_node<Leaf>(
+        &mut self,
+        behavior: &mut dyn Behavior<Leaf>,
+        style: &egui::Style,
+        parent_id: NodeId,
+        rect: Rect,
+        node: &Node<Leaf>,
+    ) {
         if !self.enabled {
             return;
         }
@@ -212,17 +235,18 @@ impl DropContext {
             );
         }
 
-        // self.suggest_rect(InsertionPoint::new(parent_id, LayoutType::Tabs, 1), rect);
+        self.suggest_rect(
+            InsertionPoint::new(parent_id, LayoutInsertion::Tabs(usize::MAX)),
+            rect.split_top_bottom_at_y(rect.top() + behavior.tab_bar_height(style))
+                .1,
+        );
     }
 
     fn suggest_rect(&mut self, insertion: InsertionPoint, preview_rect: Rect) {
-        self.suggest_point(insertion, preview_rect.center(), preview_rect);
-    }
-
-    fn suggest_point(&mut self, insertion: InsertionPoint, target_point: Pos2, preview_rect: Rect) {
         if !self.enabled {
             return;
         }
+        let target_point = preview_rect.center();
         if let Some(mouse_pos) = self.mouse_pos {
             let dist_sq = mouse_pos.distance_sq(target_point);
             if dist_sq < self.best_dist_sq {
