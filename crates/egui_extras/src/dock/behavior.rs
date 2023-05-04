@@ -12,9 +12,13 @@ pub trait Behavior<Leaf> {
     fn tab_text_for_leaf(&mut self, leaf: &Leaf) -> WidgetText;
 
     fn tab_text_for_node(&mut self, nodes: &Nodes<Leaf>, node_id: NodeId) -> WidgetText {
-        match &nodes.nodes[&node_id] {
-            Node::Leaf(leaf) => self.tab_text_for_leaf(leaf),
-            Node::Branch(branch) => format!("{:?}", branch.get_layout()).into(),
+        if let Some(node) = nodes.nodes.get(&node_id) {
+            match node {
+                Node::Leaf(leaf) => self.tab_text_for_leaf(leaf),
+                Node::Branch(branch) => format!("{:?}", branch.get_layout()).into(),
+            }
+        } else {
+            "MISSING NODE".into()
         }
     }
 

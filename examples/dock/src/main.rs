@@ -244,12 +244,16 @@ fn tree_ui(
     nodes: &mut dock::Nodes<View>,
     node_id: dock::NodeId,
 ) {
+    // Get the name BEFORE we remove the node below
     let text = format!(
         "{} - {node_id:?}",
         behavior.tab_text_for_node(nodes, node_id).text()
     );
 
-    let Some(mut node) = nodes.nodes.remove(&node_id) else { return; };
+    let Some(mut node) = nodes.nodes.remove(&node_id) else {
+        log::warn!("Missing node {node_id:?}");
+        return;
+    };
 
     egui::CollapsingHeader::new(text)
         .id_source((node_id, "tree"))
