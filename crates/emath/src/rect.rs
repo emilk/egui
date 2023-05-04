@@ -53,7 +53,7 @@ impl Rect {
         max: pos2(-INFINITY, -INFINITY),
     };
 
-    /// An invalid [`Rect`] filled with [`f32::NAN`];
+    /// An invalid [`Rect`] filled with [`f32::NAN`].
     pub const NAN: Self = Self {
         min: pos2(f32::NAN, f32::NAN),
         max: pos2(f32::NAN, f32::NAN),

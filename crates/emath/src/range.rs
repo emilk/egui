@@ -11,6 +11,25 @@ pub struct Rangef {
 }
 
 impl Rangef {
+    /// Infinite range that contains everything, from -∞ to +∞, inclusive.
+    pub const EVERYTHING: Self = Self {
+        min: f32::NEG_INFINITY,
+        max: f32::INFINITY,
+    };
+
+    /// The inverse of [`Self::EVERYTHING`]: stretches from positive infinity to negative infinity.
+    /// Contains nothing.
+    pub const NOTHING: Self = Self {
+        min: f32::INFINITY,
+        max: f32::NEG_INFINITY,
+    };
+
+    /// An invalid [`Rangef`] filled with [`f32::NAN`].
+    pub const NAN: Self = Self {
+        min: f32::NAN,
+        max: f32::NAN,
+    };
+
     #[inline]
     pub fn new(min: f32, max: f32) -> Self {
         Self { min, max }
@@ -30,6 +49,13 @@ impl Rangef {
 impl From<Rangef> for RangeInclusive<f32> {
     #[inline]
     fn from(Rangef { min, max }: Rangef) -> Self {
+        min..=max
+    }
+}
+
+impl From<&Rangef> for RangeInclusive<f32> {
+    #[inline]
+    fn from(&Rangef { min, max }: &Rangef) -> Self {
         min..=max
     }
 }

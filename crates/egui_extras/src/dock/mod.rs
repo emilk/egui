@@ -1,13 +1,19 @@
 // # TODO
 // * A new ui for each node, nested
 // * Styling
+// * Per-tab close-buttons
+// * Scrolling of tab-bar
+// * Adding extra stuff at the end of the tab-bar (e.g. an "Add new tab" button)
+// * Vertical tab bar
 
 use std::collections::{HashMap, HashSet};
 
-use egui::{Id, Key, NumExt, Pos2, Rect, Response, Sense, TextStyle, Ui, WidgetText};
+use egui::{Id, Key, NumExt, Pos2, Rect, Ui};
 
+mod behavior;
 mod branch;
 
+pub use behavior::Behavior;
 pub use branch::{Branch, Grid, GridLoc, Layout, Linear, LinearDir, Tabs};
 
 // ----------------------------------------------------------------------------
@@ -145,86 +151,6 @@ impl Default for SimplificationOptions {
             prune_empty_layouts: true,
             prune_single_child_layouts: true,
             all_leaves_must_have_tabs: false,
-        }
-    }
-}
-
-/// Trait defining how the [`Dock`] and its leaf should be shown.
-pub trait Behavior<Leaf> {
-    /// Show this leaf node in the given [`egui::Ui`].
-    ///
-    /// If this is an unknown node, return [`NodeAction::Remove`] and the node will be removed.
-    fn leaf_ui(&mut self, _ui: &mut Ui, _node_id: NodeId, _leaf: &mut Leaf) -> UiResponse;
-
-    fn tab_text_for_leaf(&mut self, leaf: &Leaf) -> WidgetText;
-
-    fn tab_text_for_node(&mut self, nodes: &Nodes<Leaf>, node_id: NodeId) -> WidgetText {
-        match &nodes.nodes[&node_id] {
-            Node::Leaf(leaf) => self.tab_text_for_leaf(leaf),
-            Node::Branch(branch) => format!("{:?}", branch.get_layout()).into(),
-        }
-    }
-
-    fn tab_ui(
-        &mut self,
-        nodes: &Nodes<Leaf>,
-        ui: &mut Ui,
-        id: Id,
-        node_id: NodeId,
-        selected: bool,
-        is_being_dragged: bool,
-    ) -> Response {
-        let text = self.tab_text_for_node(nodes, node_id);
-        let font_id = TextStyle::Button.resolve(ui.style());
-        let galley = text.into_galley(ui, Some(false), f32::INFINITY, font_id);
-        let (_, rect) = ui.allocate_space(galley.size());
-        let response = ui.interact(rect, id, Sense::click_and_drag());
-        let widget_style = ui.style().interact_selectable(&response, selected);
-
-        // Show a gap when dragged
-        if ui.is_rect_visible(rect) && !is_being_dragged {
-            if selected {
-                ui.painter().rect_filled(rect, 0.0, widget_style.bg_fill);
-            }
-            ui.painter()
-                .galley_with_color(rect.min, galley.galley, widget_style.text_color());
-        }
-
-        response
-    }
-
-    /// Returns `false` if this leaf should be removed from its parent.
-    fn retain_leaf(&mut self, _leaf: &Leaf) -> bool {
-        true
-    }
-
-    // ---
-    // Settings:
-
-    /// The height of the bar holding tab names.
-    fn tab_bar_height(&self, _style: &egui::Style) -> f32 {
-        20.0
-    }
-
-    /// Width of the gap between nodes in a horizontal or vertical layout
-    fn gap_width(&self, _style: &egui::Style) -> f32 {
-        1.0
-    }
-
-    // No child should shrink below this size
-    fn min_size(&self) -> f32 {
-        32.0
-    }
-
-    fn simplification_options(&self) -> SimplificationOptions {
-        SimplificationOptions::default()
-    }
-
-    fn resize_stroke(&self, style: &egui::Style, resize_state: ResizeState) -> egui::Stroke {
-        match resize_state {
-            ResizeState::Idle => egui::Stroke::NONE, // Let the gap speak for itself
-            ResizeState::Hovering => style.visuals.widgets.hovered.fg_stroke,
-            ResizeState::Dragging => style.visuals.widgets.active.fg_stroke,
         }
     }
 }

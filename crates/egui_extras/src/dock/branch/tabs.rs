@@ -47,16 +47,40 @@ impl Tabs {
             self.active = self.children.first().copied().unwrap_or_default();
         }
 
+        let next_active = self.tab_bar_ui(behavior, ui, rect, nodes, drop_context, node_id);
+
+        // When dragged, don't show it (it is "being held")
+        let is_active_being_dragged =
+            ui.memory(|mem| mem.is_being_dragged(self.active.id())) && is_possible_drag(ui.ctx());
+        if !is_active_being_dragged {
+            nodes.node_ui(behavior, drop_context, ui, self.active);
+        }
+
+        // We have only laid out the active tab, so we need to switch active tab after the ui pass:
+        self.active = next_active;
+    }
+
+    fn tab_bar_ui<Leaf>(
+        &mut self,
+        behavior: &mut dyn Behavior<Leaf>,
+        ui: &mut egui::Ui,
+        rect: Rect,
+        nodes: &mut Nodes<Leaf>,
+        drop_context: &mut DropContext,
+        node_id: NodeId,
+    ) -> NodeId {
+        let mut next_active = self.active;
+
         let tab_bar_height = behavior.tab_bar_height(ui.style());
         let tab_bar_rect = rect.split_top_bottom_at_y(rect.top() + tab_bar_height).0;
         let mut tab_bar_ui = ui.child_ui(tab_bar_rect, *ui.layout());
 
-        let mut next_active = self.active;
+        let mut button_rects = HashMap::new();
+        let mut dragged_index = None;
 
-        // Show tab bar:
         tab_bar_ui.horizontal(|ui| {
-            let mut button_rects = HashMap::new();
-            let mut dragged_index = None;
+            ui.painter()
+                .rect_filled(ui.max_rect(), 0.0, behavior.tab_bar_color(ui.visuals()));
 
             for (i, &child_id) in self.children.iter().enumerate() {
                 let is_being_dragged = is_being_dragged(ui.ctx(), child_id);
@@ -82,42 +106,37 @@ impl Tabs {
                     dragged_index = Some(i);
                 }
             }
-
-            let preview_thickness = 6.0;
-            let after_rect = |rect: Rect| {
-                let dragged_size = if let Some(dragged_index) = dragged_index {
-                    // We actually know the size of this thing
-                    button_rects[&self.children[dragged_index]].size()
-                } else {
-                    rect.size() // guess that the size is the same as the last button
-                };
-                Rect::from_min_size(
-                    rect.right_top() + vec2(ui.spacing().item_spacing.x, 0.0),
-                    dragged_size,
-                )
-            };
-            super::linear::drop_zones(
-                preview_thickness,
-                &self.children,
-                dragged_index,
-                super::LinearDir::Horizontal,
-                |node_id| button_rects[&node_id],
-                |rect, i| {
-                    drop_context
-                        .suggest_rect(InsertionPoint::new(node_id, LayoutInsertion::Tabs(i)), rect);
-                },
-                after_rect,
-            );
         });
 
-        // When dragged, don't show it (it is "being held")
-        let is_active_being_dragged =
-            ui.memory(|mem| mem.is_being_dragged(self.active.id())) && is_possible_drag(ui.ctx());
-        if !is_active_being_dragged {
-            nodes.node_ui(behavior, drop_context, ui, self.active);
-        }
+        // -----------
+        // Drop zones:
 
-        // We have only laid out the active tab, so we need to switch active tab after the ui pass:
-        self.active = next_active;
+        let preview_thickness = 6.0;
+        let after_rect = |rect: Rect| {
+            let dragged_size = if let Some(dragged_index) = dragged_index {
+                // We actually know the size of this thing
+                button_rects[&self.children[dragged_index]].size()
+            } else {
+                rect.size() // guess that the size is the same as the last button
+            };
+            Rect::from_min_size(
+                rect.right_top() + vec2(ui.spacing().item_spacing.x, 0.0),
+                dragged_size,
+            )
+        };
+        super::linear::drop_zones(
+            preview_thickness,
+            &self.children,
+            dragged_index,
+            super::LinearDir::Horizontal,
+            |node_id| button_rects[&node_id],
+            |rect, i| {
+                drop_context
+                    .suggest_rect(InsertionPoint::new(node_id, LayoutInsertion::Tabs(i)), rect);
+            },
+            after_rect,
+        );
+
+        next_active
     }
 }
