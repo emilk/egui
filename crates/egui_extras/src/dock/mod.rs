@@ -173,6 +173,20 @@ impl<Leaf> Dock<Leaf> {
             smoothed_preview_rect: None,
         }
     }
+
+    pub fn parent_of(&self, node_id: NodeId) -> Option<NodeId> {
+        self.nodes
+            .nodes
+            .iter()
+            .find(|(_, node)| {
+                if let Node::Branch(branch) = node {
+                    branch.children().contains(&node_id)
+                } else {
+                    false
+                }
+            })
+            .map(|(id, _)| *id)
+    }
 }
 
 impl<Leaf> Nodes<Leaf> {
@@ -202,13 +216,13 @@ impl<Leaf> Nodes<Leaf> {
     }
 
     #[must_use]
-    pub fn insert_branch(&mut self, branch: Branch) -> NodeId {
-        self.insert_node(Node::Branch(branch))
+    pub fn insert_leaf(&mut self, leaf: Leaf) -> NodeId {
+        self.insert_node(Node::Leaf(leaf))
     }
 
     #[must_use]
-    pub fn insert_leaf(&mut self, leaf: Leaf) -> NodeId {
-        self.insert_node(Node::Leaf(leaf))
+    pub fn insert_branch(&mut self, branch: Branch) -> NodeId {
+        self.insert_node(Node::Branch(branch))
     }
 
     #[must_use]
@@ -237,29 +251,15 @@ impl<Leaf> Nodes<Leaf> {
         self.insert_node(Node::Branch(Branch::new_grid(children)))
     }
 
-    fn parent(&self, it: NodeId, needle_child: NodeId) -> Option<NodeId> {
-        match &self.nodes.get(&it)? {
-            Node::Leaf(_) => None,
-            Node::Branch(branch) => {
-                for &child in branch.children() {
-                    if child == needle_child {
-                        return Some(it);
-                    }
-                    if let Some(parent) = self.parent(child, needle_child) {
-                        return Some(parent);
-                    }
-                }
-                None
-            }
-        }
-    }
-
     /// Performs no simplifcations!
     fn remove_node_id_from_parent(&mut self, it: NodeId, remove: NodeId) -> GcAction {
         if it == remove {
             return GcAction::Remove;
         }
-        let Some(mut node) = self.nodes.remove(&it) else { return GcAction::Remove; };
+        let Some(mut node) = self.nodes.remove(&it) else {
+            log::warn!("Unexepcted missing node during removal");
+            return GcAction::Remove;
+        };
         if let Node::Branch(branch) = &mut node {
             branch.retain(|child| self.remove_node_id_from_parent(child, remove) == GcAction::Keep);
         }
@@ -601,7 +601,10 @@ impl<Leaf> Nodes<Leaf> {
         rect: Rect,
         node_id: NodeId,
     ) {
-        let Some(mut node) = self.nodes.remove(&node_id) else { return; };
+        let Some(mut node) = self.nodes.remove(&node_id) else {
+            log::warn!("Failed to find node {node_id:?} during layout");
+            return;
+        };
         self.rects.insert(node_id, rect);
 
         if let Node::Branch(branch) = &mut node {
@@ -699,7 +702,10 @@ impl<Leaf> Nodes<Leaf> {
         ui: &mut Ui,
         node_id: NodeId,
     ) {
-        let (Some(rect), Some(mut node)) = (self.try_rect(node_id), self.nodes.remove(&node_id)) else { return };
+        let (Some(rect), Some(mut node)) = (self.try_rect(node_id), self.nodes.remove(&node_id)) else {
+            log::warn!("Failed to find node {node_id:?} during ui");
+            return
+        };
 
         let drop_context_was_enabled = drop_context.enabled;
         if Some(node_id) == drop_context.dragged_node_id {
@@ -790,7 +796,10 @@ impl<Leaf> Nodes<Leaf> {
 
 impl<Leaf> Nodes<Leaf> {
     fn make_all_leaves_children_of_tabs(&mut self, parent_is_tabs: bool, it: NodeId) {
-        let Some(mut node) = self.nodes.remove(&it) else { return; };
+        let Some(mut node) = self.nodes.remove(&it) else {
+            log::warn!("Failed to find node {it:?} during make_all_leaves_children_of_tabs");
+            return;
+        };
 
         match &mut node {
             Node::Leaf(_) => {

@@ -32,6 +32,10 @@ impl Linear {
         }
     }
 
+    pub fn add_child(&mut self, child: NodeId) {
+        self.children.push(child);
+    }
+
     pub fn layout<Leaf>(
         &mut self,
         nodes: &mut Nodes<Leaf>,

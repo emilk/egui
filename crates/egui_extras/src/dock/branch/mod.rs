@@ -108,6 +108,14 @@ impl Branch {
         }
     }
 
+    pub fn add_child(&mut self, child: NodeId) {
+        match self {
+            Self::Tabs(tabs) => tabs.add_child(child),
+            Self::Linear(linear) => linear.add_child(child),
+            Self::Grid(grid) => grid.add_child(child),
+        }
+    }
+
     pub fn get_layout(&self) -> Layout {
         match self {
             Self::Tabs(_) => Layout::Tabs,

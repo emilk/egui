@@ -69,7 +69,7 @@ impl Tabs {
     }
 
     fn tab_bar_ui<Leaf>(
-        &mut self,
+        &self,
         behavior: &mut dyn Behavior<Leaf>,
         ui: &mut egui::Ui,
         rect: Rect,
