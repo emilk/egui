@@ -4,9 +4,11 @@ use std::{
 };
 
 use egui::{pos2, vec2, Rect};
+use itertools::Itertools as _;
 
 use crate::dock::{
     sizes_from_shares, Behavior, DropContext, InsertionPoint, LayoutInsertion, NodeId, Nodes,
+    ResizeState,
 };
 
 /// Includive range of floats, i.e. `min..=max`, but more ergonomic than [`RangeInclusive`].
@@ -20,6 +22,11 @@ impl Rangef {
     #[inline]
     pub fn new(min: f32, max: f32) -> Self {
         Self { min, max }
+    }
+
+    #[inline]
+    pub fn span(&self) -> f32 {
+        self.max - self.min
     }
 }
 
@@ -214,5 +221,181 @@ impl Grid {
                 );
             }
         }
+
+        self.resize_columns(nodes, behavior, ui, node_id);
+        self.resize_rows(nodes, behavior, ui, node_id);
     }
+
+    fn resize_columns<Leaf>(
+        &mut self,
+        nodes: &mut Nodes<Leaf>,
+        behavior: &mut dyn Behavior<Leaf>,
+        ui: &mut egui::Ui,
+        parent_id: NodeId,
+    ) {
+        let parent_rect = nodes.rect(parent_id);
+        for (i, (left, right)) in self.col_ranges.iter().copied().tuple_windows().enumerate() {
+            let resize_id = egui::Id::new((parent_id, "resize_col", i));
+
+            let x = egui::lerp(left.max..=right.min, 0.5);
+
+            let mut resize_state = ResizeState::Idle;
+            if let Some(pointer) = ui.ctx().pointer_latest_pos() {
+                let line_rect = Rect::from_center_size(
+                    pos2(x, parent_rect.center().y),
+                    vec2(
+                        2.0 * ui.style().interaction.resize_grab_radius_side,
+                        parent_rect.height(),
+                    ),
+                );
+                let response = ui.interact(line_rect, resize_id, egui::Sense::click_and_drag());
+                resize_state = resize_interaction(
+                    behavior,
+                    &self.col_ranges,
+                    &mut self.col_shares,
+                    &response,
+                    ui.painter().round_to_pixel(pointer.x) - x,
+                    i,
+                );
+
+                if resize_state != ResizeState::Idle {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal);
+                }
+            }
+
+            let stroke = behavior.resize_stroke(ui.style(), resize_state);
+            ui.painter().vline(x, parent_rect.y_range(), stroke);
+        }
+    }
+
+    fn resize_rows<Leaf>(
+        &mut self,
+        nodes: &mut Nodes<Leaf>,
+        behavior: &mut dyn Behavior<Leaf>,
+        ui: &mut egui::Ui,
+        parent_id: NodeId,
+    ) {
+        let parent_rect = nodes.rect(parent_id);
+        for (i, (top, bottom)) in self.row_ranges.iter().copied().tuple_windows().enumerate() {
+            let resize_id = egui::Id::new((parent_id, "resize_row", i));
+
+            let y = egui::lerp(top.max..=bottom.min, 0.5);
+
+            let mut resize_state = ResizeState::Idle;
+            if let Some(pointer) = ui.ctx().pointer_latest_pos() {
+                let line_rect = Rect::from_center_size(
+                    pos2(parent_rect.center().x, y),
+                    vec2(
+                        parent_rect.width(),
+                        2.0 * ui.style().interaction.resize_grab_radius_side,
+                    ),
+                );
+                let response = ui.interact(line_rect, resize_id, egui::Sense::click_and_drag());
+                resize_state = resize_interaction(
+                    behavior,
+                    &self.row_ranges,
+                    &mut self.row_shares,
+                    &response,
+                    ui.painter().round_to_pixel(pointer.y) - y,
+                    i,
+                );
+
+                if resize_state != ResizeState::Idle {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
+                }
+            }
+
+            let stroke = behavior.resize_stroke(ui.style(), resize_state);
+            ui.painter().hline(parent_rect.x_range(), y, stroke);
+        }
+    }
+}
+
+fn resize_interaction<Leaf>(
+    behavior: &mut dyn Behavior<Leaf>,
+    ranges: &[Rangef],
+    shares: &mut [f32],
+    splitter_response: &egui::Response,
+    dx: f32,
+    i: usize,
+) -> ResizeState {
+    assert_eq!(ranges.len(), shares.len());
+    let num = ranges.len();
+    let node_width = |i: usize| ranges[i].span();
+
+    let left = i;
+    let right = i + 1;
+
+    if splitter_response.double_clicked() {
+        // double-click to center the split between left and right:
+        let mean = 0.5 * (shares[left] + shares[right]);
+        shares[left] = mean;
+        shares[right] = mean;
+        ResizeState::Hovering
+    } else if splitter_response.dragged() {
+        if dx < 0.0 {
+            // Expand right, shrink stuff to the left:
+            shares[right] += shrink_shares(
+                behavior,
+                shares,
+                &(0..=i).rev().collect_vec(),
+                dx.abs(),
+                node_width,
+            );
+        } else {
+            // Expand the left, shrink stuff to the right:
+            shares[left] += shrink_shares(
+                behavior,
+                shares,
+                &(i + 1..num).collect_vec(),
+                dx.abs(),
+                node_width,
+            );
+        }
+        ResizeState::Dragging
+    } else if splitter_response.hovered() {
+        ResizeState::Hovering
+    } else {
+        ResizeState::Idle
+    }
+}
+
+/// Try shrink the children by a total of `target_in_points`,
+/// making sure no child gets smaller than its minimum size.
+fn shrink_shares<Leaf>(
+    behavior: &dyn Behavior<Leaf>,
+    shares: &mut [f32],
+    children: &[usize],
+    target_in_points: f32,
+    size_in_point: impl Fn(usize) -> f32,
+) -> f32 {
+    if children.is_empty() {
+        return 0.0;
+    }
+
+    let mut total_shares = 0.0;
+    let mut total_points = 0.0;
+    for &child in children {
+        total_shares += shares[child];
+        total_points += size_in_point(child);
+    }
+
+    let shares_per_point = total_shares / total_points;
+
+    let min_size_in_points = shares_per_point * behavior.min_size();
+
+    let target_in_shares = shares_per_point * target_in_points;
+    let mut total_shares_lost = 0.0;
+
+    for &child in children {
+        let share = &mut shares[child];
+        let shrink_by = (target_in_shares - total_shares_lost)
+            .min(*share - min_size_in_points)
+            .max(0.0);
+
+        *share -= shrink_by;
+        total_shares_lost += shrink_by;
+    }
+
+    total_shares_lost
 }

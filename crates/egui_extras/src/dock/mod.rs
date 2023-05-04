@@ -1,7 +1,5 @@
 // # TODO
 // * A new ui for each node, nested
-// * Better drag-and-drop around the "empty" tab
-// * Resizing of grids
 // * Styling
 
 use std::collections::{HashMap, HashSet};
