@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use egui::{vec2, Rect};
 
 use crate::dock::{
@@ -54,8 +56,8 @@ impl Tabs {
 
         // Show tab bar:
         tab_bar_ui.horizontal(|ui| {
-            let mut prev_tab_rect: Option<Rect> = None;
-            let mut insertion_index = 0; // skips over drag-source, if any, beacuse it will be removed then re-inserted
+            let mut button_rects = HashMap::new();
+            let mut dragged_index = None;
 
             for (i, &child_id) in self.children.iter().enumerate() {
                 let is_being_dragged = is_being_dragged(ui.ctx(), child_id);
@@ -76,38 +78,37 @@ impl Tabs {
                     }
                 }
 
-                let rect = response.rect;
-
-                {
-                    // suggest dropping before this tab:
-                    let before_point = if let Some(prev_tab_rect) = prev_tab_rect {
-                        // between
-                        prev_tab_rect.right_center().lerp(rect.left_center(), 0.5)
-                    } else {
-                        // before first
-                        rect.left_center()
-                    };
-
-                    drop_context.suggest_rect(
-                        InsertionPoint::new(node_id, LayoutInsertion::Tabs(insertion_index)),
-                        Rect::from_center_size(before_point, vec2(4.0, rect.height())),
-                    );
-                }
-
-                if i + 1 == self.children.len() {
-                    // suggest dropping after last tab:
-                    drop_context.suggest_rect(
-                        InsertionPoint::new(node_id, LayoutInsertion::Tabs(insertion_index + 1)),
-                        Rect::from_center_size(rect.right_center(), vec2(4.0, rect.height())),
-                    );
-                }
-
-                prev_tab_rect = Some(rect);
-
-                if !is_being_dragged {
-                    insertion_index += 1;
+                button_rects.insert(child_id, response.rect);
+                if is_being_dragged {
+                    dragged_index = Some(i);
                 }
             }
+
+            let preview_thickness = 6.0;
+            let afer_rect = |rect: Rect| {
+                let dragged_size = if let Some(dragged_index) = dragged_index {
+                    // We actually know the size of this thing
+                    button_rects[&self.children[dragged_index]].size()
+                } else {
+                    rect.size() // guess that the size is the same as the last button
+                };
+                Rect::from_min_size(
+                    rect.right_top() + vec2(ui.spacing().item_spacing.x, 0.0),
+                    dragged_size,
+                )
+            };
+            super::linear::drop_zones(
+                preview_thickness,
+                &self.children,
+                dragged_index,
+                super::LinearDir::Horizontal,
+                |node_id| button_rects[&node_id],
+                |rect, i| {
+                    drop_context
+                        .suggest_rect(InsertionPoint::new(node_id, LayoutInsertion::Tabs(i)), rect);
+                },
+                afer_rect,
+            );
         });
 
         // When dragged, don't show it (it is "being held")
