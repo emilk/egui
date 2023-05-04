@@ -1,11 +1,10 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use egui::{emath::Rangef, pos2, vec2, Rect};
+use egui::{emath::Rangef, pos2, vec2, NumExt as _, Rect};
 use itertools::Itertools as _;
 
 use crate::dock::{
-    sizes_from_shares, Behavior, DropContext, InsertionPoint, LayoutInsertion, NodeId, Nodes,
-    ResizeState,
+    Behavior, DropContext, InsertionPoint, LayoutInsertion, NodeId, Nodes, ResizeState,
 };
 
 /// Where in a grid?
@@ -155,7 +154,7 @@ impl Grid {
         }
     }
 
-    pub fn ui<Leaf>(
+    pub(super) fn ui<Leaf>(
         &mut self,
         nodes: &mut Nodes<Leaf>,
         behavior: &mut dyn Behavior<Leaf>,
@@ -359,4 +358,20 @@ fn shrink_shares<Leaf>(
     }
 
     total_shares_lost
+}
+
+fn sizes_from_shares(shares: &[f32], available_size: f32, gap_width: f32) -> Vec<f32> {
+    assert!(!shares.is_empty());
+    let available_size = available_size - gap_width * (shares.len() - 1) as f32;
+    let available_size = available_size.at_least(0.0);
+
+    let total_share: f32 = shares.iter().sum();
+    if total_share <= 0.0 {
+        vec![available_size / shares.len() as f32; shares.len()]
+    } else {
+        shares
+            .iter()
+            .map(|&share| share / total_share * available_size)
+            .collect()
+    }
 }

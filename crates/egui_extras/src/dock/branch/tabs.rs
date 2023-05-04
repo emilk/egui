@@ -46,7 +46,7 @@ impl Tabs {
         nodes.layout_node(style, behavior, active_rect, self.active);
     }
 
-    pub fn ui<Leaf>(
+    pub(super) fn ui<Leaf>(
         &mut self,
         nodes: &mut Nodes<Leaf>,
         behavior: &mut dyn Behavior<Leaf>,

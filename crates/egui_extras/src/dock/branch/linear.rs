@@ -95,7 +95,7 @@ impl Linear {
         }
     }
 
-    pub fn ui<Leaf>(
+    pub(super) fn ui<Leaf>(
         &mut self,
         nodes: &mut Nodes<Leaf>,
         behavior: &mut dyn Behavior<Leaf>,
