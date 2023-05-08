@@ -919,7 +919,7 @@ impl PointerState {
     /// But if the mouse is down long enough, or has moved far enough,
     /// then we consider it a drag.
     ///
-    /// This function can return true on the same frame the drag is relased,
+    /// This function can return true on the same frame the drag is released,
     /// but NOT on the first frame it was started.
     ///
     /// See also [`Self::could_any_button_be_click`].
