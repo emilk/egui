@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{btree_map, hash_map, BTreeMap, HashMap, HashSet};
 
 use egui::{emath::Rangef, pos2, vec2, NumExt as _, Rect};
 use itertools::Itertools as _;
@@ -28,15 +28,45 @@ pub struct GridLoc {
 }
 
 impl GridLoc {
+    #[inline]
     pub fn from_col_row(col: usize, row: usize) -> Self {
         Self { col, row }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+pub enum GridLayout {
+    /// Place children in a grid, with a dynamic number of columns and rows.
+    /// Resizing the window may change the number of columns and rows.
+    #[default]
+    Auto,
+
+    /// Place children in a grid with this many columns,
+    /// and as many rows as needed.
+    Columns(usize),
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Grid {
     pub children: Vec<NodeId>,
 
+    pub layout: GridLayout,
+
+    /// Where each child is located.
+    ///
+    /// If the chils is missing from this set, it will be assgined a location during layout.
     pub locations: HashMap<NodeId, GridLoc>,
 
     /// Share of the available width assigned to each column.
@@ -72,22 +102,30 @@ impl Grid {
         behavior: &mut dyn Behavior<Leaf>,
         rect: Rect,
     ) {
+        let gap = behavior.gap_width(style);
         let child_ids: HashSet<NodeId> = self.children.iter().copied().collect();
 
-        let mut num_cols = 2.min(self.children.len()); // les than 2 and it is not a grid
+        let num_cols = match self.layout {
+            GridLayout::Auto => num_columns_heuristic(self.children.len(), rect, gap),
+            GridLayout::Columns(num_columns) => num_columns.at_least(1),
+        };
+        let num_rows = (self.children.len() + num_cols - 1) / num_cols;
 
         // Where to place each node?
         let mut node_id_from_location: BTreeMap<GridLoc, NodeId> = Default::default();
         self.locations.retain(|&child_id, &mut loc| {
             if child_ids.contains(&child_id) {
                 match node_id_from_location.entry(loc) {
-                    std::collections::btree_map::Entry::Occupied(_) => {
+                    btree_map::Entry::Occupied(_) => {
                         false // two nodes assigned to the same position - forget this one for now
                     }
-                    std::collections::btree_map::Entry::Vacant(entry) => {
-                        entry.insert(child_id);
-                        num_cols = num_cols.max(loc.col + 1);
-                        true
+                    btree_map::Entry::Vacant(entry) => {
+                        if num_cols <= loc.col || num_rows <= loc.row {
+                            false // out of bounds
+                        } else {
+                            entry.insert(child_id);
+                            true
+                        }
                     }
                 }
             } else {
@@ -98,8 +136,7 @@ impl Grid {
         // Find location for nodes that don't have one yet
         let mut next_pos = 0;
         for &child_id in &self.children {
-            if let std::collections::hash_map::Entry::Vacant(entry) = self.locations.entry(child_id)
-            {
+            if let hash_map::Entry::Vacant(entry) = self.locations.entry(child_id) {
                 // find a position:
                 loop {
                     let loc = GridLoc::from_col_row(next_pos % num_cols, next_pos / num_cols);
@@ -121,7 +158,6 @@ impl Grid {
         self.col_shares.resize(num_cols, 1.0);
         self.row_shares.resize(num_rows, 1.0);
 
-        let gap = behavior.gap_width(style);
         let col_widths = sizes_from_shares(&self.col_shares, rect.width(), gap);
         let row_heights = sizes_from_shares(&self.row_shares, rect.height(), gap);
 
@@ -269,6 +305,34 @@ impl Grid {
             ui.painter().hline(parent_rect.x_range(), y, stroke);
         }
     }
+}
+
+/// How many columns should we use to fit `n` children in a grid?
+fn num_columns_heuristic(n: usize, rect: Rect, gap: f32) -> usize {
+    let desired_aspect = 4.0 / 3.0;
+
+    let mut best_loss = f32::INFINITY;
+    let mut best_num_columns = 1;
+
+    for ncols in 1..=n {
+        let nrows = (n + ncols - 1) / ncols;
+
+        let cell_width = (rect.width() - gap * (ncols as f32 - 1.0)) / (ncols as f32);
+        let cell_height = (rect.height() - gap * (nrows as f32 - 1.0)) / (nrows as f32);
+
+        let cell_aspect = cell_width / cell_height;
+        let aspect_diff = (desired_aspect - cell_aspect).abs();
+        let num_empty_cells = ncols * nrows - n;
+
+        let loss = aspect_diff + 0.1 * num_empty_cells as f32; // TODO(emilk): weight differently?
+
+        if loss < best_loss {
+            best_loss = loss;
+            best_num_columns = ncols;
+        }
+    }
+
+    best_num_columns
 }
 
 fn resize_interaction<Leaf>(

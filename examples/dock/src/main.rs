@@ -182,7 +182,7 @@ impl Default for MyApp {
             nodes.insert_vertical_node(children)
         });
         tabs.push({
-            let cells = (0..12).map(|_| nodes.insert_leaf(gen_view())).collect();
+            let cells = (0..11).map(|_| nodes.insert_leaf(gen_view())).collect();
             nodes.insert_grid_node(cells)
         });
         tabs.push(nodes.insert_leaf(gen_view()));
