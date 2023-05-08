@@ -1129,17 +1129,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dock"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "egui_extras",
- "env_logger",
- "log",
- "serde",
-]
-
-[[package]]
 name = "document-features"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1330,11 +1319,8 @@ dependencies = [
  "chrono",
  "document-features",
  "egui",
- "getrandom",
  "image",
- "itertools",
  "log",
- "rand",
  "resvg",
  "serde",
  "tiny-skia",
@@ -1706,10 +1692,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c05aeb6a22b8f62540c194aac980f2115af067bfe15a0734d7277a768d396b31"
 dependencies = [
  "cfg-if",
- "js-sys",
  "libc",
  "wasi 0.11.0+wasi-snapshot-preview1",
- "wasm-bindgen",
 ]
 
 [[package]]
