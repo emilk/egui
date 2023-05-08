@@ -557,6 +557,7 @@ impl EpiIntegration {
         }
     }
 
+    #[allow(clippy::unused_self)]
     pub fn save(&mut self, _app: &mut dyn epi::App, _window: &winit::window::Window) {
         #[cfg(feature = "persistence")]
         if let Some(storage) = self.frame.storage_mut() {
