@@ -894,8 +894,9 @@ impl PointerState {
     }
 
     /// If the pointer button is down, will it register as a click when released?
-    #[inline(always)]
-    pub(crate) fn could_any_button_be_click(&self) -> bool {
+    ///
+    /// See also [`Self::is_decidedly_dragging`].
+    pub fn could_any_button_be_click(&self) -> bool {
         if !self.any_down() {
             return false;
         }
@@ -911,6 +912,22 @@ impl PointerState {
         }
 
         true
+    }
+
+    /// Just because the mouse is down doesn't mean we are dragging.
+    /// We could be at the start of a click.
+    /// But if the mouse is down long enough, or has moved far enough,
+    /// then we consider it a drag.
+    ///
+    /// This function can return true on the same frame the drag is released,
+    /// but NOT on the first frame it was started.
+    ///
+    /// See also [`Self::could_any_button_be_click`].
+    pub fn is_decidedly_dragging(&self) -> bool {
+        (self.any_down() || self.any_released())
+            && !self.any_pressed()
+            && !self.could_any_button_be_click()
+            && !self.any_click()
     }
 
     /// Is the primary button currently down?
