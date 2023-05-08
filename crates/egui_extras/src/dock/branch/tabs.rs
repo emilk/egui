@@ -8,7 +8,10 @@ use crate::dock::{
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Tabs {
+    /// The tabs, in order.
     pub children: Vec<NodeId>,
+
+    /// The currenlty open tab.
     pub active: NodeId,
 }
 
@@ -26,7 +29,7 @@ impl Tabs {
         self.active = child;
     }
 
-    pub fn layout<Leaf>(
+    pub(super) fn layout<Leaf>(
         &mut self,
         nodes: &mut Nodes<Leaf>,
         style: &egui::Style,
@@ -62,10 +65,11 @@ impl Tabs {
             nodes.node_ui(behavior, drop_context, ui, self.active);
         }
 
-        // We have only laid out the active tab, so we need to switch active tab after the ui pass:
+        // We have only laid out the active tab, so we need to switch active tab _after_ the ui pass above:
         self.active = next_active;
     }
 
+    /// Returns the next active tab (e.g. the one clicked, or the current).
     fn tab_bar_ui<Leaf>(
         &self,
         behavior: &mut dyn Behavior<Leaf>,

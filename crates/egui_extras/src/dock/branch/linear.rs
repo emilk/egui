@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use egui::{pos2, vec2, NumExt, Rect};
 use itertools::Itertools as _;
 
@@ -6,7 +8,60 @@ use crate::dock::{
     ResizeState,
 };
 
-use super::Shares;
+// ----------------------------------------------------------------------------
+
+/// How large of a share of space each child has, on a 1D axis.
+///
+/// Used for [`Linear`] layouts (horizontal and vertical).
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct Shares {
+    /// How large of a share each child has.
+    ///
+    /// For instance, the shares `[1, 2, 3]` means that the first child gets 1/6 of the space,
+    /// the second gets 2/6 and the third gets 3/6.
+    shares: HashMap<NodeId, f32>,
+}
+
+impl Shares {
+    pub fn replace_with(&mut self, remove: NodeId, new: NodeId) {
+        if let Some(share) = self.shares.remove(&remove) {
+            self.shares.insert(new, share);
+        }
+    }
+
+    /// Split the given width based on the share of the children.
+    pub fn split(&self, children: &[NodeId], available_width: f32) -> Vec<f32> {
+        let mut num_shares = 0.0;
+        for &child in children {
+            num_shares += self[child];
+        }
+        if num_shares == 0.0 {
+            num_shares = 1.0;
+        }
+        children
+            .iter()
+            .map(|&child| available_width * self[child] / num_shares)
+            .collect()
+    }
+}
+
+impl std::ops::Index<NodeId> for Shares {
+    type Output = f32;
+
+    #[inline]
+    fn index(&self, id: NodeId) -> &Self::Output {
+        self.shares.get(&id).unwrap_or(&1.0)
+    }
+}
+
+impl std::ops::IndexMut<NodeId> for Shares {
+    #[inline]
+    fn index_mut(&mut self, id: NodeId) -> &mut Self::Output {
+        self.shares.entry(id).or_insert(1.0)
+    }
+}
+
+// ----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub enum LinearDir {
@@ -350,7 +405,8 @@ fn linear_drop_zones<Leaf>(
     );
 }
 
-pub fn drop_zones(
+/// Register drop-zones for a linear layout.
+pub(super) fn drop_zones(
     preview_thickness: f32,
     children: &[NodeId],
     dragged_index: Option<usize>,
@@ -407,7 +463,9 @@ pub fn drop_zones(
     }
 
     if let Some(last_rect) = prev_rect {
-        // Suggest dropping after the last child:
-        add_drop_drect(after_rect(last_rect), insertion_index + 1);
+        // Suggest dropping after the last child (unless that's the one being dragged):
+        if dragged_index != Some(children.len() - 1) {
+            add_drop_drect(after_rect(last_rect), insertion_index + 1);
+        }
     }
 }

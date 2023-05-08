@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use egui::Rect;
 
 use super::{Behavior, DropContext, NodeId, Nodes, SimplifyAction};
@@ -9,7 +7,7 @@ mod linear;
 mod tabs;
 
 pub use grid::{Grid, GridLoc};
-pub use linear::{Linear, LinearDir};
+pub use linear::{Linear, LinearDir, Shares};
 pub use tabs::Tabs;
 
 // ----------------------------------------------------------------------------
@@ -25,53 +23,6 @@ pub enum Layout {
 
 impl Layout {
     pub const ALL: [Self; 4] = [Self::Tabs, Self::Horizontal, Self::Vertical, Self::Grid];
-}
-
-// ----------------------------------------------------------------------------
-
-/// How large of a share of space each child has, on a 1D axis.
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
-pub struct Shares {
-    /// How large of a share each child has.
-    ///
-    /// For instance, the shares `[1, 2, 3]` means that the first child gets 1/6 of the space,
-    /// the second gets 2/6 and the third gets 3/6.
-    shares: HashMap<NodeId, f32>,
-}
-
-impl Shares {
-    pub fn replace_with(&mut self, a: NodeId, b: NodeId) {
-        if let Some(share) = self.shares.remove(&a) {
-            self.shares.insert(b, share);
-        }
-    }
-
-    pub fn split(&self, children: &[NodeId], available_width: f32) -> Vec<f32> {
-        let mut num_shares = 0.0;
-        for &child in children {
-            num_shares += self[child];
-        }
-        if num_shares == 0.0 {
-            num_shares = 1.0;
-        }
-        children
-            .iter()
-            .map(|&child| available_width * self[child] / num_shares)
-            .collect()
-    }
-}
-
-impl std::ops::Index<NodeId> for Shares {
-    type Output = f32;
-    fn index(&self, id: NodeId) -> &Self::Output {
-        self.shares.get(&id).unwrap_or(&1.0)
-    }
-}
-
-impl std::ops::IndexMut<NodeId> for Shares {
-    fn index_mut(&mut self, id: NodeId) -> &mut Self::Output {
-        self.shares.entry(id).or_insert(1.0)
-    }
 }
 
 // ----------------------------------------------------------------------------
@@ -116,7 +67,7 @@ impl Branch {
         }
     }
 
-    pub fn get_layout(&self) -> Layout {
+    pub fn layout(&self) -> Layout {
         match self {
             Self::Tabs(_) => Layout::Tabs,
             Self::Linear(linear) => match linear.dir {
@@ -128,7 +79,7 @@ impl Branch {
     }
 
     pub fn set_layout(&mut self, layout: Layout) {
-        if layout == self.get_layout() {
+        if layout == self.layout() {
             return;
         }
 
@@ -191,7 +142,7 @@ impl Branch {
 }
 
 impl Branch {
-    pub(super) fn layout<Leaf>(
+    pub(super) fn layout_recursive<Leaf>(
         &mut self,
         nodes: &mut Nodes<Leaf>,
         style: &egui::Style,

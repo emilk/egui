@@ -227,7 +227,7 @@ impl<Leaf> Nodes<Leaf> {
         self.rects.insert(node_id, rect);
 
         if let Node::Branch(branch) = &mut node {
-            branch.layout(self, style, behavior, rect);
+            branch.layout_recursive(self, style, behavior, rect);
         }
 
         self.nodes.insert(node_id, node);
@@ -296,7 +296,7 @@ impl<Leaf> Nodes<Leaf> {
 
             branch.simplify_children(|child| self.simplify(options, child));
 
-            if branch.get_layout() == Layout::Tabs {
+            if branch.layout() == Layout::Tabs {
                 if options.prune_empty_tabs && branch.is_empty() {
                     log::debug!("Simplify: removing empty tabs node");
                     return SimplifyAction::Remove;
@@ -346,7 +346,7 @@ impl<Leaf> Nodes<Leaf> {
                 }
             }
             Node::Branch(branch) => {
-                let is_tabs = branch.get_layout() == Layout::Tabs;
+                let is_tabs = branch.layout() == Layout::Tabs;
                 for &child in branch.children() {
                     self.make_all_leaves_children_of_tabs(is_tabs, child);
                 }

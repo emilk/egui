@@ -16,9 +16,15 @@
 //! The user needs to implement this in order to specify the `ui` of each `Leaf` and
 //! the tab name of leaves (if there are tab nodes).
 //!
-//! ## Shortcomings
-//! We use real recursion, so if your trees get too deep you will get a stack overflow.
+//! ## Shares
+//! The relative sizes of linear layout (horizontal or vertical) and grid columns and rows are spcified by _shares_.
+//! If the shares are `1,2,3` it means the first element gets `1/6` of the space, the second `2/6`, and the third `3/6`.
+//! The default share size is `1`, and when resizing the shares are restributed so that
+//! the total shares are always aproximately the same as the number of rows/columns.
+//! This makes it easy to add new rows/columns.
 //!
+//! ## Shortcomings
+//! The implementation is recursive, so if your trees get too deep you will get a stack overflow.
 //!
 //! ## Future improvements
 //! * Easy per-tab close-buttons
@@ -93,7 +99,7 @@ impl<Leaf> Node<Leaf> {
     fn layout(&self) -> Option<Layout> {
         match self {
             Node::Leaf(_) => None,
-            Node::Branch(branch) => Some(branch.get_layout()),
+            Node::Branch(branch) => Some(branch.layout()),
         }
     }
 }

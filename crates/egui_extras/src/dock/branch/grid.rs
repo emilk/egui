@@ -198,8 +198,6 @@ impl Grid {
         ui: &mut egui::Ui,
         node_id: NodeId,
     ) {
-        // Grid drops are handled during layout. TODO: handle here instead.
-
         for &child in &self.children {
             nodes.node_ui(behavior, drop_context, ui, child);
         }
@@ -425,7 +423,10 @@ fn shrink_shares<Leaf>(
 }
 
 fn sizes_from_shares(shares: &[f32], available_size: f32, gap_width: f32) -> Vec<f32> {
-    assert!(!shares.is_empty());
+    if shares.is_empty() {
+        return vec![];
+    }
+
     let available_size = available_size - gap_width * (shares.len() - 1) as f32;
     let available_size = available_size.at_least(0.0);
 

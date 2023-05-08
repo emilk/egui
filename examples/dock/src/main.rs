@@ -263,7 +263,7 @@ fn tree_ui(
         .show(ui, |ui| match &mut node {
             dock::Node::Leaf(_) => {}
             dock::Node::Branch(branch) => {
-                let mut layout = branch.get_layout();
+                let mut layout = branch.layout();
                 egui::ComboBox::from_label("Layout")
                     .selected_text(format!("{:?}", layout))
                     .show_ui(ui, |ui| {
@@ -272,7 +272,7 @@ fn tree_ui(
                                 .clicked();
                         }
                     });
-                if layout != branch.get_layout() {
+                if layout != branch.layout() {
                     branch.set_layout(layout);
                 }
 

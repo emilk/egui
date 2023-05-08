@@ -25,7 +25,7 @@ pub trait Behavior<Leaf> {
         if let Some(node) = nodes.nodes.get(&node_id) {
             match node {
                 Node::Leaf(leaf) => self.tab_title_for_leaf(leaf),
-                Node::Branch(branch) => format!("{:?}", branch.get_layout()).into(),
+                Node::Branch(branch) => format!("{:?}", branch.layout()).into(),
             }
         } else {
             "MISSING NODE".into()
