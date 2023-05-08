@@ -88,11 +88,14 @@ impl Tabs {
             .rect_filled(ui.max_rect(), 0.0, behavior.tab_bar_color(ui.visuals()));
 
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            // Add buttons such as "add new tab"
             behavior.top_bar_rtl_ui(ui, node_id);
 
             ui.spacing_mut().item_spacing.x = 0.0; // Tabs have spacing built-in
 
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                ui.set_clip_rect(ui.max_rect()); // Don't cover the `rtl_ui` buttons.
+
                 for (i, &child_id) in self.children.iter().enumerate() {
                     let is_being_dragged = is_being_dragged(ui.ctx(), child_id);
 
