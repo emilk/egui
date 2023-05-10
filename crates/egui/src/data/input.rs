@@ -534,6 +534,7 @@ pub struct ModifierNames<'a> {
     pub ctrl: &'a str,
     pub shift: &'a str,
     pub mac_cmd: &'a str,
+    pub mac_alt: &'a str,
 
     /// What goes between the names
     pub concat: &'a str,
@@ -547,6 +548,7 @@ impl ModifierNames<'static> {
         ctrl: "^",
         shift: "⇧",
         mac_cmd: "⌘",
+        mac_alt: "⌥",
         concat: "",
     };
 
@@ -557,6 +559,7 @@ impl ModifierNames<'static> {
         ctrl: "Ctrl",
         shift: "Shift",
         mac_cmd: "Cmd",
+        mac_alt: "Option",
         concat: "+",
     };
 }
@@ -577,7 +580,7 @@ impl<'a> ModifierNames<'a> {
         if is_mac {
             append_if(modifiers.ctrl, self.ctrl);
             append_if(modifiers.shift, self.shift);
-            append_if(modifiers.alt, self.alt);
+            append_if(modifiers.alt, self.mac_alt);
             append_if(modifiers.mac_cmd || modifiers.command, self.mac_cmd);
         } else {
             append_if(modifiers.ctrl || modifiers.command, self.ctrl);
