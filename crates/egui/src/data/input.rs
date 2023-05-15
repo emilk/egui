@@ -510,6 +510,65 @@ impl Modifiers {
 
         true
     }
+
+    /// Whether another set of modifiers is contained in this set of modifiers with proper handling of [`Self::command`].
+    ///
+    /// ```
+    /// # use egui::Modifiers;
+    /// assert!(Modifiers::default().contains(Modifiers::default()));
+    /// assert!(Modifiers::CTRL.contains(Modifiers::default()));
+    /// assert!(Modifiers::CTRL.contains(Modifiers::CTRL));
+    /// assert!(Modifiers::CTRL.contains(Modifiers::COMMAND));
+    /// assert!(Modifiers::MAC_CMD.contains(Modifiers::COMMAND));
+    /// assert!(Modifiers::COMMAND.contains(Modifiers::MAC_CMD));
+    /// assert!(Modifiers::COMMAND.contains(Modifiers::CTRL));
+    /// assert!(!(Modifiers::ALT | Modifiers::CTRL).contains(Modifiers::SHIFT));
+    /// assert!((Modifiers::CTRL | Modifiers::SHIFT).contains(Modifiers::CTRL));
+    /// assert!(!Modifiers::CTRL.contains(Modifiers::CTRL | Modifiers::SHIFT));
+    /// ```
+    pub fn contains(&self, query: Modifiers) -> bool {
+        if query == Modifiers::default() {
+            return true;
+        }
+
+        let Modifiers {
+            alt,
+            ctrl,
+            shift,
+            mac_cmd,
+            command,
+        } = *self;
+
+        if alt && query.alt {
+            return self.contains(Modifiers {
+                alt: false,
+                ..query
+            });
+        }
+        if shift && query.shift {
+            return self.contains(Modifiers {
+                shift: false,
+                ..query
+            });
+        }
+
+        if (ctrl || command) && (query.ctrl || query.command) {
+            return self.contains(Modifiers {
+                command: false,
+                ctrl: false,
+                ..query
+            });
+        }
+        if (mac_cmd || command) && (query.mac_cmd || query.command) {
+            return self.contains(Modifiers {
+                mac_cmd: false,
+                command: false,
+                ..query
+            });
+        }
+
+        false
+    }
 }
 
 impl std::ops::BitOr for Modifiers {
