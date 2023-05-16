@@ -5,8 +5,9 @@ use eframe::{
 
 use crate::WrapApp;
 
-#[wasm_bindgen]
+/// Our handle to the web app from JavaScript.
 #[derive(Clone)]
+#[wasm_bindgen]
 pub struct WebHandle {
     runner: WebRunner,
 }
@@ -28,11 +29,10 @@ impl WebHandle {
     /// Call this once from JavaScript to start your app.
     #[wasm_bindgen]
     pub async fn start(&self, canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
-        let web_options = eframe::WebOptions::default();
         self.runner
             .start(
                 canvas_id,
-                web_options,
+                eframe::WebOptions::default(),
                 Box::new(|cc| Box::new(WrapApp::new(cc))),
             )
             .await
@@ -51,7 +51,7 @@ impl WebHandle {
         }
     }
 
-    /// The JavaScript can check wether or not your app has crashed:
+    /// The JavaScript can check whether or not your app has crashed:
     #[wasm_bindgen]
     pub fn has_panicked(&self) -> bool {
         self.runner.has_panicked()

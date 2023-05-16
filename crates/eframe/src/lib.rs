@@ -42,17 +42,18 @@
 //!
 //! ## Usage, web:
 //! ``` no_run
-//! # #![cfg(target_arch = "wasm32")]
-//!
+//! # #[cfg(target_arch = "wasm32")]
 //! use wasm_bindgen::prelude::*;
 //!
-//! /// Your hadle to the web app from JavaScript.
-//! #[wasm_bindgen]
+//! /// Your handle to the web app from JavaScript.
+//! # #[cfg(target_arch = "wasm32")]
 //! #[derive(Clone)]
+//! #[wasm_bindgen]
 //! pub struct WebHandle {
 //!     runner: WebRunner,
 //! }
 //!
+//! # #[cfg(target_arch = "wasm32")]
 //! #[wasm_bindgen]
 //! impl WebHandle {
 //!     /// Installs a panic hook, then returns.
@@ -70,15 +71,16 @@
 //!     /// Call this once from JavaScript to start your app.
 //!     #[wasm_bindgen]
 //!     pub async fn start(&self, canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
-//!         let web_options = eframe::WebOptions::default();
 //!         self.runner
 //!             .start(
 //!                 canvas_id,
-//!                 web_options,
+//!                 eframe::WebOptions::default(),
 //!                 Box::new(|cc| Box::new(MyEguiApp::new(cc))),
 //!             )
 //!             .await
 //!     }
+//!
+//!     // The following are optional:
 //!
 //!     #[wasm_bindgen]
 //!     pub fn destroy(&self) {
@@ -93,7 +95,7 @@
 //!         }
 //!     }
 //!
-//!     /// The JavaScript can check wether or not your app has crashed:
+//!     /// The JavaScript can check whether or not your app has crashed:
 //!     #[wasm_bindgen]
 //!     pub fn has_panicked(&self) -> bool {
 //!         self.runner.has_panicked()
