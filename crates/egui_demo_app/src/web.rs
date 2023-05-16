@@ -17,7 +17,7 @@ impl WebHandle {
     #[allow(clippy::new_without_default)]
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        // Redirect tracing to console.log and friends:
+        // Redirect [`log`] message to `console.log` and friends:
         eframe::web::WebLogger::init(log::LevelFilter::Debug).ok();
 
         // Install a panic handler right away so we can catch any panics
@@ -54,6 +54,16 @@ impl WebHandle {
     pub fn destroy(&self) {
         if let Some(runner) = self.runner.lock().take() {
             runner.destroy();
+        }
+    }
+
+    /// Example on how to call into your app from JavaScript.
+    #[wasm_bindgen]
+    pub fn example(&self) {
+        if let Some(runner) = &*self.runner.lock() {
+            if let Some(_app) = runner.app_mut::<WrapApp>() {
+                // _app.example();
+            }
         }
     }
 

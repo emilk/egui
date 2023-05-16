@@ -294,7 +294,7 @@ impl AppRunner {
             .as_any_mut()
             .expect("Your app must implement `as_any_mut`, but it doesn't")
             .downcast_mut::<ConcreteApp>()
-            .unwrap()
+            .expect("app_mut got the wrong type of App")
     }
 
     pub fn auto_save_if_needed(&mut self) {
@@ -508,6 +508,17 @@ impl AppRunnerRef {
                 Some(lock)
             }
         }
+    }
+
+    /// Get mutable access to the concrete [`App`] we enclose.
+    ///
+    /// This will panic if your app does not implement [`App::as_any_mut`],
+    /// and return `None` if this  runner has panicked.
+    pub fn app_mut<ConcreteApp: 'static + App>(
+        &self,
+    ) -> Option<std::cell::RefMut<'_, ConcreteApp>> {
+        self.try_lock()
+            .map(|lock| std::cell::RefMut::map(lock, |runner| runner.app_mut::<ConcreteApp>()))
     }
 
     /// Convenience function to reduce boilerplate and ensure that all event handlers
