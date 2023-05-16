@@ -169,64 +169,6 @@ fn test_parse_query() {
 
 // ----------------------------------------------------------------------------
 
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    fn error(msg: String);
-
-    type Error;
-
-    #[wasm_bindgen(constructor)]
-    fn new() -> Error;
-
-    #[wasm_bindgen(structural, method, getter)]
-    fn stack(error: &Error) -> String;
-}
-
-#[derive(Clone, Debug)]
-pub struct PanicSummary {
-    message: String,
-    callstack: String,
-}
-
-impl PanicSummary {
-    pub fn new(info: &std::panic::PanicInfo<'_>) -> Self {
-        let message = info.to_string();
-        let callstack = Error::new().stack();
-        Self { message, callstack }
-    }
-
-    pub fn message(&self) -> String {
-        self.message.clone()
-    }
-
-    pub fn callstack(&self) -> String {
-        self.callstack.clone()
-    }
-}
-
-/// Handle to information about any panic than has occurred
-#[derive(Clone, Default)]
-pub struct PanicHandler {
-    summary: Option<PanicSummary>,
-}
-
-impl PanicHandler {
-    pub fn has_panicked(&self) -> bool {
-        self.summary.is_some()
-    }
-
-    pub fn panic_summary(&self) -> Option<PanicSummary> {
-        self.summary.clone()
-    }
-
-    pub fn on_panic(&mut self, info: &std::panic::PanicInfo<'_>) {
-        self.summary = Some(PanicSummary::new(info));
-    }
-}
-
-// ----------------------------------------------------------------------------
-
 pub struct AppRunner {
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
@@ -495,7 +437,7 @@ pub struct AppRunnerRef {
     runner: Rc<RefCell<AppRunner>>,
 
     /// Have we ever panicked?
-    panic_handler: Arc<Mutex<PanicHandler>>,
+    panic_handler: PanicHandler,
 
     /// In case of a panic, unsubscribe these.
     /// They have to be in a separate `Arc` so that we don't need to pass them to
@@ -504,17 +446,17 @@ pub struct AppRunnerRef {
 }
 
 impl AppRunnerRef {
-    pub fn new(runner: AppRunner) -> Self {
+    pub fn new(panic_handler: PanicHandler, runner: AppRunner) -> Self {
         Self {
+            panic_handler,
             runner: Rc::new(RefCell::new(runner)),
-            panic_handler: Arc::new(Mutex::new(Default::default())),
             events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
         }
     }
 
     /// Returns true if there has been a panic.
     fn unsubscribe_if_panicked(&self) {
-        if self.panic_handler.lock().has_panicked() {
+        if self.panic_handler.has_panicked() {
             // Unsubscribe from all events so that we don't get any more callbacks
             // that will try to access the poisoned runner.
             self.unsubscribe_from_all_events();
@@ -538,13 +480,7 @@ impl AppRunnerRef {
     /// Returns true if there has been a panic.
     pub fn has_panicked(&self) -> bool {
         self.unsubscribe_if_panicked();
-        self.panic_handler.lock().has_panicked()
-    }
-
-    /// Returns `Some` if there has been a panic.
-    pub fn panic_summary(&self) -> Option<PanicSummary> {
-        self.unsubscribe_if_panicked();
-        self.panic_handler.lock().panic_summary()
+        self.panic_handler.has_panicked()
     }
 
     pub fn destroy(&self) {
@@ -557,7 +493,12 @@ impl AppRunnerRef {
     /// Returns `None` if there has been a panic, or if we have been destroyed.
     /// In that case, just return to JS.
     pub fn try_lock(&self) -> Option<std::cell::RefMut<'_, AppRunner>> {
-        if self.has_panicked() {
+        self.unsubscribe_if_panicked();
+
+        if self.panic_handler.has_panicked() {
+            // Unsubscribe from all events so that we don't get any more callbacks
+            // that will try to access the poisoned runner.
+            self.unsubscribe_from_all_events();
             None
         } else {
             let lock = self.runner.try_borrow_mut().ok()?;
@@ -668,6 +609,7 @@ impl EventToUnsubscribe {
 /// #[cfg(target_arch = "wasm32")]
 /// #[wasm_bindgen]
 /// pub async fn start(canvas_id: &str) -> Result<WebHandle, eframe::wasm_bindgen::JsValue> {
+///     let panic_handler = eframe::web::PanicHandler::install();
 ///     let web_options = eframe::WebOptions::default();
 ///     eframe::start_web(
 ///         canvas_id,
@@ -683,6 +625,7 @@ impl EventToUnsubscribe {
 /// Failing to initialize WebGL graphics.
 pub async fn start_web(
     canvas_id: &str,
+    panic_handler: PanicHandler,
     web_options: crate::WebOptions,
     app_creator: epi::AppCreator,
 ) -> Result<AppRunnerRef, JsValue> {
@@ -694,7 +637,7 @@ pub async fn start_web(
 
     let mut runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
     runner.warm_up()?;
-    let runner_ref = AppRunnerRef::new(runner);
+    let runner_ref = AppRunnerRef::new(panic_handler, runner);
 
     // Install events:
     {
@@ -706,21 +649,6 @@ pub async fn start_web(
             super::events::install_color_scheme_change_event(&runner_ref)?;
         }
         super::events::paint_and_schedule(&runner_ref)?;
-    }
-
-    // Instal panic handler:
-    {
-        // Disable all event handlers on panic
-        let previous_hook = std::panic::take_hook();
-        let panic_handler = runner_ref.panic_handler.clone();
-
-        std::panic::set_hook(Box::new(move |panic_info| {
-            log::info!("eframe detected a panic");
-            panic_handler.lock().on_panic(panic_info);
-
-            // Propagate panic info to the previously registered panic hook
-            previous_hook(panic_info);
-        }));
     }
 
     Ok(runner_ref)

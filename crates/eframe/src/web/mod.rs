@@ -5,11 +5,13 @@
 pub mod backend;
 mod events;
 mod input;
+mod panic_handler;
 pub mod screen_reader;
 pub mod storage;
 mod text_agent;
 mod web_logger;
 
+pub use panic_handler::{PanicHandler, PanicSummary};
 pub use web_logger::WebLogger;
 
 #[cfg(not(any(feature = "glow", feature = "wgpu")))]
@@ -32,7 +34,6 @@ pub use events::*;
 pub use storage::*;
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 use egui::Vec2;
 use wasm_bindgen::prelude::*;
