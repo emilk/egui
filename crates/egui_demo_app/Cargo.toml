@@ -29,7 +29,7 @@ wgpu = ["eframe/wgpu", "bytemuck"]
 
 
 [dependencies]
-chrono = { version = "0.4", features = ["js-sys", "wasmbind"] }
+chrono = { version = "0.4", default-features = false, features = ["js-sys", "wasmbind"] }
 eframe = { version = "0.21.0", path = "../eframe", default-features = false }
 egui = { version = "0.21.0", path = "../egui", features = [
   "extra_debug_asserts",
