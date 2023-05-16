@@ -3,7 +3,6 @@
 #![allow(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
 
 mod app_runner;
-mod app_runner_ref;
 pub mod backend;
 mod events;
 mod input;
@@ -12,11 +11,12 @@ pub mod screen_reader;
 pub mod storage;
 mod text_agent;
 mod web_logger;
+mod web_runner;
 
 pub(crate) use app_runner::AppRunner;
-pub use app_runner_ref::AppRunnerRef;
 pub use panic_handler::{PanicHandler, PanicSummary};
 pub use web_logger::WebLogger;
+pub use web_runner::WebRunner;
 
 #[cfg(not(any(feature = "glow", feature = "wgpu")))]
 compile_error!("You must enable either the 'glow' or 'wgpu' feature");

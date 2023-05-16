@@ -17,14 +17,14 @@ use super::{events, AppRunner, PanicHandler};
 ///
 /// #[wasm_bindgen]
 /// pub struct WebHandle {
-///     runner: AppRunnerRef,
+///     runner: WebRunner,
 /// }
 ///
 /// /// Call this once from JavaScript.
 /// #[wasm_bindgen]
 /// pub async fn start(canvas_id: &str) -> Result<WebHandle, eframe::wasm_bindgen::JsValue> {
 ///     let web_options = eframe::WebOptions::default();
-///     let runner = AppRunnerRef::new();
+///     let runner = WebRunner::new();
 ///     runner.start(
 ///         canvas_id,
 ///         web_options,
@@ -35,7 +35,7 @@ use super::{events, AppRunner, PanicHandler};
 /// }
 /// ```
 #[derive(Clone)]
-pub struct AppRunnerRef {
+pub struct WebRunner {
     /// Have we ever panicked?
     panic_handler: PanicHandler,
 
@@ -49,7 +49,7 @@ pub struct AppRunnerRef {
     events_to_unsubscribe: Rc<RefCell<Vec<EventToUnsubscribe>>>,
 }
 
-impl AppRunnerRef {
+impl WebRunner {
     // Will install a panic handler that will catch and log any panics
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {

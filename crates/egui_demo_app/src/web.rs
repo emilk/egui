@@ -1,13 +1,14 @@
 use eframe::{
     wasm_bindgen::{self, prelude::*},
-    web::AppRunnerRef,
+    web::WebRunner,
 };
 
 use crate::WrapApp;
 
 #[wasm_bindgen]
+#[derive(Clone)]
 pub struct WebHandle {
-    runner: AppRunnerRef,
+    runner: WebRunner,
 }
 
 #[wasm_bindgen]
@@ -19,7 +20,7 @@ impl WebHandle {
         eframe::web::WebLogger::init(log::LevelFilter::Debug).ok();
 
         Self {
-            runner: AppRunnerRef::new(),
+            runner: WebRunner::new(),
         }
     }
 
@@ -36,8 +37,7 @@ impl WebHandle {
                 web_options,
                 Box::new(|cc| Box::new(WrapApp::new(cc))),
             )
-            .await?;
-        Ok(())
+            .await
     }
 
     #[wasm_bindgen]

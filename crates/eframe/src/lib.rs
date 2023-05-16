@@ -48,7 +48,7 @@
 //! /// Call this once from the HTML.
 //! #[cfg(target_arch = "wasm32")]
 //! #[wasm_bindgen]
-//! pub async fn start(canvas_id: &str) -> Result<AppRunnerRef, eframe::wasm_bindgen::JsValue> {
+//! pub async fn start(canvas_id: &str) -> Result<WebRunner, eframe::wasm_bindgen::JsValue> {
 //!     let web_options = eframe::WebOptions::default();
 //!     eframe::start_web(canvas_id, web_options, Box::new(|cc| Box::new(MyEguiApp::new(cc)))).await
 //! }
@@ -91,7 +91,7 @@ pub use web_sys;
 pub mod web;
 
 #[cfg(target_arch = "wasm32")]
-pub use web::AppRunnerRef;
+pub use web::WebRunner;
 
 // ----------------------------------------------------------------------------
 // When compiling natively
