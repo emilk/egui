@@ -3,20 +3,59 @@ use std::sync::Arc;
 use egui::mutex::Mutex;
 use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    fn error(msg: String);
+/// Detects panics, logs them using `console.error`, and stores the panics message and callstack.
+///
+/// This lets you query `PanicHandler` for the panic message (if any) so you can show it in the HTML.
+#[derive(Clone)]
+pub struct PanicHandler(Arc<Mutex<PanicHandlerInner>>);
 
-    type Error;
+impl PanicHandler {
+    /// Install a panic hook.
+    pub fn install() -> Self {
+        let handler = Self(Arc::new(Mutex::new(Default::default())));
 
-    #[wasm_bindgen(constructor)]
-    fn new() -> Error;
+        let handler_clone = handler.clone();
+        let previous_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |panic_info| {
+            let summary = PanicSummary::new(panic_info);
 
-    #[wasm_bindgen(structural, method, getter)]
-    fn stack(error: &Error) -> String;
+            // Log it using console.error
+            error(format!(
+                "{}\n\nStack:\n\n{}",
+                summary.message(),
+                summary.callstack()
+            ));
+
+            // Remember the summary:
+            handler_clone.0.lock().summary = Some(summary);
+
+            // Propagate panic info to the previously registered panic hook
+            previous_hook(panic_info);
+        }));
+
+        handler
+    }
+
+    /// Has there been a panic?
+    pub fn has_panicked(&self) -> bool {
+        self.0.lock().summary.is_some()
+    }
+
+    /// What was the panic message and callstack?
+    pub fn panic_summary(&self) -> Option<PanicSummary> {
+        self.0.lock().summary.clone()
+    }
 }
 
+#[derive(Clone, Default)]
+struct PanicHandlerInner {
+    summary: Option<PanicSummary>,
+}
+
+/// Contains a summary about a panics.
+///
+/// This is basically a human-readable version of [`std::panic::PanicInfo`]
+/// with an added callstack.
 #[derive(Clone, Debug)]
 pub struct PanicSummary {
     message: String,
@@ -39,56 +78,16 @@ impl PanicSummary {
     }
 }
 
-/// Handle to information about any panic than has occurred
-#[derive(Clone, Default)]
-struct PanicHandlerInner {
-    summary: Option<PanicSummary>,
-}
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn error(msg: String);
 
-impl PanicHandlerInner {
-    pub fn has_panicked(&self) -> bool {
-        self.summary.is_some()
-    }
+    type Error;
 
-    pub fn panic_summary(&self) -> Option<PanicSummary> {
-        self.summary.clone()
-    }
+    #[wasm_bindgen(constructor)]
+    fn new() -> Error;
 
-    pub fn on_panic(&mut self, info: &std::panic::PanicInfo<'_>) {
-        self.summary = Some(PanicSummary::new(info));
-    }
-}
-
-/// Handle to information about any panic than has occurred.
-#[derive(Clone)]
-pub struct PanicHandler(Arc<Mutex<PanicHandlerInner>>);
-
-impl PanicHandler {
-    pub fn install() -> Self {
-        let handler = Self(Arc::new(Mutex::new(Default::default())));
-
-        let handler_clone = handler.clone();
-        let previous_hook = std::panic::take_hook();
-        std::panic::set_hook(Box::new(move |panic_info| {
-            log::info!("eframe detected a panic");
-            handler_clone.on_panic(panic_info);
-
-            // Propagate panic info to the previously registered panic hook
-            previous_hook(panic_info);
-        }));
-
-        handler
-    }
-
-    pub fn has_panicked(&self) -> bool {
-        self.0.lock().has_panicked()
-    }
-
-    pub fn panic_summary(&self) -> Option<PanicSummary> {
-        self.0.lock().panic_summary()
-    }
-
-    fn on_panic(&self, info: &std::panic::PanicInfo<'_>) {
-        self.0.lock().on_panic(info);
-    }
+    #[wasm_bindgen(structural, method, getter)]
+    fn stack(error: &Error) -> String;
 }

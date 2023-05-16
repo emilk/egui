@@ -20,9 +20,6 @@ impl WebHandle {
         // Redirect tracing to console.log and friends:
         eframe::web::WebLogger::init(log::LevelFilter::Debug).ok();
 
-        // Make sure panics are logged using `console.error`.
-        console_error_panic_hook::set_once();
-
         // Install a panic handler right away so we can catch any panics
         // during initialization and report them to the user:
         let panic_handler = eframe::web::PanicHandler::install();
