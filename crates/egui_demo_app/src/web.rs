@@ -13,6 +13,7 @@ pub struct WebHandle {
 
 #[wasm_bindgen]
 impl WebHandle {
+    /// Installs a panic hook, then returns.
     #[allow(clippy::new_without_default)]
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
@@ -24,10 +25,7 @@ impl WebHandle {
         }
     }
 
-    /// This is the entry-point for all the web-assembly.
-    ///
-    /// This is called once from the HTML.
-    /// It loads the app, installs some callbacks, then returns.
+    /// Call this once from JavaScript to start your app.
     #[wasm_bindgen]
     pub async fn start(&self, canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
         let web_options = eframe::WebOptions::default();
@@ -53,6 +51,7 @@ impl WebHandle {
         }
     }
 
+    /// The JavaScript can check wether or not your app has crashed:
     #[wasm_bindgen]
     pub fn has_panicked(&self) -> bool {
         self.runner.has_panicked()

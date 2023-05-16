@@ -10,30 +10,7 @@ use super::{events, AppRunner, PanicHandler};
 ///
 /// This is cheap to clone.
 ///
-/// ``` no_run
-/// #![cfg(target_arch = "wasm32")]
-///
-/// use wasm_bindgen::prelude::*;
-///
-/// #[wasm_bindgen]
-/// pub struct WebHandle {
-///     runner: WebRunner,
-/// }
-///
-/// /// Call this once from JavaScript.
-/// #[wasm_bindgen]
-/// pub async fn start(canvas_id: &str) -> Result<WebHandle, eframe::wasm_bindgen::JsValue> {
-///     let web_options = eframe::WebOptions::default();
-///     let runner = WebRunner::new();
-///     runner.start(
-///         canvas_id,
-///         web_options,
-///         Box::new(|cc| Box::new(MyEguiApp::new(cc))),
-///     )
-///     .await?;
-///     Ok(WebHandle { runner })
-/// }
-/// ```
+/// See [the crate level docs](crate) for an example.
 #[derive(Clone)]
 pub struct WebRunner {
     /// Have we ever panicked?
