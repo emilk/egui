@@ -2,14 +2,12 @@ use eframe::{
     wasm_bindgen::{self, prelude::*},
     web::AppRunnerRef,
 };
-use egui::mutex::Mutex;
 
 use crate::WrapApp;
 
 #[wasm_bindgen]
 pub struct WebHandle {
-    panic_handler: eframe::web::PanicHandler,
-    runner: Mutex<Option<AppRunnerRef>>,
+    runner: AppRunnerRef,
 }
 
 #[wasm_bindgen]
@@ -20,13 +18,8 @@ impl WebHandle {
         // Redirect [`log`] message to `console.log` and friends:
         eframe::web::WebLogger::init(log::LevelFilter::Debug).ok();
 
-        // Install a panic handler right away so we can catch any panics
-        // during initialization and report them to the user:
-        let panic_handler = eframe::web::PanicHandler::install();
-
         Self {
-            panic_handler,
-            runner: Mutex::new(None),
+            runner: AppRunnerRef::new(),
         }
     }
 
@@ -36,49 +29,42 @@ impl WebHandle {
     /// It loads the app, installs some callbacks, then returns.
     #[wasm_bindgen]
     pub async fn start(&self, canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
-        self.destroy();
-
         let web_options = eframe::WebOptions::default();
-        let runner = eframe::start_web(
-            canvas_id,
-            self.panic_handler.clone(),
-            web_options,
-            Box::new(|cc| Box::new(WrapApp::new(cc))),
-        )
-        .await?;
-        *self.runner.lock() = Some(runner);
+        self.runner
+            .start(
+                canvas_id,
+                web_options,
+                Box::new(|cc| Box::new(WrapApp::new(cc))),
+            )
+            .await?;
         Ok(())
     }
 
     #[wasm_bindgen]
     pub fn destroy(&self) {
-        if let Some(runner) = self.runner.lock().take() {
-            runner.destroy();
-        }
+        self.runner.destroy();
     }
 
     /// Example on how to call into your app from JavaScript.
     #[wasm_bindgen]
     pub fn example(&self) {
-        if let Some(runner) = &*self.runner.lock() {
-            if let Some(_app) = runner.app_mut::<WrapApp>() {
-                // _app.example();
-            }
+        if let Some(_app) = self.runner.app_mut::<WrapApp>() {
+            // _app.example();
         }
     }
 
     #[wasm_bindgen]
     pub fn has_panicked(&self) -> bool {
-        self.panic_handler.has_panicked()
+        self.runner.has_panicked()
     }
 
     #[wasm_bindgen]
     pub fn panic_message(&self) -> Option<String> {
-        self.panic_handler.panic_summary().map(|s| s.message())
+        self.runner.panic_summary().map(|s| s.message())
     }
 
     #[wasm_bindgen]
     pub fn panic_callstack(&self) -> Option<String> {
-        self.panic_handler.panic_summary().map(|s| s.callstack())
+        self.runner.panic_summary().map(|s| s.callstack())
     }
 }

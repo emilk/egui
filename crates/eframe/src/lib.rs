@@ -91,7 +91,7 @@ pub use web_sys;
 pub mod web;
 
 #[cfg(target_arch = "wasm32")]
-pub use web::start_web;
+pub use web::AppRunnerRef;
 
 // ----------------------------------------------------------------------------
 // When compiling natively

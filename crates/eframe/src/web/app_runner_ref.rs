@@ -6,9 +6,34 @@ use crate::{epi, App};
 
 use super::{events, AppRunner, PanicHandler};
 
-/// This is how we access the [`AppRunner`].
+/// This is how `eframe` runs your wepp application
 ///
 /// This is cheap to clone.
+///
+/// ``` no_run
+/// #![cfg(target_arch = "wasm32")]
+///
+/// use wasm_bindgen::prelude::*;
+///
+/// #[wasm_bindgen]
+/// pub struct WebHandle {
+///     runner: AppRunnerRef,
+/// }
+///
+/// /// Call this once from JavaScript.
+/// #[wasm_bindgen]
+/// pub async fn start(canvas_id: &str) -> Result<WebHandle, eframe::wasm_bindgen::JsValue> {
+///     let web_options = eframe::WebOptions::default();
+///     let runner = AppRunnerRef::new();
+///     runner.start(
+///         canvas_id,
+///         web_options,
+///         Box::new(|cc| Box::new(MyEguiApp::new(cc))),
+///     )
+///     .await?;
+///     Ok(WebHandle { runner })
+/// }
+/// ```
 #[derive(Clone)]
 pub struct AppRunnerRef {
     /// Have we ever panicked?
@@ -25,11 +50,15 @@ pub struct AppRunnerRef {
 }
 
 impl AppRunnerRef {
-    pub fn new(panic_handler: PanicHandler) -> Self {
+    // Will install a panic handler that will catch and log any panics
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
         #[cfg(not(web_sys_unstable_apis))]
         log::warn!(
             "eframe compiled without RUSTFLAGS='--cfg=web_sys_unstable_apis'. Copying text won't work."
         );
+
+        let panic_handler = PanicHandler::install();
 
         Self {
             panic_handler,
@@ -38,7 +67,11 @@ impl AppRunnerRef {
         }
     }
 
-    pub async fn initialize(
+    /// Create the application, install callbacks, and start running the app.
+    ///
+    /// # Errors
+    /// Failing to initialize graphics.
+    pub async fn start(
         &self,
         canvas_id: &str,
         web_options: crate::WebOptions,
@@ -67,6 +100,16 @@ impl AppRunnerRef {
         Ok(())
     }
 
+    /// Has there been a panic?
+    pub fn has_panicked(&self) -> bool {
+        self.panic_handler.has_panicked()
+    }
+
+    /// What was the panic message and callstack?
+    pub fn panic_summary(&self) -> Option<super::PanicSummary> {
+        self.panic_handler.panic_summary()
+    }
+
     fn unsubscribe_from_all_events(&self) {
         let events_to_unsubscribe: Vec<_> =
             std::mem::take(&mut *self.events_to_unsubscribe.borrow_mut());
@@ -91,7 +134,7 @@ impl AppRunnerRef {
 
     /// Returns `None` if there has been a panic, or if we have been destroyed.
     /// In that case, just return to JS.
-    pub fn try_lock(&self) -> Option<std::cell::RefMut<'_, AppRunner>> {
+    pub(crate) fn try_lock(&self) -> Option<std::cell::RefMut<'_, AppRunner>> {
         if self.panic_handler.has_panicked() {
             // Unsubscribe from all events so that we don't get any more callbacks
             // that will try to access the poisoned runner.

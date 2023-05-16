@@ -43,56 +43,7 @@ use web_sys::MediaQueryList;
 
 use input::*;
 
-use crate::{epi, Theme};
-
-// ----------------------------------------------------------------------------
-
-/// Install event listeners to register different input events
-/// and start running the given app.
-///
-/// ``` no_run
-/// #[cfg(target_arch = "wasm32")]
-/// use wasm_bindgen::prelude::*;
-///
-/// /// This is the entry-point for all the web-assembly.
-/// /// This is called from the HTML.
-/// /// It loads the app, installs some callbacks, then returns.
-/// /// It returns a handle to the running app that can be stopped calling `AppRunner::stop_web`.
-/// /// You can add more callbacks like this if you want to call in to your code.
-/// #[cfg(target_arch = "wasm32")]
-/// #[wasm_bindgen]
-/// pub struct WebHandle {
-///     handle: AppRunnerRef,
-/// }
-/// #[cfg(target_arch = "wasm32")]
-/// #[wasm_bindgen]
-/// pub async fn start(canvas_id: &str) -> Result<WebHandle, eframe::wasm_bindgen::JsValue> {
-///     let panic_handler = eframe::web::PanicHandler::install();
-///     let web_options = eframe::WebOptions::default();
-///     eframe::start_web(
-///         canvas_id,
-///         web_options,
-///         Box::new(|cc| Box::new(MyEguiApp::new(cc))),
-///     )
-///     .await
-///     .map(|handle| WebHandle { handle })
-/// }
-/// ```
-///
-/// # Errors
-/// Failing to initialize WebGL graphics.
-pub async fn start_web(
-    canvas_id: &str,
-    panic_handler: PanicHandler,
-    web_options: crate::WebOptions,
-    app_creator: epi::AppCreator,
-) -> Result<AppRunnerRef, JsValue> {
-    let runner_ref = AppRunnerRef::new(panic_handler);
-    runner_ref
-        .initialize(canvas_id, web_options, app_creator)
-        .await?;
-    Ok(runner_ref)
-}
+use crate::Theme;
 
 // ----------------------------------------------------------------------------
 
