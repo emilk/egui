@@ -7,7 +7,7 @@ pub fn paint_and_schedule(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
     fn paint_if_needed(runner: &mut AppRunner) -> Result<(), JsValue> {
         if runner.needs_repaint.when_to_repaint() <= now_sec() {
             runner.needs_repaint.clear();
-            let (repaint_after, clipped_primitives) = runner.logic()?;
+            let (repaint_after, clipped_primitives) = runner.logic();
             runner.paint(&clipped_primitives)?;
             runner
                 .needs_repaint

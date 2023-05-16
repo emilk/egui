@@ -12,7 +12,6 @@ pub struct AppRunner {
     pub(crate) input: super::WebInput,
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
-    pub(crate) is_destroyed: std::sync::Arc<super::IsDestroyed>,
     last_save_time: f64,
     screen_reader: super::screen_reader::ScreenReader,
     pub(crate) text_cursor_pos: Option<egui::Pos2>,
@@ -105,7 +104,6 @@ impl AppRunner {
             input: Default::default(),
             app,
             needs_repaint,
-            is_destroyed: Default::default(),
             last_save_time: now_sec(),
             screen_reader: Default::default(),
             text_cursor_pos: None,
@@ -154,32 +152,26 @@ impl AppRunner {
         self.painter.canvas_id()
     }
 
-    pub fn warm_up(&mut self) -> Result<(), JsValue> {
+    pub fn warm_up(&mut self) {
         if self.app.warm_up_enabled() {
             let saved_memory: egui::Memory = self.egui_ctx.memory(|m| m.clone());
             self.egui_ctx
                 .memory_mut(|m| m.set_everything_is_visible(true));
-            self.logic()?;
+            self.logic();
             self.egui_ctx.memory_mut(|m| *m = saved_memory); // We don't want to remember that windows were huge.
             self.egui_ctx.clear_animations();
         }
-        Ok(())
     }
 
-    pub fn destroy(&mut self) {
-        if self.is_destroyed.fetch() {
-            log::warn!("App was destroyed already");
-        } else {
-            log::debug!("Destroying");
-            self.painter.destroy();
-            self.is_destroyed.set_true();
-        }
+    pub fn destroy(mut self) {
+        log::debug!("Destroying AppRunner");
+        self.painter.destroy();
     }
 
     /// Returns how long to wait until the next repaint.
     ///
     /// Call [`Self::paint`] later to paint
-    pub fn logic(&mut self) -> Result<(std::time::Duration, Vec<egui::ClippedPrimitive>), JsValue> {
+    pub fn logic(&mut self) -> (std::time::Duration, Vec<egui::ClippedPrimitive>) {
         let frame_start = now_sec();
 
         super::resize_canvas_to_screen_size(self.canvas_id(), self.app.max_size_points());
@@ -206,7 +198,8 @@ impl AppRunner {
         }
 
         self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
-        Ok((repaint_after, clipped_primitives))
+
+        (repaint_after, clipped_primitives)
     }
 
     /// Paint the results of the last call to [`Self::logic`].

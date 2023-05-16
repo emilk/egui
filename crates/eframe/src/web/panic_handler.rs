@@ -6,6 +6,8 @@ use wasm_bindgen::prelude::*;
 /// Detects panics, logs them using `console.error`, and stores the panics message and callstack.
 ///
 /// This lets you query `PanicHandler` for the panic message (if any) so you can show it in the HTML.
+///
+/// Chep to clone (ref-counted).
 #[derive(Clone)]
 pub struct PanicHandler(Arc<Mutex<PanicHandlerInner>>);
 

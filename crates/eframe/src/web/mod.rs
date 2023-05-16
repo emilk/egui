@@ -13,7 +13,7 @@ pub mod storage;
 mod text_agent;
 mod web_logger;
 
-pub use app_runner::AppRunner;
+pub(crate) use app_runner::AppRunner;
 pub use app_runner_ref::AppRunnerRef;
 pub use panic_handler::{PanicHandler, PanicSummary};
 pub use web_logger::WebLogger;
@@ -87,28 +87,10 @@ pub async fn start_web(
     web_options: crate::WebOptions,
     app_creator: epi::AppCreator,
 ) -> Result<AppRunnerRef, JsValue> {
-    #[cfg(not(web_sys_unstable_apis))]
-    log::warn!(
-        "eframe compiled without RUSTFLAGS='--cfg=web_sys_unstable_apis'. Copying text won't work."
-    );
-    let follow_system_theme = web_options.follow_system_theme;
-
-    let mut runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
-    runner.warm_up()?;
-    let runner_ref = AppRunnerRef::new(panic_handler, runner);
-
-    // Install events:
-    {
-        events::install_canvas_events(&runner_ref)?;
-        events::install_document_events(&runner_ref)?;
-        events::install_window_events(&runner_ref)?;
-        text_agent::install_text_agent(&runner_ref)?;
-        if follow_system_theme {
-            events::install_color_scheme_change_event(&runner_ref)?;
-        }
-        events::paint_and_schedule(&runner_ref)?;
-    }
-
+    let runner_ref = AppRunnerRef::new(panic_handler);
+    runner_ref
+        .initialize(canvas_id, web_options, app_creator)
+        .await?;
     Ok(runner_ref)
 }
 

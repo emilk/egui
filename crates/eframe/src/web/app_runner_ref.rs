@@ -2,20 +2,21 @@ use std::{cell::RefCell, rc::Rc};
 
 use wasm_bindgen::prelude::*;
 
-use crate::App;
+use crate::{epi, App};
 
-use super::{AppRunner, PanicHandler};
+use super::{events, AppRunner, PanicHandler};
 
 /// This is how we access the [`AppRunner`].
+///
 /// This is cheap to clone.
 #[derive(Clone)]
 pub struct AppRunnerRef {
-    /// If we ever panic during running, this mutex is poisoned.
-    /// So before we use it, we need to check `panic_handler`.
-    runner: Rc<RefCell<AppRunner>>,
-
     /// Have we ever panicked?
     panic_handler: PanicHandler,
+
+    /// If we ever panic during running, this RefCell is poisoned.
+    /// So before we use it, we need to check [`Self::panic_handler`].
+    runner: Rc<RefCell<Option<AppRunner>>>,
 
     /// In case of a panic, unsubscribe these.
     /// They have to be in a separate `Rc` so that we don't need to pass them to
@@ -24,12 +25,46 @@ pub struct AppRunnerRef {
 }
 
 impl AppRunnerRef {
-    pub fn new(panic_handler: PanicHandler, runner: AppRunner) -> Self {
+    pub fn new(panic_handler: PanicHandler) -> Self {
+        #[cfg(not(web_sys_unstable_apis))]
+        log::warn!(
+            "eframe compiled without RUSTFLAGS='--cfg=web_sys_unstable_apis'. Copying text won't work."
+        );
+
         Self {
             panic_handler,
-            runner: Rc::new(RefCell::new(runner)),
+            runner: Rc::new(RefCell::new(None)),
             events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
         }
+    }
+
+    pub async fn initialize(
+        &self,
+        canvas_id: &str,
+        web_options: crate::WebOptions,
+        app_creator: epi::AppCreator,
+    ) -> Result<(), JsValue> {
+        self.destroy();
+
+        let follow_system_theme = web_options.follow_system_theme;
+
+        let mut runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
+        runner.warm_up();
+        self.runner.replace(Some(runner));
+
+        // Install events:
+        {
+            events::install_canvas_events(self)?;
+            events::install_document_events(self)?;
+            events::install_window_events(self)?;
+            super::text_agent::install_text_agent(self)?;
+            if follow_system_theme {
+                events::install_color_scheme_change_event(self)?;
+            }
+            events::paint_and_schedule(self)?;
+        }
+
+        Ok(())
     }
 
     fn unsubscribe_from_all_events(&self) {
@@ -48,7 +83,8 @@ impl AppRunnerRef {
 
     pub fn destroy(&self) {
         self.unsubscribe_from_all_events();
-        if let Some(mut runner) = self.try_lock() {
+
+        if let Some(runner) = self.runner.replace(None) {
             runner.destroy();
         }
     }
@@ -63,11 +99,8 @@ impl AppRunnerRef {
             None
         } else {
             let lock = self.runner.try_borrow_mut().ok()?;
-            if lock.is_destroyed.fetch() {
-                None
-            } else {
-                Some(lock)
-            }
+            std::cell::RefMut::filter_map(lock, |lock| -> Option<&mut AppRunner> { lock.as_mut() })
+                .ok()
         }
     }
 
