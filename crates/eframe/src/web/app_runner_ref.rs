@@ -1,0 +1,165 @@
+use std::{cell::RefCell, rc::Rc};
+
+use wasm_bindgen::prelude::*;
+
+use crate::App;
+
+use super::{AppRunner, PanicHandler};
+
+/// This is how we access the [`AppRunner`].
+/// This is cheap to clone.
+#[derive(Clone)]
+pub struct AppRunnerRef {
+    /// If we ever panic during running, this mutex is poisoned.
+    /// So before we use it, we need to check `panic_handler`.
+    runner: Rc<RefCell<AppRunner>>,
+
+    /// Have we ever panicked?
+    panic_handler: PanicHandler,
+
+    /// In case of a panic, unsubscribe these.
+    /// They have to be in a separate `Rc` so that we don't need to pass them to
+    /// the panic handler, since they aren't `Send`.
+    events_to_unsubscribe: Rc<RefCell<Vec<EventToUnsubscribe>>>,
+}
+
+impl AppRunnerRef {
+    pub fn new(panic_handler: PanicHandler, runner: AppRunner) -> Self {
+        Self {
+            panic_handler,
+            runner: Rc::new(RefCell::new(runner)),
+            events_to_unsubscribe: Rc::new(RefCell::new(Default::default())),
+        }
+    }
+
+    fn unsubscribe_from_all_events(&self) {
+        let events_to_unsubscribe: Vec<_> =
+            std::mem::take(&mut *self.events_to_unsubscribe.borrow_mut());
+
+        if !events_to_unsubscribe.is_empty() {
+            log::debug!("Unsubscribing from {} events", events_to_unsubscribe.len());
+            for x in events_to_unsubscribe {
+                if let Err(err) = x.unsubscribe() {
+                    log::warn!("Failed to unsubscribe from event: {err:?}");
+                }
+            }
+        }
+    }
+
+    pub fn destroy(&self) {
+        self.unsubscribe_from_all_events();
+        if let Some(mut runner) = self.try_lock() {
+            runner.destroy();
+        }
+    }
+
+    /// Returns `None` if there has been a panic, or if we have been destroyed.
+    /// In that case, just return to JS.
+    pub fn try_lock(&self) -> Option<std::cell::RefMut<'_, AppRunner>> {
+        if self.panic_handler.has_panicked() {
+            // Unsubscribe from all events so that we don't get any more callbacks
+            // that will try to access the poisoned runner.
+            self.unsubscribe_from_all_events();
+            None
+        } else {
+            let lock = self.runner.try_borrow_mut().ok()?;
+            if lock.is_destroyed.fetch() {
+                None
+            } else {
+                Some(lock)
+            }
+        }
+    }
+
+    /// Get mutable access to the concrete [`App`] we enclose.
+    ///
+    /// This will panic if your app does not implement [`App::as_any_mut`],
+    /// and return `None` if this  runner has panicked.
+    pub fn app_mut<ConcreteApp: 'static + App>(
+        &self,
+    ) -> Option<std::cell::RefMut<'_, ConcreteApp>> {
+        self.try_lock()
+            .map(|lock| std::cell::RefMut::map(lock, |runner| runner.app_mut::<ConcreteApp>()))
+    }
+
+    /// Convenience function to reduce boilerplate and ensure that all event handlers
+    /// are dealt with in the same way.
+    ///
+    /// All events added with this method will automatically be unsubscribed on panic,
+    /// or when [`Self::destroy`] is called.
+    pub fn add_event_listener<E: wasm_bindgen::JsCast>(
+        &self,
+        target: &web_sys::EventTarget,
+        event_name: &'static str,
+        mut closure: impl FnMut(E, &mut AppRunner) + 'static,
+    ) -> Result<(), wasm_bindgen::JsValue> {
+        let runner_ref = self.clone();
+
+        // Create a JS closure based on the FnMut provided
+        let closure = Closure::wrap(Box::new(move |event: web_sys::Event| {
+            // Only call the wrapped closure if the egui code has not panicked
+            if let Some(mut runner_lock) = runner_ref.try_lock() {
+                // Cast the event to the expected event type
+                let event = event.unchecked_into::<E>();
+                closure(event, &mut runner_lock);
+            }
+        }) as Box<dyn FnMut(web_sys::Event)>);
+
+        // Add the event listener to the target
+        target.add_event_listener_with_callback(event_name, closure.as_ref().unchecked_ref())?;
+
+        let handle = TargetEvent {
+            target: target.clone(),
+            event_name: event_name.to_owned(),
+            closure,
+        };
+
+        // Remember it so we unsubscribe on panic.
+        // Otherwise we get calls into `self.runner` after it has been poisoned by a panic.
+        self.events_to_unsubscribe
+            .borrow_mut()
+            .push(EventToUnsubscribe::TargetEvent(handle));
+
+        Ok(())
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+struct TargetEvent {
+    target: web_sys::EventTarget,
+    event_name: String,
+    closure: Closure<dyn FnMut(web_sys::Event)>,
+}
+
+#[allow(unused)]
+struct IntervalHandle {
+    handle: i32,
+    closure: Closure<dyn FnMut()>,
+}
+
+enum EventToUnsubscribe {
+    TargetEvent(TargetEvent),
+
+    #[allow(unused)]
+    IntervalHandle(IntervalHandle),
+}
+
+impl EventToUnsubscribe {
+    pub fn unsubscribe(self) -> Result<(), JsValue> {
+        match self {
+            EventToUnsubscribe::TargetEvent(handle) => {
+                handle.target.remove_event_listener_with_callback(
+                    handle.event_name.as_str(),
+                    handle.closure.as_ref().unchecked_ref(),
+                )?;
+                Ok(())
+            }
+            EventToUnsubscribe::IntervalHandle(handle) => {
+                let window = web_sys::window().unwrap();
+                window.clear_interval_with_handle(handle.handle);
+                Ok(())
+            }
+        }
+    }
+}
