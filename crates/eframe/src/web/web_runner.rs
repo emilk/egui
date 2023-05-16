@@ -62,16 +62,17 @@ impl WebRunner {
         runner.warm_up();
         self.runner.replace(Some(runner));
 
-        // Install events:
         {
             events::install_canvas_events(self)?;
             events::install_document_events(self)?;
             events::install_window_events(self)?;
             super::text_agent::install_text_agent(self)?;
+
             if follow_system_theme {
                 events::install_color_scheme_change_event(self)?;
             }
-            events::paint_and_schedule(self)?;
+
+            events::request_animation_frame(self.clone())?;
         }
 
         Ok(())
