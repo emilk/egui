@@ -100,7 +100,6 @@
                 transform: rotate(360deg);
             }
         }
-
     </style>
 </head>
 
@@ -158,11 +157,11 @@
 
             // This call installs a bunch of callbacks and then returns:
 
-            const handle_one = new wasm_bindgen.WebHandle("canvas_id_one");
-            const handle_two = new wasm_bindgen.WebHandle("canvas_id_two");
+            const handle_one = new wasm_bindgen.WebHandle();
+            const handle_two = new wasm_bindgen.WebHandle();
 
-            Promise.all([handle_one, handle_two]).then((handles) => {
-                on_apps_started(handles[0], handles[1])
+            Promise.all([handle_one.start("canvas_id_one"), handle_two.start("canvas_id_two")]).then((handles) => {
+                on_apps_started(handle_one, handle_two)
             }).catch(on_error);
         }
 

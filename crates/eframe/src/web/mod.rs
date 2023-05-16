@@ -2,15 +2,21 @@
 
 #![allow(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
 
+mod app_runner;
 pub mod backend;
 mod events;
 mod input;
+mod panic_handler;
 pub mod screen_reader;
 pub mod storage;
 mod text_agent;
 mod web_logger;
+mod web_runner;
 
+pub(crate) use app_runner::AppRunner;
+pub use panic_handler::{PanicHandler, PanicSummary};
 pub use web_logger::WebLogger;
+pub use web_runner::WebRunner;
 
 #[cfg(not(any(feature = "glow", feature = "wgpu")))]
 compile_error!("You must enable either the 'glow' or 'wgpu' feature");
@@ -31,12 +37,9 @@ pub use backend::*;
 pub use events::*;
 pub use storage::*;
 
-use std::collections::BTreeMap;
-use std::sync::Arc;
-
 use egui::Vec2;
 use wasm_bindgen::prelude::*;
-use web_sys::{EventTarget, MediaQueryList};
+use web_sys::MediaQueryList;
 
 use input::*;
 
