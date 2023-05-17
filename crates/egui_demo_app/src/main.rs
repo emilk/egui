@@ -22,11 +22,6 @@ fn main() -> Result<(), eframe::Error> {
 
         initial_window_size: Some([1280.0, 1024.0].into()),
 
-        icon_data: Some(
-            eframe::IconData::try_from_png_bytes(&include_bytes!("../../../media/icon.png")[..])
-                .unwrap(),
-        ),
-
         #[cfg(feature = "wgpu")]
         renderer: eframe::Renderer::Wgpu,
 

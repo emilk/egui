@@ -11,7 +11,13 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/crates/eframe"
 categories = ["gui", "game-development"]
 keywords = ["egui", "gui", "gamedev"]
-include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+include = [
+  "../LICENSE-APACHE",
+  "../LICENSE-MIT",
+  "**/*.rs",
+  "Cargo.toml",
+  "data/icon.png",
+]
 
 [package.metadata.docs.rs]
 all-features = true
