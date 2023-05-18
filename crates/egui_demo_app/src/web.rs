@@ -1,38 +1,41 @@
 use eframe::{
     wasm_bindgen::{self, prelude::*},
-    web::AppRunnerRef,
+    web::WebRunner,
 };
 
 use crate::WrapApp;
 
+/// Our handle to the web app from JavaScript.
+#[derive(Clone)]
 #[wasm_bindgen]
 pub struct WebHandle {
-    runner: AppRunnerRef,
+    runner: WebRunner,
 }
 
 #[wasm_bindgen]
 impl WebHandle {
-    /// This is the entry-point for all the web-assembly.
-    ///
-    /// This is called once from the HTML.
-    /// It loads the app, installs some callbacks, then returns.
+    /// Installs a panic hook, then returns.
+    #[allow(clippy::new_without_default)]
     #[wasm_bindgen(constructor)]
-    pub async fn new(canvas_id: &str) -> Result<WebHandle, wasm_bindgen::JsValue> {
-        // Redirect tracing to console.log and friends:
+    pub fn new() -> Self {
+        // Redirect [`log`] message to `console.log` and friends:
         eframe::web::WebLogger::init(log::LevelFilter::Debug).ok();
 
-        // Make sure panics are logged using `console.error`.
-        console_error_panic_hook::set_once();
+        Self {
+            runner: WebRunner::new(),
+        }
+    }
 
-        let web_options = eframe::WebOptions::default();
-        let runner = eframe::start_web(
-            canvas_id,
-            web_options,
-            Box::new(|cc| Box::new(WrapApp::new(cc))),
-        )
-        .await?;
-
-        Ok(WebHandle { runner })
+    /// Call this once from JavaScript to start your app.
+    #[wasm_bindgen]
+    pub async fn start(&self, canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
+        self.runner
+            .start(
+                canvas_id,
+                eframe::WebOptions::default(),
+                Box::new(|cc| Box::new(WrapApp::new(cc))),
+            )
+            .await
     }
 
     #[wasm_bindgen]
@@ -40,9 +43,18 @@ impl WebHandle {
         self.runner.destroy();
     }
 
+    /// Example on how to call into your app from JavaScript.
+    #[wasm_bindgen]
+    pub fn example(&self) {
+        if let Some(_app) = self.runner.app_mut::<WrapApp>() {
+            // _app.example();
+        }
+    }
+
+    /// The JavaScript can check whether or not your app has crashed:
     #[wasm_bindgen]
     pub fn has_panicked(&self) -> bool {
-        self.runner.panic_summary().is_some()
+        self.runner.has_panicked()
     }
 
     #[wasm_bindgen]

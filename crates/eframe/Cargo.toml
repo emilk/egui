@@ -11,7 +11,13 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/crates/eframe"
 categories = ["gui", "game-development"]
 keywords = ["egui", "gui", "gamedev"]
-include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+include = [
+  "../LICENSE-APACHE",
+  "../LICENSE-MIT",
+  "**/*.rs",
+  "Cargo.toml",
+  "data/icon.png",
+]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -133,7 +139,7 @@ winapi = "0.3.9"
 bytemuck = "1.7"
 js-sys = "0.3"
 percent-encoding = "2.1"
-wasm-bindgen = "=0.2.84"
+wasm-bindgen = "0.2.86"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3.58", features = [
   "BinaryType",

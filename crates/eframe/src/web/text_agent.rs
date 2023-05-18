@@ -5,7 +5,7 @@ use std::{cell::Cell, rc::Rc};
 
 use wasm_bindgen::prelude::*;
 
-use super::{canvas_element, AppRunner, AppRunnerRef};
+use super::{canvas_element, AppRunner, WebRunner};
 
 static AGENT_ID: &str = "egui_text_agent";
 
@@ -21,7 +21,7 @@ pub fn text_agent() -> web_sys::HtmlInputElement {
 }
 
 /// Text event handler,
-pub fn install_text_agent(runner_ref: &AppRunnerRef) -> Result<(), JsValue> {
+pub fn install_text_agent(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let document = window.document().unwrap();
     let body = document.body().expect("document should have a body");

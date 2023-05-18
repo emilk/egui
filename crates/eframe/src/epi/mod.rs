@@ -260,10 +260,10 @@ pub struct NativeOptions {
     /// [drag_and_drop]: https://docs.rs/winit/latest/x86_64-pc-windows-msvc/winit/platform/windows/trait.WindowBuilderExtWindows.html#tymethod.with_drag_and_drop
     pub drag_and_drop_support: bool,
 
-    /// The application icon, e.g. in the Windows task bar etc.
+    /// The application icon, e.g. in the Windows task bar or the alt-tab menu.
     ///
-    /// This doesn't work on Mac and on Wayland.
-    /// See <https://docs.rs/winit/latest/winit/window/struct.Window.html#method.set_window_icon> for more.
+    /// The default icon is a white `e` on a black background (for "egui" or "eframe").
+    /// If you prefer the OS default, set this to `None`.
     pub icon_data: Option<IconData>,
 
     /// The initial (inner) position of the native window in points (logical pixels).
@@ -414,8 +414,12 @@ impl Default for NativeOptions {
             #[cfg(target_os = "macos")]
             fullsize_content: false,
 
+            // We set a default "egui" or "eframe" icon, which is usually more distinctive than the default OS icon.
+            icon_data: Some(
+                IconData::try_from_png_bytes(&include_bytes!("../../data/icon.png")[..]).unwrap(),
+            ),
+
             drag_and_drop_support: true,
-            icon_data: None,
             initial_window_pos: None,
             initial_window_size: None,
             min_window_size: None,

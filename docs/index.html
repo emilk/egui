@@ -91,7 +91,6 @@
                 transform: rotate(360deg);
             }
         }
-
     </style>
 </head>
 
@@ -133,17 +132,7 @@
         function on_wasm_loaded() {
             console.debug("Wasm loaded. Starting app…");
 
-            // This call installs a bunch of callbacks and then returns:
-            let handle = new wasm_bindgen.WebHandle("the_canvas_id");
-            handle.then(on_app_started).catch(on_error);
-        }
-
-        function on_app_started(handle) {
-            // Call `handle.destroy()` to stop. Uncomment to quick result:
-            // setTimeout(() => { handle.destroy(); handle.free()) }, 2000)
-
-            console.debug("App started.");
-            document.getElementById("center_text").innerHTML = '';
+            let handle = new wasm_bindgen.WebHandle();
 
             function check_for_panic() {
                 if (handle.has_panicked()) {
@@ -159,6 +148,9 @@
                         <p>
                             The egui app has crashed.
                         </p>
+                        <p style="font-size:10px" align="left">
+                            ${handle.panic_message()}
+                        </p>
                         <p style="font-size:14px">
                             See the console for details.
                         </p>
@@ -172,6 +164,16 @@
             }
 
             check_for_panic();
+
+            handle.start("the_canvas_id").then(on_app_started).catch(on_error);
+        }
+
+        function on_app_started(handle) {
+            // Call `handle.destroy()` to stop. Uncomment to quick result:
+            // setTimeout(() => { handle.destroy(); handle.free()) }, 2000)
+
+            console.debug("App started.");
+            document.getElementById("center_text").innerHTML = '';
         }
 
         function on_error(error) {

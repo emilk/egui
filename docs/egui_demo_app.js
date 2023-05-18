@@ -280,7 +280,7 @@ function handleError(f, args) {
         wasm.__wbindgen_exn_store(addHeapObject(e));
     }
 }
-function __wbg_adapter_584(arg0, arg1, arg2, arg3) {
+function __wbg_adapter_580(arg0, arg1, arg2, arg3) {
     wasm.wasm_bindgen__convert__closures__invoke2_mut__h125af29ab38d9781(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 
@@ -308,16 +308,21 @@ class WebHandle {
         wasm.__wbg_webhandle_free(ptr);
     }
     /**
-    * This is the entry-point for all the web-assembly.
-    *
-    * This is called once from the HTML.
-    * It loads the app, installs some callbacks, then returns.
-    * @param {string} canvas_id
+    * Installs a panic hook, then returns.
     */
-    constructor(canvas_id) {
+    constructor() {
+        const ret = wasm.webhandle_new();
+        return WebHandle.__wrap(ret);
+    }
+    /**
+    * Call this once from JavaScript to start your app.
+    * @param {string} canvas_id
+    * @returns {Promise<void>}
+    */
+    start(canvas_id) {
         const ptr0 = passStringToWasm0(canvas_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.webhandle_new(ptr0, len0);
+        const ret = wasm.webhandle_start(this.ptr, ptr0, len0);
         return takeObject(ret);
     }
     /**
@@ -326,6 +331,13 @@ class WebHandle {
         wasm.webhandle_destroy(this.ptr);
     }
     /**
+    * Example on how to call into your app from JavaScript.
+    */
+    example() {
+        wasm.webhandle_example(this.ptr);
+    }
+    /**
+    * The JavaScript can check wether or not your app has crashed:
     * @returns {boolean}
     */
     has_panicked() {
@@ -407,10 +419,6 @@ async function load(module, imports) {
 function getImports() {
     const imports = {};
     imports.wbg = {};
-    imports.wbg.__wbg_webhandle_new = function(arg0) {
-        const ret = WebHandle.__wrap(arg0);
-        return addHeapObject(ret);
-    };
     imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
         takeObject(arg0);
     };
@@ -426,24 +434,6 @@ function getImports() {
     imports.wbg.__wbindgen_string_new = function(arg0, arg1) {
         const ret = getStringFromWasm0(arg0, arg1);
         return addHeapObject(ret);
-    };
-    imports.wbg.__wbg_new_abda76e883ba8a5f = function() {
-        const ret = new Error();
-        return addHeapObject(ret);
-    };
-    imports.wbg.__wbg_stack_658279fe44541cf6 = function(arg0, arg1) {
-        const ret = getObject(arg1).stack;
-        const ptr0 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        getInt32Memory0()[arg0 / 4 + 1] = len0;
-        getInt32Memory0()[arg0 / 4 + 0] = ptr0;
-    };
-    imports.wbg.__wbg_error_f851667af71bcfc6 = function(arg0, arg1) {
-        try {
-            console.error(getStringFromWasm0(arg0, arg1));
-        } finally {
-            wasm.__wbindgen_free(arg0, arg1);
-        }
     };
     imports.wbg.__wbindgen_string_get = function(arg0, arg1) {
         const obj = getObject(arg1);
@@ -470,6 +460,13 @@ function getImports() {
     };
     imports.wbg.__wbg_warn_8b4e19d4032139f0 = function(arg0, arg1) {
         console.warn(getStringFromWasm0(arg0, arg1));
+    };
+    imports.wbg.__wbg_error_e62b64b85c2bc545 = function(arg0, arg1) {
+        try {
+            console.error(getStringFromWasm0(arg0, arg1));
+        } finally {
+            wasm.__wbindgen_free(arg0, arg1);
+        }
     };
     imports.wbg.__wbg_new_40620131643ca1cf = function() {
         const ret = new Error();
@@ -1573,7 +1570,7 @@ function getImports() {
                 const a = state0.a;
                 state0.a = 0;
                 try {
-                    return __wbg_adapter_584(a, state0.b, arg0, arg1);
+                    return __wbg_adapter_580(a, state0.b, arg0, arg1);
                 } finally {
                     state0.a = a;
                 }
@@ -1657,28 +1654,28 @@ function getImports() {
         const ret = wasm.memory;
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper2873 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 981, __wbg_adapter_28);
+    imports.wbg.__wbindgen_closure_wrapper2865 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 971, __wbg_adapter_28);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper2874 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 981, __wbg_adapter_31);
+    imports.wbg.__wbindgen_closure_wrapper2866 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 971, __wbg_adapter_31);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper2877 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 981, __wbg_adapter_34);
+    imports.wbg.__wbindgen_closure_wrapper2869 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 971, __wbg_adapter_34);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper3272 = function(arg0, arg1, arg2) {
-        const ret = makeClosure(arg0, arg1, 1143, __wbg_adapter_37);
+    imports.wbg.__wbindgen_closure_wrapper3248 = function(arg0, arg1, arg2) {
+        const ret = makeClosure(arg0, arg1, 1129, __wbg_adapter_37);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper3274 = function(arg0, arg1, arg2) {
-        const ret = makeClosure(arg0, arg1, 1143, __wbg_adapter_37);
+    imports.wbg.__wbindgen_closure_wrapper3250 = function(arg0, arg1, arg2) {
+        const ret = makeClosure(arg0, arg1, 1129, __wbg_adapter_37);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper3317 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 1166, __wbg_adapter_42);
+    imports.wbg.__wbindgen_closure_wrapper3293 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 1152, __wbg_adapter_42);
         return addHeapObject(ret);
     };
 
