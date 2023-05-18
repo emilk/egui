@@ -8,6 +8,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Add `char_limit` to `TextEdit` singleline mode to limit the amount of characters
 * ⚠️ BREAKING: `Plot::link_axis` and `Plot::link_cursor` now take the name of the group ([#2410](https://github.com/emilk/egui/pull/2410)).
 * Update `Plot::allow_zoom` and `Plot::allow_drag` to allow setting those values for X and Y axes independently ([#2901](https://github.com/emilk/egui/pull/2901)).
+* Add `ComboBox::height` to allow setting the outer height of the pop-up ui ([#3001](https://github.com/emilk/egui/pull/3001)).
 
 ## 0.21.0 - 2023-02-08 - Deadlock fix and style customizability
 * ⚠️ BREAKING: `egui::Context` now use closures for locking ([#2625](https://github.com/emilk/egui/pull/2625)):
