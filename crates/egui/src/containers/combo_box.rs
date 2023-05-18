@@ -35,6 +35,7 @@ pub struct ComboBox {
     label: Option<WidgetText>,
     selected_text: WidgetText,
     width: Option<f32>,
+    height: Option<f32>,
     icon: Option<IconPainter>,
     wrap_enabled: bool,
 }
@@ -47,6 +48,7 @@ impl ComboBox {
             label: Some(label.into()),
             selected_text: Default::default(),
             width: None,
+            height: None,
             icon: None,
             wrap_enabled: false,
         }
@@ -60,6 +62,7 @@ impl ComboBox {
             label: Some(label),
             selected_text: Default::default(),
             width: None,
+            height: None,
             icon: None,
             wrap_enabled: false,
         }
@@ -72,6 +75,7 @@ impl ComboBox {
             label: Default::default(),
             selected_text: Default::default(),
             width: None,
+            height: None,
             icon: None,
             wrap_enabled: false,
         }
@@ -80,6 +84,12 @@ impl ComboBox {
     /// Set the outer width of the button and menu.
     pub fn width(mut self, width: f32) -> Self {
         self.width = Some(width);
+        self
+    }
+
+    /// Set the outer height of the button and menu.
+    pub fn height(mut self, height: f32) -> Self {
+        self.height = Some(height);
         self
     }
 
@@ -155,6 +165,7 @@ impl ComboBox {
             label,
             selected_text,
             width,
+            height,
             icon,
             wrap_enabled,
         } = self;
@@ -170,6 +181,7 @@ impl ComboBox {
                 icon,
                 wrap_enabled,
                 width,
+                height,
             );
             if let Some(label) = label {
                 ir.response
@@ -239,6 +251,7 @@ fn combo_box_dyn<'c, R>(
     icon: Option<IconPainter>,
     wrap_enabled: bool,
     width: Option<f32>,
+    height: Option<f32>,
 ) -> InnerResponse<Option<R>> {
     let popup_id = button_id.with("popup");
 
@@ -331,6 +344,9 @@ fn combo_box_dyn<'c, R>(
     if button_response.clicked() {
         ui.memory_mut(|mem| mem.toggle_popup(popup_id));
     }
+
+    let height = height.unwrap_or_else(|| ui.spacing().combo_height);
+
     let inner = crate::popup::popup_above_or_below_widget(
         ui,
         popup_id,
@@ -338,7 +354,7 @@ fn combo_box_dyn<'c, R>(
         above_or_below,
         |ui| {
             ScrollArea::vertical()
-                .max_height(ui.spacing().combo_height)
+                .max_height(height)
                 .show(ui, menu_contents)
                 .inner
         },
