@@ -8,6 +8,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 #### Desktop/Native:
 * Add `Frame::request_screenshot` and `Frame::screenshot` to communicate to the backend that a screenshot of the current frame should be exposed by `Frame` during `App::post_rendering` ([#2676](https://github.com/emilk/egui/pull/2676)).
 * Add `eframe::run_simple_native` - a simple API for simple apps ([#2453](https://github.com/emilk/egui/pull/2453)).
+* Add `NativeOptions::app_id` which allows to set the Wayland application ID ([#1600](https://github.com/emilk/egui/issues/1600)).
 * Fix bug where the eframe window is never destroyed on Linux when using `run_and_return` ([#2892](https://github.com/emilk/egui/issues/2892))
 
 #### Web:
