@@ -3,7 +3,7 @@ use winit::event_loop::EventLoopWindowTarget;
 #[cfg(target_os = "macos")]
 use winit::platform::macos::WindowBuilderExtMacOS as _;
 
-#[cfg(feature = "wayland")]
+#[cfg(all(feature = "wayland", target_os = "linux"))]
 use winit::platform::wayland::WindowBuilderExtWayland as _;
 
 #[cfg(feature = "accesskit")]
@@ -121,7 +121,7 @@ pub fn window_builder<E>(
             .with_fullsize_content_view(true);
     }
 
-    #[cfg(feature = "wayland")]
+    #[cfg(all(feature = "wayland", target_os = "linux"))]
     {
         window_builder =
             window_builder.with_name(native_options.app_id.as_deref().unwrap_or(title), "");

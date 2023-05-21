@@ -396,7 +396,7 @@ pub struct NativeOptions {
     /// on this Wayland-specific option.
     ///
     /// [xdg-shell]: https://wayland.app/protocols/xdg-shell#xdg_toplevel:request:set_app_id
-    #[cfg(feature = "wayland")]
+    #[cfg(all(feature = "wayland", target_os = "linux"))]
     pub app_id: Option<String>,
 }
 
@@ -412,7 +412,7 @@ impl Clone for NativeOptions {
             #[cfg(feature = "wgpu")]
             wgpu_options: self.wgpu_options.clone(),
 
-            #[cfg(feature = "wayland")]
+            #[cfg(all(feature = "wayland", target_os = "linux"))]
             app_id: self.app_id.clone(),
 
             ..*self
@@ -472,7 +472,7 @@ impl Default for NativeOptions {
             #[cfg(feature = "wgpu")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
 
-            #[cfg(feature = "wayland")]
+            #[cfg(all(feature = "wayland", target_os = "linux"))]
             app_id: None,
         }
     }
