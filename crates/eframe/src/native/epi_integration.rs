@@ -122,9 +122,8 @@ pub fn window_builder<E>(
     }
 
     #[cfg(all(feature = "wayland", target_os = "linux"))]
-    {
-        window_builder =
-            window_builder.with_name(native_options.app_id.as_deref().unwrap_or(title), "");
+    if let Some(app_id) = native_options.app_id.as_deref() {
+        window_builder = window_builder.with_name(app_id, "");
     }
 
     if let Some(min_size) = *min_window_size {

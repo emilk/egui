@@ -396,6 +396,25 @@ pub struct NativeOptions {
     /// on this Wayland-specific option.
     ///
     /// [xdg-shell]: https://wayland.app/protocols/xdg-shell#xdg_toplevel:request:set_app_id
+    ///
+    /// # Example
+    /// ``` no_run
+    /// fn main() -> eframe::Result<()> {
+    ///
+    ///     let mut options = eframe::NativeOptions::default();
+    ///     // Set the application ID for Wayland only on Linux
+    ///     #[cfg(target_os = "linux")]
+    ///     {
+    ///         options.app_id = Some("egui-example".to_string());
+    ///     }
+    ///
+    ///     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
+    ///         egui::CentralPanel::default().show(ctx, |ui| {
+    ///             ui.heading("My egui Application");
+    ///         });
+    ///     })
+    /// }
+    /// ```
     #[cfg(all(feature = "wayland", target_os = "linux"))]
     pub app_id: Option<String>,
 }
