@@ -383,6 +383,40 @@ pub struct NativeOptions {
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu")]
     pub wgpu_options: egui_wgpu::WgpuConfiguration,
+
+    /// On Wayland: Application ID for the window.
+    ///
+    /// The application ID is used in several places of the compositor, e.g. for
+    /// grouping windows of the same application. It is also important for
+    /// connecting the configuration of a `.desktop` file with the window, by
+    /// using the application ID as file name. This allows e.g. a proper icon
+    /// handling under Wayland.
+    ///
+    /// See [Waylands XDG shell documentation][xdg-shell] for more information
+    /// on this Wayland-specific option.
+    ///
+    /// [xdg-shell]: https://wayland.app/protocols/xdg-shell#xdg_toplevel:request:set_app_id
+    ///
+    /// # Example
+    /// ``` no_run
+    /// fn main() -> eframe::Result<()> {
+    ///
+    ///     let mut options = eframe::NativeOptions::default();
+    ///     // Set the application ID for Wayland only on Linux
+    ///     #[cfg(target_os = "linux")]
+    ///     {
+    ///         options.app_id = Some("egui-example".to_string());
+    ///     }
+    ///
+    ///     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
+    ///         egui::CentralPanel::default().show(ctx, |ui| {
+    ///             ui.heading("My egui Application");
+    ///         });
+    ///     })
+    /// }
+    /// ```
+    #[cfg(all(feature = "wayland", target_os = "linux"))]
+    pub app_id: Option<String>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -396,6 +430,9 @@ impl Clone for NativeOptions {
 
             #[cfg(feature = "wgpu")]
             wgpu_options: self.wgpu_options.clone(),
+
+            #[cfg(all(feature = "wayland", target_os = "linux"))]
+            app_id: self.app_id.clone(),
 
             ..*self
         }
@@ -453,6 +490,9 @@ impl Default for NativeOptions {
 
             #[cfg(feature = "wgpu")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
+
+            #[cfg(all(feature = "wayland", target_os = "linux"))]
+            app_id: None,
         }
     }
 }
