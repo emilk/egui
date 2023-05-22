@@ -17,7 +17,17 @@ egui aims to be the easiest-to-use Rust GUI library, and the simplest way to mak
 
 egui can be used anywhere you can draw textured triangles, which means you can easily integrate it into your game engine of choice.
 
-Sections:
+## Sponsor
+
+<div align="center">
+<a href="https://www.rerun.io/"><img src="media/rerun_io_logo.png" width="50%"></a>
+</div>
+
+egui is sponsored and used by [Rerun](https://www.rerun.io/), a startup doing
+visualizations for computer vision and robotics.
+Rerun was co-founded by Emil Ernerfeldt, the creator of egui.
+
+## Sections:
 
 * [Example](#example)
 * [Quick start](#quick-start)
@@ -412,12 +422,3 @@ Default fonts:
 * `Hack-Regular.ttf`: <https://github.com/source-foundry/Hack>, [MIT Licence](https://github.com/source-foundry/Hack/blob/master/LICENSE.md)
 * `NotoEmoji-Regular.ttf`: [google.com/get/noto](https://google.com/get/noto), [SIL Open Font License](https://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=OFL)
 * `Ubuntu-Light.ttf` by [Dalton Maag](http://www.daltonmaag.com/): [Ubuntu font licence](https://ubuntu.com/legal/font-licence)
-
----
-
-<div align="center">
-<img src="media/rerun_io_logo.png" width="50%">
-
-egui development is sponsored by [Rerun](https://www.rerun.io/), a startup doing<br>
-visualizations for computer vision and robotics.
-</div>
