@@ -312,27 +312,28 @@ pub type Result<T> = std::result::Result<T, Error>;
 // ---------------------------------------------------------------------------
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
 mod profiling_scopes {
+    #![allow(unused_macros)]
+    #![allow(unused_imports)]
+
     /// Profiling macro for feature "puffin"
     macro_rules! profile_function {
-    ($($arg: tt)*) => {
-        #[cfg(feature = "puffin")]
-        puffin::profile_function!($($arg)*);
-    };
-}
+        ($($arg: tt)*) => {
+            #[cfg(feature = "puffin")]
+            puffin::profile_function!($($arg)*);
+        };
+    }
     pub(crate) use profile_function;
 
     /// Profiling macro for feature "puffin"
     macro_rules! profile_scope {
-    ($($arg: tt)*) => {
-        #[cfg(feature = "puffin")]
-        puffin::profile_scope!($($arg)*);
-    };
-}
+        ($($arg: tt)*) => {
+            #[cfg(feature = "puffin")]
+            puffin::profile_scope!($($arg)*);
+        };
+    }
     pub(crate) use profile_scope;
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
 pub(crate) use profiling_scopes::*;
