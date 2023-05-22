@@ -3,9 +3,6 @@ use winit::event_loop::EventLoopWindowTarget;
 #[cfg(target_os = "macos")]
 use winit::platform::macos::WindowBuilderExtMacOS as _;
 
-#[cfg(all(feature = "wayland", target_os = "linux"))]
-use winit::platform::wayland::WindowBuilderExtWayland as _;
-
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
 use egui::NumExt as _;
@@ -123,6 +120,7 @@ pub fn window_builder<E>(
 
     #[cfg(all(feature = "wayland", target_os = "linux"))]
     if let Some(app_id) = &native_options.app_id {
+        use winit::platform::wayland::WindowBuilderExtWayland as _;
         window_builder = window_builder.with_name(app_id, "");
     }
 
