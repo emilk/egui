@@ -110,7 +110,7 @@ pub trait App {
     /// * Windows: `C:\Users\UserName\AppData\Roaming\APP_ID`
     ///
     /// where `APP_ID` is determined by either [`NativeOptions::app_id`] or
-    /// the title argument to [`eframe::run_native`].
+    /// the title argument to [`crate::run_native`].
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
     /// Called when the user attempts to close the desktop window and/or quit the application.
@@ -392,7 +392,7 @@ pub struct NativeOptions {
     /// * macOS:   `/Users/UserName/Library/Application Support/APP_ID`
     /// * Windows: `C:\Users\UserName\AppData\Roaming\APP_ID`
     ///
-    /// If you don't set [`Self::app_id`], the title argument to [`eframe::run_native`]
+    /// If you don't set [`Self::app_id`], the title argument to [`crate::run_native`]
     /// will be used instead.
     ///
     /// ### On Wayland
