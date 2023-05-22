@@ -22,8 +22,6 @@ unmaintained = "warn"
 yanked = "deny"
 ignore = [
     "RUSTSEC-2020-0071", # https://rustsec.org/advisories/RUSTSEC-2020-0071 - chrono/time: Potential segfault in the time crate
-    "RUSTSEC-2020-0159", # https://rustsec.org/advisories/RUSTSEC-2020-0159 - chrono/time: Potential segfault in localtime_r invocations
-    "RUSTSEC-2021-0127", # https://rustsec.org/advisories/RUSTSEC-2021-0127 - https://github.com/bheisler/criterion.rs/issues/534
 ]
 
 [bans]
@@ -49,10 +47,8 @@ skip = [
     { name = "windows" },             # old version via accesskit
 ]
 skip-tree = [
-    { name = "criterion" },     # dev-dependency
-    { name = "darling" },       # old version via tts
-    { name = "foreign-types" }, # old version from wgpu
-    { name = "rfd" },           # example dependency
+    { name = "criterion" }, # dev-dependency
+    { name = "rfd" },       # example dependency
 ]
 
 
