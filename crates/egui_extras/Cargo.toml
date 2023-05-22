@@ -44,7 +44,7 @@ serde = { version = "1", features = ["derive"] }
 #! ### Optional dependencies
 
 # Date operations needed for datepicker widget
-chrono = { version = "0.4", optional = true }
+chrono = { version = "0.4", optional = true, default-features = false, feature = ["js-sys", "wasmbind"]}
 
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
