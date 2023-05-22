@@ -122,7 +122,7 @@ pub fn window_builder<E>(
     }
 
     #[cfg(all(feature = "wayland", target_os = "linux"))]
-    if let Some(app_id) = native_options.app_id.as_deref() {
+    if let Some(app_id) = &native_options.app_id {
         window_builder = window_builder.with_name(app_id, "");
     }
 
