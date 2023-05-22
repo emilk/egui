@@ -70,7 +70,7 @@ The native backend is [`egui_glow`](https://github.com/emilk/egui/tree/master/cr
 
 On Fedora Rawhide you need to run:
 
-`dnf install clang clang-devel clang-tools-extra libxkbcommon-devel pkg-config openssl-devel libxcb-devel`
+`dnf install clang clang-devel clang-tools-extra libxkbcommon-devel pkg-config openssl-devel libxcb-devel gtk3-devel atk`
 
 **NOTE**: This is just for the demo app - egui itself is completely platform agnostic!
 
