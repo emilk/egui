@@ -88,6 +88,8 @@ impl ComboBox {
     }
 
     /// Set the outer height of the button and menu.
+    ///
+    /// Default is [`Spacing::combo_height`].
     pub fn height(mut self, height: f32) -> Self {
         self.height = Some(height);
         self
