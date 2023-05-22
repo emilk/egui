@@ -466,6 +466,16 @@ impl Modifiers {
 
     /// Check for equality but with proper handling of [`Self::command`].
     ///
+    /// # Example:
+    /// ```
+    /// # use egui::Modifiers;
+    /// # let current_modifiers = Modifiers::default();
+    /// if current_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
+    ///     // Alt and Shift are pressed, and nothing else
+    /// }
+    /// ```
+    ///
+    /// ## Behavior:
     /// ```
     /// # use egui::Modifiers;
     /// assert!(Modifiers::CTRL.matches(Modifiers::CTRL));
