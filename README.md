@@ -344,8 +344,7 @@ There are multiple ways to combine egui with 3D. The simplest way is to use a 3D
 If you want to embed 3D into an egui view there are two options.
 
 #### `Shape::Callback`
-Examples:
-* <https://github.com/emilk/egui/blob/master/examples/custom_3d_three-d.rs>
+Example:
 * <https://github.com/emilk/egui/blob/master/examples/custom_3d_glow.rs>
 
 `Shape::Callback` will call your code when egui gets painted, to show anything using whatever the background rendering context is. When using [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe) this will be [`glow`](https://github.com/grovesNL/glow). Other integrations will give you other rendering contexts, if they support `Shape::Callback` at all.
