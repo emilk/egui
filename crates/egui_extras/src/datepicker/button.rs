@@ -1,14 +1,12 @@
-use super::popup::DatePickerPopup;
-use chrono::NaiveDate;
+use super::{popup::DatePickerPopup, DateImpl};
 use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget};
-
 #[derive(Default, Clone, serde::Deserialize, serde::Serialize)]
 pub(crate) struct DatePickerButtonState {
     pub picker_visible: bool,
 }
 
-pub struct DatePickerButton<'a> {
-    selection: &'a mut NaiveDate,
+pub struct DatePickerButton<'a, T: DateImpl> {
+    selection: &'a mut T,
     id_source: Option<&'a str>,
     combo_boxes: bool,
     arrows: bool,
@@ -17,8 +15,8 @@ pub struct DatePickerButton<'a> {
     show_icon: bool,
 }
 
-impl<'a> DatePickerButton<'a> {
-    pub fn new(selection: &'a mut NaiveDate) -> Self {
+impl<'a, T: DateImpl> DatePickerButton<'a, T> {
+    pub fn new(selection: &'a mut T) -> Self {
         Self {
             selection,
             id_source: None,
@@ -68,18 +66,17 @@ impl<'a> DatePickerButton<'a> {
     }
 }
 
-impl<'a> Widget for DatePickerButton<'a> {
+impl<'a, T: DateImpl> Widget for DatePickerButton<'a, T> {
     fn ui(self, ui: &mut Ui) -> egui::Response {
         let id = ui.make_persistent_id(self.id_source);
         let mut button_state = ui
             .memory_mut(|mem| mem.data.get_persisted::<DatePickerButtonState>(id))
             .unwrap_or_default();
-
-        let mut text = if self.show_icon {
-            RichText::new(format!("{} 📆", self.selection.format("%Y-%m-%d")))
-        } else {
-            RichText::new(format!("{}", self.selection.format("%Y-%m-%d")))
-        };
+        let mut text = RichText::new(format!(
+            "{} {}",
+            self.selection.format(),
+            if self.show_icon { "📆" } else { "" }
+        ));
         let visuals = ui.visuals().widgets.open;
         if button_state.picker_visible {
             text = text.color(visuals.text_color());

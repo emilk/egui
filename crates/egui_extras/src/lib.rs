@@ -10,7 +10,7 @@
 #![allow(clippy::manual_range_contains)]
 #![forbid(unsafe_code)]
 
-#[cfg(feature = "chrono")]
+#[cfg(feature = "datepicker")]
 mod datepicker;
 
 pub mod image;
@@ -19,8 +19,14 @@ mod sizing;
 mod strip;
 mod table;
 
+#[cfg(feature = "datepicker")]
+pub use crate::datepicker::{DateImpl, DatePickerButton, Week};
+
 #[cfg(feature = "chrono")]
-pub use crate::datepicker::DatePickerButton;
+pub use crate::datepicker::{chrono::Date as ChronoDate, DatePickerButtonChrono};
+
+#[cfg(feature = "hifitime")]
+pub use crate::datepicker::{hifitime::Date as HifiDate, DatePickerButtonHifi};
 
 pub use crate::image::RetainedImage;
 pub(crate) use crate::layout::StripLayout;

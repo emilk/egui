@@ -22,7 +22,7 @@ all-features = true
 [features]
 default = []
 
-chrono = ["egui_extras/datepicker", "dep:chrono"]
+chrono = ["egui_extras/chrono", "dep:chrono"]
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = ["egui/serde", "dep:serde"]
 ## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).

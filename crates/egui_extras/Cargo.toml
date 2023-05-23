@@ -27,7 +27,9 @@ all-features = true
 default = []
 
 ## Enable [`DatePickerButton`] widget.
-datepicker = ["chrono"]
+datepicker = []
+chrono = ["datepicker", "dep:chrono"]
+hifitime = ["datepicker", "dep:hifitime"]
 
 ## Support loading svg images.
 svg = ["resvg", "tiny-skia", "usvg"]
@@ -51,6 +53,8 @@ chrono = { version = "0.4", optional = true, default-features = false, features 
   "wasmbind",
 ] }
 
+hifitime = { version = "3.8.2", optional = true }
+
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
 
@@ -69,3 +73,6 @@ log = { version = "0.4", optional = true, features = ["std"] }
 resvg = { version = "0.28", optional = true, default-features = false }
 tiny-skia = { version = "0.8", optional = true, default-features = false } # must be updated in lock-step with resvg
 usvg = { version = "0.28", optional = true, default-features = false }
+
+[target.'cfg(target_arch="wasm32")'.dependencies]
+instant = { version = "0.1", features = ["wasm-bindgen"] }
