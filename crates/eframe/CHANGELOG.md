@@ -31,8 +31,10 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 
 #### Web:
-* Prefer the client width/height for the canvas parent [#2804](https://github.com/emilk/egui/pull/2804) (thanks [@samitbasu](https://github.com/samitbasu)!)
+* ⚠️ BREAKING: `eframe::start_web` has been replaced with `eframe::WebRunner`, which also installs a nice panic hook (no need for `console_error_panic_hook`).
 * ⚠️ BREAKING: WebGPU is now the default web renderer when using the `wgpu` feature of `eframe`. To use WebGL with `wgpu`, you need to add `wgpu = { version = "0.16.0", features = ["webgl"] }` to your own `Cargo.toml`. ([#2945](https://github.com/emilk/egui/pull/2945))
+* Add `eframe::WebLogger` for redirecting `log` calls to the web console (`console.log`).
+* Prefer the client width/height for the canvas parent [#2804](https://github.com/emilk/egui/pull/2804) (thanks [@samitbasu](https://github.com/samitbasu)!)
 * eframe web: Persist app state to local storage when leaving site [#2927](https://github.com/emilk/egui/pull/2927)
 * Better panic handling [#2942](https://github.com/emilk/egui/pull/2942) [#2992](https://github.com/emilk/egui/pull/2992)
 * Update wasm-bindgen to 0.2.86 [#2995](https://github.com/emilk/egui/pull/2995)

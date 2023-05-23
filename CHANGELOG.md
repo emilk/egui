@@ -4,7 +4,7 @@ All notable changes to the `egui` crate will be documented in this file.
 NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG.md), [`egui-winit`](crates/egui-winit/CHANGELOG.md), [`egui_glium`](crates/egui_glium/CHANGELOG.md), [`egui_glow`](crates/egui_glow/CHANGELOG.md) and [`egui-wgpu`](crates/egui-wgpu/CHANGELOG.md) have their own changelogs!
 
 
-## Unreleased
+## Unreleased - A plethora of small improvements
 ### ⭐ Added
 * Scroll bar visibility options [#2729](https://github.com/emilk/egui/pull/2729) (thanks [@IVAN-MK7](https://github.com/IVAN-MK7)!)
 * Add `Grid::with_row_color` [#2519](https://github.com/emilk/egui/pull/2519) (thanks [@imgurbot12](https://github.com/imgurbot12)!)
@@ -13,12 +13,12 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Return plot transforms [#2935](https://github.com/emilk/egui/pull/2935)
 * Add `Pointer::is_decidedly_dragging` and `could_any_button_be_click` [#2979](https://github.com/emilk/egui/pull/2979)
 * Plot widget - allow disabling zoom and drag for x and y separately [#2901](https://github.com/emilk/egui/pull/2901) (thanks [@OmegaJak](https://github.com/OmegaJak)!)
-* Add character limit to TextEdit [#2816](https://github.com/emilk/egui/pull/2816) (thanks [@wzid](https://github.com/wzid)!)
+* Add character limit to `TextEdit` [#2816](https://github.com/emilk/egui/pull/2816) (thanks [@wzid](https://github.com/wzid)!)
 * Add `egui::Modifiers::contains` [#2989](https://github.com/emilk/egui/pull/2989) (thanks [@Wumpf](https://github.com/Wumpf)!)
 
 ### 🔧 Changed
-* Transpose the value/satuation panel of the color picker [#2727](https://github.com/emilk/egui/pull/2727) (thanks [@IVAN-MK7](https://github.com/IVAN-MK7)!)
 * Improve vertical alignment of fonts [#2724](https://github.com/emilk/egui/pull/2724) (thanks [@lictex](https://github.com/lictex)!)
+* Transpose the value/satuation panel of the color picker [#2727](https://github.com/emilk/egui/pull/2727) (thanks [@IVAN-MK7](https://github.com/IVAN-MK7)!)
 * Replace `ComboBox::show_index` `String` with `Into<TextWidget>` [#2790](https://github.com/emilk/egui/pull/2790) (thanks [@tosti007](https://github.com/tosti007)!)
 * Replace `tracing` with `log` [#2928](https://github.com/emilk/egui/pull/2928)
 * Only show id clash warnings in debug builds by default [#2930](https://github.com/emilk/egui/pull/2930)
