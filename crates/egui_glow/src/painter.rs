@@ -15,6 +15,7 @@ use crate::misc_util::{compile_shader, link_program};
 use crate::shader_version::ShaderVersion;
 use crate::vao;
 
+/// Re-exported [`glow::Context`].
 pub use glow::Context;
 
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");

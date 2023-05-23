@@ -682,7 +682,12 @@ mod glow_integration {
         }
 
         fn init_run_state(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
-            let storage = epi_integration::create_storage(&self.app_name);
+            let storage = epi_integration::create_storage(
+                self.native_options
+                    .app_id
+                    .as_ref()
+                    .unwrap_or(&self.app_name),
+            );
 
             let (gl_window, gl) = Self::create_glutin_windowed_context(
                 event_loop,
@@ -1350,7 +1355,12 @@ mod wgpu_integration {
                             self.set_window(window)?;
                         }
                     } else {
-                        let storage = epi_integration::create_storage(&self.app_name);
+                        let storage = epi_integration::create_storage(
+                            self.native_options
+                                .app_id
+                                .as_ref()
+                                .unwrap_or(&self.app_name),
+                        );
                         let window = Self::create_window(
                             event_loop,
                             storage.as_deref(),
