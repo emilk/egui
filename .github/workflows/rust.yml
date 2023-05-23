@@ -53,6 +53,12 @@ jobs:
           command: check
           args: --locked --all-features --all-targets
 
+      - name: check egui_extras --all-features
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked --all-features --all-targets -p egui_extras
+
       - name: check default features
         uses: actions-rs/cargo@v1
         with:
