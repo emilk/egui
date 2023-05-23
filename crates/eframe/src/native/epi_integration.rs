@@ -3,6 +3,9 @@ use winit::event_loop::EventLoopWindowTarget;
 #[cfg(target_os = "macos")]
 use winit::platform::macos::WindowBuilderExtMacOS as _;
 
+#[cfg(target_os = "windows")]
+use winit::platform::windows::WindowBuilderExtWindows;
+
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
 use egui::NumExt as _;
@@ -92,6 +95,7 @@ pub fn window_builder<E>(
         transparent,
         centered,
         active,
+        skip_taskbar,
         ..
     } = native_options;
 
@@ -106,6 +110,7 @@ pub fn window_builder<E>(
         .with_transparent(*transparent)
         .with_window_icon(window_icon)
         .with_active(*active)
+        .with_skip_taskbar(*skip_taskbar)
         // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
         // We must also keep the window hidden until AccessKit is initialized.
         .with_visible(false);
