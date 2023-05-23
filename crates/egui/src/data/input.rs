@@ -16,7 +16,7 @@ pub struct RawInput {
     /// Position and size of the area that egui should use, in points.
     /// Usually you would set this to
     ///
-    /// `Some(Rect::from_pos_size(Default::default(), screen_size_in_points))`.
+    /// `Some(Rect::from_min_size(Default::default(), screen_size_in_points))`.
     ///
     /// but you could also constrain egui to some smaller portion of your window if you like.
     ///
