@@ -2,6 +2,7 @@ mod button;
 mod popup;
 
 pub use button::DatePickerButton;
+pub use popup::DatePickerPopup;
 use chrono::{Datelike, Duration, NaiveDate, Weekday};
 
 #[derive(Debug)]
