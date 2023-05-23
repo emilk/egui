@@ -294,6 +294,9 @@ pub struct NativeOptions {
     /// Whether grant focus when window initially opened. True by default.
     pub active: bool,
 
+    /// Hide taskbar icon under windows.
+    pub skip_taskbar: bool,
+
     /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
     ///
     /// The default is `true`.
