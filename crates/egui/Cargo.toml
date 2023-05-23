@@ -1,6 +1,6 @@
 [package]
 name = "egui"
-version = "0.21.0"
+version = "0.22.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "An easy-to-use immediate mode GUI that runs on both web and native"
 edition = "2021"
@@ -62,7 +62,7 @@ unity = ["epaint/unity"]
 
 
 [dependencies]
-epaint = { version = "0.21.0", path = "../epaint", default-features = false }
+epaint = { version = "0.22.0", path = "../epaint", default-features = false }
 
 ahash = { version = "0.8.1", default-features = false, features = [
     "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead

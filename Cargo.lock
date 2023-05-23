@@ -1130,7 +1130,7 @@ checksum = "68b0cf012f1230e43cd00ebb729c6bb58707ecfa8ad08b52ef3a4ccd2697fc30"
 
 [[package]]
 name = "ecolor"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "bytemuck",
  "cint",
@@ -1141,7 +1141,7 @@ dependencies = [
 
 [[package]]
 name = "eframe"
-version = "0.21.3"
+version = "0.22.0"
 dependencies = [
  "bytemuck",
  "cocoa",
@@ -1176,7 +1176,7 @@ dependencies = [
 
 [[package]]
 name = "egui"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "accesskit",
  "ahash 0.8.3",
@@ -1190,7 +1190,7 @@ dependencies = [
 
 [[package]]
 name = "egui-wgpu"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "bytemuck",
  "document-features",
@@ -1205,7 +1205,7 @@ dependencies = [
 
 [[package]]
 name = "egui-winit"
-version = "0.21.1"
+version = "0.22.0"
 dependencies = [
  "accesskit_winit",
  "arboard",
@@ -1223,7 +1223,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_app"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "bytemuck",
  "chrono",
@@ -1244,7 +1244,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_lib"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "chrono",
  "criterion",
@@ -1260,7 +1260,7 @@ dependencies = [
 
 [[package]]
 name = "egui_extras"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "chrono",
  "document-features",
@@ -1275,7 +1275,7 @@ dependencies = [
 
 [[package]]
 name = "egui_glow"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "bytemuck",
  "document-features",
@@ -1313,7 +1313,7 @@ checksum = "7fcaabb2fef8c910e7f4c7ce9f67a1283a1715879a7c230ca9d6d1ae31f16d91"
 
 [[package]]
 name = "emath"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "bytemuck",
  "document-features",
@@ -1389,7 +1389,7 @@ dependencies = [
 
 [[package]]
 name = "epaint"
-version = "0.21.0"
+version = "0.22.0"
 dependencies = [
  "ab_glyph",
  "ahash 0.8.3",

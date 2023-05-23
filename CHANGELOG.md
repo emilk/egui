@@ -4,7 +4,10 @@ All notable changes to the `egui` crate will be documented in this file.
 NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG.md), [`egui-winit`](crates/egui-winit/CHANGELOG.md), [`egui_glium`](crates/egui_glium/CHANGELOG.md), [`egui_glow`](crates/egui_glow/CHANGELOG.md) and [`egui-wgpu`](crates/egui-wgpu/CHANGELOG.md) have their own changelogs!
 
 
-## Unreleased - A plethora of small improvements
+## Unreleased
+
+
+## 0.22.0 - 2023-05-23 - A plethora of small improvements
 ### ⭐ Added
 * Scroll bar visibility options [#2729](https://github.com/emilk/egui/pull/2729) (thanks [@IVAN-MK7](https://github.com/IVAN-MK7)!)
 * Add `Grid::with_row_color` [#2519](https://github.com/emilk/egui/pull/2519) (thanks [@imgurbot12](https://github.com/imgurbot12)!)

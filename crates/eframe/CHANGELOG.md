@@ -5,6 +5,9 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 
 
 ## Unreleased
+
+
+## 0.22.0 - 2023-05-23
 * Fix: `request_repaint_after` works even when called from background thread [#2939](https://github.com/emilk/egui/pull/2939)
 * Clear all keys and modifies on focus change [#2857](https://github.com/emilk/egui/pull/2857) [#2933](https://github.com/emilk/egui/pull/2933)
 * Remove dark-light dependency [#2929](https://github.com/emilk/egui/pull/2929)
