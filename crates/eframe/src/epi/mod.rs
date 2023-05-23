@@ -479,6 +479,7 @@ impl Default for NativeOptions {
             mouse_passthrough: false,
 
             active: true,
+            skip_taskbar: false,
 
             vsync: true,
             multisampling: 0,
