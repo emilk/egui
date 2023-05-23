@@ -1,6 +1,6 @@
 [package]
 name = "egui_glow"
-version = "0.21.0"
+version = "0.22.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glow library"
 edition = "2021"
@@ -44,7 +44,7 @@ winit = ["egui-winit"]
 
 
 [dependencies]
-egui = { version = "0.21.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.22.0", path = "../egui", default-features = false, features = [
   "bytemuck",
 ] }
 
@@ -59,8 +59,8 @@ document-features = { version = "0.2", optional = true }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.21.1", path = "../egui-winit", optional = true, default-features = false }
-puffin = { version = "0.14", optional = true }
+egui-winit = { version = "0.22.0", path = "../egui-winit", optional = true, default-features = false }
+puffin = { version = "0.15", optional = true }
 
 # Web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]

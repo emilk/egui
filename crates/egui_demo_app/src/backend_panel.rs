@@ -148,6 +148,7 @@ impl BackendPanel {
 
         #[cfg(target_arch = "wasm32")]
         ui.collapsing("Web info (location)", |ui| {
+            ui.style_mut().wrap = Some(false);
             ui.monospace(format!("{:#?}", frame.info().web_info.location));
         });
 
@@ -190,6 +191,11 @@ impl BackendPanel {
             {
                 frame.drag_window();
             }
+
+            ui.button("Native window info (hover me)")
+                .on_hover_ui(|ui| {
+                    window_info_ui(ui, &frame.info().window_info);
+                });
         }
     }
 
@@ -282,6 +288,55 @@ impl BackendPanel {
             }
         }
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn window_info_ui(ui: &mut egui::Ui, window_info: &eframe::WindowInfo) {
+    let eframe::WindowInfo {
+        position,
+        fullscreen,
+        minimized,
+        maximized,
+        focused,
+        size,
+        monitor_size,
+    } = window_info;
+
+    egui::Grid::new("window_info_grid")
+        .num_columns(2)
+        .show(ui, |ui| {
+            if let Some(egui::Pos2 { x, y }) = position {
+                ui.label("Position:");
+                ui.monospace(format!("{x:.0}, {y:.0}"));
+                ui.end_row();
+            }
+
+            ui.label("Fullscreen:");
+            ui.label(fullscreen.to_string());
+            ui.end_row();
+
+            ui.label("Minimized:");
+            ui.label(minimized.to_string());
+            ui.end_row();
+
+            ui.label("Maximized:");
+            ui.label(maximized.to_string());
+            ui.end_row();
+
+            ui.label("Focused:");
+            ui.label(focused.to_string());
+            ui.end_row();
+
+            ui.label("Window size:");
+            ui.monospace(format!("{x:.0} x {y:.0}", x = size.x, y = size.y));
+            ui.end_row();
+
+            if let Some(egui::Vec2 { x, y }) = monitor_size {
+                ui.label("Monitor size:");
+                ui.monospace(format!("{x:.0} x {y:.0}"));
+                ui.end_row();
+            }
+        });
 }
 
 // ----------------------------------------------------------------------------

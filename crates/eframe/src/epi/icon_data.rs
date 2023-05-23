@@ -20,6 +20,7 @@ impl IconData {
     /// # Errors
     /// If this is not a valid png.
     pub fn try_from_png_bytes(png_bytes: &[u8]) -> Result<Self, image::ImageError> {
+        crate::profile_function!();
         let image = image::load_from_memory(png_bytes)?;
         Ok(Self::from_image(image))
     }
@@ -38,6 +39,7 @@ impl IconData {
     /// # Errors
     /// If `width*height != 4 * rgba.len()`, or if the image is too big.
     pub fn to_image(&self) -> Result<image::RgbaImage, String> {
+        crate::profile_function!();
         let Self {
             rgba,
             width,
@@ -51,6 +53,7 @@ impl IconData {
     /// # Errors
     /// The image is invalid, or the PNG encoder failed.
     pub fn to_png_bytes(&self) -> Result<Vec<u8>, String> {
+        crate::profile_function!();
         let image = self.to_image()?;
         let mut png_bytes: Vec<u8> = Vec::new();
         image

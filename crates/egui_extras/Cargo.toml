@@ -1,6 +1,6 @@
 [package]
 name = "egui_extras"
-version = "0.21.0"
+version = "0.22.0"
 authors = [
   "Dominik Rössler <dominik@freshx.de>",
   "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
@@ -37,14 +37,19 @@ log = ["dep:log", "egui/log"]
 
 
 [dependencies]
-egui = { version = "0.21.0", path = "../egui", default-features = false }
+egui = { version = "0.22.0", path = "../egui", default-features = false }
 
 serde = { version = "1", features = ["derive"] }
 
 #! ### Optional dependencies
 
 # Date operations needed for datepicker widget
-chrono = { version = "0.4", optional = true }
+chrono = { version = "0.4", optional = true, default-features = false, features = [
+  "clock",
+  "js-sys",
+  "std",
+  "wasmbind",
+] }
 
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }

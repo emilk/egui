@@ -1,6 +1,6 @@
 [package]
 name = "eframe"
-version = "0.21.3"
+version = "0.22.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition = "2021"
@@ -81,7 +81,7 @@ android-native-activity = ["egui-winit/android-native-activity"]
 android-game-activity = ["egui-winit/android-game-activity"]
 
 [dependencies]
-egui = { version = "0.21.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.22.0", path = "../egui", default-features = false, features = [
   "bytemuck",
   "log",
 ] }
@@ -92,7 +92,7 @@ thiserror.workspace = true
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
 
-egui_glow = { version = "0.21.0", path = "../egui_glow", optional = true, default-features = false }
+egui_glow = { version = "0.22.0", path = "../egui_glow", optional = true, default-features = false }
 glow = { version = "0.12", optional = true }
 ron = { version = "0.8", optional = true, features = ["integer128"] }
 serde = { version = "1", optional = true, features = ["derive"] }
@@ -100,7 +100,7 @@ serde = { version = "1", optional = true, features = ["derive"] }
 # -------------------------------------------
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.21.1", path = "../egui-winit", default-features = false, features = [
+egui-winit = { version = "0.22.0", path = "../egui-winit", default-features = false, features = [
   "clipboard",
   "links",
 ] }
@@ -112,7 +112,7 @@ winit = "0.28.1"
 
 # optional native:
 directories-next = { version = "2", optional = true }
-egui-wgpu = { version = "0.21.0", path = "../egui-wgpu", optional = true, features = [
+egui-wgpu = { version = "0.22.0", path = "../egui-wgpu", optional = true, features = [
   "winit",
 ] } # if wgpu is used, use it with winit
 pollster = { version = "0.3", optional = true } # needed for wgpu
@@ -121,7 +121,7 @@ pollster = { version = "0.3", optional = true } # needed for wgpu
 # this can be done at the same time we expose x11/wayland features of winit crate.
 glutin = { version = "0.30", optional = true }
 glutin-winit = { version = "0.3.0", optional = true }
-puffin = { version = "0.14", optional = true }
+puffin = { version = "0.15", optional = true }
 wgpu = { version = "0.16.0", optional = true }
 
 # mac:
@@ -186,7 +186,7 @@ web-sys = { version = "0.3.58", features = [
 ] }
 
 # optional web:
-egui-wgpu = { version = "0.21.0", path = "../egui-wgpu", optional = true } # if wgpu is used, use it without (!) winit
+egui-wgpu = { version = "0.22.0", path = "../egui-wgpu", optional = true } # if wgpu is used, use it without (!) winit
 raw-window-handle = { version = "0.5.2", optional = true }
 tts = { version = "0.25", optional = true, default-features = false }
 wgpu = { version = "0.16.0", optional = true }

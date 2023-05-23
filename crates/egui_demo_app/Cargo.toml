@@ -1,6 +1,6 @@
 [package]
 name = "egui_demo_app"
-version = "0.21.0"
+version = "0.22.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
@@ -29,12 +29,15 @@ wgpu = ["eframe/wgpu", "bytemuck"]
 
 
 [dependencies]
-chrono = { version = "0.4", features = ["js-sys", "wasmbind"] }
-eframe = { version = "0.21.0", path = "../eframe", default-features = false }
-egui = { version = "0.21.0", path = "../egui", features = [
+chrono = { version = "0.4", default-features = false, features = [
+  "js-sys",
+  "wasmbind",
+] }
+eframe = { version = "0.22.0", path = "../eframe", default-features = false }
+egui = { version = "0.22.0", path = "../egui", features = [
   "extra_debug_asserts",
 ] }
-egui_demo_lib = { version = "0.21.0", path = "../egui_demo_lib", features = [
+egui_demo_lib = { version = "0.22.0", path = "../egui_demo_lib", features = [
   "chrono",
 ] }
 log = { version = "0.4", features = ["std"] }
@@ -42,7 +45,7 @@ log = { version = "0.4", features = ["std"] }
 # Optional dependencies:
 
 bytemuck = { version = "1.7.1", optional = true }
-egui_extras = { version = "0.21.0", optional = true, path = "../egui_extras" }
+egui_extras = { version = "0.22.0", optional = true, path = "../egui_extras" }
 
 # feature "http":
 ehttp = { version = "0.2.0", optional = true }

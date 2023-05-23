@@ -26,7 +26,7 @@ fn main() -> Result<(), eframe::Error> {
             if ui.button("Click each year").clicked() {
                 age += 1;
             }
-            ui.label(format!("Hello '{}', age {}", name, age));
+            ui.label(format!("Hello '{name}', age {age}"));
         });
     })
 }

@@ -1,6 +1,6 @@
 [package]
 name = "egui-wgpu"
-version = "0.21.0"
+version = "0.22.0"
 description = "Bindings for using egui natively using the wgpu library"
 authors = [
   "Nils Hasenbanck <nils@hasenbanck.de>",
@@ -36,7 +36,7 @@ winit = ["dep:winit"]
 
 
 [dependencies]
-epaint = { version = "0.21.0", path = "../epaint", default-features = false, features = [
+epaint = { version = "0.22.0", path = "../epaint", default-features = false, features = [
   "bytemuck",
 ] }
 
@@ -54,4 +54,4 @@ winit = { version = "0.28", optional = true }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-puffin = { version = "0.14", optional = true }
+puffin = { version = "0.15", optional = true }
