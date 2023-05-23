@@ -54,4 +54,4 @@ winit = { version = "0.28", optional = true }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-puffin = { version = "0.14", optional = true }
+puffin = { version = "0.15", optional = true }
