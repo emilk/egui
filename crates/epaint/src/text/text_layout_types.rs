@@ -310,7 +310,13 @@ impl Default for TextWrapping {
 ///
 /// You can create a [`Galley`] using [`crate::Fonts::layout_job`];
 ///
-/// This needs to be recreated if `pixels_per_point` (dpi scale) changes.
+/// Needs to be recreated if the underlying font atlas texture changes, which
+/// happens under the following conditions:
+/// - `pixels_per_point` or `max_texture_size` change. These parameters are set
+///   in [`crate::text::Fonts::begin_frame`]. When using `egui` they are set
+///   from `egui::InputState` and can change at any time.
+/// - The atlas has become full. This can happen any time a new glyph is added
+///   to the atlas, which in turn can happen any time new text is laid out.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Galley {
