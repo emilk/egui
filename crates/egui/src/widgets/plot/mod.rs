@@ -1163,13 +1163,13 @@ impl Plot {
         };
         for mut widget in x_axis_widgets {
             widget.range = x_axis_range.clone();
-            widget.transform = Some(transform.clone());
+            widget.transform = Some(transform);
             widget.steps = x_steps.clone();
             ui.add(widget);
         }
         for mut widget in y_axis_widgets {
             widget.range = y_axis_range.clone();
-            widget.transform = Some(transform.clone());
+            widget.transform = Some(transform);
             widget.steps = y_steps.clone();
             ui.add(widget);
         }
@@ -1186,7 +1186,7 @@ impl Plot {
             label_formatter,
             coordinates_formatter,
             show_grid,
-            transform: transform.clone(),
+            transform,
             draw_cursor_x: linked_cursors.as_ref().map_or(false, |group| group.1.x),
             draw_cursor_y: linked_cursors.as_ref().map_or(false, |group| group.1.y),
             draw_cursors,
