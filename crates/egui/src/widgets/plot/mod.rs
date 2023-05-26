@@ -565,22 +565,32 @@ impl Plot {
         self
     }
 
-    /// Set the x axis label of the bottom x-axis
+    /// Set the x axis label of the main x-axis
+    ///
+    /// If no x-axis has been specified so far a new one will be created.
     pub fn x_axis_label(mut self, label: impl Into<WidgetText>) -> Self {
-        if !self.x_axes.is_empty() {
+        if self.x_axes.is_empty() {
+            self.x_axes.push(XAxisHints::default().label(label))
+        } else {
             self.x_axes[0].label = label.into();
         }
         self
     }
-    /// Set the y axis label of the left y-axis
+    /// Set the y axis label of the main y-axis
+    ///
+    /// If no y-axis has been specified so far a new one will be created.
     pub fn y_axis_label(mut self, label: impl Into<WidgetText>) -> Self {
-        if !self.y_axes.is_empty() {
+        if self.y_axes.is_empty() {
+            self.y_axes.push(YAxisHints::default().label(label))
+        } else {
             self.y_axes[0].label = label.into();
         }
         self
     }
 
-    /// Set the x-axis position
+    /// Set the position of the main x-axis
+    ///
+    /// > Note: This requires an x-axis to exist, either by [`Self::custom_x_axes`] or [`Self::x_axis_label`]
     pub fn x_axis_position(mut self, placement: axis::Placement) -> Self {
         if !self.x_axes.is_empty() {
             self.x_axes[0].placement = placement;
@@ -588,7 +598,9 @@ impl Plot {
         self
     }
 
-    /// Set the y-axis position
+    /// Set the position of the main y-axis
+    ///
+    /// > Note: This requires a y-axis to exist, either by [`Self::custom_y_axes`] or [`Self::y_axis_label`]
     pub fn y_axis_position(mut self, placement: axis::Placement) -> Self {
         if !self.y_axes.is_empty() {
             self.y_axes[0].placement = placement;
@@ -596,7 +608,9 @@ impl Plot {
         self
     }
 
-    /// Specify custom formatter for ticks on x-axis
+    /// Specify custom formatter for ticks on the main x-axis
+    ///
+    /// > Note: This requires an x-axis to exist, either by [`Self::custom_x_axes`] or [`Self::x_axis_label`]
     ///
     /// The first parameter of `fmt` is the raw tick value as `f64`.
     /// The second paramter is the maximum requested number of characters per tick label.
@@ -608,7 +622,9 @@ impl Plot {
         self
     }
 
-    /// Specify custom formatter for ticks on y-axis
+    /// Specify custom formatter for ticks on the main y-axis
+    ///
+    /// > Note: This requires a y-axis to exist, either by [`Self::custom_y_axes`] or [`Self::y_axis_label`]
     ///
     /// The first parameter of `formatter` is the raw tick value as `f64`.
     /// The second paramter is the maximum requested number of characters per tick label.
@@ -620,9 +636,23 @@ impl Plot {
         self
     }
 
+    /// Set the main y-axis-width by number of digits
+    ///
+    /// The default is 5 digits.
+    ///
+    /// > Note: This requires a y-axis to exist, either by [`Self::custom_y_axes`] or [`Self::y_axis_label`]
+    ///
+    /// > Todo: This is experimental. Changing the font size might break this.
+    pub fn y_axis_width(mut self, digits: usize) -> Self {
+        if !self.y_axes.is_empty() {
+            self.y_axes[0].digits = digits;
+        }
+        self
+    }
+
     /// Set custom configuration for bottom x-axis
     ///
-    /// More than one axis may be specified.
+    /// More than one axis may be specified. The first specified axis is considered the main axis.
     pub fn custom_x_axes(mut self, hints: Vec<XAxisHints>) -> Self {
         self.x_axes = hints;
         self
@@ -630,7 +660,7 @@ impl Plot {
 
     /// Set custom configuration for left y-axis
     ///
-    /// More than one axis may be specified.
+    /// More than one axis may be specified. The first specified axis is considered the main axis.
     pub fn custom_y_axes(mut self, hints: Vec<YAxisHints>) -> Self {
         self.y_axes = hints;
         self

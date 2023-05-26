@@ -43,7 +43,7 @@ pub(super) type YAxisWidget = AxisWidget<Y_AXIS>;
 pub struct AxisHints<const AXIS: usize> {
     pub(super) label: WidgetText,
     pub(super) formatter: AxisFormatterFn,
-    digits: usize,
+    pub(super) digits: usize,
     pub(super) placement: Placement,
 }
 
@@ -104,8 +104,7 @@ impl<const AXIS: usize> AxisHints<AXIS> {
 
     /// Specify maximum number of digits for ticks.
     ///
-    /// This is considered by the default tick formatter
-    /// and affects the width of the internal y-axis widget
+    /// This is considered by the default tick formatter and affects the width of the y-axis
     pub fn max_digits(mut self, digits: usize) -> Self {
         self.digits = digits;
         self

@@ -264,7 +264,11 @@ impl LineDemo {
             ui.ctx().request_repaint();
             self.time += ui.input(|i| i.unstable_dt).at_most(1.0 / 30.0) as f64;
         };
-        let mut plot = Plot::new("lines_demo").legend(Legend::default());
+        let mut plot = Plot::new("lines_demo")
+            .legend(Legend::default())
+            .x_axis_label("")
+            .y_axis_label("")
+            .y_axis_width(4);
         if self.square {
             plot = plot.view_aspect(1.0);
         }
@@ -421,8 +425,10 @@ impl LegendDemo {
             );
             ui.end_row();
         });
-
         let legend_plot = Plot::new("legend_demo")
+            .x_axis_label("")
+            .y_axis_label("")
+            .y_axis_width(2)
             .legend(config.clone())
             .data_aspect(1.0);
         legend_plot
@@ -550,18 +556,16 @@ impl CustomAxisDemo {
         ui.label("Zoom in on the X-axis to see hours and minutes");
 
         let x_axes = vec![
-            XAxisHints::default()
-                .label("Time".to_owned())
-                .formatter(x_fmt),
-            XAxisHints::default().label("Value".to_owned()),
+            XAxisHints::default().label("Time").formatter(x_fmt),
+            XAxisHints::default().label("Value"),
         ];
         let y_axes = vec![
             YAxisHints::default()
-                .label("Percent".to_owned())
+                .label("Percent")
                 .formatter(y_fmt)
                 .max_digits(4),
             YAxisHints::default()
-                .label("Absolute".to_owned())
+                .label("Absolute")
                 .placement(Placement::Opposite),
         ];
         Plot::new("custom_axes")
@@ -660,6 +664,9 @@ impl LinkedAxisDemo {
                 .data_aspect(2.0)
                 .width(150.0)
                 .height(250.0)
+                .y_axis_label("y")
+                .y_axis_position(Placement::Opposite)
+                .y_axis_width(3)
                 .link_axis(link_group_id, self.link_x, self.link_y)
                 .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
                 .show(ui, LinkedAxisDemo::configure_plot);
@@ -668,6 +675,7 @@ impl LinkedAxisDemo {
             .data_aspect(0.5)
             .width(250.0)
             .height(150.0)
+            .x_axis_label("x")
             .link_axis(link_group_id, self.link_x, self.link_y)
             .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
             .show(ui, LinkedAxisDemo::configure_plot)
@@ -899,6 +907,9 @@ impl ChartsDemo {
         Plot::new("Normal Distribution Demo")
             .legend(Legend::default())
             .clamp_grid(true)
+            .x_axis_label("")
+            .y_axis_label("")
+            .y_axis_width(3)
             .allow_zoom(self.allow_zoom)
             .allow_drag(self.allow_drag)
             .show(ui, |plot_ui| plot_ui.bar_chart(chart))
