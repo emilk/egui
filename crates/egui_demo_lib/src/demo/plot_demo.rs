@@ -551,17 +551,17 @@ impl CustomAxisDemo {
 
         let x_axes = vec![
             XAxisHints::default()
-                .label("Time".to_string())
+                .label("Time".to_owned())
                 .formatter(x_fmt),
-            XAxisHints::default().label("Value".to_string()),
+            XAxisHints::default().label("Value".to_owned()),
         ];
         let y_axes = vec![
             YAxisHints::default()
-                .label("Percent".to_string())
+                .label("Percent".to_owned())
                 .formatter(y_fmt)
                 .max_digits(4),
             YAxisHints::default()
-                .label("Absolute".to_string())
+                .label("Absolute".to_owned())
                 .placement(Placement::Opposite),
         ];
         Plot::new("custom_axes")

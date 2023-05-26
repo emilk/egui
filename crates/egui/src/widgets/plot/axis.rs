@@ -23,7 +23,7 @@ pub(super) const Y_AXIS: usize = 1;
 ///
 /// `Default` means bottom for x-axis and left for y-axis.
 /// `Opposite` means top for x-axis and right for y-axis.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Placement {
     Default,
     Opposite,
@@ -75,8 +75,8 @@ impl<const AXIS: usize> Default for AxisHints<AXIS> {
     /// maximum `digits` on tick label is 5
     fn default() -> Self {
         let label = match AXIS {
-            X_AXIS => "x".to_string(),
-            Y_AXIS => "y".to_string(),
+            X_AXIS => "x".to_owned(),
+            Y_AXIS => "y".to_owned(),
             _ => unreachable!(),
         };
         Self {
