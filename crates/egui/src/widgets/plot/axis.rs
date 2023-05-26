@@ -4,13 +4,13 @@ use std::{
 };
 
 use epaint::{
-    emath::{remap_clamp, round_to_decimals, NumExt},
-    Color32, Pos2, Rect, Rgba, Shape, Stroke, TextShape,
+    emath::{lerp, remap_clamp, round_to_decimals},
+    Color32, Pos2, Rect, Shape, Stroke, TextShape,
 };
 
 use crate::{Response, Sense, TextStyle, Ui, Widget, WidgetText};
 
-use super::{transform::PlotTransform, GridMark, MIN_LINE_SPACING_IN_POINTS};
+use super::{transform::PlotTransform, GridMark};
 
 pub(super) type AxisFormatterFn = fn(f64, usize, &RangeInclusive<f64>) -> String;
 
@@ -249,50 +249,53 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
             for step in self.steps {
                 let text = (self.hints.formatter)(step.value, self.hints.digits, &self.range);
                 if !text.is_empty() {
+                    const MIN_TEXT_SPACING: f32 = 20.0;
+                    const FULL_CONTRAST_SPACING: f32 = 40.0;
                     let spacing_in_points =
                         (transform.dpos_dvalue()[AXIS] * step.step_size).abs() as f32;
 
-                    let line_alpha = remap_clamp(
+                    if spacing_in_points <= MIN_TEXT_SPACING {
+                        continue;
+                    }
+                    let line_weight = remap_clamp(
                         spacing_in_points,
-                        (MIN_LINE_SPACING_IN_POINTS as f32 * 2.0)..=300.0,
-                        0.0..=0.15,
+                        MIN_TEXT_SPACING..=FULL_CONTRAST_SPACING,
+                        0.0..=1.0,
                     );
 
-                    if line_alpha > 0.0 {
-                        let line_color = color_from_alpha(ui, line_alpha);
-                        let galley = ui
-                            .painter()
-                            .layout_no_wrap(text, font_id.clone(), line_color);
-                        let text_pos = match AXIS {
-                            X_AXIS => {
-                                let y = match self.hints.placement {
-                                    Placement::Default => self.rect.min.y,
-                                    Placement::Opposite => self.rect.max.y - galley.size().y,
-                                };
-                                let projected_point = super::PlotPoint::new(step.value, 0.0);
-                                Pos2 {
-                                    x: transform.position_from_point(&projected_point).x
-                                        - galley.size().x / 2.0,
-                                    y,
-                                }
+                    let line_color = color_from_contrast(ui, line_weight);
+                    let galley = ui
+                        .painter()
+                        .layout_no_wrap(text, font_id.clone(), line_color);
+                    let text_pos = match AXIS {
+                        X_AXIS => {
+                            let y = match self.hints.placement {
+                                Placement::Default => self.rect.min.y,
+                                Placement::Opposite => self.rect.max.y - galley.size().y,
+                            };
+                            let projected_point = super::PlotPoint::new(step.value, 0.0);
+                            Pos2 {
+                                x: transform.position_from_point(&projected_point).x
+                                    - galley.size().x / 2.0,
+                                y,
                             }
-                            Y_AXIS => {
-                                let x = match self.hints.placement {
-                                    Placement::Default => self.rect.max.x - galley.size().x,
-                                    Placement::Opposite => self.rect.min.x,
-                                };
-                                let projected_point = super::PlotPoint::new(0.0, step.value);
-                                Pos2 {
-                                    x,
-                                    y: transform.position_from_point(&projected_point).y
-                                        - galley.size().y / 2.0,
-                                }
+                        }
+                        Y_AXIS => {
+                            let x = match self.hints.placement {
+                                Placement::Default => self.rect.max.x - galley.size().x,
+                                Placement::Opposite => self.rect.min.x,
+                            };
+                            let projected_point = super::PlotPoint::new(0.0, step.value);
+                            Pos2 {
+                                x,
+                                y: transform.position_from_point(&projected_point).y
+                                    - galley.size().y / 2.0,
                             }
-                            _ => unreachable!(),
-                        };
+                        }
+                        _ => unreachable!(),
+                    };
 
-                        ui.painter().add(Shape::galley(text_pos, galley));
-                    }
+                    ui.painter().add(Shape::galley(text_pos, galley));
                 }
             }
         }
@@ -300,10 +303,13 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
     }
 }
 
-fn color_from_alpha(ui: &Ui, alpha: f32) -> Color32 {
-    if ui.visuals().dark_mode {
-        Rgba::from_white_alpha(alpha).into()
-    } else {
-        Rgba::from_black_alpha((4.0 * alpha).at_most(1.0)).into()
-    }
+fn color_from_contrast(ui: &Ui, contrast: f32) -> Color32 {
+    let bg = ui.visuals().extreme_bg_color;
+    let fg = ui.visuals().widgets.open.fg_stroke.color;
+    let mix = 0.5 * contrast.sqrt();
+    Color32::from_rgb(
+        lerp((bg.r() as f32)..=(fg.r() as f32), mix) as u8,
+        lerp((bg.g() as f32)..=(fg.g() as f32), mix) as u8,
+        lerp((bg.b() as f32)..=(fg.b() as f32), mix) as u8,
+    )
 }
