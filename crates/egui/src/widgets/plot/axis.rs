@@ -1,7 +1,4 @@
-use std::{
-    fmt::{Debug, Formatter},
-    ops::RangeInclusive,
-};
+use std::{fmt::Debug, ops::RangeInclusive};
 
 use epaint::{
     emath::{lerp, remap_clamp, round_to_decimals},
@@ -41,27 +38,13 @@ pub(super) type YAxisWidget = AxisWidget<Y_AXIS>;
 /// Axis configuration.
 ///
 /// Used to configure axis label and ticks.
+/// The AXIS argument must be either [`X_AXIS`] or [`Y_AXIS`]. Everything else is disallowed.
 #[derive(Clone)]
 pub struct AxisHints<const AXIS: usize> {
-    pub(super) label: String,
+    pub(super) label: WidgetText,
     pub(super) formatter: AxisFormatterFn,
     digits: usize,
     pub(super) placement: Placement,
-}
-
-impl<const AXIS: usize> Debug for AxisHints<AXIS> {
-    fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        let axis_str = match AXIS {
-            X_AXIS => "x-axis",
-            Y_AXIS => "y-axis",
-            _ => unreachable!(),
-        };
-        write!(
-            fmt,
-            "Axis ( placement: {:?}, label: {}, formatter: ???, axis: {} )",
-            self.placement, self.label, axis_str
-        )
-    }
 }
 
 // TODO: this just a guess. It might cease to work if a user changes font size.
@@ -75,8 +58,8 @@ impl<const AXIS: usize> Default for AxisHints<AXIS> {
     /// maximum `digits` on tick label is 5
     fn default() -> Self {
         let label = match AXIS {
-            X_AXIS => "x".to_owned(),
-            Y_AXIS => "y".to_owned(),
+            X_AXIS => "x".into(),
+            Y_AXIS => "y".into(),
             _ => unreachable!(),
         };
         Self {
@@ -114,8 +97,8 @@ impl<const AXIS: usize> AxisHints<AXIS> {
     /// Specify axis label.
     ///
     /// The default is 'x' for x-axes and 'y' for y-axes.
-    pub fn label(mut self, label: String) -> Self {
-        self.label = label;
+    pub fn label(mut self, label: impl Into<WidgetText>) -> Self {
+        self.label = label.into();
         self
     }
 
@@ -183,7 +166,7 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
         let response = ui.allocate_rect(self.rect, Sense::click_and_drag());
         if ui.is_rect_visible(response.rect) {
             let visuals = ui.style().visuals.clone();
-            let text: WidgetText = self.hints.label.into();
+            let text = self.hints.label;
             let galley = text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Body);
             let text_color = visuals
                 .override_text_color

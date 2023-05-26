@@ -566,16 +566,16 @@ impl Plot {
     }
 
     /// Set the x axis label of the bottom x-axis
-    pub fn x_axis_label(mut self, label: String) -> Self {
+    pub fn x_axis_label(mut self, label: impl Into<WidgetText>) -> Self {
         if !self.x_axes.is_empty() {
-            self.x_axes[0].label = label;
+            self.x_axes[0].label = label.into();
         }
         self
     }
     /// Set the y axis label of the left y-axis
-    pub fn y_axis_label(mut self, label: String) -> Self {
+    pub fn y_axis_label(mut self, label: impl Into<WidgetText>) -> Self {
         if !self.y_axes.is_empty() {
-            self.y_axes[0].label = label;
+            self.y_axes[0].label = label.into();
         }
         self
     }
