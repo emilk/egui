@@ -1733,36 +1733,6 @@ impl PreparedPlot {
                     line_strength,
                 ));
             }
-
-            // --- axis labels
-            // const MIN_TEXT_SPACING: f32 = 40.0;
-            // if spacing_in_points > MIN_TEXT_SPACING {
-            //     let text_strength =
-            //         remap_clamp(spacing_in_points, MIN_TEXT_SPACING..=150.0, 0.0..=1.0);
-            //     let color = color_from_contrast(ui, text_strength);
-            //     let text: String = if let Some(formatter) = axis_formatters[axis].as_deref() {
-            //         formatter(value_main, &axis_range)
-            //     } else {
-            //         emath::round_to_decimals(value_main, 5).to_string() // hack
-            //     };
-
-            //     // Skip origin label for y-axis if x-axis is already showing it (otherwise displayed twice)
-            //     let skip_origin_y = axis == 1 && other_axis_shown && value_main == 0.0;
-
-            //     // Custom formatters can return empty string to signal "no label at this resolution"
-            //     if !text.is_empty() && !skip_origin_y {
-            //         let galley = ui.painter().layout_no_wrap(text, font_id.clone(), color);
-
-            //         let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);
-
-            //         // Make sure we see the labels, even if the axis is off-screen:
-            //         text_pos[1 - axis] = text_pos[1 - axis]
-            //             .at_most(transform.frame().max[1 - axis] - galley.size()[1 - axis] - 2.0)
-            //             .at_least(transform.frame().min[1 - axis] + 1.0);
-
-            //         shapes.push((Shape::galley(text_pos, galley), text_strength));
-            //     }
-            // }
         }
 
         fn color_from_contrast(ui: &Ui, contrast: f32) -> Color32 {
