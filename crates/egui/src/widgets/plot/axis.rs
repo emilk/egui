@@ -51,7 +51,7 @@ pub struct AxisHints<const AXIS: usize> {
 const LINE_HEIGHT: f32 = 12.0;
 
 impl<const AXIS: usize> Default for AxisHints<AXIS> {
-    /// Initializes a default axis configuration for the specified [`Axis`].
+    /// Initializes a default axis configuration for the specified axis.
     ///
     /// `label` is 'x' or 'y'
     /// `formatter` is default float to string formatter
