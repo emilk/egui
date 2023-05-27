@@ -1626,6 +1626,25 @@ pub struct Heatmap<const RESOLUTION: usize> {
     tile_size: Vec2,
 }
 
+impl<const RESOLUTION: usize> PartialEq for Heatmap<RESOLUTION> {
+    /// manual implementation of PartialEq because formatter and color mapping do not impl PartialEq.
+    ///
+    /// > NOTE: custom_mapping and formatter are ignored
+    fn eq(&self, other: &Self) -> bool {
+        self.pos == other.pos
+            && self.values == other.values
+            && self.cols == other.cols
+            && self.rows == other.rows
+            && self.min == other.min
+            && self.max == other.max
+            && self.show_labels == other.show_labels
+            && self.palette == other.palette
+            && self.highlight == other.highlight
+            && self.name == other.name
+            && self.tile_size == other.tile_size
+    }
+}
+
 impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
     /// Create a 2D heatmap. Will automatically infer number of rows.
     ///
@@ -1802,7 +1821,7 @@ impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
         self
     }
 
-    fn push_shapes(&self, ui: &Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn push_shapes(&self, ui: &Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let mut mesh = Mesh::default();
         let mut labels: Vec<Shape> = Vec::new();
         for i in 0..self.values.len() {
@@ -1820,7 +1839,7 @@ impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
     fn tile_view_info(
         &self,
         ui: &Ui,
-        transform: &ScreenTransform,
+        transform: &PlotTransform,
         index: usize,
     ) -> (Rect, Color32, Shape) {
         let v = self.values[index];
@@ -1883,7 +1902,7 @@ impl<const RESOLUTION: usize> Heatmap<RESOLUTION> {
 }
 
 impl<const RESOLUTION: usize> PlotItem for Heatmap<RESOLUTION> {
-    fn shapes(&self, ui: &mut Ui, transform: &ScreenTransform, shapes: &mut Vec<Shape>) {
+    fn shapes(&self, ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         self.push_shapes(ui, transform, shapes);
     }
 
@@ -1922,7 +1941,7 @@ impl<const RESOLUTION: usize> PlotItem for Heatmap<RESOLUTION> {
         }
     }
 
-    fn find_closest(&self, point: Pos2, transform: &ScreenTransform) -> Option<ClosestElem> {
+    fn find_closest(&self, point: Pos2, transform: &PlotTransform) -> Option<ClosestElem> {
         self.values
             .clone() // FIXME: is there a better solution that cloning?
             .into_iter()
