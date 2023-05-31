@@ -202,6 +202,7 @@ impl ContextImpl {
                 pivot: Align2::LEFT_TOP,
                 size: screen_rect.size(),
                 interactable: true,
+                edges_padded_for_resize: false,
             },
         );
 
