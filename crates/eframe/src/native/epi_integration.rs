@@ -115,7 +115,9 @@ pub fn window_builder<E>(
         .with_visible(false);
 
     #[cfg(target_os = "windows")]
-    window_builder = window_builder.with_skip_taskbar(*skip_taskbar);
+    {
+        window_builder = window_builder.with_skip_taskbar(*skip_taskbar);
+    }
 
     #[cfg(target_os = "macos")]
     if *fullsize_content {
