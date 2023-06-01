@@ -218,12 +218,9 @@ impl BackendPanel {
                 )
                 .on_hover_text("Physical pixels per point.");
 
-            if response.drag_released() {
+            if !response.dragged() {
                 // We wait until mouse release to activate:
                 ui.ctx().set_pixels_per_point(*pixels_per_point);
-                reset = true;
-            } else if !response.is_pointer_button_down_on() {
-                // When not dragging, show the current pixels_per_point so others can change it.
                 reset = true;
             }
 
