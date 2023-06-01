@@ -5,6 +5,10 @@ All notable changes to the `egui_extras` integration will be noted in this file.
 ## Unreleased
 
 
+## 0.22.0 - 2023-05-23
+- Add option to hide datepicker button calendar icon [#2910](https://github.com/emilk/egui/pull/2910) (thanks [@Barugon](https://github.com/Barugon)!)
+
+
 ## 0.21.0 - 2023-02-08
 * Update to egui 0.21
 

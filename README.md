@@ -45,7 +45,7 @@ ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
 if ui.button("Click each year").clicked() {
     age += 1;
 }
-ui.label(format!("Hello '{}', age {}", name, age));
+ui.label(format!("Hello '{name}', age {age}"));
 ```
 
 <img src="media/demo.gif">
@@ -70,7 +70,7 @@ The native backend is [`egui_glow`](https://github.com/emilk/egui/tree/master/cr
 
 On Fedora Rawhide you need to run:
 
-`dnf install clang clang-devel clang-tools-extra libxkbcommon-devel pkg-config openssl-devel libxcb-devel gtk3-devel atk`
+`dnf install clang clang-devel clang-tools-extra libxkbcommon-devel pkg-config openssl-devel libxcb-devel gtk3-devel atk fontconfig-devel`
 
 **NOTE**: This is just for the demo app - egui itself is completely platform agnostic!
 

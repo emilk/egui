@@ -148,6 +148,7 @@ impl BackendPanel {
 
         #[cfg(target_arch = "wasm32")]
         ui.collapsing("Web info (location)", |ui| {
+            ui.style_mut().wrap = Some(false);
             ui.monospace(format!("{:#?}", frame.info().web_info.location));
         });
 

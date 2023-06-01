@@ -106,7 +106,7 @@ def print_section(crate: str, items: List[str]) -> None:
         for line in items:
             line = remove_prefix(line, f"{crate}: ")
             line = remove_prefix(line, f"[{crate}] ")
-            print(f"- {line}")
+            print(f"* {line}")
     print()
 
 
@@ -148,7 +148,7 @@ def main() -> None:
 
         if pr_number is None:
             # Someone committed straight to main:
-            summary = f"{title} [{hexsha}](https://github.com/{OWNER}/{REPO}/commit/{hexsha})"
+            summary = f"{title} [{hexsha[:7]}](https://github.com/{OWNER}/{REPO}/commit/{hexsha})"
             unsorted_commits.append(summary)
         else:
             title = pr_info.pr_title if pr_info else title  # We prefer the PR title if available

@@ -3,7 +3,17 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 
 
 ## Unreleased
-* Fix unsafe API: remove `State::new_with_wayland_display`; change `Clipboard::new` to take `&EventLoopWindowTarget<T>`.
+
+
+## 0.22.0 - 2023-05-23
+* Only use `wasm-bindgen` feature for `instant` when building for wasm32 [#2808](https://github.com/emilk/egui/pull/2808) (thanks [@gferon](https://github.com/gferon)!)
+* Fix unsafe API of `Clipboard::new` [#2765](https://github.com/emilk/egui/pull/2765) (thanks [@dhardy](https://github.com/dhardy)!)
+* Remove `android-activity` dependency + add `Activity` backend features [#2863](https://github.com/emilk/egui/pull/2863) (thanks [@rib](https://github.com/rib)!)
+* Use `RawDisplayHandle` for smithay clipboard init [#2914](https://github.com/emilk/egui/pull/2914) (thanks [@lunixbochs](https://github.com/lunixbochs)!)
+* Clear all keys and modifies on focus change [#2933](https://github.com/emilk/egui/pull/2933)
+* Support Wasm target [#2949](https://github.com/emilk/egui/pull/2949) (thanks [@jinleili](https://github.com/jinleili)!)
+* Fix unsafe API: remove `State::new_with_wayland_display`; change `Clipboard::new` to take `&EventLoopWindowTarget<T>`
+
 
 ## 0.21.1 - 2023-02-12
 * Fixed crash when window position is in an invalid state, which could happen e.g. due to changes in monitor size or DPI ([#2722](https://github.com/emilk/egui/issues/2722)).

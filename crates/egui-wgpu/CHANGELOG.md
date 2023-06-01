@@ -3,9 +3,15 @@ All notable changes to the `egui-wgpu` integration will be noted in this file.
 
 
 ## Unreleased
-* Add `read_screen_rgba` to the egui-wgpu `Painter`, to allow for capturing the current frame when using wgpu. Used in conjunction with `Frame::request_screenshot`. ([#2676](https://github.com/emilk/egui/pull/2676))
-* Improve performance of `update_buffers` ([#2820](https://github.com/emilk/egui/pull/2820))
-* Added support for multisampling (MSAA) ([#2878](https://github.com/emilk/egui/pull/2878))
+
+
+## 0.22.0 - 2023-05-23
+* Update to wgpu 0.16 [#2884](https://github.com/emilk/egui/pull/2884) (thanks [@niklaskorz](https://github.com/niklaskorz)!)
+* Device configuration is now dependent on adapter [#2951](https://github.com/emilk/egui/pull/2951) (thanks [@Wumpf](https://github.com/Wumpf)!)
+* Expose `wgpu::Adapter` via `RenderState` [#2954](https://github.com/emilk/egui/pull/2954) (thanks [@Wumpf](https://github.com/Wumpf)!)
+* Add `read_screen_rgba` to the egui-wgpu `Painter`, to allow for capturing the current frame when using wgpu. Used in conjunction with `Frame::request_screenshot` [#2676](https://github.com/emilk/egui/pull/2676)
+* Improve performance of `update_buffers` [#2820](https://github.com/emilk/egui/pull/2820) (thanks [@Wumpf](https://github.com/Wumpf)!)
+* Added support for multisampling (MSAA) [#2878](https://github.com/emilk/egui/pull/2878) (thanks [@PPakalns](https://github.com/PPakalns)!)
 
 
 ## 0.21.0 - 2023-02-08

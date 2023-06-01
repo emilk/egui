@@ -1,6 +1,6 @@
 [package]
 name = "egui_demo_lib"
-version = "0.21.0"
+version = "0.22.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Example library for egui"
 edition = "2021"
@@ -30,8 +30,8 @@ syntax_highlighting = ["syntect"]
 
 
 [dependencies]
-egui = { version = "0.21.0", path = "../egui", default-features = false }
-egui_extras = { version = "0.21.0", path = "../egui_extras" }
+egui = { version = "0.22.0", path = "../egui", default-features = false }
+egui_extras = { version = "0.22.0", path = "../egui_extras" }
 enum-map = { version = "2", features = ["serde"] }
 log = { version = "0.4", features = ["std"] }
 unicode_names2 = { version = "0.6.0", default-features = false }
