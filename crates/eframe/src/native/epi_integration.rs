@@ -113,6 +113,7 @@ pub fn window_builder<E>(
         // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
         // We must also keep the window hidden until AccessKit is initialized.
         .with_visible(false);
+
     #[cfg(target_os = "windows")]
     window_builder = window_builder.with_skip_taskbar(*skip_taskbar);
 
