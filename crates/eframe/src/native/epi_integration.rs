@@ -110,10 +110,11 @@ pub fn window_builder<E>(
         .with_transparent(*transparent)
         .with_window_icon(window_icon)
         .with_active(*active)
-        .with_skip_taskbar(*skip_taskbar)
         // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
         // We must also keep the window hidden until AccessKit is initialized.
         .with_visible(false);
+    #[cfg(target_os = "windows")]
+    window_builder = window_builder.with_skip_taskbar(*skip_taskbar);
 
     #[cfg(target_os = "macos")]
     if *fullsize_content {
