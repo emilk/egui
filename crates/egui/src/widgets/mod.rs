@@ -125,16 +125,33 @@ pub fn stroke_ui(ui: &mut crate::Ui, stroke: &mut epaint::Stroke, text: &str) {
 }
 
 pub(crate) fn shadow_ui(ui: &mut Ui, shadow: &mut epaint::Shadow, text: &str) {
-    let epaint::Shadow { extrusion, color } = shadow;
-    ui.horizontal(|ui| {
+    let epaint::Shadow {
+        extrusion,
+        color,
+        top_offset,
+    } = shadow;
+    ui.group(|ui| {
         ui.label(text);
-        ui.add(
-            DragValue::new(extrusion)
-                .speed(1.0)
-                .clamp_range(0.0..=100.0),
-        )
-        .on_hover_text("Extrusion");
-        ui.color_edit_button_srgba(color);
+        ui.horizontal(|ui| {
+            ui.add(
+                DragValue::new(extrusion)
+                    .speed(1.0)
+                    .clamp_range(0.0..=100.0),
+            );
+            ui.label("Extrusion");
+        });
+        ui.horizontal(|ui| {
+            ui.color_edit_button_srgba(color);
+            ui.label("Color");
+        });
+        ui.horizontal(|ui| {
+            ui.add(
+                DragValue::new(top_offset)
+                    .speed(1.0)
+                    .clamp_range(0.0..=100.0),
+            );
+            ui.label("Top edge offset");
+        });
     });
 }
 

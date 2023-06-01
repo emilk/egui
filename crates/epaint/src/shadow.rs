@@ -11,27 +11,34 @@ pub struct Shadow {
 
     /// Color of the opaque center of the shadow.
     pub color: Color32,
+
+    /// Y-offset for the top edge of the rectangle. Positive values make the shadow
+    /// smaller, negative values make the shadow larger. The bottom edge is unchanged.
+    pub top_offset: f32,
 }
 
 impl Shadow {
     pub const NONE: Self = Self {
         extrusion: 0.0,
         color: Color32::TRANSPARENT,
+        top_offset: 0.0,
     };
 
     /// Tooltips, menus, …, for dark mode.
     pub fn small_dark() -> Self {
         Self {
-            extrusion: 16.0,
-            color: Color32::from_black_alpha(96),
+            extrusion: 12.0,
+            color: Color32::from_black_alpha(72),
+            top_offset: 6.0,
         }
     }
 
     /// Tooltips, menus, …, for light mode.
     pub fn small_light() -> Self {
         Self {
-            extrusion: 16.0,
-            color: Color32::from_black_alpha(20),
+            extrusion: 12.0,
+            color: Color32::from_black_alpha(15),
+            top_offset: 6.0,
         }
     }
 
@@ -40,6 +47,7 @@ impl Shadow {
         Self {
             extrusion: 32.0,
             color: Color32::from_black_alpha(96),
+            top_offset: 0.0,
         }
     }
 
@@ -48,13 +56,20 @@ impl Shadow {
         Self {
             extrusion: 32.0,
             color: Color32::from_black_alpha(16),
+            top_offset: 0.0,
         }
     }
 
-    pub fn tessellate(&self, rect: Rect, rounding: impl Into<Rounding>) -> Mesh {
+    pub fn tessellate(&self, mut rect: Rect, rounding: impl Into<Rounding>) -> Mesh {
         // tessellator.clip_rect = clip_rect; // TODO(emilk): culling
 
-        let Self { extrusion, color } = *self;
+        let Self {
+            extrusion,
+            color,
+            top_offset,
+        } = *self;
+
+        rect.set_top(f32::min(rect.top() + top_offset, rect.bottom()));
 
         let rounding: Rounding = rounding.into();
         let half_ext = 0.5 * extrusion;
