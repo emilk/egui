@@ -29,7 +29,7 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 * Read and request window focus [#2900](https://github.com/emilk/egui/pull/2900) (thanks [@TicClick](https://github.com/TicClick)!)
 * Set app icon on Mac and Windows [#2940](https://github.com/emilk/egui/pull/2940)
 * Set a default icon for all eframe apps: a white `e` on black background [#2996](https://github.com/emilk/egui/pull/2996)
-* Add `NativeOptions::app_id` for the persistance location [#3014](https://github.com/emilk/egui/pull/3014) and for Wayland [#3007](https://github.com/emilk/egui/pull/3007) (thanks [@thomaskrause](https://github.com/thomaskrause)!)
+* Add `NativeOptions::app_id` for the persistence location [#3014](https://github.com/emilk/egui/pull/3014) and for Wayland [#3007](https://github.com/emilk/egui/pull/3007) (thanks [@thomaskrause](https://github.com/thomaskrause)!)
 * capture a screenshot using `Frame::request_screenshot` [870264b](https://github.com/emilk/egui/commit/870264b00577a95d3fd9bdf36efaf87fd351de62)
 
 
