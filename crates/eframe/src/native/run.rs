@@ -238,9 +238,15 @@ fn run_and_return(
 
     // On Windows this clears out events so that we can later create another window.
     // See https://github.com/emilk/egui/pull/1889 for details.
-    event_loop.run_return(|_, _, control_flow| {
-        control_flow.set_exit();
-    });
+    //
+    // Note that this approach may cause issues on macOS (emilk/egui#2768); therefore,
+    // we only apply this approach on Windows to minimize the affect.
+    #[cfg(windows)]
+    {
+        event_loop.run_return(|_, _, control_flow| {
+            control_flow.set_exit();
+        });
+    }
 
     returned_result
 }
