@@ -616,8 +616,6 @@ impl MenuState {
         } else if !open && button.hovered() {
             let pos = button.rect.right_top();
             self.open_submenu(sub_id, pos);
-        } else if open && !button.hovered() && !self.hovering_current_submenu(&pointer) {
-            self.close_submenu();
         }
     }
 
