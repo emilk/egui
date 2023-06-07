@@ -245,31 +245,27 @@ fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>, alpha: Alpha) {
 }
 
 fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
-    let srgba_unmultiplied = (std::convert::Into::<Hsva>::into(*hsvag)).to_srgba_unmultiplied();
+    let mut srgba_unmultiplied = (std::convert::Into::<Hsva>::into(*hsvag)).to_srgba_unmultiplied();
     // Send an Opaque Alpha also when Alpha is BlendOrAdditive with negative alpha value (signals Additive blending),
     // so to hide the alpha's DragValue in both cases.
-    let alpha_control = if hsvag.a < 0.0 {
-        Alpha::Opaque
-    } else {
-        alpha
-    };
+    let alpha_control = if hsvag.a < 0.0 { Alpha::Opaque } else { alpha };
     // Update hsvag only if the converted srgba is changed, this is because hsvag is made of f32,
     // and the convertion between u8 and f32 loses a bit of the color precision, causing little flickering on hsvag based ui widgets.
-    if let Some(mut edited) = srgba_edit_ui(ui, srgba_unmultiplied, alpha_control) {
+    if srgba_edit_ui(ui, &mut srgba_unmultiplied, alpha_control) {
         // Additive blending, signaled by the negative Alpha.
         if hsvag.a < 0.0 {
             let stored_a = hsvag.a;
             // Alpha to 0 instead of negative, so it won't pop back to Normal blending when RGB are modified.
-            edited[3] = 0;
+            srgba_unmultiplied[3] = 0;
             // This conversion above sets Alpha to 0 in case it was negative, stored_a is used to back-up that value.
-            *hsvag = HsvaGamma::from(Hsva::from_srgba_unmultiplied(edited));
+            *hsvag = HsvaGamma::from(Hsva::from_srgba_unmultiplied(srgba_unmultiplied));
             // stored_a keeps the Alpha value that was set during Normal blending so that in case we alter RGB in Additive blending (negative Alpha)
             // and then switch back to Normal blending it gets that Alpha value back.
             hsvag.a = stored_a;
         }
         // Normal blending.
         else {
-            *hsvag = HsvaGamma::from(Hsva::from_srgba_unmultiplied(edited));
+            *hsvag = HsvaGamma::from(Hsva::from_srgba_unmultiplied(srgba_unmultiplied));
         }
     }
 
@@ -342,44 +338,27 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
 /// Shows 4 `DragValue` widgets to be used to edit the RGBA values.
 /// Alpha's `DragValue` is hidden when `Alpha::Opaque`.
 ///
-/// Returns `Some([u8;4])` on change, with unmultiplied alpha values.
-fn srgba_edit_ui(ui: &mut Ui, rgba: [u8; 4], alpha: Alpha) -> Option<[u8; 4]> {
-    let [mut r, mut g, mut b, mut a] = rgba;
+/// Returns `true` on change.
+fn srgba_edit_ui(ui: &mut Ui, rgba: &mut [u8; 4], alpha: Alpha) -> bool {
+    let [ref mut r, ref mut g, ref mut b, ref mut a] = rgba;
 
     let mut edited = false;
     ui.horizontal(|ui| {
-        if ui
-            .add(DragValue::new(&mut r).speed(0.5).prefix("R: "))
-            .changed()
-        {
+        if ui.add(DragValue::new(r).speed(0.5).prefix("R: ")).changed() {
             edited = true;
         }
-        if ui
-            .add(DragValue::new(&mut g).speed(0.5).prefix("G: "))
-            .changed()
-        {
+        if ui.add(DragValue::new(g).speed(0.5).prefix("G: ")).changed() {
             edited = true;
         }
-        if ui
-            .add(DragValue::new(&mut b).speed(0.5).prefix("B: "))
-            .changed()
-        {
+        if ui.add(DragValue::new(b).speed(0.5).prefix("B: ")).changed() {
             edited = true;
         }
-        if alpha != Alpha::Opaque
-            && ui
-                .add(DragValue::new(&mut a).speed(0.5).prefix("A: "))
-                .changed()
-        {
+        if alpha != Alpha::Opaque && ui.add(DragValue::new(a).speed(0.5).prefix("A: ")).changed() {
             edited = true;
         }
     });
 
-    if edited {
-        Some([r, g, b, a])
-    } else {
-        None
-    }
+    edited
 }
 
 //// Shows a color picker where the user can change the given [`Hsva`] color.
