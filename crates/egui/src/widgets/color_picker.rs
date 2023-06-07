@@ -250,7 +250,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
     // so to hide the alpha's DragValue in both cases.
     let alpha_control = if hsvag.a < 0.0 { Alpha::Opaque } else { alpha };
     // Update hsvag only if the converted srgba is changed, this is because hsvag is made of f32,
-    // and the convertion between u8 and f32 loses a bit of the color precision, causing little flickering on hsvag based ui widgets.
+    // and the conversion between u8 and f32 loses a bit of the color precision, causing little flickering on hsvag based ui widgets.
     if srgba_edit_ui(ui, &mut srgba_unmultiplied, alpha_control) {
         // Additive blending, signaled by the negative Alpha.
         if hsvag.a < 0.0 {
@@ -340,7 +340,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
 ///
 /// Returns `true` on change.
 fn srgba_edit_ui(ui: &mut Ui, rgba: &mut [u8; 4], alpha: Alpha) -> bool {
-    let [ref mut r, ref mut g, ref mut b, ref mut a] = rgba;
+    let [r, g, b, a] = rgba;
 
     let mut edited = false;
     ui.horizontal(|ui| {
