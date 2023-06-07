@@ -248,7 +248,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
     let srgba_unmultiplied = (std::convert::Into::<Hsva>::into(*hsvag)).to_srgba_unmultiplied();
     // Send an Opaque Alpha also when Alpha is BlendOrAdditive with negative alpha value (signals Additive blending),
     // so to hide the alpha's DragValue in both cases.
-    let alpha_control = if alpha == Alpha::Opaque || hsvag.a < 0.0 {
+    let alpha_control = if hsvag.a < 0.0 {
         Alpha::Opaque
     } else {
         alpha
