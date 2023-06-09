@@ -426,7 +426,7 @@ impl<'a> TableBuilder<'a> {
     {
         let available_width = self.available_width();
 
-        let Self {
+        let TableBuilder {
             ui,
             columns,
             striped,
@@ -647,15 +647,18 @@ impl<'a> Table<'a> {
 
                 let mut p0 = egui::pos2(x, table_top);
                 let mut p1 = egui::pos2(x, bottom);
+                // `line_rect` represents a vertical divider between two columns.
                 let line_rect = Rect::from_min_max(p0, p1)
                     .expand(ui.style().interaction.resize_grab_radius_side);
 
+                // Interact with the divider.
                 let resize_response =
                     ui.interact(line_rect, column_resize_id, egui::Sense::click_and_drag());
 
+                // Change `column_width` if the user has double-clicked or dragged the
+                // divider.
                 if resize_response.double_clicked() {
                     // Resize to the minimum of what is needed.
-
                     *column_width = max_used_widths[i].clamp(min_width, max_width);
                 } else if resize_response.dragged() {
                     if let Some(pointer) = ui.ctx().pointer_latest_pos() {
@@ -684,16 +687,18 @@ impl<'a> Table<'a> {
                     ui.input(|i| i.pointer.any_down() || i.pointer.any_pressed());
                 let resize_hover = resize_response.hovered() && !dragging_something_else;
 
+                // Change the cursor icon if the divider has been hovered over or dragged.
                 if resize_hover || resize_response.dragged() {
                     ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeColumn);
                 }
 
+                // Set the stroke accordingly to whether the divider has been hovered over
+                // or dragged.
                 let stroke = if resize_response.dragged() {
                     ui.style().visuals.widgets.active.bg_stroke
                 } else if resize_hover {
                     ui.style().visuals.widgets.hovered.bg_stroke
                 } else {
-                    // ui.visuals().widgets.inactive.bg_stroke
                     ui.visuals().widgets.noninteractive.bg_stroke
                 };
 
