@@ -475,7 +475,7 @@ struct TableState {
 
 impl TableState {
     /// Returns `true` if it did load.
-    fn load(ui: &egui::Ui, default_widths: Vec<f32>, state_id: egui::Id) -> (bool, Self) {
+    fn load(ui: &Ui, default_widths: Vec<f32>, state_id: egui::Id) -> (bool, Self) {
         let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
         ui.ctx().check_for_id_clash(state_id, rect, "Table");
 
@@ -494,7 +494,7 @@ impl TableState {
         )
     }
 
-    fn store(self, ui: &egui::Ui, state_id: egui::Id) {
+    fn store(self, ui: &Ui, state_id: egui::Id) {
         ui.data_mut(|d| d.insert_persisted(state_id, self));
     }
 }
@@ -522,10 +522,10 @@ pub struct Table<'a> {
 }
 
 impl<'a> Table<'a> {
-    /// Access the contained [`egui::Ui`].
+    /// Access the contained [`Ui`].
     ///
-    /// You can use this to e.g. modify the [`egui::Style`] with [`egui::Ui::style_mut`].
-    pub fn ui_mut(&mut self) -> &mut egui::Ui {
+    /// You can use this to e.g. modify the [`egui::Style`] with [`Ui::style_mut`].
+    pub fn ui_mut(&mut self) -> &mut Ui {
         self.ui
     }
 
@@ -604,7 +604,7 @@ impl<'a> Table<'a> {
 
             if let Some((min_y, max_y)) = scroll_to_y_range {
                 let x = 0.0; // ignored, we only have vertical scrolling
-                let rect = egui::Rect::from_min_max(egui::pos2(x, min_y), egui::pos2(x, max_y));
+                let rect = Rect::from_min_max(egui::pos2(x, min_y), egui::pos2(x, max_y));
                 let align = scroll_to_row.and_then(|(_, a)| a);
                 ui.scroll_to_rect(rect, align);
             }
@@ -647,7 +647,7 @@ impl<'a> Table<'a> {
 
                 let mut p0 = egui::pos2(x, table_top);
                 let mut p1 = egui::pos2(x, bottom);
-                let line_rect = egui::Rect::from_min_max(p0, p1)
+                let line_rect = Rect::from_min_max(p0, p1)
                     .expand(ui.style().interaction.resize_grab_radius_side);
 
                 let resize_response =
@@ -735,10 +735,10 @@ pub struct TableBody<'a> {
 }
 
 impl<'a> TableBody<'a> {
-    /// Access the contained [`egui::Ui`].
+    /// Access the contained [`Ui`].
     ///
-    /// You can use this to e.g. modify the [`egui::Style`] with [`egui::Ui::style_mut`].
-    pub fn ui_mut(&mut self) -> &mut egui::Ui {
+    /// You can use this to e.g. modify the [`egui::Style`] with [`Ui::style_mut`].
+    pub fn ui_mut(&mut self) -> &mut Ui {
         self.layout.ui
     }
 
