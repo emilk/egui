@@ -22,6 +22,7 @@ pub use crate::native::run::UserEvent;
 use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
+use static_assertions::assert_not_impl_any;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
@@ -77,6 +78,9 @@ pub struct CreationContext<'s> {
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) raw_display_handle: RawDisplayHandle,
 }
+
+// Implementing `Clone` would violate the guarantees of `HasRawWindowHandle` and `HasRawDisplayHandle`.
+assert_not_impl_any!(CreationContext<'_>: Clone);
 
 #[allow(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
@@ -732,6 +736,9 @@ pub struct Frame {
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) raw_display_handle: raw_window_handle::RawDisplayHandle,
 }
+
+// Implementing `Clone` would violate the guarantees of `HasRawWindowHandle` and `HasRawDisplayHandle`.
+assert_not_impl_any!(Frame: Clone);
 
 #[allow(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
