@@ -96,6 +96,7 @@ egui_glow = { version = "0.22.0", path = "../egui_glow", optional = true, defaul
 glow = { version = "0.12", optional = true }
 ron = { version = "0.8", optional = true, features = ["integer128"] }
 serde = { version = "1", optional = true, features = ["derive"] }
+static_assertions = "1.1.0"
 
 # -------------------------------------------
 # native:
