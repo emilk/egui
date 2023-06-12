@@ -1164,6 +1164,7 @@ dependencies = [
  "raw-window-handle",
  "ron",
  "serde",
+ "static_assertions",
  "thiserror",
  "tts",
  "wasm-bindgen",

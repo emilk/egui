@@ -378,7 +378,7 @@ impl Default for CursorIcon {
 
 /// Things that happened during this frame that the integration may be interested in.
 ///
-/// In particular, these events may be useful for accessability, i.e. for screen readers.
+/// In particular, these events may be useful for accessibility, i.e. for screen readers.
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum OutputEvent {
