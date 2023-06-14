@@ -581,7 +581,7 @@ impl Painter {
                 Self::read_screen_rgba(screen_capture_state, render_state, &output_frame)
             }
             (true, false) => {
-                log::error!("Screenshots are not supported on backend that don't allow the render surface to have the TextureUsages::COPY_DST flag");
+                log::error!("The active render surface doesn't support taking screenshots.");
                 None
             }
             (false, _) => None,
