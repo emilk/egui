@@ -798,7 +798,7 @@ impl Frame {
     /// Returns None if:
     /// * Called in [`App::update`]
     /// * [`Frame::request_screenshot`] wasn't called on this frame during [`App::update`]
-    /// * The rendering backend doesn't support this feature (yet). Currently implemented for wgpu and glow, but not with wasm as target.
+    /// * The rendering backend doesn't support this feature (yet). Currently implemented for wgpu and glow, but not with wasm as target or gl as backend in the case of wgpu.
     /// * Retrieving the data was unsuccessful in some way.
     ///
     /// See also [`egui::ColorImage::region`]
