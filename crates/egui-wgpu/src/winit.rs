@@ -224,10 +224,7 @@ impl Painter {
                     wgpu::CompositeAlphaMode::Auto
                 };
 
-                let supports_screenshot = match render_state.adapter.get_info().backend {
-                    wgpu::Backend::Gl => false,
-                    _ => true,
-                };
+                let supports_screenshot = !matches!(render_state.adapter.get_info().backend, wgpu::Backend::Gl);
 
                 let size = window.inner_size();
                 self.surface_state = Some(SurfaceState {
