@@ -136,7 +136,7 @@ impl Painter {
         render_state: &RenderState,
         present_mode: wgpu::PresentMode,
     ) {
-        let usage = match render_state.adapter.get_info().backend{
+        let usage = match render_state.adapter.get_info().backend {
             wgpu::Backend::Gl => wgpu::TextureUsages::RENDER_ATTACHMENT,
             _ => wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST,
         };
@@ -491,7 +491,12 @@ impl Painter {
 
         {
             let renderer = render_state.renderer.read();
-            let frame_view = if capture & output_frame.texture.usage().contains(wgpu::TextureUsages::COPY_DST) {
+            let frame_view = if capture
+                & output_frame
+                    .texture
+                    .usage()
+                    .contains(wgpu::TextureUsages::COPY_DST)
+            {
                 Self::update_capture_state(
                     &mut self.screen_capture_state,
                     &output_frame,
@@ -564,15 +569,21 @@ impl Painter {
                 .submit(user_cmd_bufs.into_iter().chain(std::iter::once(encoded)));
         };
 
-        let screenshot = match (capture, output_frame.texture.usage().contains(wgpu::TextureUsages::COPY_DST)){
+        let screenshot = match (
+            capture,
+            output_frame
+                .texture
+                .usage()
+                .contains(wgpu::TextureUsages::COPY_DST),
+        ) {
             (true, true) => {
                 let screen_capture_state = self.screen_capture_state.as_ref()?;
                 Self::read_screen_rgba(screen_capture_state, render_state, &output_frame)
-            },
+            }
             (true, false) => {
                 log::error!("Screenshots are not supported on backend that don't allow the render surface to have the TextureUsages::COPY_DST flag");
                 None
-            },
+            }
             (false, _) => None,
         };
 
