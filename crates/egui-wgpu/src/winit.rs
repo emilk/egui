@@ -7,6 +7,7 @@ struct SurfaceState {
     alpha_mode: wgpu::CompositeAlphaMode,
     width: u32,
     height: u32,
+    supports_screenshot: bool,
 }
 
 /// A texture and a buffer for reading the rendered frame back to the cpu.
@@ -136,9 +137,10 @@ impl Painter {
         render_state: &RenderState,
         present_mode: wgpu::PresentMode,
     ) {
-        let usage = match render_state.adapter.get_info().backend {
-            wgpu::Backend::Gl => wgpu::TextureUsages::RENDER_ATTACHMENT,
-            _ => wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST,
+        let usage = if surface_state.supports_screenshot {
+            wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST
+        } else {
+            wgpu::TextureUsages::RENDER_ATTACHMENT
         };
         surface_state.surface.configure(
             &render_state.device,
@@ -222,12 +224,18 @@ impl Painter {
                     wgpu::CompositeAlphaMode::Auto
                 };
 
+                let supports_screenshot = match render_state.adapter.get_info().backend {
+                    wgpu::Backend::Gl => false,
+                    _ => true,
+                };
+
                 let size = window.inner_size();
                 self.surface_state = Some(SurfaceState {
                     surface,
                     width: size.width,
                     height: size.height,
                     alpha_mode,
+                    supports_screenshot,
                 });
                 self.resize_and_generate_depth_texture_view_and_msaa_view(size.width, size.height);
             }
@@ -489,14 +497,18 @@ impl Painter {
             )
         };
 
+        let capture = match (capture, surface_state.supports_screenshot) {
+            (false, _) => false,
+            (true, true) => true,
+            (true, false) => {
+                log::error!("The active render surface doesn't support taking screenshots.");
+                false
+            }
+        };
+
         {
             let renderer = render_state.renderer.read();
-            let frame_view = if capture
-                & output_frame
-                    .texture
-                    .usage()
-                    .contains(wgpu::TextureUsages::COPY_DST)
-            {
+            let frame_view = if capture {
                 Self::update_capture_state(
                     &mut self.screen_capture_state,
                     &output_frame,
@@ -569,22 +581,11 @@ impl Painter {
                 .submit(user_cmd_bufs.into_iter().chain(std::iter::once(encoded)));
         };
 
-        let screenshot = match (
-            capture,
-            output_frame
-                .texture
-                .usage()
-                .contains(wgpu::TextureUsages::COPY_DST),
-        ) {
-            (true, true) => {
-                let screen_capture_state = self.screen_capture_state.as_ref()?;
-                Self::read_screen_rgba(screen_capture_state, render_state, &output_frame)
-            }
-            (true, false) => {
-                log::error!("The active render surface doesn't support taking screenshots.");
-                None
-            }
-            (false, _) => None,
+        let screenshot = if capture {
+            let screen_capture_state = self.screen_capture_state.as_ref()?;
+            Self::read_screen_rgba(screen_capture_state, render_state, &output_frame)
+        } else {
+            None
         };
 
         {
