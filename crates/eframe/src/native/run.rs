@@ -807,6 +807,10 @@ mod glow_integration {
 
         fn run_ui_and_paint(&mut self) -> EventResult {
             if let Some(running) = &mut self.running {
+                if running.gl_window.window.is_none() {
+                    return EventResult::Wait;
+                }
+
                 #[cfg(feature = "puffin")]
                 puffin::GlobalProfiler::lock().new_frame();
                 crate::profile_scope!("frame");
