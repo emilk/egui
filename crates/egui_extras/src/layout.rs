@@ -1,7 +1,7 @@
 use egui::{Pos2, Rect, Response, Sense, Ui};
 
 #[derive(Clone, Copy)]
-pub(crate) enum CellSize {
+pub enum CellSize {
     /// Absolute size in points
     Absolute(f32),
 
@@ -28,9 +28,9 @@ pub(crate) enum CellDirection {
 
 /// Positions cells in [`CellDirection`] and starts a new line on [`StripLayout::end_line`]
 pub struct StripLayout<'l> {
-    pub(crate) ui: &'l mut Ui,
+    pub ui: &'l mut Ui,
     direction: CellDirection,
-    pub(crate) rect: Rect,
+    pub rect: Rect,
     pub(crate) cursor: Pos2,
     /// Keeps track of the max used position,
     /// so we know how much space we used.
@@ -53,7 +53,7 @@ impl<'l> StripLayout<'l> {
         }
     }
 
-    fn cell_rect(&self, width: &CellSize, height: &CellSize) -> Rect {
+    pub fn cell_rect(&self, width: &CellSize, height: &CellSize) -> Rect {
         Rect {
             min: self.cursor,
             max: Pos2 {

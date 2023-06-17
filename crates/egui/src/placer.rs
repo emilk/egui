@@ -1,10 +1,10 @@
 use crate::*;
 
-pub(crate) struct Placer {
+pub struct Placer {
     /// If set this will take precedence over [`layout`].
     grid: Option<grid::GridLayout>,
     layout: Layout,
-    region: Region,
+    pub region: Region,
 }
 
 impl Placer {

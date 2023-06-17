@@ -6,7 +6,7 @@ use std::f32::INFINITY;
 /// This describes the bounds and existing contents of an [`Ui`][`crate::Ui`].
 /// It is what is used and updated by [`Layout`] when adding new widgets.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Region {
+pub struct Region {
     /// This is the minimal size of the [`Ui`](crate::Ui).
     /// When adding new widgets, this will generally expand.
     ///
@@ -39,7 +39,7 @@ pub(crate) struct Region {
     ///
     /// If something has already been added, this will point to `style.spacing.item_spacing` beyond the latest child.
     /// The cursor can thus be `style.spacing.item_spacing` pixels outside of the min_rect.
-    pub(crate) cursor: Rect,
+    pub cursor: Rect,
 }
 
 impl Region {
