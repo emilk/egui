@@ -273,7 +273,9 @@ impl<'a> TableBuilder<'a> {
         self.vscroll(vscroll)
     }
 
-    /// Enables scrolling the table's contents using mouse drag (default: `true`)
+    /// Enables scrolling the table's contents using mouse drag (default: `true`).
+    ///
+    /// See [`ScrollArea::drag_to_scroll`] for more.
     pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
         self.scroll_options.drag_to_scroll = drag_to_scroll;
         self
