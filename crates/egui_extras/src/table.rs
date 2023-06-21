@@ -3,7 +3,9 @@
 //! | fixed size | all available space/minimum | 30% of available width | fixed size |
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
-use egui::{Align, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2};
+use egui::{
+    scroll_area::ScrollAreaOutput, Align, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2,
+};
 
 use crate::{
     layout::{CellDirection, CellSize},
@@ -401,19 +403,21 @@ impl<'a> TableBuilder<'a> {
         let table_top = ui.cursor().top();
 
         // Hide first-frame-jitters when auto-sizing.
-        ui.add_visible_ui(!first_frame_auto_size_columns, |ui| {
-            let mut layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout);
-            add_header_row(TableRow {
-                layout: &mut layout,
-                columns: &columns,
-                widths: &state.column_widths,
-                max_used_widths: &mut max_used_widths,
-                col_index: 0,
-                striped: false,
-                height,
-            });
-            layout.allocate_rect();
-        });
+        let header_response = ui
+            .add_visible_ui(!first_frame_auto_size_columns, |ui| {
+                let mut layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout);
+                add_header_row(TableRow {
+                    layout: &mut layout,
+                    columns: &columns,
+                    widths: &state.column_widths,
+                    max_used_widths: &mut max_used_widths,
+                    col_index: 0,
+                    striped: false,
+                    height,
+                });
+                layout.allocate_rect();
+            })
+            .response;
 
         Table {
             ui,
@@ -428,6 +432,7 @@ impl<'a> TableBuilder<'a> {
             striped,
             cell_layout,
             scroll_options,
+            header_response: Some(header_response),
         }
     }
 
@@ -473,6 +478,7 @@ impl<'a> TableBuilder<'a> {
             striped,
             cell_layout,
             scroll_options,
+            header_response: None,
         }
         .body(add_body_contents);
     }
@@ -533,6 +539,18 @@ pub struct Table<'a> {
     cell_layout: egui::Layout,
 
     scroll_options: TableScrollOptions,
+    /// The `header_response` is passed down from [`TableBuilder::header()`] so that it can be returned to the user after the body is built.
+    /// If no header is specified, it is `None`.
+    header_response: Option<Response>,
+}
+
+/// Returned from [`Table::body`]. Contains information about the way the table has been built by the context.
+pub struct TableOutput {
+    /// The response received upon the creation of the table's header, if one was defined.
+    pub header_response: Option<Response>,
+
+    /// The output of the [`ScrollArea`] containing the table body's contents.
+    pub content_area: ScrollAreaOutput<()>,
 }
 
 impl<'a> Table<'a> {
@@ -544,7 +562,7 @@ impl<'a> Table<'a> {
     }
 
     /// Create table body after adding a header row
-    pub fn body<F>(self, add_body_contents: F)
+    pub fn body<F>(self, add_body_contents: F) -> TableOutput
     where
         F: for<'b> FnOnce(TableBody<'b>),
     {
@@ -561,6 +579,7 @@ impl<'a> Table<'a> {
             striped,
             cell_layout,
             scroll_options,
+            header_response,
         } = self;
 
         let TableScrollOptions {
@@ -592,7 +611,7 @@ impl<'a> Table<'a> {
         let widths_ref = &state.column_widths;
         let max_used_widths_ref = &mut max_used_widths;
 
-        scroll_area.show(ui, move |ui| {
+        let content_area = scroll_area.show(ui, move |ui| {
             let mut scroll_to_y_range = None;
 
             // Hide first-frame-jitters when auto-sizing.
@@ -720,6 +739,10 @@ impl<'a> Table<'a> {
         }
 
         state.store(ui, state_id);
+        TableOutput {
+            header_response,
+            content_area,
+        }
     }
 }
 
