@@ -266,6 +266,14 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// Enable/disable scrolling on the window by dragging with the pointer. `true` by default.
+    ///
+    /// See [`ScrollArea::drag_to_scroll`] for more.
+    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
+        self.scroll = self.scroll.drag_to_scroll(drag_to_scroll);
+        self
+    }
+
     /// Constrain the area up to which the window can be dragged.
     pub fn drag_bounds(mut self, bounds: Rect) -> Self {
         self.area = self.area.drag_bounds(bounds);
