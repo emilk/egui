@@ -92,34 +92,54 @@ impl<'l> StripLayout<'l> {
     /// Return the used space (`min_rect`) plus the [`Response`] of the whole cell.
     pub(crate) fn add(
         &mut self,
-        clip: bool,
-        striped: bool,
         width: CellSize,
         height: CellSize,
+        flags: StripLayoutFlags,
+        sense: Sense,
         add_cell_contents: impl FnOnce(&mut Ui),
     ) -> (Rect, Response) {
+        use egui::Rounding;
+
         let max_rect = self.cell_rect(&width, &height);
 
-        if striped {
-            // Make sure we don't have a gap in the stripe background:
-            let stripe_rect = max_rect.expand2(0.5 * self.ui.spacing().item_spacing);
+        // Make sure we don't have a gap in the stripe/frame/selection background:
+        let gapless_rect = || max_rect.expand2(0.5 * self.ui.spacing().item_spacing);
 
-            self.ui
-                .painter()
-                .rect_filled(stripe_rect, 0.0, self.ui.visuals().faint_bg_color);
+        if flags.striped {
+            self.ui.painter().rect_filled(
+                gapless_rect(),
+                Rounding::none(),
+                self.ui.visuals().faint_bg_color,
+            );
         }
 
-        let used_rect = self.cell(clip, max_rect, add_cell_contents);
+        if flags.framed {
+            self.ui.painter().rect_filled(
+                gapless_rect(),
+                Rounding::none(),
+                self.ui.visuals().widgets.hovered.weak_bg_fill,
+            );
+        }
+
+        if flags.selected {
+            self.ui.painter().rect_filled(
+                gapless_rect(),
+                Rounding::none(),
+                self.ui.visuals().selection.bg_fill,
+            );
+        }
+
+        let used_rect = self.cell(flags.clip, max_rect, add_cell_contents);
 
         self.set_pos(max_rect);
 
-        let allocation_rect = if clip {
+        let allocation_rect = if flags.clip {
             max_rect
         } else {
             max_rect.union(used_rect)
         };
 
-        let response = self.ui.allocate_rect(allocation_rect, Sense::hover());
+        let response = self.ui.allocate_rect(allocation_rect, sense);
 
         (used_rect, response)
     }
@@ -168,4 +188,13 @@ impl<'l> StripLayout<'l> {
 
         self.ui.allocate_rect(rect, Sense::hover())
     }
+}
+
+/// A group of flags used by [`StripLayout::add`].
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct StripLayoutFlags {
+    pub(crate) clip: bool,
+    pub(crate) striped: bool,
+    pub(crate) selected: bool,
+    pub(crate) framed: bool,
 }

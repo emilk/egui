@@ -12,6 +12,8 @@ pub struct TableDemo {
     demo: DemoType,
     striped: bool,
     resizable: bool,
+    selectable: bool,
+    frame: bool,
     num_rows: usize,
     scroll_to_row_slider: usize,
     scroll_to_row: Option<usize>,
@@ -23,6 +25,8 @@ impl Default for TableDemo {
             demo: DemoType::Manual,
             striped: true,
             resizable: true,
+            selectable: true,
+            frame: true,
             num_rows: 10_000,
             scroll_to_row_slider: 0,
             scroll_to_row: None,
@@ -55,6 +59,8 @@ impl super::View for TableDemo {
             ui.horizontal(|ui| {
                 ui.checkbox(&mut self.striped, "Striped");
                 ui.checkbox(&mut self.resizable, "Resizable columns");
+                ui.checkbox(&mut self.selectable, "Selectable rows");
+                ui.checkbox(&mut self.frame, "Framing effect");
             });
 
             ui.label("Table type:");
@@ -127,6 +133,8 @@ impl TableDemo {
         let mut table = TableBuilder::new(ui)
             .striped(self.striped)
             .resizable(self.resizable)
+            .selectable(self.selectable)
+            .frame(self.frame)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
             .column(Column::auto())
             .column(Column::initial(100.0).range(40.0..=300.0))

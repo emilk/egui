@@ -5,7 +5,12 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 
 ## Unreleased
+### ⭐ Added
+* Add framing effect to table rows
+* Select table row by clicking
 
+### 🔧 Changed
+* Configure sensitivity of table cells
 
 ## 0.22.0 - 2023-05-23 - A plethora of small improvements
 ### ⭐ Added
@@ -39,7 +44,6 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Show alt key on Mac as `"Option"`, not `"Alt"` [#2981](https://github.com/emilk/egui/pull/2981) (thanks [@Wumpf](https://github.com/Wumpf)!)
 * Mention `store` in `TextEditState` doc comment [#2988](https://github.com/emilk/egui/pull/2988) (thanks [@fxdave](https://github.com/fxdave)!)
 * Fix typos [#2866](https://github.com/emilk/egui/pull/2866) (thanks [@fezjo](https://github.com/fezjo)!)
-
 
 ### ✨ Examples
 * Fix resizable columns option in the table demo [#2780](https://github.com/emilk/egui/pull/2780) (thanks [@Bobo1239](https://github.com/Bobo1239)!)

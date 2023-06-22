@@ -448,6 +448,7 @@ impl IdTypeMap {
     }
 
     /// Remove the state of this type an id.
+    // TODO(vvv): return `Option<T>`, similarly to `HashMap::remove`.
     #[inline]
     pub fn remove<T: 'static>(&mut self, id: Id) {
         let hash = hash(TypeId::of::<T>(), id);
