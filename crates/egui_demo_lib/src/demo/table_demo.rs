@@ -38,7 +38,6 @@ impl super::Demo for TableDemo {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
-            .resizable(true)
             .default_width(400.0)
             .show(ctx, |ui| {
                 use super::View as _;

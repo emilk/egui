@@ -280,6 +280,7 @@ impl Rect {
         }
     }
 
+    /// `rect.size() == Vec2 { x: rect.width(), y: rect.height() }`
     #[inline(always)]
     pub fn size(&self) -> Vec2 {
         self.max - self.min

@@ -426,7 +426,7 @@ impl Prepared {
             temporarily_invisible: _,
         } = self;
 
-        state.size = content_ui.min_rect().size();
+        state.size = content_ui.min_size();
 
         ctx.memory_mut(|m| m.areas.set_state(layer_id, state));
 
