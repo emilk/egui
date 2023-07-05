@@ -1,6 +1,6 @@
 //! All the data egui returns to the backend at the end of each frame.
 
-use crate::WidgetType;
+use crate::{TextInputState, WidgetType};
 
 /// What egui emits each frame from [`crate::Context::run`].
 ///
@@ -86,6 +86,8 @@ pub struct PlatformOutput {
     /// Screen-space position of text edit cursor (used for IME).
     pub text_cursor_pos: Option<crate::Pos2>,
 
+    pub text_input_state: Option<TextInputState>,
+
     #[cfg(feature = "accesskit")]
     pub accesskit_update: Option<accesskit::TreeUpdate>,
 }
@@ -126,6 +128,7 @@ impl PlatformOutput {
             text_cursor_pos,
             #[cfg(feature = "accesskit")]
             accesskit_update,
+            text_input_state,
         } = newer;
 
         self.cursor_icon = cursor_icon;
@@ -138,6 +141,10 @@ impl PlatformOutput {
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
         self.text_cursor_pos = text_cursor_pos.or(self.text_cursor_pos);
+
+        if text_input_state.is_some() {
+            self.text_input_state = text_input_state;
+        }
 
         #[cfg(feature = "accesskit")]
         {

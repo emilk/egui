@@ -16,6 +16,7 @@ pub use winit;
 use winit::dpi::LogicalSize;
 use winit::event::MouseButton;
 use winit::keyboard::KeyCode;
+use egui::{TextInputState, TextSpan};
 
 pub use egui;
 #[cfg(feature = "accesskit")]
@@ -24,6 +25,7 @@ pub use window_settings::WindowSettings;
 
 pub mod clipboard;
 mod window_settings;
+
 
 pub fn native_pixels_per_point(window: &winit::window::Window) -> f32 {
     window.scale_factor() as f32
@@ -79,6 +81,7 @@ pub struct State {
 
     /// track ime state
     input_method_editor_started: bool,
+    text_input_last_frame: bool,
 
     #[cfg(feature = "accesskit")]
     accesskit: Option<accesskit_winit::Adapter>,
@@ -109,6 +112,7 @@ impl State {
             simulate_touch_screen: false,
             pointer_touch_id: None,
 
+            text_input_last_frame: false,
             input_method_editor_started: false,
 
             #[cfg(feature = "accesskit")]
@@ -283,6 +287,28 @@ impl State {
                     }
                 };
 
+                EventResponse {
+                    repaint: true,
+                    consumed: egui_ctx.wants_keyboard_input(),
+                }
+            }
+            WindowEvent::TextInputState(state) => {
+                self.egui_input
+                    .events
+                    .push(egui::Event::TextInputState(TextInputState {
+                        text: state.text.clone(),
+                        selection: TextSpan {
+                            start: state.selection.start,
+                            end: state.selection.end,
+                        },
+                        compose_region: state
+                            .compose_region
+                            .as_ref()
+                            .map(|r| TextSpan {
+                                start: r.start,
+                                end: r.end,
+                            }),
+                    }));
                 EventResponse {
                     repaint: true,
                     consumed: egui_ctx.wants_keyboard_input(),
@@ -651,6 +677,7 @@ impl State {
             text_cursor_pos,
             #[cfg(feature = "accesskit")]
             accesskit_update,
+            text_input_state,
         } = platform_output;
         self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
 
@@ -663,6 +690,32 @@ impl State {
         if !copied_text.is_empty() {
             self.clipboard.set(copied_text);
         }
+
+        if let Some(text_input_state) = text_input_state {
+            window.set_text_input_state(winit::event::TextInputState {
+                text: text_input_state.text,
+                selection: winit::event::TextSpan {
+                    start: text_input_state.selection.start,
+                    end: text_input_state.selection.end,
+                },
+                compose_region: text_input_state
+                    .compose_region
+                    .map(|r| winit::event::TextSpan {
+                        start: r.start,
+                        end: r.end,
+                    }),
+            });
+        }
+
+        let text_input_this_frame = text_cursor_pos.is_some();
+        if self.text_input_last_frame != text_input_this_frame {
+            if text_input_this_frame {
+                window.begin_ime_input();
+            } else {
+                window.end_ime_input();
+            }
+        }
+        self.text_input_last_frame = text_input_this_frame;
 
         if let Some(egui::Pos2 { x, y }) = text_cursor_pos {
             window.set_ime_cursor_area(winit::dpi::LogicalPosition { x, y }, LogicalSize::new(100, 100));
