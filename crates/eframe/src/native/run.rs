@@ -119,6 +119,7 @@ fn with_event_loop<R>(
     })
 }
 
+#[cfg(not(target_os = "ios"))]
 fn run_and_return(
     event_loop: &mut EventLoop<UserEvent>,
     mut winit_app: impl WinitApp,
@@ -1494,6 +1495,7 @@ mod wgpu_integration {
         mut native_options: epi::NativeOptions,
         app_creator: epi::AppCreator,
     ) -> Result<()> {
+        #[cfg(not(target_os = "ios"))]
         if native_options.run_and_return {
             with_event_loop(native_options, |event_loop, native_options| {
                 let wgpu_eframe =
@@ -1501,6 +1503,13 @@ mod wgpu_integration {
                 run_and_return(event_loop, wgpu_eframe)
             })
         } else {
+            let event_loop = create_event_loop_builder(&mut native_options).build();
+            let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
+            run_and_exit(event_loop, wgpu_eframe);
+        }
+
+        #[cfg(target_os = "ios")]
+        {
             let event_loop = create_event_loop_builder(&mut native_options).build();
             let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, wgpu_eframe);
