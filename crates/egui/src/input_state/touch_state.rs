@@ -118,7 +118,7 @@ struct ActiveTouch {
     ///
     /// Note that a value of 0.0 either indicates a very light touch, or it means that the device
     /// is not capable of measuring the touch force.
-    force: f32,
+    force: Option<f32>,
 }
 
 impl TouchState {
@@ -249,7 +249,7 @@ impl TouchState {
 
             // first pass: calculate force and center of touch positions:
             for touch in self.active_touches.values() {
-                state.avg_force += touch.force;
+                state.avg_force += touch.force.unwrap_or(0.0);
                 state.avg_pos.x += touch.pos.x;
                 state.avg_pos.y += touch.pos.y;
             }

@@ -68,7 +68,7 @@ pub fn push_touches(runner: &mut AppRunner, phase: egui::TouchPhase, event: &web
                 id: egui::TouchId::from(touch.identifier()),
                 phase,
                 pos: pos_from_touch(canvas_origin, &touch),
-                force: touch.force(),
+                force: Some(touch.force()),
             });
         }
     }

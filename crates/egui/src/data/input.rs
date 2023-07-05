@@ -274,10 +274,10 @@ pub enum Event {
         /// Position of the touch (or where the touch was last detected)
         pos: Pos2,
 
-        /// Describes how hard the touch device was pressed. May always be `0` if the platform does
+        /// Describes how hard the touch device was pressed. May always be `None` if the platform does
         /// not support pressure sensitivity.
         /// The value is in the range from 0.0 (no pressure) to 1.0 (maximum pressure).
-        force: f32,
+        force: Option<f32>,
     },
 
     /// A raw mouse wheel event as sent by the backend (minus the z coordinate),
