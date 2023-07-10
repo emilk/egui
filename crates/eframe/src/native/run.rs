@@ -914,12 +914,9 @@ mod glow_integration {
 
                 integration.maybe_autosave(app.as_mut(), window);
 
-                if !self.is_focused {
-                    // On Mac, a minimized Window uses up all CPU: https://github.com/emilk/egui/issues/325
-                    // We can't know if we are minimized: https://github.com/rust-windowing/winit/issues/208
-                    // But we know if we are focused (in foreground). When minimized, we are not focused.
-                    // However, a user may want an egui with an animation in the background,
-                    // so we still need to repaint quite fast.
+                if window.is_minimized() == Some(true) {
+                    // On Mac, a minimized Window uses up all CPU:
+                    // https://github.com/emilk/egui/issues/325
                     crate::profile_scope!("bg_sleep");
                     std::thread::sleep(std::time::Duration::from_millis(10));
                 }
@@ -1335,12 +1332,9 @@ mod wgpu_integration {
 
                 integration.maybe_autosave(app.as_mut(), window);
 
-                if !self.is_focused {
-                    // On Mac, a minimized Window uses up all CPU: https://github.com/emilk/egui/issues/325
-                    // We can't know if we are minimized: https://github.com/rust-windowing/winit/issues/208
-                    // But we know if we are focused (in foreground). When minimized, we are not focused.
-                    // However, a user may want an egui with an animation in the background,
-                    // so we still need to repaint quite fast.
+                if window.is_minimized() == Some(true) {
+                    // On Mac, a minimized Window uses up all CPU:
+                    // https://github.com/emilk/egui/issues/325
                     crate::profile_scope!("bg_sleep");
                     std::thread::sleep(std::time::Duration::from_millis(10));
                 }
