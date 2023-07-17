@@ -61,7 +61,7 @@ impl<'a> DatePickerButton<'a> {
         self
     }
 
-    /// Show the calender icon on the button. (Default: true)
+    /// Show the calendar icon on the button. (Default: true)
     pub fn show_icon(mut self, show_icon: bool) -> Self {
         self.show_icon = show_icon;
         self
