@@ -1268,10 +1268,10 @@ impl Context {
         let repaint_after = self.write(|ctx| ctx.repaint.end_frame());
         let shapes = self.drain_paint_lists();
 
-        let windows = self.write(|ctx| {
+        let windows = self.read(|ctx| {
             ctx.windows
-                .drain()
-                .map(|(_, (builder, id, _))| (id, builder))
+                .iter()
+                .map(|(_, (builder, id, _))| (*id, builder.clone()))
                 .collect()
         });
 

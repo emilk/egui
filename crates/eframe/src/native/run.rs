@@ -401,6 +401,7 @@ mod glow_integration {
     use std::sync::Arc;
 
     use egui::{epaint::ahash::HashMap, window::WindowBuilder, NumExt as _};
+    use glow::HasContext;
     use glutin::{
         display::GetGlDisplay,
         prelude::{GlDisplay, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentGlContext},
@@ -601,63 +602,76 @@ mod glow_integration {
         /// we presently assume that we will
         #[allow(unsafe_code)]
         fn on_resume(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
-            if self.windows[0].gl_surface.is_some() {
-                log::warn!("on_resume called even thought we already have a surface. early return");
-                return Ok(());
+            for win in self.windows.iter_mut() {
+                if win.gl_surface.is_some() {
+                    continue;
+                }
+                log::debug!("running on_resume fn.");
+                // make sure we have a window or create one.
+                let window = win.window.take().unwrap_or_else(|| {
+                    log::debug!("window doesn't exist yet. creating one now with finalize_window");
+                    glutin_winit::finalize_window(
+                        event_loop,
+                        create_winit_window_builder(&win.builder),
+                        &self.gl_config,
+                    )
+                    .expect("failed to finalize glutin window")
+                });
+                // surface attributes
+                let (width, height): (u32, u32) = window.inner_size().into();
+                let width = std::num::NonZeroU32::new(width.at_least(1)).unwrap();
+                let height = std::num::NonZeroU32::new(height.at_least(1)).unwrap();
+                let surface_attributes = glutin::surface::SurfaceAttributesBuilder::<
+                    glutin::surface::WindowSurface,
+                >::new()
+                .build(window.raw_window_handle(), width, height);
+                log::debug!(
+                    "creating surface with attributes: {:?}",
+                    &surface_attributes
+                );
+                // create surface
+                let gl_surface = unsafe {
+                    self.gl_config
+                        .display()
+                        .create_window_surface(&self.gl_config, &surface_attributes)?
+                };
+                log::debug!("surface created successfully: {gl_surface:?}.making context current");
+                // make surface and context current.
+                let not_current_gl_context =
+                    if let Some(not_current_context) = self.not_current_gl_context.take() {
+                        not_current_context
+                    } else {
+                        self.current_gl_context
+                            .take()
+                            .unwrap()
+                            .make_not_current()
+                            .unwrap()
+                    };
+                let current_gl_context = not_current_gl_context.make_current(&gl_surface)?;
+                // try setting swap interval. but its not absolutely necessary, so don't panic on failure.
+                log::debug!("made context current. setting swap interval for surface");
+                if let Err(e) =
+                    gl_surface.set_swap_interval(&current_gl_context, self.swap_interval)
+                {
+                    log::error!("failed to set swap interval due to error: {e:?}");
+                }
+                // we will reach this point only once in most platforms except android.
+                // create window/surface/make context current once and just use them forever.
+                win.gl_surface = Some(gl_surface);
+                self.current_gl_context = Some(current_gl_context);
+                self.window_maps.insert(window.id(), win.window_id);
+                win.window = Some(window);
             }
-            log::debug!("running on_resume fn.");
-            // make sure we have a window or create one.
-            let window = self.windows[0].window.take().unwrap_or_else(|| {
-                log::debug!("window doesn't exist yet. creating one now with finalize_window");
-                glutin_winit::finalize_window(
-                    event_loop,
-                    create_winit_window_builder(&self.windows[0].builder),
-                    &self.gl_config,
-                )
-                .expect("failed to finalize glutin window")
-            });
-            // surface attributes
-            let (width, height): (u32, u32) = window.inner_size().into();
-            let width = std::num::NonZeroU32::new(width.at_least(1)).unwrap();
-            let height = std::num::NonZeroU32::new(height.at_least(1)).unwrap();
-            let surface_attributes =
-                glutin::surface::SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new()
-                    .build(window.raw_window_handle(), width, height);
-            log::debug!(
-                "creating surface with attributes: {:?}",
-                &surface_attributes
-            );
-            // create surface
-            let gl_surface = unsafe {
-                self.gl_config
-                    .display()
-                    .create_window_surface(&self.gl_config, &surface_attributes)?
-            };
-            log::debug!("surface created successfully: {gl_surface:?}.making context current");
-            // make surface and context current.
-            let not_current_gl_context = self
-                .not_current_gl_context
-                .take()
-                .expect("failed to get not current context after resume event. impossible!");
-            let current_gl_context = not_current_gl_context.make_current(&gl_surface)?;
-            // try setting swap interval. but its not absolutely necessary, so don't panic on failure.
-            log::debug!("made context current. setting swap interval for surface");
-            if let Err(e) = gl_surface.set_swap_interval(&current_gl_context, self.swap_interval) {
-                log::error!("failed to set swap interval due to error: {e:?}");
-            }
-            // we will reach this point only once in most platforms except android.
-            // create window/surface/make context current once and just use them forever.
-            self.windows[0].gl_surface = Some(gl_surface);
-            self.current_gl_context = Some(current_gl_context);
-            self.windows[0].window = Some(window);
             Ok(())
         }
 
         /// only applies for android. but we basically drop surface + window and make context not current
         fn on_suspend(&mut self) -> Result<()> {
             log::debug!("received suspend event. dropping window and surface");
-            self.windows[0].gl_surface.take();
-            self.windows[0].window.take();
+            for window in self.windows.iter_mut() {
+                window.gl_surface.take();
+                window.window.take();
+            }
             if let Some(current) = self.current_gl_context.take() {
                 log::debug!("context is current, so making it non-current");
                 self.not_current_gl_context = Some(current.make_not_current()?);
@@ -674,20 +688,31 @@ mod glow_integration {
                 .expect("winit window doesn't exist")
         }
 
-        fn resize(&self, physical_size: winit::dpi::PhysicalSize<u32>) {
+        fn resize(&mut self, window_id: u64, physical_size: winit::dpi::PhysicalSize<u32>) {
             let width = std::num::NonZeroU32::new(physical_size.width.at_least(1)).unwrap();
             let height = std::num::NonZeroU32::new(physical_size.height.at_least(1)).unwrap();
-            self.windows[0]
-                .gl_surface
-                .as_ref()
-                .expect("failed to get surface to resize")
-                .resize(
-                    self.current_gl_context
-                        .as_ref()
-                        .expect("failed to get current context to resize surface"),
-                    width,
-                    height,
-                );
+            for window in self.windows.iter_mut() {
+                if window.window_id == window_id {
+                    if let Some(gl_surface) = &window.gl_surface {
+                        self.current_gl_context = Some(
+                            self.current_gl_context
+                                .take()
+                                .unwrap()
+                                .make_not_current()
+                                .unwrap()
+                                .make_current(&gl_surface)
+                                .unwrap(),
+                        );
+                        gl_surface.resize(
+                            self.current_gl_context
+                                .as_ref()
+                                .expect("failed to get current context to resize surface"),
+                            width,
+                            height,
+                        );
+                    }
+                }
+            }
         }
 
         fn swap_buffers(&self) -> glutin::error::Result<()> {
@@ -958,7 +983,20 @@ mod glow_integration {
 
                     let control_flow;
                     {
-                        let window = gl_window.window(window_index);
+                        // let window = gl_window.window(window_index);
+                        let win: Option<&Window> = gl_window.windows.get(window_index);
+                        let win = win.unwrap();
+                        let window = win.window.as_ref().unwrap();
+                        gl_window.current_gl_context = Some(
+                            gl_window
+                                .current_gl_context
+                                .take()
+                                .unwrap()
+                                .make_not_current()
+                                .unwrap()
+                                .make_current(win.gl_surface.as_ref().unwrap())
+                                .unwrap(),
+                        );
 
                         let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
@@ -1104,6 +1142,7 @@ mod glow_integration {
                             window: None,
                             window_id: id,
                         });
+                        wins.push(id);
                     }
 
                     gl_window.windows.retain(|w| wins.contains(&w.window_id));
@@ -1170,6 +1209,13 @@ mod glow_integration {
                     EventResult::Wait
                 }
 
+                winit::event::Event::MainEventsCleared => {
+                    if let Some(running) = self.running.as_mut() {
+                        running.gl_window.on_resume(event_loop);
+                    }
+                    EventResult::Wait
+                }
+
                 winit::event::Event::WindowEvent { event, window_id } => {
                     if let Some(running) = &mut self.running {
                         // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
@@ -1198,7 +1244,9 @@ mod glow_integration {
                                 // See: https://github.com/rust-windowing/winit/issues/208
                                 // This solves an issue where the app would panic when minimizing on Windows.
                                 if physical_size.width > 0 && physical_size.height > 0 {
-                                    running.gl_window.resize(*physical_size);
+                                    if let Some(id) = running.gl_window.window_maps.get(window_id) {
+                                        running.gl_window.resize(*id, *physical_size);
+                                    }
                                 }
                             }
                             winit::event::WindowEvent::ScaleFactorChanged {
@@ -1206,7 +1254,9 @@ mod glow_integration {
                                 ..
                             } => {
                                 repaint_asap = true;
-                                running.gl_window.resize(**new_inner_size);
+                                if let Some(id) = running.gl_window.window_maps.get(window_id) {
+                                    running.gl_window.resize(*id, **new_inner_size);
+                                }
                             }
                             winit::event::WindowEvent::CloseRequested
                                 if running.integration.should_close() =>

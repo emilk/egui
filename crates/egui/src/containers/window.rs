@@ -6,7 +6,7 @@ use epaint::*;
 
 use super::*;
 
-#[derive(Hash, PartialEq, Clone, Default)]
+#[derive(Hash, PartialEq, Clone)]
 pub struct WindowBuilder {
     pub title: String,
     pub name: Option<String>,
@@ -26,6 +26,31 @@ pub struct WindowBuilder {
     pub min_inner_size: Option<(u32, u32)>,
     pub max_inner_size: Option<(u32, u32)>,
     pub drag_and_drop: bool,
+}
+
+impl Default for WindowBuilder {
+    fn default() -> Self {
+        Self {
+            title: "Dummy EGUI Window".into(),
+            name: None,
+            position: None,
+            inner_size: Some((600, 500)),
+            fullscreen: false,
+            maximized: false,
+            resizable: true,
+            transparent: false,
+            decorations: true,
+            icon: None,
+            active: true,
+            visible: true,
+            title_hidden: false,
+            titlebar_transparent: false,
+            fullsize_content_view: false,
+            min_inner_size: None,
+            max_inner_size: None,
+            drag_and_drop: true,
+        }
+    }
 }
 
 impl WindowBuilder {
@@ -396,8 +421,8 @@ impl<'open> Window<'open> {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> Option<InnerResponse<Option<R>>> {
-        let window_id =
-            ctx.data_mut(|data| *data.get_temp_mut_or(self.area.id.with("window_id"), 0));
+        let window_id = ctx.create_window(WindowBuilder::default().with_title(self.title.text()));
+        println!("Window id: {}", window_id);
         let Window {
             title,
             open,
