@@ -264,6 +264,8 @@ pub struct TextWrapping {
     /// Try to break text so that no row is wider than this.
     /// Set to [`f32::INFINITY`] to turn off wrapping.
     /// Note that `\n` always produces a new line.
+    #[serde(serialize_with = "serialize_f32_custom")]
+    //#[cfg_attr(default, serde::serialize_with = "serialize_f32_custom")]
     pub max_width: f32,
 
     /// Maximum amount of rows the text should have.
@@ -276,6 +278,27 @@ pub struct TextWrapping {
     /// Character to use to represent clipped text, `…` for example, which is the default.
     pub overflow_character: Option<char>,
 }
+
+fn serialize_f32_custom<S>(x: &f32, s: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    //println!("In custom serialiser");
+    if *x == f32::INFINITY {
+        s.serialize_f32(100000000.0)
+    } else {
+        s.serialize_f32(*x)
+    }
+}
+/*#[cfg(feature = "persistence")]
+impl serde::Serialize for {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        PersistedMap::from_map(self).serialize(serializer)
+    }
+}*/
 
 impl std::hash::Hash for TextWrapping {
     #[inline]
@@ -296,7 +319,7 @@ impl std::hash::Hash for TextWrapping {
 impl Default for TextWrapping {
     fn default() -> Self {
         Self {
-            max_width: f32::INFINITY,
+            max_width: 10000.0, //changed from f32::INFINITY
             max_rows: 0,
             break_anywhere: false,
             overflow_character: Some('…'),

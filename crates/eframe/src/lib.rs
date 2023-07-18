@@ -228,6 +228,35 @@ pub fn run_native(
     }
 }
 
+pub fn run_native_remote(
+    app_name: &str,
+    native_options: NativeOptions,
+    app_creator: AppCreator,
+    full_output_remote: egui::output::FullOutput,
+) -> Result<()> {
+    let renderer = native_options.renderer;
+
+    #[cfg(not(feature = "__screenshot"))]
+    assert!(
+        std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
+        "EFRAME_SCREENSHOT_TO found without compiling with the '__screenshot' feature"
+    );
+
+    match renderer {
+        #[cfg(feature = "glow")]
+        Renderer::Glow => {
+            log::debug!("Using the glow renderer");
+            native::run::run_glow_remote(app_name, native_options, app_creator, full_output_remote)
+        }
+
+        #[cfg(feature = "wgpu")]
+        Renderer::Wgpu => {
+            log::debug!("Using the wgpu renderer");
+            native::run::run_wgpu(app_name, native_options, app_creator)
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// The simplest way to get started when writing a native app.

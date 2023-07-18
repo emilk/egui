@@ -1,11 +1,14 @@
 //! All the data egui returns to the backend at the end of each frame.
 
+//use crate::emath::{pos2, vec2, Pos2, Rect, Vec2};
+use crate::emath::*;
 use crate::WidgetType;
 
 /// What egui emits each frame from [`crate::Context::run`].
 ///
 /// The backend should use this.
 #[derive(Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FullOutput {
     /// Non-rendering related output.
     pub platform_output: PlatformOutput,
@@ -47,6 +50,63 @@ impl FullOutput {
         self.textures_delta.append(textures_delta);
         self.shapes = shapes; // Only paint the latest
     }
+}
+
+/// What egui emits each frame from [`crate::Context::run`].
+///
+/// The backend should use this.
+#[derive(Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct FullOutputRemote {
+    /// Non-rendering related output.
+    pub platform_output: PlatformOutput,
+
+    /// If `Duration::is_zero()`, egui is requesting immediate repaint (i.e. on the next frame).
+    ///
+    /// This happens for instance when there is an animation, or if a user has called `Context::request_repaint()`.
+    ///
+    /// If `Duration` is greater than zero, egui wants to be repainted at or before the specified
+    /// duration elapses. when in reactive mode, egui spends forever waiting for input and only then,
+    /// will it repaint itself. this can be used to make sure that backend will only wait for a
+    /// specified amount of time, and repaint egui without any new input.
+    pub repaint_after: std::time::Duration,
+
+    /// Texture changes since last frame (including the font texture).
+    ///
+    /// The backend needs to apply [`crate::TexturesDelta::set`] _before_ painting,
+    /// and free any texture in [`crate::TexturesDelta::free`] _after_ painting.
+    pub textures_delta: epaint::textures::TexturesDelta,
+
+    /// What to paint.
+    ///
+    /// You can use [`crate::Context::tessellate`] to turn this into triangles.
+    pub shapes: Vec<ClippedMeshRemote>,
+}
+
+impl FullOutputRemote {
+    /// Add on new output.
+    pub fn append(&mut self, newer: Self) {
+        let Self {
+            platform_output,
+            repaint_after,
+            textures_delta,
+            shapes,
+        } = newer;
+
+        self.platform_output.append(platform_output);
+        self.repaint_after = repaint_after; // if the last frame doesn't need a repaint, then we don't need to repaint
+        self.textures_delta.append(textures_delta);
+        //self.tessellated_mesh = tessellated_mesh; // Only paint the latest
+        //self.clipped_rect = clipped_rect;
+        self.shapes = shapes
+    }
+}
+
+#[derive(Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct ClippedMeshRemote {
+    pub tessellated_mesh: epaint::Mesh,
+    pub clipped_rect: Rect,
 }
 
 /// The non-rendering part of what egui emits each frame.

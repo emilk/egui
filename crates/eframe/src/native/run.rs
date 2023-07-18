@@ -1,6 +1,8 @@
 //! Note that this file contains two similar paths - one for [`glow`], one for [`wgpu`].
 //! When making changes to one you often also want to apply it to the other.
 
+use crate::epaint::ClippedShape;
+use crate::epaint::Primitive::Mesh;
 use std::time::Instant;
 
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
@@ -76,6 +78,11 @@ trait WinitApp {
     fn save_and_destroy(&mut self);
 
     fn run_ui_and_paint(&mut self) -> EventResult;
+
+    fn run_ui_and_paint_remote(
+        &mut self,
+        full_output_remote: egui::output::FullOutput,
+    ) -> EventResult;
 
     fn on_event(
         &mut self,
@@ -252,6 +259,141 @@ fn run_and_return(
     returned_result
 }
 
+fn run_and_return_remote(
+    event_loop: &mut EventLoop<UserEvent>,
+    mut winit_app: impl WinitApp,
+    full_output_remote: egui::output::FullOutput,
+) -> Result<()> {
+    use winit::platform::run_return::EventLoopExtRunReturn as _;
+
+    log::debug!("Entering the winit event loop (run_return)…");
+
+    let mut next_repaint_time = Instant::now();
+
+    let mut returned_result = Ok(());
+
+    event_loop.run_return(|event, event_loop, control_flow| {
+        let event_result = match &event {
+            winit::event::Event::LoopDestroyed => {
+                // On Mac, Cmd-Q we get here and then `run_return` doesn't return (despite its name),
+                // so we need to save state now:
+                log::debug!("Received Event::LoopDestroyed - saving app state…");
+                winit_app.save_and_destroy();
+                *control_flow = ControlFlow::Exit;
+                return;
+            }
+
+            // Platform-dependent event handlers to workaround a winit bug
+            // See: https://github.com/rust-windowing/winit/issues/987
+            // See: https://github.com/rust-windowing/winit/issues/1619
+            winit::event::Event::RedrawEventsCleared if cfg!(windows) => {
+                next_repaint_time = extremely_far_future();
+                winit_app.run_ui_and_paint_remote(full_output_remote.clone())
+            }
+            winit::event::Event::RedrawRequested(_) if !cfg!(windows) => {
+                next_repaint_time = extremely_far_future();
+                winit_app.run_ui_and_paint_remote(full_output_remote.clone())
+            }
+
+            winit::event::Event::UserEvent(UserEvent::RequestRepaint { when, frame_nr }) => {
+                if winit_app.frame_nr() == *frame_nr {
+                    log::trace!("UserEvent::RequestRepaint scheduling repaint at {when:?}");
+                    EventResult::RepaintAt(*when)
+                } else {
+                    log::trace!("Got outdated UserEvent::RequestRepaint");
+                    EventResult::Wait // old request - we've already repainted
+                }
+            }
+
+            winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
+                ..
+            }) => {
+                log::trace!("Woke up to check next_repaint_time");
+                EventResult::Wait
+            }
+
+            winit::event::Event::WindowEvent { window_id, .. }
+                if winit_app.window().is_none()
+                    || *window_id != winit_app.window().unwrap().id() =>
+            {
+                // This can happen if we close a window, and then reopen a new one,
+                // or if we have multiple windows open.
+                EventResult::Wait
+            }
+
+            event => match winit_app.on_event(event_loop, event) {
+                Ok(event_result) => event_result,
+                Err(err) => {
+                    log::error!("Exiting because of error: {err:?} on event {event:?}");
+                    returned_result = Err(err);
+                    EventResult::Exit
+                }
+            },
+        };
+
+        match event_result {
+            EventResult::Wait => {}
+            EventResult::RepaintNow => {
+                log::trace!("Repaint caused by winit::Event: {:?}", event);
+                if cfg!(windows) {
+                    // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
+                    next_repaint_time = extremely_far_future();
+                    winit_app.run_ui_and_paint_remote(full_output_remote.clone());
+                } else {
+                    // Fix for https://github.com/emilk/egui/issues/2425
+                    next_repaint_time = Instant::now();
+                }
+            }
+            EventResult::RepaintNext => {
+                log::trace!("Repaint caused by winit::Event: {:?}", event);
+                next_repaint_time = Instant::now();
+            }
+            EventResult::RepaintAt(repaint_time) => {
+                next_repaint_time = next_repaint_time.min(repaint_time);
+            }
+            EventResult::Exit => {
+                log::debug!("Asking to exit event loop…");
+                winit_app.save_and_destroy();
+                *control_flow = ControlFlow::Exit;
+                return;
+            }
+        }
+
+        *control_flow = if next_repaint_time <= Instant::now() {
+            if let Some(window) = winit_app.window() {
+                log::trace!("request_redraw");
+                window.request_redraw();
+            }
+            next_repaint_time = extremely_far_future();
+            ControlFlow::Poll
+        } else {
+            let time_until_next = next_repaint_time.saturating_duration_since(Instant::now());
+            if time_until_next < std::time::Duration::from_secs(10_000) {
+                log::trace!("WaitUntil {time_until_next:?}");
+            }
+            ControlFlow::WaitUntil(next_repaint_time)
+        };
+    });
+
+    log::debug!("eframe window closed");
+
+    drop(winit_app);
+
+    // On Windows this clears out events so that we can later create another window.
+    // See https://github.com/emilk/egui/pull/1889 for details.
+    //
+    // Note that this approach may cause issues on macOS (emilk/egui#2768); therefore,
+    // we only apply this approach on Windows to minimize the affect.
+    #[cfg(windows)]
+    {
+        event_loop.run_return(|_, _, control_flow| {
+            control_flow.set_exit();
+        });
+    }
+
+    returned_result
+}
+
 fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp + 'static) -> ! {
     log::debug!("Entering the winit event loop (run)…");
 
@@ -340,7 +482,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 mod glow_integration {
     use std::sync::Arc;
 
-    use egui::NumExt as _;
+    use egui::{ClippedPrimitive, NumExt as _};
     use glutin::{
         display::GetGlDisplay,
         prelude::{GlDisplay, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentGlContext},
@@ -927,6 +1069,156 @@ mod glow_integration {
             }
         }
 
+        fn run_ui_and_paint_remote(
+            &mut self,
+            full_output_remote: egui::output::FullOutput,
+        ) -> EventResult {
+            if let Some(running) = &mut self.running {
+                if running.gl_window.window.is_none() {
+                    return EventResult::Wait;
+                }
+
+                #[cfg(feature = "puffin")]
+                puffin::GlobalProfiler::lock().new_frame();
+                crate::profile_scope!("frame");
+
+                let GlowWinitRunning {
+                    gl_window,
+                    gl,
+                    app,
+                    integration,
+                    painter,
+                } = running;
+
+                let window = gl_window.window();
+
+                let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
+
+                egui_glow::painter::clear(
+                    gl,
+                    screen_size_in_pixels,
+                    app.clear_color(&integration.egui_ctx.style().visuals),
+                );
+
+                let egui::FullOutput {
+                    platform_output,
+                    repaint_after,
+                    textures_delta,
+                    shapes,
+                } = integration.update_remote(app.as_mut(), window, full_output_remote);
+                //} = full_output_remote;
+                /*let egui::output::FullOutputRemote {
+                    platform_output,
+                    repaint_after,
+                    textures_delta,
+                    shapes,
+                } = full_output_remote;*//////commentedout when changed to FullOutput param
+
+                integration.handle_platform_output(window, platform_output);
+
+                let clipped_primitives = {
+                    crate::profile_scope!("tessellate");
+                    integration.egui_ctx.tessellate(shapes)
+                };
+                /*let clipped_shape = full_output.shapes.get(0).unwrap();
+                let ClippedShape(rect, shape) = clipped_shape;
+                let primitive_mesh;
+                match shape {
+                    Mesh(mesh) => primitive_mesh = mesh,
+                    _ => panic!("Not a mesh"),
+                }*/
+
+                /*let mut clipped_primitives: Vec<ClippedPrimitive> = Vec::new();
+                for shape in shapes {
+                    let primitive = Mesh(shape.tessellated_mesh);
+                    let clipped_primitive = ClippedPrimitive {
+                        clip_rect: shape.clipped_rect,
+                        primitive: primitive,
+                    };
+                    clipped_primitives.push(clipped_primitive);
+                }*/
+                /////commentedout when changed to FullOutput param
+
+                painter.paint_and_update_textures(
+                    screen_size_in_pixels,
+                    integration.egui_ctx.pixels_per_point(),
+                    &clipped_primitives,
+                    &textures_delta,
+                );
+
+                let screenshot_requested = &mut integration.frame.output.screenshot_requested;
+
+                if *screenshot_requested {
+                    *screenshot_requested = false;
+                    let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
+                    integration.frame.screenshot.set(Some(screenshot));
+                }
+
+                integration.post_rendering(app.as_mut(), window);
+
+                {
+                    crate::profile_scope!("swap_buffers");
+                    gl_window.swap_buffers().unwrap();
+                }
+
+                integration.post_present(window);
+
+                #[cfg(feature = "__screenshot")]
+                // give it time to settle:
+                if integration.egui_ctx.frame_nr() == 2 {
+                    if let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO") {
+                        assert!(
+                            path.ends_with(".png"),
+                            "Expected EFRAME_SCREENSHOT_TO to end with '.png', got {path:?}"
+                        );
+                        let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
+                        image::save_buffer(
+                            &path,
+                            screenshot.as_raw(),
+                            screenshot.width() as u32,
+                            screenshot.height() as u32,
+                            image::ColorType::Rgba8,
+                        )
+                        .unwrap_or_else(|err| {
+                            panic!("Failed to save screenshot to {path:?}: {err}");
+                        });
+                        eprintln!("Screenshot saved to {path:?}.");
+                        std::process::exit(0);
+                    }
+                }
+
+                let control_flow = if integration.should_close() {
+                    EventResult::Exit
+                } else if repaint_after.is_zero() {
+                    EventResult::RepaintNext
+                } else if let Some(repaint_after_instant) =
+                    std::time::Instant::now().checked_add(repaint_after)
+                {
+                    // if repaint_after is something huge and can't be added to Instant,
+                    // we will use `ControlFlow::Wait` instead.
+                    // technically, this might lead to some weird corner cases where the user *WANTS*
+                    // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
+                    // egui backend impl i guess.
+                    EventResult::RepaintAt(repaint_after_instant)
+                } else {
+                    EventResult::Wait
+                };
+
+                integration.maybe_autosave(app.as_mut(), window);
+
+                if window.is_minimized() == Some(true) {
+                    // On Mac, a minimized Window uses up all CPU:
+                    // https://github.com/emilk/egui/issues/325
+                    crate::profile_scope!("bg_sleep");
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+
+                control_flow
+            } else {
+                EventResult::Wait
+            }
+        }
+
         fn on_event(
             &mut self,
             event_loop: &EventLoopWindowTarget<UserEvent>,
@@ -1057,10 +1349,30 @@ mod glow_integration {
             run_and_exit(event_loop, glow_eframe);
         }
     }
+
+    pub fn run_glow_remote(
+        app_name: &str,
+        mut native_options: epi::NativeOptions,
+        app_creator: epi::AppCreator,
+        full_output_remote: egui::output::FullOutput,
+    ) -> Result<()> {
+        if native_options.run_and_return {
+            with_event_loop(native_options, |event_loop, native_options| {
+                let glow_eframe =
+                    GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
+                run_and_return_remote(event_loop, glow_eframe, full_output_remote)
+            })
+        } else {
+            let event_loop = create_event_loop_builder(&mut native_options).build();
+            let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
+            run_and_exit(event_loop, glow_eframe);
+        }
+    }
 }
 
 #[cfg(feature = "glow")]
 pub use glow_integration::run_glow;
+pub use glow_integration::run_glow_remote;
 // ----------------------------------------------------------------------------
 
 #[cfg(feature = "wgpu")]

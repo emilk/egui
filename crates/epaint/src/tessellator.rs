@@ -5,6 +5,7 @@
 
 #![allow(clippy::identity_op)]
 
+use crate::text::LayoutJob;
 use crate::texture_atlas::PreparedDisc;
 use crate::*;
 use emath::*;
@@ -1359,6 +1360,8 @@ impl Tessellator {
             return;
         }
 
+        //println!("galley: {}", galley.pixels_per_point);
+        //println!("self: {}", self.pixels_per_point);
         if galley.pixels_per_point != self.pixels_per_point {
             eprintln!("epaint: WARNING: pixels_per_point (dpi scale) have changed between text layout and tessellation. \
                        You must recreate your text shapes if pixels_per_point changes.");

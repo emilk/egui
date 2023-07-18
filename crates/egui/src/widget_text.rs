@@ -571,14 +571,14 @@ impl WidgetText {
             Self::RichText(text) => {
                 let valign = ui.layout().vertical_align();
                 let mut text_job = text.into_text_job(ui.style(), fallback_font.into(), valign);
-                text_job.job.wrap.max_width = wrap_width;
+                text_job.job.wrap.max_width = 1000000000.0; //changed from f32::INFINITY
                 WidgetTextGalley {
                     galley: ui.fonts(|f| f.layout_job(text_job.job)),
                     galley_has_color: text_job.job_has_color,
                 }
             }
             Self::LayoutJob(mut job) => {
-                job.wrap.max_width = wrap_width;
+                job.wrap.max_width = 1000000000.0; //changed from f32::INFINITY
                 WidgetTextGalley {
                     galley: ui.fonts(|f| f.layout_job(job)),
                     galley_has_color: true,

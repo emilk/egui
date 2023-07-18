@@ -114,6 +114,10 @@ pub trait App {
     /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
     fn update(&mut self, ctx: &egui::Context, frame: &mut Frame);
 
+    fn update_remote(&mut self) -> egui::output::FullOutput {
+        egui::output::FullOutput::default()
+    }
+
     /// Get a handle to the app.
     ///
     /// Can be used from web to interact or other external context.

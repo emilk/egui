@@ -534,6 +534,68 @@ impl EpiIntegration {
         full_output
     }
 
+    pub fn update_remote(
+        &mut self,
+        app: &mut dyn epi::App,
+        window: &winit::window::Window,
+        full_output_remote: egui::output::FullOutput,
+    ) -> egui::FullOutput {
+        /*let frame_start = std::time::Instant::now();
+
+        self.app_icon_setter.update();
+
+        self.frame.info.window_info =
+            read_window_info(window, self.egui_ctx.pixels_per_point(), &self.window_state);
+        let raw_input = self.egui_winit.take_egui_input(window);
+
+        // Run user code:
+        /*let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
+            crate::profile_scope!("App::update");
+            app.update(egui_ctx, &mut self.frame);
+        });*/ */
+        let full_output = //self.egui_ctx.run(raw_input, |egui_ctx| {
+            //crate::profile_scope!("App::update");
+            app.update_remote();
+        //});
+        let mut raw_input = egui::RawInput::default();
+        raw_input.pixels_per_point = Some(2.0);
+        self.egui_ctx.run(raw_input, |egui_ctx| {});
+        //let full_output = full_output_remote;
+
+        /*self.pending_full_output.append(full_output);
+        let full_output = std::mem::take(&mut self.pending_full_output);
+
+        {
+            let mut app_output = self.frame.take_app_output();
+            app_output.drag_window &= self.can_drag_window; // Necessary on Windows; see https://github.com/emilk/egui/pull/1108
+            self.can_drag_window = false;
+            if app_output.close {
+                self.close = app.on_close_event();
+                log::debug!("App::on_close_event returned {}", self.close);
+            }
+            self.frame.output.visible = app_output.visible; // this is handled by post_present
+            self.frame.output.screenshot_requested = app_output.screenshot_requested;
+            if self.frame.output.attention.is_some() {
+                self.frame.output.attention = None;
+            }
+            println!(
+                "I am in update_remote and ppp is {}",
+                self.egui_ctx.pixels_per_point(),
+            );
+            handle_app_output(
+                window,
+                self.egui_ctx.pixels_per_point(),
+                app_output,
+                &mut self.window_state,
+            );
+        }
+
+        let frame_time = frame_start.elapsed().as_secs_f64() as f32;
+        self.frame.info.cpu_usage = Some(frame_time);*/
+
+        full_output
+    }
+
     pub fn post_rendering(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
         let inner_size = window.inner_size();
         let window_size_px = [inner_size.width, inner_size.height];
