@@ -6,6 +6,7 @@ use crate::{
     input_state::*, layers::GraphicLayers, memory::Options, os::OperatingSystem,
     output::FullOutput, util::IdTypeMap, TextureHandle, *,
 };
+use ahash::HashMap;
 use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
 
 /// Information given to the backend about when it is time to repaint the ui.
@@ -21,6 +22,9 @@ pub struct RequestRepaintInfo {
     /// This can be compared to [`Context::frame_nr`] to see if we've already
     /// triggered the painting of the next frame.
     pub current_frame_nr: u64,
+
+    /// This is used to specify what window to redraw
+    pub window_id: u64,
 }
 
 // ----------------------------------------------------------------------------
@@ -80,11 +84,11 @@ impl Default for Repaint {
 }
 
 impl Repaint {
-    fn request_repaint(&mut self) {
-        self.request_repaint_after(std::time::Duration::ZERO);
+    fn request_repaint(&mut self, window_id: u64) {
+        self.request_repaint_after(std::time::Duration::ZERO, window_id);
     }
 
-    fn request_repaint_after(&mut self, after: std::time::Duration) {
+    fn request_repaint_after(&mut self, after: std::time::Duration, window_id: u64) {
         if after == std::time::Duration::ZERO {
             // Do a few extra frames to let things settle.
             // This is a bit of a hack, and we don't support it for `repaint_after` callbacks yet.
@@ -100,6 +104,7 @@ impl Repaint {
                 let info = RequestRepaintInfo {
                     after,
                     current_frame_nr: self.frame_nr,
+                    window_id: window_id,
                 };
                 (callback)(info);
             }
@@ -154,6 +159,9 @@ struct ContextImpl {
     paint_stats: PaintStats,
 
     repaint: Repaint,
+
+    windows: HashMap<String, (WindowBuilder, u64, bool)>,
+    current_window_id: u64,
 
     /// Written to during the frame.
     layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
@@ -956,7 +964,7 @@ impl Context {
     /// (this will work on `eframe`).
     pub fn request_repaint(&self) {
         // request two frames of repaint, just to cover some corner cases (frame delays):
-        self.write(|ctx| ctx.repaint.request_repaint());
+        self.write(|ctx| ctx.repaint.request_repaint(ctx.current_window_id));
     }
 
     /// Request repaint after at most the specified duration elapses.
@@ -988,9 +996,9 @@ impl Context {
     /// timeout takes 500 milliseconds AFTER the vsync swap buffer.
     /// So, its not that we are requesting repaint within X duration. We are rather timing out
     /// during app idle time where we are not receiving any new input events.
-    pub fn request_repaint_after(&self, duration: std::time::Duration) {
+    pub fn request_repaint_after(&self, duration: std::time::Duration, window_id: u64) {
         // Maybe we can check if duration is ZERO, and call self.request_repaint()?
-        self.write(|ctx| ctx.repaint.request_repaint_after(duration));
+        self.write(|ctx| ctx.repaint.request_repaint_after(duration, window_id));
     }
 
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
@@ -1260,11 +1268,19 @@ impl Context {
         let repaint_after = self.write(|ctx| ctx.repaint.end_frame());
         let shapes = self.drain_paint_lists();
 
+        let windows = self.write(|ctx| {
+            ctx.windows
+                .drain()
+                .map(|(_, (builder, id, _))| (id, builder))
+                .collect()
+        });
+
         FullOutput {
             platform_output,
             repaint_after,
             textures_delta,
             shapes,
+            windows,
         }
     }
 
@@ -1865,6 +1881,30 @@ impl Context {
             )],
             tree: Some(Tree::new(root_id)),
             focus: None,
+        })
+    }
+}
+
+use containers::window::WindowBuilder;
+/// # Windows
+impl Context {
+    pub fn set_current_window_id(&self, window_id: u64) {
+        self.write(|ctx| ctx.current_window_id = window_id);
+    }
+    pub fn current_window_id(&self) -> u64 {
+        self.read(|ctx| ctx.current_window_id)
+    }
+
+    pub fn create_window(&self, window_builder: WindowBuilder) -> u64 {
+        self.write(|ctx| {
+            if let Some(window) = ctx.windows.get(&window_builder.title) {
+                window.1
+            } else {
+                let id = ctx.windows.len() as u64 + 1;
+                ctx.windows
+                    .insert(window_builder.title.clone(), (window_builder, id, true));
+                id
+            }
         })
     }
 }

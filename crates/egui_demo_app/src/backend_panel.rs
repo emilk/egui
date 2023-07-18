@@ -281,7 +281,10 @@ impl BackendPanel {
                         let ctx = ui.ctx().clone();
                         call_after_delay(std::time::Duration::from_secs(2), move || {
                             log::info!("Request a repaint in 3s...");
-                            ctx.request_repaint_after(std::time::Duration::from_secs(3));
+                            ctx.request_repaint_after(
+                                std::time::Duration::from_secs(3),
+                                ctx.current_window_id(),
+                            );
                         });
                     }
                 });

@@ -7,7 +7,7 @@ use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::NumExt as _;
+use egui::{window::WindowBuilder, NumExt as _};
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
@@ -77,7 +77,7 @@ pub fn window_builder<E>(
     title: &str,
     native_options: &epi::NativeOptions,
     window_settings: Option<WindowSettings>,
-) -> winit::window::WindowBuilder {
+) -> WindowBuilder {
     let epi::NativeOptions {
         maximized,
         decorated,
@@ -97,16 +97,14 @@ pub fn window_builder<E>(
         ..
     } = native_options;
 
-    let window_icon = icon_data.clone().and_then(load_icon);
-
-    let mut window_builder = winit::window::WindowBuilder::new()
+    let mut window_builder = WindowBuilder::default()
         .with_title(title)
         .with_decorations(*decorated)
-        .with_fullscreen(fullscreen.then(|| winit::window::Fullscreen::Borderless(None)))
+        .with_fullscreen(*fullscreen)
         .with_maximized(*maximized)
         .with_resizable(*resizable)
         .with_transparent(*transparent)
-        .with_window_icon(window_icon)
+        .with_window_icon(icon_data.clone().map(|d| (d.width, d.height, d.rgba)))
         .with_active(*active)
         // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
         // We must also keep the window hidden until AccessKit is initialized.
@@ -127,13 +125,13 @@ pub fn window_builder<E>(
     }
 
     if let Some(min_size) = *min_window_size {
-        window_builder = window_builder.with_min_inner_size(points_to_size(min_size));
+        window_builder = window_builder.with_min_inner_size((min_size.x as u32, min_size.y as u32));
     }
     if let Some(max_size) = *max_window_size {
-        window_builder = window_builder.with_max_inner_size(points_to_size(max_size));
+        window_builder = window_builder.with_max_inner_size((max_size.x as u32, max_size.y as u32));
     }
 
-    window_builder = window_builder_drag_and_drop(window_builder, *drag_and_drop_support);
+    window_builder = window_builder.with_drag_and_drop(*drag_and_drop_support);
 
     let inner_size_points = if let Some(mut window_settings) = window_settings {
         // Restore pos/size from previous session
@@ -144,16 +142,14 @@ pub fn window_builder<E>(
         window_settings.inner_size_points()
     } else {
         if let Some(pos) = *initial_window_pos {
-            window_builder = window_builder.with_position(winit::dpi::LogicalPosition {
-                x: pos.x as f64,
-                y: pos.y as f64,
-            });
+            window_builder = window_builder.with_position((pos.x as i32, pos.y as i32));
         }
 
         if let Some(initial_window_size) = *initial_window_size {
             let initial_window_size =
                 initial_window_size.at_most(largest_monitor_point_size(event_loop));
-            window_builder = window_builder.with_inner_size(points_to_size(initial_window_size));
+            window_builder = window_builder
+                .with_inner_size((initial_window_size.x as u32, initial_window_size.y as u32));
         }
 
         *initial_window_size
@@ -166,7 +162,7 @@ pub fn window_builder<E>(
             if monitor_size.width > 0.0 && monitor_size.height > 0.0 {
                 let x = (monitor_size.width - inner_size.x as f64) / 2.0;
                 let y = (monitor_size.height - inner_size.y as f64) / 2.0;
-                window_builder = window_builder.with_position(winit::dpi::LogicalPosition { x, y });
+                window_builder = window_builder.with_position((x as i32, y as i32));
             }
         }
     }
@@ -201,7 +197,7 @@ fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui:
     }
 }
 
-fn load_icon(icon_data: epi::IconData) -> Option<winit::window::Icon> {
+pub fn load_icon(icon_data: epi::IconData) -> Option<winit::window::Icon> {
     winit::window::Icon::from_rgba(icon_data.rgba, icon_data.width, icon_data.height).ok()
 }
 

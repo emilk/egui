@@ -6,6 +6,115 @@ use epaint::*;
 
 use super::*;
 
+#[derive(Hash, PartialEq, Clone, Default)]
+pub struct WindowBuilder {
+    pub title: String,
+    pub name: Option<String>,
+    pub position: Option<(i32, i32)>,
+    pub inner_size: Option<(u32, u32)>,
+    pub fullscreen: bool,
+    pub maximized: bool,
+    pub resizable: bool,
+    pub transparent: bool,
+    pub decorations: bool,
+    pub icon: Option<(u32, u32, Vec<u8>)>,
+    pub active: bool,
+    pub visible: bool,
+    pub title_hidden: bool,
+    pub titlebar_transparent: bool,
+    pub fullsize_content_view: bool,
+    pub min_inner_size: Option<(u32, u32)>,
+    pub max_inner_size: Option<(u32, u32)>,
+    pub drag_and_drop: bool,
+}
+
+impl WindowBuilder {
+    pub fn with_title(mut self, title: impl Into<String>) -> Self {
+        self.title = title.into();
+        self
+    }
+
+    pub fn with_decorations(mut self, decorations: bool) -> Self {
+        self.decorations = decorations;
+        self
+    }
+
+    pub fn with_fullscreen(mut self, fullscreen: bool) -> Self {
+        self.fullscreen = fullscreen;
+        self
+    }
+
+    pub fn with_maximized(mut self, maximized: bool) -> Self {
+        self.maximized = maximized;
+        self
+    }
+
+    pub fn with_resizable(mut self, resizable: bool) -> Self {
+        self.resizable = resizable;
+        self
+    }
+
+    pub fn with_transparent(mut self, transparent: bool) -> Self {
+        self.transparent = transparent;
+        self
+    }
+
+    pub fn with_window_icon(mut self, icon: Option<(u32, u32, Vec<u8>)>) -> Self {
+        self.icon = icon;
+        self
+    }
+
+    pub fn with_active(mut self, active: bool) -> Self {
+        self.active = active;
+        self
+    }
+
+    pub fn with_visible(mut self, visible: bool) -> Self {
+        self.visible = visible;
+        self
+    }
+
+    pub fn with_title_hidden(mut self, title_hidden: bool) -> Self {
+        self.title_hidden = title_hidden;
+        self
+    }
+
+    pub fn with_titlebar_transparent(mut self, value: bool) -> Self {
+        self.titlebar_transparent = value;
+        self
+    }
+
+    pub fn with_fullsize_content_view(mut self, value: bool) -> Self {
+        self.fullsize_content_view = value;
+        self
+    }
+
+    pub fn with_inner_size(mut self, value: (u32, u32)) -> Self {
+        self.inner_size = Some(value);
+        self
+    }
+
+    pub fn with_min_inner_size(mut self, value: (u32, u32)) -> Self {
+        self.min_inner_size = Some(value);
+        self
+    }
+
+    pub fn with_max_inner_size(mut self, value: (u32, u32)) -> Self {
+        self.max_inner_size = Some(value);
+        self
+    }
+
+    pub fn with_drag_and_drop(mut self, value: bool) -> Self {
+        self.drag_and_drop = value;
+        self
+    }
+
+    pub fn with_position(mut self, value: (i32, i32)) -> Self {
+        self.position = Some(value);
+        self
+    }
+}
+
 /// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled (off by default).
 ///
 /// You can customize:
@@ -287,6 +396,8 @@ impl<'open> Window<'open> {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> Option<InnerResponse<Option<R>>> {
+        let window_id =
+            ctx.data_mut(|data| *data.get_temp_mut_or(self.area.id.with("window_id"), 0));
         let Window {
             title,
             open,

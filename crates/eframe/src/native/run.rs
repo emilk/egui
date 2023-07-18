@@ -3,7 +3,7 @@
 
 use std::time::Instant;
 
-use egui::epaint::ahash::HashMap;
+use egui::{epaint::ahash::HashMap, window::WindowBuilder};
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 use winit::event_loop::{
     ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget,
@@ -15,7 +15,7 @@ use egui_winit::winit;
 
 use crate::{epi, Result};
 
-use super::epi_integration::{self, EpiIntegration};
+use super::epi_integration::{self, load_icon, EpiIntegration};
 
 // ----------------------------------------------------------------------------
 
@@ -400,12 +400,13 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 mod glow_integration {
     use std::sync::Arc;
 
-    use egui::{epaint::ahash::HashMap, NumExt as _};
+    use egui::{epaint::ahash::HashMap, window::WindowBuilder, NumExt as _};
     use glutin::{
         display::GetGlDisplay,
         prelude::{GlDisplay, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentGlContext},
         surface::GlSurface,
     };
+    use winit::dpi::{PhysicalPosition, PhysicalSize};
 
     use super::*;
 
@@ -436,7 +437,7 @@ mod glow_integration {
     }
 
     struct Window {
-        builder: winit::window::WindowBuilder,
+        builder: WindowBuilder,
         gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
         window: Option<winit::window::Window>,
         window_id: u64,
@@ -468,7 +469,7 @@ mod glow_integration {
         ///
         #[allow(unsafe_code)]
         unsafe fn new(
-            winit_window_builder: winit::window::WindowBuilder,
+            window_builder: WindowBuilder,
             native_options: &epi::NativeOptions,
             event_loop: &EventLoopWindowTarget<UserEvent>,
         ) -> Result<Self> {
@@ -516,7 +517,7 @@ mod glow_integration {
             let (window, gl_config) = glutin_winit::DisplayBuilder::new()
                 // we might want to expose this option to users in the future. maybe using an env var or using native_options.
                 .with_preference(glutin_winit::ApiPrefence::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
-                .with_window_builder(Some(winit_window_builder.clone()))
+                .with_window_builder(Some(create_winit_window_builder(&window_builder)))
                 .build(
                     event_loop,
                     config_template_builder.clone(),
@@ -581,7 +582,7 @@ mod glow_integration {
                 current_gl_context: None,
                 not_current_gl_context,
                 windows: vec![Window {
-                    builder: winit_window_builder,
+                    builder: window_builder,
                     gl_surface: None,
                     window,
                     window_id: 0,
@@ -610,7 +611,7 @@ mod glow_integration {
                 log::debug!("window doesn't exist yet. creating one now with finalize_window");
                 glutin_winit::finalize_window(
                     event_loop,
-                    self.windows[0].builder.clone(),
+                    create_winit_window_builder(&self.windows[0].builder),
                     &self.gl_config,
                 )
                 .expect("failed to finalize glutin window")
@@ -947,118 +948,166 @@ mod glow_integration {
                         painter,
                     } = running;
 
-                    let window = gl_window.window(window_index);
-
-                    let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
-
-                    egui_glow::painter::clear(
-                        &gl,
-                        screen_size_in_pixels,
-                        app.clear_color(&integration.egui_ctx.style().visuals),
-                    );
-
                     let egui::FullOutput {
                         platform_output,
                         repaint_after,
                         textures_delta,
                         shapes,
-                    } = integration.update(app.as_mut(), window);
-
-                    integration.handle_platform_output(window, platform_output);
-
-                    let clipped_primitives = {
-                        crate::profile_scope!("tessellate");
-                        integration.egui_ctx.tessellate(shapes)
+                        mut windows,
                     };
 
-                    painter.paint_and_update_textures(
-                        screen_size_in_pixels,
-                        integration.egui_ctx.pixels_per_point(),
-                        &clipped_primitives,
-                        &textures_delta,
-                    );
-
-                    let screenshot_requested = &mut integration.frame.output.screenshot_requested;
-
-                    if *screenshot_requested {
-                        *screenshot_requested = false;
-                        let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
-                        integration.frame.screenshot.set(Some(screenshot));
-                    }
-
-                    integration.post_rendering(app.as_mut(), window);
-
+                    let control_flow;
                     {
-                        crate::profile_scope!("swap_buffers");
-                        gl_window.swap_buffers().unwrap();
-                    }
+                        let window = gl_window.window(window_index);
 
-                    integration.post_present(window);
+                        let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
-                    #[cfg(feature = "__screenshot")]
-                    // give it time to settle:
-                    if integration.egui_ctx.frame_nr() == 2 {
-                        if let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO") {
-                            assert!(
+                        egui_glow::painter::clear(
+                            &gl,
+                            screen_size_in_pixels,
+                            app.clear_color(&integration.egui_ctx.style().visuals),
+                        );
+
+                        egui::FullOutput {
+                            platform_output,
+                            repaint_after,
+                            textures_delta,
+                            shapes,
+                            windows,
+                        } = integration.update(app.as_mut(), window);
+
+                        integration.handle_platform_output(window, platform_output);
+
+                        let clipped_primitives = {
+                            crate::profile_scope!("tessellate");
+                            integration.egui_ctx.tessellate(shapes)
+                        };
+
+                        painter.paint_and_update_textures(
+                            screen_size_in_pixels,
+                            integration.egui_ctx.pixels_per_point(),
+                            &clipped_primitives,
+                            &textures_delta,
+                        );
+
+                        let screenshot_requested =
+                            &mut integration.frame.output.screenshot_requested;
+
+                        if *screenshot_requested {
+                            *screenshot_requested = false;
+                            let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
+                            integration.frame.screenshot.set(Some(screenshot));
+                        }
+
+                        integration.post_rendering(app.as_mut(), window);
+
+                        {
+                            crate::profile_scope!("swap_buffers");
+                            gl_window.swap_buffers().unwrap();
+                        }
+
+                        integration.post_present(window);
+
+                        #[cfg(feature = "__screenshot")]
+                        // give it time to settle:
+                        if integration.egui_ctx.frame_nr() == 2 {
+                            if let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO") {
+                                assert!(
                                 path.ends_with(".png"),
                                 "Expected EFRAME_SCREENSHOT_TO to end with '.png', got {path:?}"
                             );
-                            let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
-                            image::save_buffer(
-                                &path,
-                                screenshot.as_raw(),
-                                screenshot.width() as u32,
-                                screenshot.height() as u32,
-                                image::ColorType::Rgba8,
-                            )
-                            .unwrap_or_else(|err| {
-                                panic!("Failed to save screenshot to {path:?}: {err}");
-                            });
-                            eprintln!("Screenshot saved to {path:?}.");
-                            std::process::exit(0);
+                                let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
+                                image::save_buffer(
+                                    &path,
+                                    screenshot.as_raw(),
+                                    screenshot.width() as u32,
+                                    screenshot.height() as u32,
+                                    image::ColorType::Rgba8,
+                                )
+                                .unwrap_or_else(|err| {
+                                    panic!("Failed to save screenshot to {path:?}: {err}");
+                                });
+                                eprintln!("Screenshot saved to {path:?}.");
+                                std::process::exit(0);
+                            }
+                        }
+
+                        control_flow = if integration.should_close() {
+                            EventResult::Exit
+                        } else if repaint_after.is_zero() {
+                            let mut id = None;
+                            for window in gl_window.windows.iter() {
+                                if window.window_id == 0 {
+                                    id = window.window.as_ref().map(|w| w.id());
+                                    break;
+                                }
+                            }
+                            EventResult::RepaintNext(id.unwrap())
+                        } else if let Some(repaint_after_instant) =
+                            std::time::Instant::now().checked_add(repaint_after)
+                        {
+                            // if repaint_after is something huge and can't be added to Instant,
+                            // we will use `ControlFlow::Wait` instead.
+                            // technically, this might lead to some weird corner cases where the user *WANTS*
+                            // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
+                            // egui backend impl i guess.
+
+                            let mut id = None;
+                            for window in gl_window.windows.iter() {
+                                if window.window_id == 0 {
+                                    id = window.window.as_ref().map(|w| w.id());
+                                    break;
+                                }
+                            }
+                            EventResult::RepaintAt(id.unwrap(), repaint_after_instant)
+                        } else {
+                            EventResult::Wait
+                        };
+
+                        integration.maybe_autosave(app.as_mut(), window);
+
+                        if window.is_minimized() == Some(true) {
+                            // On Mac, a minimized Window uses up all CPU:
+                            // https://github.com/emilk/egui/issues/325
+                            crate::profile_scope!("bg_sleep");
+                            std::thread::sleep(std::time::Duration::from_millis(10));
                         }
                     }
 
-                    let control_flow = if integration.should_close() {
-                        EventResult::Exit
-                    } else if repaint_after.is_zero() {
-                        let mut id = None;
-                        for window in gl_window.windows.iter() {
-                            if window.window_id == 0 {
-                                id = window.window.as_ref().map(|w| w.id());
-                                break;
+                    let mut wins = vec![0];
+
+                    windows.retain_mut(|(id, builder)| {
+                        for w in gl_window.windows.iter_mut() {
+                            if w.window_id == *id {
+                                if w.builder != *builder {
+                                    if let Some(window) = &mut w.window {
+                                        if let Ok(pos) = window.outer_position() {
+                                            builder.position = Some((pos.x, pos.y));
+                                        }
+                                    }
+                                    w.window = None;
+                                    w.gl_surface = None;
+
+                                    w.builder = builder.clone();
+                                }
+                                wins.push(*id);
+                                return false;
                             }
                         }
-                        EventResult::RepaintNext(id.unwrap())
-                    } else if let Some(repaint_after_instant) =
-                        std::time::Instant::now().checked_add(repaint_after)
-                    {
-                        // if repaint_after is something huge and can't be added to Instant,
-                        // we will use `ControlFlow::Wait` instead.
-                        // technically, this might lead to some weird corner cases where the user *WANTS*
-                        // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
-                        // egui backend impl i guess.
+                        true
+                    });
 
-                        let mut id = None;
-                        for window in gl_window.windows.iter() {
-                            if window.window_id == 0 {
-                                id = window.window.as_ref().map(|w| w.id());
-                                break;
-                            }
-                        }
-                        EventResult::RepaintAt(id.unwrap(), repaint_after_instant)
-                    } else {
-                        EventResult::Wait
-                    };
-
-                    integration.maybe_autosave(app.as_mut(), window);
-
-                    if window.is_minimized() == Some(true) {
-                        // On Mac, a minimized Window uses up all CPU:
-                        // https://github.com/emilk/egui/issues/325
-                        crate::profile_scope!("bg_sleep");
-                        std::thread::sleep(std::time::Duration::from_millis(10));
+                    for (id, builder) in windows {
+                        gl_window.windows.push(Window {
+                            builder,
+                            gl_surface: None,
+                            window: None,
+                            window_id: id,
+                        });
                     }
+
+                    gl_window.windows.retain(|w| wins.contains(&w.window_id));
+                    gl_window.window_maps.retain(|_, id| wins.contains(id));
 
                     control_flow
                 };
@@ -1290,7 +1339,7 @@ mod wgpu_integration {
             let window_settings = epi_integration::load_window_settings(storage);
             let window_builder =
                 epi_integration::window_builder(event_loop, title, native_options, window_settings);
-            let window = window_builder.build(event_loop)?;
+            let window = create_winit_window_builder(&window_builder).build(event_loop)?;
             epi_integration::apply_native_options_to_window(&window, native_options);
             Ok(window)
         }
@@ -1708,4 +1757,49 @@ fn system_theme(window: &winit::window::Window, options: &NativeOptions) -> Opti
 
 fn extremely_far_future() -> std::time::Instant {
     std::time::Instant::now() + std::time::Duration::from_secs(10_000_000_000)
+}
+
+fn create_winit_window_builder(builder: &WindowBuilder) -> winit::window::WindowBuilder {
+    let mut window_builder = winit::window::WindowBuilder::new()
+        .with_title(builder.title.clone())
+        .with_transparent(builder.transparent)
+        .with_decorations(builder.decorations)
+        .with_resizable(builder.resizable)
+        .with_visible(builder.visible)
+        .with_fullscreen(
+            builder
+                .fullscreen
+                .then(|| winit::window::Fullscreen::Borderless(None)),
+        )
+        .with_active(builder.active);
+    if let Some(inner_size) = builder.inner_size {
+        window_builder = window_builder
+            .with_inner_size(winit::dpi::PhysicalSize::new(inner_size.0, inner_size.1));
+    }
+    if let Some(min_inner_size) = builder.min_inner_size {
+        window_builder = window_builder.with_min_inner_size(winit::dpi::PhysicalSize::new(
+            min_inner_size.0,
+            min_inner_size.1,
+        ));
+    }
+    if let Some(max_inner_size) = builder.max_inner_size {
+        window_builder = window_builder.with_max_inner_size(winit::dpi::PhysicalSize::new(
+            max_inner_size.0,
+            max_inner_size.1,
+        ));
+    }
+    if let Some(position) = builder.position {
+        window_builder =
+            window_builder.with_position(winit::dpi::PhysicalPosition::new(position.0, position.1));
+    }
+
+    if let Some(icon) = builder.icon.clone() {
+        window_builder = window_builder.with_window_icon(load_icon(crate::IconData {
+            rgba: icon.2,
+            width: icon.0,
+            height: icon.1,
+        }))
+    }
+
+    window_builder
 }

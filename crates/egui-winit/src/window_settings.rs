@@ -1,3 +1,5 @@
+use egui::window::WindowBuilder;
+
 /// Can be used to store native window settings (position and size).
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -46,32 +48,20 @@ impl WindowSettings {
         self.inner_size_points
     }
 
-    pub fn initialize_window(
-        &self,
-        mut window: winit::window::WindowBuilder,
-    ) -> winit::window::WindowBuilder {
+    pub fn initialize_window(&self, mut window: WindowBuilder) -> WindowBuilder {
         // If the app last ran on two monitors and only one is now connected, then
         // the given position is invalid.
         // If this happens on Mac, the window is clamped into valid area.
         // If this happens on Windows, the clamping behavior is managed by the function
         // clamp_window_to_sane_position.
         if let Some(pos) = self.position {
-            window = window.with_position(winit::dpi::PhysicalPosition {
-                x: pos.x as f64,
-                y: pos.y as f64,
-            });
+            window = window.with_position((pos.x as i32, pos.y as i32));
         }
 
         if let Some(inner_size_points) = self.inner_size_points {
             window
-                .with_inner_size(winit::dpi::LogicalSize {
-                    width: inner_size_points.x as f64,
-                    height: inner_size_points.y as f64,
-                })
-                .with_fullscreen(
-                    self.fullscreen
-                        .then_some(winit::window::Fullscreen::Borderless(None)),
-                )
+                .with_inner_size((inner_size_points.x as u32, inner_size_points.y as u32))
+                .with_fullscreen(self.fullscreen)
         } else {
             window
         }
