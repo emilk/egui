@@ -799,7 +799,7 @@ mod glow_integration {
             if let Some(mut running) = self.running.take() {
                 running
                     .integration
-                    .save(running.app.as_mut(), running.gl_window.window());
+                    .save(running.app.as_mut(), running.gl_window.window.as_ref());
                 running.app.on_exit(Some(&running.gl));
                 running.painter.destroy();
             }
@@ -1258,9 +1258,9 @@ mod wgpu_integration {
 
         fn save_and_destroy(&mut self) {
             if let Some(mut running) = self.running.take() {
-                if let Some(window) = &self.window {
-                    running.integration.save(running.app.as_mut(), window);
-                }
+                running
+                    .integration
+                    .save(running.app.as_mut(), self.window.as_ref());
 
                 #[cfg(feature = "glow")]
                 running.app.on_exit(None);
