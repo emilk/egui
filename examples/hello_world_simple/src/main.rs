@@ -27,8 +27,11 @@ fn main() -> Result<(), eframe::Error> {
                 age += 1;
             }
             ui.label(format!("Hello '{name}', age {age}"));
-            egui::CollapsingHeader::new("W").show(ui, |ui| {
-                egui::Window::new("Win").show(ctx, |ui| ui.label("Inside a window!"));
+            egui::CollapsingHeader::new("Show Test1").show(ui, |ui| {
+                egui::Window::new("Test1").show(ctx, |ui| ui.label("Inside a window!"));
+            });
+            egui::CollapsingHeader::new("Shout Test2").show(ui, |ui| {
+                egui::Window::new("Test2").show(ctx, |ui| ui.label("Inside a window! 222"));
             });
         });
     })

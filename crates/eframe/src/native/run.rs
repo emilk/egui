@@ -998,6 +998,8 @@ mod glow_integration {
                                 .unwrap(),
                         );
 
+                        integration.egui_ctx.set_current_window_id(win.window_id);
+
                         let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
                         egui_glow::painter::clear(

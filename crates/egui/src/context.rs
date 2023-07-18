@@ -161,6 +161,7 @@ struct ContextImpl {
     repaint: Repaint,
 
     windows: HashMap<String, (WindowBuilder, u64, bool)>,
+    window_counter: u64,
     current_window_id: u64,
 
     /// Written to during the frame.
@@ -1268,11 +1269,14 @@ impl Context {
         let repaint_after = self.write(|ctx| ctx.repaint.end_frame());
         let shapes = self.drain_paint_lists();
 
-        let windows = self.read(|ctx| {
-            ctx.windows
-                .iter()
-                .map(|(_, (builder, id, _))| (*id, builder.clone()))
-                .collect()
+        let mut windows = Vec::new();
+        self.write(|ctx| {
+            ctx.windows.retain(|d, (builder, id, used)| {
+                let out = *used;
+                *used = false;
+                windows.push((*id, builder.clone()));
+                out
+            })
         });
 
         FullOutput {
@@ -1897,10 +1901,12 @@ impl Context {
 
     pub fn create_window(&self, window_builder: WindowBuilder) -> u64 {
         self.write(|ctx| {
-            if let Some(window) = ctx.windows.get(&window_builder.title) {
+            if let Some(window) = ctx.windows.get_mut(&window_builder.title) {
+                window.2 = true;
                 window.1
             } else {
-                let id = ctx.windows.len() as u64 + 1;
+                let id = ctx.window_counter + 1;
+                ctx.window_counter = id;
                 ctx.windows
                     .insert(window_builder.title.clone(), (window_builder, id, true));
                 id
