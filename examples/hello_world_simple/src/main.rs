@@ -14,6 +14,9 @@ fn main() -> Result<(), eframe::Error> {
     let mut name = "Arthur".to_owned();
     let mut age = 42;
 
+    let mut window1_embedded = true;
+    let mut window2_embedded = true;
+
     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("My egui Application");
@@ -29,11 +32,17 @@ fn main() -> Result<(), eframe::Error> {
             ui.label(format!("Hello '{name}', age {age}"));
             egui::CollapsingHeader::new("Show Test1").show(ui, |ui| {
                 egui::Window::new("Test1")
-                    .embedded(false)
-                    .show(ctx, |ui| ui.label("Inside a window!"));
+                    .embedded(window1_embedded)
+                    .show(ctx, |ui| {
+                        ui.checkbox(&mut window1_embedded, "Should embedd?")
+                    });
             });
             egui::CollapsingHeader::new("Shout Test2").show(ui, |ui| {
-                egui::Window::new("Test2").show(ctx, |ui| ui.label("Inside a window! 222"));
+                egui::Window::new("Test2")
+                    .embedded(window2_embedded)
+                    .show(ctx, |ui| {
+                        ui.checkbox(&mut window2_embedded, "Should embedd?")
+                    });
             });
         });
     })
