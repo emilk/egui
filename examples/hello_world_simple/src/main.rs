@@ -28,7 +28,9 @@ fn main() -> Result<(), eframe::Error> {
             }
             ui.label(format!("Hello '{name}', age {age}"));
             egui::CollapsingHeader::new("Show Test1").show(ui, |ui| {
-                egui::Window::new("Test1").show(ctx, |ui| ui.label("Inside a window!"));
+                egui::Window::new("Test1")
+                    .embedded(false)
+                    .show(ctx, |ui| ui.label("Inside a window!"));
             });
             egui::CollapsingHeader::new("Shout Test2").show(ui, |ui| {
                 egui::Window::new("Test2").show(ctx, |ui| ui.label("Inside a window! 222"));

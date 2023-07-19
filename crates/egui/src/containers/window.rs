@@ -166,6 +166,8 @@ pub struct Window<'open> {
     collapsible: bool,
     default_open: bool,
     with_title_bar: bool,
+    embedded: bool,
+    window_builder: WindowBuilder,
 }
 
 impl<'open> Window<'open> {
@@ -176,6 +178,7 @@ impl<'open> Window<'open> {
         let title = title.into().fallback_text_style(TextStyle::Heading);
         let area = Area::new(Id::new(title.text()));
         Self {
+            window_builder: WindowBuilder::default().with_title(title.text()),
             title,
             open: None,
             area,
@@ -188,6 +191,7 @@ impl<'open> Window<'open> {
             collapsible: true,
             default_open: true,
             with_title_bar: true,
+            embedded: true,
         }
     }
 
@@ -402,6 +406,11 @@ impl<'open> Window<'open> {
         self.area = self.area.drag_bounds(bounds);
         self
     }
+
+    pub fn embedded(mut self, value: bool) -> Self {
+        self.embedded = value;
+        self
+    }
 }
 
 impl<'open> Window<'open> {
@@ -421,8 +430,6 @@ impl<'open> Window<'open> {
         ctx: &Context,
         add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> Option<InnerResponse<Option<R>>> {
-        let window_id = ctx.create_window(WindowBuilder::default().with_title(self.title.text()));
-        println!("Window id: {}", window_id);
         let Window {
             title,
             open,
@@ -433,161 +440,177 @@ impl<'open> Window<'open> {
             collapsible,
             default_open,
             with_title_bar,
+            embedded,
+            window_builder,
         } = self;
 
-        let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
-
-        let is_explicitly_closed = matches!(open, Some(false));
-        let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
-        area.show_open_close_animation(ctx, &frame, is_open);
-
-        if !is_open {
-            return None;
-        }
-
-        let area_id = area.id;
-        let area_layer_id = area.layer();
-        let resize_id = area_id.with("resize");
-        let mut collapsing =
-            CollapsingState::load_with_default_open(ctx, area_id.with("collapsing"), default_open);
-
-        let is_collapsed = with_title_bar && !collapsing.is_open();
-        let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
-
-        let area = area.movable(false); // We move it manually, or the area will move the window when we want to resize it
-        let resize = resize.resizable(false); // We move it manually
-        let mut resize = resize.id(resize_id);
-
-        let mut area = area.begin(ctx);
-
-        let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
-
-        // First interact (move etc) to avoid frame delay:
-        let last_frame_outer_rect = area.state().rect();
-        let interaction = if possible.movable || possible.resizable() {
-            window_interaction(
-                ctx,
-                possible,
-                area_layer_id,
-                area_id.with("frame_resize"),
-                last_frame_outer_rect,
-            )
-            .and_then(|window_interaction| {
-                // Calculate roughly how much larger the window size is compared to the inner rect
-                let title_bar_height = if with_title_bar {
-                    let style = ctx.style();
-                    ctx.fonts(|f| title.font_height(f, &style)) + title_content_spacing
-                } else {
-                    0.0
-                };
-                let margins = frame.outer_margin.sum()
-                    + frame.inner_margin.sum()
-                    + vec2(0.0, title_bar_height);
-
-                interact(
-                    window_interaction,
-                    ctx,
-                    margins,
-                    area_layer_id,
-                    &mut area,
-                    resize_id,
-                )
-            })
+        let window_id = if !embedded {
+            ctx.create_window(window_builder)
         } else {
-            None
+            0
         };
-        let hover_interaction = resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect);
 
-        let mut area_content_ui = area.content_ui(ctx);
+        if embedded || ctx.current_window_id() == window_id {
+            let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
-        let content_inner = {
-            // BEGIN FRAME --------------------------------
-            let frame_stroke = frame.stroke;
-            let mut frame = frame.begin(&mut area_content_ui);
+            let is_explicitly_closed = matches!(open, Some(false));
+            let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
+            area.show_open_close_animation(ctx, &frame, is_open);
 
-            let show_close_button = open.is_some();
-            let title_bar = if with_title_bar {
-                let title_bar = show_title_bar(
-                    &mut frame.content_ui,
-                    title,
-                    show_close_button,
-                    &mut collapsing,
-                    collapsible,
-                );
-                resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
-                Some(title_bar)
+            if !is_open {
+                return None;
+            }
+
+            let area_id = area.id;
+            let area_layer_id = area.layer();
+            let resize_id = area_id.with("resize");
+            let mut collapsing = CollapsingState::load_with_default_open(
+                ctx,
+                area_id.with("collapsing"),
+                default_open,
+            );
+
+            let is_collapsed = with_title_bar && !collapsing.is_open();
+            let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
+
+            let area = area.movable(false); // We move it manually, or the area will move the window when we want to resize it
+            let resize = resize.resizable(false); // We move it manually
+            let mut resize = resize.id(resize_id);
+
+            let mut area = area.begin(ctx);
+
+            let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
+
+            // First interact (move etc) to avoid frame delay:
+            let last_frame_outer_rect = area.state().rect();
+            let interaction = if possible.movable || possible.resizable() {
+                window_interaction(
+                    ctx,
+                    possible,
+                    area_layer_id,
+                    area_id.with("frame_resize"),
+                    last_frame_outer_rect,
+                )
+                .and_then(|window_interaction| {
+                    // Calculate roughly how much larger the window size is compared to the inner rect
+                    let title_bar_height = if with_title_bar {
+                        let style = ctx.style();
+                        ctx.fonts(|f| title.font_height(f, &style)) + title_content_spacing
+                    } else {
+                        0.0
+                    };
+                    let margins = frame.outer_margin.sum()
+                        + frame.inner_margin.sum()
+                        + vec2(0.0, title_bar_height);
+
+                    interact(
+                        window_interaction,
+                        ctx,
+                        margins,
+                        area_layer_id,
+                        &mut area,
+                        resize_id,
+                    )
+                })
             } else {
                 None
             };
+            let hover_interaction =
+                resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect);
 
-            let (content_inner, content_response) = collapsing
-                .show_body_unindented(&mut frame.content_ui, |ui| {
-                    resize.show(ui, |ui| {
-                        if title_bar.is_some() {
-                            ui.add_space(title_content_spacing);
-                        }
+            let mut area_content_ui = area.content_ui(ctx);
 
-                        if scroll.has_any_bar() {
-                            scroll.show(ui, add_contents).inner
-                        } else {
-                            add_contents(ui)
-                        }
+            let content_inner = {
+                // BEGIN FRAME --------------------------------
+                let frame_stroke = frame.stroke;
+                let mut frame = frame.begin(&mut area_content_ui);
+
+                let show_close_button = open.is_some();
+                let title_bar = if with_title_bar {
+                    let title_bar = show_title_bar(
+                        &mut frame.content_ui,
+                        title,
+                        show_close_button,
+                        &mut collapsing,
+                        collapsible,
+                    );
+                    resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
+                    Some(title_bar)
+                } else {
+                    None
+                };
+
+                let (content_inner, content_response) = collapsing
+                    .show_body_unindented(&mut frame.content_ui, |ui| {
+                        resize.show(ui, |ui| {
+                            if title_bar.is_some() {
+                                ui.add_space(title_content_spacing);
+                            }
+
+                            if scroll.has_any_bar() {
+                                scroll.show(ui, add_contents).inner
+                            } else {
+                                add_contents(ui)
+                            }
+                        })
                     })
-                })
-                .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
+                    .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
 
-            let outer_rect = frame.end(&mut area_content_ui).rect;
-            paint_resize_corner(&mut area_content_ui, &possible, outer_rect, frame_stroke);
+                let outer_rect = frame.end(&mut area_content_ui).rect;
+                paint_resize_corner(&mut area_content_ui, &possible, outer_rect, frame_stroke);
 
-            // END FRAME --------------------------------
+                // END FRAME --------------------------------
 
-            if let Some(title_bar) = title_bar {
-                title_bar.ui(
-                    &mut area_content_ui,
-                    outer_rect,
-                    &content_response,
-                    open,
-                    &mut collapsing,
-                    collapsible,
-                );
-            }
+                if let Some(title_bar) = title_bar {
+                    title_bar.ui(
+                        &mut area_content_ui,
+                        outer_rect,
+                        &content_response,
+                        open,
+                        &mut collapsing,
+                        collapsible,
+                    );
+                }
 
-            collapsing.store(ctx);
+                collapsing.store(ctx);
 
-            if let Some(interaction) = interaction {
-                paint_frame_interaction(
-                    &mut area_content_ui,
-                    outer_rect,
-                    interaction,
-                    ctx.style().visuals.widgets.active,
-                );
-            } else if let Some(hover_interaction) = hover_interaction {
-                if ctx.input(|i| i.pointer.has_pointer()) {
+                if let Some(interaction) = interaction {
                     paint_frame_interaction(
                         &mut area_content_ui,
                         outer_rect,
-                        hover_interaction,
-                        ctx.style().visuals.widgets.hovered,
+                        interaction,
+                        ctx.style().visuals.widgets.active,
                     );
+                } else if let Some(hover_interaction) = hover_interaction {
+                    if ctx.input(|i| i.pointer.has_pointer()) {
+                        paint_frame_interaction(
+                            &mut area_content_ui,
+                            outer_rect,
+                            hover_interaction,
+                            ctx.style().visuals.widgets.hovered,
+                        );
+                    }
                 }
+                content_inner
+            };
+
+            {
+                let pos = ctx
+                    .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
+                    .left_top();
+                area.state_mut().set_left_top_pos(pos);
             }
-            content_inner
-        };
 
-        {
-            let pos = ctx
-                .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
-                .left_top();
-            area.state_mut().set_left_top_pos(pos);
+            let full_response = area.end(ctx, area_content_ui);
+
+            let inner_response = InnerResponse {
+                inner: content_inner,
+                response: full_response,
+            };
+            Some(inner_response)
+        } else {
+            None
         }
-
-        let full_response = area.end(ctx, area_content_ui);
-
-        let inner_response = InnerResponse {
-            inner: content_inner,
-            response: full_response,
-        };
-        Some(inner_response)
     }
 }
 
