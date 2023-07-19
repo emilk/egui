@@ -715,8 +715,8 @@ mod glow_integration {
             }
         }
 
-        fn swap_buffers(&self) -> glutin::error::Result<()> {
-            self.windows[0]
+        fn swap_buffers(&self, window_index: usize) -> glutin::error::Result<()> {
+            self.windows[window_index]
                 .gl_surface
                 .as_ref()
                 .expect("failed to get surface to swap buffers")
@@ -1043,7 +1043,7 @@ mod glow_integration {
 
                         {
                             crate::profile_scope!("swap_buffers");
-                            gl_window.swap_buffers().unwrap();
+                            gl_window.swap_buffers(window_index).unwrap();
                         }
 
                         integration.post_present(window);
