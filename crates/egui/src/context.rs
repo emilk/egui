@@ -162,7 +162,10 @@ struct ContextImpl {
 
     windows: HashMap<String, (WindowBuilder, u64, bool)>,
     window_counter: u64,
-    current_window_id: u64,
+    current_rendering_window: u64,
+    windows_stack: Vec<u64>,
+    current_window: u64,
+    is_desktop: bool,
 
     /// Written to during the frame.
     layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
@@ -965,7 +968,7 @@ impl Context {
     /// (this will work on `eframe`).
     pub fn request_repaint(&self) {
         // request two frames of repaint, just to cover some corner cases (frame delays):
-        self.write(|ctx| ctx.repaint.request_repaint(ctx.current_window_id));
+        self.write(|ctx| ctx.repaint.request_repaint(ctx.current_window));
     }
 
     /// Request repaint after at most the specified duration elapses.
@@ -1468,7 +1471,7 @@ impl Context {
     }
 
     pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        rect.is_positive() && {
+        rect.is_positive() && self.current_window() == self.current_rendering_window() && {
             let pointer_pos = self.input(|i| i.pointer.interact_pos());
             if let Some(pointer_pos) = pointer_pos {
                 rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
@@ -1893,25 +1896,56 @@ use containers::window::WindowBuilder;
 /// # Windows
 impl Context {
     pub fn set_current_window_id(&self, window_id: u64) {
-        self.write(|ctx| ctx.current_window_id = window_id);
+        self.write(|ctx| ctx.current_rendering_window = window_id);
     }
-    pub fn current_window_id(&self) -> u64 {
-        self.read(|ctx| ctx.current_window_id)
+    pub fn current_rendering_window(&self) -> u64 {
+        self.read(|ctx| ctx.current_rendering_window)
     }
 
-    pub fn create_window(&self, window_builder: WindowBuilder) -> u64 {
-        self.write(|ctx| {
-            if let Some(window) = ctx.windows.get_mut(&window_builder.title) {
-                window.2 = true;
-                window.1
+    pub fn current_window(&self) -> u64 {
+        self.read(|ctx| ctx.current_window)
+    }
+
+    pub fn is_desktop(&self) -> bool {
+        self.read(|ctx| ctx.is_desktop)
+    }
+
+    pub fn set_desktop(&self, value: bool) {
+        self.write(|ctx| ctx.is_desktop = value)
+    }
+
+    pub fn create_window<T>(
+        &self,
+        window_builder: WindowBuilder,
+        func: impl FnOnce(u64) -> T,
+    ) -> Option<T> {
+        let id = self.write(|ctx| {
+            if ctx.is_desktop {
+                if let Some(window) = ctx.windows.get_mut(&window_builder.title) {
+                    window.2 = true;
+                    window.1
+                } else {
+                    let id = ctx.window_counter + 1;
+                    ctx.window_counter = id;
+                    ctx.windows
+                        .insert(window_builder.title.clone(), (window_builder, id, true));
+                    id
+                }
             } else {
-                let id = ctx.window_counter + 1;
-                ctx.window_counter = id;
-                ctx.windows
-                    .insert(window_builder.title.clone(), (window_builder, id, true));
-                id
+                0
             }
-        })
+        });
+        let should_render = self.write(|ctx| {
+            ctx.windows_stack.push(id);
+            ctx.current_window = id;
+            ctx.current_window == ctx.current_rendering_window
+        });
+        let out = if should_render { Some(func(id)) } else { None };
+        self.write(|ctx| {
+            ctx.windows_stack.pop();
+            ctx.current_window = ctx.windows_stack.pop().unwrap_or(0);
+        });
+        out
     }
 }
 

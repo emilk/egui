@@ -69,7 +69,7 @@ trait WinitApp {
     /// The current frame number, as reported by egui.
     fn frame_nr(&self) -> u64;
 
-    fn is_focused(&self) -> bool;
+    fn is_focused(&self, window_id: winit::window::WindowId) -> bool;
 
     fn integration(&self) -> Option<&EpiIntegration>;
 
@@ -243,7 +243,7 @@ fn run_and_return(
         for (window_id, repaint_time) in windows_next_repaint_times.clone().iter() {
             if *repaint_time <= Instant::now() {
                 if let Some(window) = winit_app.window(*window_id) {
-                    log::trace!("request_redraw");
+                    log::trace!("request_redraw {window_id:?}");
                     window.request_redraw();
                     windows_next_repaint_times.remove(window_id);
                 }
@@ -748,7 +748,7 @@ mod glow_integration {
         // re-initializing the `GlowWinitRunning` state on Android if the application
         // suspends and resumes.
         app_creator: Option<epi::AppCreator>,
-        is_focused: bool,
+        is_focused: Option<u64>,
     }
 
     impl GlowWinitApp {
@@ -764,7 +764,7 @@ mod glow_integration {
                 native_options,
                 running: None,
                 app_creator: Some(app_creator),
-                is_focused: true,
+                is_focused: Some(0),
             }
         }
 
@@ -842,6 +842,12 @@ mod glow_integration {
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
 
+            // !!! WARNING This is needed to be improved !!!
+            // I don't really know not to detect if is on desktop or web/mobile
+            // This allows to have multiples windows
+
+            integration.egui_ctx.set_desktop(true);
+
             gl_window.window(0).set_ime_allowed(true);
             if self.native_options.mouse_passthrough {
                 gl_window.window(0).set_cursor_hittest(false).unwrap();
@@ -902,8 +908,15 @@ mod glow_integration {
                 .map_or(0, |r| r.integration.egui_ctx.frame_nr())
         }
 
-        fn is_focused(&self) -> bool {
-            self.is_focused
+        fn is_focused(&self, window_id: winit::window::WindowId) -> bool {
+            if let Some(is_focused) = self.is_focused {
+                if let Some(running) = &self.running {
+                    if let Some(window_id) = running.gl_window.window_maps.get(&window_id) {
+                        return is_focused == *window_id;
+                    }
+                }
+            }
+            false
         }
 
         fn integration(&self) -> Option<&EpiIntegration> {
@@ -1215,7 +1228,9 @@ mod glow_integration {
 
                         match &event {
                             winit::event::WindowEvent::Focused(new_focused) => {
-                                self.is_focused = *new_focused;
+                                self.is_focused = new_focused
+                                    .then(|| running.gl_window.window_maps.get(window_id).cloned())
+                                    .flatten();
                             }
                             winit::event::WindowEvent::Resized(physical_size) => {
                                 repaint_asap = true;
@@ -1503,7 +1518,7 @@ mod wgpu_integration {
                 .map_or(0, |r| r.integration.egui_ctx.frame_nr())
         }
 
-        fn is_focused(&self) -> bool {
+        fn is_focused(&self, _: winit::window::WindowId) -> bool {
             self.is_focused
         }
 

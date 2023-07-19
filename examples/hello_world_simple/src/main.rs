@@ -19,6 +19,11 @@ fn main() -> Result<(), eframe::Error> {
 
     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
         egui::CentralPanel::default().show(ctx, |ui| {
+            ui.label(format!(
+                "Current window: {}, Current rendering window: {}",
+                ctx.current_window(),
+                ctx.current_rendering_window()
+            ));
             ui.heading("My egui Application");
             ui.horizontal(|ui| {
                 let name_label = ui.label("Your name: ");

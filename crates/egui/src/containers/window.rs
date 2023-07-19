@@ -444,13 +444,7 @@ impl<'open> Window<'open> {
             window_builder,
         } = self;
 
-        let window_id = if !embedded {
-            ctx.create_window(window_builder)
-        } else {
-            0
-        };
-
-        if embedded || ctx.current_window_id() == window_id {
+        let draw = move || {
             let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
             let is_explicitly_closed = matches!(open, Some(false));
@@ -608,8 +602,13 @@ impl<'open> Window<'open> {
                 response: full_response,
             };
             Some(inner_response)
+        };
+
+        if !embedded {
+            ctx.create_window(window_builder, |window_id| draw())
+                .flatten()
         } else {
-            None
+            draw()
         }
     }
 }
