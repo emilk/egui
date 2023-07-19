@@ -79,7 +79,7 @@ trait WinitApp {
 
     fn save_and_destroy(&mut self);
 
-    fn run_ui_and_paint(&mut self, window_id: Option<winit::window::WindowId>) -> EventResult;
+    fn run_ui_and_paint(&mut self, window_id: Option<winit::window::WindowId>) -> Vec<EventResult>;
 
     fn on_event(
         &mut self,
@@ -135,7 +135,7 @@ fn run_and_return(
     let mut returned_result = Ok(());
 
     event_loop.run_return(|event, event_loop, control_flow| {
-        let event_result = match &event {
+        let events = match &event {
             winit::event::Event::LoopDestroyed => {
                 // On Mac, Cmd-Q we get here and then `run_return` doesn't return (despite its name),
                 // so we need to save state now:
@@ -165,13 +165,13 @@ fn run_and_return(
                 if winit_app.frame_nr() == *frame_nr {
                     log::trace!("UserEvent::RequestRepaint scheduling repaint at {when:?}");
                     if let Some(window_id) = winit_app.get_window_id(*window_id) {
-                        EventResult::RepaintAt(window_id, *when)
+                        vec![EventResult::RepaintAt(window_id, *when)]
                     } else {
-                        EventResult::Wait
+                        vec![EventResult::Wait]
                     }
                 } else {
                     log::trace!("Got outdated UserEvent::RequestRepaint");
-                    EventResult::Wait // old request - we've already repainted
+                    vec![EventResult::Wait] // old request - we've already repainted
                 }
             }
 
@@ -179,7 +179,7 @@ fn run_and_return(
                 ..
             }) => {
                 log::trace!("Woke up to check next_repaint_time");
-                EventResult::Wait
+                vec![EventResult::Wait]
             }
 
             winit::event::Event::WindowEvent { window_id, .. }
@@ -187,51 +187,55 @@ fn run_and_return(
             {
                 // This can happen if we close a window, and then reopen a new one,
                 // or if we have multiple windows open.
-                EventResult::Wait
+                vec![EventResult::Wait]
             }
 
             event => match winit_app.on_event(event_loop, event) {
-                Ok(event_result) => event_result,
+                Ok(event_result) => vec![event_result],
                 Err(err) => {
                     log::error!("Exiting because of error: {err:?} on event {event:?}");
                     returned_result = Err(err);
-                    EventResult::Exit
+                    vec![EventResult::Exit]
                 }
             },
         };
 
-        match event_result {
-            EventResult::Wait => {}
-            EventResult::RepaintNow(window_id) => {
-                log::trace!("Repaint caused by winit::Event: {:?}", event);
-                if cfg!(windows) {
-                    // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-                    windows_next_repaint_times.remove(&window_id);
+        for event in events {
+            match event {
+                EventResult::Wait => {
+                    control_flow.set_wait();
+                }
+                EventResult::RepaintNow(window_id) => {
+                    log::trace!("Repaint caused by winit::Event: {:?}", event);
+                    if cfg!(windows) {
+                        // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
+                        windows_next_repaint_times.remove(&window_id);
 
-                    winit_app.run_ui_and_paint(Some(window_id));
-                } else {
-                    // Fix for https://github.com/emilk/egui/issues/2425
+                        winit_app.run_ui_and_paint(Some(window_id));
+                    } else {
+                        // Fix for https://github.com/emilk/egui/issues/2425
+                        windows_next_repaint_times.insert(window_id, Instant::now());
+                    }
+                }
+                EventResult::RepaintNext(window_id) => {
+                    log::trace!("Repaint caused by winit::Event: {:?}", event);
                     windows_next_repaint_times.insert(window_id, Instant::now());
                 }
-            }
-            EventResult::RepaintNext(window_id) => {
-                log::trace!("Repaint caused by winit::Event: {:?}", event);
-                windows_next_repaint_times.insert(window_id, Instant::now());
-            }
-            EventResult::RepaintAt(window_id, repaint_time) => {
-                windows_next_repaint_times.insert(
-                    window_id,
-                    windows_next_repaint_times
-                        .get(&window_id)
-                        .map(|last| (*last).min(repaint_time))
-                        .unwrap_or(repaint_time),
-                );
-            }
-            EventResult::Exit => {
-                log::debug!("Asking to exit event loop…");
-                winit_app.save_and_destroy();
-                *control_flow = ControlFlow::Exit;
-                return;
+                EventResult::RepaintAt(window_id, repaint_time) => {
+                    windows_next_repaint_times.insert(
+                        window_id,
+                        windows_next_repaint_times
+                            .get(&window_id)
+                            .map(|last| (*last).min(repaint_time))
+                            .unwrap_or(repaint_time),
+                    );
+                }
+                EventResult::Exit => {
+                    log::debug!("Asking to exit event loop…");
+                    winit_app.save_and_destroy();
+                    *control_flow = ControlFlow::Exit;
+                    return;
+                }
             }
         }
 
@@ -287,10 +291,10 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
     let mut windows_next_repaint_times = HashMap::default();
 
     event_loop.run(move |event, event_loop, control_flow| {
-        let event_result = match event {
+        let events = match event {
             winit::event::Event::LoopDestroyed => {
                 log::debug!("Received Event::LoopDestroyed");
-                EventResult::Exit
+                vec![EventResult::Exit]
             }
 
             // Platform-dependent event handlers to workaround a winit bug
@@ -312,57 +316,59 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             }) => {
                 if winit_app.frame_nr() == frame_nr {
                     if let Some(window_id) = winit_app.get_window_id(window_id) {
-                        EventResult::RepaintAt(window_id, when)
+                        vec![EventResult::RepaintAt(window_id, when)]
                     } else {
-                        EventResult::Wait
+                        vec![EventResult::Wait]
                     }
                 } else {
-                    EventResult::Wait // old request - we've already repainted
+                    vec![EventResult::Wait] // old request - we've already repainted
                 }
             }
 
             winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
                 ..
-            }) => EventResult::Wait, // We just woke up to check next_repaint_time
+            }) => vec![EventResult::Wait], // We just woke up to check next_repaint_time
 
             event => match winit_app.on_event(event_loop, &event) {
-                Ok(event_result) => event_result,
+                Ok(event_result) => vec![event_result],
                 Err(err) => {
                     panic!("eframe encountered a fatal error: {err}");
                 }
             },
         };
 
-        match event_result {
-            EventResult::Wait => {}
-            EventResult::RepaintNow(window_id) => {
-                if cfg!(windows) {
-                    // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-                    windows_next_repaint_times.remove(&window_id);
+        for event in events {
+            match event {
+                EventResult::Wait => {}
+                EventResult::RepaintNow(window_id) => {
+                    if cfg!(windows) {
+                        // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
+                        windows_next_repaint_times.remove(&window_id);
 
-                    winit_app.run_ui_and_paint(Some(window_id));
-                } else {
-                    // Fix for https://github.com/emilk/egui/issues/2425
+                        winit_app.run_ui_and_paint(Some(window_id));
+                    } else {
+                        // Fix for https://github.com/emilk/egui/issues/2425
+                        windows_next_repaint_times.insert(window_id, Instant::now());
+                    }
+                }
+                EventResult::RepaintNext(window_id) => {
                     windows_next_repaint_times.insert(window_id, Instant::now());
                 }
-            }
-            EventResult::RepaintNext(window_id) => {
-                windows_next_repaint_times.insert(window_id, Instant::now());
-            }
-            EventResult::RepaintAt(window_id, repaint_time) => {
-                windows_next_repaint_times.insert(
-                    window_id,
-                    windows_next_repaint_times
-                        .get(&window_id)
-                        .map(|last| (*last).min(repaint_time))
-                        .unwrap_or(repaint_time),
-                );
-            }
-            EventResult::Exit => {
-                log::debug!("Quitting - saving app state…");
-                winit_app.save_and_destroy();
-                #[allow(clippy::exit)]
-                std::process::exit(0);
+                EventResult::RepaintAt(window_id, repaint_time) => {
+                    windows_next_repaint_times.insert(
+                        window_id,
+                        windows_next_repaint_times
+                            .get(&window_id)
+                            .map(|last| (*last).min(repaint_time))
+                            .unwrap_or(repaint_time),
+                    );
+                }
+                EventResult::Exit => {
+                    log::debug!("Quitting - saving app state…");
+                    winit_app.save_and_destroy();
+                    #[allow(clippy::exit)]
+                    std::process::exit(0);
+                }
             }
         }
 
@@ -944,7 +950,10 @@ mod glow_integration {
             }
         }
 
-        fn run_ui_and_paint(&mut self, window_id: Option<winit::window::WindowId>) -> EventResult {
+        fn run_ui_and_paint(
+            &mut self,
+            window_id: Option<winit::window::WindowId>,
+        ) -> Vec<EventResult> {
             if let Some(running) = &mut self.running {
                 let mut windows_indexes = vec![];
                 if let Some(window_id) = window_id {
@@ -1075,14 +1084,7 @@ mod glow_integration {
                         control_flow = if integration.should_close() {
                             EventResult::Exit
                         } else if repaint_after.is_zero() {
-                            let mut id = None;
-                            for window in gl_window.windows.iter() {
-                                if window.window_id == 0 {
-                                    id = window.window.as_ref().map(|w| w.id());
-                                    break;
-                                }
-                            }
-                            EventResult::RepaintNext(id.unwrap())
+                            EventResult::RepaintNext(window.id())
                         } else if let Some(repaint_after_instant) =
                             std::time::Instant::now().checked_add(repaint_after)
                         {
@@ -1092,14 +1094,7 @@ mod glow_integration {
                             // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
                             // egui backend impl i guess.
 
-                            let mut id = None;
-                            for window in gl_window.windows.iter() {
-                                if window.window_id == 0 {
-                                    id = window.window.as_ref().map(|w| w.id());
-                                    break;
-                                }
-                            }
-                            EventResult::RepaintAt(id.unwrap(), repaint_after_instant)
+                            EventResult::RepaintAt(window.id(), repaint_after_instant)
                         } else {
                             EventResult::Wait
                         };
@@ -1157,29 +1152,12 @@ mod glow_integration {
                 // Re do this is a really way to implement this
                 // We need to change the output of this function to `Vec<EventResult>`
 
-                let mut ret = EventResult::Wait;
-                for event in windows_indexes
+                windows_indexes
                     .into_iter()
                     .map(|window_index| inner(window_index))
-                {
-                    match event {
-                        EventResult::Wait => {}
-                        EventResult::RepaintNow(w) => ret = event,
-                        EventResult::RepaintNext(w) => ret = event,
-                        EventResult::RepaintAt(_, time) => match ret {
-                            EventResult::RepaintAt(_, last_time) => {
-                                if last_time > time {
-                                    ret = event;
-                                }
-                            }
-                            _ => {}
-                        },
-                        EventResult::Exit => ret = event,
-                    }
-                }
-                ret
+                    .collect()
             } else {
-                EventResult::Wait
+                vec![EventResult::Wait]
             }
         }
 
@@ -1560,7 +1538,10 @@ mod wgpu_integration {
             }
         }
 
-        fn run_ui_and_paint(&mut self, window_id: Option<winit::window::WindowId>) -> EventResult {
+        fn run_ui_and_paint(
+            &mut self,
+            window_id: Option<winit::window::WindowId>,
+        ) -> Vec<EventResult> {
             // !!! WARNING !!!
             // Nothing is implemented for WGPU
 
