@@ -1,7 +1,7 @@
 use std::f64::consts::TAU;
 use std::ops::RangeInclusive;
 
-use egui::plot::{AxisBools, GridInput, GridMark, PlotResponse};
+use egui::plot::{AxisBools, GridInput, GridMark, Heatmap, PlotResponse};
 use egui::*;
 use plot::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter, Corner, HLine,
@@ -21,6 +21,7 @@ enum Panel {
     Interaction,
     CustomAxes,
     LinkedAxes,
+    Heatmap,
 }
 
 impl Default for Panel {
@@ -41,6 +42,7 @@ pub struct PlotDemo {
     interaction_demo: InteractionDemo,
     custom_axes_demo: CustomAxisDemo,
     linked_axes_demo: LinkedAxisDemo,
+    heatmap_demo: HeatmapDemo,
     open_panel: Panel,
 }
 
@@ -87,6 +89,7 @@ impl super::View for PlotDemo {
             ui.selectable_value(&mut self.open_panel, Panel::Interaction, "Interaction");
             ui.selectable_value(&mut self.open_panel, Panel::CustomAxes, "Custom Axes");
             ui.selectable_value(&mut self.open_panel, Panel::LinkedAxes, "Linked Axes");
+            ui.selectable_value(&mut self.open_panel, Panel::Heatmap, "Heatmap");
         });
         ui.separator();
 
@@ -114,6 +117,9 @@ impl super::View for PlotDemo {
             }
             Panel::LinkedAxes => {
                 self.linked_axes_demo.ui(ui);
+            }
+            Panel::Heatmap => {
+                self.heatmap_demo.ui(ui);
             }
         }
     }
@@ -1002,6 +1008,81 @@ impl ChartsDemo {
                 plot_ui.box_plot(box1);
                 plot_ui.box_plot(box2);
                 plot_ui.box_plot(box3);
+            })
+            .response
+    }
+}
+#[derive(PartialEq)]
+struct HeatmapDemo {
+    tick: f64,
+    animate: bool,
+    show_labels: bool,
+    palette: Vec<Color32>,
+    rows: usize,
+    cols: usize,
+}
+
+impl Default for HeatmapDemo {
+    fn default() -> Self {
+        Self {
+            tick: 0.0,
+            animate: true,
+            show_labels: false,
+            palette: vec![Color32::WHITE, Color32::RED, Color32::BLACK],
+            rows: 10,
+            cols: 15,
+        }
+    }
+}
+
+impl HeatmapDemo {
+    fn ui(&mut self, ui: &mut Ui) -> Response {
+        ui.checkbox(&mut self.animate, "Animate");
+        if self.animate {
+            ui.ctx().request_repaint();
+            self.tick += 1.0;
+        }
+        ui.checkbox(&mut self.show_labels, "Show labels");
+        ui.add(Slider::new(&mut self.rows, 1..=100).text("Rows"));
+        ui.add(Slider::new(&mut self.cols, 1..=100).text("Columns"));
+        let mut values = Vec::new();
+        for y in 0..self.rows {
+            for x in 0..self.cols {
+                let y = y as f64;
+                let x = x as f64;
+                let cols = self.cols as f64;
+                let rows = self.rows as f64;
+                values.push(((x + self.tick) / rows).sin() + ((y + self.tick) / cols).cos())
+            }
+        }
+        if self.palette.len() > 1 {}
+        ui.add_enabled_ui(self.palette.len() > 1, |ui| {
+            if ui.button("Pop color").clicked() {
+                self.palette.pop();
+            }
+        });
+        if ui.button("Push color").clicked() {
+            self.palette.push(*self.palette.last().unwrap());
+        }
+        ui.horizontal(|ui| {
+            for color in &mut self.palette {
+                ui.color_edit_button_srgba(color);
+            }
+        });
+
+        let heatmap = Heatmap::<128>::new(values, self.cols)
+            .unwrap()
+            .palette(self.palette.clone())
+            .show_labels(self.show_labels);
+        Plot::new("Heatmap Demo")
+            .legend(Legend::default())
+            .allow_zoom(false)
+            .allow_scroll(false)
+            .allow_drag(false)
+            .allow_boxed_zoom(false)
+            .set_margin_fraction(vec2(0.0, 0.0))
+            .show(ui, |plot_ui| {
+                plot_ui.heatmap(heatmap);
             })
             .response
     }
