@@ -160,11 +160,10 @@ struct ContextImpl {
 
     repaint: Repaint,
 
-    windows: HashMap<String, (WindowBuilder, u64, bool)>,
+    windows: HashMap<String, (WindowBuilder, u64, u64, bool)>,
     window_counter: u64,
     current_rendering_window: u64,
     windows_stack: Vec<u64>,
-    current_window: u64,
     is_desktop: bool,
 
     /// Written to during the frame.
@@ -968,7 +967,10 @@ impl Context {
     /// (this will work on `eframe`).
     pub fn request_repaint(&self) {
         // request two frames of repaint, just to cover some corner cases (frame delays):
-        self.write(|ctx| ctx.repaint.request_repaint(ctx.current_window));
+        self.write(|ctx| {
+            ctx.repaint
+                .request_repaint(ctx.windows_stack.last().cloned().unwrap_or(0))
+        });
     }
 
     /// Request repaint after at most the specified duration elapses.
@@ -1274,9 +1276,14 @@ impl Context {
 
         let mut windows = Vec::new();
         self.write(|ctx| {
-            ctx.windows.retain(|d, (builder, id, used)| {
+            ctx.windows.retain(|_, (builder, id, parent, used)| {
                 let out = *used;
-                *used = false;
+                if ctx.current_rendering_window == *parent || ctx.current_rendering_window == *id {
+                    // WARNING NOT IMPLEMENTED BECAUSE THE WINDOW ONLY RENDER WHEN THE CURRENT WINDOW FRAME IS BIGGER THEN THE CURRENT FRAME
+                    // I DONT KNOW WHY
+                    *used = true;
+                } else {
+                }
                 windows.push((*id, builder.clone()));
                 out
             })
@@ -1903,7 +1910,7 @@ impl Context {
     }
 
     pub fn current_window(&self) -> u64 {
-        self.read(|ctx| ctx.current_window)
+        self.read(|ctx| ctx.windows_stack.last().cloned().unwrap_or(0))
     }
 
     pub fn is_desktop(&self) -> bool {
@@ -1922,13 +1929,21 @@ impl Context {
         let id = self.write(|ctx| {
             if ctx.is_desktop {
                 if let Some(window) = ctx.windows.get_mut(&window_builder.title) {
-                    window.2 = true;
+                    window.2 = *ctx.windows_stack.last().unwrap_or(&0);
+                    window.3 = true;
                     window.1
                 } else {
                     let id = ctx.window_counter + 1;
                     ctx.window_counter = id;
-                    ctx.windows
-                        .insert(window_builder.title.clone(), (window_builder, id, true));
+                    ctx.windows.insert(
+                        window_builder.title.clone(),
+                        (
+                            window_builder,
+                            id,
+                            *ctx.windows_stack.last().unwrap_or(&0),
+                            true,
+                        ),
+                    );
                     id
                 }
             } else {
@@ -1937,13 +1952,11 @@ impl Context {
         });
         let should_render = self.write(|ctx| {
             ctx.windows_stack.push(id);
-            ctx.current_window = id;
-            ctx.current_window == ctx.current_rendering_window
+            ctx.windows_stack.last().cloned().unwrap_or(0) == ctx.current_rendering_window
         });
         let out = if should_render { Some(func(id)) } else { None };
         self.write(|ctx| {
             ctx.windows_stack.pop();
-            ctx.current_window = ctx.windows_stack.pop().unwrap_or(0);
         });
         out
     }

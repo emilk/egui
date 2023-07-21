@@ -39,14 +39,24 @@ fn main() -> Result<(), eframe::Error> {
                 egui::Window::new("Test1")
                     .embedded(window1_embedded)
                     .show(ctx, |ui| {
-                        ui.checkbox(&mut window1_embedded, "Should embedd?")
+                        ui.checkbox(&mut window1_embedded, "Should embedd?");
+                        ui.label(format!(
+                            "Current window: {}, Current rendering window: {}",
+                            ctx.current_window(),
+                            ctx.current_rendering_window()
+                        ));
                     });
             });
             egui::CollapsingHeader::new("Shout Test2").show(ui, |ui| {
                 egui::Window::new("Test2")
                     .embedded(window2_embedded)
                     .show(ctx, |ui| {
-                        ui.checkbox(&mut window2_embedded, "Should embedd?")
+                        ui.checkbox(&mut window2_embedded, "Should embedd?");
+                        ui.label(format!(
+                            "Current window: {}, Current rendering window: {}",
+                            ctx.current_window(),
+                            ctx.current_rendering_window()
+                        ));
                     });
             });
         });

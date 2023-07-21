@@ -7,7 +7,7 @@ use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{window::WindowBuilder, NumExt as _};
+use egui::{epaint::ahash::HashMap, window::WindowBuilder, NumExt as _};
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
@@ -327,7 +327,6 @@ pub struct EpiIntegration {
     last_auto_save: std::time::Instant,
     pub egui_ctx: egui::Context,
     pending_full_output: egui::FullOutput,
-    egui_winit: egui_winit::State,
     /// When set, it is time to close the native window.
     close: bool,
     can_drag_window: bool,
@@ -382,10 +381,6 @@ impl EpiIntegration {
             raw_window_handle: window.raw_window_handle(),
         };
 
-        let mut egui_winit = egui_winit::State::new(event_loop);
-        egui_winit.set_max_texture_side(max_texture_side);
-        egui_winit.set_pixels_per_point(native_pixels_per_point);
-
         let app_icon_setter = super::app_icon::AppTitleIconSetter::new(
             app_name.to_owned(),
             native_options.icon_data.clone(),
@@ -395,7 +390,6 @@ impl EpiIntegration {
             frame,
             last_auto_save: std::time::Instant::now(),
             egui_ctx,
-            egui_winit,
             pending_full_output: Default::default(),
             close: false,
             can_drag_window: false,
@@ -408,28 +402,33 @@ impl EpiIntegration {
     #[cfg(feature = "accesskit")]
     pub fn init_accesskit<E: From<accesskit_winit::ActionRequestEvent> + Send>(
         &mut self,
+        egui_winit: &mut egui_winit::State,
         window: &winit::window::Window,
         event_loop_proxy: winit::event_loop::EventLoopProxy<E>,
     ) {
         let egui_ctx = self.egui_ctx.clone();
-        self.egui_winit
-            .init_accesskit(window, event_loop_proxy, move || {
-                // This function is called when an accessibility client
-                // (e.g. screen reader) makes its first request. If we got here,
-                // we know that an accessibility tree is actually wanted.
-                egui_ctx.enable_accesskit();
-                // Enqueue a repaint so we'll receive a full tree update soon.
-                egui_ctx.request_repaint();
-                egui_ctx.accesskit_placeholder_tree_update()
-            });
+        egui_winit.init_accesskit(window, event_loop_proxy, move || {
+            // This function is called when an accessibility client
+            // (e.g. screen reader) makes its first request. If we got here,
+            // we know that an accessibility tree is actually wanted.
+            egui_ctx.enable_accesskit();
+            // Enqueue a repaint so we'll receive a full tree update soon.
+            egui_ctx.request_repaint();
+            egui_ctx.accesskit_placeholder_tree_update()
+        });
     }
 
-    pub fn warm_up(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
+    pub fn warm_up(
+        &mut self,
+        app: &mut dyn epi::App,
+        window: &winit::window::Window,
+        egui_winit: &mut egui_winit::State,
+    ) {
         crate::profile_function!();
         let saved_memory: egui::Memory = self.egui_ctx.memory(|mem| mem.clone());
         self.egui_ctx
             .memory_mut(|mem| mem.set_everything_is_visible(true));
-        let full_output = self.update(app, window);
+        let full_output = self.update(app, window, egui_winit);
         self.pending_full_output.append(full_output); // Handle it next frame
         self.egui_ctx.memory_mut(|mem| *mem = saved_memory); // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
@@ -444,6 +443,8 @@ impl EpiIntegration {
         &mut self,
         app: &mut dyn epi::App,
         event: &winit::event::WindowEvent<'_>,
+        window_id: &winit::window::WindowId,
+        egui_winit: &mut egui_winit::State,
     ) -> EventResponse {
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
@@ -473,18 +474,24 @@ impl EpiIntegration {
             _ => {}
         }
 
-        self.egui_winit.on_event(&self.egui_ctx, event)
+        egui_winit.on_event(&self.egui_ctx, event)
     }
 
     #[cfg(feature = "accesskit")]
-    pub fn on_accesskit_action_request(&mut self, request: accesskit::ActionRequest) {
-        self.egui_winit.on_accesskit_action_request(request);
+    pub fn on_accesskit_action_request(
+        &mut self,
+        request: accesskit::ActionRequest,
+        window_id: &winit::window::WindowId,
+        egui_winit: &mut egui_winit::State,
+    ) {
+        egui_winit.on_accesskit_action_request(request);
     }
 
     pub fn update(
         &mut self,
         app: &mut dyn epi::App,
         window: &winit::window::Window,
+        egui_winit: &mut egui_winit::State,
     ) -> egui::FullOutput {
         let frame_start = std::time::Instant::now();
 
@@ -492,7 +499,7 @@ impl EpiIntegration {
 
         self.frame.info.window_info =
             read_window_info(window, self.egui_ctx.pixels_per_point(), &self.window_state);
-        let raw_input = self.egui_winit.take_egui_input(window);
+        let raw_input = egui_winit.take_egui_input(window);
 
         // Run user code:
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
@@ -547,9 +554,9 @@ impl EpiIntegration {
         &mut self,
         window: &winit::window::Window,
         platform_output: egui::PlatformOutput,
+        egui_winit: &mut egui_winit::State,
     ) {
-        self.egui_winit
-            .handle_platform_output(window, &self.egui_ctx, platform_output);
+        egui_winit.handle_platform_output(window, &self.egui_ctx, platform_output);
     }
 
     // ------------------------------------------------------------------------
