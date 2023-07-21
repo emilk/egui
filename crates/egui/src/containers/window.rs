@@ -34,7 +34,7 @@ impl Default for WindowBuilder {
             title: "Dummy EGUI Window".into(),
             name: None,
             position: None,
-            inner_size: Some((600, 500)),
+            inner_size: Some((300, 100)),
             fullscreen: false,
             maximized: false,
             resizable: true,
@@ -444,7 +444,11 @@ impl<'open> Window<'open> {
             window_builder,
         } = self;
 
-        let draw = move || {
+        if !embedded {
+            ctx.create_window(window_builder, move |_window_id| {
+                CentralPanel::default().show(ctx, |ui| Some(add_contents(ui)))
+            })
+        } else {
             let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
             let is_explicitly_closed = matches!(open, Some(false));
@@ -602,13 +606,6 @@ impl<'open> Window<'open> {
                 response: full_response,
             };
             Some(inner_response)
-        };
-
-        if !embedded {
-            ctx.create_window(window_builder, |window_id| draw())
-                .flatten()
-        } else {
-            draw()
         }
     }
 }
