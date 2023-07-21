@@ -60,6 +60,9 @@ pub struct MultiTouchInfo {
     /// Note 2: Just increasing the physical pressure without actually moving the finger may not
     /// necessarily lead to a change of this value.
     pub force: f32,
+
+    /// Center position of the current gesture (average of all touch points).
+    pub center_pos: Pos2,
 }
 
 /// The current state (for a specific touch device) of touch events and gestures.
@@ -203,6 +206,8 @@ impl TouchState {
                 PinchType::Proportional => Vec2::splat(zoom_delta),
             };
 
+            let center_pos = state.current.avg_pos;
+
             MultiTouchInfo {
                 start_time: state.start_time,
                 start_pos: state.start_pointer_pos,
@@ -212,6 +217,7 @@ impl TouchState {
                 rotation_delta: normalized_angle(state.current.heading - state_previous.heading),
                 translation_delta: state.current.avg_pos - state_previous.avg_pos,
                 force: state.current.avg_force,
+                center_pos,
             }
         })
     }
