@@ -1279,9 +1279,7 @@ impl Context {
             ctx.windows.retain(|_, (builder, id, parent, used)| {
                 let out = *used;
                 if ctx.current_rendering_window == *parent || ctx.current_rendering_window == *id {
-                    // WARNING NOT IMPLEMENTED BECAUSE THE WINDOW ONLY RENDER WHEN THE CURRENT WINDOW FRAME IS BIGGER THEN THE CURRENT FRAME
-                    // I DONT KNOW WHY
-                    *used = true;
+                    *used = false;
                 } else {
                 }
                 windows.push((*id, builder.clone()));
