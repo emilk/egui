@@ -553,12 +553,12 @@ impl EpiIntegration {
             crate::profile_scope!("App::update");
             app.update(egui_ctx, &mut self.frame);
         });*/ */
-        let full_output = //self.egui_ctx.run(raw_input, |egui_ctx| {
+        let (full_output, pixels_per_point) = //self.egui_ctx.run(raw_input, |egui_ctx| {
             //crate::profile_scope!("App::update");
             app.update_remote();
         //});
         let mut raw_input = egui::RawInput::default();
-        raw_input.pixels_per_point = Some(2.0);
+        raw_input.pixels_per_point = Some(pixels_per_point);
         self.egui_ctx.run(raw_input, |egui_ctx| {});
         //let full_output = full_output_remote;
 
