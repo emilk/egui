@@ -441,12 +441,21 @@ impl<'open> Window<'open> {
             default_open,
             with_title_bar,
             embedded,
-            window_builder,
+            mut window_builder,
         } = self;
 
         if !embedded {
+            if let Some(size) = ctx.data(|data| data.get_temp::<Vec2>(area.id.with("size"))) {
+                let size = size.round() + ctx.style().spacing.window_margin.sum();
+                window_builder =
+                    window_builder.with_inner_size((size.x as u32 + 1, size.y as u32 + 1));
+            }
+
             ctx.create_window(window_builder, move |_window_id| {
-                CentralPanel::default().show(ctx, |ui| Some(add_contents(ui)))
+                let mut frame = frame.unwrap_or(Frame::window(&ctx.style())).rounding(0.0);
+                CentralPanel::default()
+                    .frame(frame)
+                    .show(ctx, |ui| Some(add_contents(ui)))
             })
         } else {
             let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
@@ -518,6 +527,8 @@ impl<'open> Window<'open> {
 
             let mut area_content_ui = area.content_ui(ctx);
 
+            let mut size = Vec2::new(1.0, 1.0);
+
             let content_inner = {
                 // BEGIN FRAME --------------------------------
                 let frame_stroke = frame.stroke;
@@ -553,6 +564,9 @@ impl<'open> Window<'open> {
                         })
                     })
                     .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
+                if let Some(content_response) = &content_response {
+                    size = content_response.rect.size()
+                }
 
                 let outer_rect = frame.end(&mut area_content_ui).rect;
                 paint_resize_corner(&mut area_content_ui, &possible, outer_rect, frame_stroke);
@@ -600,6 +614,7 @@ impl<'open> Window<'open> {
             }
 
             let full_response = area.end(ctx, area_content_ui);
+            ctx.data_mut(|data| data.insert_temp(area_id.with("size"), size));
 
             let inner_response = InnerResponse {
                 inner: content_inner,
