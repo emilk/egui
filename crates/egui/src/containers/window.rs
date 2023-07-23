@@ -458,6 +458,9 @@ impl<'open> Window<'open> {
                     .show(ctx, |ui| Some(add_contents(ui)))
             })
         } else {
+            if ctx.current_window() != ctx.current_rendering_window() {
+                return None;
+            }
             let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
             let is_explicitly_closed = matches!(open, Some(false));
