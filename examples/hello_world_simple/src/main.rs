@@ -21,8 +21,8 @@ fn main() -> Result<(), eframe::Error> {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label(format!(
                 "Current window: {}, Current rendering window: {}",
-                ctx.current_window(),
-                ctx.current_rendering_window()
+                ctx.current_viewport(),
+                ctx.current_rendering_viewport()
             ));
             ui.heading("My egui Application");
             ui.horizontal(|ui| {
@@ -42,8 +42,8 @@ fn main() -> Result<(), eframe::Error> {
                         ui.checkbox(&mut window1_embedded, "Should embedd?");
                         ui.label(format!(
                             "Current window: {}, Current rendering window: {}",
-                            ctx.current_window(),
-                            ctx.current_rendering_window()
+                            ctx.current_viewport(),
+                            ctx.current_rendering_viewport()
                         ));
                     });
             });
@@ -54,8 +54,8 @@ fn main() -> Result<(), eframe::Error> {
                         ui.checkbox(&mut window2_embedded, "Should embedd?");
                         ui.label(format!(
                             "Current window: {}, Current rendering window: {}",
-                            ctx.current_window(),
-                            ctx.current_rendering_window()
+                            ctx.current_viewport(),
+                            ctx.current_rendering_viewport()
                         ));
                     });
             });

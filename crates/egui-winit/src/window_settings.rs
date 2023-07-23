@@ -1,4 +1,4 @@
-use egui::window::WindowBuilder;
+use egui::window::ViewportBuilder;
 
 /// Can be used to store native window settings (position and size).
 #[derive(Clone, Copy, Debug)]
@@ -48,7 +48,7 @@ impl WindowSettings {
         self.inner_size_points
     }
 
-    pub fn initialize_window(&self, mut window: WindowBuilder) -> WindowBuilder {
+    pub fn initialize_window(&self, mut window: ViewportBuilder) -> ViewportBuilder {
         // If the app last ran on two monitors and only one is now connected, then
         // the given position is invalid.
         // If this happens on Mac, the window is clamped into valid area.

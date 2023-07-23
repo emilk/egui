@@ -3,7 +3,7 @@
 
 use std::time::Instant;
 
-use egui::{epaint::ahash::HashMap, window::WindowBuilder};
+use egui::{epaint::ahash::HashMap, window::ViewportBuilder};
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 use winit::event_loop::{
     ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget,
@@ -411,7 +411,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 mod glow_integration {
     use std::sync::Arc;
 
-    use egui::{epaint::ahash::HashMap, window::WindowBuilder, NumExt as _};
+    use egui::{epaint::ahash::HashMap, window::ViewportBuilder, NumExt as _};
     use egui_winit::EventResponse;
     use glow::HasContext;
     use glutin::{
@@ -450,7 +450,7 @@ mod glow_integration {
     }
 
     struct Window {
-        builder: WindowBuilder,
+        builder: ViewportBuilder,
         gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
         window: Option<winit::window::Window>,
         window_id: u64,
@@ -483,7 +483,7 @@ mod glow_integration {
         ///
         #[allow(unsafe_code)]
         unsafe fn new(
-            window_builder: WindowBuilder,
+            window_builder: ViewportBuilder,
             native_options: &epi::NativeOptions,
             event_loop: &EventLoopWindowTarget<UserEvent>,
         ) -> Result<Self> {
@@ -1010,7 +1010,7 @@ mod glow_integration {
                         repaint_after,
                         textures_delta,
                         shapes,
-                        mut windows,
+                        mut viewports,
                     };
 
                     let control_flow;
@@ -1038,13 +1038,13 @@ mod glow_integration {
                             app.clear_color(&integration.egui_ctx.style().visuals),
                         );
 
-                        integration.egui_ctx.set_current_window_id(win.window_id);
+                        integration.egui_ctx.set_current_viewport_id(win.window_id);
                         egui::FullOutput {
                             platform_output,
                             repaint_after,
                             textures_delta,
                             shapes,
-                            windows,
+                            viewports,
                         } = integration.update(
                             app.as_mut(),
                             win.window.as_ref().unwrap(),
@@ -1150,9 +1150,10 @@ mod glow_integration {
                         }
                     }
 
-                    let mut wins = vec![0];
+                    // 0 is the main viewport/window that will not be known by the egui_ctx
+                    let mut active_viewports_ids = vec![0];
 
-                    windows.retain_mut(|(id, builder)| {
+                    viewports.retain_mut(|(id, builder)| {
                         for w in gl_window.windows.iter_mut() {
                             if w.window_id == *id {
                                 if w.builder != *builder {
@@ -1166,14 +1167,14 @@ mod glow_integration {
 
                                     w.builder = builder.clone();
                                 }
-                                wins.push(*id);
+                                active_viewports_ids.push(*id);
                                 return false;
                             }
                         }
                         true
                     });
 
-                    for (id, builder) in windows {
+                    for (id, builder) in viewports {
                         gl_window.windows.push(Window {
                             builder,
                             gl_surface: None,
@@ -1181,18 +1182,18 @@ mod glow_integration {
                             window_id: id,
                             egui_winit: None,
                         });
-                        wins.push(id);
+                        active_viewports_ids.push(id);
                     }
 
-                    gl_window.windows.retain(|w| wins.contains(&w.window_id));
-                    gl_window.window_maps.retain(|_, id| wins.contains(id));
+                    gl_window
+                        .windows
+                        .retain(|w| active_viewports_ids.contains(&w.window_id));
+                    gl_window
+                        .window_maps
+                        .retain(|_, id| active_viewports_ids.contains(id));
 
                     control_flow
                 };
-
-                // !! TODO !!
-                // Re do this is a really way to implement this
-                // We need to change the output of this function to `Vec<EventResult>`
 
                 windows_indexes
                     .into_iter()
@@ -1855,7 +1856,7 @@ fn extremely_far_future() -> std::time::Instant {
     std::time::Instant::now() + std::time::Duration::from_secs(10_000_000_000)
 }
 
-fn create_winit_window_builder(builder: &WindowBuilder) -> winit::window::WindowBuilder {
+fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::WindowBuilder {
     let mut window_builder = winit::window::WindowBuilder::new()
         .with_title(builder.title.clone())
         .with_transparent(builder.transparent)

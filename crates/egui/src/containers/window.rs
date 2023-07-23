@@ -7,7 +7,7 @@ use epaint::*;
 use super::*;
 
 #[derive(Hash, PartialEq, Clone)]
-pub struct WindowBuilder {
+pub struct ViewportBuilder {
     pub title: String,
     pub name: Option<String>,
     pub position: Option<(i32, i32)>,
@@ -28,7 +28,7 @@ pub struct WindowBuilder {
     pub drag_and_drop: bool,
 }
 
-impl Default for WindowBuilder {
+impl Default for ViewportBuilder {
     fn default() -> Self {
         Self {
             title: "Dummy EGUI Window".into(),
@@ -53,7 +53,7 @@ impl Default for WindowBuilder {
     }
 }
 
-impl WindowBuilder {
+impl ViewportBuilder {
     pub fn with_title(mut self, title: impl Into<String>) -> Self {
         self.title = title.into();
         self
@@ -167,7 +167,7 @@ pub struct Window<'open> {
     default_open: bool,
     with_title_bar: bool,
     embedded: bool,
-    window_builder: WindowBuilder,
+    window_builder: ViewportBuilder,
 }
 
 impl<'open> Window<'open> {
@@ -178,7 +178,7 @@ impl<'open> Window<'open> {
         let title = title.into().fallback_text_style(TextStyle::Heading);
         let area = Area::new(Id::new(title.text()));
         Self {
-            window_builder: WindowBuilder::default().with_title(title.text()),
+            window_builder: ViewportBuilder::default().with_title(title.text()),
             title,
             open: None,
             area,
@@ -451,14 +451,14 @@ impl<'open> Window<'open> {
                     window_builder.with_inner_size((size.x as u32 + 1, size.y as u32 + 1));
             }
 
-            ctx.create_window(window_builder, move |_window_id| {
+            ctx.create_viewport(window_builder, move |_window_id| {
                 let mut frame = frame.unwrap_or(Frame::window(&ctx.style())).rounding(0.0);
                 CentralPanel::default()
                     .frame(frame)
                     .show(ctx, |ui| Some(add_contents(ui)))
             })
         } else {
-            if ctx.current_window() != ctx.current_rendering_window() {
+            if ctx.current_viewport() != ctx.current_rendering_viewport() {
                 return None;
             }
             let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));

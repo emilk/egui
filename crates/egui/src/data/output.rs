@@ -1,6 +1,6 @@
 //! All the data egui returns to the backend at the end of each frame.
 
-use crate::{window::WindowBuilder, WidgetType};
+use crate::{window::ViewportBuilder, WidgetType};
 
 /// What egui emits each frame from [`crate::Context::run`].
 ///
@@ -31,7 +31,7 @@ pub struct FullOutput {
     /// You can use [`crate::Context::tessellate`] to turn this into triangles.
     pub shapes: Vec<epaint::ClippedShape>,
 
-    pub windows: Vec<(u64, WindowBuilder)>,
+    pub viewports: Vec<(u64, ViewportBuilder)>,
 }
 
 impl FullOutput {
@@ -42,14 +42,14 @@ impl FullOutput {
             repaint_after,
             textures_delta,
             shapes,
-            mut windows,
+            viewports: mut windows,
         } = newer;
 
         self.platform_output.append(platform_output);
         self.repaint_after = repaint_after; // if the last frame doesn't need a repaint, then we don't need to repaint
         self.textures_delta.append(textures_delta);
         self.shapes = shapes; // Only paint the latest
-        self.windows.append(&mut windows);
+        self.viewports.append(&mut windows);
     }
 }
 

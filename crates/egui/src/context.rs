@@ -160,10 +160,10 @@ struct ContextImpl {
 
     repaint: Repaint,
 
-    windows: HashMap<String, (WindowBuilder, u64, u64, bool)>,
-    window_counter: u64,
-    current_rendering_window: u64,
-    windows_stack: Vec<u64>,
+    viewports: HashMap<String, (ViewportBuilder, u64, u64, bool)>,
+    viewport_counter: u64,
+    current_rendering_viewport: u64,
+    viewport_stack: Vec<u64>,
     is_desktop: bool,
 
     /// Written to during the frame.
@@ -969,7 +969,7 @@ impl Context {
         // request two frames of repaint, just to cover some corner cases (frame delays):
         self.write(|ctx| {
             ctx.repaint
-                .request_repaint(ctx.windows_stack.last().cloned().unwrap_or(0))
+                .request_repaint(ctx.viewport_stack.last().cloned().unwrap_or(0))
         });
     }
 
@@ -1274,15 +1274,17 @@ impl Context {
         let repaint_after = self.write(|ctx| ctx.repaint.end_frame());
         let shapes = self.drain_paint_lists();
 
-        let mut windows = Vec::new();
+        let mut viewports = Vec::new();
         self.write(|ctx| {
-            ctx.windows.retain(|_, (builder, id, parent, used)| {
+            ctx.viewports.retain(|_, (builder, id, parent, used)| {
                 let out = *used;
-                if ctx.current_rendering_window == *parent || ctx.current_rendering_window == *id {
+                if ctx.current_rendering_viewport == *parent
+                    || ctx.current_rendering_viewport == *id
+                {
                     *used = false;
                 } else {
                 }
-                windows.push((*id, builder.clone()));
+                viewports.push((*id, builder.clone()));
                 out
             })
         });
@@ -1292,7 +1294,7 @@ impl Context {
             repaint_after,
             textures_delta,
             shapes,
-            windows,
+            viewports,
         }
     }
 
@@ -1476,7 +1478,7 @@ impl Context {
     }
 
     pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        rect.is_positive() && self.current_window() == self.current_rendering_window() && {
+        rect.is_positive() && self.current_viewport() == self.current_rendering_viewport() && {
             let pointer_pos = self.input(|i| i.pointer.interact_pos());
             if let Some(pointer_pos) = pointer_pos {
                 rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
@@ -1897,18 +1899,18 @@ impl Context {
     }
 }
 
-use containers::window::WindowBuilder;
+use containers::window::ViewportBuilder;
 /// # Windows
 impl Context {
-    pub fn set_current_window_id(&self, window_id: u64) {
-        self.write(|ctx| ctx.current_rendering_window = window_id);
+    pub fn set_current_viewport_id(&self, viewport_id: u64) {
+        self.write(|ctx| ctx.current_rendering_viewport = viewport_id);
     }
-    pub fn current_rendering_window(&self) -> u64 {
-        self.read(|ctx| ctx.current_rendering_window)
+    pub fn current_rendering_viewport(&self) -> u64 {
+        self.read(|ctx| ctx.current_rendering_viewport)
     }
 
-    pub fn current_window(&self) -> u64 {
-        self.read(|ctx| ctx.windows_stack.last().cloned().unwrap_or(0))
+    pub fn current_viewport(&self) -> u64 {
+        self.read(|ctx| ctx.viewport_stack.last().cloned().unwrap_or(0))
     }
 
     pub fn is_desktop(&self) -> bool {
@@ -1919,26 +1921,26 @@ impl Context {
         self.write(|ctx| ctx.is_desktop = value)
     }
 
-    pub fn create_window<T>(
+    pub fn create_viewport<T>(
         &self,
-        window_builder: WindowBuilder,
+        window_builder: ViewportBuilder,
         func: impl FnOnce(u64) -> T,
     ) -> Option<T> {
         let id = self.write(|ctx| {
             if ctx.is_desktop {
-                if let Some(window) = ctx.windows.get_mut(&window_builder.title) {
-                    window.2 = *ctx.windows_stack.last().unwrap_or(&0);
+                if let Some(window) = ctx.viewports.get_mut(&window_builder.title) {
+                    window.2 = *ctx.viewport_stack.last().unwrap_or(&0);
                     window.3 = true;
                     window.1
                 } else {
-                    let id = ctx.window_counter + 1;
-                    ctx.window_counter = id;
-                    ctx.windows.insert(
+                    let id = ctx.viewport_counter + 1;
+                    ctx.viewport_counter = id;
+                    ctx.viewports.insert(
                         window_builder.title.clone(),
                         (
                             window_builder,
                             id,
-                            *ctx.windows_stack.last().unwrap_or(&0),
+                            *ctx.viewport_stack.last().unwrap_or(&0),
                             true,
                         ),
                     );
@@ -1949,12 +1951,12 @@ impl Context {
             }
         });
         let should_render = self.write(|ctx| {
-            ctx.windows_stack.push(id);
-            ctx.windows_stack.last().cloned().unwrap_or(0) == ctx.current_rendering_window
+            ctx.viewport_stack.push(id);
+            ctx.viewport_stack.last().cloned().unwrap_or(0) == ctx.current_rendering_viewport
         });
         let out = if should_render { Some(func(id)) } else { None };
         self.write(|ctx| {
-            ctx.windows_stack.pop();
+            ctx.viewport_stack.pop();
         });
         out
     }

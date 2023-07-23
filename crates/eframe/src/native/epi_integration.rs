@@ -9,7 +9,7 @@ use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{epaint::ahash::HashMap, window::WindowBuilder, NumExt as _};
+use egui::{epaint::ahash::HashMap, window::ViewportBuilder, NumExt as _};
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
@@ -79,7 +79,7 @@ pub fn window_builder<E>(
     title: &str,
     native_options: &epi::NativeOptions,
     window_settings: Option<WindowSettings>,
-) -> WindowBuilder {
+) -> ViewportBuilder {
     let epi::NativeOptions {
         maximized,
         decorated,
@@ -99,7 +99,7 @@ pub fn window_builder<E>(
         ..
     } = native_options;
 
-    let mut window_builder = WindowBuilder::default()
+    let mut window_builder = ViewportBuilder::default()
         .with_title(title)
         .with_decorations(*decorated)
         .with_fullscreen(*fullscreen)
