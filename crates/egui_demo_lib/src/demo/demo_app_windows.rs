@@ -1,5 +1,7 @@
 use egui::{Context, Modifiers, ScrollArea, Ui};
 use std::collections::BTreeSet;
+use std::sync::Arc;
+use std::sync::RwLock;
 
 use super::About;
 use super::Demo;
@@ -12,7 +14,7 @@ use crate::is_mobile;
 #[cfg_attr(feature = "serde", serde(default))]
 struct Demos {
     #[cfg_attr(feature = "serde", serde(skip))]
-    demos: Vec<Box<dyn Demo>>,
+    demos: Vec<Box<dyn Demo + Sync + Send>>,
 
     open: BTreeSet<String>,
 }
@@ -45,7 +47,7 @@ impl Default for Demos {
 }
 
 impl Demos {
-    pub fn from_demos(demos: Vec<Box<dyn Demo>>) -> Self {
+    pub fn from_demos(demos: Vec<Box<dyn Demo + Sync + Send>>) -> Self {
         let mut open = BTreeSet::new();
         open.insert(
             super::widget_gallery::WidgetGallery::default()
@@ -81,7 +83,7 @@ impl Demos {
 #[cfg_attr(feature = "serde", serde(default))]
 struct Tests {
     #[cfg_attr(feature = "serde", serde(skip))]
-    demos: Vec<Box<dyn Demo>>,
+    demos: Vec<Box<dyn Demo + Sync + Send>>,
 
     open: BTreeSet<String>,
 }
@@ -101,7 +103,7 @@ impl Default for Tests {
 }
 
 impl Tests {
-    pub fn from_demos(demos: Vec<Box<dyn Demo>>) -> Self {
+    pub fn from_demos(demos: Vec<Box<dyn Demo + Sync + Send>>) -> Self {
         let mut open = BTreeSet::new();
         open.insert(
             super::widget_gallery::WidgetGallery::default()
@@ -146,16 +148,23 @@ fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
 // ----------------------------------------------------------------------------
 
 /// A menu bar in which you can select different demo windows to show.
+
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct DemoWindows {
+pub struct DemoWindowsData {
     about_is_open: bool,
     about: About,
     demos: Demos,
     tests: Tests,
 }
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+#[derive(Clone, Default)]
+pub struct DemoWindows {
+    data: Arc<RwLock<DemoWindowsData>>,
+}
 
-impl Default for DemoWindows {
+impl Default for DemoWindowsData {
     fn default() -> Self {
         Self {
             about_is_open: true,
@@ -177,32 +186,36 @@ impl DemoWindows {
     }
 
     fn mobile_ui(&mut self, ctx: &Context) {
-        if self.about_is_open {
+        let mut about_is_open = self.data.read().unwrap().about_is_open;
+        if about_is_open {
             let screen_size = ctx.input(|i| i.screen_rect.size());
             let default_width = (screen_size.x - 20.0).min(400.0);
 
-            let mut close = false;
-            egui::Window::new(self.about.name())
+            let close = Arc::new(RwLock::new(false));
+            let close_ = close.clone();
+            let clone = self.clone();
+            egui::Window::new(self.data.read().unwrap().about.name())
                 .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
                 .default_width(default_width)
                 .default_height(ctx.available_rect().height() - 46.0)
                 .vscroll(true)
-                .open(&mut self.about_is_open)
+                .open(&mut about_is_open)
                 .resizable(false)
                 .collapsible(false)
-                .show(ctx, |ui| {
-                    self.about.ui(ui);
+                .show(ctx, move |ui| {
+                    let close = close.clone();
+                    clone.data.write().unwrap().about.ui(ui);
                     ui.add_space(12.0);
                     ui.vertical_centered_justified(|ui| {
                         if ui
                             .button(egui::RichText::new("Continue to the demo!").size(20.0))
                             .clicked()
                         {
-                            close = true;
+                            *close.write().unwrap() = true;
                         }
                     });
                 });
-            self.about_is_open &= !close;
+            self.data.write().unwrap().about_is_open &= !*close_.read().unwrap();
         } else {
             self.mobile_top_bar(ctx);
             self.show_windows(ctx);
@@ -275,20 +288,22 @@ impl DemoWindows {
 
     /// Show the open windows.
     fn show_windows(&mut self, ctx: &Context) {
-        self.about.show(ctx, &mut self.about_is_open);
-        self.demos.windows(ctx);
-        self.tests.windows(ctx);
+        let data = &mut *self.data.write().unwrap();
+        data.about.show(ctx, &mut data.about_is_open);
+        data.demos.windows(ctx);
+        data.tests.windows(ctx);
     }
 
     fn demo_list_ui(&mut self, ui: &mut egui::Ui) {
         ScrollArea::vertical().show(ui, |ui| {
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
-                ui.toggle_value(&mut self.about_is_open, self.about.name());
+                let data = &mut *self.data.write().unwrap();
+                ui.toggle_value(&mut data.about_is_open, data.about.name());
 
                 ui.separator();
-                self.demos.checkboxes(ui);
+                data.demos.checkboxes(ui);
                 ui.separator();
-                self.tests.checkboxes(ui);
+                data.tests.checkboxes(ui);
                 ui.separator();
 
                 if ui.button("Organize windows").clicked() {

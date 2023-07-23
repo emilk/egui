@@ -1,11 +1,12 @@
+use std::sync::{Arc, RwLock};
+
 use super::*;
 use crate::LOREM_IPSUM;
 use egui::{epaint::text::TextWrapping, *};
 
-/// Showcase some ui code
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct MiscDemoWindow {
+pub struct MiscDemoWindowData {
     num_columns: usize,
 
     break_anywhere: bool,
@@ -21,10 +22,17 @@ pub struct MiscDemoWindow {
     dummy_bool: bool,
     dummy_usize: usize,
 }
+/// Showcase some ui code
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+#[derive(Default, Clone)]
+pub struct MiscDemoWindow {
+    data: Arc<RwLock<MiscDemoWindowData>>,
+}
 
-impl Default for MiscDemoWindow {
-    fn default() -> MiscDemoWindow {
-        MiscDemoWindow {
+impl Default for MiscDemoWindowData {
+    fn default() -> MiscDemoWindowData {
+        MiscDemoWindowData {
             num_columns: 2,
 
             max_rows: 2,
@@ -49,11 +57,12 @@ impl Demo for MiscDemoWindow {
     }
 
     fn show(&mut self, ctx: &Context, open: &mut bool) {
+        let clone = self.clone();
         Window::new(self.name())
             .open(open)
             .vscroll(true)
             .hscroll(true)
-            .show(ctx, |ui| self.ui(ui));
+            .show(ctx, move |ui| clone.clone().ui(ui));
     }
 }
 
@@ -61,10 +70,13 @@ impl View for MiscDemoWindow {
     fn ui(&mut self, ui: &mut Ui) {
         ui.set_min_width(250.0);
 
+        let mut data = self.data.write().unwrap();
+        let data = &mut *data;
+
         CollapsingHeader::new("Widgets")
             .default_open(true)
             .show(ui, |ui| {
-                self.widgets.ui(ui);
+                data.widgets.ui(ui);
             });
 
         CollapsingHeader::new("Text layout")
@@ -72,25 +84,25 @@ impl View for MiscDemoWindow {
             .show(ui, |ui| {
                 text_layout_ui(
                     ui,
-                    &mut self.max_rows,
-                    &mut self.break_anywhere,
-                    &mut self.overflow_character,
+                    &mut data.max_rows,
+                    &mut data.break_anywhere,
+                    &mut data.overflow_character,
                 );
             });
 
         CollapsingHeader::new("Colors")
             .default_open(false)
             .show(ui, |ui| {
-                self.colors.ui(ui);
+                data.colors.ui(ui);
             });
 
         CollapsingHeader::new("Custom Collapsing Header")
             .default_open(false)
-            .show(ui, |ui| self.custom_collapsing_header.ui(ui));
+            .show(ui, |ui| data.custom_collapsing_header.ui(ui));
 
         CollapsingHeader::new("Tree")
             .default_open(false)
-            .show(ui, |ui| self.tree.ui(ui));
+            .show(ui, |ui| data.tree.ui(ui));
 
         CollapsingHeader::new("Checkboxes")
             .default_open(false)
@@ -99,28 +111,28 @@ impl View for MiscDemoWindow {
                 ui.spacing_mut().item_spacing = Vec2::ZERO;
                 ui.horizontal_wrapped(|ui| {
                     for _ in 0..64 {
-                        ui.checkbox(&mut self.dummy_bool, "");
+                        ui.checkbox(&mut data.dummy_bool, "");
                     }
                 });
-                ui.checkbox(&mut self.dummy_bool, "checkbox");
+                ui.checkbox(&mut data.dummy_bool, "checkbox");
 
                 ui.label("Radiobuttons are similar:");
                 ui.spacing_mut().item_spacing = Vec2::ZERO;
                 ui.horizontal_wrapped(|ui| {
                     for i in 0..64 {
-                        ui.radio_value(&mut self.dummy_usize, i, "");
+                        ui.radio_value(&mut data.dummy_usize, i, "");
                     }
                 });
-                ui.radio_value(&mut self.dummy_usize, 64, "radio_value");
+                ui.radio_value(&mut data.dummy_usize, 64, "radio_value");
             });
 
         ui.collapsing("Columns", |ui| {
-            ui.add(Slider::new(&mut self.num_columns, 1..=10).text("Columns"));
-            ui.columns(self.num_columns, |cols| {
+            ui.add(Slider::new(&mut data.num_columns, 1..=10).text("Columns"));
+            ui.columns(data.num_columns, |cols| {
                 for (i, col) in cols.iter_mut().enumerate() {
-                    col.label(format!("Column {} out of {}", i + 1, self.num_columns));
-                    if i + 1 == self.num_columns && col.button("Delete this").clicked() {
-                        self.num_columns -= 1;
+                    col.label(format!("Column {} out of {}", i + 1, data.num_columns));
+                    if i + 1 == data.num_columns && col.button("Delete this").clicked() {
+                        data.num_columns -= 1;
                     }
                 }
             });
@@ -128,7 +140,7 @@ impl View for MiscDemoWindow {
 
         CollapsingHeader::new("Test box rendering")
             .default_open(false)
-            .show(ui, |ui| self.box_painting.ui(ui));
+            .show(ui, |ui| data.box_painting.ui(ui));
 
         CollapsingHeader::new("Resize")
             .default_open(false)

@@ -191,7 +191,7 @@ impl<'open> Window<'open> {
             collapsible: true,
             default_open: true,
             with_title_bar: true,
-            embedded: true,
+            embedded: false,
         }
     }
 
@@ -417,19 +417,11 @@ impl<'open> Window<'open> {
     /// Returns `None` if the window is not open (if [`Window::open`] was called with `&mut false`).
     /// Returns `Some(InnerResponse { inner: None })` if the window is collapsed.
     #[inline]
-    pub fn show<R>(
-        self,
-        ctx: &Context,
-        add_contents: impl FnOnce(&mut Ui) -> R,
-    ) -> Option<InnerResponse<Option<R>>> {
+    pub fn show(self, ctx: &Context, add_contents: impl Fn(&mut Ui) + Send + Sync + 'static) {
         self.show_dyn(ctx, Box::new(add_contents))
     }
 
-    fn show_dyn<'c, R>(
-        self,
-        ctx: &Context,
-        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
-    ) -> Option<InnerResponse<Option<R>>> {
+    fn show_dyn(self, ctx: &Context, add_contents: Box<dyn Fn(&mut Ui) + Send + Sync + 'static>) {
         let Window {
             title,
             open,
@@ -444,31 +436,34 @@ impl<'open> Window<'open> {
             mut window_builder,
         } = self;
 
+        let is_explicitly_closed = matches!(open, Some(false));
+        let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
         if !embedded {
+            if !is_open {
+                return;
+            }
             if let Some(size) = ctx.data(|data| data.get_temp::<Vec2>(area.id.with("size"))) {
                 let size = size.round() + ctx.style().spacing.window_margin.sum();
                 window_builder =
                     window_builder.with_inner_size((size.x as u32 + 1, size.y as u32 + 1));
             }
 
-            ctx.create_viewport(window_builder, move |_window_id| {
+            ctx.create_viewport(window_builder, move |ctx| {
                 let mut frame = frame.unwrap_or(Frame::window(&ctx.style())).rounding(0.0);
                 CentralPanel::default()
                     .frame(frame)
-                    .show(ctx, |ui| Some(add_contents(ui)))
+                    .show(ctx, |ui| Some(add_contents(ui)));
             })
         } else {
             if ctx.current_viewport() != ctx.current_rendering_viewport() {
-                return None;
+                return;
             }
             let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
-            let is_explicitly_closed = matches!(open, Some(false));
-            let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
             area.show_open_close_animation(ctx, &frame, is_open);
 
             if !is_open {
-                return None;
+                return;
             }
 
             let area_id = area.id;
@@ -623,7 +618,7 @@ impl<'open> Window<'open> {
                 inner: content_inner,
                 response: full_response,
             };
-            Some(inner_response)
+            // Some(inner_response)
         }
     }
 }

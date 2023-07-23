@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum Plot {
@@ -14,10 +16,9 @@ fn gaussian(x: f64) -> f64 {
 fn sigmoid(x: f64) -> f64 {
     -1.0 + 2.0 / (1.0 + f64::exp(-x))
 }
-
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct ContextMenus {
+pub struct ContextMenusData {
     plot: Plot,
     show_axes: [bool; 2],
     allow_drag: bool,
@@ -29,7 +30,19 @@ pub struct ContextMenus {
     height: f32,
 }
 
-impl Default for ContextMenus {
+#[derive(Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct ContextMenus {
+    data: Arc<RwLock<ContextMenusData>>,
+}
+
+impl PartialEq for ContextMenus {
+    fn eq(&self, other: &Self) -> bool {
+        *self.data.read().unwrap() == *other.data.read().unwrap()
+    }
+}
+
+impl Default for ContextMenusData {
     fn default() -> Self {
         Self {
             plot: Plot::Sin,
@@ -51,12 +64,13 @@ impl super::Demo for ContextMenus {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+        let clone = self.clone();
         use super::View;
         egui::Window::new(self.name())
             .vscroll(false)
             .resizable(false)
             .open(open)
-            .show(ctx, |ui| self.ui(ui));
+            .show(ctx, move |ui| clone.clone().ui(ui));
     }
 }
 
@@ -73,13 +87,14 @@ impl super::View for ContextMenus {
         ui.label("Right-click plot to edit it!");
         ui.horizontal(|ui| {
             self.example_plot(ui).context_menu(|ui| {
+                let data = &mut *self.data.write().unwrap();
                 ui.menu_button("Plot", |ui| {
-                    if ui.radio_value(&mut self.plot, Plot::Sin, "Sin").clicked()
+                    if ui.radio_value(&mut data.plot, Plot::Sin, "Sin").clicked()
                         || ui
-                            .radio_value(&mut self.plot, Plot::Bell, "Gaussian")
+                            .radio_value(&mut data.plot, Plot::Bell, "Gaussian")
                             .clicked()
                         || ui
-                            .radio_value(&mut self.plot, Plot::Sigmoid, "Sigmoid")
+                            .radio_value(&mut data.plot, Plot::Sigmoid, "Sigmoid")
                             .clicked()
                     {
                         ui.close_menu();
@@ -87,22 +102,22 @@ impl super::View for ContextMenus {
                 });
                 egui::Grid::new("button_grid").show(ui, |ui| {
                     ui.add(
-                        egui::DragValue::new(&mut self.width)
+                        egui::DragValue::new(&mut data.width)
                             .speed(1.0)
                             .prefix("Width:"),
                     );
                     ui.add(
-                        egui::DragValue::new(&mut self.height)
+                        egui::DragValue::new(&mut data.height)
                             .speed(1.0)
                             .prefix("Height:"),
                     );
                     ui.end_row();
-                    ui.checkbox(&mut self.show_axes[0], "x-Axis");
-                    ui.checkbox(&mut self.show_axes[1], "y-Axis");
+                    ui.checkbox(&mut data.show_axes[0], "x-Axis");
+                    ui.checkbox(&mut data.show_axes[1], "y-Axis");
                     ui.end_row();
-                    if ui.checkbox(&mut self.allow_drag, "Drag").changed()
-                        || ui.checkbox(&mut self.allow_zoom, "Zoom").changed()
-                        || ui.checkbox(&mut self.allow_scroll, "Scroll").changed()
+                    if ui.checkbox(&mut data.allow_drag, "Drag").changed()
+                        || ui.checkbox(&mut data.allow_zoom, "Zoom").changed()
+                        || ui.checkbox(&mut data.allow_scroll, "Scroll").changed()
                     {
                         ui.close_menu();
                     }
@@ -117,6 +132,7 @@ impl super::View for ContextMenus {
 
 impl ContextMenus {
     fn example_plot(&self, ui: &mut egui::Ui) -> egui::Response {
+        let data = &mut *self.data.write().unwrap();
         use egui::plot::{Line, PlotPoints};
         let n = 128;
         let line = Line::new(
@@ -124,7 +140,7 @@ impl ContextMenus {
                 .map(|i| {
                     use std::f64::consts::TAU;
                     let x = egui::remap(i as f64, 0.0..=n as f64, -TAU..=TAU);
-                    match self.plot {
+                    match data.plot {
                         Plot::Sin => [x, x.sin()],
                         Plot::Bell => [x, 10.0 * gaussian(x)],
                         Plot::Sigmoid => [x, sigmoid(x)],
@@ -133,14 +149,14 @@ impl ContextMenus {
                 .collect::<PlotPoints>(),
         );
         egui::plot::Plot::new("example_plot")
-            .show_axes(self.show_axes)
-            .allow_drag(self.allow_drag)
-            .allow_zoom(self.allow_zoom)
-            .allow_scroll(self.allow_scroll)
-            .center_x_axis(self.center_x_axis)
-            .center_x_axis(self.center_y_axis)
-            .width(self.width)
-            .height(self.height)
+            .show_axes(data.show_axes)
+            .allow_drag(data.allow_drag)
+            .allow_zoom(data.allow_zoom)
+            .allow_scroll(data.allow_scroll)
+            .center_x_axis(data.center_x_axis)
+            .center_x_axis(data.center_y_axis)
+            .width(data.width)
+            .height(data.height)
             .data_aspect(1.0)
             .show(ui, |plot_ui| plot_ui.line(line))
             .response

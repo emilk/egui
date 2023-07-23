@@ -1,6 +1,8 @@
+use std::sync::{Arc, RwLock};
+
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct WindowOptions {
+pub struct WindowOptionsData {
     title: String,
     title_bar: bool,
     closable: bool,
@@ -13,8 +15,19 @@ pub struct WindowOptions {
     anchor: egui::Align2,
     anchor_offset: egui::Vec2,
 }
+#[derive(Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct WindowOptions {
+    data: Arc<RwLock<WindowOptionsData>>,
+}
 
-impl Default for WindowOptions {
+impl PartialEq for WindowOptions {
+    fn eq(&self, other: &Self) -> bool {
+        *self.data.read().unwrap() == *other.data.read().unwrap()
+    }
+}
+
+impl Default for WindowOptionsData {
     fn default() -> Self {
         Self {
             title: "🗖 Window Options".to_owned(),
@@ -37,7 +50,7 @@ impl super::Demo for WindowOptions {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        let Self {
+        let WindowOptionsData {
             title,
             title_bar,
             closable,
@@ -48,7 +61,7 @@ impl super::Demo for WindowOptions {
             anchored,
             anchor,
             anchor_offset,
-        } = self.clone();
+        } = self.data.read().unwrap().clone();
 
         let enabled = ctx.input(|i| i.time) - disabled_time > 2.0;
         if !enabled {
@@ -69,70 +82,76 @@ impl super::Demo for WindowOptions {
         if anchored {
             window = window.anchor(anchor, anchor_offset);
         }
-        window.show(ctx, |ui| self.ui(ui));
+        let clone = self.clone();
+        window.show(ctx, move |ui| {
+            let mut clone = clone.clone();
+            clone.ui(ui)
+        });
     }
 }
 
 impl super::View for WindowOptions {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        let Self {
-            title,
-            title_bar,
-            closable,
-            collapsible,
-            resizable,
-            scroll2,
-            disabled_time: _,
-            anchored,
-            anchor,
-            anchor_offset,
-        } = self;
-        ui.horizontal(|ui| {
-            ui.label("title:");
-            ui.text_edit_singleline(title);
-        });
+        {
+            let WindowOptionsData {
+                title,
+                title_bar,
+                closable,
+                collapsible,
+                resizable,
+                scroll2,
+                disabled_time: _,
+                anchored,
+                anchor,
+                anchor_offset,
+            } = &mut *self.data.write().unwrap();
+            ui.horizontal(|ui| {
+                ui.label("title:");
+                ui.text_edit_singleline(title);
+            });
 
-        ui.horizontal(|ui| {
-            ui.group(|ui| {
-                ui.vertical(|ui| {
-                    ui.checkbox(title_bar, "title_bar");
-                    ui.checkbox(closable, "closable");
-                    ui.checkbox(collapsible, "collapsible");
-                    ui.checkbox(resizable, "resizable");
-                    ui.checkbox(&mut scroll2[0], "hscroll");
-                    ui.checkbox(&mut scroll2[1], "vscroll");
-                });
-            });
-            ui.group(|ui| {
-                ui.vertical(|ui| {
-                    ui.checkbox(anchored, "anchored");
-                    ui.set_enabled(*anchored);
-                    ui.horizontal(|ui| {
-                        ui.label("x:");
-                        ui.selectable_value(&mut anchor[0], egui::Align::LEFT, "Left");
-                        ui.selectable_value(&mut anchor[0], egui::Align::Center, "Center");
-                        ui.selectable_value(&mut anchor[0], egui::Align::RIGHT, "Right");
-                    });
-                    ui.horizontal(|ui| {
-                        ui.label("y:");
-                        ui.selectable_value(&mut anchor[1], egui::Align::TOP, "Top");
-                        ui.selectable_value(&mut anchor[1], egui::Align::Center, "Center");
-                        ui.selectable_value(&mut anchor[1], egui::Align::BOTTOM, "Bottom");
-                    });
-                    ui.horizontal(|ui| {
-                        ui.label("Offset:");
-                        ui.add(egui::DragValue::new(&mut anchor_offset.x));
-                        ui.add(egui::DragValue::new(&mut anchor_offset.y));
+            ui.horizontal(|ui| {
+                ui.group(|ui| {
+                    ui.vertical(|ui| {
+                        ui.checkbox(title_bar, "title_bar");
+                        ui.checkbox(closable, "closable");
+                        ui.checkbox(collapsible, "collapsible");
+                        ui.checkbox(resizable, "resizable");
+                        ui.checkbox(&mut scroll2[0], "hscroll");
+                        ui.checkbox(&mut scroll2[1], "vscroll");
                     });
                 });
+                ui.group(|ui| {
+                    ui.vertical(|ui| {
+                        ui.checkbox(anchored, "anchored");
+                        ui.set_enabled(*anchored);
+                        ui.horizontal(|ui| {
+                            ui.label("x:");
+                            ui.selectable_value(&mut anchor[0], egui::Align::LEFT, "Left");
+                            ui.selectable_value(&mut anchor[0], egui::Align::Center, "Center");
+                            ui.selectable_value(&mut anchor[0], egui::Align::RIGHT, "Right");
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("y:");
+                            ui.selectable_value(&mut anchor[1], egui::Align::TOP, "Top");
+                            ui.selectable_value(&mut anchor[1], egui::Align::Center, "Center");
+                            ui.selectable_value(&mut anchor[1], egui::Align::BOTTOM, "Bottom");
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Offset:");
+                            ui.add(egui::DragValue::new(&mut anchor_offset.x));
+                            ui.add(egui::DragValue::new(&mut anchor_offset.y));
+                        });
+                    });
+                });
             });
-        });
+        }
 
         ui.separator();
 
         ui.horizontal(|ui| {
             if ui.button("Disable for 2 seconds").clicked() {
-                self.disabled_time = ui.input(|i| i.time);
+                self.data.write().unwrap().disabled_time = ui.input(|i| i.time);
             }
             egui::reset_button(ui, self);
             ui.add(crate::egui_github_link_file!());

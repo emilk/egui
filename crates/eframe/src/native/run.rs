@@ -411,7 +411,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 mod glow_integration {
     use std::sync::Arc;
 
-    use egui::{epaint::ahash::HashMap, window::ViewportBuilder, NumExt as _};
+    use egui::{epaint::ahash::HashMap, window::ViewportBuilder, Context, NumExt as _};
     use egui_winit::EventResponse;
     use glow::HasContext;
     use glutin::{
@@ -454,6 +454,7 @@ mod glow_integration {
         gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
         window: Option<winit::window::Window>,
         window_id: u64,
+        render: Option<Arc<Box<dyn Fn(&Context) + Sync + Send>>>,
         pub egui_winit: Option<egui_winit::State>,
     }
     /// This struct will contain both persistent and temporary glutin state.
@@ -601,6 +602,7 @@ mod glow_integration {
                     window,
                     window_id: 0,
                     egui_winit: None,
+                    render: None,
                 }],
                 window_maps,
             })
@@ -1049,6 +1051,7 @@ mod glow_integration {
                             app.as_mut(),
                             win.window.as_ref().unwrap(),
                             win.egui_winit.as_mut().unwrap(),
+                            win.render.clone(),
                         );
 
                         integration.handle_platform_output(
@@ -1153,7 +1156,7 @@ mod glow_integration {
                     // 0 is the main viewport/window that will not be known by the egui_ctx
                     let mut active_viewports_ids = vec![0];
 
-                    viewports.retain_mut(|(id, builder)| {
+                    viewports.retain_mut(|(id, builder, render)| {
                         for w in gl_window.windows.iter_mut() {
                             if w.window_id == *id {
                                 if w.builder != *builder {
@@ -1164,7 +1167,7 @@ mod glow_integration {
                                     }
                                     w.window = None;
                                     w.gl_surface = None;
-
+                                    w.render = Some(render.clone());
                                     w.builder = builder.clone();
                                 }
                                 active_viewports_ids.push(*id);
@@ -1174,13 +1177,14 @@ mod glow_integration {
                         true
                     });
 
-                    for (id, builder) in viewports {
+                    for (id, builder, render) in viewports {
                         gl_window.windows.push(Window {
                             builder,
                             gl_surface: None,
                             window: None,
                             window_id: id,
                             egui_winit: None,
+                            render: Some(render.clone()),
                         });
                         active_viewports_ids.push(id);
                     }
@@ -1234,7 +1238,7 @@ mod glow_integration {
 
                 winit::event::Event::MainEventsCleared => {
                     if let Some(running) = self.running.as_mut() {
-                        running.gl_window.on_resume(event_loop);
+                        let _ = running.gl_window.on_resume(event_loop);
                     }
                     EventResult::Wait
                 }

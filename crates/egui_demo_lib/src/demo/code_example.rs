@@ -1,10 +1,17 @@
+use std::sync::{Arc, RwLock};
+
 #[derive(Debug)]
-pub struct CodeExample {
+pub struct CodeExampleData {
     name: String,
     age: u32,
 }
 
-impl Default for CodeExample {
+#[derive(Debug, Default, Clone)]
+pub struct CodeExample {
+    data: Arc<RwLock<CodeExampleData>>,
+}
+
+impl Default for CodeExampleData {
     fn default() -> Self {
         Self {
             name: "Arthur".to_owned(),
@@ -29,28 +36,29 @@ impl CodeExample {
             });"#,
         );
         // Putting things on the same line using ui.horizontal:
+        let mut data = self.data.write().unwrap();
         ui.horizontal(|ui| {
             ui.label("Your name: ");
-            ui.text_edit_singleline(&mut self.name);
+            ui.text_edit_singleline(&mut data.name);
         });
         ui.end_row();
 
         show_code(
             ui,
-            r#"egui::Slider::new(&mut self.age, 0..=120).text("age")"#,
+            r#"egui::Slider::new(&mut data.age, 0..=120).text("age")"#,
         );
-        ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
+        ui.add(egui::Slider::new(&mut data.age, 0..=120).text("age"));
         ui.end_row();
 
         show_code(
             ui,
             r#"
             if ui.button("Click each year").clicked() {
-                self.age += 1;
+                data.age += 1;
             }"#,
         );
         if ui.button("Click each year").clicked() {
-            self.age += 1;
+            data.age += 1;
         }
         ui.end_row();
 
@@ -58,7 +66,7 @@ impl CodeExample {
             ui,
             r#"ui.label(format!("Hello '{}', age {}", self.name, self.age));"#,
         );
-        ui.label(format!("Hello '{}', age {}", self.name, self.age));
+        ui.label(format!("Hello '{}', age {}", data.name, data.age));
         ui.end_row();
     }
 }
@@ -69,13 +77,14 @@ impl super::Demo for CodeExample {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+        let clone = self.clone();
         use super::View;
         egui::Window::new(self.name())
             .open(open)
             .default_size([800.0, 400.0])
             .vscroll(false)
             .hscroll(true)
-            .show(ctx, |ui| self.ui(ui));
+            .show(ctx, move |ui| clone.clone().ui(ui));
     }
 }
 

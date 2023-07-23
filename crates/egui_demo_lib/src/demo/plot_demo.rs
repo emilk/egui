@@ -1,5 +1,6 @@
 use std::f64::consts::TAU;
 use std::ops::RangeInclusive;
+use std::sync::{Arc, RwLock};
 
 use egui::plot::{AxisBools, GridInput, GridMark, PlotResponse};
 use egui::*;
@@ -32,7 +33,7 @@ impl Default for Panel {
 // ----------------------------------------------------------------------------
 
 #[derive(PartialEq, Default)]
-pub struct PlotDemo {
+pub struct PlotDemoData {
     line_demo: LineDemo,
     marker_demo: MarkerDemo,
     legend_demo: LegendDemo,
@@ -44,18 +45,30 @@ pub struct PlotDemo {
     open_panel: Panel,
 }
 
+#[derive(Default, Clone)]
+pub struct PlotDemo {
+    data: Arc<RwLock<PlotDemoData>>,
+}
+
+impl PartialEq for PlotDemo {
+    fn eq(&self, other: &Self) -> bool {
+        *self.data.read().unwrap() == *other.data.read().unwrap()
+    }
+}
+
 impl super::Demo for PlotDemo {
     fn name(&self) -> &'static str {
         "🗠 Plot"
     }
 
     fn show(&mut self, ctx: &Context, open: &mut bool) {
+        let clone = self.clone();
         use super::View as _;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(400.0, 400.0))
             .vscroll(false)
-            .show(ctx, |ui| self.ui(ui));
+            .show(ctx, move |ui| clone.clone().ui(ui));
     }
 }
 
@@ -77,43 +90,44 @@ impl super::View for PlotDemo {
                 ui.add(crate::egui_github_link_file!());
             });
         });
+        let mut data = self.data.write().unwrap();
         ui.separator();
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.open_panel, Panel::Lines, "Lines");
-            ui.selectable_value(&mut self.open_panel, Panel::Markers, "Markers");
-            ui.selectable_value(&mut self.open_panel, Panel::Legend, "Legend");
-            ui.selectable_value(&mut self.open_panel, Panel::Charts, "Charts");
-            ui.selectable_value(&mut self.open_panel, Panel::Items, "Items");
-            ui.selectable_value(&mut self.open_panel, Panel::Interaction, "Interaction");
-            ui.selectable_value(&mut self.open_panel, Panel::CustomAxes, "Custom Axes");
-            ui.selectable_value(&mut self.open_panel, Panel::LinkedAxes, "Linked Axes");
+            ui.selectable_value(&mut data.open_panel, Panel::Lines, "Lines");
+            ui.selectable_value(&mut data.open_panel, Panel::Markers, "Markers");
+            ui.selectable_value(&mut data.open_panel, Panel::Legend, "Legend");
+            ui.selectable_value(&mut data.open_panel, Panel::Charts, "Charts");
+            ui.selectable_value(&mut data.open_panel, Panel::Items, "Items");
+            ui.selectable_value(&mut data.open_panel, Panel::Interaction, "Interaction");
+            ui.selectable_value(&mut data.open_panel, Panel::CustomAxes, "Custom Axes");
+            ui.selectable_value(&mut data.open_panel, Panel::LinkedAxes, "Linked Axes");
         });
         ui.separator();
 
-        match self.open_panel {
+        match data.open_panel {
             Panel::Lines => {
-                self.line_demo.ui(ui);
+                data.line_demo.ui(ui);
             }
             Panel::Markers => {
-                self.marker_demo.ui(ui);
+                data.marker_demo.ui(ui);
             }
             Panel::Legend => {
-                self.legend_demo.ui(ui);
+                data.legend_demo.ui(ui);
             }
             Panel::Charts => {
-                self.charts_demo.ui(ui);
+                data.charts_demo.ui(ui);
             }
             Panel::Items => {
-                self.items_demo.ui(ui);
+                data.items_demo.ui(ui);
             }
             Panel::Interaction => {
-                self.interaction_demo.ui(ui);
+                data.interaction_demo.ui(ui);
             }
             Panel::CustomAxes => {
-                self.custom_axes_demo.ui(ui);
+                data.custom_axes_demo.ui(ui);
             }
             Panel::LinkedAxes => {
-                self.linked_axes_demo.ui(ui);
+                data.linked_axes_demo.ui(ui);
             }
         }
     }

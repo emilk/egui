@@ -1,14 +1,22 @@
-use egui::*;
+use std::sync::{Arc, RwLock};
 
+use egui::*;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct Painting {
+pub struct PaintingData {
     /// in 0-1 normalized coordinates
     lines: Vec<Vec<Pos2>>,
     stroke: Stroke,
 }
 
-impl Default for Painting {
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+#[derive(Default, Clone)]
+pub struct Painting {
+    data: Arc<RwLock<PaintingData>>,
+}
+
+impl Default for PaintingData {
     fn default() -> Self {
         Self {
             lines: Default::default(),
@@ -19,11 +27,12 @@ impl Default for Painting {
 
 impl Painting {
     pub fn ui_control(&mut self, ui: &mut egui::Ui) -> egui::Response {
+        let mut data = self.data.write().unwrap();
         ui.horizontal(|ui| {
-            egui::stroke_ui(ui, &mut self.stroke, "Stroke");
+            egui::stroke_ui(ui, &mut data.stroke, "Stroke");
             ui.separator();
             if ui.button("Clear Painting").clicked() {
-                self.lines.clear();
+                data.lines.clear();
             }
         })
         .response
@@ -39,11 +48,13 @@ impl Painting {
         );
         let from_screen = to_screen.inverse();
 
-        if self.lines.is_empty() {
-            self.lines.push(vec![]);
+        let mut data = self.data.write().unwrap();
+
+        if data.lines.is_empty() {
+            data.lines.push(vec![]);
         }
 
-        let current_line = self.lines.last_mut().unwrap();
+        let current_line = data.lines.last_mut().unwrap();
 
         if let Some(pointer_pos) = response.interact_pointer_pos() {
             let canvas_pos = from_screen * pointer_pos;
@@ -52,17 +63,17 @@ impl Painting {
                 response.mark_changed();
             }
         } else if !current_line.is_empty() {
-            self.lines.push(vec![]);
+            data.lines.push(vec![]);
             response.mark_changed();
         }
 
-        let shapes = self
+        let shapes = data
             .lines
             .iter()
             .filter(|line| line.len() >= 2)
             .map(|line| {
                 let points: Vec<Pos2> = line.iter().map(|p| to_screen * *p).collect();
-                egui::Shape::line(points, self.stroke)
+                egui::Shape::line(points, data.stroke)
             });
 
         painter.extend(shapes);
@@ -77,12 +88,13 @@ impl super::Demo for Painting {
     }
 
     fn show(&mut self, ctx: &Context, open: &mut bool) {
+        let clone = self.clone();
         use super::View as _;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(512.0, 512.0))
             .vscroll(false)
-            .show(ctx, |ui| self.ui(ui));
+            .show(ctx, move |ui| clone.clone().ui(ui));
     }
 }
 

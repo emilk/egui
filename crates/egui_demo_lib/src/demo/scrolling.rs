@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use egui::*;
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -19,10 +21,23 @@ impl Default for ScrollDemo {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 #[derive(Default, PartialEq)]
-pub struct Scrolling {
+pub struct ScrollingData {
     demo: ScrollDemo,
     scroll_to: ScrollTo,
     scroll_stick_to: ScrollStickTo,
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+#[derive(Default, Clone)]
+pub struct Scrolling {
+    data: Arc<RwLock<ScrollingData>>,
+}
+
+impl PartialEq for Scrolling {
+    fn eq(&self, other: &Self) -> bool {
+        *self.data.read().unwrap() == *other.data.read().unwrap()
+    }
 }
 
 impl super::Demo for Scrolling {
@@ -31,37 +46,39 @@ impl super::Demo for Scrolling {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+        let clone = self.clone();
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
-            .show(ctx, |ui| {
+            .show(ctx, move |ui| {
                 use super::View as _;
-                self.ui(ui);
+                clone.clone().ui(ui);
             });
     }
 }
 
 impl super::View for Scrolling {
     fn ui(&mut self, ui: &mut Ui) {
+        let mut data = self.data.write().unwrap();
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.demo, ScrollDemo::ScrollTo, "Scroll to");
+            ui.selectable_value(&mut data.demo, ScrollDemo::ScrollTo, "Scroll to");
             ui.selectable_value(
-                &mut self.demo,
+                &mut data.demo,
                 ScrollDemo::ManyLines,
                 "Scroll a lot of lines",
             );
             ui.selectable_value(
-                &mut self.demo,
+                &mut data.demo,
                 ScrollDemo::LargeCanvas,
                 "Scroll a large canvas",
             );
-            ui.selectable_value(&mut self.demo, ScrollDemo::StickToEnd, "Stick to end");
-            ui.selectable_value(&mut self.demo, ScrollDemo::Bidirectional, "Bidirectional");
+            ui.selectable_value(&mut data.demo, ScrollDemo::StickToEnd, "Stick to end");
+            ui.selectable_value(&mut data.demo, ScrollDemo::Bidirectional, "Bidirectional");
         });
         ui.separator();
-        match self.demo {
+        match data.demo {
             ScrollDemo::ScrollTo => {
-                self.scroll_to.ui(ui);
+                data.scroll_to.ui(ui);
             }
             ScrollDemo::ManyLines => {
                 huge_content_lines(ui);
@@ -70,7 +87,7 @@ impl super::View for Scrolling {
                 huge_content_painter(ui);
             }
             ScrollDemo::StickToEnd => {
-                self.scroll_stick_to.ui(ui);
+                data.scroll_stick_to.ui(ui);
             }
             ScrollDemo::Bidirectional => {
                 egui::ScrollArea::both().show(ui, |ui| {

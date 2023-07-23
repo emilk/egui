@@ -14,7 +14,7 @@ impl super::Demo for About {
             .open(open)
             .show(ctx, |ui| {
                 use super::View as _;
-                self.ui(ui);
+                Self::default().ui(ui);
             });
     }
 }

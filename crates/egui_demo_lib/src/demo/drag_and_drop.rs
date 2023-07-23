@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use egui::*;
 
 pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
@@ -75,24 +77,32 @@ pub fn drop_target<R>(
     InnerResponse::new(ret, response)
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DragAndDropDemo {
     /// columns with items
-    columns: Vec<Vec<String>>,
+    columns: Arc<RwLock<Vec<Vec<String>>>>,
+}
+
+impl PartialEq for DragAndDropDemo {
+    fn eq(&self, other: &Self) -> bool {
+        *self.columns.read().unwrap() == *other.columns.read().unwrap()
+    }
 }
 
 impl Default for DragAndDropDemo {
     fn default() -> Self {
         Self {
-            columns: vec![
-                vec!["Item A", "Item B", "Item C"],
-                vec!["Item D", "Item E"],
-                vec!["Item F", "Item G", "Item H"],
-            ]
-            .into_iter()
-            .map(|v| v.into_iter().map(ToString::to_string).collect())
-            .collect(),
+            columns: Arc::new(RwLock::new(
+                vec![
+                    vec!["Item A", "Item B", "Item C"],
+                    vec!["Item D", "Item E"],
+                    vec!["Item F", "Item G", "Item H"],
+                ]
+                .into_iter()
+                .map(|v| v.into_iter().map(ToString::to_string).collect())
+                .collect(),
+            )),
         }
     }
 }
@@ -103,13 +113,14 @@ impl super::Demo for DragAndDropDemo {
     }
 
     fn show(&mut self, ctx: &Context, open: &mut bool) {
+        let clone = self.clone();
         use super::View as _;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(256.0, 256.0))
             .vscroll(false)
             .resizable(false)
-            .show(ctx, |ui| self.ui(ui));
+            .show(ctx, move |ui| clone.clone().ui(ui));
     }
 }
 
@@ -121,8 +132,9 @@ impl super::View for DragAndDropDemo {
         let id_source = "my_drag_and_drop_demo";
         let mut source_col_row = None;
         let mut drop_col = None;
-        ui.columns(self.columns.len(), |uis| {
-            for (col_idx, column) in self.columns.clone().into_iter().enumerate() {
+        let mut columns = self.columns.write().unwrap();
+        ui.columns(columns.len(), |uis| {
+            for (col_idx, column) in columns.clone().into_iter().enumerate() {
                 let ui = &mut uis[col_idx];
                 let can_accept_what_is_being_dragged = true; // We accept anything being dragged (for now) ¯\_(ツ)_/¯
                 let response = drop_target(ui, can_accept_what_is_being_dragged, |ui| {
@@ -133,7 +145,7 @@ impl super::View for DragAndDropDemo {
                             let response = ui.add(Label::new(item).sense(Sense::click()));
                             response.context_menu(|ui| {
                                 if ui.button("Remove").clicked() {
-                                    self.columns[col_idx].remove(row_idx);
+                                    columns[col_idx].remove(row_idx);
                                     ui.close_menu();
                                 }
                             });
@@ -148,7 +160,7 @@ impl super::View for DragAndDropDemo {
 
                 let response = response.context_menu(|ui| {
                     if ui.button("New Item").clicked() {
-                        self.columns[col_idx].push("New Item".to_owned());
+                        columns[col_idx].push("New Item".to_owned());
                         ui.close_menu();
                     }
                 });
@@ -164,8 +176,8 @@ impl super::View for DragAndDropDemo {
             if let Some(drop_col) = drop_col {
                 if ui.input(|i| i.pointer.any_released()) {
                     // do the drop:
-                    let item = self.columns[source_col].remove(source_row);
-                    self.columns[drop_col].push(item);
+                    let item = columns[source_col].remove(source_row);
+                    columns[drop_col].push(item);
                 }
             }
         }

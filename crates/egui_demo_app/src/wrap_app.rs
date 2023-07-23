@@ -5,6 +5,7 @@ use eframe::glow;
 
 #[cfg(target_arch = "wasm32")]
 use core::any::Any;
+use std::sync::{Arc, RwLock};
 
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -147,7 +148,7 @@ pub struct WrapApp {
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     custom3d: Option<crate::apps::Custom3d>,
 
-    dropped_files: Vec<egui::DroppedFile>,
+    dropped_files: Arc<RwLock<Vec<egui::DroppedFile>>>,
 }
 
 impl WrapApp {
@@ -412,17 +413,20 @@ impl WrapApp {
         // Collect dropped files:
         ctx.input(|i| {
             if !i.raw.dropped_files.is_empty() {
-                self.dropped_files = i.raw.dropped_files.clone();
+                *self.dropped_files.write().unwrap() = i.raw.dropped_files.clone();
             }
         });
 
         // Show dropped files (if any):
-        if !self.dropped_files.is_empty() {
+        let is_empty = self.dropped_files.read().unwrap().is_empty();
+        if !is_empty {
             let mut open = true;
+            let dropped_files = self.dropped_files.clone();
             egui::Window::new("Dropped files")
                 .open(&mut open)
-                .show(ctx, |ui| {
-                    for file in &self.dropped_files {
+                .show(ctx, move |ui| {
+                    let dropped_files = &*dropped_files.read().unwrap();
+                    for file in dropped_files {
                         let mut info = if let Some(path) = &file.path {
                             path.display().to_string()
                         } else if !file.name.is_empty() {
@@ -437,7 +441,7 @@ impl WrapApp {
                     }
                 });
             if !open {
-                self.dropped_files.clear();
+                self.dropped_files.write().unwrap().clear();
             }
         }
     }

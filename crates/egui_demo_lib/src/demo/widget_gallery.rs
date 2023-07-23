@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum Enum {
@@ -6,9 +8,8 @@ enum Enum {
     Third,
 }
 
-/// Shows off one example of each major type of widget.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct WidgetGallery {
+pub struct WidgetGalleryData {
     enabled: bool,
     visible: bool,
     boolean: bool,
@@ -26,7 +27,14 @@ pub struct WidgetGallery {
     texture: Option<egui::TextureHandle>,
 }
 
-impl Default for WidgetGallery {
+/// Shows off one example of each major type of widget.
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Clone, Default)]
+pub struct WidgetGallery {
+    data: Arc<RwLock<WidgetGalleryData>>,
+}
+
+impl Default for WidgetGalleryData {
     fn default() -> Self {
         Self {
             enabled: true,
@@ -50,21 +58,24 @@ impl super::Demo for WidgetGallery {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
+        let clone = self.clone();
         egui::Window::new(self.name())
             .open(open)
             .resizable(true)
             .default_width(280.0)
-            .show(ctx, |ui| {
+            .show(ctx, move |ui| {
                 use super::View as _;
-                self.ui(ui);
+                clone.clone().ui(ui);
             });
     }
 }
 
 impl super::View for WidgetGallery {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.add_enabled_ui(self.enabled, |ui| {
-            ui.set_visible(self.visible);
+        let enabled = self.data.read().unwrap().enabled;
+        let visible = self.data.read().unwrap().visible;
+        ui.add_enabled_ui(enabled, |ui| {
+            ui.set_visible(visible);
 
             egui::Grid::new("my_grid")
                 .num_columns(2)
@@ -74,14 +85,14 @@ impl super::View for WidgetGallery {
                     self.gallery_grid_contents(ui);
                 });
         });
-
+        let data = &mut *self.data.write().unwrap();
         ui.separator();
 
         ui.horizontal(|ui| {
-            ui.checkbox(&mut self.visible, "Visible")
+            ui.checkbox(&mut data.visible, "Visible")
                 .on_hover_text("Uncheck to hide all the widgets.");
-            if self.visible {
-                ui.checkbox(&mut self.enabled, "Interactive")
+            if data.visible {
+                ui.checkbox(&mut data.enabled, "Interactive")
                     .on_hover_text("Uncheck to inspect how the widgets look when disabled.");
             }
         });
@@ -100,7 +111,7 @@ impl super::View for WidgetGallery {
 
 impl WidgetGallery {
     fn gallery_grid_contents(&mut self, ui: &mut egui::Ui) {
-        let Self {
+        let WidgetGalleryData {
             enabled: _,
             visible: _,
             boolean,
@@ -112,7 +123,7 @@ impl WidgetGallery {
             #[cfg(feature = "chrono")]
             date,
             texture,
-        } = self;
+        } = &mut *self.data.write().unwrap();
 
         let texture: &egui::TextureHandle = texture.get_or_insert_with(|| {
             ui.ctx()

@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 /// How often we repaint the demo app by default
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum RunMode {
@@ -353,7 +355,7 @@ struct EguiWindows {
     output_events: bool,
 
     #[cfg_attr(feature = "serde", serde(skip))]
-    output_event_history: std::collections::VecDeque<egui::output::OutputEvent>,
+    output_event_history: Arc<RwLock<std::collections::VecDeque<egui::output::OutputEvent>>>,
 }
 
 impl Default for EguiWindows {
@@ -397,41 +399,48 @@ impl EguiWindows {
             output_event_history,
         } = self;
 
-        ctx.output(|o| {
-            for event in &o.events {
-                output_event_history.push_back(event.clone());
+        {
+            let mut output_event_history = output_event_history.write().unwrap();
+            ctx.output(|o| {
+                for event in &o.events {
+                    output_event_history.push_back(event.clone());
+                }
+            });
+            while output_event_history.len() > 1000 {
+                output_event_history.pop_front();
             }
-        });
-        while output_event_history.len() > 1000 {
-            output_event_history.pop_front();
         }
 
+        let tmp_ctx = ctx.clone();
         egui::Window::new("🔧 Settings")
             .open(settings)
             .vscroll(true)
-            .show(ctx, |ui| {
-                ctx.settings_ui(ui);
+            .show(ctx, move |ui| {
+                tmp_ctx.settings_ui(ui);
             });
 
+        let tmp_ctx = ctx.clone();
         egui::Window::new("🔍 Inspection")
             .open(inspection)
             .vscroll(true)
-            .show(ctx, |ui| {
-                ctx.inspection_ui(ui);
+            .show(ctx, move |ui| {
+                tmp_ctx.inspection_ui(ui);
             });
 
+        let tmp_ctx = ctx.clone();
         egui::Window::new("📝 Memory")
             .open(memory)
             .resizable(false)
-            .show(ctx, |ui| {
-                ctx.memory_ui(ui);
+            .show(ctx, move |ui| {
+                tmp_ctx.memory_ui(ui);
             });
 
+        let tmp_output_event_history = output_event_history.clone();
         egui::Window::new("📤 Output Events")
             .open(output_events)
             .resizable(true)
             .default_width(520.0)
-            .show(ctx, |ui| {
+            .show(ctx, move |ui| {
                 ui.label(
                     "Recent output events from egui. \
             These are emitted when you interact with widgets, or move focus between them with TAB. \
@@ -443,7 +452,7 @@ impl EguiWindows {
                 egui::ScrollArea::vertical()
                     .stick_to_bottom(true)
                     .show(ui, |ui| {
-                        for event in output_event_history {
+                        for event in &*tmp_output_event_history.read().unwrap() {
                             ui.label(format!("{:?}", event));
                         }
                     });

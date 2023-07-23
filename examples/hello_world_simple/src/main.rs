@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+use std::sync::{Arc, RwLock};
+
 use eframe::egui;
 
 fn main() -> Result<(), eframe::Error> {
@@ -14,8 +16,8 @@ fn main() -> Result<(), eframe::Error> {
     let mut name = "Arthur".to_owned();
     let mut age = 42;
 
-    let mut window1_embedded = true;
-    let mut window2_embedded = true;
+    let mut window1_embedded = Arc::new(RwLock::new(true));
+    let mut window2_embedded = Arc::new(RwLock::new(true));
 
     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -35,11 +37,14 @@ fn main() -> Result<(), eframe::Error> {
                 age += 1;
             }
             ui.label(format!("Hello '{name}', age {age}"));
+            let clone = window1_embedded.clone();
+            let embedded = *window1_embedded.read().unwrap();
             egui::CollapsingHeader::new("Show Test1").show(ui, |ui| {
                 egui::Window::new("Test1")
-                    .embedded(window1_embedded)
-                    .show(ctx, |ui| {
-                        ui.checkbox(&mut window1_embedded, "Should embedd?");
+                    .embedded(embedded)
+                    .show(ctx, move |ui| {
+                        ui.checkbox(&mut *clone.write().unwrap(), "Should embedd?");
+                        let ctx = ui.ctx().clone();
                         ui.label(format!(
                             "Current window: {}, Current rendering window: {}",
                             ctx.current_viewport(),
@@ -47,11 +52,14 @@ fn main() -> Result<(), eframe::Error> {
                         ));
                     });
             });
+            let clone = window2_embedded.clone();
+            let embedded = *window2_embedded.read().unwrap();
             egui::CollapsingHeader::new("Shout Test2").show(ui, |ui| {
                 egui::Window::new("Test2")
-                    .embedded(window2_embedded)
-                    .show(ctx, |ui| {
-                        ui.checkbox(&mut window2_embedded, "Should embedd?");
+                    .embedded(embedded)
+                    .show(ctx, move |ui| {
+                        ui.checkbox(&mut *clone.write().unwrap(), "Should embedd?");
+                        let ctx = ui.ctx().clone();
                         ui.label(format!(
                             "Current window: {}, Current rendering window: {}",
                             ctx.current_viewport(),

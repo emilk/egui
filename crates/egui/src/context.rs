@@ -160,7 +160,16 @@ struct ContextImpl {
 
     repaint: Repaint,
 
-    viewports: HashMap<String, (ViewportBuilder, u64, u64, bool)>,
+    viewports: HashMap<
+        String,
+        (
+            ViewportBuilder,
+            u64,
+            u64,
+            bool,
+            Arc<Box<dyn Fn(&Context) + Sync + Send>>,
+        ),
+    >,
     viewport_counter: u64,
     current_rendering_viewport: u64,
     viewport_stack: Vec<u64>,
@@ -1274,19 +1283,30 @@ impl Context {
         let repaint_after = self.write(|ctx| ctx.repaint.end_frame());
         let shapes = self.drain_paint_lists();
 
+        // This is used for,
+        // If there are no viewport that contains the current viewpor that viewport needs to be destroyed!
+        let avalibile_viewports = self.read(|ctx| {
+            let mut avalibile_viewports = vec![0];
+            for (_, (_, id, _, _, _)) in ctx.viewports.iter() {
+                avalibile_viewports.push(*id);
+            }
+            avalibile_viewports
+        });
+
         let mut viewports = Vec::new();
         self.write(|ctx| {
-            ctx.viewports.retain(|_, (builder, id, parent, used)| {
-                let out = *used;
-                if ctx.current_rendering_viewport == *parent
-                    || ctx.current_rendering_viewport == *id
-                {
-                    *used = false;
-                } else {
-                }
-                viewports.push((*id, builder.clone()));
-                out
-            })
+            ctx.viewports
+                .retain(|_, (builder, id, parent, used, render)| {
+                    let out = *used;
+
+                    if ctx.current_rendering_viewport == *parent {
+                        *used = false;
+                    }
+
+                    viewports.push((*id, builder.clone(), render.clone()));
+                    (out || ctx.current_rendering_viewport != *parent)
+                        && avalibile_viewports.contains(parent)
+                })
         });
 
         FullOutput {
@@ -1921,16 +1941,17 @@ impl Context {
         self.write(|ctx| ctx.is_desktop = value)
     }
 
-    pub fn create_viewport<T>(
+    pub fn create_viewport(
         &self,
         window_builder: ViewportBuilder,
-        func: impl FnOnce(u64) -> T,
-    ) -> Option<T> {
+        func: impl Fn(&Context) + Send + Sync + 'static,
+    ) {
         let id = self.write(|ctx| {
             if ctx.is_desktop {
                 if let Some(window) = ctx.viewports.get_mut(&window_builder.title) {
                     window.2 = *ctx.viewport_stack.last().unwrap_or(&0);
                     window.3 = true;
+                    window.4 = Arc::new(Box::new(func));
                     window.1
                 } else {
                     let id = ctx.viewport_counter + 1;
@@ -1942,6 +1963,7 @@ impl Context {
                             id,
                             *ctx.viewport_stack.last().unwrap_or(&0),
                             true,
+                            Arc::new(Box::new(func)),
                         ),
                     );
                     id
@@ -1954,11 +1976,9 @@ impl Context {
             ctx.viewport_stack.push(id);
             ctx.viewport_stack.last().cloned().unwrap_or(0) == ctx.current_rendering_viewport
         });
-        let out = if should_render { Some(func(id)) } else { None };
         self.write(|ctx| {
             ctx.viewport_stack.pop();
         });
-        out
     }
 }
 
