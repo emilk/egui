@@ -168,10 +168,6 @@ impl Painter {
     /// Can be used for free painting.
     /// NOTE: all coordinates are screen coordinates!
     pub fn add(&self, shape: impl Into<Shape>) -> ShapeIdx {
-        if self.ctx.current_viewport() != self.ctx.current_rendering_viewport() {
-            return self
-                .paint_list(|l| l.add(Rect::from_min_size(Pos2::ZERO, Vec2::ZERO), Shape::Noop));
-        }
         if self.fade_to_color == Some(Color32::TRANSPARENT) {
             self.paint_list(|l| l.add(self.clip_rect, Shape::Noop))
         } else {
@@ -185,9 +181,7 @@ impl Painter {
     ///
     /// Calling this once is generally faster than calling [`Self::add`] multiple times.
     pub fn extend<I: IntoIterator<Item = Shape>>(&self, shapes: I) {
-        if self.fade_to_color == Some(Color32::TRANSPARENT)
-            || self.ctx.current_viewport() != self.ctx.current_rendering_viewport()
-        {
+        if self.fade_to_color == Some(Color32::TRANSPARENT) {
             return;
         }
         if self.fade_to_color.is_some() {
@@ -203,9 +197,7 @@ impl Painter {
 
     /// Modify an existing [`Shape`].
     pub fn set(&self, idx: ShapeIdx, shape: impl Into<Shape>) {
-        if self.fade_to_color == Some(Color32::TRANSPARENT)
-            || self.ctx.current_viewport() != self.ctx.current_rendering_viewport()
-        {
+        if self.fade_to_color == Some(Color32::TRANSPARENT) {
             return;
         }
         let mut shape = shape.into();
@@ -398,9 +390,6 @@ impl Painter {
         font_id: FontId,
         text_color: Color32,
     ) -> Rect {
-        if self.ctx.current_viewport() != self.ctx.current_rendering_viewport() {
-            return Rect::from_min_size(Pos2::ZERO, Vec2::ZERO);
-        }
         let galley = self.layout_no_wrap(text.to_string(), font_id, text_color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
         self.galley(rect.min, galley);
