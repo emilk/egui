@@ -42,7 +42,12 @@ fn main() -> Result<(), eframe::Error> {
                 egui::Window::new("Test1").embedded(embedded).show(
                     ctx,
                     move |ui, id, parent_id| {
-                        ui.checkbox(&mut *clone.write().unwrap(), "Should embedd?");
+                        if ui
+                            .checkbox(&mut *clone.write().unwrap(), "Should embedd?")
+                            .clicked()
+                        {
+                            ui.ctx().request_repaint_viewport(parent_id);
+                        }
                         let ctx = ui.ctx().clone();
                         ui.label(format!(
                             "Current rendering window: {}",
@@ -56,8 +61,13 @@ fn main() -> Result<(), eframe::Error> {
             egui::CollapsingHeader::new("Shout Test2").show(ui, |ui| {
                 egui::Window::new("Test2")
                     .embedded(embedded)
-                    .show(ctx, move |ui, _, _| {
-                        ui.checkbox(&mut *clone.write().unwrap(), "Should embedd?");
+                    .show(ctx, move |ui, _, parent_id| {
+                        if ui
+                            .checkbox(&mut *clone.write().unwrap(), "Should embedd?")
+                            .clicked()
+                        {
+                            ui.ctx().request_repaint_viewport(parent_id);
+                        }
                         let ctx = ui.ctx().clone();
                         ui.label(format!(
                             "Current rendering window: {}",
