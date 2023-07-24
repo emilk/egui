@@ -11,6 +11,9 @@ pub struct Sliders {
     pub logarithmic: bool,
     pub clamp_to_range: bool,
     pub smart_aim: bool,
+    pub snap_aim: bool,
+    pub snap_values: Vec<f64>,
+    pub snap_values_only: bool,
     pub step: f64,
     pub use_steps: bool,
     pub integer: bool,
@@ -27,6 +30,9 @@ impl Default for Sliders {
             logarithmic: true,
             clamp_to_range: false,
             smart_aim: true,
+            snap_aim: false,
+            snap_values: vec![],
+            snap_values_only: false,
             step: 10.0,
             use_steps: false,
             integer: false,
@@ -61,6 +67,9 @@ impl super::View for Sliders {
             logarithmic,
             clamp_to_range,
             smart_aim,
+            snap_aim,
+            snap_values,
+            snap_values_only,
             step,
             use_steps,
             integer,
@@ -96,6 +105,7 @@ impl super::View for Sliders {
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
+                    .snap_values(snap_values.clone(), *snap_values_only)
                     .orientation(orientation)
                     .text("i32 demo slider")
                     .step_by(istep)
@@ -108,6 +118,7 @@ impl super::View for Sliders {
                     .logarithmic(*logarithmic)
                     .clamp_to_range(*clamp_to_range)
                     .smart_aim(*smart_aim)
+                    .snap_values(snap_values.clone(), *snap_values_only)
                     .orientation(orientation)
                     .text("f64 demo slider")
                     .step_by(istep)
@@ -141,6 +152,15 @@ impl super::View for Sliders {
                 .text("right")
                 .trailing_fill(*trailing_fill),
         );
+
+        if *snap_aim {
+            let range = *max - *min;
+
+            // Set the snap values to 1/3 and 2/3 of the range, for demo-ing
+            *snap_values = vec![0.0, range / 3.0, range * 2.0 / 3.0, range];
+        } else {
+            *snap_values = vec![];
+        }
 
         ui.separator();
 
@@ -185,6 +205,17 @@ impl super::View for Sliders {
         ui.checkbox(smart_aim, "Smart Aim");
         ui.label("Smart Aim will guide you towards round values when you drag the slider so you you are more likely to hit 250 than 247.23");
         ui.add_space(8.0);
+
+        ui.checkbox(snap_aim, "Snap Aim");
+        ui.label("Snap Aim will snap the slider to user-defined values when close to them. For this demo, the values are 0, 1/3, 2/3 and 1 of the range.");
+        ui.add_space(8.0);
+
+
+        ui.add_enabled_ui(*snap_aim, |ui| {
+            ui.checkbox(snap_values_only, "Snap To Values Only");
+            ui.label("If enabled, Snap Aim will always snap to the closest snap value, and not allow values in between.");
+            ui.add_space(8.0);
+        });
 
         ui.vertical_centered(|ui| {
             egui::reset_button(ui, self);

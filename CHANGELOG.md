@@ -5,7 +5,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 
 ## Unreleased
-
+* Add `Slider::snap_values`, which lets the user define certain points to snap the slider to when clicking or dragging ([#2523](https://github.com/emilk/egui/pull/2523)).
 
 ## 0.22.0 - 2023-05-23 - A plethora of small improvements
 ### ⭐ Added

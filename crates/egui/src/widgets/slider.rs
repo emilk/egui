@@ -72,6 +72,9 @@ pub struct Slider<'a> {
     spec: SliderSpec,
     clamp_to_range: bool,
     smart_aim: bool,
+    snap_values: Vec<f64>,
+    /// Snaps to a pre-defined `snap_value` only if the cursor is close to it. If not close to a `snap_value`, behave as a normal `Slider`.
+    snap_values_only: bool,
     show_value: bool,
     orientation: SliderOrientation,
     prefix: String,
@@ -119,6 +122,8 @@ impl<'a> Slider<'a> {
             },
             clamp_to_range: true,
             smart_aim: true,
+            snap_values: vec![],
+            snap_values_only: false,
             show_value: true,
             orientation: SliderOrientation::Horizontal,
             prefix: Default::default(),
@@ -212,6 +217,30 @@ impl<'a> Slider<'a> {
     /// There is almost no point in turning this off.
     pub fn smart_aim(mut self, smart_aim: bool) -> Self {
         self.smart_aim = smart_aim;
+        self
+    }
+
+    /// Set specific points for the slider to snap to.
+    ///
+    /// These points are visualized with small dots. The slider will snap to these points if
+    /// the user drags the slider close to them. Enabling `snap_values_only` will make the slider
+    /// only snap to these points, and not allow the user to drag the slider values in between
+    /// the snap points.
+    ///
+    /// Default: snap_values = `vec![]` (no snap points).
+    /// Default: snap_values_only = `false` (slider can be dragged to points in between snap values).
+    pub fn snap_values<Num: emath::Numeric>(
+        mut self,
+        snap_values: Vec<Num>,
+        snap_values_only: bool
+    ) -> Self {
+        self.snap_values = snap_values
+            .into_iter()
+            .map(|n| n.to_f64().clamp(*self.range.start(), *self.range.end()))
+            .collect();
+        self.snap_values
+            .sort_by(|a, b| a.total_cmp(b));
+        self.snap_values_only = snap_values_only;
         self
     }
 
@@ -552,7 +581,7 @@ impl<'a> Slider<'a> {
 
         if let Some(pointer_position_2d) = response.interact_pointer_pos() {
             let position = self.pointer_position(pointer_position_2d);
-            let new_value = if self.smart_aim {
+            let mut new_value = if self.smart_aim {
                 let aim_radius = ui.input(|i| i.aim_radius());
                 emath::smart_aim::best_in_range_f64(
                     self.value_from_position(position - aim_radius, position_range.clone()),
@@ -561,6 +590,28 @@ impl<'a> Slider<'a> {
             } else {
                 self.value_from_position(position, position_range.clone())
             };
+            if !self.snap_values.is_empty() {
+                // We use ui points as the unit for the measurements:
+                let mut closest_snap = 0.0;
+                let new_value_pos = self.position_from_value(new_value, position_range.clone());
+                let mut closest_distance = f32::INFINITY;
+                for snap_value in self.snap_values.iter().copied() {
+                    let snap_pos = self.position_from_value(snap_value, position_range.clone());
+                    let distance = (new_value_pos - snap_pos).abs();
+                    if distance < closest_distance {
+                        closest_snap = snap_value;
+                        closest_distance = distance;
+                    } else {
+                        break;
+                    }
+                }
+
+                // Multiply aim_radius by the granularity we want
+                if self.snap_values_only || closest_distance < ui.input(|i| i.aim_radius()) * 5.0 {
+                    new_value = closest_snap;
+                }
+            }
+
             self.set_value(new_value);
         }
 
@@ -638,7 +689,24 @@ impl<'a> Slider<'a> {
                 widget_visuals.inactive.bg_fill,
             );
 
+            for snap_value in &self.snap_values {
+                let snap_position_1d =
+                    self.position_from_value(*snap_value, position_range.clone());
+                let center = self.marker_center(snap_position_1d, &rail_rect);
+                ui.painter().add(epaint::CircleShape {
+                    center,
+                    radius: 2.0,
+                    fill: ui.visuals().widgets.noninteractive.bg_fill,
+                    stroke: Stroke {
+                        width: 0.0,
+                        color: Default::default(),
+                    },
+                });
+            }
+
+
             let position_1d = self.position_from_value(value, position_range);
+
             let center = self.marker_center(position_1d, &rail_rect);
 
             // Decide if we should add trailing fill.
