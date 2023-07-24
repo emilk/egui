@@ -75,7 +75,8 @@ trait WinitApp {
 
     fn window(&self, window_id: winit::window::WindowId) -> Option<&winit::window::Window>;
 
-    fn get_window_id(&self, id: u64) -> Option<winit::window::WindowId>;
+    fn get_window_winit_id(&self, id: u64) -> Option<winit::window::WindowId>;
+    fn get_window_id(&self, id: &winit::window::WindowId) -> Option<u64>;
 
     fn save_and_destroy(&mut self);
 
@@ -167,7 +168,7 @@ fn run_and_return(
             }) => {
                 if winit_app.frame_nr() == *frame_nr {
                     log::trace!("UserEvent::RequestRepaint scheduling repaint at {when:?}");
-                    if let Some(window_id) = winit_app.get_window_id(*window_id) {
+                    if let Some(window_id) = winit_app.get_window_winit_id(*window_id) {
                         vec![EventResult::RepaintAt(window_id, *when)]
                     } else {
                         vec![EventResult::Wait]
@@ -320,7 +321,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                 window_id,
             }) => {
                 if winit_app.frame_nr() == frame_nr {
-                    if let Some(window_id) = winit_app.get_window_id(window_id) {
+                    if let Some(window_id) = winit_app.get_window_winit_id(window_id) {
                         vec![EventResult::RepaintAt(window_id, when)]
                     } else {
                         vec![EventResult::Wait]
@@ -960,13 +961,29 @@ mod glow_integration {
                 .flatten()
         }
 
-        fn get_window_id(&self, id: u64) -> Option<winit::window::WindowId> {
+        fn get_window_winit_id(&self, id: u64) -> Option<winit::window::WindowId> {
             self.running
                 .as_ref()
                 .map(|r| {
                     for window in r.gl_window.windows.iter() {
                         if window.window_id == id {
                             return window.window.as_ref().map(|w| w.id());
+                        }
+                    }
+                    None
+                })
+                .flatten()
+        }
+
+        fn get_window_id(&self, id: &winit::window::WindowId) -> Option<u64> {
+            self.running
+                .as_ref()
+                .map(|r| {
+                    for window in r.gl_window.windows.iter() {
+                        if let Some(win) = &window.window {
+                            if win.id() == *id {
+                                return Some(window.window_id);
+                            }
                         }
                     }
                     None
@@ -1319,7 +1336,25 @@ mod glow_integration {
                                 }
                             }
                             winit::event::WindowEvent::CloseRequested
-                                if running.integration.should_close() =>
+                                if running
+                                    .gl_window
+                                    .windows
+                                    .iter()
+                                    .flat_map(|window| {
+                                        if let Some(win) = &window.window {
+                                            if win.id() == *window_id {
+                                                Some(window.window_id)
+                                            } else {
+                                                None
+                                            }
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .flat_map(|id| if id == 0 { Some(()) } else { None })
+                                    .count()
+                                    == 1
+                                    && running.integration.should_close() =>
                             {
                                 log::debug!("Received WindowEvent::CloseRequested");
                                 return Ok(EventResult::Exit);
@@ -1335,6 +1370,7 @@ mod glow_integration {
                                         event,
                                         window_id,
                                         window.egui_winit.as_mut().unwrap(),
+                                        window.window_id,
                                     );
                                 }
                             }
@@ -1617,7 +1653,7 @@ mod wgpu_integration {
             self.window.as_ref()
         }
 
-        fn get_window_id(&self, id: u64) -> Option<winit::window::WindowId> {
+        fn get_window_winit_id(&self, id: u64) -> Option<winit::window::WindowId> {
             if id == 0 {
                 return self.window.as_ref().map(|w| w.id());
             }
@@ -1848,6 +1884,10 @@ mod wgpu_integration {
             //         _ => EventResult::Wait,
             //     })
             //
+        }
+
+        fn get_window_id(&self, id: &winit::window::WindowId) -> Option<u64> {
+            todo!()
         }
     }
 

@@ -372,8 +372,16 @@ impl State {
             }
 
             // Things that may require repaint:
-            WindowEvent::CloseRequested
-            | WindowEvent::CursorEntered { .. }
+            WindowEvent::CloseRequested => {
+                self.egui_input
+                    .events
+                    .push(egui::Event::WindowEvent(egui::WindowEvent::CloseRequested));
+                EventResponse {
+                    consumed: true,
+                    repaint: true,
+                }
+            }
+            WindowEvent::CursorEntered { .. }
             | WindowEvent::Destroyed
             | WindowEvent::Occluded(_)
             | WindowEvent::Resized(_)

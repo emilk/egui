@@ -449,13 +449,14 @@ impl EpiIntegration {
         event: &winit::event::WindowEvent<'_>,
         window_id: &winit::window::WindowId,
         egui_winit: &mut egui_winit::State,
+        viewport_id: u64,
     ) -> EventResponse {
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
         match event {
             WindowEvent::CloseRequested => {
                 log::debug!("Received WindowEvent::CloseRequested");
-                self.close = app.on_close_event();
+                self.close = app.on_close_event() && viewport_id == 0;
                 log::debug!("App::on_close_event returned {}", self.close);
             }
             WindowEvent::Destroyed => {

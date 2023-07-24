@@ -39,16 +39,17 @@ fn main() -> Result<(), eframe::Error> {
             let clone = window1_embedded.clone();
             let embedded = *window1_embedded.read().unwrap();
             egui::CollapsingHeader::new("Show Test1").show(ui, |ui| {
-                egui::Window::new("Test1")
-                    .embedded(embedded)
-                    .show(ctx, move |ui, _, _| {
+                egui::Window::new("Test1").embedded(embedded).show(
+                    ctx,
+                    move |ui, id, parent_id| {
                         ui.checkbox(&mut *clone.write().unwrap(), "Should embedd?");
                         let ctx = ui.ctx().clone();
                         ui.label(format!(
                             "Current rendering window: {}",
                             ctx.current_rendering_viewport()
                         ));
-                    });
+                    },
+                );
             });
             let clone = window2_embedded.clone();
             let embedded = *window2_embedded.read().unwrap();

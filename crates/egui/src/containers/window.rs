@@ -432,7 +432,7 @@ impl<'open> Window<'open> {
     ) {
         let Window {
             title,
-            open,
+            mut open,
             area,
             frame,
             resize,
@@ -444,8 +444,21 @@ impl<'open> Window<'open> {
             mut window_builder,
         } = self;
 
-        let is_explicitly_closed = matches!(open, Some(false));
-        let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
+        let is_open = if let Some(open) = &mut open {
+            if let Some(tmp_open) = ctx.data_mut(|data| {
+                let tmp = data.get_persisted::<bool>(area.id.with("_open"));
+                data.remove::<bool>(area.id.with("_open"));
+                tmp
+            }) {
+                **open = tmp_open;
+            }
+            **open
+        } else {
+            true
+        };
+
+        // let is_explicitly_closed = matches!(open, Some(false));
+        let is_open = is_open || ctx.memory(|mem| mem.everything_is_visible());
         if !embedded {
             if !is_open {
                 return;
@@ -456,10 +469,29 @@ impl<'open> Window<'open> {
                     window_builder.with_inner_size((size.x as u32 + 1, size.y as u32 + 1));
             }
 
+            let area_id = area.id;
+
             ctx.create_viewport(
                 window_builder,
                 move |ctx, viewport_id, parent_viewport_id| {
                     let mut frame = frame.unwrap_or(Frame::window(&ctx.style())).rounding(0.0);
+                    let count = ctx.input(|input| {
+                        input
+                            .events
+                            .iter()
+                            .filter(|event| {
+                                if let Event::WindowEvent(WindowEvent::CloseRequested) = **event {
+                                    true
+                                } else {
+                                    false
+                                }
+                            })
+                            .count()
+                    });
+                    if count > 0 {
+                        ctx.data_mut(|data| data.insert_persisted(area_id.with("_open"), false));
+                        ctx.request_repaint_viewport(parent_viewport_id);
+                    }
                     CentralPanel::default().frame(frame).show(ctx, |ui| {
                         Some(add_contents(ui, viewport_id, parent_viewport_id))
                     });
