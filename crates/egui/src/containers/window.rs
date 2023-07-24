@@ -26,6 +26,8 @@ pub struct ViewportBuilder {
     pub min_inner_size: Option<(u32, u32)>,
     pub max_inner_size: Option<(u32, u32)>,
     pub drag_and_drop: bool,
+
+    pub close_button: bool,
 }
 
 impl Default for ViewportBuilder {
@@ -49,6 +51,7 @@ impl Default for ViewportBuilder {
             min_inner_size: None,
             max_inner_size: None,
             drag_and_drop: true,
+            close_button: true,
         }
     }
 }
@@ -468,6 +471,7 @@ impl<'open> Window<'open> {
                 window_builder =
                     window_builder.with_inner_size((size.x as u32 + 1, size.y as u32 + 1));
             }
+            window_builder.close_button = open.is_some();
 
             let area_id = area.id;
 

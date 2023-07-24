@@ -5,8 +5,9 @@ use std::time::Instant;
 
 use egui::{epaint::ahash::HashMap, window::ViewportBuilder};
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
-use winit::event_loop::{
-    ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget,
+use winit::{
+    event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget},
+    window::WindowButtons,
 };
 
 #[cfg(feature = "accesskit")]
@@ -1942,6 +1943,15 @@ fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::Wind
             builder
                 .fullscreen
                 .then(|| winit::window::Fullscreen::Borderless(None)),
+        )
+        .with_enabled_buttons(
+            WindowButtons::MAXIMIZE
+                | WindowButtons::MINIMIZE
+                | if builder.close_button {
+                    WindowButtons::CLOSE
+                } else {
+                    WindowButtons::empty()
+                },
         )
         .with_active(builder.active);
     if let Some(inner_size) = builder.inner_size {
