@@ -432,7 +432,7 @@ impl EpiIntegration {
         let saved_memory: egui::Memory = self.egui_ctx.memory(|mem| mem.clone());
         self.egui_ctx
             .memory_mut(|mem| mem.set_everything_is_visible(true));
-        let full_output = self.update(app, window, egui_winit, None);
+        let full_output = self.update(app, window, egui_winit, None, 0, 0);
         self.pending_full_output.append(full_output); // Handle it next frame
         self.egui_ctx.memory_mut(|mem| *mem = saved_memory); // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
@@ -496,7 +496,9 @@ impl EpiIntegration {
         app: &mut dyn epi::App,
         window: &winit::window::Window,
         egui_winit: &mut egui_winit::State,
-        render: Option<Arc<Box<dyn Fn(&Context) + Sync + Send>>>,
+        render: Option<Arc<Box<dyn Fn(&Context, u64, u64) + Sync + Send>>>,
+        viewport_id: u64,
+        parent_id: u64,
     ) -> egui::FullOutput {
         let frame_start = std::time::Instant::now();
 
@@ -511,7 +513,7 @@ impl EpiIntegration {
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             crate::profile_scope!("App::update");
             if let Some(render) = render {
-                (render.as_ref())(egui_ctx)
+                (render.as_ref())(egui_ctx, viewport_id, parent_id)
             } else {
                 app.update(egui_ctx, &mut self.frame);
             }

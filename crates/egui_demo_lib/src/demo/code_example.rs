@@ -84,7 +84,7 @@ impl super::Demo for CodeExample {
             .default_size([800.0, 400.0])
             .vscroll(false)
             .hscroll(true)
-            .show(ctx, move |ui| clone.clone().ui(ui));
+            .show(ctx, move |ui, _, _| clone.clone().ui(ui));
     }
 }
 

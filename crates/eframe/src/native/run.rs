@@ -454,7 +454,8 @@ mod glow_integration {
         gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
         window: Option<winit::window::Window>,
         window_id: u64,
-        render: Option<Arc<Box<dyn Fn(&Context) + Sync + Send>>>,
+        parent_id: u64,
+        render: Option<Arc<Box<dyn Fn(&Context, u64, u64) + Sync + Send>>>,
         pub egui_winit: Option<egui_winit::State>,
     }
     /// This struct will contain both persistent and temporary glutin state.
@@ -603,6 +604,7 @@ mod glow_integration {
                     window_id: 0,
                     egui_winit: None,
                     render: None,
+                    parent_id: 0,
                 }],
                 window_maps,
             })
@@ -1007,6 +1009,13 @@ mod glow_integration {
                         painter,
                     } = running;
 
+                    let mut window_map = HashMap::default();
+                    for window in gl_window.windows.iter() {
+                        if let Some(win) = &window.window {
+                            window_map.insert(window.window_id, win.id());
+                        }
+                    }
+
                     let egui::FullOutput {
                         platform_output,
                         repaint_after,
@@ -1052,6 +1061,8 @@ mod glow_integration {
                             win.window.as_ref().unwrap(),
                             win.egui_winit.as_mut().unwrap(),
                             win.render.clone(),
+                            win.window_id,
+                            win.parent_id,
                         );
 
                         integration.handle_platform_output(
@@ -1123,24 +1134,37 @@ mod glow_integration {
                         }
 
                         control_flow = if integration.should_close() {
-                            EventResult::Exit
-                        } else if repaint_after.is_zero() {
-                            EventResult::RepaintNext(win.window.as_ref().unwrap().id())
-                        } else if let Some(repaint_after_instant) =
-                            std::time::Instant::now().checked_add(repaint_after)
-                        {
-                            // if repaint_after is something huge and can't be added to Instant,
-                            // we will use `ControlFlow::Wait` instead.
-                            // technically, this might lead to some weird corner cases where the user *WANTS*
-                            // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
-                            // egui backend impl i guess.
-
-                            EventResult::RepaintAt(
-                                win.window.as_ref().unwrap().id(),
-                                repaint_after_instant,
-                            )
+                            vec![EventResult::Exit]
                         } else {
-                            EventResult::Wait
+                            repaint_after
+                                .into_iter()
+                                .map(|(id, time)| {
+                                    if time.is_zero() {
+                                        if let Some(id) = window_map.get(&id) {
+                                            Some(EventResult::RepaintNext(*id))
+                                        } else {
+                                            None
+                                        }
+                                    } else if let Some(repaint_after_instant) =
+                                        std::time::Instant::now().checked_add(time)
+                                    {
+                                        // if repaint_after is something huge and can't be added to Instant,
+                                        // we will use `ControlFlow::Wait` instead.
+                                        // technically, this might lead to some weird corner cases where the user *WANTS*
+                                        // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
+                                        // egui backend impl i guess.
+
+                                        if let Some(id) = window_map.get(&id) {
+                                            Some(EventResult::RepaintAt(*id, repaint_after_instant))
+                                        } else {
+                                            None
+                                        }
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .flatten()
+                                .collect::<Vec<EventResult>>()
                         };
 
                         integration.maybe_autosave(app.as_mut(), win.window.as_ref().unwrap());
@@ -1156,7 +1180,7 @@ mod glow_integration {
                     // 0 is the main viewport/window that will not be known by the egui_ctx
                     let mut active_viewports_ids = vec![0];
 
-                    viewports.retain_mut(|(id, builder, render)| {
+                    viewports.retain_mut(|(id, parent, builder, render)| {
                         for w in gl_window.windows.iter_mut() {
                             if w.window_id == *id {
                                 if w.builder != *builder {
@@ -1169,6 +1193,7 @@ mod glow_integration {
                                     w.gl_surface = None;
                                     w.render = Some(render.clone());
                                     w.builder = builder.clone();
+                                    w.parent_id = *id;
                                 }
                                 active_viewports_ids.push(*id);
                                 return false;
@@ -1177,7 +1202,7 @@ mod glow_integration {
                         true
                     });
 
-                    for (id, builder, render) in viewports {
+                    for (id, parent, builder, render) in viewports {
                         gl_window.windows.push(Window {
                             builder,
                             gl_surface: None,
@@ -1185,6 +1210,7 @@ mod glow_integration {
                             window_id: id,
                             egui_winit: None,
                             render: Some(render.clone()),
+                            parent_id: parent,
                         });
                         active_viewports_ids.push(id);
                     }
@@ -1199,10 +1225,15 @@ mod glow_integration {
                     control_flow
                 };
 
-                windows_indexes
+                let mut events = vec![EventResult::Wait];
+
+                for event in windows_indexes
                     .into_iter()
                     .map(|window_index| inner(window_index))
-                    .collect()
+                {
+                    events.extend(event)
+                }
+                events
             } else {
                 vec![EventResult::Wait]
             }

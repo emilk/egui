@@ -283,10 +283,7 @@ impl BackendPanel {
                         let ctx = ui.ctx().clone();
                         call_after_delay(std::time::Duration::from_secs(2), move || {
                             log::info!("Request a repaint in 3s...");
-                            ctx.request_repaint_after(
-                                std::time::Duration::from_secs(3),
-                                ctx.current_rendering_viewport(),
-                            );
+                            ctx.request_repaint_after(std::time::Duration::from_secs(3));
                         });
                     }
                 });
@@ -415,7 +412,7 @@ impl EguiWindows {
         egui::Window::new("🔧 Settings")
             .open(settings)
             .vscroll(true)
-            .show(ctx, move |ui| {
+            .show(ctx, move |ui, _, _| {
                 tmp_ctx.settings_ui(ui);
             });
 
@@ -423,7 +420,7 @@ impl EguiWindows {
         egui::Window::new("🔍 Inspection")
             .open(inspection)
             .vscroll(true)
-            .show(ctx, move |ui| {
+            .show(ctx, move |ui, _, _| {
                 tmp_ctx.inspection_ui(ui);
             });
 
@@ -431,7 +428,7 @@ impl EguiWindows {
         egui::Window::new("📝 Memory")
             .open(memory)
             .resizable(false)
-            .show(ctx, move |ui| {
+            .show(ctx, move |ui, _, _| {
                 tmp_ctx.memory_ui(ui);
             });
 
@@ -440,7 +437,7 @@ impl EguiWindows {
             .open(output_events)
             .resizable(true)
             .default_width(520.0)
-            .show(ctx, move |ui| {
+            .show(ctx, move |ui, _, _| {
                 ui.label(
                     "Recent output events from egui. \
             These are emitted when you interact with widgets, or move focus between them with TAB. \

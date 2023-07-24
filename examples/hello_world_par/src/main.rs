@@ -2,7 +2,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc, RwLock};
 use std::thread::JoinHandle;
 
 use eframe::egui;
@@ -20,39 +20,50 @@ fn main() -> Result<(), eframe::Error> {
     )
 }
 
-/// State per thread.
-struct ThreadState {
+struct ThreadStateData {
     thread_nr: usize,
     title: String,
     name: String,
     age: u32,
 }
 
+/// State per thread.
+#[derive(Clone)]
+struct ThreadState {
+    data: Arc<RwLock<ThreadStateData>>,
+}
+
 impl ThreadState {
     fn new(thread_nr: usize) -> Self {
         let title = format!("Background thread {thread_nr}");
         Self {
-            thread_nr,
-            title,
-            name: "Arthur".into(),
-            age: 12 + thread_nr as u32 * 10,
+            data: Arc::new(RwLock::new(ThreadStateData {
+                thread_nr,
+                title,
+                name: "Arthur".into(),
+                age: 12 + thread_nr as u32 * 10,
+            })),
         }
     }
 
     fn show(&mut self, ctx: &egui::Context) {
-        let pos = egui::pos2(16.0, 128.0 * (self.thread_nr as f32 + 1.0));
-        egui::Window::new(&self.title)
+        let thread_nr = self.data.read().unwrap().thread_nr;
+        let pos = egui::pos2(16.0, 128.0 * (thread_nr as f32 + 1.0));
+        let clone = self.clone();
+        let title = self.data.read().unwrap().title.clone();
+        egui::Window::new(title)
             .default_pos(pos)
-            .show(ctx, |ui| {
+            .show(ctx, move |ui, _, _| {
+                let data = &mut *clone.data.write().unwrap();
                 ui.horizontal(|ui| {
                     ui.label("Your name: ");
-                    ui.text_edit_singleline(&mut self.name);
+                    ui.text_edit_singleline(&mut data.name);
                 });
-                ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
+                ui.add(egui::Slider::new(&mut data.age, 0..=120).text("age"));
                 if ui.button("Click each year").clicked() {
-                    self.age += 1;
+                    data.age += 1;
                 }
-                ui.label(format!("Hello '{}', age {}", self.name, self.age));
+                ui.label(format!("Hello '{}', age {}", data.name, data.age));
             });
     }
 }
@@ -74,10 +85,13 @@ fn new_worker(
         .expect("failed to spawn thread");
     (handle, show_tx)
 }
-
-struct MyApp {
+struct MyAppData {
     threads: Vec<(JoinHandle<()>, mpsc::SyncSender<egui::Context>)>,
     on_done_tx: mpsc::SyncSender<()>,
+}
+
+struct MyApp {
+    data: Arc<RwLock<MyAppData>>,
     on_done_rc: mpsc::Receiver<()>,
 }
 
@@ -87,17 +101,24 @@ impl MyApp {
         let (on_done_tx, on_done_rc) = mpsc::sync_channel(0);
 
         let mut slf = Self {
-            threads,
-            on_done_tx,
+            data: Arc::new(RwLock::new(MyAppData {
+                threads,
+                on_done_tx,
+            })),
             on_done_rc,
         };
 
-        slf.spawn_thread();
-        slf.spawn_thread();
+        {
+            let mut data = slf.data.write().unwrap();
+            data.spawn_thread();
+            data.spawn_thread();
+        }
 
         slf
     }
+}
 
+impl MyAppData {
     fn spawn_thread(&mut self) {
         let thread_nr = self.threads.len();
         self.threads
@@ -107,7 +128,7 @@ impl MyApp {
 
 impl std::ops::Drop for MyApp {
     fn drop(&mut self) {
-        for (handle, show_tx) in self.threads.drain(..) {
+        for (handle, show_tx) in self.data.write().unwrap().threads.drain(..) {
             std::mem::drop(show_tx);
             handle.join().unwrap();
         }
@@ -116,17 +137,25 @@ impl std::ops::Drop for MyApp {
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::Window::new("Main thread").show(ctx, |ui| {
+        let data = self.data.clone();
+        egui::Window::new("Main thread").show(ctx, move |ui, _, parent_id| {
             if ui.button("Spawn another thread").clicked() {
-                self.spawn_thread();
+                data.write().unwrap().spawn_thread();
+                ui.ctx().request_repaint_viewport(parent_id);
             }
         });
 
-        for (_handle, show_tx) in &self.threads {
-            let _ = show_tx.send(ctx.clone());
+        let threads_len;
+        {
+            let data = self.data.read().unwrap();
+            threads_len = data.threads.len();
+
+            for (_handle, show_tx) in &data.threads {
+                let _ = show_tx.send(ctx.clone());
+            }
         }
 
-        for _ in 0..self.threads.len() {
+        for _ in 0..threads_len {
             let _ = self.on_done_rc.recv();
         }
     }

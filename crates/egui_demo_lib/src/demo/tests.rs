@@ -9,10 +9,12 @@ impl super::Demo for CursorTest {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            use super::View as _;
-            Self::default().ui(ui);
-        });
+        egui::Window::new(self.name())
+            .open(open)
+            .show(ctx, |ui, _, _| {
+                use super::View as _;
+                Self::default().ui(ui);
+            });
     }
 }
 
@@ -41,10 +43,12 @@ impl super::Demo for IdTest {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
-            use super::View as _;
-            Self::default().ui(ui);
-        });
+        egui::Window::new(self.name())
+            .open(open)
+            .show(ctx, |ui, _, _| {
+                use super::View as _;
+                Self::default().ui(ui);
+            });
     }
 }
 
@@ -135,7 +139,7 @@ impl super::Demo for ManualLayoutTest {
         egui::Window::new(self.name())
             .resizable(false)
             .open(open)
-            .show(ctx, move |ui| {
+            .show(ctx, move |ui, _, _| {
                 use super::View as _;
                 clone.clone().ui(ui);
             });
@@ -232,7 +236,7 @@ impl super::Demo for TableTest {
         let clone = self.clone();
         egui::Window::new(self.name())
             .open(open)
-            .show(ctx, move |ui| {
+            .show(ctx, move |ui, _, _| {
                 use super::View as _;
                 clone.clone().ui(ui);
             });
@@ -353,7 +357,7 @@ impl super::Demo for InputTest {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
-            .show(ctx, move |ui| {
+            .show(ctx, move |ui, _, _| {
                 use super::View as _;
                 clone.clone().ui(ui);
             });
@@ -434,7 +438,7 @@ impl super::Demo for WindowResizeTest {
         Window::new("↔ auto-sized")
             .open(open)
             .auto_sized()
-            .show(ctx, |ui| {
+            .show(ctx, |ui, _, _| {
                 ui.label("This window will auto-size based on its contents.");
                 ui.heading("Resize this area:");
                 Resize::default().show(ui, |ui| {
@@ -448,7 +452,7 @@ impl super::Demo for WindowResizeTest {
             .vscroll(true)
             .resizable(true)
             .default_height(300.0)
-            .show(ctx, |ui| {
+            .show(ctx, |ui, _, _| {
                 ui.label(
                     "This window is resizable and has a scroll area. You can shrink it to any size.",
                 );
@@ -461,7 +465,7 @@ impl super::Demo for WindowResizeTest {
             .vscroll(false)
             .resizable(true)
             .default_height(300.0)
-            .show(ctx, |ui| {
+            .show(ctx, |ui, _, _| {
                 ui.label("This window is resizable but has no built-in scroll area.");
                 ui.label("However, we have a sub-region with a scroll bar:");
                 ui.separator();
@@ -477,7 +481,7 @@ impl super::Demo for WindowResizeTest {
             .open(open)
             .vscroll(false)
             .resizable(true)
-            .show(ctx, |ui| {
+            .show(ctx, |ui, _, _| {
                 ui.label("This window is resizable but has no scroll area. This means it can only be resized to a size where all the contents is visible.");
                 ui.label("egui will not clip the contents of a window, nor add whitespace to it.");
                 ui.separator();
@@ -491,7 +495,7 @@ impl super::Demo for WindowResizeTest {
             .vscroll(false)
             .resizable(true)
             .default_height(300.0)
-            .show(ctx, move |ui| {
+            .show(ctx, move |ui, _, _| {
                 ui.label("Shows how you can fill an area with a widget.");
                 let mut text = clone.text.write().unwrap();
                 ui.add_sized(ui.available_size(), TextEdit::multiline(&mut *text));
@@ -502,7 +506,7 @@ impl super::Demo for WindowResizeTest {
             .vscroll(false)
             .resizable(true)
             .default_size([250.0, 150.0])
-            .show(ctx, |ui| {
+            .show(ctx, |ui, _, _| {
                 ui.label("This window has empty space that fills up the available space, preventing auto-shrink.");
                 ui.allocate_space(ui.available_size());
             });

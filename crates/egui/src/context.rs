@@ -60,7 +60,7 @@ struct Repaint {
     /// even if there's no new events.
     ///
     /// Also used to suppress multiple calls to the repaint callback during the same frame.
-    repaint_after: std::time::Duration,
+    pub repaint_after: HashMap<u64, std::time::Duration>,
 
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
     repaint_requests: u32,
@@ -71,9 +71,11 @@ struct Repaint {
 
 impl Default for Repaint {
     fn default() -> Self {
+        let mut repaint_after = HashMap::default();
+        repaint_after.insert(0, std::time::Duration::from_millis(100));
         Self {
             frame_nr: 0,
-            repaint_after: std::time::Duration::from_millis(100),
+            repaint_after,
             // Start with painting an extra frame to compensate for some widgets
             // that take two frames before they "settle":
             repaint_requests: 1,
@@ -88,7 +90,7 @@ impl Repaint {
         self.request_repaint_after(std::time::Duration::ZERO, window_id);
     }
 
-    fn request_repaint_after(&mut self, after: std::time::Duration, window_id: u64) {
+    fn request_repaint_after(&mut self, after: std::time::Duration, viewport_id: u64) {
         if after == std::time::Duration::ZERO {
             // Do a few extra frames to let things settle.
             // This is a bit of a hack, and we don't support it for `repaint_after` callbacks yet.
@@ -97,27 +99,33 @@ impl Repaint {
 
         // We only re-call the callback if we get a lower duration,
         // otherwise it's already been covered by the previous callback.
-        if after < self.repaint_after {
-            self.repaint_after = after;
+        if after
+            < self
+                .repaint_after
+                .get(&viewport_id)
+                .cloned()
+                .unwrap_or(std::time::Duration::MAX)
+        {
+            self.repaint_after.insert(viewport_id, after);
 
             if let Some(callback) = &self.request_repaint_callback {
                 let info = RequestRepaintInfo {
                     after,
                     current_frame_nr: self.frame_nr,
-                    window_id: window_id,
+                    window_id: viewport_id,
                 };
                 (callback)(info);
             }
         }
     }
 
-    fn start_frame(&mut self) {
+    fn start_frame(&mut self, viewport_id: u64) {
         // We are repainting; no need to reschedule a repaint unless the user asks for it again.
-        self.repaint_after = std::time::Duration::MAX;
+        self.repaint_after.remove(&viewport_id);
     }
 
     // returns how long to wait until repaint
-    fn end_frame(&mut self) -> std::time::Duration {
+    fn end_frame(&mut self, viewport_id: u64) -> Vec<(u64, std::time::Duration)> {
         // if repaint_requests is greater than zero. just set the duration to zero for immediate
         // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
         let repaint_after = if self.repaint_requests > 0 {
@@ -125,13 +133,19 @@ impl Repaint {
             std::time::Duration::ZERO
         } else {
             self.repaint_after
+                .get(&viewport_id)
+                .cloned()
+                .unwrap_or(std::time::Duration::MAX)
         };
-        self.repaint_after = std::time::Duration::MAX;
+        self.repaint_after.insert(viewport_id, repaint_after);
 
         self.requested_repaint_last_frame = repaint_after.is_zero();
         self.frame_nr += 1;
 
-        repaint_after
+        self.repaint_after
+            .iter()
+            .map(|(id, time)| (*id, *time))
+            .collect()
     }
 }
 
@@ -167,12 +181,11 @@ struct ContextImpl {
             u64,
             u64,
             bool,
-            Arc<Box<dyn Fn(&Context) + Sync + Send>>,
+            Arc<Box<dyn Fn(&Context, u64, u64) + Sync + Send>>,
         ),
     >,
     viewport_counter: u64,
     current_rendering_viewport: u64,
-    viewport_stack: Vec<u64>,
     is_desktop: bool,
 
     /// Written to during the frame.
@@ -189,7 +202,7 @@ struct ContextImpl {
 
 impl ContextImpl {
     fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
-        self.repaint.start_frame();
+        self.repaint.start_frame(self.current_rendering_viewport);
 
         if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
             new_raw_input.pixels_per_point = Some(new_pixels_per_point);
@@ -976,10 +989,11 @@ impl Context {
     /// (this will work on `eframe`).
     pub fn request_repaint(&self) {
         // request two frames of repaint, just to cover some corner cases (frame delays):
-        self.write(|ctx| {
-            ctx.repaint
-                .request_repaint(ctx.viewport_stack.last().cloned().unwrap_or(0))
-        });
+        self.write(|ctx| ctx.repaint.request_repaint(ctx.current_rendering_viewport));
+    }
+
+    pub fn request_repaint_viewport(&self, id: u64) {
+        self.write(|ctx| ctx.repaint.request_repaint(id))
     }
 
     /// Request repaint after at most the specified duration elapses.
@@ -1011,9 +1025,16 @@ impl Context {
     /// timeout takes 500 milliseconds AFTER the vsync swap buffer.
     /// So, its not that we are requesting repaint within X duration. We are rather timing out
     /// during app idle time where we are not receiving any new input events.
-    pub fn request_repaint_after(&self, duration: std::time::Duration, window_id: u64) {
+    pub fn request_repaint_after(&self, duration: std::time::Duration) {
         // Maybe we can check if duration is ZERO, and call self.request_repaint()?
-        self.write(|ctx| ctx.repaint.request_repaint_after(duration, window_id));
+        self.write(|ctx| {
+            ctx.repaint
+                .request_repaint_after(duration, ctx.current_rendering_viewport)
+        });
+    }
+
+    pub fn request_repaint_viewport_after(&self, duration: std::time::Duration, id: u64) {
+        self.write(|ctx| ctx.repaint.request_repaint_after(duration, id))
     }
 
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
@@ -1280,7 +1301,7 @@ impl Context {
             }
         }
 
-        let repaint_after = self.write(|ctx| ctx.repaint.end_frame());
+        let repaint_after = self.write(|ctx| ctx.repaint.end_frame(ctx.current_rendering_viewport));
         let shapes = self.drain_paint_lists();
 
         // This is used for,
@@ -1303,7 +1324,7 @@ impl Context {
                         *used = false;
                     }
 
-                    viewports.push((*id, builder.clone(), render.clone()));
+                    viewports.push((*id, *parent, builder.clone(), render.clone()));
                     (out || ctx.current_rendering_viewport != *parent)
                         && avalibile_viewports.contains(parent)
                 })
@@ -1498,7 +1519,7 @@ impl Context {
     }
 
     pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
-        rect.is_positive() && self.current_viewport() == self.current_rendering_viewport() && {
+        rect.is_positive() && {
             let pointer_pos = self.input(|i| i.pointer.interact_pos());
             if let Some(pointer_pos) = pointer_pos {
                 rect.contains(pointer_pos) && self.layer_id_at(pointer_pos) == Some(layer_id)
@@ -1929,10 +1950,6 @@ impl Context {
         self.read(|ctx| ctx.current_rendering_viewport)
     }
 
-    pub fn current_viewport(&self) -> u64 {
-        self.read(|ctx| ctx.viewport_stack.last().cloned().unwrap_or(0))
-    }
-
     pub fn is_desktop(&self) -> bool {
         self.read(|ctx| ctx.is_desktop)
     }
@@ -1944,12 +1961,12 @@ impl Context {
     pub fn create_viewport(
         &self,
         window_builder: ViewportBuilder,
-        func: impl Fn(&Context) + Send + Sync + 'static,
+        func: impl Fn(&Context, u64, u64) + Send + Sync + 'static,
     ) {
         let id = self.write(|ctx| {
             if ctx.is_desktop {
                 if let Some(window) = ctx.viewports.get_mut(&window_builder.title) {
-                    window.2 = *ctx.viewport_stack.last().unwrap_or(&0);
+                    window.2 = ctx.current_rendering_viewport;
                     window.3 = true;
                     window.4 = Arc::new(Box::new(func));
                     window.1
@@ -1961,7 +1978,7 @@ impl Context {
                         (
                             window_builder,
                             id,
-                            *ctx.viewport_stack.last().unwrap_or(&0),
+                            ctx.current_rendering_viewport,
                             true,
                             Arc::new(Box::new(func)),
                         ),
@@ -1971,13 +1988,6 @@ impl Context {
             } else {
                 0
             }
-        });
-        let should_render = self.write(|ctx| {
-            ctx.viewport_stack.push(id);
-            ctx.viewport_stack.last().cloned().unwrap_or(0) == ctx.current_rendering_viewport
-        });
-        self.write(|ctx| {
-            ctx.viewport_stack.pop();
         });
     }
 }

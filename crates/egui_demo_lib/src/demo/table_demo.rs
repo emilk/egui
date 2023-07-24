@@ -49,7 +49,7 @@ impl super::Demo for TableDemo {
             .open(open)
             .resizable(true)
             .default_width(400.0)
-            .show(ctx, move |ui| {
+            .show(ctx, move |ui, _, _| {
                 use super::View as _;
                 clone.clone().ui(ui);
             });

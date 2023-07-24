@@ -32,7 +32,7 @@ impl super::Demo for TextEdit {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
-            .show(ctx, move |ui| {
+            .show(ctx, move |ui, _, _| {
                 use super::View as _;
                 clone.clone().ui(ui);
             });

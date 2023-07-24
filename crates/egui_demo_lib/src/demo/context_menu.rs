@@ -70,7 +70,7 @@ impl super::Demo for ContextMenus {
             .vscroll(false)
             .resizable(false)
             .open(open)
-            .show(ctx, move |ui| clone.clone().ui(ui));
+            .show(ctx, move |ui, _, _| clone.clone().ui(ui));
     }
 }
 

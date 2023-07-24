@@ -128,9 +128,6 @@ impl eframe::App for Application {
             });
         });
 
-        ctx.request_repaint_after(
-            Self::repaint_max_timeout(),
-            ctx.current_rendering_viewport(),
-        );
+        ctx.request_repaint_after(Self::repaint_max_timeout());
     }
 }

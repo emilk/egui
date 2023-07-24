@@ -12,7 +12,7 @@ impl super::Demo for Highlighting {
         egui::Window::new(self.name())
             .default_width(320.0)
             .open(open)
-            .show(ctx, |ui| {
+            .show(ctx, |ui, _, _| {
                 use super::View as _;
                 Self::default().ui(ui);
             });

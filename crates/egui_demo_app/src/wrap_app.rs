@@ -424,7 +424,7 @@ impl WrapApp {
             let dropped_files = self.dropped_files.clone();
             egui::Window::new("Dropped files")
                 .open(&mut open)
-                .show(ctx, move |ui| {
+                .show(ctx, move |ui, _, _| {
                     let dropped_files = &*dropped_files.read().unwrap();
                     for file in dropped_files {
                         let mut info = if let Some(path) = &file.path {

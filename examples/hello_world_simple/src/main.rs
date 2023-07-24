@@ -22,8 +22,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label(format!(
-                "Current window: {}, Current rendering window: {}",
-                ctx.current_viewport(),
+                "Current rendering window: {}",
                 ctx.current_rendering_viewport()
             ));
             ui.heading("My egui Application");
@@ -42,12 +41,11 @@ fn main() -> Result<(), eframe::Error> {
             egui::CollapsingHeader::new("Show Test1").show(ui, |ui| {
                 egui::Window::new("Test1")
                     .embedded(embedded)
-                    .show(ctx, move |ui| {
+                    .show(ctx, move |ui, _, _| {
                         ui.checkbox(&mut *clone.write().unwrap(), "Should embedd?");
                         let ctx = ui.ctx().clone();
                         ui.label(format!(
-                            "Current window: {}, Current rendering window: {}",
-                            ctx.current_viewport(),
+                            "Current rendering window: {}",
                             ctx.current_rendering_viewport()
                         ));
                     });
@@ -57,12 +55,11 @@ fn main() -> Result<(), eframe::Error> {
             egui::CollapsingHeader::new("Shout Test2").show(ui, |ui| {
                 egui::Window::new("Test2")
                     .embedded(embedded)
-                    .show(ctx, move |ui| {
+                    .show(ctx, move |ui, _, _| {
                         ui.checkbox(&mut *clone.write().unwrap(), "Should embedd?");
                         let ctx = ui.ctx().clone();
                         ui.label(format!(
-                            "Current window: {}, Current rendering window: {}",
-                            ctx.current_viewport(),
+                            "Current rendering window: {}",
                             ctx.current_rendering_viewport()
                         ));
                     });

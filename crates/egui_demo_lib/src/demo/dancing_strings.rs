@@ -16,7 +16,7 @@ impl super::Demo for DancingStrings {
             .open(open)
             .default_size(vec2(512.0, 256.0))
             .vscroll(false)
-            .show(ctx, |ui| Self::default().ui(ui));
+            .show(ctx, |ui, _, _| Self::default().ui(ui));
     }
 }
 

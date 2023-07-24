@@ -417,11 +417,19 @@ impl<'open> Window<'open> {
     /// Returns `None` if the window is not open (if [`Window::open`] was called with `&mut false`).
     /// Returns `Some(InnerResponse { inner: None })` if the window is collapsed.
     #[inline]
-    pub fn show(self, ctx: &Context, add_contents: impl Fn(&mut Ui) + Send + Sync + 'static) {
+    pub fn show(
+        self,
+        ctx: &Context,
+        add_contents: impl Fn(&mut Ui, u64, u64) + Send + Sync + 'static,
+    ) {
         self.show_dyn(ctx, Box::new(add_contents))
     }
 
-    fn show_dyn(self, ctx: &Context, add_contents: Box<dyn Fn(&mut Ui) + Send + Sync + 'static>) {
+    fn show_dyn(
+        self,
+        ctx: &Context,
+        add_contents: Box<dyn Fn(&mut Ui, u64, u64) + Send + Sync + 'static>,
+    ) {
         let Window {
             title,
             open,
@@ -448,16 +456,16 @@ impl<'open> Window<'open> {
                     window_builder.with_inner_size((size.x as u32 + 1, size.y as u32 + 1));
             }
 
-            ctx.create_viewport(window_builder, move |ctx| {
-                let mut frame = frame.unwrap_or(Frame::window(&ctx.style())).rounding(0.0);
-                CentralPanel::default()
-                    .frame(frame)
-                    .show(ctx, |ui| Some(add_contents(ui)));
-            })
+            ctx.create_viewport(
+                window_builder,
+                move |ctx, viewport_id, parent_viewport_id| {
+                    let mut frame = frame.unwrap_or(Frame::window(&ctx.style())).rounding(0.0);
+                    CentralPanel::default().frame(frame).show(ctx, |ui| {
+                        Some(add_contents(ui, viewport_id, parent_viewport_id))
+                    });
+                },
+            )
         } else {
-            if ctx.current_viewport() != ctx.current_rendering_viewport() {
-                return;
-            }
             let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
             area.show_open_close_animation(ctx, &frame, is_open);
@@ -555,9 +563,9 @@ impl<'open> Window<'open> {
                             }
 
                             if scroll.has_any_bar() {
-                                scroll.show(ui, add_contents).inner
+                                scroll.show(ui, |ui| add_contents(ui, 0, 0)).inner
                             } else {
-                                add_contents(ui)
+                                add_contents(ui, 0, 0)
                             }
                         })
                     })

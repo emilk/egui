@@ -14,7 +14,7 @@ impl super::Demo for WindowWithPanels {
             .default_height(400.0)
             .vscroll(false)
             .open(open);
-        window.show(ctx, |ui| Self {}.ui(ui));
+        window.show(ctx, |ui, _, _| Self {}.ui(ui));
     }
 }
 
