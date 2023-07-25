@@ -539,30 +539,33 @@ impl EpiIntegration {
         app: &mut dyn epi::App,
         window: &winit::window::Window,
         full_output_remote: egui::output::FullOutput,
+        egui_context: &egui::Context,
     ) -> egui::FullOutput {
-        /*let frame_start = std::time::Instant::now();
+        let frame_start = std::time::Instant::now();
 
         self.app_icon_setter.update();
 
         self.frame.info.window_info =
             read_window_info(window, self.egui_ctx.pixels_per_point(), &self.window_state);
-        let raw_input = self.egui_winit.take_egui_input(window);
+        let raw_input: egui::RawInput = self.egui_winit.take_egui_input(window);
 
         // Run user code:
         /*let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             crate::profile_scope!("App::update");
             app.update(egui_ctx, &mut self.frame);
-        });*/ */
+        });*/
+        //let mut raw_input = self.egui_winit.take_egui_input(window);
+        //raw_input.pixels_per_point = Some(pixels_per_point);
         let (full_output, pixels_per_point) = //self.egui_ctx.run(raw_input, |egui_ctx| {
             //crate::profile_scope!("App::update");
-            app.update_remote();
+            app.update_remote(raw_input.clone());
         //});
         let mut raw_input = egui::RawInput::default();
         raw_input.pixels_per_point = Some(pixels_per_point);
-        self.egui_ctx.run(raw_input, |egui_ctx| {});
+        let _ = self.egui_ctx.run(raw_input, |egui_ctx| {});
         //let full_output = full_output_remote;
 
-        /*self.pending_full_output.append(full_output);
+        self.pending_full_output.append(full_output);
         let full_output = std::mem::take(&mut self.pending_full_output);
 
         {
@@ -578,10 +581,6 @@ impl EpiIntegration {
             if self.frame.output.attention.is_some() {
                 self.frame.output.attention = None;
             }
-            println!(
-                "I am in update_remote and ppp is {}",
-                self.egui_ctx.pixels_per_point(),
-            );
             handle_app_output(
                 window,
                 self.egui_ctx.pixels_per_point(),
@@ -591,7 +590,7 @@ impl EpiIntegration {
         }
 
         let frame_time = frame_start.elapsed().as_secs_f64() as f32;
-        self.frame.info.cpu_usage = Some(frame_time);*/
+        self.frame.info.cpu_usage = Some(frame_time);
 
         full_output
     }

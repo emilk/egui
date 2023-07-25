@@ -21,7 +21,6 @@ pub use crate::{CubicBezierShape, QuadraticBezierShape};
 #[must_use = "Add a Shape to a Painter"]
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-//#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Shape {
     /// Paint nothing. This can be useful as a placeholder.
     Noop,
@@ -801,9 +800,6 @@ impl PaintCallbackInfo {
 ///
 /// This is advanced usage, and is backend specific.
 #[derive(Clone)]
-//#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-//#[cfg_attr(feature = "serde", serde(default))]
-//#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct PaintCallback {
     /// Where to paint.
     pub rect: Rect,
@@ -822,7 +818,6 @@ pub struct PaintCallback {
     ///
     /// The rendering backend is also responsible for restoring any state, such as the bound shader
     /// program, vertex array, etc.
-    //#[cfg_attr(feature = "serde", serde(skip))]
     pub callback: Arc<dyn Any + Sync + Send>,
 }
 
