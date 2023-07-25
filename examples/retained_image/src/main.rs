@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::egui;
+use eframe::egui::{self, ViewportRender};
 use egui_extras::RetainedImage;
 
 fn main() -> Result<(), eframe::Error> {
@@ -35,7 +35,16 @@ impl Default for MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(
+        &mut self,
+        ctx: &egui::Context,
+        frame: &mut eframe::Frame,
+        render: Option<&ViewportRender>,
+    ) {
+        if let Some(render) = render {
+            render(ctx, frame.viewport_id(), frame.parent_viewport_id());
+            return;
+        }
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("This is an image:");
             self.image.show(ui);

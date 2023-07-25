@@ -273,8 +273,17 @@ pub fn run_simple_native(
         update_fun: U,
     }
     impl<U: FnMut(&egui::Context, &mut Frame)> App for SimpleApp<U> {
-        fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
-            (self.update_fun)(ctx, frame);
+        fn update(
+            &mut self,
+            ctx: &egui::Context,
+            frame: &mut Frame,
+            render_function: Option<&(dyn Fn(&egui::Context, u64, u64) + Send + Sync)>,
+        ) {
+            if frame.is_main_window() {
+                (self.update_fun)(ctx, frame);
+            } else if let Some(render_function) = render_function {
+                render_function(ctx, frame.viewport_id(), frame.parent_viewport_id())
+            }
         }
     }
 

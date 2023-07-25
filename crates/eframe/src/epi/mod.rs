@@ -9,6 +9,7 @@
 #[cfg(not(target_arch = "wasm32"))]
 mod icon_data;
 
+use egui::ViewportRender;
 #[cfg(not(target_arch = "wasm32"))]
 pub use icon_data::IconData;
 
@@ -112,7 +113,12 @@ pub trait App {
     /// The [`egui::Context`] can be cloned and saved if you like.
     ///
     /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
-    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame);
+    fn update(
+        &mut self,
+        ctx: &egui::Context,
+        frame: &mut Frame,
+        render_function: Option<&ViewportRender>,
+    );
 
     /// Get a handle to the app.
     ///
@@ -774,6 +780,22 @@ impl Frame {
         self.info.clone()
     }
 
+    /// If this is the main window will return true!
+    /// When is a single window mode will always return true!
+    pub fn is_main_window(&self) -> bool {
+        self.info.viewport_id == 0
+    }
+
+    /// Returns the current viewport id
+    pub fn viewport_id(&self) -> u64 {
+        self.info.viewport_id
+    }
+
+    /// Returns the current viewport parent id
+    pub fn parent_viewport_id(&self) -> u64 {
+        self.info.parent_viewport
+    }
+
     /// A place where you can store custom data in a way that persists when you restart the app.
     pub fn storage(&self) -> Option<&dyn Storage> {
         self.storage.as_deref()
@@ -1124,6 +1146,9 @@ pub struct IntegrationInfo {
 
     /// The OS native pixels-per-point
     pub native_pixels_per_point: Option<f32>,
+
+    pub viewport_id: u64,
+    pub parent_viewport: u64,
 
     /// The position and size of the native window.
     #[cfg(not(target_arch = "wasm32"))]

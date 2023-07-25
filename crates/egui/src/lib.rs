@@ -546,6 +546,9 @@ pub enum WidgetType {
     Other,
 }
 
+/// This is used to render a viewport
+pub type ViewportRender = dyn Fn(&Context, u64, u64) + Sync + Send;
+
 // ----------------------------------------------------------------------------
 
 /// For use in tests; especially doctests.

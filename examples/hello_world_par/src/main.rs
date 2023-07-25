@@ -5,7 +5,7 @@
 use std::sync::{mpsc, Arc, RwLock};
 use std::thread::JoinHandle;
 
-use eframe::egui;
+use eframe::egui::{self, ViewportRender};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -136,7 +136,16 @@ impl std::ops::Drop for MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(
+        &mut self,
+        ctx: &egui::Context,
+        frame: &mut eframe::Frame,
+        render: Option<&ViewportRender>,
+    ) {
+        if let Some(render) = render {
+            render(ctx, frame.viewport_id(), frame.parent_viewport_id());
+            return;
+        }
         let data = self.data.clone();
         egui::Window::new("Main thread").show(ctx, move |ui, _, parent_id| {
             if ui.button("Spawn another thread").clicked() {

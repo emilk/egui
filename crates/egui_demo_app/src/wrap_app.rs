@@ -1,3 +1,4 @@
+use egui::ViewportRender;
 use egui_demo_lib::is_mobile;
 
 #[cfg(feature = "glow")]
@@ -14,7 +15,16 @@ struct EasyMarkApp {
 }
 
 impl eframe::App for EasyMarkApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(
+        &mut self,
+        ctx: &egui::Context,
+        frame: &mut eframe::Frame,
+        render: Option<&ViewportRender>,
+    ) {
+        if let Some(render) = render {
+            render(ctx, frame.viewport_id(), frame.parent_viewport_id());
+            return;
+        }
         self.editor.panels(ctx);
     }
 }
@@ -28,7 +38,16 @@ pub struct DemoApp {
 }
 
 impl eframe::App for DemoApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(
+        &mut self,
+        ctx: &egui::Context,
+        frame: &mut eframe::Frame,
+        render: Option<&ViewportRender>,
+    ) {
+        if let Some(render) = render {
+            render(ctx, frame.viewport_id(), frame.parent_viewport_id());
+            return;
+        }
         self.demo_windows.ui(ctx);
     }
 }
@@ -42,7 +61,16 @@ pub struct FractalClockApp {
 }
 
 impl eframe::App for FractalClockApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(
+        &mut self,
+        ctx: &egui::Context,
+        frame: &mut eframe::Frame,
+        render: Option<&ViewportRender>,
+    ) {
+        if let Some(render) = render {
+            render(ctx, frame.viewport_id(), frame.parent_viewport_id());
+            return;
+        }
         egui::CentralPanel::default()
             .frame(egui::Frame::dark_canvas(&ctx.style()))
             .show(ctx, |ui| {
@@ -61,7 +89,16 @@ pub struct ColorTestApp {
 }
 
 impl eframe::App for ColorTestApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(
+        &mut self,
+        ctx: &egui::Context,
+        frame: &mut eframe::Frame,
+        render: Option<&ViewportRender>,
+    ) {
+        if let Some(render) = render {
+            render(ctx, frame.viewport_id(), frame.parent_viewport_id());
+            return;
+        }
         egui::CentralPanel::default().show(ctx, |ui| {
             if frame.is_web() {
                 ui.label(
@@ -227,7 +264,16 @@ impl eframe::App for WrapApp {
         visuals.panel_fill.to_normalized_gamma_f32()
     }
 
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(
+        &mut self,
+        ctx: &egui::Context,
+        frame: &mut eframe::Frame,
+        render: Option<&ViewportRender>,
+    ) {
+        if let Some(render) = render {
+            render(ctx, frame.viewport_id(), frame.parent_viewport_id());
+            return;
+        }
         #[cfg(target_arch = "wasm32")]
         if let Some(anchor) = frame.info().web_info.location.hash.strip_prefix('#') {
             let anchor = Anchor::all().into_iter().find(|x| x.to_string() == anchor);
@@ -255,7 +301,7 @@ impl eframe::App for WrapApp {
             self.backend_panel(ctx, frame);
         }
 
-        self.show_selected_app(ctx, frame);
+        self.show_selected_app(ctx, frame, render);
 
         self.state.backend_panel.end_of_frame(ctx);
 
@@ -322,11 +368,16 @@ impl WrapApp {
         });
     }
 
-    fn show_selected_app(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn show_selected_app(
+        &mut self,
+        ctx: &egui::Context,
+        frame: &mut eframe::Frame,
+        render: Option<&ViewportRender>,
+    ) {
         let selected_anchor = self.state.selected_anchor;
         for (_name, anchor, app) in self.apps_iter_mut() {
             if anchor == selected_anchor || ctx.memory(|mem| mem.everything_is_visible()) {
-                app.update(ctx, frame);
+                app.update(ctx, frame, render);
             }
         }
     }

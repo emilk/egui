@@ -19,7 +19,16 @@ struct Content {
 }
 
 impl eframe::App for Content {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(
+        &mut self,
+        ctx: &egui::Context,
+        frame: &mut eframe::Frame,
+        render: Option<&ViewportRender>,
+    ) {
+        if let Some(render) = render {
+            render(ctx, frame.viewport_id(), frame.parent_viewport_id());
+            return;
+        }
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Press/Hold/Release example. Press A to test.");
             if ui.button("Clear").clicked() {

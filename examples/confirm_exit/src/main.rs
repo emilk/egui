@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, RwLock};
 
-use eframe::egui;
+use eframe::egui::{self, ViewportRender};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -34,7 +34,16 @@ impl eframe::App for MyApp {
         self.data.read().unwrap().allowed_to_close
     }
 
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(
+        &mut self,
+        ctx: &egui::Context,
+        frame: &mut eframe::Frame,
+        render: Option<&ViewportRender>,
+    ) {
+        if let Some(render) = render {
+            render(ctx, frame.viewport_id(), frame.parent_viewport_id());
+            return;
+        }
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Try to close the window");
         });
