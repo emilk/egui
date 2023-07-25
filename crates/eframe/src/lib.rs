@@ -217,7 +217,7 @@ pub fn run_native(
         #[cfg(feature = "glow")]
         Renderer::Glow => {
             log::debug!("Using the glow renderer");
-            native::run::run_glow(app_name, native_options, app_creator)
+            native::run::run_glow(app_name, native_options, app_creator, false)
         }
 
         #[cfg(feature = "wgpu")]
@@ -232,7 +232,6 @@ pub fn run_native_remote(
     app_name: &str,
     native_options: NativeOptions,
     app_creator: AppCreator,
-    full_output_remote: egui::output::FullOutput,
 ) -> Result<()> {
     let renderer = native_options.renderer;
 
@@ -246,7 +245,7 @@ pub fn run_native_remote(
         #[cfg(feature = "glow")]
         Renderer::Glow => {
             log::debug!("Using the glow renderer");
-            native::run::run_glow_remote(app_name, native_options, app_creator, full_output_remote)
+            native::run::run_glow(app_name, native_options, app_creator, true)
         }
 
         #[cfg(feature = "wgpu")]

@@ -433,7 +433,7 @@ impl EpiIntegration {
         let saved_memory: egui::Memory = self.egui_ctx.memory(|mem| mem.clone());
         self.egui_ctx
             .memory_mut(|mem| mem.set_everything_is_visible(true));
-        let full_output = self.update(app, window);
+        let full_output = self.update(app, window, false);
         self.pending_full_output.append(full_output); // Handle it next frame
         self.egui_ctx.memory_mut(|mem| *mem = saved_memory); // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
@@ -489,6 +489,7 @@ impl EpiIntegration {
         &mut self,
         app: &mut dyn epi::App,
         window: &winit::window::Window,
+        remote_rendering: bool,
     ) -> egui::FullOutput {
         let frame_start = std::time::Instant::now();
 
@@ -499,73 +500,20 @@ impl EpiIntegration {
         let raw_input = self.egui_winit.take_egui_input(window);
 
         // Run user code:
-        let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
-            crate::profile_scope!("App::update");
-            app.update(egui_ctx, &mut self.frame);
-        });
-
-        self.pending_full_output.append(full_output);
-        let full_output = std::mem::take(&mut self.pending_full_output);
-
-        {
-            let mut app_output = self.frame.take_app_output();
-            app_output.drag_window &= self.can_drag_window; // Necessary on Windows; see https://github.com/emilk/egui/pull/1108
-            self.can_drag_window = false;
-            if app_output.close {
-                self.close = app.on_close_event();
-                log::debug!("App::on_close_event returned {}", self.close);
-            }
-            self.frame.output.visible = app_output.visible; // this is handled by post_present
-            self.frame.output.screenshot_requested = app_output.screenshot_requested;
-            if self.frame.output.attention.is_some() {
-                self.frame.output.attention = None;
-            }
-            handle_app_output(
-                window,
-                self.egui_ctx.pixels_per_point(),
-                app_output,
-                &mut self.window_state,
-            );
+        if remote_rendering {
+            let (full_output, pixels_per_point) = app.update_remote(raw_input.clone());
+            let mut raw_input = egui::RawInput::default();
+            raw_input.pixels_per_point = Some(pixels_per_point);
+            let _ = self.egui_ctx.run(raw_input, |_egui_ctx| {});
+            self.pending_full_output.append(full_output);
+        } else {
+            let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
+                crate::profile_scope!("App::update");
+                app.update(egui_ctx, &mut self.frame);
+            });
+            self.pending_full_output.append(full_output);
         }
 
-        let frame_time = frame_start.elapsed().as_secs_f64() as f32;
-        self.frame.info.cpu_usage = Some(frame_time);
-
-        full_output
-    }
-
-    pub fn update_remote(
-        &mut self,
-        app: &mut dyn epi::App,
-        window: &winit::window::Window,
-        full_output_remote: egui::output::FullOutput,
-        egui_context: &egui::Context,
-    ) -> egui::FullOutput {
-        let frame_start = std::time::Instant::now();
-
-        self.app_icon_setter.update();
-
-        self.frame.info.window_info =
-            read_window_info(window, self.egui_ctx.pixels_per_point(), &self.window_state);
-        let raw_input: egui::RawInput = self.egui_winit.take_egui_input(window);
-
-        // Run user code:
-        /*let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
-            crate::profile_scope!("App::update");
-            app.update(egui_ctx, &mut self.frame);
-        });*/
-        //let mut raw_input = self.egui_winit.take_egui_input(window);
-        //raw_input.pixels_per_point = Some(pixels_per_point);
-        let (full_output, pixels_per_point) = //self.egui_ctx.run(raw_input, |egui_ctx| {
-            //crate::profile_scope!("App::update");
-            app.update_remote(raw_input.clone());
-        //});
-        let mut raw_input = egui::RawInput::default();
-        raw_input.pixels_per_point = Some(pixels_per_point);
-        let _ = self.egui_ctx.run(raw_input, |egui_ctx| {});
-        //let full_output = full_output_remote;
-
-        self.pending_full_output.append(full_output);
         let full_output = std::mem::take(&mut self.pending_full_output);
 
         {
