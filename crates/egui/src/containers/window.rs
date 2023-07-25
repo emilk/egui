@@ -469,7 +469,7 @@ impl<'open> Window<'open> {
         // let is_explicitly_closed = matches!(open, Some(false));
         let is_open = is_open || ctx.memory(|mem| mem.everything_is_visible());
         'create_viewport: {
-            if !embedded {
+            if !embedded && ctx.is_desktop() {
                 if !is_open {
                     return;
                 }

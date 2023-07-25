@@ -173,6 +173,11 @@ impl BackendPanel {
                         frame.set_fullscreen(fullscreen);
                     }
                 }
+                {
+                    let mut is_desktop = ui.ctx().is_desktop();
+                    ui.checkbox(&mut is_desktop, "Is Desktop");
+                    ui.ctx().set_desktop(is_desktop);
+                }
 
                 if ui
                     .button("📱 Phone Size")
