@@ -1987,13 +1987,12 @@ impl Context {
         window_builder: ViewportBuilder,
         func: impl Fn(&Context, u64, u64) + Send + Sync + 'static,
     ) {
-        let id = self.write(|ctx| {
-            if ctx.is_desktop {
+        if self.is_desktop() {
+            self.write(|ctx| {
                 if let Some(window) = ctx.viewports.get_mut(&window_builder.title) {
                     window.2 = ctx.current_rendering_viewport;
                     window.3 = true;
                     window.4 = Arc::new(Box::new(func));
-                    window.1
                 } else {
                     let id = ctx.viewport_counter + 1;
                     ctx.viewport_counter = id;
@@ -2007,12 +2006,11 @@ impl Context {
                             Arc::new(Box::new(func)),
                         ),
                     );
-                    id
                 }
-            } else {
-                0
-            }
-        });
+            });
+        } else {
+            func(self, 0, 0);
+        }
     }
 }
 

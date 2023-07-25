@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, RwLock};
 
-use eframe::egui;
+use eframe::egui::{self, window::ViewportBuilder};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -36,6 +36,34 @@ fn main() -> Result<(), eframe::Error> {
                 age += 1;
             }
             ui.label(format!("Hello '{name}', age {age}"));
+            let mut is_desktop = ctx.is_desktop();
+            ui.checkbox(&mut is_desktop, "Is Desktop");
+            ctx.set_desktop(is_desktop);
+
+            ctx.create_viewport(
+                ViewportBuilder::default()
+                    .with_inner_size((50, 30))
+                    .with_decorations(false)
+                    .with_transparent(true)
+                    .with_resizable(false),
+                |ctx, _, _| {
+                    let size = egui::Rect::from_min_size(
+                        egui::Pos2::new(0.0, 0.0),
+                        egui::Vec2::new(50.0, 50.0),
+                    );
+                    let mut ui = egui::Ui::new(
+                        ctx.clone(),
+                        egui::LayerId::background(),
+                        "Viewport Popup".into(),
+                        size,
+                        size,
+                    );
+                    egui::Frame::popup(&ctx.style()).show(&mut ui, |ui| {
+                        ui.label("Popup");
+                    });
+                },
+            );
+
             let clone = window1_embedded.clone();
             let embedded = *window1_embedded.read().unwrap();
             egui::CollapsingHeader::new("Show Test1").show(ui, |ui| {
