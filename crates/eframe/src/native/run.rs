@@ -1065,7 +1065,12 @@ mod glow_integration {
                         let screen_size_in_pixels: [u32; 2] =
                             win.window.as_ref().unwrap().inner_size().into();
 
-                        egui_glow::painter::clear(&gl, screen_size_in_pixels, [0.0, 0.0, 0.0, 0.0]);
+                        win.window.as_mut().unwrap().set_transparent(true);
+                        egui_glow::painter::clear(
+                            &gl,
+                            screen_size_in_pixels,
+                            app.clear_color(&integration.egui_ctx.style().visuals),
+                        );
 
                         integration.egui_ctx.set_current_viewport_id(win.window_id);
                         egui::FullOutput {

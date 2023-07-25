@@ -1,0 +1,72 @@
+use eframe::egui;
+use eframe::egui::Id;
+use eframe::NativeOptions;
+
+use std::sync::{Arc, RwLock};
+
+fn main() {
+    env_logger::init(); // Use `RUST_LOG=debug` to see logs.
+
+    eframe::run_simple_native(
+        "Viewports Examples",
+        NativeOptions::default(),
+        move |ctx, _frame| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let mut is_desktop = ctx.is_desktop();
+                ui.checkbox(&mut is_desktop, "Is Desktop");
+                ctx.set_desktop(is_desktop);
+
+                egui::CollapsingHeader::new("Show Test1").show(ui, |ui| {
+                    egui::Window::new("Test1").show(ctx, move |ui, id, parent_id| {
+                        let mut embedded = ui.data_mut(|data| {
+                            *data.get_temp_mut_or(Id::new("Test1").with("_embedded"), true)
+                        });
+                        if ui.checkbox(&mut embedded, "Should embedd?").clicked() {
+                            ui.ctx().request_repaint_viewport(parent_id);
+                        }
+                        ui.data_mut(|data| {
+                            data.insert_persisted(Id::new("Test1").with("_embedded"), embedded)
+                        });
+
+                        let ctx = ui.ctx().clone();
+                        ui.label(format!(
+                            "Current rendering window: {}",
+                            ctx.current_rendering_viewport()
+                        ));
+                        if ui.button("Drag").is_pointer_button_down_on() {
+                            if id != parent_id {
+                                ctx.viewport_command(id, egui::window::ViewportCommand::Drag)
+                            } else {
+                                ctx.memory_mut(|mem| {
+                                    mem.set_dragged_id(egui::Id::new("Test1").with("frame_resize"))
+                                });
+                            }
+                        }
+                    });
+                });
+                egui::CollapsingHeader::new("Shout Test2").show(ui, |ui| {
+                    egui::Window::new("Test2").show(ctx, move |ui, id, parent_id| {
+                        let mut embedded = ui.data_mut(|data| {
+                            *data.get_temp_mut_or(Id::new("Test2").with("_embedded"), true)
+                        });
+                        if ui.checkbox(&mut embedded, "Should embedd?").clicked() {
+                            ui.ctx().request_repaint_viewport(parent_id);
+                        }
+                        ui.data_mut(|data| {
+                            data.insert_persisted(Id::new("Test2").with("_embedded"), embedded)
+                        });
+                        let ctx = ui.ctx().clone();
+                        ui.label(format!(
+                            "Current rendering window: {}",
+                            ctx.current_rendering_viewport()
+                        ));
+
+                        if ui.button("Drag").is_pointer_button_down_on() {
+                            ctx.viewport_command(id, egui::window::ViewportCommand::Drag)
+                        }
+                    });
+                });
+            });
+        },
+    );
+}

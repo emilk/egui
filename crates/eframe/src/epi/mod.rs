@@ -214,7 +214,7 @@ pub trait App {
         // NOTE: a bright gray makes the shadows of the windows look weird.
         // We use a bit of transparency so that if the user switches on the
         // `transparent()` option they get immediate results.
-        egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).to_normalized_gamma_f32()
+        egui::Color32::from_rgba_unmultiplied(12, 12, 12, 0).to_normalized_gamma_f32()
 
         // _visuals.window_fill() would also be a natural choice
     }

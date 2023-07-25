@@ -175,7 +175,6 @@ pub struct Window<'open> {
     collapsible: bool,
     default_open: bool,
     with_title_bar: bool,
-    embedded: bool,
     window_builder: ViewportBuilder,
 }
 
@@ -200,7 +199,6 @@ impl<'open> Window<'open> {
             collapsible: true,
             default_open: true,
             with_title_bar: true,
-            embedded: false,
         }
     }
 
@@ -415,11 +413,6 @@ impl<'open> Window<'open> {
         self.area = self.area.drag_bounds(bounds);
         self
     }
-
-    pub fn embedded(mut self, value: bool) -> Self {
-        self.embedded = value;
-        self
-    }
 }
 
 impl<'open> Window<'open> {
@@ -449,9 +442,11 @@ impl<'open> Window<'open> {
             collapsible,
             default_open,
             with_title_bar,
-            embedded,
             mut window_builder,
         } = self;
+
+        let embedded =
+            ctx.data_mut(|data| *data.get_persisted_mut_or(area.id.with("_embedded"), false));
 
         let is_open = if let Some(open) = &mut open {
             if let Some(tmp_open) = ctx.data_mut(|data| {
