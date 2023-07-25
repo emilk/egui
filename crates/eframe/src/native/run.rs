@@ -1237,7 +1237,7 @@ mod glow_integration {
                         active_viewports_ids.push(id);
                     }
 
-                    /// TODO Make this more efficient
+                    // TODO Make this more efficient
                     for (id, command) in viewport_commands {
                         for window in gl_window.windows.iter() {
                             if window.window_id == id {
