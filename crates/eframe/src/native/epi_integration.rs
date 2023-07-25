@@ -491,6 +491,7 @@ impl EpiIntegration {
         window: &winit::window::Window,
         remote_rendering: bool,
     ) -> egui::FullOutput {
+        println!("in update in egui");
         let frame_start = std::time::Instant::now();
 
         self.app_icon_setter.update();
@@ -501,6 +502,7 @@ impl EpiIntegration {
 
         // Run user code:
         if remote_rendering {
+            println!("in remote part");
             let (full_output, pixels_per_point) = app.update_remote(raw_input.clone());
             let mut raw_input = egui::RawInput::default();
             raw_input.pixels_per_point = Some(pixels_per_point);
