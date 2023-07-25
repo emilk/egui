@@ -265,7 +265,6 @@ pub struct TextWrapping {
     /// Set to [`f32::INFINITY`] to turn off wrapping.
     /// Note that `\n` always produces a new line.
     #[serde(serialize_with = "serialize_f32_custom")]
-    //#[cfg_attr(default, serde::serialize_with = "serialize_f32_custom")]
     pub max_width: f32,
 
     /// Maximum amount of rows the text should have.
@@ -290,15 +289,6 @@ where
         s.serialize_f32(*x)
     }
 }
-/*#[cfg(feature = "persistence")]
-impl serde::Serialize for {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        PersistedMap::from_map(self).serialize(serializer)
-    }
-}*/
 
 impl std::hash::Hash for TextWrapping {
     #[inline]
