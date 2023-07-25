@@ -125,7 +125,11 @@ impl Repaint {
     }
 
     // returns how long to wait until repaint
-    fn end_frame(&mut self, viewport_id: u64) -> Vec<(u64, std::time::Duration)> {
+    fn end_frame(
+        &mut self,
+        viewport_id: u64,
+        viewports: Vec<u64>,
+    ) -> Vec<(u64, std::time::Duration)> {
         // if repaint_requests is greater than zero. just set the duration to zero for immediate
         // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
         let repaint_after = if self.repaint_requests > 0 {
@@ -141,6 +145,8 @@ impl Repaint {
 
         self.requested_repaint_last_frame = repaint_after.is_zero();
         self.frame_nr += 1;
+
+        self.repaint_after.retain(|id, _| viewports.contains(id));
 
         self.repaint_after
             .iter()
@@ -1301,7 +1307,18 @@ impl Context {
             }
         }
 
-        let repaint_after = self.write(|ctx| ctx.repaint.end_frame(ctx.current_rendering_viewport));
+        let mut viewports: Vec<u64> = self.read(|ctx| {
+            ctx.viewports
+                .iter()
+                .map(|(_, (_, id, _, _, _))| *id)
+                .collect()
+        });
+        viewports.push(0);
+
+        let repaint_after = self.write(|ctx| {
+            ctx.repaint
+                .end_frame(ctx.current_rendering_viewport, viewports)
+        });
         let shapes = self.drain_paint_lists();
 
         // This is used for,

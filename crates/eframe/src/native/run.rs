@@ -1156,7 +1156,7 @@ mod glow_integration {
                         } else {
                             repaint_after
                                 .into_iter()
-                                .map(|(id, time)| {
+                                .flat_map(|(id, time)| {
                                     if time.is_zero() {
                                         if let Some(id) = window_map.get(&id) {
                                             Some(EventResult::RepaintNext(*id))
@@ -1181,7 +1181,6 @@ mod glow_integration {
                                         None
                                     }
                                 })
-                                .flatten()
                                 .collect::<Vec<EventResult>>()
                         };
 
