@@ -53,15 +53,18 @@ fn main() -> Result<(), eframe::Error> {
                             "Current rendering window: {}",
                             ctx.current_rendering_viewport()
                         ));
+                        if ui.button("Drag").is_pointer_button_down_on() {
+                            ctx.viewport_command(id, egui::window::ViewportCommand::Drag)
+                        }
                     },
                 );
             });
             let clone = window2_embedded.clone();
             let embedded = *window2_embedded.read().unwrap();
             egui::CollapsingHeader::new("Shout Test2").show(ui, |ui| {
-                egui::Window::new("Test2")
-                    .embedded(embedded)
-                    .show(ctx, move |ui, _, parent_id| {
+                egui::Window::new("Test2").embedded(embedded).show(
+                    ctx,
+                    move |ui, id, parent_id| {
                         if ui
                             .checkbox(&mut *clone.write().unwrap(), "Should embedd?")
                             .clicked()
@@ -73,7 +76,12 @@ fn main() -> Result<(), eframe::Error> {
                             "Current rendering window: {}",
                             ctx.current_rendering_viewport()
                         ));
-                    });
+
+                        if ui.button("Drag").is_pointer_button_down_on() {
+                            ctx.viewport_command(id, egui::window::ViewportCommand::Drag)
+                        }
+                    },
+                );
             });
         });
     })

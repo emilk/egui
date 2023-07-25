@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use crate::window::ViewportCommand;
 use crate::Context;
 use crate::{window::ViewportBuilder, WidgetType};
 
@@ -40,6 +41,8 @@ pub struct FullOutput {
         ViewportBuilder,
         Arc<Box<dyn Fn(&Context, u64, u64) + Sync + Send>>,
     )>,
+
+    pub viewport_commands: Vec<(u64, ViewportCommand)>,
 }
 
 impl FullOutput {
@@ -50,14 +53,16 @@ impl FullOutput {
             repaint_after,
             textures_delta,
             shapes,
-            viewports: mut windows,
+            mut viewports,
+            mut viewport_commands,
         } = newer;
 
         self.platform_output.append(platform_output);
         self.repaint_after = repaint_after; // if the last frame doesn't need a repaint, then we don't need to repaint
         self.textures_delta.append(textures_delta);
         self.shapes = shapes; // Only paint the latest
-        self.viewports.append(&mut windows);
+        self.viewports.append(&mut viewports);
+        self.viewport_commands.append(&mut viewport_commands);
     }
 }
 

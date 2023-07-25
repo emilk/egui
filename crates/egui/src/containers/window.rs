@@ -143,6 +143,12 @@ impl ViewportBuilder {
     }
 }
 
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum ViewportCommand {
+    Drag,
+}
+
 /// Builder for a floating window which can be dragged, closed, collapsed, resized and scrolled (off by default).
 ///
 /// You can customize:

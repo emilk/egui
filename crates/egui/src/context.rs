@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
     input_state::*, layers::GraphicLayers, memory::Options, os::OperatingSystem,
-    output::FullOutput, util::IdTypeMap, TextureHandle, *,
+    output::FullOutput, util::IdTypeMap, window::ViewportCommand, TextureHandle, *,
 };
 use ahash::HashMap;
 use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
@@ -190,6 +190,8 @@ struct ContextImpl {
             Arc<Box<dyn Fn(&Context, u64, u64) + Sync + Send>>,
         ),
     >,
+    viewport_commands: Vec<(u64, ViewportCommand)>,
+
     viewport_counter: u64,
     current_rendering_viewport: u64,
     is_desktop: bool,
@@ -1353,6 +1355,7 @@ impl Context {
             textures_delta,
             shapes,
             viewports,
+            viewport_commands: self.write(|ctx| std::mem::take(&mut ctx.viewport_commands)),
         }
     }
 
@@ -1973,6 +1976,10 @@ impl Context {
 
     pub fn set_desktop(&self, value: bool) {
         self.write(|ctx| ctx.is_desktop = value)
+    }
+
+    pub fn viewport_command(&self, id: u64, command: ViewportCommand) {
+        self.write(|ctx| ctx.viewport_commands.push((id, command)))
     }
 
     pub fn create_viewport(

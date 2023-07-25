@@ -1043,6 +1043,7 @@ mod glow_integration {
                         textures_delta,
                         shapes,
                         mut viewports,
+                        viewport_commands,
                     };
 
                     let control_flow;
@@ -1077,6 +1078,7 @@ mod glow_integration {
                             textures_delta,
                             shapes,
                             viewports,
+                            viewport_commands,
                         } = integration.update(
                             app.as_mut(),
                             win.window.as_ref().unwrap(),
@@ -1233,6 +1235,27 @@ mod glow_integration {
                             parent_id: parent,
                         });
                         active_viewports_ids.push(id);
+                    }
+
+                    /// TODO Make this more efficient
+                    for (id, command) in viewport_commands {
+                        for window in gl_window.windows.iter() {
+                            if window.window_id == id {
+                                if let Some(win) = &window.window {
+                                    match command {
+                                        egui::window::ViewportCommand::Drag => {
+                                            // if this is not checked on x11 the input will be permanently taken until the app is killed!
+                                            if let Some(focus) = self.is_focused {
+                                                if focus == id {
+                                                    win.drag_window();
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                break;
+                            }
+                        }
                     }
 
                     gl_window
