@@ -250,8 +250,11 @@ fn run_and_return(
                 if let Some(window) = winit_app.window(*window_id) {
                     window.request_redraw();
                     windows_next_repaint_times.remove(window_id);
+                    control_flow.set_poll();
+                } else {
+                    windows_next_repaint_times.remove(window_id);
+                    control_flow.set_wait();
                 }
-                control_flow.set_poll();
             } else {
                 next_repaint_time = Some(
                     next_repaint_time
