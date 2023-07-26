@@ -431,7 +431,7 @@ pub struct NativeOptions {
     /// will be used instead.
     ///
     /// ### On Wayland
-    /// On Wauland this sets the Application ID for the window.
+    /// On Wayland this sets the Application ID for the window.
     ///
     /// The application ID is used in several places of the compositor, e.g. for
     /// grouping windows of the same application. It is also important for
