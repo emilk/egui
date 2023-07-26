@@ -498,7 +498,7 @@ impl EpiIntegration {
 
         self.frame.info.window_info =
             read_window_info(window, self.egui_ctx.pixels_per_point(), &self.window_state);
-        let raw_input = self.egui_winit.take_egui_input(window);
+        let mut raw_input = self.egui_winit.take_egui_input(window);
 
         // Run user code:
         if remote_rendering {
