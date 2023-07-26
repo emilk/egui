@@ -1185,7 +1185,7 @@ fn insert_text(
     if char_limit < usize::MAX {
         let mut new_string = text_to_insert;
         // Avoid subtract with overflow panic
-        let cutoff = char_limit.saturating_sub(text.as_str().len());
+        let cutoff = char_limit.saturating_sub(text.as_str().chars().count());
 
         new_string = match new_string.char_indices().nth(cutoff) {
             None => new_string,
