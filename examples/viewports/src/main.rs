@@ -12,12 +12,14 @@ fn main() {
         NativeOptions::default(),
         move |ctx, _frame| {
             egui::CentralPanel::default().show(ctx, |ui| {
+                ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
                 let mut is_desktop = ctx.is_desktop();
                 ui.checkbox(&mut is_desktop, "Is Desktop");
                 ctx.set_desktop(is_desktop);
 
                 egui::CollapsingHeader::new("Show Test1").show(ui, |ui| {
                     egui::Window::new("Test1").show(ctx, move |ui, id, parent_id| {
+                        ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
                         let mut embedded = ui.data_mut(|data| {
                             *data.get_temp_mut_or(Id::new("Test1").with("_embedded"), true)
                         });
@@ -46,6 +48,7 @@ fn main() {
                 });
                 egui::CollapsingHeader::new("Shout Test2").show(ui, |ui| {
                     egui::Window::new("Test2").show(ctx, move |ui, id, parent_id| {
+                        ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
                         let mut embedded = ui.data_mut(|data| {
                             *data.get_temp_mut_or(Id::new("Test2").with("_embedded"), true)
                         });
@@ -54,6 +57,29 @@ fn main() {
                         }
                         ui.data_mut(|data| {
                             data.insert_persisted(Id::new("Test2").with("_embedded"), embedded)
+                        });
+                        let ctx = ui.ctx().clone();
+                        ui.label(format!(
+                            "Current rendering window: {}",
+                            ctx.current_rendering_viewport()
+                        ));
+
+                        if ui.button("Drag").is_pointer_button_down_on() {
+                            ctx.viewport_command(id, egui::window::ViewportCommand::Drag)
+                        }
+                    });
+                });
+                egui::CollapsingHeader::new("Shout Test3").show(ui, |ui| {
+                    egui::Window::new("Test3").show(ctx, move |ui, id, parent_id| {
+                        ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
+                        let mut embedded = ui.data_mut(|data| {
+                            *data.get_temp_mut_or(Id::new("Test3").with("_embedded"), true)
+                        });
+                        if ui.checkbox(&mut embedded, "Should embedd?").clicked() {
+                            ui.ctx().request_repaint_viewport(parent_id);
+                        }
+                        ui.data_mut(|data| {
+                            data.insert_persisted(Id::new("Test3").with("_embedded"), embedded)
                         });
                         let ctx = ui.ctx().clone();
                         ui.label(format!(
