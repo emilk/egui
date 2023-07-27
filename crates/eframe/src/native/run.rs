@@ -424,7 +424,10 @@ mod glow_integration {
         prelude::{GlDisplay, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentGlContext},
         surface::GlSurface,
     };
-    use winit::dpi::{PhysicalPosition, PhysicalSize};
+    use winit::{
+        dpi::{PhysicalPosition, PhysicalSize},
+        window::ResizeDirection,
+    };
 
     use super::*;
 
@@ -1251,6 +1254,45 @@ mod glow_integration {
                                                     win.drag_window();
                                                 }
                                             }
+                                        }
+                                        egui::window::ViewportCommand::InnerSize(width, height) => {
+                                            win.set_inner_size(PhysicalSize::new(width, height));
+                                        }
+                                        egui::window::ViewportCommand::Resize(
+                                            top,
+                                            bottom,
+                                            right,
+                                            left,
+                                        ) => {
+                                            win.drag_resize_window(
+                                                match (top, bottom, right, left) {
+                                                    (true, false, false, false) => {
+                                                        ResizeDirection::North
+                                                    }
+                                                    (false, true, false, false) => {
+                                                        ResizeDirection::South
+                                                    }
+                                                    (false, false, true, false) => {
+                                                        ResizeDirection::East
+                                                    }
+                                                    (false, false, false, true) => {
+                                                        ResizeDirection::West
+                                                    }
+                                                    (true, false, true, false) => {
+                                                        ResizeDirection::NorthEast
+                                                    }
+                                                    (false, true, true, false) => {
+                                                        ResizeDirection::SouthEast
+                                                    }
+                                                    (true, false, false, true) => {
+                                                        ResizeDirection::NorthWest
+                                                    }
+                                                    (false, true, false, true) => {
+                                                        ResizeDirection::SouthWest
+                                                    }
+                                                    _ => ResizeDirection::East,
+                                                },
+                                            );
                                         }
                                     }
                                 }

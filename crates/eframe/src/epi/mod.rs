@@ -513,7 +513,7 @@ impl Default for NativeOptions {
             min_window_size: None,
             max_window_size: None,
             resizable: true,
-            transparent: false,
+            transparent: true,
             mouse_passthrough: false,
 
             active: true,
