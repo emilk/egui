@@ -1518,6 +1518,9 @@ pub use glow_integration::run_glow;
 mod wgpu_integration {
     use std::sync::Arc;
 
+    use egui::ViewportRender;
+    use winit::window::ResizeDirection;
+
     use super::*;
 
     /// State that is initialized when the application is first starts running via
@@ -1527,6 +1530,17 @@ mod wgpu_integration {
         painter: egui_wgpu::winit::Painter,
         integration: epi_integration::EpiIntegration,
         app: Box<dyn epi::App>,
+        windows: HashMap<
+            u64,
+            (
+                Option<winit::window::Window>,
+                Option<egui_winit::State>,
+                Option<Arc<Box<ViewportRender>>>,
+                u64,
+                ViewportBuilder,
+            ),
+        >,
+        windows_id: HashMap<winit::window::WindowId, u64>,
     }
 
     struct WgpuWinitApp {
@@ -1538,7 +1552,6 @@ mod wgpu_integration {
 
         /// Window surface state that's initialized when the app starts running via a Resumed event
         /// and on Android will also be destroyed if the application is paused.
-        window: Option<winit::window::Window>,
         is_focused: bool,
     }
 
@@ -1560,7 +1573,6 @@ mod wgpu_integration {
                 app_name: app_name.to_owned(),
                 native_options,
                 running: None,
-                window: None,
                 app_creator: Some(app_creator),
                 is_focused: true,
             }
@@ -1571,23 +1583,38 @@ mod wgpu_integration {
             storage: Option<&dyn epi::Storage>,
             title: &str,
             native_options: &NativeOptions,
-        ) -> std::result::Result<winit::window::Window, winit::error::OsError> {
+        ) -> std::result::Result<(winit::window::Window, ViewportBuilder), winit::error::OsError>
+        {
             let window_settings = epi_integration::load_window_settings(storage);
             let window_builder =
                 epi_integration::window_builder(event_loop, title, native_options, window_settings);
             let window = create_winit_window_builder(&window_builder).build(event_loop)?;
             epi_integration::apply_native_options_to_window(&window, native_options);
-            Ok(window)
+            Ok((window, window_builder))
         }
 
-        #[allow(unsafe_code)]
-        fn set_window(
-            &mut self,
-            window: winit::window::Window,
-        ) -> std::result::Result<(), egui_wgpu::WgpuError> {
-            self.window = Some(window);
+        fn build_windows(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) {
+            let Some(running) = &mut self.running else {return};
+
+            for (id, (window, state, _, _, builder)) in running.windows.iter_mut() {
+                if window.is_none() {
+                    if let Ok(new_window) = create_winit_window_builder(&builder).build(event_loop)
+                    {
+                        running.windows_id.insert(new_window.id(), *id);
+
+                        pollster::block_on(running.painter.set_window(*id, Some(&new_window)));
+                        *window = Some(new_window);
+                        *state = Some(egui_winit::State::new(event_loop));
+                    }
+                }
+            }
+        }
+
+        fn set_window(&mut self, id: u64) -> std::result::Result<(), egui_wgpu::WgpuError> {
             if let Some(running) = &mut self.running {
-                pollster::block_on(running.painter.set_window(self.window.as_ref()))?;
+                if let Some((window, _, _, _, _)) = running.windows.get(&id) {
+                    pollster::block_on(running.painter.set_window(id, window.as_ref().map(|w| w)))?;
+                }
             }
             Ok(())
         }
@@ -1595,8 +1622,8 @@ mod wgpu_integration {
         #[allow(unsafe_code)]
         #[cfg(target_os = "android")]
         fn drop_window(&mut self) -> std::result::Result<(), egui_wgpu::WgpuError> {
-            self.window = None;
             if let Some(running) = &mut self.running {
+                running.windows.remove(&0);
                 pollster::block_on(running.painter.set_window(None))?;
             }
             Ok(())
@@ -1607,99 +1634,104 @@ mod wgpu_integration {
             event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<Box<dyn epi::Storage>>,
             window: winit::window::Window,
+            builder: ViewportBuilder,
         ) -> std::result::Result<(), egui_wgpu::WgpuError> {
-            unimplemented!();
-            //     #[allow(unsafe_code, unused_mut, unused_unsafe)]
-            //     let mut painter = egui_wgpu::winit::Painter::new(
-            //         self.native_options.wgpu_options.clone(),
-            //         self.native_options.multisampling.max(1) as _,
-            //         egui_wgpu::depth_format_from_bits(
-            //             self.native_options.depth_buffer,
-            //             self.native_options.stencil_buffer,
-            //         ),
-            //         self.native_options.transparent,
-            //     );
-            //     pollster::block_on(painter.set_window(Some(&window)))?;
+            #[allow(unsafe_code, unused_mut, unused_unsafe)]
+            let mut painter = egui_wgpu::winit::Painter::new(
+                self.native_options.wgpu_options.clone(),
+                self.native_options.multisampling.max(1) as _,
+                egui_wgpu::depth_format_from_bits(
+                    self.native_options.depth_buffer,
+                    self.native_options.stencil_buffer,
+                ),
+                self.native_options.transparent,
+            );
+            pollster::block_on(painter.set_window(0, Some(&window)))?;
 
-            //     let wgpu_render_state = painter.render_state();
+            let wgpu_render_state = painter.render_state();
 
-            //     let system_theme = system_theme(&window, &self.native_options);
-            //     let mut integration = epi_integration::EpiIntegration::new(
-            //         event_loop,
-            //         painter.max_texture_side().unwrap_or(2048),
-            //         &window,
-            //         system_theme,
-            //         &self.app_name,
-            //         &self.native_options,
-            //         storage,
-            //         #[cfg(feature = "glow")]
-            //         None,
-            //         wgpu_render_state.clone(),
-            //     );
-            //     #[cfg(feature = "accesskit")]
-            //     {
-            //         integration.init_accesskit(&window, self.repaint_proxy.lock().unwrap().clone());
-            //     }
-            //     let theme = system_theme.unwrap_or(self.native_options.default_theme);
-            //     integration.egui_ctx.set_visuals(theme.egui_visuals());
+            let system_theme = system_theme(&window, &self.native_options);
+            let mut integration = epi_integration::EpiIntegration::new(
+                event_loop,
+                painter.max_texture_side().unwrap_or(2048),
+                &window,
+                system_theme,
+                &self.app_name,
+                &self.native_options,
+                storage,
+                #[cfg(feature = "glow")]
+                None,
+                wgpu_render_state.clone(),
+            );
 
-            //     window.set_ime_allowed(true);
+            let mut state = egui_winit::State::new(event_loop);
+            #[cfg(feature = "accesskit")]
+            {
+                integration.init_accesskit(
+                    &mut state,
+                    &window,
+                    self.repaint_proxy.lock().unwrap().clone(),
+                );
+            }
+            let theme = system_theme.unwrap_or(self.native_options.default_theme);
+            integration.egui_ctx.set_visuals(theme.egui_visuals());
 
-            //     {
-            //         let event_loop_proxy = self.repaint_proxy.clone();
+            window.set_ime_allowed(true);
 
-            //         // !!! TODO !!!
-            //         // Need a better way to redraw all the windows idependent of one eachother
+            {
+                let event_loop_proxy = self.repaint_proxy.clone();
 
-            //         integration
-            //             .egui_ctx
-            //             .set_request_repaint_callback(move |info| {
-            //                 log::trace!("request_repaint_callback: {info:?}");
-            //                 let when = Instant::now() + info.after;
-            //                 let frame_nr = info.current_frame_nr;
+                integration
+                    .egui_ctx
+                    .set_request_repaint_callback(move |info| {
+                        log::trace!("request_repaint_callback: {info:?}");
+                        let when = Instant::now() + info.after;
+                        let frame_nr = info.current_frame_nr;
 
-            //                 // !!! WARNING !!!
-            //                 // This will only work for 10 windows
+                        event_loop_proxy
+                            .lock()
+                            .unwrap()
+                            .send_event(UserEvent::RequestRepaint {
+                                when,
+                                frame_nr,
+                                window_id: info.window_id,
+                            })
+                            .ok();
+                    });
+            }
 
-            //                 for i in 0..10 {
-            //                     event_loop_proxy
-            //                         .lock()
-            //                         .unwrap()
-            //                         .send_event(UserEvent::RequestRepaint {
-            //                             when,
-            //                             frame_nr,
-            //                             window_id: i,
-            //                         })
-            //                         .ok();
-            //                 }
-            //             });
-            //     }
+            let app_creator = std::mem::take(&mut self.app_creator)
+                .expect("Single-use AppCreator has unexpectedly already been taken");
+            let mut app = app_creator(&epi::CreationContext {
+                egui_ctx: integration.egui_ctx.clone(),
+                integration_info: integration.frame.info(),
+                storage: integration.frame.storage(),
+                #[cfg(feature = "glow")]
+                gl: None,
+                wgpu_render_state,
+                raw_display_handle: window.raw_display_handle(),
+                raw_window_handle: window.raw_window_handle(),
+            });
 
-            //     let app_creator = std::mem::take(&mut self.app_creator)
-            //         .expect("Single-use AppCreator has unexpectedly already been taken");
-            //     let mut app = app_creator(&epi::CreationContext {
-            //         egui_ctx: integration.egui_ctx.clone(),
-            //         integration_info: integration.frame.info(),
-            //         storage: integration.frame.storage(),
-            //         #[cfg(feature = "glow")]
-            //         gl: None,
-            //         wgpu_render_state,
-            //         raw_display_handle: window.raw_display_handle(),
-            //         raw_window_handle: window.raw_window_handle(),
-            //     });
+            if app.warm_up_enabled() {
+                integration.warm_up(app.as_mut(), &window, &mut state);
+            }
 
-            //     if app.warm_up_enabled() {
-            //         integration.warm_up(app.as_mut(), &window);
-            //     }
+            let mut windows_id = HashMap::default();
+            windows_id.insert(window.id(), 0);
 
-            //     self.running = Some(WgpuWinitRunning {
-            //         painter,
-            //         integration,
-            //         app,
-            //     });
-            //     self.window = Some(window);
+            let mut windows = HashMap::default();
+            windows.insert(0, (Some(window), Some(state), None, 0, builder));
 
-            //     Ok(())
+            self.running = Some(WgpuWinitRunning {
+                painter,
+                integration,
+                app,
+                windows,
+                windows_id,
+            });
+
+            Ok(())
         }
     }
 
@@ -1718,20 +1750,28 @@ mod wgpu_integration {
             self.running.as_ref().map(|r| &r.integration)
         }
 
-        fn window(&self, _: winit::window::WindowId) -> Option<&winit::window::Window> {
-            self.window.as_ref()
+        fn window(&self, window_id: winit::window::WindowId) -> Option<&winit::window::Window> {
+            self.running
+                .as_ref()
+                .map(|r| r.windows_id.get(&window_id).map(|id| r.windows.get(id)))
+                .flatten()
+                .flatten()
+                .map(|w| w.0.as_ref().map(|w| w))
+                .flatten()
         }
 
         fn get_window_winit_id(&self, id: u64) -> Option<winit::window::WindowId> {
-            if id == 0 {
-                return self.window.as_ref().map(|w| w.id());
-            }
-            None
+            self.running
+                .as_ref()
+                .map(|r| r.windows.get(&id))
+                .flatten()
+                .map(|w| w.0.as_ref().map(|w| w.id()))
+                .flatten()
         }
 
         fn save_and_destroy(&mut self) {
             if let Some(mut running) = self.running.take() {
-                if let Some(window) = &self.window {
+                if let Some((Some(window), _, _, _, _)) = running.windows.get(&0) {
                     running.integration.save(running.app.as_mut(), window);
                 }
 
@@ -1746,80 +1786,172 @@ mod wgpu_integration {
         }
 
         fn run_ui_and_paint(&mut self, window_id: winit::window::WindowId) -> Vec<EventResult> {
-            // !!! WARNING !!!
-            // Nothing is implemented for WGPU
+            if let Some(running) = &mut self.running {
+                #[cfg(feature = "puffin")]
+                puffin::GlobalProfiler::lock().new_frame();
+                crate::profile_scope!("frame");
 
-            unimplemented!("Multiples windows in wgpu is not implemented");
-            // if let (Some(running), Some(window)) = (&mut self.running, &self.window) {
-            //     #[cfg(feature = "puffin")]
-            //     puffin::GlobalProfiler::lock().new_frame();
-            //     crate::profile_scope!("frame");
+                let WgpuWinitRunning {
+                    app,
+                    integration,
+                    painter,
+                    windows,
+                    windows_id,
+                } = running;
 
-            //     let WgpuWinitRunning {
-            //         app,
-            //         integration,
-            //         painter,
-            //     } = running;
+                let egui::FullOutput {
+                    platform_output,
+                    repaint_after,
+                    textures_delta,
+                    shapes,
+                    mut viewports,
+                    viewport_commands,
+                };
+                {
+                    let Some((viewport_id, (Some(window), Some(state), render, parent_viewport_id, _))) = windows_id.get(&window_id).map(|id|(windows.get_mut(id).map(|w|(*id, w)))).flatten() else{return vec![]};
+                    integration.egui_ctx.set_current_viewport_id(viewport_id);
 
-            //     let egui::FullOutput {
-            //         platform_output,
-            //         repaint_after,
-            //         textures_delta,
-            //         shapes,
-            //     } = integration.update(app.as_mut(), window);
+                    pollster::block_on(painter.set_window(viewport_id, Some(&window)));
 
-            //     integration.handle_platform_output(window, platform_output);
+                    egui::FullOutput {
+                        platform_output,
+                        repaint_after,
+                        textures_delta,
+                        shapes,
+                        viewports,
+                        viewport_commands,
+                    } = integration.update(
+                        app.as_mut(),
+                        window,
+                        state,
+                        render.clone(),
+                        viewport_id,
+                        *parent_viewport_id,
+                    );
 
-            //     let clipped_primitives = {
-            //         crate::profile_scope!("tessellate");
-            //         integration.egui_ctx.tessellate(shapes)
-            //     };
+                    integration.handle_platform_output(window, platform_output, state);
 
-            //     let screenshot_requested = &mut integration.frame.output.screenshot_requested;
+                    let clipped_primitives = {
+                        crate::profile_scope!("tessellate");
+                        integration.egui_ctx.tessellate(shapes)
+                    };
 
-            //     let screenshot = painter.paint_and_update_textures(
-            //         integration.egui_ctx.pixels_per_point(),
-            //         app.clear_color(&integration.egui_ctx.style().visuals),
-            //         &clipped_primitives,
-            //         &textures_delta,
-            //         *screenshot_requested,
-            //     );
-            //     *screenshot_requested = false;
-            //     integration.frame.screenshot.set(screenshot);
+                    let screenshot_requested = &mut integration.frame.output.screenshot_requested;
 
-            //     integration.post_rendering(app.as_mut(), window);
-            //     integration.post_present(window);
+                    let screenshot = painter.paint_and_update_textures(
+                        viewport_id,
+                        integration.egui_ctx.pixels_per_point(),
+                        app.clear_color(&integration.egui_ctx.style().visuals),
+                        &clipped_primitives,
+                        &textures_delta,
+                        *screenshot_requested,
+                    );
+                    *screenshot_requested = false;
+                    integration.frame.screenshot.set(screenshot);
 
-            //     let control_flow = if integration.should_close() {
-            //         EventResult::Exit
-            //     } else if repaint_after.is_zero() {
-            //         EventResult::RepaintNext
-            //     } else if let Some(repaint_after_instant) =
-            //         std::time::Instant::now().checked_add(repaint_after)
-            //     {
-            //         // if repaint_after is something huge and can't be added to Instant,
-            //         // we will use `ControlFlow::Wait` instead.
-            //         // technically, this might lead to some weird corner cases where the user *WANTS*
-            //         // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
-            //         // egui backend impl i guess.
-            //         EventResult::RepaintAt(repaint_after_instant)
-            //     } else {
-            //         EventResult::Wait
-            //     };
+                    integration.post_rendering(app.as_mut(), window);
+                    integration.post_present(window);
+                }
 
-            //     integration.maybe_autosave(app.as_mut(), window);
+                let mut active_viewports_ids = vec![0];
 
-            //     if window.is_minimized() == Some(true) {
-            //         // On Mac, a minimized Window uses up all CPU:
-            //         // https://github.com/emilk/egui/issues/325
-            //         crate::profile_scope!("bg_sleep");
-            //         std::thread::sleep(std::time::Duration::from_millis(10));
-            //     }
+                viewports.retain_mut(|(id, parent, builder, render)| {
+                    if let Some(w) = windows.get_mut(id) {
+                        w.2 = Some(render.clone());
+                        w.3 = *parent;
+                        active_viewports_ids.push(*id);
+                        return false;
+                    } else {
+                        true
+                    }
+                });
 
-            //     control_flow
-            // } else {
-            //     EventResult::Wait
-            // }
+                for (id, parent, builder, render) in viewports {
+                    windows.insert(id, (None, None, Some(render), parent, builder));
+                    active_viewports_ids.push(id);
+                }
+
+                // TODO Make this more efficient
+                for (id, command) in viewport_commands {
+                    if let Some(window) = windows.get(&id) {
+                        if let Some(win) = &window.0 {
+                            match command {
+                                egui::window::ViewportCommand::Drag => {
+                                    // if this is not checked on x11 the input will be permanently taken until the app is killed!
+                                    // if let Some(focus) = self.is_focused {
+                                    // if focus == id {
+                                    win.drag_window();
+                                    // }
+                                    // }
+                                }
+                                egui::window::ViewportCommand::InnerSize(width, height) => {
+                                    win.set_inner_size(winit::dpi::PhysicalSize::new(
+                                        width, height,
+                                    ));
+                                }
+                                egui::window::ViewportCommand::Resize(top, bottom, right, left) => {
+                                    win.drag_resize_window(match (top, bottom, right, left) {
+                                        (true, false, false, false) => ResizeDirection::North,
+                                        (false, true, false, false) => ResizeDirection::South,
+                                        (false, false, true, false) => ResizeDirection::East,
+                                        (false, false, false, true) => ResizeDirection::West,
+                                        (true, false, true, false) => ResizeDirection::NorthEast,
+                                        (false, true, true, false) => ResizeDirection::SouthEast,
+                                        (true, false, false, true) => ResizeDirection::NorthWest,
+                                        (false, true, false, true) => ResizeDirection::SouthWest,
+                                        _ => ResizeDirection::East,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                windows.retain(|id, _| active_viewports_ids.contains(id));
+                windows_id.retain(|_, id| active_viewports_ids.contains(id));
+
+                let mut control_flow = vec![EventResult::Wait];
+                for repaint_after in repaint_after {
+                    control_flow.push(if integration.should_close() {
+                        EventResult::Exit
+                    } else if repaint_after.1.is_zero() {
+                        if let Some((Some(window_id), _, _, _, _)) = windows.get(&repaint_after.0) {
+                            EventResult::RepaintNext(window_id.id())
+                        } else {
+                            EventResult::Wait
+                        }
+                    } else if let Some(repaint_after_instant) =
+                        std::time::Instant::now().checked_add(repaint_after.1)
+                    {
+                        // if repaint_after is something huge and can't be added to Instant,
+                        // we will use `ControlFlow::Wait` instead.
+                        // technically, this might lead to some weird corner cases where the user *WANTS*
+                        // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
+                        // egui backend impl i guess.
+                        if let Some((Some(window_id), _, _, _, _)) = windows.get(&repaint_after.0) {
+                            EventResult::RepaintAt(window_id.id(), repaint_after_instant)
+                        } else {
+                            EventResult::Wait
+                        }
+                    } else {
+                        EventResult::Wait
+                    });
+                }
+
+                let Some((viewport_id, (Some(window), Some(state), render, parent_viewport_id, _))) = windows_id.get(&window_id).map(|id|(windows.get_mut(id).map(|w|(*id, w)))).flatten() else{return vec![]};
+                integration.maybe_autosave(app.as_mut(), window);
+
+                if window.is_minimized() == Some(true) {
+                    // On Mac, a minimized Window uses up all CPU:
+                    // https://github.com/emilk/egui/issues/325
+                    crate::profile_scope!("bg_sleep");
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+
+                control_flow
+            } else {
+                vec![EventResult::Wait]
+            }
         }
 
         fn on_event(
@@ -1827,132 +1959,179 @@ mod wgpu_integration {
             event_loop: &EventLoopWindowTarget<UserEvent>,
             event: &winit::event::Event<'_, UserEvent>,
         ) -> Result<EventResult> {
-            // !!! WARNING !!!
+            self.build_windows(event_loop);
+            Ok(match event {
+                winit::event::Event::Resumed => {
+                    if let Some(running) = &self.running {
+                        if running.windows.get(&0).is_none() {
+                            let window = Self::create_window(
+                                event_loop,
+                                running.integration.frame.storage(),
+                                &self.app_name,
+                                &self.native_options,
+                            )?;
+                            self.set_window(0)?;
+                        }
+                    } else {
+                        let storage = epi_integration::create_storage(
+                            self.native_options
+                                .app_id
+                                .as_ref()
+                                .unwrap_or(&self.app_name),
+                        );
+                        let (window, builder) = Self::create_window(
+                            event_loop,
+                            storage.as_deref(),
+                            &self.app_name,
+                            &self.native_options,
+                        )?;
+                        self.init_run_state(event_loop, storage, window, builder)?;
+                    }
+                    EventResult::RepaintNow(
+                        self.running
+                            .as_ref()
+                            .unwrap()
+                            .windows
+                            .get(&0)
+                            .unwrap()
+                            .0
+                            .as_ref()
+                            .unwrap()
+                            .id(),
+                    )
+                }
+                winit::event::Event::Suspended => {
+                    #[cfg(target_os = "android")]
+                    self.drop_window()?;
+                    EventResult::Wait
+                }
 
-            unimplemented!("Multiples windows is not implemented for WGPU");
+                winit::event::Event::WindowEvent { event, window_id } => {
+                    if let Some(running) = &mut self.running {
+                        // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
+                        // event handler.
+                        //
+                        // If this is not done, the compositor will assume that the window does not want to redraw,
+                        // and continue ahead.
+                        //
+                        // In eframe's case, that causes the window to rapidly flicker, as it struggles to deliver
+                        // new frames to the compositor in time.
+                        //
+                        // The flickering is technically glutin or glow's fault, but we should be responding properly
+                        // to resizes anyway, as doing so avoids dropping frames.
+                        //
+                        // See: https://github.com/emilk/egui/issues/903
+                        let mut repaint_asap = false;
 
-            //     Ok(match event {
-            //         winit::event::Event::Resumed => {
-            //             if let Some(running) = &self.running {
-            //                 if self.window.is_none() {
-            //                     let window = Self::create_window(
-            //                         event_loop,
-            //                         running.integration.frame.storage(),
-            //                         &self.app_name,
-            //                         &self.native_options,
-            //                     )?;
-            //                     self.set_window(window)?;
-            //                 }
-            //             } else {
-            //                 let storage = epi_integration::create_storage(
-            //                     self.native_options
-            //                         .app_id
-            //                         .as_ref()
-            //                         .unwrap_or(&self.app_name),
-            //                 );
-            //                 let window = Self::create_window(
-            //                     event_loop,
-            //                     storage.as_deref(),
-            //                     &self.app_name,
-            //                     &self.native_options,
-            //                 )?;
-            //                 self.init_run_state(event_loop, storage, window)?;
-            //             }
-            //             EventResult::RepaintNow
-            //         }
-            //         winit::event::Event::Suspended => {
-            //             #[cfg(target_os = "android")]
-            //             self.drop_window()?;
-            //             EventResult::Wait
-            //         }
+                        match &event {
+                            winit::event::WindowEvent::Focused(new_focused) => {
+                                self.is_focused = *new_focused;
+                            }
+                            winit::event::WindowEvent::Resized(physical_size) => {
+                                repaint_asap = true;
 
-            //         winit::event::Event::WindowEvent { event, .. } => {
-            //             if let Some(running) = &mut self.running {
-            //                 // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
-            //                 // event handler.
-            //                 //
-            //                 // If this is not done, the compositor will assume that the window does not want to redraw,
-            //                 // and continue ahead.
-            //                 //
-            //                 // In eframe's case, that causes the window to rapidly flicker, as it struggles to deliver
-            //                 // new frames to the compositor in time.
-            //                 //
-            //                 // The flickering is technically glutin or glow's fault, but we should be responding properly
-            //                 // to resizes anyway, as doing so avoids dropping frames.
-            //                 //
-            //                 // See: https://github.com/emilk/egui/issues/903
-            //                 let mut repaint_asap = false;
+                                // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
+                                // See: https://github.com/rust-windowing/winit/issues/208
+                                // This solves an issue where the app would panic when minimizing on Windows.
+                                if let Some(viewport_id) =
+                                    running.windows_id.get(window_id).cloned()
+                                {
+                                    if physical_size.width > 0 && physical_size.height > 0 {
+                                        running.painter.on_window_resized(
+                                            viewport_id,
+                                            physical_size.width,
+                                            physical_size.height,
+                                        );
+                                    }
+                                }
+                            }
+                            winit::event::WindowEvent::ScaleFactorChanged {
+                                new_inner_size,
+                                ..
+                            } => {
+                                if let Some(viewport_id) =
+                                    running.windows_id.get(window_id).cloned()
+                                {
+                                    repaint_asap = true;
+                                    running.painter.on_window_resized(
+                                        viewport_id,
+                                        new_inner_size.width,
+                                        new_inner_size.height,
+                                    );
+                                }
+                            }
+                            winit::event::WindowEvent::CloseRequested
+                                if running.integration.should_close() =>
+                            {
+                                log::debug!("Received WindowEvent::CloseRequested");
+                                return Ok(EventResult::Exit);
+                            }
+                            _ => {}
+                        };
 
-            //                 match &event {
-            //                     winit::event::WindowEvent::Focused(new_focused) => {
-            //                         self.is_focused = *new_focused;
-            //                     }
-            //                     winit::event::WindowEvent::Resized(physical_size) => {
-            //                         repaint_asap = true;
+                        let event_response =
+                            if let Some((id, (Some(window), Some(state), _, _, _))) = running
+                                .windows_id
+                                .get(window_id)
+                                .map(|id| running.windows.get_mut(id).map(|w| (*id, w)))
+                                .flatten()
+                            {
+                                Some(running.integration.on_event(
+                                    running.app.as_mut(),
+                                    event,
+                                    window_id,
+                                    state,
+                                    id,
+                                ))
+                            } else {
+                                None
+                            };
 
-            //                         // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
-            //                         // See: https://github.com/rust-windowing/winit/issues/208
-            //                         // This solves an issue where the app would panic when minimizing on Windows.
-            //                         if physical_size.width > 0 && physical_size.height > 0 {
-            //                             running.painter.on_window_resized(
-            //                                 physical_size.width,
-            //                                 physical_size.height,
-            //                             );
-            //                         }
-            //                     }
-            //                     winit::event::WindowEvent::ScaleFactorChanged {
-            //                         new_inner_size,
-            //                         ..
-            //                     } => {
-            //                         repaint_asap = true;
-            //                         running
-            //                             .painter
-            //                             .on_window_resized(new_inner_size.width, new_inner_size.height);
-            //                     }
-            //                     winit::event::WindowEvent::CloseRequested
-            //                         if running.integration.should_close() =>
-            //                     {
-            //                         log::debug!("Received WindowEvent::CloseRequested");
-            //                         return Ok(EventResult::Exit);
-            //                     }
-            //                     _ => {}
-            //                 };
-
-            //                 let event_response =
-            //                     running.integration.on_event(running.app.as_mut(), event);
-            //                 if running.integration.should_close() {
-            //                     EventResult::Exit
-            //                 } else if event_response.repaint {
-            //                     if repaint_asap {
-            //                         EventResult::RepaintNow
-            //                     } else {
-            //                         EventResult::RepaintNext
-            //                     }
-            //                 } else {
-            //                     EventResult::Wait
-            //                 }
-            //             } else {
-            //                 EventResult::Wait
-            //             }
-            //         }
-            //         #[cfg(feature = "accesskit")]
-            //         winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
-            //             accesskit_winit::ActionRequestEvent { request, .. },
-            //         )) => {
-            //             if let Some(running) = &mut self.running {
-            //                 running
-            //                     .integration
-            //                     .on_accesskit_action_request(request.clone());
-            //                 // As a form of user input, accessibility actions should
-            //                 // lead to a repaint.
-            //                 EventResult::RepaintNext
-            //             } else {
-            //                 EventResult::Wait
-            //             }
-            //         }
-            //         _ => EventResult::Wait,
-            //     })
-            //
+                        if running.integration.should_close() {
+                            EventResult::Exit
+                        } else if let Some(event_response) = event_response {
+                            if event_response.repaint {
+                                if repaint_asap {
+                                    EventResult::RepaintNow(*window_id)
+                                } else {
+                                    EventResult::RepaintNext(*window_id)
+                                }
+                            } else {
+                                EventResult::Wait
+                            }
+                        } else {
+                            EventResult::Wait
+                        }
+                    } else {
+                        EventResult::Wait
+                    }
+                }
+                #[cfg(feature = "accesskit")]
+                winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
+                    accesskit_winit::ActionRequestEvent { request, window_id },
+                )) => {
+                    if let Some(running) = &mut self.running {
+                        if let Some((_, Some(state), _, _, _)) = running
+                            .windows_id
+                            .get(window_id)
+                            .map(|id| running.windows.get_mut(id))
+                            .flatten()
+                        {
+                            running.integration.on_accesskit_action_request(
+                                request.clone(),
+                                window_id,
+                                state,
+                            );
+                        }
+                        // As a form of user input, accessibility actions should
+                        // lead to a repaint.
+                        EventResult::RepaintNext(*window_id)
+                    } else {
+                        EventResult::Wait
+                    }
+                }
+                _ => EventResult::Wait,
+            })
         }
 
         fn get_window_id(&self, id: &winit::window::WindowId) -> Option<u64> {

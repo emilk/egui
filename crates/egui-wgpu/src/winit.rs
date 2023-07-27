@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use epaint::ahash::HashMap;
+
 use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
 
 struct SurfaceState {
@@ -83,7 +85,7 @@ pub struct Painter {
 
     instance: wgpu::Instance,
     render_state: Option<RenderState>,
-    surface_state: Option<SurfaceState>,
+    surfaces: HashMap<u64, SurfaceState>,
 }
 
 impl Painter {
@@ -120,7 +122,7 @@ impl Painter {
 
             instance,
             render_state: None,
-            surface_state: None,
+            surfaces: HashMap::default(),
             msaa_texture_view: None,
         }
     }
@@ -185,60 +187,72 @@ impl Painter {
     /// If the provided wgpu configuration does not match an available device.
     pub async fn set_window(
         &mut self,
+        viewport_id: u64,
         window: Option<&winit::window::Window>,
     ) -> Result<(), crate::WgpuError> {
         match window {
             Some(window) => {
-                let surface = unsafe { self.instance.create_surface(&window)? };
-
-                let render_state = if let Some(render_state) = &self.render_state {
-                    render_state
-                } else {
-                    let render_state = RenderState::create(
-                        &self.configuration,
-                        &self.instance,
-                        &surface,
-                        self.depth_format,
-                        self.msaa_samples,
-                    )
-                    .await?;
-                    self.render_state.get_or_insert(render_state)
-                };
-
-                let alpha_mode = if self.support_transparent_backbuffer {
-                    let supported_alpha_modes =
-                        surface.get_capabilities(&render_state.adapter).alpha_modes;
-
-                    // Prefer pre multiplied over post multiplied!
-                    if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
-                        wgpu::CompositeAlphaMode::PreMultiplied
-                    } else if supported_alpha_modes
-                        .contains(&wgpu::CompositeAlphaMode::PostMultiplied)
-                    {
-                        wgpu::CompositeAlphaMode::PostMultiplied
-                    } else {
-                        log::warn!("Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency.");
-                        wgpu::CompositeAlphaMode::Auto
-                    }
-                } else {
-                    wgpu::CompositeAlphaMode::Auto
-                };
-
-                let supports_screenshot =
-                    !matches!(render_state.adapter.get_info().backend, wgpu::Backend::Gl);
-
                 let size = window.inner_size();
-                self.surface_state = Some(SurfaceState {
-                    surface,
-                    width: size.width,
-                    height: size.height,
-                    alpha_mode,
-                    supports_screenshot,
-                });
-                self.resize_and_generate_depth_texture_view_and_msaa_view(size.width, size.height);
+                if self.surfaces.get(&viewport_id).is_none() {
+                    let surface = unsafe { self.instance.create_surface(&window)? };
+
+                    let render_state = if let Some(render_state) = &self.render_state {
+                        render_state
+                    } else {
+                        let render_state = RenderState::create(
+                            &self.configuration,
+                            &self.instance,
+                            &surface,
+                            self.depth_format,
+                            self.msaa_samples,
+                        )
+                        .await?;
+                        self.render_state.get_or_insert(render_state)
+                    };
+
+                    let alpha_mode = if self.support_transparent_backbuffer {
+                        let supported_alpha_modes =
+                            surface.get_capabilities(&render_state.adapter).alpha_modes;
+
+                        // Prefer pre multiplied over post multiplied!
+                        if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied)
+                        {
+                            wgpu::CompositeAlphaMode::PreMultiplied
+                        } else if supported_alpha_modes
+                            .contains(&wgpu::CompositeAlphaMode::PostMultiplied)
+                        {
+                            wgpu::CompositeAlphaMode::PostMultiplied
+                        } else {
+                            log::warn!("Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency.");
+                            wgpu::CompositeAlphaMode::Auto
+                        }
+                    } else {
+                        wgpu::CompositeAlphaMode::Auto
+                    };
+
+                    let supports_screenshot =
+                        !matches!(render_state.adapter.get_info().backend, wgpu::Backend::Gl);
+
+                    self.surfaces.insert(
+                        viewport_id,
+                        SurfaceState {
+                            surface,
+                            width: size.width,
+                            height: size.height,
+                            alpha_mode,
+                            supports_screenshot,
+                        },
+                    );
+                }
+                self.resize_and_generate_depth_texture_view_and_msaa_view(
+                    viewport_id,
+                    size.width,
+                    size.height,
+                );
             }
             None => {
-                self.surface_state = None;
+                log::warn!("All surfaces was deleted!");
+                self.surfaces.clear();
             }
         }
         Ok(())
@@ -257,11 +271,12 @@ impl Painter {
 
     fn resize_and_generate_depth_texture_view_and_msaa_view(
         &mut self,
+        viewport_id: u64,
         width_in_pixels: u32,
         height_in_pixels: u32,
     ) {
         let render_state = self.render_state.as_ref().unwrap();
-        let surface_state = self.surface_state.as_mut().unwrap();
+        let surface_state = self.surfaces.get_mut(&viewport_id).unwrap();
 
         surface_state.width = width_in_pixels;
         surface_state.height = height_in_pixels;
@@ -314,9 +329,15 @@ impl Painter {
             });
     }
 
-    pub fn on_window_resized(&mut self, width_in_pixels: u32, height_in_pixels: u32) {
-        if self.surface_state.is_some() {
+    pub fn on_window_resized(
+        &mut self,
+        viewport_id: u64,
+        width_in_pixels: u32,
+        height_in_pixels: u32,
+    ) {
+        if self.surfaces.get(&viewport_id).is_some() {
             self.resize_and_generate_depth_texture_view_and_msaa_view(
+                viewport_id,
                 width_in_pixels,
                 height_in_pixels,
             );
@@ -427,6 +448,7 @@ impl Painter {
     // Returns a vector with the frame's pixel data if it was requested.
     pub fn paint_and_update_textures(
         &mut self,
+        viewport_id: u64,
         pixels_per_point: f32,
         clear_color: [f32; 4],
         clipped_primitives: &[epaint::ClippedPrimitive],
@@ -436,7 +458,7 @@ impl Painter {
         crate::profile_function!();
 
         let render_state = self.render_state.as_mut()?;
-        let surface_state = self.surface_state.as_ref()?;
+        let surface_state = self.surfaces.get(&viewport_id)?;
 
         let output_frame = {
             crate::profile_scope!("get_current_texture");

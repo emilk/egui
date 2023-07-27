@@ -9,7 +9,10 @@ fn main() {
 
     eframe::run_simple_native(
         "Viewports Examples",
-        NativeOptions::default(),
+        NativeOptions {
+            renderer: eframe::Renderer::Wgpu,
+            ..NativeOptions::default()
+        },
         move |ctx, _frame| {
             egui::CentralPanel::default().show(ctx, |ui| {
                 ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
