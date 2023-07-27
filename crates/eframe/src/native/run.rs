@@ -1909,6 +1909,7 @@ mod wgpu_integration {
 
                 windows.retain(|id, _| active_viewports_ids.contains(id));
                 windows_id.retain(|_, id| active_viewports_ids.contains(id));
+                painter.clean_surfaces(active_viewports_ids);
 
                 let mut control_flow = vec![EventResult::Wait];
                 for repaint_after in repaint_after {

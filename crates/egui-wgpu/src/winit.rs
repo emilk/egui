@@ -615,6 +615,11 @@ impl Painter {
         screenshot
     }
 
+    pub fn clean_surfaces(&mut self, avalibile_viewports: Vec<u64>) {
+        self.surfaces
+            .retain(|id, _| avalibile_viewports.contains(id))
+    }
+
     #[allow(clippy::unused_self)]
     pub fn destroy(&mut self) {
         // TODO(emilk): something here?
