@@ -6,6 +6,8 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 
 ## Unreleased
 
+### ⭐ Added
+* The progress bar height can now be customized [#3183](https://github.com/emilk/egui/pull/3183)
 
 ## 0.22.0 - 2023-05-23 - A plethora of small improvements
 ### ⭐ Added
