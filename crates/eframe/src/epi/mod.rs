@@ -1147,7 +1147,10 @@ pub struct IntegrationInfo {
     /// The OS native pixels-per-point
     pub native_pixels_per_point: Option<f32>,
 
+    /// This is the id of the current native window
+    /// If this is the same as `parent_viewport` that means that is the main window
     pub viewport_id: u64,
+    /// This is the id of the current native window
     pub parent_viewport: u64,
 
     /// The position and size of the native window.

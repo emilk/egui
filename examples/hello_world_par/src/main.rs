@@ -100,7 +100,7 @@ impl MyApp {
         let threads = Vec::with_capacity(3);
         let (on_done_tx, on_done_rc) = mpsc::sync_channel(0);
 
-        let mut slf = Self {
+        let slf = Self {
             data: Arc::new(RwLock::new(MyAppData {
                 threads,
                 on_done_tx,

@@ -180,16 +180,7 @@ struct ContextImpl {
 
     repaint: Repaint,
 
-    viewports: HashMap<
-        String,
-        (
-            ViewportBuilder,
-            u64,
-            u64,
-            bool,
-            Arc<Box<dyn Fn(&Context, u64, u64) + Sync + Send>>,
-        ),
-    >,
+    viewports: HashMap<String, (ViewportBuilder, u64, u64, bool, Arc<Box<ViewportRender>>)>,
     viewport_commands: Vec<(u64, ViewportCommand)>,
 
     viewport_counter: u64,

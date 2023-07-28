@@ -2,12 +2,10 @@ use eframe::egui;
 use eframe::egui::Id;
 use eframe::NativeOptions;
 
-use std::sync::{Arc, RwLock};
-
 fn main() {
     env_logger::init(); // Use `RUST_LOG=debug` to see logs.
 
-    eframe::run_simple_native(
+    let _ = eframe::run_simple_native(
         "Viewports Examples",
         NativeOptions {
             renderer: eframe::Renderer::Wgpu,

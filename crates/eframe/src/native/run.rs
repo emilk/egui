@@ -12,7 +12,7 @@ use winit::{
 
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
-use egui_winit::{winit, EventResponse};
+use egui_winit::winit;
 
 use crate::{epi, Result};
 
@@ -192,7 +192,7 @@ fn run_and_return(
             {
                 // This can happen if we close a window, and then reopen a new one,
                 // or if we have multiple windows open.
-                vec![EventResult::RepaintNext(window_id.clone())]
+                vec![EventResult::RepaintNext(*window_id)]
             }
 
             event => match winit_app.on_event(event_loop, event) {
@@ -416,18 +416,14 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 mod glow_integration {
     use std::sync::Arc;
 
-    use egui::{epaint::ahash::HashMap, window::ViewportBuilder, Context, NumExt as _};
+    use egui::{epaint::ahash::HashMap, window::ViewportBuilder, NumExt as _, ViewportRender};
     use egui_winit::EventResponse;
-    use glow::HasContext;
     use glutin::{
         display::GetGlDisplay,
         prelude::{GlDisplay, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentGlContext},
         surface::GlSurface,
     };
-    use winit::{
-        dpi::{PhysicalPosition, PhysicalSize},
-        window::ResizeDirection,
-    };
+    use winit::{dpi::PhysicalSize, window::ResizeDirection};
 
     use super::*;
 
@@ -463,7 +459,7 @@ mod glow_integration {
         window: Option<winit::window::Window>,
         window_id: u64,
         parent_id: u64,
-        render: Option<Arc<Box<dyn Fn(&Context, u64, u64) + Sync + Send>>>,
+        render: Option<Arc<Box<ViewportRender>>>,
         pub egui_winit: Option<egui_winit::State>,
     }
     /// This struct will contain both persistent and temporary glutin state.
@@ -737,7 +733,7 @@ mod glow_integration {
                                 .unwrap()
                                 .make_not_current()
                                 .unwrap()
-                                .make_current(&gl_surface)
+                                .make_current(gl_surface)
                                 .unwrap(),
                         );
                         gl_surface.resize(
@@ -856,10 +852,10 @@ mod glow_integration {
             );
             #[cfg(feature = "accesskit")]
             {
-                let mut window = &mut gl_window.windows[0];
+                let window = &mut gl_window.windows[0];
                 integration.init_accesskit(
-                    &mut window.egui_winit.as_mut().unwrap(),
-                    &window.window.as_ref().unwrap(),
+                    window.egui_winit.as_mut().unwrap(),
+                    window.window.as_ref().unwrap(),
                     self.repaint_proxy.lock().clone(),
                 );
             }
@@ -953,49 +949,40 @@ mod glow_integration {
         }
 
         fn window(&self, window_id: winit::window::WindowId) -> Option<&winit::window::Window> {
-            self.running
-                .as_ref()
-                .map(|r| {
-                    for window in r.gl_window.windows.iter() {
-                        if let Some(window) = &window.window {
-                            if window.id() == window_id {
-                                return Some(window);
-                            }
+            self.running.as_ref().and_then(|r| {
+                for window in r.gl_window.windows.iter() {
+                    if let Some(window) = &window.window {
+                        if window.id() == window_id {
+                            return Some(window);
                         }
                     }
-                    None
-                })
-                .flatten()
+                }
+                None
+            })
         }
 
         fn get_window_winit_id(&self, id: u64) -> Option<winit::window::WindowId> {
-            self.running
-                .as_ref()
-                .map(|r| {
-                    for window in r.gl_window.windows.iter() {
-                        if window.window_id == id {
-                            return window.window.as_ref().map(|w| w.id());
-                        }
+            self.running.as_ref().and_then(|r| {
+                for window in r.gl_window.windows.iter() {
+                    if window.window_id == id {
+                        return window.window.as_ref().map(|w| w.id());
                     }
-                    None
-                })
-                .flatten()
+                }
+                None
+            })
         }
 
         fn get_window_id(&self, id: &winit::window::WindowId) -> Option<u64> {
-            self.running
-                .as_ref()
-                .map(|r| {
-                    for window in r.gl_window.windows.iter() {
-                        if let Some(win) = &window.window {
-                            if win.id() == *id {
-                                return Some(window.window_id);
-                            }
+            self.running.as_ref().and_then(|r| {
+                for window in r.gl_window.windows.iter() {
+                    if let Some(win) = &window.window {
+                        if win.id() == *id {
+                            return Some(window.window_id);
                         }
                     }
-                    None
-                })
-                .flatten()
+                }
+                None
+            })
         }
 
         fn save_and_destroy(&mut self) {
@@ -1070,7 +1057,7 @@ mod glow_integration {
 
                         win.window.as_mut().unwrap().set_transparent(true);
                         egui_glow::painter::clear(
-                            &gl,
+                            gl,
                             screen_size_in_pixels,
                             app.clear_color(&integration.egui_ctx.style().visuals),
                         );
@@ -1123,15 +1110,15 @@ mod glow_integration {
 
                         {
                             crate::profile_scope!("swap_buffers");
-                            win.gl_surface
-                                .as_ref()
-                                .expect("failed to get surface to swap buffers")
-                                .swap_buffers(
-                                    gl_window
-                                        .current_gl_context
-                                        .as_ref()
-                                        .expect("failed to get current context to swap buffers"),
-                                );
+                            let _ =
+                                win.gl_surface
+                                    .as_ref()
+                                    .expect("failed to get surface to swap buffers")
+                                    .swap_buffers(
+                                        gl_window.current_gl_context.as_ref().expect(
+                                            "failed to get current context to swap buffers",
+                                        ),
+                                    );
                         }
 
                         integration.post_present(win.window.as_ref().unwrap());
@@ -1167,11 +1154,7 @@ mod glow_integration {
                                 .into_iter()
                                 .flat_map(|(id, time)| {
                                     if time.is_zero() {
-                                        if let Some(id) = window_map.get(&id) {
-                                            Some(EventResult::RepaintNext(*id))
-                                        } else {
-                                            None
-                                        }
+                                        window_map.get(&id).map(|id| EventResult::RepaintNext(*id))
                                     } else if let Some(repaint_after_instant) =
                                         std::time::Instant::now().checked_add(time)
                                     {
@@ -1181,11 +1164,9 @@ mod glow_integration {
                                         // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
                                         // egui backend impl i guess.
 
-                                        if let Some(id) = window_map.get(&id) {
-                                            Some(EventResult::RepaintAt(*id, repaint_after_instant))
-                                        } else {
-                                            None
-                                        }
+                                        window_map.get(&id).map(|id| {
+                                            EventResult::RepaintAt(*id, repaint_after_instant)
+                                        })
                                     } else {
                                         None
                                     }
@@ -1206,7 +1187,7 @@ mod glow_integration {
                     // 0 is the main viewport/window that will not be known by the egui_ctx
                     let mut active_viewports_ids = vec![0];
 
-                    viewports.retain_mut(|(id, parent, builder, render)| {
+                    viewports.retain_mut(|(id, _, builder, render)| {
                         for w in gl_window.windows.iter_mut() {
                             if w.window_id == *id {
                                 if w.builder != *builder {
@@ -1753,20 +1734,16 @@ mod wgpu_integration {
         fn window(&self, window_id: winit::window::WindowId) -> Option<&winit::window::Window> {
             self.running
                 .as_ref()
-                .map(|r| r.windows_id.get(&window_id).map(|id| r.windows.get(id)))
+                .and_then(|r| r.windows_id.get(&window_id).map(|id| r.windows.get(id)))
                 .flatten()
-                .flatten()
-                .map(|w| w.0.as_ref().map(|w| w))
-                .flatten()
+                .and_then(|w| w.0.as_ref())
         }
 
         fn get_window_winit_id(&self, id: u64) -> Option<winit::window::WindowId> {
             self.running
                 .as_ref()
-                .map(|r| r.windows.get(&id))
-                .flatten()
-                .map(|w| w.0.as_ref().map(|w| w.id()))
-                .flatten()
+                .and_then(|r| r.windows.get(&id))
+                .and_then(|w| w.0.as_ref().map(|w| w.id()))
         }
 
         fn save_and_destroy(&mut self) {
@@ -1808,10 +1785,10 @@ mod wgpu_integration {
                     viewport_commands,
                 };
                 {
-                    let Some((viewport_id, (Some(window), Some(state), render, parent_viewport_id, _))) = windows_id.get(&window_id).map(|id|(windows.get_mut(id).map(|w|(*id, w)))).flatten() else{return vec![]};
+                    let Some((viewport_id, (Some(window), Some(state), render, parent_viewport_id, _))) = windows_id.get(&window_id).and_then(|id|(windows.get_mut(id).map(|w|(*id, w)))) else{return vec![]};
                     integration.egui_ctx.set_current_viewport_id(viewport_id);
 
-                    pollster::block_on(painter.set_window(viewport_id, Some(&window)));
+                    let _ = pollster::block_on(painter.set_window(viewport_id, Some(window)));
 
                     egui::FullOutput {
                         platform_output,
@@ -1939,7 +1916,7 @@ mod wgpu_integration {
                     });
                 }
 
-                let Some((viewport_id, (Some(window), Some(state), render, parent_viewport_id, _))) = windows_id.get(&window_id).map(|id|(windows.get_mut(id).map(|w|(*id, w)))).flatten() else{return vec![]};
+                let Some((_, (Some(window), _, _, _, _))) = windows_id.get(&window_id).and_then(|id|(windows.get_mut(id).map(|w|(*id, w)))) else{return vec![]};
                 integration.maybe_autosave(app.as_mut(), window);
 
                 if window.is_minimized() == Some(true) {
@@ -2070,23 +2047,21 @@ mod wgpu_integration {
                             _ => {}
                         };
 
-                        let event_response =
-                            if let Some((id, (Some(window), Some(state), _, _, _))) = running
-                                .windows_id
-                                .get(window_id)
-                                .map(|id| running.windows.get_mut(id).map(|w| (*id, w)))
-                                .flatten()
-                            {
-                                Some(running.integration.on_event(
-                                    running.app.as_mut(),
-                                    event,
-                                    window_id,
-                                    state,
-                                    id,
-                                ))
-                            } else {
-                                None
-                            };
+                        let event_response = if let Some((id, (_, Some(state), _, _, _))) = running
+                            .windows_id
+                            .get(window_id)
+                            .and_then(|id| running.windows.get_mut(id).map(|w| (*id, w)))
+                        {
+                            Some(running.integration.on_event(
+                                running.app.as_mut(),
+                                event,
+                                window_id,
+                                state,
+                                id,
+                            ))
+                        } else {
+                            None
+                        };
 
                         if running.integration.should_close() {
                             EventResult::Exit
@@ -2115,8 +2090,7 @@ mod wgpu_integration {
                         if let Some((_, Some(state), _, _, _)) = running
                             .windows_id
                             .get(window_id)
-                            .map(|id| running.windows.get_mut(id))
-                            .flatten()
+                            .and_then(|id| running.windows.get_mut(id))
                         {
                             running.integration.on_accesskit_action_request(
                                 request.clone(),
