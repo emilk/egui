@@ -144,11 +144,13 @@ fn run_and_return(
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
-            winit::event::Event::RedrawEventsCleared if cfg!(windows) => {
+            #[cfg(windows)]
+            winit::event::Event::RedrawEventsCleared => {
                 next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint()
             }
-            winit::event::Event::RedrawRequested(_) if !cfg!(windows) => {
+            #[cfg(not(windows))]
+            winit::event::Event::RedrawRequested(_) => {
                 next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint()
             }
