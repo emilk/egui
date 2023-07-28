@@ -14,7 +14,10 @@ use emath::NumExt as _;
 
 /// How to select a sized font.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+)]
 pub struct FontId {
     /// Height in points.
     pub size: f32,
@@ -68,7 +71,10 @@ impl std::hash::Hash for FontId {
 /// Which style of font: [`Monospace`][`FontFamily::Monospace`], [`Proportional`][`FontFamily::Proportional`],
 /// or by user-chosen name.
 #[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+)]
 pub enum FontFamily {
     /// A font where some characters are wider than other (e.g. 'w' is wider than 'i').
     ///

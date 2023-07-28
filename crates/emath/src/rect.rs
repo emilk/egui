@@ -16,7 +16,10 @@ use crate::*;
 /// Normally the unit is points (logical pixels) in screen space coordinates.
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+)]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Rect {
     /// One of the corners of the rectangle, usually the left top one.

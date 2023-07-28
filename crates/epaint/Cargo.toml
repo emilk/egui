@@ -66,6 +66,8 @@ mint = ["emath/mint"]
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = ["dep:serde", "ahash/serde", "emath/serde", "ecolor/serde"]
 
+#serde_diff = ["dep:serde_diff"]
+
 ## Change Vertex layout to be compatible with unity
 unity = []
 
@@ -89,7 +91,9 @@ document-features = { version = "0.2", optional = true }
 log = { version = "0.4", optional = true, features = ["std"] }
 
 ## Allow serialization using [`serde`](https://docs.rs/serde) .
-serde = { version = "1", optional = true, features = ["derive", "rc"] }
+serde = { version = "1", optional = true, features = ["rc"] }
+
+serde_diff = { version = "0.4.1", package = "serde-diff" }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

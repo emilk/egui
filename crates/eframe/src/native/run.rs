@@ -132,7 +132,6 @@ fn run_and_return(
     let mut returned_result = Ok(());
 
     event_loop.run_return(|event, event_loop, control_flow| {
-        println!("in run return loop");
         let event_result = match &event {
             winit::event::Event::LoopDestroyed => {
                 // On Mac, Cmd-Q we get here and then `run_return` doesn't return (despite its name),
@@ -147,12 +146,10 @@ fn run_and_return(
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
             winit::event::Event::RedrawEventsCleared if cfg!(windows) => {
-                println!("redraw events cleared");
                 next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint(remote_rendering)
             }
             winit::event::Event::RedrawRequested(_) if !cfg!(windows) => {
-                println!("redraw requested");
                 next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint(remote_rendering)
             }

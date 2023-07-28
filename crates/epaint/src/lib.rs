@@ -67,7 +67,10 @@ pub const WHITE_UV: emath::Pos2 = emath::pos2(0.0, 0.0);
 ///
 /// If you don't want to use a texture, use `TextureId::Managed(0)` and the [`WHITE_UV`] for uv-coord.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+)]
 pub enum TextureId {
     /// Textures allocated using [`TextureManager`].
     ///
@@ -90,7 +93,10 @@ impl Default for TextureId {
 ///
 /// Everything is using logical points.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+)]
 pub struct ClippedShape(
     /// Clip / scissor rectangle.
     /// Only show the part of the [`Shape`] that falls within this.

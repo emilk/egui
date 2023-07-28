@@ -1,12 +1,18 @@
 //! All the data egui returns to the backend at the end of each frame.
 
 use crate::WidgetType;
+use serde::{Deserialize, Serialize};
+//use serde_diff::{Apply, Diff, SerdeDiff};
 
 /// What egui emits each frame from [`crate::Context::run`].
 ///
 /// The backend should use this.
 #[derive(Clone, Default, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+)]
+//#[cfg_attr(feature = "serde_diff", derive(serde_diff::SerdeDiff))]
 pub struct FullOutput {
     /// Non-rendering related output.
     pub platform_output: PlatformOutput,
@@ -56,7 +62,10 @@ impl FullOutput {
 ///
 /// The backend should use this.
 #[derive(Default, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+)]
 pub struct PlatformOutput {
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,

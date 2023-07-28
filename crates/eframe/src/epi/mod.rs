@@ -114,6 +114,9 @@ pub trait App {
     /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
     fn update(&mut self, ctx: &egui::Context, frame: &mut Frame);
 
+    /// Called each time the UI needs repainting when rendering on a remote client, which may be many times per second.
+    ///
+    /// Retrieves the FullOutput from the client rather than constructing it internally
     fn update_remote(&mut self, _raw_input: egui::RawInput) -> (egui::output::FullOutput, f32) {
         (egui::output::FullOutput::default(), 2.0)
     }
