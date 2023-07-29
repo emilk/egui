@@ -1,6 +1,6 @@
 use super::popup::DatePickerPopup;
 use chrono::NaiveDate;
-use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget};
+use egui::{Area, Button, Frame, InnerResponse, Key, Order, RichText, Ui, Widget, Pos2};
 
 #[derive(Default, Clone, serde::Deserialize, serde::Serialize)]
 pub(crate) struct DatePickerButtonState {
@@ -15,7 +15,10 @@ pub struct DatePickerButton<'a> {
     calendar: bool,
     calendar_week: bool,
     show_icon: bool,
+    on_save: Box<dyn Fn(&NaiveDate) + 'a>,
 }
+
+const POPUP_WIDTH: f32 = 333.0;
 
 impl<'a> DatePickerButton<'a> {
     pub fn new(selection: &'a mut NaiveDate) -> Self {
@@ -27,6 +30,7 @@ impl<'a> DatePickerButton<'a> {
             calendar: true,
             calendar_week: true,
             show_icon: true,
+            on_save: Box::new(|_| {}),
         }
     }
 
@@ -66,6 +70,28 @@ impl<'a> DatePickerButton<'a> {
         self.show_icon = show_icon;
         self
     }
+
+    /// Calculate the position of the popup
+    fn calculate_popup_position(&self, ui: &mut Ui, button_response: &egui::Response, width: f32) -> Pos2 {
+        let mut pos = button_response.rect.left_bottom();
+        let width_with_padding = width
+            + ui.style().spacing.item_spacing.x
+            + ui.style().spacing.window_margin.left
+            + ui.style().spacing.window_margin.right;
+
+        if pos.x + width_with_padding > ui.clip_rect().right() {
+            pos.x = button_response.rect.right() - width_with_padding;
+        }
+
+        // Check to make sure the calendar never is displayed out of window
+        pos.x = pos.x.max(ui.style().spacing.window_margin.left);
+        pos
+    }
+
+    /// Format the date to a string
+    fn formatted_date(&self) -> String {
+        format!("{}", self.selection.format("%Y-%m-%d"))
+    }
 }
 
 impl<'a> Widget for DatePickerButton<'a> {
@@ -76,9 +102,9 @@ impl<'a> Widget for DatePickerButton<'a> {
             .unwrap_or_default();
 
         let mut text = if self.show_icon {
-            RichText::new(format!("{} 📆", self.selection.format("%Y-%m-%d")))
+            RichText::new(format!("{} 📆", self.formatted_date()))
         } else {
-            RichText::new(format!("{}", self.selection.format("%Y-%m-%d")))
+            RichText::new(self.formatted_date())
         };
         let visuals = ui.visuals().widgets.open;
         if button_state.picker_visible {
@@ -89,63 +115,57 @@ impl<'a> Widget for DatePickerButton<'a> {
             button = button.fill(visuals.weak_bg_fill).stroke(visuals.bg_stroke);
         }
         let mut button_response = ui.add(button);
+
         if button_response.clicked() {
             button_state.picker_visible = true;
             ui.memory_mut(|mem| mem.data.insert_persisted(id, button_state.clone()));
         }
 
-        if button_state.picker_visible {
-            let width = 333.0;
-            let mut pos = button_response.rect.left_bottom();
-            let width_with_padding = width
-                + ui.style().spacing.item_spacing.x
-                + ui.style().spacing.window_margin.left
-                + ui.style().spacing.window_margin.right;
-            if pos.x + width_with_padding > ui.clip_rect().right() {
-                pos.x = button_response.rect.right() - width_with_padding;
-            }
+        // Guard clause: If the picker is not visible, just return the button response
+        if !button_state.picker_visible {
+            return button_response;
+        }
 
-            // Check to make sure the calendar never is displayed out of window
-            pos.x = pos.x.max(ui.style().spacing.window_margin.left);
+        let width = POPUP_WIDTH;
+        let pos = self.calculate_popup_position(ui, &button_response, width);
 
-            //TODO(elwerene): Better positioning
+        let InnerResponse {
+            inner: saved,
+            response: area_response,
+        } = Area::new(ui.make_persistent_id(self.id_source))
+            .order(Order::Foreground)
+            .fixed_pos(pos)
+            .show(ui.ctx(), |ui| {
+                let frame = Frame::popup(ui.style());
+                frame
+                    .show(ui, |ui| {
+                        ui.set_min_width(width);
+                        ui.set_max_width(width);
 
-            let InnerResponse {
-                inner: saved,
-                response: area_response,
-            } = Area::new(ui.make_persistent_id(self.id_source))
-                .order(Order::Foreground)
-                .fixed_pos(pos)
-                .show(ui.ctx(), |ui| {
-                    let frame = Frame::popup(ui.style());
-                    frame
-                        .show(ui, |ui| {
-                            ui.set_min_width(width);
-                            ui.set_max_width(width);
-
-                            DatePickerPopup {
-                                selection: self.selection,
-                                button_id: id,
-                                combo_boxes: self.combo_boxes,
-                                arrows: self.arrows,
-                                calendar: self.calendar,
-                                calendar_week: self.calendar_week,
-                            }
+                        DatePickerPopup {
+                            selection: self.selection,
+                            button_id: id,
+                            combo_boxes: self.combo_boxes,
+                            arrows: self.arrows,
+                            calendar: self.calendar,
+                            calendar_week: self.calendar_week,
+                        }
                             .draw(ui)
-                        })
-                        .inner
-                });
+                    })
+                    .inner
+            });
 
-            if saved {
-                button_response.mark_changed();
-            }
+        if saved {
+            let selected_date = *self.selection;
+            (self.on_save)(&selected_date);
+            button_response.mark_changed();
+        }
 
-            if !button_response.clicked()
-                && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
-            {
-                button_state.picker_visible = false;
-                ui.memory_mut(|mem| mem.data.insert_persisted(id, button_state));
-            }
+        if !button_response.clicked()
+            && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
+        {
+            button_state.picker_visible = false;
+            ui.memory_mut(|mem| mem.data.insert_persisted(id, button_state));
         }
 
         button_response
