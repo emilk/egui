@@ -557,7 +557,8 @@ impl<'open> Window<'open> {
                         };
                         let margins = frame.outer_margin.sum()
                             + frame.inner_margin.sum()
-                            + vec2(0.0, title_bar_height);
+                            + vec2(0.0, title_bar_height)
+                            - vec2(0.0, 3.0); //magic number
 
                         if let Some(mut state) = resize::State::load(ctx, resize_id) {
                             state.requested_size = Some(win_size - margins);
@@ -699,8 +700,6 @@ impl<'open> Window<'open> {
                             }
                             content_inner
                         };
-
-                        let size = ctx.round_vec_to_pixels(area_content_ui.min_size());
 
                         let full_response = area.end(ctx, area_content_ui);
 

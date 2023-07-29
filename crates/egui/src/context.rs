@@ -63,7 +63,7 @@ struct Repaint {
     pub repaint_after: HashMap<u64, std::time::Duration>,
 
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
-    repaint_requests: u32,
+    repaint_requests: HashMap<u64, u32>,
     request_repaint_callback: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
 
     requested_repaint_last_frame: bool,
@@ -73,12 +73,14 @@ impl Default for Repaint {
     fn default() -> Self {
         let mut repaint_after = HashMap::default();
         repaint_after.insert(0, std::time::Duration::from_millis(100));
+        let mut repaint_requests = HashMap::default();
+        repaint_requests.insert(0, 1);
         Self {
             frame_nr: 0,
             repaint_after,
             // Start with painting an extra frame to compensate for some widgets
             // that take two frames before they "settle":
-            repaint_requests: 1,
+            repaint_requests,
             request_repaint_callback: None,
             requested_repaint_last_frame: false,
         }
@@ -94,7 +96,7 @@ impl Repaint {
         if after == std::time::Duration::ZERO {
             // Do a few extra frames to let things settle.
             // This is a bit of a hack, and we don't support it for `repaint_after` callbacks yet.
-            self.repaint_requests = 2;
+            self.repaint_requests.insert(viewport_id, 2);
         }
 
         // We only re-call the callback if we get a lower duration,
@@ -132,8 +134,23 @@ impl Repaint {
     ) -> Vec<(u64, std::time::Duration)> {
         // if repaint_requests is greater than zero. just set the duration to zero for immediate
         // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
-        let repaint_after = if self.repaint_requests > 0 {
-            self.repaint_requests -= 1;
+        let repaint_after = if self
+            .repaint_requests
+            .get(&viewport_id)
+            .cloned()
+            .unwrap_or(0)
+            > 0
+        {
+            // This is a hack, i think
+            // is some thing strange with the input! We need to store a state per viewport and not per context
+            if let Some(requests) = self.repaint_requests.get_mut(&viewport_id) {
+                if *requests >= 2 {
+                    *requests -= 2;
+                } else {
+                    *requests -= 1;
+                }
+            }
+
             std::time::Duration::ZERO
         } else {
             self.repaint_after
@@ -147,6 +164,8 @@ impl Repaint {
         self.frame_nr += 1;
 
         self.repaint_after.retain(|id, _| viewports.contains(id));
+        self.repaint_requests
+            .retain(|id, repaints| viewports.contains(id) && *repaints != 0);
 
         self.repaint_after
             .iter()

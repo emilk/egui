@@ -5,6 +5,8 @@ use eframe::NativeOptions;
 fn main() {
     env_logger::init(); // Use `RUST_LOG=debug` to see logs.
 
+    let mut to_repair = false;
+
     let _ = eframe::run_simple_native(
         "Viewports Examples",
         NativeOptions {
@@ -17,6 +19,7 @@ fn main() {
                 let mut is_desktop = ctx.is_desktop();
                 ui.checkbox(&mut is_desktop, "Is Desktop");
                 ctx.set_desktop(is_desktop);
+                ui.checkbox(&mut to_repair, "To Repair!");
 
                 egui::CollapsingHeader::new("Show Test1").show(ui, |ui| {
                     egui::Window::new("Test1").show(ctx, move |ui, id, parent_id| {
@@ -30,6 +33,9 @@ fn main() {
                         ui.data_mut(|data| {
                             data.insert_persisted(Id::new("Test1").with("_embedded"), embedded)
                         });
+                        if to_repair {
+                            ui.spinner();
+                        }
 
                         let ctx = ui.ctx().clone();
                         ui.label(format!(
@@ -59,6 +65,9 @@ fn main() {
                         ui.data_mut(|data| {
                             data.insert_persisted(Id::new("Test2").with("_embedded"), embedded)
                         });
+                        if to_repair {
+                            ui.spinner();
+                        }
                         let ctx = ui.ctx().clone();
                         ui.label(format!(
                             "Current rendering window: {}",
