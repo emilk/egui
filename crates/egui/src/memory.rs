@@ -87,7 +87,11 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) drag_value: crate::widgets::drag_value::MonoState,
 
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) areas: Areas,
+
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    pub(crate) viewports_areas: HashMap<u64, Areas>,
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.
@@ -371,6 +375,10 @@ impl Memory {
             .or_default()
             .begin_frame(prev_input, new_input);
         self.interaction = self.interactions.remove(&viewport_id).unwrap();
+        self.areas = self
+            .viewports_areas
+            .remove(&viewport_id)
+            .unwrap_or_default();
 
         if !prev_input.pointer.any_down() {
             self.window_interaction = None;
@@ -388,8 +396,11 @@ impl Memory {
         self.interaction.focus.end_frame(used_ids);
         self.interactions
             .insert(self.viewport_id, std::mem::take(&mut self.interaction));
+        self.viewports_areas
+            .insert(self.viewport_id, std::mem::take(&mut self.areas));
         self.drag_value.end_frame(input);
-        self.interactions.retain(|id, _| viewports.contains(id))
+        self.interactions.retain(|id, _| viewports.contains(id));
+        self.viewports_areas.retain(|id, _| viewports.contains(id));
     }
 
     /// Top-most layer at the given position.
