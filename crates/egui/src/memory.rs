@@ -1,3 +1,5 @@
+use ahash::HashMap;
+
 use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 
 // ----------------------------------------------------------------------------
@@ -70,7 +72,14 @@ pub struct Memory {
     pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
+    pub(crate) interactions: HashMap<u64, Interaction>,
+
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interaction: Interaction,
+
+    // Current viewport
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    pub(crate) viewport_id: u64,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) window_interaction: Option<window::WindowInteraction>,
@@ -354,19 +363,33 @@ impl Memory {
         &mut self,
         prev_input: &crate::input_state::InputState,
         new_input: &crate::data::input::RawInput,
+        viewport_id: u64,
     ) {
-        self.interaction.begin_frame(prev_input, new_input);
+        self.viewport_id = viewport_id;
+        self.interactions
+            .entry(viewport_id)
+            .or_default()
+            .begin_frame(prev_input, new_input);
+        self.interaction = self.interactions.remove(&viewport_id).unwrap();
 
         if !prev_input.pointer.any_down() {
             self.window_interaction = None;
         }
     }
 
-    pub(crate) fn end_frame(&mut self, input: &InputState, used_ids: &IdMap<Rect>) {
+    pub(crate) fn end_frame(
+        &mut self,
+        input: &InputState,
+        viewports: &[u64],
+        used_ids: &IdMap<Rect>,
+    ) {
         self.caches.update();
         self.areas.end_frame();
         self.interaction.focus.end_frame(used_ids);
+        self.interactions
+            .insert(self.viewport_id, std::mem::take(&mut self.interaction));
         self.drag_value.end_frame(input);
+        self.interactions.retain(|id, _| viewports.contains(id))
     }
 
     /// Top-most layer at the given position.

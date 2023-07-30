@@ -240,6 +240,7 @@ impl ContextImpl {
         self.memory.begin_frame(
             self.input.get(&viewport_id).unwrap_or(&Default::default()),
             &new_raw_input,
+            viewport_id,
         );
 
         let input = self
@@ -1299,6 +1300,14 @@ impl Context {
     /// Call at the end of each frame.
     #[must_use]
     pub fn end_frame(&self) -> FullOutput {
+        let mut viewports: Vec<u64> = self.read(|ctx| {
+            ctx.viewports
+                .iter()
+                .map(|(_, (_, id, _, _, _))| *id)
+                .collect()
+        });
+        viewports.push(0);
+
         if self.input(|i| i.wants_repaint()) {
             self.request_repaint();
         }
@@ -1306,6 +1315,7 @@ impl Context {
         let textures_delta = self.write(|ctx| {
             ctx.memory.end_frame(
                 ctx.input.get(&ctx.current_rendering_viewport).unwrap(),
+                &viewports,
                 &ctx.frame_state.used_ids,
             );
 
@@ -1351,14 +1361,6 @@ impl Context {
                 });
             }
         }
-
-        let mut viewports: Vec<u64> = self.read(|ctx| {
-            ctx.viewports
-                .iter()
-                .map(|(_, (_, id, _, _, _))| *id)
-                .collect()
-        });
-        viewports.push(0);
 
         self.write(|ctx| ctx.input.retain(|id, _| viewports.contains(&id)));
 
