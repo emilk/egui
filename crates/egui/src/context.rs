@@ -186,7 +186,7 @@ struct ContextImpl {
 
     os: OperatingSystem,
 
-    input: InputState,
+    input: HashMap<u64, InputState>,
 
     /// State that is collected during a frame and then cleared
     frame_state: FrameState,
@@ -226,9 +226,10 @@ impl ContextImpl {
         if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
             new_raw_input.pixels_per_point = Some(new_pixels_per_point);
 
+            let input = self.input.entry(viewport_id).or_default();
             // This is a bit hacky, but is required to avoid jitter:
-            let ratio = self.input.pixels_per_point / new_pixels_per_point;
-            let mut rect = self.input.screen_rect;
+            let ratio = input.pixels_per_point / new_pixels_per_point;
+            let mut rect = input.screen_rect;
             rect.min = (ratio * rect.min.to_vec2()).to_pos2();
             rect.max = (ratio * rect.max.to_vec2()).to_pos2();
             new_raw_input.screen_rect = Some(rect);
@@ -236,17 +237,26 @@ impl ContextImpl {
 
         self.layer_rects_prev_frame = std::mem::take(&mut self.layer_rects_this_frame);
 
-        self.memory.begin_frame(&self.input, &new_raw_input);
+        self.memory.begin_frame(
+            self.input.get(&viewport_id).unwrap_or(&Default::default()),
+            &new_raw_input,
+        );
 
-        self.input = std::mem::take(&mut self.input)
+        let input = self
+            .input
+            .remove(&viewport_id)
+            .unwrap_or_default()
             .begin_frame(new_raw_input, self.repaint.requested_repaint_last_frame);
+        self.input.insert(viewport_id, input);
 
-        self.frame_state.begin_frame(&self.input);
+        self.frame_state
+            .begin_frame(self.input.get(&viewport_id).unwrap());
 
         self.update_fonts_mut();
 
         // Ensure we register the background area so panels and background ui can catch clicks:
-        let screen_rect = self.input.screen_rect();
+        let input = self.input.get(&viewport_id).unwrap();
+        let screen_rect = input.screen_rect();
         self.memory.areas.set_state(
             LayerId::background(),
             containers::area::State {
@@ -262,9 +272,7 @@ impl ContextImpl {
             use crate::frame_state::AccessKitFrameState;
             let id = crate::accesskit_root_id();
             let mut builder = accesskit::NodeBuilder::new(accesskit::Role::Window);
-            builder.set_transform(accesskit::Affine::scale(
-                self.input.pixels_per_point().into(),
-            ));
+            builder.set_transform(accesskit::Affine::scale(input.pixels_per_point().into()));
             let mut node_builders = IdMap::default();
             node_builders.insert(id, builder);
             self.frame_state.accesskit_state = Some(AccessKitFrameState {
@@ -276,8 +284,12 @@ impl ContextImpl {
 
     /// Load fonts unless already loaded.
     fn update_fonts_mut(&mut self) {
-        let pixels_per_point = self.input.pixels_per_point();
-        let max_texture_side = self.input.max_texture_side;
+        let input = self
+            .input
+            .entry(self.current_rendering_viewport)
+            .or_default();
+        let pixels_per_point = input.pixels_per_point();
+        let max_texture_side = input.max_texture_side;
 
         if let Some(font_definitions) = self.memory.new_font_definitions.take() {
             let fonts = Fonts::new(pixels_per_point, max_texture_side, font_definitions);
@@ -474,13 +486,19 @@ impl Context {
     /// ```
     #[inline]
     pub fn input<R>(&self, reader: impl FnOnce(&InputState) -> R) -> R {
-        self.read(move |ctx| reader(&ctx.input))
+        self.read(move |ctx| {
+            reader(
+                ctx.input
+                    .get(&ctx.current_rendering_viewport)
+                    .unwrap_or(&Default::default()),
+            )
+        })
     }
 
     /// Read-write access to [`InputState`].
     #[inline]
     pub fn input_mut<R>(&self, writer: impl FnOnce(&mut InputState) -> R) -> R {
-        self.write(move |ctx| writer(&mut ctx.input))
+        self.write(move |ctx| writer(ctx.input.entry(ctx.viewport_counter).or_default()))
     }
 
     /// Read-only access to [`Memory`].
@@ -723,7 +741,12 @@ impl Context {
                     .push((id, interact_rect));
 
                 if hovered {
-                    let pointer_pos = ctx.input.pointer.interact_pos();
+                    let pointer_pos = ctx
+                        .input
+                        .get(&ctx.current_rendering_viewport)
+                        .unwrap()
+                        .pointer
+                        .interact_pos();
                     if let Some(pointer_pos) = pointer_pos {
                         if let Some(rects) = ctx.layer_rects_prev_frame.get(&layer_id) {
                             for &(prev_id, prev_rect) in rects.iter().rev() {
@@ -818,11 +841,12 @@ impl Context {
         let clicked_elsewhere = response.clicked_elsewhere();
         self.write(|ctx| {
             let memory = &mut ctx.memory;
-            let input = &mut ctx.input;
 
             if sense.focusable {
                 memory.interested_in_focus(id);
             }
+
+            let input = ctx.input.get_mut(&ctx.current_rendering_viewport).unwrap();
 
             if sense.click
                 && memory.has_focus(response.id)
@@ -1280,7 +1304,10 @@ impl Context {
         }
 
         let textures_delta = self.write(|ctx| {
-            ctx.memory.end_frame(&ctx.input, &ctx.frame_state.used_ids);
+            ctx.memory.end_frame(
+                ctx.input.get(&ctx.current_rendering_viewport).unwrap(),
+                &ctx.frame_state.used_ids,
+            );
 
             let font_image_delta = ctx.fonts.as_ref().unwrap().font_image_delta();
             if let Some(font_image_delta) = font_image_delta {
@@ -1332,6 +1359,8 @@ impl Context {
                 .collect()
         });
         viewports.push(0);
+
+        self.write(|ctx| ctx.input.retain(|id, _| viewports.contains(&id)));
 
         let repaint_after = self.write(|ctx| {
             ctx.repaint
@@ -1387,7 +1416,11 @@ impl Context {
 
         // here we expect that we are the only user of context, since frame is ended
         self.write(|ctx| {
-            let pixels_per_point = ctx.input.pixels_per_point();
+            let pixels_per_point = ctx
+                .input
+                .entry(ctx.current_rendering_viewport)
+                .or_default()
+                .pixels_per_point();
             let tessellation_options = ctx.memory.options.tessellation_options;
             let texture_atlas = ctx
                 .fonts
@@ -1599,8 +1632,12 @@ impl Context {
     /// Like [`Self::animate_bool`] but allows you to control the animation time.
     pub fn animate_bool_with_time(&self, id: Id, target_value: bool, animation_time: f32) -> f32 {
         let animated_value = self.write(|ctx| {
-            ctx.animation_manager
-                .animate_bool(&ctx.input, animation_time, id, target_value)
+            ctx.animation_manager.animate_bool(
+                ctx.input.get(&ctx.current_rendering_viewport).unwrap(),
+                animation_time,
+                id,
+                target_value,
+            )
         });
         let animation_in_progress = 0.0 < animated_value && animated_value < 1.0;
         if animation_in_progress {
@@ -1615,8 +1652,12 @@ impl Context {
     /// When it is called with a new value, it linearly interpolates to it in the given time.
     pub fn animate_value_with_time(&self, id: Id, target_value: f32, animation_time: f32) -> f32 {
         let animated_value = self.write(|ctx| {
-            ctx.animation_manager
-                .animate_value(&ctx.input, animation_time, id, target_value)
+            ctx.animation_manager.animate_value(
+                ctx.input.get(&ctx.current_rendering_viewport).unwrap(),
+                animation_time,
+                id,
+                target_value,
+            )
         });
         let animation_in_progress = animated_value != target_value;
         if animation_in_progress {
