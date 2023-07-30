@@ -555,7 +555,7 @@ pub type ViewportRender = dyn Fn(&Context, u64, u64) + Sync + Send;
 pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let _ = ctx.run(Default::default(), |ctx| {
+    let _ = ctx.run(Default::default(), 0, |ctx| {
         run_ui(ctx);
     });
 }
@@ -564,7 +564,7 @@ pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
 pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let _ = ctx.run(Default::default(), |ctx| {
+    let _ = ctx.run(Default::default(), 0, |ctx| {
         crate::CentralPanel::default().show(ctx, |ui| {
             add_contents(ui);
         });

@@ -68,7 +68,7 @@ fn test_egui_e2e() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        let full_output = ctx.run(raw_input.clone(), |ctx| {
+        let full_output = ctx.run(raw_input.clone(), 0, |ctx| {
             demo_windows.ui(ctx);
         });
         let clipped_primitives = ctx.tessellate(full_output.shapes);
@@ -87,7 +87,7 @@ fn test_egui_zero_window_size() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        let full_output = ctx.run(raw_input.clone(), |ctx| {
+        let full_output = ctx.run(raw_input.clone(), 0, |ctx| {
             demo_windows.ui(ctx);
         });
         let clipped_primitives = ctx.tessellate(full_output.shapes);

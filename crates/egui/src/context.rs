@@ -219,7 +219,8 @@ struct ContextImpl {
 }
 
 impl ContextImpl {
-    fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
+    fn begin_frame_mut(&mut self, mut new_raw_input: RawInput, viewport_id: u64) {
+        self.current_rendering_viewport = viewport_id;
         self.repaint.start_frame(self.current_rendering_viewport);
 
         if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
@@ -420,8 +421,13 @@ impl Context {
     /// // handle full_output
     /// ```
     #[must_use]
-    pub fn run(&self, new_input: RawInput, run_ui: impl FnOnce(&Context)) -> FullOutput {
-        self.begin_frame(new_input);
+    pub fn run(
+        &self,
+        new_input: RawInput,
+        viewport_id: u64,
+        run_ui: impl FnOnce(&Context),
+    ) -> FullOutput {
+        self.begin_frame(new_input, viewport_id);
         run_ui(self);
         self.end_frame()
     }
@@ -443,8 +449,8 @@ impl Context {
     /// let full_output = ctx.end_frame();
     /// // handle full_output
     /// ```
-    pub fn begin_frame(&self, new_input: RawInput) {
-        self.write(|ctx| ctx.begin_frame_mut(new_input));
+    pub fn begin_frame(&self, new_input: RawInput, viewport_id: u64) {
+        self.write(|ctx| ctx.begin_frame_mut(new_input, viewport_id));
     }
 }
 
@@ -1973,9 +1979,6 @@ impl Context {
 use containers::window::ViewportBuilder;
 /// # Windows
 impl Context {
-    pub fn set_current_viewport_id(&self, viewport_id: u64) {
-        self.write(|ctx| ctx.current_rendering_viewport = viewport_id);
-    }
     pub fn current_rendering_viewport(&self) -> u64 {
         self.read(|ctx| ctx.current_rendering_viewport)
     }

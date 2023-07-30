@@ -1062,7 +1062,6 @@ mod glow_integration {
                             app.clear_color(&integration.egui_ctx.style().visuals),
                         );
 
-                        integration.egui_ctx.set_current_viewport_id(win.window_id);
                         egui::FullOutput {
                             platform_output,
                             repaint_after,
@@ -1786,7 +1785,6 @@ mod wgpu_integration {
                 };
                 {
                     let Some((viewport_id, (Some(window), Some(state), render, parent_viewport_id, _))) = windows_id.get(&window_id).and_then(|id|(windows.get_mut(id).map(|w|(*id, w)))) else{return vec![]};
-                    integration.egui_ctx.set_current_viewport_id(viewport_id);
 
                     let _ = pollster::block_on(painter.set_window(viewport_id, Some(window)));
 
