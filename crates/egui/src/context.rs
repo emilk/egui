@@ -141,14 +141,8 @@ impl Repaint {
             .unwrap_or(0)
             > 0
         {
-            // This is a hack, i think
-            // is some thing strange with the input! We need to store a state per viewport and not per context
             if let Some(requests) = self.repaint_requests.get_mut(&viewport_id) {
-                if *requests >= 2 {
-                    *requests -= 2;
-                } else {
-                    *requests -= 1;
-                }
+                *requests -= 1;
             }
 
             std::time::Duration::ZERO
