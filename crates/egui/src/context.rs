@@ -211,6 +211,7 @@ struct ContextImpl {
 
     /// Read
     layer_rects_prev_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
+    layer_rects_prev_viewports: HashMap<u64, HashMap<LayerId, Vec<(Id, Rect)>>>,
 
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
@@ -235,7 +236,10 @@ impl ContextImpl {
             new_raw_input.screen_rect = Some(rect);
         }
 
-        self.layer_rects_prev_frame = std::mem::take(&mut self.layer_rects_this_frame);
+        self.layer_rects_prev_frame = self
+            .layer_rects_prev_viewports
+            .remove(&viewport_id)
+            .unwrap_or_default();
 
         self.memory.begin_frame(
             self.input.get(&viewport_id).unwrap_or(&Default::default()),
@@ -1300,7 +1304,11 @@ impl Context {
     /// Call at the end of each frame.
     #[must_use]
     pub fn end_frame(&self) -> FullOutput {
-        let mut viewports: Vec<u64> = self.read(|ctx| {
+        let mut viewports: Vec<u64> = self.write(|ctx| {
+            ctx.layer_rects_prev_viewports.insert(
+                ctx.current_rendering_viewport,
+                std::mem::take(&mut ctx.layer_rects_this_frame),
+            );
             ctx.viewports
                 .iter()
                 .map(|(_, (_, id, _, _, _))| *id)
@@ -1362,7 +1370,12 @@ impl Context {
             }
         }
 
-        self.write(|ctx| ctx.input.retain(|id, _| viewports.contains(&id)));
+        // Context Cleanup
+        self.write(|ctx| {
+            ctx.input.retain(|id, _| viewports.contains(id));
+            ctx.layer_rects_prev_viewports
+                .retain(|id, _| viewports.contains(id))
+        });
 
         let repaint_after = self.write(|ctx| {
             ctx.repaint
