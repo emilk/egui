@@ -669,7 +669,7 @@ impl<'open> Window<'open> {
                             // END FRAME --------------------------------
 
                             if let Some(title_bar) = title_bar {
-                                title_bar.ui(
+                                let res = title_bar.ui(
                                     &mut area_content_ui,
                                     outer_rect,
                                     &content_response,
@@ -677,6 +677,9 @@ impl<'open> Window<'open> {
                                     &mut collapsing,
                                     collapsible,
                                 );
+                                if res.is_pointer_button_down_on() {
+                                    ctx.viewport_command(viewport_id, ViewportCommand::Drag);
+                                }
                             }
 
                             collapsing.store(ctx);
@@ -711,18 +714,6 @@ impl<'open> Window<'open> {
                             );
                         }
 
-                        if ctx.input(|i| i.pointer.any_pressed()) {
-                            if let Some(interaction) = interaction {
-                                if !interaction.is_resize() {
-                                    ctx.viewport_command(viewport_id, ViewportCommand::Drag);
-                                    println!("Drag");
-                                } else {
-                                    println!("Is resize")
-                                }
-                            } else {
-                                println!("No interaction")
-                            }
-                        }
                         // let size = ctx.round_vec_to_pixels(full_response.rect.size());
                         if win_size.x < size.x {
                             println!("Set size!");
@@ -1338,7 +1329,7 @@ impl TitleBar {
         open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
         collapsible: bool,
-    ) {
+    ) -> Response {
         if let Some(content_response) = &content_response {
             // Now we know how large we got to be:
             self.rect.max.x = self.rect.max.x.max(content_response.rect.max.x);
@@ -1373,13 +1364,12 @@ impl TitleBar {
         // Don't cover the close- and collapse buttons:
         let double_click_rect = self.rect.shrink2(vec2(32.0, 0.0));
 
-        if ui
-            .interact(double_click_rect, self.id, Sense::click())
-            .double_clicked()
-            && collapsible
-        {
+        let res = ui.interact(double_click_rect, self.id, Sense::click());
+
+        if res.double_clicked() && collapsible {
             collapsing.toggle(ui);
         }
+        res
     }
 
     /// Paints the "Close" button at the right side of the title bar
