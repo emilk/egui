@@ -15,7 +15,7 @@ use crate::*;
 ///
 /// Normally the unit is points (logical pixels) in screen space coordinates.
 #[repr(C)]
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, PartialEq, Default)]
 #[cfg_attr(
     feature = "serde",
     derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)

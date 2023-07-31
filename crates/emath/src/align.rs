@@ -4,10 +4,7 @@ use crate::*;
 
 /// left/center/right or top/center/bottom alignment for e.g. anchors and layouts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Align {
     /// Left or top.
     #[default]

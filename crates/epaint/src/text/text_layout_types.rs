@@ -41,10 +41,7 @@ use emath::*;
 /// As you can see, constructing a [`LayoutJob`] is currently a lot of work.
 /// It would be nice to have a helper macro for it!
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayoutJob {
     /// The complete text of this job, referenced by [`LayoutSection`].
     pub text: String,
@@ -192,10 +189,7 @@ impl std::hash::Hash for LayoutJob {
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct LayoutSection {
     /// Can be used for first row indentation.
     pub leading_space: f32,
@@ -221,10 +215,7 @@ impl std::hash::Hash for LayoutSection {
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Debug, Hash, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextFormat {
     pub font_id: FontId,
     /// Text color
@@ -268,10 +259,7 @@ impl TextFormat {
 // ----------------------------------------------------------------------------
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextWrapping {
     /// Try to break text so that no row is wider than this.
     /// Set to [`f32::INFINITY`] to turn off wrapping.
@@ -336,11 +324,8 @@ impl Default for TextWrapping {
 /// You can create a [`Galley`] using [`crate::Fonts::layout_job`];
 ///
 /// This needs to be recreated if `pixels_per_point` (dpi scale) changes.
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[derive(Clone, Debug, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Galley {
     /// The job that this galley is the result of.
     /// Contains the original string and style sections.
@@ -380,10 +365,7 @@ pub struct Galley {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Row {
     /// One for each `char`.
     pub glyphs: Vec<Glyph>,
@@ -406,10 +388,7 @@ pub struct Row {
 
 /// The tessellated output of a row.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RowVisuals {
     /// The tessellated text, using non-normalized (texel) UV coordinates.
     /// That is, you need to divide the uv coordinates by the texture size.
@@ -435,10 +414,7 @@ impl Default for RowVisuals {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Glyph {
     /// The character this glyph represents.
     pub chr: char,

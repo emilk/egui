@@ -10,6 +10,7 @@ use crate::{
 use emath::*;
 
 pub use crate::{CubicBezierShape, QuadraticBezierShape};
+use serde_diff::SerdeDiff;
 
 /// A paint primitive such as a circle or a piece of text.
 /// Coordinates are all screen space points (not physical pixels).
@@ -24,6 +25,7 @@ pub use crate::{CubicBezierShape, QuadraticBezierShape};
     feature = "serde",
     derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
+//#[cfg_attr(feature = "serde", serde_diff(opaque))]
 pub enum Shape {
     /// Paint nothing. This can be useful as a placeholder.
     Noop,
@@ -62,7 +64,9 @@ pub enum Shape {
     CubicBezier(CubicBezierShape),
 
     /// Backend-specific painting.
-    #[cfg_attr(feature = "serde", serde(skip), serde_diff(skip))]
+    #[cfg_attr(feature = "serde", serde(skip))]
+    //#[cfg_attr(feature = "serde", serde_diff(opaque))]
+    //#[serde_diff(opaque)]
     Callback(PaintCallback),
 }
 
@@ -646,6 +650,7 @@ pub struct TextShape {
     pub pos: Pos2,
 
     /// The laid out text, from [`Fonts::layout_job`].
+    #[cfg_attr(feature = "serde", serde(skip), serde_diff(skip))]
     pub galley: Arc<Galley>,
 
     /// Add this underline to the whole text.
