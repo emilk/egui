@@ -25,7 +25,7 @@ use serde_diff::SerdeDiff;
     feature = "serde",
     derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
-//#[cfg_attr(feature = "serde", serde_diff(opaque))]
+#[cfg_attr(feature = "serde", serde_diff(opaque))]
 pub enum Shape {
     /// Paint nothing. This can be useful as a placeholder.
     Noop,

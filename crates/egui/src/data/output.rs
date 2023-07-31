@@ -64,7 +64,7 @@ impl FullOutput {
     feature = "serde",
     derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
-//#[cfg_attr(feature = "serde", serde_diff(opaque))]
+#[cfg_attr(feature = "serde", serde_diff(opaque))]
 pub struct PlatformOutput {
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
@@ -451,7 +451,7 @@ impl std::fmt::Debug for OutputEvent {
     feature = "serde",
     derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
-//#[cfg_attr(feature = "serde", serde_diff(opaque))]
+#[cfg_attr(feature = "serde", serde_diff(opaque))]
 pub struct WidgetInfo {
     /// The type of widget this is.
     pub typ: WidgetType,
