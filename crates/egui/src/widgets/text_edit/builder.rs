@@ -659,7 +659,12 @@ impl<'t> TextEdit<'t> {
             state.soft_keyboard_visible = false;
         }
 
-        if ui.is_rect_visible(rect) {
+
+        if ui.memory(|mem| mem.has_focus(id)) && ui.input(|i| i.screen_rect_changed()) {
+            ui.scroll_to_rect(rect, None);
+        }
+
+       if ui.is_rect_visible(rect) || ui.memory(|mem| mem.has_focus(id)) {
             painter.galley(text_draw_pos, galley.clone());
 
             if text.as_str().is_empty() && !hint_text.is_empty() {
