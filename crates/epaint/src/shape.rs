@@ -25,7 +25,7 @@ use serde_diff::SerdeDiff;
     feature = "serde",
     derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
-#[cfg_attr(feature = "serde", serde_diff(opaque))]
+//#[cfg_attr(feature = "serde", serde_diff(opaque))]
 pub enum Shape {
     /// Paint nothing. This can be useful as a placeholder.
     Noop,
@@ -64,10 +64,14 @@ pub enum Shape {
     CubicBezier(CubicBezierShape),
 
     /// Backend-specific painting.
-    #[cfg_attr(feature = "serde", serde(skip))]
-    //#[cfg_attr(feature = "serde", serde_diff(opaque))]
+    //#[cfg_attr(feature = "serde", serde(skip))]
+    //#[cfg_attr(feature = "serde", serde_diff(skip))] //opaque
     //#[serde_diff(opaque)]
-    Callback(PaintCallback),
+    Callback(
+        #[cfg_attr(feature = "serde", serde(skip))]
+        #[cfg_attr(feature = "serde", serde_diff(skip))]
+        PaintCallback,
+    ),
 }
 
 #[test]
@@ -859,6 +863,15 @@ impl std::cmp::PartialEq for PaintCallback {
         #[allow(clippy::vtable_address_comparisons)]
         {
             self.rect.eq(&other.rect) && Arc::ptr_eq(&self.callback, &other.callback)
+        }
+    }
+}
+
+impl Default for PaintCallback {
+    fn default() -> Self {
+        Self {
+            rect: Rect::default(),
+            callback: Arc::new(0),
         }
     }
 }

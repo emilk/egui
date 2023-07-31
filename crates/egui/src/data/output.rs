@@ -64,7 +64,7 @@ impl FullOutput {
     feature = "serde",
     derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
-#[cfg_attr(feature = "serde", serde_diff(opaque))]
+//#[cfg_attr(feature = "serde", serde_diff(opaque))]
 pub struct PlatformOutput {
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
@@ -96,6 +96,7 @@ pub struct PlatformOutput {
     pub text_cursor_pos: Option<crate::Pos2>,
 
     #[cfg(feature = "accesskit")]
+    #[cfg_attr(feature = "serde", serde_diff(skip))]
     pub accesskit_update: Option<accesskit::TreeUpdate>,
 }
 
@@ -451,7 +452,7 @@ impl std::fmt::Debug for OutputEvent {
     feature = "serde",
     derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
-#[cfg_attr(feature = "serde", serde_diff(opaque))]
+//#[cfg_attr(feature = "serde", serde_diff(opaque))]
 pub struct WidgetInfo {
     /// The type of widget this is.
     pub typ: WidgetType,
@@ -475,6 +476,7 @@ pub struct WidgetInfo {
     pub value: Option<f64>,
 
     /// Selected range of characters in [`Self::current_text_value`].
+    #[cfg_attr(feature = "serde", serde_diff(skip))]
     pub text_selection: Option<std::ops::RangeInclusive<usize>>,
 }
 
