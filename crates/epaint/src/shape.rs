@@ -10,7 +10,7 @@ use crate::{
 use emath::*;
 
 pub use crate::{CubicBezierShape, QuadraticBezierShape};
-use serde_diff::SerdeDiff;
+//use serde_diff::SerdeDiff; need!!!!!!!!!!!!!!!!!!!
 
 /// A paint primitive such as a circle or a piece of text.
 /// Coordinates are all screen space points (not physical pixels).
@@ -23,7 +23,7 @@ use serde_diff::SerdeDiff;
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
 )]
 //#[cfg_attr(feature = "serde", serde_diff(opaque))]
 pub enum Shape {
@@ -69,7 +69,7 @@ pub enum Shape {
     //#[serde_diff(opaque)]
     Callback(
         #[cfg_attr(feature = "serde", serde(skip))]
-        #[cfg_attr(feature = "serde", serde_diff(skip))]
+        //#[cfg_attr(feature = "serde", serde_diff(skip))] need!!!!!!!!!!!!!!!!!
         PaintCallback,
     ),
 }
@@ -353,7 +353,7 @@ impl Shape {
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
 )]
 pub struct CircleShape {
     pub center: Pos2,
@@ -409,7 +409,7 @@ impl From<CircleShape> for Shape {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
 )]
 pub struct PathShape {
     /// Filled paths should prefer clockwise order.
@@ -492,7 +492,7 @@ impl From<PathShape> for Shape {
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
 )]
 pub struct RectShape {
     pub rect: Rect,
@@ -553,7 +553,7 @@ impl From<RectShape> for Shape {
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
 )]
 /// How rounded the corners of things should be
 pub struct Rounding {
@@ -647,14 +647,14 @@ impl Rounding {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
 )]
 pub struct TextShape {
     /// Top left corner of the first character.
     pub pos: Pos2,
 
     /// The laid out text, from [`Fonts::layout_job`].
-    #[cfg_attr(feature = "serde", serde(skip), serde_diff(skip))]
+    //#[cfg_attr(feature = "serde", serde(skip), serde_diff(skip))] need!!!!!!!!!!!!!!!!!
     pub galley: Arc<Galley>,
 
     /// Add this underline to the whole text.

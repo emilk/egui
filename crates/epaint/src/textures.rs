@@ -149,7 +149,7 @@ impl TextureMeta {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
 )]
 pub struct TextureOptions {
     /// How to filter when magnifying (when texels are larger than pixels).
@@ -184,7 +184,7 @@ impl Default for TextureOptions {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
 )]
 pub enum TextureFilter {
     /// Show the nearest pixel value.
@@ -205,7 +205,7 @@ pub enum TextureFilter {
 #[derive(Clone, Default, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
 )]
 #[must_use = "The painter must take care of this"]
 pub struct TexturesDelta {

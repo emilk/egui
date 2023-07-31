@@ -10,7 +10,7 @@ use crate::{textures::TextureOptions, Color32};
 #[derive(Clone, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
 )]
 pub enum ImageData {
     /// RGBA image.
@@ -49,7 +49,7 @@ impl ImageData {
 #[derive(Clone, Default, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
 )]
 pub struct ColorImage {
     /// width, height.
@@ -237,7 +237,7 @@ impl From<ColorImage> for ImageData {
 #[derive(Clone, Default, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
 )]
 pub struct FontImage {
     /// width, height
@@ -342,7 +342,7 @@ fn fast_round(r: f32) -> u8 {
 #[derive(Clone, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
 )]
 #[must_use = "The painter must take care of this"]
 pub struct ImageDelta {

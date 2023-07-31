@@ -8,7 +8,7 @@ use super::*;
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
+    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
 )]
 pub struct Stroke {
     pub width: f32,

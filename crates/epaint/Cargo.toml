@@ -93,7 +93,7 @@ log = { version = "0.4", optional = true, features = ["std"] }
 ## Allow serialization using [`serde`](https://docs.rs/serde) .
 serde = { version = "1", optional = true, features = ["rc"] }
 
-serde_diff = { version = "0.4.1", package = "serde-diff" }
+#serde_diff = { version = "0.4.1", package = "serde-diff" } need!!!!!!!!!!!!!!!!!!
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
