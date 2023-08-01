@@ -57,7 +57,8 @@ egui = { version = "0.22.0", path = "../egui", default-features = false, feature
   "log",
 ] }
 log = { version = "0.4", features = ["std"] }
-winit = { version = "0.28", default-features = false }
+winit = { version = "0.29.0-beta.0", default-features = false }
+smol_str = "0.2.0"
 raw-window-handle = "0.5.0"
 
 #! ### Optional dependencies
