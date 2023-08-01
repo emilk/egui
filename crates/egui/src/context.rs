@@ -208,7 +208,7 @@ struct ContextImpl {
     render_sync: Option<
         Arc<
             Box<
-                dyn for<'a> Fn(ViewportBuilder, Box<dyn FnOnce(&Context, u64, u64) + 'a>)
+                dyn for<'a> Fn(ViewportBuilder, u64, u64, Box<dyn FnOnce(&Context, u64, u64) + 'a>)
                     + Send
                     + Sync,
             >,
@@ -417,9 +417,9 @@ impl Default for Context {
         let clone = s.clone();
 
         s.write(|ctx| {
-            ctx.render_sync = Some(Arc::new(Box::new(move |_builder, render| {
-                render(&clone, 0, 0)
-            })))
+            ctx.render_sync = Some(Arc::new(Box::new(
+                move |_builder, _viewport_id, _parent_viewport_id, render| render(&clone, 0, 0),
+            )))
         });
 
         s
@@ -2063,7 +2063,7 @@ impl Context {
 
     pub fn set_render_sync_callback(
         &self,
-        callback: impl for<'a> Fn(ViewportBuilder, Box<dyn FnOnce(&Context, u64, u64) + 'a>)
+        callback: impl for<'a> Fn(ViewportBuilder, u64, u64, Box<dyn FnOnce(&Context, u64, u64) + 'a>)
             + Send
             + Sync
             + 'static,
@@ -2122,12 +2122,16 @@ impl Context {
         func: impl FnOnce(&Context, u64, u64) -> T,
     ) -> T {
         if self.is_desktop() {
+            let mut viewport_id = 0;
+            let mut parent_viewport_id = 0;
             let render_sync = self.write(|ctx| {
                 if let Some(window) = ctx.viewports.get_mut(&viewport_builder.title) {
                     window.0 = viewport_builder.clone();
                     window.2 = ctx.current_rendering_viewport;
                     window.3 = true;
                     window.4 = None;
+                    viewport_id = window.1;
+                    parent_viewport_id = window.2;
                 } else {
                     let id = ctx.viewport_counter + 1;
                     ctx.viewport_counter = id;
@@ -2141,6 +2145,8 @@ impl Context {
                             None,
                         ),
                     );
+                    viewport_id = id;
+                    parent_viewport_id = ctx.current_rendering_viewport;
                 }
 
                 ctx.render_sync.clone()
@@ -2150,6 +2156,8 @@ impl Context {
                 let out = &mut out;
                 render_sync.unwrap()(
                     viewport_builder,
+                    viewport_id,
+                    parent_viewport_id,
                     Box::new(move |context, viewport_id, parent_viewport_id| {
                         *out = Some(func(context, viewport_id, parent_viewport_id))
                     }),
