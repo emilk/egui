@@ -882,24 +882,12 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
 fn update_text_input(ctx: &Context, cursor_range: Option<CursorRange>, text: String) {
     ctx.output_mut(|o| {
         let selection = if let Some(cursor_range) = cursor_range {
-            TextSpan {
-                start: cursor_range.primary.ccursor.index,
-                end: cursor_range.secondary.ccursor.index,
-            }
+            (cursor_range.primary.ccursor.index, cursor_range.secondary.ccursor.index)
         } else {
-            TextSpan {
-                start: 0,
-                end: 0,
-            }
+            (0, 0)
         };
 
-        let output = TextInputState {
-            text: text.as_str().to_owned(),
-            selection,
-            compose_region: None,
-        };
-
-        o.text_input_state = Some(output)
+        o.surrounding_text = Some((text, selection))
     });
 }
 
@@ -1093,22 +1081,21 @@ fn events(
                 }
             }
 
-            Event::TextInputState(input) => {
-                text.replace(&input.text);
+            Event::CompositionReplace { content, selection, compose_region } => {
+                text.replace(content);
 
-                let mut ccursor = CCursorRange::default();
-                ccursor.primary = CCursor::new(input.selection.start);
-                ccursor.secondary = CCursor::new(input.selection.end);
-
-                if let Some(compose_region) = input.compose_region {
-                    ccursor = CCursorRange::two(
-                        CCursor::new(compose_region.start),
-                        CCursor::new(compose_region.end),
+                if let Some((start, end)) = compose_region {
+                    let ccursor = CCursorRange::two(
+                        CCursor::new(*start),
+                        CCursor::new(*end),
                     );
+                    Some(ccursor)
+                } else {
+                    Some(CCursorRange::two(
+                        CCursor::new(selection.0),
+                        CCursor::new(selection.1),
+                    ))
                 }
-
-                // TODO: Improve selection
-                Some(ccursor)
             }
 
             #[cfg(feature = "accesskit")]

@@ -16,7 +16,6 @@ pub use winit;
 use winit::dpi::LogicalSize;
 use winit::event::MouseButton;
 use winit::keyboard::KeyCode;
-use egui::{TextInputState, TextSpan};
 
 pub use egui;
 #[cfg(feature = "accesskit")]
@@ -285,30 +284,17 @@ impl State {
                             .events
                             .push(egui::Event::CompositionUpdate(text.clone()));
                     }
+                    winit::event::Ime::Replace { text, selection, compose_region } => {
+                        self.egui_input
+                            .events
+                            .push(egui::Event::CompositionReplace {
+                                content: text.clone(),
+                                selection: selection.clone(),
+                                compose_region: compose_region.clone(),
+                            });
+                    }
                 };
 
-                EventResponse {
-                    repaint: true,
-                    consumed: egui_ctx.wants_keyboard_input(),
-                }
-            }
-            WindowEvent::TextInputState(state) => {
-                self.egui_input
-                    .events
-                    .push(egui::Event::TextInputState(TextInputState {
-                        text: state.text.clone(),
-                        selection: TextSpan {
-                            start: state.selection.start,
-                            end: state.selection.end,
-                        },
-                        compose_region: state
-                            .compose_region
-                            .as_ref()
-                            .map(|r| TextSpan {
-                                start: r.start,
-                                end: r.end,
-                            }),
-                    }));
                 EventResponse {
                     repaint: true,
                     consumed: egui_ctx.wants_keyboard_input(),
@@ -420,13 +406,6 @@ impl State {
                 EventResponse {
                     repaint: true,
                     consumed: egui_ctx.wants_pointer_input(),
-                }
-            }
-            WindowEvent::TextInputState(state) => {
-                //self.egui_input.ime_state.insert(SmolStr::from(state.clone()));
-                EventResponse {
-                    repaint: true,
-                    consumed: false,
                 }
             }
         }
@@ -677,7 +656,7 @@ impl State {
             text_cursor_pos,
             #[cfg(feature = "accesskit")]
             accesskit_update,
-            text_input_state,
+            surrounding_text,
         } = platform_output;
         self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
 
@@ -691,29 +670,13 @@ impl State {
             self.clipboard.set(copied_text);
         }
 
-        if let Some(text_input_state) = text_input_state {
-            window.set_text_input_state(winit::event::TextInputState {
-                text: text_input_state.text,
-                selection: winit::event::TextSpan {
-                    start: text_input_state.selection.start,
-                    end: text_input_state.selection.end,
-                },
-                compose_region: text_input_state
-                    .compose_region
-                    .map(|r| winit::event::TextSpan {
-                        start: r.start,
-                        end: r.end,
-                    }),
-            });
+        if let Some((text, selection)) = surrounding_text {
+            window.set_ime_surrounding_text(text, selection);
         }
 
         let text_input_this_frame = text_cursor_pos.is_some();
         if self.text_input_last_frame != text_input_this_frame {
-            if text_input_this_frame {
-                window.begin_ime_input();
-            } else {
-                window.end_ime_input();
-            }
+            window.set_ime_allowed(text_input_this_frame);
         }
         self.text_input_last_frame = text_input_this_frame;
 
