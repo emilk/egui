@@ -193,8 +193,27 @@ struct ContextImpl {
 
     repaint: Repaint,
 
-    viewports: HashMap<String, (ViewportBuilder, u64, u64, bool, Arc<Box<ViewportRender>>)>,
+    viewports: HashMap<
+        String,
+        (
+            ViewportBuilder,
+            u64,
+            u64,
+            bool,
+            Option<Arc<Box<ViewportRender>>>,
+        ),
+    >,
     viewport_commands: Vec<(u64, ViewportCommand)>,
+
+    render_sync: Option<
+        Arc<
+            Box<
+                dyn for<'a> Fn(ViewportBuilder, Box<dyn FnOnce(&Context, u64, u64) + 'a>)
+                    + Send
+                    + Sync,
+            >,
+        >,
+    >,
 
     viewport_counter: u64,
     current_rendering_viewport: u64,
@@ -394,7 +413,16 @@ impl std::cmp::PartialEq for Context {
 
 impl Default for Context {
     fn default() -> Self {
-        Self(Arc::new(RwLock::new(ContextImpl::default())))
+        let s = Self(Arc::new(RwLock::new(ContextImpl::default())));
+        let clone = s.clone();
+
+        s.write(|ctx| {
+            ctx.render_sync = Some(Arc::new(Box::new(move |_builder, render| {
+                render(&clone, 0, 0)
+            })))
+        });
+
+        s
     }
 }
 
@@ -2033,6 +2061,17 @@ impl Context {
         self.read(|ctx| ctx.current_rendering_viewport)
     }
 
+    pub fn set_render_sync_callback(
+        &self,
+        callback: impl for<'a> Fn(ViewportBuilder, Box<dyn FnOnce(&Context, u64, u64) + 'a>)
+            + Send
+            + Sync
+            + 'static,
+    ) {
+        let callback = Box::new(callback);
+        self.write(|ctx| ctx.render_sync = Some(Arc::new(callback)));
+    }
+
     pub fn is_desktop(&self) -> bool {
         self.read(|ctx| ctx.is_desktop)
     }
@@ -2047,32 +2086,79 @@ impl Context {
 
     pub fn create_viewport(
         &self,
-        window_builder: ViewportBuilder,
+        viewport_builder: ViewportBuilder,
         func: impl Fn(&Context, u64, u64) + Send + Sync + 'static,
     ) {
         if self.is_desktop() {
             self.write(|ctx| {
-                if let Some(window) = ctx.viewports.get_mut(&window_builder.title) {
+                if let Some(window) = ctx.viewports.get_mut(&viewport_builder.title) {
+                    window.0 = viewport_builder;
                     window.2 = ctx.current_rendering_viewport;
                     window.3 = true;
-                    window.4 = Arc::new(Box::new(func));
+                    window.4 = Some(Arc::new(Box::new(func)));
                 } else {
                     let id = ctx.viewport_counter + 1;
                     ctx.viewport_counter = id;
                     ctx.viewports.insert(
-                        window_builder.title.clone(),
+                        viewport_builder.title.clone(),
                         (
-                            window_builder,
+                            viewport_builder,
                             id,
                             ctx.current_rendering_viewport,
                             true,
-                            Arc::new(Box::new(func)),
+                            Some(Arc::new(Box::new(func))),
                         ),
                     );
                 }
             });
         } else {
             func(self, 0, 0);
+        }
+    }
+
+    pub fn create_viewport_sync<T>(
+        &self,
+        viewport_builder: ViewportBuilder,
+        func: impl FnOnce(&Context, u64, u64) -> T,
+    ) -> T {
+        if self.is_desktop() {
+            let render_sync = self.write(|ctx| {
+                if let Some(window) = ctx.viewports.get_mut(&viewport_builder.title) {
+                    window.0 = viewport_builder.clone();
+                    window.2 = ctx.current_rendering_viewport;
+                    window.3 = true;
+                    window.4 = None;
+                } else {
+                    let id = ctx.viewport_counter + 1;
+                    ctx.viewport_counter = id;
+                    ctx.viewports.insert(
+                        viewport_builder.title.clone(),
+                        (
+                            viewport_builder.clone(),
+                            id,
+                            ctx.current_rendering_viewport,
+                            true,
+                            None,
+                        ),
+                    );
+                }
+
+                ctx.render_sync.clone()
+            });
+            let mut out = None;
+            {
+                let out = &mut out;
+                render_sync.unwrap()(
+                    viewport_builder,
+                    Box::new(move |context, viewport_id, parent_viewport_id| {
+                        *out = Some(func(context, viewport_id, parent_viewport_id))
+                    }),
+                );
+            }
+
+            out.unwrap()
+        } else {
+            func(self, 0, 0)
         }
     }
 }

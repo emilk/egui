@@ -1197,7 +1197,7 @@ mod glow_integration {
                                     }
                                     w.window = None;
                                     w.gl_surface = None;
-                                    w.render = Some(render.clone());
+                                    w.render = render.clone();
                                     w.builder = builder.clone();
                                     w.parent_id = *id;
                                 }
@@ -1215,7 +1215,7 @@ mod glow_integration {
                             window: None,
                             window_id: id,
                             egui_winit: None,
-                            render: Some(render.clone()),
+                            render: render.clone(),
                             parent_id: parent,
                         });
                         active_viewports_ids.push(id);
@@ -1832,7 +1832,7 @@ mod wgpu_integration {
 
                 viewports.retain_mut(|(id, parent, builder, render)| {
                     if let Some(w) = windows.get_mut(id) {
-                        w.2 = Some(render.clone());
+                        w.2 = render.clone();
                         w.3 = *parent;
                         active_viewports_ids.push(*id);
                         return false;
@@ -1842,7 +1842,7 @@ mod wgpu_integration {
                 });
 
                 for (id, parent, builder, render) in viewports {
-                    windows.insert(id, (None, None, Some(render), parent, builder));
+                    windows.insert(id, (None, None, render, parent, builder));
                     active_viewports_ids.push(id);
                 }
 

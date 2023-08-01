@@ -39,7 +39,7 @@ pub struct FullOutput {
         u64,
         u64,
         ViewportBuilder,
-        Arc<Box<dyn Fn(&Context, u64, u64) + Sync + Send>>,
+        Option<Arc<Box<dyn Fn(&Context, u64, u64) + Sync + Send>>>,
     )>,
 
     pub viewport_commands: Vec<(u64, ViewportCommand)>,
