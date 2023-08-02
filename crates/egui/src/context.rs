@@ -189,7 +189,7 @@ struct ContextImpl {
     frame_stack: Vec<(u64, u64)>,
 
     // The output of a frame:
-    graphics: GraphicLayers,
+    graphics: HashMap<u64, GraphicLayers>,
     output: PlatformOutput,
 
     paint_stats: PaintStats,
@@ -241,6 +241,17 @@ impl ContextImpl {
         viewport_id: u64,
         parent_viewport_id: u64,
     ) {
+        // This is used to pause the last frame
+        if !self.frame_stack.is_empty() {
+            let viewport_id = self.get_viewport_id();
+            println!("Pause: {viewport_id}");
+            self.layer_rects_prev_viewports.insert(
+                viewport_id,
+                std::mem::take(&mut self.layer_rects_this_frame),
+            );
+            self.memory.pause_frame(viewport_id);
+        }
+
         self.frame_stack.push((viewport_id, parent_viewport_id));
         self.repaint.start_frame(self.get_viewport_id());
 
@@ -581,7 +592,7 @@ impl Context {
     /// Read-write access to [`GraphicLayers`], where painted [`crate::Shape`]s are written to.
     #[inline]
     pub(crate) fn graphics_mut<R>(&self, writer: impl FnOnce(&mut GraphicLayers) -> R) -> R {
-        self.write(move |ctx| writer(&mut ctx.graphics))
+        self.write(move |ctx| writer(ctx.graphics.entry(ctx.get_viewport_id()).or_default()))
     }
 
     /// Read-only access to [`PlatformOutput`].
@@ -1459,7 +1470,22 @@ impl Context {
                 })
         });
 
-        self.write(|ctx| ctx.frame_stack.pop());
+        // This is used to resume the last frame!
+        let is_last = self.write(|ctx| {
+            ctx.frame_stack.pop();
+            ctx.frame_stack.is_empty()
+        });
+        if !is_last {
+            let viewport_id = self.get_viewport_id();
+            println!("Resume: {viewport_id}");
+            self.write(|ctx| {
+                ctx.layer_rects_prev_frame = ctx
+                    .layer_rects_prev_viewports
+                    .remove(&viewport_id)
+                    .unwrap_or_default();
+                ctx.memory.resume_frame(viewport_id)
+            });
+        }
         FullOutput {
             platform_output,
             repaint_after,
@@ -1471,7 +1497,13 @@ impl Context {
     }
 
     fn drain_paint_lists(&self) -> Vec<ClippedShape> {
-        self.write(|ctx| ctx.graphics.drain(ctx.memory.areas.order()).collect())
+        self.write(|ctx| {
+            ctx.graphics
+                .entry(ctx.get_viewport_id())
+                .or_default()
+                .drain(ctx.memory.areas.order())
+                .collect()
+        })
     }
 
     /// Tessellate the given shapes into triangle meshes.

@@ -385,6 +385,13 @@ impl Memory {
         }
     }
 
+    pub(crate) fn pause_frame(&mut self, viewport_id: u64) {
+        self.interactions
+            .insert(viewport_id, std::mem::take(&mut self.interaction));
+        self.viewports_areas
+            .insert(viewport_id, std::mem::take(&mut self.areas));
+    }
+
     pub(crate) fn end_frame(
         &mut self,
         input: &InputState,
@@ -401,6 +408,11 @@ impl Memory {
         self.drag_value.end_frame(input);
         self.interactions.retain(|id, _| viewports.contains(id));
         self.viewports_areas.retain(|id, _| viewports.contains(id));
+    }
+
+    pub(crate) fn resume_frame(&mut self, viewport_id: u64) {
+        self.interaction = self.interactions.remove(&viewport_id).unwrap();
+        self.areas = self.viewports_areas.remove(&viewport_id).unwrap();
     }
 
     /// Top-most layer at the given position.

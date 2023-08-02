@@ -8,6 +8,9 @@ fn main() {
 
     let mut to_repair = false;
 
+    let mut show = false;
+    let mut value = 0.0;
+
     let _ = eframe::run_simple_native(
         "Viewports Examples",
         NativeOptions {
@@ -35,9 +38,20 @@ fn main() {
                                 ui.label("Parent Viewport ID: ");
                                 ui.label(format!("{parent_viewport_id}"))
                             });
+                            ui.checkbox(&mut show, "Show");
+                            ui.add(
+                                egui::widgets::DragValue::new(&mut value)
+                                    .clamp_range(-10..=10)
+                                    .speed(0.1),
+                            );
                         })
                     },
                 );
+
+                if show {
+                    ui.label("Is shown!");
+                    ui.label(format!("Value: {value}"));
+                }
 
                 egui::CollapsingHeader::new("Show Test1").show(ui, |ui| {
                     egui::Window::new("Test1").show(ctx, move |ui, id, parent_id| {

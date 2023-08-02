@@ -980,7 +980,6 @@ mod glow_integration {
                         let window = &mut *window.write();
                         if let Some(winit_state) = &mut window.egui_winit {
                             if let Some(win) = window.window.clone() {
-                                println!("Render beagin!");
                                 let win = win.read();
                                 let input = winit_state.take_egui_input(&win);
                                 let output =
@@ -1026,7 +1025,6 @@ mod glow_integration {
                                             "failed to get current context to swap buffers",
                                         ));
                                 }
-                                println!("Should render sync");
                                 return;
                             }
                         }
