@@ -18,7 +18,7 @@ fn main() -> Result<(), eframe::Error> {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label(format!(
                 "Current rendering window: {}",
-                ctx.current_rendering_viewport()
+                ctx.get_viewport_id()
             ));
             ui.heading("My egui Application");
             ui.horizontal(|ui| {

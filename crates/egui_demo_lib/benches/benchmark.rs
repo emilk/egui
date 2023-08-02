@@ -13,7 +13,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         // The most end-to-end benchmark.
         c.bench_function("demo_with_tessellate__realistic", |b| {
             b.iter(|| {
-                let full_output = ctx.run(RawInput::default(), 0, |ctx| {
+                let full_output = ctx.run(RawInput::default(), 0, 0, |ctx| {
                     demo_windows.ui(ctx);
                 });
                 ctx.tessellate(full_output.shapes)
@@ -22,13 +22,13 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
         c.bench_function("demo_no_tessellate", |b| {
             b.iter(|| {
-                ctx.run(RawInput::default(), 0, |ctx| {
+                ctx.run(RawInput::default(), 0, 0, |ctx| {
                     demo_windows.ui(ctx);
                 })
             });
         });
 
-        let full_output = ctx.run(RawInput::default(), 0, |ctx| {
+        let full_output = ctx.run(RawInput::default(), 0, 0, |ctx| {
             demo_windows.ui(ctx);
         });
         c.bench_function("demo_only_tessellate", |b| {
@@ -42,7 +42,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
         c.bench_function("demo_full_no_tessellate", |b| {
             b.iter(|| {
-                ctx.run(RawInput::default(), 0, |ctx| {
+                ctx.run(RawInput::default(), 0, 0, |ctx| {
                     demo_windows.ui(ctx);
                 })
             });
@@ -51,7 +51,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let ctx = egui::Context::default();
-        let _ = ctx.run(RawInput::default(), 0, |ctx| {
+        let _ = ctx.run(RawInput::default(), 0, 0, |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
                 c.bench_function("label &str", |b| {
                     b.iter(|| {
@@ -69,7 +69,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
     {
         let ctx = egui::Context::default();
-        ctx.begin_frame(RawInput::default(), 0);
+        ctx.begin_frame(RawInput::default(), 0, 0);
 
         egui::CentralPanel::default().show(&ctx, |ui| {
             c.bench_function("Painter::rect", |b| {

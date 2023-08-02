@@ -515,10 +515,12 @@ impl EpiIntegration {
         self.frame.info.parent_viewport = parent_id;
 
         // Run user code:
-        let full_output = self.egui_ctx.run(raw_input, viewport_id, |egui_ctx| {
-            crate::profile_scope!("App::update");
-            app.update(egui_ctx, &mut self.frame, render.as_ref().map(|r| &***r));
-        });
+        let full_output = self
+            .egui_ctx
+            .run(raw_input, viewport_id, parent_id, |egui_ctx| {
+                crate::profile_scope!("App::update");
+                app.update(egui_ctx, &mut self.frame, render.as_ref().map(|r| &***r));
+            });
 
         self.pending_full_output.append(full_output);
         let full_output = std::mem::take(&mut self.pending_full_output);

@@ -450,9 +450,9 @@ mod glow_integration {
     /// initialized once the application has an associated `SurfaceView`.
     struct GlowWinitRunning {
         gl: Arc<glow::Context>,
-        painter: egui_glow::Painter,
+        painter: Arc<RwLock<egui_glow::Painter>>,
         integration: Arc<RwLock<epi_integration::EpiIntegration>>,
-        app: Box<dyn epi::App>,
+        app: Arc<RwLock<Box<dyn epi::App>>>,
         // Conceptually this will be split out eventually so that the rest of the state
         // can be persistent.
         glutin_ctx: Arc<RwLock<GlutinWindowContext>>,
@@ -490,6 +490,9 @@ mod glow_integration {
         windows: HashMap<u64, Arc<RwLock<Window>>>,
         window_maps: HashMap<winit::window::WindowId, u64>,
     }
+
+    unsafe impl Sync for GlutinWindowContext {}
+    unsafe impl Send for GlutinWindowContext {}
 
     impl GlutinWindowContext {
         /// There is a lot of complexity with opengl creation, so prefer extensive logging to get all the help we can to debug issues.
@@ -962,12 +965,82 @@ mod glow_integration {
                 }
             }
 
+            let glutin_ctx = Arc::new(RwLock::new(gl_window));
+
+            let egui_ctx = integration.egui_ctx.clone();
+            let glutin = glutin_ctx.clone();
+            let _gl = gl.clone();
+            let painter = Arc::new(RwLock::new(painter));
+            let _painter = painter.clone();
+
+            integration.egui_ctx.set_render_sync_callback(
+                move |viewport_builder, viewport_id, parent_viewport_id, render| {
+                    let window = glutin.read().windows.get(&viewport_id).cloned();
+                    if let Some(window) = window {
+                        let window = &mut *window.write();
+                        if let Some(winit_state) = &mut window.egui_winit {
+                            if let Some(win) = window.window.clone() {
+                                println!("Render beagin!");
+                                let win = win.read();
+                                let input = winit_state.take_egui_input(&win);
+                                let output =
+                                    egui_ctx.run(input, viewport_id, parent_viewport_id, |ctx| {
+                                        render(&egui_ctx, viewport_id, parent_viewport_id);
+                                    });
+                                let glutin = &mut *glutin.write();
+
+                                glutin.current_gl_context = Some(
+                                    glutin
+                                        .current_gl_context
+                                        .take()
+                                        .unwrap()
+                                        .make_not_current()
+                                        .unwrap()
+                                        .make_current(window.gl_surface.as_ref().unwrap())
+                                        .unwrap(),
+                                );
+
+                                let screen_size_in_pixels: [u32; 2] = win.inner_size().into();
+
+                                egui_glow::painter::clear(
+                                    &_gl,
+                                    screen_size_in_pixels,
+                                    [0.0, 0.0, 0.0, 0.0],
+                                );
+
+                                let clipped_primitives = egui_ctx.tessellate(output.shapes);
+
+                                _painter.write().paint_and_update_textures(
+                                    screen_size_in_pixels,
+                                    egui_ctx.pixels_per_point(),
+                                    &clipped_primitives,
+                                    &output.textures_delta,
+                                );
+                                unsafe {
+                                    crate::profile_scope!("swap_buffers");
+                                    let _ = window
+                                        .gl_surface
+                                        .as_ref()
+                                        .expect("failed to get surface to swap buffers")
+                                        .swap_buffers(glutin.current_gl_context.as_ref().expect(
+                                            "failed to get current context to swap buffers",
+                                        ));
+                                }
+                                println!("Should render sync");
+                                return;
+                            }
+                        }
+                    }
+                    render(&egui_ctx, 0, 0);
+                },
+            );
+
             *self.running.write() = Some(GlowWinitRunning {
-                glutin_ctx: Arc::new(RwLock::new(gl_window)),
+                glutin_ctx,
                 gl,
                 painter,
                 integration: Arc::new(RwLock::new(integration)),
-                app,
+                app: Arc::new(RwLock::new(app)),
             });
 
             Ok(())
@@ -1033,7 +1106,7 @@ mod glow_integration {
         fn save_and_destroy(&mut self) {
             if let Some(mut running) = self.running.write().take() {
                 running.integration.write().save(
-                    running.app.as_mut(),
+                    running.app.write().as_mut(),
                     &running
                         .glutin_ctx
                         .read()
@@ -1044,8 +1117,8 @@ mod glow_integration {
                         .unwrap()
                         .read(),
                 );
-                running.app.on_exit(Some(&running.gl));
-                running.painter.destroy();
+                running.app.write().on_exit(Some(&running.gl));
+                running.painter.write().destroy();
             }
         }
 
@@ -1059,17 +1132,15 @@ mod glow_integration {
                 puffin::GlobalProfiler::lock().new_frame();
                 crate::profile_scope!("frame");
 
-                let mut running = self.running.write();
-                let GlowWinitRunning {
-                    glutin_ctx: gl_window,
-                    gl,
-                    app,
-                    integration,
-                    painter,
-                } = running.as_mut().unwrap();
+                let running = self.running.clone();
+
+                let integration = self.running.read().as_ref().unwrap().integration.clone();
+                let app = self.running.read().as_ref().unwrap().app.clone();
+                let glutin_ctx = self.running.read().as_ref().unwrap().glutin_ctx.clone();
+                let painter = self.running.read().as_ref().unwrap().painter.clone();
 
                 let mut window_map = HashMap::default();
-                for (id, window) in gl_window.read().windows.iter() {
+                for (id, window) in glutin_ctx.read().windows.iter() {
                     if let Some(win) = &window.read().window {
                         window_map.insert(*id, win.read().id());
                     }
@@ -1087,21 +1158,8 @@ mod glow_integration {
                 let control_flow;
                 {
                     // let window = gl_window.window(window_index);
-                    let win = gl_window.read().windows.get(&viewport_id).cloned();
+                    let win = glutin_ctx.read().windows.get(&viewport_id).cloned();
                     let win = win.unwrap();
-                    {
-                        let mut gl_window = gl_window.write();
-                        gl_window.current_gl_context = Some(
-                            gl_window
-                                .current_gl_context
-                                .take()
-                                .unwrap()
-                                .make_not_current()
-                                .unwrap()
-                                .make_current(win.read().gl_surface.as_ref().unwrap())
-                                .unwrap(),
-                        );
-                    };
 
                     let screen_size_in_pixels: [u32; 2] = win
                         .read()
@@ -1111,18 +1169,6 @@ mod glow_integration {
                         .read()
                         .inner_size()
                         .into();
-
-                    win.write()
-                        .window
-                        .as_ref()
-                        .unwrap()
-                        .read()
-                        .set_transparent(true);
-                    egui_glow::painter::clear(
-                        gl,
-                        screen_size_in_pixels,
-                        app.clear_color(&integration.read().egui_ctx.style().visuals),
-                    );
 
                     {
                         let win = &mut *win.write();
@@ -1134,7 +1180,7 @@ mod glow_integration {
                             viewports,
                             viewport_commands,
                         } = integration.write().update(
-                            app.as_mut(),
+                            app.write().as_mut(),
                             &win.window.as_ref().unwrap().read(),
                             win.egui_winit.as_mut().unwrap(),
                             win.render.clone(),
@@ -1148,12 +1194,35 @@ mod glow_integration {
                             win.egui_winit.as_mut().unwrap(),
                         );
                     }
+
                     let clipped_primitives = {
                         crate::profile_scope!("tessellate");
                         integration.read().egui_ctx.tessellate(shapes)
                     };
+                    {
+                        let mut gl_window = glutin_ctx.write();
+                        gl_window.current_gl_context = Some(
+                            gl_window
+                                .current_gl_context
+                                .take()
+                                .unwrap()
+                                .make_not_current()
+                                .unwrap()
+                                .make_current(win.read().gl_surface.as_ref().unwrap())
+                                .unwrap(),
+                        );
+                    };
 
-                    painter.paint_and_update_textures(
+                    let gl = self.running.read().as_ref().unwrap().gl.clone();
+
+                    egui_glow::painter::clear(
+                        &gl,
+                        screen_size_in_pixels,
+                        app.read()
+                            .clear_color(&integration.read().egui_ctx.style().visuals),
+                    );
+
+                    painter.write().paint_and_update_textures(
                         screen_size_in_pixels,
                         integration.read().egui_ctx.pixels_per_point(),
                         &clipped_primitives,
@@ -1167,12 +1236,12 @@ mod glow_integration {
 
                         if *screenshot_requested {
                             *screenshot_requested = false;
-                            let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
+                            let screenshot = painter.read().read_screen_rgba(screen_size_in_pixels);
                             integration.frame.screenshot.set(Some(screenshot));
                         }
 
                         integration.post_rendering(
-                            app.as_mut(),
+                            app.write().as_mut(),
                             &win.read().window.as_ref().unwrap().read(),
                         );
                     }
@@ -1185,7 +1254,7 @@ mod glow_integration {
                             .as_ref()
                             .expect("failed to get surface to swap buffers")
                             .swap_buffers(
-                                gl_window
+                                glutin_ctx
                                     .read()
                                     .current_gl_context
                                     .as_ref()
@@ -1203,7 +1272,7 @@ mod glow_integration {
                                 path.ends_with(".png"),
                                 "Expected EFRAME_SCREENSHOT_TO to end with '.png', got {path:?}"
                             );
-                            let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
+                            let screenshot = painter.read().read_screen_rgba(screen_size_in_pixels);
                             image::save_buffer(
                                 &path,
                                 screenshot.as_raw(),
@@ -1246,8 +1315,10 @@ mod glow_integration {
                             .collect::<Vec<EventResult>>()
                     };
 
-                    integration
-                        .maybe_autosave(app.as_mut(), &win.read().window.as_ref().unwrap().read());
+                    integration.maybe_autosave(
+                        app.write().as_mut(),
+                        &win.read().window.as_ref().unwrap().read(),
+                    );
 
                     if win.read().window.as_ref().unwrap().read().is_minimized() == Some(true) {
                         // On Mac, a minimized Window uses up all CPU:
@@ -1261,7 +1332,7 @@ mod glow_integration {
                 let mut active_viewports_ids = vec![0];
 
                 viewports.retain_mut(|(id, _, builder, render)| {
-                    if let Some(w) = gl_window.read().windows.get(id) {
+                    if let Some(w) = glutin_ctx.read().windows.get(id) {
                         let mut w = w.write();
                         if w.builder != *builder {
                             if let Some(window) = &mut w.window {
@@ -1283,7 +1354,7 @@ mod glow_integration {
                 });
 
                 for (id, parent, builder, render) in viewports {
-                    gl_window.write().windows.insert(
+                    glutin_ctx.write().windows.insert(
                         id,
                         Arc::new(RwLock::new(Window {
                             builder,
@@ -1299,7 +1370,7 @@ mod glow_integration {
                 }
 
                 for (id, command) in viewport_commands {
-                    if let Some(window) = gl_window.read().windows.get(&id) {
+                    if let Some(window) = glutin_ctx.read().windows.get(&id) {
                         let window = window.read();
 
                         if let Some(win) = &window.window {
@@ -1334,12 +1405,11 @@ mod glow_integration {
                     }
                 }
 
+                let mut gl_window = glutin_ctx.write();
                 gl_window
-                    .write()
                     .windows
                     .retain(|id, _| active_viewports_ids.contains(id));
                 gl_window
-                    .write()
                     .window_maps
                     .retain(|_, id| active_viewports_ids.contains(id));
 
@@ -1499,7 +1569,7 @@ mod glow_integration {
                                     let viewport = &mut *viewport.write();
 
                                     break 'res running.integration.write().on_event(
-                                        running.app.as_mut(),
+                                        running.app.write().as_mut(),
                                         event,
                                         window_id,
                                         viewport.egui_winit.as_mut().unwrap(),

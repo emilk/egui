@@ -9,5 +9,5 @@ publish = false
 
 
 [dependencies]
-eframe = { path = "../../crates/eframe", features = ["wgpu"] }
+eframe = { path = "../../crates/eframe" }
 env_logger = "0.10"

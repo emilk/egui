@@ -1,4 +1,5 @@
 use eframe::egui;
+use eframe::egui::window::ViewportBuilder;
 use eframe::egui::Id;
 use eframe::NativeOptions;
 
@@ -10,7 +11,7 @@ fn main() {
     let _ = eframe::run_simple_native(
         "Viewports Examples",
         NativeOptions {
-            renderer: eframe::Renderer::Wgpu,
+            renderer: eframe::Renderer::Glow,
             ..NativeOptions::default()
         },
         move |ctx, _frame| {
@@ -20,6 +21,22 @@ fn main() {
                 ui.checkbox(&mut is_desktop, "Is Desktop");
                 ctx.set_desktop(is_desktop);
                 ui.checkbox(&mut to_repair, "To Repair!");
+
+                ctx.create_viewport_sync(
+                    ViewportBuilder::default().with_title("Sync rendering!"),
+                    |ctx, viewport_id, parent_viewport_id| {
+                        egui::CentralPanel::default().show(ctx, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label("Viewport ID: ");
+                                ui.label(format!("{viewport_id}"))
+                            });
+                            ui.horizontal(|ui| {
+                                ui.label("Parent Viewport ID: ");
+                                ui.label(format!("{parent_viewport_id}"))
+                            });
+                        })
+                    },
+                );
 
                 egui::CollapsingHeader::new("Show Test1").show(ui, |ui| {
                     egui::Window::new("Test1").show(ctx, move |ui, id, parent_id| {
@@ -40,7 +57,7 @@ fn main() {
                         let ctx = ui.ctx().clone();
                         ui.label(format!(
                             "Current rendering window: {}",
-                            ctx.current_rendering_viewport()
+                            ctx.get_viewport_id()
                         ));
                         if ui.button("Drag").is_pointer_button_down_on() {
                             if id != parent_id {
@@ -71,7 +88,7 @@ fn main() {
                         let ctx = ui.ctx().clone();
                         ui.label(format!(
                             "Current rendering window: {}",
-                            ctx.current_rendering_viewport()
+                            ctx.get_viewport_id()
                         ));
 
                         if ui.button("Drag").is_pointer_button_down_on() {
@@ -94,7 +111,7 @@ fn main() {
                         let ctx = ui.ctx().clone();
                         ui.label(format!(
                             "Current rendering window: {}",
-                            ctx.current_rendering_viewport()
+                            ctx.get_viewport_id()
                         ));
 
                         if ui.button("Drag").is_pointer_button_down_on() {
