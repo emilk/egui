@@ -424,19 +424,19 @@ impl<'open> Window<'open> {
     /// Returns `None` if the window is not open (if [`Window::open`] was called with `&mut false`).
     /// Returns `Some(InnerResponse { inner: None })` if the window is collapsed.
     #[inline]
-    pub fn show(
+    pub fn show<R>(
         self,
         ctx: &Context,
-        add_contents: impl Fn(&mut Ui, u64, u64) + Send + Sync + 'static,
-    ) {
+        add_contents: impl FnOnce(&mut Ui, u64, u64) -> R,
+    ) -> Option<InnerResponse<Option<R>>> {
         self.show_dyn(ctx, Box::new(add_contents))
     }
 
-    fn show_dyn(
+    fn show_dyn<'a, R>(
         self,
         ctx: &Context,
-        add_contents: Box<dyn Fn(&mut Ui, u64, u64) + Send + Sync + 'static>,
-    ) {
+        add_contents: Box<dyn FnOnce(&mut Ui, u64, u64) -> R + 'a>,
+    ) -> Option<InnerResponse<Option<R>>> {
         let Window {
             title,
             mut open,
@@ -451,7 +451,7 @@ impl<'open> Window<'open> {
         } = self;
 
         let embedded =
-            ctx.data_mut(|data| *data.get_persisted_mut_or(area.id.with("_embedded"), false));
+            ctx.data_mut(|data| *data.get_persisted_mut_or(area.id.with("_embedded"), true));
 
         let is_open = if let Some(open) = &mut open {
             if let Some(tmp_open) = ctx.data_mut(|data| {
@@ -469,7 +469,7 @@ impl<'open> Window<'open> {
         let is_open = is_open || ctx.memory(|mem| mem.everything_is_visible());
 
         if !is_open {
-            return;
+            return None;
         }
 
         let show_close_button = open.is_some();
@@ -501,7 +501,7 @@ impl<'open> Window<'open> {
                     window_builder.max_inner_size = Some((max_size.x as u32, max_size.y as u32));
                 }
 
-                ctx.create_viewport(
+                ctx.create_viewport_sync(
                     window_builder,
                     move |ctx, viewport_id, parent_viewport_id| {
                         let mut op = is_open;
@@ -733,9 +733,14 @@ impl<'open> Window<'open> {
                             ctx.data_mut(|data| data.insert_persisted(area_id.with("_open"), op));
                             ctx.request_repaint_viewport(parent_viewport_id);
                         }
+
+                        return Some(InnerResponse {
+                            inner: content_inner,
+                            response: full_response,
+                        });
                     },
                 );
-                return;
+                return None;
             }
         }
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
@@ -889,6 +894,7 @@ impl<'open> Window<'open> {
             inner: content_inner,
             response: full_response,
         };
+        Some(inner_response)
     }
 }
 
