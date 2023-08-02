@@ -26,6 +26,7 @@ fn main() {
                     ViewportBuilder::default().with_title("Sync rendering!"),
                     |ctx, viewport_id, parent_viewport_id| {
                         egui::CentralPanel::default().show(ctx, |ui| {
+                            ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
                             ui.horizontal(|ui| {
                                 ui.label("Viewport ID: ");
                                 ui.label(format!("{viewport_id}"))

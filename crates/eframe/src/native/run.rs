@@ -1139,6 +1139,21 @@ mod glow_integration {
                 let glutin_ctx = self.running.read().as_ref().unwrap().glutin_ctx.clone();
                 let painter = self.running.read().as_ref().unwrap().painter.clone();
 
+                // This onlt will happend when a viewport is sync
+                // That means that the viewport cannot be rendered by itself and needs his parent to be rendered
+                {
+                    let win = glutin_ctx.read().windows.get(&viewport_id).unwrap().clone();
+                    if win.read().render.is_none() && viewport_id != 0 {
+                        if let Some(win) = glutin_ctx.read().windows.get(&win.read().parent_id) {
+                            win.read()
+                                .window
+                                .as_ref()
+                                .map(|w| w.read().request_redraw());
+                        }
+                        return vec![];
+                    }
+                }
+
                 let mut window_map = HashMap::default();
                 for (id, window) in glutin_ctx.read().windows.iter() {
                     if let Some(win) = &window.read().window {
