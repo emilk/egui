@@ -413,6 +413,7 @@ impl Memory {
     pub(crate) fn resume_frame(&mut self, viewport_id: u64) {
         self.interaction = self.interactions.remove(&viewport_id).unwrap();
         self.areas = self.viewports_areas.remove(&viewport_id).unwrap();
+        self.viewport_id = viewport_id;
     }
 
     /// Top-most layer at the given position.

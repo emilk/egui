@@ -190,7 +190,7 @@ struct ContextImpl {
 
     // The output of a frame:
     graphics: HashMap<u64, GraphicLayers>,
-    output: PlatformOutput,
+    output: HashMap<u64, PlatformOutput>,
 
     paint_stats: PaintStats,
 
@@ -223,6 +223,7 @@ struct ContextImpl {
 
     /// Written to during the frame.
     layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
+    layer_rects_this_viewports: HashMap<u64, HashMap<LayerId, Vec<(Id, Rect)>>>,
 
     /// Read
     layer_rects_prev_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
@@ -245,14 +246,20 @@ impl ContextImpl {
         if !self.frame_stack.is_empty() {
             let viewport_id = self.get_viewport_id();
             println!("Pause: {viewport_id}");
-            self.layer_rects_prev_viewports.insert(
+
+            self.memory.pause_frame(viewport_id);
+            self.layer_rects_this_viewports.insert(
                 viewport_id,
                 std::mem::take(&mut self.layer_rects_this_frame),
             );
-            self.memory.pause_frame(viewport_id);
+            self.layer_rects_prev_viewports.insert(
+                viewport_id,
+                std::mem::take(&mut self.layer_rects_prev_frame),
+            );
         }
 
         self.frame_stack.push((viewport_id, parent_viewport_id));
+        self.output.entry(self.get_viewport_id()).or_default();
         self.repaint.start_frame(self.get_viewport_id());
 
         if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
@@ -605,13 +612,19 @@ impl Context {
     /// ```
     #[inline]
     pub fn output<R>(&self, reader: impl FnOnce(&PlatformOutput) -> R) -> R {
-        self.read(move |ctx| reader(&ctx.output))
+        self.read(move |ctx| {
+            reader(
+                ctx.output
+                    .get(&ctx.get_viewport_id())
+                    .unwrap_or(&Default::default()),
+            )
+        })
     }
 
     /// Read-write access to [`PlatformOutput`].
     #[inline]
     pub fn output_mut<R>(&self, writer: impl FnOnce(&mut PlatformOutput) -> R) -> R {
-        self.write(move |ctx| writer(&mut ctx.output))
+        self.write(move |ctx| writer(ctx.output.entry(ctx.get_viewport_id()).or_default()))
     }
 
     /// Read-only access to [`FrameState`].
@@ -1479,10 +1492,10 @@ impl Context {
             let viewport_id = self.get_viewport_id();
             println!("Resume: {viewport_id}");
             self.write(|ctx| {
-                ctx.layer_rects_prev_frame = ctx
-                    .layer_rects_prev_viewports
-                    .remove(&viewport_id)
-                    .unwrap_or_default();
+                ctx.layer_rects_prev_frame =
+                    ctx.layer_rects_prev_viewports.remove(&viewport_id).unwrap();
+                ctx.layer_rects_this_frame =
+                    ctx.layer_rects_this_viewports.remove(&viewport_id).unwrap();
                 ctx.memory.resume_frame(viewport_id)
             });
         }
