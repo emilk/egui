@@ -245,7 +245,6 @@ impl ContextImpl {
         // This is used to pause the last frame
         if !self.frame_stack.is_empty() {
             let viewport_id = self.get_viewport_id();
-            println!("Pause: {viewport_id}");
 
             self.memory.pause_frame(viewport_id);
             self.layer_rects_this_viewports.insert(
@@ -1490,7 +1489,6 @@ impl Context {
         });
         if !is_last {
             let viewport_id = self.get_viewport_id();
-            println!("Resume: {viewport_id}");
             self.write(|ctx| {
                 ctx.layer_rects_prev_frame =
                     ctx.layer_rects_prev_viewports.remove(&viewport_id).unwrap();

@@ -171,6 +171,7 @@ pub enum ViewportCommand {
 pub struct Window<'open> {
     title: WidgetText,
     open: Option<&'open mut bool>,
+    embedded: Option<&'open mut bool>,
     area: Area,
     frame: Option<Frame>,
     resize: Resize,
@@ -192,6 +193,7 @@ impl<'open> Window<'open> {
             window_builder: ViewportBuilder::default().with_title(title.text()),
             title,
             open: None,
+            embedded: None,
             area,
             frame: None,
             resize: Resize::default()
@@ -220,6 +222,11 @@ impl<'open> Window<'open> {
     /// * If the close button is pressed, `*open` will be set to `false`.
     pub fn open(mut self, open: &'open mut bool) -> Self {
         self.open = Some(open);
+        self
+    }
+
+    pub fn embedded(mut self, embedded: &'open mut bool) -> Self {
+        self.embedded = Some(embedded);
         self
     }
 
@@ -440,6 +447,7 @@ impl<'open> Window<'open> {
         let Window {
             title,
             mut open,
+            mut embedded,
             area,
             frame,
             resize,
@@ -450,8 +458,18 @@ impl<'open> Window<'open> {
             mut window_builder,
         } = self;
 
-        let embedded =
-            ctx.data_mut(|data| *data.get_persisted_mut_or(area.id.with("_embedded"), true));
+        let embedded = if let Some(embedded) = &mut embedded {
+            if let Some(tmp_embedded) = ctx.data_mut(|data| {
+                let tmp = data.get_persisted::<bool>(area.id.with("_embedded"));
+                data.remove::<bool>(area.id.with("_embedded"));
+                tmp
+            }) {
+                **embedded = tmp_embedded;
+            }
+            **embedded
+        } else {
+            true
+        };
 
         let is_open = if let Some(open) = &mut open {
             if let Some(tmp_open) = ctx.data_mut(|data| {
@@ -467,6 +485,11 @@ impl<'open> Window<'open> {
         };
 
         let is_open = is_open || ctx.memory(|mem| mem.everything_is_visible());
+
+        ctx.data_mut(|data| {
+            data.insert_persisted(area.id.with("_is_embedded"), embedded);
+            data.insert_persisted(area.id.with("_is_open"), is_open);
+        });
 
         if !is_open {
             return None;
@@ -501,7 +524,7 @@ impl<'open> Window<'open> {
                     window_builder.max_inner_size = Some((max_size.x as u32, max_size.y as u32));
                 }
 
-                ctx.create_viewport_sync(
+                return ctx.create_viewport_sync(
                     window_builder,
                     move |ctx, viewport_id, parent_viewport_id| {
                         let mut op = is_open;
