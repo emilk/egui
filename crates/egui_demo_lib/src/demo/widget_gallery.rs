@@ -63,7 +63,7 @@ impl super::Demo for WidgetGallery {
             .open(open)
             .resizable(true)
             .default_width(280.0)
-            .show(ctx, move |ui, _, _| {
+            .show(ctx, move |ui| {
                 use super::View as _;
                 clone.clone().ui(ui);
             });

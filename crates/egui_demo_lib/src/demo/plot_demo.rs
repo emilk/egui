@@ -68,7 +68,7 @@ impl super::Demo for PlotDemo {
             .open(open)
             .default_size(vec2(400.0, 400.0))
             .vscroll(false)
-            .show(ctx, move |ui, _, _| clone.clone().ui(ui));
+            .show(ctx, move |ui| clone.clone().ui(ui));
     }
 }
 

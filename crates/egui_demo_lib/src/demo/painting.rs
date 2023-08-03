@@ -94,7 +94,7 @@ impl super::Demo for Painting {
             .open(open)
             .default_size(vec2(512.0, 512.0))
             .vscroll(false)
-            .show(ctx, move |ui, _, _| clone.clone().ui(ui));
+            .show(ctx, move |ui| clone.clone().ui(ui));
     }
 }
 

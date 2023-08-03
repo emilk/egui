@@ -32,7 +32,7 @@ impl super::Demo for FontBook {
         let clone = self.clone();
         egui::Window::new(self.name())
             .open(open)
-            .show(ctx, move |ui, _, _| {
+            .show(ctx, move |ui| {
                 use super::View as _;
                 clone.clone().ui(ui);
             });

@@ -50,7 +50,7 @@ impl super::Demo for Scrolling {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
-            .show(ctx, move |ui, _, _| {
+            .show(ctx, move |ui| {
                 use super::View as _;
                 clone.clone().ui(ui);
             });

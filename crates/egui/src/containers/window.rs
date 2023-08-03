@@ -434,7 +434,7 @@ impl<'open> Window<'open> {
     pub fn show<R>(
         self,
         ctx: &Context,
-        add_contents: impl FnOnce(&mut Ui, u64, u64) -> R,
+        add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<Option<R>>> {
         self.show_dyn(ctx, Box::new(add_contents))
     }
@@ -442,7 +442,7 @@ impl<'open> Window<'open> {
     fn show_dyn<'a, R>(
         self,
         ctx: &Context,
-        add_contents: Box<dyn FnOnce(&mut Ui, u64, u64) -> R + 'a>,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'a>,
     ) -> Option<InnerResponse<Option<R>>> {
         let Window {
             title,
@@ -662,17 +662,9 @@ impl<'open> Window<'open> {
                                         }
 
                                         if scroll.has_any_bar() {
-                                            scroll
-                                                .show(ui, |ui| {
-                                                    add_contents(
-                                                        ui,
-                                                        viewport_id,
-                                                        parent_viewport_id,
-                                                    )
-                                                })
-                                                .inner
+                                            scroll.show(ui, |ui| add_contents(ui)).inner
                                         } else {
-                                            add_contents(ui, viewport_id, parent_viewport_id)
+                                            add_contents(ui)
                                         }
                                     })
                                 })
@@ -854,9 +846,9 @@ impl<'open> Window<'open> {
                         }
 
                         if scroll.has_any_bar() {
-                            scroll.show(ui, |ui| add_contents(ui, 0, 0)).inner
+                            scroll.show(ui, |ui| add_contents(ui)).inner
                         } else {
-                            add_contents(ui, 0, 0)
+                            add_contents(ui)
                         }
                     })
                 })

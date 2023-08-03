@@ -202,7 +202,7 @@ impl DemoWindows {
                 .open(&mut about_is_open)
                 .resizable(false)
                 .collapsible(false)
-                .show(ctx, move |ui, _, _| {
+                .show(ctx, move |ui| {
                     let close = close.clone();
                     clone.data.write().unwrap().about.ui(ui);
                     ui.add_space(12.0);

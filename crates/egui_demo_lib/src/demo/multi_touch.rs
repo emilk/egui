@@ -39,7 +39,7 @@ impl super::Demo for MultiTouch {
             .open(open)
             .default_size(vec2(512.0, 512.0))
             .resizable(true)
-            .show(ctx, move |ui, _, _| {
+            .show(ctx, move |ui| {
                 use super::View as _;
                 clone.clone().ui(ui);
             });

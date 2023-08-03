@@ -53,7 +53,7 @@ impl ThreadState {
         let title = self.data.read().unwrap().title.clone();
         egui::Window::new(title)
             .default_pos(pos)
-            .show(ctx, move |ui, _, _| {
+            .show(ctx, move |ui| {
                 let data = &mut *clone.data.write().unwrap();
                 ui.horizontal(|ui| {
                     ui.label("Your name: ");
@@ -147,10 +147,11 @@ impl eframe::App for MyApp {
             return;
         }
         let data = self.data.clone();
-        egui::Window::new("Main thread").show(ctx, move |ui, _, parent_id| {
+        egui::Window::new("Main thread").show(ctx, move |ui| {
             if ui.button("Spawn another thread").clicked() {
                 data.write().unwrap().spawn_thread();
-                ui.ctx().request_repaint_viewport(parent_id);
+                ui.ctx()
+                    .request_repaint_viewport(ui.ctx().get_parent_viewport_id());
             }
         });
 

@@ -16,7 +16,7 @@ impl super::Demo for StripDemo {
             .open(open)
             .resizable(true)
             .default_width(400.0)
-            .show(ctx, |ui, _, _| {
+            .show(ctx, |ui| {
                 use super::View as _;
                 Self::default().ui(ui);
             });

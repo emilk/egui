@@ -62,7 +62,7 @@ impl Demo for MiscDemoWindow {
             .open(open)
             .vscroll(true)
             .hscroll(true)
-            .show(ctx, move |ui, _, _| clone.clone().ui(ui));
+            .show(ctx, move |ui| clone.clone().ui(ui));
     }
 }
 

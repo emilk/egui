@@ -61,15 +61,16 @@ fn main() {
                 }
 
                 egui::CollapsingHeader::new("Show Test1").show(ui, |ui| {
-                    egui::Window::new("Test1").embedded(&mut embedded1).show(
-                        ctx,
-                        |ui, id, parent_id| {
+                    egui::Window::new("Test1")
+                        .embedded(&mut embedded1)
+                        .show(ctx, |ui| {
                             ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
                             let mut embedded = ui.data_mut(|data| {
                                 *data.get_temp_mut_or(Id::new("Test1").with("_is_embedded"), true)
                             });
                             if ui.checkbox(&mut embedded, "Should embedd?").clicked() {
-                                ui.ctx().request_repaint_viewport(parent_id);
+                                ui.ctx()
+                                    .request_repaint_viewport(ui.ctx().get_parent_viewport_id());
                             }
                             ui.data_mut(|data| {
                                 data.insert_persisted(Id::new("Test1").with("_embedded"), embedded)
@@ -84,8 +85,11 @@ fn main() {
                                 ctx.get_viewport_id()
                             ));
                             if ui.button("Drag").is_pointer_button_down_on() {
-                                if id != parent_id {
-                                    ctx.viewport_command(id, egui::window::ViewportCommand::Drag)
+                                if ctx.get_viewport_id() != ctx.get_parent_viewport_id() {
+                                    ctx.viewport_command(
+                                        ctx.get_viewport_id(),
+                                        egui::window::ViewportCommand::Drag,
+                                    )
                                 } else {
                                     ctx.memory_mut(|mem| {
                                         mem.set_dragged_id(
@@ -94,17 +98,17 @@ fn main() {
                                     });
                                 }
                             }
-                        },
-                    );
+                        });
                 });
                 egui::CollapsingHeader::new("Shout Test2").show(ui, |ui| {
-                    egui::Window::new("Test2").show(ctx, move |ui, id, parent_id| {
+                    egui::Window::new("Test2").show(ctx, move |ui| {
                         ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
                         let mut embedded = ui.data_mut(|data| {
                             *data.get_temp_mut_or(Id::new("Test2").with("_embedded"), true)
                         });
                         if ui.checkbox(&mut embedded, "Should embedd?").clicked() {
-                            ui.ctx().request_repaint_viewport(parent_id);
+                            ui.ctx()
+                                .request_repaint_viewport(ui.ctx().get_parent_viewport_id());
                         }
                         ui.data_mut(|data| {
                             data.insert_persisted(Id::new("Test2").with("_embedded"), embedded)
@@ -119,18 +123,22 @@ fn main() {
                         ));
 
                         if ui.button("Drag").is_pointer_button_down_on() {
-                            ctx.viewport_command(id, egui::window::ViewportCommand::Drag)
+                            ctx.viewport_command(
+                                ctx.get_viewport_id(),
+                                egui::window::ViewportCommand::Drag,
+                            )
                         }
                     });
                 });
                 egui::CollapsingHeader::new("Shout Test3").show(ui, |ui| {
-                    egui::Window::new("Test3").show(ctx, move |ui, id, parent_id| {
+                    egui::Window::new("Test3").show(ctx, move |ui| {
                         ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
                         let mut embedded = ui.data_mut(|data| {
                             *data.get_temp_mut_or(Id::new("Test3").with("_embedded"), true)
                         });
                         if ui.checkbox(&mut embedded, "Should embedd?").clicked() {
-                            ui.ctx().request_repaint_viewport(parent_id);
+                            ui.ctx()
+                                .request_repaint_viewport(ui.ctx().get_parent_viewport_id());
                         }
                         ui.data_mut(|data| {
                             data.insert_persisted(Id::new("Test3").with("_embedded"), embedded)
@@ -142,7 +150,10 @@ fn main() {
                         ));
 
                         if ui.button("Drag").is_pointer_button_down_on() {
-                            ctx.viewport_command(id, egui::window::ViewportCommand::Drag)
+                            ctx.viewport_command(
+                                ctx.get_viewport_id(),
+                                egui::window::ViewportCommand::Drag,
+                            )
                         }
                     });
                 });

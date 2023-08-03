@@ -40,7 +40,7 @@ impl super::Demo for CodeEditor {
         egui::Window::new(self.name())
             .open(open)
             .default_height(500.0)
-            .show(ctx, move |ui, _, _| clone.clone().ui(ui));
+            .show(ctx, move |ui| clone.clone().ui(ui));
     }
 }
 

@@ -83,7 +83,7 @@ impl super::Demo for WindowOptions {
             window = window.anchor(anchor, anchor_offset);
         }
         let clone = self.clone();
-        window.show(ctx, move |ui, _, _| {
+        window.show(ctx, move |ui| {
             let mut clone = clone.clone();
             clone.ui(ui)
         });
