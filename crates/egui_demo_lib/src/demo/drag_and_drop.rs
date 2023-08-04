@@ -1,5 +1,3 @@
-use std::sync::{Arc, RwLock};
-
 use egui::*;
 
 pub fn drag_source(ui: &mut Ui, id: Id, body: impl FnOnce(&mut Ui)) {
@@ -77,32 +75,23 @@ pub fn drop_target<R>(
     InnerResponse::new(ret, response)
 }
 
-#[derive(Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct DragAndDropDemo {
     /// columns with items
-    columns: Arc<RwLock<Vec<Vec<String>>>>,
-}
-
-impl PartialEq for DragAndDropDemo {
-    fn eq(&self, other: &Self) -> bool {
-        *self.columns.read().unwrap() == *other.columns.read().unwrap()
-    }
+    columns: Vec<Vec<String>>,
 }
 
 impl Default for DragAndDropDemo {
     fn default() -> Self {
         Self {
-            columns: Arc::new(RwLock::new(
-                vec![
-                    vec!["Item A", "Item B", "Item C"],
-                    vec!["Item D", "Item E"],
-                    vec!["Item F", "Item G", "Item H"],
-                ]
-                .into_iter()
-                .map(|v| v.into_iter().map(ToString::to_string).collect())
-                .collect(),
-            )),
+            columns: vec![
+                vec!["Item A", "Item B", "Item C"],
+                vec!["Item D", "Item E"],
+                vec!["Item F", "Item G", "Item H"],
+            ]
+            .into_iter()
+            .map(|v| v.into_iter().map(ToString::to_string).collect())
+            .collect(),
         }
     }
 }
@@ -113,14 +102,13 @@ impl super::Demo for DragAndDropDemo {
     }
 
     fn show(&mut self, ctx: &Context, open: &mut bool) {
-        let clone = self.clone();
         use super::View as _;
         Window::new(self.name())
             .open(open)
             .default_size(vec2(256.0, 256.0))
             .vscroll(false)
             .resizable(false)
-            .show(ctx, move |ui| clone.clone().ui(ui));
+            .show(ctx, move |ui| self.ui(ui));
     }
 }
 
@@ -132,7 +120,7 @@ impl super::View for DragAndDropDemo {
         let id_source = "my_drag_and_drop_demo";
         let mut source_col_row = None;
         let mut drop_col = None;
-        let mut columns = self.columns.write().unwrap();
+        let columns = &mut self.columns;
         ui.columns(columns.len(), |uis| {
             for (col_idx, column) in columns.clone().into_iter().enumerate() {
                 let ui = &mut uis[col_idx];

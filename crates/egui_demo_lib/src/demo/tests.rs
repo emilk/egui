@@ -97,13 +97,14 @@ enum WidgetType {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ManualLayoutTestData {
+pub struct ManualLayoutTest {
     widget_offset: egui::Vec2,
     widget_size: egui::Vec2,
     widget_type: WidgetType,
     text_edit_contents: String,
 }
-impl Default for ManualLayoutTestData {
+
+impl Default for ManualLayoutTest {
     fn default() -> Self {
         Self {
             widget_offset: egui::Vec2::splat(150.0),
@@ -114,30 +115,18 @@ impl Default for ManualLayoutTestData {
     }
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct ManualLayoutTest {
-    data: Arc<RwLock<ManualLayoutTestData>>,
-}
-
-impl PartialEq for ManualLayoutTest {
-    fn eq(&self, other: &Self) -> bool {
-        *self.data.read().unwrap() == *other.data.read().unwrap()
-    }
-}
-
 impl super::Demo for ManualLayoutTest {
     fn name(&self) -> &'static str {
         "Manual Layout Test"
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        let clone = self.clone();
         egui::Window::new(self.name())
             .resizable(false)
             .open(open)
             .show(ctx, move |ui| {
                 use super::View as _;
-                clone.clone().ui(ui);
+                self.ui(ui);
             });
     }
 }
@@ -146,12 +135,12 @@ impl super::View for ManualLayoutTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
         egui::reset_button(ui, self);
 
-        let ManualLayoutTestData {
+        let ManualLayoutTest {
             widget_offset,
             widget_size,
             widget_type,
             text_edit_contents,
-        } = &mut *self.data.write().unwrap();
+        } = self;
         ui.horizontal(|ui| {
             ui.label("Test widget:");
             ui.radio_value(widget_type, WidgetType::Button, "Button");
@@ -192,7 +181,7 @@ impl super::View for ManualLayoutTest {
 
 // ----------------------------------------------------------------------------
 #[derive(PartialEq)]
-pub struct TableTestData {
+pub struct TableTest {
     num_cols: usize,
     num_rows: usize,
     min_col_width: f32,
@@ -200,18 +189,7 @@ pub struct TableTestData {
     text_length: usize,
 }
 
-#[derive(Default, Clone)]
-pub struct TableTest {
-    data: Arc<RwLock<TableTestData>>,
-}
-
-impl PartialEq for TableTest {
-    fn eq(&self, other: &Self) -> bool {
-        *self.data.read().unwrap() == *other.data.read().unwrap()
-    }
-}
-
-impl Default for TableTestData {
+impl Default for TableTest {
     fn default() -> Self {
         Self {
             num_cols: 4,
@@ -229,12 +207,11 @@ impl super::Demo for TableTest {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        let clone = self.clone();
         egui::Window::new(self.name())
             .open(open)
             .show(ctx, move |ui| {
                 use super::View as _;
-                clone.clone().ui(ui);
+                self.ui(ui);
             });
     }
 }
@@ -242,17 +219,16 @@ impl super::Demo for TableTest {
 impl super::View for TableTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
         {
-            let mut data = self.data.write().unwrap();
             ui.add(
-                egui::Slider::new(&mut data.min_col_width, 0.0..=400.0)
+                egui::Slider::new(&mut self.min_col_width, 0.0..=400.0)
                     .text("Minimum column width"),
             );
             ui.add(
-                egui::Slider::new(&mut data.max_col_width, 0.0..=400.0)
+                egui::Slider::new(&mut self.max_col_width, 0.0..=400.0)
                     .text("Maximum column width"),
             );
-            ui.add(egui::Slider::new(&mut data.num_cols, 0..=5).text("Columns"));
-            ui.add(egui::Slider::new(&mut data.num_rows, 0..=20).text("Rows"));
+            ui.add(egui::Slider::new(&mut self.num_cols, 0..=5).text("Columns"));
+            ui.add(egui::Slider::new(&mut self.num_rows, 0..=20).text("Rows"));
 
             ui.separator();
 
@@ -263,11 +239,11 @@ impl super::View for TableTest {
 
             egui::Grid::new("my_grid")
                 .striped(true)
-                .min_col_width(data.min_col_width)
-                .max_col_width(data.max_col_width)
+                .min_col_width(self.min_col_width)
+                .max_col_width(self.max_col_width)
                 .show(ui, |ui| {
-                    for row in 0..data.num_rows {
-                        for col in 0..data.num_cols {
+                    for row in 0..self.num_rows {
+                        for col in 0..self.num_cols {
                             if col == 0 {
                                 ui.label(format!("row {}", row));
                             } else {
@@ -286,7 +262,7 @@ impl super::View for TableTest {
                 });
 
             ui.separator();
-            ui.add(egui::Slider::new(&mut data.text_length, 1..=40).text("Text length"));
+            ui.add(egui::Slider::new(&mut self.text_length, 1..=40).text("Text length"));
             egui::Grid::new("parent grid").striped(true).show(ui, |ui| {
                 ui.vertical(|ui| {
                     ui.label("Vertical nest1");
@@ -321,7 +297,7 @@ impl super::View for TableTest {
                 ui.end_row();
 
                 let mut dyn_text = String::from("O");
-                dyn_text.extend(std::iter::repeat('h').take(data.text_length));
+                dyn_text.extend(std::iter::repeat('h').take(self.text_length));
                 ui.label(dyn_text);
                 ui.label("Fifth row, second column");
                 ui.end_row();
@@ -338,9 +314,9 @@ impl super::View for TableTest {
 // ----------------------------------------------------------------------------
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub struct InputTest {
-    info: Arc<RwLock<String>>,
+    info: String,
 }
 
 impl super::Demo for InputTest {
@@ -349,13 +325,12 @@ impl super::Demo for InputTest {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        let clone = self.clone();
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
             .show(ctx, move |ui| {
                 use super::View as _;
-                clone.clone().ui(ui);
+                self.ui(ui);
             });
     }
 }
@@ -401,10 +376,10 @@ impl super::View for InputTest {
             }
         }
         if !new_info.is_empty() {
-            *self.info.write().unwrap() = new_info;
+            self.info = new_info;
         }
 
-        ui.label(&*self.info.write().unwrap());
+        ui.label(&self.info);
     }
 }
 

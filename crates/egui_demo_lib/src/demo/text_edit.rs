@@ -1,23 +1,14 @@
-use std::sync::{Arc, RwLock};
-
 /// Showcase [`TextEdit`].
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-#[derive(Clone)]
 pub struct TextEdit {
-    pub text: Arc<RwLock<String>>,
-}
-
-impl PartialEq for TextEdit {
-    fn eq(&self, other: &Self) -> bool {
-        *self.text.read().unwrap() == *other.text.read().unwrap()
-    }
+    pub text: String,
 }
 
 impl Default for TextEdit {
     fn default() -> Self {
         Self {
-            text: Arc::new(RwLock::new("Edit this text".to_owned())),
+            text: "Edit this text".to_owned(),
         }
     }
 }
@@ -28,13 +19,12 @@ impl super::Demo for TextEdit {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        let clone = self.clone();
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
             .show(ctx, move |ui| {
                 use super::View as _;
-                clone.clone().ui(ui);
+                self.ui(ui);
             });
     }
 }
@@ -42,7 +32,6 @@ impl super::Demo for TextEdit {
 impl super::View for TextEdit {
     fn ui(&mut self, ui: &mut egui::Ui) {
         let Self { text } = self;
-        let text = &mut *text.write().unwrap();
 
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;

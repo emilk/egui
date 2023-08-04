@@ -1,11 +1,9 @@
-use std::sync::{Arc, RwLock};
-
 use egui::epaint::{CubicBezierShape, PathShape, QuadraticBezierShape};
 use egui::*;
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct PaintBezierData {
+pub struct PaintBezier {
     /// Bézier curve degree, it can be 3, 4.
     degree: usize,
 
@@ -24,14 +22,7 @@ pub struct PaintBezierData {
     bounding_box_stroke: Stroke,
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-#[derive(Default, Clone)]
-pub struct PaintBezier {
-    data: Arc<RwLock<PaintBezierData>>,
-}
-
-impl Default for PaintBezierData {
+impl Default for PaintBezier {
     fn default() -> Self {
         Self {
             degree: 4,
@@ -51,15 +42,14 @@ impl Default for PaintBezierData {
 
 impl PaintBezier {
     pub fn ui_control(&mut self, ui: &mut egui::Ui) {
-        let mut data = self.data.write().unwrap();
         ui.collapsing("Colors", |ui| {
             ui.horizontal(|ui| {
                 ui.label("Fill color:");
-                ui.color_edit_button_srgba(&mut data.fill);
+                ui.color_edit_button_srgba(&mut self.fill);
             });
-            egui::stroke_ui(ui, &mut data.stroke, "Curve Stroke");
-            egui::stroke_ui(ui, &mut data.aux_stroke, "Auxiliary Stroke");
-            egui::stroke_ui(ui, &mut data.bounding_box_stroke, "Bounding Box Stroke");
+            egui::stroke_ui(ui, &mut self.stroke, "Curve Stroke");
+            egui::stroke_ui(ui, &mut self.aux_stroke, "Auxiliary Stroke");
+            egui::stroke_ui(ui, &mut self.bounding_box_stroke, "Bounding Box Stroke");
         });
 
         ui.collapsing("Global tessellation options", |ui| {
@@ -69,8 +59,8 @@ impl PaintBezier {
                 .tessellation_options_mut(|to| *to = tessellation_options);
         });
 
-        ui.radio_value(&mut data.degree, 3, "Quadratic Bézier");
-        ui.radio_value(&mut data.degree, 4, "Cubic Bézier");
+        ui.radio_value(&mut self.degree, 3, "Quadratic Bézier");
+        ui.radio_value(&mut self.degree, 4, "Cubic Bézier");
         ui.label("Move the points by dragging them.");
         ui.small("Only convex curves can be accurately filled.");
     }
@@ -85,14 +75,12 @@ impl PaintBezier {
         );
 
         let control_point_radius = 8.0;
-        let mut data = self.data.write().unwrap();
-        let data = &mut *data;
 
-        let control_point_shapes: Vec<Shape> = data
+        let control_point_shapes: Vec<Shape> = self
             .control_points
             .iter_mut()
             .enumerate()
-            .take(data.degree)
+            .take(self.degree)
             .map(|(i, point)| {
                 let size = Vec2::splat(2.0 * control_point_radius);
 
@@ -111,33 +99,33 @@ impl PaintBezier {
             })
             .collect();
 
-        let points_in_screen: Vec<Pos2> = data
+        let points_in_screen: Vec<Pos2> = self
             .control_points
             .iter()
-            .take(data.degree)
+            .take(self.degree)
             .map(|p| to_screen * *p)
             .collect();
 
-        match data.degree {
+        match self.degree {
             3 => {
                 let points = points_in_screen.clone().try_into().unwrap();
                 let shape =
-                    QuadraticBezierShape::from_points_stroke(points, true, data.fill, data.stroke);
+                    QuadraticBezierShape::from_points_stroke(points, true, self.fill, self.stroke);
                 painter.add(epaint::RectShape::stroke(
                     shape.visual_bounding_rect(),
                     0.0,
-                    data.bounding_box_stroke,
+                    self.bounding_box_stroke,
                 ));
                 painter.add(shape);
             }
             4 => {
                 let points = points_in_screen.clone().try_into().unwrap();
                 let shape =
-                    CubicBezierShape::from_points_stroke(points, true, data.fill, data.stroke);
+                    CubicBezierShape::from_points_stroke(points, true, self.fill, self.stroke);
                 painter.add(epaint::RectShape::stroke(
                     shape.visual_bounding_rect(),
                     0.0,
-                    data.bounding_box_stroke,
+                    self.bounding_box_stroke,
                 ));
                 painter.add(shape);
             }
@@ -146,7 +134,7 @@ impl PaintBezier {
             }
         };
 
-        painter.add(PathShape::line(points_in_screen, data.aux_stroke));
+        painter.add(PathShape::line(points_in_screen, self.aux_stroke));
         painter.extend(control_point_shapes);
 
         response
@@ -159,14 +147,13 @@ impl super::Demo for PaintBezier {
     }
 
     fn show(&mut self, ctx: &Context, open: &mut bool) {
-        let clone = self.clone();
         use super::View as _;
         Window::new(self.name())
             .open(open)
             .vscroll(false)
             .resizable(false)
             .default_size([300.0, 350.0])
-            .show(ctx, move |ui| clone.clone().ui(ui));
+            .show(ctx, move |ui| self.ui(ui));
     }
 }
 

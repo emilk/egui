@@ -1,14 +1,11 @@
 use egui::*;
-use std::{
-    f64::INFINITY,
-    sync::{Arc, RwLock},
-};
+use std::f64::INFINITY;
 
 /// Showcase sliders
 #[derive(PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct SlidersData {
+pub struct Sliders {
     pub min: f64,
     pub max: f64,
     pub logarithmic: bool,
@@ -22,20 +19,7 @@ pub struct SlidersData {
     pub trailing_fill: bool,
 }
 
-#[derive(Clone, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-pub struct Sliders {
-    pub data: Arc<RwLock<SlidersData>>,
-}
-
-impl PartialEq for Sliders {
-    fn eq(&self, other: &Self) -> bool {
-        *self.data.read().unwrap() == *other.data.read().unwrap()
-    }
-}
-
-impl Default for SlidersData {
+impl Default for Sliders {
     fn default() -> Self {
         Self {
             min: 0.0,
@@ -59,13 +43,12 @@ impl super::Demo for Sliders {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        let clone = self.clone();
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
             .show(ctx, move |ui| {
                 use super::View as _;
-                clone.clone().ui(ui);
+                self.ui(ui);
             });
     }
 }
@@ -73,7 +56,7 @@ impl super::Demo for Sliders {
 impl super::View for Sliders {
     fn ui(&mut self, ui: &mut Ui) {
         {
-            let SlidersData {
+            let Sliders {
                 min,
                 max,
                 logarithmic,
@@ -85,7 +68,7 @@ impl super::View for Sliders {
                 vertical,
                 value,
                 trailing_fill,
-            } = &mut *self.data.write().unwrap();
+            } = self;
 
             ui.label("You can click a slider value to edit it with the keyboard.");
 
@@ -138,7 +121,7 @@ impl super::View for Sliders {
                 );
 
                 if ui.button("Assign PI").clicked() {
-                    self.data.write().unwrap().value = std::f64::consts::PI;
+                    self.value = std::f64::consts::PI;
                 }
             }
 

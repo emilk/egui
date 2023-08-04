@@ -1,21 +1,12 @@
-use std::sync::{Arc, RwLock};
-
 // ----------------------------------------------------------------------------
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct CodeEditorData {
+pub struct CodeEditor {
     language: String,
     code: String,
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-#[derive(Default, Clone)]
-pub struct CodeEditor {
-    data: Arc<RwLock<CodeEditorData>>,
-}
-
-impl Default for CodeEditorData {
+impl Default for CodeEditor {
     fn default() -> Self {
         Self {
             language: "rs".into(),
@@ -35,18 +26,17 @@ impl super::Demo for CodeEditor {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        let clone = self.clone();
         use super::View as _;
         egui::Window::new(self.name())
             .open(open)
             .default_height(500.0)
-            .show(ctx, move |ui| clone.clone().ui(ui));
+            .show(ctx, move |ui| self.ui(ui));
     }
 }
 
 impl super::View for CodeEditor {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        let CodeEditorData { language, code } = &mut *self.data.write().unwrap();
+        let CodeEditor { language, code } = self;
 
         ui.horizontal(|ui| {
             ui.set_height(0.0);

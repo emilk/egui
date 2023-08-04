@@ -1,23 +1,16 @@
-use std::sync::{Arc, RwLock};
-
 use egui::{
     emath::{RectTransform, Rot2},
     vec2, Color32, Frame, Pos2, Rect, Sense, Stroke, Vec2,
 };
 
-pub struct MultiTouchData {
+pub struct MultiTouch {
     rotation: f32,
     translation: Vec2,
     zoom: f32,
     last_touch_time: f64,
 }
 
-#[derive(Clone, Default)]
-pub struct MultiTouch {
-    data: Arc<RwLock<MultiTouchData>>,
-}
-
-impl Default for MultiTouchData {
+impl Default for MultiTouch {
     fn default() -> Self {
         Self {
             rotation: 0.,
@@ -34,14 +27,13 @@ impl super::Demo for MultiTouch {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        let clone = self.clone();
         egui::Window::new(self.name())
             .open(open)
             .default_size(vec2(512.0, 512.0))
             .resizable(true)
             .show(ctx, move |ui| {
                 use super::View as _;
-                clone.clone().ui(ui);
+                self.ui(ui);
             });
     }
 }
@@ -91,24 +83,22 @@ impl super::View for MultiTouch {
             // color and width:
             let mut stroke_width = 1.;
             if let Some(multi_touch) = ui.ctx().multi_touch() {
-                let mut data = self.data.write().unwrap();
                 // This adjusts the current zoom factor and rotation angle according to the dynamic
                 // change (for the current frame) of the touch gesture:
-                data.zoom *= multi_touch.zoom_delta;
-                data.rotation += multi_touch.rotation_delta;
+                self.zoom *= multi_touch.zoom_delta;
+                self.rotation += multi_touch.rotation_delta;
                 // the translation we get from `multi_touch` needs to be scaled down to the
                 // normalized coordinates we use as the basis for painting:
-                data.translation += to_screen.inverse().scale() * multi_touch.translation_delta;
+                self.translation += to_screen.inverse().scale() * multi_touch.translation_delta;
                 // touch pressure will make the arrow thicker (not all touch devices support this):
                 stroke_width += 10. * multi_touch.force;
 
-                data.last_touch_time = ui.input(|i| i.time);
+                self.last_touch_time = ui.input(|i| i.time);
             } else {
                 self.slowly_reset(ui);
             }
-            let data = self.data.read().unwrap();
-            let zoom_and_rotate = data.zoom * Rot2::from_angle(data.rotation);
-            let arrow_start_offset = data.translation + zoom_and_rotate * vec2(-0.5, 0.5);
+            let zoom_and_rotate = self.zoom * Rot2::from_angle(self.rotation);
+            let arrow_start_offset = self.translation + zoom_and_rotate * vec2(-0.5, 0.5);
 
             // Paints an arrow pointing from bottom-left (-0.5, 0.5) to top-right (0.5, -0.5), but
             // scaled, rotated, and translated according to the current touch gesture:
@@ -128,8 +118,7 @@ impl MultiTouch {
         // This has nothing to do with the touch gesture. It just smoothly brings the
         // painted arrow back into its original position, for a nice visual effect:
 
-        let mut data = self.data.write().unwrap();
-        let time_since_last_touch = (ui.input(|i| i.time) - data.last_touch_time) as f32;
+        let time_since_last_touch = (ui.input(|i| i.time) - self.last_touch_time) as f32;
 
         let delay = 0.5;
         if time_since_last_touch < delay {
@@ -140,15 +129,15 @@ impl MultiTouch {
                 egui::remap_clamp(time_since_last_touch, delay..=1.0, 1.0..=0.0).powf(4.0);
 
             if half_life <= 1e-3 {
-                data.zoom = 1.0;
-                data.rotation = 0.0;
-                data.translation = Vec2::ZERO;
+                self.zoom = 1.0;
+                self.rotation = 0.0;
+                self.translation = Vec2::ZERO;
             } else {
                 let dt = ui.input(|i| i.unstable_dt);
                 let half_life_factor = (-(2_f32.ln()) / half_life * dt).exp();
-                data.zoom = 1. + ((data.zoom - 1.) * half_life_factor);
-                data.rotation *= half_life_factor;
-                data.translation *= half_life_factor;
+                self.zoom = 1. + ((self.zoom - 1.) * half_life_factor);
+                self.rotation *= half_life_factor;
+                self.translation *= half_life_factor;
                 ui.ctx().request_repaint();
             }
         }

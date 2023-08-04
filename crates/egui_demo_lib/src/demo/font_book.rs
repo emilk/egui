@@ -1,19 +1,11 @@
-use std::{
-    collections::BTreeMap,
-    sync::{Arc, RwLock},
-};
-pub struct FontBookData {
+use std::collections::BTreeMap;
+pub struct FontBook {
     filter: String,
     font_id: egui::FontId,
     named_chars: BTreeMap<egui::FontFamily, BTreeMap<char, String>>,
 }
 
-#[derive(Default, Clone)]
-pub struct FontBook {
-    data: Arc<RwLock<FontBookData>>,
-}
-
-impl Default for FontBookData {
+impl Default for FontBook {
     fn default() -> Self {
         Self {
             filter: Default::default(),
@@ -29,12 +21,11 @@ impl super::Demo for FontBook {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        let clone = self.clone();
         egui::Window::new(self.name())
             .open(open)
             .show(ctx, move |ui| {
                 use super::View as _;
-                clone.clone().ui(ui);
+                self.ui(ui);
             });
     }
 }
@@ -45,12 +36,10 @@ impl super::View for FontBook {
             ui.add(crate::egui_github_link_file!());
         });
 
-        let data = &mut *self.data.write().unwrap();
-
         ui.label(format!(
             "The selected font supports {} characters.",
-            data.named_chars
-                .get(&data.font_id.family)
+            self.named_chars
+                .get(&self.font_id.family)
                 .map(|map| map.len())
                 .unwrap_or_default()
         ));
@@ -67,22 +56,22 @@ impl super::View for FontBook {
 
         ui.separator();
 
-        egui::introspection::font_id_ui(ui, &mut data.font_id);
+        egui::introspection::font_id_ui(ui, &mut self.font_id);
 
         ui.horizontal(|ui| {
             ui.label("Filter:");
-            ui.add(egui::TextEdit::singleline(&mut data.filter).desired_width(120.0));
-            data.filter = data.filter.to_lowercase();
+            ui.add(egui::TextEdit::singleline(&mut self.filter).desired_width(120.0));
+            self.filter = self.filter.to_lowercase();
             if ui.button("ｘ").clicked() {
-                data.filter.clear();
+                self.filter.clear();
             }
         });
 
-        let filter = &data.filter;
-        let named_chars = data
+        let filter = &self.filter;
+        let named_chars = self
             .named_chars
-            .entry(data.font_id.family.clone())
-            .or_insert_with(|| available_characters(ui, data.font_id.family.clone()));
+            .entry(self.font_id.family.clone())
+            .or_insert_with(|| available_characters(ui, self.font_id.family.clone()));
 
         ui.separator();
 
@@ -93,13 +82,13 @@ impl super::View for FontBook {
                 for (&chr, name) in named_chars {
                     if filter.is_empty() || name.contains(filter) || *filter == chr.to_string() {
                         let button = egui::Button::new(
-                            egui::RichText::new(chr.to_string()).font(data.font_id.clone()),
+                            egui::RichText::new(chr.to_string()).font(self.font_id.clone()),
                         )
                         .frame(false);
 
                         let tooltip_ui = |ui: &mut egui::Ui| {
                             ui.label(
-                                egui::RichText::new(chr.to_string()).font(data.font_id.clone()),
+                                egui::RichText::new(chr.to_string()).font(self.font_id.clone()),
                             );
                             ui.label(format!("{}\nU+{:X}\n\nClick to copy", name, chr as u32));
                         };

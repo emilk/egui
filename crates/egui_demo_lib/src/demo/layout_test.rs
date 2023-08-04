@@ -1,10 +1,8 @@
-use std::sync::{Arc, RwLock};
-
 use egui::*;
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct LayoutTestData {
+pub struct LayoutTest {
     // Identical to contents of `egui::Layout`
     layout: LayoutSettings,
 
@@ -13,14 +11,7 @@ pub struct LayoutTestData {
     wrap_row_height: f32,
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-#[derive(Default, Clone)]
-pub struct LayoutTest {
-    data: Arc<RwLock<LayoutTestData>>,
-}
-
-impl Default for LayoutTestData {
+impl Default for LayoutTest {
     fn default() -> Self {
         Self {
             layout: LayoutSettings::top_down(),
@@ -88,13 +79,12 @@ impl super::Demo for LayoutTest {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        let clone = self.clone();
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
             .show(ctx, move |ui| {
                 use super::View as _;
-                clone.clone().ui(ui);
+                self.ui(ui);
             });
     }
 }
@@ -103,24 +93,23 @@ impl super::View for LayoutTest {
     fn ui(&mut self, ui: &mut Ui) {
         ui.label("Tests and demonstrates the limits of the egui layouts");
         self.content_ui(ui);
-        let data = self.data.write().unwrap();
         Resize::default()
             .default_size([150.0, 200.0])
             .show(ui, |ui| {
-                if data.layout.main_wrap {
-                    if data.layout.main_dir.is_horizontal() {
+                if self.layout.main_wrap {
+                    if self.layout.main_dir.is_horizontal() {
                         ui.allocate_ui(
-                            vec2(ui.available_size_before_wrap().x, data.wrap_row_height),
-                            |ui| ui.with_layout(data.layout.layout(), demo_ui),
+                            vec2(ui.available_size_before_wrap().x, self.wrap_row_height),
+                            |ui| ui.with_layout(self.layout.layout(), demo_ui),
                         );
                     } else {
                         ui.allocate_ui(
-                            vec2(data.wrap_column_width, ui.available_size_before_wrap().y),
-                            |ui| ui.with_layout(data.layout.layout(), demo_ui),
+                            vec2(self.wrap_column_width, ui.available_size_before_wrap().y),
+                            |ui| ui.with_layout(self.layout.layout(), demo_ui),
                         );
                     }
                 } else {
-                    ui.with_layout(data.layout.layout(), demo_ui);
+                    ui.with_layout(self.layout.layout(), demo_ui);
                 }
             });
         ui.label("Resize to see effect");
@@ -129,16 +118,15 @@ impl super::View for LayoutTest {
 
 impl LayoutTest {
     pub fn content_ui(&mut self, ui: &mut Ui) {
-        let mut data = self.data.write().unwrap();
         ui.horizontal(|ui| {
-            ui.selectable_value(&mut data.layout, LayoutSettings::top_down(), "Top-down");
+            ui.selectable_value(&mut self.layout, LayoutSettings::top_down(), "Top-down");
             ui.selectable_value(
-                &mut data.layout,
+                &mut self.layout,
                 LayoutSettings::top_down_justified_centered(),
                 "Top-down, centered and justified",
             );
             ui.selectable_value(
-                &mut data.layout,
+                &mut self.layout,
                 LayoutSettings::horizontal_wrapped(),
                 "Horizontal wrapped",
             );
@@ -152,20 +140,20 @@ impl LayoutTest {
                 Direction::TopDown,
                 Direction::BottomUp,
             ] {
-                ui.radio_value(&mut data.layout.main_dir, dir, format!("{:?}", dir));
+                ui.radio_value(&mut self.layout.main_dir, dir, format!("{:?}", dir));
             }
         });
 
         ui.horizontal(|ui| {
-            ui.checkbox(&mut data.layout.main_wrap, "Main wrap")
+            ui.checkbox(&mut self.layout.main_wrap, "Main wrap")
                 .on_hover_text("Wrap when next widget doesn't fit the current row/column");
 
-            if data.layout.main_wrap {
-                if data.layout.main_dir.is_horizontal() {
-                    ui.add(Slider::new(&mut data.wrap_row_height, 0.0..=200.0).text("Row height"));
+            if self.layout.main_wrap {
+                if self.layout.main_dir.is_horizontal() {
+                    ui.add(Slider::new(&mut self.wrap_row_height, 0.0..=200.0).text("Row height"));
                 } else {
                     ui.add(
-                        Slider::new(&mut data.wrap_column_width, 0.0..=200.0).text("Column width"),
+                        Slider::new(&mut self.wrap_column_width, 0.0..=200.0).text("Column width"),
                     );
                 }
             }
@@ -174,11 +162,11 @@ impl LayoutTest {
         ui.horizontal(|ui| {
             ui.label("Cross Align:");
             for &align in &[Align::Min, Align::Center, Align::Max] {
-                ui.radio_value(&mut data.layout.cross_align, align, format!("{:?}", align));
+                ui.radio_value(&mut self.layout.cross_align, align, format!("{:?}", align));
             }
         });
 
-        ui.checkbox(&mut data.layout.cross_justify, "Cross Justified")
+        ui.checkbox(&mut self.layout.cross_justify, "Cross Justified")
             .on_hover_text("Try to fill full width/height (e.g. buttons)");
     }
 }
