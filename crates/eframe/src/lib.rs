@@ -279,10 +279,10 @@ pub fn run_simple_native(
             frame: &mut Frame,
             render_function: Option<&(dyn Fn(&egui::Context, u64, u64) + Send + Sync)>,
         ) {
-            if frame.is_main_window() {
+            if ctx.get_viewport_id() == 0 {
                 (self.update_fun)(ctx, frame);
             } else if let Some(render_function) = render_function {
-                render_function(ctx, frame.viewport_id(), frame.parent_viewport_id())
+                render_function(ctx, ctx.get_viewport_id(), ctx.get_parent_viewport_id())
             }
         }
     }

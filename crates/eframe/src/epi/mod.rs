@@ -782,19 +782,6 @@ impl Frame {
 
     /// If this is the main window will return true!
     /// When is a single window mode will always return true!
-    pub fn is_main_window(&self) -> bool {
-        self.info.viewport_id == 0
-    }
-
-    /// Returns the current viewport id
-    pub fn viewport_id(&self) -> u64 {
-        self.info.viewport_id
-    }
-
-    /// Returns the current viewport parent id
-    pub fn parent_viewport_id(&self) -> u64 {
-        self.info.parent_viewport
-    }
 
     /// A place where you can store custom data in a way that persists when you restart the app.
     pub fn storage(&self) -> Option<&dyn Storage> {
@@ -1146,12 +1133,6 @@ pub struct IntegrationInfo {
 
     /// The OS native pixels-per-point
     pub native_pixels_per_point: Option<f32>,
-
-    /// This is the id of the current native window
-    /// If this is the same as `parent_viewport` that means that is the main window
-    pub viewport_id: u64,
-    /// This is the id of the current native window
-    pub parent_viewport: u64,
 
     /// The position and size of the native window.
     #[cfg(not(target_arch = "wasm32"))]

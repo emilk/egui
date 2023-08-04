@@ -61,7 +61,7 @@ impl eframe::App for Application {
         render: Option<&ViewportRender>,
     ) {
         if let Some(render) = render {
-            render(ctx, frame.viewport_id(), frame.parent_viewport_id());
+            render(ctx, ctx.get_viewport_id(), ctx.get_parent_viewport_id());
             return;
         }
         if let Some(request_at) = self.request_at {

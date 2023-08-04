@@ -40,11 +40,11 @@ impl eframe::App for MyApp {
     fn update(
         &mut self,
         ctx: &egui::Context,
-        frame: &mut eframe::Frame,
+        _frame: &mut eframe::Frame,
         render: Option<&ViewportRender>,
     ) {
         if let Some(render) = render {
-            render(ctx, frame.viewport_id(), frame.parent_viewport_id());
+            render(ctx, ctx.get_viewport_id(), ctx.get_parent_viewport_id());
             return;
         }
         egui::CentralPanel::default().show(ctx, |ui| {

@@ -369,8 +369,6 @@ impl EpiIntegration {
                 cpu_usage: None,
                 native_pixels_per_point: Some(native_pixels_per_point),
                 window_info: read_window_info(window, egui_ctx.pixels_per_point(), &window_state),
-                viewport_id: 0,
-                parent_viewport: 0,
             },
             output: epi::backend::AppOutput {
                 visible: Some(true),
@@ -511,8 +509,6 @@ impl EpiIntegration {
             read_window_info(window, self.egui_ctx.pixels_per_point(), &self.window_state);
         let mut raw_input = egui_winit.take_egui_input(window);
         raw_input.time = Some(self.beagining.elapsed().as_secs_f64());
-        self.frame.info.viewport_id = viewport_id;
-        self.frame.info.parent_viewport = parent_id;
 
         // Run user code:
         let full_output = self
