@@ -30,7 +30,7 @@ impl super::Demo for CodeEditor {
         egui::Window::new(self.name())
             .open(open)
             .default_height(500.0)
-            .show(ctx, move |ui| self.ui(ui));
+            .show(ctx, |ui| self.ui(ui));
     }
 }
 

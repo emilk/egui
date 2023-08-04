@@ -82,7 +82,7 @@ impl super::Demo for LayoutTest {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
-            .show(ctx, move |ui| {
+            .show(ctx, |ui| {
                 use super::View as _;
                 self.ui(ui);
             });

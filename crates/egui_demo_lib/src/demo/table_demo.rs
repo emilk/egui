@@ -40,7 +40,7 @@ impl super::Demo for TableDemo {
             .open(open)
             .resizable(true)
             .default_width(400.0)
-            .show(ctx, move |ui| {
+            .show(ctx, |ui| {
                 use super::View as _;
                 self.ui(ui);
             });

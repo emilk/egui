@@ -153,7 +153,7 @@ impl super::Demo for PaintBezier {
             .vscroll(false)
             .resizable(false)
             .default_size([300.0, 350.0])
-            .show(ctx, move |ui| self.ui(ui));
+            .show(ctx, |ui| self.ui(ui));
     }
 }
 

@@ -108,7 +108,7 @@ impl super::Demo for DragAndDropDemo {
             .default_size(vec2(256.0, 256.0))
             .vscroll(false)
             .resizable(false)
-            .show(ctx, move |ui| self.ui(ui));
+            .show(ctx, |ui| self.ui(ui));
     }
 }
 

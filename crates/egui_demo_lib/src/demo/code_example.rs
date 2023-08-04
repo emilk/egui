@@ -75,7 +75,7 @@ impl super::Demo for CodeExample {
             .default_size([800.0, 400.0])
             .vscroll(false)
             .hscroll(true)
-            .show(ctx, move |ui| self.ui(ui));
+            .show(ctx, |ui| self.ui(ui));
     }
 }
 

@@ -51,20 +51,18 @@ impl ThreadState {
         let pos = egui::pos2(16.0, 128.0 * (thread_nr as f32 + 1.0));
         let clone = self.clone();
         let title = self.data.read().unwrap().title.clone();
-        egui::Window::new(title)
-            .default_pos(pos)
-            .show(ctx, move |ui| {
-                let data = &mut *clone.data.write().unwrap();
-                ui.horizontal(|ui| {
-                    ui.label("Your name: ");
-                    ui.text_edit_singleline(&mut data.name);
-                });
-                ui.add(egui::Slider::new(&mut data.age, 0..=120).text("age"));
-                if ui.button("Click each year").clicked() {
-                    data.age += 1;
-                }
-                ui.label(format!("Hello '{}', age {}", data.name, data.age));
+        egui::Window::new(title).default_pos(pos).show(ctx, |ui| {
+            let data = &mut *clone.data.write().unwrap();
+            ui.horizontal(|ui| {
+                ui.label("Your name: ");
+                ui.text_edit_singleline(&mut data.name);
             });
+            ui.add(egui::Slider::new(&mut data.age, 0..=120).text("age"));
+            if ui.button("Click each year").clicked() {
+                data.age += 1;
+            }
+            ui.label(format!("Hello '{}', age {}", data.name, data.age));
+        });
     }
 }
 
@@ -147,7 +145,7 @@ impl eframe::App for MyApp {
             return;
         }
         let data = self.data.clone();
-        egui::Window::new("Main thread").show(ctx, move |ui| {
+        egui::Window::new("Main thread").show(ctx, |ui| {
             if ui.button("Spawn another thread").clicked() {
                 data.write().unwrap().spawn_thread();
                 ui.ctx()

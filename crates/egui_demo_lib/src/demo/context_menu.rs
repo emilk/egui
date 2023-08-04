@@ -56,7 +56,7 @@ impl super::Demo for ContextMenus {
             .vscroll(false)
             .resizable(false)
             .open(open)
-            .show(ctx, move |ui| self.ui(ui));
+            .show(ctx, |ui| self.ui(ui));
     }
 }
 

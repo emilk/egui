@@ -417,7 +417,7 @@ impl EguiWindows {
         egui::Window::new("🔧 Settings")
             .open(settings)
             .vscroll(true)
-            .show(ctx, move |ui| {
+            .show(ctx, |ui| {
                 tmp_ctx.settings_ui(ui);
             });
 
@@ -425,7 +425,7 @@ impl EguiWindows {
         egui::Window::new("🔍 Inspection")
             .open(inspection)
             .vscroll(true)
-            .show(ctx, move |ui| {
+            .show(ctx, |ui| {
                 tmp_ctx.inspection_ui(ui);
             });
 
@@ -433,7 +433,7 @@ impl EguiWindows {
         egui::Window::new("📝 Memory")
             .open(memory)
             .resizable(false)
-            .show(ctx, move |ui| {
+            .show(ctx, |ui| {
                 tmp_ctx.memory_ui(ui);
             });
 
@@ -442,7 +442,7 @@ impl EguiWindows {
             .open(output_events)
             .resizable(true)
             .default_width(520.0)
-            .show(ctx, move |ui| {
+            .show(ctx, |ui| {
                 ui.label(
                     "Recent output events from egui. \
             These are emitted when you interact with widgets, or move focus between them with TAB. \

@@ -124,7 +124,7 @@ impl super::Demo for ManualLayoutTest {
         egui::Window::new(self.name())
             .resizable(false)
             .open(open)
-            .show(ctx, move |ui| {
+            .show(ctx, |ui| {
                 use super::View as _;
                 self.ui(ui);
             });
@@ -207,12 +207,10 @@ impl super::Demo for TableTest {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        egui::Window::new(self.name())
-            .open(open)
-            .show(ctx, move |ui| {
-                use super::View as _;
-                self.ui(ui);
-            });
+        egui::Window::new(self.name()).open(open).show(ctx, |ui| {
+            use super::View as _;
+            self.ui(ui);
+        });
     }
 }
 
@@ -328,7 +326,7 @@ impl super::Demo for InputTest {
         egui::Window::new(self.name())
             .open(open)
             .resizable(false)
-            .show(ctx, move |ui| {
+            .show(ctx, |ui| {
                 use super::View as _;
                 self.ui(ui);
             });
@@ -466,7 +464,7 @@ impl super::Demo for WindowResizeTest {
             .vscroll(false)
             .resizable(true)
             .default_height(300.0)
-            .show(ctx, move |ui| {
+            .show(ctx, |ui| {
                 ui.label("Shows how you can fill an area with a widget.");
                 let mut text = clone.text.write().unwrap();
                 ui.add_sized(ui.available_size(), TextEdit::multiline(&mut *text));

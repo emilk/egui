@@ -55,7 +55,7 @@ impl eframe::App for MyApp {
             egui::Window::new("Do you want to quit?")
                 .collapsible(false)
                 .resizable(false)
-                .show(ctx, move |ui| {
+                .show(ctx, |ui| {
                     ui.horizontal(|ui| {
                         if ui.button("Cancel").clicked() {
                             data.write().unwrap().show_confirmation_dialog = false;
