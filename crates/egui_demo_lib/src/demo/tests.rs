@@ -1,5 +1,3 @@
-use std::sync::{Arc, RwLock};
-
 #[derive(Default)]
 pub struct CursorTest {}
 
@@ -11,7 +9,7 @@ impl super::Demo for CursorTest {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
             use super::View as _;
-            Self::default().ui(ui);
+            self.ui(ui);
         });
     }
 }
@@ -43,7 +41,7 @@ impl super::Demo for IdTest {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name()).open(open).show(ctx, |ui| {
             use super::View as _;
-            Self::default().ui(ui);
+            self.ui(ui);
         });
     }
 }
@@ -180,6 +178,7 @@ impl super::View for ManualLayoutTest {
 }
 
 // ----------------------------------------------------------------------------
+
 #[derive(PartialEq)]
 pub struct TableTest {
     num_cols: usize,
@@ -216,91 +215,87 @@ impl super::Demo for TableTest {
 
 impl super::View for TableTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        {
-            ui.add(
-                egui::Slider::new(&mut self.min_col_width, 0.0..=400.0)
-                    .text("Minimum column width"),
-            );
-            ui.add(
-                egui::Slider::new(&mut self.max_col_width, 0.0..=400.0)
-                    .text("Maximum column width"),
-            );
-            ui.add(egui::Slider::new(&mut self.num_cols, 0..=5).text("Columns"));
-            ui.add(egui::Slider::new(&mut self.num_rows, 0..=20).text("Rows"));
+        ui.add(
+            egui::Slider::new(&mut self.min_col_width, 0.0..=400.0).text("Minimum column width"),
+        );
+        ui.add(
+            egui::Slider::new(&mut self.max_col_width, 0.0..=400.0).text("Maximum column width"),
+        );
+        ui.add(egui::Slider::new(&mut self.num_cols, 0..=5).text("Columns"));
+        ui.add(egui::Slider::new(&mut self.num_rows, 0..=20).text("Rows"));
 
-            ui.separator();
+        ui.separator();
 
-            let words = [
-                "random", "words", "in", "a", "random", "order", "that", "just", "keeps", "going",
-                "with", "some", "more",
-            ];
+        let words = [
+            "random", "words", "in", "a", "random", "order", "that", "just", "keeps", "going",
+            "with", "some", "more",
+        ];
 
-            egui::Grid::new("my_grid")
-                .striped(true)
-                .min_col_width(self.min_col_width)
-                .max_col_width(self.max_col_width)
-                .show(ui, |ui| {
-                    for row in 0..self.num_rows {
-                        for col in 0..self.num_cols {
-                            if col == 0 {
-                                ui.label(format!("row {}", row));
-                            } else {
-                                let word_idx = row * 3 + col * 5;
-                                let word_count = (row * 5 + col * 75) % 13;
-                                let mut string = String::new();
-                                for word in words.iter().cycle().skip(word_idx).take(word_count) {
-                                    string += word;
-                                    string += " ";
-                                }
-                                ui.label(string);
+        egui::Grid::new("my_grid")
+            .striped(true)
+            .min_col_width(self.min_col_width)
+            .max_col_width(self.max_col_width)
+            .show(ui, |ui| {
+                for row in 0..self.num_rows {
+                    for col in 0..self.num_cols {
+                        if col == 0 {
+                            ui.label(format!("row {}", row));
+                        } else {
+                            let word_idx = row * 3 + col * 5;
+                            let word_count = (row * 5 + col * 75) % 13;
+                            let mut string = String::new();
+                            for word in words.iter().cycle().skip(word_idx).take(word_count) {
+                                string += word;
+                                string += " ";
                             }
+                            ui.label(string);
                         }
-                        ui.end_row();
                     }
-                });
-
-            ui.separator();
-            ui.add(egui::Slider::new(&mut self.text_length, 1..=40).text("Text length"));
-            egui::Grid::new("parent grid").striped(true).show(ui, |ui| {
-                ui.vertical(|ui| {
-                    ui.label("Vertical nest1");
-                    ui.label("Vertical nest2");
-                });
-                ui.label("First row, second column");
-                ui.end_row();
-
-                ui.horizontal(|ui| {
-                    ui.label("Horizontal nest1");
-                    ui.label("Horizontal nest2");
-                });
-                ui.label("Second row, second column");
-                ui.end_row();
-
-                ui.scope(|ui| {
-                    ui.label("Scope nest 1");
-                    ui.label("Scope nest 2");
-                });
-                ui.label("Third row, second column");
-                ui.end_row();
-
-                egui::Grid::new("nested grid").show(ui, |ui| {
-                    ui.label("Grid nest11");
-                    ui.label("Grid nest12");
                     ui.end_row();
-                    ui.label("Grid nest21");
-                    ui.label("Grid nest22");
-                    ui.end_row();
-                });
-                ui.label("Fourth row, second column");
-                ui.end_row();
+                }
+            });
 
-                let mut dyn_text = String::from("O");
-                dyn_text.extend(std::iter::repeat('h').take(self.text_length));
-                ui.label(dyn_text);
-                ui.label("Fifth row, second column");
+        ui.separator();
+        ui.add(egui::Slider::new(&mut self.text_length, 1..=40).text("Text length"));
+        egui::Grid::new("parent grid").striped(true).show(ui, |ui| {
+            ui.vertical(|ui| {
+                ui.label("Vertical nest1");
+                ui.label("Vertical nest2");
+            });
+            ui.label("First row, second column");
+            ui.end_row();
+
+            ui.horizontal(|ui| {
+                ui.label("Horizontal nest1");
+                ui.label("Horizontal nest2");
+            });
+            ui.label("Second row, second column");
+            ui.end_row();
+
+            ui.scope(|ui| {
+                ui.label("Scope nest 1");
+                ui.label("Scope nest 2");
+            });
+            ui.label("Third row, second column");
+            ui.end_row();
+
+            egui::Grid::new("nested grid").show(ui, |ui| {
+                ui.label("Grid nest11");
+                ui.label("Grid nest12");
+                ui.end_row();
+                ui.label("Grid nest21");
+                ui.label("Grid nest22");
                 ui.end_row();
             });
-        }
+            ui.label("Fourth row, second column");
+            ui.end_row();
+
+            let mut dyn_text = String::from("O");
+            dyn_text.extend(std::iter::repeat('h').take(self.text_length));
+            ui.label(dyn_text);
+            ui.label("Fifth row, second column");
+            ui.end_row();
+        });
 
         ui.vertical_centered(|ui| {
             egui::reset_button(ui, self);
@@ -383,15 +378,14 @@ impl super::View for InputTest {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone)]
 pub struct WindowResizeTest {
-    text: Arc<RwLock<String>>,
+    text: String,
 }
 
 impl Default for WindowResizeTest {
     fn default() -> Self {
         Self {
-            text: Arc::new(RwLock::new(crate::LOREM_IPSUM_LONG.to_owned())),
+            text: crate::LOREM_IPSUM_LONG.to_owned(),
         }
     }
 }
@@ -457,8 +451,6 @@ impl super::Demo for WindowResizeTest {
                 lorem_ipsum(ui, crate::LOREM_IPSUM);
             });
 
-        let clone = self.clone();
-
         Window::new("↔ resizable with TextEdit")
             .open(open)
             .vscroll(false)
@@ -466,8 +458,7 @@ impl super::Demo for WindowResizeTest {
             .default_height(300.0)
             .show(ctx, |ui| {
                 ui.label("Shows how you can fill an area with a widget.");
-                let mut text = clone.text.write().unwrap();
-                ui.add_sized(ui.available_size(), TextEdit::multiline(&mut *text));
+                ui.add_sized(ui.available_size(), TextEdit::multiline(&mut self.text));
             });
 
         Window::new("↔ freely resized")

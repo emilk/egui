@@ -51,54 +51,52 @@ const NUM_MANUAL_ROWS: usize = 20;
 
 impl super::View for TableDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        {
-            ui.vertical(|ui| {
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut self.striped, "Striped");
-                    ui.checkbox(&mut self.resizable, "Resizable columns");
-                });
-
-                ui.label("Table type:");
-                ui.radio_value(&mut self.demo, DemoType::Manual, "Few, manual rows");
-                ui.radio_value(
-                    &mut self.demo,
-                    DemoType::ManyHomogeneous,
-                    "Thousands of rows of same height",
-                );
-                ui.radio_value(
-                    &mut self.demo,
-                    DemoType::ManyHeterogenous,
-                    "Thousands of rows of differing heights",
-                );
-
-                if self.demo != DemoType::Manual {
-                    ui.add(
-                        egui::Slider::new(&mut self.num_rows, 0..=100_000)
-                            .logarithmic(true)
-                            .text("Num rows"),
-                    );
-                }
-
-                {
-                    let max_rows = if self.demo == DemoType::Manual {
-                        NUM_MANUAL_ROWS
-                    } else {
-                        self.num_rows
-                    };
-
-                    let slider_response = ui.add(
-                        egui::Slider::new(&mut self.scroll_to_row_slider, 0..=max_rows)
-                            .logarithmic(true)
-                            .text("Row to scroll to"),
-                    );
-                    if slider_response.changed() {
-                        self.scroll_to_row = Some(self.scroll_to_row_slider);
-                    }
-                }
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut self.striped, "Striped");
+                ui.checkbox(&mut self.resizable, "Resizable columns");
             });
 
-            ui.separator();
-        }
+            ui.label("Table type:");
+            ui.radio_value(&mut self.demo, DemoType::Manual, "Few, manual rows");
+            ui.radio_value(
+                &mut self.demo,
+                DemoType::ManyHomogeneous,
+                "Thousands of rows of same height",
+            );
+            ui.radio_value(
+                &mut self.demo,
+                DemoType::ManyHeterogenous,
+                "Thousands of rows of differing heights",
+            );
+
+            if self.demo != DemoType::Manual {
+                ui.add(
+                    egui::Slider::new(&mut self.num_rows, 0..=100_000)
+                        .logarithmic(true)
+                        .text("Num rows"),
+                );
+            }
+
+            {
+                let max_rows = if self.demo == DemoType::Manual {
+                    NUM_MANUAL_ROWS
+                } else {
+                    self.num_rows
+                };
+
+                let slider_response = ui.add(
+                    egui::Slider::new(&mut self.scroll_to_row_slider, 0..=max_rows)
+                        .logarithmic(true)
+                        .text("Row to scroll to"),
+                );
+                if slider_response.changed() {
+                    self.scroll_to_row = Some(self.scroll_to_row_slider);
+                }
+            }
+        });
+
+        ui.separator();
 
         // Leave room for the source code link after the table demo:
         use egui_extras::{Size, StripBuilder};

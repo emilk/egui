@@ -99,7 +99,7 @@ impl super::View for WidgetGallery {
 
 impl WidgetGallery {
     fn gallery_grid_contents(&mut self, ui: &mut egui::Ui) {
-        let WidgetGallery {
+        let Self {
             enabled: _,
             visible: _,
             boolean,

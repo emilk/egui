@@ -14,7 +14,7 @@ impl super::Demo for Highlighting {
             .open(open)
             .show(ctx, |ui| {
                 use super::View as _;
-                Self::default().ui(ui);
+                self.ui(ui);
             });
     }
 }

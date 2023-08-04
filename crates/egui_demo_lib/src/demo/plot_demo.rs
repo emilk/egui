@@ -30,7 +30,8 @@ impl Default for Panel {
 }
 
 // ----------------------------------------------------------------------------
-#[derive(Default, PartialEq)]
+
+#[derive(PartialEq, Default)]
 pub struct PlotDemo {
     line_demo: LineDemo,
     marker_demo: MarkerDemo,

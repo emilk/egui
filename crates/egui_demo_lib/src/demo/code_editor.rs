@@ -1,4 +1,5 @@
 // ----------------------------------------------------------------------------
+
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct CodeEditor {
@@ -36,7 +37,7 @@ impl super::Demo for CodeEditor {
 
 impl super::View for CodeEditor {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        let CodeEditor { language, code } = self;
+        let Self { language, code } = self;
 
         ui.horizontal(|ui| {
             ui.set_height(0.0);

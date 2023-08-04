@@ -120,9 +120,8 @@ impl super::View for DragAndDropDemo {
         let id_source = "my_drag_and_drop_demo";
         let mut source_col_row = None;
         let mut drop_col = None;
-        let columns = &mut self.columns;
-        ui.columns(columns.len(), |uis| {
-            for (col_idx, column) in columns.clone().into_iter().enumerate() {
+        ui.columns(self.columns.len(), |uis| {
+            for (col_idx, column) in self.columns.clone().into_iter().enumerate() {
                 let ui = &mut uis[col_idx];
                 let can_accept_what_is_being_dragged = true; // We accept anything being dragged (for now) ¯\_(ツ)_/¯
                 let response = drop_target(ui, can_accept_what_is_being_dragged, |ui| {
@@ -133,7 +132,7 @@ impl super::View for DragAndDropDemo {
                             let response = ui.add(Label::new(item).sense(Sense::click()));
                             response.context_menu(|ui| {
                                 if ui.button("Remove").clicked() {
-                                    columns[col_idx].remove(row_idx);
+                                    self.columns[col_idx].remove(row_idx);
                                     ui.close_menu();
                                 }
                             });
@@ -148,7 +147,7 @@ impl super::View for DragAndDropDemo {
 
                 let response = response.context_menu(|ui| {
                     if ui.button("New Item").clicked() {
-                        columns[col_idx].push("New Item".to_owned());
+                        self.columns[col_idx].push("New Item".to_owned());
                         ui.close_menu();
                     }
                 });
@@ -164,8 +163,8 @@ impl super::View for DragAndDropDemo {
             if let Some(drop_col) = drop_col {
                 if ui.input(|i| i.pointer.any_released()) {
                     // do the drop:
-                    let item = columns[source_col].remove(source_row);
-                    columns[drop_col].push(item);
+                    let item = self.columns[source_col].remove(source_row);
+                    self.columns[drop_col].push(item);
                 }
             }
         }

@@ -1,7 +1,5 @@
 use egui::{Context, Modifiers, ScrollArea, Ui};
 use std::collections::BTreeSet;
-use std::sync::Arc;
-use std::sync::RwLock;
 
 use super::About;
 use super::Demo;
@@ -14,7 +12,7 @@ use crate::is_mobile;
 #[cfg_attr(feature = "serde", serde(default))]
 struct Demos {
     #[cfg_attr(feature = "serde", serde(skip))]
-    demos: Vec<Box<dyn Demo + Sync + Send>>,
+    demos: Vec<Box<dyn Demo>>,
 
     open: BTreeSet<String>,
 }
@@ -47,7 +45,7 @@ impl Default for Demos {
 }
 
 impl Demos {
-    pub fn from_demos(demos: Vec<Box<dyn Demo + Sync + Send>>) -> Self {
+    pub fn from_demos(demos: Vec<Box<dyn Demo>>) -> Self {
         let mut open = BTreeSet::new();
         open.insert(
             super::widget_gallery::WidgetGallery::default()
@@ -151,20 +149,14 @@ fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct DemoWindowsData {
+pub struct DemoWindows {
     about_is_open: bool,
     about: About,
     demos: Demos,
     tests: Tests,
 }
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
-#[derive(Clone, Default)]
-pub struct DemoWindows {
-    data: Arc<RwLock<DemoWindowsData>>,
-}
 
-impl Default for DemoWindowsData {
+impl Default for DemoWindows {
     fn default() -> Self {
         Self {
             about_is_open: true,
@@ -186,36 +178,32 @@ impl DemoWindows {
     }
 
     fn mobile_ui(&mut self, ctx: &Context) {
-        let mut about_is_open = self.data.read().unwrap().about_is_open;
-        if about_is_open {
+        if self.about_is_open {
             let screen_size = ctx.input(|i| i.screen_rect.size());
             let default_width = (screen_size.x - 20.0).min(400.0);
 
-            let close = Arc::new(RwLock::new(false));
-            let close_ = close.clone();
-            let clone = self.clone();
-            egui::Window::new(self.data.read().unwrap().about.name())
+            let mut close = false;
+            egui::Window::new(self.about.name())
                 .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
                 .default_width(default_width)
                 .default_height(ctx.available_rect().height() - 46.0)
                 .vscroll(true)
-                .open(&mut about_is_open)
+                .open(&mut self.about_is_open)
                 .resizable(false)
                 .collapsible(false)
                 .show(ctx, |ui| {
-                    let close = close.clone();
-                    clone.data.write().unwrap().about.ui(ui);
+                    self.about.ui(ui);
                     ui.add_space(12.0);
                     ui.vertical_centered_justified(|ui| {
                         if ui
                             .button(egui::RichText::new("Continue to the demo!").size(20.0))
                             .clicked()
                         {
-                            *close.write().unwrap() = true;
+                            close = true;
                         }
                     });
                 });
-            self.data.write().unwrap().about_is_open &= !*close_.read().unwrap();
+            self.about_is_open &= !close;
         } else {
             self.mobile_top_bar(ctx);
             self.show_windows(ctx);
@@ -288,22 +276,20 @@ impl DemoWindows {
 
     /// Show the open windows.
     fn show_windows(&mut self, ctx: &Context) {
-        let data = &mut *self.data.write().unwrap();
-        data.about.show(ctx, &mut data.about_is_open);
-        data.demos.windows(ctx);
-        data.tests.windows(ctx);
+        self.about.show(ctx, &mut self.about_is_open);
+        self.demos.windows(ctx);
+        self.tests.windows(ctx);
     }
 
     fn demo_list_ui(&mut self, ui: &mut egui::Ui) {
         ScrollArea::vertical().show(ui, |ui| {
             ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
-                let data = &mut *self.data.write().unwrap();
-                ui.toggle_value(&mut data.about_is_open, data.about.name());
+                ui.toggle_value(&mut self.about_is_open, self.about.name());
 
                 ui.separator();
-                data.demos.checkboxes(ui);
+                self.demos.checkboxes(ui);
                 ui.separator();
-                data.tests.checkboxes(ui);
+                self.tests.checkboxes(ui);
                 ui.separator();
 
                 if ui.button("Organize windows").clicked() {

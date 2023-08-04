@@ -37,7 +37,7 @@ impl super::Demo for WindowOptions {
     }
 
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
-        let WindowOptions {
+        let Self {
             title,
             title_bar,
             closable,
@@ -75,7 +75,7 @@ impl super::Demo for WindowOptions {
 
 impl super::View for WindowOptions {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        let WindowOptions {
+        let Self {
             title,
             title_bar,
             closable,
