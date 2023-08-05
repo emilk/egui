@@ -9,11 +9,14 @@
 
 #![allow(clippy::manual_range_contains)]
 
+use std::sync::Arc;
+
 #[cfg(feature = "accesskit")]
 pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
+use egui::{mutex::RwLock, window::ViewportCommand};
 pub use winit;
 
 pub mod clipboard;
@@ -898,6 +901,47 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
         egui::CursorIcon::Wait => Some(winit::window::CursorIcon::Wait),
         egui::CursorIcon::ZoomIn => Some(winit::window::CursorIcon::ZoomIn),
         egui::CursorIcon::ZoomOut => Some(winit::window::CursorIcon::ZoomOut),
+    }
+}
+
+pub fn process_viewport_commands(
+    commands: Vec<(u64, ViewportCommand)>,
+    focused: Option<u64>,
+    get_window: impl Fn(u64) -> Option<Arc<RwLock<winit::window::Window>>>,
+) {
+    use winit::dpi::PhysicalSize;
+    use winit::window::ResizeDirection;
+    for (viewport_id, command) in commands {
+        if let Some(window) = get_window(viewport_id) {
+            let win = window.read();
+
+            match command {
+                egui::window::ViewportCommand::Drag => {
+                    // if this is not checked on x11 the input will be permanently taken until the app is killed!
+                    if let Some(focus) = focused {
+                        if focus == viewport_id {
+                            win.drag_window();
+                        }
+                    }
+                }
+                egui::window::ViewportCommand::InnerSize(width, height) => {
+                    win.set_inner_size(PhysicalSize::new(width, height));
+                }
+                egui::window::ViewportCommand::Resize(top, bottom, right, left) => {
+                    win.drag_resize_window(match (top, bottom, right, left) {
+                        (true, false, false, false) => ResizeDirection::North,
+                        (false, true, false, false) => ResizeDirection::South,
+                        (false, false, true, false) => ResizeDirection::East,
+                        (false, false, false, true) => ResizeDirection::West,
+                        (true, false, true, false) => ResizeDirection::NorthEast,
+                        (false, true, true, false) => ResizeDirection::SouthEast,
+                        (true, false, false, true) => ResizeDirection::NorthWest,
+                        (false, true, false, true) => ResizeDirection::SouthWest,
+                        _ => ResizeDirection::East,
+                    });
+                }
+            }
+        }
     }
 }
 

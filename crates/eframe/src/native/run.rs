@@ -974,61 +974,90 @@ mod glow_integration {
             let _painter = painter.clone();
             let time = integration.beagining;
 
+            let focused = self.is_focused.clone();
+
             // Sync Rendering
             integration.egui_ctx.set_render_sync_callback(
                 move |viewport_builder, viewport_id, parent_viewport_id, render| {
-                    let window = glutin.read().windows.get(&viewport_id).cloned();
-                    if let Some(window) = window {
-                        let window = &mut *window.write();
-                        if let Some(winit_state) = &mut window.egui_winit {
-                            if let Some(win) = window.window.clone() {
-                                let win = win.read();
-                                let mut input = winit_state.take_egui_input(&win);
-                                input.time = Some(time.elapsed().as_secs_f64());
-                                let output =
-                                    egui_ctx.run(input, viewport_id, parent_viewport_id, |ctx| {
-                                        render(ctx, viewport_id, parent_viewport_id);
-                                    });
-                                let glutin = &mut *glutin.write();
+                    'try_render: {
+                        let window = glutin.read().windows.get(&viewport_id).cloned();
+                        if let Some(window) = window {
+                            let output;
+                            {
+                                let window = &mut *window.write();
+                                if let Some(winit_state) = &mut window.egui_winit {
+                                    if let Some(win) = window.window.clone() {
+                                        let win = win.read();
+                                        let mut input = winit_state.take_egui_input(&win);
+                                        input.time = Some(time.elapsed().as_secs_f64());
+                                        output = egui_ctx.run(
+                                            input,
+                                            viewport_id,
+                                            parent_viewport_id,
+                                            |ctx| {
+                                                render(ctx, viewport_id, parent_viewport_id);
+                                            },
+                                        );
+                                        let glutin = &mut *glutin.write();
 
-                                glutin.current_gl_context = Some(
-                                    glutin
-                                        .current_gl_context
-                                        .take()
-                                        .unwrap()
-                                        .make_not_current()
-                                        .unwrap()
-                                        .make_current(window.gl_surface.as_ref().unwrap())
-                                        .unwrap(),
-                                );
+                                        glutin.current_gl_context = Some(
+                                            glutin
+                                                .current_gl_context
+                                                .take()
+                                                .unwrap()
+                                                .make_not_current()
+                                                .unwrap()
+                                                .make_current(window.gl_surface.as_ref().unwrap())
+                                                .unwrap(),
+                                        );
 
-                                let screen_size_in_pixels: [u32; 2] = win.inner_size().into();
+                                        let screen_size_in_pixels: [u32; 2] =
+                                            win.inner_size().into();
 
-                                egui_glow::painter::clear(
-                                    &_gl,
-                                    screen_size_in_pixels,
-                                    [0.0, 0.0, 0.0, 0.0],
-                                );
+                                        egui_glow::painter::clear(
+                                            &_gl,
+                                            screen_size_in_pixels,
+                                            [0.0, 0.0, 0.0, 0.0],
+                                        );
 
-                                let clipped_primitives = egui_ctx.tessellate(output.shapes);
+                                        let clipped_primitives = egui_ctx.tessellate(output.shapes);
 
-                                _painter.write().paint_and_update_textures(
-                                    screen_size_in_pixels,
-                                    egui_ctx.pixels_per_point(),
-                                    &clipped_primitives,
-                                    &output.textures_delta,
-                                );
-                                crate::profile_scope!("swap_buffers");
-                                let _ =
-                                    window
-                                        .gl_surface
-                                        .as_ref()
-                                        .expect("failed to get surface to swap buffers")
-                                        .swap_buffers(glutin.current_gl_context.as_ref().expect(
-                                            "failed to get current context to swap buffers",
-                                        ));
-                                return;
+                                        _painter.write().paint_and_update_textures(
+                                            screen_size_in_pixels,
+                                            egui_ctx.pixels_per_point(),
+                                            &clipped_primitives,
+                                            &output.textures_delta,
+                                        );
+                                        crate::profile_scope!("swap_buffers");
+                                        let _ = window
+                                            .gl_surface
+                                            .as_ref()
+                                            .expect("failed to get surface to swap buffers")
+                                            .swap_buffers(
+                                                glutin.current_gl_context.as_ref().expect(
+                                                    "failed to get current context to swap buffers",
+                                                ),
+                                            );
+                                    } else {
+                                        break 'try_render;
+                                    }
+                                } else {
+                                    break 'try_render;
+                                }
                             }
+                            Self::process_viewport_builders(glutin.clone(), output.viewports);
+                            egui_winit::process_viewport_commands(
+                                output.viewport_commands,
+                                focused.read().clone(),
+                                |id| {
+                                    glutin
+                                        .read()
+                                        .windows
+                                        .get(&id)
+                                        .and_then(|w| w.read().window.clone())
+                                },
+                            );
+                            return;
                         }
                     }
                     render(&egui_ctx, 0, 0);
@@ -1044,6 +1073,65 @@ mod glow_integration {
             });
 
             Ok(())
+        }
+
+        fn process_viewport_builders(
+            glutin_ctx: Arc<RwLock<GlutinWindowContext>>,
+            mut viewports: Vec<(
+                u64,
+                u64,
+                ViewportBuilder,
+                Option<Arc<Box<dyn Fn(&egui::Context, u64, u64) + Sync + Send>>>,
+            )>,
+        ) {
+            // 0 is the main viewport/window that will not be known by the egui_ctx
+            let mut active_viewports_ids = vec![0];
+
+            viewports.retain_mut(|(id, _, builder, render)| {
+                if let Some(w) = glutin_ctx.read().windows.get(id) {
+                    let mut w = w.write();
+                    if w.builder != *builder {
+                        if let Some(window) = &mut w.window {
+                            if let Ok(pos) = window.read().outer_position() {
+                                builder.position = Some((pos.x, pos.y));
+                            }
+                        }
+                        w.window = None;
+                        w.gl_surface = None;
+                        w.render = render.clone();
+                        w.builder = builder.clone();
+                        w.parent_id = *id;
+                    }
+                    active_viewports_ids.push(*id);
+                    false
+                } else {
+                    true
+                }
+            });
+
+            for (id, parent, builder, render) in viewports {
+                glutin_ctx.write().windows.insert(
+                    id,
+                    Arc::new(RwLock::new(Window {
+                        builder,
+                        gl_surface: None,
+                        window: None,
+                        window_id: id,
+                        egui_winit: None,
+                        render: render.clone(),
+                        parent_id: parent,
+                    })),
+                );
+                active_viewports_ids.push(id);
+            }
+
+            let mut gl_window = glutin_ctx.write();
+            gl_window
+                .windows
+                .retain(|id, _| active_viewports_ids.contains(id));
+            gl_window
+                .window_maps
+                .retain(|_, id| active_viewports_ids.contains(id));
         }
     }
 
@@ -1343,90 +1431,19 @@ mod glow_integration {
                     }
                 }
 
-                // 0 is the main viewport/window that will not be known by the egui_ctx
-                let mut active_viewports_ids = vec![0];
+                Self::process_viewport_builders(glutin_ctx.clone(), viewports);
 
-                viewports.retain_mut(|(id, _, builder, render)| {
-                    if let Some(w) = glutin_ctx.read().windows.get(id) {
-                        let mut w = w.write();
-                        if w.builder != *builder {
-                            if let Some(window) = &mut w.window {
-                                if let Ok(pos) = window.read().outer_position() {
-                                    builder.position = Some((pos.x, pos.y));
-                                }
-                            }
-                            w.window = None;
-                            w.gl_surface = None;
-                            w.render = render.clone();
-                            w.builder = builder.clone();
-                            w.parent_id = *id;
-                        }
-                        active_viewports_ids.push(*id);
-                        false
-                    } else {
-                        true
-                    }
-                });
-
-                for (id, parent, builder, render) in viewports {
-                    glutin_ctx.write().windows.insert(
-                        id,
-                        Arc::new(RwLock::new(Window {
-                            builder,
-                            gl_surface: None,
-                            window: None,
-                            window_id: id,
-                            egui_winit: None,
-                            render: render.clone(),
-                            parent_id: parent,
-                        })),
-                    );
-                    active_viewports_ids.push(id);
-                }
-
-                for (id, command) in viewport_commands {
-                    if let Some(window) = glutin_ctx.read().windows.get(&id) {
-                        let window = window.read();
-
-                        if let Some(win) = &window.window {
-                            let win = win.read();
-                            match command {
-                                egui::window::ViewportCommand::Drag => {
-                                    // if this is not checked on x11 the input will be permanently taken until the app is killed!
-                                    if let Some(focus) = self.is_focused.read().clone() {
-                                        if focus == id {
-                                            win.drag_window();
-                                        }
-                                    }
-                                }
-                                egui::window::ViewportCommand::InnerSize(width, height) => {
-                                    win.set_inner_size(PhysicalSize::new(width, height));
-                                }
-                                egui::window::ViewportCommand::Resize(top, bottom, right, left) => {
-                                    win.drag_resize_window(match (top, bottom, right, left) {
-                                        (true, false, false, false) => ResizeDirection::North,
-                                        (false, true, false, false) => ResizeDirection::South,
-                                        (false, false, true, false) => ResizeDirection::East,
-                                        (false, false, false, true) => ResizeDirection::West,
-                                        (true, false, true, false) => ResizeDirection::NorthEast,
-                                        (false, true, true, false) => ResizeDirection::SouthEast,
-                                        (true, false, false, true) => ResizeDirection::NorthWest,
-                                        (false, true, false, true) => ResizeDirection::SouthWest,
-                                        _ => ResizeDirection::East,
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-
-                let mut gl_window = glutin_ctx.write();
-                gl_window
-                    .windows
-                    .retain(|id, _| active_viewports_ids.contains(id));
-                gl_window
-                    .window_maps
-                    .retain(|_, id| active_viewports_ids.contains(id));
+                egui_winit::process_viewport_commands(
+                    viewport_commands,
+                    *self.is_focused.read(),
+                    |viewport_id| {
+                        glutin_ctx
+                            .read()
+                            .windows
+                            .get(&viewport_id)
+                            .and_then(|w| w.read().window.clone())
+                    },
+                );
 
                 control_flow
             } else {
