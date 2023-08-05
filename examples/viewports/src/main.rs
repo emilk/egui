@@ -168,15 +168,19 @@ fn main() {
                                 ctx.get_viewport_id()
                             ));
 
-                            if ctx.get_viewport_id() != ctx.get_parent_viewport_id() {
-                                ctx.viewport_command(
-                                    ctx.get_viewport_id(),
-                                    egui::window::ViewportCommand::Drag,
-                                )
-                            } else {
-                                ctx.memory_mut(|mem| {
-                                    mem.set_dragged_id(egui::Id::new("Test3").with("frame_resize"))
-                                });
+                            if ui.button("Drag").is_pointer_button_down_on() {
+                                if ctx.get_viewport_id() != ctx.get_parent_viewport_id() {
+                                    ctx.viewport_command(
+                                        ctx.get_viewport_id(),
+                                        egui::window::ViewportCommand::Drag,
+                                    )
+                                } else {
+                                    ctx.memory_mut(|mem| {
+                                        mem.set_dragged_id(
+                                            egui::Id::new("Test2").with("frame_resize"),
+                                        )
+                                    });
+                                }
                             }
                         });
                 });
