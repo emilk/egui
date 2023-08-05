@@ -972,8 +972,9 @@ mod glow_integration {
             let _gl = gl.clone();
             let painter = Arc::new(RwLock::new(painter));
             let _painter = painter.clone();
-            let time = integration.beagining.clone();
+            let time = integration.beagining;
 
+            // Sync Rendering
             integration.egui_ctx.set_render_sync_callback(
                 move |viewport_builder, viewport_id, parent_viewport_id, render| {
                     let window = glutin.read().windows.get(&viewport_id).cloned();
@@ -986,7 +987,7 @@ mod glow_integration {
                                 input.time = Some(time.elapsed().as_secs_f64());
                                 let output =
                                     egui_ctx.run(input, viewport_id, parent_viewport_id, |ctx| {
-                                        render(&egui_ctx, viewport_id, parent_viewport_id);
+                                        render(ctx, viewport_id, parent_viewport_id);
                                     });
                                 let glutin = &mut *glutin.write();
 
@@ -1017,16 +1018,15 @@ mod glow_integration {
                                     &clipped_primitives,
                                     &output.textures_delta,
                                 );
-                                unsafe {
-                                    crate::profile_scope!("swap_buffers");
-                                    let _ = window
+                                crate::profile_scope!("swap_buffers");
+                                let _ =
+                                    window
                                         .gl_surface
                                         .as_ref()
                                         .expect("failed to get surface to swap buffers")
                                         .swap_buffers(glutin.current_gl_context.as_ref().expect(
                                             "failed to get current context to swap buffers",
                                         ));
-                                }
                                 return;
                             }
                         }

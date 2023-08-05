@@ -99,6 +99,12 @@ fn main() {
                                     });
                                 }
                             }
+
+                            ui.add(
+                                egui::widgets::DragValue::new(&mut value)
+                                    .clamp_range(-10..=10)
+                                    .speed(0.1),
+                            );
                         });
                 });
                 egui::CollapsingHeader::new("Async Test2").show(ui, |ui| {
@@ -126,10 +132,18 @@ fn main() {
                             ));
 
                             if ui.button("Drag").is_pointer_button_down_on() {
-                                ctx.viewport_command(
-                                    ctx.get_viewport_id(),
-                                    egui::window::ViewportCommand::Drag,
-                                )
+                                if ctx.get_viewport_id() != ctx.get_parent_viewport_id() {
+                                    ctx.viewport_command(
+                                        ctx.get_viewport_id(),
+                                        egui::window::ViewportCommand::Drag,
+                                    )
+                                } else {
+                                    ctx.memory_mut(|mem| {
+                                        mem.set_dragged_id(
+                                            egui::Id::new("Test2").with("frame_resize"),
+                                        )
+                                    });
+                                }
                             }
                         });
                 });
@@ -154,11 +168,15 @@ fn main() {
                                 ctx.get_viewport_id()
                             ));
 
-                            if ui.button("Drag").is_pointer_button_down_on() {
+                            if ctx.get_viewport_id() != ctx.get_parent_viewport_id() {
                                 ctx.viewport_command(
                                     ctx.get_viewport_id(),
                                     egui::window::ViewportCommand::Drag,
                                 )
+                            } else {
+                                ctx.memory_mut(|mem| {
+                                    mem.set_dragged_id(egui::Id::new("Test3").with("frame_resize"))
+                                });
                             }
                         });
                 });
