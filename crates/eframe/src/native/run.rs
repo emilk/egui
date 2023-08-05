@@ -1038,6 +1038,11 @@ mod glow_integration {
                                                     "failed to get current context to swap buffers",
                                                 ),
                                             );
+                                        winit_state.handle_platform_output(
+                                            &win,
+                                            &egui_ctx,
+                                            output.platform_output,
+                                        );
                                     } else {
                                         break 'try_render;
                                     }
@@ -1048,7 +1053,7 @@ mod glow_integration {
                             Self::process_viewport_builders(glutin.clone(), output.viewports);
                             egui_winit::process_viewport_commands(
                                 output.viewport_commands,
-                                focused.read().clone(),
+                                *focused.read(),
                                 |id| {
                                     glutin
                                         .read()
