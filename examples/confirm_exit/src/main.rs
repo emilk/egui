@@ -1,7 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use std::sync::{Arc, RwLock};
-
 use eframe::egui::{self, ViewportRender};
 
 fn main() -> Result<(), eframe::Error> {
@@ -18,20 +16,15 @@ fn main() -> Result<(), eframe::Error> {
 }
 
 #[derive(Default)]
-struct MyAppData {
+struct MyApp {
     allowed_to_close: bool,
     show_confirmation_dialog: bool,
 }
 
-#[derive(Default)]
-struct MyApp {
-    data: Arc<RwLock<MyAppData>>,
-}
-
 impl eframe::App for MyApp {
     fn on_close_event(&mut self) -> bool {
-        self.data.write().unwrap().show_confirmation_dialog = true;
-        self.data.read().unwrap().allowed_to_close
+        self.show_confirmation_dialog = true;
+        self.allowed_to_close
     }
 
     fn update(
@@ -48,9 +41,7 @@ impl eframe::App for MyApp {
             ui.heading("Try to close the window");
         });
 
-        let show_confirmation_dialog = self.data.read().unwrap().show_confirmation_dialog;
-        if show_confirmation_dialog {
-            let data = self.data.clone();
+        if self.show_confirmation_dialog {
             // Show confirmation dialog:
             egui::Window::new("Do you want to quit?")
                 .collapsible(false)
@@ -58,15 +49,15 @@ impl eframe::App for MyApp {
                 .show(ctx, |ui| {
                     ui.horizontal(|ui| {
                         if ui.button("Cancel").clicked() {
-                            data.write().unwrap().show_confirmation_dialog = false;
+                            self.show_confirmation_dialog = false;
                         }
 
                         if ui.button("Yes!").clicked() {
-                            data.write().unwrap().allowed_to_close = true;
+                            self.allowed_to_close = true;
                         }
                     });
                 });
-            if self.data.read().unwrap().allowed_to_close {
+            if self.allowed_to_close {
                 frame.close()
             }
         }
