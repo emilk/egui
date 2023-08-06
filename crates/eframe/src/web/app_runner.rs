@@ -178,14 +178,15 @@ impl AppRunner {
         let canvas_size = super::canvas_size_in_points(self.canvas_id());
         let raw_input = self.input.new_frame(canvas_size);
 
-        let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
-            self.app.update(egui_ctx, &mut self.frame);
+        let full_output = self.egui_ctx.run(raw_input, 0, 0, |egui_ctx| {
+            self.app.update(egui_ctx, &mut self.frame, None);
         });
         let egui::FullOutput {
             platform_output,
             repaint_after,
             textures_delta,
             shapes,
+            ..
         } = full_output;
 
         self.handle_platform_output(platform_output);
@@ -199,6 +200,7 @@ impl AppRunner {
 
         self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
 
+        let (_, repaint_after) = repaint_after[0];
         (repaint_after, clipped_primitives)
     }
 
