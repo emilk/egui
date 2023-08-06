@@ -1701,12 +1701,12 @@ mod wgpu_integration {
     /// initialized once the application has an associated `SurfaceView`.
     struct WgpuWinitRunning {
         painter: egui_wgpu::winit::Painter,
-        integration: epi_integration::EpiIntegration,
+        integration: Arc<RwLock<epi_integration::EpiIntegration>>,
         app: Box<dyn epi::App>,
         windows: HashMap<
             u64,
             (
-                Option<winit::window::Window>,
+                Option<Arc<RwLock<winit::window::Window>>>,
                 Option<egui_winit::State>,
                 Option<Arc<Box<ViewportRender>>>,
                 u64,
@@ -1725,7 +1725,7 @@ mod wgpu_integration {
 
         /// Window surface state that's initialized when the app starts running via a Resumed event
         /// and on Android will also be destroyed if the application is paused.
-        is_focused: bool,
+        is_focused: Option<u64>,
     }
 
     impl WgpuWinitApp {
@@ -1747,7 +1747,7 @@ mod wgpu_integration {
                 native_options,
                 running: None,
                 app_creator: Some(app_creator),
-                is_focused: true,
+                is_focused: Some(0),
             }
         }
 
@@ -1776,7 +1776,7 @@ mod wgpu_integration {
                         running.windows_id.insert(new_window.id(), *id);
 
                         pollster::block_on(running.painter.set_window(*id, Some(&new_window)));
-                        *window = Some(new_window);
+                        *window = Some(Arc::new(RwLock::new(new_window)));
                         *state = Some(egui_winit::State::new(event_loop));
                     }
                 }
@@ -1786,7 +1786,9 @@ mod wgpu_integration {
         fn set_window(&mut self, id: u64) -> std::result::Result<(), egui_wgpu::WgpuError> {
             if let Some(running) = &mut self.running {
                 if let Some((window, _, _, _, _)) = running.windows.get(&id) {
-                    pollster::block_on(running.painter.set_window(id, window.as_ref().map(|w| w)))?;
+                    window.as_ref().map(|w| {
+                        pollster::block_on(running.painter.set_window(id, Some(&w.read())))
+                    });
                 }
             }
             Ok(())
@@ -1894,11 +1896,20 @@ mod wgpu_integration {
             windows_id.insert(window.id(), 0);
 
             let mut windows = HashMap::default();
-            windows.insert(0, (Some(window), Some(state), None, 0, builder));
+            windows.insert(
+                0,
+                (
+                    Some(Arc::new(RwLock::new(window))),
+                    Some(state),
+                    None,
+                    0,
+                    builder,
+                ),
+            );
 
             self.running = Some(WgpuWinitRunning {
                 painter,
-                integration,
+                integration: Arc::new(RwLock::new(integration)),
                 app,
                 windows,
                 windows_id,
@@ -1912,41 +1923,48 @@ mod wgpu_integration {
         fn frame_nr(&self) -> u64 {
             self.running
                 .as_ref()
-                .map_or(0, |r| r.integration.egui_ctx.frame_nr())
+                .map_or(0, |r| r.integration.read().egui_ctx.frame_nr())
         }
 
-        fn is_focused(&self, _: winit::window::WindowId) -> bool {
-            self.is_focused
+        fn is_focused(&self, window_id: winit::window::WindowId) -> bool {
+            if let Some(focus) = self.is_focused {
+                self.get_window_id(&window_id)
+                    .map(|i| i == focus)
+                    .unwrap_or(false)
+            } else {
+                false
+            }
         }
 
         fn integration(&self) -> Option<Arc<RwLock<EpiIntegration>>> {
-            todo!()
-            // self.running.as_ref().map(|r| r.integration)
+            self.running.as_ref().map(|r| r.integration.clone())
         }
 
         fn window(
             &self,
             window_id: winit::window::WindowId,
         ) -> Option<Arc<RwLock<winit::window::Window>>> {
-            todo!()
-            // self.running
-            //     .as_ref()
-            //     .and_then(|r| r.windows_id.get(&window_id).map(|id| r.windows.get(id)))
-            //     .flatten()
-            //     .and_then(|w| w.0.as_ref())
+            self.running
+                .as_ref()
+                .and_then(|r| r.windows_id.get(&window_id).map(|id| r.windows.get(id)))
+                .flatten()
+                .and_then(|w| w.0.clone())
         }
 
         fn get_window_winit_id(&self, id: u64) -> Option<winit::window::WindowId> {
             self.running
                 .as_ref()
                 .and_then(|r| r.windows.get(&id))
-                .and_then(|w| w.0.as_ref().map(|w| w.id()))
+                .and_then(|w| w.0.as_ref().map(|w| w.read().id()))
         }
 
         fn save_and_destroy(&mut self) {
             if let Some(mut running) = self.running.take() {
                 if let Some((Some(window), _, _, _, _)) = running.windows.get(&0) {
-                    running.integration.save(running.app.as_mut(), window);
+                    running
+                        .integration
+                        .write()
+                        .save(running.app.as_mut(), &*window.read());
                 }
 
                 #[cfg(feature = "glow")]
@@ -1984,7 +2002,8 @@ mod wgpu_integration {
                 {
                     let Some((viewport_id, (Some(window), Some(state), render, parent_viewport_id, _))) = windows_id.get(&window_id).and_then(|id|(windows.get_mut(id).map(|w|(*id, w)))) else{return vec![]};
 
-                    let _ = pollster::block_on(painter.set_window(viewport_id, Some(window)));
+                    let _ =
+                        pollster::block_on(painter.set_window(viewport_id, Some(&window.read())));
 
                     egui::FullOutput {
                         platform_output,
@@ -1993,22 +2012,27 @@ mod wgpu_integration {
                         shapes,
                         viewports,
                         viewport_commands,
-                    } = integration.update(
+                    } = integration.write().update(
                         app.as_mut(),
-                        window,
+                        &*window.read(),
                         state,
                         render.clone(),
                         viewport_id,
                         *parent_viewport_id,
                     );
 
-                    integration.handle_platform_output(window, platform_output, state);
+                    integration.write().handle_platform_output(
+                        &window.read(),
+                        platform_output,
+                        state,
+                    );
 
                     let clipped_primitives = {
                         crate::profile_scope!("tessellate");
-                        integration.egui_ctx.tessellate(shapes)
+                        integration.read().egui_ctx.tessellate(shapes)
                     };
 
+                    let integration = &mut *integration.write();
                     let screenshot_requested = &mut integration.frame.output.screenshot_requested;
 
                     let screenshot = painter.paint_and_update_textures(
@@ -2022,8 +2046,8 @@ mod wgpu_integration {
                     *screenshot_requested = false;
                     integration.frame.screenshot.set(screenshot);
 
-                    integration.post_rendering(app.as_mut(), window);
-                    integration.post_present(window);
+                    integration.post_rendering(app.as_mut(), &window.read());
+                    integration.post_present(&window.read());
                 }
 
                 let mut active_viewports_ids = vec![0];
@@ -2044,41 +2068,11 @@ mod wgpu_integration {
                     active_viewports_ids.push(id);
                 }
 
-                // TODO Make this more efficient
-                for (id, command) in viewport_commands {
-                    if let Some(window) = windows.get(&id) {
-                        if let Some(win) = &window.0 {
-                            match command {
-                                egui::window::ViewportCommand::Drag => {
-                                    // if this is not checked on x11 the input will be permanently taken until the app is killed!
-                                    // if let Some(focus) = self.is_focused {
-                                    // if focus == id {
-                                    win.drag_window();
-                                    // }
-                                    // }
-                                }
-                                egui::window::ViewportCommand::InnerSize(width, height) => {
-                                    win.set_inner_size(winit::dpi::PhysicalSize::new(
-                                        width, height,
-                                    ));
-                                }
-                                egui::window::ViewportCommand::Resize(top, bottom, right, left) => {
-                                    win.drag_resize_window(match (top, bottom, right, left) {
-                                        (true, false, false, false) => ResizeDirection::North,
-                                        (false, true, false, false) => ResizeDirection::South,
-                                        (false, false, true, false) => ResizeDirection::East,
-                                        (false, false, false, true) => ResizeDirection::West,
-                                        (true, false, true, false) => ResizeDirection::NorthEast,
-                                        (false, true, true, false) => ResizeDirection::SouthEast,
-                                        (true, false, false, true) => ResizeDirection::NorthWest,
-                                        (false, true, false, true) => ResizeDirection::SouthWest,
-                                        _ => ResizeDirection::East,
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
+                egui_winit::process_viewport_commands(
+                    viewport_commands,
+                    self.is_focused,
+                    |viewport_id| windows.get(&viewport_id).and_then(|w| w.0.clone()),
+                );
 
                 windows.retain(|id, _| active_viewports_ids.contains(id));
                 windows_id.retain(|_, id| active_viewports_ids.contains(id));
@@ -2086,11 +2080,11 @@ mod wgpu_integration {
 
                 let mut control_flow = vec![EventResult::Wait];
                 for repaint_after in repaint_after {
-                    control_flow.push(if integration.should_close() {
+                    control_flow.push(if integration.read().should_close() {
                         EventResult::Exit
                     } else if repaint_after.1.is_zero() {
-                        if let Some((Some(window_id), _, _, _, _)) = windows.get(&repaint_after.0) {
-                            EventResult::RepaintNext(window_id.id())
+                        if let Some((Some(window), _, _, _, _)) = windows.get(&repaint_after.0) {
+                            EventResult::RepaintNext(window.read().id())
                         } else {
                             EventResult::Wait
                         }
@@ -2102,8 +2096,8 @@ mod wgpu_integration {
                         // technically, this might lead to some weird corner cases where the user *WANTS*
                         // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
                         // egui backend impl i guess.
-                        if let Some((Some(window_id), _, _, _, _)) = windows.get(&repaint_after.0) {
-                            EventResult::RepaintAt(window_id.id(), repaint_after_instant)
+                        if let Some((Some(window), _, _, _, _)) = windows.get(&repaint_after.0) {
+                            EventResult::RepaintAt(window.read().id(), repaint_after_instant)
                         } else {
                             EventResult::Wait
                         }
@@ -2113,9 +2107,11 @@ mod wgpu_integration {
                 }
 
                 let Some((_, (Some(window), _, _, _, _))) = windows_id.get(&window_id).and_then(|id|(windows.get_mut(id).map(|w|(*id, w)))) else{return vec![]};
-                integration.maybe_autosave(app.as_mut(), window);
+                integration
+                    .write()
+                    .maybe_autosave(app.as_mut(), &window.read());
 
-                if window.is_minimized() == Some(true) {
+                if window.read().is_minimized() == Some(true) {
                     // On Mac, a minimized Window uses up all CPU:
                     // https://github.com/emilk/egui/issues/325
                     crate::profile_scope!("bg_sleep");
@@ -2140,7 +2136,7 @@ mod wgpu_integration {
                         if running.windows.get(&0).is_none() {
                             let window = Self::create_window(
                                 event_loop,
-                                running.integration.frame.storage(),
+                                running.integration.read().frame.storage(),
                                 &self.app_name,
                                 &self.native_options,
                             )?;
@@ -2171,6 +2167,7 @@ mod wgpu_integration {
                             .0
                             .as_ref()
                             .unwrap()
+                            .read()
                             .id(),
                     )
                 }
@@ -2181,6 +2178,7 @@ mod wgpu_integration {
                 }
 
                 winit::event::Event::WindowEvent { event, window_id } => {
+                    let viewport_id = self.get_window_id(window_id);
                     if let Some(running) = &mut self.running {
                         // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
                         // event handler.
@@ -2199,7 +2197,7 @@ mod wgpu_integration {
 
                         match &event {
                             winit::event::WindowEvent::Focused(new_focused) => {
-                                self.is_focused = *new_focused;
+                                self.is_focused = new_focused.then(|| viewport_id).flatten();
                             }
                             winit::event::WindowEvent::Resized(physical_size) => {
                                 repaint_asap = true;
@@ -2235,7 +2233,7 @@ mod wgpu_integration {
                                 }
                             }
                             winit::event::WindowEvent::CloseRequested
-                                if running.integration.should_close() =>
+                                if running.integration.read().should_close() =>
                             {
                                 log::debug!("Received WindowEvent::CloseRequested");
                                 return Ok(EventResult::Exit);
@@ -2248,7 +2246,7 @@ mod wgpu_integration {
                             .get(window_id)
                             .and_then(|id| running.windows.get_mut(id).map(|w| (*id, w)))
                         {
-                            Some(running.integration.on_event(
+                            Some(running.integration.write().on_event(
                                 running.app.as_mut(),
                                 event,
                                 window_id,
@@ -2259,7 +2257,7 @@ mod wgpu_integration {
                             None
                         };
 
-                        if running.integration.should_close() {
+                        if running.integration.read().should_close() {
                             EventResult::Exit
                         } else if let Some(event_response) = event_response {
                             if event_response.repaint {
@@ -2288,7 +2286,7 @@ mod wgpu_integration {
                             .get(window_id)
                             .and_then(|id| running.windows.get_mut(id))
                         {
-                            running.integration.on_accesskit_action_request(
+                            running.integration.write().on_accesskit_action_request(
                                 request.clone(),
                                 window_id,
                                 state,
@@ -2306,7 +2304,9 @@ mod wgpu_integration {
         }
 
         fn get_window_id(&self, id: &winit::window::WindowId) -> Option<u64> {
-            todo!()
+            self.running
+                .as_ref()
+                .and_then(|r| r.windows_id.get(id).cloned())
         }
     }
 

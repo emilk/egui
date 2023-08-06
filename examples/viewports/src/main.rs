@@ -3,6 +3,11 @@ use eframe::egui::window::ViewportBuilder;
 use eframe::egui::Id;
 use eframe::NativeOptions;
 
+#[cfg(feature = "wgpu")]
+const RENDERER: eframe::Renderer = eframe::Renderer::Wgpu;
+#[cfg(not(feature = "wgpu"))]
+const RENDERER: eframe::Renderer = eframe::Renderer::Glow;
+
 fn main() {
     env_logger::init(); // Use `RUST_LOG=debug` to see logs.
 
@@ -19,7 +24,7 @@ fn main() {
     let _ = eframe::run_simple_native(
         "Viewports Examples",
         NativeOptions {
-            renderer: eframe::Renderer::Glow,
+            renderer: RENDERER,
             ..NativeOptions::default()
         },
         move |ctx, _frame| {
@@ -177,7 +182,7 @@ fn main() {
                                 } else {
                                     ctx.memory_mut(|mem| {
                                         mem.set_dragged_id(
-                                            egui::Id::new("Test2").with("frame_resize"),
+                                            egui::Id::new("Test3").with("frame_resize"),
                                         )
                                     });
                                 }
