@@ -279,7 +279,7 @@ impl Painter {
                         depth_or_array_layers: 1,
                     },
                     mip_level_count: 1,
-                    sample_count: 1,
+                    sample_count: self.msaa_samples,
                     dimension: wgpu::TextureDimension::D2,
                     format: depth_format,
                     usage: wgpu::TextureUsages::RENDER_ATTACHMENT
