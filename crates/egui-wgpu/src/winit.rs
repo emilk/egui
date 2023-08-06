@@ -88,6 +88,9 @@ pub struct Painter {
     surfaces: HashMap<u64, SurfaceState>,
 }
 
+unsafe impl Send for Painter {}
+unsafe impl Sync for Painter {}
+
 impl Painter {
     /// Manages [`wgpu`] state, including surface state, required to render egui.
     ///
