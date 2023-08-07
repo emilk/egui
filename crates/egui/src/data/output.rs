@@ -2,9 +2,8 @@
 
 use std::sync::Arc;
 
-use crate::window::ViewportCommand;
 use crate::Context;
-use crate::{window::ViewportBuilder, WidgetType};
+use crate::{ViewportBuilder, ViewportCommand, WidgetType};
 
 /// What egui emits each frame from [`crate::Context::run`].
 ///

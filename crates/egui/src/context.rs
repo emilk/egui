@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
     input_state::*, layers::GraphicLayers, memory::Options, os::OperatingSystem,
-    output::FullOutput, util::IdTypeMap, window::ViewportCommand, TextureHandle, *,
+    output::FullOutput, util::IdTypeMap, TextureHandle, ViewportCommand, *,
 };
 use ahash::HashMap;
 use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
@@ -377,11 +377,11 @@ impl ContextImpl {
 }
 
 impl ContextImpl {
-    fn get_viewport_id(&self) -> u64 {
+    pub(crate) fn get_viewport_id(&self) -> u64 {
         self.frame_stack.last().cloned().unwrap_or_default().0
     }
 
-    fn get_parent_viewport_id(&self) -> u64 {
+    pub(crate) fn get_parent_viewport_id(&self) -> u64 {
         self.frame_stack.last().cloned().unwrap_or_default().1
     }
 }
@@ -2132,8 +2132,7 @@ impl Context {
     }
 }
 
-use containers::window::ViewportBuilder;
-/// # Windows
+// Viewports
 impl Context {
     pub fn get_viewport_id(&self) -> u64 {
         self.read(|ctx| ctx.get_viewport_id())

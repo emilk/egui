@@ -322,6 +322,7 @@ mod sense;
 pub mod style;
 mod ui;
 pub mod util;
+pub mod viewport;
 pub mod widget_text;
 pub mod widgets;
 
@@ -371,6 +372,7 @@ pub use {
     style::{FontSelection, Margin, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
+    viewport::*,
     widget_text::{RichText, WidgetText},
     widgets::*,
 };
@@ -545,9 +547,6 @@ pub enum WidgetType {
     /// If this is something you think should be added, file an issue.
     Other,
 }
-
-/// This is used to render a viewport
-pub type ViewportRender = dyn Fn(&Context, u64, u64) + Sync + Send;
 
 // ----------------------------------------------------------------------------
 

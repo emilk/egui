@@ -9,7 +9,7 @@ use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{window::ViewportBuilder, Context, NumExt as _};
+use egui::{Context, NumExt as _, ViewportBuilder};
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};

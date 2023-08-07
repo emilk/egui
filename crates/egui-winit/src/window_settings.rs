@@ -1,4 +1,4 @@
-use egui::window::ViewportBuilder;
+use egui::ViewportBuilder;
 
 /// Can be used to store native window settings (position and size).
 #[derive(Clone, Copy, Debug)]

@@ -3,7 +3,7 @@
 
 use std::{sync::Arc, time::Instant};
 
-use egui::{epaint::ahash::HashMap, mutex::RwLock, window::ViewportBuilder};
+use egui::{epaint::ahash::HashMap, mutex::RwLock, ViewportBuilder};
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 use winit::{
     event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget},
@@ -420,7 +420,7 @@ mod glow_integration {
     use std::sync::Arc;
 
     use egui::{
-        epaint::ahash::HashMap, mutex::RwLock, window::ViewportBuilder, NumExt as _, ViewportRender,
+        epaint::ahash::HashMap, mutex::RwLock, NumExt as _, ViewportBuilder, ViewportRender,
     };
     use egui_winit::EventResponse;
     use glutin::{

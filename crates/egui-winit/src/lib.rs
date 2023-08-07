@@ -16,7 +16,7 @@ pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{mutex::RwLock, window::ViewportCommand};
+use egui::{mutex::RwLock, ViewportCommand};
 pub use winit;
 
 pub mod clipboard;
@@ -916,7 +916,7 @@ pub fn process_viewport_commands(
             let win = window.read();
 
             match command {
-                egui::window::ViewportCommand::Drag => {
+                egui::ViewportCommand::Drag => {
                     // if this is not checked on x11 the input will be permanently taken until the app is killed!
                     if let Some(focus) = focused {
                         if focus == viewport_id {
@@ -924,10 +924,10 @@ pub fn process_viewport_commands(
                         }
                     }
                 }
-                egui::window::ViewportCommand::InnerSize(width, height) => {
+                egui::ViewportCommand::InnerSize(width, height) => {
                     win.set_inner_size(PhysicalSize::new(width, height));
                 }
-                egui::window::ViewportCommand::Resize(top, bottom, right, left) => {
+                egui::ViewportCommand::Resize(top, bottom, right, left) => {
                     win.drag_resize_window(match (top, bottom, right, left) {
                         (true, false, false, false) => ResizeDirection::North,
                         (false, true, false, false) => ResizeDirection::South,

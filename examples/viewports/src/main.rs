@@ -1,6 +1,6 @@
 use eframe::egui;
-use eframe::egui::window::ViewportBuilder;
 use eframe::egui::Id;
+use eframe::egui::ViewportBuilder;
 use eframe::NativeOptions;
 
 #[cfg(feature = "wgpu")]
@@ -94,7 +94,7 @@ fn main() {
                                 if ctx.get_viewport_id() != ctx.get_parent_viewport_id() {
                                     ctx.viewport_command(
                                         ctx.get_viewport_id(),
-                                        egui::window::ViewportCommand::Drag,
+                                        egui::ViewportCommand::Drag,
                                     )
                                 } else {
                                     ctx.memory_mut(|mem| {
@@ -140,7 +140,7 @@ fn main() {
                                 if ctx.get_viewport_id() != ctx.get_parent_viewport_id() {
                                     ctx.viewport_command(
                                         ctx.get_viewport_id(),
-                                        egui::window::ViewportCommand::Drag,
+                                        egui::ViewportCommand::Drag,
                                     )
                                 } else {
                                     ctx.memory_mut(|mem| {
@@ -177,7 +177,7 @@ fn main() {
                                 if ctx.get_viewport_id() != ctx.get_parent_viewport_id() {
                                     ctx.viewport_command(
                                         ctx.get_viewport_id(),
-                                        egui::window::ViewportCommand::Drag,
+                                        egui::ViewportCommand::Drag,
                                     )
                                 } else {
                                     ctx.memory_mut(|mem| {
