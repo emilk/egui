@@ -85,6 +85,9 @@ pub struct Memory {
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
+    pub(crate) window_interactions: HashMap<u64, window::WindowInteraction>,
+
+    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) drag_value: crate::widgets::drag_value::MonoState,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
@@ -381,11 +384,16 @@ impl Memory {
             .unwrap_or_default();
 
         if !prev_input.pointer.any_down() {
+            self.window_interactions.remove(&viewport_id);
             self.window_interaction = None;
         }
     }
 
     pub(crate) fn pause_frame(&mut self, viewport_id: u64) {
+        if let Some(window_interaction) = self.window_interaction {
+            self.window_interactions
+                .insert(viewport_id, window_interaction);
+        }
         self.interactions
             .insert(viewport_id, std::mem::take(&mut self.interaction));
         self.viewports_areas
@@ -408,12 +416,15 @@ impl Memory {
         self.drag_value.end_frame(input);
         self.interactions.retain(|id, _| viewports.contains(id));
         self.viewports_areas.retain(|id, _| viewports.contains(id));
+        self.window_interactions
+            .retain(|id, _| viewports.contains(id));
     }
 
     pub(crate) fn resume_frame(&mut self, viewport_id: u64) {
         self.interaction = self.interactions.remove(&viewport_id).unwrap();
         self.areas = self.viewports_areas.remove(&viewport_id).unwrap();
         self.viewport_id = viewport_id;
+        self.window_interaction = self.window_interactions.remove(&viewport_id);
     }
 
     /// Top-most layer at the given position.
