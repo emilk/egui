@@ -16,6 +16,7 @@ fn main() {
     let mut show_sync = false;
     let mut show = false;
     let mut value = 0.0;
+    let mut debug = false;
 
     let mut embedded1 = false;
     let mut embedded2 = true;
@@ -34,6 +35,9 @@ fn main() {
                 ui.checkbox(&mut is_desktop, "Is Desktop");
                 ctx.set_desktop(is_desktop);
                 ui.checkbox(&mut to_repair, "To Repair!");
+
+                ui.checkbox(&mut debug, "Debug");
+                ctx.set_debug_on_hover(debug);
 
                 ui.checkbox(&mut show_sync, "Show Sync Viewport");
                 if show_sync {
@@ -74,13 +78,19 @@ fn main() {
                             let mut embedded = ui.data_mut(|data| {
                                 *data.get_temp_mut_or(Id::new("Test1").with("_is_embedded"), true)
                             });
+                            let embedded_tmp = embedded;
                             if ui.checkbox(&mut embedded, "Should embedd?").clicked() {
                                 ui.ctx()
                                     .request_repaint_viewport(ui.ctx().get_parent_viewport_id());
                             }
-                            ui.data_mut(|data| {
-                                data.insert_persisted(Id::new("Test1").with("_embedded"), embedded)
-                            });
+                            if embedded_tmp != embedded {
+                                ui.data_mut(|data| {
+                                    data.insert_persisted(
+                                        Id::new("Test1").with("_embedded"),
+                                        embedded,
+                                    )
+                                });
+                            }
                             if to_repair {
                                 ui.spinner();
                             }
@@ -117,16 +127,7 @@ fn main() {
                         .embedded(&mut embedded2)
                         .show_async(ctx, move |ui| {
                             ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
-                            let mut embedded = ui.data_mut(|data| {
-                                *data.get_temp_mut_or(Id::new("Test2").with("_is_embedded"), true)
-                            });
-                            if ui.checkbox(&mut embedded, "Should embedd?").clicked() {
-                                ui.ctx()
-                                    .request_repaint_viewport(ui.ctx().get_parent_viewport_id());
-                            }
-                            ui.data_mut(|data| {
-                                data.insert_persisted(Id::new("Test2").with("_embedded"), embedded)
-                            });
+
                             if to_repair {
                                 ui.spinner();
                             }
@@ -157,16 +158,6 @@ fn main() {
                         .embedded(&mut embedded3)
                         .show_async(ctx, move |ui| {
                             ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
-                            let mut embedded = ui.data_mut(|data| {
-                                *data.get_temp_mut_or(Id::new("Test3").with("_is_embedded"), true)
-                            });
-                            if ui.checkbox(&mut embedded, "Should embedd?").clicked() {
-                                ui.ctx()
-                                    .request_repaint_viewport(ui.ctx().get_parent_viewport_id());
-                            }
-                            ui.data_mut(|data| {
-                                data.insert_persisted(Id::new("Test3").with("_embedded"), embedded)
-                            });
                             let ctx = ui.ctx().clone();
                             ui.label(format!(
                                 "Current rendering window: {}",
