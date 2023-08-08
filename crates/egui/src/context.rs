@@ -1449,7 +1449,12 @@ impl Context {
         self.write(|ctx| {
             ctx.input.retain(|id, _| viewports.contains(id));
             ctx.layer_rects_prev_viewports
-                .retain(|id, _| viewports.contains(id))
+                .retain(|id, _| viewports.contains(id));
+            ctx.layer_rects_this_viewports
+                .retain(|id, _| viewports.contains(id));
+            ctx.output.retain(|id, _| viewports.contains(id));
+            ctx.frame_state.retain(|id, _| viewports.contains(id));
+            ctx.graphics.retain(|id, _| viewports.contains(id));
         });
 
         let repaint_after =
