@@ -282,7 +282,7 @@ fn serialize_f32_custom<S>(x: &f32, s: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
-    //println!("In custom serialiser");
+    println!("In custom serialiser");
     if *x == f32::INFINITY {
         s.serialize_f32(100000000.0)
     } else {
