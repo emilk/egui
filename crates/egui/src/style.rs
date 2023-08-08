@@ -360,30 +360,46 @@ impl Margin {
     }
 
     /// Total margins on both sides
+    #[inline]
     pub fn sum(&self) -> Vec2 {
         vec2(self.left + self.right, self.top + self.bottom)
     }
 
+    #[inline]
     pub fn left_top(&self) -> Vec2 {
         vec2(self.left, self.top)
     }
 
+    #[inline]
     pub fn right_bottom(&self) -> Vec2 {
         vec2(self.right, self.bottom)
     }
 
+    #[inline]
     pub fn is_same(&self) -> bool {
         self.left == self.right && self.left == self.top && self.left == self.bottom
+    }
+
+    #[inline]
+    pub fn expand_rect(&self, rect: Rect) -> Rect {
+        Rect::from_min_max(rect.min - self.left_top(), rect.max + self.right_bottom())
+    }
+
+    #[inline]
+    pub fn shrink_rect(&self, rect: Rect) -> Rect {
+        Rect::from_min_max(rect.min + self.left_top(), rect.max - self.right_bottom())
     }
 }
 
 impl From<f32> for Margin {
+    #[inline]
     fn from(v: f32) -> Self {
         Self::same(v)
     }
 }
 
 impl From<Vec2> for Margin {
+    #[inline]
     fn from(v: Vec2) -> Self {
         Self::symmetric(v.x, v.y)
     }
@@ -392,6 +408,7 @@ impl From<Vec2> for Margin {
 impl std::ops::Add for Margin {
     type Output = Self;
 
+    #[inline]
     fn add(self, other: Self) -> Self {
         Self {
             left: self.left + other.left,
