@@ -3157,6 +3157,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-diff"
+version = "0.4.1"
+dependencies = [
+ "serde",
+ "serde-diff-derive",
+ "serde_derive",
+]
+
+[[package]]
+name = "serde-diff-derive"
+version = "0.4.0"
+dependencies = [
+ "darling 0.10.2",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "serde_derive"
 version = "1.0.163"
 source = "registry+https://github.com/rust-lang/crates.io-index"

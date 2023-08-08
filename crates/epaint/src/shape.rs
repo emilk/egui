@@ -10,7 +10,6 @@ use crate::{
 use emath::*;
 
 pub use crate::{CubicBezierShape, QuadraticBezierShape};
-//use serde_diff::SerdeDiff; need!!!!!!!!!!!!!!!!!!!
 
 /// A paint primitive such as a circle or a piece of text.
 /// Coordinates are all screen space points (not physical pixels).
@@ -69,7 +68,7 @@ pub enum Shape {
     //#[serde_diff(opaque)]
     Callback(
         #[cfg_attr(feature = "serde", serde(skip))]
-        //#[cfg_attr(feature = "serde", serde_diff(skip))] need!!!!!!!!!!!!!!!!!
+        #[cfg_attr(feature = "serde", serde_diff(skip))] //skip or opaque????
         PaintCallback,
     ),
 }
@@ -654,7 +653,7 @@ pub struct TextShape {
     pub pos: Pos2,
 
     /// The laid out text, from [`Fonts::layout_job`].
-    //#[cfg_attr(feature = "serde", serde(skip), serde_diff(skip))] need!!!!!!!!!!!!!!!!!
+    #[cfg_attr(feature = "serde", serde_diff(opaque))] ////skip or opaque?
     pub galley: Arc<Galley>,
 
     /// Add this underline to the whole text.
