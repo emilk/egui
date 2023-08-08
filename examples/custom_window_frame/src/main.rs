@@ -19,6 +19,7 @@ fn main() -> Result<(), eframe::Error> {
         "Custom window frame", // unused title
         options,
         Box::new(|_cc| Box::<MyApp>::default()),
+        false,
     )
 }
 

@@ -396,9 +396,9 @@ impl Context {
         self.write(|ctx| ctx.begin_frame_mut(new_input));
     }
 
-    pub fn reset_repaint_after(&self) {
+    /*pub fn reset_repaint_after(&self) {
         self.request_repaint();
-    }
+    }*/
 }
 
 /// ## Borrows parts of [`Context`]

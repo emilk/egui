@@ -13,6 +13,7 @@ fn main() -> Result<(), eframe::Error> {
         "Show an image with eframe/egui",
         options,
         Box::new(|_cc| Box::<MyApp>::default()),
+        false,
     )
 }
 

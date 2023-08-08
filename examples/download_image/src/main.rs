@@ -11,6 +11,7 @@ fn main() -> Result<(), eframe::Error> {
         "Download and show an image with eframe/egui",
         options,
         Box::new(|_cc| Box::<MyApp>::default()),
+        false,
     )
 }
 

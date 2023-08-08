@@ -57,9 +57,6 @@ persistence = ["serde", "epaint/serde", "ron"]
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = ["dep:serde", "epaint/serde", "accesskit?/serde"]
 
-## Allow serialization using [`serde`](https://docs.rs/serde).
-#serde_diff = ["dep:serde_diff", "epaint/serde_diff"]
-
 ## Change Vertex layout to be compatible with unity
 unity = ["epaint/unity"]
 
@@ -84,4 +81,6 @@ document-features = { version = "0.2", optional = true }
 log = { version = "0.4", optional = true, features = ["std"] }
 ron = { version = "0.8", optional = true }
 serde = { version = "1", optional = true, features = ["derive", "rc"] }
-serde_diff = { version = "0.4.1", package = "serde-diff" }
+
+## Allow calculating and applying diffs using [`serde-diff] (https://docs.rs/serde-diff/latest/serde_diff/).
+serde-diff = { path = "../../../serde-diff" }

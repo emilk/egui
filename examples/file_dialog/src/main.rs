@@ -13,6 +13,7 @@ fn main() -> Result<(), eframe::Error> {
         "Native file dialogs and drag-and-drop files",
         options,
         Box::new(|_cc| Box::<MyApp>::default()),
+        false,
     )
 }
 

@@ -15,6 +15,7 @@ fn main() -> eframe::Result<()> {
         "User attention test",
         native_options,
         Box::new(|cc| Box::new(Application::new(cc))),
+        false,
     )
 }
 

@@ -12,6 +12,7 @@ fn main() -> Result<(), eframe::Error> {
         "Confirm exit",
         options,
         Box::new(|_cc| Box::<MyApp>::default()),
+        false,
     )
 }
 

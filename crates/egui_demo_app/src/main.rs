@@ -31,5 +31,6 @@ fn main() -> Result<(), eframe::Error> {
         "egui demo app",
         options,
         Box::new(|cc| Box::new(egui_demo_app::WrapApp::new(cc))),
+        false,
     )
 }

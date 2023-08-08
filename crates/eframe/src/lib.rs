@@ -15,7 +15,7 @@
 //!
 //! fn main() {
 //!     let native_options = eframe::NativeOptions::default();
-//!     eframe::run_native("My egui App", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))));
+//!     eframe::run_native("My egui App", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))), false);
 //! }
 //!
 //! #[derive(Default)]
@@ -170,7 +170,7 @@ mod native;
 ///
 /// fn main() -> eframe::Result<()> {
 ///     let native_options = eframe::NativeOptions::default();
-///     eframe::run_native("MyApp", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))))
+///     eframe::run_native("MyApp", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))), false)
 /// }
 ///
 /// #[derive(Default)]
@@ -204,6 +204,7 @@ pub fn run_native(
     app_name: &str,
     native_options: NativeOptions,
     app_creator: AppCreator,
+    remote_rendering: bool,
 ) -> Result<()> {
     let renderer = native_options.renderer;
 
@@ -217,35 +218,7 @@ pub fn run_native(
         #[cfg(feature = "glow")]
         Renderer::Glow => {
             log::debug!("Using the glow renderer");
-            native::run::run_glow(app_name, native_options, app_creator, false)
-        }
-
-        #[cfg(feature = "wgpu")]
-        Renderer::Wgpu => {
-            log::debug!("Using the wgpu renderer");
-            native::run::run_wgpu(app_name, native_options, app_creator)
-        }
-    }
-}
-
-pub fn run_native_remote(
-    app_name: &str,
-    native_options: NativeOptions,
-    app_creator: AppCreator,
-) -> Result<()> {
-    let renderer = native_options.renderer;
-
-    #[cfg(not(feature = "__screenshot"))]
-    assert!(
-        std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
-        "EFRAME_SCREENSHOT_TO found without compiling with the '__screenshot' feature"
-    );
-
-    match renderer {
-        #[cfg(feature = "glow")]
-        Renderer::Glow => {
-            log::debug!("Using the glow renderer");
-            native::run::run_glow(app_name, native_options, app_creator, true)
+            native::run::run_glow(app_name, native_options, app_creator, remote_rendering)
         }
 
         #[cfg(feature = "wgpu")]
@@ -310,6 +283,7 @@ pub fn run_simple_native(
         app_name,
         native_options,
         Box::new(|_cc| Box::new(SimpleApp { update_fun })),
+        false,
     )
 }
 

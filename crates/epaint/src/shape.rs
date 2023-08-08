@@ -24,7 +24,6 @@ pub use crate::{CubicBezierShape, QuadraticBezierShape};
     feature = "serde",
     derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
-//#[cfg_attr(feature = "serde", serde_diff(opaque))]
 pub enum Shape {
     /// Paint nothing. This can be useful as a placeholder.
     Noop,
@@ -63,12 +62,9 @@ pub enum Shape {
     CubicBezier(CubicBezierShape),
 
     /// Backend-specific painting.
-    //#[cfg_attr(feature = "serde", serde(skip))]
-    //#[cfg_attr(feature = "serde", serde_diff(skip))] //opaque
-    //#[serde_diff(opaque)]
     Callback(
         #[cfg_attr(feature = "serde", serde(skip))]
-        #[cfg_attr(feature = "serde", serde_diff(skip))] //skip or opaque????
+        #[cfg_attr(feature = "serde", serde_diff(skip))]
         PaintCallback,
     ),
 }
@@ -653,7 +649,7 @@ pub struct TextShape {
     pub pos: Pos2,
 
     /// The laid out text, from [`Fonts::layout_job`].
-    #[cfg_attr(feature = "serde", serde_diff(opaque))] ////skip or opaque?
+    #[cfg_attr(feature = "serde", serde_diff(opaque))]
     pub galley: Arc<Galley>,
 
     /// Add this underline to the whole text.

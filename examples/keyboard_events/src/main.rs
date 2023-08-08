@@ -10,6 +10,7 @@ fn main() -> Result<(), eframe::Error> {
         "Keyboard events",
         options,
         Box::new(|_cc| Box::<Content>::default()),
+        false,
     )
 }
 

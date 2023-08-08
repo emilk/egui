@@ -11,6 +11,7 @@ fn main() -> Result<(), eframe::Error> {
         "egui example: global font style",
         options,
         Box::new(|cc| Box::new(MyApp::new(cc))),
+        false,
     )
 }
 

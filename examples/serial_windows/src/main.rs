@@ -20,6 +20,7 @@ fn main() -> Result<(), eframe::Error> {
         "First Window",
         options.clone(),
         Box::new(|_cc| Box::new(MyApp { has_next: true })),
+        false,
     )?;
 
     std::thread::sleep(std::time::Duration::from_secs(2));
@@ -29,6 +30,7 @@ fn main() -> Result<(), eframe::Error> {
         "Second Window",
         options.clone(),
         Box::new(|_cc| Box::new(MyApp { has_next: true })),
+        false,
     )?;
 
     std::thread::sleep(std::time::Duration::from_secs(2));
@@ -38,6 +40,7 @@ fn main() -> Result<(), eframe::Error> {
         "Third Window",
         options,
         Box::new(|_cc| Box::new(MyApp { has_next: false })),
+        false,
     )
 }
 

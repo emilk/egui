@@ -324,7 +324,7 @@ impl Default for TextWrapping {
 /// You can create a [`Galley`] using [`crate::Fonts::layout_job`];
 ///
 /// This needs to be recreated if `pixels_per_point` (dpi scale) changes.
-#[derive(Clone, Debug, PartialEq, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Galley {
     /// The job that this galley is the result of.

@@ -10,6 +10,7 @@ fn main() -> Result<(), eframe::Error> {
         "My egui App",
         options,
         Box::new(|_cc| Box::<MyApp>::default()),
+        false,
     )
 }
 

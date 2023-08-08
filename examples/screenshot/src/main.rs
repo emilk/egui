@@ -12,6 +12,7 @@ fn main() -> Result<(), eframe::Error> {
         "Take screenshots and display with eframe/egui",
         options,
         Box::new(|_cc| Box::<MyApp>::default()),
+        false,
     )
 }
 

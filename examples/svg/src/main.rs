@@ -16,6 +16,7 @@ fn main() -> Result<(), eframe::Error> {
         "svg example",
         options,
         Box::new(|_cc| Box::<MyApp>::default()),
+        false,
     )
 }
 
