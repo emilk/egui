@@ -459,7 +459,7 @@ impl ScrollArea {
                     content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
                 }
             }
-            // Make sure we din't accidentally expand the clip rect
+            // Make sure we didn't accidentally expand the clip rect
             content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
             content_ui.set_clip_rect(content_clip_rect);
         }
