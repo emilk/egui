@@ -513,7 +513,7 @@ pub mod special_emojis {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize/*, serde_diff::SerdeDiff*/)
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
 pub enum WidgetType {
     Label, // TODO(emilk): emit Label events

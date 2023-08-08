@@ -69,7 +69,7 @@ pub const WHITE_UV: emath::Pos2 = emath::pos2(0.0, 0.0);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
 pub enum TextureId {
     /// Textures allocated using [`TextureManager`].
@@ -95,7 +95,7 @@ impl Default for TextureId {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
 pub struct ClippedShape(
     /// Clip / scissor rectangle.

@@ -12,7 +12,7 @@ use emath::*;
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
 pub struct CubicBezierShape {
     /// The first point is the starting point and the last one is the ending point of the curve.
@@ -378,7 +378,7 @@ impl From<CubicBezierShape> for Shape {
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
 pub struct QuadraticBezierShape {
     /// The first point is the starting point and the last one is the ending point of the curve.

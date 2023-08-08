@@ -8,7 +8,7 @@ use crate::WidgetType;
 #[derive(Clone, Default, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
 //#[cfg_attr(feature = "serde_diff", derive(serde_diff::SerdeDiff))]
 pub struct FullOutput {
@@ -62,7 +62,7 @@ impl FullOutput {
 #[derive(Default, Clone, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, /*serde_diff::SerdeDiff*/)
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
 //#[cfg_attr(feature = "serde", serde_diff(opaque))]
 pub struct PlatformOutput {
@@ -169,7 +169,7 @@ impl PlatformOutput {
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
 pub struct OpenUrl {
     pub url: String,
@@ -223,7 +223,7 @@ pub enum UserAttentionType {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
 pub enum CursorIcon {
     /// Normal cursor icon, whatever that is.
@@ -398,7 +398,7 @@ impl Default for CursorIcon {
 #[derive(Clone, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
 pub enum OutputEvent {
     /// A widget was clicked.
@@ -450,7 +450,7 @@ impl std::fmt::Debug for OutputEvent {
 #[derive(Clone, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
 //#[cfg_attr(feature = "serde", serde_diff(opaque))]
 pub struct WidgetInfo {

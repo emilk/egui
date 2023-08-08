@@ -9,7 +9,7 @@ use emath::*;
 #[cfg(not(feature = "unity"))]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vertex {
@@ -49,7 +49,7 @@ pub struct Vertex {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize, serde::Serialize/* , serde_diff::SerdeDiff*/)
+    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
 )]
 pub struct Mesh {
     /// Draw as triangles (i.e. the length is always multiple of three).
