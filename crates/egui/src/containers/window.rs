@@ -26,13 +26,13 @@ use super::*;
 pub struct Window<'open> {
     title: WidgetText,
     open: Option<&'open mut bool>,
-    embedded: Option<&'open mut bool>,
     area: Area,
     frame: Option<Frame>,
     resize: Resize,
     scroll: ScrollArea,
     collapsible: bool,
     default_open: bool,
+    default_embedded: bool,
     with_title_bar: bool,
     window_builder: ViewportBuilder,
 }
@@ -48,7 +48,6 @@ impl<'open> Window<'open> {
             window_builder: ViewportBuilder::default().with_title(title.text()),
             title,
             open: None,
-            embedded: None,
             area,
             frame: None,
             resize: Resize::default()
@@ -61,6 +60,7 @@ impl<'open> Window<'open> {
             collapsible: true,
             default_open: true,
             with_title_bar: true,
+            default_embedded: true,
         }
     }
 
@@ -80,8 +80,8 @@ impl<'open> Window<'open> {
         self
     }
 
-    pub fn embedded(mut self, embedded: &'open mut bool) -> Self {
-        self.embedded = Some(embedded);
+    pub fn default_embedded(mut self, embedded: bool) -> Self {
+        self.default_embedded = embedded;
         self
     }
 
@@ -307,7 +307,6 @@ impl<'open> Window<'open> {
         let Window {
             title,
             mut open,
-            mut embedded,
             area,
             frame,
             resize,
@@ -316,22 +315,12 @@ impl<'open> Window<'open> {
             default_open,
             with_title_bar,
             mut window_builder,
+            default_embedded,
         } = self;
 
-        let has_embedded = embedded.is_some();
-
-        let is_embedded = if let Some(embedded) = &mut embedded {
-            if let Some(tmp_embedded) = ctx.data_mut(|data| {
-                let tmp = data.get_persisted::<bool>(area.id.with("_embedded"));
-                data.remove::<bool>(area.id.with("_embedded"));
-                tmp
-            }) {
-                **embedded = tmp_embedded;
-            }
-            **embedded
-        } else {
-            true
-        };
+        let is_embedded = ctx.data_mut(|data| {
+            *data.get_persisted_mut_or(area.id.with("_embedded"), default_embedded)
+        });
 
         let is_open = if let Some(open) = &mut open {
             if let Some(tmp_open) = ctx.data_mut(|data| {
@@ -349,7 +338,6 @@ impl<'open> Window<'open> {
         let is_open = is_open || ctx.memory(|mem| mem.everything_is_visible());
 
         ctx.data_mut(|data| {
-            data.insert_persisted(area.id.with("_is_embedded"), is_embedded);
             data.insert_persisted(area.id.with("_is_open"), is_open);
         });
 
@@ -504,18 +492,13 @@ impl<'open> Window<'open> {
                             let title_bar = if with_title_bar {
                                 let mut tmp_embedded = is_embedded;
 
-                                let embedded = if has_embedded {
-                                    Some(&mut tmp_embedded)
-                                } else {
-                                    None
-                                };
                                 let title_bar = show_title_bar(
                                     &mut frame.content_ui,
                                     title,
                                     show_close_button,
                                     &mut collapsing,
                                     collapsible,
-                                    embedded,
+                                    area_id,
                                 );
 
                                 if tmp_embedded != is_embedded {
@@ -706,25 +689,15 @@ impl<'open> Window<'open> {
             let title_bar = if with_title_bar {
                 let mut tmp_embedded = is_embedded;
 
-                let embedded = if has_embedded {
-                    Some(&mut tmp_embedded)
-                } else {
-                    None
-                };
                 let title_bar = show_title_bar(
                     &mut frame.content_ui,
                     title,
                     show_close_button,
                     &mut collapsing,
                     collapsible,
-                    embedded,
+                    area_id,
                 );
 
-                if tmp_embedded != is_embedded {
-                    area_content_ui.data_mut(|data| {
-                        data.insert_persisted(area_id.with("_embedded"), tmp_embedded)
-                    });
-                }
                 resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
                 Some(title_bar)
             } else {
@@ -809,7 +782,6 @@ impl<'open> Window<'open> {
         let Window {
             title,
             mut open,
-            mut embedded,
             area,
             frame,
             resize,
@@ -818,22 +790,12 @@ impl<'open> Window<'open> {
             default_open,
             with_title_bar,
             mut window_builder,
+            default_embedded,
         } = self;
 
-        let has_embedded = embedded.is_some();
-
-        let is_embedded = if let Some(embedded) = &mut embedded {
-            if let Some(tmp_embedded) = ctx.data_mut(|data| {
-                let tmp = data.get_persisted::<bool>(area.id.with("_embedded"));
-                data.remove::<bool>(area.id.with("_embedded"));
-                tmp
-            }) {
-                **embedded = tmp_embedded;
-            }
-            **embedded
-        } else {
-            true
-        };
+        let is_embedded = ctx.data_mut(|data| {
+            *data.get_persisted_mut_or(area.id.with("_embedded"), default_embedded)
+        });
 
         let is_open = if let Some(open) = &mut open {
             if let Some(tmp_open) = ctx.data_mut(|data| {
@@ -851,7 +813,6 @@ impl<'open> Window<'open> {
         let is_open = is_open || ctx.memory(|mem| mem.everything_is_visible());
 
         ctx.data_mut(|data| {
-            data.insert_persisted(area.id.with("_is_embedded"), is_embedded);
             data.insert_persisted(area.id.with("_is_open"), is_open);
         });
 
@@ -1004,36 +965,15 @@ impl<'open> Window<'open> {
                             let mut frame = frame.begin(&mut area_content_ui);
 
                             let title_bar = if with_title_bar {
-                                let is_embedded: bool = area_content_ui.data_mut(|data| {
-                                    data.get_persisted::<bool>(area_id.with("_is_embedded"))
-                                        .unwrap()
-                                });
-
-                                let mut tmp_embedded = is_embedded;
-
-                                let embedded = if has_embedded {
-                                    Some(&mut tmp_embedded)
-                                } else {
-                                    None
-                                };
                                 let title_bar = show_title_bar(
                                     &mut frame.content_ui,
                                     title,
                                     show_close_button,
                                     &mut collapsing,
                                     collapsible,
-                                    embedded,
+                                    area_id,
                                 );
 
-                                if tmp_embedded != is_embedded {
-                                    area_content_ui.data_mut(|data| {
-                                        data.insert_persisted(
-                                            area_id.with("_embedded"),
-                                            tmp_embedded,
-                                        )
-                                    });
-                                    ctx.request_repaint_viewport(ctx.get_parent_viewport_id());
-                                }
                                 resize.min_size.x =
                                     resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
                                 Some(title_bar)
@@ -1207,33 +1147,15 @@ impl<'open> Window<'open> {
             let mut frame = frame.begin(&mut area_content_ui);
 
             let title_bar = if with_title_bar {
-                let is_embedded: bool = area_content_ui.data_mut(|data| {
-                    data.get_persisted::<bool>(area_id.with("_is_embedded"))
-                        .unwrap()
-                });
-
-                let mut tmp_embedded = is_embedded;
-
-                let embedded = if has_embedded {
-                    Some(&mut tmp_embedded)
-                } else {
-                    None
-                };
                 let title_bar = show_title_bar(
                     &mut frame.content_ui,
                     title,
                     show_close_button,
                     &mut collapsing,
                     collapsible,
-                    embedded,
+                    area_id,
                 );
 
-                if tmp_embedded != is_embedded {
-                    area_content_ui.data_mut(|data| {
-                        data.insert_persisted(area_id.with("_embedded"), tmp_embedded)
-                    });
-                    ctx.request_repaint_viewport(ctx.get_parent_viewport_id());
-                }
                 resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
                 Some(title_bar)
             } else {
@@ -1686,7 +1608,7 @@ fn show_title_bar(
     show_close_button: bool,
     collapsing: &mut CollapsingState,
     collapsible: bool,
-    embedded: Option<&mut bool>,
+    id: Id,
 ) -> TitleBar {
     let inner_response = ui.horizontal(|ui| {
         let height = ui
@@ -1704,11 +1626,15 @@ fn show_title_bar(
             collapsing.show_default_button_with_size(ui, button_size);
         }
 
-        if let Some(embedded) = embedded {
-            ui.add_space(pad);
-            let c = if *embedded { "^" } else { "-" };
+        {
+            let embedded =
+                ui.data_mut(|data| data.get_persisted::<bool>(id.with("_embedded")).unwrap());
+            let c = if embedded { "^" } else { "-" };
             if ui.button(c).clicked() {
-                *embedded = !*embedded;
+                ui.data_mut(|data| data.insert_persisted(id.with("_embedded"), !embedded));
+                // If the window is native to be embedded need for the parent to redraw
+                ui.ctx()
+                    .request_repaint_viewport(ui.ctx().get_parent_viewport_id());
             }
         }
 
@@ -1718,7 +1644,7 @@ fn show_title_bar(
             // If at least one button is shown we make room for both buttons (since title is centered):
             2.0 * (pad + button_size.x + item_spacing.x) + title_galley.size().x
         } else {
-            pad + title_galley.size().x + pad
+            pad + pad + title_galley.size().x + pad
         };
         let min_rect = Rect::from_min_size(ui.min_rect().min, vec2(minimum_width, height));
         let id = ui.advance_cursor_after_rect(min_rect);

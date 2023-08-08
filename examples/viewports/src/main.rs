@@ -18,10 +18,6 @@ fn main() {
     let mut value = 0.0;
     let mut debug = false;
 
-    let mut embedded1 = false;
-    let mut embedded2 = true;
-    let mut embedded3 = true;
-
     let _ = eframe::run_simple_native(
         "Viewports Examples",
         NativeOptions {
@@ -72,7 +68,7 @@ fn main() {
 
                 egui::CollapsingHeader::new("Show Test1").show(ui, |ui| {
                     egui::Window::new("Test1")
-                        .embedded(&mut embedded1)
+                        .default_embedded(false)
                         .show(ctx, |ui| {
                             ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
                             let mut embedded = ui.data_mut(|data| {
@@ -123,62 +119,54 @@ fn main() {
                         });
                 });
                 egui::CollapsingHeader::new("Async Test2").show(ui, |ui| {
-                    egui::Window::new("Test2")
-                        .embedded(&mut embedded2)
-                        .show_async(ctx, move |ui| {
-                            ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
+                    egui::Window::new("Test2").show_async(ctx, move |ui| {
+                        ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
 
-                            if to_repair {
-                                ui.spinner();
-                            }
-                            let ctx = ui.ctx().clone();
-                            ui.label(format!(
-                                "Current rendering window: {}",
-                                ctx.get_viewport_id()
-                            ));
+                        if to_repair {
+                            ui.spinner();
+                        }
+                        let ctx = ui.ctx().clone();
+                        ui.label(format!(
+                            "Current rendering window: {}",
+                            ctx.get_viewport_id()
+                        ));
 
-                            if ui.button("Drag").is_pointer_button_down_on() {
-                                if ctx.get_viewport_id() != ctx.get_parent_viewport_id() {
-                                    ctx.viewport_command(
-                                        ctx.get_viewport_id(),
-                                        egui::ViewportCommand::Drag,
-                                    )
-                                } else {
-                                    ctx.memory_mut(|mem| {
-                                        mem.set_dragged_id(
-                                            egui::Id::new("Test2").with("frame_resize"),
-                                        )
-                                    });
-                                }
+                        if ui.button("Drag").is_pointer_button_down_on() {
+                            if ctx.get_viewport_id() != ctx.get_parent_viewport_id() {
+                                ctx.viewport_command(
+                                    ctx.get_viewport_id(),
+                                    egui::ViewportCommand::Drag,
+                                )
+                            } else {
+                                ctx.memory_mut(|mem| {
+                                    mem.set_dragged_id(egui::Id::new("Test2").with("frame_resize"))
+                                });
                             }
-                        });
+                        }
+                    });
                 });
                 egui::CollapsingHeader::new("Async Test3").show(ui, |ui| {
-                    egui::Window::new("Test3")
-                        .embedded(&mut embedded3)
-                        .show_async(ctx, move |ui| {
-                            ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
-                            let ctx = ui.ctx().clone();
-                            ui.label(format!(
-                                "Current rendering window: {}",
-                                ctx.get_viewport_id()
-                            ));
+                    egui::Window::new("Test3").show_async(ctx, move |ui| {
+                        ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
+                        let ctx = ui.ctx().clone();
+                        ui.label(format!(
+                            "Current rendering window: {}",
+                            ctx.get_viewport_id()
+                        ));
 
-                            if ui.button("Drag").is_pointer_button_down_on() {
-                                if ctx.get_viewport_id() != ctx.get_parent_viewport_id() {
-                                    ctx.viewport_command(
-                                        ctx.get_viewport_id(),
-                                        egui::ViewportCommand::Drag,
-                                    )
-                                } else {
-                                    ctx.memory_mut(|mem| {
-                                        mem.set_dragged_id(
-                                            egui::Id::new("Test3").with("frame_resize"),
-                                        )
-                                    });
-                                }
+                        if ui.button("Drag").is_pointer_button_down_on() {
+                            if ctx.get_viewport_id() != ctx.get_parent_viewport_id() {
+                                ctx.viewport_command(
+                                    ctx.get_viewport_id(),
+                                    egui::ViewportCommand::Drag,
+                                )
+                            } else {
+                                ctx.memory_mut(|mem| {
+                                    mem.set_dragged_id(egui::Id::new("Test3").with("frame_resize"))
+                                });
                             }
-                        });
+                        }
+                    });
                 });
             });
         },

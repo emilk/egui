@@ -925,6 +925,8 @@ pub fn process_viewport_commands(
                     }
                 }
                 egui::ViewportCommand::InnerSize(width, height) => {
+                    let width = width.max(1);
+                    let height = height.max(1);
                     win.set_inner_size(PhysicalSize::new(width, height));
                 }
                 egui::ViewportCommand::Resize(top, bottom, right, left) => {
