@@ -110,6 +110,15 @@ impl ColorImage {
         Self { size, pixels }
     }
 
+    /// Create a [`ColorImage`] from flat opaque gray data.
+    ///
+    /// Panics if `size[0] * size[1] != gray.len()`.
+    pub fn from_gray(size: [usize; 2], gray: &[u8]) -> Self {
+        assert_eq!(size[0] * size[1], gray.len());
+        let pixels = gray.iter().map(|p| Color32::from_gray(*p)).collect();
+        Self { size, pixels }
+    }
+
     /// A view of the underlying data as `&[u8]`
     #[cfg(feature = "bytemuck")]
     pub fn as_raw(&self) -> &[u8] {

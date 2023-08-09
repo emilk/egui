@@ -610,11 +610,11 @@ pub struct ModifierNames<'a> {
 }
 
 impl ModifierNames<'static> {
-    /// ⌥ ^ ⇧ ⌘ - NOTE: not supported by the default egui font.
+    /// ⌥ ⌃ ⇧ ⌘ - NOTE: not supported by the default egui font.
     pub const SYMBOLS: Self = Self {
         is_short: true,
         alt: "⌥",
-        ctrl: "^",
+        ctrl: "⌃",
         shift: "⇧",
         mac_cmd: "⌘",
         mac_alt: "⌥",
@@ -906,7 +906,7 @@ fn format_kb_shortcut() {
         cmd_shift_f.format(&ModifierNames::NAMES, true),
         "Shift+Cmd+F"
     );
-    assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, false), "^⇧F");
+    assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, false), "⌃⇧F");
     assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, true), "⇧⌘F");
 }
 

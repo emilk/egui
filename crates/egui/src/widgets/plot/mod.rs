@@ -864,7 +864,7 @@ impl Plot {
                 delta.y = 0.0;
             }
             transform.translate_bounds(delta);
-            bounds_modified = true.into();
+            bounds_modified = allow_drag;
         }
 
         // Zooming
@@ -935,7 +935,7 @@ impl Plot {
                 }
                 if zoom_factor != Vec2::splat(1.0) {
                     transform.zoom(zoom_factor, hover_pos);
-                    bounds_modified = true.into();
+                    bounds_modified = allow_zoom;
                 }
             }
             if allow_scroll {

@@ -3,9 +3,9 @@ All notable changes to the `eframe` crate.
 
 NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/CHANGELOG.md), [`egui_glow`](../egui_glow/CHANGELOG.md),and [`egui-wgpu`](../egui-wgpu/CHANGELOG.md) have their own changelogs!
 
+This file is updated upon each release.
+Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
-## Unreleased
-* Expose raw window and display handles in `CreationContext` and `Frame`
 
 ## 0.22.0 - 2023-05-23
 * Fix: `request_repaint_after` works even when called from background thread [#2939](https://github.com/emilk/egui/pull/2939)
