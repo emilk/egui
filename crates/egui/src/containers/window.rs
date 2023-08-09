@@ -80,6 +80,9 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// This will only be used on window creation!
+    /// If embedded is false the window will be a native window, if is possibile
+    /// Look at `Context::is_desktop` to see if is possible to create a native window!
     pub fn default_embedded(mut self, embedded: bool) -> Self {
         self.default_embedded = embedded;
         self
