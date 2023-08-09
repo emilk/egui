@@ -141,6 +141,8 @@ def main() -> None:
     unsorted_prs = []
     unsorted_commits = []
 
+    plot = []
+
     for commit_info, pr_info in zip(commit_infos, pr_infos):
         hexsha = commit_info.hexsha
         title = commit_info.title
@@ -164,11 +166,18 @@ def main() -> None:
                 if gh_user_name not in OFFICIAL_DEVS:
                     summary += f" (thanks [@{gh_user_name}](https://github.com/{gh_user_name})!)"
 
+            if 'typo' in labels:
+                continue # We get so many typo PRs. Let's not flood the changelog with them.
+
             added = False
-            for crate in crate_names:
-                if crate in labels:
-                    sections.setdefault(crate, []).append(summary)
-                    added = True
+            if 'plot' in labels:
+                plot.append(summary)
+                added = True
+            else:
+                for crate in crate_names:
+                    if crate in labels:
+                        sections.setdefault(crate, []).append(summary)
+                        added = True
 
             if not added:
                 if not any(label in labels for label in ignore_labels):
@@ -179,6 +188,9 @@ def main() -> None:
         if crate in sections:
             summary = sections[crate]
             print_section(crate, summary)
+            if crate == 'egui':
+                if 0 < len(plot):
+                    print_section("egui plot", plot)
     print_section("Unsorted PRs", unsorted_prs)
     print_section("Unsorted commits", unsorted_commits)
 
