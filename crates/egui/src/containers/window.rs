@@ -296,7 +296,7 @@ impl<'open> Window<'open> {
 
     #[inline]
     pub fn show_async(self, ctx: &Context, add_contents: impl Fn(&mut Ui) + Send + Sync + 'static) {
-        self.show_dyn_async(ctx, Box::new(add_contents))
+        self.show_dyn_async(ctx, Box::new(add_contents));
     }
 
     fn show_dyn<'a, R>(
@@ -447,11 +447,8 @@ impl<'open> Window<'open> {
                             area_id.with("frame_resize"),
                             last_frame_outer_rect,
                         )
-                        .and_then(|window_interaction| {
+                        .map(|window_interaction| {
                             // Calculate roughly how much larger the window size is compared to the inner rect
-
-                            let pointer_pos = ctx.input(|i| i.pointer.interact_pos())?;
-                            let mut rect = window_interaction.start_rect; // prevent drift
 
                             window_interaction.set_cursor(ctx);
                             if window_interaction.is_resize() {
@@ -464,12 +461,11 @@ impl<'open> Window<'open> {
                                         window_interaction.left,
                                     ),
                                 );
-                            } else {
-                                if ctx.input(|i| i.pointer.primary_pressed()) {}
+                            } else if ctx.input(|i| i.pointer.primary_pressed()) {
                             }
                             ctx.memory_mut(|mem| mem.areas.move_to_top(area_layer_id));
 
-                            Some(window_interaction)
+                            window_interaction
                         })
                     } else {
                         None
@@ -488,8 +484,6 @@ impl<'open> Window<'open> {
                         let mut frame = frame.begin(&mut area_content_ui);
 
                         let title_bar = if with_title_bar {
-                            let mut tmp_embedded = is_embedded;
-
                             let title_bar = show_title_bar(
                                 &mut frame.content_ui,
                                 title,
@@ -499,11 +493,6 @@ impl<'open> Window<'open> {
                                 area_id,
                             );
 
-                            if tmp_embedded != is_embedded {
-                                area_content_ui.data_mut(|data| {
-                                    data.insert_persisted(area_id.with("_embedded"), tmp_embedded)
-                                });
-                            }
                             resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
                             Some(title_bar)
                         } else {
@@ -526,7 +515,7 @@ impl<'open> Window<'open> {
                             })
                             .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
                         if let Some(content_response) = &content_response {
-                            size = content_response.rect.size()
+                            size = content_response.rect.size();
                         }
 
                         let outer_rect = frame.end(&mut area_content_ui).rect;
@@ -605,12 +594,11 @@ impl<'open> Window<'open> {
                         ctx.request_repaint_viewport(ctx.get_parent_viewport_id());
                     }
 
-                    return Some(InnerResponse {
+                    Some(InnerResponse {
                         inner: content_inner,
                         response: full_response,
-                    });
+                    })
                 });
-                return None;
             }
         }
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
@@ -680,8 +668,6 @@ impl<'open> Window<'open> {
             let mut frame = frame.begin(&mut area_content_ui);
 
             let title_bar = if with_title_bar {
-                let mut tmp_embedded = is_embedded;
-
                 let title_bar = show_title_bar(
                     &mut frame.content_ui,
                     title,
@@ -713,7 +699,7 @@ impl<'open> Window<'open> {
                 })
                 .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
             if let Some(content_response) = &content_response {
-                size = content_response.rect.size()
+                size = content_response.rect.size();
             }
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
@@ -771,7 +757,7 @@ impl<'open> Window<'open> {
         Some(inner_response)
     }
 
-    fn show_dyn_async<'a>(self, ctx: &Context, add_contents: Box<dyn Fn(&mut Ui) + Send + Sync>) {
+    fn show_dyn_async(self, ctx: &Context, add_contents: Box<dyn Fn(&mut Ui) + Send + Sync>) {
         let Window {
             title,
             mut open,
@@ -915,11 +901,8 @@ impl<'open> Window<'open> {
                             area_id.with("frame_resize"),
                             last_frame_outer_rect,
                         )
-                        .and_then(|window_interaction| {
+                        .map(|window_interaction| {
                             // Calculate roughly how much larger the window size is compared to the inner rect
-
-                            let pointer_pos = ctx.input(|i| i.pointer.interact_pos())?;
-                            let mut rect = window_interaction.start_rect; // prevent drift
 
                             window_interaction.set_cursor(ctx);
                             if window_interaction.is_resize() {
@@ -932,12 +915,11 @@ impl<'open> Window<'open> {
                                         window_interaction.left,
                                     ),
                                 );
-                            } else {
-                                if ctx.input(|i| i.pointer.primary_pressed()) {}
+                            } else if ctx.input(|i| i.pointer.primary_pressed()) {
                             }
                             ctx.memory_mut(|mem| mem.areas.move_to_top(area_layer_id));
 
-                            Some(window_interaction)
+                            window_interaction
                         })
                     } else {
                         None
@@ -950,7 +932,7 @@ impl<'open> Window<'open> {
 
                     let mut size = Vec2::new(1.0, 1.0);
 
-                    let content_inner = {
+                    let _content_inner = {
                         // BEGIN FRAME --------------------------------
                         let frame_stroke = frame.stroke;
                         let mut frame = frame.begin(&mut area_content_ui);
@@ -979,15 +961,15 @@ impl<'open> Window<'open> {
                                     }
 
                                     if scroll.has_any_bar() {
-                                        scroll.show(ui, |ui| add_contents(ui)).inner
+                                        scroll.show(ui, |ui| add_contents(ui));
                                     } else {
-                                        add_contents(ui)
+                                        add_contents(ui);
                                     }
-                                })
+                                });
                             })
                             .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
                         if let Some(content_response) = &content_response {
-                            size = content_response.rect.size()
+                            size = content_response.rect.size();
                         }
 
                         let outer_rect = frame.end(&mut area_content_ui).rect;
@@ -1159,15 +1141,15 @@ impl<'open> Window<'open> {
                         }
 
                         if scroll.has_any_bar() {
-                            scroll.show(ui, |ui| add_contents(ui)).inner
+                            scroll.show(ui, |ui| add_contents(ui));
                         } else {
-                            add_contents(ui)
+                            add_contents(ui);
                         }
-                    })
+                    });
                 })
                 .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
             if let Some(content_response) = &content_response {
-                size = content_response.rect.size()
+                size = content_response.rect.size();
             }
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
@@ -1218,7 +1200,7 @@ impl<'open> Window<'open> {
         let full_response = area.end(ctx, area_content_ui);
         ctx.data_mut(|data| data.insert_temp(area_id.with("size"), size));
 
-        let inner_response = InnerResponse {
+        let _inner_response = InnerResponse {
             inner: content_inner,
             response: full_response,
         };

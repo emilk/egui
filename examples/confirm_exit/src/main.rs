@@ -58,7 +58,7 @@ impl eframe::App for MyApp {
                     });
                 });
             if self.allowed_to_close {
-                frame.close()
+                frame.close();
             }
         }
     }

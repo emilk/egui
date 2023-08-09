@@ -19,6 +19,7 @@ pub mod syntax_highlighting;
 
 pub use color_test::ColorTest;
 pub use demo::DemoWindows;
+#[cfg(test)]
 use egui::ViewportId;
 
 // ----------------------------------------------------------------------------

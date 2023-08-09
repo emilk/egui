@@ -284,7 +284,7 @@ pub fn run_simple_native(
             if ctx.get_viewport_id() == ViewportId::MAIN {
                 (self.update_fun)(ctx, frame);
             } else if let Some(render_function) = render {
-                render_function(ctx)
+                render_function(ctx);
             }
         }
     }

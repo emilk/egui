@@ -68,7 +68,7 @@ fn main() {
                     ui.label(format!("Value: {value}"));
                 }
 
-                egui::CollapsingHeader::new("Show Test1").show(ui, |ui| {
+                egui::CollapsingHeader::new("Show Test1").show(ui, |_ui| {
                     egui::Window::new("Test1")
                         .default_embedded(false)
                         .show(ctx, |ui| {
@@ -86,7 +86,7 @@ fn main() {
                                     data.insert_persisted(
                                         Id::new("Test1").with("_embedded"),
                                         embedded,
-                                    )
+                                    );
                                 });
                             }
                             if to_repair {
@@ -103,12 +103,12 @@ fn main() {
                                     ctx.viewport_command(
                                         ctx.get_viewport_id(),
                                         egui::ViewportCommand::Drag,
-                                    )
+                                    );
                                 } else {
                                     ctx.memory_mut(|mem| {
                                         mem.set_dragged_id(
                                             egui::Id::new("Test1").with("frame_resize"),
-                                        )
+                                        );
                                     });
                                 }
                             }
@@ -120,7 +120,7 @@ fn main() {
                             );
                         });
                 });
-                egui::CollapsingHeader::new("Async Test2").show(ui, |ui| {
+                egui::CollapsingHeader::new("Async Test2").show(ui, |_ui| {
                     egui::Window::new("Test2").show_async(ctx, move |ui| {
                         ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
 
@@ -138,16 +138,16 @@ fn main() {
                                 ctx.viewport_command(
                                     ctx.get_viewport_id(),
                                     egui::ViewportCommand::Drag,
-                                )
+                                );
                             } else {
                                 ctx.memory_mut(|mem| {
-                                    mem.set_dragged_id(egui::Id::new("Test2").with("frame_resize"))
+                                    mem.set_dragged_id(egui::Id::new("Test2").with("frame_resize"));
                                 });
                             }
                         }
                     });
                 });
-                egui::CollapsingHeader::new("Async Test3").show(ui, |ui| {
+                egui::CollapsingHeader::new("Async Test3").show(ui, |_ui| {
                     egui::Window::new("Test3").show_async(ctx, move |ui| {
                         ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
                         let ctx = ui.ctx().clone();
@@ -161,10 +161,10 @@ fn main() {
                                 ctx.viewport_command(
                                     ctx.get_viewport_id(),
                                     egui::ViewportCommand::Drag,
-                                )
+                                );
                             } else {
                                 ctx.memory_mut(|mem| {
-                                    mem.set_dragged_id(egui::Id::new("Test3").with("frame_resize"))
+                                    mem.set_dragged_id(egui::Id::new("Test3").with("frame_resize"));
                                 });
                             }
                         }

@@ -105,7 +105,7 @@ impl Repaint {
             < self
                 .repaint_after
                 .get(&viewport_id)
-                .cloned()
+                .copied()
                 .unwrap_or(std::time::Duration::MAX)
         {
             self.repaint_after.insert(viewport_id, after);
@@ -130,14 +130,14 @@ impl Repaint {
     fn end_frame(
         &mut self,
         viewport_id: ViewportId,
-        viewports: Vec<ViewportId>,
+        viewports: &[ViewportId],
     ) -> Vec<(ViewportId, std::time::Duration)> {
         // if repaint_requests is greater than zero. just set the duration to zero for immediate
         // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
         let repaint_after = if self
             .repaint_requests
             .get(&viewport_id)
-            .cloned()
+            .copied()
             .unwrap_or(0)
             > 0
         {
@@ -149,7 +149,7 @@ impl Repaint {
         } else {
             self.repaint_after
                 .get(&viewport_id)
-                .cloned()
+                .copied()
                 .unwrap_or(std::time::Duration::MAX)
         };
         self.repaint_after.insert(viewport_id, repaint_after);
@@ -385,14 +385,14 @@ impl ContextImpl {
     //
     // In the case of this viewport is the main viewport will be `ViewportId::MAIN`
     pub(crate) fn get_viewport_id(&self) -> ViewportId {
-        self.frame_stack.last().cloned().unwrap_or_default().0
+        self.frame_stack.last().copied().unwrap_or_default().0
     }
 
     // Return the `ViewportId` of his parent
     //
     // In the case of this viewport is the main viewport will be `ViewportId::MAIN`
     pub(crate) fn get_parent_viewport_id(&self) -> ViewportId {
-        self.frame_stack.last().cloned().unwrap_or_default().1
+        self.frame_stack.last().copied().unwrap_or_default().1
     }
 }
 
@@ -471,7 +471,7 @@ impl Default for Context {
         s.write(|ctx| {
             ctx.render_sync = Some(Arc::new(Box::new(
                 move |_builder, _viewport_id, _parent_viewport_id, render| render(&clone),
-            )))
+            )));
         });
 
         s
@@ -1133,7 +1133,7 @@ impl Context {
     }
 
     pub fn request_repaint_viewport(&self, id: ViewportId) {
-        self.write(|ctx| ctx.repaint.request_repaint(id))
+        self.write(|ctx| ctx.repaint.request_repaint(id));
     }
 
     /// Request repaint after at most the specified duration elapses.
@@ -1169,12 +1169,12 @@ impl Context {
         // Maybe we can check if duration is ZERO, and call self.request_repaint()?
         self.write(|ctx| {
             ctx.repaint
-                .request_repaint_after(duration, ctx.get_viewport_id())
+                .request_repaint_after(duration, ctx.get_viewport_id());
         });
     }
 
     pub fn request_repaint_viewport_after(&self, duration: std::time::Duration, id: ViewportId) {
-        self.write(|ctx| ctx.repaint.request_repaint_after(duration, id))
+        self.write(|ctx| ctx.repaint.request_repaint_after(duration, id));
     }
 
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
@@ -1473,14 +1473,14 @@ impl Context {
         });
 
         let repaint_after =
-            self.write(|ctx| ctx.repaint.end_frame(ctx.get_viewport_id(), viewports));
+            self.write(|ctx| ctx.repaint.end_frame(ctx.get_viewport_id(), &viewports));
         let shapes = self.drain_paint_lists();
 
         // This is used for,
         // If there are no viewport that contains the current viewpor that viewport needs to be destroyed!
         let avalibile_viewports = self.read(|ctx| {
             let mut avalibile_viewports = vec![ViewportId::MAIN];
-            for (_, (_, id, _, _, _)) in ctx.viewports.iter() {
+            for (_, id, _, _, _) in ctx.viewports.values() {
                 avalibile_viewports.push(*id);
             }
             avalibile_viewports
@@ -1499,7 +1499,7 @@ impl Context {
 
                     viewports.push((*id, *parent, builder.clone(), render.clone()));
                     (out || viewport_id != *parent) && avalibile_viewports.contains(parent)
-                })
+                });
         });
 
         // This is used to resume the last frame!
@@ -1514,7 +1514,7 @@ impl Context {
                     ctx.layer_rects_prev_viewports.remove(&viewport_id).unwrap();
                 ctx.layer_rects_this_frame =
                     ctx.layer_rects_this_viewports.remove(&viewport_id).unwrap();
-                ctx.memory.resume_frame(viewport_id)
+                ctx.memory.resume_frame(viewport_id);
             });
         }
         FullOutput {
@@ -2184,11 +2184,11 @@ impl Context {
     }
 
     pub fn set_desktop(&self, value: bool) {
-        self.write(|ctx| ctx.is_desktop = value)
+        self.write(|ctx| ctx.is_desktop = value);
     }
 
     pub fn viewport_command(&self, id: ViewportId, command: ViewportCommand) {
-        self.write(|ctx| ctx.viewport_commands.push((id, command)))
+        self.write(|ctx| ctx.viewport_commands.push((id, command)));
     }
 
     pub fn create_viewport(

@@ -234,8 +234,7 @@ fn run_and_return(
                         window_id,
                         windows_next_repaint_times
                             .get(&window_id)
-                            .map(|last| (*last).min(repaint_time))
-                            .unwrap_or(repaint_time),
+                            .map_or(repaint_time, |last| (*last).min(repaint_time)),
                     );
                 }
                 EventResult::Exit => {
@@ -248,7 +247,7 @@ fn run_and_return(
         }
 
         let mut next_repaint_time = Option::<Instant>::None;
-        for (window_id, repaint_time) in windows_next_repaint_times.clone().iter() {
+        for (window_id, repaint_time) in &windows_next_repaint_times.clone() {
             if *repaint_time <= Instant::now() {
                 if let Some(window) = winit_app.window(*window_id) {
                     window.read().request_redraw();
@@ -259,11 +258,8 @@ fn run_and_return(
                     control_flow.set_wait();
                 }
             } else {
-                next_repaint_time = Some(
-                    next_repaint_time
-                        .map(|last| last.min(*repaint_time))
-                        .unwrap_or(*repaint_time),
-                );
+                next_repaint_time =
+                    Some(next_repaint_time.map_or(*repaint_time, |last| last.min(*repaint_time)));
             }
         }
 
@@ -372,8 +368,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                         window_id,
                         windows_next_repaint_times
                             .get(&window_id)
-                            .map(|last| (*last).min(repaint_time))
-                            .unwrap_or(repaint_time),
+                            .map_or(repaint_time, |last| (*last).min(repaint_time)),
                     );
                 }
                 EventResult::Exit => {
@@ -386,7 +381,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
         }
 
         let mut next_repaint_time = Option::<Instant>::None;
-        for (window_id, repaint_time) in windows_next_repaint_times.clone().iter() {
+        for (window_id, repaint_time) in &windows_next_repaint_times.clone() {
             if *repaint_time <= Instant::now() {
                 if let Some(window) = winit_app.window(*window_id) {
                     log::trace!("request_redraw");
@@ -395,11 +390,8 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                 }
                 control_flow.set_poll();
             } else {
-                next_repaint_time = Some(
-                    next_repaint_time
-                        .map(|last| last.min(*repaint_time))
-                        .unwrap_or(*repaint_time),
-                );
+                next_repaint_time =
+                    Some(next_repaint_time.map_or(*repaint_time, |last| last.min(*repaint_time)));
             }
         }
 
@@ -428,7 +420,6 @@ mod glow_integration {
         prelude::{GlDisplay, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentGlContext},
         surface::GlSurface,
     };
-    use winit::{dpi::PhysicalSize, window::ResizeDirection};
 
     use super::*;
 
@@ -642,7 +633,7 @@ mod glow_integration {
         /// we presently assume that we will
         #[allow(unsafe_code)]
         fn on_resume(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
-            for (_, win) in self.windows.iter_mut() {
+            for win in self.windows.values_mut() {
                 let mut win = win.write();
                 if win.gl_surface.is_some() {
                     continue;
@@ -727,7 +718,7 @@ mod glow_integration {
         /// only applies for android. but we basically drop surface + window and make context not current
         fn on_suspend(&mut self) -> Result<()> {
             log::debug!("received suspend event. dropping window and surface");
-            for (_, window) in self.windows.iter_mut() {
+            for window in self.windows.values() {
                 let mut window = window.write();
                 window.gl_surface.take();
                 window.window.take();
@@ -744,7 +735,7 @@ mod glow_integration {
         fn window(&self, viewport_id: ViewportId) -> Arc<RwLock<Window>> {
             self.windows
                 .get(&viewport_id)
-                .map(|w| w.clone())
+                .cloned()
                 .expect("winit window doesn't exist")
         }
 
@@ -757,7 +748,7 @@ mod glow_integration {
             let height = std::num::NonZeroU32::new(physical_size.height.at_least(1)).unwrap();
 
             if let Some(window) = self.windows.get(&viewport_id) {
-                let mut window = window.write();
+                let window = window.read();
                 if let Some(gl_surface) = &window.gl_surface {
                     self.current_gl_context = Some(
                         self.current_gl_context
@@ -859,7 +850,7 @@ mod glow_integration {
                     .unwrap_or(&self.app_name),
             );
 
-            let (mut gl_window, gl) = Self::create_glutin_windowed_context(
+            let (gl_window, gl) = Self::create_glutin_windowed_context(
                 event_loop,
                 storage.as_deref(),
                 &self.app_name,
@@ -1068,7 +1059,7 @@ mod glow_integration {
                                     break 'try_render;
                                 }
                             }
-                            Self::process_viewport_builders(glutin.clone(), output.viewports);
+                            Self::process_viewport_builders(&glutin, output.viewports);
                             egui_winit::process_viewport_commands(
                                 output.viewport_commands,
                                 *focused.read(),
@@ -1099,7 +1090,7 @@ mod glow_integration {
         }
 
         fn process_viewport_builders(
-            glutin_ctx: Arc<RwLock<GlutinWindowContext>>,
+            glutin_ctx: &Arc<RwLock<GlutinWindowContext>>,
             mut viewports: Vec<(
                 ViewportId,
                 ViewportId,
@@ -1210,11 +1201,11 @@ mod glow_integration {
             self.running
                 .read()
                 .as_ref()
-                .and_then(|r| r.glutin_ctx.read().window_maps.get(id).cloned())
+                .and_then(|r| r.glutin_ctx.read().window_maps.get(id).copied())
         }
 
         fn save_and_destroy(&mut self) {
-            if let Some(mut running) = self.running.write().take() {
+            if let Some(running) = self.running.write().take() {
                 running.integration.write().save(
                     running.app.write().as_mut(),
                     &running
@@ -1242,8 +1233,6 @@ mod glow_integration {
                 puffin::GlobalProfiler::lock().new_frame();
                 crate::profile_scope!("frame");
 
-                let running = self.running.clone();
-
                 let integration = self.running.read().as_ref().unwrap().integration.clone();
                 let app = self.running.read().as_ref().unwrap().app.clone();
                 let glutin_ctx = self.running.read().as_ref().unwrap().glutin_ctx.clone();
@@ -1255,17 +1244,16 @@ mod glow_integration {
                     let win = glutin_ctx.read().windows.get(&viewport_id).unwrap().clone();
                     if win.read().render.is_none() && viewport_id != ViewportId::MAIN {
                         if let Some(win) = glutin_ctx.read().windows.get(&win.read().parent_id) {
-                            win.read()
-                                .window
-                                .as_ref()
-                                .map(|w| w.read().request_redraw());
+                            if let Some(w) = win.read().window.as_ref() {
+                                w.read().request_redraw();
+                            }
                         }
                         return vec![];
                     }
                 }
 
                 let mut window_map = HashMap::default();
-                for (id, window) in glutin_ctx.read().windows.iter() {
+                for (id, window) in &glutin_ctx.read().windows {
                     if let Some(win) = &window.read().window {
                         window_map.insert(*id, win.read().id());
                     }
@@ -1276,7 +1264,7 @@ mod glow_integration {
                     repaint_after,
                     textures_delta,
                     shapes,
-                    mut viewports,
+                    viewports,
                     viewport_commands,
                 };
 
@@ -1418,7 +1406,7 @@ mod glow_integration {
                     } else {
                         repaint_after
                             .into_iter()
-                            .flat_map(|(id, time)| {
+                            .filter_map(|(id, time)| {
                                 if time.is_zero() {
                                     window_map.get(&id).map(|id| EventResult::RepaintNext(*id))
                                 } else if let Some(repaint_after_instant) =
@@ -1453,7 +1441,7 @@ mod glow_integration {
                     }
                 }
 
-                Self::process_viewport_builders(glutin_ctx.clone(), viewports);
+                Self::process_viewport_builders(&glutin_ctx, viewports);
 
                 egui_winit::process_viewport_commands(
                     viewport_commands,
@@ -1556,7 +1544,7 @@ mod glow_integration {
                                             .write()
                                             .window_maps
                                             .get(window_id)
-                                            .cloned()
+                                            .copied()
                                     })
                                     .flatten();
                             }
@@ -1589,7 +1577,7 @@ mod glow_integration {
                                     .write()
                                     .windows
                                     .iter()
-                                    .flat_map(|(_, window)| {
+                                    .filter_map(|(_, window)| {
                                         if let Some(win) = window.read().window.as_ref() {
                                             let win = win.read();
                                             if win.id() == *window_id {
@@ -1601,7 +1589,7 @@ mod glow_integration {
                                             None
                                         }
                                     })
-                                    .flat_map(|id| {
+                                    .filter_map(|id| {
                                         if id == ViewportId::MAIN {
                                             Some(())
                                         } else {
@@ -1621,7 +1609,7 @@ mod glow_integration {
                         let event_response = 'res: {
                             let glutin_ctx = running.glutin_ctx.read();
                             if let Some(viewport_id) =
-                                glutin_ctx.window_maps.get(window_id).cloned()
+                                glutin_ctx.window_maps.get(window_id).copied()
                             {
                                 if let Some(viewport) =
                                     glutin_ctx.windows.get(&viewport_id).cloned()
@@ -1665,14 +1653,14 @@ mod glow_integration {
                 )) => {
                     if let Some(running) = self.running.read().as_ref() {
                         let glutin_ctx = running.glutin_ctx.read();
-                        if let Some(viewport_id) = glutin_ctx.window_maps.get(window_id).cloned() {
+                        if let Some(viewport_id) = glutin_ctx.window_maps.get(window_id).copied() {
                             if let Some(viewport) = glutin_ctx.windows.get(&viewport_id).cloned() {
                                 let mut viewport = viewport.write();
                                 running.integration.write().on_accesskit_action_request(
                                     request.clone(),
                                     window_id,
                                     viewport.egui_winit.as_mut().unwrap(),
-                                )
+                                );
                             }
                         }
                         // As a form of user input, accessibility actions should
@@ -1828,13 +1816,14 @@ mod wgpu_integration {
 
             for (id, (window, state, _, _, builder)) in running.windows.write().iter_mut() {
                 if window.is_none() {
-                    if let Ok(new_window) = create_winit_window_builder(&builder).build(event_loop)
-                    {
+                    if let Ok(new_window) = create_winit_window_builder(builder).build(event_loop) {
                         running.windows_id.insert(new_window.id(), *id);
 
-                        pollster::block_on(
+                        if let Err(err) = pollster::block_on(
                             running.painter.write().set_window(*id, Some(&new_window)),
-                        );
+                        ) {
+                            log::error!("on set_window: viewport_id {id} {err}");
+                        }
                         *window = Some(Arc::new(RwLock::new(new_window)));
                         *state.write() = Some(egui_winit::State::new(event_loop));
                     }
@@ -1844,10 +1833,10 @@ mod wgpu_integration {
 
         fn set_window(&mut self, id: ViewportId) -> std::result::Result<(), egui_wgpu::WgpuError> {
             if let Some(running) = &mut self.running {
-                if let Some((window, _, _, _, _)) = running.windows.read().get(&id) {
-                    window.as_ref().map(|w| {
-                        pollster::block_on(running.painter.write().set_window(id, Some(&w.read())))
-                    });
+                if let Some((Some(window), _, _, _, _)) = running.windows.read().get(&id) {
+                    return pollster::block_on(
+                        running.painter.write().set_window(id, Some(&window.read())),
+                    );
                 }
             }
             Ok(())
@@ -1994,9 +1983,11 @@ mod wgpu_integration {
                                             },
                                         );
 
-                                        pollster::block_on(
+                                        if let Err(err) = pollster::block_on(
                                             _painter.write().set_window(viewport_id, Some(&win)),
-                                        );
+                                        ){
+                                            log::error!("when rendering viewport_id: {viewport_id}, set_window Error {err}");
+                                        }
 
                                         let clipped_primitives = egui_ctx.tessellate(output.shapes);
                                         _painter.write().paint_and_update_textures(
@@ -2024,12 +2015,12 @@ mod wgpu_integration {
                             let mut viewports = output.viewports;
                             let mut active_viewports_ids = vec![ViewportId::MAIN];
 
-                            viewports.retain_mut(|(id, parent, builder, render)| {
+                            viewports.retain_mut(|(id, parent, _builder, render)| {
                                 if let Some(w) = _windows.write().get_mut(id) {
                                     w.2 = render.clone();
                                     w.3 = *parent;
                                     active_viewports_ids.push(*id);
-                                    return false;
+                                    false
                                 } else {
                                     true
                                 }
@@ -2075,10 +2066,8 @@ mod wgpu_integration {
         }
 
         fn is_focused(&self, window_id: winit::window::WindowId) -> bool {
-            if let Some(focus) = self.is_focused.read().clone() {
-                self.get_window_id(&window_id)
-                    .map(|i| i == focus)
-                    .unwrap_or(false)
+            if let Some(focus) = *self.is_focused.read() {
+                self.get_window_id(&window_id).map_or(false, |i| i == focus)
             } else {
                 false
             }
@@ -2119,7 +2108,7 @@ mod wgpu_integration {
                     running
                         .integration
                         .write()
-                        .save(running.app.as_mut(), &*window.read());
+                        .save(running.app.as_mut(), &window.read());
                 }
 
                 #[cfg(feature = "glow")]
@@ -2159,7 +2148,9 @@ mod wgpu_integration {
                     // This is used to not render a viewport if is sync
                     if viewport_id != ViewportId::MAIN && render.is_none() {
                         if let Some(window) = running.windows.read().get(&parent_viewport_id) {
-                            window.0.as_ref().map(|w| w.read().request_redraw());
+                            if let Some(w) = window.0.as_ref() {
+                                w.read().request_redraw();
+                            }
                         }
                         return vec![];
                     }
@@ -2179,7 +2170,7 @@ mod wgpu_integration {
                         viewport_commands,
                     } = integration.write().update(
                         app.as_mut(),
-                        &*window.read(),
+                        &window.read(),
                         state.write().as_mut().unwrap(),
                         render.clone(),
                         viewport_id,
@@ -2217,12 +2208,12 @@ mod wgpu_integration {
 
                 let mut active_viewports_ids = vec![ViewportId::MAIN];
 
-                viewports.retain_mut(|(id, parent, builder, render)| {
+                viewports.retain_mut(|(id, parent, _builder, render)| {
                     if let Some(w) = windows.write().get_mut(id) {
                         w.2 = render.clone();
                         w.3 = *parent;
                         active_viewports_ids.push(*id);
-                        return false;
+                        false
                     } else {
                         true
                     }
@@ -2308,7 +2299,7 @@ mod wgpu_integration {
                 winit::event::Event::Resumed => {
                     if let Some(running) = &self.running {
                         if running.windows.read().get(&ViewportId::MAIN).is_none() {
-                            let window = Self::create_window(
+                            let _ = Self::create_window(
                                 event_loop,
                                 running.integration.read().frame.storage(),
                                 &self.app_name,
@@ -2382,7 +2373,7 @@ mod wgpu_integration {
                                 // See: https://github.com/rust-windowing/winit/issues/208
                                 // This solves an issue where the app would panic when minimizing on Windows.
                                 if let Some(viewport_id) =
-                                    running.windows_id.get(window_id).cloned()
+                                    running.windows_id.get(window_id).copied()
                                 {
                                     if physical_size.width > 0 && physical_size.height > 0 {
                                         running.painter.write().on_window_resized(
@@ -2398,7 +2389,7 @@ mod wgpu_integration {
                                 ..
                             } => {
                                 if let Some(viewport_id) =
-                                    running.windows_id.get(window_id).cloned()
+                                    running.windows_id.get(window_id).copied()
                                 {
                                     repaint_asap = true;
                                     running.painter.write().on_window_resized(
@@ -2488,7 +2479,7 @@ mod wgpu_integration {
         fn get_window_id(&self, id: &winit::window::WindowId) -> Option<ViewportId> {
             self.running
                 .as_ref()
-                .and_then(|r| r.windows_id.get(id).cloned())
+                .and_then(|r| r.windows_id.get(id).copied())
         }
     }
 
@@ -2542,7 +2533,7 @@ fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::Wind
         .with_fullscreen(
             builder
                 .fullscreen
-                .then(|| winit::window::Fullscreen::Borderless(None)),
+                .then_some(winit::window::Fullscreen::Borderless(None)),
         )
         .with_enabled_buttons(
             WindowButtons::MAXIMIZE
@@ -2580,7 +2571,7 @@ fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::Wind
             rgba: icon.2,
             width: icon.0,
             height: icon.1,
-        }))
+        }));
     }
 
     window_builder

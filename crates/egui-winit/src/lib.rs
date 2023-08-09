@@ -920,7 +920,8 @@ pub fn process_viewport_commands(
                     // if this is not checked on x11 the input will be permanently taken until the app is killed!
                     if let Some(focus) = focused {
                         if focus == viewport_id {
-                            win.drag_window();
+                            // TODO possibile return the error to `egui::Context`
+                            let _ = win.drag_window();
                         }
                     }
                 }
@@ -930,10 +931,10 @@ pub fn process_viewport_commands(
                     win.set_inner_size(PhysicalSize::new(width, height));
                 }
                 egui::ViewportCommand::Resize(top, bottom, right, left) => {
-                    win.drag_resize_window(match (top, bottom, right, left) {
+                    // TODO posibile return the error to `egui::Context`
+                    let _ = win.drag_resize_window(match (top, bottom, right, left) {
                         (true, false, false, false) => ResizeDirection::North,
                         (false, true, false, false) => ResizeDirection::South,
-                        (false, false, true, false) => ResizeDirection::East,
                         (false, false, false, true) => ResizeDirection::West,
                         (true, false, true, false) => ResizeDirection::NorthEast,
                         (false, true, true, false) => ResizeDirection::SouthEast,

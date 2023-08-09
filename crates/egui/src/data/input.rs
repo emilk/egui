@@ -306,7 +306,7 @@ pub enum Event {
     WindowEvent(WindowEvent),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WindowEvent {
     CloseRequested,
