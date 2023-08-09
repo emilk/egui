@@ -355,7 +355,10 @@ impl<'a> DragValue<'a> {
         .custom_parser(|s| i64::from_str_radix(s, 16).map(|n| n as f64).ok())
     }
 
-    /// Update the value when there are changes while editing. (Default: true)
+    /// Update the value on each key press when text-editing the value.
+    ///
+    /// Default: `true`.
+    /// If `false`, the value will only be updated when user presses enter or deselects the value.
     pub fn update_while_editing(mut self, update: bool) -> Self {
         self.update_while_editing = update;
         self
