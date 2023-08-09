@@ -82,6 +82,11 @@ mod mutex_impl {
 
             MutexGuard(self.0.lock(), ptr)
         }
+
+        #[inline(always)]
+        pub fn into_inner(self) -> T {
+            self.0.into_inner()
+        }
     }
 
     impl<T> Drop for MutexGuard<'_, T> {
@@ -314,6 +319,11 @@ mod rw_lock_impl {
                 holders: Arc::clone(&self.holders),
             }
         }
+
+        #[inline(always)]
+        pub fn into_inner(self) -> T {
+            self.lock.into_inner()
+        }
     }
 
     fn make_backtrace() -> backtrace::Backtrace {
@@ -366,6 +376,11 @@ mod mutex_impl {
         pub fn lock(&self) -> MutexGuard<'_, T> {
             self.0.borrow_mut()
         }
+
+        #[inline(always)]
+        pub fn into_inner(self) -> T {
+            self.0.into_inner()
+        }
     }
 }
 
@@ -400,6 +415,11 @@ mod rw_lock_impl {
         #[inline(always)]
         pub fn write(&self) -> RwLockWriteGuard<'_, T> {
             self.0.borrow_mut()
+        }
+
+        #[inline(always)]
+        pub fn into_inner(self) -> T {
+            self.0.into_inner()
         }
     }
 }

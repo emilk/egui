@@ -124,7 +124,10 @@ impl Resize {
     }
 
     /// Can you resize it with the mouse?
-    /// Note that a window can still auto-resize
+    ///
+    /// Note that a window can still auto-resize.
+    ///
+    /// Default is `true`.
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
         self
