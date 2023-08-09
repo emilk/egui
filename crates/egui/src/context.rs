@@ -381,16 +381,16 @@ impl ContextImpl {
 }
 
 impl ContextImpl {
-    // Return the `ViewportId` of the current viewport
-    //
-    // In the case of this viewport is the main viewport will be `ViewportId::MAIN`
+    /// Return the `ViewportId` of the current viewport
+    ///
+    /// In the case of this viewport is the main viewport will be `ViewportId::MAIN`
     pub(crate) fn get_viewport_id(&self) -> ViewportId {
         self.frame_stack.last().copied().unwrap_or_default().0
     }
 
-    // Return the `ViewportId` of his parent
-    //
-    // In the case of this viewport is the main viewport will be `ViewportId::MAIN`
+    /// Return the `ViewportId` of his parent
+    ///
+    /// In the case of this viewport is the main viewport will be `ViewportId::MAIN`
     pub(crate) fn get_parent_viewport_id(&self) -> ViewportId {
         self.frame_stack.last().copied().unwrap_or_default().1
     }
@@ -2152,22 +2152,25 @@ impl Context {
     }
 }
 
-// Viewports
+/// ## Viewports
 impl Context {
-    // Return the `ViewportId` of the current viewport
-    //
-    // In the case of this viewport is the main viewport will be `ViewportId::MAIN`
+    /// Return the `ViewportId` of the current viewport
+    /// In the case of this viewport is the main viewport will be `ViewportId::MAIN`
     pub fn get_viewport_id(&self) -> ViewportId {
         self.read(|ctx| ctx.get_viewport_id())
     }
 
-    // Return the `ViewportId` of his parent
-    //
-    // In the case of this viewport is the main viewport will be `ViewportId::MAIN`
+    /// Return the `ViewportId` of his parent
+    /// In the case of this viewport is the main viewport will be `ViewportId::MAIN`
     pub fn get_parent_viewport_id(&self) -> ViewportId {
         self.read(|ctx| ctx.get_parent_viewport_id())
     }
 
+    /// This should only be used by the backend!
+    ///
+    /// When a viewport sync is created will be rendered by this function
+    ///
+    /// Look in `crates/eframe/native/run.rs` and search for set_render_sync_callback to see for what is used!
     pub fn set_render_sync_callback(
         &self,
         callback: impl for<'a> Fn(ViewportBuilder, ViewportId, ViewportId, Box<dyn FnOnce(&Context) + 'a>)
@@ -2179,22 +2182,33 @@ impl Context {
         self.write(|ctx| ctx.render_sync = Some(Arc::new(callback)));
     }
 
+    /// This will tell you if the app can create multiples native windows
     pub fn is_desktop(&self) -> bool {
         self.read(|ctx| ctx.is_desktop)
     }
 
+    /// This should only be called with value true by the backend!
+    ///
+    /// With this you can tell egui that is able to open multiples native windows
     pub fn set_desktop(&self, value: bool) {
         self.write(|ctx| ctx.is_desktop = value);
     }
 
+    /// With this you can send a command to a viewport
     pub fn viewport_command(&self, id: ViewportId, command: ViewportCommand) {
         self.write(|ctx| ctx.viewport_commands.push((id, command)));
     }
 
+    /// With this you can create a viewport "is a native window"
+    /// You will need to wrap your viwport state in an RwLock or Mutex!
+    /// When this is called again with the same title in `ViewportBuilder` the render function for that viewport will be updated!
+    /// The render function will be called when the viewport receives a event or is requested to be redraw
+    ///
+    /// If this is no more called that viewport "native window" will be destroyed!
     pub fn create_viewport(
         &self,
         viewport_builder: ViewportBuilder,
-        func: impl Fn(&Context) + Send + Sync + 'static,
+        render: impl Fn(&Context) + Send + Sync + 'static,
     ) {
         if self.is_desktop() {
             self.write(|ctx| {
@@ -2203,7 +2217,7 @@ impl Context {
                     window.0 = viewport_builder;
                     window.2 = viewport_id;
                     window.3 = true;
-                    window.4 = Some(Arc::new(Box::new(func)));
+                    window.4 = Some(Arc::new(Box::new(render)));
                 } else {
                     let id = ViewportId(ctx.viewport_counter + 1);
                     ctx.viewport_counter += 1;
@@ -2214,16 +2228,22 @@ impl Context {
                             id,
                             viewport_id,
                             true,
-                            Some(Arc::new(Box::new(func))),
+                            Some(Arc::new(Box::new(render))),
                         ),
                     );
                 }
             });
         } else {
-            func(self);
+            render(self);
         }
     }
 
+    /// When this is called the current viewport will be paused
+    /// This will render in a native window if he can!
+    /// When this finishes then the last viewport will continue drawing
+    /// This is bad for performance but easy to use!
+    ///
+    /// For better performance use `Context::create_viewport`
     pub fn create_viewport_sync<T>(
         &self,
         viewport_builder: ViewportBuilder,
