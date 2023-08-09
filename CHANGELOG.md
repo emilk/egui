@@ -18,7 +18,6 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Plot widget - allow disabling zoom and drag for x and y separately [#2901](https://github.com/emilk/egui/pull/2901) (thanks [@OmegaJak](https://github.com/OmegaJak)!)
 * Add character limit to `TextEdit` [#2816](https://github.com/emilk/egui/pull/2816) (thanks [@wzid](https://github.com/wzid)!)
 * Add `egui::Modifiers::contains` [#2989](https://github.com/emilk/egui/pull/2989) (thanks [@Wumpf](https://github.com/Wumpf)!)
-* `std::borrow::Cow<'_, str>` now implements `TextBuffer` [#3164](https://github.com/emilk/pull/3164)
 
 ### 🔧 Changed
 * Improve vertical alignment of fonts [#2724](https://github.com/emilk/egui/pull/2724) (thanks [@lictex](https://github.com/lictex)!)
