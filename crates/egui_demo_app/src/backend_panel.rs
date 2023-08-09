@@ -300,6 +300,7 @@ fn window_info_ui(ui: &mut egui::Ui, window_info: &eframe::WindowInfo) {
         focused,
         size,
         monitor_size,
+        raw_handle,
     } = window_info;
 
     egui::Grid::new("window_info_grid")
@@ -336,6 +337,10 @@ fn window_info_ui(ui: &mut egui::Ui, window_info: &eframe::WindowInfo) {
                 ui.monospace(format!("{x:.0} x {y:.0}"));
                 ui.end_row();
             }
+
+            ui.label("Window handle:");
+            ui.label(format!("{raw_handle:?}"));
+            ui.end_row();
         });
 }
 
