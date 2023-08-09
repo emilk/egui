@@ -26,7 +26,7 @@ impl eframe::App for Content {
         render: Option<&ViewportRender>,
     ) {
         if let Some(render) = render {
-            render(ctx, ctx.get_viewport_id(), ctx.get_parent_viewport_id());
+            render(ctx);
             return;
         }
         egui::CentralPanel::default().show(ctx, |ui| {

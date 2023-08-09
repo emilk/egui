@@ -16,7 +16,7 @@ pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{mutex::RwLock, ViewportCommand};
+use egui::{mutex::RwLock, ViewportCommand, ViewportId};
 pub use winit;
 
 pub mod clipboard;
@@ -905,9 +905,9 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 }
 
 pub fn process_viewport_commands(
-    commands: Vec<(u64, ViewportCommand)>,
-    focused: Option<u64>,
-    get_window: impl Fn(u64) -> Option<Arc<RwLock<winit::window::Window>>>,
+    commands: Vec<(ViewportId, ViewportCommand)>,
+    focused: Option<ViewportId>,
+    get_window: impl Fn(ViewportId) -> Option<Arc<RwLock<winit::window::Window>>>,
 ) {
     use winit::dpi::PhysicalSize;
     use winit::window::ResizeDirection;

@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use egui::epaint::TextShape;
+use egui::{epaint::TextShape, ViewportId};
 use egui_demo_lib::LOREM_IPSUM_LONG;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -13,24 +13,39 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         // The most end-to-end benchmark.
         c.bench_function("demo_with_tessellate__realistic", |b| {
             b.iter(|| {
-                let full_output = ctx.run(RawInput::default(), 0, 0, |ctx| {
-                    demo_windows.ui(ctx);
-                });
+                let full_output = ctx.run(
+                    RawInput::default(),
+                    ViewportId::MAIN,
+                    ViewportId::MAIN,
+                    |ctx| {
+                        demo_windows.ui(ctx);
+                    },
+                );
                 ctx.tessellate(full_output.shapes)
             });
         });
 
         c.bench_function("demo_no_tessellate", |b| {
             b.iter(|| {
-                ctx.run(RawInput::default(), 0, 0, |ctx| {
-                    demo_windows.ui(ctx);
-                })
+                ctx.run(
+                    RawInput::default(),
+                    ViewportId::MAIN,
+                    ViewportId::MAIN,
+                    |ctx| {
+                        demo_windows.ui(ctx);
+                    },
+                )
             });
         });
 
-        let full_output = ctx.run(RawInput::default(), 0, 0, |ctx| {
-            demo_windows.ui(ctx);
-        });
+        let full_output = ctx.run(
+            RawInput::default(),
+            ViewportId::MAIN,
+            ViewportId::MAIN,
+            |ctx| {
+                demo_windows.ui(ctx);
+            },
+        );
         c.bench_function("demo_only_tessellate", |b| {
             b.iter(|| ctx.tessellate(full_output.shapes.clone()));
         });
@@ -42,34 +57,44 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
         c.bench_function("demo_full_no_tessellate", |b| {
             b.iter(|| {
-                ctx.run(RawInput::default(), 0, 0, |ctx| {
-                    demo_windows.ui(ctx);
-                })
+                ctx.run(
+                    RawInput::default(),
+                    ViewportId::MAIN,
+                    ViewportId::MAIN,
+                    |ctx| {
+                        demo_windows.ui(ctx);
+                    },
+                )
             });
         });
     }
 
     {
         let ctx = egui::Context::default();
-        let _ = ctx.run(RawInput::default(), 0, 0, |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| {
-                c.bench_function("label &str", |b| {
-                    b.iter(|| {
-                        ui.label("the quick brown fox jumps over the lazy dog");
+        let _ = ctx.run(
+            RawInput::default(),
+            ViewportId::MAIN,
+            ViewportId::MAIN,
+            |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    c.bench_function("label &str", |b| {
+                        b.iter(|| {
+                            ui.label("the quick brown fox jumps over the lazy dog");
+                        });
+                    });
+                    c.bench_function("label format!", |b| {
+                        b.iter(|| {
+                            ui.label("the quick brown fox jumps over the lazy dog".to_owned());
+                        });
                     });
                 });
-                c.bench_function("label format!", |b| {
-                    b.iter(|| {
-                        ui.label("the quick brown fox jumps over the lazy dog".to_owned());
-                    });
-                });
-            });
-        });
+            },
+        );
     }
 
     {
         let ctx = egui::Context::default();
-        ctx.begin_frame(RawInput::default(), 0, 0);
+        ctx.begin_frame(RawInput::default(), ViewportId::MAIN, ViewportId::MAIN);
 
         egui::CentralPanel::default().show(&ctx, |ui| {
             c.bench_function("Painter::rect", |b| {

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use egui::ViewportId;
 use epaint::ahash::HashMap;
 
 use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
@@ -85,7 +86,7 @@ pub struct Painter {
 
     instance: wgpu::Instance,
     render_state: Option<RenderState>,
-    surfaces: HashMap<u64, SurfaceState>,
+    surfaces: HashMap<ViewportId, SurfaceState>,
 }
 
 unsafe impl Send for Painter {}
@@ -190,7 +191,7 @@ impl Painter {
     /// If the provided wgpu configuration does not match an available device.
     pub async fn set_window(
         &mut self,
-        viewport_id: u64,
+        viewport_id: ViewportId,
         window: Option<&winit::window::Window>,
     ) -> Result<(), crate::WgpuError> {
         match window {
@@ -274,7 +275,7 @@ impl Painter {
 
     fn resize_and_generate_depth_texture_view_and_msaa_view(
         &mut self,
-        viewport_id: u64,
+        viewport_id: ViewportId,
         width_in_pixels: u32,
         height_in_pixels: u32,
     ) {
@@ -334,7 +335,7 @@ impl Painter {
 
     pub fn on_window_resized(
         &mut self,
-        viewport_id: u64,
+        viewport_id: ViewportId,
         width_in_pixels: u32,
         height_in_pixels: u32,
     ) {
@@ -451,7 +452,7 @@ impl Painter {
     // Returns a vector with the frame's pixel data if it was requested.
     pub fn paint_and_update_textures(
         &mut self,
-        viewport_id: u64,
+        viewport_id: ViewportId,
         pixels_per_point: f32,
         clear_color: [f32; 4],
         clipped_primitives: &[epaint::ClippedPrimitive],
@@ -618,9 +619,9 @@ impl Painter {
         screenshot
     }
 
-    pub fn clean_surfaces(&mut self, avalibile_viewports: Vec<u64>) {
+    pub fn clean_surfaces(&mut self, avalibile_viewports: &[ViewportId]) {
         self.surfaces
-            .retain(|id, _| avalibile_viewports.contains(id))
+            .retain(|id, _| avalibile_viewports.contains(id));
     }
 
     #[allow(clippy::unused_self)]

@@ -123,7 +123,7 @@ impl eframe::App for MyApp {
         render: Option<&ViewportRender>,
     ) {
         if let Some(render) = render {
-            render(ctx, ctx.get_viewport_id(), ctx.get_parent_viewport_id());
+            render(ctx);
             return;
         }
         egui::Window::new("Main thread").show(ctx, |ui| {

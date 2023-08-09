@@ -269,6 +269,8 @@ pub fn run_simple_native(
     native_options: NativeOptions,
     update_fun: impl FnMut(&egui::Context, &mut Frame) + 'static,
 ) -> Result<()> {
+    use egui::{ViewportId, ViewportRender};
+
     struct SimpleApp<U> {
         update_fun: U,
     }
@@ -277,12 +279,12 @@ pub fn run_simple_native(
             &mut self,
             ctx: &egui::Context,
             frame: &mut Frame,
-            render_function: Option<&(dyn Fn(&egui::Context, u64, u64) + Send + Sync)>,
+            render: Option<&ViewportRender>,
         ) {
-            if ctx.get_viewport_id() == 0 {
+            if ctx.get_viewport_id() == ViewportId::MAIN {
                 (self.update_fun)(ctx, frame);
-            } else if let Some(render_function) = render_function {
-                render_function(ctx, ctx.get_viewport_id(), ctx.get_parent_viewport_id())
+            } else if let Some(render_function) = render {
+                render_function(ctx)
             }
         }
     }

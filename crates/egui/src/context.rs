@@ -23,8 +23,8 @@ pub struct RequestRepaintInfo {
     /// triggered the painting of the next frame.
     pub current_frame_nr: u64,
 
-    /// This is used to specify what window to redraw
-    pub window_id: u64,
+    /// This is used to specify what viewport that should be redraw
+    pub viewport_id: ViewportId,
 }
 
 // ----------------------------------------------------------------------------
@@ -60,10 +60,10 @@ struct Repaint {
     /// even if there's no new events.
     ///
     /// Also used to suppress multiple calls to the repaint callback during the same frame.
-    pub repaint_after: HashMap<u64, std::time::Duration>,
+    pub repaint_after: HashMap<ViewportId, std::time::Duration>,
 
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
-    repaint_requests: HashMap<u64, u32>,
+    repaint_requests: HashMap<ViewportId, u32>,
     request_repaint_callback: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
 
     requested_repaint_last_frame: bool,
@@ -72,9 +72,9 @@ struct Repaint {
 impl Default for Repaint {
     fn default() -> Self {
         let mut repaint_after = HashMap::default();
-        repaint_after.insert(0, std::time::Duration::from_millis(100));
+        repaint_after.insert(ViewportId::MAIN, std::time::Duration::from_millis(100));
         let mut repaint_requests = HashMap::default();
-        repaint_requests.insert(0, 1);
+        repaint_requests.insert(ViewportId::MAIN, 1);
         Self {
             frame_nr: 0,
             repaint_after,
@@ -88,11 +88,11 @@ impl Default for Repaint {
 }
 
 impl Repaint {
-    fn request_repaint(&mut self, window_id: u64) {
-        self.request_repaint_after(std::time::Duration::ZERO, window_id);
+    fn request_repaint(&mut self, viewport_id: ViewportId) {
+        self.request_repaint_after(std::time::Duration::ZERO, viewport_id);
     }
 
-    fn request_repaint_after(&mut self, after: std::time::Duration, viewport_id: u64) {
+    fn request_repaint_after(&mut self, after: std::time::Duration, viewport_id: ViewportId) {
         if after == std::time::Duration::ZERO {
             // Do a few extra frames to let things settle.
             // This is a bit of a hack, and we don't support it for `repaint_after` callbacks yet.
@@ -114,14 +114,14 @@ impl Repaint {
                 let info = RequestRepaintInfo {
                     after,
                     current_frame_nr: self.frame_nr,
-                    window_id: viewport_id,
+                    viewport_id,
                 };
                 (callback)(info);
             }
         }
     }
 
-    fn start_frame(&mut self, viewport_id: u64) {
+    fn start_frame(&mut self, viewport_id: ViewportId) {
         // We are repainting; no need to reschedule a repaint unless the user asks for it again.
         self.repaint_after.remove(&viewport_id);
     }
@@ -129,9 +129,9 @@ impl Repaint {
     // returns how long to wait until repaint
     fn end_frame(
         &mut self,
-        viewport_id: u64,
-        viewports: Vec<u64>,
-    ) -> Vec<(u64, std::time::Duration)> {
+        viewport_id: ViewportId,
+        viewports: Vec<ViewportId>,
+    ) -> Vec<(ViewportId, std::time::Duration)> {
         // if repaint_requests is greater than zero. just set the duration to zero for immediate
         // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
         let repaint_after = if self
@@ -180,17 +180,17 @@ struct ContextImpl {
 
     os: OperatingSystem,
 
-    input: HashMap<u64, InputState>,
+    input: HashMap<ViewportId, InputState>,
 
     /// State that is collected during a frame and then cleared
-    frame_state: HashMap<u64, FrameState>,
+    frame_state: HashMap<ViewportId, FrameState>,
 
-    // Viewport Id, Parent Viewport Id
-    frame_stack: Vec<(u64, u64)>,
+    /// Viewport Id, Parent Viewport Id
+    frame_stack: Vec<(ViewportId, ViewportId)>,
 
     // The output of a frame:
-    graphics: HashMap<u64, GraphicLayers>,
-    output: HashMap<u64, PlatformOutput>,
+    graphics: HashMap<ViewportId, GraphicLayers>,
+    output: HashMap<ViewportId, PlatformOutput>,
 
     paint_stats: PaintStats,
 
@@ -200,19 +200,23 @@ struct ContextImpl {
         String,
         (
             ViewportBuilder,
-            u64,
-            u64,
+            ViewportId,
+            ViewportId,
             bool,
             Option<Arc<Box<ViewportRender>>>,
         ),
     >,
-    viewport_commands: Vec<(u64, ViewportCommand)>,
+    viewport_commands: Vec<(ViewportId, ViewportCommand)>,
 
     render_sync: Option<
         Arc<
             Box<
-                dyn for<'a> Fn(ViewportBuilder, u64, u64, Box<dyn FnOnce(&Context, u64, u64) + 'a>)
-                    + Send
+                dyn for<'a> Fn(
+                        ViewportBuilder,
+                        ViewportId,
+                        ViewportId,
+                        Box<dyn FnOnce(&Context) + 'a>,
+                    ) + Send
                     + Sync,
             >,
         >,
@@ -223,11 +227,11 @@ struct ContextImpl {
 
     /// Written to during the frame.
     layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
-    layer_rects_this_viewports: HashMap<u64, HashMap<LayerId, Vec<(Id, Rect)>>>,
+    layer_rects_this_viewports: HashMap<ViewportId, HashMap<LayerId, Vec<(Id, Rect)>>>,
 
     /// Read
     layer_rects_prev_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
-    layer_rects_prev_viewports: HashMap<u64, HashMap<LayerId, Vec<(Id, Rect)>>>,
+    layer_rects_prev_viewports: HashMap<ViewportId, HashMap<LayerId, Vec<(Id, Rect)>>>,
 
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
@@ -239,8 +243,8 @@ impl ContextImpl {
     fn begin_frame_mut(
         &mut self,
         mut new_raw_input: RawInput,
-        viewport_id: u64,
-        parent_viewport_id: u64,
+        viewport_id: ViewportId,
+        parent_viewport_id: ViewportId,
     ) {
         // This is used to pause the last frame
         if !self.frame_stack.is_empty() {
@@ -377,11 +381,17 @@ impl ContextImpl {
 }
 
 impl ContextImpl {
-    pub(crate) fn get_viewport_id(&self) -> u64 {
+    // Return the `ViewportId` of the current viewport
+    //
+    // In the case of this viewport is the main viewport will be `ViewportId::MAIN`
+    pub(crate) fn get_viewport_id(&self) -> ViewportId {
         self.frame_stack.last().cloned().unwrap_or_default().0
     }
 
-    pub(crate) fn get_parent_viewport_id(&self) -> u64 {
+    // Return the `ViewportId` of his parent
+    //
+    // In the case of this viewport is the main viewport will be `ViewportId::MAIN`
+    pub(crate) fn get_parent_viewport_id(&self) -> ViewportId {
         self.frame_stack.last().cloned().unwrap_or_default().1
     }
 }
@@ -460,7 +470,7 @@ impl Default for Context {
 
         s.write(|ctx| {
             ctx.render_sync = Some(Arc::new(Box::new(
-                move |_builder, _viewport_id, _parent_viewport_id, render| render(&clone, 0, 0),
+                move |_builder, _viewport_id, _parent_viewport_id, render| render(&clone),
             )))
         });
 
@@ -505,8 +515,8 @@ impl Context {
     pub fn run(
         &self,
         new_input: RawInput,
-        viewport_id: u64,
-        parent_viewport_id: u64,
+        viewport_id: ViewportId,
+        parent_viewport_id: ViewportId,
         run_ui: impl FnOnce(&Context),
     ) -> FullOutput {
         self.begin_frame(new_input, viewport_id, parent_viewport_id);
@@ -531,7 +541,12 @@ impl Context {
     /// let full_output = ctx.end_frame();
     /// // handle full_output
     /// ```
-    pub fn begin_frame(&self, new_input: RawInput, viewport_id: u64, parent_viewport_id: u64) {
+    pub fn begin_frame(
+        &self,
+        new_input: RawInput,
+        viewport_id: ViewportId,
+        parent_viewport_id: ViewportId,
+    ) {
         self.write(|ctx| ctx.begin_frame_mut(new_input, viewport_id, parent_viewport_id));
     }
 }
@@ -568,7 +583,7 @@ impl Context {
     /// Read-write access to [`InputState`].
     #[inline]
     pub fn input_mut<R>(&self, writer: impl FnOnce(&mut InputState) -> R) -> R {
-        self.write(move |ctx| writer(ctx.input.entry(ctx.viewport_counter).or_default()))
+        self.write(move |ctx| writer(ctx.input.entry(ctx.get_viewport_id()).or_default()))
     }
 
     /// Read-only access to [`Memory`].
@@ -1117,7 +1132,7 @@ impl Context {
         self.write(|ctx| ctx.repaint.request_repaint(ctx.get_viewport_id()));
     }
 
-    pub fn request_repaint_viewport(&self, id: u64) {
+    pub fn request_repaint_viewport(&self, id: ViewportId) {
         self.write(|ctx| ctx.repaint.request_repaint(id))
     }
 
@@ -1158,7 +1173,7 @@ impl Context {
         });
     }
 
-    pub fn request_repaint_viewport_after(&self, duration: std::time::Duration, id: u64) {
+    pub fn request_repaint_viewport_after(&self, duration: std::time::Duration, id: ViewportId) {
         self.write(|ctx| ctx.repaint.request_repaint_after(duration, id))
     }
 
@@ -1376,7 +1391,7 @@ impl Context {
     /// Call at the end of each frame.
     #[must_use]
     pub fn end_frame(&self) -> FullOutput {
-        let mut viewports: Vec<u64> = self.write(|ctx| {
+        let mut viewports: Vec<ViewportId> = self.write(|ctx| {
             ctx.layer_rects_prev_viewports.insert(
                 ctx.get_viewport_id(),
                 std::mem::take(&mut ctx.layer_rects_this_frame),
@@ -1386,7 +1401,7 @@ impl Context {
                 .map(|(_, (_, id, _, _, _))| *id)
                 .collect()
         });
-        viewports.push(0);
+        viewports.push(ViewportId::MAIN);
 
         if self.input(|i| i.wants_repaint()) {
             self.request_repaint();
@@ -1464,7 +1479,7 @@ impl Context {
         // This is used for,
         // If there are no viewport that contains the current viewpor that viewport needs to be destroyed!
         let avalibile_viewports = self.read(|ctx| {
-            let mut avalibile_viewports = vec![0];
+            let mut avalibile_viewports = vec![ViewportId::MAIN];
             for (_, (_, id, _, _, _)) in ctx.viewports.iter() {
                 avalibile_viewports.push(*id);
             }
@@ -2139,17 +2154,23 @@ impl Context {
 
 // Viewports
 impl Context {
-    pub fn get_viewport_id(&self) -> u64 {
+    // Return the `ViewportId` of the current viewport
+    //
+    // In the case of this viewport is the main viewport will be `ViewportId::MAIN`
+    pub fn get_viewport_id(&self) -> ViewportId {
         self.read(|ctx| ctx.get_viewport_id())
     }
 
-    pub fn get_parent_viewport_id(&self) -> u64 {
+    // Return the `ViewportId` of his parent
+    //
+    // In the case of this viewport is the main viewport will be `ViewportId::MAIN`
+    pub fn get_parent_viewport_id(&self) -> ViewportId {
         self.read(|ctx| ctx.get_parent_viewport_id())
     }
 
     pub fn set_render_sync_callback(
         &self,
-        callback: impl for<'a> Fn(ViewportBuilder, u64, u64, Box<dyn FnOnce(&Context, u64, u64) + 'a>)
+        callback: impl for<'a> Fn(ViewportBuilder, ViewportId, ViewportId, Box<dyn FnOnce(&Context) + 'a>)
             + Send
             + Sync
             + 'static,
@@ -2166,14 +2187,14 @@ impl Context {
         self.write(|ctx| ctx.is_desktop = value)
     }
 
-    pub fn viewport_command(&self, id: u64, command: ViewportCommand) {
+    pub fn viewport_command(&self, id: ViewportId, command: ViewportCommand) {
         self.write(|ctx| ctx.viewport_commands.push((id, command)))
     }
 
     pub fn create_viewport(
         &self,
         viewport_builder: ViewportBuilder,
-        func: impl Fn(&Context, u64, u64) + Send + Sync + 'static,
+        func: impl Fn(&Context) + Send + Sync + 'static,
     ) {
         if self.is_desktop() {
             self.write(|ctx| {
@@ -2184,8 +2205,8 @@ impl Context {
                     window.3 = true;
                     window.4 = Some(Arc::new(Box::new(func)));
                 } else {
-                    let id = ctx.viewport_counter + 1;
-                    ctx.viewport_counter = id;
+                    let id = ViewportId(ctx.viewport_counter + 1);
+                    ctx.viewport_counter += 1;
                     ctx.viewports.insert(
                         viewport_builder.title.clone(),
                         (
@@ -2199,18 +2220,18 @@ impl Context {
                 }
             });
         } else {
-            func(self, 0, 0);
+            func(self);
         }
     }
 
     pub fn create_viewport_sync<T>(
         &self,
         viewport_builder: ViewportBuilder,
-        func: impl FnOnce(&Context, u64, u64) -> T,
+        func: impl FnOnce(&Context) -> T,
     ) -> T {
         if self.is_desktop() {
-            let mut viewport_id = 0;
-            let mut parent_viewport_id = 0;
+            let mut viewport_id = ViewportId::MAIN;
+            let mut parent_viewport_id = ViewportId::MAIN;
             let render_sync = self.write(|ctx| {
                 viewport_id = ctx.get_viewport_id();
                 if let Some(window) = ctx.viewports.get_mut(&viewport_builder.title) {
@@ -2221,8 +2242,8 @@ impl Context {
                     viewport_id = window.1;
                     parent_viewport_id = window.2;
                 } else {
-                    let id = ctx.viewport_counter + 1;
-                    ctx.viewport_counter = id;
+                    let id = ViewportId(ctx.viewport_counter + 1);
+                    ctx.viewport_counter += 1;
                     ctx.viewports.insert(
                         viewport_builder.title.clone(),
                         (viewport_builder.clone(), id, viewport_id, true, None),
@@ -2240,15 +2261,13 @@ impl Context {
                     viewport_builder,
                     viewport_id,
                     parent_viewport_id,
-                    Box::new(move |context, viewport_id, parent_viewport_id| {
-                        *out = Some(func(context, viewport_id, parent_viewport_id))
-                    }),
+                    Box::new(move |context| *out = Some(func(context))),
                 );
             }
 
             out.unwrap()
         } else {
-            func(self, 0, 0)
+            func(self)
         }
     }
 }

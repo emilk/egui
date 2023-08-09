@@ -1,6 +1,6 @@
 use ahash::HashMap;
 
-use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
+use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style, ViewportId};
 
 // ----------------------------------------------------------------------------
 
@@ -72,20 +72,20 @@ pub struct Memory {
     pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) interactions: HashMap<u64, Interaction>,
+    pub(crate) interactions: HashMap<ViewportId, Interaction>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interaction: Interaction,
 
     // Current viewport
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) viewport_id: u64,
+    pub(crate) viewport_id: ViewportId,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) window_interactions: HashMap<u64, window::WindowInteraction>,
+    pub(crate) window_interactions: HashMap<ViewportId, window::WindowInteraction>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) drag_value: crate::widgets::drag_value::MonoState,
@@ -94,7 +94,7 @@ pub struct Memory {
     pub(crate) areas: Areas,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) viewports_areas: HashMap<u64, Areas>,
+    pub(crate) viewports_areas: HashMap<ViewportId, Areas>,
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.
@@ -370,7 +370,7 @@ impl Memory {
         &mut self,
         prev_input: &crate::input_state::InputState,
         new_input: &crate::data::input::RawInput,
-        viewport_id: u64,
+        viewport_id: ViewportId,
     ) {
         self.viewport_id = viewport_id;
         self.interactions
@@ -389,7 +389,7 @@ impl Memory {
         }
     }
 
-    pub(crate) fn pause_frame(&mut self, viewport_id: u64) {
+    pub(crate) fn pause_frame(&mut self, viewport_id: ViewportId) {
         if let Some(window_interaction) = self.window_interaction {
             self.window_interactions
                 .insert(viewport_id, window_interaction);
@@ -403,7 +403,7 @@ impl Memory {
     pub(crate) fn end_frame(
         &mut self,
         input: &InputState,
-        viewports: &[u64],
+        viewports: &[ViewportId],
         used_ids: &IdMap<Rect>,
     ) {
         self.caches.update();
@@ -420,7 +420,7 @@ impl Memory {
             .retain(|id, _| viewports.contains(id));
     }
 
-    pub(crate) fn resume_frame(&mut self, viewport_id: u64) {
+    pub(crate) fn resume_frame(&mut self, viewport_id: ViewportId) {
         self.interaction = self.interactions.remove(&viewport_id).unwrap();
         self.areas = self.viewports_areas.remove(&viewport_id).unwrap();
         self.viewport_id = viewport_id;

@@ -374,249 +374,242 @@ impl<'open> Window<'open> {
                     window_builder.max_inner_size = Some((max_size.x as u32, max_size.y as u32));
                 }
 
-                return ctx.create_viewport_sync(
-                    window_builder,
-                    move |ctx, viewport_id, parent_viewport_id| {
-                        let mut op = is_open;
-                        let open = if show_close_button {
-                            Some(&mut op)
-                        } else {
-                            None
-                        };
-                        let scroll = scroll.clone();
-                        let title = title.clone();
-                        let frame = frame
-                            .unwrap_or_else(|| Frame::window(&ctx.style()))
-                            .outer_margin(0.0)
-                            .shadow(Shadow::NONE)
-                            .stroke(Stroke::new(
-                                1.0,
-                                if ctx.input(|i| i.focused) {
-                                    Color32::BLUE
-                                } else {
-                                    Color32::BROWN
-                                },
-                            ));
-
-                        area.show_open_close_animation(ctx, &frame, is_open);
-
-                        let area_id = area.id;
-                        let area_layer_id = area.layer();
-                        let resize_id = area_id.with("resize");
-                        let mut collapsing = CollapsingState::load_with_default_open(
-                            ctx,
-                            area_id.with("collapsing"),
-                            default_open,
-                        );
-
-                        let is_collapsed = with_title_bar && !collapsing.is_open();
-                        let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
-
-                        let area = area.movable(false); // We move it manually, or the area will move the window when we want to resize it
-                        let resize = resize.resizable(false); // We move it manually
-                        let mut resize = resize.id(resize_id);
-
-                        let mut area = area.begin(ctx);
-                        let win_size = ctx.input(|i| i.screen_rect.size());
-                        area.state_mut().set_left_top_pos(Pos2::ZERO);
-                        area.state_mut().size = win_size;
-                        let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
-
-                        let title_bar_height = if with_title_bar {
-                            let style = ctx.style();
-                            ctx.fonts(|f| title.font_height(f, &style)) + title_content_spacing
-                        } else {
-                            0.0
-                        };
-                        let margins = frame.outer_margin.sum()
-                            + frame.inner_margin.sum()
-                            + vec2(0.0, title_bar_height)
-                            - vec2(0.0, 3.0); //magic number
-
-                        if let Some(mut state) = resize::State::load(ctx, resize_id) {
-                            state.requested_size = Some(win_size - margins);
-                            state.store(ctx, resize_id);
-                        }
-
-                        // First interact (move etc) to avoid frame delay:
-                        let last_frame_outer_rect = area.state().rect();
-
-                        let interaction = if possible.movable || possible.resizable() {
-                            window_interaction(
-                                ctx,
-                                possible,
-                                area_layer_id,
-                                area_id.with("frame_resize"),
-                                last_frame_outer_rect,
-                            )
-                            .and_then(|window_interaction| {
-                                // Calculate roughly how much larger the window size is compared to the inner rect
-
-                                let pointer_pos = ctx.input(|i| i.pointer.interact_pos())?;
-                                let mut rect = window_interaction.start_rect; // prevent drift
-
-                                window_interaction.set_cursor(ctx);
-                                if window_interaction.is_resize() {
-                                    ctx.viewport_command(
-                                        viewport_id,
-                                        ViewportCommand::Resize(
-                                            window_interaction.top,
-                                            window_interaction.bottom,
-                                            window_interaction.right,
-                                            window_interaction.left,
-                                        ),
-                                    );
-                                } else {
-                                    if ctx.input(|i| i.pointer.primary_pressed()) {}
-                                }
-                                ctx.memory_mut(|mem| mem.areas.move_to_top(area_layer_id));
-
-                                Some(window_interaction)
-                            })
-                        } else {
-                            None
-                        };
-
-                        let hover_interaction =
-                            resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect);
-
-                        let mut area_content_ui = area.content_ui(ctx);
-
-                        let mut size = Vec2::new(1.0, 1.0);
-
-                        let content_inner = {
-                            // BEGIN FRAME --------------------------------
-                            let frame_stroke = frame.stroke;
-                            let mut frame = frame.begin(&mut area_content_ui);
-
-                            let title_bar = if with_title_bar {
-                                let mut tmp_embedded = is_embedded;
-
-                                let title_bar = show_title_bar(
-                                    &mut frame.content_ui,
-                                    title,
-                                    show_close_button,
-                                    &mut collapsing,
-                                    collapsible,
-                                    area_id,
-                                );
-
-                                if tmp_embedded != is_embedded {
-                                    area_content_ui.data_mut(|data| {
-                                        data.insert_persisted(
-                                            area_id.with("_embedded"),
-                                            tmp_embedded,
-                                        )
-                                    });
-                                }
-                                resize.min_size.x =
-                                    resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
-                                Some(title_bar)
+                return ctx.create_viewport_sync(window_builder, move |ctx| {
+                    let mut op = is_open;
+                    let open = if show_close_button {
+                        Some(&mut op)
+                    } else {
+                        None
+                    };
+                    let scroll = scroll.clone();
+                    let title = title.clone();
+                    let frame = frame
+                        .unwrap_or_else(|| Frame::window(&ctx.style()))
+                        .outer_margin(0.0)
+                        .shadow(Shadow::NONE)
+                        .stroke(Stroke::new(
+                            1.0,
+                            if ctx.input(|i| i.focused) {
+                                Color32::BLUE
                             } else {
-                                None
-                            };
+                                Color32::BROWN
+                            },
+                        ));
 
-                            let (content_inner, content_response) = collapsing
-                                .show_body_unindented(&mut frame.content_ui, |ui| {
-                                    resize.show(ui, |ui| {
-                                        if title_bar.is_some() {
-                                            ui.add_space(title_content_spacing);
-                                        }
+                    area.show_open_close_animation(ctx, &frame, is_open);
 
-                                        if scroll.has_any_bar() {
-                                            scroll.show(ui, |ui| add_contents(ui)).inner
-                                        } else {
-                                            add_contents(ui)
-                                        }
-                                    })
-                                })
-                                .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
-                            if let Some(content_response) = &content_response {
-                                size = content_response.rect.size()
+                    let area_id = area.id;
+                    let area_layer_id = area.layer();
+                    let resize_id = area_id.with("resize");
+                    let mut collapsing = CollapsingState::load_with_default_open(
+                        ctx,
+                        area_id.with("collapsing"),
+                        default_open,
+                    );
+
+                    let is_collapsed = with_title_bar && !collapsing.is_open();
+                    let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
+
+                    let area = area.movable(false); // We move it manually, or the area will move the window when we want to resize it
+                    let resize = resize.resizable(false); // We move it manually
+                    let mut resize = resize.id(resize_id);
+
+                    let mut area = area.begin(ctx);
+                    let win_size = ctx.input(|i| i.screen_rect.size());
+                    area.state_mut().set_left_top_pos(Pos2::ZERO);
+                    area.state_mut().size = win_size;
+                    let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
+
+                    let title_bar_height = if with_title_bar {
+                        let style = ctx.style();
+                        ctx.fonts(|f| title.font_height(f, &style)) + title_content_spacing
+                    } else {
+                        0.0
+                    };
+                    let margins = frame.outer_margin.sum()
+                        + frame.inner_margin.sum()
+                        + vec2(0.0, title_bar_height)
+                        - vec2(0.0, 3.0); //magic number
+
+                    if let Some(mut state) = resize::State::load(ctx, resize_id) {
+                        state.requested_size = Some(win_size - margins);
+                        state.store(ctx, resize_id);
+                    }
+
+                    // First interact (move etc) to avoid frame delay:
+                    let last_frame_outer_rect = area.state().rect();
+
+                    let interaction = if possible.movable || possible.resizable() {
+                        window_interaction(
+                            ctx,
+                            possible,
+                            area_layer_id,
+                            area_id.with("frame_resize"),
+                            last_frame_outer_rect,
+                        )
+                        .and_then(|window_interaction| {
+                            // Calculate roughly how much larger the window size is compared to the inner rect
+
+                            let pointer_pos = ctx.input(|i| i.pointer.interact_pos())?;
+                            let mut rect = window_interaction.start_rect; // prevent drift
+
+                            window_interaction.set_cursor(ctx);
+                            if window_interaction.is_resize() {
+                                ctx.viewport_command(
+                                    ctx.get_viewport_id(),
+                                    ViewportCommand::Resize(
+                                        window_interaction.top,
+                                        window_interaction.bottom,
+                                        window_interaction.right,
+                                        window_interaction.left,
+                                    ),
+                                );
+                            } else {
+                                if ctx.input(|i| i.pointer.primary_pressed()) {}
                             }
+                            ctx.memory_mut(|mem| mem.areas.move_to_top(area_layer_id));
 
-                            let outer_rect = frame.end(&mut area_content_ui).rect;
-                            paint_resize_corner(
-                                &mut area_content_ui,
-                                &possible,
-                                outer_rect,
-                                frame_stroke,
+                            Some(window_interaction)
+                        })
+                    } else {
+                        None
+                    };
+
+                    let hover_interaction =
+                        resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect);
+
+                    let mut area_content_ui = area.content_ui(ctx);
+
+                    let mut size = Vec2::new(1.0, 1.0);
+
+                    let content_inner = {
+                        // BEGIN FRAME --------------------------------
+                        let frame_stroke = frame.stroke;
+                        let mut frame = frame.begin(&mut area_content_ui);
+
+                        let title_bar = if with_title_bar {
+                            let mut tmp_embedded = is_embedded;
+
+                            let title_bar = show_title_bar(
+                                &mut frame.content_ui,
+                                title,
+                                show_close_button,
+                                &mut collapsing,
+                                collapsible,
+                                area_id,
                             );
 
-                            // END FRAME --------------------------------
-
-                            if let Some(title_bar) = title_bar {
-                                let res = title_bar.ui(
-                                    &mut area_content_ui,
-                                    outer_rect,
-                                    &content_response,
-                                    open,
-                                    &mut collapsing,
-                                    collapsible,
-                                );
-                                if res.is_pointer_button_down_on() {
-                                    ctx.viewport_command(viewport_id, ViewportCommand::Drag);
-                                }
+                            if tmp_embedded != is_embedded {
+                                area_content_ui.data_mut(|data| {
+                                    data.insert_persisted(area_id.with("_embedded"), tmp_embedded)
+                                });
                             }
+                            resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
+                            Some(title_bar)
+                        } else {
+                            None
+                        };
 
-                            collapsing.store(ctx);
+                        let (content_inner, content_response) = collapsing
+                            .show_body_unindented(&mut frame.content_ui, |ui| {
+                                resize.show(ui, |ui| {
+                                    if title_bar.is_some() {
+                                        ui.add_space(title_content_spacing);
+                                    }
 
-                            if let Some(interaction) = interaction {
+                                    if scroll.has_any_bar() {
+                                        scroll.show(ui, |ui| add_contents(ui)).inner
+                                    } else {
+                                        add_contents(ui)
+                                    }
+                                })
+                            })
+                            .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
+                        if let Some(content_response) = &content_response {
+                            size = content_response.rect.size()
+                        }
+
+                        let outer_rect = frame.end(&mut area_content_ui).rect;
+                        paint_resize_corner(
+                            &mut area_content_ui,
+                            &possible,
+                            outer_rect,
+                            frame_stroke,
+                        );
+
+                        // END FRAME --------------------------------
+
+                        if let Some(title_bar) = title_bar {
+                            let res = title_bar.ui(
+                                &mut area_content_ui,
+                                outer_rect,
+                                &content_response,
+                                open,
+                                &mut collapsing,
+                                collapsible,
+                            );
+                            if res.is_pointer_button_down_on() {
+                                ctx.viewport_command(ctx.get_viewport_id(), ViewportCommand::Drag);
+                            }
+                        }
+
+                        collapsing.store(ctx);
+
+                        if let Some(interaction) = interaction {
+                            paint_frame_interaction(
+                                &mut area_content_ui,
+                                outer_rect,
+                                interaction,
+                                ctx.style().visuals.widgets.active,
+                            );
+                        } else if let Some(hover_interaction) = hover_interaction {
+                            if ctx.input(|i| i.pointer.has_pointer()) {
                                 paint_frame_interaction(
                                     &mut area_content_ui,
                                     outer_rect,
-                                    interaction,
-                                    ctx.style().visuals.widgets.active,
+                                    hover_interaction,
+                                    ctx.style().visuals.widgets.hovered,
                                 );
-                            } else if let Some(hover_interaction) = hover_interaction {
-                                if ctx.input(|i| i.pointer.has_pointer()) {
-                                    paint_frame_interaction(
-                                        &mut area_content_ui,
-                                        outer_rect,
-                                        hover_interaction,
-                                        ctx.style().visuals.widgets.hovered,
-                                    );
-                                }
                             }
-                            content_inner
-                        };
-
-                        let full_response = area.end(ctx, area_content_ui);
-
-                        if !collapsing.is_open() {
-                            let size = ctx.round_vec_to_pixels(full_response.rect.size());
-                            ctx.viewport_command(
-                                viewport_id,
-                                ViewportCommand::InnerSize(size.x as u32, size.y as u32),
-                            );
                         }
+                        content_inner
+                    };
 
-                        // let size = ctx.round_vec_to_pixels(full_response.rect.size());
-                        if win_size.x < size.x {
-                            println!("Set size!");
-                            ctx.viewport_command(
-                                viewport_id,
-                                ViewportCommand::InnerSize(size.x as u32, win_size.y as u32),
-                            );
-                        }
-                        if win_size.y < size.y {
-                            println!("Set size!");
-                            ctx.viewport_command(
-                                viewport_id,
-                                ViewportCommand::InnerSize(win_size.x as u32, size.y as u32),
-                            );
-                        }
-                        if show_close_button && op != is_open {
-                            ctx.data_mut(|data| data.insert_persisted(area_id.with("_open"), op));
-                            ctx.request_repaint_viewport(parent_viewport_id);
-                        }
+                    let full_response = area.end(ctx, area_content_ui);
 
-                        return Some(InnerResponse {
-                            inner: content_inner,
-                            response: full_response,
-                        });
-                    },
-                );
+                    if !collapsing.is_open() {
+                        let size = ctx.round_vec_to_pixels(full_response.rect.size());
+                        ctx.viewport_command(
+                            ctx.get_viewport_id(),
+                            ViewportCommand::InnerSize(size.x as u32, size.y as u32),
+                        );
+                    }
+
+                    // let size = ctx.round_vec_to_pixels(full_response.rect.size());
+                    if win_size.x < size.x {
+                        println!("Set size!");
+                        ctx.viewport_command(
+                            ctx.get_viewport_id(),
+                            ViewportCommand::InnerSize(size.x as u32, win_size.y as u32),
+                        );
+                    }
+                    if win_size.y < size.y {
+                        println!("Set size!");
+                        ctx.viewport_command(
+                            ctx.get_viewport_id(),
+                            ViewportCommand::InnerSize(win_size.x as u32, size.y as u32),
+                        );
+                    }
+                    if show_close_button && op != is_open {
+                        ctx.data_mut(|data| data.insert_persisted(area_id.with("_open"), op));
+                        ctx.request_repaint_viewport(ctx.get_parent_viewport_id());
+                    }
+
+                    return Some(InnerResponse {
+                        inner: content_inner,
+                        response: full_response,
+                    });
+                });
                 return None;
             }
         }
@@ -849,234 +842,230 @@ impl<'open> Window<'open> {
                     window_builder.max_inner_size = Some((max_size.x as u32, max_size.y as u32));
                 }
 
-                ctx.create_viewport(
-                    window_builder,
-                    move |ctx, viewport_id, parent_viewport_id| {
-                        let mut op = is_open;
-                        let open = if show_close_button {
-                            Some(&mut op)
-                        } else {
-                            None
-                        };
-                        let scroll = scroll.clone();
-                        let title = title.clone();
-                        let frame = frame
-                            .unwrap_or_else(|| Frame::window(&ctx.style()))
-                            .outer_margin(0.0)
-                            .shadow(Shadow::NONE)
-                            .stroke(Stroke::new(
-                                1.0,
-                                if ctx.input(|i| i.focused) {
-                                    Color32::BLUE
-                                } else {
-                                    Color32::BROWN
-                                },
-                            ));
-
-                        area.show_open_close_animation(ctx, &frame, is_open);
-
-                        let area_id = area.id;
-                        let area_layer_id = area.layer();
-                        let resize_id = area_id.with("resize");
-                        let mut collapsing = CollapsingState::load_with_default_open(
-                            ctx,
-                            area_id.with("collapsing"),
-                            default_open,
-                        );
-
-                        let is_collapsed = with_title_bar && !collapsing.is_open();
-                        let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
-
-                        let area = area.movable(false); // We move it manually, or the area will move the window when we want to resize it
-                        let resize = resize.resizable(false); // We move it manually
-                        let mut resize = resize.id(resize_id);
-
-                        let mut area = area.begin(ctx);
-                        let win_size = ctx.input(|i| i.screen_rect.size());
-                        area.state_mut().set_left_top_pos(Pos2::ZERO);
-                        area.state_mut().size = win_size;
-                        let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
-
-                        let title_bar_height = if with_title_bar {
-                            let style = ctx.style();
-                            ctx.fonts(|f| title.font_height(f, &style)) + title_content_spacing
-                        } else {
-                            0.0
-                        };
-                        let margins = frame.outer_margin.sum()
-                            + frame.inner_margin.sum()
-                            + vec2(0.0, title_bar_height)
-                            - vec2(0.0, 3.0); //magic number
-
-                        if let Some(mut state) = resize::State::load(ctx, resize_id) {
-                            state.requested_size = Some(win_size - margins);
-                            state.store(ctx, resize_id);
-                        }
-
-                        // First interact (move etc) to avoid frame delay:
-                        let last_frame_outer_rect = area.state().rect();
-
-                        let interaction = if possible.movable || possible.resizable() {
-                            window_interaction(
-                                ctx,
-                                possible,
-                                area_layer_id,
-                                area_id.with("frame_resize"),
-                                last_frame_outer_rect,
-                            )
-                            .and_then(|window_interaction| {
-                                // Calculate roughly how much larger the window size is compared to the inner rect
-
-                                let pointer_pos = ctx.input(|i| i.pointer.interact_pos())?;
-                                let mut rect = window_interaction.start_rect; // prevent drift
-
-                                window_interaction.set_cursor(ctx);
-                                if window_interaction.is_resize() {
-                                    ctx.viewport_command(
-                                        viewport_id,
-                                        ViewportCommand::Resize(
-                                            window_interaction.top,
-                                            window_interaction.bottom,
-                                            window_interaction.right,
-                                            window_interaction.left,
-                                        ),
-                                    );
-                                } else {
-                                    if ctx.input(|i| i.pointer.primary_pressed()) {}
-                                }
-                                ctx.memory_mut(|mem| mem.areas.move_to_top(area_layer_id));
-
-                                Some(window_interaction)
-                            })
-                        } else {
-                            None
-                        };
-
-                        let hover_interaction =
-                            resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect);
-
-                        let mut area_content_ui = area.content_ui(ctx);
-
-                        let mut size = Vec2::new(1.0, 1.0);
-
-                        let content_inner = {
-                            // BEGIN FRAME --------------------------------
-                            let frame_stroke = frame.stroke;
-                            let mut frame = frame.begin(&mut area_content_ui);
-
-                            let title_bar = if with_title_bar {
-                                let title_bar = show_title_bar(
-                                    &mut frame.content_ui,
-                                    title,
-                                    show_close_button,
-                                    &mut collapsing,
-                                    collapsible,
-                                    area_id,
-                                );
-
-                                resize.min_size.x =
-                                    resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
-                                Some(title_bar)
+                ctx.create_viewport(window_builder, move |ctx| {
+                    let mut op = is_open;
+                    let open = if show_close_button {
+                        Some(&mut op)
+                    } else {
+                        None
+                    };
+                    let scroll = scroll.clone();
+                    let title = title.clone();
+                    let frame = frame
+                        .unwrap_or_else(|| Frame::window(&ctx.style()))
+                        .outer_margin(0.0)
+                        .shadow(Shadow::NONE)
+                        .stroke(Stroke::new(
+                            1.0,
+                            if ctx.input(|i| i.focused) {
+                                Color32::BLUE
                             } else {
-                                None
-                            };
+                                Color32::BROWN
+                            },
+                        ));
 
-                            let (content_inner, content_response) = collapsing
-                                .show_body_unindented(&mut frame.content_ui, |ui| {
-                                    resize.show(ui, |ui| {
-                                        if title_bar.is_some() {
-                                            ui.add_space(title_content_spacing);
-                                        }
+                    area.show_open_close_animation(ctx, &frame, is_open);
 
-                                        if scroll.has_any_bar() {
-                                            scroll.show(ui, |ui| add_contents(ui)).inner
-                                        } else {
-                                            add_contents(ui)
-                                        }
-                                    })
-                                })
-                                .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
-                            if let Some(content_response) = &content_response {
-                                size = content_response.rect.size()
+                    let area_id = area.id;
+                    let area_layer_id = area.layer();
+                    let resize_id = area_id.with("resize");
+                    let mut collapsing = CollapsingState::load_with_default_open(
+                        ctx,
+                        area_id.with("collapsing"),
+                        default_open,
+                    );
+
+                    let is_collapsed = with_title_bar && !collapsing.is_open();
+                    let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
+
+                    let area = area.movable(false); // We move it manually, or the area will move the window when we want to resize it
+                    let resize = resize.resizable(false); // We move it manually
+                    let mut resize = resize.id(resize_id);
+
+                    let mut area = area.begin(ctx);
+                    let win_size = ctx.input(|i| i.screen_rect.size());
+                    area.state_mut().set_left_top_pos(Pos2::ZERO);
+                    area.state_mut().size = win_size;
+                    let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
+
+                    let title_bar_height = if with_title_bar {
+                        let style = ctx.style();
+                        ctx.fonts(|f| title.font_height(f, &style)) + title_content_spacing
+                    } else {
+                        0.0
+                    };
+                    let margins = frame.outer_margin.sum()
+                        + frame.inner_margin.sum()
+                        + vec2(0.0, title_bar_height)
+                        - vec2(0.0, 3.0); //magic number
+
+                    if let Some(mut state) = resize::State::load(ctx, resize_id) {
+                        state.requested_size = Some(win_size - margins);
+                        state.store(ctx, resize_id);
+                    }
+
+                    // First interact (move etc) to avoid frame delay:
+                    let last_frame_outer_rect = area.state().rect();
+
+                    let interaction = if possible.movable || possible.resizable() {
+                        window_interaction(
+                            ctx,
+                            possible,
+                            area_layer_id,
+                            area_id.with("frame_resize"),
+                            last_frame_outer_rect,
+                        )
+                        .and_then(|window_interaction| {
+                            // Calculate roughly how much larger the window size is compared to the inner rect
+
+                            let pointer_pos = ctx.input(|i| i.pointer.interact_pos())?;
+                            let mut rect = window_interaction.start_rect; // prevent drift
+
+                            window_interaction.set_cursor(ctx);
+                            if window_interaction.is_resize() {
+                                ctx.viewport_command(
+                                    ctx.get_viewport_id(),
+                                    ViewportCommand::Resize(
+                                        window_interaction.top,
+                                        window_interaction.bottom,
+                                        window_interaction.right,
+                                        window_interaction.left,
+                                    ),
+                                );
+                            } else {
+                                if ctx.input(|i| i.pointer.primary_pressed()) {}
                             }
+                            ctx.memory_mut(|mem| mem.areas.move_to_top(area_layer_id));
 
-                            let outer_rect = frame.end(&mut area_content_ui).rect;
-                            paint_resize_corner(
-                                &mut area_content_ui,
-                                &possible,
-                                outer_rect,
-                                frame_stroke,
+                            Some(window_interaction)
+                        })
+                    } else {
+                        None
+                    };
+
+                    let hover_interaction =
+                        resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect);
+
+                    let mut area_content_ui = area.content_ui(ctx);
+
+                    let mut size = Vec2::new(1.0, 1.0);
+
+                    let content_inner = {
+                        // BEGIN FRAME --------------------------------
+                        let frame_stroke = frame.stroke;
+                        let mut frame = frame.begin(&mut area_content_ui);
+
+                        let title_bar = if with_title_bar {
+                            let title_bar = show_title_bar(
+                                &mut frame.content_ui,
+                                title,
+                                show_close_button,
+                                &mut collapsing,
+                                collapsible,
+                                area_id,
                             );
 
-                            // END FRAME --------------------------------
+                            resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
+                            Some(title_bar)
+                        } else {
+                            None
+                        };
 
-                            if let Some(title_bar) = title_bar {
-                                let res = title_bar.ui(
-                                    &mut area_content_ui,
-                                    outer_rect,
-                                    &content_response,
-                                    open,
-                                    &mut collapsing,
-                                    collapsible,
-                                );
-                                if res.is_pointer_button_down_on() {
-                                    ctx.viewport_command(viewport_id, ViewportCommand::Drag);
-                                }
+                        let (content_inner, content_response) = collapsing
+                            .show_body_unindented(&mut frame.content_ui, |ui| {
+                                resize.show(ui, |ui| {
+                                    if title_bar.is_some() {
+                                        ui.add_space(title_content_spacing);
+                                    }
+
+                                    if scroll.has_any_bar() {
+                                        scroll.show(ui, |ui| add_contents(ui)).inner
+                                    } else {
+                                        add_contents(ui)
+                                    }
+                                })
+                            })
+                            .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
+                        if let Some(content_response) = &content_response {
+                            size = content_response.rect.size()
+                        }
+
+                        let outer_rect = frame.end(&mut area_content_ui).rect;
+                        paint_resize_corner(
+                            &mut area_content_ui,
+                            &possible,
+                            outer_rect,
+                            frame_stroke,
+                        );
+
+                        // END FRAME --------------------------------
+
+                        if let Some(title_bar) = title_bar {
+                            let res = title_bar.ui(
+                                &mut area_content_ui,
+                                outer_rect,
+                                &content_response,
+                                open,
+                                &mut collapsing,
+                                collapsible,
+                            );
+                            if res.is_pointer_button_down_on() {
+                                ctx.viewport_command(ctx.get_viewport_id(), ViewportCommand::Drag);
                             }
+                        }
 
-                            collapsing.store(ctx);
+                        collapsing.store(ctx);
 
-                            if let Some(interaction) = interaction {
+                        if let Some(interaction) = interaction {
+                            paint_frame_interaction(
+                                &mut area_content_ui,
+                                outer_rect,
+                                interaction,
+                                ctx.style().visuals.widgets.active,
+                            );
+                        } else if let Some(hover_interaction) = hover_interaction {
+                            if ctx.input(|i| i.pointer.has_pointer()) {
                                 paint_frame_interaction(
                                     &mut area_content_ui,
                                     outer_rect,
-                                    interaction,
-                                    ctx.style().visuals.widgets.active,
+                                    hover_interaction,
+                                    ctx.style().visuals.widgets.hovered,
                                 );
-                            } else if let Some(hover_interaction) = hover_interaction {
-                                if ctx.input(|i| i.pointer.has_pointer()) {
-                                    paint_frame_interaction(
-                                        &mut area_content_ui,
-                                        outer_rect,
-                                        hover_interaction,
-                                        ctx.style().visuals.widgets.hovered,
-                                    );
-                                }
                             }
-                            content_inner
-                        };
+                        }
+                        content_inner
+                    };
 
-                        let full_response = area.end(ctx, area_content_ui);
+                    let full_response = area.end(ctx, area_content_ui);
 
-                        if !collapsing.is_open() {
-                            let size = ctx.round_vec_to_pixels(full_response.rect.size());
-                            ctx.viewport_command(
-                                viewport_id,
-                                ViewportCommand::InnerSize(size.x as u32, size.y as u32),
-                            );
-                        }
+                    if !collapsing.is_open() {
+                        let size = ctx.round_vec_to_pixels(full_response.rect.size());
+                        ctx.viewport_command(
+                            ctx.get_viewport_id(),
+                            ViewportCommand::InnerSize(size.x as u32, size.y as u32),
+                        );
+                    }
 
-                        // let size = ctx.round_vec_to_pixels(full_response.rect.size());
-                        if win_size.x < size.x {
-                            println!("Set size!");
-                            ctx.viewport_command(
-                                viewport_id,
-                                ViewportCommand::InnerSize(size.x as u32, win_size.y as u32),
-                            );
-                        }
-                        if win_size.y < size.y {
-                            println!("Set size!");
-                            ctx.viewport_command(
-                                viewport_id,
-                                ViewportCommand::InnerSize(win_size.x as u32, size.y as u32),
-                            );
-                        }
-                        if show_close_button && op != is_open {
-                            ctx.data_mut(|data| data.insert_persisted(area_id.with("_open"), op));
-                            ctx.request_repaint_viewport(parent_viewport_id);
-                        }
-                    },
-                );
+                    // let size = ctx.round_vec_to_pixels(full_response.rect.size());
+                    if win_size.x < size.x {
+                        println!("Set size!");
+                        ctx.viewport_command(
+                            ctx.get_viewport_id(),
+                            ViewportCommand::InnerSize(size.x as u32, win_size.y as u32),
+                        );
+                    }
+                    if win_size.y < size.y {
+                        println!("Set size!");
+                        ctx.viewport_command(
+                            ctx.get_viewport_id(),
+                            ViewportCommand::InnerSize(win_size.x as u32, size.y as u32),
+                        );
+                    }
+                    if show_close_button && op != is_open {
+                        ctx.data_mut(|data| data.insert_persisted(area_id.with("_open"), op));
+                        ctx.request_repaint_viewport(ctx.get_parent_viewport_id());
+                    }
+                });
                 return;
             }
         }

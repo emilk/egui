@@ -21,7 +21,7 @@ impl eframe::App for EasyMarkApp {
         render: Option<&ViewportRender>,
     ) {
         if let Some(render) = render {
-            render(ctx, ctx.get_viewport_id(), ctx.get_parent_viewport_id());
+            render(ctx);
             return;
         }
         self.editor.panels(ctx);
@@ -44,7 +44,7 @@ impl eframe::App for DemoApp {
         render: Option<&ViewportRender>,
     ) {
         if let Some(render) = render {
-            render(ctx, ctx.get_viewport_id(), ctx.get_parent_viewport_id());
+            render(ctx);
             return;
         }
         self.demo_windows.ui(ctx);
@@ -67,7 +67,7 @@ impl eframe::App for FractalClockApp {
         render: Option<&ViewportRender>,
     ) {
         if let Some(render) = render {
-            render(ctx, ctx.get_viewport_id(), ctx.get_parent_viewport_id());
+            render(ctx);
             return;
         }
         egui::CentralPanel::default()
@@ -95,7 +95,7 @@ impl eframe::App for ColorTestApp {
         render: Option<&ViewportRender>,
     ) {
         if let Some(render) = render {
-            render(ctx, ctx.get_viewport_id(), ctx.get_parent_viewport_id());
+            render(ctx);
             return;
         }
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -270,7 +270,7 @@ impl eframe::App for WrapApp {
         render: Option<&ViewportRender>,
     ) {
         if let Some(render) = render {
-            render(ctx, ctx.get_viewport_id(), ctx.get_parent_viewport_id());
+            render(ctx);
             return;
         }
         #[cfg(target_arch = "wasm32")]

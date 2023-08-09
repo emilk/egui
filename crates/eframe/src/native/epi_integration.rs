@@ -9,7 +9,7 @@ use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{Context, NumExt as _, ViewportBuilder};
+use egui::{Context, NumExt as _, ViewportBuilder, ViewportId, ViewportRender};
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
@@ -432,7 +432,14 @@ impl EpiIntegration {
         let saved_memory: egui::Memory = self.egui_ctx.memory(|mem| mem.clone());
         self.egui_ctx
             .memory_mut(|mem| mem.set_everything_is_visible(true));
-        let full_output = self.update(app, window, egui_winit, None, 0, 0);
+        let full_output = self.update(
+            app,
+            window,
+            egui_winit,
+            None,
+            ViewportId::MAIN,
+            ViewportId::MAIN,
+        );
         self.pending_full_output.append(full_output); // Handle it next frame
         self.egui_ctx.memory_mut(|mem| *mem = saved_memory); // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
@@ -449,14 +456,14 @@ impl EpiIntegration {
         event: &winit::event::WindowEvent<'_>,
         window_id: &winit::window::WindowId,
         egui_winit: &mut egui_winit::State,
-        viewport_id: u64,
+        viewport_id: ViewportId,
     ) -> EventResponse {
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
         match event {
             WindowEvent::CloseRequested => {
                 log::debug!("Received WindowEvent::CloseRequested");
-                self.close = app.on_close_event() && viewport_id == 0;
+                self.close = app.on_close_event() && viewport_id == ViewportId::MAIN;
                 log::debug!("App::on_close_event returned {}", self.close);
             }
             WindowEvent::Destroyed => {
@@ -497,9 +504,9 @@ impl EpiIntegration {
         app: &mut dyn epi::App,
         window: &winit::window::Window,
         egui_winit: &mut egui_winit::State,
-        render: Option<Arc<Box<dyn Fn(&Context, u64, u64) + Sync + Send>>>,
-        viewport_id: u64,
-        parent_id: u64,
+        render: Option<Arc<Box<ViewportRender>>>,
+        viewport_id: egui::ViewportId,
+        parent_id: egui::ViewportId,
     ) -> egui::FullOutput {
         let frame_start = std::time::Instant::now();
 

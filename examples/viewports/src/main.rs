@@ -39,7 +39,9 @@ fn main() {
                 if show_sync {
                     ctx.create_viewport_sync(
                         ViewportBuilder::default().with_title("Sync rendering!"),
-                        |ctx, viewport_id, parent_viewport_id| {
+                        |ctx| {
+                            let viewport_id = ctx.get_viewport_id();
+                            let parent_viewport_id = ctx.get_parent_viewport_id();
                             egui::CentralPanel::default().show(ctx, |ui| {
                                 ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
                                 ui.horizontal(|ui| {

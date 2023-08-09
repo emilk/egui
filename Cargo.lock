@@ -1195,6 +1195,7 @@ version = "0.22.0"
 dependencies = [
  "bytemuck",
  "document-features",
+ "egui",
  "epaint",
  "log",
  "puffin",

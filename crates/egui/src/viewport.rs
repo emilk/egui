@@ -1,11 +1,28 @@
-use std::sync::Arc;
+use std::fmt::Display;
 
 use crate::Context;
 
-/// This is used to render a viewport
-pub type ViewportRender = dyn Fn(&Context, u64, u64) + Sync + Send;
+/// This is used to send a command to a specific viewport
+///
+/// This is returned by `Context::get_viewport_id` and `Context::get_parent_viewport_id`
+#[derive(Default, Debug, Hash, Clone, Copy, PartialEq, Eq)]
+pub struct ViewportId(pub(crate) u64);
 
-#[derive(Hash, PartialEq, Clone)]
+impl Display for ViewportId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl ViewportId {
+    /// This will return the `ViewportId` of the main viewport
+    pub const MAIN: Self = Self(0);
+}
+
+/// This is used to render an async viewport
+pub type ViewportRender = dyn Fn(&Context) + Sync + Send;
+
+#[derive(Hash, PartialEq, Eq, Clone)]
 pub struct ViewportBuilder {
     pub title: String,
     pub name: Option<String>,

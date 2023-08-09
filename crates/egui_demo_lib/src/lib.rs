@@ -19,6 +19,7 @@ pub mod syntax_highlighting;
 
 pub use color_test::ColorTest;
 pub use demo::DemoWindows;
+use egui::ViewportId;
 
 // ----------------------------------------------------------------------------
 
@@ -68,9 +69,14 @@ fn test_egui_e2e() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        let full_output = ctx.run(raw_input.clone(), 0, 0, |ctx| {
-            demo_windows.ui(ctx);
-        });
+        let full_output = ctx.run(
+            raw_input.clone(),
+            ViewportId::MAIN,
+            ViewportId::MAIN,
+            |ctx| {
+                demo_windows.ui(ctx);
+            },
+        );
         let clipped_primitives = ctx.tessellate(full_output.shapes);
         assert!(!clipped_primitives.is_empty());
     }
@@ -87,9 +93,14 @@ fn test_egui_zero_window_size() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        let full_output = ctx.run(raw_input.clone(), 0, 0, |ctx| {
-            demo_windows.ui(ctx);
-        });
+        let full_output = ctx.run(
+            raw_input.clone(),
+            ViewportId::MAIN,
+            ViewportId::MAIN,
+            |ctx| {
+                demo_windows.ui(ctx);
+            },
+        );
         let clipped_primitives = ctx.tessellate(full_output.shapes);
         assert!(
             clipped_primitives.is_empty(),

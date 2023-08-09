@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use crate::Context;
 use crate::{ViewportBuilder, ViewportCommand, WidgetType};
+use crate::{ViewportId, ViewportRender};
 
 /// What egui emits each frame from [`crate::Context::run`].
 ///
@@ -21,7 +21,7 @@ pub struct FullOutput {
     /// duration elapses. when in reactive mode, egui spends forever waiting for input and only then,
     /// will it repaint itself. this can be used to make sure that backend will only wait for a
     /// specified amount of time, and repaint egui without any new input.
-    pub repaint_after: Vec<(u64, std::time::Duration)>,
+    pub repaint_after: Vec<(ViewportId, std::time::Duration)>,
 
     /// Texture changes since last frame (including the font texture).
     ///
@@ -35,13 +35,13 @@ pub struct FullOutput {
     pub shapes: Vec<epaint::ClippedShape>,
 
     pub viewports: Vec<(
-        u64,
-        u64,
+        ViewportId,
+        ViewportId,
         ViewportBuilder,
-        Option<Arc<Box<dyn Fn(&Context, u64, u64) + Sync + Send>>>,
+        Option<Arc<Box<ViewportRender>>>,
     )>,
 
-    pub viewport_commands: Vec<(u64, ViewportCommand)>,
+    pub viewport_commands: Vec<(ViewportId, ViewportCommand)>,
 }
 
 impl FullOutput {
