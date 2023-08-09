@@ -70,7 +70,7 @@ pub fn read_window_info(
             y: size.height,
         },
         monitor_size,
-        raw_handle: window_handle
+        raw_handle: window_handle,
     }
 }
 
