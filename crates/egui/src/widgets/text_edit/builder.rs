@@ -570,6 +570,18 @@ impl<'t> TextEdit<'t> {
             ui.ctx().set_cursor_icon(CursorIcon::Text);
         }
 
+        // Update the InputState if we're interacting (E.g. updating seleciton or cursor position)
+        if interactive
+            && state.soft_keyboard_visible
+            && (response.drag_released() || response.clicked())
+        {
+            update_text_input(
+                ui.ctx(),
+                state.cursor_range(&galley),
+                text.as_str().to_owned(),
+            );
+        }
+
         let mut cursor_range = None;
         let prev_cursor_range = state.cursor_range(&galley);
         if interactive && ui.memory(|mem| mem.has_focus(id)) {
@@ -643,7 +655,16 @@ impl<'t> TextEdit<'t> {
             false
         };
 
-        if ui.is_rect_visible(rect) {
+        if ui.memory(|memory| memory.lost_focus(id)) {
+            state.soft_keyboard_visible = false;
+        }
+
+
+        if ui.memory(|mem| mem.has_focus(id)) && ui.input(|i| i.screen_rect_changed()) {
+            ui.scroll_to_rect(rect, None);
+        }
+
+       if ui.is_rect_visible(rect) || ui.memory(|mem| mem.has_focus(id)) {
             painter.galley(text_draw_pos, galley.clone());
 
             if text.as_str().is_empty() && !hint_text.is_empty() {
@@ -678,6 +699,16 @@ impl<'t> TextEdit<'t> {
                         }
 
                         if interactive {
+                            // Send the text input only when the keyboard is initially shown.
+                            if !state.soft_keyboard_visible {
+                                update_text_input(
+                                    ui.ctx(),
+                                    state.cursor_range(&galley),
+                                    text.as_str().to_owned(),
+                                );
+                                state.soft_keyboard_visible = true;
+                            }
+
                             // eframe web uses `text_cursor_pos` when showing IME,
                             // so only set it when text is editable and visible!
                             // But `winit` and `egui_web` differs in how to set the
@@ -847,6 +878,18 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
 }
 
 // ----------------------------------------------------------------------------
+
+fn update_text_input(ctx: &Context, cursor_range: Option<CursorRange>, text: String) {
+    ctx.output_mut(|o| {
+        let selection = if let Some(cursor_range) = cursor_range {
+            (cursor_range.primary.ccursor.index, cursor_range.secondary.ccursor.index)
+        } else {
+            (0, 0)
+        };
+
+        o.surrounding_text = Some((text, selection))
+    });
+}
 
 #[cfg(feature = "accesskit")]
 fn ccursor_from_accesskit_text_position(
@@ -1035,6 +1078,23 @@ fn events(
                     Some(CCursorRange::one(ccursor))
                 } else {
                     None
+                }
+            }
+
+            Event::CompositionReplace { content, selection, compose_region } => {
+                text.replace(content);
+
+                if let Some((start, end)) = compose_region {
+                    let ccursor = CCursorRange::two(
+                        CCursor::new(*start),
+                        CCursor::new(*end),
+                    );
+                    Some(ccursor)
+                } else {
+                    Some(CCursorRange::two(
+                        CCursor::new(selection.0),
+                        CCursor::new(selection.1),
+                    ))
                 }
             }
 

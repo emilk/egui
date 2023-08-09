@@ -257,6 +257,8 @@ pub enum Event {
     /// IME composition ended with this final result.
     CompositionEnd(String),
 
+    CompositionReplace { content: String, selection: (usize, usize), compose_region: Option<(usize, usize)> },
+
     /// On touch screens, report this *in addition to*
     /// [`Self::PointerMoved`], [`Self::PointerButton`], [`Self::PointerGone`]
     Touch {

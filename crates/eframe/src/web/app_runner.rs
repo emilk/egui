@@ -230,7 +230,8 @@ impl AppRunner {
             mutable_text_under_cursor,
             text_cursor_pos,
             #[cfg(feature = "accesskit")]
-                accesskit_update: _, // not currently implemented
+            accesskit_update: _, // not currently implemented
+            text_input_state: _, // not currently implemented
         } = platform_output;
 
         super::set_cursor_icon(cursor_icon);
