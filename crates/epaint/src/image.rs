@@ -110,10 +110,10 @@ impl ColorImage {
         Self { size, pixels }
     }
 
-    /// Create a [`ColorImage`] from flat un-multiplied gray data.
+    /// Create a [`ColorImage`] from flat opaque gray data.
     ///
     /// Panics if `size[0] * size[1] != gray.len()`.
-    pub fn from_gray_unmultiplied(size: [usize; 2], gray: &[u8]) -> Self {
+    pub fn from_gray(size: [usize; 2], gray: &[u8]) -> Self {
         assert_eq!(size[0] * size[1], gray.len());
         let pixels = gray.iter().map(|p| Color32::from_gray(*p)).collect();
         Self { size, pixels }
