@@ -567,28 +567,28 @@ impl Ui {
 
     /// The available width at the moment, given the current cursor.
     ///
-    /// See [available_size()] for mor information.
+    /// See [`available_size`] for more information.
     pub fn available_width(&self) -> f32 {
         self.available_size().x
     }
 
     /// The available height at the moment, given the current cursor.
     ///
-    /// See [available_size()] for mor information.
+    /// See [`available_size`] for more information.
     pub fn available_height(&self) -> f32 {
         self.available_size().y
     }
 
     /// In case of a wrapping layout, how much space is left on this row/column?
     ///
-    /// If the layout does not wrap, this will return the same value as [available_size()].
+    /// If the layout does not wrap, this will return the same value as [`available_size`].
     pub fn available_size_before_wrap(&self) -> Vec2 {
         self.placer.available_rect_before_wrap().size()
     }
 
     /// In case of a wrapping layout, how much space is left on this row/column?
     ///
-    /// If the layout does not wrap, this will return the same value as [available_size()].
+    /// If the layout does not wrap, this will return the same value as [`available_size`].
     pub fn available_rect_before_wrap(&self) -> Rect {
         self.placer.available_rect_before_wrap()
     }
