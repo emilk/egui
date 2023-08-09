@@ -985,6 +985,9 @@ pub struct WindowInfo {
 
     /// Current monitor size in egui points (logical pixels)
     pub monitor_size: Option<egui::Vec2>,
+
+    /// The raw window handle for the main window
+    pub raw_handle: raw_window_handle::RawWindowHandle,
 }
 
 /// Information about the URL.

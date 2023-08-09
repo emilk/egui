@@ -1,3 +1,4 @@
+use raw_window_handle::HasRawWindowHandle;
 use winit::event_loop::EventLoopWindowTarget;
 
 #[cfg(target_os = "macos")]
@@ -54,6 +55,8 @@ pub fn read_window_info(
         .inner_size()
         .to_logical::<f32>(pixels_per_point.into());
 
+    let window_handle = window.raw_window_handle();
+
     // NOTE: calling window.is_minimized() or window.is_maximized() deadlocks on Mac.
 
     WindowInfo {
@@ -67,6 +70,7 @@ pub fn read_window_info(
             y: size.height,
         },
         monitor_size,
+        raw_handle: window_handle
     }
 }
 
