@@ -3,7 +3,7 @@
 //! | fixed size | all available space/minimum | 30% of available width | fixed size |
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
-use egui::{Align, NumExt as _, Rect, Response, ScrollArea, Ui, Vec2};
+use egui::{Align, Id, NumExt as _, Rect, Response, ScrollArea, Sense, Ui, Vec2};
 
 use crate::{
     layout::{CellDirection, CellSize},
@@ -222,6 +222,12 @@ pub struct TableBuilder<'a> {
     resizable: bool,
     cell_layout: egui::Layout,
     scroll_options: TableScrollOptions,
+    /// What sort of interaction are the cells sensitive to?
+    sense: Sense,
+    /// Can we select a row by clicking on it?
+    selectable: Option<bool>,
+    /// Whether to frame the row that is hovered over.
+    frame: Option<bool>,
 }
 
 impl<'a> TableBuilder<'a> {
@@ -234,6 +240,9 @@ impl<'a> TableBuilder<'a> {
             resizable: false,
             cell_layout,
             scroll_options: Default::default(),
+            sense: Sense::hover(),
+            selectable: None,
+            frame: None,
         }
     }
 
@@ -257,6 +266,33 @@ impl<'a> TableBuilder<'a> {
     /// Default is `false`.
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
+        self
+    }
+
+    /// By default, table cells sense no clicks or drags, only mouse hover.
+    /// This method allows you to change that.
+    ///
+    /// See also [`Self::selectable`].
+    pub fn sense(mut self, sense: Sense) -> Self {
+        self.sense = sense;
+        self
+    }
+
+    /// Specifies whether table row can be selected by clicking on it.
+    ///
+    /// `table_builder.selectable(true)` makes table cells sensitive to mouse clicks,
+    /// so explicit `table_builder.sense(Sense::click())` becomes unnecessary.
+    pub fn selectable(mut self, selectable: bool) -> Self {
+        self.selectable = Some(selectable);
+        if selectable {
+            self.sense = self.sense.union(Sense::click());
+        }
+        self
+    }
+
+    /// Enable/disable row framing on hover.
+    pub fn frame(mut self, frame: bool) -> Self {
+        self.frame = Some(frame);
         self
     }
 
@@ -366,13 +402,16 @@ impl<'a> TableBuilder<'a> {
     pub fn header(self, height: f32, add_header_row: impl FnOnce(TableRow<'_, '_>)) -> Table<'a> {
         let available_width = self.available_width();
 
-        let Self {
+        let TableBuilder {
             ui,
             columns,
             striped,
             resizable,
             cell_layout,
             scroll_options,
+            sense,
+            selectable,
+            frame,
         } = self;
 
         let striped = striped.unwrap_or(ui.visuals().striped);
@@ -399,6 +438,13 @@ impl<'a> TableBuilder<'a> {
                 col_index: 0,
                 striped: false,
                 height,
+                sense,
+                // The header row is not selectable.
+                selected: false,
+                clicked: None,
+                // We don't frame the header row.
+                framed: false,
+                hovered: None,
             });
             layout.allocate_rect();
         });
@@ -416,6 +462,11 @@ impl<'a> TableBuilder<'a> {
             striped,
             cell_layout,
             scroll_options,
+            sense,
+            // TODO(vvv): add a field to `egui::Visuals` and take the default from there
+            selectable: selectable.unwrap_or(false),
+            // TODO(vvv): add a field to `egui::Visuals` and take the default from there
+            frame: frame.unwrap_or(false),
         }
     }
 
@@ -426,13 +477,16 @@ impl<'a> TableBuilder<'a> {
     {
         let available_width = self.available_width();
 
-        let Self {
+        let TableBuilder {
             ui,
             columns,
             striped,
             resizable,
             cell_layout,
             scroll_options,
+            sense,
+            selectable,
+            frame,
         } = self;
 
         let striped = striped.unwrap_or(ui.visuals().striped);
@@ -461,6 +515,11 @@ impl<'a> TableBuilder<'a> {
             striped,
             cell_layout,
             scroll_options,
+            sense,
+            // TODO(vvv): add a field to `egui::Visuals` and take the default from there
+            selectable: selectable.unwrap_or(false),
+            // TODO(vvv): add a field to `egui::Visuals` and take the default from there
+            frame: frame.unwrap_or(false),
         }
         .body(add_body_contents);
     }
@@ -475,7 +534,7 @@ struct TableState {
 
 impl TableState {
     /// Returns `true` if it did load.
-    fn load(ui: &egui::Ui, default_widths: Vec<f32>, state_id: egui::Id) -> (bool, Self) {
+    fn load(ui: &Ui, default_widths: Vec<f32>, state_id: Id) -> (bool, Self) {
         let rect = Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO);
         ui.ctx().check_for_id_clash(state_id, rect, "Table");
 
@@ -494,10 +553,22 @@ impl TableState {
         )
     }
 
-    fn store(self, ui: &egui::Ui, state_id: egui::Id) {
+    fn store(self, ui: &Ui, state_id: Id) {
         ui.data_mut(|d| d.insert_persisted(state_id, self));
     }
 }
+
+/// The index of the row that was selected by clicking.
+///
+/// See also [`TableBuilder::selectable`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct SelectedRow(usize);
+
+/// The index of the row that needs to be framed.
+///
+/// See also [`TableBuilder::frame`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct FramedRow(usize);
 
 // ----------------------------------------------------------------------------
 
@@ -507,7 +578,7 @@ impl TableState {
 pub struct Table<'a> {
     ui: &'a mut Ui,
     table_top: f32,
-    state_id: egui::Id,
+    state_id: Id,
     columns: Vec<Column>,
     available_width: f32,
     state: TableState,
@@ -517,15 +588,20 @@ pub struct Table<'a> {
     resizable: bool,
     striped: bool,
     cell_layout: egui::Layout,
-
     scroll_options: TableScrollOptions,
+    /// What sort of interaction are the cells sensitive to?
+    sense: Sense,
+    /// Can we select a row by clicking on it?
+    selectable: bool,
+    /// Whether to frame the row that is hovered over.
+    frame: bool,
 }
 
 impl<'a> Table<'a> {
-    /// Access the contained [`egui::Ui`].
+    /// Access the contained [`Ui`].
     ///
-    /// You can use this to e.g. modify the [`egui::Style`] with [`egui::Ui::style_mut`].
-    pub fn ui_mut(&mut self) -> &mut egui::Ui {
+    /// You can use this to e.g. modify the [`egui::Style`] with [`Ui::style_mut`].
+    pub fn ui_mut(&mut self) -> &mut Ui {
         self.ui
     }
 
@@ -539,14 +615,17 @@ impl<'a> Table<'a> {
             table_top,
             state_id,
             columns,
-            resizable,
             mut available_width,
             mut state,
             mut max_used_widths,
             first_frame_auto_size_columns,
+            resizable,
             striped,
             cell_layout,
             scroll_options,
+            sense,
+            selectable,
+            frame,
         } = self;
 
         let TableScrollOptions {
@@ -581,6 +660,29 @@ impl<'a> Table<'a> {
 
             // Hide first-frame-jitters when auto-sizing.
             ui.add_visible_ui(!first_frame_auto_size_columns, |ui| {
+                let selected_row = if !selectable {
+                    None
+                } else {
+                    // `SelectedRow` is long-living. Make a copy, but keep the value
+                    // in the storage.
+                    ui.data(|d| d.get_temp::<SelectedRow>(state_id))
+                };
+                let mut clicked_row = None;
+
+                let framed_row = if !frame {
+                    None
+                } else {
+                    ui.data_mut(|d| {
+                        // In contract to `SelectedRow`, `FramedRow` is not kept around
+                        // for long --- it's re-evaluated on every frame. Take the value
+                        // out from the storage.
+                        let val = d.get_temp::<FramedRow>(state_id);
+                        d.remove::<FramedRow>(state_id);
+                        val
+                    })
+                };
+                let mut hovered_row = None;
+
                 let layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout);
 
                 add_body_contents(TableBody {
@@ -594,7 +696,21 @@ impl<'a> Table<'a> {
                     end_y: avail_rect.bottom(),
                     scroll_to_row: scroll_to_row.map(|(r, _)| r),
                     scroll_to_y_range: &mut scroll_to_y_range,
+                    sense,
+                    selected_row,
+                    clicked_row: selectable.then_some(&mut clicked_row),
+                    framed_row,
+                    hovered_row: frame.then_some(&mut hovered_row),
                 });
+
+                if let Some(row_idx) = clicked_row {
+                    // Store the index of the newly selected row for later frames:
+                    ui.data_mut(|d| d.insert_temp(state_id, SelectedRow(row_idx)));
+                }
+                if let Some(row_idx) = hovered_row {
+                    // Store the index of the hovered row for the next frame:
+                    ui.data_mut(|d| d.insert_temp(state_id, FramedRow(row_idx)));
+                }
 
                 if scroll_to_row.is_some() && scroll_to_y_range.is_none() {
                     // TableBody::row didn't find the right row, so scroll to the bottom:
@@ -604,7 +720,7 @@ impl<'a> Table<'a> {
 
             if let Some((min_y, max_y)) = scroll_to_y_range {
                 let x = 0.0; // ignored, we only have vertical scrolling
-                let rect = egui::Rect::from_min_max(egui::pos2(x, min_y), egui::pos2(x, max_y));
+                let rect = Rect::from_min_max(egui::pos2(x, min_y), egui::pos2(x, max_y));
                 let align = scroll_to_row.and_then(|(_, a)| a);
                 ui.scroll_to_rect(rect, align);
             }
@@ -647,15 +763,18 @@ impl<'a> Table<'a> {
 
                 let mut p0 = egui::pos2(x, table_top);
                 let mut p1 = egui::pos2(x, bottom);
-                let line_rect = egui::Rect::from_min_max(p0, p1)
+                // `line_rect` represents the vertical divider between two columns.
+                let line_rect = Rect::from_min_max(p0, p1)
                     .expand(ui.style().interaction.resize_grab_radius_side);
 
+                // Interact with the divider.
                 let resize_response =
-                    ui.interact(line_rect, column_resize_id, egui::Sense::click_and_drag());
+                    ui.interact(line_rect, column_resize_id, Sense::click_and_drag());
 
+                // Change `column_width` if the user has double-clicked or dragged the
+                // divider.
                 if resize_response.double_clicked() {
                     // Resize to the minimum of what is needed.
-
                     *column_width = max_used_widths[i].clamp(min_width, max_width);
                 } else if resize_response.dragged() {
                     if let Some(pointer) = ui.ctx().pointer_latest_pos() {
@@ -684,16 +803,18 @@ impl<'a> Table<'a> {
                     ui.input(|i| i.pointer.any_down() || i.pointer.any_pressed());
                 let resize_hover = resize_response.hovered() && !dragging_something_else;
 
+                // Change the cursor icon if the divider has been hovered over or dragged.
                 if resize_hover || resize_response.dragged() {
                     ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeColumn);
                 }
 
+                // Set the stroke accordingly to whether the divider has been hovered over
+                // or dragged.
                 let stroke = if resize_response.dragged() {
                     ui.style().visuals.widgets.active.bg_stroke
                 } else if resize_hover {
                     ui.style().visuals.widgets.hovered.bg_stroke
                 } else {
-                    // ui.visuals().widgets.inactive.bg_stroke
                     ui.visuals().widgets.noninteractive.bg_stroke
                 };
 
@@ -706,6 +827,8 @@ impl<'a> Table<'a> {
         state.store(ui, state_id);
     }
 }
+
+// ----------------------------------------------------------------------------
 
 /// The body of a table.
 ///
@@ -722,7 +845,16 @@ pub struct TableBody<'a> {
     max_used_widths: &'a mut [f32],
 
     striped: bool,
+
+    /// How many rows have been added so far?
+    //
+    // TODO(vvv): Update [`TableBody::rows`] and [`TableBody::heterogeneous_rows`]
+    // to use this field. Currently this field is only used by [`TableBody::row`].
+    // If `row` and `rows` (or `heterogeneous_rows`) are called with the same
+    // [`TableBody`], the striping bug described in
+    // <https://github.com/emilk/egui/issues/3076> may occur.
     row_nr: usize,
+
     start_y: f32,
     end_y: f32,
 
@@ -732,13 +864,28 @@ pub struct TableBody<'a> {
     /// If we find the correct row to scroll to,
     /// this is set to the y-range of the row.
     scroll_to_y_range: &'a mut Option<(f32, f32)>,
+
+    /// What sort of interaction are the cells sensitive to?
+    sense: Sense,
+
+    /// The row to be painted with selection background.
+    selected_row: Option<SelectedRow>,
+    /// The row that was clicked during ihis frame.
+    /// `None` iff the rows are not selectable (see [`TableBuilder::selectable`]).
+    clicked_row: Option<&'a mut Option<usize>>,
+
+    /// The row to add the framing effect to.
+    framed_row: Option<FramedRow>,
+    /// The row that was hovered during this frame.
+    /// `None` iff row framing on hover is disabled (see [`TableBuilder::frame`]).
+    hovered_row: Option<&'a mut Option<usize>>,
 }
 
 impl<'a> TableBody<'a> {
-    /// Access the contained [`egui::Ui`].
+    /// Access the contained [`Ui`].
     ///
-    /// You can use this to e.g. modify the [`egui::Style`] with [`egui::Ui::style_mut`].
-    pub fn ui_mut(&mut self) -> &mut egui::Ui {
+    /// You can use this to e.g. modify the [`egui::Style`] with [`Ui::style_mut`].
+    pub fn ui_mut(&mut self) -> &mut Ui {
         self.layout.ui
     }
 
@@ -762,11 +909,21 @@ impl<'a> TableBody<'a> {
         self.widths
     }
 
+    /// The index of the row selected by clicking.
+    ///
+    /// See also [`TableBuilder::selectable`].
+    pub fn selected_row(&self) -> Option<usize> {
+        self.selected_row.map(|SelectedRow(row)| row)
+    }
+
     /// Add a single row with the given height.
     ///
     /// If you have many thousands of row it can be more performant to instead use [`Self::rows`] or [`Self::heterogeneous_rows`].
     pub fn row(&mut self, height: f32, add_row_content: impl FnOnce(TableRow<'a, '_>)) {
         let top_y = self.layout.cursor.y;
+        let mut clicked = false;
+        let mut hovered = false;
+
         add_row_content(TableRow {
             layout: &mut self.layout,
             columns: self.columns,
@@ -775,9 +932,21 @@ impl<'a> TableBody<'a> {
             col_index: 0,
             striped: self.striped && self.row_nr % 2 == 0,
             height,
+            sense: self.sense,
+            selected: self.selected_row == Some(SelectedRow(self.row_nr)),
+            clicked: self.clicked_row.is_some().then_some(&mut clicked),
+            framed: self.framed_row == Some(FramedRow(self.row_nr)),
+            hovered: self.hovered_row.is_some().then_some(&mut hovered),
         });
-        let bottom_y = self.layout.cursor.y;
 
+        if let (true, Some(target)) = (clicked, self.clicked_row.as_mut()) {
+            **target = Some(self.row_nr);
+        }
+        if let (true, Some(target)) = (hovered, self.hovered_row.as_mut()) {
+            **target = Some(self.row_nr);
+        }
+
+        let bottom_y = self.layout.cursor.y;
         if Some(self.row_nr) == self.scroll_to_row {
             *self.scroll_to_y_range = Some((top_y, bottom_y));
         }
@@ -841,6 +1010,9 @@ impl<'a> TableBody<'a> {
         let max_row = max_row.min(total_rows);
 
         for idx in min_row..max_row {
+            let mut clicked = false;
+            let mut hovered = false;
+
             add_row_content(
                 idx,
                 TableRow {
@@ -851,8 +1023,20 @@ impl<'a> TableBody<'a> {
                     col_index: 0,
                     striped: self.striped && idx % 2 == 0,
                     height: row_height_sans_spacing,
+                    sense: self.sense,
+                    selected: self.selected_row == Some(SelectedRow(idx)),
+                    clicked: self.clicked_row.is_some().then_some(&mut clicked),
+                    framed: self.framed_row == Some(FramedRow(idx)),
+                    hovered: self.hovered_row.is_some().then_some(&mut hovered),
                 },
             );
+
+            if let (true, Some(target)) = (clicked, self.clicked_row.as_mut()) {
+                **target = Some(idx);
+            }
+            if let (true, Some(target)) = (hovered, self.hovered_row.as_mut()) {
+                **target = Some(idx);
+            }
         }
 
         if total_rows - max_row > 0 {
@@ -895,12 +1079,9 @@ impl<'a> TableBody<'a> {
     ) {
         let spacing = self.layout.ui.spacing().item_spacing;
         let mut enumerated_heights = heights.enumerate();
-
         let max_height = self.end_y - self.start_y;
         let scroll_offset_y = self.scroll_offset_y() as f64;
-
         let scroll_to_y_range_offset = self.layout.cursor.y as f64;
-
         let mut cursor_y: f64 = 0.0;
 
         // Skip the invisible rows, and populate the first non-virtual row.
@@ -916,6 +1097,9 @@ impl<'a> TableBody<'a> {
             }
 
             if cursor_y >= scroll_offset_y {
+                let mut clicked = false;
+                let mut hovered = false;
+
                 // This row is visible:
                 self.add_buffer(old_cursor_y as f32); // skip all the invisible rows
 
@@ -929,15 +1113,31 @@ impl<'a> TableBody<'a> {
                         col_index: 0,
                         striped: self.striped && row_index % 2 == 0,
                         height: row_height,
+                        sense: self.sense,
+                        selected: self.selected_row == Some(SelectedRow(row_index)),
+                        clicked: self.clicked_row.is_some().then_some(&mut clicked),
+                        framed: self.framed_row == Some(FramedRow(row_index)),
+                        hovered: self.hovered_row.is_some().then_some(&mut hovered),
                     },
                 );
+
+                if let (true, Some(target)) = (clicked, self.clicked_row.as_mut()) {
+                    **target = Some(row_index);
+                }
+                if let (true, Some(target)) = (hovered, self.hovered_row.as_mut()) {
+                    **target = Some(row_index);
+                }
+
                 break;
             }
         }
 
-        // populate visible rows:
+        // Populate visible rows:
         for (row_index, row_height) in &mut enumerated_heights {
             let top_y = cursor_y;
+            let mut clicked = false;
+            let mut hovered = false;
+
             add_row_content(
                 row_index,
                 TableRow {
@@ -948,8 +1148,21 @@ impl<'a> TableBody<'a> {
                     col_index: 0,
                     striped: self.striped && row_index % 2 == 0,
                     height: row_height,
+                    sense: self.sense,
+                    selected: self.selected_row == Some(SelectedRow(row_index)),
+                    clicked: self.clicked_row.is_some().then_some(&mut clicked),
+                    framed: self.framed_row == Some(FramedRow(row_index)),
+                    hovered: self.hovered_row.is_some().then_some(&mut hovered),
                 },
             );
+
+            if let (true, Some(target)) = (clicked, self.clicked_row.as_mut()) {
+                **target = Some(row_index);
+            }
+            if let (true, Some(target)) = (hovered, self.hovered_row.as_mut()) {
+                **target = Some(row_index);
+            }
+
             cursor_y += (row_height + spacing.y) as f64;
 
             if Some(row_index) == self.scroll_to_row {
@@ -994,8 +1207,8 @@ impl<'a> TableBody<'a> {
         }
     }
 
-    // Create a table row buffer of the given height to represent the non-visible portion of the
-    // table.
+    /// Create a table row buffer of the given height to represent the non-visible portion of the
+    /// table.
     fn add_buffer(&mut self, height: f32) {
         self.layout.skip_space(egui::vec2(0.0, height));
     }
@@ -1007,17 +1220,27 @@ impl<'a> Drop for TableBody<'a> {
     }
 }
 
+// ----------------------------------------------------------------------------
+
 /// The row of a table.
 /// Is created by [`TableRow`] for each created [`TableBody::row`] or each visible row in rows created by calling [`TableBody::rows`].
 pub struct TableRow<'a, 'b> {
     layout: &'b mut StripLayout<'a>,
     columns: &'b [Column],
     widths: &'b [f32],
-    /// grows during building with the maximum widths
+    /// Grows during building with the maximum widths.
     max_used_widths: &'b mut [f32],
     col_index: usize,
     striped: bool,
     height: f32,
+    /// What sort of interaction are the cells of this row sensitive to?
+    sense: Sense,
+    /// Is this row selected?
+    selected: bool,
+    clicked: Option<&'b mut bool>,
+    /// Whether to frame this row.
+    framed: bool,
+    hovered: Option<&'b mut bool>,
 }
 
 impl<'a, 'b> TableRow<'a, 'b> {
@@ -1043,13 +1266,30 @@ impl<'a, 'b> TableRow<'a, 'b> {
 
         let width = CellSize::Absolute(width);
         let height = CellSize::Absolute(self.height);
+        let flags = crate::layout::StripLayoutFlags {
+            clip,
+            striped: self.striped,
+            selected: self.selected,
+            framed: self.framed,
+        };
 
         let (used_rect, response) =
             self.layout
-                .add(clip, self.striped, width, height, add_cell_contents);
+                .add(width, height, flags, self.sense, add_cell_contents);
 
         if let Some(max_w) = self.max_used_widths.get_mut(col_index) {
             *max_w = max_w.max(used_rect.width());
+        }
+
+        if let Some(ref mut clicked) = self.clicked {
+            if response.clicked() {
+                **clicked = true;
+            }
+        }
+        if let Some(ref mut hovered) = self.hovered {
+            if response.hovered() {
+                **hovered = true;
+            }
         }
 
         (used_rect, response)

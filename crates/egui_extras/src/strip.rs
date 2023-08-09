@@ -167,9 +167,12 @@ impl<'a, 'b> Strip<'a, 'b> {
     #[cfg_attr(debug_assertions, track_caller)]
     pub fn cell(&mut self, add_contents: impl FnOnce(&mut Ui)) {
         let (width, height) = self.next_cell_size();
-        let striped = false;
+        let flags = crate::layout::StripLayoutFlags {
+            clip: self.clip,
+            ..Default::default()
+        };
         self.layout
-            .add(self.clip, striped, width, height, add_contents);
+            .add(width, height, flags, egui::Sense::hover(), add_contents);
     }
 
     /// Add an empty cell.
