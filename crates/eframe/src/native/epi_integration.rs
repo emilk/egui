@@ -562,24 +562,26 @@ impl EpiIntegration {
     pub fn maybe_autosave(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
         let now = std::time::Instant::now();
         if now - self.last_auto_save > app.auto_save_interval() {
-            self.save(app, window);
+            self.save(app, Some(window));
             self.last_auto_save = now;
         }
     }
 
     #[allow(clippy::unused_self)]
-    pub fn save(&mut self, _app: &mut dyn epi::App, _window: &winit::window::Window) {
+    pub fn save(&mut self, _app: &mut dyn epi::App, _window: Option<&winit::window::Window>) {
         #[cfg(feature = "persistence")]
         if let Some(storage) = self.frame.storage_mut() {
             crate::profile_function!();
 
-            if _app.persist_native_window() {
-                crate::profile_scope!("native_window");
-                epi::set_value(
-                    storage,
-                    STORAGE_WINDOW_KEY,
-                    &WindowSettings::from_display(_window),
-                );
+            if let Some(window) = _window {
+                if _app.persist_native_window() {
+                    crate::profile_scope!("native_window");
+                    epi::set_value(
+                        storage,
+                        STORAGE_WINDOW_KEY,
+                        &WindowSettings::from_display(window),
+                    );
+                }
             }
             if _app.persist_egui_memory() {
                 crate::profile_scope!("egui_memory");
