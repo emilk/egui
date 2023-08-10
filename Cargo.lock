@@ -3107,9 +3107,9 @@ name = "save_plot"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "env_logger",
  "image",
  "rfd",
- "tracing-subscriber",
 ]
 
 [[package]]
