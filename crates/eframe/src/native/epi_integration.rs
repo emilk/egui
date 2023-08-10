@@ -121,9 +121,12 @@ pub fn window_builder<E>(
     }
 
     #[cfg(all(feature = "wayland", target_os = "linux"))]
-    if let Some(app_id) = &native_options.app_id {
+    {
         use winit::platform::wayland::WindowBuilderExtWayland as _;
-        window_builder = window_builder.with_name(app_id, "");
+        match &native_options.app_id {
+            Some(app_id) => window_builder = window_builder.with_name(app_id, ""),
+            None => window_builder = window_builder.with_name(title, ""),
+        }
     }
 
     if let Some(min_size) = *min_window_size {
