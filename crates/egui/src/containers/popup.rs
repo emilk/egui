@@ -257,20 +257,25 @@ fn show_tooltip_area_dyn<'c, R>(
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> InnerResponse<R> {
     use containers::*;
-    Area::new(area_id)
-        .order(Order::Tooltip)
-        .fixed_pos(window_pos)
-        .constrain(true)
-        .interactable(false)
-        .drag_bounds(ctx.screen_rect())
-        .show(ctx, |ui| {
-            Frame::popup(&ctx.style())
-                .show(ui, |ui| {
-                    ui.set_max_width(ui.spacing().tooltip_width);
-                    add_contents(ui)
+    ctx.create_viewport_sync(
+        ViewportBuilder::default().with_title(format!("Popup Window: {area_id:?}")),
+        |ctx| {
+            Area::new(area_id)
+                .order(Order::Tooltip)
+                .fixed_pos(window_pos)
+                .constrain(true)
+                .interactable(false)
+                .drag_bounds(ctx.screen_rect())
+                .show(ctx, |ui| {
+                    Frame::popup(&ctx.style())
+                        .show(ui, |ui| {
+                            ui.set_max_width(ui.spacing().tooltip_width);
+                            add_contents(ui)
+                        })
+                        .inner
                 })
-                .inner
-        })
+        },
+    )
 }
 
 /// Was this popup visible last frame?
@@ -280,8 +285,15 @@ pub fn was_tooltip_open_last_frame(ctx: &Context, tooltip_id: Id) -> bool {
             for (count, (individual_id, _size)) in &state.individual_ids_and_sizes {
                 if *individual_id == tooltip_id {
                     let area_id = common_id.with(count);
-                    let layer_id = LayerId::new(Order::Tooltip, area_id);
-                    if ctx.memory(|mem| mem.areas.visible_last_frame(&layer_id)) {
+
+                    let res = ctx.create_viewport_sync(
+                        ViewportBuilder::default().with_title(format!("Popup Window: {area_id:?}")),
+                        |ctx| {
+                            let layer_id = LayerId::new(Order::Tooltip, area_id);
+                            ctx.memory(|mem| mem.areas.visible_last_frame(&layer_id))
+                        },
+                    );
+                    if res {
                         return true;
                     }
                 }
