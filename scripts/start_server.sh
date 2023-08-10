@@ -14,5 +14,5 @@ cargo install basic-http-server
 echo "starting server…"
 echo "serving at http://localhost:${PORT}"
 
-(cd docs && basic-http-server --addr 127.0.0.1:${PORT} .)
-# (cd docs && python3 -m http.server ${PORT} --bind 127.0.0.1)
+(cd docs && basic-http-server --addr 0.0.0.0:${PORT} .)
+# (cd docs && python3 -m http.server ${PORT} --bind 0.0.0.0)

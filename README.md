@@ -45,7 +45,7 @@ ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
 if ui.button("Click each year").clicked() {
     age += 1;
 }
-ui.label(format!("Hello '{}', age {}", name, age));
+ui.label(format!("Hello '{name}', age {age}"));
 ```
 
 <img src="media/demo.gif">
@@ -70,7 +70,7 @@ The native backend is [`egui_glow`](https://github.com/emilk/egui/tree/master/cr
 
 On Fedora Rawhide you need to run:
 
-`dnf install clang clang-devel clang-tools-extra libxkbcommon-devel pkg-config openssl-devel libxcb-devel`
+`dnf install clang clang-devel clang-tools-extra libxkbcommon-devel pkg-config openssl-devel libxcb-devel gtk3-devel atk fontconfig-devel`
 
 **NOTE**: This is just for the demo app - egui itself is completely platform agnostic!
 
@@ -286,7 +286,7 @@ You can also call the layout code twice (once to get the size, once to do the in
 For "atomic" widgets (e.g. a button) `egui` knows the size before showing it, so centering buttons, labels etc is possible in `egui` without any special workarounds.
 
 #### CPU usage
-Since an immediate mode GUI does a full layout each frame, the layout code needs to be quick. If you have a very complex GUI this can tax the CPU. In particular, having a very large UI in a scroll area (with very long scrollback) can be slow, as the content needs to be layed out each frame.
+Since an immediate mode GUI does a full layout each frame, the layout code needs to be quick. If you have a very complex GUI this can tax the CPU. In particular, having a very large UI in a scroll area (with very long scrollback) can be slow, as the content needs to be laid out each frame.
 
 If you design the GUI with this in mind and refrain from huge scroll areas (or only lay out the part that is in view) then the performance hit is generally pretty small. For most cases you can expect `egui` to take up 1-2 ms per frame, but `egui` still has a lot of room for optimization (it's not something I've focused on yet). You can also set up `egui` to only repaint when there is interaction (e.g. mouse movement).
 
@@ -344,8 +344,7 @@ There are multiple ways to combine egui with 3D. The simplest way is to use a 3D
 If you want to embed 3D into an egui view there are two options.
 
 #### `Shape::Callback`
-Examples:
-* <https://github.com/emilk/egui/blob/master/examples/custom_3d_three-d.rs>
+Example:
 * <https://github.com/emilk/egui/blob/master/examples/custom_3d_glow.rs>
 
 `Shape::Callback` will call your code when egui gets painted, to show anything using whatever the background rendering context is. When using [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe) this will be [`glow`](https://github.com/grovesNL/glow). Other integrations will give you other rendering contexts, if they support `Shape::Callback` at all.

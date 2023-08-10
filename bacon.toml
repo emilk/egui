@@ -6,23 +6,50 @@ default_job = "cranky"
 [jobs]
 
 [jobs.cranky]
-command = ["cargo", "cranky", "--all-targets", "--all-features", "--color", "always"]
+command = [
+    "cargo",
+    "cranky",
+    "--all-targets",
+    "--all-features",
+    "--color=always",
+]
+need_stdout = false
+watch = ["tests", "benches", "examples"]
+
+[jobs.wasm]
+command = [
+    "cargo",
+    "cranky",
+    "-p=egui_demo_app",
+    "--lib",
+    "--target=wasm32-unknown-unknown",
+    "--target-dir=target_wasm",
+    "--all-features",
+    "--color=always",
+]
 need_stdout = false
 watch = ["tests", "benches", "examples"]
 
 [jobs.test]
-command = ["cargo", "test", "--color", "always"]
+command = ["cargo", "test", "--color=always"]
 need_stdout = true
 watch = ["tests"]
 
 [jobs.doc]
-command = ["cargo", "doc", "--color", "always", "--all-features", "--no-deps"]
+command = ["cargo", "doc", "--color=always", "--all-features", "--no-deps"]
 need_stdout = false
 
 # if the doc compiles, then it opens in your browser and bacon switches
 # to the previous job
 [jobs.doc-open]
-command = ["cargo", "doc", "--color", "always", "--all-features", "--no-deps", "--open"]
+command = [
+    "cargo",
+    "doc",
+    "--color=always",
+    "--all-features",
+    "--no-deps",
+    "--open",
+]
 need_stdout = false
 on_success = "back" # so that we don't open the browser at each change
 
@@ -31,7 +58,7 @@ on_success = "back" # so that we don't open the browser at each change
 # way. Don't forget the `--color always` part or the errors won't be
 # properly parsed.
 [jobs.run]
-command = ["cargo", "run", "--color", "always"]
+command = ["cargo", "run", "--color=always"]
 need_stdout = true
 
 # You may define here keybindings that would be specific to
@@ -41,6 +68,7 @@ need_stdout = true
 [keybindings]
 i = "job:initial"
 c = "job:cranky"
+w = "job:wasm"
 d = "job:doc-open"
 t = "job:test"
 r = "job:run"

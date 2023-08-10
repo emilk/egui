@@ -12,4 +12,4 @@ publish = false
 eframe = { path = "../../crates/eframe", features = [
     "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
 ] }
-tracing-subscriber = "0.3"
+env_logger = "0.10"

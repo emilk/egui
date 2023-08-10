@@ -8,6 +8,21 @@ use crate::{
 };
 use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
 
+/// Information given to the backend about when it is time to repaint the ui.
+///
+/// This is given in the callback set by [`Context::set_request_repaint_callback`].
+#[derive(Clone, Copy, Debug)]
+pub struct RequestRepaintInfo {
+    /// Repaint after this duration. If zero, repaint as soon as possible.
+    pub after: std::time::Duration,
+
+    /// The current frame number.
+    ///
+    /// This can be compared to [`Context::frame_nr`] to see if we've already
+    /// triggered the painting of the next frame.
+    pub current_frame_nr: u64,
+}
+
 // ----------------------------------------------------------------------------
 
 struct WrappedTextureManager(Arc<RwLock<epaint::TextureManager>>);
@@ -29,6 +44,94 @@ impl Default for WrappedTextureManager {
 }
 
 // ----------------------------------------------------------------------------
+
+/// Logic related to repainting the ui.
+struct Repaint {
+    /// The current frame number.
+    ///
+    /// Incremented at the end of each frame.
+    frame_nr: u64,
+
+    /// The duration backend will poll for new events, before forcing another egui update
+    /// even if there's no new events.
+    ///
+    /// Also used to suppress multiple calls to the repaint callback during the same frame.
+    repaint_after: std::time::Duration,
+
+    /// While positive, keep requesting repaints. Decrement at the end of each frame.
+    repaint_requests: u32,
+    request_repaint_callback: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
+
+    requested_repaint_last_frame: bool,
+}
+
+impl Default for Repaint {
+    fn default() -> Self {
+        Self {
+            frame_nr: 0,
+            repaint_after: std::time::Duration::from_millis(100),
+            // Start with painting an extra frame to compensate for some widgets
+            // that take two frames before they "settle":
+            repaint_requests: 1,
+            request_repaint_callback: None,
+            requested_repaint_last_frame: false,
+        }
+    }
+}
+
+impl Repaint {
+    fn request_repaint(&mut self) {
+        self.request_repaint_after(std::time::Duration::ZERO);
+    }
+
+    fn request_repaint_after(&mut self, after: std::time::Duration) {
+        if after == std::time::Duration::ZERO {
+            // Do a few extra frames to let things settle.
+            // This is a bit of a hack, and we don't support it for `repaint_after` callbacks yet.
+            self.repaint_requests = 2;
+        }
+
+        // We only re-call the callback if we get a lower duration,
+        // otherwise it's already been covered by the previous callback.
+        if after < self.repaint_after {
+            self.repaint_after = after;
+
+            if let Some(callback) = &self.request_repaint_callback {
+                let info = RequestRepaintInfo {
+                    after,
+                    current_frame_nr: self.frame_nr,
+                };
+                (callback)(info);
+            }
+        }
+    }
+
+    fn start_frame(&mut self) {
+        // We are repainting; no need to reschedule a repaint unless the user asks for it again.
+        self.repaint_after = std::time::Duration::MAX;
+    }
+
+    // returns how long to wait until repaint
+    fn end_frame(&mut self) -> std::time::Duration {
+        // if repaint_requests is greater than zero. just set the duration to zero for immediate
+        // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
+        let repaint_after = if self.repaint_requests > 0 {
+            self.repaint_requests -= 1;
+            std::time::Duration::ZERO
+        } else {
+            self.repaint_after
+        };
+        self.repaint_after = std::time::Duration::MAX;
+
+        self.requested_repaint_last_frame = repaint_after.is_zero();
+        self.frame_nr += 1;
+
+        repaint_after
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 #[derive(Default)]
 struct ContextImpl {
     /// `None` until the start of the first frame.
@@ -50,18 +153,7 @@ struct ContextImpl {
 
     paint_stats: PaintStats,
 
-    /// the duration backend will poll for new events, before forcing another egui update
-    /// even if there's no new events.
-    repaint_after: std::time::Duration,
-
-    /// While positive, keep requesting repaints. Decrement at the end of each frame.
-    repaint_requests: u32,
-    request_repaint_callback: Option<Box<dyn Fn() + Send + Sync>>,
-
-    /// used to suppress multiple calls to [`Self::request_repaint_callback`] during the same frame.
-    has_requested_repaint_this_frame: bool,
-
-    requested_repaint_last_frame: bool,
+    repaint: Repaint,
 
     /// Written to during the frame.
     layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
@@ -77,7 +169,7 @@ struct ContextImpl {
 
 impl ContextImpl {
     fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
-        self.has_requested_repaint_this_frame = false; // allow new calls during the frame
+        self.repaint.start_frame();
 
         if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
             new_raw_input.pixels_per_point = Some(new_pixels_per_point);
@@ -95,7 +187,7 @@ impl ContextImpl {
         self.memory.begin_frame(&self.input, &new_raw_input);
 
         self.input = std::mem::take(&mut self.input)
-            .begin_frame(new_raw_input, self.requested_repaint_last_frame);
+            .begin_frame(new_raw_input, self.repaint.requested_repaint_last_frame);
 
         self.frame_state.begin_frame(&self.input);
 
@@ -203,7 +295,7 @@ impl ContextImpl {
 ///
 /// ``` no_run
 /// # fn handle_platform_output(_: egui::PlatformOutput) {}
-/// # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
+/// # fn paint(textures_delta: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
 /// let mut ctx = egui::Context::default();
 ///
 /// // Game loop:
@@ -239,12 +331,7 @@ impl std::cmp::PartialEq for Context {
 
 impl Default for Context {
     fn default() -> Self {
-        Self(Arc::new(RwLock::new(ContextImpl {
-            // Start with painting an extra frame to compensate for some widgets
-            // that take two frames before they "settle":
-            repaint_requests: 1,
-            ..ContextImpl::default()
-        })))
+        Self(Arc::new(RwLock::new(ContextImpl::default())))
     }
 }
 
@@ -463,67 +550,72 @@ impl Context {
     /// because that's where the warning will be painted. If you don't know what size to pick, just pick [`Vec2::ZERO`].
     pub fn check_for_id_clash(&self, id: Id, new_rect: Rect, what: &str) {
         let prev_rect = self.frame_state_mut(move |state| state.used_ids.insert(id, new_rect));
-        if let Some(prev_rect) = prev_rect {
-            // it is ok to reuse the same ID for e.g. a frame around a widget,
-            // or to check for interaction with the same widget twice:
-            if prev_rect.expand(0.1).contains_rect(new_rect)
-                || new_rect.expand(0.1).contains_rect(prev_rect)
-            {
-                return;
-            }
 
-            let show_error = |widget_rect: Rect, text: String| {
-                let text = format!("🔥 {}", text);
-                let color = self.style().visuals.error_fg_color;
-                let painter = self.debug_painter();
-                painter.rect_stroke(widget_rect, 0.0, (1.0, color));
+        if !self.options(|opt| opt.warn_on_id_clash) {
+            return;
+        }
 
-                let below = widget_rect.bottom() + 32.0 < self.input(|i| i.screen_rect.bottom());
+        let Some(prev_rect) = prev_rect else { return };
 
-                let text_rect = if below {
-                    painter.debug_text(
-                        widget_rect.left_bottom() + vec2(0.0, 2.0),
-                        Align2::LEFT_TOP,
-                        color,
-                        text,
-                    )
-                } else {
-                    painter.debug_text(
-                        widget_rect.left_top() - vec2(0.0, 2.0),
-                        Align2::LEFT_BOTTOM,
-                        color,
-                        text,
-                    )
-                };
+        // it is ok to reuse the same ID for e.g. a frame around a widget,
+        // or to check for interaction with the same widget twice:
+        if prev_rect.expand(0.1).contains_rect(new_rect)
+            || new_rect.expand(0.1).contains_rect(prev_rect)
+        {
+            return;
+        }
 
-                if let Some(pointer_pos) = self.pointer_hover_pos() {
-                    if text_rect.contains(pointer_pos) {
-                        let tooltip_pos = if below {
-                            text_rect.left_bottom() + vec2(2.0, 4.0)
-                        } else {
-                            text_rect.left_top() + vec2(2.0, -4.0)
-                        };
+        let show_error = |widget_rect: Rect, text: String| {
+            let text = format!("🔥 {}", text);
+            let color = self.style().visuals.error_fg_color;
+            let painter = self.debug_painter();
+            painter.rect_stroke(widget_rect, 0.0, (1.0, color));
 
-                        painter.error(
-                            tooltip_pos,
-                            format!("Widget is {} this text.\n\n\
+            let below = widget_rect.bottom() + 32.0 < self.input(|i| i.screen_rect.bottom());
+
+            let text_rect = if below {
+                painter.debug_text(
+                    widget_rect.left_bottom() + vec2(0.0, 2.0),
+                    Align2::LEFT_TOP,
+                    color,
+                    text,
+                )
+            } else {
+                painter.debug_text(
+                    widget_rect.left_top() - vec2(0.0, 2.0),
+                    Align2::LEFT_BOTTOM,
+                    color,
+                    text,
+                )
+            };
+
+            if let Some(pointer_pos) = self.pointer_hover_pos() {
+                if text_rect.contains(pointer_pos) {
+                    let tooltip_pos = if below {
+                        text_rect.left_bottom() + vec2(2.0, 4.0)
+                    } else {
+                        text_rect.left_top() + vec2(2.0, -4.0)
+                    };
+
+                    painter.error(
+                        tooltip_pos,
+                        format!("Widget is {} this text.\n\n\
                              ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
                              or when things like Plot and Grid:s aren't given unique id_source:s.\n\n\
                              Sometimes the solution is to use ui.push_id.",
-                             if below { "above" } else { "below" })
-                        );
-                    }
+                         if below { "above" } else { "below" })
+                    );
                 }
-            };
-
-            let id_str = id.short_debug_format();
-
-            if prev_rect.min.distance(new_rect.min) < 4.0 {
-                show_error(new_rect, format!("Double use of {} ID {}", what, id_str));
-            } else {
-                show_error(prev_rect, format!("First use of {} ID {}", what, id_str));
-                show_error(new_rect, format!("Second use of {} ID {}", what, id_str));
             }
+        };
+
+        let id_str = id.short_debug_format();
+
+        if prev_rect.min.distance(new_rect.min) < 4.0 {
+            show_error(new_rect, format!("Double use of {} ID {}", what, id_str));
+        } else {
+            show_error(prev_rect, format!("First use of {} ID {}", what, id_str));
+            show_error(new_rect, format!("Second use of {} ID {}", what, id_str));
         }
     }
 
@@ -845,6 +937,15 @@ impl Context {
         }
     }
 
+    /// The current frame number.
+    ///
+    /// Starts at zero, and is incremented at the end of [`Self::run`] or by [`Self::end_frame`].
+    ///
+    /// Between calls to [`Self::run`], this is the frame number of the coming frame.
+    pub fn frame_nr(&self) -> u64 {
+        self.read(|ctx| ctx.repaint.frame_nr)
+    }
+
     /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
     ///
     /// If this is called at least once in a frame, then there will be another frame right after this.
@@ -855,19 +956,13 @@ impl Context {
     /// (this will work on `eframe`).
     pub fn request_repaint(&self) {
         // request two frames of repaint, just to cover some corner cases (frame delays):
-        self.write(|ctx| {
-            ctx.repaint_requests = 2;
-            if let Some(callback) = &ctx.request_repaint_callback {
-                if !ctx.has_requested_repaint_this_frame {
-                    (callback)();
-                    ctx.has_requested_repaint_this_frame = true;
-                }
-            }
-        });
+        self.write(|ctx| ctx.repaint.request_repaint());
     }
 
-    /// Request repaint after the specified duration elapses in the case of no new input
-    /// events being received.
+    /// Request repaint after at most the specified duration elapses.
+    ///
+    /// The backend can chose to repaint sooner, for instance if some other code called
+    /// this method with a lower duration, or if new events arrived.
     ///
     /// The function can be multiple times, but only the *smallest* duration will be considered.
     /// So, if the function is called two times with `1 second` and `2 seconds`, egui will repaint
@@ -890,12 +985,12 @@ impl Context {
     /// Duration begins at the next frame. lets say for example that its a very inefficient app
     /// and takes 500 milliseconds per frame at 2 fps. The widget / user might want a repaint in
     /// next 500 milliseconds. Now, app takes 1000 ms per frame (1 fps) because the backend event
-    /// timeout takes 500 milli seconds AFTER the vsync swap buffer.
+    /// timeout takes 500 milliseconds AFTER the vsync swap buffer.
     /// So, its not that we are requesting repaint within X duration. We are rather timing out
     /// during app idle time where we are not receiving any new input events.
     pub fn request_repaint_after(&self, duration: std::time::Duration) {
         // Maybe we can check if duration is ZERO, and call self.request_repaint()?
-        self.write(|ctx| ctx.repaint_after = ctx.repaint_after.min(duration));
+        self.write(|ctx| ctx.repaint.request_repaint_after(duration));
     }
 
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
@@ -903,9 +998,12 @@ impl Context {
     /// This lets you wake up a sleeping UI thread.
     ///
     /// Note that only one callback can be set. Any new call overrides the previous callback.
-    pub fn set_request_repaint_callback(&self, callback: impl Fn() + Send + Sync + 'static) {
+    pub fn set_request_repaint_callback(
+        &self,
+        callback: impl Fn(RequestRepaintInfo) + Send + Sync + 'static,
+    ) {
         let callback = Box::new(callback);
-        self.write(|ctx| ctx.request_repaint_callback = Some(callback));
+        self.write(|ctx| ctx.repaint.request_repaint_callback = Some(callback));
     }
 
     /// Tell `egui` which fonts to use.
@@ -1134,7 +1232,7 @@ impl Context {
         {
             let state = self.frame_state_mut(|fs| fs.accesskit_state.take());
             if let Some(state) = state {
-                let has_focus = self.input(|i| i.raw.has_focus);
+                let has_focus = self.input(|i| i.raw.focused);
                 let root_id = crate::accesskit_root_id().accesskit_id();
                 let nodes = self.write(|ctx| {
                     state
@@ -1159,28 +1257,7 @@ impl Context {
             }
         }
 
-        // if repaint_requests is greater than zero. just set the duration to zero for immediate
-        // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
-        let repaint_after = self.write(|ctx| {
-            if ctx.repaint_requests > 0 {
-                ctx.repaint_requests -= 1;
-                std::time::Duration::ZERO
-            } else {
-                ctx.repaint_after
-            }
-        });
-
-        self.write(|ctx| {
-            ctx.requested_repaint_last_frame = repaint_after.is_zero();
-
-            ctx.has_requested_repaint_this_frame = false; // allow new calls between frames
-
-            // make sure we reset the repaint_after duration.
-            // otherwise, if repaint_after is low, then any widget setting repaint_after next frame,
-            // will fail to overwrite the previous lower value. and thus, repaints will never
-            // go back to higher values.
-            ctx.repaint_after = std::time::Duration::MAX;
-        });
+        let repaint_after = self.write(|ctx| ctx.repaint.end_frame());
         let shapes = self.drain_paint_lists();
 
         FullOutput {

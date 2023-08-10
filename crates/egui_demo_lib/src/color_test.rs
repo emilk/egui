@@ -40,7 +40,7 @@ impl ColorTest {
         ui.horizontal_wrapped(|ui|{
             ui.label("This is made to test that the egui painter backend is set up correctly.");
             ui.add(egui::Label::new("❓").sense(egui::Sense::click()))
-                .on_hover_text("The texture sampling should be sRGB-aware, and everyt other color operation should be done in gamma-space (sRGB). All colors should use pre-multiplied alpha");
+                .on_hover_text("The texture sampling should be sRGB-aware, and every other color operation should be done in gamma-space (sRGB). All colors should use pre-multiplied alpha");
         });
         ui.label("If the rendering is done right, all groups of gradients will look uniform.");
 

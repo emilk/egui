@@ -1,8 +1,14 @@
 # epaint changelog
 All notable changes to the epaint crate will be documented in this file.
 
+This file is updated upon each release.
+Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
-## Unreleased
+
+
+## 0.22.0 - 2023-05-23
+* Fix compiling `epaint` without `bytemuck` dependency [#2913](https://github.com/emilk/egui/pull/2913) (thanks [@lunixbochs](https://github.com/lunixbochs)!)
+* Fix documentation for `TextureId::Managed(0)` [#2998](https://github.com/emilk/egui/pull/2998) (thanks [@andersk](https://github.com/andersk)!)
 
 
 ## 0.21.0 - 2023-02-08

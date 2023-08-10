@@ -20,26 +20,26 @@ struct Demos {
 impl Default for Demos {
     fn default() -> Self {
         Self::from_demos(vec![
-            Box::new(super::paint_bezier::PaintBezier::default()),
-            Box::new(super::code_editor::CodeEditor::default()),
-            Box::new(super::code_example::CodeExample::default()),
-            Box::new(super::context_menu::ContextMenus::default()),
-            Box::new(super::dancing_strings::DancingStrings::default()),
-            Box::new(super::drag_and_drop::DragAndDropDemo::default()),
-            Box::new(super::font_book::FontBook::default()),
-            Box::new(super::MiscDemoWindow::default()),
-            Box::new(super::multi_touch::MultiTouch::default()),
-            Box::new(super::painting::Painting::default()),
-            Box::new(super::plot_demo::PlotDemo::default()),
-            Box::new(super::scrolling::Scrolling::default()),
-            Box::new(super::sliders::Sliders::default()),
-            Box::new(super::strip_demo::StripDemo::default()),
-            Box::new(super::table_demo::TableDemo::default()),
-            Box::new(super::text_edit::TextEdit::default()),
-            Box::new(super::widget_gallery::WidgetGallery::default()),
-            Box::new(super::window_options::WindowOptions::default()),
-            Box::new(super::tests::WindowResizeTest::default()),
-            Box::new(super::window_with_panels::WindowWithPanels::default()),
+            Box::<super::paint_bezier::PaintBezier>::default(),
+            Box::<super::code_editor::CodeEditor>::default(),
+            Box::<super::code_example::CodeExample>::default(),
+            Box::<super::context_menu::ContextMenus>::default(),
+            Box::<super::dancing_strings::DancingStrings>::default(),
+            Box::<super::drag_and_drop::DragAndDropDemo>::default(),
+            Box::<super::font_book::FontBook>::default(),
+            Box::<super::MiscDemoWindow>::default(),
+            Box::<super::multi_touch::MultiTouch>::default(),
+            Box::<super::painting::Painting>::default(),
+            Box::<super::plot_demo::PlotDemo>::default(),
+            Box::<super::scrolling::Scrolling>::default(),
+            Box::<super::sliders::Sliders>::default(),
+            Box::<super::strip_demo::StripDemo>::default(),
+            Box::<super::table_demo::TableDemo>::default(),
+            Box::<super::text_edit::TextEdit>::default(),
+            Box::<super::widget_gallery::WidgetGallery>::default(),
+            Box::<super::window_options::WindowOptions>::default(),
+            Box::<super::tests::WindowResizeTest>::default(),
+            Box::<super::window_with_panels::WindowWithPanels>::default(),
         ])
     }
 }
@@ -89,13 +89,13 @@ struct Tests {
 impl Default for Tests {
     fn default() -> Self {
         Self::from_demos(vec![
-            Box::new(super::tests::CursorTest::default()),
-            Box::new(super::highlighting::Highlighting::default()),
-            Box::new(super::tests::IdTest::default()),
-            Box::new(super::tests::InputTest::default()),
-            Box::new(super::layout_test::LayoutTest::default()),
-            Box::new(super::tests::ManualLayoutTest::default()),
-            Box::new(super::tests::TableTest::default()),
+            Box::<super::tests::CursorTest>::default(),
+            Box::<super::highlighting::Highlighting>::default(),
+            Box::<super::tests::IdTest>::default(),
+            Box::<super::tests::InputTest>::default(),
+            Box::<super::layout_test::LayoutTest>::default(),
+            Box::<super::tests::ManualLayoutTest>::default(),
+            Box::<super::tests::TableTest>::default(),
         ])
     }
 }

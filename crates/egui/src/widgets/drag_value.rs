@@ -63,6 +63,7 @@ pub struct DragValue<'a> {
     max_decimals: Option<usize>,
     custom_formatter: Option<NumFormatter<'a>>,
     custom_parser: Option<NumParser<'a>>,
+    update_while_editing: bool,
 }
 
 impl<'a> DragValue<'a> {
@@ -94,6 +95,7 @@ impl<'a> DragValue<'a> {
             max_decimals: None,
             custom_formatter: None,
             custom_parser: None,
+            update_while_editing: true,
         }
     }
 
@@ -352,6 +354,15 @@ impl<'a> DragValue<'a> {
         }
         .custom_parser(|s| i64::from_str_radix(s, 16).map(|n| n as f64).ok())
     }
+
+    /// Update the value on each key press when text-editing the value.
+    ///
+    /// Default: `true`.
+    /// If `false`, the value will only be updated when user presses enter or deselects the value.
+    pub fn update_while_editing(mut self, update: bool) -> Self {
+        self.update_while_editing = update;
+        self
+    }
 }
 
 impl<'a> Widget for DragValue<'a> {
@@ -366,6 +377,7 @@ impl<'a> Widget for DragValue<'a> {
             max_decimals,
             custom_formatter,
             custom_parser,
+            update_while_editing,
         } = self;
 
         let shift = ui.input(|i| i.modifiers.shift_only());
@@ -475,9 +487,15 @@ impl<'a> Widget for DragValue<'a> {
                     .desired_width(ui.spacing().interact_size.x)
                     .font(text_style),
             );
-            // Only update the value when the user presses enter, or clicks elsewhere. NOT every frame.
-            // See https://github.com/emilk/egui/issues/2687
-            if response.lost_focus() {
+
+            let update = if update_while_editing {
+                // Update when the edit content has changed.
+                response.changed()
+            } else {
+                // Update only when the edit has lost focus.
+                response.lost_focus()
+            };
+            if update {
                 let parsed_value = match custom_parser {
                     Some(parser) => parser(&value_text),
                     None => value_text.parse().ok(),

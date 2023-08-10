@@ -7,6 +7,7 @@
 use eframe::egui;
 
 fn main() -> Result<(), eframe::Error> {
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(1000.0, 700.0)),
         ..Default::default()
@@ -14,7 +15,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "svg example",
         options,
-        Box::new(|_cc| Box::new(MyApp::default())),
+        Box::new(|_cc| Box::<MyApp>::default()),
     )
 }
 

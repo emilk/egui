@@ -2,7 +2,7 @@
 
 use std::num::NonZeroU64;
 use std::ops::Range;
-use std::{borrow::Cow, collections::HashMap, num::NonZeroU32};
+use std::{borrow::Cow, collections::HashMap};
 
 use type_map::concurrent::TypeMap;
 use wgpu;
@@ -133,9 +133,15 @@ struct UniformBuffer {
     _padding: [u32; 2],
 }
 
+impl PartialEq for UniformBuffer {
+    fn eq(&self, other: &Self) -> bool {
+        self.screen_size_in_points == other.screen_size_in_points
+    }
+}
+
 struct SlicedBuffer {
     buffer: wgpu::Buffer,
-    slices: Vec<Range<wgpu::BufferAddress>>,
+    slices: Vec<Range<usize>>,
     capacity: wgpu::BufferAddress,
 }
 
@@ -147,6 +153,7 @@ pub struct Renderer {
     vertex_buffer: SlicedBuffer,
 
     uniform_buffer: wgpu::Buffer,
+    previous_uniform_buffer_content: UniformBuffer,
     uniform_bind_group: wgpu::BindGroup,
     texture_bind_group_layout: wgpu::BindGroupLayout,
 
@@ -288,8 +295,8 @@ impl Renderer {
 
             fragment: Some(wgpu::FragmentState {
                 module: &module,
-                entry_point: if output_color_format.describe().srgb {
-                    tracing::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_color_format);
+                entry_point: if output_color_format.is_srgb() {
+                    log::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_color_format);
                     "fs_main_linear_framebuffer"
                 } else {
                     "fs_main_gamma_framebuffer" // this is what we prefer
@@ -332,6 +339,11 @@ impl Renderer {
                 capacity: INDEX_BUFFER_START_CAPACITY,
             },
             uniform_buffer,
+            // Buffers on wgpu are zero initialized, so this is indeed its current state!
+            previous_uniform_buffer_content: UniformBuffer {
+                screen_size_in_points: [0.0, 0.0],
+                _padding: [0, 0],
+            },
             uniform_bind_group,
             texture_bind_group_layout,
             textures: HashMap::new(),
@@ -403,16 +415,20 @@ impl Renderer {
                     if let Some((_texture, bind_group)) = self.textures.get(&mesh.texture_id) {
                         render_pass.set_bind_group(1, bind_group, &[]);
                         render_pass.set_index_buffer(
-                            self.index_buffer.buffer.slice(index_buffer_slice.clone()),
+                            self.index_buffer.buffer.slice(
+                                index_buffer_slice.start as u64..index_buffer_slice.end as u64,
+                            ),
                             wgpu::IndexFormat::Uint32,
                         );
                         render_pass.set_vertex_buffer(
                             0,
-                            self.vertex_buffer.buffer.slice(vertex_buffer_slice.clone()),
+                            self.vertex_buffer.buffer.slice(
+                                vertex_buffer_slice.start as u64..vertex_buffer_slice.end as u64,
+                            ),
                         );
                         render_pass.draw_indexed(0..mesh.indices.len() as u32, 0, 0..1);
                     } else {
-                        tracing::warn!("Missing texture: {:?}", mesh.texture_id);
+                        log::warn!("Missing texture: {:?}", mesh.texture_id);
                     }
                 }
                 Primitive::Callback(callback) => {
@@ -519,8 +535,8 @@ impl Renderer {
                 data_bytes,
                 wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: NonZeroU32::new(4 * width),
-                    rows_per_image: NonZeroU32::new(height),
+                    bytes_per_row: Some(4 * width),
+                    rows_per_image: Some(height),
                 },
                 size,
             );
@@ -748,17 +764,18 @@ impl Renderer {
 
         let screen_size_in_points = screen_descriptor.screen_size_in_points();
 
-        {
-            crate::profile_scope!("uniforms");
-            // Update uniform buffer
+        let uniform_buffer_content = UniformBuffer {
+            screen_size_in_points,
+            _padding: Default::default(),
+        };
+        if uniform_buffer_content != self.previous_uniform_buffer_content {
+            crate::profile_scope!("update uniforms");
             queue.write_buffer(
                 &self.uniform_buffer,
                 0,
-                bytemuck::cast_slice(&[UniformBuffer {
-                    screen_size_in_points,
-                    _padding: Default::default(),
-                }]),
+                bytemuck::cast_slice(&[uniform_buffer_content]),
             );
+            self.previous_uniform_buffer_content = uniform_buffer_content;
         }
 
         // Determine how many vertices & indices need to be rendered.
@@ -774,73 +791,102 @@ impl Renderer {
             })
         };
 
-        {
-            // Resize index buffer if needed:
+        if index_count > 0 {
+            crate::profile_scope!("indices");
+
             self.index_buffer.slices.clear();
-            let required_size = (std::mem::size_of::<u32>() * index_count) as u64;
-            if self.index_buffer.capacity < required_size {
+            let required_index_buffer_size = (std::mem::size_of::<u32>() * index_count) as u64;
+            if self.index_buffer.capacity < required_index_buffer_size {
+                // Resize index buffer if needed.
                 self.index_buffer.capacity =
-                    (self.index_buffer.capacity * 2).at_least(required_size);
+                    (self.index_buffer.capacity * 2).at_least(required_index_buffer_size);
                 self.index_buffer.buffer = create_index_buffer(device, self.index_buffer.capacity);
             }
-        }
 
-        {
-            // Resize vertex buffer if needed:
+            let mut index_buffer_staging = queue
+                .write_buffer_with(
+                    &self.index_buffer.buffer,
+                    0,
+                    NonZeroU64::new(required_index_buffer_size).unwrap(),
+                )
+                .expect("Failed to create staging buffer for index data");
+            let mut index_offset = 0;
+            for epaint::ClippedPrimitive { primitive, .. } in paint_jobs.iter() {
+                match primitive {
+                    Primitive::Mesh(mesh) => {
+                        let size = mesh.indices.len() * std::mem::size_of::<u32>();
+                        let slice = index_offset..(size + index_offset);
+                        index_buffer_staging[slice.clone()]
+                            .copy_from_slice(bytemuck::cast_slice(&mesh.indices));
+                        self.index_buffer.slices.push(slice);
+                        index_offset += size;
+                    }
+                    Primitive::Callback(_) => {}
+                }
+            }
+        }
+        if vertex_count > 0 {
+            crate::profile_scope!("vertices");
+
             self.vertex_buffer.slices.clear();
-            let required_size = (std::mem::size_of::<Vertex>() * vertex_count) as u64;
-            if self.vertex_buffer.capacity < required_size {
+            let required_vertex_buffer_size = (std::mem::size_of::<Vertex>() * vertex_count) as u64;
+            if self.vertex_buffer.capacity < required_vertex_buffer_size {
+                // Resize vertex buffer if needed.
                 self.vertex_buffer.capacity =
-                    (self.vertex_buffer.capacity * 2).at_least(required_size);
+                    (self.vertex_buffer.capacity * 2).at_least(required_vertex_buffer_size);
                 self.vertex_buffer.buffer =
                     create_vertex_buffer(device, self.vertex_buffer.capacity);
             }
-        }
 
-        // Upload index & vertex data and call user callbacks
-        let mut user_cmd_bufs = Vec::new(); // collect user command buffers
-
-        crate::profile_scope!("primitives");
-        for epaint::ClippedPrimitive { primitive, .. } in paint_jobs.iter() {
-            match primitive {
-                Primitive::Mesh(mesh) => {
-                    {
-                        let index_offset = self.index_buffer.slices.last().unwrap_or(&(0..0)).end;
-                        let data = bytemuck::cast_slice(&mesh.indices);
-                        queue.write_buffer(&self.index_buffer.buffer, index_offset, data);
-                        self.index_buffer
-                            .slices
-                            .push(index_offset..(data.len() as wgpu::BufferAddress + index_offset));
+            let mut vertex_buffer_staging = queue
+                .write_buffer_with(
+                    &self.vertex_buffer.buffer,
+                    0,
+                    NonZeroU64::new(required_vertex_buffer_size).unwrap(),
+                )
+                .expect("Failed to create staging buffer for vertex data");
+            let mut vertex_offset = 0;
+            for epaint::ClippedPrimitive { primitive, .. } in paint_jobs.iter() {
+                match primitive {
+                    Primitive::Mesh(mesh) => {
+                        let size = mesh.vertices.len() * std::mem::size_of::<Vertex>();
+                        let slice = vertex_offset..(size + vertex_offset);
+                        vertex_buffer_staging[slice.clone()]
+                            .copy_from_slice(bytemuck::cast_slice(&mesh.vertices));
+                        self.vertex_buffer.slices.push(slice);
+                        vertex_offset += size;
                     }
-                    {
-                        let vertex_offset = self.vertex_buffer.slices.last().unwrap_or(&(0..0)).end;
-                        let data = bytemuck::cast_slice(&mesh.vertices);
-                        queue.write_buffer(&self.vertex_buffer.buffer, vertex_offset, data);
-                        self.vertex_buffer.slices.push(
-                            vertex_offset..(data.len() as wgpu::BufferAddress + vertex_offset),
-                        );
-                    }
-                }
-                Primitive::Callback(callback) => {
-                    let cbfn = if let Some(c) = callback.callback.downcast_ref::<CallbackFn>() {
-                        c
-                    } else {
-                        tracing::warn!("Unknown paint callback: expected `egui_wgpu::CallbackFn`");
-                        continue;
-                    };
-
-                    crate::profile_scope!("callback");
-                    user_cmd_bufs.extend((cbfn.prepare)(
-                        device,
-                        queue,
-                        encoder,
-                        &mut self.paint_callback_resources,
-                    ));
+                    Primitive::Callback(_) => {}
                 }
             }
         }
 
-        user_cmd_bufs
+        {
+            crate::profile_scope!("user command buffers");
+            let mut user_cmd_bufs = Vec::new(); // collect user command buffers
+            for epaint::ClippedPrimitive { primitive, .. } in paint_jobs.iter() {
+                match primitive {
+                    Primitive::Mesh(_) => {}
+                    Primitive::Callback(callback) => {
+                        let cbfn = if let Some(c) = callback.callback.downcast_ref::<CallbackFn>() {
+                            c
+                        } else {
+                            log::warn!("Unknown paint callback: expected `egui_wgpu::CallbackFn`");
+                            continue;
+                        };
+
+                        crate::profile_scope!("callback");
+                        user_cmd_bufs.extend((cbfn.prepare)(
+                            device,
+                            queue,
+                            encoder,
+                            &mut self.paint_callback_resources,
+                        ));
+                    }
+                }
+            }
+            user_cmd_bufs
+        }
     }
 }
 
@@ -887,7 +933,7 @@ fn create_index_buffer(device: &wgpu::Device, size: u64) -> wgpu::Buffer {
     })
 }
 
-/// A Rect in physical pixel space, used for setting cliipping rectangles.
+/// A Rect in physical pixel space, used for setting clipping rectangles.
 struct ScissorRect {
     x: u32,
     y: u32,

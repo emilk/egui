@@ -1,0 +1,10 @@
+# https://github.com/crate-ci/typos
+# install:  cargo install typos-cli
+# run:      typos
+
+[default.extend-words]
+nknown = "nknown"     # part of @55nknown username
+Prefence = "Prefence" # typo in glutin_winit API
+
+[files]
+extend-exclude = ["docs/egui_demo_app.js"] # auto-generated

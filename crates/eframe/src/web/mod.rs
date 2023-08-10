@@ -2,12 +2,21 @@
 
 #![allow(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
 
+mod app_runner;
 pub mod backend;
 mod events;
 mod input;
+mod panic_handler;
 pub mod screen_reader;
 pub mod storage;
 mod text_agent;
+mod web_logger;
+mod web_runner;
+
+pub(crate) use app_runner::AppRunner;
+pub use panic_handler::{PanicHandler, PanicSummary};
+pub use web_logger::WebLogger;
+pub use web_runner::WebRunner;
 
 #[cfg(not(any(feature = "glow", feature = "wgpu")))]
 compile_error!("You must enable either the 'glow' or 'wgpu' feature");
@@ -28,15 +37,9 @@ pub use backend::*;
 pub use events::*;
 pub use storage::*;
 
-use std::collections::BTreeMap;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
-
 use egui::Vec2;
 use wasm_bindgen::prelude::*;
-use web_sys::{EventTarget, MediaQueryList};
+use web_sys::MediaQueryList;
 
 use input::*;
 
@@ -135,7 +138,7 @@ pub fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2
     };
 
     if width <= 0 || height <= 0 {
-        tracing::error!("egui canvas parent size is {}x{}. Try adding `html, body {{ height: 100%; width: 100% }}` to your CSS!", width, height);
+        log::error!("egui canvas parent size is {}x{}. Try adding `html, body {{ height: 100%; width: 100% }}` to your CSS!", width, height);
     }
 
     let pixels_per_point = native_pixels_per_point();
@@ -192,7 +195,7 @@ pub fn set_clipboard_text(s: &str) {
             let future = wasm_bindgen_futures::JsFuture::from(promise);
             let future = async move {
                 if let Err(err) = future.await {
-                    tracing::error!("Copy/cut action denied: {:?}", err);
+                    log::error!("Copy/cut action failed: {err:?}");
                 }
             };
             wasm_bindgen_futures::spawn_local(future);

@@ -1,6 +1,9 @@
 # Changelog for egui_glium
 All notable changes to the `egui_glium` integration will be noted in this file.
 
+This file is updated upon each release.
+Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
+
 
 ## Unreleased
 * Remove the `screen_reader` feature ([#2669](https://github.com/emilk/egui/pull/2669)).
@@ -60,7 +63,7 @@ All notable changes to the `egui_glium` integration will be noted in this file.
 
 
 ## 0.13.0 - 2021-06-24
-* Added `EguiGlium::is_quit_event` to replace `control_flow` arguemnt to `EguiGlium::on_event`.
+* Added `EguiGlium::is_quit_event` to replace `control_flow` argument to `EguiGlium::on_event`.
 * [Fix modifier key for zoom with mouse wheel on Mac](https://github.com/emilk/egui/issues/401)
 * [Fix stuck modifier keys](https://github.com/emilk/egui/pull/479)
 

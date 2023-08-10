@@ -121,6 +121,11 @@ pub struct Options {
     /// This can lead to fewer texture operations, but may use up the texture atlas quicker
     /// if you are changing [`Style::text_styles`], of have a lot of text styles.
     pub preload_font_glyphs: bool,
+
+    /// Check reusing of [`Id`]s, and show a visual warning on screen when one is found.
+    ///
+    /// By default this is `true` in debug builds.
+    pub warn_on_id_clash: bool,
 }
 
 impl Default for Options {
@@ -130,6 +135,7 @@ impl Default for Options {
             tessellation_options: Default::default(),
             screen_reader: false,
             preload_font_glyphs: true,
+            warn_on_id_clash: cfg!(debug_assertions),
         }
     }
 }
@@ -469,6 +475,11 @@ impl Memory {
     #[inline(always)]
     pub fn set_dragged_id(&mut self, id: Id) {
         self.interaction.drag_id = Some(id);
+    }
+
+    #[inline(always)]
+    pub fn stop_dragging(&mut self) {
+        self.interaction.drag_id = None;
     }
 
     /// Forget window positions, sizes etc.

@@ -15,6 +15,7 @@ use crate::misc_util::{compile_shader, link_program};
 use crate::shader_version::ShaderVersion;
 use crate::vao;
 
+/// Re-exported [`glow::Context`].
 pub use glow::Context;
 
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
@@ -111,7 +112,7 @@ impl Painter {
             let version = gl.get_parameter_string(glow::VERSION);
             let renderer = gl.get_parameter_string(glow::RENDERER);
             let vendor = gl.get_parameter_string(glow::VENDOR);
-            tracing::debug!(
+            log::debug!(
                 "\nopengl version: {version}\nopengl renderer: {renderer}\nopengl vendor: {vendor}"
             );
         }
@@ -127,16 +128,16 @@ impl Painter {
         let shader_version = shader_version.unwrap_or_else(|| ShaderVersion::get(&gl));
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let shader_version_declaration = shader_version.version_declaration();
-        tracing::debug!("Shader header: {:?}.", shader_version_declaration);
+        log::debug!("Shader header: {:?}.", shader_version_declaration);
 
         let supported_extensions = gl.supported_extensions();
-        tracing::trace!("OpenGL extensions: {supported_extensions:?}");
+        log::trace!("OpenGL extensions: {supported_extensions:?}");
         let srgb_textures = shader_version == ShaderVersion::Es300 // WebGL2 always support sRGB
             || supported_extensions.iter().any(|extension| {
                 // EXT_sRGB, GL_ARB_framebuffer_sRGB, GL_EXT_sRGB, GL_EXT_texture_sRGB_decode, …
                 extension.contains("sRGB")
             });
-        tracing::debug!("SRGB texture Support: {:?}", srgb_textures);
+        log::debug!("SRGB texture Support: {:?}", srgb_textures);
 
         unsafe {
             let vert = compile_shader(
@@ -399,7 +400,7 @@ impl Painter {
                         if let Some(callback) = callback.callback.downcast_ref::<CallbackFn>() {
                             (callback.f)(info, self);
                         } else {
-                            tracing::warn!("Warning: Unsupported render callback. Expected egui_glow::CallbackFn");
+                            log::warn!("Warning: Unsupported render callback. Expected egui_glow::CallbackFn");
                         }
 
                         check_for_gl_error!(&self.gl, "callback");
@@ -455,7 +456,7 @@ impl Painter {
 
             check_for_gl_error!(&self.gl, "paint_mesh");
         } else {
-            tracing::warn!("Failed to find texture {:?}", mesh.texture_id);
+            log::warn!("Failed to find texture {:?}", mesh.texture_id);
         }
     }
 
@@ -713,7 +714,7 @@ pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: [
 impl Drop for Painter {
     fn drop(&mut self) {
         if !self.destroyed {
-            tracing::warn!(
+            log::warn!(
                 "You forgot to call destroy() on the egui glow painter. Resources will leak!"
             );
         }

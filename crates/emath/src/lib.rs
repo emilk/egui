@@ -30,6 +30,7 @@ pub mod align;
 mod history;
 mod numeric;
 mod pos2;
+mod range;
 mod rect;
 mod rect_transform;
 mod rot2;
@@ -41,6 +42,7 @@ pub use {
     history::History,
     numeric::*,
     pos2::*,
+    range::Rangef,
     rect::*,
     rect_transform::*,
     rot2::*,

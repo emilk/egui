@@ -2,7 +2,7 @@ use crate::emath::NumExt;
 use crate::epaint::{Color32, RectShape, Rounding, Shape, Stroke};
 
 use super::{add_rulers_and_text, highlighted_color, Orientation, PlotConfig, RectElement};
-use crate::plot::{BarChart, Cursor, PlotPoint, ScreenTransform};
+use crate::plot::{BarChart, Cursor, PlotPoint, PlotTransform};
 
 /// One bar in a [`BarChart`]. Potentially floating, allowing stacked bar charts.
 /// Width can be changed to allow variable-width histograms.
@@ -116,7 +116,7 @@ impl Bar {
 
     pub(super) fn add_shapes(
         &self,
-        transform: &ScreenTransform,
+        transform: &PlotTransform,
         highlighted: bool,
         shapes: &mut Vec<Shape>,
     ) {
@@ -183,7 +183,7 @@ impl RectElement for Bar {
         self.orientation
     }
 
-    fn default_values_format(&self, transform: &ScreenTransform) -> String {
+    fn default_values_format(&self, transform: &PlotTransform) -> String {
         let scale = transform.dvalue_dpos();
         let scale = match self.orientation {
             Orientation::Horizontal => scale[0],

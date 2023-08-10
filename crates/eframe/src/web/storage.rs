@@ -18,7 +18,7 @@ pub fn load_memory(ctx: &egui::Context) {
                 ctx.memory_mut(|m| *m = memory);
             }
             Err(err) => {
-                tracing::error!("Failed to parse memory RON: {}", err);
+                log::warn!("Failed to parse memory RON: {err}");
             }
         }
     }
@@ -34,7 +34,7 @@ pub fn save_memory(ctx: &egui::Context) {
             local_storage_set("egui_memory_ron", &ron);
         }
         Err(err) => {
-            tracing::error!("Failed to serialize memory as RON: {}", err);
+            log::warn!("Failed to serialize memory as RON: {err}");
         }
     }
 }

@@ -1,8 +1,11 @@
 # Changelog for egui_glow
 All notable changes to the `egui_glow` integration will be noted in this file.
 
+This file is updated upon each release.
+Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
-## Unreleased
+
+## 0.22.0 - 2023-05-23
 
 
 ## 0.21.0 - 2023-02-08
@@ -16,7 +19,7 @@ All notable changes to the `egui_glow` integration will be noted in this file.
 
 ## 0.20.0 - 2022-12-08
 * Allow empty textures.
-* Added `shader_version` variable on `EguiGlow::new` for easier cross compilling on different OpenGL | ES targets ([#1993](https://github.com/emilk/egui/pull/1993)).
+* Added `shader_version` variable on `EguiGlow::new` for easier cross compiling on different OpenGL | ES targets ([#1993](https://github.com/emilk/egui/pull/1993)).
 
 
 ## 0.19.0 - 2022-08-20
