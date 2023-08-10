@@ -5,8 +5,7 @@ use eframe::egui::plot::{Legend, Line, Plot, PlotPoints};
 use eframe::egui::ColorImage;
 
 fn main() -> Result<(), eframe::Error> {
-    // Log to stdout (if you run with `RUST_LOG=debug`).
-    tracing_subscriber::fmt::init();
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(350.0, 400.0)),
@@ -69,7 +68,7 @@ impl eframe::App for MyApp {
             ui.add_space(border_y);
         });
 
-        if let Some(screenshot) = self.screenshot.take() {
+        if let (Some(screenshot), Some(plot_location)) = (self.screenshot.take(), plot_rect) {
             if let Some(mut path) = rfd::FileDialog::new().save_file() {
                 path.set_extension("png");
 
@@ -77,18 +76,16 @@ impl eframe::App for MyApp {
                 // so that the GUI doesn't lag during saving
 
                 let pixels_per_point = frame.info().native_pixels_per_point;
-                if let Some(plot_location) = plot_rect {
-                    let plot = screenshot.region(&plot_location, pixels_per_point);
-                    // save the plot to png
-                    image::save_buffer(
-                        &path,
-                        plot.as_raw(),
-                        plot.width() as u32,
-                        plot.height() as u32,
-                        image::ColorType::Rgba8,
-                    )
-                    .unwrap();
-                }
+                let plot = screenshot.region(&plot_location, pixels_per_point);
+                // save the plot to png
+                image::save_buffer(
+                    &path,
+                    plot.as_raw(),
+                    plot.width() as u32,
+                    plot.height() as u32,
+                    image::ColorType::Rgba8,
+                )
+                .unwrap();
             }
         }
     }
