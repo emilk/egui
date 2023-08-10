@@ -3,7 +3,7 @@
 //! | fixed size | all available space/minimum | 30% of available width | fixed size |
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
-use egui::{Align, NumExt as _, Rect, Response, ScrollArea, Ui, Vec2};
+use egui::{Align, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2};
 
 use crate::{
     layout::{CellDirection, CellSize},
@@ -28,7 +28,7 @@ enum InitialColumnSize {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Column {
     initial_width: InitialColumnSize,
-    width_range: (f32, f32),
+    width_range: Rangef,
     /// Clip contents if too narrow?
     clip: bool,
 
@@ -78,7 +78,7 @@ impl Column {
     fn new(initial_width: InitialColumnSize) -> Self {
         Self {
             initial_width,
-            width_range: (0.0, f32::INFINITY),
+            width_range: Rangef::new(0.0, f32::INFINITY),
             resizable: None,
             clip: false,
         }
@@ -110,7 +110,7 @@ impl Column {
     ///
     /// Default: 0.0
     pub fn at_least(mut self, minimum: f32) -> Self {
-        self.width_range.0 = minimum;
+        self.width_range.min = minimum;
         self
     }
 
@@ -118,13 +118,13 @@ impl Column {
     ///
     /// Default: [`f32::INFINITY`]
     pub fn at_most(mut self, maximum: f32) -> Self {
-        self.width_range.1 = maximum;
+        self.width_range.max = maximum;
         self
     }
 
     /// Allowed range of movement (in points), if in a resizable [`Table`](crate::table::Table).
-    pub fn range(mut self, range: std::ops::RangeInclusive<f32>) -> Self {
-        self.width_range = (*range.start(), *range.end());
+    pub fn range(mut self, range: impl Into<Rangef>) -> Self {
+        self.width_range = range.into();
         self
     }
 
@@ -146,8 +146,8 @@ fn to_sizing(columns: &[Column]) -> crate::sizing::Sizing {
             InitialColumnSize::Automatic(suggested_width) => Size::initial(suggested_width),
             InitialColumnSize::Remainder => Size::remainder(),
         }
-        .at_least(column.width_range.0)
-        .at_most(column.width_range.1);
+        .at_least(column.width_range.min)
+        .at_most(column.width_range.max);
         sizing.add(size);
     }
     sizing
@@ -598,13 +598,13 @@ impl<'a> Table<'a> {
 
                 if scroll_to_row.is_some() && scroll_to_y_range.is_none() {
                     // TableBody::row didn't find the right row, so scroll to the bottom:
-                    scroll_to_y_range = Some((f32::INFINITY, f32::INFINITY));
+                    scroll_to_y_range = Some(Rangef::new(f32::INFINITY, f32::INFINITY));
                 }
             });
 
-            if let Some((min_y, max_y)) = scroll_to_y_range {
+            if let Some(y_range) = scroll_to_y_range {
                 let x = 0.0; // ignored, we only have vertical scrolling
-                let rect = egui::Rect::from_min_max(egui::pos2(x, min_y), egui::pos2(x, max_y));
+                let rect = egui::Rect::from_x_y_ranges(x..=x, y_range);
                 let align = scroll_to_row.and_then(|(_, a)| a);
                 ui.scroll_to_rect(rect, align);
             }
@@ -617,14 +617,14 @@ impl<'a> Table<'a> {
         for (i, column_width) in state.column_widths.iter_mut().enumerate() {
             let column = &columns[i];
             let column_is_resizable = column.resizable.unwrap_or(resizable);
-            let (min_width, max_width) = column.width_range;
+            let width_range = column.width_range;
 
             if !column.clip {
                 // Unless we clip we don't want to shrink below the
                 // size that was actually used:
                 *column_width = column_width.at_least(max_used_widths[i]);
             }
-            *column_width = column_width.clamp(min_width, max_width);
+            *column_width = width_range.clamp(*column_width);
 
             let is_last_column = i + 1 == columns.len();
 
@@ -633,7 +633,7 @@ impl<'a> Table<'a> {
                 let eps = 0.1; // just to avoid some rounding errors.
                 *column_width = available_width - eps;
                 *column_width = column_width.at_least(max_used_widths[i]);
-                *column_width = column_width.clamp(min_width, max_width);
+                *column_width = width_range.clamp(*column_width);
                 break;
             }
 
@@ -641,7 +641,7 @@ impl<'a> Table<'a> {
 
             if column.is_auto() && (first_frame_auto_size_columns || !column_is_resizable) {
                 *column_width = max_used_widths[i];
-                *column_width = column_width.clamp(min_width, max_width);
+                *column_width = width_range.clamp(*column_width);
             } else if column_is_resizable {
                 let column_resize_id = ui.id().with("resize_column").with(i);
 
@@ -656,7 +656,7 @@ impl<'a> Table<'a> {
                 if resize_response.double_clicked() {
                     // Resize to the minimum of what is needed.
 
-                    *column_width = max_used_widths[i].clamp(min_width, max_width);
+                    *column_width = width_range.clamp(max_used_widths[i]);
                 } else if resize_response.dragged() {
                     if let Some(pointer) = ui.ctx().pointer_latest_pos() {
                         let mut new_width = *column_width + pointer.x - x;
@@ -671,7 +671,7 @@ impl<'a> Table<'a> {
                             new_width =
                                 new_width.at_least(max_used_widths[i] - max_shrinkage_per_frame);
                         }
-                        new_width = new_width.clamp(min_width, max_width);
+                        new_width = width_range.clamp(new_width);
 
                         let x = x - *column_width + new_width;
                         (p0.x, p1.x) = (x, x);
@@ -731,7 +731,7 @@ pub struct TableBody<'a> {
 
     /// If we find the correct row to scroll to,
     /// this is set to the y-range of the row.
-    scroll_to_y_range: &'a mut Option<(f32, f32)>,
+    scroll_to_y_range: &'a mut Option<Rangef>,
 }
 
 impl<'a> TableBody<'a> {
@@ -779,7 +779,7 @@ impl<'a> TableBody<'a> {
         let bottom_y = self.layout.cursor.y;
 
         if Some(self.row_nr) == self.scroll_to_row {
-            *self.scroll_to_y_range = Some((top_y, bottom_y));
+            *self.scroll_to_y_range = Some(Rangef::new(top_y, bottom_y));
         }
 
         self.row_nr += 1;
@@ -819,7 +819,7 @@ impl<'a> TableBody<'a> {
 
         if let Some(scroll_to_row) = self.scroll_to_row {
             let scroll_to_row = scroll_to_row.at_most(total_rows.saturating_sub(1)) as f32;
-            *self.scroll_to_y_range = Some((
+            *self.scroll_to_y_range = Some(Rangef::new(
                 self.layout.cursor.y + scroll_to_row * row_height_with_spacing,
                 self.layout.cursor.y + (scroll_to_row + 1.0) * row_height_with_spacing,
             ));
@@ -909,7 +909,7 @@ impl<'a> TableBody<'a> {
             cursor_y += (row_height + spacing.y) as f64;
 
             if Some(row_index) == self.scroll_to_row {
-                *self.scroll_to_y_range = Some((
+                *self.scroll_to_y_range = Some(Rangef::new(
                     (scroll_to_y_range_offset + old_cursor_y) as f32,
                     (scroll_to_y_range_offset + cursor_y) as f32,
                 ));
@@ -953,7 +953,7 @@ impl<'a> TableBody<'a> {
             cursor_y += (row_height + spacing.y) as f64;
 
             if Some(row_index) == self.scroll_to_row {
-                *self.scroll_to_y_range = Some((
+                *self.scroll_to_y_range = Some(Rangef::new(
                     (scroll_to_y_range_offset + top_y) as f32,
                     (scroll_to_y_range_offset + cursor_y) as f32,
                 ));
@@ -972,7 +972,7 @@ impl<'a> TableBody<'a> {
             let top_y = cursor_y;
             cursor_y += (row_height + spacing.y) as f64;
             if Some(row_index) == self.scroll_to_row {
-                *self.scroll_to_y_range = Some((
+                *self.scroll_to_y_range = Some(Rangef::new(
                     (scroll_to_y_range_offset + top_y) as f32,
                     (scroll_to_y_range_offset + cursor_y) as f32,
                 ));
@@ -981,10 +981,8 @@ impl<'a> TableBody<'a> {
 
         if self.scroll_to_row.is_some() && self.scroll_to_y_range.is_none() {
             // Catch desire to scroll past the end:
-            *self.scroll_to_y_range = Some((
-                (scroll_to_y_range_offset + cursor_y) as f32,
-                (scroll_to_y_range_offset + cursor_y) as f32,
-            ));
+            *self.scroll_to_y_range =
+                Some(Rangef::point((scroll_to_y_range_offset + cursor_y) as f32));
         }
 
         if height_below_visible > 0.0 {

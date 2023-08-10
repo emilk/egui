@@ -517,15 +517,17 @@ impl Ui {
     }
 
     /// `ui.set_width_range(min..=max);` is equivalent to `ui.set_min_width(min); ui.set_max_width(max);`.
-    pub fn set_width_range(&mut self, width: std::ops::RangeInclusive<f32>) {
-        self.set_min_width(*width.start());
-        self.set_max_width(*width.end());
+    pub fn set_width_range(&mut self, width: impl Into<Rangef>) {
+        let width = width.into();
+        self.set_min_width(width.min);
+        self.set_max_width(width.max);
     }
 
     /// `ui.set_height_range(min..=max);` is equivalent to `ui.set_min_height(min); ui.set_max_height(max);`.
-    pub fn set_height_range(&mut self, height: std::ops::RangeInclusive<f32>) {
-        self.set_min_height(*height.start());
-        self.set_max_height(*height.end());
+    pub fn set_height_range(&mut self, height: impl Into<Rangef>) {
+        let height = height.into();
+        self.set_min_height(height.min);
+        self.set_max_height(height.max);
     }
 
     /// Set both the minimum and maximum width.
@@ -978,7 +980,7 @@ impl Ui {
     /// ```
     pub fn scroll_to_rect(&self, rect: Rect, align: Option<Align>) {
         for d in 0..2 {
-            let range = rect.min[d]..=rect.max[d];
+            let range = Rangef::new(rect.min[d], rect.max[d]);
             self.ctx()
                 .frame_state_mut(|state| state.scroll_target[d] = Some((range, align)));
         }
@@ -1008,9 +1010,9 @@ impl Ui {
     pub fn scroll_to_cursor(&self, align: Option<Align>) {
         let target = self.next_widget_position();
         for d in 0..2 {
-            let target = target[d];
+            let target = Rangef::point(target[d]);
             self.ctx()
-                .frame_state_mut(|state| state.scroll_target[d] = Some((target..=target, align)));
+                .frame_state_mut(|state| state.scroll_target[d] = Some((target, align)));
         }
     }
 
