@@ -943,6 +943,95 @@ pub fn process_viewport_commands(
                         _ => ResizeDirection::East,
                     });
                 }
+                ViewportCommand::Title(title) => win.set_title(&title),
+                ViewportCommand::Transparent(v) => win.set_transparent(v),
+                ViewportCommand::Visible(v) => win.set_visible(v),
+                ViewportCommand::OuterPosition(x, y) => {
+                    win.set_outer_position(LogicalPosition::new(x, y))
+                }
+                ViewportCommand::InnerSize(w, h) => win.set_inner_size(LogicalSize::new(w, h)),
+                ViewportCommand::MinInnerSize(s) => {
+                    win.set_min_inner_size(s.map(|s| LogicalSize::new(s.0, s.1)))
+                }
+                ViewportCommand::MaxInnerSize(s) => {
+                    win.set_max_inner_size(s.map(|s| LogicalSize::new(s.0, s.1)))
+                }
+                ViewportCommand::ResizeIncrements(s) => {
+                    win.set_resize_increments(s.map(|s| LogicalSize::new(s.0, s.1)))
+                }
+                ViewportCommand::Resizable(v) => win.set_resizable(v),
+                ViewportCommand::EnableButtons {
+                    close,
+                    mimimize,
+                    maximize,
+                } => win.set_enabled_buttons(
+                    close
+                        .then_some(WindowButtons::CLOSE)
+                        .unwrap_or(WindowButtons::empty())
+                        | mimimize
+                            .then_some(WindowButtons::MINIMIZE)
+                            .unwrap_or(WindowButtons::empty())
+                        | maximize
+                            .then_some(WindowButtons::MAXIMIZE)
+                            .unwrap_or(WindowButtons::empty()),
+                ),
+                ViewportCommand::Minimized(v) => win.set_minimized(v),
+                ViewportCommand::Maximized(v) => win.set_maximized(v),
+                ViewportCommand::Fullscreen(v) => {
+                    win.set_fullscreen(v.then_some(winit::window::Fullscreen::Borderless(None)))
+                }
+                ViewportCommand::Decorations(v) => win.set_decorations(v),
+                ViewportCommand::WindowLevel(o) => win.set_window_level(match o {
+                    1 => WindowLevel::AlwaysOnBottom,
+                    2 => WindowLevel::AlwaysOnTop,
+                    _ => WindowLevel::Normal,
+                }),
+                ViewportCommand::WindowIcon(icon) => {
+                    win.set_window_icon(icon.map(|(bytes, width, height)| {
+                        winit::window::Icon::from_rgba(bytes, width, height)
+                            .expect("Invalid ICON data!")
+                    }))
+                }
+                ViewportCommand::IMEPossition(x, y) => {
+                    win.set_ime_position(LogicalPosition::new(x, y))
+                }
+                ViewportCommand::IMEAllowed(v) => win.set_ime_allowed(v),
+                ViewportCommand::IMEPurpose(o) => win.set_ime_purpose(match o {
+                    1 => winit::window::ImePurpose::Password,
+                    2 => winit::window::ImePurpose::Terminal,
+                    _ => winit::window::ImePurpose::Normal,
+                }),
+                ViewportCommand::RequestUserAttention(o) => {
+                    win.request_user_attention(o.map(|o| {
+                        if o == 1 {
+                            winit::window::UserAttentionType::Critical
+                        } else {
+                            winit::window::UserAttentionType::Informational
+                        }
+                    }))
+                }
+                ViewportCommand::SetTheme(o) => win.set_theme(o.map(|o| {
+                    if o == 1 {
+                        winit::window::Theme::Dark
+                    } else {
+                        winit::window::Theme::Light
+                    }
+                })),
+                ViewportCommand::ContentProtected(v) => win.set_content_protected(v),
+                ViewportCommand::CursorPosition(x, y) => {
+                    win.set_cursor_position(LogicalPosition::new(x, y));
+                }
+                ViewportCommand::CursorGrab(o) => {
+                    win.set_cursor_grab(match o {
+                        1 => CursorGrabMode::Confined,
+                        2 => CursorGrabMode::Locked,
+                        _ => CursorGrabMode::None,
+                    });
+                }
+                ViewportCommand::CursorVisible(v) => win.set_cursor_visible(v),
+                ViewportCommand::CursorHitTest(v) => {
+                    win.set_cursor_hittest(v);
+                }
             }
         }
     }
@@ -973,3 +1062,7 @@ macro_rules! profile_scope {
 
 #[allow(unused_imports)]
 pub(crate) use profile_scope;
+use winit::{
+    dpi::{LogicalPosition, LogicalSize},
+    window::{CursorGrabMode, UserAttentionType, WindowButtons, WindowLevel},
+};
