@@ -1081,17 +1081,25 @@ impl PlotUi {
             .push(BoundsModification::Translate(delta_pos));
     }
 
+    /// Can be used to check if the plot was hovered or clicked.
+    pub fn response(&self) -> &Response {
+        &self.response
+    }
+
     /// Returns `true` if the plot area is currently hovered.
+    #[deprecated = "Use plot_ui.response().hovered()"]
     pub fn plot_hovered(&self) -> bool {
         self.response.hovered()
     }
 
     /// Returns `true` if the plot was clicked by the primary button.
+    #[deprecated = "Use plot_ui.response().clicked()"]
     pub fn plot_clicked(&self) -> bool {
         self.response.clicked()
     }
 
     /// Returns `true` if the plot was clicked by the secondary button.
+    #[deprecated = "Use plot_ui.response().secondary_clicked()"]
     pub fn plot_secondary_clicked(&self) -> bool {
         self.response.secondary_clicked()
     }
