@@ -38,7 +38,7 @@ def lint_lines(filepath, lines_in):
 
         # TODO: only # and /// on lines before a keyword
 
-        pattern = r'^\s*((///)|((pub(\(\w*\))? )?((impl|fn|struct|enum|union|trait|type)\b))).*$'
+        pattern = r'^\s*((///)|((pub(\(\w*\))? )?((impl|fn|struct|enum|union|trait)\b))).*$'
         if re.match(pattern, line):
             if not last_line_was_empty:
                 errors.append(

@@ -693,27 +693,37 @@ pub enum Key {
 
     /// The virtual keycode for the Minus key.
     Minus,
+
     /// The virtual keycode for the Plus/Equals key.
     PlusEquals,
 
     /// Either from the main row or from the numpad.
     Num0,
+
     /// Either from the main row or from the numpad.
     Num1,
+
     /// Either from the main row or from the numpad.
     Num2,
+
     /// Either from the main row or from the numpad.
     Num3,
+
     /// Either from the main row or from the numpad.
     Num4,
+
     /// Either from the main row or from the numpad.
     Num5,
+
     /// Either from the main row or from the numpad.
     Num6,
+
     /// Either from the main row or from the numpad.
     Num7,
+
     /// Either from the main row or from the numpad.
     Num8,
+
     /// Either from the main row or from the numpad.
     Num9,
 

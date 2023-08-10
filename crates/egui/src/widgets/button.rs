@@ -23,6 +23,7 @@ pub struct Button {
     text: WidgetText,
     shortcut_text: WidgetText,
     wrap: Option<bool>,
+
     /// None means default for interact
     fill: Option<Color32>,
     stroke: Option<Stroke>,

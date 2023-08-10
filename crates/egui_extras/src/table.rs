@@ -28,7 +28,9 @@ enum InitialColumnSize {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Column {
     initial_width: InitialColumnSize,
+
     width_range: Rangef,
+
     /// Clip contents if too narrow?
     clip: bool,
 
@@ -511,8 +513,10 @@ pub struct Table<'a> {
     columns: Vec<Column>,
     available_width: f32,
     state: TableState,
+
     /// Accumulated maximum used widths for each column.
     max_used_widths: Vec<f32>,
+
     first_frame_auto_size_columns: bool,
     resizable: bool,
     striped: bool,
@@ -1011,8 +1015,10 @@ pub struct TableRow<'a, 'b> {
     layout: &'b mut StripLayout<'a>,
     columns: &'b [Column],
     widths: &'b [f32],
+
     /// grows during building with the maximum widths
     max_used_widths: &'b mut [f32],
+
     col_index: usize,
     striped: bool,
     height: f32,

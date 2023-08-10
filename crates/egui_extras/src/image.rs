@@ -10,11 +10,15 @@ pub use usvg::FitTo;
 /// Use the `svg` and `image` features to enable more constructors.
 pub struct RetainedImage {
     debug_name: String,
+
     size: [usize; 2],
+
     /// Cleared once [`Self::texture`] has been loaded.
     image: Mutex<egui::ColorImage>,
+
     /// Lazily loaded when we have an egui context.
     texture: Mutex<Option<egui::TextureHandle>>,
+
     options: TextureOptions,
 }
 

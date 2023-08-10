@@ -335,8 +335,10 @@ pub struct EpiIntegration {
     pub egui_ctx: egui::Context,
     pending_full_output: egui::FullOutput,
     egui_winit: egui_winit::State,
+
     /// When set, it is time to close the native window.
     close: bool,
+
     can_drag_window: bool,
     window_state: WindowState,
     follow_system_theme: bool,

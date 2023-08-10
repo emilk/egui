@@ -32,9 +32,11 @@ pub struct StripLayout<'l> {
     direction: CellDirection,
     pub(crate) rect: Rect,
     pub(crate) cursor: Pos2,
+
     /// Keeps track of the max used position,
     /// so we know how much space we used.
     max: Pos2,
+
     cell_layout: egui::Layout,
 }
 

@@ -760,15 +760,22 @@ impl PlotItem for Text {
 /// A set of points.
 pub struct Points {
     pub(super) series: PlotPoints,
+
     pub(super) shape: MarkerShape,
+
     /// Color of the marker. `Color32::TRANSPARENT` means that it will be picked automatically.
     pub(super) color: Color32,
+
     /// Whether to fill the marker. Does not apply to all types.
     pub(super) filled: bool,
+
     /// The maximum extent of the marker from its center.
     pub(super) radius: f32,
+
     pub(super) name: String,
+
     pub(super) highlight: bool,
+
     pub(super) stems: Option<f32>,
 }
 
@@ -1290,8 +1297,10 @@ pub struct BarChart {
     pub(super) bars: Vec<Bar>,
     pub(super) default_color: Color32,
     pub(super) name: String,
+
     /// A custom element formatter
     pub(super) element_formatter: Option<Box<dyn Fn(&Bar, &BarChart) -> String>>,
+
     highlight: bool,
 }
 
@@ -1460,8 +1469,10 @@ pub struct BoxPlot {
     pub(super) boxes: Vec<BoxElem>,
     pub(super) default_color: Color32,
     pub(super) name: String,
+
     /// A custom element formatter
     pub(super) element_formatter: Option<Box<dyn Fn(&BoxElem, &BoxPlot) -> String>>,
+
     highlight: bool,
 }
 

@@ -22,6 +22,7 @@ use super::epi_integration::{self, EpiIntegration};
 pub enum UserEvent {
     RequestRepaint {
         when: Instant,
+
         /// What the frame number was when the repaint was _requested_.
         frame_nr: u64,
     },

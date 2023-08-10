@@ -193,8 +193,10 @@ impl std::hash::Hash for LayoutJob {
 pub struct LayoutSection {
     /// Can be used for first row indentation.
     pub leading_space: f32,
+
     /// Range into the galley text
     pub byte_range: Range<usize>,
+
     pub format: TextFormat,
 }
 
@@ -218,12 +220,18 @@ impl std::hash::Hash for LayoutSection {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextFormat {
     pub font_id: FontId,
+
     /// Text color
     pub color: Color32,
+
     pub background: Color32,
+
     pub italics: bool,
+
     pub underline: Stroke,
+
     pub strikethrough: Stroke,
+
     /// If you use a small font and [`Align::TOP`] you
     /// can get the effect of raised text.
     pub valign: Align,

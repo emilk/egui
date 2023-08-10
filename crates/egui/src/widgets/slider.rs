@@ -77,8 +77,10 @@ pub struct Slider<'a> {
     prefix: String,
     suffix: String,
     text: WidgetText,
+
     /// Sets the minimal step of the widget value
     step: Option<f64>,
+
     drag_value_speed: Option<f64>,
     min_decimals: usize,
     max_decimals: Option<usize>,

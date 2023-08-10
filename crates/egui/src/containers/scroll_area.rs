@@ -334,16 +334,22 @@ struct Prepared {
     state: State,
     has_bar: [bool; 2],
     auto_shrink: [bool; 2],
+
     /// How much horizontal and vertical space are used up by the
     /// width of the vertical bar, and the height of the horizontal bar?
     current_bar_use: Vec2,
+
     scroll_bar_visibility: ScrollBarVisibility,
+
     /// Where on the screen the content is (excludes scroll bars).
     inner_rect: Rect,
+
     content_ui: Ui,
+
     /// Relative coordinates: the offset and size of the view of the inner UI.
     /// `viewport.min == ZERO` means we scrolled to the top.
     viewport: Rect,
+
     scrolling_enabled: bool,
     stick_to_end: [bool; 2],
 }
