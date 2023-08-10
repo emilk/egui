@@ -183,7 +183,7 @@ impl PaintStats {
         stats.shape_vec.element_size = ElementSize::Heterogenous; // nicer display later
 
         stats.shapes = AllocInfo::from_slice(shapes);
-        for ClippedShape(_, shape) in shapes {
+        for ClippedShape { shape, .. } in shapes {
             stats.add(shape);
         }
         stats
