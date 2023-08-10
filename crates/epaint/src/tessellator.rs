@@ -1034,7 +1034,10 @@ impl Tessellator {
         clipped_shape: ClippedShape,
         out_primitives: &mut Vec<ClippedPrimitive>,
     ) {
-        let ClippedShape(new_clip_rect, new_shape) = clipped_shape;
+        let ClippedShape {
+            clip_rect: new_clip_rect,
+            shape: new_shape,
+        } = clipped_shape;
 
         if !new_clip_rect.is_positive() {
             return; // skip empty clip rectangles
@@ -1042,7 +1045,13 @@ impl Tessellator {
 
         if let Shape::Vec(shapes) = new_shape {
             for shape in shapes {
-                self.tessellate_clipped_shape(ClippedShape(new_clip_rect, shape), out_primitives);
+                self.tessellate_clipped_shape(
+                    ClippedShape {
+                        clip_rect: new_clip_rect,
+                        shape,
+                    },
+                    out_primitives,
+                );
             }
             return;
         }
@@ -1639,7 +1648,10 @@ fn test_tessellator() {
     shapes.push(Shape::mesh(mesh));
 
     let shape = Shape::Vec(shapes);
-    let clipped_shapes = vec![ClippedShape(rect, shape)];
+    let clipped_shapes = vec![ClippedShape {
+        clip_rect: rect,
+        shape,
+    }];
 
     let font_tex_size = [1024, 1024]; // unused
     let prepared_discs = vec![]; // unused
