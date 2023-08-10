@@ -90,13 +90,14 @@ impl Default for TextureId {
 ///
 /// Everything is using logical points.
 #[derive(Clone, Debug, PartialEq)]
-pub struct ClippedShape(
+pub struct ClippedShape {
     /// Clip / scissor rectangle.
     /// Only show the part of the [`Shape`] that falls within this.
-    pub emath::Rect,
+    pub clip_rect: emath::Rect,
+
     /// The shape
-    pub Shape,
-);
+    pub shape: Shape,
+}
 
 /// A [`Mesh`] or [`PaintCallback`] within a clip rectangle.
 ///
