@@ -1,6 +1,6 @@
 on: [push, pull_request]
 
-name: CI
+name: Rust
 
 env:
   # web_sys_unstable_apis is required to enable the web_sys clipboard API which eframe web uses,
@@ -36,6 +36,9 @@ jobs:
 
       - name: Rustfmt
         run: cargo fmt --all -- --check
+
+      - name: Lint vertical spacing
+        run: ./scripts/lint.py
 
       - name: Install cargo-cranky
         uses: baptiste0928/cargo-install@v1
@@ -145,7 +148,7 @@ jobs:
           rust-version: "1.65.0"
           log-level: error
           command: check
-          arguments: ${{ matrix.flags }} --target  ${{ matrix.target }}
+          arguments: --target  ${{ matrix.target }}
 
   # ---------------------------------------------------------------------------
 

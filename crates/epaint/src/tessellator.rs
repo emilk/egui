@@ -13,17 +13,15 @@ use emath::*;
 
 #[allow(clippy::approx_constant)]
 mod precomputed_vertices {
-    /*
-    fn main() {
-        let n = 64;
-        println!("pub const CIRCLE_{}: [Vec2; {}] = [", n, n+1);
-        for i in 0..=n {
-            let a = std::f64::consts::TAU * i as f64 / n as f64;
-            println!("    vec2({:.06}, {:.06}),", a.cos(), a.sin());
-        }
-        println!("];")
-    }
-    */
+    // fn main() {
+    //     let n = 64;
+    //     println!("pub const CIRCLE_{}: [Vec2; {}] = [", n, n+1);
+    //     for i in 0..=n {
+    //         let a = std::f64::consts::TAU * i as f64 / n as f64;
+    //         println!("    vec2({:.06}, {:.06}),", a.cos(), a.sin());
+    //     }
+    //     println!("];")
+    // }
 
     use emath::{vec2, Vec2};
 

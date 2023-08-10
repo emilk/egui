@@ -60,6 +60,7 @@ pub(crate) struct GridLayout {
     /// State previous frame (if any).
     /// This can be used to predict future sizes of cells.
     prev_state: State,
+
     /// State accumulated during the current frame.
     curr_state: State,
     initial_available: Rect,

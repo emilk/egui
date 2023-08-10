@@ -78,11 +78,15 @@ impl Default for GlyphInfo {
 pub struct FontImpl {
     name: String,
     ab_glyph_font: ab_glyph::FontArc,
+
     /// Maximum character height
     scale_in_pixels: u32,
+
     height_in_points: f32,
+
     // move each character by this much (hack)
     y_offset: f32,
+
     ascent: f32,
     pixels_per_point: f32,
     glyph_info_cache: RwLock<ahash::HashMap<char, GlyphInfo>>, // TODO(emilk): standard Mutex
@@ -320,8 +324,10 @@ type FontIndex = usize;
 /// Wrapper over multiple [`FontImpl`] (e.g. a primary + fallbacks for emojis)
 pub struct Font {
     fonts: Vec<Arc<FontImpl>>,
+
     /// Lazily calculated.
     characters: Option<BTreeSet<char>>,
+
     replacement_glyph: (FontIndex, GlyphInfo),
     pixels_per_point: f32,
     row_height: f32,
