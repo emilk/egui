@@ -154,3 +154,17 @@ impl From<RangeToInclusive<f32>> for Rangef {
         Self::new(f32::NEG_INFINITY, range.end)
     }
 }
+
+impl PartialEq<RangeInclusive<f32>> for Rangef {
+    #[inline]
+    fn eq(&self, other: &RangeInclusive<f32>) -> bool {
+        self.min == *other.start() && self.max == *other.end()
+    }
+}
+
+impl PartialEq<Rangef> for RangeInclusive<f32> {
+    #[inline]
+    fn eq(&self, other: &Rangef) -> bool {
+        *self.start() == other.min && *self.end() == other.max
+    }
+}

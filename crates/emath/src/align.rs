@@ -110,7 +110,8 @@ impl Align {
     /// assert_eq!(Max   .align_size_within_range(INFINITY, NEG_INFINITY..=20.0), NEG_INFINITY..=20.0);
     /// ```
     #[inline]
-    pub fn align_size_within_range(self, size: f32, range: Rangef) -> Rangef {
+    pub fn align_size_within_range(self, size: f32, range: impl Into<Rangef>) -> Rangef {
+        let range = range.into();
         let Rangef { min, max } = range;
 
         if max - min == f32::INFINITY && size == f32::INFINITY {
