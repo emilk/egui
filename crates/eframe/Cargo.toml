@@ -27,7 +27,14 @@ targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 
 [features]
-default = ["accesskit", "default_fonts", "glow", "wayland", "winit/default"]
+default = [
+  "accesskit",
+  "default_fonts",
+  "glow",
+  "wayland",
+  "winit/default",
+  "x11",
+]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
 accesskit = ["egui/accesskit", "egui-winit/accesskit"]
@@ -41,6 +48,9 @@ glow = ["dep:glow", "dep:egui_glow", "dep:glutin", "dep:glutin-winit"]
 
 ## Enables wayland support and fixes clipboard issue.
 wayland = ["egui-winit/wayland"]
+
+## Enables compiling for x11.
+x11 = ["egui-winit/x11"]
 
 ## Enable saving app state to disk.
 persistence = [

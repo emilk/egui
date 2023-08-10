@@ -61,7 +61,7 @@ jobs:
         run: cargo check --locked --no-default-features --lib --all-targets -p epaint
 
       - name: check eframe --no-default-features
-        run: cargo check --locked --no-default-features --lib --all-targets -p eframe
+        run: cargo check --locked --no-default-features --features x11 --lib --all-targets -p eframe
 
       - name: Test doc-tests
         run: cargo test --doc --all-features
