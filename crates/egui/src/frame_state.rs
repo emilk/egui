@@ -1,5 +1,3 @@
-use std::ops::RangeInclusive;
-
 use crate::{id::IdSet, *};
 
 #[derive(Clone, Copy, Debug)]
@@ -46,7 +44,7 @@ pub(crate) struct FrameState {
     pub(crate) scroll_delta: Vec2, // TODO(emilk): move to `InputState` ?
 
     /// horizontal, vertical
-    pub(crate) scroll_target: [Option<(RangeInclusive<f32>, Option<Align>)>; 2],
+    pub(crate) scroll_target: [Option<(Rangef, Option<Align>)>; 2],
 
     #[cfg(feature = "accesskit")]
     pub(crate) accesskit_state: Option<AccessKitFrameState>,

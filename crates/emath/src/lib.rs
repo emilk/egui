@@ -99,11 +99,12 @@ impl Real for f64 {}
 /// assert_eq!(lerp(1.0..=5.0, 2.0), 9.0);
 /// ```
 #[inline(always)]
-pub fn lerp<R, T>(range: RangeInclusive<R>, t: T) -> R
+pub fn lerp<R, T>(range: impl Into<RangeInclusive<R>>, t: T) -> R
 where
     T: Real + Mul<R, Output = R>,
     R: Copy + Add<R, Output = R>,
 {
+    let range = range.into();
     (T::one() - t) * *range.start() + t * *range.end()
 }
 
@@ -138,20 +139,28 @@ where
 /// Linearly remap a value from one range to another,
 /// so that when `x == from.start()` returns `to.start()`
 /// and when `x == from.end()` returns `to.end()`.
-pub fn remap<T>(x: T, from: RangeInclusive<T>, to: RangeInclusive<T>) -> T
+pub fn remap<T>(x: T, from: impl Into<RangeInclusive<T>>, to: impl Into<RangeInclusive<T>>) -> T
 where
     T: Real,
 {
+    let from = from.into();
+    let to = to.into();
     crate::emath_assert!(from.start() != from.end());
     let t = (x - *from.start()) / (*from.end() - *from.start());
     lerp(to, t)
 }
 
 /// Like [`remap`], but also clamps the value so that the returned value is always in the `to` range.
-pub fn remap_clamp<T>(x: T, from: RangeInclusive<T>, to: RangeInclusive<T>) -> T
+pub fn remap_clamp<T>(
+    x: T,
+    from: impl Into<RangeInclusive<T>>,
+    to: impl Into<RangeInclusive<T>>,
+) -> T
 where
     T: Real,
 {
+    let from = from.into();
+    let to = to.into();
     if from.end() < from.start() {
         return remap_clamp(x, *from.end()..=*from.start(), *to.end()..=*to.start());
     }

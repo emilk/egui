@@ -640,8 +640,7 @@ impl Prepared {
                     let min = content_ui.min_rect().min[d];
                     let clip_rect = content_ui.clip_rect();
                     let visible_range = min..=min + clip_rect.size()[d];
-                    let start = *scroll.start();
-                    let end = *scroll.end();
+                    let (start, end) = (scroll.min, scroll.max);
                     let clip_start = clip_rect.min[d];
                     let clip_end = clip_rect.max[d];
                     let mut spacing = ui.spacing().item_spacing[d];
