@@ -414,7 +414,7 @@ mod glow_integration {
     use egui::{
         epaint::ahash::HashMap, mutex::RwLock, NumExt as _, ViewportBuilder, ViewportRender,
     };
-    use egui_winit::EventResponse;
+    use egui_winit::{create_winit_window_builder, EventResponse};
     use glutin::{
         display::GetGlDisplay,
         prelude::{GlDisplay, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentGlContext},
@@ -1698,6 +1698,7 @@ mod wgpu_integration {
     use std::sync::Arc;
 
     use egui::ViewportRender;
+    use egui_winit::create_winit_window_builder;
 
     use super::*;
 
@@ -2516,63 +2517,4 @@ fn system_theme(window: &winit::window::Window, options: &NativeOptions) -> Opti
 
 fn extremely_far_future() -> std::time::Instant {
     std::time::Instant::now() + std::time::Duration::from_secs(10_000_000_000)
-}
-
-fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::WindowBuilder {
-    let mut window_builder = winit::window::WindowBuilder::new()
-        .with_title(builder.title.clone())
-        .with_transparent(builder.transparent.map_or(false, |e| e))
-        .with_decorations(builder.decorations.map_or(false, |e| e))
-        .with_resizable(builder.resizable.map_or(false, |e| e))
-        .with_visible(builder.visible.map_or(false, |e| e))
-        .with_fullscreen(
-            builder
-                .fullscreen
-                .map(|e| e.then(|| winit::window::Fullscreen::Borderless(None)))
-                .flatten(),
-        )
-        .with_enabled_buttons(
-            WindowButtons::MAXIMIZE
-                | WindowButtons::MINIMIZE
-                | builder
-                    .close_button
-                    .map(|v| v.then(|| WindowButtons::CLOSE))
-                    .flatten()
-                    .unwrap_or(WindowButtons::empty()),
-        )
-        .with_active(builder.active.map_or(false, |e| e));
-    if let Some(Some(inner_size)) = builder.inner_size {
-        window_builder = window_builder
-            .with_inner_size(winit::dpi::PhysicalSize::new(inner_size.0, inner_size.1));
-    }
-    if let Some(Some(min_inner_size)) = builder.min_inner_size {
-        window_builder = window_builder.with_min_inner_size(winit::dpi::PhysicalSize::new(
-            min_inner_size.0,
-            min_inner_size.1,
-        ));
-    }
-    if let Some(Some(max_inner_size)) = builder.max_inner_size {
-        window_builder = window_builder.with_max_inner_size(winit::dpi::PhysicalSize::new(
-            max_inner_size.0,
-            max_inner_size.1,
-        ));
-    }
-    if let Some(Some(position)) = builder.position {
-        window_builder =
-            window_builder.with_position(winit::dpi::PhysicalPosition::new(position.0, position.1));
-    }
-
-    if let Some(Some(icon)) = builder.icon.clone() {
-        window_builder = window_builder.with_window_icon(load_icon(crate::IconData {
-            rgba: icon.2.clone(),
-            width: icon.0,
-            height: icon.1,
-        }));
-    }
-
-    window_builder
-}
-
-fn changes_betwen_builders(now: &ViewportBuilder, last: &ViewportBuilder) -> Vec<ViewportCommand> {
-    vec![]
 }
