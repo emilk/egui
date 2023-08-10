@@ -405,7 +405,9 @@ impl<'a> Widget for DragValue<'a> {
 
         let auto_decimals = (aim_rad / speed.abs()).log10().ceil().clamp(0.0, 15.0) as usize;
         let auto_decimals = auto_decimals + is_slow_speed as usize;
-        let max_decimals = max_decimals.unwrap_or(auto_decimals + 2);
+        let max_decimals = max_decimals
+            .unwrap_or(auto_decimals + 2)
+            .at_least(min_decimals);
         let auto_decimals = auto_decimals.clamp(min_decimals, max_decimals);
 
         let change = ui.input_mut(|input| {
