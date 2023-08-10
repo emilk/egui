@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
 use crate::Context;
 
@@ -22,28 +22,30 @@ impl ViewportId {
 /// This is used to render an async viewport
 pub type ViewportRender = dyn Fn(&Context) + Sync + Send;
 
+/// The filds in this struct should not be change directly, but is not problem tho!
+/// Every thing is wraped in Option<> indicates that thing should not be changed!
 #[derive(Hash, PartialEq, Eq, Clone)]
 pub struct ViewportBuilder {
     pub title: String,
     pub name: Option<String>,
-    pub position: Option<(i32, i32)>,
-    pub inner_size: Option<(u32, u32)>,
-    pub fullscreen: bool,
-    pub maximized: bool,
-    pub resizable: bool,
-    pub transparent: bool,
-    pub decorations: bool,
-    pub icon: Option<(u32, u32, Vec<u8>)>,
-    pub active: bool,
-    pub visible: bool,
-    pub title_hidden: bool,
-    pub titlebar_transparent: bool,
-    pub fullsize_content_view: bool,
-    pub min_inner_size: Option<(u32, u32)>,
-    pub max_inner_size: Option<(u32, u32)>,
-    pub drag_and_drop: bool,
+    pub position: Option<Option<(i32, i32)>>,
+    pub inner_size: Option<Option<(u32, u32)>>,
+    pub fullscreen: Option<bool>,
+    pub maximized: Option<bool>,
+    pub resizable: Option<bool>,
+    pub transparent: Option<bool>,
+    pub decorations: Option<bool>,
+    pub icon: Option<Option<Arc<(u32, u32, Vec<u8>)>>>,
+    pub active: Option<bool>,
+    pub visible: Option<bool>,
+    pub title_hidden: Option<bool>,
+    pub titlebar_transparent: Option<bool>,
+    pub fullsize_content_view: Option<bool>,
+    pub min_inner_size: Option<Option<(u32, u32)>>,
+    pub max_inner_size: Option<Option<(u32, u32)>>,
+    pub drag_and_drop: Option<bool>,
 
-    pub close_button: bool,
+    pub close_button: Option<bool>,
 }
 
 impl Default for ViewportBuilder {
@@ -52,108 +54,137 @@ impl Default for ViewportBuilder {
             title: "Dummy EGUI Window".into(),
             name: None,
             position: None,
-            inner_size: Some((300, 100)),
-            fullscreen: false,
-            maximized: false,
-            resizable: true,
-            transparent: false,
-            decorations: true,
+            inner_size: Some(Some((300, 200))),
+            fullscreen: None,
+            maximized: None,
+            resizable: Some(true),
+            transparent: Some(true),
+            decorations: Some(true),
             icon: None,
-            active: true,
-            visible: true,
-            title_hidden: false,
-            titlebar_transparent: false,
-            fullsize_content_view: false,
+            active: Some(true),
+            visible: Some(true),
+            title_hidden: None,
+            titlebar_transparent: None,
+            fullsize_content_view: None,
             min_inner_size: None,
             max_inner_size: None,
-            drag_and_drop: true,
-            close_button: true,
+            drag_and_drop: None,
+            close_button: None,
         }
     }
 }
 
 impl ViewportBuilder {
+    pub fn empty() -> Self {
+        Self {
+            title: "Dummy EGUI Window".into(),
+            name: None,
+            position: None,
+            inner_size: None,
+            fullscreen: None,
+            maximized: None,
+            resizable: None,
+            transparent: None,
+            decorations: None,
+            icon: None,
+            active: None,
+            visible: None,
+            title_hidden: None,
+            titlebar_transparent: None,
+            fullsize_content_view: None,
+            min_inner_size: None,
+            max_inner_size: None,
+            drag_and_drop: None,
+            close_button: None,
+        }
+    }
     pub fn with_title(mut self, title: impl Into<String>) -> Self {
         self.title = title.into();
         self
     }
 
     pub fn with_decorations(mut self, decorations: bool) -> Self {
-        self.decorations = decorations;
+        self.decorations = Some(decorations);
         self
     }
 
     pub fn with_fullscreen(mut self, fullscreen: bool) -> Self {
-        self.fullscreen = fullscreen;
+        self.fullscreen = Some(fullscreen);
         self
     }
 
     pub fn with_maximized(mut self, maximized: bool) -> Self {
-        self.maximized = maximized;
+        self.maximized = Some(maximized);
         self
     }
 
     pub fn with_resizable(mut self, resizable: bool) -> Self {
-        self.resizable = resizable;
+        self.resizable = Some(resizable);
         self
     }
 
     pub fn with_transparent(mut self, transparent: bool) -> Self {
-        self.transparent = transparent;
+        self.transparent = Some(transparent);
         self
     }
 
-    pub fn with_window_icon(mut self, icon: Option<(u32, u32, Vec<u8>)>) -> Self {
-        self.icon = icon;
+    /// The icon needs to be wraped in Arc because will be copyed every frame
+    pub fn with_window_icon(mut self, icon: Option<Arc<(u32, u32, Vec<u8>)>>) -> Self {
+        self.icon = Some(icon);
         self
     }
 
     pub fn with_active(mut self, active: bool) -> Self {
-        self.active = active;
+        self.active = Some(active);
         self
     }
 
     pub fn with_visible(mut self, visible: bool) -> Self {
-        self.visible = visible;
+        self.visible = Some(visible);
         self
     }
 
     pub fn with_title_hidden(mut self, title_hidden: bool) -> Self {
-        self.title_hidden = title_hidden;
+        self.title_hidden = Some(title_hidden);
         self
     }
 
     pub fn with_titlebar_transparent(mut self, value: bool) -> Self {
-        self.titlebar_transparent = value;
+        self.titlebar_transparent = Some(value);
         self
     }
 
     pub fn with_fullsize_content_view(mut self, value: bool) -> Self {
-        self.fullsize_content_view = value;
+        self.fullsize_content_view = Some(value);
         self
     }
 
-    pub fn with_inner_size(mut self, value: (u32, u32)) -> Self {
+    pub fn with_inner_size(mut self, value: Option<(u32, u32)>) -> Self {
         self.inner_size = Some(value);
         self
     }
 
-    pub fn with_min_inner_size(mut self, value: (u32, u32)) -> Self {
+    pub fn with_min_inner_size(mut self, value: Option<(u32, u32)>) -> Self {
         self.min_inner_size = Some(value);
         self
     }
 
-    pub fn with_max_inner_size(mut self, value: (u32, u32)) -> Self {
+    pub fn with_max_inner_size(mut self, value: Option<(u32, u32)>) -> Self {
         self.max_inner_size = Some(value);
         self
     }
 
-    pub fn with_drag_and_drop(mut self, value: bool) -> Self {
-        self.drag_and_drop = value;
+    pub fn with_close_button(mut self, value: bool) -> Self {
+        self.close_button = Some(value);
         self
     }
 
-    pub fn with_position(mut self, value: (i32, i32)) -> Self {
+    pub fn with_drag_and_drop(mut self, value: bool) -> Self {
+        self.drag_and_drop = Some(value);
+        self
+    }
+
+    pub fn with_position(mut self, value: Option<(i32, i32)>) -> Self {
         self.position = Some(value);
         self
     }

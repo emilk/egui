@@ -355,15 +355,16 @@ impl<'open> Window<'open> {
                 if let Some(size) = ctx.data(|data| data.get_temp::<Vec2>(area.id.with("size"))) {
                     let size = size.round()
                         + ctx.style().spacing.window_margin.sum() * ctx.pixels_per_point();
-                    window_builder =
-                        window_builder.with_inner_size((size.x as u32 + 1, size.y as u32 + 1));
+                    window_builder = window_builder
+                        .with_inner_size(Some((size.x as u32 + 1, size.y as u32 + 1)));
                 } else {
                     ctx.request_repaint();
                     break 'create_viewport;
                 }
-                window_builder.close_button = open.is_some();
-                window_builder.resizable = resize.is_resizable();
-                window_builder.decorations = !with_title_bar;
+                window_builder = window_builder
+                    .with_close_button(open.is_some())
+                    .with_resizable(resize.is_resizable())
+                    .with_decorations(!with_title_bar);
                 let pix = ctx.pixels_per_point();
                 let min_size = resize.min_size * pix;
                 let max_size = resize.max_size * pix;
@@ -372,9 +373,11 @@ impl<'open> Window<'open> {
                 } else {
                     Some(max_size)
                 };
-                window_builder.min_inner_size = Some((min_size.x as u32, min_size.y as u32));
+                window_builder = window_builder
+                    .with_min_inner_size(Some((min_size.x as u32, min_size.y as u32)));
                 if let Some(max_size) = max_size {
-                    window_builder.max_inner_size = Some((max_size.x as u32, max_size.y as u32));
+                    window_builder = window_builder
+                        .with_max_inner_size(Some((max_size.x as u32, max_size.y as u32)));
                 }
 
                 return ctx.create_viewport_sync(window_builder, move |ctx| {
@@ -809,15 +812,16 @@ impl<'open> Window<'open> {
                 if let Some(size) = ctx.data(|data| data.get_temp::<Vec2>(area.id.with("size"))) {
                     let size = size.round()
                         + ctx.style().spacing.window_margin.sum() * ctx.pixels_per_point();
-                    window_builder =
-                        window_builder.with_inner_size((size.x as u32 + 1, size.y as u32 + 1));
+                    window_builder = window_builder
+                        .with_inner_size(Some((size.x as u32 + 1, size.y as u32 + 1)));
                 } else {
                     ctx.request_repaint();
                     break 'create_viewport;
                 }
-                window_builder.close_button = open.is_some();
-                window_builder.resizable = resize.is_resizable();
-                window_builder.decorations = !with_title_bar;
+                window_builder = window_builder
+                    .with_close_button(open.is_some())
+                    .with_resizable(resize.is_resizable())
+                    .with_decorations(!with_title_bar);
                 let pix = ctx.pixels_per_point();
                 let min_size = resize.min_size * pix;
                 let max_size = resize.max_size * pix;
@@ -826,9 +830,11 @@ impl<'open> Window<'open> {
                 } else {
                     Some(max_size)
                 };
-                window_builder.min_inner_size = Some((min_size.x as u32, min_size.y as u32));
+                window_builder = window_builder
+                    .with_min_inner_size(Some((min_size.x as u32, min_size.y as u32)));
                 if let Some(max_size) = max_size {
-                    window_builder.max_inner_size = Some((max_size.x as u32, max_size.y as u32));
+                    window_builder = window_builder
+                        .with_max_inner_size(Some((max_size.x as u32, max_size.y as u32)));
                 }
 
                 ctx.create_viewport(window_builder, move |ctx| {

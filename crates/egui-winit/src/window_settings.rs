@@ -55,12 +55,15 @@ impl WindowSettings {
         // If this happens on Windows, the clamping behavior is managed by the function
         // clamp_window_to_sane_position.
         if let Some(pos) = self.position {
-            window = window.with_position((pos.x as i32, pos.y as i32));
+            window = window.with_position(Some((pos.x as i32, pos.y as i32)));
         }
 
         if let Some(inner_size_points) = self.inner_size_points {
             window
-                .with_inner_size((inner_size_points.x as u32, inner_size_points.y as u32))
+                .with_inner_size(Some((
+                    inner_size_points.x as u32,
+                    inner_size_points.y as u32,
+                )))
                 .with_fullscreen(self.fullscreen)
         } else {
             window

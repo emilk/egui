@@ -3,7 +3,7 @@
 
 use std::{sync::Arc, time::Instant};
 
-use egui::{epaint::ahash::HashMap, mutex::RwLock, ViewportBuilder, ViewportId};
+use egui::{epaint::ahash::HashMap, mutex::RwLock, ViewportBuilder, ViewportCommand, ViewportId};
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 use winit::{
     event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget},
@@ -1104,11 +1104,6 @@ mod glow_integration {
                 if let Some(w) = glutin_ctx.read().windows.get(id) {
                     let mut w = w.write();
                     if w.builder != *builder {
-                        if let Some(window) = &mut w.window {
-                            if let Ok(pos) = window.read().outer_position() {
-                                builder.position = Some((pos.x, pos.y));
-                            }
-                        }
                         w.window = None;
                         w.gl_surface = None;
                         w.render = render.clone();
@@ -2526,53 +2521,58 @@ fn extremely_far_future() -> std::time::Instant {
 fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::WindowBuilder {
     let mut window_builder = winit::window::WindowBuilder::new()
         .with_title(builder.title.clone())
-        .with_transparent(builder.transparent)
-        .with_decorations(builder.decorations)
-        .with_resizable(builder.resizable)
-        .with_visible(builder.visible)
+        .with_transparent(builder.transparent.map_or(false, |e| e))
+        .with_decorations(builder.decorations.map_or(false, |e| e))
+        .with_resizable(builder.resizable.map_or(false, |e| e))
+        .with_visible(builder.visible.map_or(false, |e| e))
         .with_fullscreen(
             builder
                 .fullscreen
-                .then_some(winit::window::Fullscreen::Borderless(None)),
+                .map(|e| e.then(|| winit::window::Fullscreen::Borderless(None)))
+                .flatten(),
         )
         .with_enabled_buttons(
             WindowButtons::MAXIMIZE
                 | WindowButtons::MINIMIZE
-                | if builder.close_button {
-                    WindowButtons::CLOSE
-                } else {
-                    WindowButtons::empty()
-                },
+                | builder
+                    .close_button
+                    .map(|v| v.then(|| WindowButtons::CLOSE))
+                    .flatten()
+                    .unwrap_or(WindowButtons::empty()),
         )
-        .with_active(builder.active);
-    if let Some(inner_size) = builder.inner_size {
+        .with_active(builder.active.map_or(false, |e| e));
+    if let Some(Some(inner_size)) = builder.inner_size {
         window_builder = window_builder
             .with_inner_size(winit::dpi::PhysicalSize::new(inner_size.0, inner_size.1));
     }
-    if let Some(min_inner_size) = builder.min_inner_size {
+    if let Some(Some(min_inner_size)) = builder.min_inner_size {
         window_builder = window_builder.with_min_inner_size(winit::dpi::PhysicalSize::new(
             min_inner_size.0,
             min_inner_size.1,
         ));
     }
-    if let Some(max_inner_size) = builder.max_inner_size {
+    if let Some(Some(max_inner_size)) = builder.max_inner_size {
         window_builder = window_builder.with_max_inner_size(winit::dpi::PhysicalSize::new(
             max_inner_size.0,
             max_inner_size.1,
         ));
     }
-    if let Some(position) = builder.position {
+    if let Some(Some(position)) = builder.position {
         window_builder =
             window_builder.with_position(winit::dpi::PhysicalPosition::new(position.0, position.1));
     }
 
-    if let Some(icon) = builder.icon.clone() {
+    if let Some(Some(icon)) = builder.icon.clone() {
         window_builder = window_builder.with_window_icon(load_icon(crate::IconData {
-            rgba: icon.2,
+            rgba: icon.2.clone(),
             width: icon.0,
             height: icon.1,
         }));
     }
 
     window_builder
+}
+
+fn changes_betwen_builders(now: &ViewportBuilder, last: &ViewportBuilder) -> Vec<ViewportCommand> {
+    vec![]
 }

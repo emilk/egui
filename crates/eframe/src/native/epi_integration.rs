@@ -106,7 +106,11 @@ pub fn window_builder<E>(
         .with_maximized(*maximized)
         .with_resizable(*resizable)
         .with_transparent(*transparent)
-        .with_window_icon(icon_data.clone().map(|d| (d.width, d.height, d.rgba)))
+        .with_window_icon(
+            icon_data
+                .clone()
+                .map(|d| Arc::new((d.width, d.height, d.rgba))),
+        )
         .with_active(*active)
         // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
         // We must also keep the window hidden until AccessKit is initialized.
@@ -127,10 +131,12 @@ pub fn window_builder<E>(
     }
 
     if let Some(min_size) = *min_window_size {
-        window_builder = window_builder.with_min_inner_size((min_size.x as u32, min_size.y as u32));
+        window_builder =
+            window_builder.with_min_inner_size(Some((min_size.x as u32, min_size.y as u32)));
     }
     if let Some(max_size) = *max_window_size {
-        window_builder = window_builder.with_max_inner_size((max_size.x as u32, max_size.y as u32));
+        window_builder =
+            window_builder.with_max_inner_size(Some((max_size.x as u32, max_size.y as u32)));
     }
 
     window_builder = window_builder.with_drag_and_drop(*drag_and_drop_support);
@@ -144,14 +150,16 @@ pub fn window_builder<E>(
         window_settings.inner_size_points()
     } else {
         if let Some(pos) = *initial_window_pos {
-            window_builder = window_builder.with_position((pos.x as i32, pos.y as i32));
+            window_builder = window_builder.with_position(Some((pos.x as i32, pos.y as i32)));
         }
 
         if let Some(initial_window_size) = *initial_window_size {
             let initial_window_size =
                 initial_window_size.at_most(largest_monitor_point_size(event_loop));
-            window_builder = window_builder
-                .with_inner_size((initial_window_size.x as u32, initial_window_size.y as u32));
+            window_builder = window_builder.with_inner_size(Some((
+                initial_window_size.x as u32,
+                initial_window_size.y as u32,
+            )));
         }
 
         *initial_window_size
@@ -164,7 +172,7 @@ pub fn window_builder<E>(
             if monitor_size.width > 0.0 && monitor_size.height > 0.0 {
                 let x = (monitor_size.width - inner_size.x as f64) / 2.0;
                 let y = (monitor_size.height - inner_size.y as f64) / 2.0;
-                window_builder = window_builder.with_position((x as i32, y as i32));
+                window_builder = window_builder.with_position(Some((x as i32, y as i32)));
             }
         }
     }
