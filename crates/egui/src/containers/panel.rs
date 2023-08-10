@@ -100,6 +100,7 @@ pub struct SidePanel {
     show_separator_line: bool,
     default_width: f32,
     width_range: RangeInclusive<f32>,
+    easing: Ease,
 }
 
 impl SidePanel {
@@ -123,6 +124,7 @@ impl SidePanel {
             show_separator_line: true,
             default_width: 200.0,
             width_range: 96.0..=f32::INFINITY,
+            easing: animation::material::STANDARD,
         }
     }
 
@@ -215,6 +217,7 @@ impl SidePanel {
             show_separator_line,
             default_width,
             width_range,
+            easing: _,
         } = self;
 
         let available_rect = ui.available_rect_before_wrap();
@@ -360,7 +363,7 @@ impl SidePanel {
         is_expanded: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ctx.animate_bool(self.id.with("animation"), is_expanded);
+        let how_expanded = ctx.animate_bool(self.id.with("animation"), is_expanded, self.easing);
 
         if 0.0 == how_expanded {
             None
@@ -393,9 +396,9 @@ impl SidePanel {
         is_expanded: bool,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ui
-            .ctx()
-            .animate_bool(self.id.with("animation"), is_expanded);
+        let how_expanded =
+            ui.ctx()
+                .animate_bool(self.id.with("animation"), is_expanded, self.easing);
 
         if 0.0 == how_expanded {
             None
@@ -426,9 +429,11 @@ impl SidePanel {
         is_expanded: bool,
         collapsed_panel: Self,
         expanded_panel: Self,
+        easing: Ease,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ctx.animate_bool(expanded_panel.id.with("animation"), is_expanded);
+        let how_expanded =
+            ctx.animate_bool(expanded_panel.id.with("animation"), is_expanded, easing);
 
         if 0.0 == how_expanded {
             Some(collapsed_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
@@ -458,11 +463,12 @@ impl SidePanel {
         is_expanded: bool,
         collapsed_panel: Self,
         expanded_panel: Self,
+        easing: Ease,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> InnerResponse<R> {
-        let how_expanded = ui
-            .ctx()
-            .animate_bool(expanded_panel.id.with("animation"), is_expanded);
+        let how_expanded =
+            ui.ctx()
+                .animate_bool(expanded_panel.id.with("animation"), is_expanded, easing);
 
         if 0.0 == how_expanded {
             collapsed_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))
@@ -815,9 +821,10 @@ impl TopBottomPanel {
         self,
         ctx: &Context,
         is_expanded: bool,
+        easing: Ease,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ctx.animate_bool(self.id.with("animation"), is_expanded);
+        let how_expanded = ctx.animate_bool(self.id.with("animation"), is_expanded, easing);
 
         if 0.0 == how_expanded {
             None
@@ -850,11 +857,12 @@ impl TopBottomPanel {
         self,
         ui: &mut Ui,
         is_expanded: bool,
+        easing: Ease,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<InnerResponse<R>> {
         let how_expanded = ui
             .ctx()
-            .animate_bool(self.id.with("animation"), is_expanded);
+            .animate_bool(self.id.with("animation"), is_expanded, easing);
 
         if 0.0 == how_expanded {
             None
@@ -887,9 +895,11 @@ impl TopBottomPanel {
         is_expanded: bool,
         collapsed_panel: Self,
         expanded_panel: Self,
+        easing: Ease,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> Option<InnerResponse<R>> {
-        let how_expanded = ctx.animate_bool(expanded_panel.id.with("animation"), is_expanded);
+        let how_expanded =
+            ctx.animate_bool(expanded_panel.id.with("animation"), is_expanded, easing);
 
         if 0.0 == how_expanded {
             Some(collapsed_panel.show(ctx, |ui| add_contents(ui, how_expanded)))
@@ -925,11 +935,12 @@ impl TopBottomPanel {
         is_expanded: bool,
         collapsed_panel: Self,
         expanded_panel: Self,
+        easing: Ease,
         add_contents: impl FnOnce(&mut Ui, f32) -> R,
     ) -> InnerResponse<R> {
-        let how_expanded = ui
-            .ctx()
-            .animate_bool(expanded_panel.id.with("animation"), is_expanded);
+        let how_expanded =
+            ui.ctx()
+                .animate_bool(expanded_panel.id.with("animation"), is_expanded, easing);
 
         if 0.0 == how_expanded {
             collapsed_panel.show_inside(ui, |ui| add_contents(ui, how_expanded))

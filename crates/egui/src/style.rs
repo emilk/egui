@@ -716,7 +716,7 @@ impl Default for Style {
             spacing: Spacing::default(),
             interaction: Interaction::default(),
             visuals: Visuals::default(),
-            animation_time: 1.0 / 12.0,
+            animation_time: 1.0 / 5.0,
             debug: Default::default(),
             explanation_tooltips: false,
         }

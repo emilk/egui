@@ -353,6 +353,7 @@ pub mod text {
 }
 
 pub use {
+    animation_manager::{preset as animation, Ease},
     containers::*,
     context::{Context, RequestRepaintInfo},
     data::{

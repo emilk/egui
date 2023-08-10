@@ -331,9 +331,15 @@ impl Area {
         }
     }
 
-    pub fn show_open_close_animation(&self, ctx: &Context, frame: &Frame, is_open: bool) {
+    pub fn show_open_close_animation(
+        &self,
+        ctx: &Context,
+        frame: &Frame,
+        is_open: bool,
+        easing: Ease,
+    ) {
         // must be called first so animation managers know the latest state
-        let visibility_factor = ctx.animate_bool(self.id.with("close_animation"), is_open);
+        let visibility_factor = ctx.animate_bool(self.id.with("close_animation"), is_open, easing);
 
         if is_open {
             // we actually only show close animations.
