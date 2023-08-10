@@ -761,7 +761,7 @@ impl InteractionDemo {
                 plot_ui.pointer_coordinate(),
                 plot_ui.pointer_coordinate_drag_delta(),
                 plot_ui.plot_bounds(),
-                plot_ui.plot_hovered(),
+                plot_ui.response().hovered(),
             )
         });
 
