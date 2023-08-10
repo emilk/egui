@@ -61,7 +61,7 @@ impl eframe::App for MyApp {
                 let inner = my_plot.show(ui, |plot_ui| {
                     plot_ui.line(Line::new(PlotPoints::from(graph)).name("curve"));
                 });
-                // pass along the position of the plot
+                // Remember the position of the plot
                 plot_rect = Some(inner.response.rect);
             });
 
