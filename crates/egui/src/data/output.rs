@@ -100,7 +100,7 @@ impl PlatformOutput {
     /// This can be used by a text-to-speech system to describe the events (if any).
     pub fn events_description(&self) -> String {
         // only describe last event:
-        if let Some(event) = self.events.iter().rev().next() {
+        if let Some(event) = self.events.iter().next_back() {
             match event {
                 OutputEvent::Clicked(widget_info)
                 | OutputEvent::DoubleClicked(widget_info)
