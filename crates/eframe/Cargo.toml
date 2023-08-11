@@ -4,7 +4,7 @@ version = "0.22.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.67"
 homepage = "https://github.com/emilk/egui/tree/master/crates/eframe"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -27,7 +27,14 @@ targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
 
 [features]
-default = ["accesskit", "default_fonts", "glow"]
+default = [
+  "accesskit",
+  "default_fonts",
+  "glow",
+  "wayland",
+  "winit/default",
+  "x11",
+]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
 accesskit = ["egui/accesskit", "egui-winit/accesskit"]
@@ -41,6 +48,9 @@ glow = ["dep:glow", "dep:egui_glow", "dep:glutin", "dep:glutin-winit"]
 
 ## Enables wayland support and fixes clipboard issue.
 wayland = ["egui-winit/wayland"]
+
+## Enables compiling for x11.
+x11 = ["egui-winit/x11"]
 
 ## Enable saving app state to disk.
 persistence = [
@@ -109,7 +119,7 @@ image = { version = "0.24", default-features = false, features = [
   "png",
 ] } # Needed for app icon
 raw-window-handle = { version = "0.5.0" }
-winit = "0.28.1"
+winit = { version = "0.28.1", default-features = false }
 
 # optional native:
 directories-next = { version = "2", optional = true }

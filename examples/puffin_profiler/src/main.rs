@@ -62,7 +62,7 @@ fn start_puffin_server() {
             std::mem::forget(puffin_server);
         }
         Err(err) => {
-            eprintln!("Failed to start puffin server: {}", err);
+            eprintln!("Failed to start puffin server: {err}");
         }
     };
 }

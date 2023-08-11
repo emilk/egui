@@ -610,11 +610,11 @@ pub struct ModifierNames<'a> {
 }
 
 impl ModifierNames<'static> {
-    /// ⌥ ^ ⇧ ⌘ - NOTE: not supported by the default egui font.
+    /// ⌥ ⌃ ⇧ ⌘ - NOTE: not supported by the default egui font.
     pub const SYMBOLS: Self = Self {
         is_short: true,
         alt: "⌥",
-        ctrl: "^",
+        ctrl: "⌃",
         shift: "⇧",
         mac_cmd: "⌘",
         mac_alt: "⌥",
@@ -693,27 +693,37 @@ pub enum Key {
 
     /// The virtual keycode for the Minus key.
     Minus,
+
     /// The virtual keycode for the Plus/Equals key.
     PlusEquals,
 
     /// Either from the main row or from the numpad.
     Num0,
+
     /// Either from the main row or from the numpad.
     Num1,
+
     /// Either from the main row or from the numpad.
     Num2,
+
     /// Either from the main row or from the numpad.
     Num3,
+
     /// Either from the main row or from the numpad.
     Num4,
+
     /// Either from the main row or from the numpad.
     Num5,
+
     /// Either from the main row or from the numpad.
     Num6,
+
     /// Either from the main row or from the numpad.
     Num7,
+
     /// Either from the main row or from the numpad.
     Num8,
+
     /// Either from the main row or from the numpad.
     Num9,
 
@@ -906,7 +916,7 @@ fn format_kb_shortcut() {
         cmd_shift_f.format(&ModifierNames::NAMES, true),
         "Shift+Cmd+F"
     );
-    assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, false), "^⇧F");
+    assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, false), "⌃⇧F");
     assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, true), "⇧⌘F");
 }
 
@@ -927,25 +937,25 @@ impl RawInput {
             focused,
         } = self;
 
-        ui.label(format!("screen_rect: {:?} points", screen_rect));
-        ui.label(format!("pixels_per_point: {:?}", pixels_per_point))
+        ui.label(format!("screen_rect: {screen_rect:?} points"));
+        ui.label(format!("pixels_per_point: {pixels_per_point:?}"))
             .on_hover_text(
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
             );
-        ui.label(format!("max_texture_side: {:?}", max_texture_side));
+        ui.label(format!("max_texture_side: {max_texture_side:?}"));
         if let Some(time) = time {
-            ui.label(format!("time: {:.3} s", time));
+            ui.label(format!("time: {time:.3} s"));
         } else {
             ui.label("time: None");
         }
         ui.label(format!("predicted_dt: {:.1} ms", 1e3 * predicted_dt));
-        ui.label(format!("modifiers: {:#?}", modifiers));
+        ui.label(format!("modifiers: {modifiers:#?}"));
         ui.label(format!("hovered_files: {}", hovered_files.len()));
         ui.label(format!("dropped_files: {}", dropped_files.len()));
-        ui.label(format!("focused: {}", focused));
+        ui.label(format!("focused: {focused}"));
         ui.scope(|ui| {
             ui.set_min_height(150.0);
-            ui.label(format!("events: {:#?}", events))
+            ui.label(format!("events: {events:#?}"))
                 .on_hover_text("key presses etc");
         });
     }

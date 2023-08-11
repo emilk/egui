@@ -101,9 +101,11 @@ struct PlotMemory {
     /// Indicates if the user has modified the bounds, for example by moving or zooming,
     /// or if the bounds should be calculated based by included point or auto bounds.
     bounds_modified: AxisBools,
+
     hovered_entry: Option<String>,
     hidden_items: ahash::HashSet<String>,
     last_plot_transform: PlotTransform,
+
     /// Allows to remember the first click position when performing a boxed zoom
     last_click_pos_for_zoom: Option<Pos2>,
 }
@@ -864,7 +866,7 @@ impl Plot {
                 delta.y = 0.0;
             }
             transform.translate_bounds(delta);
-            bounds_modified = true.into();
+            bounds_modified = allow_drag;
         }
 
         // Zooming
@@ -935,7 +937,7 @@ impl Plot {
                 }
                 if zoom_factor != Vec2::splat(1.0) {
                     transform.zoom(zoom_factor, hover_pos);
-                    bounds_modified = true.into();
+                    bounds_modified = allow_zoom;
                 }
             }
             if allow_scroll {
@@ -1081,17 +1083,25 @@ impl PlotUi {
             .push(BoundsModification::Translate(delta_pos));
     }
 
+    /// Can be used to check if the plot was hovered or clicked.
+    pub fn response(&self) -> &Response {
+        &self.response
+    }
+
     /// Returns `true` if the plot area is currently hovered.
+    #[deprecated = "Use plot_ui.response().hovered()"]
     pub fn plot_hovered(&self) -> bool {
         self.response.hovered()
     }
 
     /// Returns `true` if the plot was clicked by the primary button.
+    #[deprecated = "Use plot_ui.response().clicked()"]
     pub fn plot_clicked(&self) -> bool {
         self.response.clicked()
     }
 
     /// Returns `true` if the plot was clicked by the secondary button.
+    #[deprecated = "Use plot_ui.response().secondary_clicked()"]
     pub fn plot_secondary_clicked(&self) -> bool {
         self.response.secondary_clicked()
     }
@@ -1443,7 +1453,7 @@ impl PreparedPlot {
         let axis_range = match axis {
             0 => bounds.range_x(),
             1 => bounds.range_y(),
-            _ => panic!("Axis {} does not exist.", axis),
+            _ => panic!("Axis {axis} does not exist."),
         };
 
         let font_id = TextStyle::Body.resolve(ui.style());
@@ -1666,7 +1676,7 @@ pub fn format_number(number: f64, num_decimals: usize) -> String {
     let is_integral = number as i64 as f64 == number;
     if is_integral {
         // perfect integer - show it as such:
-        format!("{:.0}", number)
+        format!("{number:.0}")
     } else {
         // make sure we tell the user it is not an integer by always showing a decimal or two:
         format!("{:.*}", num_decimals.at_least(1), number)

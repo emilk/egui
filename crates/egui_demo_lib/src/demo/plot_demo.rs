@@ -39,8 +39,8 @@ pub struct PlotDemo {
     charts_demo: ChartsDemo,
     items_demo: ItemsDemo,
     interaction_demo: InteractionDemo,
-    custom_axes_demo: CustomAxisDemo,
-    linked_axes_demo: LinkedAxisDemo,
+    custom_axes_demo: CustomAxesDemo,
+    linked_axes_demo: LinkedAxesDemo,
     open_panel: Panel,
 }
 
@@ -326,7 +326,7 @@ impl MarkerDemo {
                     [5.0, 0.0 + y_offset],
                     [6.0, 0.5 + y_offset],
                 ])
-                .name(format!("{:?}", marker))
+                .name(format!("{marker:?}"))
                 .filled(self.fill_markers)
                 .radius(self.marker_radius)
                 .shape(marker);
@@ -416,7 +416,7 @@ impl LegendDemo {
             ui.label("Position:");
             ui.horizontal(|ui| {
                 Corner::all().for_each(|position| {
-                    ui.selectable_value(&mut config.position, position, format!("{:?}", position));
+                    ui.selectable_value(&mut config.position, position, format!("{position:?}"));
                 });
             });
             ui.end_row();
@@ -448,19 +448,19 @@ impl LegendDemo {
 // ----------------------------------------------------------------------------
 
 #[derive(PartialEq, Default)]
-struct CustomAxisDemo {}
+struct CustomAxesDemo {}
 
-impl CustomAxisDemo {
+impl CustomAxesDemo {
     const MINS_PER_DAY: f64 = 24.0 * 60.0;
     const MINS_PER_H: f64 = 60.0;
 
     fn logistic_fn() -> Line {
         fn days(min: f64) -> f64 {
-            CustomAxisDemo::MINS_PER_DAY * min
+            CustomAxesDemo::MINS_PER_DAY * min
         }
 
         let values = PlotPoints::from_explicit_callback(
-            move |x| 1.0 / (1.0 + (-2.5 * (x / CustomAxisDemo::MINS_PER_DAY - 2.0)).exp()),
+            move |x| 1.0 / (1.0 + (-2.5 * (x / CustomAxesDemo::MINS_PER_DAY - 2.0)).exp()),
             days(0.0)..days(5.0),
             100,
         );
@@ -504,8 +504,8 @@ impl CustomAxisDemo {
 
     #[allow(clippy::unused_self)]
     fn ui(&mut self, ui: &mut Ui) -> Response {
-        const MINS_PER_DAY: f64 = CustomAxisDemo::MINS_PER_DAY;
-        const MINS_PER_H: f64 = CustomAxisDemo::MINS_PER_H;
+        const MINS_PER_DAY: f64 = CustomAxesDemo::MINS_PER_DAY;
+        const MINS_PER_H: f64 = CustomAxesDemo::MINS_PER_H;
 
         fn day(x: f64) -> f64 {
             (x / MINS_PER_DAY).floor()
@@ -561,10 +561,10 @@ impl CustomAxisDemo {
             .data_aspect(2.0 * MINS_PER_DAY as f32)
             .x_axis_formatter(x_fmt)
             .y_axis_formatter(y_fmt)
-            .x_grid_spacer(CustomAxisDemo::x_grid)
+            .x_grid_spacer(CustomAxesDemo::x_grid)
             .label_formatter(label_fmt)
             .show(ui, |plot_ui| {
-                plot_ui.line(CustomAxisDemo::logistic_fn());
+                plot_ui.line(CustomAxesDemo::logistic_fn());
             })
             .response
     }
@@ -573,14 +573,14 @@ impl CustomAxisDemo {
 // ----------------------------------------------------------------------------
 
 #[derive(PartialEq)]
-struct LinkedAxisDemo {
+struct LinkedAxesDemo {
     link_x: bool,
     link_y: bool,
     link_cursor_x: bool,
     link_cursor_y: bool,
 }
 
-impl Default for LinkedAxisDemo {
+impl Default for LinkedAxesDemo {
     fn default() -> Self {
         let link_x = true;
         let link_y = false;
@@ -595,7 +595,7 @@ impl Default for LinkedAxisDemo {
     }
 }
 
-impl LinkedAxisDemo {
+impl LinkedAxesDemo {
     fn line_with_slope(slope: f64) -> Line {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| slope * x,
@@ -621,11 +621,11 @@ impl LinkedAxisDemo {
     }
 
     fn configure_plot(plot_ui: &mut plot::PlotUi) {
-        plot_ui.line(LinkedAxisDemo::line_with_slope(0.5));
-        plot_ui.line(LinkedAxisDemo::line_with_slope(1.0));
-        plot_ui.line(LinkedAxisDemo::line_with_slope(2.0));
-        plot_ui.line(LinkedAxisDemo::sin());
-        plot_ui.line(LinkedAxisDemo::cos());
+        plot_ui.line(LinkedAxesDemo::line_with_slope(0.5));
+        plot_ui.line(LinkedAxesDemo::line_with_slope(1.0));
+        plot_ui.line(LinkedAxesDemo::line_with_slope(2.0));
+        plot_ui.line(LinkedAxesDemo::sin());
+        plot_ui.line(LinkedAxesDemo::cos());
     }
 
     fn ui(&mut self, ui: &mut Ui) -> Response {
@@ -648,14 +648,14 @@ impl LinkedAxisDemo {
                 .height(250.0)
                 .link_axis(link_group_id, self.link_x, self.link_y)
                 .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
-                .show(ui, LinkedAxisDemo::configure_plot);
+                .show(ui, LinkedAxesDemo::configure_plot);
             Plot::new("linked_axis_2")
                 .data_aspect(2.0)
                 .width(150.0)
                 .height(250.0)
                 .link_axis(link_group_id, self.link_x, self.link_y)
                 .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
-                .show(ui, LinkedAxisDemo::configure_plot);
+                .show(ui, LinkedAxesDemo::configure_plot);
         });
         Plot::new("linked_axis_3")
             .data_aspect(0.5)
@@ -663,7 +663,7 @@ impl LinkedAxisDemo {
             .height(150.0)
             .link_axis(link_group_id, self.link_x, self.link_y)
             .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
-            .show(ui, LinkedAxisDemo::configure_plot)
+            .show(ui, LinkedAxesDemo::configure_plot)
             .response
     }
 }
@@ -761,7 +761,7 @@ impl InteractionDemo {
                 plot_ui.pointer_coordinate(),
                 plot_ui.pointer_coordinate_drag_delta(),
                 plot_ui.plot_bounds(),
-                plot_ui.plot_hovered(),
+                plot_ui.response().hovered(),
             )
         });
 
@@ -774,21 +774,18 @@ impl InteractionDemo {
             "origin in screen coordinates: x: {:.02}, y: {:.02}",
             screen_pos.x, screen_pos.y
         ));
-        ui.label(format!("plot hovered: {}", hovered));
+        ui.label(format!("plot hovered: {hovered}"));
         let coordinate_text = if let Some(coordinate) = pointer_coordinate {
             format!("x: {:.02}, y: {:.02}", coordinate.x, coordinate.y)
         } else {
             "None".to_owned()
         };
-        ui.label(format!("pointer coordinate: {}", coordinate_text));
+        ui.label(format!("pointer coordinate: {coordinate_text}"));
         let coordinate_text = format!(
             "x: {:.02}, y: {:.02}",
             pointer_coordinate_drag_delta.x, pointer_coordinate_drag_delta.y
         );
-        ui.label(format!(
-            "pointer coordinate drag delta: {}",
-            coordinate_text
-        ));
+        ui.label(format!("pointer coordinate drag delta: {coordinate_text}"));
 
         response
     }

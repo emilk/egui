@@ -217,7 +217,10 @@ impl<'open> Window<'open> {
     }
 
     /// Can the user resize the window by dragging its edges?
+    ///
     /// Note that even if you set this to `false` the window may still auto-resize.
+    ///
+    /// Default is `true`.
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resize = self.resize.resizable(resizable);
         self

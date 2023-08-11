@@ -193,8 +193,10 @@ impl std::hash::Hash for LayoutJob {
 pub struct LayoutSection {
     /// Can be used for first row indentation.
     pub leading_space: f32,
+
     /// Range into the galley text
     pub byte_range: Range<usize>,
+
     pub format: TextFormat,
 }
 
@@ -218,12 +220,18 @@ impl std::hash::Hash for LayoutSection {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextFormat {
     pub font_id: FontId,
+
     /// Text color
     pub color: Color32,
+
     pub background: Color32,
+
     pub italics: bool,
+
     pub underline: Stroke,
+
     pub strikethrough: Stroke,
+
     /// If you use a small font and [`Align::TOP`] you
     /// can get the effect of raised text.
     pub valign: Align,
@@ -310,7 +318,13 @@ impl Default for TextWrapping {
 ///
 /// You can create a [`Galley`] using [`crate::Fonts::layout_job`];
 ///
-/// This needs to be recreated if `pixels_per_point` (dpi scale) changes.
+/// Needs to be recreated if the underlying font atlas texture changes, which
+/// happens under the following conditions:
+/// - `pixels_per_point` or `max_texture_size` change. These parameters are set
+///   in [`crate::text::Fonts::begin_frame`]. When using `egui` they are set
+///   from `egui::InputState` and can change at any time.
+/// - The atlas has become full. This can happen any time a new glyph is added
+///   to the atlas, which in turn can happen any time new text is laid out.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Galley {

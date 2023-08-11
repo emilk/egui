@@ -1138,7 +1138,7 @@ fn paint_cursor_end(
     galley: &Galley,
     cursor: &Cursor,
 ) -> Rect {
-    let stroke = ui.visuals().selection.stroke;
+    let stroke = ui.visuals().text_cursor;
 
     let mut cursor_pos = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
     cursor_pos.max.y = cursor_pos.max.y.at_least(cursor_pos.min.y + row_height); // Handle completely empty galleys
@@ -1147,10 +1147,7 @@ fn paint_cursor_end(
     let top = cursor_pos.center_top();
     let bottom = cursor_pos.center_bottom();
 
-    painter.line_segment(
-        [top, bottom],
-        (ui.visuals().text_cursor_width, stroke.color),
-    );
+    painter.line_segment([top, bottom], (stroke.width, stroke.color));
 
     if false {
         // Roof/floor:
@@ -1185,7 +1182,7 @@ fn insert_text(
     if char_limit < usize::MAX {
         let mut new_string = text_to_insert;
         // Avoid subtract with overflow panic
-        let cutoff = char_limit.saturating_sub(text.as_str().len());
+        let cutoff = char_limit.saturating_sub(text.as_str().chars().count());
 
         new_string = match new_string.char_indices().nth(cutoff) {
             None => new_string,

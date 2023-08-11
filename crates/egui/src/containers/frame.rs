@@ -193,9 +193,7 @@ impl Frame {
         let where_to_put_background = ui.painter().add(Shape::Noop);
         let outer_rect_bounds = ui.available_rect_before_wrap();
 
-        let mut inner_rect = outer_rect_bounds;
-        inner_rect.min += self.outer_margin.left_top() + self.inner_margin.left_top();
-        inner_rect.max -= self.outer_margin.right_bottom() + self.inner_margin.right_bottom();
+        let mut inner_rect = (self.inner_margin + self.outer_margin).shrink_rect(outer_rect_bounds);
 
         // Make sure we don't shrink to the negative:
         inner_rect.max.x = inner_rect.max.x.max(inner_rect.min.x);
@@ -256,17 +254,13 @@ impl Frame {
 
 impl Prepared {
     fn paint_rect(&self) -> Rect {
-        let mut rect = self.content_ui.min_rect();
-        rect.min -= self.frame.inner_margin.left_top();
-        rect.max += self.frame.inner_margin.right_bottom();
-        rect
+        self.frame
+            .inner_margin
+            .expand_rect(self.content_ui.min_rect())
     }
 
     fn content_with_margin(&self) -> Rect {
-        let mut rect = self.content_ui.min_rect();
-        rect.min -= self.frame.inner_margin.left_top() + self.frame.outer_margin.left_top();
-        rect.max += self.frame.inner_margin.right_bottom() + self.frame.outer_margin.right_bottom();
-        rect
+        (self.frame.inner_margin + self.frame.outer_margin).expand_rect(self.content_ui.min_rect())
     }
 
     pub fn end(self, ui: &mut Ui) -> Response {

@@ -3,7 +3,7 @@ use raw_window_handle::HasRawDisplayHandle;
 /// Handles interfacing with the OS clipboard.
 ///
 /// If the "clipboard" feature is off, or we cannot connect to the OS clipboard,
-/// then a fallback clipboard that just works works within the same app is used instead.
+/// then a fallback clipboard that just works within the same app is used instead.
 pub struct Clipboard {
     #[cfg(all(feature = "arboard", not(target_os = "android")))]
     arboard: Option<arboard::Clipboard>,

@@ -990,30 +990,28 @@ impl InputState {
             });
         }
 
-        ui.label(format!("scroll_delta: {:?} points", scroll_delta));
-        ui.label(format!("zoom_factor_delta: {:4.2}x", zoom_factor_delta));
-        ui.label(format!("screen_rect: {:?} points", screen_rect));
+        ui.label(format!("scroll_delta: {scroll_delta:?} points"));
+        ui.label(format!("zoom_factor_delta: {zoom_factor_delta:4.2}x"));
+        ui.label(format!("screen_rect: {screen_rect:?} points"));
         ui.label(format!(
-            "{} physical pixels for each logical point",
-            pixels_per_point
+            "{pixels_per_point} physical pixels for each logical point"
         ));
         ui.label(format!(
-            "max texture size (on each side): {}",
-            max_texture_side
+            "max texture size (on each side): {max_texture_side}"
         ));
-        ui.label(format!("time: {:.3} s", time));
+        ui.label(format!("time: {time:.3} s"));
         ui.label(format!(
             "time since previous frame: {:.1} ms",
             1e3 * unstable_dt
         ));
         ui.label(format!("predicted_dt: {:.1} ms", 1e3 * predicted_dt));
         ui.label(format!("stable_dt:    {:.1} ms", 1e3 * stable_dt));
-        ui.label(format!("focused:   {}", focused));
-        ui.label(format!("modifiers: {:#?}", modifiers));
-        ui.label(format!("keys_down: {:?}", keys_down));
+        ui.label(format!("focused:   {focused}"));
+        ui.label(format!("modifiers: {modifiers:#?}"));
+        ui.label(format!("keys_down: {keys_down:?}"));
         ui.scope(|ui| {
             ui.set_min_height(150.0);
-            ui.label(format!("events: {:#?}", events))
+            ui.label(format!("events: {events:#?}"))
                 .on_hover_text("key presses etc");
         });
     }
@@ -1037,22 +1035,21 @@ impl PointerState {
             pointer_events,
         } = self;
 
-        ui.label(format!("latest_pos: {:?}", latest_pos));
-        ui.label(format!("interact_pos: {:?}", interact_pos));
-        ui.label(format!("delta: {:?}", delta));
+        ui.label(format!("latest_pos: {latest_pos:?}"));
+        ui.label(format!("interact_pos: {interact_pos:?}"));
+        ui.label(format!("delta: {delta:?}"));
         ui.label(format!(
             "velocity: [{:3.0} {:3.0}] points/sec",
             velocity.x, velocity.y
         ));
-        ui.label(format!("down: {:#?}", down));
-        ui.label(format!("press_origin: {:?}", press_origin));
-        ui.label(format!("press_start_time: {:?} s", press_start_time));
+        ui.label(format!("down: {down:#?}"));
+        ui.label(format!("press_origin: {press_origin:?}"));
+        ui.label(format!("press_start_time: {press_start_time:?} s"));
         ui.label(format!(
-            "has_moved_too_much_for_a_click: {}",
-            has_moved_too_much_for_a_click
+            "has_moved_too_much_for_a_click: {has_moved_too_much_for_a_click}"
         ));
-        ui.label(format!("last_click_time: {:#?}", last_click_time));
-        ui.label(format!("last_last_click_time: {:#?}", last_last_click_time));
-        ui.label(format!("pointer_events: {:?}", pointer_events));
+        ui.label(format!("last_click_time: {last_click_time:#?}"));
+        ui.label(format!("last_last_click_time: {last_last_click_time:#?}"));
+        ui.label(format!("pointer_events: {pointer_events:?}"));
     }
 }

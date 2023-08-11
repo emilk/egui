@@ -1,6 +1,9 @@
 # Changelog for egui_glium
 All notable changes to the `egui_glium` integration will be noted in this file.
 
+This file is updated upon each release.
+Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
+
 
 ## Unreleased
 * Remove the `screen_reader` feature ([#2669](https://github.com/emilk/egui/pull/2669)).

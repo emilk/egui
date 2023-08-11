@@ -100,7 +100,7 @@ impl PlatformOutput {
     /// This can be used by a text-to-speech system to describe the events (if any).
     pub fn events_description(&self) -> String {
         // only describe last event:
-        if let Some(event) = self.events.iter().rev().next() {
+        if let Some(event) = self.events.iter().next_back() {
             match event {
                 OutputEvent::Clicked(widget_info)
                 | OutputEvent::DoubleClicked(widget_info)
@@ -417,12 +417,12 @@ impl OutputEvent {
 impl std::fmt::Debug for OutputEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Clicked(wi) => write!(f, "Clicked({:?})", wi),
-            Self::DoubleClicked(wi) => write!(f, "DoubleClicked({:?})", wi),
-            Self::TripleClicked(wi) => write!(f, "TripleClicked({:?})", wi),
-            Self::FocusGained(wi) => write!(f, "FocusGained({:?})", wi),
-            Self::TextSelectionChanged(wi) => write!(f, "TextSelectionChanged({:?})", wi),
-            Self::ValueChanged(wi) => write!(f, "ValueChanged({:?})", wi),
+            Self::Clicked(wi) => write!(f, "Clicked({wi:?})"),
+            Self::DoubleClicked(wi) => write!(f, "DoubleClicked({wi:?})"),
+            Self::TripleClicked(wi) => write!(f, "TripleClicked({wi:?})"),
+            Self::FocusGained(wi) => write!(f, "FocusGained({wi:?})"),
+            Self::TextSelectionChanged(wi) => write!(f, "TextSelectionChanged({wi:?})"),
+            Self::ValueChanged(wi) => write!(f, "ValueChanged({wi:?})"),
         }
     }
 }
@@ -609,14 +609,14 @@ impl WidgetInfo {
         if let Some(selected) = selected {
             if *typ == WidgetType::Checkbox {
                 let state = if *selected { "checked" } else { "unchecked" };
-                description = format!("{} {}", state, description);
+                description = format!("{state} {description}");
             } else {
                 description += if *selected { "selected" } else { "" };
             };
         }
 
         if let Some(label) = label {
-            description = format!("{}: {}", label, description);
+            description = format!("{label}: {description}");
         }
 
         if typ == &WidgetType::TextEdit {
@@ -630,7 +630,7 @@ impl WidgetInfo {
             } else {
                 text = "blank".into();
             }
-            description = format!("{}: {}", text, description);
+            description = format!("{text}: {description}");
         }
 
         if let Some(value) = value {

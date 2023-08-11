@@ -22,6 +22,7 @@ use super::epi_integration::{self, EpiIntegration};
 pub enum UserEvent {
     RequestRepaint {
         when: Instant,
+
         /// What the frame number was when the repaint was _requested_.
         frame_nr: u64,
     },
@@ -144,11 +145,13 @@ fn run_and_return(
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
-            winit::event::Event::RedrawEventsCleared if cfg!(windows) => {
+            #[cfg(windows)]
+            winit::event::Event::RedrawEventsCleared => {
                 next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint()
             }
-            winit::event::Event::RedrawRequested(_) if !cfg!(windows) => {
+            #[cfg(not(windows))]
+            winit::event::Event::RedrawRequested(_) => {
                 next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint()
             }
@@ -705,7 +708,7 @@ mod glow_integration {
 
             let painter =
                 egui_glow::Painter::new(gl.clone(), "", self.native_options.shader_version)
-                    .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
+                    .unwrap_or_else(|err| panic!("An OpenGL error occurred: {err}\n"));
 
             let system_theme = system_theme(gl_window.window(), &self.native_options);
             let mut integration = epi_integration::EpiIntegration::new(
@@ -799,7 +802,7 @@ mod glow_integration {
             if let Some(mut running) = self.running.take() {
                 running
                     .integration
-                    .save(running.app.as_mut(), running.gl_window.window());
+                    .save(running.app.as_mut(), running.gl_window.window.as_ref());
                 running.app.on_exit(Some(&running.gl));
                 running.painter.destroy();
             }
@@ -1258,9 +1261,9 @@ mod wgpu_integration {
 
         fn save_and_destroy(&mut self) {
             if let Some(mut running) = self.running.take() {
-                if let Some(window) = &self.window {
-                    running.integration.save(running.app.as_mut(), window);
-                }
+                running
+                    .integration
+                    .save(running.app.as_mut(), self.window.as_ref());
 
                 #[cfg(feature = "glow")]
                 running.app.on_exit(None);

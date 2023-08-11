@@ -517,15 +517,17 @@ impl Ui {
     }
 
     /// `ui.set_width_range(min..=max);` is equivalent to `ui.set_min_width(min); ui.set_max_width(max);`.
-    pub fn set_width_range(&mut self, width: std::ops::RangeInclusive<f32>) {
-        self.set_min_width(*width.start());
-        self.set_max_width(*width.end());
+    pub fn set_width_range(&mut self, width: impl Into<Rangef>) {
+        let width = width.into();
+        self.set_min_width(width.min);
+        self.set_max_width(width.max);
     }
 
     /// `ui.set_height_range(min..=max);` is equivalent to `ui.set_min_height(min); ui.set_max_height(max);`.
-    pub fn set_height_range(&mut self, height: std::ops::RangeInclusive<f32>) {
-        self.set_min_height(*height.start());
-        self.set_max_height(*height.end());
+    pub fn set_height_range(&mut self, height: impl Into<Rangef>) {
+        let height = height.into();
+        self.set_min_height(height.min);
+        self.set_max_height(height.max);
     }
 
     /// Set both the minimum and maximum width.
@@ -556,6 +558,7 @@ impl Ui {
     // Layout related measures:
 
     /// The available space at the moment, given the current cursor.
+    ///
     /// This how much more space we can take up without overflowing our parent.
     /// Shrinks as widgets allocate space and the cursor moves.
     /// A small size should be interpreted as "as little as possible".
@@ -564,19 +567,30 @@ impl Ui {
         self.placer.available_size()
     }
 
+    /// The available width at the moment, given the current cursor.
+    ///
+    /// See [`Self::available_size`] for more information.
     pub fn available_width(&self) -> f32 {
         self.available_size().x
     }
 
+    /// The available height at the moment, given the current cursor.
+    ///
+    /// See [`Self::available_size`] for more information.
     pub fn available_height(&self) -> f32 {
         self.available_size().y
     }
 
     /// In case of a wrapping layout, how much space is left on this row/column?
+    ///
+    /// If the layout does not wrap, this will return the same value as [`Self::available_size`].
     pub fn available_size_before_wrap(&self) -> Vec2 {
         self.placer.available_rect_before_wrap().size()
     }
 
+    /// In case of a wrapping layout, how much space is left on this row/column?
+    ///
+    /// If the layout does not wrap, this will return the same value as [`Self::available_size`].
     pub fn available_rect_before_wrap(&self) -> Rect {
         self.placer.available_rect_before_wrap()
     }
@@ -966,7 +980,7 @@ impl Ui {
     /// ```
     pub fn scroll_to_rect(&self, rect: Rect, align: Option<Align>) {
         for d in 0..2 {
-            let range = rect.min[d]..=rect.max[d];
+            let range = Rangef::new(rect.min[d], rect.max[d]);
             self.ctx()
                 .frame_state_mut(|state| state.scroll_target[d] = Some((range, align)));
         }
@@ -996,9 +1010,9 @@ impl Ui {
     pub fn scroll_to_cursor(&self, align: Option<Align>) {
         let target = self.next_widget_position();
         for d in 0..2 {
-            let target = target[d];
+            let target = Rangef::point(target[d]);
             self.ctx()
-                .frame_state_mut(|state| state.scroll_target[d] = Some((target..=target, align)));
+                .frame_state_mut(|state| state.scroll_target[d] = Some((target, align)));
         }
     }
 
@@ -2230,4 +2244,10 @@ impl Ui {
                 .debug_paint_cursor(&self.ctx().debug_painter(), text);
         }
     }
+}
+
+#[test]
+fn ui_impl_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Ui>();
 }

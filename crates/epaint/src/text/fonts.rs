@@ -200,7 +200,7 @@ fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontAr
                 .map(ab_glyph::FontArc::from)
         }
     }
-    .unwrap_or_else(|err| panic!("Error parsing {:?} TTF/OTF font file: {}", name, err))
+    .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"))
 }
 
 /// Describes the font data and the sizes to use.
@@ -586,8 +586,7 @@ impl FontsImpl {
     ) -> Self {
         assert!(
             0.0 < pixels_per_point && pixels_per_point < 100.0,
-            "pixels_per_point out of range: {}",
-            pixels_per_point
+            "pixels_per_point out of range: {pixels_per_point}"
         );
 
         let texture_width = max_texture_side.at_most(8 * 1024);
@@ -627,9 +626,8 @@ impl FontsImpl {
             .entry((HashableF32(*size), family.clone()))
             .or_insert_with(|| {
                 let fonts = &self.definitions.families.get(family);
-                let fonts = fonts.unwrap_or_else(|| {
-                    panic!("FontFamily::{:?} is not bound to any fonts", family)
-                });
+                let fonts = fonts
+                    .unwrap_or_else(|| panic!("FontFamily::{family:?} is not bound to any fonts"));
 
                 let fonts: Vec<Arc<FontImpl>> = fonts
                     .iter()
@@ -752,17 +750,14 @@ impl FontImplCache {
         let (tweak, ab_glyph_font) = self
             .ab_glyph_fonts
             .get(font_name)
-            .unwrap_or_else(|| panic!("No font data found for {:?}", font_name))
+            .unwrap_or_else(|| panic!("No font data found for {font_name:?}"))
             .clone();
 
         let scale_in_pixels = self.pixels_per_point * scale_in_points;
 
         // Scale the font properly (see https://github.com/emilk/egui/issues/2068).
         let units_per_em = ab_glyph_font.units_per_em().unwrap_or_else(|| {
-            panic!(
-                "The font unit size of {:?} exceeds the expected range (16..=16384)",
-                font_name
-            )
+            panic!("The font unit size of {font_name:?} exceeds the expected range (16..=16384)")
         });
         let font_scaling = ab_glyph_font.height_unscaled() / units_per_em;
         let scale_in_pixels = scale_in_pixels * font_scaling;
