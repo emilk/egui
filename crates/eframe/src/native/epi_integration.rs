@@ -140,10 +140,11 @@ pub fn window_builder<E>(
 
     let inner_size_points = if let Some(mut window_settings) = window_settings {
         // Restore pos/size from previous session
-        window_settings.clamp_to_sane_values(largest_monitor_point_size(event_loop));
-        #[cfg(windows)]
-        window_settings.clamp_window_to_sane_position(event_loop);
-        window_builder = window_settings.initialize_window(window_builder);
+
+        window_settings.clamp_size_to_sane_values(largest_monitor_point_size(event_loop));
+        window_settings.clamp_position_to_monitors(event_loop);
+
+        window_builder = window_settings.initialize_window_builder(window_builder);
         window_settings.inner_size_points()
     } else {
         if let Some(pos) = *initial_window_pos {
@@ -173,12 +174,14 @@ pub fn window_builder<E>(
             }
         }
     }
+
     window_builder
 }
 
 pub fn apply_native_options_to_window(
     window: &winit::window::Window,
     native_options: &crate::NativeOptions,
+    window_settings: Option<WindowSettings>,
 ) {
     use winit::window::WindowLevel;
     window.set_window_level(if native_options.always_on_top {
@@ -186,6 +189,10 @@ pub fn apply_native_options_to_window(
     } else {
         WindowLevel::Normal
     });
+
+    if let Some(window_settings) = window_settings {
+        window_settings.initialize_window(window);
+    }
 }
 
 fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui::Vec2 {
