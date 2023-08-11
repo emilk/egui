@@ -908,134 +908,141 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 // ---------------------------------------------------------------------------
 
 pub fn process_viewport_commands(
+    commands: Vec<ViewportCommand>,
+    viewport_id: ViewportId,
+    focused: Option<ViewportId>,
+    window: Arc<RwLock<winit::window::Window>>,
+) {
+    use winit::dpi::PhysicalSize;
+    use winit::window::ResizeDirection;
+    let win = window.read();
+
+    for command in commands {
+        match command {
+            egui::ViewportCommand::Drag => {
+                // if this is not checked on x11 the input will be permanently taken until the app is killed!
+                if let Some(focus) = focused {
+                    if focus == viewport_id {
+                        // TODO possibile return the error to `egui::Context`
+                        let _ = win.drag_window();
+                    }
+                }
+            }
+            egui::ViewportCommand::InnerSize(width, height) => {
+                let width = width.max(1);
+                let height = height.max(1);
+                win.set_inner_size(PhysicalSize::new(width, height));
+            }
+            egui::ViewportCommand::Resize(top, bottom, right, left) => {
+                // TODO posibile return the error to `egui::Context`
+                let _ = win.drag_resize_window(match (top, bottom, right, left) {
+                    (true, false, false, false) => ResizeDirection::North,
+                    (false, true, false, false) => ResizeDirection::South,
+                    (false, false, false, true) => ResizeDirection::West,
+                    (true, false, true, false) => ResizeDirection::NorthEast,
+                    (false, true, true, false) => ResizeDirection::SouthEast,
+                    (true, false, false, true) => ResizeDirection::NorthWest,
+                    (false, true, false, true) => ResizeDirection::SouthWest,
+                    _ => ResizeDirection::East,
+                });
+            }
+            ViewportCommand::Title(title) => win.set_title(&title),
+            ViewportCommand::Transparent(v) => win.set_transparent(v),
+            ViewportCommand::Visible(v) => win.set_visible(v),
+            ViewportCommand::OuterPosition(x, y) => {
+                win.set_outer_position(LogicalPosition::new(x, y))
+            }
+            ViewportCommand::InnerSize(w, h) => win.set_inner_size(LogicalSize::new(w, h)),
+            ViewportCommand::MinInnerSize(s) => {
+                win.set_min_inner_size(s.map(|s| LogicalSize::new(s.0, s.1)))
+            }
+            ViewportCommand::MaxInnerSize(s) => {
+                win.set_max_inner_size(s.map(|s| LogicalSize::new(s.0, s.1)))
+            }
+            ViewportCommand::ResizeIncrements(s) => {
+                win.set_resize_increments(s.map(|s| LogicalSize::new(s.0, s.1)))
+            }
+            ViewportCommand::Resizable(v) => win.set_resizable(v),
+            ViewportCommand::EnableButtons {
+                close,
+                mimimize,
+                maximize,
+            } => win.set_enabled_buttons(
+                close
+                    .then_some(WindowButtons::CLOSE)
+                    .unwrap_or(WindowButtons::empty())
+                    | mimimize
+                        .then_some(WindowButtons::MINIMIZE)
+                        .unwrap_or(WindowButtons::empty())
+                    | maximize
+                        .then_some(WindowButtons::MAXIMIZE)
+                        .unwrap_or(WindowButtons::empty()),
+            ),
+            ViewportCommand::Minimized(v) => win.set_minimized(v),
+            ViewportCommand::Maximized(v) => win.set_maximized(v),
+            ViewportCommand::Fullscreen(v) => {
+                win.set_fullscreen(v.then_some(winit::window::Fullscreen::Borderless(None)))
+            }
+            ViewportCommand::Decorations(v) => win.set_decorations(v),
+            ViewportCommand::WindowLevel(o) => win.set_window_level(match o {
+                1 => WindowLevel::AlwaysOnBottom,
+                2 => WindowLevel::AlwaysOnTop,
+                _ => WindowLevel::Normal,
+            }),
+            ViewportCommand::WindowIcon(icon) => {
+                win.set_window_icon(icon.map(|(bytes, width, height)| {
+                    winit::window::Icon::from_rgba(bytes, width, height)
+                        .expect("Invalid ICON data!")
+                }))
+            }
+            ViewportCommand::IMEPossition(x, y) => win.set_ime_position(LogicalPosition::new(x, y)),
+            ViewportCommand::IMEAllowed(v) => win.set_ime_allowed(v),
+            ViewportCommand::IMEPurpose(o) => win.set_ime_purpose(match o {
+                1 => winit::window::ImePurpose::Password,
+                2 => winit::window::ImePurpose::Terminal,
+                _ => winit::window::ImePurpose::Normal,
+            }),
+            ViewportCommand::RequestUserAttention(o) => win.request_user_attention(o.map(|o| {
+                if o == 1 {
+                    winit::window::UserAttentionType::Critical
+                } else {
+                    winit::window::UserAttentionType::Informational
+                }
+            })),
+            ViewportCommand::SetTheme(o) => win.set_theme(o.map(|o| {
+                if o == 1 {
+                    winit::window::Theme::Dark
+                } else {
+                    winit::window::Theme::Light
+                }
+            })),
+            ViewportCommand::ContentProtected(v) => win.set_content_protected(v),
+            ViewportCommand::CursorPosition(x, y) => {
+                win.set_cursor_position(LogicalPosition::new(x, y));
+            }
+            ViewportCommand::CursorGrab(o) => {
+                win.set_cursor_grab(match o {
+                    1 => CursorGrabMode::Confined,
+                    2 => CursorGrabMode::Locked,
+                    _ => CursorGrabMode::None,
+                });
+            }
+            ViewportCommand::CursorVisible(v) => win.set_cursor_visible(v),
+            ViewportCommand::CursorHitTest(v) => {
+                win.set_cursor_hittest(v);
+            }
+        }
+    }
+}
+
+pub fn process_viewports_commands(
     commands: Vec<(ViewportId, ViewportCommand)>,
     focused: Option<ViewportId>,
     get_window: impl Fn(ViewportId) -> Option<Arc<RwLock<winit::window::Window>>>,
 ) {
-    use winit::dpi::PhysicalSize;
-    use winit::window::ResizeDirection;
     for (viewport_id, command) in commands {
         if let Some(window) = get_window(viewport_id) {
-            let win = window.read();
-
-            match command {
-                egui::ViewportCommand::Drag => {
-                    // if this is not checked on x11 the input will be permanently taken until the app is killed!
-                    if let Some(focus) = focused {
-                        if focus == viewport_id {
-                            // TODO possibile return the error to `egui::Context`
-                            let _ = win.drag_window();
-                        }
-                    }
-                }
-                egui::ViewportCommand::InnerSize(width, height) => {
-                    let width = width.max(1);
-                    let height = height.max(1);
-                    win.set_inner_size(PhysicalSize::new(width, height));
-                }
-                egui::ViewportCommand::Resize(top, bottom, right, left) => {
-                    // TODO posibile return the error to `egui::Context`
-                    let _ = win.drag_resize_window(match (top, bottom, right, left) {
-                        (true, false, false, false) => ResizeDirection::North,
-                        (false, true, false, false) => ResizeDirection::South,
-                        (false, false, false, true) => ResizeDirection::West,
-                        (true, false, true, false) => ResizeDirection::NorthEast,
-                        (false, true, true, false) => ResizeDirection::SouthEast,
-                        (true, false, false, true) => ResizeDirection::NorthWest,
-                        (false, true, false, true) => ResizeDirection::SouthWest,
-                        _ => ResizeDirection::East,
-                    });
-                }
-                ViewportCommand::Title(title) => win.set_title(&title),
-                ViewportCommand::Transparent(v) => win.set_transparent(v),
-                ViewportCommand::Visible(v) => win.set_visible(v),
-                ViewportCommand::OuterPosition(x, y) => {
-                    win.set_outer_position(LogicalPosition::new(x, y))
-                }
-                ViewportCommand::InnerSize(w, h) => win.set_inner_size(LogicalSize::new(w, h)),
-                ViewportCommand::MinInnerSize(s) => {
-                    win.set_min_inner_size(s.map(|s| LogicalSize::new(s.0, s.1)))
-                }
-                ViewportCommand::MaxInnerSize(s) => {
-                    win.set_max_inner_size(s.map(|s| LogicalSize::new(s.0, s.1)))
-                }
-                ViewportCommand::ResizeIncrements(s) => {
-                    win.set_resize_increments(s.map(|s| LogicalSize::new(s.0, s.1)))
-                }
-                ViewportCommand::Resizable(v) => win.set_resizable(v),
-                ViewportCommand::EnableButtons {
-                    close,
-                    mimimize,
-                    maximize,
-                } => win.set_enabled_buttons(
-                    close
-                        .then_some(WindowButtons::CLOSE)
-                        .unwrap_or(WindowButtons::empty())
-                        | mimimize
-                            .then_some(WindowButtons::MINIMIZE)
-                            .unwrap_or(WindowButtons::empty())
-                        | maximize
-                            .then_some(WindowButtons::MAXIMIZE)
-                            .unwrap_or(WindowButtons::empty()),
-                ),
-                ViewportCommand::Minimized(v) => win.set_minimized(v),
-                ViewportCommand::Maximized(v) => win.set_maximized(v),
-                ViewportCommand::Fullscreen(v) => {
-                    win.set_fullscreen(v.then_some(winit::window::Fullscreen::Borderless(None)))
-                }
-                ViewportCommand::Decorations(v) => win.set_decorations(v),
-                ViewportCommand::WindowLevel(o) => win.set_window_level(match o {
-                    1 => WindowLevel::AlwaysOnBottom,
-                    2 => WindowLevel::AlwaysOnTop,
-                    _ => WindowLevel::Normal,
-                }),
-                ViewportCommand::WindowIcon(icon) => {
-                    win.set_window_icon(icon.map(|(bytes, width, height)| {
-                        winit::window::Icon::from_rgba(bytes, width, height)
-                            .expect("Invalid ICON data!")
-                    }))
-                }
-                ViewportCommand::IMEPossition(x, y) => {
-                    win.set_ime_position(LogicalPosition::new(x, y))
-                }
-                ViewportCommand::IMEAllowed(v) => win.set_ime_allowed(v),
-                ViewportCommand::IMEPurpose(o) => win.set_ime_purpose(match o {
-                    1 => winit::window::ImePurpose::Password,
-                    2 => winit::window::ImePurpose::Terminal,
-                    _ => winit::window::ImePurpose::Normal,
-                }),
-                ViewportCommand::RequestUserAttention(o) => {
-                    win.request_user_attention(o.map(|o| {
-                        if o == 1 {
-                            winit::window::UserAttentionType::Critical
-                        } else {
-                            winit::window::UserAttentionType::Informational
-                        }
-                    }))
-                }
-                ViewportCommand::SetTheme(o) => win.set_theme(o.map(|o| {
-                    if o == 1 {
-                        winit::window::Theme::Dark
-                    } else {
-                        winit::window::Theme::Light
-                    }
-                })),
-                ViewportCommand::ContentProtected(v) => win.set_content_protected(v),
-                ViewportCommand::CursorPosition(x, y) => {
-                    win.set_cursor_position(LogicalPosition::new(x, y));
-                }
-                ViewportCommand::CursorGrab(o) => {
-                    win.set_cursor_grab(match o {
-                        1 => CursorGrabMode::Confined,
-                        2 => CursorGrabMode::Locked,
-                        _ => CursorGrabMode::None,
-                    });
-                }
-                ViewportCommand::CursorVisible(v) => win.set_cursor_visible(v),
-                ViewportCommand::CursorHitTest(v) => {
-                    win.set_cursor_hittest(v);
-                }
-            }
+            process_viewport_commands(vec![command], viewport_id, focused, window)
         }
     }
 }
@@ -1094,11 +1101,156 @@ pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::
     window_builder
 }
 
-pub fn changes_betwen_builders(
-    now: &ViewportBuilder,
-    last: &ViewportBuilder,
-) -> Vec<ViewportCommand> {
-    vec![]
+pub fn changes_between_builders(
+    new: &ViewportBuilder,
+    last: &mut ViewportBuilder,
+) -> (Vec<ViewportCommand>, bool) {
+    let mut commands = Vec::new();
+
+    // Title is not compared because if has a new title will create a new window
+    // The title of a avalibile window can only be changed with ViewportCommand::Title
+
+    if let Some(position) = new.position {
+        if Some(position) != last.position {
+            last.position = Some(position);
+            if let Some(position) = position {
+                commands.push(ViewportCommand::OuterPosition(position.0, position.1));
+            }
+        }
+    }
+
+    if let Some(inner_size) = new.inner_size {
+        if Some(inner_size) != last.inner_size {
+            last.inner_size = Some(inner_size);
+            if let Some(inner_size) = inner_size {
+                commands.push(ViewportCommand::InnerSize(inner_size.0, inner_size.1));
+            }
+        }
+    }
+
+    if let Some(min_inner_size) = new.min_inner_size {
+        if Some(min_inner_size) != last.min_inner_size {
+            last.min_inner_size = Some(min_inner_size);
+            commands.push(ViewportCommand::MinInnerSize(min_inner_size));
+        }
+    }
+
+    if let Some(max_inner_size) = new.max_inner_size {
+        if Some(max_inner_size) != last.max_inner_size {
+            last.max_inner_size = Some(max_inner_size);
+            commands.push(ViewportCommand::MaxInnerSize(max_inner_size));
+        }
+    }
+
+    if let Some(fullscreen) = new.fullscreen {
+        if Some(fullscreen) != last.fullscreen {
+            last.fullscreen = Some(fullscreen);
+            commands.push(ViewportCommand::Fullscreen(fullscreen));
+        }
+    }
+
+    if let Some(minimized) = new.minimized {
+        if Some(minimized) != last.minimized {
+            last.minimized = Some(minimized);
+            commands.push(ViewportCommand::Minimized(minimized));
+        }
+    }
+
+    if let Some(maximized) = new.maximized {
+        if Some(maximized) != last.maximized {
+            last.maximized = Some(maximized);
+            commands.push(ViewportCommand::Maximized(maximized));
+        }
+    }
+
+    if let Some(resizable) = new.resizable {
+        if Some(resizable) != last.resizable {
+            last.resizable = Some(resizable);
+            commands.push(ViewportCommand::Resizable(resizable));
+        }
+    }
+
+    if let Some(transparent) = new.transparent {
+        if Some(transparent) != last.transparent {
+            last.transparent = Some(transparent);
+            commands.push(ViewportCommand::Transparent(transparent));
+        }
+    }
+
+    if let Some(decorations) = new.decorations {
+        if Some(decorations) != last.decorations {
+            last.decorations = Some(decorations);
+            commands.push(ViewportCommand::Decorations(decorations));
+        }
+    }
+
+    if let Some(icon) = new.icon.clone() {
+        let eq = match &icon {
+            Some(icon) => {
+                if let Some(last_icon) = &last.icon {
+                    matches!(last_icon, Some(last_icon) if Arc::ptr_eq(icon, last_icon))
+                } else {
+                    false
+                }
+            }
+            None => last.icon == Some(None),
+        };
+
+        if !eq {
+            commands.push(ViewportCommand::WindowIcon(
+                icon.as_ref().map(|i| (i.2.clone(), i.0, i.1)),
+            ));
+            last.icon = Some(icon);
+        }
+    }
+
+    if let Some(visible) = new.visible {
+        if Some(visible) != last.active {
+            last.visible = Some(visible);
+            commands.push(ViewportCommand::Visible(visible));
+        }
+    }
+
+    // TODO: Implement compare for windows buttons
+
+    let mut recreate_window = false;
+
+    if let Some(active) = new.active {
+        if Some(active) != last.active {
+            last.active = Some(active);
+            recreate_window = true;
+        }
+    }
+
+    if let Some(close_button) = new.close_button {
+        if Some(close_button) != last.close_button {
+            last.close_button = Some(close_button);
+            recreate_window = true;
+        }
+    }
+
+    if let Some(title_hidden) = new.title_hidden {
+        if Some(title_hidden) != last.title_hidden {
+            last.title_hidden = Some(title_hidden);
+            recreate_window = true;
+        }
+    }
+
+    if let Some(titlebar_transparent) = new.titlebar_transparent {
+        if Some(titlebar_transparent) != last.titlebar_transparent {
+            last.titlebar_transparent = Some(titlebar_transparent);
+            recreate_window = true;
+        }
+    }
+
+    if let Some(value) = new.fullsize_content_view {
+        if Some(value) != last.fullsize_content_view {
+            last.fullsize_content_view = Some(value);
+            recreate_window = true;
+        }
+    }
+
+    (commands, recreate_window)
 }
 // ---------------------------------------------------------------------------
 

@@ -32,6 +32,7 @@ pub struct ViewportBuilder {
     pub inner_size: Option<Option<(u32, u32)>>,
     pub fullscreen: Option<bool>,
     pub maximized: Option<bool>,
+    pub minimized: Option<bool>,
     pub resizable: Option<bool>,
     pub transparent: Option<bool>,
     pub decorations: Option<bool>,
@@ -70,6 +71,7 @@ impl Default for ViewportBuilder {
             max_inner_size: None,
             drag_and_drop: None,
             close_button: None,
+            minimized: Some(false),
         }
     }
 }
@@ -96,6 +98,7 @@ impl ViewportBuilder {
             max_inner_size: None,
             drag_and_drop: None,
             close_button: None,
+            minimized: None,
         }
     }
     pub fn with_title(mut self, title: impl Into<String>) -> Self {
@@ -115,6 +118,11 @@ impl ViewportBuilder {
 
     pub fn with_maximized(mut self, maximized: bool) -> Self {
         self.maximized = Some(maximized);
+        self
+    }
+
+    pub fn with_mimimized(mut self, minimized: bool) -> Self {
+        self.minimized = Some(minimized);
         self
     }
 

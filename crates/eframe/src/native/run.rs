@@ -414,7 +414,10 @@ mod glow_integration {
     use egui::{
         epaint::ahash::HashMap, mutex::RwLock, NumExt as _, ViewportBuilder, ViewportRender,
     };
-    use egui_winit::{create_winit_window_builder, EventResponse};
+    use egui_winit::{
+        changes_between_builders, create_winit_window_builder, process_viewport_commands,
+        process_viewports_commands, EventResponse,
+    };
     use glutin::{
         display::GetGlDisplay,
         prelude::{GlDisplay, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentGlContext},
@@ -1060,7 +1063,7 @@ mod glow_integration {
                                 }
                             }
                             Self::process_viewport_builders(&glutin, output.viewports);
-                            egui_winit::process_viewport_commands(
+                            egui_winit::process_viewports_commands(
                                 output.viewport_commands,
                                 *focused.read(),
                                 |id| {
@@ -1103,12 +1106,16 @@ mod glow_integration {
             viewports.retain_mut(|(id, _, builder, render)| {
                 if let Some(w) = glutin_ctx.read().windows.get(id) {
                     let mut w = w.write();
-                    if w.builder != *builder {
+                    let (commands, recreate) = changes_between_builders(builder, &mut w.builder);
+                    if recreate {
                         w.window = None;
                         w.gl_surface = None;
                         w.render = render.clone();
                         w.builder = builder.clone();
                         w.parent_id = *id;
+                    }
+                    if let Some(w) = w.window.clone() {
+                        process_viewport_commands(commands, *id, None, w);
                     }
                     active_viewports_ids.push(*id);
                     false
@@ -1438,7 +1445,7 @@ mod glow_integration {
 
                 Self::process_viewport_builders(&glutin_ctx, viewports);
 
-                egui_winit::process_viewport_commands(
+                egui_winit::process_viewports_commands(
                     viewport_commands,
                     *self.is_focused.read(),
                     |viewport_id| {
@@ -2030,7 +2037,7 @@ mod wgpu_integration {
                                 active_viewports_ids.push(id);
                             }
 
-                            egui_winit::process_viewport_commands(
+                            egui_winit::process_viewports_commands(
                                 output.viewport_commands,
                                 *focused.read(),
                                 |id| _windows.read().get(&id).and_then(|w| w.0.clone()),
@@ -2223,7 +2230,7 @@ mod wgpu_integration {
                     active_viewports_ids.push(id);
                 }
 
-                egui_winit::process_viewport_commands(
+                egui_winit::process_viewports_commands(
                     viewport_commands,
                     *self.is_focused.read(),
                     |viewport_id| windows.read().get(&viewport_id).and_then(|w| w.0.clone()),
