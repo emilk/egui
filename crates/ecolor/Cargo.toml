@@ -7,7 +7,7 @@ authors = [
 ]
 description = "Color structs and color conversion utilities"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.67"
 homepage = "https://github.com/emilk/egui"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
