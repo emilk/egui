@@ -79,6 +79,7 @@ ahash = { version = "0.8.1", default-features = false, features = [
   "std",
 ] }
 nohash-hasher = "0.2"
+parking_lot = "0.12" # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
 
 #! ### Optional dependencies
 bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
@@ -94,11 +95,6 @@ serde = { version = "1", optional = true, features = ["derive", "rc"] }
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 backtrace = { version = "0.3", optional = true }
-parking_lot = "0.12"                             # Using parking_lot over std::sync::Mutex gives 50% speedups in some real-world scenarios.
-
-# web:
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-atomic_refcell = "0.1" # Used instead of parking_lot on on wasm. See https://github.com/emilk/egui/issues/1401
 
 
 [dev-dependencies]
