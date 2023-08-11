@@ -139,7 +139,7 @@ pub fn window_builder<E>(
     window_builder = window_builder_drag_and_drop(window_builder, *drag_and_drop_support);
 
     // Always use the default window size / position on iOS. Trying to restore the previous position
-    // causes the window to be shown to small.
+    // causes the window to be shown too small.
     #[cfg(not(target_os = "ios"))]
     let inner_size_points = if let Some(mut window_settings) = window_settings {
         // Restore pos/size from previous session
