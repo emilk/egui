@@ -145,12 +145,12 @@ fn run_and_return(
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
-            #[cfg(windows)]
+            #[cfg(target_os = "windows")]
             winit::event::Event::RedrawEventsCleared => {
                 next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint()
             }
-            #[cfg(not(windows))]
+            #[cfg(not(target_os = "windows"))]
             winit::event::Event::RedrawRequested(_) => {
                 next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint()
@@ -196,7 +196,7 @@ fn run_and_return(
             EventResult::Wait => {}
             EventResult::RepaintNow => {
                 log::trace!("Repaint caused by winit::Event: {:?}", event);
-                if cfg!(windows) {
+                if cfg!(target_os = "windows") {
                     // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                     next_repaint_time = extremely_far_future();
                     winit_app.run_ui_and_paint();
@@ -245,7 +245,7 @@ fn run_and_return(
     //
     // Note that this approach may cause issues on macOS (emilk/egui#2768); therefore,
     // we only apply this approach on Windows to minimize the affect.
-    #[cfg(windows)]
+    #[cfg(target_os = "windows")]
     {
         event_loop.run_return(|_, _, control_flow| {
             control_flow.set_exit();
@@ -270,11 +270,11 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
-            winit::event::Event::RedrawEventsCleared if cfg!(windows) => {
+            winit::event::Event::RedrawEventsCleared if cfg!(target_os = "windows") => {
                 next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint()
             }
-            winit::event::Event::RedrawRequested(_) if !cfg!(windows) => {
+            winit::event::Event::RedrawRequested(_) if !cfg!(target_os = "windows") => {
                 next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint()
             }
@@ -302,7 +302,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
         match event_result {
             EventResult::Wait => {}
             EventResult::RepaintNow => {
-                if cfg!(windows) {
+                if cfg!(target_os = "windows") {
                     // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                     next_repaint_time = extremely_far_future();
                     winit_app.run_ui_and_paint();
