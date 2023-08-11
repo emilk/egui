@@ -63,7 +63,7 @@ fn new_worker(
 ) -> (JoinHandle<()>, mpsc::SyncSender<egui::Context>) {
     let (show_tx, show_rc) = mpsc::sync_channel(0);
     let handle = std::thread::Builder::new()
-        .name(format!("EguiPanelWorker {}", thread_nr))
+        .name(format!("EguiPanelWorker {thread_nr}"))
         .spawn(move || {
             let mut state = ThreadState::new(thread_nr);
             while let Ok(ctx) = show_rc.recv() {

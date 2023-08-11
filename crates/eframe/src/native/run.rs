@@ -708,7 +708,7 @@ mod glow_integration {
 
             let painter =
                 egui_glow::Painter::new(gl.clone(), "", self.native_options.shader_version)
-                    .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
+                    .unwrap_or_else(|err| panic!("An OpenGL error occurred: {err}\n"));
 
             let system_theme = system_theme(gl_window.window(), &self.native_options);
             let mut integration = epi_integration::EpiIntegration::new(

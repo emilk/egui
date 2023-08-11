@@ -937,25 +937,25 @@ impl RawInput {
             focused,
         } = self;
 
-        ui.label(format!("screen_rect: {:?} points", screen_rect));
-        ui.label(format!("pixels_per_point: {:?}", pixels_per_point))
+        ui.label(format!("screen_rect: {screen_rect:?} points"));
+        ui.label(format!("pixels_per_point: {pixels_per_point:?}"))
             .on_hover_text(
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
             );
-        ui.label(format!("max_texture_side: {:?}", max_texture_side));
+        ui.label(format!("max_texture_side: {max_texture_side:?}"));
         if let Some(time) = time {
-            ui.label(format!("time: {:.3} s", time));
+            ui.label(format!("time: {time:.3} s"));
         } else {
             ui.label("time: None");
         }
         ui.label(format!("predicted_dt: {:.1} ms", 1e3 * predicted_dt));
-        ui.label(format!("modifiers: {:#?}", modifiers));
+        ui.label(format!("modifiers: {modifiers:#?}"));
         ui.label(format!("hovered_files: {}", hovered_files.len()));
         ui.label(format!("dropped_files: {}", dropped_files.len()));
-        ui.label(format!("focused: {}", focused));
+        ui.label(format!("focused: {focused}"));
         ui.scope(|ui| {
             ui.set_min_height(150.0);
-            ui.label(format!("events: {:#?}", events))
+            ui.label(format!("events: {events:#?}"))
                 .on_hover_text("key presses etc");
         });
     }

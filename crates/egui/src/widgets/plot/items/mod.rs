@@ -1732,7 +1732,7 @@ pub(super) fn rulers_at_value(
     let mut prefix = String::new();
 
     if !name.is_empty() {
-        prefix = format!("{}\n", name);
+        prefix = format!("{name}\n");
     }
 
     let text = {

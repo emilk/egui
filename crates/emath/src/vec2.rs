@@ -292,7 +292,7 @@ impl std::ops::Index<usize> for Vec2 {
         match index {
             0 => &self.x,
             1 => &self.y,
-            _ => panic!("Vec2 index out of bounds: {}", index),
+            _ => panic!("Vec2 index out of bounds: {index}"),
         }
     }
 }
@@ -303,7 +303,7 @@ impl std::ops::IndexMut<usize> for Vec2 {
         match index {
             0 => &mut self.x,
             1 => &mut self.y,
-            _ => panic!("Vec2 index out of bounds: {}", index),
+            _ => panic!("Vec2 index out of bounds: {index}"),
         }
     }
 }

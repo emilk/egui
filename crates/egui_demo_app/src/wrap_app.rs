@@ -354,7 +354,7 @@ impl WrapApp {
             {
                 selected_anchor = anchor;
                 if frame.is_web() {
-                    ui.output_mut(|o| o.open_url(format!("#{}", anchor)));
+                    ui.output_mut(|o| o.open_url(format!("#{anchor}")));
                 }
             }
         }

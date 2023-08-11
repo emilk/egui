@@ -1453,7 +1453,7 @@ impl PreparedPlot {
         let axis_range = match axis {
             0 => bounds.range_x(),
             1 => bounds.range_y(),
-            _ => panic!("Axis {} does not exist.", axis),
+            _ => panic!("Axis {axis} does not exist."),
         };
 
         let font_id = TextStyle::Body.resolve(ui.style());
@@ -1676,7 +1676,7 @@ pub fn format_number(number: f64, num_decimals: usize) -> String {
     let is_integral = number as i64 as f64 == number;
     if is_integral {
         // perfect integer - show it as such:
-        format!("{:.0}", number)
+        format!("{number:.0}")
     } else {
         // make sure we tell the user it is not an integer by always showing a decimal or two:
         format!("{:.*}", num_decimals.at_least(1), number)

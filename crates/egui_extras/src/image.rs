@@ -258,7 +258,7 @@ pub fn load_svg_bytes_with_size(
     };
 
     let mut pixmap = tiny_skia::Pixmap::new(w, h)
-        .ok_or_else(|| format!("Failed to create SVG Pixmap of size {}x{}", w, h))?;
+        .ok_or_else(|| format!("Failed to create SVG Pixmap of size {w}x{h}"))?;
 
     resvg::render(&rtree, fit_to, Default::default(), pixmap.as_mut())
         .ok_or_else(|| "Failed to render SVG".to_owned())?;

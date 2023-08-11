@@ -286,7 +286,7 @@ impl TouchState {
 
 impl TouchState {
     pub fn ui(&self, ui: &mut crate::Ui) {
-        ui.label(format!("{:?}", self));
+        ui.label(format!("{self:?}"));
     }
 }
 
@@ -294,7 +294,7 @@ impl Debug for TouchState {
     // This outputs less clutter than `#[derive(Debug)]`:
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (id, touch) in &self.active_touches {
-            f.write_fmt(format_args!("#{:?}: {:#?}\n", id, touch))?;
+            f.write_fmt(format_args!("#{id:?}: {touch:#?}\n"))?;
         }
         f.write_fmt(format_args!("gesture: {:#?}\n", self.gesture_state))?;
         Ok(())

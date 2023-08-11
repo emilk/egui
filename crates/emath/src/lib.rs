@@ -183,9 +183,7 @@ where
 /// Round a value to the given number of decimal places.
 pub fn round_to_decimals(value: f64, decimal_places: usize) -> f64 {
     // This is a stupid way of doing this, but stupid works.
-    format!("{:.*}", decimal_places, value)
-        .parse()
-        .unwrap_or(value)
+    format!("{value:.decimal_places$}").parse().unwrap_or(value)
 }
 
 pub fn format_with_minimum_decimals(value: f64, decimals: usize) -> String {
@@ -203,7 +201,7 @@ pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<u
     if min_decimals != max_decimals {
         // Ugly/slow way of doing this. TODO(emilk): clean up precision.
         for decimals in min_decimals..max_decimals {
-            let text = format!("{:.*}", decimals, value);
+            let text = format!("{value:.decimals$}");
             let epsilon = 16.0 * f32::EPSILON; // margin large enough to handle most peoples round-tripping needs
             if almost_equal(text.parse::<f32>().unwrap(), value as f32, epsilon) {
                 // Enough precision to show the value accurately - good!
@@ -214,7 +212,7 @@ pub fn format_with_decimals_in_range(value: f64, decimal_range: RangeInclusive<u
         // Probably the value was set not by the slider, but from outside.
         // In any case: show the full value
     }
-    format!("{:.*}", max_decimals, value)
+    format!("{value:.max_decimals$}")
 }
 
 /// Return true when arguments are the same within some rounding error.

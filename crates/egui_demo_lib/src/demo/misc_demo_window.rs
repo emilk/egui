@@ -455,7 +455,7 @@ impl Tree {
             .into_iter()
             .enumerate()
             .filter_map(|(i, mut tree)| {
-                if tree.ui_impl(ui, depth + 1, &format!("child #{}", i)) == Action::Keep {
+                if tree.ui_impl(ui, depth + 1, &format!("child #{i}")) == Action::Keep {
                     Some(tree)
                 } else {
                     None
