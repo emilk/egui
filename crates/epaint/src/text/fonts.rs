@@ -51,7 +51,7 @@ impl FontId {
     }
 }
 
-#[allow(clippy::derive_hash_xor_eq)]
+#[allow(clippy::derived_hash_with_manual_eq)]
 impl std::hash::Hash for FontId {
     #[inline(always)]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -552,7 +552,7 @@ impl FontsAndCache {
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct HashableF32(f32);
 
-#[allow(clippy::derive_hash_xor_eq)]
+#[allow(clippy::derived_hash_with_manual_eq)]
 impl std::hash::Hash for HashableF32 {
     #[inline(always)]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
