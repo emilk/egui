@@ -47,7 +47,7 @@ impl State {
 // ----------------------------------------------------------------------------
 
 // type alias for boxed function to determine row color during grid generation
-type ColorPickerFn = Box<dyn Fn(usize, &Style) -> Option<Color32>>;
+type ColorPickerFn = Box<dyn Send + Sync + Fn(usize, &Style) -> Option<Color32>>;
 
 pub(crate) struct GridLayout {
     ctx: Context,
@@ -312,7 +312,7 @@ impl Grid {
     /// Setting this will allow for dynamic coloring of rows of the grid object
     pub fn with_row_color<F>(mut self, color_picker: F) -> Self
     where
-        F: Fn(usize, &Style) -> Option<Color32> + 'static,
+        F: Send + Sync + Fn(usize, &Style) -> Option<Color32> + 'static,
     {
         self.color_picker = Some(Box::new(color_picker));
         self
