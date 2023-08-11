@@ -47,6 +47,10 @@ pub struct ViewportBuilder {
     pub drag_and_drop: Option<bool>,
 
     pub close_button: Option<bool>,
+    pub minimize_button: Option<bool>,
+    pub maximize_button: Option<bool>,
+
+    pub hittest: Option<bool>,
 }
 
 impl Default for ViewportBuilder {
@@ -72,6 +76,9 @@ impl Default for ViewportBuilder {
             drag_and_drop: None,
             close_button: None,
             minimized: Some(false),
+            minimize_button: Some(true),
+            maximize_button: Some(true),
+            hittest: Some(true),
         }
     }
 }
@@ -99,6 +106,9 @@ impl ViewportBuilder {
             drag_and_drop: None,
             close_button: None,
             minimized: None,
+            minimize_button: None,
+            maximize_button: None,
+            hittest: None,
         }
     }
     pub fn with_title(mut self, title: impl Into<String>) -> Self {
@@ -187,6 +197,16 @@ impl ViewportBuilder {
         self
     }
 
+    pub fn with_minimize_button(mut self, value: bool) -> Self {
+        self.minimize_button = Some(value);
+        self
+    }
+
+    pub fn with_maximize_button(mut self, value: bool) -> Self {
+        self.maximize_button = Some(value);
+        self
+    }
+
     pub fn with_drag_and_drop(mut self, value: bool) -> Self {
         self.drag_and_drop = Some(value);
         self
@@ -196,8 +216,16 @@ impl ViewportBuilder {
         self.position = Some(value);
         self
     }
+
+    /// Is not implemented for winit
+    /// You should use `ViewportCommand::CursorHitTest` if you want to set this!
+    pub fn with_hittest(mut self, value: bool) -> Self {
+        self.hittest = Some(value);
+        self
+    }
 }
 
+/// You can send a `ViewportCommand` to the viewport with `Context::viewport_command`
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ViewportCommand {

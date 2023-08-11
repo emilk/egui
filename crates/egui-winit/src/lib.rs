@@ -1029,7 +1029,9 @@ pub fn process_viewport_commands(
             }
             ViewportCommand::CursorVisible(v) => win.set_cursor_visible(v),
             ViewportCommand::CursorHitTest(v) => {
-                win.set_cursor_hittest(v);
+                if let Err(err) = win.set_cursor_hittest(v) {
+                    log::error!("Setting viewport CursorHitTest: {err}");
+                }
             }
         }
     }
@@ -1054,6 +1056,8 @@ pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::
         .with_decorations(builder.decorations.map_or(false, |e| e))
         .with_resizable(builder.resizable.map_or(false, |e| e))
         .with_visible(builder.visible.map_or(false, |e| e))
+        .with_maximized(builder.minimized.map_or(false, |e| e))
+        .with_maximized(builder.maximized.map_or(false, |e| e))
         .with_fullscreen(
             builder
                 .fullscreen
@@ -1061,8 +1065,16 @@ pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::
                 .flatten(),
         )
         .with_enabled_buttons(
-            WindowButtons::MAXIMIZE
-                | WindowButtons::MINIMIZE
+            builder
+                .minimize_button
+                .map(|v| v.then(|| WindowButtons::MINIMIZE))
+                .flatten()
+                .unwrap_or(WindowButtons::empty())
+                | builder
+                    .maximize_button
+                    .map(|v| v.then(|| WindowButtons::MAXIMIZE))
+                    .flatten()
+                    .unwrap_or(WindowButtons::empty())
                 | builder
                     .close_button
                     .map(|v| v.then(|| WindowButtons::CLOSE))
@@ -1097,6 +1109,9 @@ pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::
                 .expect("Invalid Icon Data!"),
         ));
     }
+
+    // TODO: implement `ViewportBuilder::hittest`
+    // Is not implemented because winit in his current state will not allow to set cursor_hittest on a `WindowBuilder`
 
     window_builder
 }
@@ -1211,6 +1226,13 @@ pub fn changes_between_builders(
         }
     }
 
+    if let Some(hittest) = new.hittest {
+        if Some(hittest) != last.hittest {
+            last.hittest = Some(hittest);
+            commands.push(ViewportCommand::CursorHitTest(hittest));
+        }
+    }
+
     // TODO: Implement compare for windows buttons
 
     let mut recreate_window = false;
@@ -1225,6 +1247,20 @@ pub fn changes_between_builders(
     if let Some(close_button) = new.close_button {
         if Some(close_button) != last.close_button {
             last.close_button = Some(close_button);
+            recreate_window = true;
+        }
+    }
+
+    if let Some(minimize_button) = new.minimize_button {
+        if Some(minimize_button) != last.minimize_button {
+            last.minimize_button = Some(minimize_button);
+            recreate_window = true;
+        }
+    }
+
+    if let Some(maximized_button) = new.maximize_button {
+        if Some(maximized_button) != last.maximize_button {
+            last.maximize_button = Some(maximized_button);
             recreate_window = true;
         }
     }

@@ -257,9 +257,19 @@ fn show_tooltip_area_dyn<'c, R>(
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> InnerResponse<R> {
     use containers::*;
+    // TODO: Get window pos from winit
+    let parent_window_pos = (0, 0);
+    // TODO: Need some how to calculate the ui size before rendering!
     ctx.create_viewport_sync(
-        ViewportBuilder::default().with_title(format!("Popup Window: {area_id:?}")),
+        ViewportBuilder::default()
+            .with_position(Some((
+                window_pos.x as i32 + parent_window_pos.0,
+                window_pos.y as i32 + parent_window_pos.1,
+            )))
+            .with_decorations(false)
+            .with_title(format!("Popup Window: {area_id:?}")),
         |ctx| {
+            ctx.viewport_command(ctx.get_viewport_id(), ViewportCommand::CursorHitTest(false));
             Area::new(area_id)
                 .order(Order::Tooltip)
                 .fixed_pos(window_pos)
