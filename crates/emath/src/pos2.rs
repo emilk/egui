@@ -17,11 +17,29 @@ use crate::*;
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Pos2 {
     /// How far to the right.
+    #[serde(serialize_with = "serialize_f32_custom")]
     pub x: f32,
 
     /// How far down.
+    #[serde(serialize_with = "serialize_f32_custom")]
     pub y: f32,
     // implicit w = 1
+}
+
+fn serialize_f32_custom<S>(x: &f32, s: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    println!("In custom serializer in pos2 with value {}", x);
+    if *x == f32::INFINITY {
+        println!("And encountered infinity");
+        s.serialize_f32(f32::MAX)
+    } else if *x == f32::NEG_INFINITY {
+        println!("And encountered negative infinity");
+        s.serialize_f32(f32::MIN)
+    } else {
+        s.serialize_f32(*x)
+    }
 }
 
 /// `pos2(x, y) == Pos2::new(x, y)`

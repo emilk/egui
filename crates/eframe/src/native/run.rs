@@ -1291,7 +1291,7 @@ mod wgpu_integration {
                     repaint_after,
                     textures_delta,
                     shapes,
-                } = integration.update(app.as_mut(), window);
+                } = integration.update(app.as_mut(), window, false);
 
                 integration.handle_platform_output(window, platform_output);
 
@@ -1485,7 +1485,7 @@ mod wgpu_integration {
             with_event_loop(native_options, |event_loop, native_options| {
                 let wgpu_eframe =
                     WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
-                run_and_return(event_loop, wgpu_eframe)
+                run_and_return(event_loop, wgpu_eframe, false)
             })
         } else {
             let event_loop = create_event_loop_builder(&mut native_options).build();

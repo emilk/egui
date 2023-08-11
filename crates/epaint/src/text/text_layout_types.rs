@@ -282,9 +282,8 @@ fn serialize_f32_custom<S>(x: &f32, s: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
-    println!("In custom serialiser");
     if *x == f32::INFINITY {
-        s.serialize_f32(100000000.0)
+        s.serialize_f32(f32::MAX)
     } else {
         s.serialize_f32(*x)
     }
@@ -309,7 +308,7 @@ impl std::hash::Hash for TextWrapping {
 impl Default for TextWrapping {
     fn default() -> Self {
         Self {
-            max_width: 10000.0, //changed from f32::INFINITY
+            max_width: f32::INFINITY, //changed from f32::INFINITY
             max_rows: 0,
             break_anywhere: false,
             overflow_character: Some('…'),
