@@ -675,7 +675,11 @@ mod glow_integration {
             glutin_window_context.on_resume(event_loop)?;
 
             if let Some(window) = &glutin_window_context.window {
-                epi_integration::apply_native_options_to_window(window, native_options);
+                epi_integration::apply_native_options_to_window(
+                    window,
+                    native_options,
+                    window_settings,
+                );
             }
 
             let gl = unsafe {
@@ -1128,7 +1132,11 @@ mod wgpu_integration {
             let window_builder =
                 epi_integration::window_builder(event_loop, title, native_options, window_settings);
             let window = window_builder.build(event_loop)?;
-            epi_integration::apply_native_options_to_window(&window, native_options);
+            epi_integration::apply_native_options_to_window(
+                &window,
+                native_options,
+                window_settings,
+            );
             Ok(window)
         }
 
