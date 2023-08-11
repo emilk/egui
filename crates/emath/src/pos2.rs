@@ -30,12 +30,10 @@ fn serialize_f32_custom<S>(x: &f32, s: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
-    println!("In custom serializer in pos2 with value {}", x);
+    // Workaround for the fact that INFINITY and NEG_INFINITY serialize as null and then fail to deserialize
     if *x == f32::INFINITY {
-        println!("And encountered infinity");
         s.serialize_f32(f32::MAX)
     } else if *x == f32::NEG_INFINITY {
-        println!("And encountered negative infinity");
         s.serialize_f32(f32::MIN)
     } else {
         s.serialize_f32(*x)

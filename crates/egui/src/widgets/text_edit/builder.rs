@@ -63,7 +63,6 @@ pub struct TextEdit<'t> {
     margin: Vec2,
     multiline: bool,
     interactive: bool,
-    //#[serde(serialize_with = "serialize_f32_custom")]
     desired_width: Option<f32>,
     desired_height_rows: usize,
     lock_focus: bool,
@@ -73,19 +72,6 @@ pub struct TextEdit<'t> {
     clip_text: bool,
     char_limit: usize,
 }
-
-/*fn serialize_f32_custom<S>(x: &Option<f32>, s: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    println!("In custom serializer with desired width in multiline");
-    if *x == Some(f32::INFINITY) {
-        println!("And encountered infinity");
-        s.serialize_some(&100000000.0)
-    } else {
-        s.serialize_none()
-    }
-}*/
 
 impl<'t> WidgetWithState for TextEdit<'t> {
     type State = TextEditState;

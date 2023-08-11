@@ -7,7 +7,7 @@ use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::NumExt as _;
+use egui::{FullOutput, NumExt as _};
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
@@ -502,7 +502,7 @@ impl EpiIntegration {
         // Run user code:
         if remote_rendering {
             let (full_output, pixels_per_point) = app.update_remote(raw_input.clone());
-            //Tessellate won't run if 'run' hasn't been called, so run and ignore result
+            // Tessellate throws error if 'run' hasn't been called, so run and ignore result
             let mut raw_input = egui::RawInput::default();
             raw_input.pixels_per_point = Some(pixels_per_point);
             let _ = self.egui_ctx.run(raw_input, |_egui_ctx| {});

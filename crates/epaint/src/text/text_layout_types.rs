@@ -282,8 +282,11 @@ fn serialize_f32_custom<S>(x: &f32, s: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
+    // Workaround for the fact that INFINITY and NEG_INFINITY serialize as null and then fail to deserialize
     if *x == f32::INFINITY {
         s.serialize_f32(f32::MAX)
+    } else if *x == f32::NEG_INFINITY {
+        s.serialize_f32(f32::MIN)
     } else {
         s.serialize_f32(*x)
     }
@@ -308,7 +311,7 @@ impl std::hash::Hash for TextWrapping {
 impl Default for TextWrapping {
     fn default() -> Self {
         Self {
-            max_width: f32::INFINITY, //changed from f32::INFINITY
+            max_width: f32::INFINITY,
             max_rows: 0,
             break_anywhere: false,
             overflow_character: Some('…'),
