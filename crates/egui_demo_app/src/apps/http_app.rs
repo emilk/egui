@@ -133,7 +133,7 @@ fn ui_url(ui: &mut egui::Ui, frame: &mut eframe::Frame, url: &mut String) -> boo
         if ui.button("Random image").clicked() {
             let seed = ui.input(|i| i.time);
             let side = 640;
-            *url = format!("https://picsum.photos/seed/{}/{}", seed, side);
+            *url = format!("https://picsum.photos/seed/{seed}/{side}");
             trigger_fetch = true;
         }
     });
