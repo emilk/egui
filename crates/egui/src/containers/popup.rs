@@ -287,7 +287,7 @@ pub fn was_tooltip_open_last_frame(ctx: &Context, tooltip_id: Id) -> bool {
                     let area_id = common_id.with(count);
 
                     let res = ctx.create_viewport_sync(
-                        ViewportBuilder::default().with_title(format!("Popup Window: {area_id:?}")),
+                        ViewportBuilder::empty().with_title(format!("Popup Window: {area_id:?}")),
                         |ctx| {
                             let layer_id = LayerId::new(Order::Tooltip, area_id);
                             ctx.memory(|mem| mem.areas.visible_last_frame(&layer_id))
