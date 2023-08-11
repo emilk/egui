@@ -326,7 +326,7 @@ impl MarkerDemo {
                     [5.0, 0.0 + y_offset],
                     [6.0, 0.5 + y_offset],
                 ])
-                .name(format!("{:?}", marker))
+                .name(format!("{marker:?}"))
                 .filled(self.fill_markers)
                 .radius(self.marker_radius)
                 .shape(marker);
@@ -416,7 +416,7 @@ impl LegendDemo {
             ui.label("Position:");
             ui.horizontal(|ui| {
                 Corner::all().for_each(|position| {
-                    ui.selectable_value(&mut config.position, position, format!("{:?}", position));
+                    ui.selectable_value(&mut config.position, position, format!("{position:?}"));
                 });
             });
             ui.end_row();
@@ -774,21 +774,18 @@ impl InteractionDemo {
             "origin in screen coordinates: x: {:.02}, y: {:.02}",
             screen_pos.x, screen_pos.y
         ));
-        ui.label(format!("plot hovered: {}", hovered));
+        ui.label(format!("plot hovered: {hovered}"));
         let coordinate_text = if let Some(coordinate) = pointer_coordinate {
             format!("x: {:.02}, y: {:.02}", coordinate.x, coordinate.y)
         } else {
             "None".to_owned()
         };
-        ui.label(format!("pointer coordinate: {}", coordinate_text));
+        ui.label(format!("pointer coordinate: {coordinate_text}"));
         let coordinate_text = format!(
             "x: {:.02}, y: {:.02}",
             pointer_coordinate_drag_delta.x, pointer_coordinate_drag_delta.y
         );
-        ui.label(format!(
-            "pointer coordinate drag delta: {}",
-            coordinate_text
-        ));
+        ui.label(format!("pointer coordinate drag delta: {coordinate_text}"));
 
         response
     }

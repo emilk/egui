@@ -106,7 +106,7 @@ impl AllocInfo {
             element_size: ElementSize::Homogeneous(element_size),
             num_allocs: 1,
             num_elements: slice.len(),
-            num_bytes: slice.len() * element_size,
+            num_bytes: std::mem::size_of_val(slice),
         }
     }
 

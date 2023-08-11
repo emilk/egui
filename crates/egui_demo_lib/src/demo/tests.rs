@@ -20,7 +20,7 @@ impl super::View for CursorTest {
             ui.heading("Hover to switch cursor icon:");
             for &cursor_icon in &egui::CursorIcon::ALL {
                 let _ = ui
-                    .button(format!("{:?}", cursor_icon))
+                    .button(format!("{cursor_icon:?}"))
                     .on_hover_cursor(cursor_icon);
             }
             ui.add(crate::egui_github_link_file!());
@@ -239,7 +239,7 @@ impl super::View for TableTest {
                 for row in 0..self.num_rows {
                     for col in 0..self.num_cols {
                         if col == 0 {
-                            ui.label(format!("row {}", row));
+                            ui.label(format!("row {row}"));
                         } else {
                             let word_idx = row * 3 + col * 5;
                             let word_count = (row * 5 + col * 75) % 13;
@@ -350,13 +350,13 @@ impl super::View for InputTest {
             use std::fmt::Write as _;
 
             if response.clicked_by(button) {
-                writeln!(new_info, "Clicked by {:?} button", button).ok();
+                writeln!(new_info, "Clicked by {button:?} button").ok();
             }
             if response.double_clicked_by(button) {
-                writeln!(new_info, "Double-clicked by {:?} button", button).ok();
+                writeln!(new_info, "Double-clicked by {button:?} button").ok();
             }
             if response.triple_clicked_by(button) {
-                writeln!(new_info, "Triple-clicked by {:?} button", button).ok();
+                writeln!(new_info, "Triple-clicked by {button:?} button").ok();
             }
             if response.dragged_by(button) {
                 writeln!(

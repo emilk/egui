@@ -19,7 +19,7 @@ fn main() -> eframe::Result<()> {
 }
 
 fn repr(attention: UserAttentionType) -> String {
-    format!("{:?}", attention)
+    format!("{attention:?}")
 }
 
 struct Application {

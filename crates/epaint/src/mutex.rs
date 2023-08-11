@@ -333,7 +333,7 @@ mod rw_lock_impl {
     fn format_backtrace(backtrace: &mut backtrace::Backtrace) -> String {
         backtrace.resolve();
 
-        let stacktrace = format!("{:?}", backtrace);
+        let stacktrace = format!("{backtrace:?}");
 
         // Remove irrelevant parts of the stacktrace:
         let end_offset = stacktrace

@@ -206,7 +206,7 @@ impl std::ops::Index<usize> for Pos2 {
         match index {
             0 => &self.x,
             1 => &self.y,
-            _ => panic!("Pos2 index out of bounds: {}", index),
+            _ => panic!("Pos2 index out of bounds: {index}"),
         }
     }
 }
@@ -217,7 +217,7 @@ impl std::ops::IndexMut<usize> for Pos2 {
         match index {
             0 => &mut self.x,
             1 => &mut self.y,
-            _ => panic!("Pos2 index out of bounds: {}", index),
+            _ => panic!("Pos2 index out of bounds: {index}"),
         }
     }
 }

@@ -91,6 +91,7 @@ warn = [
   "clippy::trailing_empty_array",
   "clippy::trait_duplication_in_bounds",
   "clippy::unimplemented",
+  "clippy::uninlined_format_args",
   "clippy::unnecessary_wraps",
   "clippy::unnested_or_patterns",
   "clippy::unused_peekable",

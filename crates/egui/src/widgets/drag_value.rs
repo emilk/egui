@@ -627,7 +627,7 @@ impl<'a> Widget for DragValue<'a> {
             // The value is exposed as a string by the text edit widget
             // when in edit mode.
             if !is_kb_editing {
-                let value_text = format!("{}{}{}", prefix, value_text, suffix);
+                let value_text = format!("{prefix}{value_text}{suffix}");
                 builder.set_value(value_text);
             }
         });
