@@ -35,6 +35,7 @@ deny = [
 
 skip = [
     { name = "arrayvec" },            # old version via tiny-skiaz
+    { name = "foreign-types" },       # old version via cocoa, fairly small itself
     { name = "libloading" },          # wgpu-hal itself depends on 0.8 while some of its dependencies, like ash and d3d12, depend on 0.7
     { name = "nix" },                 # old version via winit
     { name = "redox_syscall" },       # old version via winit
@@ -45,7 +46,6 @@ skip = [
     { name = "windows_x86_64_msvc" }, # old version via glutin
     { name = "windows-sys" },         # old version via glutin
     { name = "windows" },             # old version via accesskit
-    { name = "foreign-types" },       # old version via cocoa, fairly small itself
 ]
 skip-tree = [
     { name = "criterion" }, # dev-dependency
