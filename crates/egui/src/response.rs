@@ -435,6 +435,18 @@ impl Response {
             }
         }
 
+        if self.ctx.style().interaction.tooltip_delay > 0.0
+            && self.ctx.style().interaction.tooltip_delay
+                > self.ctx.input(|i| i.pointer.time_since_last_movement())
+        {
+            // If a non-zero delay was specified, we only show the tooltip if the mouse has been
+            // still for the specified amount of time. If the mouse is moved, the tooltip
+            // disappears.
+
+            self.ctx.request_repaint();
+            return false;
+        }
+
         // We don't want tooltips of things while we are dragging them,
         // but we do want tooltips while holding down on an item on a touch screen.
         if self
