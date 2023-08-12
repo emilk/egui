@@ -123,7 +123,7 @@ impl Widget for Hyperlink {
             ui.ctx().output_mut(|o| {
                 o.open_url = Some(crate::output::OpenUrl {
                     url: url.clone(),
-                    new_tab: modifiers.any() && new_tab,
+                    new_tab: new_tab || modifiers.any(),
                 });
             });
         }
