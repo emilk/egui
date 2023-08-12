@@ -71,6 +71,10 @@ impl ProgressBar {
     /// Whether to display a loading animation when progress `< 1`.
     /// Note that this will cause the UI to be redrawn.
     /// Defaults to `false`.
+    ///
+    /// If [`Self::rounding`] and [`Self::animate`] are used simultaneously, the animation is not
+    /// rendered, since it requires a perfect circle to render correctly. However, the UI is still
+    /// redrawn.
     #[inline]
     pub fn animate(mut self, animate: bool) -> Self {
         self.animate = animate;
@@ -78,8 +82,10 @@ impl ProgressBar {
     }
 
     /// Set the rounding of the progress bar.
-    /// If this option is set, the [`Self::animate`] option is ignored, since the loading animation
-    /// requires a perfect circle to render correctly.
+    ///
+    /// If [`Self::rounding`] and [`Self::animate`] are used simultaneously, the animation is not
+    /// rendered, since it requires a perfect circle to render correctly. However, the UI is still
+    /// redrawn.
     pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
         self.rounding = Some(rounding.into());
         self
