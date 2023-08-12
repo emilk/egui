@@ -166,7 +166,7 @@ fn rows_from_paragraphs(
         } else {
             let paragraph_max_x = paragraph.glyphs.last().unwrap().max_x();
             if paragraph_max_x <= job.wrap.max_width {
-                // early-out optimization
+                // Early-out optimization: the whole paragraph fits on one row.
                 let paragraph_min_x = paragraph.glyphs[0].pos.x;
                 rows.push(Row {
                     glyphs: paragraph.glyphs,
@@ -201,51 +201,82 @@ fn line_break(
     for i in 0..paragraph.glyphs.len() {
         let potential_row_width = paragraph.glyphs[i].max_x() - row_start_x;
 
-        if job.wrap.max_rows > 0 && non_empty_rows >= job.wrap.max_rows {
+        if job.wrap.max_rows != 0 && non_empty_rows >= job.wrap.max_rows {
             break;
         }
 
         if potential_row_width > job.wrap.max_width {
-            if first_row_indentation > 0.0
-                && !row_break_candidates.has_good_candidate(job.wrap.break_anywhere)
-            {
-                // Allow the first row to be completely empty, because we know there will be more space on the next row:
-                // TODO(emilk): this records the height of this first row as zero, though that is probably fine since first_row_indentation usually comes with a first_row_min_height.
-                out_rows.push(Row {
-                    glyphs: vec![],
-                    visuals: Default::default(),
-                    rect: rect_from_x_range(first_row_indentation..=first_row_indentation),
-                    ends_with_newline: false,
-                });
-                row_start_x += first_row_indentation;
-                first_row_indentation = 0.0;
-            } else if let Some(last_kept_index) = row_break_candidates.get(job.wrap.break_anywhere)
-            {
-                let glyphs: Vec<Glyph> = paragraph.glyphs[row_start_idx..=last_kept_index]
-                    .iter()
-                    .copied()
-                    .map(|mut glyph| {
-                        glyph.pos.x -= row_start_x;
-                        glyph
-                    })
-                    .collect();
+            if job.wrap.clip_to_max_width {
+                assert_eq!(row_start_x, 0.0);
+                assert_eq!(row_start_idx, 0);
+                assert_eq!(non_empty_rows, 0);
 
-                let paragraph_min_x = glyphs[0].pos.x;
-                let paragraph_max_x = glyphs.last().unwrap().max_x();
+                let glyphs: Vec<Glyph> = paragraph.glyphs[..i].to_vec();
 
-                out_rows.push(Row {
+                let x_range = if let (Some(first), Some(last)) = (glyphs.first(), glyphs.last()) {
+                    first.pos.x..=last.max_x()
+                } else {
+                    0.0..=0.0
+                };
+
+                let mut row = Row {
                     glyphs,
                     visuals: Default::default(),
-                    rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
+                    rect: rect_from_x_range(x_range),
                     ends_with_newline: false,
-                });
+                };
 
-                row_start_idx = last_kept_index + 1;
-                row_start_x = paragraph.glyphs[row_start_idx].pos.x;
-                row_break_candidates = Default::default();
-                non_empty_rows += 1;
+                // Add the trailing overflow character (e.g. `…`):
+                replace_last_glyph_with_overflow_character(fonts, job, &mut row);
+
+                out_rows.push(row);
+
+                return;
             } else {
-                // Found no place to break, so we have to overrun wrap_width.
+                // Row break:
+
+                if first_row_indentation > 0.0
+                    && !row_break_candidates.has_good_candidate(job.wrap.break_anywhere)
+                {
+                    // Allow the first row to be completely empty, because we know there will be more space on the next row:
+                    // TODO(emilk): this records the height of this first row as zero, though that is probably fine since first_row_indentation usually comes with a first_row_min_height.
+                    out_rows.push(Row {
+                        glyphs: vec![],
+                        visuals: Default::default(),
+                        rect: rect_from_x_range(first_row_indentation..=first_row_indentation),
+                        ends_with_newline: false,
+                    });
+                    row_start_x += first_row_indentation;
+                    first_row_indentation = 0.0;
+                } else if let Some(last_kept_index) =
+                    row_break_candidates.get(job.wrap.break_anywhere)
+                {
+                    let glyphs: Vec<Glyph> = paragraph.glyphs[row_start_idx..=last_kept_index]
+                        .iter()
+                        .copied()
+                        .map(|mut glyph| {
+                            glyph.pos.x -= row_start_x;
+                            glyph
+                        })
+                        .collect();
+
+                    let paragraph_min_x = glyphs[0].pos.x;
+                    let paragraph_max_x = glyphs.last().unwrap().max_x();
+
+                    out_rows.push(Row {
+                        glyphs,
+                        visuals: Default::default(),
+                        rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
+                        ends_with_newline: false,
+                    });
+
+                    row_start_idx = last_kept_index + 1;
+                    row_start_x = paragraph.glyphs[row_start_idx].pos.x;
+                    row_break_candidates = Default::default();
+                    non_empty_rows += 1;
+                } else {
+                    // Found no place to break, so we have to overrun wrap_width.
+                }
             }
         }
 
@@ -253,7 +284,7 @@ fn line_break(
     }
 
     if row_start_idx < paragraph.glyphs.len() {
-        if job.wrap.max_rows > 0 && non_empty_rows == job.wrap.max_rows {
+        if job.wrap.max_rows != 0 && non_empty_rows == job.wrap.max_rows {
             if let Some(last_row) = out_rows.last_mut() {
                 replace_last_glyph_with_overflow_character(fonts, job, last_row);
             }
@@ -280,6 +311,7 @@ fn line_break(
     }
 }
 
+/// Trims the last glyphs in the row and replaces it with an overflow character (e.g. `…`).
 fn replace_last_glyph_with_overflow_character(
     fonts: &mut FontsImpl,
     job: &LayoutJob,
@@ -318,6 +350,7 @@ fn replace_last_glyph_with_overflow_character(
         let (font_impl, glyph_info) = font.glyph_info_and_font_impl(last_glyph.chr);
         last_glyph.size = vec2(glyph_info.advance_width, font_height);
         last_glyph.uv_rect = glyph_info.uv_rect;
+        last_glyph.ascent = glyph_info.ascent;
 
         // reapply kerning
         last_glyph.pos.x += font_impl
@@ -325,16 +358,20 @@ fn replace_last_glyph_with_overflow_character(
             .map(|(font_impl, prev_glyph_id)| font_impl.pair_kerning(prev_glyph_id, glyph_info.id))
             .unwrap_or_default();
 
-        // check if we're still within width budget
+        row.rect.max.x = last_glyph.max_x();
+
+        // check if we're within width budget
         let row_end_x = last_glyph.max_x();
         let row_start_x = row.glyphs.first().unwrap().pos.x; // if `last_mut()` returned `Some`, then so will `first()`
         let row_width = row_end_x - row_start_x;
         if row_width <= job.wrap.max_width {
-            break;
+            return; // we are done
         }
 
         row.glyphs.pop();
     }
+
+    // We failed to insert `overflow_character` without exceeding `wrap_width`.
 }
 
 fn halign_and_justify_row(

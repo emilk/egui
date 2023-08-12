@@ -49,6 +49,7 @@ pub struct LayoutJob {
     /// The different section, which can have different fonts, colors, etc.
     pub sections: Vec<LayoutSection>,
 
+    /// Controls the text wrapping.
     pub wrap: TextWrapping,
 
     /// The first row must be at least this high.
@@ -66,7 +67,7 @@ pub struct LayoutJob {
     /// How to horizontally align the text (`Align::LEFT`, `Align::Center`, `Align::RIGHT`).
     pub halign: Align,
 
-    /// Justify text so that word-wrapped rows fill the whole [`TextWrapping::max_width`]
+    /// Justify text so that word-wrapped rows fill the whole [`TextWrapping::max_width`].
     pub justify: bool,
 }
 
@@ -269,19 +270,36 @@ impl TextFormat {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextWrapping {
-    /// Try to break text so that no row is wider than this.
-    /// Set to [`f32::INFINITY`] to turn off wrapping.
-    /// Note that `\n` always produces a new line.
+    /// Try to wrap or clip text so that no row is wider than this.
+    ///
+    /// Wether the text is wrapped or clipped depends on [`Self::clip_to_max_width`].
+    ///
+    /// Set to [`f32::INFINITY`] to turn off wrapping/clipping.
+    ///
+    /// Note that `\n` always produces a new line
+    /// if [`LayoutJob::break_on_newline`] is `true`.
     pub max_width: f32,
 
+    /// If `true`, the text that doesn't fit within [`Self::max_width`]
+    /// will be ellided and replaced with [`Self::overflow_character`].
+    ///
+    /// Default: `false`.
+    pub clip_to_max_width: bool,
+
     /// Maximum amount of rows the text should have.
+    ///
+    /// If the text has more rows than this, the last row will be clipped, and [`Self::overflow_character`] appended.
+    ///
     /// Set to `0` to disable this.
     pub max_rows: usize,
 
-    /// Don't try to break text at an appropriate place.
+    /// If `true`: Allow breaking between any characters.
+    /// If `false` (default): prefer breaking between words, etc.
     pub break_anywhere: bool,
 
     /// Character to use to represent clipped text, `…` for example, which is the default.
+    ///
+    /// If not set, no character will be used (but the text will still be clipped).
     pub overflow_character: Option<char>,
 }
 
@@ -290,11 +308,13 @@ impl std::hash::Hash for TextWrapping {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let Self {
             max_width,
+            clip_to_max_width,
             max_rows,
             break_anywhere,
             overflow_character,
         } = self;
         crate::f32_hash(state, *max_width);
+        clip_to_max_width.hash(state);
         max_rows.hash(state);
         break_anywhere.hash(state);
         overflow_character.hash(state);
@@ -305,6 +325,7 @@ impl Default for TextWrapping {
     fn default() -> Self {
         Self {
             max_width: f32::INFINITY,
+            clip_to_max_width: false,
             max_rows: 0,
             break_anywhere: false,
             overflow_character: Some('…'),
