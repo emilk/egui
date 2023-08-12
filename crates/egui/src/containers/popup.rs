@@ -206,7 +206,7 @@ fn show_tooltip_at_avoid_dyn<'c, R>(
         }
     }
 
-    let position = position.at_least(ctx.screen_rect().min);
+    let position = position.at_least(Pos2::ZERO);
 
     let area_id = frame_state.common_id.with(frame_state.count);
 
@@ -262,7 +262,7 @@ fn show_tooltip_area_dyn<'c, R>(
         .fixed_pos(window_pos)
         .constrain(true)
         .interactable(false)
-        .drag_bounds(ctx.screen_rect())
+        .drag_bounds(Rect::from_min_max(Pos2::ZERO, ctx.screen_rect().max))
         .show(ctx, |ui| {
             Frame::popup(&ctx.style())
                 .show(ui, |ui| {

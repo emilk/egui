@@ -421,7 +421,7 @@ impl<'open> Window<'open> {
                     let mut resize = resize.id(resize_id);
 
                     let mut area = area.begin(ctx);
-                    let win_size = ctx.input(|i| i.screen_rect.size());
+                    let win_size = ctx.screen_rect().max.to_vec2();
                     area.state_mut().set_left_top_pos(Pos2::ZERO);
                     area.state_mut().size = win_size;
                     let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
@@ -878,7 +878,7 @@ impl<'open> Window<'open> {
                     let mut resize = resize.id(resize_id);
 
                     let mut area = area.begin(ctx);
-                    let win_size = ctx.input(|i| i.screen_rect.size());
+                    let win_size = ctx.screen_rect().max.to_vec2();
                     area.state_mut().set_left_top_pos(Pos2::ZERO);
                     area.state_mut().size = win_size;
                     let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;

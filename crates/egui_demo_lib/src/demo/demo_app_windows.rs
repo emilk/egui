@@ -179,7 +179,7 @@ impl DemoWindows {
 
     fn mobile_ui(&mut self, ctx: &Context) {
         if self.about_is_open {
-            let screen_size = ctx.input(|i| i.screen_rect.size());
+            let screen_size = ctx.screen_rect().max.to_vec2();
             let default_width = (screen_size.x - 20.0).min(400.0);
 
             let mut close = false;

@@ -335,7 +335,7 @@ impl SidePanel {
         let layer_id = LayerId::background();
         let side = self.side;
         let available_rect = ctx.available_rect();
-        let clip_rect = ctx.screen_rect();
+        let clip_rect = Rect::from_min_max(Pos2::ZERO, ctx.screen_rect().max);
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, self.id, available_rect, clip_rect);
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
@@ -787,7 +787,7 @@ impl TopBottomPanel {
         let available_rect = ctx.available_rect();
         let side = self.side;
 
-        let clip_rect = ctx.screen_rect();
+        let clip_rect = Rect::from_min_max(Pos2::ZERO, ctx.screen_rect().max);
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, self.id, available_rect, clip_rect);
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);
@@ -1044,7 +1044,7 @@ impl CentralPanel {
         let layer_id = LayerId::background();
         let id = Id::new("central_panel");
 
-        let clip_rect = ctx.screen_rect();
+        let clip_rect = Rect::from_min_max(Pos2::ZERO, ctx.screen_rect().max);
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, available_rect, clip_rect);
 
         let inner_response = self.show_inside_dyn(&mut panel_ui, add_contents);

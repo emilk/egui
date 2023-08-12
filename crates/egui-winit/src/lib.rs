@@ -16,7 +16,7 @@ pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{mutex::RwLock, ViewportBuilder, ViewportCommand, ViewportId};
+use egui::{mutex::RwLock, Pos2, ViewportBuilder, ViewportCommand, ViewportId};
 pub use winit;
 
 pub mod clipboard;
@@ -178,9 +178,12 @@ impl State {
         let screen_size_in_points = screen_size_in_pixels / pixels_per_point;
         self.egui_input.screen_rect =
             if screen_size_in_points.x > 0.0 && screen_size_in_points.y > 0.0 {
-                Some(egui::Rect::from_min_size(
-                    egui::Pos2::ZERO,
-                    screen_size_in_points,
+                Some(egui::Rect::from_min_max(
+                    window
+                        .outer_position()
+                        .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
+                        .unwrap_or(Pos2::ZERO),
+                    screen_size_in_points.to_pos2(),
                 ))
             } else {
                 None
