@@ -78,8 +78,8 @@ fn main() {
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
-            glutin::event::Event::RedrawEventsCleared if cfg!(windows) => redraw(),
-            glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
+            glutin::event::Event::RedrawEventsCleared if cfg!(target_os = "windows") => redraw(),
+            glutin::event::Event::RedrawRequested(_) if !cfg!(target_os = "windows") => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
                 use glutin::event::WindowEvent;
