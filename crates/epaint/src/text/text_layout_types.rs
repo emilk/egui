@@ -272,7 +272,7 @@ impl TextFormat {
 pub struct TextWrapping {
     /// Try to wrap or clip text so that no row is wider than this.
     ///
-    /// Wether the text is wrapped or clipped depends on [`Self::clip_to_max_width`].
+    /// Whether the text is wrapped or clipped depends on [`Self::clip_to_max_width`].
     ///
     /// Set to [`f32::INFINITY`] to turn off wrapping/clipping.
     ///
@@ -281,7 +281,7 @@ pub struct TextWrapping {
     pub max_width: f32,
 
     /// If `true`, the text that doesn't fit within [`Self::max_width`]
-    /// will be ellided and replaced with [`Self::overflow_character`].
+    /// will be elided and replaced with [`Self::overflow_character`].
     ///
     /// Default: `false`.
     pub clip_to_max_width: bool,
