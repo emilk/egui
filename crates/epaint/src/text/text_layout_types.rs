@@ -272,7 +272,7 @@ impl TextFormat {
 pub struct TextWrapping {
     /// Try to wrap or clip text so that no row is wider than this.
     ///
-    /// Whether the text is wrapped or clipped depends on [`Self::clip_to_max_width`].
+    /// Whether the text is wrapped or clipped depends on [`Self::elide_at_max_width`].
     ///
     /// Set to [`f32::INFINITY`] to turn off wrapping/clipping.
     ///
@@ -284,13 +284,16 @@ pub struct TextWrapping {
     /// will be elided and replaced with [`Self::overflow_character`].
     ///
     /// Default: `false`.
-    pub clip_to_max_width: bool,
+    pub elide_at_max_width: bool,
 
     /// Maximum amount of rows the text should have.
     ///
-    /// If the text has more rows than this, the last row will be clipped, and [`Self::overflow_character`] appended.
+    /// If the full text requires more rows than this,
+    /// the last rows will be clipped, and [`Self::overflow_character`] appended.
     ///
-    /// Set to `0` to disable this.
+    /// If set to `0`, no text will be shown.
+    ///
+    /// Default value: `usize::MAX`.
     pub max_rows: usize,
 
     /// If `true`: Allow breaking between any characters.
@@ -308,13 +311,13 @@ impl std::hash::Hash for TextWrapping {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let Self {
             max_width,
-            clip_to_max_width,
+            elide_at_max_width,
             max_rows,
             break_anywhere,
             overflow_character,
         } = self;
         crate::f32_hash(state, *max_width);
-        clip_to_max_width.hash(state);
+        elide_at_max_width.hash(state);
         max_rows.hash(state);
         break_anywhere.hash(state);
         overflow_character.hash(state);
@@ -325,8 +328,8 @@ impl Default for TextWrapping {
     fn default() -> Self {
         Self {
             max_width: f32::INFINITY,
-            clip_to_max_width: false,
-            max_rows: 0,
+            elide_at_max_width: false,
+            max_rows: usize::MAX,
             break_anywhere: false,
             overflow_character: Some('…'),
         }
@@ -354,10 +357,17 @@ pub struct Galley {
     pub job: Arc<LayoutJob>,
 
     /// Rows of text, from top to bottom.
-    /// The number of characters in all rows sum up to `job.text.chars().count()`.
-    /// Note that each paragraph (pieces of text separated with `\n`)
+    ///
+    /// The number of characters in all rows sum up to `job.text.chars().count()`
+    /// unless [`self::elided`] is `true`.
+    ///
+    /// Note that a paragraph (a piece of text separated with `\n`)
     /// can be split up into multiple rows.
     pub rows: Vec<Row>,
+
+    /// Set to true if some text was elided due to either
+    /// [`TextWrapping::elide_at_max_width`] or [`TextWrapping::max_rows`].
+    pub elided: bool,
 
     /// Bounding rect.
     ///

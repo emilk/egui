@@ -1,9 +1,11 @@
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 
-use super::{FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, Row, RowVisuals};
-use crate::{Color32, Mesh, Stroke, Vertex};
 use emath::*;
+
+use crate::{Color32, Mesh, Stroke, Vertex};
+
+use super::{FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, Row, RowVisuals};
 
 // ----------------------------------------------------------------------------
 
@@ -54,6 +56,20 @@ struct Paragraph {
 /// In most cases you should use [`crate::Fonts::layout_job`] instead
 /// since that memoizes the input, making subsequent layouting of the same text much faster.
 pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
+    if job.wrap.max_rows == 0 {
+        // Early-out: no text
+        return Galley {
+            job,
+            rows: Default::default(),
+            rect: Rect::from_min_max(Pos2::ZERO, Pos2::ZERO),
+            mesh_bounds: Rect::NOTHING,
+            num_vertices: 0,
+            num_indices: 0,
+            pixels_per_point: fonts.pixels_per_point(),
+            elided: true,
+        };
+    }
+
     let mut paragraphs = vec![Paragraph::default()];
     for (section_index, section) in job.sections.iter().enumerate() {
         layout_section(fonts, &job, section_index as u32, section, &mut paragraphs);
@@ -61,7 +77,8 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
 
     let point_scale = PointScale::new(fonts.pixels_per_point());
 
-    let mut rows = rows_from_paragraphs(fonts, paragraphs, &job);
+    let mut elided = false;
+    let mut rows = rows_from_paragraphs(fonts, paragraphs, &job, &mut elided);
 
     let justify = job.justify && job.wrap.max_width.is_finite();
 
@@ -80,7 +97,7 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
         }
     }
 
-    galley_from_rows(point_scale, job, rows)
+    galley_from_rows(point_scale, job, rows, elided)
 }
 
 fn layout_section(
@@ -145,6 +162,7 @@ fn rows_from_paragraphs(
     fonts: &mut FontsImpl,
     paragraphs: Vec<Paragraph>,
     job: &LayoutJob,
+    elided: &mut bool,
 ) -> Vec<Row> {
     let num_paragraphs = paragraphs.len();
 
@@ -175,7 +193,7 @@ fn rows_from_paragraphs(
                     ends_with_newline: !is_last_paragraph,
                 });
             } else {
-                line_break(fonts, &paragraph, job, &mut rows);
+                line_break(fonts, &paragraph, job, &mut rows, elided);
                 rows.last_mut().unwrap().ends_with_newline = !is_last_paragraph;
             }
         }
@@ -189,6 +207,7 @@ fn line_break(
     paragraph: &Paragraph,
     job: &LayoutJob,
     out_rows: &mut Vec<Row>,
+    elided: &mut bool,
 ) {
     // Keeps track of good places to insert row break if we exceed `wrap_width`.
     let mut row_break_candidates = RowBreakCandidates::default();
@@ -201,12 +220,12 @@ fn line_break(
     for i in 0..paragraph.glyphs.len() {
         let potential_row_width = paragraph.glyphs[i].max_x() - row_start_x;
 
-        if job.wrap.max_rows != 0 && non_empty_rows >= job.wrap.max_rows {
+        if non_empty_rows >= job.wrap.max_rows {
             break;
         }
 
         if potential_row_width > job.wrap.max_width {
-            if job.wrap.clip_to_max_width {
+            if job.wrap.elide_at_max_width {
                 assert_eq!(row_start_x, 0.0);
                 assert_eq!(row_start_idx, 0);
                 assert_eq!(non_empty_rows, 0);
@@ -228,6 +247,7 @@ fn line_break(
 
                 // Add the trailing overflow character (e.g. `…`):
                 replace_last_glyph_with_overflow_character(fonts, job, &mut row);
+                *elided = true;
 
                 out_rows.push(row);
 
@@ -284,9 +304,10 @@ fn line_break(
     }
 
     if row_start_idx < paragraph.glyphs.len() {
-        if job.wrap.max_rows != 0 && non_empty_rows == job.wrap.max_rows {
+        if non_empty_rows == job.wrap.max_rows {
             if let Some(last_row) = out_rows.last_mut() {
                 replace_last_glyph_with_overflow_character(fonts, job, last_row);
+                *elided = true;
             }
         } else {
             let glyphs: Vec<Glyph> = paragraph.glyphs[row_start_idx..]
@@ -465,7 +486,12 @@ fn halign_and_justify_row(
 }
 
 /// Calculate the Y positions and tessellate the text.
-fn galley_from_rows(point_scale: PointScale, job: Arc<LayoutJob>, mut rows: Vec<Row>) -> Galley {
+fn galley_from_rows(
+    point_scale: PointScale,
+    job: Arc<LayoutJob>,
+    mut rows: Vec<Row>,
+    elided: bool,
+) -> Galley {
     let mut first_row_min_height = job.first_row_min_height;
     let mut cursor_y = 0.0;
     let mut min_x: f32 = 0.0;
@@ -526,6 +552,7 @@ fn galley_from_rows(point_scale: PointScale, job: Arc<LayoutJob>, mut rows: Vec<
     Galley {
         job,
         rows,
+        elided,
         rect,
         mesh_bounds,
         num_vertices,

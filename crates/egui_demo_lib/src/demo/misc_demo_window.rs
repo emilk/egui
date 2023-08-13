@@ -628,7 +628,7 @@ fn text_layout_demo(ui: &mut Ui) {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 struct TextBreakDemo {
-    clip_to_max_width: bool,
+    elide_at_max_width: bool,
     break_anywhere: bool,
     max_rows: usize,
     overflow_character: Option<char>,
@@ -637,7 +637,7 @@ struct TextBreakDemo {
 impl Default for TextBreakDemo {
     fn default() -> Self {
         Self {
-            clip_to_max_width: true,
+            elide_at_max_width: true,
             max_rows: 2,
             break_anywhere: false,
             overflow_character: Some('…'),
@@ -648,7 +648,7 @@ impl Default for TextBreakDemo {
 impl TextBreakDemo {
     pub fn ui(&mut self, ui: &mut Ui) {
         let Self {
-            clip_to_max_width,
+            elide_at_max_width,
             break_anywhere,
             max_rows,
             overflow_character,
@@ -657,11 +657,11 @@ impl TextBreakDemo {
         use egui::text::LayoutJob;
 
         ui.horizontal(|ui| {
-            ui.radio_value(clip_to_max_width, false, "Wrap");
-            ui.radio_value(clip_to_max_width, true, "Clip");
+            ui.radio_value(elide_at_max_width, false, "Wrap");
+            ui.radio_value(elide_at_max_width, true, "Clip");
         });
 
-        if !*clip_to_max_width {
+        if !*elide_at_max_width {
             ui.horizontal(|ui| {
                 ui.add(DragValue::new(max_rows));
                 ui.label("Max rows");
@@ -680,7 +680,7 @@ impl TextBreakDemo {
         let mut job = LayoutJob::single_section(LOREM_IPSUM.to_owned(), TextFormat::default());
         job.wrap = TextWrapping {
             max_rows: *max_rows,
-            clip_to_max_width: *clip_to_max_width,
+            elide_at_max_width: *elide_at_max_width,
             break_anywhere: *break_anywhere,
             overflow_character: *overflow_character,
             ..Default::default()
