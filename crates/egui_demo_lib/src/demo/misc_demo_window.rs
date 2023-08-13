@@ -679,6 +679,7 @@ impl TextBreakDemo {
             overflow_character: *overflow_character,
             ..Default::default()
         };
-        ui.label(job);
+
+        ui.label(job); // `Label` overrides some of the wrapping settings, e.g. wrap width
     }
 }
