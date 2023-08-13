@@ -49,7 +49,7 @@ pub struct LayoutJob {
     /// The different section, which can have different fonts, colors, etc.
     pub sections: Vec<LayoutSection>,
 
-    /// Controls the text wrapping.
+    /// Controls the text wrapping and elision.
     pub wrap: TextWrapping,
 
     /// The first row must be at least this high.
@@ -59,8 +59,12 @@ pub struct LayoutJob {
     /// In other cases, set this to `0.0`.
     pub first_row_min_height: f32,
 
-    /// If `false`, all newlines characters will be ignored
+    /// If `true`, all `\n` characters will result in a new _paragraph_,
+    /// starting on a new row.
+    ///
+    /// If `false`, all `\n` characters will be ignored
     /// and show up as the replacement character.
+    ///
     /// Default: `true`.
     pub break_on_newline: bool,
 
@@ -154,7 +158,7 @@ impl LayoutJob {
         });
     }
 
-    /// The height of the tallest used font in the job.
+    /// The height of the tallest font used in the job.
     pub fn font_height(&self, fonts: &crate::Fonts) -> f32 {
         let mut max_height = 0.0_f32;
         for section in &self.sections {
@@ -267,17 +271,18 @@ impl TextFormat {
 
 // ----------------------------------------------------------------------------
 
+/// Controls the text wrapping and elision of a [`LayoutJob`].
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextWrapping {
     /// Wrap text so that no row is wider than this.
     ///
-    /// If you would rather elide text that is too wide,
+    /// If you would rather elide text that doesn't fit,
     /// set [`Self::max_rows`] to `1`.
     ///
-    /// Set to [`f32::INFINITY`] to turn off wrapping/clipping.
+    /// Set `max_width` to [`f32::INFINITY`] to turn off wrapping/clipping.
     ///
-    /// Note that `\n` always produces a new line
+    /// Note that `\n` always produces a new row
     /// if [`LayoutJob::break_on_newline`] is `true`.
     pub max_width: f32,
 
@@ -290,7 +295,7 @@ pub struct TextWrapping {
     /// If set to `0`, no text will be outputted.
     ///
     /// If set to `1`, a single row will be outputted,
-    /// eliding the text at [`Self::max_width`].
+    /// eliding the text after [`Self::max_width`] is reached.
     ///
     /// Wether or not a word can be cut in half is decided by [`Self::break_anywhere`].
     ///
@@ -303,7 +308,7 @@ pub struct TextWrapping {
     /// This also aplies to elision: when `true`, a word may be cut in half.
     pub break_anywhere: bool,
 
-    /// Character to use to represent clipped text, `…` for example, which is the default.
+    /// Character to use to represent elided text, `…` for example, which is the default.
     ///
     /// If not set, no character will be used (but the text will still be clipped).
     pub overflow_character: Option<char>,

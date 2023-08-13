@@ -169,6 +169,11 @@ fn rows_from_paragraphs(
     let mut rows = vec![];
 
     for (i, paragraph) in paragraphs.into_iter().enumerate() {
+        if job.wrap.max_rows <= rows.len() {
+            *elided = true;
+            break;
+        }
+
         let is_last_paragraph = (i + 1) == num_paragraphs;
 
         if paragraph.glyphs.is_empty() {
@@ -215,16 +220,16 @@ fn line_break(
     let mut first_row_indentation = paragraph.glyphs[0].pos.x;
     let mut row_start_x = 0.0;
     let mut row_start_idx = 0;
-    let mut non_empty_rows = 0;
 
     for i in 0..paragraph.glyphs.len() {
         let potential_row_width = paragraph.glyphs[i].max_x() - row_start_x;
 
-        if non_empty_rows >= job.wrap.max_rows {
+        if job.wrap.max_rows <= out_rows.len() {
+            *elided = true;
             break;
         }
 
-        if potential_row_width > job.wrap.max_width {
+        if job.wrap.max_width < potential_row_width {
             // Row break:
 
             if first_row_indentation > 0.0
@@ -261,10 +266,10 @@ fn line_break(
                     ends_with_newline: false,
                 });
 
+                // Start a new row:
                 row_start_idx = last_kept_index + 1;
                 row_start_x = paragraph.glyphs[row_start_idx].pos.x;
                 row_break_candidates = Default::default();
-                non_empty_rows += 1;
             } else {
                 // Found no place to break, so we have to overrun wrap_width.
             }
@@ -274,7 +279,9 @@ fn line_break(
     }
 
     if row_start_idx < paragraph.glyphs.len() {
-        if non_empty_rows == job.wrap.max_rows {
+        // Final row of text:
+
+        if job.wrap.max_rows <= out_rows.len() {
             if let Some(last_row) = out_rows.last_mut() {
                 replace_last_glyph_with_overflow_character(fonts, job, last_row);
                 *elided = true;
