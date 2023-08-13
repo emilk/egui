@@ -179,7 +179,7 @@ pub(crate) struct Interaction {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Focus {
     /// The widget with keyboard focus (i.e. a text input field).
-    pub(crate) id: Option<Id>,
+    id: Option<Id>,
 
     /// What had keyboard focus previous frame?
     id_previous_frame: Option<Id>,
@@ -240,6 +240,7 @@ impl Interaction {
 
 impl Focus {
     /// Which widget currently has keyboard focus?
+    #[inline(always)]
     pub fn focused(&self) -> Option<Id> {
         self.id
     }
@@ -404,12 +405,12 @@ impl Memory {
     /// from the window and back.
     #[inline(always)]
     pub fn has_focus(&self, id: Id) -> bool {
-        self.interaction.focus.id == Some(id)
+        self.interaction.focus.focused() == Some(id)
     }
 
     /// Which widget has keyboard focus?
     pub fn focus(&self) -> Option<Id> {
-        self.interaction.focus.id
+        self.interaction.focus.focused()
     }
 
     /// Prevent keyboard focus from moving away from this widget even if users presses the tab key.
