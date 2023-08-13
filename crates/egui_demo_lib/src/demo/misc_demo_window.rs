@@ -1,5 +1,4 @@
 use super::*;
-use crate::LOREM_IPSUM;
 use egui::{epaint::text::TextWrapping, *};
 
 /// Showcase some ui code
@@ -628,7 +627,6 @@ fn text_layout_demo(ui: &mut Ui) {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 struct TextBreakDemo {
-    elide_at_max_width: bool,
     break_anywhere: bool,
     max_rows: usize,
     overflow_character: Option<char>,
@@ -637,9 +635,8 @@ struct TextBreakDemo {
 impl Default for TextBreakDemo {
     fn default() -> Self {
         Self {
-            elide_at_max_width: true,
-            max_rows: 2,
-            break_anywhere: false,
+            max_rows: 1,
+            break_anywhere: true,
             overflow_character: Some('…'),
         }
     }
@@ -648,7 +645,6 @@ impl Default for TextBreakDemo {
 impl TextBreakDemo {
     pub fn ui(&mut self, ui: &mut Ui) {
         let Self {
-            elide_at_max_width,
             break_anywhere,
             max_rows,
             overflow_character,
@@ -657,17 +653,15 @@ impl TextBreakDemo {
         use egui::text::LayoutJob;
 
         ui.horizontal(|ui| {
-            ui.radio_value(elide_at_max_width, false, "Wrap");
-            ui.radio_value(elide_at_max_width, true, "Clip");
+            ui.add(DragValue::new(max_rows));
+            ui.label("Max rows");
         });
 
-        if !*elide_at_max_width {
-            ui.horizontal(|ui| {
-                ui.add(DragValue::new(max_rows));
-                ui.label("Max rows");
-            });
-            ui.checkbox(break_anywhere, "Break anywhere");
-        }
+        ui.horizontal(|ui| {
+            ui.label("Break:");
+            ui.radio_value(break_anywhere, false, "word boundaries");
+            ui.radio_value(break_anywhere, true, "anywhere");
+        });
 
         ui.horizontal(|ui| {
             ui.selectable_value(overflow_character, None, "None");
@@ -677,10 +671,10 @@ impl TextBreakDemo {
             ui.label("Overflow character");
         });
 
-        let mut job = LayoutJob::single_section(LOREM_IPSUM.to_owned(), TextFormat::default());
+        let mut job =
+            LayoutJob::single_section(crate::LOREM_IPSUM_LONG.to_owned(), TextFormat::default());
         job.wrap = TextWrapping {
             max_rows: *max_rows,
-            elide_at_max_width: *elide_at_max_width,
             break_anywhere: *break_anywhere,
             overflow_character: *overflow_character,
             ..Default::default()

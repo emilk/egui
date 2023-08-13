@@ -270,9 +270,10 @@ impl TextFormat {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextWrapping {
-    /// Try to wrap or clip text so that no row is wider than this.
+    /// Wrap text so that no row is wider than this.
     ///
-    /// Whether the text is wrapped or clipped depends on [`Self::elide_at_max_width`].
+    /// If you would rather elide text that is too wide,
+    /// set [`Self::max_rows`] to `1`.
     ///
     /// Set to [`f32::INFINITY`] to turn off wrapping/clipping.
     ///
@@ -280,26 +281,26 @@ pub struct TextWrapping {
     /// if [`LayoutJob::break_on_newline`] is `true`.
     pub max_width: f32,
 
-    /// If `true`, the text that doesn't fit within [`Self::max_width`]
-    /// will be elided and replaced with [`Self::overflow_character`].
-    /// You can detect this by checking [`Galley::elided`].
-    ///
-    /// Default: `false`.
-    pub elide_at_max_width: bool,
-
     /// Maximum amount of rows the text galley should have.
     ///
-    /// If this limit is reach, text will be elided and
+    /// If this limit is reached, text will be elided and
     /// and [`Self::overflow_character`] appended to the final row.
     /// You can detect this by checking [`Galley::elided`].
     ///
-    /// If set to `0`, no text will be shown.
+    /// If set to `0`, no text will be outputted.
+    ///
+    /// If set to `1`, a single row will be outputted,
+    /// eliding the text at [`Self::max_width`].
+    ///
+    /// Wether or not a word can be cut in half is decided by [`Self::break_anywhere`].
     ///
     /// Default value: `usize::MAX`.
     pub max_rows: usize,
 
     /// If `true`: Allow breaking between any characters.
     /// If `false` (default): prefer breaking between words, etc.
+    ///
+    /// This also aplies to elision: when `true`, a word may be cut in half.
     pub break_anywhere: bool,
 
     /// Character to use to represent clipped text, `…` for example, which is the default.
@@ -313,13 +314,11 @@ impl std::hash::Hash for TextWrapping {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let Self {
             max_width,
-            elide_at_max_width,
             max_rows,
             break_anywhere,
             overflow_character,
         } = self;
         crate::f32_hash(state, *max_width);
-        elide_at_max_width.hash(state);
         max_rows.hash(state);
         break_anywhere.hash(state);
         overflow_character.hash(state);
@@ -330,10 +329,29 @@ impl Default for TextWrapping {
     fn default() -> Self {
         Self {
             max_width: f32::INFINITY,
-            elide_at_max_width: false,
             max_rows: usize::MAX,
             break_anywhere: false,
             overflow_character: Some('…'),
+        }
+    }
+}
+
+impl TextWrapping {
+    /// A row can be as long as it need to be
+    pub fn no_max_width() -> Self {
+        Self {
+            max_width: f32::INFINITY,
+            ..Default::default()
+        }
+    }
+
+    /// Elide text that doesn't fit within the given width.
+    pub fn ellide_at_width(max_width: f32) -> Self {
+        Self {
+            max_width,
+            max_rows: 1,
+            break_anywhere: true,
+            ..Default::default()
         }
     }
 }
@@ -367,8 +385,7 @@ pub struct Galley {
     /// can be split up into multiple rows.
     pub rows: Vec<Row>,
 
-    /// Set to true if some text was elided due to either
-    /// [`TextWrapping::elide_at_max_width`] or [`TextWrapping::max_rows`].
+    /// Set to true if some text was elided due to [`TextWrapping::max_rows`].
     pub elided: bool,
 
     /// Bounding rect.

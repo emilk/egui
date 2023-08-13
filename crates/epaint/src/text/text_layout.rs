@@ -225,78 +225,48 @@ fn line_break(
         }
 
         if potential_row_width > job.wrap.max_width {
-            if job.wrap.elide_at_max_width {
-                assert_eq!(row_start_x, 0.0);
-                assert_eq!(row_start_idx, 0);
-                assert_eq!(non_empty_rows, 0);
+            // Row break:
 
-                let glyphs: Vec<Glyph> = paragraph.glyphs[..i].to_vec();
+            if first_row_indentation > 0.0
+                && !row_break_candidates.has_good_candidate(job.wrap.break_anywhere)
+            {
+                // Allow the first row to be completely empty, because we know there will be more space on the next row:
+                // TODO(emilk): this records the height of this first row as zero, though that is probably fine since first_row_indentation usually comes with a first_row_min_height.
+                out_rows.push(Row {
+                    glyphs: vec![],
+                    visuals: Default::default(),
+                    rect: rect_from_x_range(first_row_indentation..=first_row_indentation),
+                    ends_with_newline: false,
+                });
+                row_start_x += first_row_indentation;
+                first_row_indentation = 0.0;
+            } else if let Some(last_kept_index) = row_break_candidates.get(job.wrap.break_anywhere)
+            {
+                let glyphs: Vec<Glyph> = paragraph.glyphs[row_start_idx..=last_kept_index]
+                    .iter()
+                    .copied()
+                    .map(|mut glyph| {
+                        glyph.pos.x -= row_start_x;
+                        glyph
+                    })
+                    .collect();
 
-                let x_range = if let (Some(first), Some(last)) = (glyphs.first(), glyphs.last()) {
-                    first.pos.x..=last.max_x()
-                } else {
-                    0.0..=0.0
-                };
+                let paragraph_min_x = glyphs[0].pos.x;
+                let paragraph_max_x = glyphs.last().unwrap().max_x();
 
-                let mut row = Row {
+                out_rows.push(Row {
                     glyphs,
                     visuals: Default::default(),
-                    rect: rect_from_x_range(x_range),
+                    rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
                     ends_with_newline: false,
-                };
+                });
 
-                // Add the trailing overflow character (e.g. `…`):
-                replace_last_glyph_with_overflow_character(fonts, job, &mut row);
-                *elided = true;
-
-                out_rows.push(row);
-
-                return;
+                row_start_idx = last_kept_index + 1;
+                row_start_x = paragraph.glyphs[row_start_idx].pos.x;
+                row_break_candidates = Default::default();
+                non_empty_rows += 1;
             } else {
-                // Row break:
-
-                if first_row_indentation > 0.0
-                    && !row_break_candidates.has_good_candidate(job.wrap.break_anywhere)
-                {
-                    // Allow the first row to be completely empty, because we know there will be more space on the next row:
-                    // TODO(emilk): this records the height of this first row as zero, though that is probably fine since first_row_indentation usually comes with a first_row_min_height.
-                    out_rows.push(Row {
-                        glyphs: vec![],
-                        visuals: Default::default(),
-                        rect: rect_from_x_range(first_row_indentation..=first_row_indentation),
-                        ends_with_newline: false,
-                    });
-                    row_start_x += first_row_indentation;
-                    first_row_indentation = 0.0;
-                } else if let Some(last_kept_index) =
-                    row_break_candidates.get(job.wrap.break_anywhere)
-                {
-                    let glyphs: Vec<Glyph> = paragraph.glyphs[row_start_idx..=last_kept_index]
-                        .iter()
-                        .copied()
-                        .map(|mut glyph| {
-                            glyph.pos.x -= row_start_x;
-                            glyph
-                        })
-                        .collect();
-
-                    let paragraph_min_x = glyphs[0].pos.x;
-                    let paragraph_max_x = glyphs.last().unwrap().max_x();
-
-                    out_rows.push(Row {
-                        glyphs,
-                        visuals: Default::default(),
-                        rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
-                        ends_with_newline: false,
-                    });
-
-                    row_start_idx = last_kept_index + 1;
-                    row_start_x = paragraph.glyphs[row_start_idx].pos.x;
-                    row_break_candidates = Default::default();
-                    non_empty_rows += 1;
-                } else {
-                    // Found no place to break, so we have to overrun wrap_width.
-                }
+                // Found no place to break, so we have to overrun wrap_width.
             }
         }
 
