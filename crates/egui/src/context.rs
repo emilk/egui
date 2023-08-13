@@ -580,10 +580,22 @@ impl Context {
         })
     }
 
+    /// This will create a `InputState::default()` if there is no input state for that viewport
+    #[inline]
+    pub fn input_for<R>(&self, id: ViewportId, reader: impl FnOnce(&InputState) -> R) -> R {
+        self.read(move |ctx| reader(ctx.input.get(&id).unwrap_or(&Default::default())))
+    }
+
     /// Read-write access to [`InputState`].
     #[inline]
     pub fn input_mut<R>(&self, writer: impl FnOnce(&mut InputState) -> R) -> R {
         self.write(move |ctx| writer(ctx.input.entry(ctx.get_viewport_id()).or_default()))
+    }
+
+    /// This will create a `InputState::default()` if there is no input state for that viewport
+    #[inline]
+    pub fn input_mut_for<R>(&self, id: ViewportId, writer: impl FnOnce(&mut InputState) -> R) -> R {
+        self.write(move |ctx| writer(ctx.input.entry(id).or_default()))
     }
 
     /// Read-only access to [`Memory`].
@@ -1576,7 +1588,7 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// Position and size of the egui area.
+    /// Position and size of the current viewport.
     /// min is the position, max is the size
     pub fn screen_rect(&self) -> Rect {
         self.input(|i| i.screen_rect())
@@ -2165,6 +2177,14 @@ impl Context {
     /// In the case of this viewport is the main viewport will be `ViewportId::MAIN`
     pub fn get_parent_viewport_id(&self) -> ViewportId {
         self.read(|ctx| ctx.get_parent_viewport_id())
+    }
+
+    pub fn get_viewport_id_by_name(&self, name: &str) -> Option<ViewportId> {
+        self.read(|ctx| ctx.viewports.get(name).map(|v| v.1))
+    }
+
+    pub fn get_viewport_parent_id_by_name(&self, name: &str) -> Option<ViewportId> {
+        self.read(|ctx| ctx.viewports.get(name).map(|v| v.1))
     }
 
     /// This should only be used by the backend!
