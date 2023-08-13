@@ -282,14 +282,16 @@ pub struct TextWrapping {
 
     /// If `true`, the text that doesn't fit within [`Self::max_width`]
     /// will be elided and replaced with [`Self::overflow_character`].
+    /// You can detect this by checking [`Galley::elided`].
     ///
     /// Default: `false`.
     pub elide_at_max_width: bool,
 
-    /// Maximum amount of rows the text should have.
+    /// Maximum amount of rows the text galley should have.
     ///
-    /// If the full text requires more rows than this,
-    /// the last rows will be clipped, and [`Self::overflow_character`] appended.
+    /// If this limit is reach, text will be elided and
+    /// and [`Self::overflow_character`] appended to the final row.
+    /// You can detect this by checking [`Galley::elided`].
     ///
     /// If set to `0`, no text will be shown.
     ///
