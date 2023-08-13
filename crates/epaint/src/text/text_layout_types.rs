@@ -384,7 +384,7 @@ pub struct Galley {
     /// Rows of text, from top to bottom.
     ///
     /// The number of characters in all rows sum up to `job.text.chars().count()`
-    /// unless [`self::elided`] is `true`.
+    /// unless [`Self::elided`] is `true`.
     ///
     /// Note that a paragraph (a piece of text separated with `\n`)
     /// can be split up into multiple rows.
