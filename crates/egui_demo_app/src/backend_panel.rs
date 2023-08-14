@@ -1,5 +1,3 @@
-use std::sync::{Arc, RwLock};
-
 /// How often we repaint the demo app by default
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum RunMode {
@@ -356,7 +354,7 @@ struct EguiWindows {
     output_events: bool,
 
     #[cfg_attr(feature = "serde", serde(skip))]
-    output_event_history: Arc<RwLock<std::collections::VecDeque<egui::output::OutputEvent>>>,
+    output_event_history: std::collections::VecDeque<egui::output::OutputEvent>,
 }
 
 impl Default for EguiWindows {
@@ -401,7 +399,6 @@ impl EguiWindows {
         } = self;
 
         {
-            let mut output_event_history = output_event_history.write().unwrap();
             ctx.output(|o| {
                 for event in &o.events {
                     output_event_history.push_back(event.clone());
@@ -453,7 +450,7 @@ impl EguiWindows {
                 egui::ScrollArea::vertical()
                     .stick_to_bottom(true)
                     .show(ui, |ui| {
-                        for event in output_event_history.read() {
+                        for event in output_event_history {
                             ui.label(format!("{event:?}"));
                         }
                     });
