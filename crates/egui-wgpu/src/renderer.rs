@@ -1,14 +1,11 @@
 #![allow(unsafe_code)]
 
-use std::num::NonZeroU64;
-use std::ops::Range;
-use std::{borrow::Cow, collections::HashMap};
+use std::{borrow::Cow, num::NonZeroU64, ops::Range};
 
-use type_map::concurrent::TypeMap;
+use epaint::{ahash::HashMap, emath::NumExt, PaintCallbackInfo, Primitive, Vertex};
+
 use wgpu;
 use wgpu::util::DeviceExt as _;
-
-use epaint::{emath::NumExt, PaintCallbackInfo, Primitive, Vertex};
 
 /// A callback function that can be used to compose an [`epaint::PaintCallback`] for custom WGPU
 /// rendering.
@@ -29,80 +26,105 @@ use epaint::{emath::NumExt, PaintCallbackInfo, Primitive, Vertex};
 /// # Example
 ///
 /// See the [`custom3d_wgpu`](https://github.com/emilk/egui/blob/master/crates/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
-pub struct CallbackFn {
-    prepare: Box<PrepareCallback>,
-    paint: Box<PaintCallback>,
+///
+///
+///
+/// Set the prepare callback.
+///
+/// The passed-in `CommandEncoder` is egui's and can be used directly to register
+/// wgpu commands for simple use cases.
+/// This allows reusing the same [`wgpu::CommandEncoder`] for all callbacks and egui
+/// rendering itself.
+///
+/// For more complicated use cases, one can also return a list of arbitrary
+/// `CommandBuffer`s and have complete control over how they get created and fed.
+/// In particular, this gives an opportunity to parallelize command registration and
+/// prevents a faulty callback from poisoning the main wgpu pipeline.
+///
+/// When using eframe, the main egui command buffer, as well as all user-defined
+/// command buffers returned by this function, are guaranteed to all be submitted
+/// at once in a single call.
+///
+
+///
+/// TODO: UDPATE DOCS
+
+pub type SharedCallbackResourceId = u64;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub type SharedCallbackResource = Box<dyn std::any::Any + Send + Sync>;
+#[cfg(target_arch = "wasm32")]
+pub type SharedCallbackResource = Box<dyn std::any::Any>;
+
+#[derive(Default)]
+pub struct SharedCallbackResourceMap(HashMap<SharedCallbackResourceId, SharedCallbackResource>);
+
+impl SharedCallbackResourceMap {
+    pub fn get<T: 'static>(&self, id: SharedCallbackResourceId) -> Option<&T> {
+        self.0.get(&id).and_then(|r| r.downcast_ref::<T>())
+    }
+
+    pub fn get_mut<T: 'static>(&mut self, id: SharedCallbackResourceId) -> Option<&mut T> {
+        self.0.get_mut(&id).and_then(|r| r.downcast_mut::<T>())
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn insert<T: Send + Sync + 'static>(
+        &mut self,
+        id: SharedCallbackResourceId,
+        resource: T,
+    ) -> Option<SharedCallbackResource> {
+        self.0.insert(id, Box::new(resource))
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn insert<T: 'static>(
+        &mut self,
+        id: SharedCallbackResourceId,
+        resource: T,
+    ) -> Option<SharedCallbackResource> {
+        self.0.insert(id, Box::new(resource))
+    }
 }
 
-type PrepareCallback = dyn Fn(
+/// TODO: docs
+// ideally wouldn't need it but `dyn Any` can't be case to `dyn Trait` in Rust, `CallbackFn` is used just as a wrapper:
+pub struct Callback(Box<dyn CallbackTrait>);
+
+impl Callback {
+    pub fn new(callback: impl CallbackTrait + 'static) -> Self {
+        Self(Box::new(callback))
+    }
+}
+
+pub trait CallbackTrait: Send + Sync {
+    fn prepare(
+        &self,
+        _device: &wgpu::Device,
+        _queue: &wgpu::Queue,
+        _egui_encoder: &mut wgpu::CommandEncoder,
+        _shared_paint_callback_resources: &mut SharedCallbackResourceMap,
+    ) -> Vec<wgpu::CommandBuffer> {
+        Vec::new()
+    }
+
+    fn paint<'a>(
+        &self,
+        info: PaintCallbackInfo,
+        render_pass: &mut wgpu::RenderPass<'a>,
+        shared_paint_callback_resources: &'a SharedCallbackResourceMap,
+    );
+}
+
+// TODO: docs
+pub type FinishPrepareCallback = dyn Fn(
         &wgpu::Device,
         &wgpu::Queue,
         &mut wgpu::CommandEncoder,
-        &mut TypeMap,
-    ) -> Vec<wgpu::CommandBuffer>
-    + Sync
+        &mut SharedCallbackResourceMap,
+        Vec<&dyn CallbackTrait>,
+    ) + Sync
     + Send;
-
-type PaintCallback =
-    dyn for<'a, 'b> Fn(PaintCallbackInfo, &'a mut wgpu::RenderPass<'b>, &'b TypeMap) + Sync + Send;
-
-impl Default for CallbackFn {
-    fn default() -> Self {
-        CallbackFn {
-            prepare: Box::new(|_, _, _, _| Vec::new()),
-            paint: Box::new(|_, _, _| ()),
-        }
-    }
-}
-
-impl CallbackFn {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Set the prepare callback.
-    ///
-    /// The passed-in `CommandEncoder` is egui's and can be used directly to register
-    /// wgpu commands for simple use cases.
-    /// This allows reusing the same [`wgpu::CommandEncoder`] for all callbacks and egui
-    /// rendering itself.
-    ///
-    /// For more complicated use cases, one can also return a list of arbitrary
-    /// `CommandBuffer`s and have complete control over how they get created and fed.
-    /// In particular, this gives an opportunity to parallelize command registration and
-    /// prevents a faulty callback from poisoning the main wgpu pipeline.
-    ///
-    /// When using eframe, the main egui command buffer, as well as all user-defined
-    /// command buffers returned by this function, are guaranteed to all be submitted
-    /// at once in a single call.
-    pub fn prepare<F>(mut self, prepare: F) -> Self
-    where
-        F: Fn(
-                &wgpu::Device,
-                &wgpu::Queue,
-                &mut wgpu::CommandEncoder,
-                &mut TypeMap,
-            ) -> Vec<wgpu::CommandBuffer>
-            + Sync
-            + Send
-            + 'static,
-    {
-        self.prepare = Box::new(prepare) as _;
-        self
-    }
-
-    /// Set the paint callback
-    pub fn paint<F>(mut self, paint: F) -> Self
-    where
-        F: for<'a, 'b> Fn(PaintCallbackInfo, &'a mut wgpu::RenderPass<'b>, &'b TypeMap)
-            + Sync
-            + Send
-            + 'static,
-    {
-        self.paint = Box::new(paint) as _;
-        self
-    }
-}
 
 /// Information about the screen used for rendering.
 pub struct ScreenDescriptor {
@@ -166,7 +188,11 @@ pub struct Renderer {
 
     /// Storage for use by [`epaint::PaintCallback`]'s that need to store resources such as render
     /// pipelines that must have the lifetime of the renderpass.
-    pub paint_callback_resources: TypeMap,
+    /// TODO: update docs
+    pub shared_paint_callback_resources: SharedCallbackResourceMap,
+
+    /// TODO: docs
+    pub finish_prepare_callback: Option<Box<FinishPrepareCallback>>,
 }
 
 impl Renderer {
@@ -346,10 +372,11 @@ impl Renderer {
             },
             uniform_bind_group,
             texture_bind_group_layout,
-            textures: HashMap::new(),
+            textures: HashMap::default(),
             next_user_texture_id: 0,
-            samplers: HashMap::new(),
-            paint_callback_resources: TypeMap::default(),
+            samplers: HashMap::default(),
+            shared_paint_callback_resources: SharedCallbackResourceMap::default(),
+            finish_prepare_callback: None,
         }
     }
 
@@ -432,7 +459,7 @@ impl Renderer {
                     }
                 }
                 Primitive::Callback(callback) => {
-                    let cbfn = if let Some(c) = callback.callback.downcast_ref::<CallbackFn>() {
+                    let cbfn = if let Some(c) = callback.callback.downcast_ref::<Callback>() {
                         c
                     } else {
                         // We already warned in the `prepare` callback
@@ -467,7 +494,7 @@ impl Renderer {
                             );
                         }
 
-                        (cbfn.paint)(
+                        cbfn.0.paint(
                             PaintCallbackInfo {
                                 viewport: callback.rect,
                                 clip_rect: *clip_rect,
@@ -475,7 +502,7 @@ impl Renderer {
                                 screen_size_px: size_in_pixels,
                             },
                             render_pass,
-                            &self.paint_callback_resources,
+                            &self.shared_paint_callback_resources,
                         );
                     }
                 }
@@ -751,7 +778,7 @@ impl Renderer {
     /// Uploads the uniform, vertex and index data used by the renderer.
     /// Should be called before `render()`.
     ///
-    /// Returns all user-defined command buffers gathered from prepare callbacks.
+    /// Returns all user-defined command buffers gathered from prepare & finish_prepare callbacks.
     pub fn update_buffers(
         &mut self,
         device: &wgpu::Device,
@@ -778,7 +805,8 @@ impl Renderer {
             self.previous_uniform_buffer_content = uniform_buffer_content;
         }
 
-        // Determine how many vertices & indices need to be rendered.
+        // Determine how many vertices & indices need to be rendered, and gather prepare callbacks
+        let mut callbacks = Vec::new();
         let (vertex_count, index_count) = {
             crate::profile_scope!("count_vertices_indices");
             paint_jobs.iter().fold((0, 0), |acc, clipped_primitive| {
@@ -786,7 +814,14 @@ impl Renderer {
                     Primitive::Mesh(mesh) => {
                         (acc.0 + mesh.vertices.len(), acc.1 + mesh.indices.len())
                     }
-                    Primitive::Callback(_) => acc,
+                    Primitive::Callback(callback) => {
+                        if let Some(c) = callback.callback.downcast_ref::<Callback>() {
+                            callbacks.push(c.0.as_ref());
+                        } else {
+                            log::warn!("Unknown paint callback: expected `egui_wgpu::Callback`");
+                        };
+                        acc
+                    }
                 }
             })
         };
@@ -861,32 +896,30 @@ impl Renderer {
             }
         }
 
+        let mut user_cmd_bufs = Vec::new();
         {
-            crate::profile_scope!("user command buffers");
-            let mut user_cmd_bufs = Vec::new(); // collect user command buffers
-            for epaint::ClippedPrimitive { primitive, .. } in paint_jobs.iter() {
-                match primitive {
-                    Primitive::Mesh(_) => {}
-                    Primitive::Callback(callback) => {
-                        let cbfn = if let Some(c) = callback.callback.downcast_ref::<CallbackFn>() {
-                            c
-                        } else {
-                            log::warn!("Unknown paint callback: expected `egui_wgpu::CallbackFn`");
-                            continue;
-                        };
-
-                        crate::profile_scope!("callback");
-                        user_cmd_bufs.extend((cbfn.prepare)(
-                            device,
-                            queue,
-                            encoder,
-                            &mut self.paint_callback_resources,
-                        ));
-                    }
-                }
+            crate::profile_scope!("prepare callbacks");
+            for callback in &callbacks {
+                user_cmd_bufs.extend(callback.prepare(
+                    device,
+                    queue,
+                    encoder,
+                    &mut self.shared_paint_callback_resources,
+                ));
             }
-            user_cmd_bufs
         }
+        if let Some(finish_prepare_callback) = &self.finish_prepare_callback {
+            crate::profile_scope!("finish prepare callback");
+            (finish_prepare_callback)(
+                device,
+                queue,
+                encoder,
+                &mut self.shared_paint_callback_resources,
+                callbacks,
+            );
+        }
+
+        user_cmd_bufs
     }
 }
 
@@ -969,6 +1002,9 @@ impl ScissorRect {
     }
 }
 
+// Wgpu objects contain references to the JS heap on the web, therefore they are not Send/Sync.
+// It follows that egui_wgpu::Renderer can not be Send/Sync either when building with wasm.
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn renderer_impl_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
