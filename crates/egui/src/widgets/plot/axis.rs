@@ -1,4 +1,4 @@
-use std::{fmt::Debug, ops::RangeInclusive};
+use std::{fmt::Debug, ops::RangeInclusive, sync::Arc};
 
 use epaint::{
     emath::{lerp, remap_clamp, round_to_decimals},
@@ -143,7 +143,7 @@ pub(super) struct AxisWidget<const AXIS: usize> {
     pub(super) hints: AxisHints<AXIS>,
     pub(super) rect: Rect,
     pub(super) transform: Option<PlotTransform>,
-    pub(super) steps: Vec<GridMark>,
+    pub(super) steps: Arc<Vec<GridMark>>,
 }
 
 impl<const AXIS: usize> AxisWidget<AXIS> {
@@ -154,7 +154,7 @@ impl<const AXIS: usize> AxisWidget<AXIS> {
             hints,
             rect,
             transform: None,
-            steps: Vec::new(),
+            steps: Default::default(),
         }
     }
 }
@@ -228,7 +228,7 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
                 None => return response,
             };
 
-            for step in self.steps {
+            for step in self.steps.iter() {
                 let text = (self.hints.formatter)(step.value, self.hints.digits, &self.range);
                 if !text.is_empty() {
                     const MIN_TEXT_SPACING: f32 = 20.0;

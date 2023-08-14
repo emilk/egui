@@ -1,15 +1,16 @@
 //! Simple plotting library.
 
-use ahash::HashMap;
-use std::ops::RangeInclusive;
+use std::{ops::RangeInclusive, sync::Arc};
 
-use crate::*;
+use ahash::HashMap;
 use epaint::util::FloatOrd;
 use epaint::Hsva;
 
 use axis::{XAxisWidget, YAxisWidget, X_AXIS, Y_AXIS};
 use items::PlotItem;
 use legend::LegendWidget;
+
+use crate::*;
 
 pub use items::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, HLine, Line, LineStyle, MarkerShape,
@@ -1178,21 +1179,21 @@ impl Plot {
         // Add legend widgets to plot
         let bounds = transform.bounds();
         let x_axis_range = bounds.range_x();
-        let x_steps = {
+        let x_steps = Arc::new({
             let input = GridInput {
                 bounds: (bounds.min[X_AXIS], bounds.max[X_AXIS]),
                 base_step_size: transform.dvalue_dpos()[X_AXIS] * MIN_LINE_SPACING_IN_POINTS * 2.0,
             };
             (grid_spacers[X_AXIS])(input)
-        };
+        });
         let y_axis_range = bounds.range_y();
-        let y_steps = {
+        let y_steps = Arc::new({
             let input = GridInput {
                 bounds: (bounds.min[Y_AXIS], bounds.max[Y_AXIS]),
                 base_step_size: transform.dvalue_dpos()[Y_AXIS] * MIN_LINE_SPACING_IN_POINTS * 2.0,
             };
             (grid_spacers[Y_AXIS])(input)
-        };
+        });
         for mut widget in x_axis_widgets {
             widget.range = x_axis_range.clone();
             widget.transform = Some(transform);
