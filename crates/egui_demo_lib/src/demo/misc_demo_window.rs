@@ -56,8 +56,14 @@ impl View for MiscDemoWindow {
     fn ui(&mut self, ui: &mut Ui) {
         ui.set_min_width(250.0);
 
-        CollapsingHeader::new("Widgets")
+        CollapsingHeader::new("Label")
             .default_open(true)
+            .show(ui, |ui| {
+                label_ui(ui);
+            });
+
+        CollapsingHeader::new("Misc widgets")
+            .default_open(false)
             .show(ui, |ui| {
                 self.widgets.ui(ui);
             });
@@ -172,6 +178,43 @@ impl View for MiscDemoWindow {
 
 // ----------------------------------------------------------------------------
 
+fn label_ui(ui: &mut egui::Ui) {
+    ui.vertical_centered(|ui| {
+        ui.add(crate::egui_github_link_file_line!());
+    });
+
+    ui.horizontal_wrapped(|ui| {
+            // Trick so we don't have to add spaces in the text below:
+            let width = ui.fonts(|f|f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
+            ui.spacing_mut().item_spacing.x = width;
+
+            ui.label(RichText::new("Text can have").color(Color32::from_rgb(110, 255, 110)));
+            ui.colored_label(Color32::from_rgb(128, 140, 255), "color"); // Shortcut version
+            ui.label("and tooltips.").on_hover_text(
+                "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
+            );
+
+            ui.label("You can mix in other widgets into text, like");
+            let _ = ui.small_button("this button");
+            ui.label(".");
+
+            ui.label("The default font supports all latin and cyrillic characters (ИÅđ…), common math symbols (∫√∞²⅓…), and many emojis (💓🌟🖩…).")
+                .on_hover_text("There is currently no support for right-to-left languages.");
+            ui.label("See the 🔤 Font Book for more!");
+
+            ui.monospace("There is also a monospace font.");
+        });
+
+    ui.add(
+        egui::Label::new(
+            "Labels containing long text can be set to elide the text that doesn't fit on a single line using `Label::elide`. When hovered, the label will show the full text.",
+        )
+        .elide(true),
+    );
+}
+
+// ----------------------------------------------------------------------------
+
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Widgets {
@@ -193,28 +236,6 @@ impl Widgets {
         let Self { angle, password } = self;
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file_line!());
-        });
-
-        ui.horizontal_wrapped(|ui| {
-            // Trick so we don't have to add spaces in the text below:
-            let width = ui.fonts(|f|f.glyph_width(&TextStyle::Body.resolve(ui.style()), ' '));
-            ui.spacing_mut().item_spacing.x = width;
-
-            ui.label(RichText::new("Text can have").color(Color32::from_rgb(110, 255, 110)));
-            ui.colored_label(Color32::from_rgb(128, 140, 255), "color"); // Shortcut version
-            ui.label("and tooltips.").on_hover_text(
-                "This is a multiline tooltip that demonstrates that you can easily add tooltips to any element.\nThis is the second line.\nThis is the third.",
-            );
-
-            ui.label("You can mix in other widgets into text, like");
-            let _ = ui.small_button("this button");
-            ui.label(".");
-
-            ui.label("The default font supports all latin and cyrillic characters (ИÅđ…), common math symbols (∫√∞²⅓…), and many emojis (💓🌟🖩…).")
-                .on_hover_text("There is currently no support for right-to-left languages.");
-            ui.label("See the 🔤 Font Book for more!");
-
-            ui.monospace("There is also a monospace font.");
         });
 
         let tooltip_ui = |ui: &mut Ui| {

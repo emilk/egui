@@ -198,6 +198,7 @@ impl Widget for Label {
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, text_galley.text()));
 
         if text_galley.galley.elided {
+            // Show the full (non-elided) text on hover:
             response = response.on_hover_text(text_galley.text());
         }
 
