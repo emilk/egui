@@ -13,6 +13,7 @@ pub(super) type AxisFormatterFn = fn(f64, usize, &RangeInclusive<f64>) -> String
 
 /// Generic constant for x-Axis
 pub(super) const X_AXIS: usize = 0;
+
 /// Generic constant for y-Axis
 pub(super) const Y_AXIS: usize = 1;
 
@@ -29,12 +30,14 @@ pub enum Placement {
 // shorthand types for AxisHints, public API
 /// Configuration for x-axis
 pub type XAxisHints = AxisHints<X_AXIS>;
+
 /// Configuration for y-axis
 pub type YAxisHints = AxisHints<Y_AXIS>;
 
 // shorthand types for AxisWidget
 pub(super) type XAxisWidget = AxisWidget<X_AXIS>;
 pub(super) type YAxisWidget = AxisWidget<Y_AXIS>;
+
 /// Axis configuration.
 ///
 /// Used to configure axis label and ticks.

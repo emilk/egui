@@ -579,6 +579,7 @@ impl Plot {
         }
         self
     }
+
     /// Set the y axis label of the main y-axis
     ///
     /// If no y-axis has been specified so far a new one will be created.
