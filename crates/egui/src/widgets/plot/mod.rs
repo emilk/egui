@@ -1805,8 +1805,8 @@ impl PreparedPlot {
                 let item = &**item;
                 let closest = item.find_closest(pointer, transform);
 
-            Some(item).zip(closest)
-        });
+                Some(item).zip(closest)
+            });
 
         let closest = candidates
             .min_by_key(|(_, elem)| elem.dist_sq.ord())
