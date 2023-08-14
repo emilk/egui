@@ -1770,17 +1770,6 @@ impl PreparedPlot {
                 ));
             }
         }
-
-        fn color_from_contrast(ui: &Ui, contrast: f32) -> Color32 {
-            let bg = ui.visuals().extreme_bg_color;
-            let fg = ui.visuals().widgets.open.fg_stroke.color;
-            let mix = 0.5 * contrast.sqrt();
-            Color32::from_rgb(
-                lerp((bg.r() as f32)..=(fg.r() as f32), mix) as u8,
-                lerp((bg.g() as f32)..=(fg.g() as f32), mix) as u8,
-                lerp((bg.b() as f32)..=(fg.b() as f32), mix) as u8,
-            )
-        }
     }
 
     fn hover(&self, ui: &Ui, pointer: Pos2, shapes: &mut Vec<Shape>) -> Vec<Cursor> {
@@ -1884,4 +1873,15 @@ pub fn format_number(number: f64, num_decimals: usize) -> String {
         // make sure we tell the user it is not an integer by always showing a decimal or two:
         format!("{:.*}", num_decimals.at_least(1), number)
     }
+}
+
+pub fn color_from_contrast(ui: &Ui, contrast: f32) -> Color32 {
+    let bg = ui.visuals().extreme_bg_color;
+    let fg = ui.visuals().widgets.open.fg_stroke.color;
+    let mix = 0.5 * contrast.sqrt();
+    Color32::from_rgb(
+        lerp((bg.r() as f32)..=(fg.r() as f32), mix) as u8,
+        lerp((bg.g() as f32)..=(fg.g() as f32), mix) as u8,
+        lerp((bg.b() as f32)..=(fg.b() as f32), mix) as u8,
+    )
 }

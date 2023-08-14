@@ -1,8 +1,8 @@
 use std::{fmt::Debug, ops::RangeInclusive, sync::Arc};
 
 use epaint::{
-    emath::{lerp, remap_clamp, round_to_decimals},
-    Color32, Pos2, Rect, Shape, Stroke, TextShape,
+    emath::{remap_clamp, round_to_decimals},
+    Pos2, Rect, Shape, Stroke, TextShape,
 };
 
 use crate::{Response, Sense, TextStyle, Ui, Widget, WidgetText};
@@ -248,7 +248,7 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
                         0.0..=1.0,
                     );
 
-                    let line_color = color_from_contrast(ui, line_weight);
+                    let line_color = super::color_from_contrast(ui, line_weight);
                     let galley = ui
                         .painter()
                         .layout_no_wrap(text, font_id.clone(), line_color);
@@ -286,15 +286,4 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
         }
         response
     }
-}
-
-fn color_from_contrast(ui: &Ui, contrast: f32) -> Color32 {
-    let bg = ui.visuals().extreme_bg_color;
-    let fg = ui.visuals().widgets.open.fg_stroke.color;
-    let mix = 0.5 * contrast.sqrt();
-    Color32::from_rgb(
-        lerp((bg.r() as f32)..=(fg.r() as f32), mix) as u8,
-        lerp((bg.g() as f32)..=(fg.g() as f32), mix) as u8,
-        lerp((bg.b() as f32)..=(fg.b() as f32), mix) as u8,
-    )
 }
