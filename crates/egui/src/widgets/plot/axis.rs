@@ -5,17 +5,31 @@ use epaint::{
     Pos2, Rect, Shape, Stroke, TextShape,
 };
 
-use crate::{Response, Sense, TextStyle, Ui, Widget, WidgetText};
+use crate::{Response, Sense, TextStyle, Ui, WidgetText};
 
 use super::{transform::PlotTransform, GridMark};
 
 pub(super) type AxisFormatterFn = fn(f64, usize, &RangeInclusive<f64>) -> String;
 
-/// Generic constant for x-Axis
-pub(super) const X_AXIS: usize = 0;
+/// X or Y axis.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Axis {
+    /// Horizontal X-Axis
+    X,
 
-/// Generic constant for y-Axis
-pub(super) const Y_AXIS: usize = 1;
+    /// Vertical Y-axis
+    Y,
+}
+
+impl From<Axis> for usize {
+    #[inline]
+    fn from(value: Axis) -> Self {
+        match value {
+            Axis::X => 0,
+            Axis::Y => 1,
+        }
+    }
+}
 
 /// Placement of the horizontal X-Axis.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,23 +75,11 @@ impl From<VPlacement> for Placement {
     }
 }
 
-// shorthand types for AxisHints, public API
-/// Configuration for x-axis
-pub type XAxisHints = AxisHints<X_AXIS>;
-
-/// Configuration for y-axis
-pub type YAxisHints = AxisHints<Y_AXIS>;
-
-// shorthand types for AxisWidget
-pub(super) type XAxisWidget = AxisWidget<X_AXIS>;
-pub(super) type YAxisWidget = AxisWidget<Y_AXIS>;
-
 /// Axis configuration.
 ///
 /// Used to configure axis label and ticks.
-/// The AXIS argument must be either [`X_AXIS`] or [`Y_AXIS`]. Everything else is disallowed.
 #[derive(Clone)]
-pub struct AxisHints<const AXIS: usize> {
+pub struct AxisHints {
     pub(super) label: WidgetText,
     pub(super) formatter: AxisFormatterFn,
     pub(super) digits: usize,
@@ -87,7 +89,7 @@ pub struct AxisHints<const AXIS: usize> {
 // TODO: this just a guess. It might cease to work if a user changes font size.
 const LINE_HEIGHT: f32 = 12.0;
 
-impl<const AXIS: usize> Default for AxisHints<AXIS> {
+impl Default for AxisHints {
     /// Initializes a default axis configuration for the specified axis.
     ///
     /// `label` is empty.
@@ -103,7 +105,7 @@ impl<const AXIS: usize> Default for AxisHints<AXIS> {
     }
 }
 
-impl<const AXIS: usize> AxisHints<AXIS> {
+impl AxisHints {
     /// Specify custom formatter for ticks.
     ///
     /// The first parameter of `formatter` is the raw tick value as `f64`.
@@ -151,39 +153,38 @@ impl<const AXIS: usize> AxisHints<AXIS> {
         self
     }
 
-    pub(super) fn thickness(&self) -> f32 {
-        match AXIS {
-            X_AXIS => {
+    pub(super) fn thickness(&self, axis: Axis) -> f32 {
+        match axis {
+            Axis::X => {
                 if self.label.is_empty() {
                     1.0 * LINE_HEIGHT
                 } else {
                     3.0 * LINE_HEIGHT
                 }
             }
-            Y_AXIS => {
+            Axis::Y => {
                 if self.label.is_empty() {
                     (self.digits as f32) * LINE_HEIGHT
                 } else {
                     (self.digits as f32 + 1.0) * LINE_HEIGHT
                 }
             }
-            _ => unreachable!(),
         }
     }
 }
 
 #[derive(Clone)]
-pub(super) struct AxisWidget<const AXIS: usize> {
+pub(super) struct AxisWidget {
     pub(super) range: RangeInclusive<f64>,
-    pub(super) hints: AxisHints<AXIS>,
+    pub(super) hints: AxisHints,
     pub(super) rect: Rect,
     pub(super) transform: Option<PlotTransform>,
     pub(super) steps: Arc<Vec<GridMark>>,
 }
 
-impl<const AXIS: usize> AxisWidget<AXIS> {
+impl AxisWidget {
     /// if `rect` as width or height == 0, is will be automatically calculated from ticks and text.
-    pub(super) fn new(hints: AxisHints<AXIS>, rect: Rect) -> Self {
+    pub(super) fn new(hints: AxisHints, rect: Rect) -> Self {
         Self {
             range: (0.0..=0.0),
             hints,
@@ -192,10 +193,8 @@ impl<const AXIS: usize> AxisWidget<AXIS> {
             steps: Default::default(),
         }
     }
-}
 
-impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
-    fn ui(self, ui: &mut Ui) -> Response {
+    pub fn ui(self, ui: &mut Ui, axis: Axis) -> Response {
         let response = ui.allocate_rect(self.rect, Sense::hover());
 
         if ui.is_rect_visible(response.rect) {
@@ -205,46 +204,43 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
             let text_color = visuals
                 .override_text_color
                 .unwrap_or_else(|| ui.visuals().text_color());
-            let angle: f32 = match AXIS {
-                X_AXIS => 0.0,
-                Y_AXIS => -std::f32::consts::TAU * 0.25,
-                _ => unreachable!(),
+            let angle: f32 = match axis {
+                Axis::X => 0.0,
+                Axis::Y => -std::f32::consts::TAU * 0.25,
             };
             // select text_pos and angle depending on placement and orientation of widget
             let text_pos = match self.hints.placement {
-                Placement::LeftBottom => match AXIS {
-                    X_AXIS => {
+                Placement::LeftBottom => match axis {
+                    Axis::X => {
                         let pos = response.rect.center_bottom();
                         Pos2 {
                             x: pos.x - galley.size().x / 2.0,
                             y: pos.y - galley.size().y * 1.25,
                         }
                     }
-                    Y_AXIS => {
+                    Axis::Y => {
                         let pos = response.rect.left_center();
                         Pos2 {
                             x: pos.x,
                             y: pos.y + galley.size().x / 2.0,
                         }
                     }
-                    _ => unreachable!(),
                 },
-                Placement::RightTop => match AXIS {
-                    X_AXIS => {
+                Placement::RightTop => match axis {
+                    Axis::X => {
                         let pos = response.rect.center_top();
                         Pos2 {
                             x: pos.x - galley.size().x / 2.0,
                             y: pos.y + galley.size().y * 0.25,
                         }
                     }
-                    Y_AXIS => {
+                    Axis::Y => {
                         let pos = response.rect.right_center();
                         Pos2 {
                             x: pos.x - galley.size().y * 1.5,
                             y: pos.y + galley.size().x / 2.0,
                         }
                     }
-                    _ => unreachable!(),
                 },
             };
             let shape = TextShape {
@@ -269,7 +265,7 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
                     const MIN_TEXT_SPACING: f32 = 20.0;
                     const FULL_CONTRAST_SPACING: f32 = 40.0;
                     let spacing_in_points =
-                        (transform.dpos_dvalue()[AXIS] * step.step_size).abs() as f32;
+                        (transform.dpos_dvalue()[usize::from(axis)] * step.step_size).abs() as f32;
 
                     if spacing_in_points <= MIN_TEXT_SPACING {
                         continue;
@@ -284,8 +280,9 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
                     let galley = ui
                         .painter()
                         .layout_no_wrap(text, font_id.clone(), line_color);
-                    let text_pos = match AXIS {
-                        X_AXIS => {
+
+                    let text_pos = match axis {
+                        Axis::X => {
                             let y = match self.hints.placement {
                                 Placement::LeftBottom => self.rect.min.y,
                                 Placement::RightTop => self.rect.max.y - galley.size().y,
@@ -297,7 +294,7 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
                                 y,
                             }
                         }
-                        Y_AXIS => {
+                        Axis::Y => {
                             let x = match self.hints.placement {
                                 Placement::LeftBottom => self.rect.max.x - galley.size().x,
                                 Placement::RightTop => self.rect.min.x,
@@ -309,7 +306,6 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
                                     - galley.size().y / 2.0,
                             }
                         }
-                        _ => unreachable!(),
                     };
 
                     ui.painter().add(Shape::galley(text_pos, galley));

@@ -6,7 +6,7 @@ use ahash::HashMap;
 use epaint::util::FloatOrd;
 use epaint::Hsva;
 
-use axis::{XAxisWidget, YAxisWidget, X_AXIS, Y_AXIS};
+use axis::AxisWidget;
 use items::PlotItem;
 use legend::LegendWidget;
 
@@ -21,7 +21,7 @@ pub use transform::{PlotBounds, PlotTransform};
 
 use items::{horizontal_line, rulers_color, vertical_line};
 
-pub use axis::{HPlacement, Placement, VPlacement, XAxisHints, YAxisHints};
+pub use axis::{Axis, AxisHints, HPlacement, Placement, VPlacement};
 
 mod axis;
 mod items;
@@ -35,6 +35,9 @@ type GridSpacerFn = dyn Fn(GridInput) -> Vec<GridMark>;
 type GridSpacer = Box<GridSpacerFn>;
 
 type CoordinatesFormatterFn = dyn Fn(&PlotPoint, &PlotBounds) -> String;
+
+const X_AXIS: usize = 0;
+const Y_AXIS: usize = 1;
 
 /// Specifies the coordinates formatting when passed to [`Plot::coordinates_formatter`].
 pub struct CoordinatesFormatter {
@@ -219,8 +222,8 @@ pub struct Plot {
     show_y: bool,
     label_formatter: LabelFormatter,
     coordinates_formatter: Option<(Corner, CoordinatesFormatter)>,
-    x_axes: Vec<XAxisHints>, // default x axes
-    y_axes: Vec<YAxisHints>, // default y axes
+    x_axes: Vec<AxisHints>, // default x axes
+    y_axes: Vec<AxisHints>, // default y axes
     legend_config: Option<Legend>,
     show_background: bool,
     show_axes: AxisBools,
@@ -650,7 +653,7 @@ impl Plot {
     /// Set custom configuration for X-axis
     ///
     /// More than one axis may be specified. The first specified axis is considered the main axis.
-    pub fn custom_x_axes(mut self, hints: Vec<XAxisHints>) -> Self {
+    pub fn custom_x_axes(mut self, hints: Vec<AxisHints>) -> Self {
         self.x_axes = hints;
         self
     }
@@ -658,7 +661,7 @@ impl Plot {
     /// Set custom configuration for left Y-axis
     ///
     /// More than one axis may be specified. The first specified axis is considered the main axis.
-    pub fn custom_y_axes(mut self, hints: Vec<YAxisHints>) -> Self {
+    pub fn custom_y_axes(mut self, hints: Vec<AxisHints>) -> Self {
         self.y_axes = hints;
         self
     }
@@ -769,10 +772,10 @@ impl Plot {
                 for cfg in &x_axes {
                     match cfg.placement {
                         axis::Placement::LeftBottom => {
-                            margin.bottom += cfg.thickness();
+                            margin.bottom += cfg.thickness(Axis::X);
                         }
                         axis::Placement::RightTop => {
-                            margin.top += cfg.thickness();
+                            margin.top += cfg.thickness(Axis::X);
                         }
                     }
                 }
@@ -781,10 +784,10 @@ impl Plot {
                 for cfg in &y_axes {
                     match cfg.placement {
                         axis::Placement::LeftBottom => {
-                            margin.left += cfg.thickness();
+                            margin.left += cfg.thickness(Axis::Y);
                         }
                         axis::Placement::RightTop => {
-                            margin.right += cfg.thickness();
+                            margin.right += cfg.thickness(Axis::Y);
                         }
                     }
                 }
@@ -793,8 +796,8 @@ impl Plot {
             // determine plot rectangle
             margin.shrink_rect(complete_rect)
         };
-        let mut x_axis_widgets = Vec::<XAxisWidget>::new();
-        let mut y_axis_widgets = Vec::<YAxisWidget>::new();
+        let mut x_axis_widgets = Vec::<AxisWidget>::new();
+        let mut y_axis_widgets = Vec::<AxisWidget>::new();
         {
             // Determine absolute rectangle for each axis label widget.
 
@@ -813,7 +816,7 @@ impl Plot {
             };
             if show_axes.x {
                 for cfg in &x_axes {
-                    let size_y = Vec2::new(0.0, cfg.thickness());
+                    let size_y = Vec2::new(0.0, cfg.thickness(Axis::X));
                     let rect = match cfg.placement {
                         axis::Placement::LeftBottom => {
                             let off = num_widgets.bottom as f32;
@@ -832,12 +835,12 @@ impl Plot {
                             }
                         }
                     };
-                    x_axis_widgets.push(XAxisWidget::new(cfg.clone(), rect));
+                    x_axis_widgets.push(AxisWidget::new(cfg.clone(), rect));
                 }
             }
             if show_axes.y {
                 for cfg in &y_axes {
-                    let size_x = Vec2::new(cfg.thickness(), 0.0);
+                    let size_x = Vec2::new(cfg.thickness(Axis::Y), 0.0);
                     let rect = match cfg.placement {
                         axis::Placement::LeftBottom => {
                             let off = num_widgets.left as f32;
@@ -856,7 +859,7 @@ impl Plot {
                             }
                         }
                     };
-                    y_axis_widgets.push(YAxisWidget::new(cfg.clone(), rect));
+                    y_axis_widgets.push(AxisWidget::new(cfg.clone(), rect));
                 }
             }
         }
@@ -1187,13 +1190,13 @@ impl Plot {
             widget.range = x_axis_range.clone();
             widget.transform = Some(transform);
             widget.steps = x_steps.clone();
-            ui.add(widget);
+            widget.ui(ui, Axis::X);
         }
         for mut widget in y_axis_widgets {
             widget.range = y_axis_range.clone();
             widget.transform = Some(transform);
             widget.steps = y_steps.clone();
-            ui.add(widget);
+            widget.ui(ui, Axis::Y);
         }
 
         // Initialize values from functions.

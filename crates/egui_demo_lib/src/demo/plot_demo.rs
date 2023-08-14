@@ -4,9 +4,9 @@ use std::ops::RangeInclusive;
 use egui::*;
 
 use egui::plot::{
-    Arrows, AxisBools, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter, Corner,
-    GridInput, GridMark, HLine, Legend, Line, LineStyle, MarkerShape, Plot, PlotImage, PlotPoint,
-    PlotPoints, PlotResponse, Points, Polygon, Text, VLine, XAxisHints, YAxisHints,
+    Arrows, AxisBools, AxisHints, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter,
+    Corner, GridInput, GridMark, HLine, Legend, Line, LineStyle, MarkerShape, Plot, PlotImage,
+    PlotPoint, PlotPoints, PlotResponse, Points, Polygon, Text, VLine,
 };
 
 // ----------------------------------------------------------------------------
@@ -565,15 +565,15 @@ impl CustomAxesDemo {
         ui.label("Zoom in on the X-axis to see hours and minutes");
 
         let x_axes = vec![
-            XAxisHints::default().label("Time").formatter(x_fmt),
-            XAxisHints::default().label("Value"),
+            AxisHints::default().label("Time").formatter(x_fmt),
+            AxisHints::default().label("Value"),
         ];
         let y_axes = vec![
-            YAxisHints::default()
+            AxisHints::default()
                 .label("Percent")
                 .formatter(y_fmt)
                 .max_digits(4),
-            YAxisHints::default()
+            AxisHints::default()
                 .label("Absolute")
                 .placement(plot::HPlacement::Right),
         ];
@@ -602,15 +602,11 @@ struct LinkedAxesDemo {
 
 impl Default for LinkedAxesDemo {
     fn default() -> Self {
-        let link_x = true;
-        let link_y = false;
-        let link_cursor_x = true;
-        let link_cursor_y = false;
         Self {
-            link_x,
-            link_y,
-            link_cursor_x,
-            link_cursor_y,
+            link_x: true,
+            link_y: true,
+            link_cursor_x: true,
+            link_cursor_y: true,
         }
     }
 }
