@@ -81,6 +81,7 @@ pub struct AxisBools {
 }
 
 impl AxisBools {
+    #[inline]
     pub fn new(x: bool, y: bool) -> Self {
         Self { x, y }
     }
@@ -92,8 +93,16 @@ impl AxisBools {
 }
 
 impl From<bool> for AxisBools {
+    #[inline]
     fn from(val: bool) -> Self {
         AxisBools { x: val, y: val }
+    }
+}
+
+impl From<[bool; 2]> for AxisBools {
+    #[inline]
+    fn from([x, y]: [bool; 2]) -> Self {
+        AxisBools { x, y }
     }
 }
 
@@ -252,8 +261,8 @@ impl Plot {
             show_y: true,
             label_formatter: None,
             coordinates_formatter: None,
-            x_axes: Vec::new(),
-            y_axes: Vec::new(),
+            x_axes: vec![Default::default()],
+            y_axes: vec![Default::default()],
             legend_config: None,
             show_background: true,
             show_axes: true.into(),
@@ -314,13 +323,13 @@ impl Plot {
         self
     }
 
-    /// Always keep the x-axis centered. Default: `false`.
+    /// Always keep the X-axis centered. Default: `false`.
     pub fn center_x_axis(mut self, on: bool) -> Self {
         self.center_axis.x = on;
         self
     }
 
-    /// Always keep the y-axis centered. Default: `false`.
+    /// Always keep the Y-axis centered. Default: `false`.
     pub fn center_y_axis(mut self, on: bool) -> Self {
         self.center_axis.y = on;
         self
@@ -511,21 +520,19 @@ impl Plot {
         self
     }
 
-    /// Show axis labels.
+    /// Show axis labels and grid tick values on the side of the plot.
     ///
     /// Default: `[true; 2]`.
-    pub fn show_axes(mut self, show: [bool; 2]) -> Self {
-        self.show_axes.x = show[0];
-        self.show_axes.y = show[1];
+    pub fn show_axes(mut self, show: impl Into<AxisBools>) -> Self {
+        self.show_axes = show.into();
         self
     }
 
-    /// Show the grid.
-    /// Can be useful to disable if the plot is overlaid over an existing grid or content.
+    /// Show a grid overlay on the plot.
+    ///
     /// Default: `[true; 2]`.
-    pub fn show_grid(mut self, show: [bool; 2]) -> Self {
-        self.show_grid.x = show[0];
-        self.show_grid.y = show[1];
+    pub fn show_grid(mut self, show: impl Into<AxisBools>) -> Self {
+        self.show_grid = show.into();
         self
     }
 
@@ -568,93 +575,79 @@ impl Plot {
         self
     }
 
-    /// Set the x axis label of the main x-axis
+    /// Set the x axis label of the main X-axis.
     ///
-    /// If no x-axis has been specified so far a new one will be created.
+    /// Default: no label.
     pub fn x_axis_label(mut self, label: impl Into<WidgetText>) -> Self {
-        if self.x_axes.is_empty() {
-            self.x_axes.push(XAxisHints::default().label(label));
-        } else {
-            self.x_axes[0].label = label.into();
+        if let Some(main) = self.x_axes.first_mut() {
+            main.label = label.into();
         }
         self
     }
 
-    /// Set the y axis label of the main y-axis
+    /// Set the y axis label of the main Y-axis.
     ///
-    /// If no y-axis has been specified so far a new one will be created.
+    /// Default: no label.
     pub fn y_axis_label(mut self, label: impl Into<WidgetText>) -> Self {
-        if self.y_axes.is_empty() {
-            self.y_axes.push(YAxisHints::default().label(label));
-        } else {
-            self.y_axes[0].label = label.into();
+        if let Some(main) = self.y_axes.first_mut() {
+            main.label = label.into();
         }
         self
     }
 
-    /// Set the position of the main x-axis
-    ///
-    /// > Note: This requires an x-axis to exist, either by [`Self::custom_x_axes`] or [`Self::x_axis_label`]
+    /// Set the position of the main X-axis.
     pub fn x_axis_position(mut self, placement: axis::Placement) -> Self {
-        if !self.x_axes.is_empty() {
-            self.x_axes[0].placement = placement;
+        if let Some(main) = self.x_axes.first_mut() {
+            main.placement = placement;
         }
         self
     }
 
-    /// Set the position of the main y-axis
-    ///
-    /// > Note: This requires a y-axis to exist, either by [`Self::custom_y_axes`] or [`Self::y_axis_label`]
+    /// Set the position of the main Y-axis.
     pub fn y_axis_position(mut self, placement: axis::Placement) -> Self {
-        if !self.y_axes.is_empty() {
-            self.y_axes[0].placement = placement;
+        if let Some(main) = self.y_axes.first_mut() {
+            main.placement = placement;
         }
         self
     }
 
-    /// Specify custom formatter for ticks on the main x-axis
-    ///
-    /// > Note: This requires an x-axis to exist, either by [`Self::custom_x_axes`] or [`Self::x_axis_label`]
+    /// Specify custom formatter for ticks on the main X-axis.
     ///
     /// The first parameter of `fmt` is the raw tick value as `f64`.
     /// The second parameter is the maximum requested number of characters per tick label.
     /// The second parameter of `fmt` is the currently shown range on this axis.
     pub fn x_axis_formatter(mut self, fmt: fn(f64, usize, &RangeInclusive<f64>) -> String) -> Self {
-        if !self.x_axes.is_empty() {
-            self.x_axes[0].formatter = fmt;
+        if let Some(main) = self.x_axes.first_mut() {
+            main.formatter = fmt;
         }
         self
     }
 
-    /// Specify custom formatter for ticks on the main y-axis
-    ///
-    /// > Note: This requires a y-axis to exist, either by [`Self::custom_y_axes`] or [`Self::y_axis_label`]
+    /// Specify custom formatter for ticks on the main Y-axis.
     ///
     /// The first parameter of `formatter` is the raw tick value as `f64`.
     /// The second parameter is the maximum requested number of characters per tick label.
     /// The second parameter of `formatter` is the currently shown range on this axis.
     pub fn y_axis_formatter(mut self, fmt: fn(f64, usize, &RangeInclusive<f64>) -> String) -> Self {
-        if !self.y_axes.is_empty() {
-            self.y_axes[0].formatter = fmt;
+        if let Some(main) = self.y_axes.first_mut() {
+            main.formatter = fmt;
         }
         self
     }
 
-    /// Set the main y-axis-width by number of digits
+    /// Set the main Y-axis-width by number of digits
     ///
     /// The default is 5 digits.
     ///
-    /// > Note: This requires a y-axis to exist, either by [`Self::custom_y_axes`] or [`Self::y_axis_label`]
-    ///
     /// > Todo: This is experimental. Changing the font size might break this.
     pub fn y_axis_width(mut self, digits: usize) -> Self {
-        if !self.y_axes.is_empty() {
-            self.y_axes[0].digits = digits;
+        if let Some(main) = self.y_axes.first_mut() {
+            main.digits = digits;
         }
         self
     }
 
-    /// Set custom configuration for bottom x-axis
+    /// Set custom configuration for X-axis
     ///
     /// More than one axis may be specified. The first specified axis is considered the main axis.
     pub fn custom_x_axes(mut self, hints: Vec<XAxisHints>) -> Self {
@@ -662,7 +655,7 @@ impl Plot {
         self
     }
 
-    /// Set custom configuration for left y-axis
+    /// Set custom configuration for left Y-axis
     ///
     /// More than one axis may be specified. The first specified axis is considered the main axis.
     pub fn custom_y_axes(mut self, hints: Vec<YAxisHints>) -> Self {
@@ -751,9 +744,9 @@ impl Plot {
         //
         //  left                     right
         //  +---+---------x----------+   +
-        //  |   |      x-Axis 3      |
+        //  |   |      X-axis 3      |
         //  |   +--------------------+    top
-        //  |   |      x-Axis 2      |
+        //  |   |      X-axis 2      |
         //  +-+-+--------------------+-+-+
         //  |y|y|                    |y|y|
         //  |-|-|                    |-|-|
@@ -763,9 +756,9 @@ impl Plot {
         //  |s|s|                    |s|s|
         //  |1|0|                    |2|3|
         //  +-+-+--------------------+-+-+
-        //      |      x-Axis 0      |   |
+        //      |      X-axis 0      |   |
         //      +--------------------+   | bottom
-        //      |      x-Axis 1      |   |
+        //      |      X-axis 1      |   |
         //  +   +--------------------+---+
         //
 

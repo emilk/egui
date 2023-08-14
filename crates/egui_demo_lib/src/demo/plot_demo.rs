@@ -121,7 +121,7 @@ impl super::View for PlotDemo {
 
 // ----------------------------------------------------------------------------
 
-#[derive(PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 struct LineDemo {
     animate: bool,
     time: f64,
@@ -130,6 +130,8 @@ struct LineDemo {
     square: bool,
     proportional: bool,
     coordinates: bool,
+    show_axes: bool,
+    show_grid: bool,
     line_style: LineStyle,
 }
 
@@ -143,6 +145,8 @@ impl Default for LineDemo {
             square: false,
             proportional: true,
             coordinates: true,
+            show_axes: true,
+            show_grid: true,
             line_style: LineStyle::Solid,
         }
     }
@@ -157,9 +161,10 @@ impl LineDemo {
             circle_center,
             square,
             proportional,
-            line_style,
             coordinates,
-            ..
+            show_axes,
+            show_grid,
+            line_style,
         } = self;
 
         ui.horizontal(|ui| {
@@ -188,14 +193,19 @@ impl LineDemo {
             });
 
             ui.vertical(|ui| {
+                ui.checkbox(show_axes, "Show axes");
+                ui.checkbox(show_grid, "Show grid");
+                ui.checkbox(coordinates, "Show coordinates on hover")
+                    .on_hover_text("Can take a custom formatting function.");
+            });
+
+            ui.vertical(|ui| {
                 ui.style_mut().wrap = Some(false);
                 ui.checkbox(animate, "Animate");
                 ui.checkbox(square, "Square view")
                     .on_hover_text("Always keep the viewport square.");
                 ui.checkbox(proportional, "Proportional data axes")
                     .on_hover_text("Tick are the same size on both axes.");
-                ui.checkbox(coordinates, "Show coordinates")
-                    .on_hover_text("Can take a custom formatting function.");
 
                 ComboBox::from_label("Line style")
                     .selected_text(line_style.to_string())
@@ -260,15 +270,16 @@ impl LineDemo {
 impl LineDemo {
     fn ui(&mut self, ui: &mut Ui) -> Response {
         self.options_ui(ui);
+
         if self.animate {
             ui.ctx().request_repaint();
             self.time += ui.input(|i| i.unstable_dt).at_most(1.0 / 30.0) as f64;
         };
         let mut plot = Plot::new("lines_demo")
             .legend(Legend::default())
-            .x_axis_label("")
-            .y_axis_label("")
-            .y_axis_width(4);
+            .y_axis_width(4)
+            .show_axes(self.show_axes)
+            .show_grid(self.show_grid);
         if self.square {
             plot = plot.view_aspect(1.0);
         }
@@ -426,8 +437,6 @@ impl LegendDemo {
             ui.end_row();
         });
         let legend_plot = Plot::new("legend_demo")
-            .x_axis_label("")
-            .y_axis_label("")
             .y_axis_width(2)
             .legend(config.clone())
             .data_aspect(1.0);
@@ -653,25 +662,25 @@ impl LinkedAxesDemo {
 
         let link_group_id = ui.id().with("linked_demo");
         ui.horizontal(|ui| {
-            Plot::new("linked_axis_1")
+            Plot::new("left-top")
                 .data_aspect(1.0)
                 .width(250.0)
                 .height(250.0)
                 .link_axis(link_group_id, self.link_x, self.link_y)
                 .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
                 .show(ui, LinkedAxesDemo::configure_plot);
-            Plot::new("linked_axis_2")
+            Plot::new("right-top")
                 .data_aspect(2.0)
                 .width(150.0)
                 .height(250.0)
+                .y_axis_width(3)
                 .y_axis_label("y")
                 .y_axis_position(Placement::Opposite)
-                .y_axis_width(3)
                 .link_axis(link_group_id, self.link_x, self.link_y)
                 .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
                 .show(ui, LinkedAxesDemo::configure_plot);
         });
-        Plot::new("linked_axis_3")
+        Plot::new("left-bottom")
             .data_aspect(0.5)
             .width(250.0)
             .height(150.0)
@@ -904,8 +913,6 @@ impl ChartsDemo {
         Plot::new("Normal Distribution Demo")
             .legend(Legend::default())
             .clamp_grid(true)
-            .x_axis_label("")
-            .y_axis_label("")
             .y_axis_width(3)
             .allow_zoom(self.allow_zoom)
             .allow_drag(self.allow_drag)

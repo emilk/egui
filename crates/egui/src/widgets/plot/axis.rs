@@ -56,17 +56,12 @@ const LINE_HEIGHT: f32 = 12.0;
 impl<const AXIS: usize> Default for AxisHints<AXIS> {
     /// Initializes a default axis configuration for the specified axis.
     ///
-    /// `label` is 'x' or 'y'
-    /// `formatter` is default float to string formatter
-    /// maximum `digits` on tick label is 5
+    /// `label` is empty.
+    /// `formatter` is default float to string formatter.
+    /// maximum `digits` on tick label is 5.
     fn default() -> Self {
-        let label = match AXIS {
-            X_AXIS => "x".into(),
-            Y_AXIS => "y".into(),
-            _ => unreachable!(),
-        };
         Self {
-            label,
+            label: Default::default(),
             formatter: Self::default_formatter,
             digits: 5,
             placement: Placement::Default,
