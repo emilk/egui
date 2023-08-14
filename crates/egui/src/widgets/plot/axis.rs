@@ -242,13 +242,13 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
                     if spacing_in_points <= MIN_TEXT_SPACING {
                         continue;
                     }
-                    let line_weight = remap_clamp(
+                    let line_strength = remap_clamp(
                         spacing_in_points,
                         MIN_TEXT_SPACING..=FULL_CONTRAST_SPACING,
                         0.0..=1.0,
                     );
 
-                    let line_color = super::color_from_contrast(ui, line_weight);
+                    let line_color = super::color_from_strength(ui, line_strength);
                     let galley = ui
                         .painter()
                         .layout_no_wrap(text, font_id.clone(), line_color);
