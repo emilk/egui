@@ -12,10 +12,14 @@ use crate::{widget_text::WidgetTextGalley, *};
 /// ui.label(egui::RichText::new("With formatting").underline());
 /// # });
 /// ```
+///
+/// For full control of the text you can use [`crate::text::LayoutJob`]
+/// as argument to [`Self::new`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Label {
     text: WidgetText,
     wrap: Option<bool>,
+    elide: bool,
     sense: Option<Sense>,
 }
 
@@ -24,6 +28,7 @@ impl Label {
         Self {
             text: text.into(),
             wrap: None,
+            elide: false,
             sense: None,
         }
     }
@@ -33,6 +38,8 @@ impl Label {
     }
 
     /// If `true`, the text will wrap to stay within the max width of the [`Ui`].
+    ///
+    /// Calling `wrap` will override [`Self::elide`].
     ///
     /// By default [`Self::wrap`] will be `true` in vertical layouts
     /// and horizontal layouts with wrapping,
@@ -44,6 +51,21 @@ impl Label {
     #[inline]
     pub fn wrap(mut self, wrap: bool) -> Self {
         self.wrap = Some(wrap);
+        self.elide = false;
+        self
+    }
+
+    /// If `true`, the text will stop at the max width of the [`Ui`],
+    /// and what doesn't fit will be elided, replaced with `…`.
+    ///
+    /// Default is `false`, which means the text will expand the parent [`Ui`],
+    /// or wrap if [`Self::wrap`] is set.
+    ///
+    /// Calling `elide` will override [`Self::wrap`].
+    #[inline]
+    pub fn elide(mut self, elide: bool) -> Self {
+        self.wrap = None;
+        self.elide = elide;
         self
     }
 
@@ -98,10 +120,11 @@ impl Label {
             .text
             .into_text_job(ui.style(), FontSelection::Default, valign);
 
-        let should_wrap = self.wrap.unwrap_or_else(|| ui.wrap_text());
+        let elide = self.elide;
+        let wrap = !elide && self.wrap.unwrap_or_else(|| ui.wrap_text());
         let available_width = ui.available_width();
 
-        if should_wrap
+        if wrap
             && ui.layout().main_dir() == Direction::LeftToRight
             && ui.layout().main_wrap()
             && available_width.is_finite()
@@ -138,7 +161,11 @@ impl Label {
             }
             (pos, text_galley, response)
         } else {
-            if should_wrap {
+            if elide {
+                text_job.job.wrap.max_width = available_width;
+                text_job.job.wrap.max_rows = 1;
+                text_job.job.wrap.break_anywhere = true;
+            } else if wrap {
                 text_job.job.wrap.max_width = available_width;
             } else {
                 text_job.job.wrap.max_width = f32::INFINITY;

@@ -277,10 +277,9 @@ impl TextFormat {
 pub struct TextWrapping {
     /// Wrap text so that no row is wider than this.
     ///
-    /// If you would rather elide text that doesn't fit,
-    /// set [`Self::max_rows`] to `1`.
+    /// If you would rather elide text that doesn't fit, set [`Self::max_rows`] to `1`.
     ///
-    /// Set `max_width` to [`f32::INFINITY`] to turn off wrapping/clipping.
+    /// Set `max_width` to [`f32::INFINITY`] to turn off wrapping and elision.
     ///
     /// Note that `\n` always produces a new row
     /// if [`LayoutJob::break_on_newline`] is `true`.
@@ -308,9 +307,11 @@ pub struct TextWrapping {
     /// This also applies to elision: when `true`, a word may be cut in half.
     pub break_anywhere: bool,
 
-    /// Character to use to represent elided text, `…` for example, which is the default.
+    /// Character to use to represent elided text.
     ///
-    /// If not set, no character will be used (but the text will still be clipped).
+    /// The default is `…`.
+    ///
+    /// If not set, no character will be used (but the text will still be elided).
     pub overflow_character: Option<char>,
 }
 
