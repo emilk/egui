@@ -7,34 +7,40 @@ use epaint::{ahash::HashMap, emath::NumExt, PaintCallbackInfo, Primitive, Vertex
 use wgpu;
 use wgpu::util::DeviceExt as _;
 
-/// A callback function that can be used to compose an [`epaint::PaintCallback`] for custom WGPU
-/// rendering.
+pub struct Callback(Box<dyn CallbackTrait>);
+
+impl Callback {
+    pub fn new(callback: impl CallbackTrait + 'static) -> Self {
+        Self(Box::new(callback))
+    }
+}
+
+/// A callback trait that can be used to compose an [`epaint::PaintCallback`] via [`Callback`]
+/// for custom WGPU rendering.
 ///
-/// The callback is composed of two functions: `prepare` and `paint`:
-/// - `prepare` is called every frame before `paint`, and can use the passed-in
-///   [`wgpu::Device`] and [`wgpu::Buffer`] to allocate or modify GPU resources such as buffers.
-/// - `paint` is called after `prepare` and is given access to the [`wgpu::RenderPass`] so
-///   that it can issue draw commands into the same [`wgpu::RenderPass`] that is used for
-///   all other egui elements.
+/// Callbacks in [`Renderer`] are done in three steps:
+/// * [`CallbackTrait::prepare`]: called for all registered callbacks before the main egui render pass.
+/// * [`Renderer::finish_prepare_callback`]: called once after all callbacks have been prepared.
+/// * [`CallbackTrait::paint`]: called for all registered callbacks during the main egui render pass.
 ///
-/// The final argument of both the `prepare` and `paint` callbacks is a the
-/// [`paint_callback_resources`][crate::renderer::Renderer::paint_callback_resources].
-/// `paint_callback_resources` has the same lifetime as the Egui render pass, so it can be used to
-/// store buffers, pipelines, and other information that needs to be accessed during the render
-/// pass.
+/// Each callback has access to an instance of [`SharedCallbackResourceMap`] that is stored in the [`Renderer`].
+/// This can be used to store wgpu resources that need to be accessed during the [`CallbackTrait::paint`] step.
 ///
-/// # Example
-///
-/// See the [`custom3d_wgpu`](https://github.com/emilk/egui/blob/master/crates/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
+/// The callbacks implementing [`CallbackTrait`] itself must always be Send + Sync, but resources stored in
+/// [`Renderer::shared_paint_callback_resources`] are not required to implement Send + Sync when building for wasm.
+/// (this is because wgpu stores references to the JS heap in most of its resources which can not be shared with other threads).
 ///
 ///
+/// # Command submission
 ///
-/// Set the prepare callback.
+/// ## Command Encoder
 ///
 /// The passed-in `CommandEncoder` is egui's and can be used directly to register
 /// wgpu commands for simple use cases.
 /// This allows reusing the same [`wgpu::CommandEncoder`] for all callbacks and egui
 /// rendering itself.
+///
+/// ## Command Buffers
 ///
 /// For more complicated use cases, one can also return a list of arbitrary
 /// `CommandBuffer`s and have complete control over how they get created and fed.
@@ -45,58 +51,14 @@ use wgpu::util::DeviceExt as _;
 /// command buffers returned by this function, are guaranteed to all be submitted
 /// at once in a single call.
 ///
-
+/// Command Buffers returned by [`Renderer::finish_prepare_callback`] will always be issued *after*
+/// those returned by [`CallbackTrait::prepare`].
+/// Order within command buffers returned by [`CallbackTrait::prepare`] is dependent
+/// on the order the respective [`epaint::Shape::Callback`]s were submitted in.
 ///
-/// TODO: UDPATE DOCS
-
-pub type SharedCallbackResourceId = u64;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub type SharedCallbackResource = Box<dyn std::any::Any + Send + Sync>;
-#[cfg(target_arch = "wasm32")]
-pub type SharedCallbackResource = Box<dyn std::any::Any>;
-
-#[derive(Default)]
-pub struct SharedCallbackResourceMap(HashMap<SharedCallbackResourceId, SharedCallbackResource>);
-
-impl SharedCallbackResourceMap {
-    pub fn get<T: 'static>(&self, id: SharedCallbackResourceId) -> Option<&T> {
-        self.0.get(&id).and_then(|r| r.downcast_ref::<T>())
-    }
-
-    pub fn get_mut<T: 'static>(&mut self, id: SharedCallbackResourceId) -> Option<&mut T> {
-        self.0.get_mut(&id).and_then(|r| r.downcast_mut::<T>())
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn insert<T: Send + Sync + 'static>(
-        &mut self,
-        id: SharedCallbackResourceId,
-        resource: T,
-    ) -> Option<SharedCallbackResource> {
-        self.0.insert(id, Box::new(resource))
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub fn insert<T: 'static>(
-        &mut self,
-        id: SharedCallbackResourceId,
-        resource: T,
-    ) -> Option<SharedCallbackResource> {
-        self.0.insert(id, Box::new(resource))
-    }
-}
-
-/// TODO: docs
-// ideally wouldn't need it but `dyn Any` can't be case to `dyn Trait` in Rust, `CallbackFn` is used just as a wrapper:
-pub struct Callback(Box<dyn CallbackTrait>);
-
-impl Callback {
-    pub fn new(callback: impl CallbackTrait + 'static) -> Self {
-        Self(Box::new(callback))
-    }
-}
-
+/// # Example
+///
+/// See the [`custom3d_wgpu`](https://github.com/emilk/egui/blob/master/crates/egui_demo_app/src/apps/custom3d_wgpu.rs) demo source for a detailed usage example.
 pub trait CallbackTrait: Send + Sync {
     fn prepare(
         &self,
@@ -108,6 +70,9 @@ pub trait CallbackTrait: Send + Sync {
         Vec::new()
     }
 
+    /// Called after [`Renderer::finish_prepare_callback`] and is given access to the [`wgpu::RenderPass`] so
+    ///   that it can issue draw commands into the same [`wgpu::RenderPass`] that is used for
+    ///   all other egui elements.
     fn paint<'a>(
         &self,
         info: PaintCallbackInfo,
@@ -116,15 +81,78 @@ pub trait CallbackTrait: Send + Sync {
     );
 }
 
-// TODO: docs
+/// Optional callback that is called after all [`CallbackTrait::prepare`] calls have been made.
+///
+/// See also [`CallbackTrait`].
 pub type FinishPrepareCallback = dyn Fn(
         &wgpu::Device,
         &wgpu::Queue,
         &mut wgpu::CommandEncoder,
-        &mut SharedCallbackResourceMap,
         Vec<&dyn CallbackTrait>,
-    ) + Sync
+        &mut SharedCallbackResourceMap,
+    ) -> Vec<wgpu::CommandBuffer>
+    + Sync
     + Send;
+
+/// Resource identifier for [`SharedCallbackResourceMap`].
+///
+/// Identifiers can be chosen freely to identify resources.
+pub type SharedCallbackResourceId = u64;
+
+/// Resource entry for [`SharedCallbackResourceMap`].
+///
+/// Must be Send + Sync to allow [`Renderer`] itself to be Send + Sync.
+///
+/// See also [`SharedCallbackResourceMap`].
+#[cfg(not(target_arch = "wasm32"))]
+pub type SharedCallbackResource = Box<dyn std::any::Any + Send + Sync>;
+#[cfg(target_arch = "wasm32")]
+pub type SharedCallbackResource = Box<dyn std::any::Any>;
+
+#[derive(Default)]
+pub struct SharedCallbackResourceMap(HashMap<SharedCallbackResourceId, SharedCallbackResource>);
+
+impl SharedCallbackResourceMap {
+    /// Returns a reference to the resource associated with the given key.
+    ///
+    /// Returns [`None`] if the key is not present *or* the resource is not of type `T`.
+    pub fn get<T: 'static>(&self, id: SharedCallbackResourceId) -> Option<&T> {
+        self.0.get(&id).and_then(|r| r.downcast_ref::<T>())
+    }
+
+    /// Returns a mutable reference to the resource associated with the given key.
+    ///
+    /// Returns [`None`] if the key is not present *or* the resource is not of type `T`.
+    pub fn get_mut<T: 'static>(&mut self, id: SharedCallbackResourceId) -> Option<&mut T> {
+        self.0.get_mut(&id).and_then(|r| r.downcast_mut::<T>())
+    }
+
+    /// Inserts a key-value pair into the map.
+    ///
+    /// If the map did not have this key present, [`None`] is returned.
+    /// If the map did have this key present, the value is updated and the previous value is returned.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn insert<T: Send + Sync + 'static>(
+        &mut self,
+        id: SharedCallbackResourceId,
+        resource: T,
+    ) -> Option<SharedCallbackResource> {
+        self.0.insert(id, Box::new(resource))
+    }
+
+    /// Inserts a key-value pair into the map.
+    ///
+    /// If the map did not have this key present, [`None`] is returned.
+    /// If the map did have this key present, the value is updated and the previous value is returned.
+    #[cfg(target_arch = "wasm32")]
+    pub fn insert<T: 'static>(
+        &mut self,
+        id: SharedCallbackResourceId,
+        resource: T,
+    ) -> Option<SharedCallbackResource> {
+        self.0.insert(id, Box::new(resource))
+    }
+}
 
 /// Information about the screen used for rendering.
 pub struct ScreenDescriptor {
@@ -186,12 +214,14 @@ pub struct Renderer {
     next_user_texture_id: u64,
     samplers: HashMap<epaint::textures::TextureOptions, wgpu::Sampler>,
 
-    /// Storage for use by [`epaint::PaintCallback`]'s that need to store resources such as render
-    /// pipelines that must have the lifetime of the renderpass.
-    /// TODO: update docs
+    /// Storage for resources shared with all invocations of [`CallbackTrait`]'s methods.
+    ///
+    /// See also [`CallbackTrait`].
     pub shared_paint_callback_resources: SharedCallbackResourceMap,
 
-    /// TODO: docs
+    /// Optional callback that is called after all [`CallbackTrait::prepare`] calls have been made.
+    ///
+    /// See also [`CallbackTrait`].
     pub finish_prepare_callback: Option<Box<FinishPrepareCallback>>,
 }
 
@@ -778,7 +808,7 @@ impl Renderer {
     /// Uploads the uniform, vertex and index data used by the renderer.
     /// Should be called before `render()`.
     ///
-    /// Returns all user-defined command buffers gathered from prepare & finish_prepare callbacks.
+    /// Returns all user-defined command buffers gathered from [`CallbackTrait::prepare`] & [`Renderer::finish_prepare_callback`] callbacks.
     pub fn update_buffers(
         &mut self,
         device: &wgpu::Device,
@@ -914,8 +944,8 @@ impl Renderer {
                 device,
                 queue,
                 encoder,
-                &mut self.shared_paint_callback_resources,
                 callbacks,
+                &mut self.shared_paint_callback_resources,
             );
         }
 

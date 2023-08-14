@@ -122,6 +122,26 @@ impl eframe::App for Custom3d {
     }
 }
 
+// Callbacks in egui_wgpu have 3 stages:
+// * prepare (per callback impl)
+// * finish_prepare (once)
+// * paint (per callback impl)
+//
+// The prepare callback is called every frame before paint and is given access to the wgpu
+// Device and Queue, which can be used, for instance, to update buffers and uniforms before
+// rendering.
+// If [`egui_wgpu::Renderer`] has [`egui_wgpu::FinishPrepareCallback`] registered,
+// it will be called after all `prepare` callbacks have been called.
+// You can use this to update any shared resources that need to be updated once per frame
+// after all callbacks have been processed.
+//
+// On both prepare methods you can use the main `CommandEncoder` that is passed-in,
+// return an arbitrary number of user-defined `CommandBuffer`s, or both.
+// The main command buffer, as well as all user-defined ones, will be submitted together
+// to the GPU in a single call.
+//
+// The paint callback is called after finish prepare and is given access to egui's main render pass,
+// which can be used to issue draw commands.
 struct CustomTriangleCallback {
     angle: f32,
 }
@@ -158,28 +178,11 @@ impl Custom3d {
             ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::drag());
 
         self.angle += response.drag_delta().x * 0.01;
-
-        // Clone locals so we can move them into the paint callback:
-        let angle = self.angle;
-
-        // The callback function for WGPU is in two stages: prepare, and paint.
-        //
-        // The prepare callback is called every frame before paint and is given access to the wgpu
-        // Device and Queue, which can be used, for instance, to update buffers and uniforms before
-        // rendering.
-        //
-        // You can use the main `CommandEncoder` that is passed-in, return an arbitrary number
-        // of user-defined `CommandBuffer`s, or both.
-        // The main command buffer, as well as all user-defined ones, will be submitted together
-        // to the GPU in a single call.
-        //
-        // The paint callback is called after prepare and is given access to the render pass, which
-        // can be used to issue draw commands.
-        // TODO: update docs
-
         let callback = egui::PaintCallback {
             rect,
-            callback: Arc::new(egui_wgpu::Callback::new(CustomTriangleCallback { angle })),
+            callback: Arc::new(egui_wgpu::Callback::new(CustomTriangleCallback {
+                angle: self.angle,
+            })),
         };
 
         ui.painter().add(callback);
