@@ -748,9 +748,10 @@ impl Plot {
         // Next we want to create this layout.
         // Incides are only examples.
         //
-        //  +-b-+---------x----------+   +
+        //  left                     right
+        //  +---+---------x----------+   +
         //  |   |      x-Axis 3      |
-        //  c   +--------------------+
+        //  |   +--------------------+    top
         //  |   |      x-Axis 2      |
         //  +-+-+--------------------+-+-+
         //  |y|y|                    |y|y|
@@ -762,26 +763,22 @@ impl Plot {
         //  |1|0|                    |2|3|
         //  +-+-+--------------------+-+-+
         //      |      x-Axis 0      |   |
-        //      +--------------------+   a
+        //      +--------------------+   | bottom
         //      |      x-Axis 1      |   |
-        //  +   +--------------------+-d-+
+        //  +   +--------------------+---+
         //
 
         let mut plot_rect: Rect = {
-            // find dimensions of axis labels
-            // for a, b, c, d meanings see picture
-            let mut a = 0.0;
-            let mut b = 0.0;
-            let mut c = 0.0;
-            let mut d = 0.0;
+            // Calcuclate the space needed for each axis labels.
+            let mut margin = Margin::ZERO;
             if show_axes.x {
                 for cfg in &x_axes {
                     match cfg.placement {
                         axis::Placement::Default => {
-                            a += cfg.thickness();
+                            margin.bottom += cfg.thickness();
                         }
                         axis::Placement::Opposite => {
-                            c += cfg.thickness();
+                            margin.top += cfg.thickness();
                         }
                     }
                 }
@@ -790,20 +787,17 @@ impl Plot {
                 for cfg in &y_axes {
                     match cfg.placement {
                         axis::Placement::Default => {
-                            b += cfg.thickness();
+                            margin.left += cfg.thickness();
                         }
                         axis::Placement::Opposite => {
-                            d += cfg.thickness();
+                            margin.right += cfg.thickness();
                         }
                     }
                 }
             }
 
             // determine plot rectangle
-            Rect {
-                min: complete_rect.min + Vec2::new(b, c),
-                max: complete_rect.max - Vec2::new(d, a),
-            }
+            margin.shrink_rect(complete_rect)
         };
         let mut x_axis_widgets = Vec::<XAxisWidget>::new();
         let mut y_axis_widgets = Vec::<YAxisWidget>::new();
