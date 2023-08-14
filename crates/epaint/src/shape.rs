@@ -282,6 +282,8 @@ impl Shape {
     pub fn texture_id(&self) -> super::TextureId {
         if let Shape::Mesh(mesh) = self {
             mesh.texture_id
+        } else if let Shape::Rect(rect_shape) = self {
+            rect_shape.fill_texture_id
         } else {
             super::TextureId::default()
         }
@@ -406,6 +408,8 @@ pub struct PathShape {
 
     /// Color and thickness of the line.
     pub stroke: Stroke,
+    // TODO(emilk): Add texture support either by supplying uv for each point,
+    // or by some transform from points to uv (e.g. a callback or a linear transform matrix).
 }
 
 impl PathShape {
@@ -476,7 +480,7 @@ impl From<PathShape> for Shape {
 pub struct RectShape {
     pub rect: Rect,
 
-    /// How rounded the corners are. Use `Rounding::none()` for no rounding.
+    /// How rounded the corners are. Use `Rounding::ZERO` for no rounding.
     pub rounding: Rounding,
 
     /// How to fill the rectangle.
@@ -484,6 +488,17 @@ pub struct RectShape {
 
     /// The thickness and color of the outline.
     pub stroke: Stroke,
+
+    /// If the rect should be filled with a texture, which one?
+    ///
+    /// The texture is multiplied with [`Self::fill`].
+    pub fill_texture_id: TextureId,
+
+    /// What UV coordinates to use for the texture?
+    ///
+    /// To display a texture, set [`Self::fill_texture_id`],
+    /// and set this to `Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0))`.
+    pub uv: Rect,
 }
 
 impl RectShape {
@@ -499,6 +514,8 @@ impl RectShape {
             rounding: rounding.into(),
             fill: fill_color.into(),
             stroke: stroke.into(),
+            fill_texture_id: Default::default(),
+            uv: Rect::ZERO,
         }
     }
 
@@ -513,6 +530,8 @@ impl RectShape {
             rounding: rounding.into(),
             fill: fill_color.into(),
             stroke: Default::default(),
+            fill_texture_id: Default::default(),
+            uv: Rect::ZERO,
         }
     }
 
@@ -523,6 +542,8 @@ impl RectShape {
             rounding: rounding.into(),
             fill: Default::default(),
             stroke: stroke.into(),
+            fill_texture_id: Default::default(),
+            uv: Rect::ZERO,
         }
     }
 

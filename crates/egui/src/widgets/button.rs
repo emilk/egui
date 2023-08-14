@@ -552,6 +552,8 @@ impl Widget for ImageButton {
                 Default::default()
             };
 
+            let image = image.rounding(rounding); // apply rounding to the image
+
             // Draw frame background (for transparent images):
             ui.painter()
                 .rect_filled(rect.expand2(expansion), rounding, fill);

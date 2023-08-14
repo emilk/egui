@@ -120,13 +120,13 @@ impl Mesh {
     pub fn append_ref(&mut self, other: &Mesh) {
         crate::epaint_assert!(other.is_valid());
 
-        if !self.is_empty() {
+        if self.is_empty() {
+            self.texture_id = other.texture_id;
+        } else {
             assert_eq!(
                 self.texture_id, other.texture_id,
                 "Can't merge Mesh using different textures"
             );
-        } else {
-            self.texture_id = other.texture_id;
         }
 
         let index_offset = self.vertices.len() as u32;
