@@ -7,13 +7,6 @@ This file is updated upon each release.
 Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
 
-### Added
-* Added plot axis labels and the required API to customize them. ([#2284](https://github.com/emilk/egui/pull/2284))
-* Added support for multiple x-axis- and y-axis-labels and -ticks per plot.  ([#2284](https://github.com/emilk/egui/pull/2284))
-
-### Fixed
-* Draw plot ticks outside of plotting window. ([#2284](https://github.com/emilk/egui/pull/2284))
-
 ## 0.22.0 - 2023-05-23 - A plethora of small improvements
 ### ⭐ Added
 * Scroll bar visibility options [#2729](https://github.com/emilk/egui/pull/2729) (thanks [@IVAN-MK7](https://github.com/IVAN-MK7)!)
