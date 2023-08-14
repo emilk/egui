@@ -19,7 +19,7 @@ use crate::{widget_text::WidgetTextGalley, *};
 pub struct Label {
     text: WidgetText,
     wrap: Option<bool>,
-    elide: bool,
+    truncate: bool,
     sense: Option<Sense>,
 }
 
@@ -28,7 +28,7 @@ impl Label {
         Self {
             text: text.into(),
             wrap: None,
-            elide: false,
+            truncate: false,
             sense: None,
         }
     }
@@ -39,7 +39,7 @@ impl Label {
 
     /// If `true`, the text will wrap to stay within the max width of the [`Ui`].
     ///
-    /// Calling `wrap` will override [`Self::elide`].
+    /// Calling `wrap` will override [`Self::truncate`].
     ///
     /// By default [`Self::wrap`] will be `true` in vertical layouts
     /// and horizontal layouts with wrapping,
@@ -51,21 +51,23 @@ impl Label {
     #[inline]
     pub fn wrap(mut self, wrap: bool) -> Self {
         self.wrap = Some(wrap);
-        self.elide = false;
+        self.truncate = false;
         self
     }
 
     /// If `true`, the text will stop at the max width of the [`Ui`],
     /// and what doesn't fit will be elided, replaced with `…`.
     ///
+    /// If the text is truncated, the full text will be shown on hover as a tool-tip.
+    ///
     /// Default is `false`, which means the text will expand the parent [`Ui`],
     /// or wrap if [`Self::wrap`] is set.
     ///
-    /// Calling `elide` will override [`Self::wrap`].
+    /// Calling `truncate` will override [`Self::wrap`].
     #[inline]
-    pub fn elide(mut self, elide: bool) -> Self {
+    pub fn truncate(mut self, truncate: bool) -> Self {
         self.wrap = None;
-        self.elide = elide;
+        self.truncate = truncate;
         self
     }
 
@@ -120,8 +122,8 @@ impl Label {
             .text
             .into_text_job(ui.style(), FontSelection::Default, valign);
 
-        let elide = self.elide;
-        let wrap = !elide && self.wrap.unwrap_or_else(|| ui.wrap_text());
+        let truncate = self.truncate;
+        let wrap = !truncate && self.wrap.unwrap_or_else(|| ui.wrap_text());
         let available_width = ui.available_width();
 
         if wrap
@@ -161,7 +163,7 @@ impl Label {
             }
             (pos, text_galley, response)
         } else {
-            if elide {
+            if truncate {
                 text_job.job.wrap.max_width = available_width;
                 text_job.job.wrap.max_rows = 1;
                 text_job.job.wrap.break_anywhere = true;
