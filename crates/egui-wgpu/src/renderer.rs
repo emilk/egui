@@ -81,7 +81,7 @@ pub trait CallbackTrait: Send + Sync {
     ///   that it can issue draw commands into the same [`wgpu::RenderPass`] that is used for
     ///   all other egui elements.
     fn paint<'a>(
-        &self,
+        &'a self,
         info: PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
         shared_paint_callback_resources: &'a SharedCallbackResourceMap,
@@ -421,7 +421,7 @@ impl Renderer {
     pub fn render<'rp>(
         &'rp self,
         render_pass: &mut wgpu::RenderPass<'rp>,
-        paint_jobs: &[epaint::ClippedPrimitive],
+        paint_jobs: &'rp [epaint::ClippedPrimitive],
         screen_descriptor: &ScreenDescriptor,
     ) {
         crate::profile_function!();
