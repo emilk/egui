@@ -21,7 +21,7 @@ pub use transform::{PlotBounds, PlotTransform};
 
 use items::{horizontal_line, rulers_color, vertical_line};
 
-pub use axis::{Placement, XAxisHints, YAxisHints};
+pub use axis::{HPlacement, Placement, VPlacement, XAxisHints, YAxisHints};
 
 mod axis;
 mod items;
@@ -596,17 +596,17 @@ impl Plot {
     }
 
     /// Set the position of the main X-axis.
-    pub fn x_axis_position(mut self, placement: axis::Placement) -> Self {
+    pub fn x_axis_position(mut self, placement: axis::VPlacement) -> Self {
         if let Some(main) = self.x_axes.first_mut() {
-            main.placement = placement;
+            main.placement = placement.into();
         }
         self
     }
 
     /// Set the position of the main Y-axis.
-    pub fn y_axis_position(mut self, placement: axis::Placement) -> Self {
+    pub fn y_axis_position(mut self, placement: axis::HPlacement) -> Self {
         if let Some(main) = self.y_axes.first_mut() {
-            main.placement = placement;
+            main.placement = placement.into();
         }
         self
     }
@@ -768,10 +768,10 @@ impl Plot {
             if show_axes.x {
                 for cfg in &x_axes {
                     match cfg.placement {
-                        axis::Placement::Default => {
+                        axis::Placement::LeftBottom => {
                             margin.bottom += cfg.thickness();
                         }
-                        axis::Placement::Opposite => {
+                        axis::Placement::RightTop => {
                             margin.top += cfg.thickness();
                         }
                     }
@@ -780,10 +780,10 @@ impl Plot {
             if show_axes.y {
                 for cfg in &y_axes {
                     match cfg.placement {
-                        axis::Placement::Default => {
+                        axis::Placement::LeftBottom => {
                             margin.left += cfg.thickness();
                         }
-                        axis::Placement::Opposite => {
+                        axis::Placement::RightTop => {
                             margin.right += cfg.thickness();
                         }
                     }
@@ -815,7 +815,7 @@ impl Plot {
                 for cfg in &x_axes {
                     let size_y = Vec2::new(0.0, cfg.thickness());
                     let rect = match cfg.placement {
-                        axis::Placement::Default => {
+                        axis::Placement::LeftBottom => {
                             let off = num_widgets.bottom as f32;
                             num_widgets.bottom += 1;
                             Rect {
@@ -823,7 +823,7 @@ impl Plot {
                                 max: plot_rect.right_bottom() + size_y * (off + 1.0),
                             }
                         }
-                        axis::Placement::Opposite => {
+                        axis::Placement::RightTop => {
                             let off = num_widgets.top as f32;
                             num_widgets.top += 1;
                             Rect {
@@ -839,7 +839,7 @@ impl Plot {
                 for cfg in &y_axes {
                     let size_x = Vec2::new(cfg.thickness(), 0.0);
                     let rect = match cfg.placement {
-                        axis::Placement::Default => {
+                        axis::Placement::LeftBottom => {
                             let off = num_widgets.left as f32;
                             num_widgets.left += 1;
                             Rect {
@@ -847,7 +847,7 @@ impl Plot {
                                 max: plot_rect.left_bottom() - size_x * off,
                             }
                         }
-                        axis::Placement::Opposite => {
+                        axis::Placement::RightTop => {
                             let off = num_widgets.right as f32;
                             num_widgets.right += 1;
                             Rect {

@@ -17,14 +17,48 @@ pub(super) const X_AXIS: usize = 0;
 /// Generic constant for y-Axis
 pub(super) const Y_AXIS: usize = 1;
 
-/// Placement of an Axis.
-///
-/// `Default` means bottom for x-axis and left for y-axis.
-/// `Opposite` means top for x-axis and right for y-axis.
+/// Placement of the horizontal X-Axis.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VPlacement {
+    Top,
+    Bottom,
+}
+
+/// Placement of the vertical Y-Axis.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HPlacement {
+    Left,
+    Right,
+}
+
+/// Placement of an axis.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Placement {
-    Default,
-    Opposite,
+    /// Bottom for X-axis, or left for Y-axis.
+    LeftBottom,
+
+    /// Top for x-axis and right for y-axis.
+    RightTop,
+}
+
+impl From<HPlacement> for Placement {
+    #[inline]
+    fn from(placement: HPlacement) -> Self {
+        match placement {
+            HPlacement::Left => Placement::LeftBottom,
+            HPlacement::Right => Placement::RightTop,
+        }
+    }
+}
+
+impl From<VPlacement> for Placement {
+    #[inline]
+    fn from(placement: VPlacement) -> Self {
+        match placement {
+            VPlacement::Top => Placement::RightTop,
+            VPlacement::Bottom => Placement::LeftBottom,
+        }
+    }
 }
 
 // shorthand types for AxisHints, public API
@@ -64,7 +98,7 @@ impl<const AXIS: usize> Default for AxisHints<AXIS> {
             label: Default::default(),
             formatter: Self::default_formatter,
             digits: 5,
-            placement: Placement::Default,
+            placement: Placement::LeftBottom,
         }
     }
 }
@@ -109,8 +143,11 @@ impl<const AXIS: usize> AxisHints<AXIS> {
     }
 
     /// Specify the placement of the axis.
-    pub fn placement(mut self, placement: Placement) -> Self {
-        self.placement = placement;
+    ///
+    /// For X-axis, use [`VPlacement`].
+    /// For Y-axis, use [`HPlacement`].
+    pub fn placement(mut self, placement: impl Into<Placement>) -> Self {
+        self.placement = placement.into();
         self
     }
 
@@ -175,7 +212,7 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
             };
             // select text_pos and angle depending on placement and orientation of widget
             let text_pos = match self.hints.placement {
-                Placement::Default => match AXIS {
+                Placement::LeftBottom => match AXIS {
                     X_AXIS => {
                         let pos = response.rect.center_bottom();
                         Pos2 {
@@ -192,7 +229,7 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
                     }
                     _ => unreachable!(),
                 },
-                Placement::Opposite => match AXIS {
+                Placement::RightTop => match AXIS {
                     X_AXIS => {
                         let pos = response.rect.center_top();
                         Pos2 {
@@ -250,8 +287,8 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
                     let text_pos = match AXIS {
                         X_AXIS => {
                             let y = match self.hints.placement {
-                                Placement::Default => self.rect.min.y,
-                                Placement::Opposite => self.rect.max.y - galley.size().y,
+                                Placement::LeftBottom => self.rect.min.y,
+                                Placement::RightTop => self.rect.max.y - galley.size().y,
                             };
                             let projected_point = super::PlotPoint::new(step.value, 0.0);
                             Pos2 {
@@ -262,8 +299,8 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
                         }
                         Y_AXIS => {
                             let x = match self.hints.placement {
-                                Placement::Default => self.rect.max.x - galley.size().x,
-                                Placement::Opposite => self.rect.min.x,
+                                Placement::LeftBottom => self.rect.max.x - galley.size().x,
+                                Placement::RightTop => self.rect.min.x,
                             };
                             let projected_point = super::PlotPoint::new(0.0, step.value);
                             Pos2 {
