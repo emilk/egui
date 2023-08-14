@@ -796,73 +796,9 @@ impl Plot {
             // determine plot rectangle
             margin.shrink_rect(complete_rect)
         };
-        let mut x_axis_widgets = Vec::<AxisWidget>::new();
-        let mut y_axis_widgets = Vec::<AxisWidget>::new();
-        {
-            // Determine absolute rectangle for each axis label widget.
 
-            // Widget count per border of plot in order left, top, right, bottom
-            struct NumWidgets {
-                left: usize,
-                top: usize,
-                right: usize,
-                bottom: usize,
-            }
-            let mut num_widgets = NumWidgets {
-                left: 0,
-                top: 0,
-                right: 0,
-                bottom: 0,
-            };
-            if show_axes.x {
-                for cfg in &x_axes {
-                    let size_y = Vec2::new(0.0, cfg.thickness(Axis::X));
-                    let rect = match cfg.placement {
-                        axis::Placement::LeftBottom => {
-                            let off = num_widgets.bottom as f32;
-                            num_widgets.bottom += 1;
-                            Rect {
-                                min: plot_rect.left_bottom() + size_y * off,
-                                max: plot_rect.right_bottom() + size_y * (off + 1.0),
-                            }
-                        }
-                        axis::Placement::RightTop => {
-                            let off = num_widgets.top as f32;
-                            num_widgets.top += 1;
-                            Rect {
-                                min: plot_rect.left_top() - size_y * (off + 1.0),
-                                max: plot_rect.right_top() - size_y * off,
-                            }
-                        }
-                    };
-                    x_axis_widgets.push(AxisWidget::new(cfg.clone(), rect));
-                }
-            }
-            if show_axes.y {
-                for cfg in &y_axes {
-                    let size_x = Vec2::new(cfg.thickness(Axis::Y), 0.0);
-                    let rect = match cfg.placement {
-                        axis::Placement::LeftBottom => {
-                            let off = num_widgets.left as f32;
-                            num_widgets.left += 1;
-                            Rect {
-                                min: plot_rect.left_top() - size_x * (off + 1.0),
-                                max: plot_rect.left_bottom() - size_x * off,
-                            }
-                        }
-                        axis::Placement::RightTop => {
-                            let off = num_widgets.right as f32;
-                            num_widgets.right += 1;
-                            Rect {
-                                min: plot_rect.right_top() + size_x * off,
-                                max: plot_rect.right_bottom() + size_x * (off + 1.0),
-                            }
-                        }
-                    };
-                    y_axis_widgets.push(AxisWidget::new(cfg.clone(), rect));
-                }
-            }
-        }
+        let [mut x_axis_widgets, mut y_axis_widgets] =
+            axis_widgets(show_axes, plot_rect, [&x_axes, &y_axes]);
 
         // If too little space, remove axis widgets
         if plot_rect.width() <= 0.0 || plot_rect.height() <= 0.0 {
@@ -874,6 +810,7 @@ impl Plot {
         // Allocate the plot window.
         let response = ui.allocate_rect(plot_rect, Sense::drag());
         let rect = plot_rect;
+
         // Load or initialize the memory.
         let plot_id = ui.make_persistent_id(id_source);
         ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
@@ -1281,6 +1218,79 @@ impl Plot {
             transform,
         }
     }
+}
+
+fn axis_widgets(
+    show_axes: AxisBools,
+    plot_rect: Rect,
+    [x_axes, y_axes]: [&[AxisHints]; 2],
+) -> [Vec<AxisWidget>; 2] {
+    let mut x_axis_widgets = Vec::<AxisWidget>::new();
+    let mut y_axis_widgets = Vec::<AxisWidget>::new();
+
+    // Widget count per border of plot in order left, top, right, bottom
+    struct NumWidgets {
+        left: usize,
+        top: usize,
+        right: usize,
+        bottom: usize,
+    }
+    let mut num_widgets = NumWidgets {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+    };
+    if show_axes.x {
+        for cfg in x_axes {
+            let size_y = Vec2::new(0.0, cfg.thickness(Axis::X));
+            let rect = match cfg.placement {
+                axis::Placement::LeftBottom => {
+                    let off = num_widgets.bottom as f32;
+                    num_widgets.bottom += 1;
+                    Rect {
+                        min: plot_rect.left_bottom() + size_y * off,
+                        max: plot_rect.right_bottom() + size_y * (off + 1.0),
+                    }
+                }
+                axis::Placement::RightTop => {
+                    let off = num_widgets.top as f32;
+                    num_widgets.top += 1;
+                    Rect {
+                        min: plot_rect.left_top() - size_y * (off + 1.0),
+                        max: plot_rect.right_top() - size_y * off,
+                    }
+                }
+            };
+            x_axis_widgets.push(AxisWidget::new(cfg.clone(), rect));
+        }
+    }
+    if show_axes.y {
+        for cfg in y_axes {
+            let size_x = Vec2::new(cfg.thickness(Axis::Y), 0.0);
+            let rect = match cfg.placement {
+                axis::Placement::LeftBottom => {
+                    let off = num_widgets.left as f32;
+                    num_widgets.left += 1;
+                    Rect {
+                        min: plot_rect.left_top() - size_x * (off + 1.0),
+                        max: plot_rect.left_bottom() - size_x * off,
+                    }
+                }
+                axis::Placement::RightTop => {
+                    let off = num_widgets.right as f32;
+                    num_widgets.right += 1;
+                    Rect {
+                        min: plot_rect.right_top() + size_x * off,
+                        max: plot_rect.right_bottom() + size_x * (off + 1.0),
+                    }
+                }
+            };
+            y_axis_widgets.push(AxisWidget::new(cfg.clone(), rect));
+        }
+    }
+
+    [x_axis_widgets, y_axis_widgets]
 }
 
 /// User-requested modifications to the plot bounds. We collect them in the plot build function to later apply
