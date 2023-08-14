@@ -803,15 +803,16 @@ impl Plot {
         let mut x_axis_widgets = Vec::<XAxisWidget>::new();
         let mut y_axis_widgets = Vec::<YAxisWidget>::new();
         {
-            // determine absolute rectangle for each axis label widget
-            // widget cnt per border of plot in order left, top, right, bottom
-            struct WidgetCnt {
+            // Determine absolute rectangle for each axis label widget.
+
+            // Widget count per border of plot in order left, top, right, bottom
+            struct NumWidgets {
                 left: usize,
                 top: usize,
                 right: usize,
                 bottom: usize,
             }
-            let mut widget_cnt = WidgetCnt {
+            let mut num_widgets = NumWidgets {
                 left: 0,
                 top: 0,
                 right: 0,
@@ -822,16 +823,16 @@ impl Plot {
                     let size_y = Vec2::new(0.0, cfg.thickness());
                     let rect = match cfg.placement {
                         axis::Placement::Default => {
-                            let off = widget_cnt.bottom as f32;
-                            widget_cnt.bottom += 1;
+                            let off = num_widgets.bottom as f32;
+                            num_widgets.bottom += 1;
                             Rect {
                                 min: plot_rect.left_bottom() + size_y * off,
                                 max: plot_rect.right_bottom() + size_y * (off + 1.0),
                             }
                         }
                         axis::Placement::Opposite => {
-                            let off = widget_cnt.top as f32;
-                            widget_cnt.top += 1;
+                            let off = num_widgets.top as f32;
+                            num_widgets.top += 1;
                             Rect {
                                 min: plot_rect.left_top() - size_y * (off + 1.0),
                                 max: plot_rect.right_top() - size_y * off,
@@ -846,16 +847,16 @@ impl Plot {
                     let size_x = Vec2::new(cfg.thickness(), 0.0);
                     let rect = match cfg.placement {
                         axis::Placement::Default => {
-                            let off = widget_cnt.left as f32;
-                            widget_cnt.left += 1;
+                            let off = num_widgets.left as f32;
+                            num_widgets.left += 1;
                             Rect {
                                 min: plot_rect.left_top() - size_x * (off + 1.0),
                                 max: plot_rect.left_bottom() - size_x * off,
                             }
                         }
                         axis::Placement::Opposite => {
-                            let off = widget_cnt.right as f32;
-                            widget_cnt.right += 1;
+                            let off = num_widgets.right as f32;
+                            num_widgets.right += 1;
                             Rect {
                                 min: plot_rect.right_top() + size_x * off,
                                 max: plot_rect.right_bottom() + size_x * (off + 1.0),
