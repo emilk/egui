@@ -24,6 +24,7 @@ pub enum UserEvent {
     RequestRepaint {
         id: ViewportId,
         when: Instant,
+
         /// What the frame number was when the repaint was _requested_.
         frame_nr: u64,
     },
@@ -154,12 +155,14 @@ fn run_and_return(
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
-            winit::event::Event::RedrawEventsCleared if cfg!(windows) => {
+            #[cfg(target_os = "windows")]
+            winit::event::Event::RedrawEventsCleared => {
                 // windows_next_repaint_times.clear();
                 // winit_app.run_ui_and_paint(None)
                 vec![EventResult::Wait]
             }
-            winit::event::Event::RedrawRequested(window_id) if !cfg!(windows) => {
+            #[cfg(not(target_os = "windows"))]
+            winit::event::Event::RedrawRequested(window_id) => {
                 windows_next_repaint_times.remove(window_id);
                 winit_app.run_ui_and_paint(*window_id)
             }
@@ -214,7 +217,7 @@ fn run_and_return(
                 }
                 EventResult::RepaintNow(window_id) => {
                     log::trace!("Repaint caused by winit::Event: {:?}", event);
-                    if cfg!(windows) {
+                    if cfg!(target_os = "windows") {
                         // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                         windows_next_repaint_times.remove(&window_id);
 
@@ -280,7 +283,7 @@ fn run_and_return(
     //
     // Note that this approach may cause issues on macOS (emilk/egui#2768); therefore,
     // we only apply this approach on Windows to minimize the affect.
-    #[cfg(windows)]
+    #[cfg(target_os = "windows")]
     {
         event_loop.run_return(|_, _, control_flow| {
             control_flow.set_exit();
@@ -307,12 +310,12 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
-            winit::event::Event::RedrawEventsCleared if cfg!(windows) => {
+            winit::event::Event::RedrawEventsCleared if cfg!(target_os = "windows") => {
                 // windows_next_repaint_times.clear();
                 // winit_app.run_ui_and_paint(None)
                 vec![]
             }
-            winit::event::Event::RedrawRequested(window_id) if !cfg!(windows) => {
+            winit::event::Event::RedrawRequested(window_id) if !cfg!(target_os = "windows") => {
                 windows_next_repaint_times.remove(&window_id);
                 winit_app.run_ui_and_paint(window_id)
             }
@@ -349,7 +352,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             match event {
                 EventResult::Wait => {}
                 EventResult::RepaintNow(window_id) => {
-                    if cfg!(windows) {
+                    if cfg!(target_os = "windows") {
                         // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                         windows_next_repaint_times.remove(&window_id);
 
@@ -828,7 +831,11 @@ mod glow_integration {
             if let Some(window) = &glutin_window_context.windows.get(&ViewportId::MAIN) {
                 let window = window.read();
                 if let Some(window) = &window.window {
-                    epi_integration::apply_native_options_to_window(&window.read(), native_options);
+                    epi_integration::apply_native_options_to_window(
+                        &window.read(),
+                        native_options,
+                        window_settings,
+                    );
                 }
             }
 
@@ -862,7 +869,7 @@ mod glow_integration {
 
             let painter =
                 egui_glow::Painter::new(gl.clone(), "", self.native_options.shader_version)
-                    .unwrap_or_else(|error| panic!("some OpenGL error occurred {}\n", error));
+                    .unwrap_or_else(|err| panic!("An OpenGL error occurred: {err}\n"));
 
             let system_theme = system_theme(
                 &gl_window
@@ -1209,15 +1216,13 @@ mod glow_integration {
             if let Some(running) = self.running.write().take() {
                 running.integration.write().save(
                     running.app.write().as_mut(),
-                    &running
+                    running
                         .glutin_ctx
                         .read()
                         .window(ViewportId::MAIN)
                         .read()
                         .window
-                        .as_ref()
-                        .unwrap()
-                        .read(),
+                        .clone(),
                 );
                 running.app.write().on_exit(Some(&running.gl));
                 running.painter.write().destroy();
@@ -1429,10 +1434,8 @@ mod glow_integration {
                             .collect::<Vec<EventResult>>()
                     };
 
-                    integration.maybe_autosave(
-                        app.write().as_mut(),
-                        &win.read().window.as_ref().unwrap().read(),
-                    );
+                    integration
+                        .maybe_autosave(app.write().as_mut(), win.read().window.clone().unwrap());
 
                     if win.read().window.as_ref().unwrap().read().is_minimized() == Some(true) {
                         // On Mac, a minimized Window uses up all CPU:
@@ -1809,7 +1812,11 @@ mod wgpu_integration {
             let window_builder =
                 epi_integration::window_builder(event_loop, title, native_options, window_settings);
             let window = create_winit_window_builder(&window_builder).build(event_loop)?;
-            epi_integration::apply_native_options_to_window(&window, native_options);
+            epi_integration::apply_native_options_to_window(
+                &window,
+                native_options,
+                window_settings,
+            );
             Ok((window, window_builder))
         }
 
@@ -2104,13 +2111,11 @@ mod wgpu_integration {
 
         fn save_and_destroy(&mut self) {
             if let Some(mut running) = self.running.take() {
-                if let Some((Some(window), _, _, _, _)) =
-                    running.windows.read().get(&ViewportId::MAIN)
-                {
+                if let Some((window, _, _, _, _)) = running.windows.read().get(&ViewportId::MAIN) {
                     running
                         .integration
                         .write()
-                        .save(running.app.as_mut(), &window.read());
+                        .save(running.app.as_mut(), window.clone());
                 }
 
                 #[cfg(feature = "glow")]
@@ -2276,7 +2281,7 @@ mod wgpu_integration {
                 let Some((_, (Some(window), _, _, _, _))) = windows_id.get(&window_id).and_then(|id|(windows.read().get(id).map(|w|(*id, w.clone())))) else{return vec![]};
                 integration
                     .write()
-                    .maybe_autosave(app.as_mut(), &window.read());
+                    .maybe_autosave(app.as_mut(), window.clone());
 
                 if window.read().is_minimized() == Some(true) {
                     // On Mac, a minimized Window uses up all CPU:

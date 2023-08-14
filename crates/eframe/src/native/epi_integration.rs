@@ -9,7 +9,7 @@ use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{NumExt as _, ViewportBuilder, ViewportId, ViewportRender};
+use egui::{mutex::RwLock, NumExt as _, ViewportBuilder, ViewportId, ViewportRender};
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
@@ -125,9 +125,12 @@ pub fn window_builder<E>(
     }
 
     #[cfg(all(feature = "wayland", target_os = "linux"))]
-    if let Some(app_id) = &native_options.app_id {
+    {
         use winit::platform::wayland::WindowBuilderExtWayland as _;
-        window_builder = window_builder.with_name(app_id, "");
+        match &native_options.app_id {
+            Some(app_id) => window_builder = window_builder.with_name(app_id, ""),
+            None => window_builder = window_builder.with_name(title, ""),
+        }
     }
 
     if let Some(min_size) = *min_window_size {
@@ -143,10 +146,11 @@ pub fn window_builder<E>(
 
     let inner_size_points = if let Some(mut window_settings) = window_settings {
         // Restore pos/size from previous session
-        window_settings.clamp_to_sane_values(largest_monitor_point_size(event_loop));
-        #[cfg(windows)]
-        window_settings.clamp_window_to_sane_position(event_loop);
-        window_builder = window_settings.initialize_window(window_builder);
+
+        window_settings.clamp_size_to_sane_values(largest_monitor_point_size(event_loop));
+        window_settings.clamp_position_to_monitors(event_loop);
+
+        window_builder = window_settings.initialize_window_builder(window_builder);
         window_settings.inner_size_points()
     } else {
         if let Some(pos) = *initial_window_pos {
@@ -176,12 +180,14 @@ pub fn window_builder<E>(
             }
         }
     }
+
     window_builder
 }
 
 pub fn apply_native_options_to_window(
     window: &winit::window::Window,
     native_options: &crate::NativeOptions,
+    window_settings: Option<WindowSettings>,
 ) {
     use winit::window::WindowLevel;
     window.set_window_level(if native_options.always_on_top {
@@ -189,6 +195,10 @@ pub fn apply_native_options_to_window(
     } else {
         WindowLevel::Normal
     });
+
+    if let Some(window_settings) = window_settings {
+        window_settings.initialize_window(window);
+    }
 }
 
 fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui::Vec2 {
@@ -340,6 +350,7 @@ pub struct EpiIntegration {
     pending_full_output: egui::FullOutput,
     /// When set, it is time to close the native window.
     close: bool,
+
     can_drag_window: bool,
     window_state: WindowState,
     follow_system_theme: bool,
@@ -588,27 +599,37 @@ impl EpiIntegration {
     // ------------------------------------------------------------------------
     // Persistence stuff:
 
-    pub fn maybe_autosave(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
+    pub fn maybe_autosave(
+        &mut self,
+        app: &mut dyn epi::App,
+        window: Arc<RwLock<winit::window::Window>>,
+    ) {
         let now = std::time::Instant::now();
         if now - self.last_auto_save > app.auto_save_interval() {
-            self.save(app, window);
+            self.save(app, Some(window));
             self.last_auto_save = now;
         }
     }
 
     #[allow(clippy::unused_self)]
-    pub fn save(&mut self, _app: &mut dyn epi::App, _window: &winit::window::Window) {
+    pub fn save(
+        &mut self,
+        _app: &mut dyn epi::App,
+        _window: Option<Arc<RwLock<winit::window::Window>>>,
+    ) {
         #[cfg(feature = "persistence")]
         if let Some(storage) = self.frame.storage_mut() {
             crate::profile_function!();
 
-            if _app.persist_native_window() {
-                crate::profile_scope!("native_window");
-                epi::set_value(
-                    storage,
-                    STORAGE_WINDOW_KEY,
-                    &WindowSettings::from_display(_window),
-                );
+            if let Some(window) = _window {
+                if _app.persist_native_window() {
+                    crate::profile_scope!("native_window");
+                    epi::set_value(
+                        storage,
+                        STORAGE_WINDOW_KEY,
+                        &WindowSettings::from_display(&window.read()),
+                    );
+                }
             }
             if _app.persist_egui_memory() {
                 crate::profile_scope!("egui_memory");

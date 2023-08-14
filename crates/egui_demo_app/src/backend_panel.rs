@@ -239,8 +239,7 @@ impl BackendPanel {
                 if ui
                     .add_enabled(enabled, egui::Button::new("Reset"))
                     .on_hover_text(format!(
-                        "Reset scale to native value ({:.1})",
-                        native_pixels_per_point
+                        "Reset scale to native value ({native_pixels_per_point:.1})"
                     ))
                     .clicked()
                 {
@@ -454,8 +453,8 @@ impl EguiWindows {
                 egui::ScrollArea::vertical()
                     .stick_to_bottom(true)
                     .show(ui, |ui| {
-                        for event in &*tmp_output_event_history.read().unwrap() {
-                            ui.label(format!("{:?}", event));
+                        for event in output_event_history.read() {
+                            ui.label(format!("{event:?}"));
                         }
                     });
             });

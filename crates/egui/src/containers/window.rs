@@ -232,7 +232,10 @@ impl<'open> Window<'open> {
     }
 
     /// Can the user resize the window by dragging its edges?
+    ///
     /// Note that even if you set this to `false` the window may still auto-resize.
+    ///
+    /// Default is `true`.
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resize = self.resize.resizable(resizable);
         self
@@ -275,6 +278,14 @@ impl<'open> Window<'open> {
     /// Enable/disable vertical scrolling. `false` by default.
     pub fn vscroll(mut self, vscroll: bool) -> Self {
         self.scroll = self.scroll.vscroll(vscroll);
+        self
+    }
+
+    /// Enable/disable scrolling on the window by dragging with the pointer. `true` by default.
+    ///
+    /// See [`ScrollArea::drag_to_scroll`] for more.
+    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
+        self.scroll = self.scroll.drag_to_scroll(drag_to_scroll);
         self
     }
 
@@ -1701,7 +1712,7 @@ impl TitleBar {
         // Don't cover the close- and collapse buttons:
         // After 32 is used for a temporary embedd button!
         let double_click_rect = self.rect.shrink2(vec2(
-            32.0 + ui.style().visuals.text_cursor_width + ui.style().spacing.icon_width,
+            32.0 + ui.style().visuals.text_cursor.width + ui.style().spacing.icon_width,
             0.0,
         ));
 

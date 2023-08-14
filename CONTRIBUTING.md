@@ -60,7 +60,7 @@ Read the section on integrations at <https://github.com/emilk/egui#integrations>
 ## Code Conventions
 Conventions unless otherwise specified:
 
-* angles are in radians
+* angles are in radians and clock-wise
 * `Vec2::X` is right and `Vec2::Y` is down.
 * `Pos2::ZERO` is left top.
 

@@ -604,8 +604,10 @@ impl Memory {
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Areas {
     areas: IdMap<area::State>,
+
     /// Back-to-front. Top is last.
     order: Vec<LayerId>,
+
     visible_last_frame: ahash::HashSet<LayerId>,
     visible_current_frame: ahash::HashSet<LayerId>,
 

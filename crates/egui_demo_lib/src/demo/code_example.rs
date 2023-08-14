@@ -121,7 +121,7 @@ impl CodeExample {
 
         ui.separator();
 
-        code_view_ui(ui, &format!("{:#?}", self));
+        code_view_ui(ui, &format!("{self:#?}"));
 
         ui.separator();
 

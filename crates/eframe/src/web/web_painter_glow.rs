@@ -27,7 +27,7 @@ impl WebPainterGlow {
         let gl = std::sync::Arc::new(gl);
 
         let painter = egui_glow::Painter::new(gl, shader_prefix, None)
-            .map_err(|error| format!("Error starting glow painter: {}", error))?;
+            .map_err(|err| format!("Error starting glow painter: {err}"))?;
 
         Ok(Self {
             canvas,

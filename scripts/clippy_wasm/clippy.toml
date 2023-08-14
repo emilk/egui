@@ -3,7 +3,7 @@
 # We cannot forbid all these methods in the main `clippy.toml` because of
 # https://github.com/rust-lang/rust-clippy/issues/10406
 
-msrv = "1.65"
+msrv = "1.67"
 
 # https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_methods
 disallowed-methods = [

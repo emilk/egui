@@ -1,12 +1,12 @@
 use std::f64::consts::TAU;
 use std::ops::RangeInclusive;
 
-use egui::plot::{AxisBools, GridInput, GridMark, PlotResponse};
 use egui::*;
-use plot::{
-    Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter, Corner, HLine,
-    Legend, Line, LineStyle, MarkerShape, Plot, PlotImage, PlotPoint, PlotPoints, Points, Polygon,
-    Text, VLine,
+
+use egui::plot::{
+    Arrows, AxisBools, AxisHints, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter,
+    Corner, GridInput, GridMark, HLine, Legend, Line, LineStyle, MarkerShape, Plot, PlotImage,
+    PlotPoint, PlotPoints, PlotResponse, Points, Polygon, Text, VLine,
 };
 
 // ----------------------------------------------------------------------------
@@ -39,8 +39,8 @@ pub struct PlotDemo {
     charts_demo: ChartsDemo,
     items_demo: ItemsDemo,
     interaction_demo: InteractionDemo,
-    custom_axes_demo: CustomAxisDemo,
-    linked_axes_demo: LinkedAxisDemo,
+    custom_axes_demo: CustomAxesDemo,
+    linked_axes_demo: LinkedAxesDemo,
     open_panel: Panel,
 }
 
@@ -119,17 +119,9 @@ impl super::View for PlotDemo {
     }
 }
 
-fn is_approx_zero(val: f64) -> bool {
-    val.abs() < 1e-6
-}
-
-fn is_approx_integer(val: f64) -> bool {
-    val.fract().abs() < 1e-6
-}
-
 // ----------------------------------------------------------------------------
 
-#[derive(PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 struct LineDemo {
     animate: bool,
     time: f64,
@@ -138,6 +130,8 @@ struct LineDemo {
     square: bool,
     proportional: bool,
     coordinates: bool,
+    show_axes: bool,
+    show_grid: bool,
     line_style: LineStyle,
 }
 
@@ -151,6 +145,8 @@ impl Default for LineDemo {
             square: false,
             proportional: true,
             coordinates: true,
+            show_axes: true,
+            show_grid: true,
             line_style: LineStyle::Solid,
         }
     }
@@ -165,9 +161,10 @@ impl LineDemo {
             circle_center,
             square,
             proportional,
-            line_style,
             coordinates,
-            ..
+            show_axes,
+            show_grid,
+            line_style,
         } = self;
 
         ui.horizontal(|ui| {
@@ -196,14 +193,19 @@ impl LineDemo {
             });
 
             ui.vertical(|ui| {
+                ui.checkbox(show_axes, "Show axes");
+                ui.checkbox(show_grid, "Show grid");
+                ui.checkbox(coordinates, "Show coordinates on hover")
+                    .on_hover_text("Can take a custom formatting function.");
+            });
+
+            ui.vertical(|ui| {
                 ui.style_mut().wrap = Some(false);
                 ui.checkbox(animate, "Animate");
                 ui.checkbox(square, "Square view")
                     .on_hover_text("Always keep the viewport square.");
                 ui.checkbox(proportional, "Proportional data axes")
                     .on_hover_text("Tick are the same size on both axes.");
-                ui.checkbox(coordinates, "Show coordinates")
-                    .on_hover_text("Can take a custom formatting function.");
 
                 ComboBox::from_label("Line style")
                     .selected_text(line_style.to_string())
@@ -268,11 +270,16 @@ impl LineDemo {
 impl LineDemo {
     fn ui(&mut self, ui: &mut Ui) -> Response {
         self.options_ui(ui);
+
         if self.animate {
             ui.ctx().request_repaint();
             self.time += ui.input(|i| i.unstable_dt).at_most(1.0 / 30.0) as f64;
         };
-        let mut plot = Plot::new("lines_demo").legend(Legend::default());
+        let mut plot = Plot::new("lines_demo")
+            .legend(Legend::default())
+            .y_axis_width(4)
+            .show_axes(self.show_axes)
+            .show_grid(self.show_grid);
         if self.square {
             plot = plot.view_aspect(1.0);
         }
@@ -326,7 +333,7 @@ impl MarkerDemo {
                     [5.0, 0.0 + y_offset],
                     [6.0, 0.5 + y_offset],
                 ])
-                .name(format!("{:?}", marker))
+                .name(format!("{marker:?}"))
                 .filled(self.fill_markers)
                 .radius(self.marker_radius)
                 .shape(marker);
@@ -416,7 +423,7 @@ impl LegendDemo {
             ui.label("Position:");
             ui.horizontal(|ui| {
                 Corner::all().for_each(|position| {
-                    ui.selectable_value(&mut config.position, position, format!("{:?}", position));
+                    ui.selectable_value(&mut config.position, position, format!("{position:?}"));
                 });
             });
             ui.end_row();
@@ -429,8 +436,8 @@ impl LegendDemo {
             );
             ui.end_row();
         });
-
         let legend_plot = Plot::new("legend_demo")
+            .y_axis_width(2)
             .legend(config.clone())
             .data_aspect(1.0);
         legend_plot
@@ -448,19 +455,19 @@ impl LegendDemo {
 // ----------------------------------------------------------------------------
 
 #[derive(PartialEq, Default)]
-struct CustomAxisDemo {}
+struct CustomAxesDemo {}
 
-impl CustomAxisDemo {
+impl CustomAxesDemo {
     const MINS_PER_DAY: f64 = 24.0 * 60.0;
     const MINS_PER_H: f64 = 60.0;
 
     fn logistic_fn() -> Line {
         fn days(min: f64) -> f64 {
-            CustomAxisDemo::MINS_PER_DAY * min
+            CustomAxesDemo::MINS_PER_DAY * min
         }
 
         let values = PlotPoints::from_explicit_callback(
-            move |x| 1.0 / (1.0 + (-2.5 * (x / CustomAxisDemo::MINS_PER_DAY - 2.0)).exp()),
+            move |x| 1.0 / (1.0 + (-2.5 * (x / CustomAxesDemo::MINS_PER_DAY - 2.0)).exp()),
             days(0.0)..days(5.0),
             100,
         );
@@ -504,8 +511,8 @@ impl CustomAxisDemo {
 
     #[allow(clippy::unused_self)]
     fn ui(&mut self, ui: &mut Ui) -> Response {
-        const MINS_PER_DAY: f64 = CustomAxisDemo::MINS_PER_DAY;
-        const MINS_PER_H: f64 = CustomAxisDemo::MINS_PER_H;
+        const MINS_PER_DAY: f64 = CustomAxesDemo::MINS_PER_DAY;
+        const MINS_PER_H: f64 = CustomAxesDemo::MINS_PER_H;
 
         fn day(x: f64) -> f64 {
             (x / MINS_PER_DAY).floor()
@@ -523,7 +530,7 @@ impl CustomAxisDemo {
             100.0 * y
         }
 
-        let x_fmt = |x, _range: &RangeInclusive<f64>| {
+        let x_fmt = |x, _digits, _range: &RangeInclusive<f64>| {
             if x < 0.0 * MINS_PER_DAY || x >= 5.0 * MINS_PER_DAY {
                 // No labels outside value bounds
                 String::new()
@@ -536,7 +543,7 @@ impl CustomAxisDemo {
             }
         };
 
-        let y_fmt = |y, _range: &RangeInclusive<f64>| {
+        let y_fmt = |y, _digits, _range: &RangeInclusive<f64>| {
             // Display only integer percentages
             if !is_approx_zero(y) && is_approx_integer(100.0 * y) {
                 format!("{:.0}%", percent(y))
@@ -557,14 +564,27 @@ impl CustomAxisDemo {
 
         ui.label("Zoom in on the X-axis to see hours and minutes");
 
+        let x_axes = vec![
+            AxisHints::default().label("Time").formatter(x_fmt),
+            AxisHints::default().label("Value"),
+        ];
+        let y_axes = vec![
+            AxisHints::default()
+                .label("Percent")
+                .formatter(y_fmt)
+                .max_digits(4),
+            AxisHints::default()
+                .label("Absolute")
+                .placement(plot::HPlacement::Right),
+        ];
         Plot::new("custom_axes")
             .data_aspect(2.0 * MINS_PER_DAY as f32)
-            .x_axis_formatter(x_fmt)
-            .y_axis_formatter(y_fmt)
-            .x_grid_spacer(CustomAxisDemo::x_grid)
+            .custom_x_axes(x_axes)
+            .custom_y_axes(y_axes)
+            .x_grid_spacer(CustomAxesDemo::x_grid)
             .label_formatter(label_fmt)
             .show(ui, |plot_ui| {
-                plot_ui.line(CustomAxisDemo::logistic_fn());
+                plot_ui.line(CustomAxesDemo::logistic_fn());
             })
             .response
     }
@@ -573,29 +593,25 @@ impl CustomAxisDemo {
 // ----------------------------------------------------------------------------
 
 #[derive(PartialEq)]
-struct LinkedAxisDemo {
+struct LinkedAxesDemo {
     link_x: bool,
     link_y: bool,
     link_cursor_x: bool,
     link_cursor_y: bool,
 }
 
-impl Default for LinkedAxisDemo {
+impl Default for LinkedAxesDemo {
     fn default() -> Self {
-        let link_x = true;
-        let link_y = false;
-        let link_cursor_x = true;
-        let link_cursor_y = false;
         Self {
-            link_x,
-            link_y,
-            link_cursor_x,
-            link_cursor_y,
+            link_x: true,
+            link_y: true,
+            link_cursor_x: true,
+            link_cursor_y: true,
         }
     }
 }
 
-impl LinkedAxisDemo {
+impl LinkedAxesDemo {
     fn line_with_slope(slope: f64) -> Line {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| slope * x,
@@ -621,11 +637,11 @@ impl LinkedAxisDemo {
     }
 
     fn configure_plot(plot_ui: &mut plot::PlotUi) {
-        plot_ui.line(LinkedAxisDemo::line_with_slope(0.5));
-        plot_ui.line(LinkedAxisDemo::line_with_slope(1.0));
-        plot_ui.line(LinkedAxisDemo::line_with_slope(2.0));
-        plot_ui.line(LinkedAxisDemo::sin());
-        plot_ui.line(LinkedAxisDemo::cos());
+        plot_ui.line(LinkedAxesDemo::line_with_slope(0.5));
+        plot_ui.line(LinkedAxesDemo::line_with_slope(1.0));
+        plot_ui.line(LinkedAxesDemo::line_with_slope(2.0));
+        plot_ui.line(LinkedAxesDemo::sin());
+        plot_ui.line(LinkedAxesDemo::cos());
     }
 
     fn ui(&mut self, ui: &mut Ui) -> Response {
@@ -642,28 +658,32 @@ impl LinkedAxisDemo {
 
         let link_group_id = ui.id().with("linked_demo");
         ui.horizontal(|ui| {
-            Plot::new("linked_axis_1")
+            Plot::new("left-top")
                 .data_aspect(1.0)
                 .width(250.0)
                 .height(250.0)
                 .link_axis(link_group_id, self.link_x, self.link_y)
                 .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
-                .show(ui, LinkedAxisDemo::configure_plot);
-            Plot::new("linked_axis_2")
+                .show(ui, LinkedAxesDemo::configure_plot);
+            Plot::new("right-top")
                 .data_aspect(2.0)
                 .width(150.0)
                 .height(250.0)
+                .y_axis_width(3)
+                .y_axis_label("y")
+                .y_axis_position(plot::HPlacement::Right)
                 .link_axis(link_group_id, self.link_x, self.link_y)
                 .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
-                .show(ui, LinkedAxisDemo::configure_plot);
+                .show(ui, LinkedAxesDemo::configure_plot);
         });
-        Plot::new("linked_axis_3")
+        Plot::new("left-bottom")
             .data_aspect(0.5)
             .width(250.0)
             .height(150.0)
+            .x_axis_label("x")
             .link_axis(link_group_id, self.link_x, self.link_y)
             .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
-            .show(ui, LinkedAxisDemo::configure_plot)
+            .show(ui, LinkedAxesDemo::configure_plot)
             .response
     }
 }
@@ -761,7 +781,7 @@ impl InteractionDemo {
                 plot_ui.pointer_coordinate(),
                 plot_ui.pointer_coordinate_drag_delta(),
                 plot_ui.plot_bounds(),
-                plot_ui.plot_hovered(),
+                plot_ui.response().hovered(),
             )
         });
 
@@ -774,21 +794,18 @@ impl InteractionDemo {
             "origin in screen coordinates: x: {:.02}, y: {:.02}",
             screen_pos.x, screen_pos.y
         ));
-        ui.label(format!("plot hovered: {}", hovered));
+        ui.label(format!("plot hovered: {hovered}"));
         let coordinate_text = if let Some(coordinate) = pointer_coordinate {
             format!("x: {:.02}, y: {:.02}", coordinate.x, coordinate.y)
         } else {
             "None".to_owned()
         };
-        ui.label(format!("pointer coordinate: {}", coordinate_text));
+        ui.label(format!("pointer coordinate: {coordinate_text}"));
         let coordinate_text = format!(
             "x: {:.02}, y: {:.02}",
             pointer_coordinate_drag_delta.x, pointer_coordinate_drag_delta.y
         );
-        ui.label(format!(
-            "pointer coordinate drag delta: {}",
-            coordinate_text
-        ));
+        ui.label(format!("pointer coordinate drag delta: {coordinate_text}"));
 
         response
     }
@@ -892,6 +909,7 @@ impl ChartsDemo {
         Plot::new("Normal Distribution Demo")
             .legend(Legend::default())
             .clamp_grid(true)
+            .y_axis_width(3)
             .allow_zoom(self.allow_zoom)
             .allow_drag(self.allow_drag)
             .show(ui, |plot_ui| plot_ui.bar_chart(chart))
@@ -1005,4 +1023,12 @@ impl ChartsDemo {
             })
             .response
     }
+}
+
+fn is_approx_zero(val: f64) -> bool {
+    val.abs() < 1e-6
+}
+
+fn is_approx_integer(val: f64) -> bool {
+    val.fract().abs() < 1e-6
 }

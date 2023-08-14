@@ -27,7 +27,7 @@ pub type ViewportRender = dyn Fn(&Context) + Sync + Send;
 #[derive(Hash, PartialEq, Eq, Clone)]
 pub struct ViewportBuilder {
     pub title: String,
-    pub name: Option<String>,
+    pub name: Option<(String, String)>,
     pub position: Option<Option<(i32, i32)>>,
     pub inner_size: Option<Option<(u32, u32)>>,
     pub fullscreen: Option<bool>,
@@ -214,6 +214,11 @@ impl ViewportBuilder {
 
     pub fn with_position(mut self, value: Option<(i32, i32)>) -> Self {
         self.position = Some(value);
+        self
+    }
+
+    pub fn with_name(mut self, id: impl Into<String>, instance: impl Into<String>) -> Self {
+        self.name = Some((id.into(), instance.into()));
         self
     }
 

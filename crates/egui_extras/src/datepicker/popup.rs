@@ -428,6 +428,6 @@ fn month_name(i: u32) -> &'static str {
         10 => "October",
         11 => "November",
         12 => "December",
-        _ => panic!("Unknown month: {}", i),
+        _ => panic!("Unknown month: {i}"),
     }
 }
