@@ -617,8 +617,8 @@ impl Plot {
     /// > Note: This requires an x-axis to exist, either by [`Self::custom_x_axes`] or [`Self::x_axis_label`]
     ///
     /// The first parameter of `fmt` is the raw tick value as `f64`.
-    /// The second paramter is the maximum requested number of characters per tick label.
-    /// The second paramter of `fmt` is the currently shown range on this axis.
+    /// The second parameter is the maximum requested number of characters per tick label.
+    /// The second parameter of `fmt` is the currently shown range on this axis.
     pub fn x_axis_formatter(mut self, fmt: fn(f64, usize, &RangeInclusive<f64>) -> String) -> Self {
         if !self.x_axes.is_empty() {
             self.x_axes[0].formatter = fmt;
@@ -631,8 +631,8 @@ impl Plot {
     /// > Note: This requires a y-axis to exist, either by [`Self::custom_y_axes`] or [`Self::y_axis_label`]
     ///
     /// The first parameter of `formatter` is the raw tick value as `f64`.
-    /// The second paramter is the maximum requested number of characters per tick label.
-    /// The second paramter of `formatter` is the currently shown range on this axis.
+    /// The second parameter is the maximum requested number of characters per tick label.
+    /// The second parameter of `formatter` is the currently shown range on this axis.
     pub fn y_axis_formatter(mut self, fmt: fn(f64, usize, &RangeInclusive<f64>) -> String) -> Self {
         if !self.y_axes.is_empty() {
             self.y_axes[0].formatter = fmt;

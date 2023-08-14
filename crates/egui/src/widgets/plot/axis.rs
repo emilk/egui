@@ -78,8 +78,8 @@ impl<const AXIS: usize> AxisHints<AXIS> {
     /// Specify custom formatter for ticks.
     ///
     /// The first parameter of `formatter` is the raw tick value as `f64`.
-    /// The second paramter is the maximum number of characters that fit into y-labels.
-    /// The second paramter of `formatter` is the currently shown range on this axis.
+    /// The second parameter is the maximum number of characters that fit into y-labels.
+    /// The second parameter of `formatter` is the currently shown range on this axis.
     pub fn formatter(mut self, fmt: fn(f64, usize, &RangeInclusive<f64>) -> String) -> Self {
         self.formatter = fmt;
         self
