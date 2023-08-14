@@ -83,11 +83,11 @@ fn about_immediate_mode(ui: &mut egui::Ui) {
 fn links(ui: &mut egui::Ui) {
     use egui::special_emojis::{GITHUB, TWITTER};
     ui.hyperlink_to(
-        format!("{} egui on GitHub", GITHUB),
+        format!("{GITHUB} egui on GitHub"),
         "https://github.com/emilk/egui",
     );
     ui.hyperlink_to(
-        format!("{} @ernerfeldt", TWITTER),
+        format!("{TWITTER} @ernerfeldt"),
         "https://twitter.com/ernerfeldt",
     );
     ui.hyperlink_to("egui documentation", "https://docs.rs/egui/");

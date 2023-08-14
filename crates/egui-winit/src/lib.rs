@@ -307,6 +307,7 @@ impl State {
             }
             WindowEvent::KeyboardInput { input, .. } => {
                 self.on_keyboard_input(input);
+                // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
                 let consumed = egui_ctx.wants_keyboard_input()
                     || input.virtual_keycode == Some(winit::event::VirtualKeyCode::Tab);
                 EventResponse {
@@ -440,7 +441,7 @@ impl State {
                             id: egui::TouchId(0),
                             phase: egui::TouchPhase::Start,
                             pos,
-                            force: 0.0,
+                            force: None,
                         });
                     } else {
                         self.any_pointer_button_down = false;
@@ -452,7 +453,7 @@ impl State {
                             id: egui::TouchId(0),
                             phase: egui::TouchPhase::End,
                             pos,
-                            force: 0.0,
+                            force: None,
                         });
                     };
                 }
@@ -478,7 +479,7 @@ impl State {
                     id: egui::TouchId(0),
                     phase: egui::TouchPhase::Move,
                     pos: pos_in_points,
-                    force: 0.0,
+                    force: None,
                 });
             }
         } else {
@@ -504,13 +505,13 @@ impl State {
                 touch.location.y as f32 / self.pixels_per_point(),
             ),
             force: match touch.force {
-                Some(winit::event::Force::Normalized(force)) => force as f32,
+                Some(winit::event::Force::Normalized(force)) => Some(force as f32),
                 Some(winit::event::Force::Calibrated {
                     force,
                     max_possible_force,
                     ..
-                }) => (force / max_possible_force) as f32,
-                None => 0_f32,
+                }) => Some((force / max_possible_force) as f32),
+                None => None,
             },
         });
         // If we're not yet translating a touch or we're translating this very

@@ -104,8 +104,7 @@ pub fn install_text_agent(runner_ref: &WebRunner) -> Result<(), JsValue> {
     runner_ref.add_event_listener(&input, "focusout", move |_event: web_sys::MouseEvent, _| {
         // Delay 10 ms, and focus again.
         let func = js_sys::Function::new_no_args(&format!(
-            "document.getElementById('{}').focus()",
-            AGENT_ID
+            "document.getElementById('{AGENT_ID}').focus()"
         ));
         window
             .set_timeout_with_callback_and_timeout_and_arguments_0(&func, 10)
@@ -221,8 +220,8 @@ pub fn move_text_cursor(cursor: Option<egui::Pos2>, canvas_id: &str) -> Option<(
             let x = (x - canvas.offset_width() as f32 / 2.0)
                 .min(canvas.client_width() as f32 - bounding_rect.width() as f32);
             style.set_property("position", "absolute").ok()?;
-            style.set_property("top", &format!("{}px", y)).ok()?;
-            style.set_property("left", &format!("{}px", x)).ok()
+            style.set_property("top", &format!("{y}px")).ok()?;
+            style.set_property("left", &format!("{x}px")).ok()
         })
     } else {
         style.set_property("position", "absolute").ok()?;

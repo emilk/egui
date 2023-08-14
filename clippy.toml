@@ -1,6 +1,6 @@
 # There is also a scripts/clippy_wasm/clippy.toml which forbids some mthods that are not available in wasm.
 
-msrv = "1.65"
+msrv = "1.67"
 
 # Allow-list of words for markdown in dosctrings https://rust-lang.github.io/rust-clippy/master/index.html#doc_markdown
 doc-valid-idents = [

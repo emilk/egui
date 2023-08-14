@@ -85,13 +85,13 @@ impl<const AXIS: usize> AxisHints<AXIS> {
     fn default_formatter(tick: f64, max_digits: usize, _range: &RangeInclusive<f64>) -> String {
         if tick.abs() > 10.0_f64.powf(max_digits as f64) {
             let tick_rounded = tick as isize;
-            return format!("{:+e}", tick_rounded);
+            return format!("{tick_rounded:+e}");
         }
         let tick_rounded = round_to_decimals(tick, max_digits);
         if tick.abs() < 10.0_f64.powf(-(max_digits as f64)) && tick != 0.0 {
-            return format!("{:+e}", tick_rounded);
+            return format!("{tick_rounded:+e}");
         }
-        format!("{}", tick_rounded)
+        tick_rounded.to_string()
     }
 
     /// Specify axis label.

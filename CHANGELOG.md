@@ -3,9 +3,9 @@ All notable changes to the `egui` crate will be documented in this file.
 
 NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG.md), [`egui-winit`](crates/egui-winit/CHANGELOG.md), [`egui_glium`](crates/egui_glium/CHANGELOG.md), [`egui_glow`](crates/egui_glow/CHANGELOG.md) and [`egui-wgpu`](crates/egui-wgpu/CHANGELOG.md) have their own changelogs!
 
+This file is updated upon each release.
+Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
-## Unreleased
-* ⚠️ BREAKING: `egui::widgets::plot::Plot::show_axes` renamed to `egui::widgets::plot::Plot::show_grid`. The origin `show_axes` API now refers to the axis labels. ([#2284](https://github.com/emilk/egui/pull/2284))
 
 ### Added
 * Added plot axis labels and the required API to customize them. ([#2284](https://github.com/emilk/egui/pull/2284))
@@ -119,7 +119,7 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 * Added `Context::os/Context::set_os` to query/set what operating system egui believes it is running on ([#2202](https://github.com/emilk/egui/pull/2202)).
 * Added `Button::shortcut_text` for showing keyboard shortcuts in menu buttons ([#2202](https://github.com/emilk/egui/pull/2202)).
 * Added `egui::KeyboardShortcut` for showing keyboard shortcuts in menu buttons ([#2202](https://github.com/emilk/egui/pull/2202)).
-* Texture loading now takes a `TexureOptions` with minification and magnification filters ([#2224](https://github.com/emilk/egui/pull/2224)).
+* Texture loading now takes a `TextureOptions` with minification and magnification filters ([#2224](https://github.com/emilk/egui/pull/2224)).
 * Added `Key::Minus` and `Key::Equals` ([#2239](https://github.com/emilk/egui/pull/2239)).
 * Added `egui::gui_zoom` module with helpers for scaling the whole GUI of an app ([#2239](https://github.com/emilk/egui/pull/2239)).
 * You can now put one interactive widget on top of another, and only one will get interaction at a time ([#2244](https://github.com/emilk/egui/pull/2244)).

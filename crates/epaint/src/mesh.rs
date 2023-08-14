@@ -251,8 +251,7 @@ impl Mesh {
 
             assert!(
                 index_cursor > span_start,
-                "One triangle spanned more than {} vertices",
-                MAX_SIZE
+                "One triangle spanned more than {MAX_SIZE} vertices"
             );
 
             let mesh = Mesh16 {

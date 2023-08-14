@@ -104,7 +104,7 @@ pub fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
 
 pub fn canvas_element_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
     canvas_element(canvas_id)
-        .unwrap_or_else(|| panic!("Failed to find canvas with id {:?}", canvas_id))
+        .unwrap_or_else(|| panic!("Failed to find canvas with id {canvas_id:?}"))
 }
 
 fn canvas_origin(canvas_id: &str) -> egui::Pos2 {

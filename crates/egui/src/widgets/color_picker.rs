@@ -234,17 +234,17 @@ fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>, alpha: Alpha) {
 
         if ui.button("📋").on_hover_text("Click to copy").clicked() {
             if alpha == Alpha::Opaque {
-                ui.output_mut(|o| o.copied_text = format!("{}, {}, {}", r, g, b));
+                ui.output_mut(|o| o.copied_text = format!("{r}, {g}, {b}"));
             } else {
-                ui.output_mut(|o| o.copied_text = format!("{}, {}, {}, {}", r, g, b, a));
+                ui.output_mut(|o| o.copied_text = format!("{r}, {g}, {b}, {a}"));
             }
         }
 
         if alpha == Alpha::Opaque {
-            ui.label(format!("rgb({}, {}, {})", r, g, b))
+            ui.label(format!("rgb({r}, {g}, {b})"))
                 .on_hover_text("Red Green Blue");
         } else {
-            ui.label(format!("rgba({}, {}, {}, {})", r, g, b, a))
+            ui.label(format!("rgba({r}, {g}, {b}, {a})"))
                 .on_hover_text("Red Green Blue with premultiplied Alpha");
         }
     });

@@ -560,7 +560,7 @@ impl Renderer {
         } else {
             // allocate a new texture
             // Use same label for all resources associated with this texture id (no point in retyping the type)
-            let label_str = format!("egui_texid_{:?}", id);
+            let label_str = format!("egui_texid_{id:?}");
             let label = Some(label_str.as_str());
             let texture = device.create_texture(&wgpu::TextureDescriptor {
                 label,
@@ -904,8 +904,7 @@ fn create_sampler(
     };
     device.create_sampler(&wgpu::SamplerDescriptor {
         label: Some(&format!(
-            "egui sampler (mag: {:?}, min {:?})",
-            mag_filter, min_filter
+            "egui sampler (mag: {mag_filter:?}, min {min_filter:?})"
         )),
         mag_filter,
         min_filter,

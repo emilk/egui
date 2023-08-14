@@ -36,13 +36,59 @@ impl Rangef {
     }
 
     #[inline]
-    pub fn span(&self) -> f32 {
+    pub fn point(min_and_max: f32) -> Self {
+        Self {
+            min: min_and_max,
+            max: min_and_max,
+        }
+    }
+
+    /// The length of the range, i.e. `max - min`.
+    #[inline]
+    pub fn span(self) -> f32 {
         self.max - self.min
     }
 
     #[inline]
-    pub fn contains(&self, x: f32) -> bool {
+    #[must_use]
+    pub fn contains(self, x: f32) -> bool {
         self.min <= x && x <= self.max
+    }
+
+    /// Equivalent to `x.clamp(min, max)`
+    #[inline]
+    #[must_use]
+    pub fn clamp(self, x: f32) -> f32 {
+        x.clamp(self.min, self.max)
+    }
+
+    /// Flip `min` and `max` if needed, so that `min <= max` after.
+    #[inline]
+    pub fn as_positive(self) -> Self {
+        Rangef {
+            min: self.min.min(self.max),
+            max: self.min.max(self.max),
+        }
+    }
+
+    /// Shrink by this much on each side, keeping the center
+    #[inline]
+    #[must_use]
+    pub fn shrink(self, amnt: f32) -> Self {
+        Self {
+            min: self.min + amnt,
+            max: self.max - amnt,
+        }
+    }
+
+    /// Expand by this much on each side, keeping the center
+    #[inline]
+    #[must_use]
+    pub fn expand(self, amnt: f32) -> Self {
+        Self {
+            min: self.min - amnt,
+            max: self.max + amnt,
+        }
     }
 }
 
@@ -106,5 +152,19 @@ impl From<RangeToInclusive<f32>> for Rangef {
     #[inline]
     fn from(range: RangeToInclusive<f32>) -> Self {
         Self::new(f32::NEG_INFINITY, range.end)
+    }
+}
+
+impl PartialEq<RangeInclusive<f32>> for Rangef {
+    #[inline]
+    fn eq(&self, other: &RangeInclusive<f32>) -> bool {
+        self.min == *other.start() && self.max == *other.end()
+    }
+}
+
+impl PartialEq<Rangef> for RangeInclusive<f32> {
+    #[inline]
+    fn eq(&self, other: &Rangef) -> bool {
+        *self.start() == other.min && *self.end() == other.max
     }
 }

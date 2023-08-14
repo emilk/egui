@@ -20,6 +20,13 @@ use std::any::Any;
 pub use crate::native::run::UserEvent;
 
 #[cfg(not(target_arch = "wasm32"))]
+use raw_window_handle::{
+    HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
+};
+#[cfg(not(target_arch = "wasm32"))]
+use static_assertions::assert_not_impl_any;
+
+#[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 pub use winit::event_loop::EventLoopBuilder;
 
@@ -64,6 +71,34 @@ pub struct CreationContext<'s> {
     /// Can be used to manage GPU resources for custom rendering with WGPU using [`egui::PaintCallback`]s.
     #[cfg(feature = "wgpu")]
     pub wgpu_render_state: Option<egui_wgpu::RenderState>,
+
+    /// Raw platform window handle
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) raw_window_handle: RawWindowHandle,
+
+    /// Raw platform display handle for window
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) raw_display_handle: RawDisplayHandle,
+}
+
+// Implementing `Clone` would violate the guarantees of `HasRawWindowHandle` and `HasRawDisplayHandle`.
+#[cfg(not(target_arch = "wasm32"))]
+assert_not_impl_any!(CreationContext<'_>: Clone);
+
+#[allow(unsafe_code)]
+#[cfg(not(target_arch = "wasm32"))]
+unsafe impl HasRawWindowHandle for CreationContext<'_> {
+    fn raw_window_handle(&self) -> RawWindowHandle {
+        self.raw_window_handle
+    }
+}
+
+#[allow(unsafe_code)]
+#[cfg(not(target_arch = "wasm32"))]
+unsafe impl HasRawDisplayHandle for CreationContext<'_> {
+    fn raw_display_handle(&self) -> RawDisplayHandle {
+        self.raw_display_handle
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -396,7 +431,7 @@ pub struct NativeOptions {
     /// will be used instead.
     ///
     /// ### On Wayland
-    /// On Wauland this sets the Application ID for the window.
+    /// On Wayland this sets the Application ID for the window.
     ///
     /// The application ID is used in several places of the compositor, e.g. for
     /// grouping windows of the same application. It is also important for
@@ -695,6 +730,34 @@ pub struct Frame {
     /// such that it can be retrieved during [`App::post_rendering`] with [`Frame::screenshot`]
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) screenshot: std::cell::Cell<Option<egui::ColorImage>>,
+
+    /// Raw platform window handle
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) raw_window_handle: RawWindowHandle,
+
+    /// Raw platform display handle for window
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) raw_display_handle: RawDisplayHandle,
+}
+
+// Implementing `Clone` would violate the guarantees of `HasRawWindowHandle` and `HasRawDisplayHandle`.
+#[cfg(not(target_arch = "wasm32"))]
+assert_not_impl_any!(Frame: Clone);
+
+#[allow(unsafe_code)]
+#[cfg(not(target_arch = "wasm32"))]
+unsafe impl HasRawWindowHandle for Frame {
+    fn raw_window_handle(&self) -> RawWindowHandle {
+        self.raw_window_handle
+    }
+}
+
+#[allow(unsafe_code)]
+#[cfg(not(target_arch = "wasm32"))]
+unsafe impl HasRawDisplayHandle for Frame {
+    fn raw_display_handle(&self) -> RawDisplayHandle {
+        self.raw_display_handle
+    }
 }
 
 impl Frame {
@@ -736,6 +799,7 @@ impl Frame {
     /// * Called in [`App::update`]
     /// * [`Frame::request_screenshot`] wasn't called on this frame during [`App::update`]
     /// * The rendering backend doesn't support this feature (yet). Currently implemented for wgpu and glow, but not with wasm as target.
+    /// * Wgpu's GL target is active (not yet supported)
     /// * Retrieving the data was unsuccessful in some way.
     ///
     /// See also [`egui::ColorImage::region`]
