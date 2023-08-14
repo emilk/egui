@@ -3,11 +3,10 @@
 
 use std::{sync::Arc, time::Instant};
 
-use egui::{epaint::ahash::HashMap, mutex::RwLock, ViewportBuilder, ViewportCommand, ViewportId};
+use egui::{epaint::ahash::HashMap, mutex::RwLock, ViewportBuilder, ViewportId};
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
-use winit::{
-    event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget},
-    window::WindowButtons,
+use winit::event_loop::{
+    ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget,
 };
 
 #[cfg(feature = "accesskit")]
@@ -16,7 +15,7 @@ use egui_winit::winit;
 
 use crate::{epi, Result};
 
-use super::epi_integration::{self, load_icon, EpiIntegration};
+use super::epi_integration::{self, EpiIntegration};
 
 // ----------------------------------------------------------------------------
 
@@ -416,7 +415,7 @@ mod glow_integration {
     };
     use egui_winit::{
         changes_between_builders, create_winit_window_builder, process_viewport_commands,
-        process_viewports_commands, EventResponse,
+        EventResponse,
     };
     use glutin::{
         display::GetGlDisplay,

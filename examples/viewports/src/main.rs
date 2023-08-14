@@ -50,7 +50,7 @@ impl eframe::App for App {
             {
                 let mut desktop = ctx.is_desktop();
                 ui.checkbox(&mut desktop, "Desktop");
-                ctx.set_desktop(desktop)
+                ctx.set_desktop(desktop);
             }
             ui.checkbox(&mut self.show_async_viewport, "Show Async Viewport");
             ui.checkbox(&mut self.show_sync_viewport, "Show Sync Viewport");
@@ -80,7 +80,7 @@ impl eframe::App for App {
                             }
                         });
                     },
-                )
+                );
             }
 
             // Showing Sync Viewport
@@ -159,7 +159,7 @@ fn main() {
         "Viewports",
         NativeOptions {
             renderer: RENDERER,
-            initial_window_size: Some(egui::Vec2::new(400.0, 200.0)),
+            initial_window_size: Some(egui::Vec2::new(400.0, 220.0)),
             ..NativeOptions::default()
         },
         Box::new(|_| Box::new(App::default())),

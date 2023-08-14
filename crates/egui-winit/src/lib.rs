@@ -953,17 +953,16 @@ pub fn process_viewport_commands(
             ViewportCommand::Transparent(v) => win.set_transparent(v),
             ViewportCommand::Visible(v) => win.set_visible(v),
             ViewportCommand::OuterPosition(x, y) => {
-                win.set_outer_position(LogicalPosition::new(x, y))
+                win.set_outer_position(LogicalPosition::new(x, y));
             }
-            ViewportCommand::InnerSize(w, h) => win.set_inner_size(LogicalSize::new(w, h)),
             ViewportCommand::MinInnerSize(s) => {
-                win.set_min_inner_size(s.map(|s| LogicalSize::new(s.0, s.1)))
+                win.set_min_inner_size(s.map(|s| LogicalSize::new(s.0, s.1)));
             }
             ViewportCommand::MaxInnerSize(s) => {
-                win.set_max_inner_size(s.map(|s| LogicalSize::new(s.0, s.1)))
+                win.set_max_inner_size(s.map(|s| LogicalSize::new(s.0, s.1)));
             }
             ViewportCommand::ResizeIncrements(s) => {
-                win.set_resize_increments(s.map(|s| LogicalSize::new(s.0, s.1)))
+                win.set_resize_increments(s.map(|s| LogicalSize::new(s.0, s.1)));
             }
             ViewportCommand::Resizable(v) => win.set_resizable(v),
             ViewportCommand::EnableButtons {
@@ -971,20 +970,24 @@ pub fn process_viewport_commands(
                 mimimize,
                 maximize,
             } => win.set_enabled_buttons(
-                close
-                    .then_some(WindowButtons::CLOSE)
-                    .unwrap_or(WindowButtons::empty())
-                    | mimimize
-                        .then_some(WindowButtons::MINIMIZE)
-                        .unwrap_or(WindowButtons::empty())
-                    | maximize
-                        .then_some(WindowButtons::MAXIMIZE)
-                        .unwrap_or(WindowButtons::empty()),
+                if close {
+                    WindowButtons::CLOSE
+                } else {
+                    WindowButtons::empty()
+                } | if mimimize {
+                    WindowButtons::MINIMIZE
+                } else {
+                    WindowButtons::empty()
+                } | if maximize {
+                    WindowButtons::MAXIMIZE
+                } else {
+                    WindowButtons::empty()
+                },
             ),
             ViewportCommand::Minimized(v) => win.set_minimized(v),
             ViewportCommand::Maximized(v) => win.set_maximized(v),
             ViewportCommand::Fullscreen(v) => {
-                win.set_fullscreen(v.then_some(winit::window::Fullscreen::Borderless(None)))
+                win.set_fullscreen(v.then_some(winit::window::Fullscreen::Borderless(None)));
             }
             ViewportCommand::Decorations(v) => win.set_decorations(v),
             ViewportCommand::WindowLevel(o) => win.set_window_level(match o {
@@ -996,7 +999,7 @@ pub fn process_viewport_commands(
                 win.set_window_icon(icon.map(|(bytes, width, height)| {
                     winit::window::Icon::from_rgba(bytes, width, height)
                         .expect("Invalid ICON data!")
-                }))
+                }));
             }
             ViewportCommand::IMEPossition(x, y) => win.set_ime_position(LogicalPosition::new(x, y)),
             ViewportCommand::IMEAllowed(v) => win.set_ime_allowed(v),
@@ -1047,7 +1050,7 @@ pub fn process_viewports_commands(
 ) {
     for (viewport_id, command) in commands {
         if let Some(window) = get_window(viewport_id) {
-            process_viewport_commands(vec![command], viewport_id, focused, window)
+            process_viewport_commands(vec![command], viewport_id, focused, window);
         }
     }
 }
@@ -1064,24 +1067,20 @@ pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::
         .with_fullscreen(
             builder
                 .fullscreen
-                .map(|e| e.then(|| winit::window::Fullscreen::Borderless(None)))
-                .flatten(),
+                .and_then(|e| e.then_some(winit::window::Fullscreen::Borderless(None))),
         )
         .with_enabled_buttons(
             builder
                 .minimize_button
-                .map(|v| v.then(|| WindowButtons::MINIMIZE))
-                .flatten()
+                .and_then(|v| v.then_some(WindowButtons::MINIMIZE))
                 .unwrap_or(WindowButtons::empty())
                 | builder
                     .maximize_button
-                    .map(|v| v.then(|| WindowButtons::MAXIMIZE))
-                    .flatten()
+                    .and_then(|v| v.then_some(WindowButtons::MAXIMIZE))
                     .unwrap_or(WindowButtons::empty())
                 | builder
                     .close_button
-                    .map(|v| v.then(|| WindowButtons::CLOSE))
-                    .flatten()
+                    .and_then(|v| v.then_some(WindowButtons::CLOSE))
                     .unwrap_or(WindowButtons::empty()),
         )
         .with_active(builder.active.map_or(false, |e| e));
@@ -1318,5 +1317,5 @@ macro_rules! profile_scope {
 pub(crate) use profile_scope;
 use winit::{
     dpi::{LogicalPosition, LogicalSize},
-    window::{CursorGrabMode, UserAttentionType, WindowButtons, WindowLevel},
+    window::{CursorGrabMode, WindowButtons, WindowLevel},
 };

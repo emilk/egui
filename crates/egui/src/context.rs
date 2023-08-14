@@ -2191,7 +2191,7 @@ impl Context {
     ///
     /// When a viewport sync is created will be rendered by this function
     ///
-    /// Look in `crates/eframe/native/run.rs` and search for set_render_sync_callback to see for what is used!
+    /// Look in `crates/eframe/native/run.rs` and search for ``set_render_sync_callback`` to see for what is used!
     pub fn set_render_sync_callback(
         &self,
         callback: impl for<'a> Fn(ViewportBuilder, ViewportId, ViewportId, Box<dyn FnOnce(&Context) + 'a>)
@@ -2221,7 +2221,7 @@ impl Context {
     }
 
     /// With this you can create a viewport "is a native window"
-    /// You will need to wrap your viwport state in an RwLock or Mutex!
+    /// You will need to wrap your viwport state in an ``RwLock`` or ``Mutex``!
     /// When this is called again with the same title in `ViewportBuilder` the render function for that viewport will be updated!
     /// The render function will be called when the viewport receives a event or is requested to be redraw
     ///
