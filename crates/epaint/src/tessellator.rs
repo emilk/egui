@@ -508,7 +508,7 @@ pub mod path {
 
         let r = clamp_radius(rounding, rect);
 
-        if r == Rounding::none() {
+        if r == Rounding::ZERO {
             let min = rect.min;
             let max = rect.max;
             path.reserve(4);

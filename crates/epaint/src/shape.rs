@@ -549,7 +549,7 @@ pub struct Rounding {
 impl Default for Rounding {
     #[inline]
     fn default() -> Self {
-        Self::none()
+        Self::ZERO
     }
 }
 
@@ -566,6 +566,14 @@ impl From<f32> for Rounding {
 }
 
 impl Rounding {
+    /// No rounding on any corner.
+    pub const ZERO: Self = Self {
+        nw: 0.0,
+        ne: 0.0,
+        sw: 0.0,
+        se: 0.0,
+    };
+
     #[inline]
     pub fn same(radius: f32) -> Self {
         Self {
@@ -577,6 +585,7 @@ impl Rounding {
     }
 
     #[inline]
+    #[deprecated = "Use Rounding::ZERO"]
     pub fn none() -> Self {
         Self {
             nw: 0.0,
