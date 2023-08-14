@@ -36,9 +36,6 @@ type GridSpacer = Box<GridSpacerFn>;
 
 type CoordinatesFormatterFn = dyn Fn(&PlotPoint, &PlotBounds) -> String;
 
-const X_AXIS: usize = 0;
-const Y_AXIS: usize = 1;
-
 /// Specifies the coordinates formatting when passed to [`Plot::coordinates_formatter`].
 pub struct CoordinatesFormatter {
     function: Box<CoordinatesFormatterFn>,
@@ -1110,18 +1107,18 @@ impl Plot {
         let x_axis_range = bounds.range_x();
         let x_steps = Arc::new({
             let input = GridInput {
-                bounds: (bounds.min[X_AXIS], bounds.max[X_AXIS]),
-                base_step_size: transform.dvalue_dpos()[X_AXIS] * MIN_LINE_SPACING_IN_POINTS * 2.0,
+                bounds: (bounds.min[0], bounds.max[0]),
+                base_step_size: transform.dvalue_dpos()[0] * MIN_LINE_SPACING_IN_POINTS * 2.0,
             };
-            (grid_spacers[X_AXIS])(input)
+            (grid_spacers[0])(input)
         });
         let y_axis_range = bounds.range_y();
         let y_steps = Arc::new({
             let input = GridInput {
-                bounds: (bounds.min[Y_AXIS], bounds.max[Y_AXIS]),
-                base_step_size: transform.dvalue_dpos()[Y_AXIS] * MIN_LINE_SPACING_IN_POINTS * 2.0,
+                bounds: (bounds.min[1], bounds.max[1]),
+                base_step_size: transform.dvalue_dpos()[1] * MIN_LINE_SPACING_IN_POINTS * 2.0,
             };
-            (grid_spacers[Y_AXIS])(input)
+            (grid_spacers[1])(input)
         });
         for mut widget in x_axis_widgets {
             widget.range = x_axis_range.clone();
@@ -1607,10 +1604,10 @@ impl PreparedPlot {
         let mut axes_shapes = Vec::new();
 
         if self.show_grid.x {
-            self.paint_grid::<X_AXIS>(ui, &mut axes_shapes);
+            self.paint_grid(ui, &mut axes_shapes, Axis::X);
         }
         if self.show_grid.y {
-            self.paint_grid::<Y_AXIS>(ui, &mut axes_shapes);
+            self.paint_grid(ui, &mut axes_shapes, Axis::Y);
         }
 
         // Sort the axes by strength so that those with higher strength are drawn in front.
@@ -1687,7 +1684,7 @@ impl PreparedPlot {
         cursors
     }
 
-    fn paint_grid<const AXIS: usize>(&self, ui: &Ui, shapes: &mut Vec<(Shape, f32)>) {
+    fn paint_grid(&self, ui: &Ui, shapes: &mut Vec<(Shape, f32)>, axis: Axis) {
         #![allow(clippy::collapsible_else_if)]
         let Self {
             transform,
@@ -1697,15 +1694,17 @@ impl PreparedPlot {
             ..
         } = self;
 
+        let iaxis = usize::from(axis);
+
         // Where on the cross-dimension to show the label values
         let bounds = transform.bounds();
-        let value_cross = 0.0_f64.clamp(bounds.min[1 - AXIS], bounds.max[1 - AXIS]);
+        let value_cross = 0.0_f64.clamp(bounds.min[1 - iaxis], bounds.max[1 - iaxis]);
 
         let input = GridInput {
-            bounds: (bounds.min[AXIS], bounds.max[AXIS]),
-            base_step_size: transform.dvalue_dpos()[AXIS] * MIN_LINE_SPACING_IN_POINTS,
+            bounds: (bounds.min[iaxis], bounds.max[iaxis]),
+            base_step_size: transform.dvalue_dpos()[iaxis] * MIN_LINE_SPACING_IN_POINTS,
         };
-        let steps = (grid_spacers[AXIS])(input);
+        let steps = (grid_spacers[iaxis])(input);
 
         let clamp_range = clamp_grid.then(|| {
             let mut tight_bounds = PlotBounds::NOTHING;
@@ -1721,25 +1720,27 @@ impl PreparedPlot {
             let value_main = step.value;
 
             if let Some(clamp_range) = clamp_range {
-                if AXIS == X_AXIS {
-                    if !clamp_range.range_x().contains(&value_main) {
-                        continue;
-                    };
-                } else {
-                    if !clamp_range.range_y().contains(&value_main) {
-                        continue;
-                    };
+                match axis {
+                    Axis::X => {
+                        if !clamp_range.range_x().contains(&value_main) {
+                            continue;
+                        };
+                    }
+                    Axis::Y => {
+                        if !clamp_range.range_y().contains(&value_main) {
+                            continue;
+                        };
+                    }
                 }
             }
 
-            let value = match AXIS {
-                X_AXIS => PlotPoint::new(value_main, value_cross),
-                Y_AXIS => PlotPoint::new(value_cross, value_main),
-                _ => unreachable!(),
+            let value = match axis {
+                Axis::X => PlotPoint::new(value_main, value_cross),
+                Axis::Y => PlotPoint::new(value_cross, value_main),
             };
 
             let pos_in_gui = transform.position_from_point(&value);
-            let spacing_in_points = (transform.dpos_dvalue()[AXIS] * step.step_size).abs() as f32;
+            let spacing_in_points = (transform.dpos_dvalue()[iaxis] * step.step_size).abs() as f32;
 
             if spacing_in_points > MIN_LINE_SPACING_IN_POINTS as f32 {
                 let line_strength = remap_clamp(
@@ -1752,16 +1753,19 @@ impl PreparedPlot {
 
                 let mut p0 = pos_in_gui;
                 let mut p1 = pos_in_gui;
-                p0[1 - AXIS] = transform.frame().min[1 - AXIS];
-                p1[1 - AXIS] = transform.frame().max[1 - AXIS];
+                p0[1 - iaxis] = transform.frame().min[1 - iaxis];
+                p1[1 - iaxis] = transform.frame().max[1 - iaxis];
 
                 if let Some(clamp_range) = clamp_range {
-                    if AXIS == X_AXIS {
-                        p0.y = transform.position_from_point_y(clamp_range.min[1]);
-                        p1.y = transform.position_from_point_y(clamp_range.max[1]);
-                    } else {
-                        p0.x = transform.position_from_point_x(clamp_range.min[0]);
-                        p1.x = transform.position_from_point_x(clamp_range.max[0]);
+                    match axis {
+                        Axis::X => {
+                            p0.y = transform.position_from_point_y(clamp_range.min[1]);
+                            p1.y = transform.position_from_point_y(clamp_range.max[1]);
+                        }
+                        Axis::Y => {
+                            p0.x = transform.position_from_point_x(clamp_range.min[0]);
+                            p1.x = transform.position_from_point_x(clamp_range.max[0]);
+                        }
                     }
                 }
 
