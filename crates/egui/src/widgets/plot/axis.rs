@@ -196,8 +196,8 @@ impl<const AXIS: usize> AxisWidget<AXIS> {
 
 impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
     fn ui(self, ui: &mut Ui) -> Response {
-        // --- add label ---
-        let response = ui.allocate_rect(self.rect, Sense::click_and_drag());
+        let response = ui.allocate_rect(self.rect, Sense::hover());
+
         if ui.is_rect_visible(response.rect) {
             let visuals = ui.style().visuals.clone();
             let text = self.hints.label;
@@ -316,6 +316,7 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
                 }
             }
         }
+
         response
     }
 }
