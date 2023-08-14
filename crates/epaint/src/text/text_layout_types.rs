@@ -561,6 +561,7 @@ impl Galley {
         self.job.is_empty()
     }
 
+    /// The full, non-elided text of the input job.
     #[inline(always)]
     pub fn text(&self) -> &str {
         &self.job.text

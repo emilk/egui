@@ -194,8 +194,12 @@ impl Label {
 
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
-        let (pos, text_galley, response) = self.layout_in_ui(ui);
+        let (pos, text_galley, mut response) = self.layout_in_ui(ui);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, text_galley.text()));
+
+        if text_galley.galley.elided {
+            response = response.on_hover_text(text_galley.text());
+        }
 
         if ui.is_rect_visible(response.rect) {
             let response_color = ui.style().interact(&response).text_color();

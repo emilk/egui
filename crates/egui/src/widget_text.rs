@@ -676,7 +676,7 @@ impl WidgetTextGalley {
         self.galley.size()
     }
 
-    /// Size of the laid out text.
+    /// The full, non-elided text of the input job.
     #[inline]
     pub fn text(&self) -> &str {
         self.galley.text()
