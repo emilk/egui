@@ -110,7 +110,7 @@ pub type SharedCallbackResource = Box<dyn std::any::Any + Send + Sync>;
 pub type SharedCallbackResource = Box<dyn std::any::Any>;
 
 #[derive(Default)]
-pub struct SharedCallbackResourceMap(HashMap<SharedCallbackResourceId, SharedCallbackResource>);
+pub struct SharedCallbackResourceMap(pub HashMap<SharedCallbackResourceId, SharedCallbackResource>);
 
 impl SharedCallbackResourceMap {
     /// Returns a reference to the resource associated with the given key.
