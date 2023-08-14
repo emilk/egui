@@ -36,6 +36,10 @@ impl CollapsingState {
         ctx.data_mut(|d| d.insert_persisted(self.id, self.state));
     }
 
+    pub fn remove(&self, ctx: &Context) {
+        ctx.data_mut(|d| d.remove::<InnerState>(self.id));
+    }
+
     pub fn id(&self) -> Id {
         self.id
     }
