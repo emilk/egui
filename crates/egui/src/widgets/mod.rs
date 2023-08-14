@@ -38,6 +38,8 @@ pub use text_edit::{TextBuffer, TextEdit};
 ///
 /// [`Button`], [`Label`], [`Slider`], etc all implement the [`Widget`] trait.
 ///
+/// You only need to implement `Widget` if you care about being able to do `ui.add(your_widget);`.
+///
 /// Note that the widgets ([`Button`], [`TextEdit`] etc) are
 /// [builders](https://doc.rust-lang.org/1.0.0/style/ownership/builders.html),
 /// and not objects that hold state.
