@@ -45,6 +45,7 @@ pub(super) trait PlotItem {
 
     fn highlighted(&self) -> bool;
 
+    /// Can the user hover this is item?
     fn allow_hover(&self) -> bool;
 
     fn geometry(&self) -> PlotGeometry<'_>;
