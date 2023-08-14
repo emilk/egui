@@ -277,7 +277,7 @@ impl TextFormat {
 pub struct TextWrapping {
     /// Wrap text so that no row is wider than this.
     ///
-    /// If you would rather elide text that doesn't fit, set [`Self::max_rows`] to `1`.
+    /// If you would rather truncate text that doesn't fit, set [`Self::max_rows`] to `1`.
     ///
     /// Set `max_width` to [`f32::INFINITY`] to turn off wrapping and elision.
     ///
@@ -287,7 +287,7 @@ pub struct TextWrapping {
 
     /// Maximum amount of rows the text galley should have.
     ///
-    /// If this limit is reached, text will be elided and
+    /// If this limit is reached, text will be truncated and
     /// and [`Self::overflow_character`] appended to the final row.
     /// You can detect this by checking [`Galley::elided`].
     ///
@@ -394,7 +394,7 @@ pub struct Galley {
     /// can be split up into multiple rows.
     pub rows: Vec<Row>,
 
-    /// Set to true if some text was elided due to [`TextWrapping::max_rows`].
+    /// Set to true the text was truncated due to [`TextWrapping::max_rows`].
     pub elided: bool,
 
     /// Bounding rect.
