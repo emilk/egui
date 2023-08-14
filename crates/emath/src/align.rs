@@ -3,10 +3,11 @@
 use crate::*;
 
 /// left/center/right or top/center/bottom alignment for e.g. anchors and layouts.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Align {
     /// Left or top.
+    #[default]
     Min,
 
     /// Horizontal or vertical center.
@@ -109,37 +110,26 @@ impl Align {
     /// assert_eq!(Max   .align_size_within_range(INFINITY, NEG_INFINITY..=20.0), NEG_INFINITY..=20.0);
     /// ```
     #[inline]
-    pub fn align_size_within_range(
-        self,
-        size: f32,
-        range: RangeInclusive<f32>,
-    ) -> RangeInclusive<f32> {
-        let min = *range.start();
-        let max = *range.end();
+    pub fn align_size_within_range(self, size: f32, range: impl Into<Rangef>) -> Rangef {
+        let range = range.into();
+        let Rangef { min, max } = range;
 
         if max - min == f32::INFINITY && size == f32::INFINITY {
             return range;
         }
 
         match self {
-            Self::Min => min..=min + size,
+            Self::Min => Rangef::new(min, min + size),
             Self::Center => {
                 if size == f32::INFINITY {
-                    f32::NEG_INFINITY..=f32::INFINITY
+                    Rangef::new(f32::NEG_INFINITY, f32::INFINITY)
                 } else {
                     let left = (min + max) / 2.0 - size / 2.0;
-                    left..=left + size
+                    Rangef::new(left, left + size)
                 }
             }
-            Self::Max => max - size..=max,
+            Self::Max => Rangef::new(max - size, max),
         }
-    }
-}
-
-impl Default for Align {
-    #[inline(always)]
-    fn default() -> Align {
-        Align::Min
     }
 }
 

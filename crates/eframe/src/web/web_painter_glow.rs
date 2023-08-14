@@ -2,7 +2,6 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
-use egui::Rgba;
 use egui_glow::glow;
 
 use crate::{WebGlContextOption, WebOptions};
@@ -28,7 +27,7 @@ impl WebPainterGlow {
         let gl = std::sync::Arc::new(gl);
 
         let painter = egui_glow::Painter::new(gl, shader_prefix, None)
-            .map_err(|error| format!("Error starting glow painter: {}", error))?;
+            .map_err(|err| format!("Error starting glow painter: {err}"))?;
 
         Ok(Self {
             canvas,
@@ -49,7 +48,7 @@ impl WebPainter for WebPainterGlow {
 
     fn paint_and_update_textures(
         &mut self,
-        clear_color: Rgba,
+        clear_color: [f32; 4],
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
         textures_delta: &egui::TexturesDelta,
@@ -107,14 +106,14 @@ fn init_webgl1(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static st
         .expect("Failed to query about WebGL2 context");
 
     let gl1_ctx = gl1_ctx?;
-    tracing::debug!("WebGL1 selected.");
+    log::debug!("WebGL1 selected.");
 
     let gl1_ctx = gl1_ctx
         .dyn_into::<web_sys::WebGlRenderingContext>()
         .unwrap();
 
     let shader_prefix = if webgl1_requires_brightening(&gl1_ctx) {
-        tracing::debug!("Enabling webkitGTK brightening workaround.");
+        log::debug!("Enabling webkitGTK brightening workaround.");
         "#define APPLY_BRIGHTENING_GAMMA"
     } else {
         ""
@@ -131,7 +130,7 @@ fn init_webgl2(canvas: &HtmlCanvasElement) -> Option<(glow::Context, &'static st
         .expect("Failed to query about WebGL2 context");
 
     let gl2_ctx = gl2_ctx?;
-    tracing::debug!("WebGL2 selected.");
+    log::debug!("WebGL2 selected.");
 
     let gl2_ctx = gl2_ctx
         .dyn_into::<web_sys::WebGl2RenderingContext>()

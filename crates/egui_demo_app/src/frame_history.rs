@@ -34,12 +34,6 @@ impl FrameHistory {
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         ui.label(format!(
-            "Total frames painted: {}",
-            self.frame_times.total_count()
-        ))
-        .on_hover_text("Includes this frame.");
-
-        ui.label(format!(
             "Mean CPU usage: {:.2} ms / frame",
             1e3 * self.mean_frame_time()
         ))
@@ -95,19 +89,21 @@ impl FrameHistory {
             ));
             let cpu_usage = to_screen.inverse().transform_pos(pointer_pos).y;
             let text = format!("{:.1} ms", 1e3 * cpu_usage);
-            shapes.push(Shape::text(
-                &ui.fonts(),
-                pos2(rect.left(), y),
-                egui::Align2::LEFT_BOTTOM,
-                text,
-                TextStyle::Monospace.resolve(ui.style()),
-                color,
-            ));
+            shapes.push(ui.fonts(|f| {
+                Shape::text(
+                    f,
+                    pos2(rect.left(), y),
+                    egui::Align2::LEFT_BOTTOM,
+                    text,
+                    TextStyle::Monospace.resolve(ui.style()),
+                    color,
+                )
+            }));
         }
 
         let circle_color = color;
         let radius = 2.0;
-        let right_side_time = ui.input().time; // Time at right side of screen
+        let right_side_time = ui.input(|i| i.time); // Time at right side of screen
 
         for (time, cpu_usage) in history.iter() {
             let age = (right_side_time - time) as f32;

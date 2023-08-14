@@ -27,9 +27,9 @@ If you are filing a bug, please provide a way to reproduce it.
 
 First file an issue (or find an existing one) and announce that you plan to work on something. That way we will avoid having several people doing double work. Please ask for feedback before you start working on something non-trivial!
 
-Browse through [`ARCHITECTURE.md`](https://github.com/emilk/egui/blob/master/ARCHITECTURE.md) to get a sense of how all pieces connects.
+Browse through [`ARCHITECTURE.md`](ARCHITECTURE.md) to get a sense of how all pieces connects.
 
-You can test your code locally by running `./sh/check.sh`.
+You can test your code locally by running `./scripts/check.sh`.
 
 When you have something that works, open a draft PR. You may get some helpful feedback early!
 When you feel the PR is ready to go, do a self-review of the code, and then open it for review.
@@ -50,10 +50,17 @@ I will add a link to it from the `egui` README.md so others can easily find it.
 Read the section on integrations at <https://github.com/emilk/egui#integrations>.
 
 
+## Testing the web viewer
+* Install some tools with `scripts/setup_web.sh`
+* Build with `scripts/build_demo_web.sh`
+* Host with `scripts/start_server.sh`
+* Open <http://localhost:8888/index.html>
+
+
 ## Code Conventions
 Conventions unless otherwise specified:
 
-* angles are in radians
+* angles are in radians and clock-wise
 * `Vec2::X` is right and `Vec2::Y` is down.
 * `Pos2::ZERO` is left top.
 

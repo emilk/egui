@@ -7,7 +7,7 @@
 //! To learn how to set up `eframe` for web and native, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 //!
 //! In short, you implement [`App`] (especially [`App::update`]) and then
-//! call [`crate::run_native`] from your `main.rs`, and/or call `eframe::start_web` from your `lib.rs`.
+//! call [`crate::run_native`] from your `main.rs`, and/or use `eframe::WebRunner` from your `lib.rs`.
 //!
 //! ## Usage, native:
 //! ``` no_run
@@ -42,17 +42,80 @@
 //!
 //! ## Usage, web:
 //! ``` no_run
-//! #[cfg(target_arch = "wasm32")]
+//! # #[cfg(target_arch = "wasm32")]
 //! use wasm_bindgen::prelude::*;
 //!
-//! /// Call this once from the HTML.
-//! #[cfg(target_arch = "wasm32")]
+//! /// Your handle to the web app from JavaScript.
+//! # #[cfg(target_arch = "wasm32")]
+//! #[derive(Clone)]
 //! #[wasm_bindgen]
-//! pub async fn start(canvas_id: &str) -> Result<AppRunnerRef, eframe::wasm_bindgen::JsValue> {
-//!     let web_options = eframe::WebOptions::default();
-//!     eframe::start_web(canvas_id, web_options, Box::new(|cc| Box::new(MyEguiApp::new(cc)))).await
+//! pub struct WebHandle {
+//!     runner: WebRunner,
+//! }
+//!
+//! # #[cfg(target_arch = "wasm32")]
+//! #[wasm_bindgen]
+//! impl WebHandle {
+//!     /// Installs a panic hook, then returns.
+//!     #[allow(clippy::new_without_default)]
+//!     #[wasm_bindgen(constructor)]
+//!     pub fn new() -> Self {
+//!         // Redirect [`log`] message to `console.log` and friends:
+//!         eframe::WebLogger::init(log::LevelFilter::Debug).ok();
+//!
+//!         Self {
+//!             runner: WebRunner::new(),
+//!         }
+//!     }
+//!
+//!     /// Call this once from JavaScript to start your app.
+//!     #[wasm_bindgen]
+//!     pub async fn start(&self, canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
+//!         self.runner
+//!             .start(
+//!                 canvas_id,
+//!                 eframe::WebOptions::default(),
+//!                 Box::new(|cc| Box::new(MyEguiApp::new(cc))),
+//!             )
+//!             .await
+//!     }
+//!
+//!     // The following are optional:
+//!
+//!     #[wasm_bindgen]
+//!     pub fn destroy(&self) {
+//!         self.runner.destroy();
+//!     }
+//!
+//!     /// Example on how to call into your app from JavaScript.
+//!     #[wasm_bindgen]
+//!     pub fn example(&self) {
+//!         if let Some(app) = self.runner.app_mut::<MyEguiApp>() {
+//!             app.example();
+//!         }
+//!     }
+//!
+//!     /// The JavaScript can check whether or not your app has crashed:
+//!     #[wasm_bindgen]
+//!     pub fn has_panicked(&self) -> bool {
+//!         self.runner.has_panicked()
+//!     }
+//!
+//!     #[wasm_bindgen]
+//!     pub fn panic_message(&self) -> Option<String> {
+//!         self.runner.panic_summary().map(|s| s.message())
+//!     }
+//!
+//!     #[wasm_bindgen]
+//!     pub fn panic_callstack(&self) -> Option<String> {
+//!         self.runner.panic_summary().map(|s| s.callstack())
+//!     }
 //! }
 //! ```
+//!
+//! ## Simplified usage
+//! If your app is only for native, and you don't need advanced features like state persistence,
+//! then you can use the simpler function [`run_simple_native`].
 //!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
@@ -78,65 +141,22 @@ pub use epi::*;
 // When compiling for web
 
 #[cfg(target_arch = "wasm32")]
-pub mod web;
-
-#[cfg(target_arch = "wasm32")]
 pub use wasm_bindgen;
-
-#[cfg(target_arch = "wasm32")]
-use web::AppRunnerRef;
 
 #[cfg(target_arch = "wasm32")]
 pub use web_sys;
 
-/// Install event listeners to register different input events
-/// and start running the given app.
-///
-/// ``` no_run
-/// #[cfg(target_arch = "wasm32")]
-/// use wasm_bindgen::prelude::*;
-///
-/// /// This is the entry-point for all the web-assembly.
-/// /// This is called from the HTML.
-/// /// It loads the app, installs some callbacks, then returns.
-/// /// It returns a handle to the running app that can be stopped calling `AppRunner::stop_web`.
-/// /// You can add more callbacks like this if you want to call in to your code.
-/// #[cfg(target_arch = "wasm32")]
-/// #[wasm_bindgen]
-/// pub struct WebHandle {
-///     handle: AppRunnerRef,
-/// }
-/// #[cfg(target_arch = "wasm32")]
-/// #[wasm_bindgen]
-/// pub async fn start(canvas_id: &str) -> Result<WebHandle, eframe::wasm_bindgen::JsValue> {
-///     let web_options = eframe::WebOptions::default();
-///     eframe::start_web(
-///         canvas_id,
-///         web_options,
-///         Box::new(|cc| Box::new(MyEguiApp::new(cc))),
-///     )
-///     .await
-///     .map(|handle| WebHandle { handle })
-/// }
-/// ```
-///
-/// # Errors
-/// Failing to initialize WebGL graphics.
 #[cfg(target_arch = "wasm32")]
-pub async fn start_web(
-    canvas_id: &str,
-    web_options: WebOptions,
-    app_creator: AppCreator,
-) -> std::result::Result<AppRunnerRef, wasm_bindgen::JsValue> {
-    let handle = web::start(canvas_id, web_options, app_creator).await?;
+pub mod web;
 
-    Ok(handle)
-}
+#[cfg(target_arch = "wasm32")]
+pub use web::{WebLogger, WebRunner};
 
 // ----------------------------------------------------------------------------
 // When compiling natively
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 mod native;
 
 /// This is how you start a native (desktop) app.
@@ -148,9 +168,9 @@ mod native;
 /// ``` no_run
 /// use eframe::egui;
 ///
-/// fn main() {
+/// fn main() -> eframe::Result<()> {
 ///     let native_options = eframe::NativeOptions::default();
-///     eframe::run_native("MyApp", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))));
+///     eframe::run_native("MyApp", native_options, Box::new(|cc| Box::new(MyEguiApp::new(cc))))
 /// }
 ///
 /// #[derive(Default)]
@@ -178,6 +198,7 @@ mod native;
 /// # Errors
 /// This function can fail if we fail to set up a graphics context.
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 #[allow(clippy::needless_pass_by_value)]
 pub fn run_native(
     app_name: &str,
@@ -195,16 +216,74 @@ pub fn run_native(
     match renderer {
         #[cfg(feature = "glow")]
         Renderer::Glow => {
-            tracing::debug!("Using the glow renderer");
+            log::debug!("Using the glow renderer");
             native::run::run_glow(app_name, native_options, app_creator)
         }
 
         #[cfg(feature = "wgpu")]
         Renderer::Wgpu => {
-            tracing::debug!("Using the wgpu renderer");
+            log::debug!("Using the wgpu renderer");
             native::run::run_wgpu(app_name, native_options, app_creator)
         }
     }
+}
+
+// ----------------------------------------------------------------------------
+
+/// The simplest way to get started when writing a native app.
+///
+/// This does NOT support persistence. For that you need to use [`run_native`].
+///
+/// # Example
+/// ``` no_run
+/// fn main() -> eframe::Result<()> {
+///     // Our application state:
+///     let mut name = "Arthur".to_owned();
+///     let mut age = 42;
+///
+///     let options = eframe::NativeOptions::default();
+///     eframe::run_simple_native("My egui App", options, move |ctx, _frame| {
+///         egui::CentralPanel::default().show(ctx, |ui| {
+///             ui.heading("My egui Application");
+///             ui.horizontal(|ui| {
+///                 let name_label = ui.label("Your name: ");
+///                 ui.text_edit_singleline(&mut name)
+///                     .labelled_by(name_label.id);
+///             });
+///             ui.add(egui::Slider::new(&mut age, 0..=120).text("age"));
+///             if ui.button("Click each year").clicked() {
+///                 age += 1;
+///             }
+///             ui.label(format!("Hello '{name}', age {age}"));
+///         });
+///     })
+/// }
+/// ```
+///
+/// # Errors
+/// This function can fail if we fail to set up a graphics context.
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
+pub fn run_simple_native(
+    app_name: &str,
+    native_options: NativeOptions,
+    update_fun: impl FnMut(&egui::Context, &mut Frame) + 'static,
+) -> Result<()> {
+    struct SimpleApp<U> {
+        update_fun: U,
+    }
+
+    impl<U: FnMut(&egui::Context, &mut Frame)> App for SimpleApp<U> {
+        fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
+            (self.update_fun)(ctx, frame);
+        }
+    }
+
+    run_native(
+        app_name,
+        native_options,
+        Box::new(|_cc| Box::new(SimpleApp { update_fun })),
+    )
 }
 
 // ----------------------------------------------------------------------------
@@ -221,36 +300,41 @@ pub enum Error {
     Glutin(#[from] glutin::error::Error),
 
     #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
-    #[error("Found no glutin configs matching the template: {0:?}")]
-    NoGlutinConfigs(glutin::config::ConfigTemplate),
+    #[error("Found no glutin configs matching the template: {0:?}. error: {1:?}")]
+    NoGlutinConfigs(glutin::config::ConfigTemplate, Box<dyn std::error::Error>),
 
     #[cfg(feature = "wgpu")]
     #[error("WGPU error: {0}")]
-    Wgpu(#[from] wgpu::RequestDeviceError),
+    Wgpu(#[from] egui_wgpu::WgpuError),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 // ---------------------------------------------------------------------------
 
-/// Profiling macro for feature "puffin"
 #[cfg(not(target_arch = "wasm32"))]
-macro_rules! profile_function {
-    ($($arg: tt)*) => {
-        #[cfg(feature = "puffin")]
-        puffin::profile_function!($($arg)*);
-    };
-}
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) use profile_function;
+mod profiling_scopes {
+    #![allow(unused_macros)]
+    #![allow(unused_imports)]
 
-/// Profiling macro for feature "puffin"
-#[cfg(not(target_arch = "wasm32"))]
-macro_rules! profile_scope {
-    ($($arg: tt)*) => {
-        #[cfg(feature = "puffin")]
-        puffin::profile_scope!($($arg)*);
-    };
+    /// Profiling macro for feature "puffin"
+    macro_rules! profile_function {
+        ($($arg: tt)*) => {
+            #[cfg(feature = "puffin")]
+            puffin::profile_function!($($arg)*);
+        };
+    }
+    pub(crate) use profile_function;
+
+    /// Profiling macro for feature "puffin"
+    macro_rules! profile_scope {
+        ($($arg: tt)*) => {
+            #[cfg(feature = "puffin")]
+            puffin::profile_scope!($($arg)*);
+        };
+    }
+    pub(crate) use profile_scope;
 }
+
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) use profile_scope;
+pub(crate) use profiling_scopes::*;

@@ -15,6 +15,7 @@ use crate::*;
 pub struct Pos2 {
     /// How far to the right.
     pub x: f32,
+
     /// How far down.
     pub y: f32,
     // implicit w = 1
@@ -187,6 +188,14 @@ impl Pos2 {
             y: self.y.clamp(min.y, max.y),
         }
     }
+
+    /// Linearly interpolate towards another point, so that `0.0 => self, 1.0 => other`.
+    pub fn lerp(&self, other: Pos2, t: f32) -> Pos2 {
+        Pos2 {
+            x: lerp(self.x..=other.x, t),
+            y: lerp(self.y..=other.y, t),
+        }
+    }
 }
 
 impl std::ops::Index<usize> for Pos2 {
@@ -197,7 +206,7 @@ impl std::ops::Index<usize> for Pos2 {
         match index {
             0 => &self.x,
             1 => &self.y,
-            _ => panic!("Pos2 index out of bounds: {}", index),
+            _ => panic!("Pos2 index out of bounds: {index}"),
         }
     }
 }
@@ -208,7 +217,7 @@ impl std::ops::IndexMut<usize> for Pos2 {
         match index {
             0 => &mut self.x,
             1 => &mut self.y,
-            _ => panic!("Pos2 index out of bounds: {}", index),
+            _ => panic!("Pos2 index out of bounds: {index}"),
         }
     }
 }

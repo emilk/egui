@@ -75,6 +75,62 @@ impl eframe::App for ColorTestApp {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+enum Anchor {
+    Demo,
+    EasyMarkEditor,
+    #[cfg(feature = "http")]
+    Http,
+    Clock,
+    #[cfg(any(feature = "glow", feature = "wgpu"))]
+    Custom3d,
+    Colors,
+}
+
+impl Anchor {
+    #[cfg(target_arch = "wasm32")]
+    fn all() -> Vec<Self> {
+        vec![
+            Anchor::Demo,
+            Anchor::EasyMarkEditor,
+            #[cfg(feature = "http")]
+            Anchor::Http,
+            Anchor::Clock,
+            #[cfg(any(feature = "glow", feature = "wgpu"))]
+            Anchor::Custom3d,
+            Anchor::Colors,
+        ]
+    }
+}
+
+impl std::fmt::Display for Anchor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
+    }
+}
+
+impl From<Anchor> for egui::WidgetText {
+    fn from(value: Anchor) -> Self {
+        Self::RichText(egui::RichText::new(value.to_string()))
+    }
+}
+
+impl Default for Anchor {
+    fn default() -> Self {
+        Self::Demo
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Debug)]
+#[must_use]
+enum Command {
+    Nothing,
+    ResetEverything,
+}
+
 // ----------------------------------------------------------------------------
 
 /// The state that we persist (serialize).
@@ -89,7 +145,7 @@ pub struct State {
     clock: FractalClockApp,
     color_test: ColorTestApp,
 
-    selected_anchor: String,
+    selected_anchor: Anchor,
     backend_panel: super::backend_panel::BackendPanel,
 }
 
@@ -125,27 +181,27 @@ impl WrapApp {
         slf
     }
 
-    fn apps_iter_mut(&mut self) -> impl Iterator<Item = (&str, &str, &mut dyn eframe::App)> {
+    fn apps_iter_mut(&mut self) -> impl Iterator<Item = (&str, Anchor, &mut dyn eframe::App)> {
         let mut vec = vec![
             (
                 "✨ Demos",
-                "demo",
+                Anchor::Demo,
                 &mut self.state.demo as &mut dyn eframe::App,
             ),
             (
                 "🖹 EasyMark editor",
-                "easymark",
+                Anchor::EasyMarkEditor,
                 &mut self.state.easy_mark_editor as &mut dyn eframe::App,
             ),
             #[cfg(feature = "http")]
             (
                 "⬇ HTTP",
-                "http",
+                Anchor::Http,
                 &mut self.state.http as &mut dyn eframe::App,
             ),
             (
                 "🕑 Fractal Clock",
-                "clock",
+                Anchor::Clock,
                 &mut self.state.clock as &mut dyn eframe::App,
             ),
         ];
@@ -154,14 +210,14 @@ impl WrapApp {
         if let Some(custom3d) = &mut self.custom3d {
             vec.push((
                 "🔺 3D painting",
-                "custom3d",
+                Anchor::Custom3d,
                 custom3d as &mut dyn eframe::App,
             ));
         }
 
         vec.push((
             "🎨 Color test",
-            "colors",
+            Anchor::Colors,
             &mut self.state.color_test as &mut dyn eframe::App,
         ));
 
@@ -175,41 +231,37 @@ impl eframe::App for WrapApp {
         eframe::set_value(storage, eframe::APP_KEY, &self.state);
     }
 
-    fn clear_color(&self, visuals: &egui::Visuals) -> egui::Rgba {
-        visuals.panel_fill.into()
+    fn clear_color(&self, visuals: &egui::Visuals) -> [f32; 4] {
+        visuals.panel_fill.to_normalized_gamma_f32()
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         #[cfg(target_arch = "wasm32")]
         if let Some(anchor) = frame.info().web_info.location.hash.strip_prefix('#') {
-            self.state.selected_anchor = anchor.to_owned();
-        }
-
-        if self.state.selected_anchor.is_empty() {
-            let selected_anchor = self.apps_iter_mut().next().unwrap().0.to_owned();
-            self.state.selected_anchor = selected_anchor;
+            let anchor = Anchor::all().into_iter().find(|x| x.to_string() == anchor);
+            if let Some(v) = anchor {
+                self.state.selected_anchor = v;
+            }
         }
 
         #[cfg(not(target_arch = "wasm32"))]
-        if ctx
-            .input_mut()
-            .consume_key(egui::Modifiers::NONE, egui::Key::F11)
-        {
+        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F11)) {
             frame.set_fullscreen(!frame.info().window_info.fullscreen);
         }
 
+        let mut cmd = Command::Nothing;
         egui::TopBottomPanel::top("wrap_app_top_bar").show(ctx, |ui| {
             egui::trace!(ui);
             ui.horizontal_wrapped(|ui| {
                 ui.visuals_mut().button_frame = false;
-                self.bar_contents(ui, frame);
+                self.bar_contents(ui, frame, &mut cmd);
             });
         });
 
         self.state.backend_panel.update(ctx, frame);
 
         if !is_mobile(ctx) {
-            self.backend_panel(ctx, frame);
+            cmd = self.backend_panel(ctx, frame);
         }
 
         self.show_selected_app(ctx, frame);
@@ -222,6 +274,8 @@ impl eframe::App for WrapApp {
         if !frame.is_web() {
             egui::gui_zoom::zoom_with_keyboard_shortcuts(ctx, frame.info().native_pixels_per_point);
         }
+
+        self.run_cmd(ctx, cmd);
     }
 
     #[cfg(feature = "glow")]
@@ -238,10 +292,13 @@ impl eframe::App for WrapApp {
 }
 
 impl WrapApp {
-    fn backend_panel(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn backend_panel(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) -> Command {
         // The backend-panel can be toggled on/off.
         // We show a little animation when the user switches it.
-        let is_open = self.state.backend_panel.open || ctx.memory().everything_is_visible();
+        let is_open =
+            self.state.backend_panel.open || ctx.memory(|mem| mem.everything_is_visible());
+
+        let mut cmd = Command::Nothing;
 
         egui::SidePanel::left("backend_panel")
             .resizable(false)
@@ -251,11 +308,28 @@ impl WrapApp {
                 });
 
                 ui.separator();
-                self.backend_panel_contents(ui, frame);
+                self.backend_panel_contents(ui, frame, &mut cmd);
             });
+
+        cmd
     }
 
-    fn backend_panel_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+    fn run_cmd(&mut self, ctx: &egui::Context, cmd: Command) {
+        match cmd {
+            Command::Nothing => {}
+            Command::ResetEverything => {
+                self.state = Default::default();
+                ctx.memory_mut(|mem| *mem = Default::default());
+            }
+        }
+    }
+
+    fn backend_panel_contents(
+        &mut self,
+        ui: &mut egui::Ui,
+        frame: &mut eframe::Frame,
+        cmd: &mut Command,
+    ) {
         self.state.backend_panel.ui(ui, frame);
 
         ui.separator();
@@ -266,33 +340,27 @@ impl WrapApp {
                 .on_hover_text("Forget scroll, positions, sizes etc")
                 .clicked()
             {
-                *ui.ctx().memory() = Default::default();
+                ui.ctx().memory_mut(|mem| *mem = Default::default());
                 ui.close_menu();
             }
 
             if ui.button("Reset everything").clicked() {
-                self.state = Default::default();
-                *ui.ctx().memory() = Default::default();
+                *cmd = Command::ResetEverything;
                 ui.close_menu();
             }
         });
     }
 
     fn show_selected_app(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        let mut found_anchor = false;
-        let selected_anchor = self.state.selected_anchor.clone();
+        let selected_anchor = self.state.selected_anchor;
         for (_name, anchor, app) in self.apps_iter_mut() {
-            if anchor == selected_anchor || ctx.memory().everything_is_visible() {
+            if anchor == selected_anchor || ctx.memory(|mem| mem.everything_is_visible()) {
                 app.update(ctx, frame);
-                found_anchor = true;
             }
-        }
-        if !found_anchor {
-            self.state.selected_anchor = "demo".into();
         }
     }
 
-    fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+    fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame, cmd: &mut Command) {
         egui::widgets::global_dark_light_mode_switch(ui);
 
         ui.separator();
@@ -300,7 +368,7 @@ impl WrapApp {
         if is_mobile(ui.ctx()) {
             ui.menu_button("💻 Backend", |ui| {
                 ui.set_style(ui.ctx().style()); // ignore the "menu" style set by `menu_button`.
-                self.backend_panel_contents(ui, frame);
+                self.backend_panel_contents(ui, frame, cmd);
             });
         } else {
             ui.toggle_value(&mut self.state.backend_panel.open, "💻 Backend");
@@ -308,15 +376,15 @@ impl WrapApp {
 
         ui.separator();
 
-        let mut selected_anchor = self.state.selected_anchor.clone();
+        let mut selected_anchor = self.state.selected_anchor;
         for (name, anchor, _app) in self.apps_iter_mut() {
             if ui
                 .selectable_label(selected_anchor == anchor, name)
                 .clicked()
             {
-                selected_anchor = anchor.to_owned();
+                selected_anchor = anchor;
                 if frame.is_web() {
-                    ui.output().open_url(format!("#{}", anchor));
+                    ui.output_mut(|o| o.open_url(format!("#{anchor}")));
                 }
             }
         }
@@ -326,9 +394,9 @@ impl WrapApp {
             if false {
                 // TODO(emilk): fix the overlap on small screens
                 if clock_button(ui, crate::seconds_since_midnight()).clicked() {
-                    self.state.selected_anchor = "clock".to_owned();
+                    self.state.selected_anchor = Anchor::Clock;
                     if frame.is_web() {
-                        ui.output().open_url("#clock");
+                        ui.output_mut(|o| o.open_url("#clock"));
                     }
                 }
             }
@@ -342,22 +410,25 @@ impl WrapApp {
         use std::fmt::Write as _;
 
         // Preview hovering files:
-        if !ctx.input().raw.hovered_files.is_empty() {
-            let mut text = "Dropping files:\n".to_owned();
-            for file in &ctx.input().raw.hovered_files {
-                if let Some(path) = &file.path {
-                    write!(text, "\n{}", path.display()).ok();
-                } else if !file.mime.is_empty() {
-                    write!(text, "\n{}", file.mime).ok();
-                } else {
-                    text += "\n???";
+        if !ctx.input(|i| i.raw.hovered_files.is_empty()) {
+            let text = ctx.input(|i| {
+                let mut text = "Dropping files:\n".to_owned();
+                for file in &i.raw.hovered_files {
+                    if let Some(path) = &file.path {
+                        write!(text, "\n{}", path.display()).ok();
+                    } else if !file.mime.is_empty() {
+                        write!(text, "\n{}", file.mime).ok();
+                    } else {
+                        text += "\n???";
+                    }
                 }
-            }
+                text
+            });
 
             let painter =
                 ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
 
-            let screen_rect = ctx.input().screen_rect();
+            let screen_rect = ctx.screen_rect();
             painter.rect_filled(screen_rect, 0.0, Color32::from_black_alpha(192));
             painter.text(
                 screen_rect.center(),
@@ -369,9 +440,11 @@ impl WrapApp {
         }
 
         // Collect dropped files:
-        if !ctx.input().raw.dropped_files.is_empty() {
-            self.dropped_files = ctx.input().raw.dropped_files.clone();
-        }
+        ctx.input(|i| {
+            if !i.raw.dropped_files.is_empty() {
+                self.dropped_files = i.raw.dropped_files.clone();
+            }
+        });
 
         // Show dropped files (if any):
         if !self.dropped_files.is_empty() {

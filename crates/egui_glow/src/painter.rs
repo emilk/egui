@@ -5,7 +5,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use egui::{
     emath::Rect,
-    epaint::{Color32, Mesh, PaintCallbackInfo, Primitive, Vertex},
+    epaint::{Mesh, PaintCallbackInfo, Primitive, Vertex},
 };
 use glow::HasContext as _;
 use memoffset::offset_of;
@@ -15,6 +15,7 @@ use crate::misc_util::{compile_shader, link_program};
 use crate::shader_version::ShaderVersion;
 use crate::vao;
 
+/// Re-exported [`glow::Context`].
 pub use glow::Context;
 
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
@@ -106,20 +107,37 @@ impl Painter {
         crate::profile_function!();
         crate::check_for_gl_error_even_in_release!(&gl, "before Painter::new");
 
+        // some useful debug info. all three of them are present in gl 1.1.
+        unsafe {
+            let version = gl.get_parameter_string(glow::VERSION);
+            let renderer = gl.get_parameter_string(glow::RENDERER);
+            let vendor = gl.get_parameter_string(glow::VENDOR);
+            log::debug!(
+                "\nopengl version: {version}\nopengl renderer: {renderer}\nopengl vendor: {vendor}"
+            );
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        if gl.version().major < 2 {
+            // this checks on desktop that we are not using opengl 1.1 microsoft sw rendering context.
+            // ShaderVersion::get fn will segfault due to SHADING_LANGUAGE_VERSION (added in gl2.0)
+            return Err("egui_glow requires opengl 2.0+. ".to_owned());
+        }
+
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
         let shader_version = shader_version.unwrap_or_else(|| ShaderVersion::get(&gl));
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let shader_version_declaration = shader_version.version_declaration();
-        tracing::debug!("Shader header: {:?}.", shader_version_declaration);
+        log::debug!("Shader header: {:?}.", shader_version_declaration);
 
         let supported_extensions = gl.supported_extensions();
-        tracing::trace!("OpenGL extensions: {supported_extensions:?}");
+        log::trace!("OpenGL extensions: {supported_extensions:?}");
         let srgb_textures = shader_version == ShaderVersion::Es300 // WebGL2 always support sRGB
             || supported_extensions.iter().any(|extension| {
                 // EXT_sRGB, GL_ARB_framebuffer_sRGB, GL_EXT_sRGB, GL_EXT_texture_sRGB_decode, …
                 extension.contains("sRGB")
             });
-        tracing::debug!("SRGB texture Support: {:?}", srgb_textures);
+        log::debug!("SRGB texture Support: {:?}", srgb_textures);
 
         unsafe {
             let vert = compile_shader(
@@ -382,7 +400,7 @@ impl Painter {
                         if let Some(callback) = callback.callback.downcast_ref::<CallbackFn>() {
                             (callback.f)(info, self);
                         } else {
-                            tracing::warn!("Warning: Unsupported render callback. Expected egui_glow::CallbackFn");
+                            log::warn!("Warning: Unsupported render callback. Expected egui_glow::CallbackFn");
                         }
 
                         check_for_gl_error!(&self.gl, "callback");
@@ -438,7 +456,7 @@ impl Painter {
 
             check_for_gl_error!(&self.gl, "paint_mesh");
         } else {
-            tracing::warn!("Failed to find texture {:?}", mesh.texture_id);
+            log::warn!("Failed to find texture {:?}", mesh.texture_id);
         }
     }
 
@@ -605,7 +623,7 @@ impl Painter {
         }
     }
 
-    pub fn read_screen_rgba(&self, [w, h]: [u32; 2]) -> Vec<u8> {
+    pub fn read_screen_rgba(&self, [w, h]: [u32; 2]) -> egui::ColorImage {
         let mut pixels = vec![0_u8; (w * h * 4) as usize];
         unsafe {
             self.gl.read_pixels(
@@ -618,7 +636,14 @@ impl Painter {
                 glow::PixelPackData::Slice(&mut pixels),
             );
         }
-        pixels
+        let mut flipped = Vec::with_capacity((w * h * 4) as usize);
+        for row in pixels.chunks_exact((w * 4) as usize).rev() {
+            flipped.extend_from_slice(bytemuck::cast_slice(row));
+        }
+        egui::ColorImage {
+            size: [w as usize, h as usize],
+            pixels: flipped,
+        }
     }
 
     pub fn read_screen_rgb(&self, [w, h]: [u32; 2]) -> Vec<u8> {
@@ -665,7 +690,7 @@ impl Painter {
     }
 }
 
-pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: egui::Rgba) {
+pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: [f32; 4]) {
     crate::profile_function!();
     unsafe {
         gl.disable(glow::SCISSOR_TEST);
@@ -676,24 +701,12 @@ pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: e
             screen_size_in_pixels[0] as i32,
             screen_size_in_pixels[1] as i32,
         );
-
-        if true {
-            // verified to be correct on eframe native (on Mac).
-            gl.clear_color(
-                clear_color[0],
-                clear_color[1],
-                clear_color[2],
-                clear_color[3],
-            );
-        } else {
-            let clear_color: Color32 = clear_color.into();
-            gl.clear_color(
-                clear_color[0] as f32 / 255.0,
-                clear_color[1] as f32 / 255.0,
-                clear_color[2] as f32 / 255.0,
-                clear_color[3] as f32 / 255.0,
-            );
-        }
+        gl.clear_color(
+            clear_color[0],
+            clear_color[1],
+            clear_color[2],
+            clear_color[3],
+        );
         gl.clear(glow::COLOR_BUFFER_BIT);
     }
 }
@@ -701,7 +714,7 @@ pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: e
 impl Drop for Painter {
     fn drop(&mut self) {
         if !self.destroyed {
-            tracing::warn!(
+            log::warn!(
                 "You forgot to call destroy() on the egui glow painter. Resources will leak!"
             );
         }

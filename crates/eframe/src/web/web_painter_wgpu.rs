@@ -3,19 +3,35 @@ use std::sync::Arc;
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
-use egui::{mutex::RwLock, Rgba};
 use egui_wgpu::{renderer::ScreenDescriptor, RenderState, SurfaceErrorAction};
 
 use crate::WebOptions;
 
 use super::web_painter::WebPainter;
 
+struct EguiWebWindow(u32);
+
+#[allow(unsafe_code)]
+unsafe impl raw_window_handle::HasRawWindowHandle for EguiWebWindow {
+    fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
+        let mut window_handle = raw_window_handle::WebWindowHandle::empty();
+        window_handle.id = self.0;
+        raw_window_handle::RawWindowHandle::Web(window_handle)
+    }
+}
+
+#[allow(unsafe_code)]
+unsafe impl raw_window_handle::HasRawDisplayHandle for EguiWebWindow {
+    fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
+        raw_window_handle::RawDisplayHandle::Web(raw_window_handle::WebDisplayHandle::empty())
+    }
+}
+
 pub(crate) struct WebPainterWgpu {
     canvas: HtmlCanvasElement,
     canvas_id: String,
     surface: wgpu::Surface,
     surface_configuration: wgpu::SurfaceConfiguration,
-    limits: wgpu::Limits,
     render_state: Option<RenderState>,
     on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
     depth_format: Option<wgpu::TextureFormat>,
@@ -49,6 +65,7 @@ impl WebPainterWgpu {
                     dimension: wgpu::TextureDimension::D2,
                     format: depth_format,
                     usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    view_formats: &[depth_format],
                 })
                 .create_view(&wgpu::TextureViewDescriptor::default())
         })
@@ -56,52 +73,47 @@ impl WebPainterWgpu {
 
     #[allow(unused)] // only used if `wgpu` is the only active feature.
     pub async fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String> {
-        tracing::debug!("Creating wgpu painter");
+        log::debug!("Creating wgpu painter");
+
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: options.wgpu_options.supported_backends,
+            dx12_shader_compiler: Default::default(),
+        });
 
         let canvas = super::canvas_element_or_die(canvas_id);
 
-        let instance = wgpu::Instance::new(options.wgpu_options.backends);
-        let surface = instance.create_surface_from_canvas(&canvas);
+        let surface = if false {
+            instance.create_surface_from_canvas(canvas.clone())
+        } else {
+            // Workaround for https://github.com/gfx-rs/wgpu/issues/3710:
+            // Don't use `create_surface_from_canvas`, but `create_surface` instead!
+            let raw_window = EguiWebWindow(egui::util::hash(("egui on wgpu", canvas_id)) as u32);
+            canvas.set_attribute("data-raw-handle", &raw_window.0.to_string());
 
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: options.wgpu_options.power_preference,
-                force_fallback_adapter: false,
-                compatible_surface: None,
-            })
-            .await
-            .ok_or_else(|| "No suitable GPU adapters found on the system".to_owned())?;
+            #[allow(unsafe_code)]
+            unsafe {
+                instance.create_surface(&raw_window)
+            }
+        }
+        .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
 
-        let (device, queue) = adapter
-            .request_device(
-                &options.wgpu_options.device_descriptor,
-                None, // Capture doesn't work in the browser environment.
-            )
-            .await
-            .map_err(|err| format!("Failed to find wgpu device: {}", err))?;
-
-        let target_format =
-            egui_wgpu::preferred_framebuffer_format(&surface.get_supported_formats(&adapter));
-
-        let depth_format = options.wgpu_options.depth_format;
-        let renderer = egui_wgpu::Renderer::new(&device, target_format, depth_format, 1);
-        let render_state = RenderState {
-            device: Arc::new(device),
-            queue: Arc::new(queue),
-            target_format,
-            renderer: Arc::new(RwLock::new(renderer)),
-        };
+        let depth_format = egui_wgpu::depth_format_from_bits(options.depth_buffer, 0);
+        let render_state =
+            RenderState::create(&options.wgpu_options, &instance, &surface, depth_format, 1)
+                .await
+                .map_err(|err| err.to_string())?;
 
         let surface_configuration = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: target_format,
+            format: render_state.target_format,
             width: 0,
             height: 0,
             present_mode: options.wgpu_options.present_mode,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            view_formats: vec![render_state.target_format],
         };
 
-        tracing::debug!("wgpu painter initialized.");
+        log::debug!("wgpu painter initialized.");
 
         Ok(Self {
             canvas,
@@ -111,7 +123,6 @@ impl WebPainterWgpu {
             surface_configuration,
             depth_format,
             depth_texture_view: None,
-            limits: options.wgpu_options.device_descriptor.limits.clone(),
             on_surface_error: options.wgpu_options.on_surface_error.clone(),
         })
     }
@@ -123,12 +134,14 @@ impl WebPainter for WebPainterWgpu {
     }
 
     fn max_texture_side(&self) -> usize {
-        self.limits.max_texture_dimension_2d as _
+        self.render_state.as_ref().map_or(0, |state| {
+            state.device.limits().max_texture_dimension_2d as _
+        })
     }
 
     fn paint_and_update_textures(
         &mut self,
-        clear_color: Rgba,
+        clear_color: [f32; 4],
         clipped_primitives: &[egui::ClippedPrimitive],
         pixels_per_point: f32,
         textures_delta: &egui::TexturesDelta,
@@ -221,10 +234,10 @@ impl WebPainter for WebPainterWgpu {
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: clear_color.r() as f64,
-                                g: clear_color.g() as f64,
-                                b: clear_color.b() as f64,
-                                a: clear_color.a() as f64,
+                                r: clear_color[0] as f64,
+                                g: clear_color[1] as f64,
+                                b: clear_color[2] as f64,
+                                a: clear_color[3] as f64,
                             }),
                             store: true,
                         },

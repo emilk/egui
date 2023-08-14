@@ -103,7 +103,7 @@ impl CodeExample {
 
         ui.horizontal(|ui| {
             let font_id = egui::TextStyle::Monospace.resolve(ui.style());
-            let indentation = 8.0 * ui.fonts().glyph_width(&font_id, ' ');
+            let indentation = 8.0 * ui.fonts(|f| f.glyph_width(&font_id, ' '));
             let item_spacing = ui.spacing_mut().item_spacing;
             ui.add_space(indentation - item_spacing.x);
 
@@ -121,7 +121,7 @@ impl CodeExample {
 
         ui.separator();
 
-        code_view_ui(ui, &format!("{:#?}", self));
+        code_view_ui(ui, &format!("{self:#?}"));
 
         ui.separator();
 

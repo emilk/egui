@@ -1,5 +1,4 @@
 use std::f32::INFINITY;
-use std::ops::RangeInclusive;
 
 use crate::*;
 
@@ -53,7 +52,7 @@ impl Rect {
         max: pos2(-INFINITY, -INFINITY),
     };
 
-    /// An invalid [`Rect`] filled with [`f32::NAN`];
+    /// An invalid [`Rect`] filled with [`f32::NAN`].
     pub const NAN: Self = Self {
         min: pos2(f32::NAN, f32::NAN),
         max: pos2(f32::NAN, f32::NAN),
@@ -82,10 +81,12 @@ impl Rect {
     }
 
     #[inline(always)]
-    pub fn from_x_y_ranges(x_range: RangeInclusive<f32>, y_range: RangeInclusive<f32>) -> Self {
+    pub fn from_x_y_ranges(x_range: impl Into<Rangef>, y_range: impl Into<Rangef>) -> Self {
+        let x_range = x_range.into();
+        let y_range = y_range.into();
         Rect {
-            min: pos2(*x_range.start(), *y_range.start()),
-            max: pos2(*x_range.end(), *y_range.end()),
+            min: pos2(x_range.min, y_range.min),
+            max: pos2(x_range.max, y_range.max),
         }
     }
 
@@ -275,6 +276,7 @@ impl Rect {
         }
     }
 
+    /// `rect.size() == Vec2 { x: rect.width(), y: rect.height() }`
     #[inline(always)]
     pub fn size(&self) -> Vec2 {
         self.max - self.min
@@ -361,26 +363,41 @@ impl Rect {
 
     /// Linearly interpolate so that `[0, 0]` is [`Self::min`] and
     /// `[1, 1]` is [`Self::max`].
+    #[deprecated = "Use `lerp_inside` instead"]
     pub fn lerp(&self, t: Vec2) -> Pos2 {
+        self.lerp_inside(t)
+    }
+
+    /// Linearly interpolate so that `[0, 0]` is [`Self::min`] and
+    /// `[1, 1]` is [`Self::max`].
+    pub fn lerp_inside(&self, t: Vec2) -> Pos2 {
         Pos2 {
             x: lerp(self.min.x..=self.max.x, t.x),
             y: lerp(self.min.y..=self.max.y, t.y),
         }
     }
 
-    #[inline(always)]
-    pub fn x_range(&self) -> RangeInclusive<f32> {
-        self.min.x..=self.max.x
+    /// Linearly self towards other rect.
+    pub fn lerp_towards(&self, other: &Rect, t: f32) -> Self {
+        Self {
+            min: self.min.lerp(other.min, t),
+            max: self.max.lerp(other.max, t),
+        }
     }
 
     #[inline(always)]
-    pub fn y_range(&self) -> RangeInclusive<f32> {
-        self.min.y..=self.max.y
+    pub fn x_range(&self) -> Rangef {
+        Rangef::new(self.min.x, self.max.x)
     }
 
     #[inline(always)]
-    pub fn bottom_up_range(&self) -> RangeInclusive<f32> {
-        self.max.y..=self.min.y
+    pub fn y_range(&self) -> Rangef {
+        Rangef::new(self.min.y, self.max.y)
+    }
+
+    #[inline(always)]
+    pub fn bottom_up_range(&self) -> Rangef {
+        Rangef::new(self.max.y, self.min.y)
     }
 
     /// `width < 0 || height < 0`
@@ -520,6 +537,30 @@ impl Rect {
     #[inline(always)]
     pub fn right_bottom(&self) -> Pos2 {
         pos2(self.right(), self.bottom())
+    }
+
+    /// Split rectangle in left and right halves. `t` is expected to be in the (0,1) range.
+    pub fn split_left_right_at_fraction(&self, t: f32) -> (Rect, Rect) {
+        self.split_left_right_at_x(lerp(self.min.x..=self.max.x, t))
+    }
+
+    /// Split rectangle in left and right halves at the given `x` coordinate.
+    pub fn split_left_right_at_x(&self, split_x: f32) -> (Rect, Rect) {
+        let left = Rect::from_min_max(self.min, Pos2::new(split_x, self.max.y));
+        let right = Rect::from_min_max(Pos2::new(split_x, self.min.y), self.max);
+        (left, right)
+    }
+
+    /// Split rectangle in top and bottom halves. `t` is expected to be in the (0,1) range.
+    pub fn split_top_bottom_at_fraction(&self, t: f32) -> (Rect, Rect) {
+        self.split_top_bottom_at_y(lerp(self.min.y..=self.max.y, t))
+    }
+
+    /// Split rectangle in top and bottom halves at the given `y` coordinate.
+    pub fn split_top_bottom_at_y(&self, split_y: f32) -> (Rect, Rect) {
+        let top = Rect::from_min_max(self.min, Pos2::new(self.max.x, split_y));
+        let bottom = Rect::from_min_max(Pos2::new(self.min.x, split_y), self.max);
+        (top, bottom)
     }
 }
 

@@ -1,6 +1,5 @@
 //! The different shapes that can be painted.
 
-use std::ops::RangeInclusive;
 use std::{any::Any, sync::Arc};
 
 use crate::{
@@ -94,17 +93,19 @@ impl Shape {
     }
 
     /// A horizontal line.
-    pub fn hline(x: RangeInclusive<f32>, y: f32, stroke: impl Into<Stroke>) -> Self {
+    pub fn hline(x: impl Into<Rangef>, y: f32, stroke: impl Into<Stroke>) -> Self {
+        let x = x.into();
         Shape::LineSegment {
-            points: [pos2(*x.start(), y), pos2(*x.end(), y)],
+            points: [pos2(x.min, y), pos2(x.max, y)],
             stroke: stroke.into(),
         }
     }
 
     /// A vertical line.
-    pub fn vline(x: f32, y: RangeInclusive<f32>, stroke: impl Into<Stroke>) -> Self {
+    pub fn vline(x: f32, y: impl Into<Rangef>, stroke: impl Into<Stroke>) -> Self {
+        let y = y.into();
         Shape::LineSegment {
-            points: [pos2(x, *y.start()), pos2(x, *y.end())],
+            points: [pos2(x, y.min), pos2(x, y.max)],
             stroke: stroke.into(),
         }
     }
@@ -322,8 +323,8 @@ impl Shape {
                 bezier_shape.points[1] += delta;
                 bezier_shape.points[2] += delta;
             }
-            Shape::CubicBezier(cubie_curve) => {
-                for p in &mut cubie_curve.points {
+            Shape::CubicBezier(cubic_curve) => {
+                for p in &mut cubic_curve.points {
                     *p += delta;
                 }
             }
@@ -625,7 +626,7 @@ pub struct TextShape {
     /// Top left corner of the first character.
     pub pos: Pos2,
 
-    /// The layed out text, from [`Fonts::layout_job`].
+    /// The laid out text, from [`Fonts::layout_job`].
     pub galley: Arc<Galley>,
 
     /// Add this underline to the whole text.
@@ -768,7 +769,7 @@ pub struct ViewportInPixels {
     /// Viewport width in physical pixels.
     pub width_px: f32,
 
-    /// Viewport width in physical pixels.
+    /// Viewport height in physical pixels.
     pub height_px: f32,
 }
 
@@ -808,7 +809,7 @@ pub struct PaintCallback {
     /// `glow` backend requires that callback be an `egui_glow::CallbackFn` while the `wgpu`
     /// backend requires a `egui_wgpu::CallbackFn`.
     ///
-    /// If the type cannnot be downcast to the type expected by the current backend the callback
+    /// If the type cannot be downcast to the type expected by the current backend the callback
     /// will not be drawn.
     ///
     /// The rendering backend is responsible for first setting the active viewport to

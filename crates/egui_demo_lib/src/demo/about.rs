@@ -69,7 +69,7 @@ fn about_immediate_mode(ui: &mut egui::Ui) {
     ui.label("Note how there are no callbacks or messages, and no button state to store.");
 
     ui.label("Immediate mode has its roots in gaming, where everything on the screen is painted at the display refresh rate, i.e. at 60+ frames per second. \
-        In immediate mode GUIs, the entire interface is layed out and painted at the same high rate. \
+        In immediate mode GUIs, the entire interface is laid out and painted at the same high rate. \
         This makes immediate mode GUIs especially well suited for highly interactive applications.");
 
     ui.horizontal_wrapped(|ui| {
@@ -83,11 +83,11 @@ fn about_immediate_mode(ui: &mut egui::Ui) {
 fn links(ui: &mut egui::Ui) {
     use egui::special_emojis::{GITHUB, TWITTER};
     ui.hyperlink_to(
-        format!("{} egui on GitHub", GITHUB),
+        format!("{GITHUB} egui on GitHub"),
         "https://github.com/emilk/egui",
     );
     ui.hyperlink_to(
-        format!("{} @ernerfeldt", TWITTER),
+        format!("{TWITTER} @ernerfeldt"),
         "https://twitter.com/ernerfeldt",
     );
     ui.hyperlink_to("egui documentation", "https://docs.rs/egui/");

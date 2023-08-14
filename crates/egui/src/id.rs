@@ -157,9 +157,9 @@ impl std::hash::Hasher for IdHasher {
 
 #[derive(Copy, Clone, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub struct BuilIdHasher {}
+pub struct BuildIdHasher {}
 
-impl std::hash::BuildHasher for BuilIdHasher {
+impl std::hash::BuildHasher for BuildIdHasher {
     type Hasher = IdHasher;
 
     #[inline(always)]
@@ -168,5 +168,8 @@ impl std::hash::BuildHasher for BuilIdHasher {
     }
 }
 
+/// `IdSet` is a `HashSet<Id>` optimized by knowing that [`Id`] has good entropy, and doesn't need more hashing.
+pub type IdSet = std::collections::HashSet<Id, BuildIdHasher>;
+
 /// `IdMap<V>` is a `HashMap<Id, V>` optimized by knowing that [`Id`] has good entropy, and doesn't need more hashing.
-pub type IdMap<V> = std::collections::HashMap<Id, V, BuilIdHasher>;
+pub type IdMap<V> = std::collections::HashMap<Id, V, BuildIdHasher>;

@@ -19,7 +19,7 @@ use super::{CCursorRange, CursorRange, TextEditOutput, TextEditState};
 /// if response.changed() {
 ///     // …
 /// }
-/// if response.lost_focus() && ui.input().key_pressed(egui::Key::Enter) {
+/// if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
 ///     // …
 /// }
 /// # });
@@ -67,6 +67,10 @@ pub struct TextEdit<'t> {
     desired_height_rows: usize,
     lock_focus: bool,
     cursor_at_end: bool,
+    min_size: Vec2,
+    align: Align2,
+    clip_text: bool,
+    char_limit: usize,
 }
 
 impl<'t> WidgetWithState for TextEdit<'t> {
@@ -89,6 +93,7 @@ impl<'t> TextEdit<'t> {
         Self {
             desired_height_rows: 1,
             multiline: false,
+            clip_text: true,
             ..Self::multiline(text)
         }
     }
@@ -112,6 +117,10 @@ impl<'t> TextEdit<'t> {
             desired_height_rows: 4,
             lock_focus: false,
             cursor_at_end: true,
+            min_size: Vec2::ZERO,
+            align: Align2::LEFT_TOP,
+            clip_text: false,
+            char_limit: usize::MAX,
         }
     }
 
@@ -206,7 +215,7 @@ impl<'t> TextEdit<'t> {
     /// let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
     ///     let mut layout_job: egui::text::LayoutJob = my_memoized_highlighter(string);
     ///     layout_job.wrap.max_width = wrap_width;
-    ///     ui.fonts().layout_job(layout_job)
+    ///     ui.fonts(|f| f.layout_job(layout_job))
     /// };
     /// ui.add(egui::TextEdit::multiline(&mut my_code).layouter(&mut layouter));
     /// # });
@@ -269,6 +278,45 @@ impl<'t> TextEdit<'t> {
         self.cursor_at_end = b;
         self
     }
+
+    /// When `true` (default), overflowing text will be clipped.
+    ///
+    /// When `false`, widget width will expand to make all text visible.
+    ///
+    /// This only works for singleline [`TextEdit`].
+    pub fn clip_text(mut self, b: bool) -> Self {
+        // always show everything in multiline
+        if !self.multiline {
+            self.clip_text = b;
+        }
+        self
+    }
+
+    /// Sets the limit for the amount of characters can be entered
+    ///
+    /// This only works for singleline [`TextEdit`]
+    pub fn char_limit(mut self, limit: usize) -> Self {
+        self.char_limit = limit;
+        self
+    }
+
+    /// Set the horizontal align of the inner text.
+    pub fn horizontal_align(mut self, align: Align) -> Self {
+        self.align.0[0] = align;
+        self
+    }
+
+    /// Set the vertical align of the inner text.
+    pub fn vertical_align(mut self, align: Align) -> Self {
+        self.align.0[1] = align;
+        self
+    }
+
+    /// Set the minimum size of the [`TextEdit`].
+    pub fn min_size(mut self, min_size: Vec2) -> Self {
+        self.min_size = min_size;
+        self
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -312,7 +360,7 @@ impl<'t> TextEdit<'t> {
             output.response |= ui.interact(frame_rect, id, Sense::click());
         }
         if output.response.clicked() && !output.response.lost_focus() {
-            ui.memory().request_focus(output.response.id);
+            ui.memory_mut(|mem| mem.request_focus(output.response.id));
         }
 
         if frame {
@@ -364,13 +412,17 @@ impl<'t> TextEdit<'t> {
             layouter,
             password,
             frame: _,
-            margin: _,
+            margin,
             multiline,
             interactive,
             desired_width,
             desired_height_rows,
             lock_focus,
             cursor_at_end,
+            min_size,
+            align,
+            clip_text,
+            char_limit,
         } = self;
 
         let text_color = text_color
@@ -381,7 +433,7 @@ impl<'t> TextEdit<'t> {
         let prev_text = text.as_str().to_owned();
 
         let font_id = font_selection.resolve(ui.style());
-        let row_height = ui.fonts().row_height(&font_id);
+        let row_height = ui.fonts(|f| f.row_height(&font_id));
         const MIN_WIDTH: f32 = 24.0; // Never make a [`TextEdit`] more narrow than this.
         let available_width = ui.available_width().at_least(MIN_WIDTH);
         let desired_width = desired_width.unwrap_or_else(|| ui.spacing().text_edit_width);
@@ -389,29 +441,31 @@ impl<'t> TextEdit<'t> {
             available_width
         } else {
             desired_width.min(available_width)
-        };
+        } - margin.x * 2.0;
 
         let font_id_clone = font_id.clone();
         let mut default_layouter = move |ui: &Ui, text: &str, wrap_width: f32| {
             let text = mask_if_password(password, text);
-            ui.fonts().layout_job(if multiline {
+            let layout_job = if multiline {
                 LayoutJob::simple(text, font_id_clone.clone(), text_color, wrap_width)
             } else {
                 LayoutJob::simple_singleline(text, font_id_clone.clone(), text_color)
-            })
+            };
+            ui.fonts(|f| f.layout_job(layout_job))
         };
 
         let layouter = layouter.unwrap_or(&mut default_layouter);
 
         let mut galley = layouter(ui, text.as_str(), wrap_width);
 
-        let desired_width = if multiline {
-            galley.size().x.max(wrap_width) // always show everything in multiline
+        let desired_width = if clip_text {
+            wrap_width // visual clipping with scroll in singleline input.
         } else {
-            wrap_width // visual clipping with scroll in singleline input. TODO(emilk): opt-in/out?
+            galley.size().x.max(wrap_width)
         };
         let desired_height = (desired_height_rows.at_least(1) as f32) * row_height;
-        let desired_size = vec2(desired_width, galley.size().y.max(desired_height));
+        let desired_size = vec2(desired_width, galley.size().y.max(desired_height))
+            .at_least(min_size - margin * 2.0);
 
         let (auto_id, rect) = ui.allocate_space(desired_size);
 
@@ -428,8 +482,8 @@ impl<'t> TextEdit<'t> {
         // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
         // Since currently copying selected text in not supported on `eframe` web,
         // we prioritize touch-scrolling:
-        let any_touches = ui.input().any_touches(); // separate line to avoid double-locking the same mutex
-        let allow_drag_to_select = !any_touches || ui.memory().has_focus(id);
+        let allow_drag_to_select =
+            ui.input(|i| !i.any_touches()) || ui.memory(|mem| mem.has_focus(id));
 
         let sense = if interactive {
             if allow_drag_to_select {
@@ -447,7 +501,7 @@ impl<'t> TextEdit<'t> {
         if interactive {
             if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
                 if response.hovered() && text.is_mutable() {
-                    ui.output().mutable_text_under_cursor = true;
+                    ui.output_mut(|o| o.mutable_text_under_cursor = true);
                 }
 
                 // TODO(emilk): drag selected text to either move or clone (ctrl on windows, alt on mac)
@@ -457,7 +511,7 @@ impl<'t> TextEdit<'t> {
 
                 if ui.visuals().text_cursor_preview
                     && response.hovered()
-                    && ui.input().pointer.is_moving()
+                    && ui.input(|i| i.pointer.is_moving())
                 {
                     // preview:
                     paint_cursor_end(
@@ -487,9 +541,9 @@ impl<'t> TextEdit<'t> {
                         secondary: galley.from_ccursor(ccursor_range.secondary),
                     }));
                 } else if allow_drag_to_select {
-                    if response.hovered() && ui.input().pointer.any_pressed() {
-                        ui.memory().request_focus(id);
-                        if ui.input().modifiers.shift {
+                    if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
+                        ui.memory_mut(|mem| mem.request_focus(id));
+                        if ui.input(|i| i.modifiers.shift) {
                             if let Some(mut cursor_range) = state.cursor_range(&galley) {
                                 cursor_range.primary = cursor_at_pointer;
                                 state.set_cursor_range(Some(cursor_range));
@@ -499,7 +553,8 @@ impl<'t> TextEdit<'t> {
                         } else {
                             state.set_cursor_range(Some(CursorRange::one(cursor_at_pointer)));
                         }
-                    } else if ui.input().pointer.any_down() && response.is_pointer_button_down_on()
+                    } else if ui.input(|i| i.pointer.any_down())
+                        && response.is_pointer_button_down_on()
                     {
                         // drag to select text:
                         if let Some(mut cursor_range) = state.cursor_range(&galley) {
@@ -511,14 +566,14 @@ impl<'t> TextEdit<'t> {
             }
         }
 
-        if response.hovered() && interactive {
-            ui.output().cursor_icon = CursorIcon::Text;
+        if interactive && response.hovered() {
+            ui.ctx().set_cursor_icon(CursorIcon::Text);
         }
 
         let mut cursor_range = None;
         let prev_cursor_range = state.cursor_range(&galley);
-        if ui.memory().has_focus(id) && interactive {
-            ui.memory().lock_focus(id, lock_focus);
+        if interactive && ui.memory(|mem| mem.has_focus(id)) {
+            ui.memory_mut(|mem| mem.lock_focus(id, lock_focus));
 
             let default_cursor_range = if cursor_at_end {
                 CursorRange::one(galley.end())
@@ -537,6 +592,7 @@ impl<'t> TextEdit<'t> {
                 multiline,
                 password,
                 default_cursor_range,
+                char_limit,
             );
 
             if changed {
@@ -545,11 +601,15 @@ impl<'t> TextEdit<'t> {
             cursor_range = Some(new_cursor_range);
         }
 
-        let mut text_draw_pos = response.rect.min;
+        let mut text_draw_pos = align
+            .align_size_within_rect(galley.size(), response.rect)
+            .intersect(response.rect) // limit pos to the response rect area
+            .min;
+        let align_offset = response.rect.left() - text_draw_pos.x;
 
         // Visual clipping for singleline text editor with text larger than width
-        if !multiline {
-            let cursor_pos = match (cursor_range, ui.memory().has_focus(id)) {
+        if clip_text && align_offset == 0.0 {
+            let cursor_pos = match (cursor_range, ui.memory(|mem| mem.has_focus(id))) {
                 (Some(cursor_range), true) => galley.pos_from_cursor(&cursor_range.primary).min.x,
                 _ => 0.0,
             };
@@ -571,6 +631,8 @@ impl<'t> TextEdit<'t> {
 
             state.singleline_offset = offset_x;
             text_draw_pos -= vec2(offset_x, 0.0);
+        } else {
+            state.singleline_offset = align_offset;
         }
 
         let selection_changed = if let (Some(cursor_range), Some(prev_cursor_range)) =
@@ -594,7 +656,7 @@ impl<'t> TextEdit<'t> {
                 galley.paint_with_fallback_color(&painter, response.rect.min, hint_text_color);
             }
 
-            if ui.memory().has_focus(id) {
+            if ui.memory(|mem| mem.has_focus(id)) {
                 if let Some(cursor_range) = state.cursor_range(&galley) {
                     // We paint the cursor on top of the text, in case
                     // the text galley has backgrounds (as e.g. `code` snippets in markup do).
@@ -621,9 +683,13 @@ impl<'t> TextEdit<'t> {
                             // But `winit` and `egui_web` differs in how to set the
                             // position of IME.
                             if cfg!(target_arch = "wasm32") {
-                                ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_top());
+                                ui.ctx().output_mut(|o| {
+                                    o.text_cursor_pos = Some(cursor_pos.left_top());
+                                });
                             } else {
-                                ui.ctx().output().text_cursor_pos = Some(cursor_pos.left_bottom());
+                                ui.ctx().output_mut(|o| {
+                                    o.text_cursor_pos = Some(cursor_pos.left_bottom());
+                                });
                             }
                         }
                     }
@@ -659,89 +725,100 @@ impl<'t> TextEdit<'t> {
         }
 
         #[cfg(feature = "accesskit")]
-        if let Some(mut node) = ui.ctx().accesskit_node(response.id) {
-            use accesskit::{Role, TextDirection, TextPosition, TextSelection};
+        {
+            let parent_id = ui.ctx().accesskit_node_builder(response.id, |builder| {
+                use accesskit::{TextPosition, TextSelection};
 
-            let parent_id = response.id;
+                let parent_id = response.id;
 
-            if let Some(cursor_range) = &cursor_range {
-                let anchor = &cursor_range.secondary.rcursor;
-                let focus = &cursor_range.primary.rcursor;
-                node.text_selection = Some(TextSelection {
-                    anchor: TextPosition {
-                        node: parent_id.with(anchor.row).accesskit_id(),
-                        character_index: anchor.column,
-                    },
-                    focus: TextPosition {
-                        node: parent_id.with(focus.row).accesskit_id(),
-                        character_index: focus.column,
-                    },
+                if let Some(cursor_range) = &cursor_range {
+                    let anchor = &cursor_range.secondary.rcursor;
+                    let focus = &cursor_range.primary.rcursor;
+                    builder.set_text_selection(TextSelection {
+                        anchor: TextPosition {
+                            node: parent_id.with(anchor.row).accesskit_id(),
+                            character_index: anchor.column,
+                        },
+                        focus: TextPosition {
+                            node: parent_id.with(focus.row).accesskit_id(),
+                            character_index: focus.column,
+                        },
+                    });
+                }
+
+                builder.set_default_action_verb(accesskit::DefaultActionVerb::Focus);
+                if self.multiline {
+                    builder.set_multiline();
+                }
+
+                parent_id
+            });
+
+            if let Some(parent_id) = parent_id {
+                // drop ctx lock before further processing
+                use accesskit::{Role, TextDirection};
+
+                ui.ctx().with_accessibility_parent(parent_id, || {
+                    for (i, row) in galley.rows.iter().enumerate() {
+                        let id = parent_id.with(i);
+                        ui.ctx().accesskit_node_builder(id, |builder| {
+                            builder.set_role(Role::InlineTextBox);
+                            let rect = row.rect.translate(text_draw_pos.to_vec2());
+                            builder.set_bounds(accesskit::Rect {
+                                x0: rect.min.x.into(),
+                                y0: rect.min.y.into(),
+                                x1: rect.max.x.into(),
+                                y1: rect.max.y.into(),
+                            });
+                            builder.set_text_direction(TextDirection::LeftToRight);
+                            // TODO(mwcampbell): Set more node fields for the row
+                            // once AccessKit adapters expose text formatting info.
+
+                            let glyph_count = row.glyphs.len();
+                            let mut value = String::new();
+                            value.reserve(glyph_count);
+                            let mut character_lengths = Vec::<u8>::new();
+                            character_lengths.reserve(glyph_count);
+                            let mut character_positions = Vec::<f32>::new();
+                            character_positions.reserve(glyph_count);
+                            let mut character_widths = Vec::<f32>::new();
+                            character_widths.reserve(glyph_count);
+                            let mut word_lengths = Vec::<u8>::new();
+                            let mut was_at_word_end = false;
+                            let mut last_word_start = 0usize;
+
+                            for glyph in &row.glyphs {
+                                let is_word_char = is_word_char(glyph.chr);
+                                if is_word_char && was_at_word_end {
+                                    word_lengths
+                                        .push((character_lengths.len() - last_word_start) as _);
+                                    last_word_start = character_lengths.len();
+                                }
+                                was_at_word_end = !is_word_char;
+                                let old_len = value.len();
+                                value.push(glyph.chr);
+                                character_lengths.push((value.len() - old_len) as _);
+                                character_positions.push(glyph.pos.x - row.rect.min.x);
+                                character_widths.push(glyph.size.x);
+                            }
+
+                            if row.ends_with_newline {
+                                value.push('\n');
+                                character_lengths.push(1);
+                                character_positions.push(row.rect.max.x - row.rect.min.x);
+                                character_widths.push(0.0);
+                            }
+                            word_lengths.push((character_lengths.len() - last_word_start) as _);
+
+                            builder.set_value(value);
+                            builder.set_character_lengths(character_lengths);
+                            builder.set_character_positions(character_positions);
+                            builder.set_character_widths(character_widths);
+                            builder.set_word_lengths(word_lengths);
+                        });
+                    }
                 });
             }
-
-            node.default_action_verb = Some(accesskit::DefaultActionVerb::Focus);
-            node.multiline = self.multiline;
-
-            drop(node);
-
-            ui.ctx().with_accessibility_parent(parent_id, || {
-                for (i, row) in galley.rows.iter().enumerate() {
-                    let id = parent_id.with(i);
-                    let mut node = ui.ctx().accesskit_node(id).unwrap();
-                    node.role = Role::InlineTextBox;
-                    let rect = row.rect.translate(text_draw_pos.to_vec2());
-                    node.bounds = Some(accesskit::kurbo::Rect {
-                        x0: rect.min.x.into(),
-                        y0: rect.min.y.into(),
-                        x1: rect.max.x.into(),
-                        y1: rect.max.y.into(),
-                    });
-                    node.text_direction = Some(TextDirection::LeftToRight);
-                    // TODO(mwcampbell): Set more node fields for the row
-                    // once AccessKit adapters expose text formatting info.
-
-                    let glyph_count = row.glyphs.len();
-                    let mut value = String::new();
-                    value.reserve(glyph_count);
-                    let mut character_lengths = Vec::<u8>::new();
-                    character_lengths.reserve(glyph_count);
-                    let mut character_positions = Vec::<f32>::new();
-                    character_positions.reserve(glyph_count);
-                    let mut character_widths = Vec::<f32>::new();
-                    character_widths.reserve(glyph_count);
-                    let mut word_lengths = Vec::<u8>::new();
-                    let mut was_at_word_end = false;
-                    let mut last_word_start = 0usize;
-
-                    for glyph in &row.glyphs {
-                        let is_word_char = is_word_char(glyph.chr);
-                        if is_word_char && was_at_word_end {
-                            word_lengths.push((character_lengths.len() - last_word_start) as _);
-                            last_word_start = character_lengths.len();
-                        }
-                        was_at_word_end = !is_word_char;
-                        let old_len = value.len();
-                        value.push(glyph.chr);
-                        character_lengths.push((value.len() - old_len) as _);
-                        character_positions.push(glyph.pos.x - row.rect.min.x);
-                        character_widths.push(glyph.size.x);
-                    }
-
-                    if row.ends_with_newline {
-                        value.push('\n');
-                        character_lengths.push(1);
-                        character_positions.push(row.rect.max.x - row.rect.min.x);
-                        character_widths.push(0.0);
-                    }
-                    word_lengths.push((character_lengths.len() - last_word_start) as _);
-
-                    node.value = Some(value.into());
-                    node.character_lengths = character_lengths.into();
-                    node.character_positions = Some(character_positions.into());
-                    node.character_widths = Some(character_widths.into());
-                    node.word_lengths = word_lengths.into();
-                }
-            });
         }
 
         TextEditOutput {
@@ -806,25 +883,26 @@ fn events(
     multiline: bool,
     password: bool,
     default_cursor_range: CursorRange,
+    char_limit: usize,
 ) -> (bool, CursorRange) {
     let mut cursor_range = state.cursor_range(galley).unwrap_or(default_cursor_range);
 
     // We feed state to the undoer both before and after handling input
     // so that the undoer creates automatic saves even when there are no events for a while.
     state.undoer.lock().feed_state(
-        ui.input().time,
+        ui.input(|i| i.time),
         &(cursor_range.as_ccursor_range(), text.as_str().to_owned()),
     );
 
     let copy_if_not_password = |ui: &Ui, text: String| {
         if !password {
-            ui.ctx().output().copied_text = text;
+            ui.ctx().output_mut(|o| o.copied_text = text);
         }
     };
 
     let mut any_change = false;
 
-    let events = ui.input().events.clone(); // avoid dead-lock by cloning. TODO(emilk): optimize
+    let events = ui.input(|i| i.events.clone()); // avoid dead-lock by cloning. TODO(emilk): optimize
     for event in &events {
         let did_mutate_text = match event {
             Event::Copy => {
@@ -847,7 +925,9 @@ fn events(
             Event::Paste(text_to_insert) => {
                 if !text_to_insert.is_empty() {
                     let mut ccursor = delete_selected(text, &cursor_range);
-                    insert_text(&mut ccursor, text, text_to_insert);
+
+                    insert_text(&mut ccursor, text, text_to_insert, char_limit);
+
                     Some(CCursorRange::one(ccursor))
                 } else {
                     None
@@ -857,7 +937,9 @@ fn events(
                 // Newlines are handled by `Key::Enter`.
                 if !text_to_insert.is_empty() && text_to_insert != "\n" && text_to_insert != "\r" {
                     let mut ccursor = delete_selected(text, &cursor_range);
-                    insert_text(&mut ccursor, text, text_to_insert);
+
+                    insert_text(&mut ccursor, text, text_to_insert, char_limit);
+
                     Some(CCursorRange::one(ccursor))
                 } else {
                     None
@@ -869,13 +951,13 @@ fn events(
                 modifiers,
                 ..
             } => {
-                if multiline && ui.memory().has_lock_focus(id) {
+                if multiline && ui.memory(|mem| mem.has_lock_focus(id)) {
                     let mut ccursor = delete_selected(text, &cursor_range);
                     if modifiers.shift {
                         // TODO(emilk): support removing indentation over a selection?
-                        decrease_identation(&mut ccursor, text);
+                        decrease_indentation(&mut ccursor, text);
                     } else {
-                        insert_text(&mut ccursor, text, "\t");
+                        insert_text(&mut ccursor, text, "\t", char_limit);
                     }
                     Some(CCursorRange::one(ccursor))
                 } else {
@@ -889,11 +971,11 @@ fn events(
             } => {
                 if multiline {
                     let mut ccursor = delete_selected(text, &cursor_range);
-                    insert_text(&mut ccursor, text, "\n");
+                    insert_text(&mut ccursor, text, "\n", char_limit);
                     // TODO(emilk): if code editor, auto-indent by same leading tabs, + one if the lines end on an opening bracket
                     Some(CCursorRange::one(ccursor))
                 } else {
-                    ui.memory().surrender_focus(id); // End input with enter
+                    ui.memory_mut(|mem| mem.surrender_focus(id)); // End input with enter
                     break;
                 }
             }
@@ -935,7 +1017,7 @@ fn events(
                     let mut ccursor = delete_selected(text, &cursor_range);
                     let start_cursor = ccursor;
                     if !text_mark.is_empty() {
-                        insert_text(&mut ccursor, text, text_mark);
+                        insert_text(&mut ccursor, text, text_mark, char_limit);
                     }
                     Some(CCursorRange::two(start_cursor, ccursor))
                 } else {
@@ -948,7 +1030,7 @@ fn events(
                     state.has_ime = false;
                     let mut ccursor = delete_selected(text, &cursor_range);
                     if !prediction.is_empty() {
-                        insert_text(&mut ccursor, text, prediction);
+                        insert_text(&mut ccursor, text, prediction, char_limit);
                     }
                     Some(CCursorRange::one(ccursor))
                 } else {
@@ -997,7 +1079,7 @@ fn events(
     state.set_cursor_range(Some(cursor_range));
 
     state.undoer.lock().feed_state(
-        ui.input().time,
+        ui.input(|i| i.time),
         &(cursor_range.as_ccursor_range(), text.as_str().to_owned()),
     );
 
@@ -1056,7 +1138,7 @@ fn paint_cursor_end(
     galley: &Galley,
     cursor: &Cursor,
 ) -> Rect {
-    let stroke = ui.visuals().selection.stroke;
+    let stroke = ui.visuals().text_cursor;
 
     let mut cursor_pos = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
     cursor_pos.max.y = cursor_pos.max.y.at_least(cursor_pos.min.y + row_height); // Handle completely empty galleys
@@ -1065,10 +1147,7 @@ fn paint_cursor_end(
     let top = cursor_pos.center_top();
     let bottom = cursor_pos.center_bottom();
 
-    painter.line_segment(
-        [top, bottom],
-        (ui.visuals().text_cursor_width, stroke.color),
-    );
+    painter.line_segment([top, bottom], (stroke.width, stroke.color));
 
     if false {
         // Roof/floor:
@@ -1094,8 +1173,26 @@ fn selected_str<'s>(text: &'s dyn TextBuffer, cursor_range: &CursorRange) -> &'s
     text.char_range(min.ccursor.index..max.ccursor.index)
 }
 
-fn insert_text(ccursor: &mut CCursor, text: &mut dyn TextBuffer, text_to_insert: &str) {
-    ccursor.index += text.insert_text(text_to_insert, ccursor.index);
+fn insert_text(
+    ccursor: &mut CCursor,
+    text: &mut dyn TextBuffer,
+    text_to_insert: &str,
+    char_limit: usize,
+) {
+    if char_limit < usize::MAX {
+        let mut new_string = text_to_insert;
+        // Avoid subtract with overflow panic
+        let cutoff = char_limit.saturating_sub(text.as_str().chars().count());
+
+        new_string = match new_string.char_indices().nth(cutoff) {
+            None => new_string,
+            Some((idx, _)) => &new_string[..idx],
+        };
+
+        ccursor.index += text.insert_text(new_string, ccursor.index);
+    } else {
+        ccursor.index += text.insert_text(text_to_insert, ccursor.index);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -1519,7 +1616,7 @@ fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
     }
 }
 
-fn decrease_identation(ccursor: &mut CCursor, text: &mut dyn TextBuffer) {
+fn decrease_indentation(ccursor: &mut CCursor, text: &mut dyn TextBuffer) {
     let line_start = find_line_start(text.as_str(), *ccursor);
 
     let remove_len = if text.as_str()[line_start.index..].starts_with('\t') {

@@ -2,7 +2,7 @@
 use crate::*;
 
 pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
-    let families = ui.fonts().families();
+    let families = ui.fonts(|f| f.families());
     ui.horizontal(|ui| {
         for alternative in families {
             let text = alternative.to_string();
@@ -12,7 +12,7 @@ pub fn font_family_ui(ui: &mut Ui, font_family: &mut FontFamily) {
 }
 
 pub fn font_id_ui(ui: &mut Ui, font_id: &mut FontId) {
-    let families = ui.fonts().families();
+    let families = ui.fonts(|f| f.families());
     ui.horizontal(|ui| {
         ui.add(Slider::new(&mut font_id.size, 4.0..=40.0).max_decimals(1));
         for alternative in families {
@@ -31,10 +31,7 @@ pub(crate) fn font_texture_ui(ui: &mut Ui, [width, height]: [usize; 2]) -> Respo
             Color32::BLACK
         };
 
-        ui.label(format!(
-            "Texture size: {} x {} (hover to zoom)",
-            width, height
-        ));
+        ui.label(format!("Texture size: {width} x {height} (hover to zoom)"));
         if width <= 1 || height <= 1 {
             return;
         }
@@ -108,7 +105,7 @@ impl Widget for &epaint::stats::PaintStats {
             label(ui, shape_path, "paths");
             label(ui, shape_mesh, "nested meshes");
             label(ui, shape_vec, "nested shapes");
-            ui.label(format!("{:6} callbacks", num_callbacks));
+            ui.label(format!("{num_callbacks:6} callbacks"));
             ui.add_space(10.0);
 
             ui.label("Text shapes:");

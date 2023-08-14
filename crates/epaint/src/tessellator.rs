@@ -13,17 +13,15 @@ use emath::*;
 
 #[allow(clippy::approx_constant)]
 mod precomputed_vertices {
-    /*
-    fn main() {
-        let n = 64;
-        println!("pub const CIRCLE_{}: [Vec2; {}] = [", n, n+1);
-        for i in 0..=n {
-            let a = std::f64::consts::TAU * i as f64 / n as f64;
-            println!("    vec2({:.06}, {:.06}),", a.cos(), a.sin());
-        }
-        println!("];")
-    }
-    */
+    // fn main() {
+    //     let n = 64;
+    //     println!("pub const CIRCLE_{}: [Vec2; {}] = [", n, n+1);
+    //     for i in 0..=n {
+    //         let a = std::f64::consts::TAU * i as f64 / n as f64;
+    //         println!("    vec2({:.06}, {:.06}),", a.cos(), a.sin());
+    //     }
+    //     println!("];")
+    // }
 
     use emath::{vec2, Vec2};
 
@@ -973,12 +971,16 @@ pub struct Tessellator {
     pixels_per_point: f32,
     options: TessellationOptions,
     font_tex_size: [usize; 2],
+
     /// See [`TextureAtlas::prepared_discs`].
     prepared_discs: Vec<PreparedDisc>,
+
     /// size of feathering in points. normally the size of a physical pixel. 0.0 if disabled
     feathering: f32,
+
     /// Only used for culling
     clip_rect: Rect,
+
     scratchpad_points: Vec<Pos2>,
     scratchpad_path: Path,
 }
@@ -1032,7 +1034,10 @@ impl Tessellator {
         clipped_shape: ClippedShape,
         out_primitives: &mut Vec<ClippedPrimitive>,
     ) {
-        let ClippedShape(new_clip_rect, new_shape) = clipped_shape;
+        let ClippedShape {
+            clip_rect: new_clip_rect,
+            shape: new_shape,
+        } = clipped_shape;
 
         if !new_clip_rect.is_positive() {
             return; // skip empty clip rectangles
@@ -1040,7 +1045,13 @@ impl Tessellator {
 
         if let Shape::Vec(shapes) = new_shape {
             for shape in shapes {
-                self.tessellate_clipped_shape(ClippedShape(new_clip_rect, shape), out_primitives);
+                self.tessellate_clipped_shape(
+                    ClippedShape {
+                        clip_rect: new_clip_rect,
+                        shape,
+                    },
+                    out_primitives,
+                );
             }
             return;
         }
@@ -1215,7 +1226,7 @@ impl Tessellator {
         out.append_ref(mesh);
     }
 
-    /// Tessellate a line segment between the two points with the given stoken into a [`Mesh`].
+    /// Tessellate a line segment between the two points with the given stroke into a [`Mesh`].
     ///
     /// * `shape`: the mesh to tessellate.
     /// * `out`: triangles are appended to this.
@@ -1310,7 +1321,7 @@ impl Tessellator {
         rect.max = rect.max.at_most(pos2(1e7, 1e7));
 
         if rect.width() < self.feathering {
-            // Very thin - approximate by a vertial line-segment:
+            // Very thin - approximate by a vertical line-segment:
             let line = [rect.center_top(), rect.center_bottom()];
             if fill != Color32::TRANSPARENT {
                 self.tessellate_line(line, Stroke::new(rect.width(), fill), out);
@@ -1507,6 +1518,10 @@ impl Tessellator {
         stroke: Stroke,
         out: &mut Mesh,
     ) {
+        if points.len() < 2 {
+            return;
+        }
+
         self.scratchpad_path.clear();
         if closed {
             self.scratchpad_path.add_line_loop(points);
@@ -1633,7 +1648,10 @@ fn test_tessellator() {
     shapes.push(Shape::mesh(mesh));
 
     let shape = Shape::Vec(shapes);
-    let clipped_shapes = vec![ClippedShape(rect, shape)];
+    let clipped_shapes = vec![ClippedShape {
+        clip_rect: rect,
+        shape,
+    }];
 
     let font_tex_size = [1024, 1024]; // unused
     let prepared_discs = vec![]; // unused

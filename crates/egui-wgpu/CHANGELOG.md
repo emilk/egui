@@ -2,10 +2,25 @@
 All notable changes to the `egui-wgpu` integration will be noted in this file.
 
 
-## Unreleased
+This file is updated upon each release.
+Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
+
+
+## 0.22.0 - 2023-05-23
+* Update to wgpu 0.16 [#2884](https://github.com/emilk/egui/pull/2884) (thanks [@niklaskorz](https://github.com/niklaskorz)!)
+* Device configuration is now dependent on adapter [#2951](https://github.com/emilk/egui/pull/2951) (thanks [@Wumpf](https://github.com/Wumpf)!)
+* Expose `wgpu::Adapter` via `RenderState` [#2954](https://github.com/emilk/egui/pull/2954) (thanks [@Wumpf](https://github.com/Wumpf)!)
+* Add `read_screen_rgba` to the egui-wgpu `Painter`, to allow for capturing the current frame when using wgpu. Used in conjunction with `Frame::request_screenshot` [#2676](https://github.com/emilk/egui/pull/2676)
+* Improve performance of `update_buffers` [#2820](https://github.com/emilk/egui/pull/2820) (thanks [@Wumpf](https://github.com/Wumpf)!)
+* Added support for multisampling (MSAA) [#2878](https://github.com/emilk/egui/pull/2878) (thanks [@PPakalns](https://github.com/PPakalns)!)
+
+
+## 0.21.0 - 2023-02-08
+* Update to `wgpu` 0.15 ([#2629](https://github.com/emilk/egui/pull/2629))
 * Return `Err` instead of panic if we can't find a device ([#2428](https://github.com/emilk/egui/pull/2428)).
 * `winit::Painter::set_window` is now `async` ([#2434](https://github.com/emilk/egui/pull/2434)).
 * `egui-wgpu` now only depends on `epaint` instead of the entire `egui` ([#2438](https://github.com/emilk/egui/pull/2438)).
+* `winit::Painter` now supports transparent backbuffer ([#2684](https://github.com/emilk/egui/pull/2684)).
 
 
 ## 0.20.0 - 2022-12-08 - web support
