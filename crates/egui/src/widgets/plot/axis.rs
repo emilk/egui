@@ -172,7 +172,7 @@ impl<const AXIS: usize> Widget for AxisWidget<AXIS> {
                 .unwrap_or_else(|| ui.visuals().text_color());
             let angle: f32 = match AXIS {
                 X_AXIS => 0.0,
-                Y_AXIS => -std::f32::consts::PI * 0.5,
+                Y_AXIS => -std::f32::consts::TAU * 0.25,
                 _ => unreachable!(),
             };
             // select text_pos and angle depending on placement and orientation of widget
