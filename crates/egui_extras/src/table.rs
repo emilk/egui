@@ -159,6 +159,7 @@ fn to_sizing(columns: &[Column]) -> crate::sizing::Sizing {
 
 struct TableScrollOptions {
     vscroll: bool,
+    drag_to_scroll: bool,
     stick_to_bottom: bool,
     scroll_to_row: Option<(usize, Option<Align>)>,
     scroll_offset_y: Option<f32>,
@@ -171,6 +172,7 @@ impl Default for TableScrollOptions {
     fn default() -> Self {
         Self {
             vscroll: true,
+            drag_to_scroll: true,
             stick_to_bottom: false,
             scroll_to_row: None,
             scroll_offset_y: None,
@@ -271,6 +273,14 @@ impl<'a> TableBuilder<'a> {
     #[deprecated = "Renamed to vscroll"]
     pub fn scroll(self, vscroll: bool) -> Self {
         self.vscroll(vscroll)
+    }
+
+    /// Enables scrolling the table's contents using mouse drag (default: `true`).
+    ///
+    /// See [`ScrollArea::drag_to_scroll`] for more.
+    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
+        self.scroll_options.drag_to_scroll = drag_to_scroll;
+        self
     }
 
     /// Should the scroll handle stick to the bottom position even as the content size changes
@@ -555,6 +565,7 @@ impl<'a> Table<'a> {
 
         let TableScrollOptions {
             vscroll,
+            drag_to_scroll,
             stick_to_bottom,
             scroll_to_row,
             scroll_offset_y,
@@ -567,6 +578,7 @@ impl<'a> Table<'a> {
 
         let mut scroll_area = ScrollArea::new([false, vscroll])
             .auto_shrink([true; 2])
+            .drag_to_scroll(drag_to_scroll)
             .stick_to_bottom(stick_to_bottom)
             .min_scrolled_height(min_scrolled_height)
             .max_height(max_scroll_height)
