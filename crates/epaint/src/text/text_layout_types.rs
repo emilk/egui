@@ -295,8 +295,7 @@ pub struct TextWrapping {
     ///
     /// If set to `1`, a single row will be outputted,
     /// eliding the text after [`Self::max_width`] is reached.
-    ///
-    /// Whether or not a word can be cut in half is decided by [`Self::break_anywhere`].
+    /// When you set `max_rows = 1`, it is recommended you also set [`Self::break_anywhere`] to `true`.
     ///
     /// Default value: `usize::MAX`.
     pub max_rows: usize,
@@ -304,7 +303,11 @@ pub struct TextWrapping {
     /// If `true`: Allow breaking between any characters.
     /// If `false` (default): prefer breaking between words, etc.
     ///
-    /// This also applies to elision: when `true`, a word may be cut in half.
+    /// NOTE: Due to limitations in the current implementation,
+    /// when truncating text using [`Self::max_rows`] the text may be truncated
+    /// in the middle of a word even if [`Self::break_anywhere`] is `false`.
+    /// Therefore it is recommended to set [`Self::break_anywhere`] to `true`
+    /// whenever [`Self::max_rows`] is set to `1`.
     pub break_anywhere: bool,
 
     /// Character to use to represent elided text.

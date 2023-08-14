@@ -679,7 +679,7 @@ impl TextBreakDemo {
         });
 
         ui.horizontal(|ui| {
-            ui.label("Break:");
+            ui.label("Line-break:");
             ui.radio_value(break_anywhere, false, "word boundaries");
             ui.radio_value(break_anywhere, true, "anywhere");
         });
