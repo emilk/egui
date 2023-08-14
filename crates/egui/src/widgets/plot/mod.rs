@@ -869,7 +869,7 @@ impl Plot {
             }
         }
 
-        // if to little space, remove axis widgets
+        // If too little space, remove axis widgets
         if plot_rect.width() <= 0.0 || plot_rect.height() <= 0.0 {
             y_axis_widgets.clear();
             x_axis_widgets.clear();
