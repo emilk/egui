@@ -488,6 +488,21 @@ pub struct RectShape {
 
 impl RectShape {
     #[inline]
+    pub fn new(
+        rect: Rect,
+        rounding: impl Into<Rounding>,
+        fill_color: impl Into<Color32>,
+        stroke: impl Into<Stroke>,
+    ) -> Self {
+        Self {
+            rect,
+            rounding: rounding.into(),
+            fill: fill_color.into(),
+            stroke: stroke.into(),
+        }
+    }
+
+    #[inline]
     pub fn filled(
         rect: Rect,
         rounding: impl Into<Rounding>,
