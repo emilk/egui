@@ -1604,10 +1604,10 @@ impl PreparedPlot {
         let mut axes_shapes = Vec::new();
 
         if self.show_grid.x {
-            self.paint_grid::<{ X_AXIS }>(ui, &mut axes_shapes);
+            self.paint_grid::<X_AXIS>(ui, &mut axes_shapes);
         }
         if self.show_grid.y {
-            self.paint_grid::<{ Y_AXIS }>(ui, &mut axes_shapes);
+            self.paint_grid::<Y_AXIS>(ui, &mut axes_shapes);
         }
 
         // Sort the axes by strength so that those with higher strength are drawn in front.
