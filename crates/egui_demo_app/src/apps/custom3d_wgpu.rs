@@ -1,4 +1,4 @@
-use std::{num::NonZeroU64, sync::Arc};
+use std::num::NonZeroU64;
 
 use eframe::{
     egui_wgpu::wgpu::util::DeviceExt,
@@ -178,12 +178,10 @@ impl Custom3d {
             ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::drag());
 
         self.angle += response.drag_delta().x * 0.01;
-        let callback = egui::PaintCallback {
+        let callback = egui_wgpu::Callback::new_paint_callback(
             rect,
-            callback: Arc::new(egui_wgpu::Callback::new(CustomTriangleCallback {
-                angle: self.angle,
-            })),
-        };
+            CustomTriangleCallback { angle: self.angle },
+        );
 
         ui.painter().add(callback);
     }

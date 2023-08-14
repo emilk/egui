@@ -10,8 +10,15 @@ use wgpu::util::DeviceExt as _;
 pub struct Callback(Box<dyn CallbackTrait>);
 
 impl Callback {
-    pub fn new(callback: impl CallbackTrait + 'static) -> Self {
-        Self(Box::new(callback))
+    /// Creates a new [`epaint::PaintCallback`] from a callback trait instance.
+    pub fn new_paint_callback(
+        rect: epaint::emath::Rect,
+        callback: impl CallbackTrait + 'static,
+    ) -> epaint::PaintCallback {
+        epaint::PaintCallback {
+            rect,
+            callback: std::sync::Arc::new(Self(Box::new(callback))),
+        }
     }
 }
 
