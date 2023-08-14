@@ -440,8 +440,6 @@ impl Plot {
     }
 
     /// Whether to allow auto bounds. Default: `true`.
-    /// `false` keep bounds, it gives the ability with a pointer down to the drawn outside the plot area 
-    /// without ask auto bounds.
     pub fn allow_auto_bounds(mut self, on: bool) -> Self {
         self.allow_auto_bounds = on;
         self
