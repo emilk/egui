@@ -12,10 +12,14 @@ use crate::{widget_text::WidgetTextGalley, *};
 /// ui.label(egui::RichText::new("With formatting").underline());
 /// # });
 /// ```
+///
+/// For full control of the text you can use [`crate::text::LayoutJob`]
+/// as argument to [`Self::new`].
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 pub struct Label {
     text: WidgetText,
     wrap: Option<bool>,
+    truncate: bool,
     sense: Option<Sense>,
 }
 
@@ -24,6 +28,7 @@ impl Label {
         Self {
             text: text.into(),
             wrap: None,
+            truncate: false,
             sense: None,
         }
     }
@@ -33,6 +38,8 @@ impl Label {
     }
 
     /// If `true`, the text will wrap to stay within the max width of the [`Ui`].
+    ///
+    /// Calling `wrap` will override [`Self::truncate`].
     ///
     /// By default [`Self::wrap`] will be `true` in vertical layouts
     /// and horizontal layouts with wrapping,
@@ -44,6 +51,23 @@ impl Label {
     #[inline]
     pub fn wrap(mut self, wrap: bool) -> Self {
         self.wrap = Some(wrap);
+        self.truncate = false;
+        self
+    }
+
+    /// If `true`, the text will stop at the max width of the [`Ui`],
+    /// and what doesn't fit will be elided, replaced with `…`.
+    ///
+    /// If the text is truncated, the full text will be shown on hover as a tool-tip.
+    ///
+    /// Default is `false`, which means the text will expand the parent [`Ui`],
+    /// or wrap if [`Self::wrap`] is set.
+    ///
+    /// Calling `truncate` will override [`Self::wrap`].
+    #[inline]
+    pub fn truncate(mut self, truncate: bool) -> Self {
+        self.wrap = None;
+        self.truncate = truncate;
         self
     }
 
@@ -98,10 +122,11 @@ impl Label {
             .text
             .into_text_job(ui.style(), FontSelection::Default, valign);
 
-        let should_wrap = self.wrap.unwrap_or_else(|| ui.wrap_text());
+        let truncate = self.truncate;
+        let wrap = !truncate && self.wrap.unwrap_or_else(|| ui.wrap_text());
         let available_width = ui.available_width();
 
-        if should_wrap
+        if wrap
             && ui.layout().main_dir() == Direction::LeftToRight
             && ui.layout().main_wrap()
             && available_width.is_finite()
@@ -138,7 +163,11 @@ impl Label {
             }
             (pos, text_galley, response)
         } else {
-            if should_wrap {
+            if truncate {
+                text_job.job.wrap.max_width = available_width;
+                text_job.job.wrap.max_rows = 1;
+                text_job.job.wrap.break_anywhere = true;
+            } else if wrap {
                 text_job.job.wrap.max_width = available_width;
             } else {
                 text_job.job.wrap.max_width = f32::INFINITY;
@@ -167,8 +196,13 @@ impl Label {
 
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
-        let (pos, text_galley, response) = self.layout_in_ui(ui);
+        let (pos, text_galley, mut response) = self.layout_in_ui(ui);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, text_galley.text()));
+
+        if text_galley.galley.elided {
+            // Show the full (non-elided) text on hover:
+            response = response.on_hover_text(text_galley.text());
+        }
 
         if ui.is_rect_visible(response.rect) {
             let response_color = ui.style().interact(&response).text_color();
