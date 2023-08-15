@@ -817,6 +817,8 @@ pub struct PaintCallback {
     ///
     /// The rendering backend is also responsible for restoring any state, such as the bound shader
     /// program, vertex array, etc.
+    ///
+    /// Shape has to be clone, therefore this has to be an `Arc` instead of a `Box`.
     pub callback: Arc<dyn Any + Send + Sync>,
 }
 

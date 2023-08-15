@@ -84,15 +84,12 @@ impl Custom3d {
         wgpu_render_state
             .renderer
             .write()
-            .shared_paint_callback_resources
-            .insert(
-                TriangleRenderResources::ID,
-                TriangleRenderResources {
-                    pipeline,
-                    bind_group,
-                    uniform_buffer,
-                },
-            );
+            .callback_resources
+            .insert(TriangleRenderResources {
+                pipeline,
+                bind_group,
+                uniform_buffer,
+            });
 
         Some(Self { angle: 0.0 })
     }
@@ -152,10 +149,9 @@ impl egui_wgpu::CallbackTrait for CustomTriangleCallback {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         _egui_encoder: &mut wgpu::CommandEncoder,
-        resources: &mut egui_wgpu::SharedCallbackResourceMap,
+        resources: &mut egui_wgpu::CallbackResources,
     ) -> Vec<wgpu::CommandBuffer> {
-        let resources: &TriangleRenderResources =
-            resources.get(TriangleRenderResources::ID).unwrap();
+        let resources: &TriangleRenderResources = resources.get().unwrap();
         resources.prepare(device, queue, self.angle);
         Vec::new()
     }
@@ -164,10 +160,9 @@ impl egui_wgpu::CallbackTrait for CustomTriangleCallback {
         &self,
         _info: egui::PaintCallbackInfo,
         render_pass: &mut wgpu::RenderPass<'a>,
-        resources: &'a egui_wgpu::SharedCallbackResourceMap,
+        resources: &'a egui_wgpu::CallbackResources,
     ) {
-        let resources: &TriangleRenderResources =
-            resources.get(TriangleRenderResources::ID).unwrap();
+        let resources: &TriangleRenderResources = resources.get().unwrap();
         resources.paint(render_pass);
     }
 }
@@ -178,12 +173,10 @@ impl Custom3d {
             ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::drag());
 
         self.angle += response.drag_delta().x * 0.01;
-        let callback = egui_wgpu::Callback::new_paint_callback(
+        ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
             CustomTriangleCallback { angle: self.angle },
-        );
-
-        ui.painter().add(callback);
+        ));
     }
 }
 
@@ -194,8 +187,6 @@ struct TriangleRenderResources {
 }
 
 impl TriangleRenderResources {
-    const ID: egui_wgpu::SharedCallbackResourceId = 0;
-
     fn prepare(&self, _device: &wgpu::Device, queue: &wgpu::Queue, angle: f32) {
         // Update our uniform buffer with the angle from the UI
         queue.write_buffer(
