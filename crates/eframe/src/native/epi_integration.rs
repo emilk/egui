@@ -7,8 +7,6 @@ use winit::platform::macos::WindowBuilderExtMacOS as _;
 
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
-#[cfg(feature = "accesskit")]
-use egui::accesskit;
 use egui::{mutex::RwLock, NumExt as _, ViewportBuilder, ViewportId, ViewportRender};
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
@@ -22,13 +20,6 @@ pub struct WindowState {
     // because that deadlocks on mac.
     pub minimized: bool,
     pub maximized: bool,
-}
-
-pub fn points_to_size(points: egui::Vec2) -> winit::dpi::LogicalSize<f64> {
-    winit::dpi::LogicalSize {
-        width: points.x as f64,
-        height: points.y as f64,
-    }
 }
 
 pub fn read_window_info(
@@ -126,7 +117,6 @@ pub fn window_builder<E>(
 
     #[cfg(all(feature = "wayland", target_os = "linux"))]
     {
-        use winit::platform::wayland::WindowBuilderExtWayland as _;
         match &native_options.app_id {
             Some(app_id) => window_builder = window_builder.with_name(app_id, ""),
             None => window_builder = window_builder.with_name(title, ""),
@@ -215,28 +205,6 @@ fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui:
     } else {
         max_size
     }
-}
-
-pub fn load_icon(icon_data: epi::IconData) -> Option<winit::window::Icon> {
-    winit::window::Icon::from_rgba(icon_data.rgba, icon_data.width, icon_data.height).ok()
-}
-
-#[cfg(target_os = "windows")]
-fn window_builder_drag_and_drop(
-    window_builder: winit::window::WindowBuilder,
-    enable: bool,
-) -> winit::window::WindowBuilder {
-    use winit::platform::windows::WindowBuilderExtWindows as _;
-    window_builder.with_drag_and_drop(enable)
-}
-
-#[cfg(not(target_os = "windows"))]
-fn window_builder_drag_and_drop(
-    window_builder: winit::window::WindowBuilder,
-    _enable: bool,
-) -> winit::window::WindowBuilder {
-    // drag and drop can only be disabled on windows
-    window_builder
 }
 
 pub fn handle_app_output(
@@ -359,9 +327,7 @@ pub struct EpiIntegration {
 
 impl EpiIntegration {
     #[allow(clippy::too_many_arguments)]
-    pub fn new<E>(
-        event_loop: &EventLoopWindowTarget<E>,
-        max_texture_side: usize,
+    pub fn new(
         window: &winit::window::Window,
         system_theme: Option<Theme>,
         app_name: &str,
@@ -455,7 +421,7 @@ impl EpiIntegration {
             app,
             window,
             egui_winit,
-            None,
+            &None,
             ViewportId::MAIN,
             ViewportId::MAIN,
         );
@@ -473,7 +439,6 @@ impl EpiIntegration {
         &mut self,
         app: &mut dyn epi::App,
         event: &winit::event::WindowEvent<'_>,
-        window_id: &winit::window::WindowId,
         egui_winit: &mut egui_winit::State,
         viewport_id: ViewportId,
     ) -> EventResponse {
@@ -508,22 +473,12 @@ impl EpiIntegration {
         egui_winit.on_event(&self.egui_ctx, event)
     }
 
-    #[cfg(feature = "accesskit")]
-    pub fn on_accesskit_action_request(
-        &mut self,
-        request: accesskit::ActionRequest,
-        window_id: &winit::window::WindowId,
-        egui_winit: &mut egui_winit::State,
-    ) {
-        egui_winit.on_accesskit_action_request(request);
-    }
-
     pub fn update(
         &mut self,
         app: &mut dyn epi::App,
         window: &winit::window::Window,
         egui_winit: &mut egui_winit::State,
-        render: Option<Arc<Box<ViewportRender>>>,
+        render: &Option<Arc<Box<ViewportRender>>>,
         viewport_id: egui::ViewportId,
         parent_id: egui::ViewportId,
     ) -> egui::FullOutput {

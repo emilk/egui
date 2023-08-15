@@ -435,7 +435,7 @@ impl ContextImpl {
 /// // Game loop:
 /// loop {
 ///     let raw_input = egui::RawInput::default();
-///     let full_output = ctx.run(raw_input, |ctx| {
+///     let full_output = ctx.run(raw_input, egui::ViewportId::MAIN, egui::ViewportId::MAIN, |ctx| {
 ///         egui::CentralPanel::default().show(&ctx, |ui| {
 ///             ui.label("Hello world!");
 ///             if ui.button("Click me").clicked() {
@@ -504,7 +504,7 @@ impl Context {
     ///
     /// // Each frame:
     /// let input = egui::RawInput::default();
-    /// let full_output = ctx.run(input, |ctx| {
+    /// let full_output = ctx.run(input, egui::ViewportId::MAIN, egui::ViewportId::MAIN, |ctx| {
     ///     egui::CentralPanel::default().show(&ctx, |ui| {
     ///         ui.label("Hello egui!");
     ///     });
@@ -532,7 +532,7 @@ impl Context {
     ///
     /// // Each frame:
     /// let input = egui::RawInput::default();
-    /// ctx.begin_frame(input);
+    /// ctx.begin_frame(input, egui::ViewportId::MAIN, egui::ViewportId::MAIN);
     ///
     /// egui::CentralPanel::default().show(&ctx, |ui| {
     ///     ui.label("Hello egui!");

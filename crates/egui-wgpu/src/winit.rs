@@ -194,70 +194,66 @@ impl Painter {
         viewport_id: ViewportId,
         window: Option<&winit::window::Window>,
     ) -> Result<(), crate::WgpuError> {
-        match window {
-            Some(window) => {
-                let size = window.inner_size();
-                if self.surfaces.get(&viewport_id).is_none() {
-                    let surface = unsafe { self.instance.create_surface(&window)? };
+        if let Some(window) = window {
+            let size = window.inner_size();
+            if self.surfaces.get(&viewport_id).is_none() {
+                let surface = unsafe { self.instance.create_surface(&window)? };
 
-                    let render_state = if let Some(render_state) = &self.render_state {
-                        render_state
+                let render_state = if let Some(render_state) = &self.render_state {
+                    render_state
+                } else {
+                    let render_state = RenderState::create(
+                        &self.configuration,
+                        &self.instance,
+                        &surface,
+                        self.depth_format,
+                        self.msaa_samples,
+                    )
+                    .await?;
+                    self.render_state.get_or_insert(render_state)
+                };
+
+                let alpha_mode = if self.support_transparent_backbuffer {
+                    let supported_alpha_modes =
+                        surface.get_capabilities(&render_state.adapter).alpha_modes;
+
+                    // Prefer pre multiplied over post multiplied!
+                    if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
+                        wgpu::CompositeAlphaMode::PreMultiplied
+                    } else if supported_alpha_modes
+                        .contains(&wgpu::CompositeAlphaMode::PostMultiplied)
+                    {
+                        wgpu::CompositeAlphaMode::PostMultiplied
                     } else {
-                        let render_state = RenderState::create(
-                            &self.configuration,
-                            &self.instance,
-                            &surface,
-                            self.depth_format,
-                            self.msaa_samples,
-                        )
-                        .await?;
-                        self.render_state.get_or_insert(render_state)
-                    };
-
-                    let alpha_mode = if self.support_transparent_backbuffer {
-                        let supported_alpha_modes =
-                            surface.get_capabilities(&render_state.adapter).alpha_modes;
-
-                        // Prefer pre multiplied over post multiplied!
-                        if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied)
-                        {
-                            wgpu::CompositeAlphaMode::PreMultiplied
-                        } else if supported_alpha_modes
-                            .contains(&wgpu::CompositeAlphaMode::PostMultiplied)
-                        {
-                            wgpu::CompositeAlphaMode::PostMultiplied
-                        } else {
-                            log::warn!("Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency.");
-                            wgpu::CompositeAlphaMode::Auto
-                        }
-                    } else {
+                        log::warn!("Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency.");
                         wgpu::CompositeAlphaMode::Auto
-                    };
+                    }
+                } else {
+                    wgpu::CompositeAlphaMode::Auto
+                };
 
-                    let supports_screenshot =
-                        !matches!(render_state.adapter.get_info().backend, wgpu::Backend::Gl);
+                let supports_screenshot =
+                    !matches!(render_state.adapter.get_info().backend, wgpu::Backend::Gl);
 
-                    self.surfaces.insert(
-                        viewport_id,
-                        SurfaceState {
-                            surface,
-                            width: size.width,
-                            height: size.height,
-                            alpha_mode,
-                            supports_screenshot,
-                        },
-                    );
-                }
-                self.resize_and_generate_depth_texture_view_and_msaa_view(
+                self.surfaces.insert(
                     viewport_id,
-                    size.width,
-                    size.height,
+                    SurfaceState {
+                        surface,
+                        width: size.width,
+                        height: size.height,
+                        alpha_mode,
+                        supports_screenshot,
+                    },
                 );
             }
-            None => {
-                log::warn!("All surfaces was deleted!");
-                self.surfaces.clear();
-            }
+            self.resize_and_generate_depth_texture_view_and_msaa_view(
+                viewport_id,
+                size.width,
+                size.height,
+            );
+        } else {
+            log::warn!("All surfaces was deleted!");
+            self.surfaces.clear();
         }
         Ok(())
     }

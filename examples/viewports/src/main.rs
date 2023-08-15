@@ -162,6 +162,6 @@ fn main() {
             initial_window_size: Some(egui::Vec2::new(400.0, 220.0)),
             ..NativeOptions::default()
         },
-        Box::new(|_| Box::new(App::default())),
+        Box::new(|_| Box::<App>::default()),
     );
 }

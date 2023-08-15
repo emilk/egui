@@ -32,7 +32,7 @@
 //! }
 //!
 //! impl eframe::App for MyEguiApp {
-//!    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+//!    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame, _render: Option<&egui::ViewportRender>) {
 //!        egui::CentralPanel::default().show(ctx, |ui| {
 //!            ui.heading("Hello World!");
 //!        });
@@ -187,7 +187,7 @@ mod native;
 /// }
 ///
 /// impl eframe::App for MyEguiApp {
-///    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+///    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame, _render: Option<&egui::ViewportRender>) {
 ///        egui::CentralPanel::default().show(ctx, |ui| {
 ///            ui.heading("Hello World!");
 ///        });

@@ -915,7 +915,7 @@ pub fn process_viewport_commands(
     commands: Vec<ViewportCommand>,
     viewport_id: ViewportId,
     focused: Option<ViewportId>,
-    window: Arc<RwLock<winit::window::Window>>,
+    window: &Arc<RwLock<winit::window::Window>>,
 ) {
     use winit::dpi::PhysicalSize;
     use winit::window::ResizeDirection;
@@ -1025,14 +1025,18 @@ pub fn process_viewport_commands(
             })),
             ViewportCommand::ContentProtected(v) => win.set_content_protected(v),
             ViewportCommand::CursorPosition(x, y) => {
-                win.set_cursor_position(LogicalPosition::new(x, y));
+                if let Err(err) = win.set_cursor_position(LogicalPosition::new(x, y)) {
+                    log::error!("{err}");
+                }
             }
             ViewportCommand::CursorGrab(o) => {
-                win.set_cursor_grab(match o {
+                if let Err(err) = win.set_cursor_grab(match o {
                     1 => CursorGrabMode::Confined,
                     2 => CursorGrabMode::Locked,
                     _ => CursorGrabMode::None,
-                });
+                }) {
+                    log::error!("{err}");
+                }
             }
             ViewportCommand::CursorVisible(v) => win.set_cursor_visible(v),
             ViewportCommand::CursorHitTest(v) => {
@@ -1051,7 +1055,7 @@ pub fn process_viewports_commands(
 ) {
     for (viewport_id, command) in commands {
         if let Some(window) = get_window(viewport_id) {
-            process_viewport_commands(vec![command], viewport_id, focused, window);
+            process_viewport_commands(vec![command], viewport_id, focused, &window);
         }
     }
 }
@@ -1111,6 +1115,18 @@ pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::
             winit::window::Icon::from_rgba(icon.2.clone(), icon.0, icon.1)
                 .expect("Invalid Icon Data!"),
         ));
+    }
+
+    #[cfg(all(feature = "wayland", target_os = "linux"))]
+    if let Some(name) = builder.name.clone() {
+        use winit::platform::wayland::WindowBuilderExtWayland as _;
+        window_builder = window_builder.with_name(name.0, name.1);
+    }
+
+    #[cfg(target_os = "windows")]
+    if let Some(drag_and_drop) = builder.drag_and_drop {
+        use winit::platform::windows::WindowBuilderExtWindows as _;
+        window_builder = window_builder.with_drag_and_drop(enable);
     }
 
     // TODO: implement `ViewportBuilder::hittest`

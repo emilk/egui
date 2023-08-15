@@ -987,7 +987,7 @@ impl<'open> Window<'open> {
                                     }
                                 });
                             })
-                            .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
+                            .map_or((None, None), |ir| (Some(()), Some(ir.response)));
                         if let Some(content_response) = &content_response {
                             size = content_response.rect.size();
                         }
@@ -1167,7 +1167,7 @@ impl<'open> Window<'open> {
                         }
                     });
                 })
-                .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
+                .map_or((None, None), |ir| (Some(()), Some(ir.response)));
             if let Some(content_response) = &content_response {
                 size = content_response.rect.size();
             }

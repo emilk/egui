@@ -1,4 +1,5 @@
 use crate::shader_version::ShaderVersion;
+use egui::ViewportId;
 pub use egui_winit;
 use egui_winit::winit;
 pub use egui_winit::EventResponse;
@@ -53,14 +54,17 @@ impl EguiGlow {
             repaint_after,
             textures_delta,
             shapes,
-        } = self.egui_ctx.run(raw_input, run_ui);
+            ..
+        } = self
+            .egui_ctx
+            .run(raw_input, ViewportId::MAIN, ViewportId::MAIN, run_ui);
 
         self.egui_winit
             .handle_platform_output(window, &self.egui_ctx, platform_output);
 
         self.shapes = shapes;
         self.textures_delta.append(textures_delta);
-        repaint_after
+        repaint_after.last().map(|(_, t)| *t).unwrap_or_default()
     }
 
     /// Paint the results of the last call to [`Self::run`].

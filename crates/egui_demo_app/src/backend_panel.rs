@@ -433,7 +433,6 @@ impl EguiWindows {
                 tmp_ctx.memory_ui(ui);
             });
 
-        let tmp_output_event_history = output_event_history.clone();
         egui::Window::new("📤 Output Events")
             .open(output_events)
             .resizable(true)

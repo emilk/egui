@@ -413,9 +413,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 mod glow_integration {
     use std::sync::Arc;
 
-    use egui::{
-        epaint::ahash::HashMap, mutex::RwLock, NumExt as _, ViewportBuilder, ViewportRender,
-    };
+    use egui::{epaint::ahash::HashMap, mutex::RwLock, NumExt as _, ViewportRender};
     use egui_winit::{
         changes_between_builders, create_winit_window_builder, process_viewport_commands,
         EventResponse,
@@ -882,8 +880,6 @@ mod glow_integration {
                 &self.native_options,
             );
             let mut integration = epi_integration::EpiIntegration::new(
-                event_loop,
-                painter.max_texture_side(),
                 &gl_window
                     .window(ViewportId::MAIN)
                     .read()
@@ -996,7 +992,8 @@ mod glow_integration {
 
             // Sync Rendering
             integration.egui_ctx.set_render_sync_callback(
-                move |viewport_builder, viewport_id, parent_viewport_id, render| {
+                move |_viewport_builder, viewport_id, parent_viewport_id, render| {
+                    // TODO: we should use `_viewport_builder` to create a new window in this frame!
                     'try_render: {
                         let window = glutin.read().windows.get(&viewport_id).cloned();
                         if let Some(window) = window {
@@ -1121,7 +1118,7 @@ mod glow_integration {
                         w.parent_id = *id;
                     }
                     if let Some(w) = w.window.clone() {
-                        process_viewport_commands(commands, *id, None, w);
+                        process_viewport_commands(commands, *id, None, &w);
                     }
                     active_viewports_ids.push(*id);
                     false
@@ -1302,7 +1299,7 @@ mod glow_integration {
                             app.write().as_mut(),
                             &win.window.as_ref().unwrap().read(),
                             win.egui_winit.as_mut().unwrap(),
-                            win.render.clone(),
+                            &win.render.clone(),
                             win.window_id,
                             win.parent_id,
                         );
@@ -1623,7 +1620,6 @@ mod glow_integration {
                                     break 'res running.integration.write().on_event(
                                         running.app.write().as_mut(),
                                         event,
-                                        window_id,
                                         viewport.egui_winit.as_mut().unwrap(),
                                         viewport.window_id,
                                     );
@@ -1660,11 +1656,11 @@ mod glow_integration {
                         if let Some(viewport_id) = glutin_ctx.window_maps.get(window_id).copied() {
                             if let Some(viewport) = glutin_ctx.windows.get(&viewport_id).cloned() {
                                 let mut viewport = viewport.write();
-                                running.integration.write().on_accesskit_action_request(
-                                    request.clone(),
-                                    window_id,
-                                    viewport.egui_winit.as_mut().unwrap(),
-                                );
+                                viewport
+                                    .egui_winit
+                                    .as_mut()
+                                    .unwrap()
+                                    .on_accesskit_action_request(request.clone());
                             }
                         }
                         // As a form of user input, accessibility actions should
@@ -1884,8 +1880,6 @@ mod wgpu_integration {
 
             let system_theme = system_theme(&window, &self.native_options);
             let mut integration = epi_integration::EpiIntegration::new(
-                event_loop,
-                painter.max_texture_side().unwrap_or(2048),
                 &window,
                 system_theme,
                 &self.app_name,
@@ -1972,7 +1966,8 @@ mod wgpu_integration {
             let _painter = painter.clone();
 
             integration.egui_ctx.set_render_sync_callback(
-                move |viewport_builder, viewport_id, parent_viewport_id, render| {
+                move |_viewport_builder, viewport_id, parent_viewport_id, render| {
+                    // TODO: we should use `_viewport_builder` to create a new window in this frame!
                     'try_render: {
                         let window = _windows.read().get(&viewport_id).cloned();
                         if let Some(window) = window {
@@ -2179,7 +2174,7 @@ mod wgpu_integration {
                         app.as_mut(),
                         &window.read(),
                         state.write().as_mut().unwrap(),
-                        render.clone(),
+                        &render.clone(),
                         viewport_id,
                         parent_viewport_id,
                     );
@@ -2424,7 +2419,6 @@ mod wgpu_integration {
                                 Some(running.integration.write().on_event(
                                     running.app.as_mut(),
                                     event,
-                                    window_id,
                                     state,
                                     id,
                                 ))
@@ -2465,11 +2459,7 @@ mod wgpu_integration {
                             .and_then(|id| running.windows.read().get(id).cloned())
                         {
                             if let Some(state) = &mut *state.write() {
-                                running.integration.write().on_accesskit_action_request(
-                                    request.clone(),
-                                    window_id,
-                                    state,
-                                );
+                                state.on_accesskit_action_request(request.clone());
                             }
                         }
                         // As a form of user input, accessibility actions should
@@ -2522,10 +2512,4 @@ fn system_theme(window: &winit::window::Window, options: &NativeOptions) -> Opti
     } else {
         None
     }
-}
-
-// ----------------------------------------------------------------------------
-
-fn extremely_far_future() -> std::time::Instant {
-    std::time::Instant::now() + std::time::Duration::from_secs(10_000_000_000)
 }
