@@ -852,7 +852,7 @@ pub struct PaintCallback {
     ///
     /// The concrete value of `callback` depends on the rendering backend used. For instance, the
     /// `glow` backend requires that callback be an `egui_glow::CallbackFn` while the `wgpu`
-    /// backend requires a `egui_wgpu::CallbackFn`.
+    /// backend requires a `egui_wgpu::Callback`.
     ///
     /// If the type cannot be downcast to the type expected by the current backend the callback
     /// will not be drawn.
@@ -862,7 +862,9 @@ pub struct PaintCallback {
     ///
     /// The rendering backend is also responsible for restoring any state, such as the bound shader
     /// program, vertex array, etc.
-    pub callback: Arc<dyn Any + Sync + Send>,
+    ///
+    /// Shape has to be clone, therefore this has to be an `Arc` instead of a `Box`.
+    pub callback: Arc<dyn Any + Send + Sync>,
 }
 
 impl std::fmt::Debug for PaintCallback {
