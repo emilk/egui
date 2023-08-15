@@ -864,12 +864,14 @@ impl Plot {
 
         // Background
         if show_background {
-            ui.painter().with_clip_rect(rect).add(epaint::RectShape {
-                rect,
-                rounding: Rounding::same(2.0),
-                fill: ui.visuals().extreme_bg_color,
-                stroke: ui.visuals().widgets.noninteractive.bg_stroke,
-            });
+            ui.painter()
+                .with_clip_rect(rect)
+                .add(epaint::RectShape::new(
+                    rect,
+                    Rounding::same(2.0),
+                    ui.visuals().extreme_bg_color,
+                    ui.visuals().widgets.noninteractive.bg_stroke,
+                ));
         }
 
         // --- Legend ---

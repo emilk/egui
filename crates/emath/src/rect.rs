@@ -58,6 +58,12 @@ impl Rect {
         max: pos2(f32::NAN, f32::NAN),
     };
 
+    /// A [`Rect`] filled with zeroes.
+    pub const ZERO: Self = Self {
+        min: Pos2::ZERO,
+        max: Pos2::ZERO,
+    };
+
     #[inline(always)]
     pub const fn from_min_max(min: Pos2, max: Pos2) -> Self {
         Rect { min, max }
