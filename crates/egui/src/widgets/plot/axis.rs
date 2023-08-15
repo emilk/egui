@@ -9,7 +9,7 @@ use crate::{Response, Sense, TextStyle, Ui, WidgetText};
 
 use super::{transform::PlotTransform, GridMark};
 
-pub(super) type AxisFormatterFn = fn(f64, usize, &RangeInclusive<f64>) -> String;
+pub(super) type AxisFormatterFn = dyn Fn(f64, usize, &RangeInclusive<f64>) -> String;
 
 /// X or Y axis.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -81,7 +81,7 @@ impl From<VPlacement> for Placement {
 #[derive(Clone)]
 pub struct AxisHints {
     pub(super) label: WidgetText,
-    pub(super) formatter: AxisFormatterFn,
+    pub(super) formatter: Arc<AxisFormatterFn>,
     pub(super) digits: usize,
     pub(super) placement: Placement,
 }
@@ -98,7 +98,7 @@ impl Default for AxisHints {
     fn default() -> Self {
         Self {
             label: Default::default(),
-            formatter: Self::default_formatter,
+            formatter: Arc::new(Self::default_formatter),
             digits: 5,
             placement: Placement::LeftBottom,
         }
@@ -111,8 +111,11 @@ impl AxisHints {
     /// The first parameter of `formatter` is the raw tick value as `f64`.
     /// The second parameter is the maximum number of characters that fit into y-labels.
     /// The second parameter of `formatter` is the currently shown range on this axis.
-    pub fn formatter(mut self, fmt: fn(f64, usize, &RangeInclusive<f64>) -> String) -> Self {
-        self.formatter = fmt;
+    pub fn formatter(
+        mut self,
+        fmt: impl Fn(f64, usize, &RangeInclusive<f64>) -> String + 'static,
+    ) -> Self {
+        self.formatter = Arc::new(fmt);
         self
     }
 

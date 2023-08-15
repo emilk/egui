@@ -613,24 +613,32 @@ impl Plot {
 
     /// Specify custom formatter for ticks on the main X-axis.
     ///
-    /// The first parameter of `fmt` is the raw tick value as `f64`.
-    /// The second parameter is the maximum requested number of characters per tick label.
-    /// The second parameter of `fmt` is the currently shown range on this axis.
-    pub fn x_axis_formatter(mut self, fmt: fn(f64, usize, &RangeInclusive<f64>) -> String) -> Self {
+    /// Arguments of `fmt`:
+    /// * raw tick value as `f64`.
+    /// * maximum requested number of characters per tick label.
+    /// * currently shown range on this axis.
+    pub fn x_axis_formatter(
+        mut self,
+        fmt: impl Fn(f64, usize, &RangeInclusive<f64>) -> String + 'static,
+    ) -> Self {
         if let Some(main) = self.x_axes.first_mut() {
-            main.formatter = fmt;
+            main.formatter = Arc::new(fmt);
         }
         self
     }
 
     /// Specify custom formatter for ticks on the main Y-axis.
     ///
-    /// The first parameter of `formatter` is the raw tick value as `f64`.
-    /// The second parameter is the maximum requested number of characters per tick label.
-    /// The second parameter of `formatter` is the currently shown range on this axis.
-    pub fn y_axis_formatter(mut self, fmt: fn(f64, usize, &RangeInclusive<f64>) -> String) -> Self {
+    /// Arguments of `fmt`:
+    /// * raw tick value as `f64`.
+    /// * maximum requested number of characters per tick label.
+    /// * currently shown range on this axis.
+    pub fn y_axis_formatter(
+        mut self,
+        fmt: impl Fn(f64, usize, &RangeInclusive<f64>) -> String + 'static,
+    ) -> Self {
         if let Some(main) = self.y_axes.first_mut() {
-            main.formatter = fmt;
+            main.formatter = Arc::new(fmt);
         }
         self
     }
