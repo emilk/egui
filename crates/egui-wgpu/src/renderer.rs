@@ -36,7 +36,7 @@ impl Callback {
 /// * [`CallbackTrait::finish_prepare`]: called for all registered callbacks after all callbacks finished calling prepare.
 /// * [`CallbackTrait::paint`]: called for all registered callbacks during the main egui render pass.
 ///
-/// Each callback has access to an instance of [`TypeMap`] that is stored in the [`Renderer`].
+/// Each callback has access to an instance of [`CallbackResources`] that is stored in the [`Renderer`].
 /// This can be used to store wgpu resources that need to be accessed during the [`CallbackTrait::paint`] step.
 ///
 /// The callbacks implementing [`CallbackTrait`] itself must always be Send + Sync, but resources stored in
@@ -754,7 +754,7 @@ impl Renderer {
     /// Uploads the uniform, vertex and index data used by the renderer.
     /// Should be called before `render()`.
     ///
-    /// Returns all user-defined command buffers gathered from [`CallbackTrait::prepare`] & [`Renderer::finish_prepare_callback`] callbacks.
+    /// Returns all user-defined command buffers gathered from [`CallbackTrait::prepare`] & [`CallbackTrait::finish_prepare`] callbacks.
     pub fn update_buffers(
         &mut self,
         device: &wgpu::Device,
