@@ -435,14 +435,11 @@ impl Response {
             }
         }
 
-        if self.ctx.style().interaction.tooltip_delay > 0.0
-            && self.ctx.style().interaction.tooltip_delay
-                > self.ctx.input(|i| i.pointer.time_since_last_movement())
+        if !self.is_tooltip_open()
+            && self.ctx.input(|i| i.pointer.time_since_last_movement())
+                < self.ctx.style().interaction.tooltip_delay
         {
-            // If a non-zero delay was specified, we only show the tooltip if the mouse has been
-            // still for the specified amount of time. If the mouse is moved, the tooltip
-            // disappears.
-
+            // Keep waiting until the mouse has been still for a while
             self.ctx.request_repaint();
             return false;
         }
