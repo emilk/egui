@@ -848,7 +848,7 @@ impl Plot {
             }
         };
 
-       if !allow_auto_bounds {
+        if !allow_auto_bounds {
             bounds_modified = true.into();
         }
 
