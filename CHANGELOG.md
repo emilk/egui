@@ -6,14 +6,6 @@ NOTE: [`epaint`](crates/epaint/CHANGELOG.md), [`eframe`](crates/eframe/CHANGELOG
 This file is updated upon each release.
 Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
-### ⭐ Added
-
-- Plot images can now be rotated [#3182](https://github.com/emilk/egui/pull/3182)
-
-### 🔧 Changed
-
-- The scale of plot images is now in plot coordinates instead of screen coordinates [#3182](https://github.com/emilk/egui/pull/3182)
-- Plot polygons can now have a custom fill color, replaced `Polygon::fill_alpha` and `Polygon::color` with `Polygon::fill_color` [#3182](https://github.com/emilk/egui/pull/3182)
 
 ## 0.22.0 - 2023-05-23 - A plethora of small improvements
 ### ⭐ Added
