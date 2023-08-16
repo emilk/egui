@@ -380,6 +380,8 @@ impl Plot {
     /// Whether to allow auto bounds. Default: `true`.
     /// If `false`, it set bounds_modified to true to prevent auto adjusting bounds,
     /// also it check if the user double clicked to reset bounds. If so, set bounds_modified to false.
+    /// Carreful, bounds can be saved as persisted data so we need to reset egui memory
+    /// for understanding thoroughly this functionality.
     pub fn allow_auto_bounds(mut self, on: bool) -> Self {
         self.allow_auto_bounds = on;
         self
