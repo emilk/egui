@@ -49,8 +49,8 @@ impl super::View for MultiTouch {
         ui.separator();
         ui.label("Try touch gestures Pinch/Stretch, Rotation, and Pressure with 2+ fingers.");
 
-        let num_touches = ui.input().multi_touch().map_or(0, |mt| mt.num_touches);
-        ui.label(format!("Current touches: {}", num_touches));
+        let num_touches = ui.input(|i| i.multi_touch().map_or(0, |mt| mt.num_touches));
+        ui.label(format!("Current touches: {num_touches}"));
 
         let color = if ui.visuals().dark_mode {
             Color32::WHITE
@@ -93,7 +93,7 @@ impl super::View for MultiTouch {
                 // touch pressure will make the arrow thicker (not all touch devices support this):
                 stroke_width += 10. * multi_touch.force;
 
-                self.last_touch_time = ui.input().time;
+                self.last_touch_time = ui.input(|i| i.time);
             } else {
                 self.slowly_reset(ui);
             }
@@ -118,7 +118,7 @@ impl MultiTouch {
         // This has nothing to do with the touch gesture. It just smoothly brings the
         // painted arrow back into its original position, for a nice visual effect:
 
-        let time_since_last_touch = (ui.input().time - self.last_touch_time) as f32;
+        let time_since_last_touch = (ui.input(|i| i.time) - self.last_touch_time) as f32;
 
         let delay = 0.5;
         if time_since_last_touch < delay {
@@ -133,7 +133,7 @@ impl MultiTouch {
                 self.rotation = 0.0;
                 self.translation = Vec2::ZERO;
             } else {
-                let dt = ui.input().unstable_dt;
+                let dt = ui.input(|i| i.unstable_dt);
                 let half_life_factor = (-(2_f32.ln()) / half_life * dt).exp();
                 self.zoom = 1. + ((self.zoom - 1.) * half_life_factor);
                 self.rotation *= half_life_factor;

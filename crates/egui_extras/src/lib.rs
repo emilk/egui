@@ -8,6 +8,7 @@
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
+#![forbid(unsafe_code)]
 
 #[cfg(feature = "chrono")]
 mod datepicker;
@@ -27,13 +28,13 @@ pub use crate::sizing::Size;
 pub use crate::strip::*;
 pub use crate::table::*;
 
-/// Log an error with either `tracing` or `eprintln`
+/// Log an error with either `log` or `eprintln`
 macro_rules! log_err {
     ($fmt: literal, $($arg: tt)*) => {{
-        #[cfg(feature = "tracing")]
-        tracing::error!($fmt, $($arg)*);
+        #[cfg(feature = "log")]
+        log::error!($fmt, $($arg)*);
 
-        #[cfg(not(feature = "tracing"))]
+        #[cfg(not(feature = "log"))]
         eprintln!(
             concat!("egui_extras: ", $fmt), $($arg)*
         );

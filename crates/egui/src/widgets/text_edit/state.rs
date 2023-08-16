@@ -9,6 +9,27 @@ use super::{CCursorRange, CursorRange};
 type Undoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
 
 /// The text edit state stored between frames.
+///
+/// Attention: You also need to `store` the updated state.
+/// ```
+/// # use egui::text::CCursor;
+/// # use egui::text_edit::{CCursorRange, TextEditOutput};
+/// # use egui::TextEdit;
+/// # egui::__run_test_ui(|ui| {
+/// # let mut text = String::new();
+/// let mut output = TextEdit::singleline(&mut text).show(ui);
+///
+/// // Create a new selection range
+/// let min = CCursor::new(0);
+/// let max = CCursor::new(0);
+/// let new_range = CCursorRange::two(min, max);
+///
+/// // Update the state
+/// output.state.set_ccursor_range(Some(new_range));
+/// // Store the updated state
+/// output.state.store(ui.ctx(), output.response.id);
+/// # });
+/// ```
 #[derive(Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -34,11 +55,11 @@ pub struct TextEditState {
 
 impl TextEditState {
     pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data().get_persisted(id)
+        ctx.data_mut(|d| d.get_persisted(id))
     }
 
     pub fn store(self, ctx: &Context, id: Id) {
-        ctx.data().insert_persisted(id, self);
+        ctx.data_mut(|d| d.insert_persisted(id, self));
     }
 
     /// The the currently selected range of characters.

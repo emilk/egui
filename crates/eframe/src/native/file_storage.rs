@@ -26,7 +26,7 @@ impl FileStorage {
     /// Store the state in this .ron file.
     pub fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Self {
         let ron_filepath: PathBuf = ron_filepath.into();
-        tracing::debug!("Loading app state from {:?}…", ron_filepath);
+        log::debug!("Loading app state from {:?}…", ron_filepath);
         Self {
             kv: read_ron(&ron_filepath).unwrap_or_default(),
             ron_filepath,
@@ -40,7 +40,7 @@ impl FileStorage {
         if let Some(proj_dirs) = directories_next::ProjectDirs::from("", "", app_name) {
             let data_dir = proj_dirs.data_dir().to_path_buf();
             if let Err(err) = std::fs::create_dir_all(&data_dir) {
-                tracing::warn!(
+                log::warn!(
                     "Saving disabled: Failed to create app path at {:?}: {}",
                     data_dir,
                     err
@@ -50,7 +50,7 @@ impl FileStorage {
                 Some(Self::from_ron_filepath(data_dir.join("app.ron")))
             }
         } else {
-            tracing::warn!("Saving disabled: Failed to find path to data_dir.");
+            log::warn!("Saving disabled: Failed to find path to data_dir.");
             None
         }
     }
@@ -80,14 +80,45 @@ impl crate::Storage for FileStorage {
                 join_handle.join().ok();
             }
 
-            let join_handle = std::thread::spawn(move || {
-                let file = std::fs::File::create(&file_path).unwrap();
-                let config = Default::default();
-                ron::ser::to_writer_pretty(file, &kv, config).unwrap();
-                tracing::trace!("Persisted to {:?}", file_path);
-            });
+            match std::thread::Builder::new()
+                .name("eframe_persist".to_owned())
+                .spawn(move || {
+                    save_to_disk(&file_path, &kv);
+                }) {
+                Ok(join_handle) => {
+                    self.last_save_join_handle = Some(join_handle);
+                }
+                Err(err) => {
+                    log::warn!("Failed to spawn thread to save app state: {err}");
+                }
+            }
+        }
+    }
+}
 
-            self.last_save_join_handle = Some(join_handle);
+fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
+    crate::profile_function!();
+
+    if let Some(parent_dir) = file_path.parent() {
+        if !parent_dir.exists() {
+            if let Err(err) = std::fs::create_dir_all(parent_dir) {
+                log::warn!("Failed to create directory {parent_dir:?}: {err}");
+            }
+        }
+    }
+
+    match std::fs::File::create(file_path) {
+        Ok(file) => {
+            let config = Default::default();
+
+            if let Err(err) = ron::ser::to_writer_pretty(file, &kv, config) {
+                log::warn!("Failed to serialize app state: {err}");
+            } else {
+                log::trace!("Persisted to {:?}", file_path);
+            }
+        }
+        Err(err) => {
+            log::warn!("Failed to create file {file_path:?}: {err}");
         }
     }
 }
@@ -104,7 +135,7 @@ where
             match ron::de::from_reader(reader) {
                 Ok(value) => Some(value),
                 Err(err) => {
-                    tracing::warn!("Failed to parse RON: {}", err);
+                    log::warn!("Failed to parse RON: {}", err);
                     None
                 }
             }

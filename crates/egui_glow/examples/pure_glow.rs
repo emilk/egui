@@ -17,66 +17,91 @@ impl GlutinWindowContext {
     // refactor this function to use `glutin-winit` crate eventually.
     // preferably add android support at the same time.
     #[allow(unsafe_code)]
-    unsafe fn new(winit_window: winit::window::Window) -> Self {
-        use glutin::prelude::*;
-        use raw_window_handle::*;
+    unsafe fn new(event_loop: &winit::event_loop::EventLoopWindowTarget<()>) -> Self {
+        use egui::NumExt;
+        use glutin::context::NotCurrentGlContextSurfaceAccessor;
+        use glutin::display::GetGlDisplay;
+        use glutin::display::GlDisplay;
+        use glutin::prelude::GlSurface;
+        use raw_window_handle::HasRawWindowHandle;
+        let winit_window_builder = winit::window::WindowBuilder::new()
+            .with_resizable(true)
+            .with_inner_size(winit::dpi::LogicalSize {
+                width: 800.0,
+                height: 600.0,
+            })
+            .with_title("egui_glow example") // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
+            .with_visible(false);
 
-        let raw_display_handle = winit_window.raw_display_handle();
-        let raw_window_handle = winit_window.raw_window_handle();
-
-        // EGL is crossplatform and the official khronos way
-        // but sometimes platforms/drivers may not have it, so we use back up options where possible.
-
-        // try egl and fallback to windows wgl. Windows is the only platform that *requires* window handle to create display.
-        #[cfg(target_os = "windows")]
-        let preference = glutin::display::DisplayApiPreference::EglThenWgl(Some(window_handle));
-        // try egl and fallback to x11 glx
-        #[cfg(target_os = "linux")]
-        let preference = glutin::display::DisplayApiPreference::EglThenGlx(Box::new(
-            winit::platform::unix::register_xlib_error_hook,
-        ));
-        #[cfg(target_os = "macos")]
-        let preference = glutin::display::DisplayApiPreference::Cgl;
-        #[cfg(target_os = "android")]
-        let preference = glutin::display::DisplayApiPreference::Egl;
-
-        let gl_display = glutin::display::Display::new(raw_display_handle, preference).unwrap();
-
-        let config_template = glutin::config::ConfigTemplateBuilder::new()
+        let config_template_builder = glutin::config::ConfigTemplateBuilder::new()
             .prefer_hardware_accelerated(None)
             .with_depth_size(0)
             .with_stencil_size(0)
-            .with_transparency(false)
-            .compatible_with_native_window(raw_window_handle)
-            .build();
+            .with_transparency(false);
 
-        let config = gl_display
-            .find_configs(config_template)
-            .unwrap()
-            .next()
-            .unwrap();
+        log::debug!("trying to get gl_config");
+        let (mut window, gl_config) =
+            glutin_winit::DisplayBuilder::new() // let glutin-winit helper crate handle the complex parts of opengl context creation
+                .with_preference(glutin_winit::ApiPrefence::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
+                .with_window_builder(Some(winit_window_builder.clone()))
+                .build(
+                    event_loop,
+                    config_template_builder,
+                    |mut config_iterator| {
+                        config_iterator.next().expect(
+                            "failed to find a matching configuration for creating glutin config",
+                        )
+                    },
+                )
+                .expect("failed to create gl_config");
+        let gl_display = gl_config.display();
+        log::debug!("found gl_config: {:?}", &gl_config);
 
+        let raw_window_handle = window.as_ref().map(|w| w.raw_window_handle());
+        log::debug!("raw window handle: {:?}", raw_window_handle);
         let context_attributes =
-            glutin::context::ContextAttributesBuilder::new().build(Some(raw_window_handle));
-        // for surface creation.
-        let (width, height): (u32, u32) = winit_window.inner_size().into();
+            glutin::context::ContextAttributesBuilder::new().build(raw_window_handle);
+        // by default, glutin will try to create a core opengl context. but, if it is not available, try to create a gl-es context using this fallback attributes
+        let fallback_context_attributes = glutin::context::ContextAttributesBuilder::new()
+            .with_context_api(glutin::context::ContextApi::Gles(None))
+            .build(raw_window_handle);
+        let not_current_gl_context = unsafe {
+            gl_display
+                    .create_context(&gl_config, &context_attributes)
+                    .unwrap_or_else(|_| {
+                        log::debug!("failed to create gl_context with attributes: {:?}. retrying with fallback context attributes: {:?}",
+                            &context_attributes,
+                            &fallback_context_attributes);
+                        gl_config
+                            .display()
+                            .create_context(&gl_config, &fallback_context_attributes)
+                            .expect("failed to create context even with fallback attributes")
+                    })
+        };
+
+        // this is where the window is created, if it has not been created while searching for suitable gl_config
+        let window = window.take().unwrap_or_else(|| {
+            log::debug!("window doesn't exist yet. creating one now with finalize_window");
+            glutin_winit::finalize_window(event_loop, winit_window_builder.clone(), &gl_config)
+                .expect("failed to finalize glutin window")
+        });
+        let (width, height): (u32, u32) = window.inner_size().into();
+        let width = std::num::NonZeroU32::new(width.at_least(1)).unwrap();
+        let height = std::num::NonZeroU32::new(height.at_least(1)).unwrap();
         let surface_attributes =
             glutin::surface::SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new()
-                .build(
-                    raw_window_handle,
-                    std::num::NonZeroU32::new(width).unwrap(),
-                    std::num::NonZeroU32::new(height).unwrap(),
-                );
-        // start creating the gl objects
-        let gl_context = gl_display
-            .create_context(&config, &context_attributes)
-            .unwrap();
-
-        let gl_surface = gl_display
-            .create_window_surface(&config, &surface_attributes)
-            .unwrap();
-
-        let gl_context = gl_context.make_current(&gl_surface).unwrap();
+                .build(window.raw_window_handle(), width, height);
+        log::debug!(
+            "creating surface with attributes: {:?}",
+            &surface_attributes
+        );
+        let gl_surface = unsafe {
+            gl_display
+                .create_window_surface(&gl_config, &surface_attributes)
+                .unwrap()
+        };
+        log::debug!("surface created successfully: {gl_surface:?}.making context current");
+        let gl_context = not_current_gl_context.make_current(&gl_surface).unwrap();
 
         gl_surface
             .set_swap_interval(
@@ -86,7 +111,7 @@ impl GlutinWindowContext {
             .unwrap();
 
         GlutinWindowContext {
-            window: winit_window,
+            window,
             gl_context,
             gl_display,
             gl_surface,
@@ -175,8 +200,8 @@ fn main() {
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
-            winit::event::Event::RedrawEventsCleared if cfg!(windows) => redraw(),
-            winit::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
+            winit::event::Event::RedrawEventsCleared if cfg!(target_os = "windows") => redraw(),
+            winit::event::Event::RedrawRequested(_) if !cfg!(target_os = "windows") => redraw(),
 
             winit::event::Event::WindowEvent { event, .. } => {
                 use winit::event::WindowEvent;
@@ -216,19 +241,7 @@ fn main() {
 fn create_display(
     event_loop: &winit::event_loop::EventLoopWindowTarget<()>,
 ) -> (GlutinWindowContext, glow::Context) {
-    let winit_window = winit::window::WindowBuilder::new()
-        .with_resizable(true)
-        .with_inner_size(winit::dpi::LogicalSize {
-            width: 800.0,
-            height: 600.0,
-        })
-        .with_title("egui_glow example")
-        .with_visible(false) // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
-        .build(event_loop)
-        .unwrap();
-
-    // a lot of the code below has been lifted from glutin example in their repo.
-    let glutin_window_context = unsafe { GlutinWindowContext::new(winit_window) };
+    let glutin_window_context = unsafe { GlutinWindowContext::new(event_loop) };
     let gl = unsafe {
         glow::Context::from_loader_function(|s| {
             let s = std::ffi::CString::new(s)

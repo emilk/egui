@@ -36,7 +36,7 @@ impl OperatingSystem {
         } else if cfg!(target_os = "macos") {
             Self::Mac
         } else if cfg!(target_os = "windows") {
-            Self::Android
+            Self::Windows
         } else if cfg!(target_os = "linux")
             || cfg!(target_os = "dragonfly")
             || cfg!(target_os = "freebsd")
@@ -65,8 +65,8 @@ impl OperatingSystem {
         {
             Self::Nix
         } else {
-            #[cfg(feature = "tracing")]
-            tracing::warn!(
+            #[cfg(feature = "log")]
+            log::warn!(
                 "egui: Failed to guess operating system from User-Agent {:?}. Please file an issue at https://github.com/emilk/egui/issues",
                 user_agent);
 

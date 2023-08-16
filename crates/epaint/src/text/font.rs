@@ -1,5 +1,6 @@
 use crate::{
     mutex::{Mutex, RwLock},
+    text::FontTweak,
     TextureAtlas,
 };
 use emath::{vec2, Vec2};
@@ -33,10 +34,25 @@ impl UvRect {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GlyphInfo {
+    /// Used for pair-kerning.
+    ///
+    /// Doesn't need to be unique.
+    /// Use `ab_glyph::GlyphId(0)` if you just want to have an id, and don't care.
     pub(crate) id: ab_glyph::GlyphId,
 
     /// Unit: points.
     pub advance_width: f32,
+
+    /// `ascent` value from the font metrics.
+    /// this is the distance from the top to the baseline.
+    ///
+    /// Unit: points.
+    pub ascent: f32,
+
+    /// row height computed from the font metrics.
+    ///
+    /// Unit: points.
+    pub row_height: f32,
 
     /// Texture coordinates.
     pub uv_rect: UvRect,
@@ -48,6 +64,8 @@ impl Default for GlyphInfo {
         Self {
             id: ab_glyph::GlyphId(0),
             advance_width: 0.0,
+            ascent: 0.0,
+            row_height: 0.0,
             uv_rect: Default::default(),
         }
     }
@@ -60,11 +78,16 @@ impl Default for GlyphInfo {
 pub struct FontImpl {
     name: String,
     ab_glyph_font: ab_glyph::FontArc,
+
     /// Maximum character height
     scale_in_pixels: u32,
+
     height_in_points: f32,
+
     // move each character by this much (hack)
     y_offset: f32,
+
+    ascent: f32,
     pixels_per_point: f32,
     glyph_info_cache: RwLock<ahash::HashMap<char, GlyphInfo>>, // TODO(emilk): standard Mutex
     atlas: Arc<Mutex<TextureAtlas>>,
@@ -76,20 +99,37 @@ impl FontImpl {
         pixels_per_point: f32,
         name: String,
         ab_glyph_font: ab_glyph::FontArc,
-        scale_in_pixels: u32,
-        y_offset_points: f32,
+        scale_in_pixels: f32,
+        tweak: FontTweak,
     ) -> FontImpl {
-        assert!(scale_in_pixels > 0);
+        assert!(scale_in_pixels > 0.0);
         assert!(pixels_per_point > 0.0);
 
-        let height_in_points = scale_in_pixels as f32 / pixels_per_point;
+        use ab_glyph::*;
+        let scaled = ab_glyph_font.as_scaled(scale_in_pixels);
+        let ascent = scaled.ascent() / pixels_per_point;
+        let descent = scaled.descent() / pixels_per_point;
+        let line_gap = scaled.line_gap() / pixels_per_point;
 
-        // TODO(emilk): use these font metrics?
-        // use ab_glyph::ScaleFont as _;
-        // let scaled = ab_glyph_font.as_scaled(scale_in_pixels as f32);
-        // dbg!(scaled.ascent());
-        // dbg!(scaled.descent());
-        // dbg!(scaled.line_gap());
+        // Tweak the scale as the user desired
+        let scale_in_pixels = scale_in_pixels * tweak.scale;
+
+        let baseline_offset = {
+            let scale_in_points = scale_in_pixels / pixels_per_point;
+            scale_in_points * tweak.baseline_offset_factor
+        };
+
+        let y_offset_points = {
+            let scale_in_points = scale_in_pixels / pixels_per_point;
+            scale_in_points * tweak.y_offset_factor
+        } + tweak.y_offset;
+
+        // center scaled glyphs properly
+        let y_offset_points = y_offset_points + (tweak.scale - 1.0) * 0.5 * (ascent + descent);
+
+        // Round to an even number of physical pixels to get even kerning.
+        // See https://github.com/emilk/egui/issues/382
+        let scale_in_pixels = scale_in_pixels.round() as u32;
 
         // Round to closest pixel:
         let y_offset = (y_offset_points * pixels_per_point).round() / pixels_per_point;
@@ -98,8 +138,9 @@ impl FontImpl {
             name,
             ab_glyph_font,
             scale_in_pixels,
-            height_in_points,
+            height_in_points: ascent - descent + line_gap,
             y_offset,
+            ascent: ascent + baseline_offset,
             pixels_per_point,
             glyph_info_cache: Default::default(),
             atlas,
@@ -190,15 +231,7 @@ impl FontImpl {
         if glyph_id.0 == 0 {
             None // unsupported character
         } else {
-            let glyph_info = allocate_glyph(
-                &mut self.atlas.lock(),
-                &self.ab_glyph_font,
-                glyph_id,
-                self.scale_in_pixels as f32,
-                self.y_offset,
-                self.pixels_per_point,
-            );
-
+            let glyph_info = self.allocate_glyph(glyph_id);
             self.glyph_info_cache.write().insert(c, glyph_info);
             Some(glyph_info)
         }
@@ -227,6 +260,62 @@ impl FontImpl {
     pub fn pixels_per_point(&self) -> f32 {
         self.pixels_per_point
     }
+
+    fn allocate_glyph(&self, glyph_id: ab_glyph::GlyphId) -> GlyphInfo {
+        assert!(glyph_id.0 != 0);
+        use ab_glyph::{Font as _, ScaleFont};
+
+        let glyph = glyph_id.with_scale_and_position(
+            self.scale_in_pixels as f32,
+            ab_glyph::Point { x: 0.0, y: 0.0 },
+        );
+
+        let uv_rect = self.ab_glyph_font.outline_glyph(glyph).map(|glyph| {
+            let bb = glyph.px_bounds();
+            let glyph_width = bb.width() as usize;
+            let glyph_height = bb.height() as usize;
+            if glyph_width == 0 || glyph_height == 0 {
+                UvRect::default()
+            } else {
+                let atlas = &mut self.atlas.lock();
+                let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
+                glyph.draw(|x, y, v| {
+                    if v > 0.0 {
+                        let px = glyph_pos.0 + x as usize;
+                        let py = glyph_pos.1 + y as usize;
+                        image[(px, py)] = v;
+                    }
+                });
+
+                let offset_in_pixels = vec2(bb.min.x, bb.min.y);
+                let offset = offset_in_pixels / self.pixels_per_point + self.y_offset * Vec2::Y;
+                UvRect {
+                    offset,
+                    size: vec2(glyph_width as f32, glyph_height as f32) / self.pixels_per_point,
+                    min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
+                    max: [
+                        (glyph_pos.0 + glyph_width) as u16,
+                        (glyph_pos.1 + glyph_height) as u16,
+                    ],
+                }
+            }
+        });
+        let uv_rect = uv_rect.unwrap_or_default();
+
+        let advance_width_in_points = self
+            .ab_glyph_font
+            .as_scaled(self.scale_in_pixels as f32)
+            .h_advance(glyph_id)
+            / self.pixels_per_point;
+
+        GlyphInfo {
+            id: glyph_id,
+            advance_width: advance_width_in_points,
+            ascent: self.ascent,
+            row_height: self.row_height(),
+            uv_rect,
+        }
+    }
 }
 
 type FontIndex = usize;
@@ -235,8 +324,10 @@ type FontIndex = usize;
 /// Wrapper over multiple [`FontImpl`] (e.g. a primary + fallbacks for emojis)
 pub struct Font {
     fonts: Vec<Arc<FontImpl>>,
+
     /// Lazily calculated.
     characters: Option<BTreeSet<char>>,
+
     replacement_glyph: (FontIndex, GlyphInfo),
     pixels_per_point: f32,
     row_height: f32,
@@ -276,8 +367,7 @@ impl Font {
             .or_else(|| slf.glyph_info_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR))
             .unwrap_or_else(|| {
                 panic!(
-                    "Failed to find replacement characters {:?} or {:?}",
-                    PRIMARY_REPLACEMENT_CHAR, FALLBACK_REPLACEMENT_CHAR
+                    "Failed to find replacement characters {PRIMARY_REPLACEMENT_CHAR:?} or {FALLBACK_REPLACEMENT_CHAR:?}"
                 )
             });
         slf.replacement_glyph = replacement_glyph;
@@ -392,60 +482,36 @@ fn invisible_char(c: char) -> bool {
     // See https://github.com/emilk/egui/issues/336
 
     // From https://www.fileformat.info/info/unicode/category/Cf/list.htm
-    ('\u{200B}'..='\u{206F}').contains(&c) // TODO(emilk): heed bidi characters
-}
 
-fn allocate_glyph(
-    atlas: &mut TextureAtlas,
-    font: &ab_glyph::FontArc,
-    glyph_id: ab_glyph::GlyphId,
-    scale_in_pixels: f32,
-    y_offset: f32,
-    pixels_per_point: f32,
-) -> GlyphInfo {
-    assert!(glyph_id.0 != 0);
-    use ab_glyph::{Font as _, ScaleFont};
+    // TODO(emilk): heed bidi characters
 
-    let glyph =
-        glyph_id.with_scale_and_position(scale_in_pixels, ab_glyph::Point { x: 0.0, y: 0.0 });
-
-    let uv_rect = font.outline_glyph(glyph).map(|glyph| {
-        let bb = glyph.px_bounds();
-        let glyph_width = bb.width() as usize;
-        let glyph_height = bb.height() as usize;
-        if glyph_width == 0 || glyph_height == 0 {
-            UvRect::default()
-        } else {
-            let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
-            glyph.draw(|x, y, v| {
-                if v > 0.0 {
-                    let px = glyph_pos.0 + x as usize;
-                    let py = glyph_pos.1 + y as usize;
-                    image[(px, py)] = v;
-                }
-            });
-
-            let offset_in_pixels = vec2(bb.min.x, scale_in_pixels + bb.min.y);
-            let offset = offset_in_pixels / pixels_per_point + y_offset * Vec2::Y;
-            UvRect {
-                offset,
-                size: vec2(glyph_width as f32, glyph_height as f32) / pixels_per_point,
-                min: [glyph_pos.0 as u16, glyph_pos.1 as u16],
-                max: [
-                    (glyph_pos.0 + glyph_width) as u16,
-                    (glyph_pos.1 + glyph_height) as u16,
-                ],
-            }
-        }
-    });
-    let uv_rect = uv_rect.unwrap_or_default();
-
-    let advance_width_in_points =
-        font.as_scaled(scale_in_pixels).h_advance(glyph_id) / pixels_per_point;
-
-    GlyphInfo {
-        id: glyph_id,
-        advance_width: advance_width_in_points,
-        uv_rect,
-    }
+    matches!(
+        c,
+        '\u{200B}' // ZERO WIDTH SPACE
+            | '\u{200C}' // ZERO WIDTH NON-JOINER
+            | '\u{200D}' // ZERO WIDTH JOINER
+            | '\u{200E}' // LEFT-TO-RIGHT MARK
+            | '\u{200F}' // RIGHT-TO-LEFT MARK
+            | '\u{202A}' // LEFT-TO-RIGHT EMBEDDING
+            | '\u{202B}' // RIGHT-TO-LEFT EMBEDDING
+            | '\u{202C}' // POP DIRECTIONAL FORMATTING
+            | '\u{202D}' // LEFT-TO-RIGHT OVERRIDE
+            | '\u{202E}' // RIGHT-TO-LEFT OVERRIDE
+            | '\u{2060}' // WORD JOINER
+            | '\u{2061}' // FUNCTION APPLICATION
+            | '\u{2062}' // INVISIBLE TIMES
+            | '\u{2063}' // INVISIBLE SEPARATOR
+            | '\u{2064}' // INVISIBLE PLUS
+            | '\u{2066}' // LEFT-TO-RIGHT ISOLATE
+            | '\u{2067}' // RIGHT-TO-LEFT ISOLATE
+            | '\u{2068}' // FIRST STRONG ISOLATE
+            | '\u{2069}' // POP DIRECTIONAL ISOLATE
+            | '\u{206A}' // INHIBIT SYMMETRIC SWAPPING
+            | '\u{206B}' // ACTIVATE SYMMETRIC SWAPPING
+            | '\u{206C}' // INHIBIT ARABIC FORM SHAPING
+            | '\u{206D}' // ACTIVATE ARABIC FORM SHAPING
+            | '\u{206E}' // NATIONAL DIGIT SHAPES
+            | '\u{206F}' // NOMINAL DIGIT SHAPES
+            | '\u{FEFF}' // ZERO WIDTH NO-BREAK SPACE
+    )
 }

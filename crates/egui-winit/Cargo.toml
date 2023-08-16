@@ -1,10 +1,10 @@
 [package]
 name = "egui-winit"
-version = "0.20.1"
+version = "0.22.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui with winit"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.67"
 homepage = "https://github.com/emilk/egui/tree/master/crates/egui-winit"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -14,12 +14,11 @@ keywords = ["winit", "egui", "gui", "gamedev"]
 include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
 
 [package.metadata.docs.rs]
-# Avoid speech-dispatcher dependencies - see https://docs.rs/crate/egui-winit/0.20.0/builds/695196
-features = ["document-features"]
+all-features = true
 
 
 [features]
-default = ["clipboard", "links", "wayland", "winit/default"]
+default = ["clipboard", "links", "wayland", "winit/default", "x11"]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
 accesskit = ["accesskit_winit", "egui/accesskit"]
@@ -37,40 +36,53 @@ links = ["webbrowser"]
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 puffin = ["dep:puffin"]
 
-## Experimental support for a screen reader.
-screen_reader = ["tts"]
-
 ## Allow serialization of [`WindowSettings`] using [`serde`](https://docs.rs/serde).
 serde = ["egui/serde", "dep:serde"]
 
 ## Enables Wayland support.
 wayland = ["winit/wayland"]
 
+## Enables compiling for x11.
+x11 = ["winit/x11"]
+
+# Allow crates to choose an android-activity backend via Winit
+# - It's important that most applications should not have to depend on android-activity directly, and can
+#   rely on Winit to pull in a suitable version (unlike most Rust crates, any version conflicts won't link)
+# - It's also important that we don't impose an android-activity backend by taking this choice away from applications.
+
+## Enable the `native-activity` backend via Winit on Android
+android-native-activity = ["winit/android-native-activity"]
+## Enable the `game-activity` backend via Winit on Android
+android-game-activity = ["winit/android-game-activity"]
+
 [dependencies]
-egui = { version = "0.20.0", path = "../egui", default-features = false, features = [
-  "tracing",
+egui = { version = "0.22.0", path = "../egui", default-features = false, features = [
+  "log",
 ] }
-instant = { version = "0.1", features = [
-  "wasm-bindgen",
-] } # We use instant so we can (maybe) compile for web
-tracing = { version = "0.1", default-features = false, features = ["std"] }
-winit = { version = "0.27.2", default-features = false }
+log = { version = "0.4", features = ["std"] }
+winit = { version = "0.28", default-features = false }
+raw-window-handle = "0.5.0"
 
 #! ### Optional dependencies
+
+# feature accesskit
+accesskit_winit = { version = "0.14.0", optional = true }
 
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
 
-# feature accesskit
-accesskit_winit = { version = "0.7.1", optional = true }
-
-puffin = { version = "0.14", optional = true }
+puffin = { version = "0.16", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 
-# feature screen_reader
-tts = { version = "0.24", optional = true }
+webbrowser = { version = "0.8.3", optional = true }
 
-webbrowser = { version = "0.8", optional = true }
+[target.'cfg(not(target_arch="wasm32"))'.dependencies]
+instant = { version = "0.1" }
+
+[target.'cfg(target_arch="wasm32")'.dependencies]
+instant = { version = "0.1", features = [
+  "wasm-bindgen",
+] } # We use instant so we can (maybe) compile for web
 
 [target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
 smithay-clipboard = { version = "0.6.3", optional = true }

@@ -2,7 +2,6 @@
 
 [![Latest version](https://img.shields.io/crates/v/eframe.svg)](https://crates.io/crates/eframe)
 [![Documentation](https://docs.rs/eframe/badge.svg)](https://docs.rs/eframe)
-[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 ![MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
 
@@ -22,7 +21,7 @@ For how to use `egui`, see [the egui docs](https://docs.rs/egui).
 To use on Linux, first run:
 
 ```
-sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev
+sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev
 ```
 
 You need to either use `edition = "2021"`, or set `resolver = "2"` in the `[workspace]` section of your to-level `Cargo.toml`. See [this link](https://doc.rust-lang.org/edition-guide/rust-2021/default-cargo-resolver.html) for more info.

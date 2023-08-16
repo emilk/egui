@@ -5,7 +5,6 @@ members = [
     "crates/egui_demo_app",
     "crates/egui_demo_lib",
     "crates/egui_extras",
-    "crates/egui_glium",
     "crates/egui_glow",
     "crates/egui-wgpu",
     "crates/egui-winit",
@@ -21,15 +20,20 @@ members = [
 # opt-level = 's' # 10-20% smaller wasm compared to `opt-level = 3`
 # opt-level = 1 # very slow and big wasm. Don't do this.
 opt-level = 2 # fast and small wasm, basically same as `opt-level = 's'`
-# opt-level = 3 # unecessarily large wasm for no performance gain
+# opt-level = 3 # unnecessarily large wasm for no performance gain
 
 # debug = true # include debug symbols, useful when profiling wasm
 
 
 [profile.dev]
-split-debuginfo = "unpacked" # faster debug builds on mac
+# Can't leave this on by default, because it breaks the Windows build. Related: https://github.com/rust-lang/cargo/issues/4897
+# split-debuginfo = "unpacked" # faster debug builds on mac
 # opt-level = 1                # Make debug builds run faster
 
 # Optimize all dependencies even in debug builds (does not affect workspace packages):
 [profile.dev.package."*"]
 opt-level = 2
+
+[workspace.dependencies]
+thiserror = "1.0.37"
+wgpu = { version = "0.17.0", features = ["fragile-send-sync-non-atomic-wasm"] }

@@ -3,11 +3,11 @@
 use std::hash::Hash;
 use std::sync::Arc;
 
-use epaint::mutex::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use epaint::mutex::RwLock;
 
 use crate::{
     containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
-    widgets::*, *,
+    util::IdTypeMap, widgets::*, *,
 };
 
 // ----------------------------------------------------------------------------
@@ -314,84 +314,9 @@ impl Ui {
         self.painter().layer_id()
     }
 
-    /// The [`InputState`] of the [`Context`] associated with this [`Ui`].
-    /// Equivalent to `.ctx().input()`.
-    ///
-    /// Note that this locks the [`Context`], so be careful with if-let bindings:
-    ///
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// if let Some(pos) = { ui.input().pointer.hover_pos() } {
-    ///     // This is fine!
-    /// }
-    ///
-    /// let pos = ui.input().pointer.hover_pos();
-    /// if let Some(pos) = pos {
-    ///     // This is also fine!
-    /// }
-    ///
-    /// if let Some(pos) = ui.input().pointer.hover_pos() {
-    ///     // ⚠️ Using `ui` again here will lead to a dead-lock!
-    /// }
-    /// # });
-    /// ```
-    #[inline]
-    pub fn input(&self) -> RwLockReadGuard<'_, InputState> {
-        self.ctx().input()
-    }
-
-    /// The [`InputState`] of the [`Context`] associated with this [`Ui`].
-    /// Equivalent to `.ctx().input_mut()`.
-    ///
-    /// Note that this locks the [`Context`], so be careful with if-let bindings
-    /// like for [`Self::input()`].
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// ui.input_mut().consume_key(egui::Modifiers::default(), egui::Key::Enter);
-    /// # });
-    /// ```
-    #[inline]
-    pub fn input_mut(&self) -> RwLockWriteGuard<'_, InputState> {
-        self.ctx().input_mut()
-    }
-
-    /// The [`Memory`] of the [`Context`] associated with this ui.
-    /// Equivalent to `.ctx().memory()`.
-    #[inline]
-    pub fn memory(&self) -> RwLockWriteGuard<'_, Memory> {
-        self.ctx().memory()
-    }
-
-    /// Stores superficial widget state.
-    #[inline]
-    pub fn data(&self) -> RwLockWriteGuard<'_, crate::util::IdTypeMap> {
-        self.ctx().data()
-    }
-
-    /// The [`PlatformOutput`] of the [`Context`] associated with this ui.
-    /// Equivalent to `.ctx().output()`.
-    ///
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// if ui.button("📋").clicked() {
-    ///     ui.output().copied_text = "some_text".to_string();
-    /// }
-    /// # });
-    #[inline]
-    pub fn output(&self) -> RwLockWriteGuard<'_, PlatformOutput> {
-        self.ctx().output()
-    }
-
-    /// The [`Fonts`] of the [`Context`] associated with this ui.
-    /// Equivalent to `.ctx().fonts()`.
-    #[inline]
-    pub fn fonts(&self) -> RwLockReadGuard<'_, Fonts> {
-        self.ctx().fonts()
-    }
-
     /// The height of text of this text style
     pub fn text_style_height(&self, style: &TextStyle) -> f32 {
-        self.fonts().row_height(&style.resolve(self.style()))
+        self.fonts(|f| f.row_height(&style.resolve(self.style())))
     }
 
     /// Screen-space rectangle for clipping what we paint in this ui.
@@ -413,12 +338,93 @@ impl Ui {
     }
 }
 
+/// # Helpers for accessing the underlying [`Context`].
+/// These functions all lock the [`Context`] owned by this [`Ui`].
+/// Please see the documentation of [`Context`] for how locking works!
+impl Ui {
+    /// Read-only access to the shared [`InputState`].
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// if ui.input(|i| i.key_pressed(egui::Key::A)) {
+    ///     // …
+    /// }
+    /// # });
+    /// ```
+    #[inline]
+    pub fn input<R>(&self, reader: impl FnOnce(&InputState) -> R) -> R {
+        self.ctx().input(reader)
+    }
+
+    /// Read-write access to the shared [`InputState`].
+    #[inline]
+    pub fn input_mut<R>(&self, writer: impl FnOnce(&mut InputState) -> R) -> R {
+        self.ctx().input_mut(writer)
+    }
+
+    /// Read-only access to the shared [`Memory`].
+    #[inline]
+    pub fn memory<R>(&self, reader: impl FnOnce(&Memory) -> R) -> R {
+        self.ctx().memory(reader)
+    }
+
+    /// Read-write access to the shared [`Memory`].
+    #[inline]
+    pub fn memory_mut<R>(&self, writer: impl FnOnce(&mut Memory) -> R) -> R {
+        self.ctx().memory_mut(writer)
+    }
+
+    /// Read-only access to the shared [`IdTypeMap`], which stores superficial widget state.
+    #[inline]
+    pub fn data<R>(&self, reader: impl FnOnce(&IdTypeMap) -> R) -> R {
+        self.ctx().data(reader)
+    }
+
+    /// Read-write access to the shared [`IdTypeMap`], which stores superficial widget state.
+    #[inline]
+    pub fn data_mut<R>(&self, writer: impl FnOnce(&mut IdTypeMap) -> R) -> R {
+        self.ctx().data_mut(writer)
+    }
+
+    /// Read-only access to the shared [`PlatformOutput`].
+    ///
+    /// This is what egui outputs each frame.
+    ///
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.output_mut(|o| o.cursor_icon = egui::CursorIcon::Progress);
+    /// ```
+    #[inline]
+    pub fn output<R>(&self, reader: impl FnOnce(&PlatformOutput) -> R) -> R {
+        self.ctx().output(reader)
+    }
+
+    /// Read-write access to the shared [`PlatformOutput`].
+    ///
+    /// This is what egui outputs each frame.
+    ///
+    /// ```
+    /// # let mut ctx = egui::Context::default();
+    /// ctx.output_mut(|o| o.cursor_icon = egui::CursorIcon::Progress);
+    /// ```
+    #[inline]
+    pub fn output_mut<R>(&self, writer: impl FnOnce(&mut PlatformOutput) -> R) -> R {
+        self.ctx().output_mut(writer)
+    }
+
+    /// Read-only access to [`Fonts`].
+    #[inline]
+    pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
+        self.ctx().fonts(reader)
+    }
+}
+
 // ------------------------------------------------------------------------
 
 /// # Sizes etc
 impl Ui {
     /// Where and how large the [`Ui`] is already.
-    /// All widgets that have been added ot this [`Ui`] fits within this rectangle.
+    /// All widgets that have been added to this [`Ui`] fits within this rectangle.
     ///
     /// No matter what, the final Ui will be at least this large.
     ///
@@ -511,15 +517,17 @@ impl Ui {
     }
 
     /// `ui.set_width_range(min..=max);` is equivalent to `ui.set_min_width(min); ui.set_max_width(max);`.
-    pub fn set_width_range(&mut self, width: std::ops::RangeInclusive<f32>) {
-        self.set_min_width(*width.start());
-        self.set_max_width(*width.end());
+    pub fn set_width_range(&mut self, width: impl Into<Rangef>) {
+        let width = width.into();
+        self.set_min_width(width.min);
+        self.set_max_width(width.max);
     }
 
     /// `ui.set_height_range(min..=max);` is equivalent to `ui.set_min_height(min); ui.set_max_height(max);`.
-    pub fn set_height_range(&mut self, height: std::ops::RangeInclusive<f32>) {
-        self.set_min_height(*height.start());
-        self.set_max_height(*height.end());
+    pub fn set_height_range(&mut self, height: impl Into<Rangef>) {
+        let height = height.into();
+        self.set_min_height(height.min);
+        self.set_max_height(height.max);
     }
 
     /// Set both the minimum and maximum width.
@@ -550,6 +558,7 @@ impl Ui {
     // Layout related measures:
 
     /// The available space at the moment, given the current cursor.
+    ///
     /// This how much more space we can take up without overflowing our parent.
     /// Shrinks as widgets allocate space and the cursor moves.
     /// A small size should be interpreted as "as little as possible".
@@ -558,19 +567,30 @@ impl Ui {
         self.placer.available_size()
     }
 
+    /// The available width at the moment, given the current cursor.
+    ///
+    /// See [`Self::available_size`] for more information.
     pub fn available_width(&self) -> f32 {
         self.available_size().x
     }
 
+    /// The available height at the moment, given the current cursor.
+    ///
+    /// See [`Self::available_size`] for more information.
     pub fn available_height(&self) -> f32 {
         self.available_size().y
     }
 
     /// In case of a wrapping layout, how much space is left on this row/column?
+    ///
+    /// If the layout does not wrap, this will return the same value as [`Self::available_size`].
     pub fn available_size_before_wrap(&self) -> Vec2 {
         self.placer.available_rect_before_wrap().size()
     }
 
+    /// In case of a wrapping layout, how much space is left on this row/column?
+    ///
+    /// If the layout does not wrap, this will return the same value as [`Self::available_size`].
     pub fn available_rect_before_wrap(&self) -> Rect {
         self.placer.available_rect_before_wrap()
     }
@@ -960,8 +980,9 @@ impl Ui {
     /// ```
     pub fn scroll_to_rect(&self, rect: Rect, align: Option<Align>) {
         for d in 0..2 {
-            let range = rect.min[d]..=rect.max[d];
-            self.ctx().frame_state().scroll_target[d] = Some((range, align));
+            let range = Rangef::new(rect.min[d], rect.max[d]);
+            self.ctx()
+                .frame_state_mut(|state| state.scroll_target[d] = Some((range, align)));
         }
     }
 
@@ -989,8 +1010,9 @@ impl Ui {
     pub fn scroll_to_cursor(&self, align: Option<Align>) {
         let target = self.next_widget_position();
         for d in 0..2 {
-            let target = target[d];
-            self.ctx().frame_state().scroll_target[d] = Some((target..=target, align));
+            let target = Rangef::point(target[d]);
+            self.ctx()
+                .frame_state_mut(|state| state.scroll_target[d] = Some((target, align)));
         }
     }
 
@@ -1022,7 +1044,8 @@ impl Ui {
     /// # });
     /// ```
     pub fn scroll_with_delta(&self, delta: Vec2) {
-        self.ctx().frame_state().scroll_delta += delta;
+        self.ctx()
+            .frame_state_mut(|state| state.scroll_delta += delta);
     }
 }
 
@@ -1563,7 +1586,7 @@ impl Ui {
     /// }
     /// ```
     ///
-    /// Se also [`crate::Image`] and [`crate::ImageButton`].
+    /// See also [`crate::Image`] and [`crate::ImageButton`].
     #[inline]
     pub fn image(&mut self, texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {
         Image::new(texture_id, size).ui(self)
@@ -1780,24 +1803,31 @@ impl Ui {
         };
         let ret = add_contents(&mut child_ui);
 
+        let left_vline = self.visuals().indent_has_left_vline;
         let end_with_horizontal_line = self.spacing().indent_ends_with_horizontal_line;
 
-        if end_with_horizontal_line {
-            child_ui.add_space(4.0);
-        }
+        if left_vline || end_with_horizontal_line {
+            if end_with_horizontal_line {
+                child_ui.add_space(4.0);
+            }
 
-        // draw a faint line on the left to mark the indented section
-        let stroke = self.visuals().widgets.noninteractive.bg_stroke;
-        let left_top = child_rect.min - 0.5 * indent * Vec2::X;
-        let left_top = self.painter().round_pos_to_pixels(left_top);
-        let left_bottom = pos2(left_top.x, child_ui.min_rect().bottom() - 2.0);
-        let left_bottom = self.painter().round_pos_to_pixels(left_bottom);
-        self.painter.line_segment([left_top, left_bottom], stroke);
-        if end_with_horizontal_line {
-            let fudge = 2.0; // looks nicer with button rounding in collapsing headers
-            let right_bottom = pos2(child_ui.min_rect().right() - fudge, left_bottom.y);
-            self.painter
-                .line_segment([left_bottom, right_bottom], stroke);
+            let stroke = self.visuals().widgets.noninteractive.bg_stroke;
+            let left_top = child_rect.min - 0.5 * indent * Vec2::X;
+            let left_top = self.painter().round_pos_to_pixels(left_top);
+            let left_bottom = pos2(left_top.x, child_ui.min_rect().bottom() - 2.0);
+            let left_bottom = self.painter().round_pos_to_pixels(left_bottom);
+
+            if left_vline {
+                // draw a faint line on the left to mark the indented section
+                self.painter.line_segment([left_top, left_bottom], stroke);
+            }
+
+            if end_with_horizontal_line {
+                let fudge = 2.0; // looks nicer with button rounding in collapsing headers
+                let right_bottom = pos2(child_ui.min_rect().right() - fudge, left_bottom.y);
+                self.painter
+                    .line_segment([left_bottom, right_bottom], stroke);
+            }
         }
 
         let response = self.allocate_rect(child_ui.min_rect(), Sense::hover());
@@ -2157,6 +2187,43 @@ impl Ui {
             menu::menu_button(self, title, add_contents)
         }
     }
+
+    /// Create a menu button with an image that when clicked will show the given menu.
+    ///
+    /// If called from within a menu this will instead create a button for a sub-menu.
+    ///
+    /// ```ignore
+    /// use egui_extras;
+    ///
+    /// let img = egui_extras::RetainedImage::from_svg_bytes_with_size(
+    ///     "rss",
+    ///     include_bytes!("rss.svg"),
+    ///     egui_extras::image::FitTo::Size(24, 24),
+    /// );
+    ///
+    /// ui.menu_image_button(img.texture_id(ctx), img.size_vec2(), |ui| {
+    ///     ui.menu_button("My sub-menu", |ui| {
+    ///         if ui.button("Close the menu").clicked() {
+    ///             ui.close_menu();
+    ///         }
+    ///     });
+    /// });
+    /// ```
+    ///
+    /// See also: [`Self::close_menu`] and [`Response::context_menu`].
+    #[inline]
+    pub fn menu_image_button<R>(
+        &mut self,
+        texture_id: TextureId,
+        image_size: impl Into<Vec2>,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> InnerResponse<Option<R>> {
+        if let Some(menu_state) = self.menu_state.clone() {
+            menu::submenu_button(self, menu_state, String::new(), add_contents)
+        } else {
+            menu::menu_image_button(self, texture_id, image_size, add_contents)
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -2177,4 +2244,10 @@ impl Ui {
                 .debug_paint_cursor(&self.ctx().debug_painter(), text);
         }
     }
+}
+
+#[test]
+fn ui_impl_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Ui>();
 }

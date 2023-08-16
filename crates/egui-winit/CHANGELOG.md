@@ -1,12 +1,33 @@
 # Changelog for egui-winit
 All notable changes to the `egui-winit` integration will be noted in this file.
 
+This file is updated upon each release.
+Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
-## Unreleased
+
+## 0.22.0 - 2023-05-23
+* Only use `wasm-bindgen` feature for `instant` when building for wasm32 [#2808](https://github.com/emilk/egui/pull/2808) (thanks [@gferon](https://github.com/gferon)!)
+* Fix unsafe API of `Clipboard::new` [#2765](https://github.com/emilk/egui/pull/2765) (thanks [@dhardy](https://github.com/dhardy)!)
+* Remove `android-activity` dependency + add `Activity` backend features [#2863](https://github.com/emilk/egui/pull/2863) (thanks [@rib](https://github.com/rib)!)
+* Use `RawDisplayHandle` for smithay clipboard init [#2914](https://github.com/emilk/egui/pull/2914) (thanks [@lunixbochs](https://github.com/lunixbochs)!)
+* Clear all keys and modifies on focus change [#2933](https://github.com/emilk/egui/pull/2933)
+* Support Wasm target [#2949](https://github.com/emilk/egui/pull/2949) (thanks [@jinleili](https://github.com/jinleili)!)
+* Fix unsafe API: remove `State::new_with_wayland_display`; change `Clipboard::new` to take `&EventLoopWindowTarget<T>`
+
+
+## 0.21.1 - 2023-02-12
+* Fixed crash when window position is in an invalid state, which could happen e.g. due to changes in monitor size or DPI ([#2722](https://github.com/emilk/egui/issues/2722)).
+
+
+## 0.21.0 - 2023-02-08
+* Fixed persistence of native window position on Windows OS ([#2583](https://github.com/emilk/egui/issues/2583)).
+* Update to `winit` 0.28, adding support for mac trackpad zoom ([#2654](https://github.com/emilk/egui/pull/2654)).
+* Remove the `screen_reader` feature. Use the `accesskit` feature flag instead ([#2669](https://github.com/emilk/egui/pull/2669)).
+* Fix bug where the cursor could get stuck using the wrong icon.
 
 
 ## 0.20.1 - 2022-12-11
-* Fix docs.rs build ([#2420](https://github.com/emilk/egui/pull/2420)).
+* Fix [docs.rs](https://docs.rs/egui-winit) build ([#2420](https://github.com/emilk/egui/pull/2420)).
 
 
 ## 0.20.0 - 2022-12-08
@@ -35,7 +56,7 @@ All notable changes to the `egui-winit` integration will be noted in this file.
 
 ## 0.17.0 - 2022-02-22
 * Fixed horizontal scrolling direction on Linux.
-* Replaced `std::time::Instant` with `instant::Instant` for WebAssembly compatability ([#1023](https://github.com/emilk/egui/pull/1023))
+* Replaced `std::time::Instant` with `instant::Instant` for WebAssembly compatibility ([#1023](https://github.com/emilk/egui/pull/1023))
 * Automatically detect and apply dark or light mode from system ([#1045](https://github.com/emilk/egui/pull/1045)).
 * Fixed `enable_drag` on Windows OS ([#1108](https://github.com/emilk/egui/pull/1108)).
 * Shift-scroll will now result in horizontal scrolling on all platforms ([#1136](https://github.com/emilk/egui/pull/1136)).

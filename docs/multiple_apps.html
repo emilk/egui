@@ -1,3 +1,4 @@
+<!-- TODO(emilk): make this example nicer. The layout is HORRIBLE -->
 <!DOCTYPE html>
 <html>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -17,10 +18,10 @@
             /* Light mode background color for what is not covered by the egui canvas,
             or where the egui canvas is translucent. */
             background: #909090;
-            display:flex;
+            display: flex;
         }
 
-        .canvas_wrap{
+        .canvas_wrap {
             /* height: 200px; */
             width: 400px;
         }
@@ -52,8 +53,8 @@
             top: 0%;
             left: 50%;
             transform: translate(-50%, 0%); */
-            width:90%;
-            height:90%;
+            width: 45%;
+            height: 90%;
         }
 
         .centered {
@@ -108,18 +109,16 @@
     <div>controls</div>
 
     <button class="stop_one">
-    stop    
+        stop
     </button>
 
     <div class="canvas_wrap one">
-        <canvas id="the_canvas_id_one"></canvas>
+        <canvas id="canvas_id_one"></canvas>
     </div>
 
-    <div  class="canvas_wrap two">
-        <canvas id="the_canvas_id_two"></canvas>
+    <div class="canvas_wrap two">
+        <canvas id="canvas_id_two"></canvas>
     </div>
-
-
 
     <div class="centered" id="center_text">
         <p style="font-size:16px">
@@ -148,38 +147,41 @@
         // We'll defer our execution until the wasm is ready to go.
         // Here we tell bindgen the path to the wasm file so it can start
         // initialization and return to us a promise when it's done.
-        console.debug("loading wasm…");
+        console.debug("Loading wasm…");
         wasm_bindgen("./egui_demo_app_bg.wasm")
             .then(on_wasm_loaded)
-            .catch(on_wasm_error);
+            .catch(on_error);
 
         function on_wasm_loaded() {
-            console.debug("wasm loaded. starting app…");
+            console.debug("Wasm loaded. Starting apps…");
 
             // This call installs a bunch of callbacks and then returns:
 
-            wasm_bindgen.init_wasm_hooks()
+            const handle_one = new wasm_bindgen.WebHandle();
+            const handle_two = new wasm_bindgen.WebHandle();
 
-            const handle_one = wasm_bindgen.start_separate("the_canvas_id_one");
-            const handle_two = wasm_bindgen.start_separate("the_canvas_id_two");
+            Promise.all([handle_one.start("canvas_id_one"), handle_two.start("canvas_id_two")]).then((handles) => {
+                on_apps_started(handle_one, handle_two)
+            }).catch(on_error);
+        }
 
+        function on_apps_started(handle_one, handle_two) {
             const button = document.getElementsByClassName("stop_one")[0]
 
-            button.addEventListener("click", ()=>{
-                handle_one.stop_web()
+            button.addEventListener("click", () => {
+                document.getElementById("canvas_id_one").remove()
+                handle_one.destroy()
                 handle_one.free()
             });
-    
 
-            // call `handle.stop_web()` to stop
-            // uncomment to quick result
-            // setTimeout(() => {handle.stop_web()}, 2000)
+            // Call `handle.destroy()` to stop. Uncomment to quick result:
+            // setTimeout(() => { handle.destroy() }, 2000)
 
-            console.debug("app started.");
+            console.debug("Apps started.");
             document.getElementById("center_text").remove();
         }
 
-        function on_wasm_error(error) {
+        function on_error(error) {
             console.error("Failed to start: " + error);
             document.getElementById("center_text").innerHTML = `
                 <p>

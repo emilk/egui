@@ -89,9 +89,7 @@ impl LegendEntry {
 
         let font_id = text_style.resolve(ui.style());
 
-        let galley = ui
-            .fonts()
-            .layout_delayed_color(text, font_id, f32::INFINITY);
+        let galley = ui.fonts(|f| f.layout_delayed_color(text, font_id, f32::INFINITY));
 
         let icon_size = galley.size().y;
         let icon_spacing = icon_size / 5.0;

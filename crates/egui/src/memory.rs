@@ -52,9 +52,10 @@ pub struct Memory {
     /// type CharCountCache<'a> = FrameCache<usize, CharCounter>;
     ///
     /// # let mut ctx = egui::Context::default();
-    /// let mut memory = ctx.memory();
-    /// let cache = memory.caches.cache::<CharCountCache<'_>>();
-    /// assert_eq!(cache.get("hello"), 5);
+    /// ctx.memory_mut(|mem| {
+    ///     let cache = mem.caches.cache::<CharCountCache<'_>>();
+    ///     assert_eq!(cache.get("hello"), 5);
+    /// });
     /// ```
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub caches: crate::util::cache::CacheStorage,
@@ -102,9 +103,15 @@ pub struct Options {
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,
 
-    /// This does not at all change the behavior of egui,
-    /// but is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
+    /// This is a signal to any backend that we want the [`crate::PlatformOutput::events`] read out loud.
+    ///
+    /// The only change to egui is that labels can be focused by pressing tab.
+    ///
     /// Screen readers is an experimental feature of egui, and not supported on all platforms.
+    ///
+    /// `eframe` supports it only on web, using the `web_screen_reader` feature flag,
+    /// but you should consider using [AccessKit](https://github.com/AccessKit/accesskit) instead,
+    /// which `eframe` supports.
     pub screen_reader: bool,
 
     /// If true, the most common glyphs (ASCII) are pre-rendered to the texture atlas.
@@ -114,6 +121,11 @@ pub struct Options {
     /// This can lead to fewer texture operations, but may use up the texture atlas quicker
     /// if you are changing [`Style::text_styles`], of have a lot of text styles.
     pub preload_font_glyphs: bool,
+
+    /// Check reusing of [`Id`]s, and show a visual warning on screen when one is found.
+    ///
+    /// By default this is `true` in debug builds.
+    pub warn_on_id_clash: bool,
 }
 
 impl Default for Options {
@@ -123,6 +135,7 @@ impl Default for Options {
             tessellation_options: Default::default(),
             screen_reader: false,
             preload_font_glyphs: true,
+            warn_on_id_clash: cfg!(debug_assertions),
         }
     }
 }
@@ -405,7 +418,7 @@ impl Memory {
     }
 
     /// Is the keyboard focus locked on this widget? If so the focus won't move even if the user presses the tab key.
-    pub fn has_lock_focus(&mut self, id: Id) -> bool {
+    pub fn has_lock_focus(&self, id: Id) -> bool {
         if self.had_focus_last_frame(id) && self.has_focus(id) {
             self.interaction.focus.is_focus_locked
         } else {
@@ -462,6 +475,11 @@ impl Memory {
     #[inline(always)]
     pub fn set_dragged_id(&mut self, id: Id) {
         self.interaction.drag_id = Some(id);
+    }
+
+    #[inline(always)]
+    pub fn stop_dragging(&mut self) {
+        self.interaction.drag_id = None;
     }
 
     /// Forget window positions, sizes etc.
@@ -528,8 +546,10 @@ impl Memory {
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Areas {
     areas: IdMap<area::State>,
+
     /// Back-to-front. Top is last.
     order: Vec<LayerId>,
+
     visible_last_frame: ahash::HashSet<LayerId>,
     visible_current_frame: ahash::HashSet<LayerId>,
 

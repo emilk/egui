@@ -140,7 +140,7 @@ impl LayoutTest {
                 Direction::TopDown,
                 Direction::BottomUp,
             ] {
-                ui.radio_value(&mut self.layout.main_dir, dir, format!("{:?}", dir));
+                ui.radio_value(&mut self.layout.main_dir, dir, format!("{dir:?}"));
             }
         });
 
@@ -162,7 +162,7 @@ impl LayoutTest {
         ui.horizontal(|ui| {
             ui.label("Cross Align:");
             for &align in &[Align::Min, Align::Center, Align::Max] {
-                ui.radio_value(&mut self.layout.cross_align, align, format!("{:?}", align));
+                ui.radio_value(&mut self.layout.cross_align, align, format!("{align:?}"));
             }
         });
 

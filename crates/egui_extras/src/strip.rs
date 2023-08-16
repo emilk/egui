@@ -72,13 +72,13 @@ impl<'a> StripBuilder<'a> {
         self
     }
 
-    /// Allocate space for for one column/row.
+    /// Allocate space for one column/row.
     pub fn size(mut self, size: Size) -> Self {
         self.sizing.add(size);
         self
     }
 
-    /// Allocate space for for several columns/rows at once.
+    /// Allocate space for several columns/rows at once.
     pub fn sizes(mut self, size: Size, count: usize) -> Self {
         for _ in 0..count {
             self.sizing.add(size);

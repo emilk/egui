@@ -344,7 +344,7 @@ impl RichText {
 /// Often a [`WidgetText`] is just a simple [`String`],
 /// but it can be a [`RichText`] (text with color, style, etc),
 /// a [`LayoutJob`] (for when you want full control of how the text looks)
-/// or text that has already been layed out in a [`Galley`].
+/// or text that has already been laid out in a [`Galley`].
 #[derive(Clone)]
 pub enum WidgetText {
     RichText(RichText),
@@ -573,14 +573,14 @@ impl WidgetText {
                 let mut text_job = text.into_text_job(ui.style(), fallback_font.into(), valign);
                 text_job.job.wrap.max_width = wrap_width;
                 WidgetTextGalley {
-                    galley: ui.fonts().layout_job(text_job.job),
+                    galley: ui.fonts(|f| f.layout_job(text_job.job)),
                     galley_has_color: text_job.job_has_color,
                 }
             }
             Self::LayoutJob(mut job) => {
                 job.wrap.max_width = wrap_width;
                 WidgetTextGalley {
-                    galley: ui.fonts().layout_job(job),
+                    galley: ui.fonts(|f| f.layout_job(job)),
                     galley_has_color: true,
                 }
             }
@@ -662,7 +662,7 @@ impl WidgetTextJob {
 
 // ----------------------------------------------------------------------------
 
-/// Text that has been layed out and ready to be painted.
+/// Text that has been laid out and ready to be painted.
 #[derive(Clone, PartialEq)]
 pub struct WidgetTextGalley {
     pub galley: Arc<Galley>,
@@ -670,13 +670,13 @@ pub struct WidgetTextGalley {
 }
 
 impl WidgetTextGalley {
-    /// Size of the layed out text.
+    /// Size of the laid out text.
     #[inline]
     pub fn size(&self) -> crate::Vec2 {
         self.galley.size()
     }
 
-    /// Size of the layed out text.
+    /// The full, non-elided text of the input job.
     #[inline]
     pub fn text(&self) -> &str {
         self.galley.text()

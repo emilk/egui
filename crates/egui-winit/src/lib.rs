@@ -9,8 +9,6 @@
 
 #![allow(clippy::manual_range_contains)]
 
-use std::os::raw::c_void;
-
 #[cfg(feature = "accesskit")]
 pub use accesskit_winit;
 pub use egui;
@@ -19,22 +17,11 @@ use egui::accesskit;
 pub use winit;
 
 pub mod clipboard;
-pub mod screen_reader;
 mod window_settings;
 
 pub use window_settings::WindowSettings;
 
-use winit::event_loop::EventLoopWindowTarget;
-
-#[cfg(feature = "wayland")]
-#[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-))]
-use winit::platform::unix::EventLoopWindowTargetExtUnix;
+use raw_window_handle::HasRawDisplayHandle;
 
 pub fn native_pixels_per_point(window: &winit::window::Window) -> f32 {
     window.scale_factor() as f32
@@ -70,12 +57,12 @@ pub struct State {
     egui_input: egui::RawInput,
     pointer_pos_in_points: Option<egui::Pos2>,
     any_pointer_button_down: bool,
-    current_cursor_icon: egui::CursorIcon,
+    current_cursor_icon: Option<egui::CursorIcon>,
+
     /// What egui uses.
     current_pixels_per_point: f32,
 
     clipboard: clipboard::Clipboard,
-    screen_reader: screen_reader::ScreenReader,
 
     /// If `true`, mouse inputs will be treated as touches.
     /// Useful for debugging touch support in egui.
@@ -96,13 +83,14 @@ pub struct State {
 }
 
 impl State {
-    pub fn new<T>(event_loop: &EventLoopWindowTarget<T>) -> Self {
-        Self::new_with_wayland_display(wayland_display(event_loop))
-    }
-
-    pub fn new_with_wayland_display(wayland_display: Option<*mut c_void>) -> Self {
+    /// Construct a new instance
+    ///
+    /// # Safety
+    ///
+    /// The returned `State` must not outlive the input `display_target`.
+    pub fn new(display_target: &dyn HasRawDisplayHandle) -> Self {
         let egui_input = egui::RawInput {
-            has_focus: false, // winit will tell us when we have focus
+            focused: false, // winit will tell us when we have focus
             ..Default::default()
         };
 
@@ -111,11 +99,10 @@ impl State {
             egui_input,
             pointer_pos_in_points: None,
             any_pointer_button_down: false,
-            current_cursor_icon: egui::CursorIcon::Default,
+            current_cursor_icon: None,
             current_pixels_per_point: 1.0,
 
-            clipboard: clipboard::Clipboard::new(wayland_display),
-            screen_reader: screen_reader::ScreenReader::default(),
+            clipboard: clipboard::Clipboard::new(display_target),
 
             simulate_touch_screen: false,
             pointer_touch_id: None,
@@ -281,7 +268,7 @@ impl State {
                 }
             }
             WindowEvent::Ime(ime) => {
-                // on Mac even Cmd-C is preessed during ime, a `c` is pushed to Preedit.
+                // on Mac even Cmd-C is pressed during ime, a `c` is pushed to Preedit.
                 // So no need to check is_mac_cmd.
                 //
                 // How winit produce `Ime::Enabled` and `Ime::Disabled` differs in MacOS
@@ -292,7 +279,7 @@ impl State {
                 // - On MacOS, only when user explicit enable/disable ime. No Disabled
                 // after Commit.
                 //
-                // We use input_method_editor_started to mannualy insert CompositionStart
+                // We use input_method_editor_started to manually insert CompositionStart
                 // between Commits.
                 match ime {
                     winit::event::Ime::Enabled | winit::event::Ime::Disabled => (),
@@ -320,6 +307,7 @@ impl State {
             }
             WindowEvent::KeyboardInput { input, .. } => {
                 self.on_keyboard_input(input);
+                // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
                 let consumed = egui_ctx.wants_keyboard_input()
                     || input.virtual_keycode == Some(winit::event::VirtualKeyCode::Tab);
                 EventResponse {
@@ -327,11 +315,14 @@ impl State {
                     consumed,
                 }
             }
-            WindowEvent::Focused(has_focus) => {
-                self.egui_input.has_focus = *has_focus;
+            WindowEvent::Focused(focused) => {
+                self.egui_input.focused = *focused;
                 // We will not be given a KeyboardInput event when the modifiers are released while
                 // the window does not have focus. Unset all modifier state to be safe.
                 self.egui_input.modifiers = egui::Modifiers::default();
+                self.egui_input
+                    .events
+                    .push(egui::Event::WindowFocused(*focused));
                 EventResponse {
                     repaint: true,
                     consumed: false,
@@ -380,8 +371,9 @@ impl State {
                     consumed: false,
                 }
             }
-            WindowEvent::AxisMotion { .. }
-            | WindowEvent::CloseRequested
+
+            // Things that may require repaint:
+            WindowEvent::CloseRequested
             | WindowEvent::CursorEntered { .. }
             | WindowEvent::Destroyed
             | WindowEvent::Occluded(_)
@@ -391,10 +383,26 @@ impl State {
                 repaint: true,
                 consumed: false,
             },
-            WindowEvent::Moved(_) => EventResponse {
-                repaint: false, // moving a window doesn't warrant a repaint
+
+            // Things we completely ignore:
+            WindowEvent::AxisMotion { .. }
+            | WindowEvent::Moved(_)
+            | WindowEvent::SmartMagnify { .. }
+            | WindowEvent::TouchpadRotate { .. } => EventResponse {
+                repaint: false,
                 consumed: false,
             },
+
+            WindowEvent::TouchpadMagnify { delta, .. } => {
+                // Positive delta values indicate magnification (zooming in).
+                // Negative delta values indicate shrinking (zooming out).
+                let zoom_factor = (*delta as f32).exp();
+                self.egui_input.events.push(egui::Event::Zoom(zoom_factor));
+                EventResponse {
+                    repaint: true,
+                    consumed: egui_ctx.wants_pointer_input(),
+                }
+            }
         }
     }
 
@@ -433,7 +441,7 @@ impl State {
                             id: egui::TouchId(0),
                             phase: egui::TouchPhase::Start,
                             pos,
-                            force: 0.0,
+                            force: None,
                         });
                     } else {
                         self.any_pointer_button_down = false;
@@ -445,7 +453,7 @@ impl State {
                             id: egui::TouchId(0),
                             phase: egui::TouchPhase::End,
                             pos,
-                            force: 0.0,
+                            force: None,
                         });
                     };
                 }
@@ -471,7 +479,7 @@ impl State {
                     id: egui::TouchId(0),
                     phase: egui::TouchPhase::Move,
                     pos: pos_in_points,
-                    force: 0.0,
+                    force: None,
                 });
             }
         } else {
@@ -497,16 +505,16 @@ impl State {
                 touch.location.y as f32 / self.pixels_per_point(),
             ),
             force: match touch.force {
-                Some(winit::event::Force::Normalized(force)) => force as f32,
+                Some(winit::event::Force::Normalized(force)) => Some(force as f32),
                 Some(winit::event::Force::Calibrated {
                     force,
                     max_possible_force,
                     ..
-                }) => (force / max_possible_force) as f32,
-                None => 0_f32,
+                }) => Some((force / max_possible_force) as f32),
+                None => None,
             },
         });
-        // If we're not yet tanslating a touch or we're translating this very
+        // If we're not yet translating a touch or we're translating this very
         // touch …
         if self.pointer_touch_id.is_none() || self.pointer_touch_id.unwrap() == touch.id {
             // … emit PointerButton resp. PointerMoved events to emulate mouse
@@ -544,6 +552,26 @@ impl State {
     }
 
     fn on_mouse_wheel(&mut self, delta: winit::event::MouseScrollDelta) {
+        {
+            let (unit, delta) = match delta {
+                winit::event::MouseScrollDelta::LineDelta(x, y) => {
+                    (egui::MouseWheelUnit::Line, egui::vec2(x, y))
+                }
+                winit::event::MouseScrollDelta::PixelDelta(winit::dpi::PhysicalPosition {
+                    x,
+                    y,
+                }) => (
+                    egui::MouseWheelUnit::Point,
+                    egui::vec2(x as f32, y as f32) / self.pixels_per_point(),
+                ),
+            };
+            let modifiers = self.egui_input.modifiers;
+            self.egui_input.events.push(egui::Event::MouseWheel {
+                unit,
+                delta,
+                modifiers,
+            });
+        }
         let delta = match delta {
             winit::event::MouseScrollDelta::LineDelta(x, y) => {
                 let points_per_scroll_line = 50.0; // Scroll speed decided by consensus: https://github.com/emilk/egui/issues/461
@@ -615,11 +643,6 @@ impl State {
         egui_ctx: &egui::Context,
         platform_output: egui::PlatformOutput,
     ) {
-        if egui_ctx.options().screen_reader {
-            self.screen_reader
-                .speak(&platform_output.events_description());
-        }
-
         let egui::PlatformOutput {
             cursor_icon,
             open_url,
@@ -655,22 +678,25 @@ impl State {
     }
 
     fn set_cursor_icon(&mut self, window: &winit::window::Window, cursor_icon: egui::CursorIcon) {
-        // Prevent flickering near frame boundary when Windows OS tries to control cursor icon for window resizing.
-        // On other platforms: just early-out to save CPU.
-        if self.current_cursor_icon == cursor_icon {
+        if self.current_cursor_icon == Some(cursor_icon) {
+            // Prevent flickering near frame boundary when Windows OS tries to control cursor icon for window resizing.
+            // On other platforms: just early-out to save CPU.
             return;
         }
-        self.current_cursor_icon = cursor_icon;
 
-        if let Some(cursor_icon) = translate_cursor(cursor_icon) {
-            window.set_cursor_visible(true);
+        let is_pointer_in_window = self.pointer_pos_in_points.is_some();
+        if is_pointer_in_window {
+            self.current_cursor_icon = Some(cursor_icon);
 
-            let is_pointer_in_window = self.pointer_pos_in_points.is_some();
-            if is_pointer_in_window {
-                window.set_cursor_icon(cursor_icon);
+            if let Some(winit_cursor_icon) = translate_cursor(cursor_icon) {
+                window.set_cursor_visible(true);
+                window.set_cursor_icon(winit_cursor_icon);
+            } else {
+                window.set_cursor_visible(false);
             }
         } else {
-            window.set_cursor_visible(false);
+            // Remember to set the cursor again once the cursor returns to the screen:
+            self.current_cursor_icon = None;
         }
     }
 }
@@ -678,12 +704,12 @@ impl State {
 fn open_url_in_browser(_url: &str) {
     #[cfg(feature = "webbrowser")]
     if let Err(err) = webbrowser::open(_url) {
-        tracing::warn!("Failed to open url: {}", err);
+        log::warn!("Failed to open url: {}", err);
     }
 
     #[cfg(not(feature = "webbrowser"))]
     {
-        tracing::warn!("Cannot open url - feature \"links\" not enabled.");
+        log::warn!("Cannot open url - feature \"links\" not enabled.");
     }
 }
 
@@ -865,27 +891,6 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
         egui::CursorIcon::Wait => Some(winit::window::CursorIcon::Wait),
         egui::CursorIcon::ZoomIn => Some(winit::window::CursorIcon::ZoomIn),
         egui::CursorIcon::ZoomOut => Some(winit::window::CursorIcon::ZoomOut),
-    }
-}
-
-/// Returns a Wayland display handle if the target is running Wayland
-fn wayland_display<T>(_event_loop: &EventLoopWindowTarget<T>) -> Option<*mut c_void> {
-    #[cfg(feature = "wayland")]
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd"
-    ))]
-    {
-        return _event_loop.wayland_display();
-    }
-
-    #[allow(unreachable_code)]
-    {
-        let _ = _event_loop;
-        None
     }
 }
 

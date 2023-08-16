@@ -14,6 +14,7 @@ pub struct DatePickerButton<'a> {
     arrows: bool,
     calendar: bool,
     calendar_week: bool,
+    show_icon: bool,
 }
 
 impl<'a> DatePickerButton<'a> {
@@ -25,6 +26,7 @@ impl<'a> DatePickerButton<'a> {
             arrows: true,
             calendar: true,
             calendar_week: true,
+            show_icon: true,
         }
     }
 
@@ -58,30 +60,38 @@ impl<'a> DatePickerButton<'a> {
         self.calendar_week = week;
         self
     }
+
+    /// Show the calendar icon on the button. (Default: true)
+    pub fn show_icon(mut self, show_icon: bool) -> Self {
+        self.show_icon = show_icon;
+        self
+    }
 }
 
 impl<'a> Widget for DatePickerButton<'a> {
     fn ui(self, ui: &mut Ui) -> egui::Response {
         let id = ui.make_persistent_id(self.id_source);
         let mut button_state = ui
-            .memory()
-            .data
-            .get_persisted::<DatePickerButtonState>(id)
+            .memory_mut(|mem| mem.data.get_persisted::<DatePickerButtonState>(id))
             .unwrap_or_default();
 
-        let mut text = RichText::new(format!("{} 📆", self.selection.format("%Y-%m-%d")));
+        let mut text = if self.show_icon {
+            RichText::new(format!("{} 📆", self.selection.format("%Y-%m-%d")))
+        } else {
+            RichText::new(format!("{}", self.selection.format("%Y-%m-%d")))
+        };
         let visuals = ui.visuals().widgets.open;
         if button_state.picker_visible {
             text = text.color(visuals.text_color());
         }
         let mut button = Button::new(text);
         if button_state.picker_visible {
-            button = button.fill(visuals.bg_fill).stroke(visuals.bg_stroke);
+            button = button.fill(visuals.weak_bg_fill).stroke(visuals.bg_stroke);
         }
         let mut button_response = ui.add(button);
         if button_response.clicked() {
             button_state.picker_visible = true;
-            ui.memory().data.insert_persisted(id, button_state.clone());
+            ui.memory_mut(|mem| mem.data.insert_persisted(id, button_state.clone()));
         }
 
         if button_state.picker_visible {
@@ -131,10 +141,10 @@ impl<'a> Widget for DatePickerButton<'a> {
             }
 
             if !button_response.clicked()
-                && (ui.input().key_pressed(Key::Escape) || area_response.clicked_elsewhere())
+                && (ui.input(|i| i.key_pressed(Key::Escape)) || area_response.clicked_elsewhere())
             {
                 button_state.picker_visible = false;
-                ui.memory().data.insert_persisted(id, button_state);
+                ui.memory_mut(|mem| mem.data.insert_persisted(id, button_state));
             }
         }
 

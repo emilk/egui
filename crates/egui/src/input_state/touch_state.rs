@@ -96,10 +96,14 @@ struct GestureState {
 struct DynGestureState {
     /// used for proportional zooming
     avg_distance: f32,
+
     /// used for non-proportional zooming
     avg_abs_distance2: Vec2,
+
     avg_pos: Pos2,
+
     avg_force: f32,
+
     heading: f32,
 }
 
@@ -114,7 +118,7 @@ struct ActiveTouch {
     ///
     /// Note that a value of 0.0 either indicates a very light touch, or it means that the device
     /// is not capable of measuring the touch force.
-    force: f32,
+    force: Option<f32>,
 }
 
 impl TouchState {
@@ -245,7 +249,7 @@ impl TouchState {
 
             // first pass: calculate force and center of touch positions:
             for touch in self.active_touches.values() {
-                state.avg_force += touch.force;
+                state.avg_force += touch.force.unwrap_or(0.0);
                 state.avg_pos.x += touch.pos.x;
                 state.avg_pos.y += touch.pos.y;
             }
@@ -282,7 +286,7 @@ impl TouchState {
 
 impl TouchState {
     pub fn ui(&self, ui: &mut crate::Ui) {
-        ui.label(format!("{:?}", self));
+        ui.label(format!("{self:?}"));
     }
 }
 
@@ -290,7 +294,7 @@ impl Debug for TouchState {
     // This outputs less clutter than `#[derive(Debug)]`:
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (id, touch) in &self.active_touches {
-            f.write_fmt(format_args!("#{:?}: {:#?}\n", id, touch))?;
+            f.write_fmt(format_args!("#{id:?}: {touch:#?}\n"))?;
         }
         f.write_fmt(format_args!("gesture: {:#?}\n", self.gesture_state))?;
         Ok(())

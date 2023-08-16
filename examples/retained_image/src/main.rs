@@ -4,15 +4,15 @@ use eframe::egui;
 use egui_extras::RetainedImage;
 
 fn main() -> Result<(), eframe::Error> {
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(300.0, 900.0)),
         ..Default::default()
     };
-
     eframe::run_native(
         "Show an image with eframe/egui",
         options,
-        Box::new(|_cc| Box::new(MyApp::default())),
+        Box::new(|_cc| Box::<MyApp>::default()),
     )
 }
 

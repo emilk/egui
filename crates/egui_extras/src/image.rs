@@ -10,11 +10,15 @@ pub use usvg::FitTo;
 /// Use the `svg` and `image` features to enable more constructors.
 pub struct RetainedImage {
     debug_name: String,
+
     size: [usize; 2],
+
     /// Cleared once [`Self::texture`] has been loaded.
     image: Mutex<egui::ColorImage>,
+
     /// Lazily loaded when we have an egui context.
     texture: Mutex<Option<egui::TextureHandle>>,
+
     options: TextureOptions,
 }
 
@@ -231,12 +235,11 @@ pub fn load_svg_bytes_with_size(
     svg_bytes: &[u8],
     fit_to: FitTo,
 ) -> Result<egui::ColorImage, String> {
-    let mut opt = usvg::Options::default();
-    opt.fontdb.load_system_fonts();
+    let opt = usvg::Options::default();
 
-    let rtree = usvg::Tree::from_data(svg_bytes, &opt.to_ref()).map_err(|err| err.to_string())?;
+    let rtree = usvg::Tree::from_data(svg_bytes, &opt).map_err(|err| err.to_string())?;
 
-    let pixmap_size = rtree.svg_node().size.to_screen_size();
+    let pixmap_size = rtree.size.to_screen_size();
     let [w, h] = match fit_to {
         FitTo::Original => [pixmap_size.width(), pixmap_size.height()],
         FitTo::Size(w, h) => [w, h],
@@ -255,7 +258,7 @@ pub fn load_svg_bytes_with_size(
     };
 
     let mut pixmap = tiny_skia::Pixmap::new(w, h)
-        .ok_or_else(|| format!("Failed to create SVG Pixmap of size {}x{}", w, h))?;
+        .ok_or_else(|| format!("Failed to create SVG Pixmap of size {w}x{h}"))?;
 
     resvg::render(&rtree, fit_to, Default::default(), pixmap.as_mut())
         .ok_or_else(|| "Failed to render SVG".to_owned())?;

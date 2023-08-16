@@ -8,17 +8,18 @@
         }
     },
     "files.exclude": {
-        "target/**": true,
         "target_ra/**": true,
+        "target_wasm/**": true,
+        "target/**": true,
     },
     // Tell Rust Analyzer to use its own target directory, so we don't need to wait for it to finish wen we want to `cargo run`
-    "rust-analyzer.checkOnSave.overrideCommand": [
+    "rust-analyzer.check.overrideCommand": [
         "cargo",
         "cranky",
         "--target-dir=target_ra",
         "--workspace",
         "--message-format=json",
-        "--all-targets"
+        "--all-targets",
     ],
     "rust-analyzer.cargo.buildScripts.overrideCommand": [
         "cargo",
@@ -27,6 +28,6 @@
         "--target-dir=target_ra",
         "--workspace",
         "--message-format=json",
-        "--all-targets"
+        "--all-targets",
     ],
 }

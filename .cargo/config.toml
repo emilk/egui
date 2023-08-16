@@ -1,0 +1,6 @@
+# clipboard api is still unstable, so web-sys requires the below flag to be passed for copy (ctrl + c) to work
+# https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html
+# check status at https://developer.mozilla.org/en-US/docs/Web/API/Clipboard#browser_compatibility
+# we don't use `[build]` because of rust analyzer's build cache invalidation https://github.com/emilk/eframe_template/issues/93
+[target.wasm32-unknown-unknown]
+rustflags = ["--cfg=web_sys_unstable_apis"]

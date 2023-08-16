@@ -2,7 +2,7 @@
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum DemoType {
     Manual,
-    ManyHomogenous,
+    ManyHomogeneous,
     ManyHeterogenous,
 }
 
@@ -38,7 +38,6 @@ impl super::Demo for TableDemo {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
-            .resizable(true)
             .default_width(400.0)
             .show(ctx, |ui| {
                 use super::View as _;
@@ -61,7 +60,7 @@ impl super::View for TableDemo {
             ui.radio_value(&mut self.demo, DemoType::Manual, "Few, manual rows");
             ui.radio_value(
                 &mut self.demo,
-                DemoType::ManyHomogenous,
+                DemoType::ManyHomogeneous,
                 "Thousands of rows of same height",
             );
             ui.radio_value(
@@ -102,7 +101,7 @@ impl super::View for TableDemo {
         use egui_extras::{Size, StripBuilder};
         StripBuilder::new(ui)
             .size(Size::remainder().at_least(100.0)) // for the table
-            .size(Size::exact(10.0)) // for the source code link
+            .size(Size::exact(10.5)) // for the source code link
             .vertical(|mut strip| {
                 strip.cell(|ui| {
                     egui::ScrollArea::horizontal().show(ui, |ui| {
@@ -126,15 +125,11 @@ impl TableDemo {
 
         let mut table = TableBuilder::new(ui)
             .striped(self.striped)
+            .resizable(self.resizable)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
             .column(Column::auto())
-            .column(Column::initial(100.0).range(40.0..=300.0).resizable(true))
-            .column(
-                Column::initial(100.0)
-                    .at_least(40.0)
-                    .resizable(true)
-                    .clip(true),
-            )
+            .column(Column::initial(100.0).range(40.0..=300.0))
+            .column(Column::initial(100.0).at_least(40.0).clip(true))
             .column(Column::remainder())
             .min_scrolled_height(0.0);
 
@@ -183,7 +178,7 @@ impl TableDemo {
                         });
                     }
                 }
-                DemoType::ManyHomogenous => {
+                DemoType::ManyHomogeneous => {
                     body.rows(text_height, self.num_rows, |row_index, mut row| {
                         row.col(|ui| {
                             ui.label(row_index.to_string());
@@ -210,7 +205,7 @@ impl TableDemo {
                         }
                     }
                     body.heterogeneous_rows(
-                        (0..self.num_rows).into_iter().map(row_thickness),
+                        (0..self.num_rows).map(row_thickness),
                         |row_index, mut row| {
                             row.col(|ui| {
                                 ui.label(row_index.to_string());

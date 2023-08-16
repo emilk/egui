@@ -131,9 +131,9 @@ fn ui_url(ui: &mut egui::Ui, frame: &mut eframe::Frame, url: &mut String) -> boo
             trigger_fetch = true;
         }
         if ui.button("Random image").clicked() {
-            let seed = ui.input().time;
+            let seed = ui.input(|i| i.time);
             let side = 640;
-            *url = format!("https://picsum.photos/seed/{}/{}", seed, side);
+            *url = format!("https://picsum.photos/seed/{seed}/{side}");
             trigger_fetch = true;
         }
     });
@@ -187,7 +187,7 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
             if let Some(text) = &text {
                 let tooltip = "Click to copy the response body";
                 if ui.button("📋").on_hover_text(tooltip).clicked() {
-                    ui.output().copied_text = text.clone();
+                    ui.output_mut(|o| o.copied_text = text.clone());
                 }
                 ui.separator();
             }
@@ -245,7 +245,7 @@ impl ColoredText {
             let mut layouter = |ui: &egui::Ui, _string: &str, wrap_width: f32| {
                 let mut layout_job = self.0.clone();
                 layout_job.wrap.max_width = wrap_width;
-                ui.fonts().layout_job(layout_job)
+                ui.fonts(|f| f.layout_job(layout_job))
             };
 
             let mut text = self.0.text.as_str();
@@ -258,7 +258,7 @@ impl ColoredText {
         } else {
             let mut job = self.0.clone();
             job.wrap.max_width = ui.available_width();
-            let galley = ui.fonts().layout_job(job);
+            let galley = ui.fonts(|f| f.layout_job(job));
             let (response, painter) = ui.allocate_painter(galley.size(), egui::Sense::hover());
             painter.add(egui::Shape::galley(response.rect.min, galley));
         }

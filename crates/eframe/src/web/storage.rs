@@ -15,10 +15,10 @@ pub fn load_memory(ctx: &egui::Context) {
     if let Some(memory_string) = local_storage_get("egui_memory_ron") {
         match ron::from_str(&memory_string) {
             Ok(memory) => {
-                *ctx.memory() = memory;
+                ctx.memory_mut(|m| *m = memory);
             }
             Err(err) => {
-                tracing::error!("Failed to parse memory RON: {}", err);
+                log::warn!("Failed to parse memory RON: {err}");
             }
         }
     }
@@ -29,12 +29,12 @@ pub fn load_memory(_: &egui::Context) {}
 
 #[cfg(feature = "persistence")]
 pub fn save_memory(ctx: &egui::Context) {
-    match ron::to_string(&*ctx.memory()) {
+    match ctx.memory(|mem| ron::to_string(mem)) {
         Ok(ron) => {
             local_storage_set("egui_memory_ron", &ron);
         }
         Err(err) => {
-            tracing::error!("Failed to serialize memory as RON: {}", err);
+            log::warn!("Failed to serialize memory as RON: {err}");
         }
     }
 }

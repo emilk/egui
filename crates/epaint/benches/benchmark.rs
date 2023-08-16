@@ -47,7 +47,7 @@ fn tessellate_circles(c: &mut Criterion) {
             for _ in 0..10_000 {
                 let clip_rect = Rect::from_min_size(Pos2::ZERO, Vec2::splat(1024.0));
                 let shape = Shape::circle_filled(Pos2::new(10.0, 10.0), r, Color32::WHITE);
-                clipped_shapes.push(ClippedShape(clip_rect, shape));
+                clipped_shapes.push(ClippedShape { clip_rect, shape });
             }
         }
         assert_eq!(clipped_shapes.len(), 100_000);

@@ -77,13 +77,16 @@ pub struct Slider<'a> {
     prefix: String,
     suffix: String,
     text: WidgetText,
+
     /// Sets the minimal step of the widget value
     step: Option<f64>,
+
     drag_value_speed: Option<f64>,
     min_decimals: usize,
     max_decimals: Option<usize>,
     custom_formatter: Option<NumFormatter<'a>>,
     custom_parser: Option<NumParser<'a>>,
+    trailing_fill: Option<bool>,
 }
 
 impl<'a> Slider<'a> {
@@ -129,6 +132,7 @@ impl<'a> Slider<'a> {
             max_decimals: None,
             custom_formatter: None,
             custom_parser: None,
+            trailing_fill: None,
         }
     }
 
@@ -266,6 +270,17 @@ impl<'a> Slider<'a> {
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
         self.min_decimals = num_decimals;
         self.max_decimals = Some(num_decimals);
+        self
+    }
+
+    /// Display trailing color behind the slider's circle. Default is OFF.
+    ///
+    /// This setting can be enabled globally for all sliders with [`Visuals::slider_trailing_fill`].
+    /// Toggling it here will override the above setting ONLY for this individual slider.
+    ///
+    /// The fill color will be taken from `selection.bg_fill` in your [`Visuals`], the same as a [`ProgressBar`].
+    pub fn trailing_fill(mut self, trailing_fill: bool) -> Self {
+        self.trailing_fill = Some(trailing_fill);
         self
     }
 
@@ -511,12 +526,12 @@ impl<'a> Slider<'a> {
     }
 
     /// For instance, `position` is the mouse position and `position_range` is the physical location of the slider on the screen.
-    fn value_from_position(&self, position: f32, position_range: RangeInclusive<f32>) -> f64 {
+    fn value_from_position(&self, position: f32, position_range: Rangef) -> f64 {
         let normalized = remap_clamp(position, position_range, 0.0..=1.0) as f64;
         value_from_normalized(normalized, self.range(), &self.spec)
     }
 
-    fn position_from_value(&self, value: f64, position_range: RangeInclusive<f32>) -> f32 {
+    fn position_from_value(&self, value: f64, position_range: Rangef) -> f32 {
         let normalized = normalized_from_value(value, self.range(), &self.spec);
         lerp(position_range, normalized as f32)
     }
@@ -540,13 +555,13 @@ impl<'a> Slider<'a> {
         if let Some(pointer_position_2d) = response.interact_pointer_pos() {
             let position = self.pointer_position(pointer_position_2d);
             let new_value = if self.smart_aim {
-                let aim_radius = ui.input().aim_radius();
+                let aim_radius = ui.input(|i| i.aim_radius());
                 emath::smart_aim::best_in_range_f64(
-                    self.value_from_position(position - aim_radius, position_range.clone()),
-                    self.value_from_position(position + aim_radius, position_range.clone()),
+                    self.value_from_position(position - aim_radius, position_range),
+                    self.value_from_position(position + aim_radius, position_range),
                 )
             } else {
-                self.value_from_position(position, position_range.clone())
+                self.value_from_position(position, position_range)
             };
             self.set_value(new_value);
         }
@@ -562,37 +577,37 @@ impl<'a> Slider<'a> {
                 SliderOrientation::Vertical => (Key::ArrowUp, Key::ArrowDown),
             };
 
-            decrement += ui.input().num_presses(dec_key);
-            increment += ui.input().num_presses(inc_key);
+            ui.input(|input| {
+                decrement += input.num_presses(dec_key);
+                increment += input.num_presses(inc_key);
+            });
         }
 
         #[cfg(feature = "accesskit")]
         {
             use accesskit::Action;
-            decrement += ui
-                .input()
-                .num_accesskit_action_requests(response.id, Action::Decrement);
-            increment += ui
-                .input()
-                .num_accesskit_action_requests(response.id, Action::Increment);
+            ui.input(|input| {
+                decrement += input.num_accesskit_action_requests(response.id, Action::Decrement);
+                increment += input.num_accesskit_action_requests(response.id, Action::Increment);
+            });
         }
 
         let kb_step = increment as f32 - decrement as f32;
 
         if kb_step != 0.0 {
             let prev_value = self.get_value();
-            let prev_position = self.position_from_value(prev_value, position_range.clone());
+            let prev_position = self.position_from_value(prev_value, position_range);
             let new_position = prev_position + kb_step;
             let new_value = match self.step {
                 Some(step) => prev_value + (kb_step as f64 * step),
                 None if self.smart_aim => {
-                    let aim_radius = ui.input().aim_radius();
+                    let aim_radius = ui.input(|i| i.aim_radius());
                     emath::smart_aim::best_in_range_f64(
-                        self.value_from_position(new_position - aim_radius, position_range.clone()),
-                        self.value_from_position(new_position + aim_radius, position_range.clone()),
+                        self.value_from_position(new_position - aim_radius, position_range),
+                        self.value_from_position(new_position + aim_radius, position_range),
                     )
                 }
-                _ => self.value_from_position(new_position, position_range.clone()),
+                _ => self.value_from_position(new_position, position_range),
             };
             self.set_value(new_value);
         }
@@ -600,14 +615,13 @@ impl<'a> Slider<'a> {
         #[cfg(feature = "accesskit")]
         {
             use accesskit::{Action, ActionData};
-            for request in ui
-                .input()
-                .accesskit_action_requests(response.id, Action::SetValue)
-            {
-                if let Some(ActionData::NumericValue(new_value)) = request.data {
-                    self.set_value(new_value);
+            ui.input(|input| {
+                for request in input.accesskit_action_requests(response.id, Action::SetValue) {
+                    if let Some(ActionData::NumericValue(new_value)) = request.data {
+                        self.set_value(new_value);
+                    }
                 }
-            }
+            });
         }
 
         // Paint it:
@@ -617,21 +631,39 @@ impl<'a> Slider<'a> {
             let rail_radius = ui.painter().round_to_pixel(self.rail_radius_limit(rect));
             let rail_rect = self.rail_rect(rect, rail_radius);
 
-            let position_1d = self.position_from_value(value, position_range);
-
             let visuals = ui.style().interact(response);
-            ui.painter().add(epaint::RectShape {
-                rect: rail_rect,
-                rounding: ui.visuals().widgets.inactive.rounding,
-                fill: ui.visuals().widgets.inactive.bg_fill,
-                // fill: visuals.bg_fill,
-                // fill: ui.visuals().extreme_bg_color,
-                stroke: Default::default(),
-                // stroke: visuals.bg_stroke,
-                // stroke: ui.visuals().widgets.inactive.bg_stroke,
-            });
+            let widget_visuals = &ui.visuals().widgets;
 
+            ui.painter().rect_filled(
+                rail_rect,
+                widget_visuals.inactive.rounding,
+                widget_visuals.inactive.bg_fill,
+            );
+
+            let position_1d = self.position_from_value(value, position_range);
             let center = self.marker_center(position_1d, &rail_rect);
+
+            // Decide if we should add trailing fill.
+            let trailing_fill = self
+                .trailing_fill
+                .unwrap_or_else(|| ui.visuals().slider_trailing_fill);
+
+            // Paint trailing fill.
+            if trailing_fill {
+                let mut trailing_rail_rect = rail_rect;
+
+                // The trailing rect has to be drawn differently depending on the orientation.
+                match self.orientation {
+                    SliderOrientation::Vertical => trailing_rail_rect.min.y = center.y,
+                    SliderOrientation::Horizontal => trailing_rail_rect.max.x = center.x,
+                };
+
+                ui.painter().rect_filled(
+                    trailing_rail_rect,
+                    widget_visuals.inactive.rounding,
+                    ui.visuals().selection.bg_fill,
+                );
+            }
 
             ui.painter().add(epaint::CircleShape {
                 center,
@@ -656,15 +688,11 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn position_range(&self, rect: &Rect) -> RangeInclusive<f32> {
+    fn position_range(&self, rect: &Rect) -> Rangef {
         let handle_radius = self.handle_radius(rect);
         match self.orientation {
-            SliderOrientation::Horizontal => {
-                (rect.left() + handle_radius)..=(rect.right() - handle_radius)
-            }
-            SliderOrientation::Vertical => {
-                (rect.bottom() - handle_radius)..=(rect.top() + handle_radius)
-            }
+            SliderOrientation::Horizontal => rect.x_range().shrink(handle_radius),
+            SliderOrientation::Vertical => rect.y_range().shrink(handle_radius),
         }
     }
 
@@ -696,15 +724,13 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) -> Response {
-        let change = {
-            // Hold one lock rather than 4 (see https://github.com/emilk/egui/pull/1380).
-            let input = ui.input();
-
+    fn value_ui(&mut self, ui: &mut Ui, position_range: Rangef) -> Response {
+        // If [`DragValue`] is controlled from the keyboard and `step` is defined, set speed to `step`
+        let change = ui.input(|input| {
             input.num_presses(Key::ArrowUp) as i32 + input.num_presses(Key::ArrowRight) as i32
                 - input.num_presses(Key::ArrowDown) as i32
                 - input.num_presses(Key::ArrowLeft) as i32
-        };
+        });
 
         let any_change = change != 0;
         let speed = if let (Some(step), true) = (self.step, any_change) {
@@ -712,7 +738,7 @@ impl<'a> Slider<'a> {
             step
         } else {
             self.drag_value_speed
-                .unwrap_or_else(|| self.current_gradient(&position_range))
+                .unwrap_or_else(|| self.current_gradient(position_range))
         };
 
         let mut value = self.get_value();
@@ -739,12 +765,11 @@ impl<'a> Slider<'a> {
     }
 
     /// delta(value) / delta(points)
-    fn current_gradient(&mut self, position_range: &RangeInclusive<f32>) -> f64 {
+    fn current_gradient(&mut self, position_range: Rangef) -> f64 {
         // TODO(emilk): handle clamping
         let value = self.get_value();
-        let value_from_pos =
-            |position: f32| self.value_from_position(position, position_range.clone());
-        let pos_from_value = |value: f64| self.position_from_value(value, position_range.clone());
+        let value_from_pos = |position: f32| self.value_from_position(position, position_range);
+        let pos_from_value = |value: f64| self.position_from_value(value, position_range);
         let left_value = value_from_pos(pos_from_value(value) - 0.5);
         let right_value = value_from_pos(pos_from_value(value) + 0.5);
         right_value - left_value
@@ -764,20 +789,22 @@ impl<'a> Slider<'a> {
         response.widget_info(|| WidgetInfo::slider(value, self.text.text()));
 
         #[cfg(feature = "accesskit")]
-        if let Some(mut node) = ui.ctx().accesskit_node(response.id) {
+        ui.ctx().accesskit_node_builder(response.id, |builder| {
             use accesskit::Action;
-            node.min_numeric_value = Some(*self.range.start());
-            node.max_numeric_value = Some(*self.range.end());
-            node.numeric_value_step = self.step;
-            node.actions |= Action::SetValue;
+            builder.set_min_numeric_value(*self.range.start());
+            builder.set_max_numeric_value(*self.range.end());
+            if let Some(step) = self.step {
+                builder.set_numeric_value_step(step);
+            }
+            builder.add_action(Action::SetValue);
             let clamp_range = self.clamp_range();
             if value < *clamp_range.end() {
-                node.actions |= Action::Increment;
+                builder.add_action(Action::Increment);
             }
             if value > *clamp_range.start() {
-                node.actions |= Action::Decrement;
+                builder.add_action(Action::Decrement);
             }
-        }
+        });
 
         let slider_response = response.clone();
 
@@ -862,7 +889,7 @@ fn value_from_normalized(normalized: f64, range: RangeInclusive<f64>, spec: &Sli
             10.0_f64.powf(log)
         } else {
             assert!(min < 0.0 && 0.0 < max);
-            let zero_cutoff = logaritmic_zero_cutoff(min, max);
+            let zero_cutoff = logarithmic_zero_cutoff(min, max);
             if normalized < zero_cutoff {
                 // negative
                 value_from_normalized(
@@ -911,7 +938,7 @@ fn normalized_from_value(value: f64, range: RangeInclusive<f64>, spec: &SliderSp
             remap_clamp(value_log, min_log..=max_log, 0.0..=1.0)
         } else {
             assert!(min < 0.0 && 0.0 < max);
-            let zero_cutoff = logaritmic_zero_cutoff(min, max);
+            let zero_cutoff = logarithmic_zero_cutoff(min, max);
             if value < 0.0 {
                 // negative
                 remap(
@@ -962,7 +989,7 @@ fn range_log10(min: f64, max: f64, spec: &SliderSpec) -> (f64, f64) {
 
 /// where to put the zero cutoff for logarithmic sliders
 /// that crosses zero ?
-fn logaritmic_zero_cutoff(min: f64, max: f64) -> f64 {
+fn logarithmic_zero_cutoff(min: f64, max: f64) -> f64 {
     assert!(min < 0.0 && 0.0 < max);
 
     let min_magnitude = if min == -INFINITY {

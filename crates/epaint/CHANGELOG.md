@@ -1,8 +1,17 @@
 # epaint changelog
 All notable changes to the epaint crate will be documented in this file.
 
+This file is updated upon each release.
+Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
-## Unreleased
+
+
+## 0.22.0 - 2023-05-23
+* Fix compiling `epaint` without `bytemuck` dependency [#2913](https://github.com/emilk/egui/pull/2913) (thanks [@lunixbochs](https://github.com/lunixbochs)!)
+* Fix documentation for `TextureId::Managed(0)` [#2998](https://github.com/emilk/egui/pull/2998) (thanks [@andersk](https://github.com/andersk)!)
+
+
+## 0.21.0 - 2023-02-08
 * Improve the look of thin white lines ([#2437](https://github.com/emilk/egui/pull/2437)).
 * Don't render `\r` (Carriage Return) ([#2452](https://github.com/emilk/egui/pull/2452)).
 * Fix bug in `Mesh::split_to_u16` ([#2459](https://github.com/emilk/egui/pull/2459)).

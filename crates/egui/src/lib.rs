@@ -112,7 +112,7 @@
 //! ``` no_run
 //! # fn handle_platform_output(_: egui::PlatformOutput) {}
 //! # fn gather_input() -> egui::RawInput { egui::RawInput::default() }
-//! # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
+//! # fn paint(textures_delta: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
 //! let mut ctx = egui::Context::default();
 //!
 //! // Game loop:
@@ -298,6 +298,7 @@
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
+#![forbid(unsafe_code)]
 
 mod animation_manager;
 pub mod containers;
@@ -334,7 +335,9 @@ pub use epaint::emath;
 #[cfg(feature = "color-hex")]
 pub use ecolor::hex_color;
 pub use ecolor::{Color32, Rgba};
-pub use emath::{lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rect, Vec2};
+pub use emath::{
+    lerp, pos2, remap, remap_clamp, vec2, Align, Align2, NumExt, Pos2, Rangef, Rect, Vec2,
+};
 pub use epaint::{
     mutex,
     text::{FontData, FontDefinitions, FontFamily, FontId, FontTweak},
@@ -353,21 +356,21 @@ pub mod text {
 
 pub use {
     containers::*,
-    context::Context,
+    context::{Context, RequestRepaintInfo},
     data::{
         input::*,
-        output::{self, CursorIcon, FullOutput, PlatformOutput, WidgetInfo},
+        output::{self, CursorIcon, FullOutput, PlatformOutput, UserAttentionType, WidgetInfo},
     },
     grid::Grid,
     id::{Id, IdMap},
     input_state::{InputState, MultiTouchInfo, PointerState},
     layers::{LayerId, Order},
     layout::*,
-    memory::Memory,
+    memory::{Memory, Options},
     painter::Painter,
     response::{InnerResponse, Response},
     sense::Sense,
-    style::{FontSelection, Style, TextStyle, Visuals},
+    style::{FontSelection, Margin, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
     widget_text::{RichText, WidgetText},
@@ -513,18 +516,30 @@ pub mod special_emojis {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WidgetType {
     Label, // TODO(emilk): emit Label events
+
     /// e.g. a hyperlink
     Link,
+
     TextEdit,
+
     Button,
+
     Checkbox,
+
     RadioButton,
+
     SelectableLabel,
+
     ComboBox,
+
     Slider,
+
     DragValue,
+
     ColorButton,
+
     ImageButton,
+
     CollapsingHeader,
 
     /// If you cannot fit any of the above slots.
@@ -558,26 +573,4 @@ pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
 #[cfg(feature = "accesskit")]
 pub fn accesskit_root_id() -> Id {
     Id::new("accesskit_root")
-}
-
-/// Return a tree update that the egui integration should provide to the
-/// AccessKit adapter if it cannot immediately run the egui application
-/// to get a full tree update after running [`Context::enable_accesskit`].
-#[cfg(feature = "accesskit")]
-pub fn accesskit_placeholder_tree_update() -> accesskit::TreeUpdate {
-    use accesskit::{Node, Role, Tree, TreeUpdate};
-    use std::sync::Arc;
-
-    let root_id = accesskit_root_id().accesskit_id();
-    TreeUpdate {
-        nodes: vec![(
-            root_id,
-            Arc::new(Node {
-                role: Role::Window,
-                ..Default::default()
-            }),
-        )],
-        tree: Some(Tree::new(root_id)),
-        focus: None,
-    }
 }
