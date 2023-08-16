@@ -1133,15 +1133,14 @@ impl PlotItem for Arrows {
 #[derive(Clone)]
 pub struct PlotImage {
     pub(super) position: PlotPoint,
-    pub(super) rotation: f64,
     pub(super) texture_id: TextureId,
     pub(super) uv: Rect,
     pub(super) size: Vec2,
+    pub(crate) rotation: f64,
     pub(super) bg_fill: Color32,
     pub(super) tint: Color32,
     pub(super) highlight: bool,
     pub(super) name: String,
-    pub(crate) rotation: Option<(f32, Vec2)>,
 }
 
 impl PlotImage {
@@ -1153,15 +1152,14 @@ impl PlotImage {
     ) -> Self {
         Self {
             position: center_position,
-            rotation: 0.0,
             name: Default::default(),
             highlight: false,
             texture_id: texture_id.into(),
             uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
             size: size.into(),
+            rotation: 0.0,
             bg_fill: Default::default(),
             tint: Color32::WHITE,
-            rotation: None,
         }
     }
 
@@ -1189,12 +1187,6 @@ impl PlotImage {
         self
     }
 
-    /// Rotate the image counter-clockwise around its center.
-    pub fn rotate(mut self, rotation: f64) -> Self {
-        self.rotation = rotation;
-        self
-    }
-
     /// Name of this image.
     ///
     /// This name will show up in the plot legend, if legends are turned on.
@@ -1207,14 +1199,9 @@ impl PlotImage {
         self
     }
 
-    /// Rotate the image about an origin by some angle
-    ///
-    /// Positive angle is clockwise.
-    /// Origin is a vector in normalized UV space ((0,0) in top-left, (1,1) bottom right).
-    ///
-    /// To rotate about the center you can pass `Vec2::splat(0.5)` as the origin.
-    pub fn rotate(mut self, angle: f32, origin: Vec2) -> Self {
-        self.rotation = Some((angle, origin));
+    /// Rotate the image counter-clockwise around its center by an angle in radians.
+    pub fn rotate(mut self, angle: f64) -> Self {
+        self.rotation = angle;
         self
     }
 }
