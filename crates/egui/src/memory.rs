@@ -487,6 +487,11 @@ impl Memory {
     pub fn reset_areas(&mut self) {
         self.areas = Default::default();
     }
+
+    /// Obtain the previous rectangle of an area.
+    pub fn area_rect(&self, id: impl Into<Id>) -> Option<Rect> {
+        self.areas.get(id.into()).map(|state| state.rect())
+    }
 }
 
 /// ## Popups

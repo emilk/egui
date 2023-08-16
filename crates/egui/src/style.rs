@@ -441,6 +441,9 @@ pub struct Interaction {
 
     /// If `false`, tooltips will show up anytime you hover anything, even is mouse is still moving
     pub show_tooltips_only_when_still: bool,
+
+    /// Delay in seconds before showing tooltips after the mouse stops moving
+    pub tooltip_delay: f64,
 }
 
 /// Controls the visual style (colors etc) of egui.
@@ -762,6 +765,7 @@ impl Default for Interaction {
             resize_grab_radius_side: 5.0,
             resize_grab_radius_corner: 10.0,
             show_tooltips_only_when_still: true,
+            tooltip_delay: 0.0,
         }
     }
 }
@@ -1218,6 +1222,7 @@ impl Interaction {
             resize_grab_radius_side,
             resize_grab_radius_corner,
             show_tooltips_only_when_still,
+            tooltip_delay,
         } = self;
         ui.add(Slider::new(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
         ui.add(
@@ -1227,6 +1232,7 @@ impl Interaction {
             show_tooltips_only_when_still,
             "Only show tooltips if mouse is still",
         );
+        ui.add(Slider::new(tooltip_delay, 0.0..=1.0).text("tooltip_delay"));
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }

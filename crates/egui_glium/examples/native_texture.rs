@@ -8,7 +8,7 @@ fn main() {
 
     let mut egui_glium = egui_glium::EguiGlium::new(&display, &event_loop);
 
-    let png_data = include_bytes!("../../../examples/retained_image/src/rust-logo-256x256.png");
+    let png_data = include_bytes!("../../../examples/retained_image/src/crab.png");
     let image = load_glium_image(png_data);
     let image_size = egui::vec2(image.width as f32, image.height as f32);
     // Load to gpu memory

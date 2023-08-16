@@ -127,12 +127,7 @@ impl Bar {
         };
 
         let rect = transform.rect_from_values(&self.bounds_min(), &self.bounds_max());
-        let rect = Shape::Rect(RectShape {
-            rect,
-            rounding: Rounding::none(),
-            fill,
-            stroke,
-        });
+        let rect = Shape::Rect(RectShape::new(rect, Rounding::ZERO, fill, stroke));
 
         shapes.push(rect);
     }
