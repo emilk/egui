@@ -938,6 +938,7 @@ impl Frame {
     /// Set the desired inner size of the window (in egui points).
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_window_size(&mut self, size: egui::Vec2) {
+        println!("In set_window_size");
         self.output.window_size = Some(size);
         self.info.window_info.size = size; // so that subsequent calls see the updated value
     }

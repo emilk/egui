@@ -7,7 +7,7 @@ use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{FullOutput, NumExt as _};
+use egui::NumExt as _;
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
@@ -251,6 +251,7 @@ pub fn handle_app_output(
     }
 
     if let Some(window_size) = window_size {
+        println!("Calling set inner size with size {:?}", window_size);
         window.set_inner_size(
             winit::dpi::PhysicalSize {
                 width: (current_pixels_per_point * window_size.x).round(),
