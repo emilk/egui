@@ -80,14 +80,45 @@ impl crate::Storage for FileStorage {
                 join_handle.join().ok();
             }
 
-            let join_handle = std::thread::spawn(move || {
-                let file = std::fs::File::create(&file_path).unwrap();
-                let config = Default::default();
-                ron::ser::to_writer_pretty(file, &kv, config).unwrap();
-                log::trace!("Persisted to {:?}", file_path);
-            });
+            match std::thread::Builder::new()
+                .name("eframe_persist".to_owned())
+                .spawn(move || {
+                    save_to_disk(&file_path, &kv);
+                }) {
+                Ok(join_handle) => {
+                    self.last_save_join_handle = Some(join_handle);
+                }
+                Err(err) => {
+                    log::warn!("Failed to spawn thread to save app state: {err}");
+                }
+            }
+        }
+    }
+}
 
-            self.last_save_join_handle = Some(join_handle);
+fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
+    crate::profile_function!();
+
+    if let Some(parent_dir) = file_path.parent() {
+        if !parent_dir.exists() {
+            if let Err(err) = std::fs::create_dir_all(parent_dir) {
+                log::warn!("Failed to create directory {parent_dir:?}: {err}");
+            }
+        }
+    }
+
+    match std::fs::File::create(file_path) {
+        Ok(file) => {
+            let config = Default::default();
+
+            if let Err(err) = ron::ser::to_writer_pretty(file, &kv, config) {
+                log::warn!("Failed to serialize app state: {err}");
+            } else {
+                log::trace!("Persisted to {:?}", file_path);
+            }
+        }
+        Err(err) => {
+            log::warn!("Failed to create file {file_path:?}: {err}");
         }
     }
 }

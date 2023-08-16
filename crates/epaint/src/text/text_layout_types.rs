@@ -49,6 +49,7 @@ pub struct LayoutJob {
     /// The different section, which can have different fonts, colors, etc.
     pub sections: Vec<LayoutSection>,
 
+    /// Controls the text wrapping and elision.
     pub wrap: TextWrapping,
 
     /// The first row must be at least this high.
@@ -58,15 +59,19 @@ pub struct LayoutJob {
     /// In other cases, set this to `0.0`.
     pub first_row_min_height: f32,
 
-    /// If `false`, all newlines characters will be ignored
+    /// If `true`, all `\n` characters will result in a new _paragraph_,
+    /// starting on a new row.
+    ///
+    /// If `false`, all `\n` characters will be ignored
     /// and show up as the replacement character.
+    ///
     /// Default: `true`.
     pub break_on_newline: bool,
 
     /// How to horizontally align the text (`Align::LEFT`, `Align::Center`, `Align::RIGHT`).
     pub halign: Align,
 
-    /// Justify text so that word-wrapped rows fill the whole [`TextWrapping::max_width`]
+    /// Justify text so that word-wrapped rows fill the whole [`TextWrapping::max_width`].
     pub justify: bool,
 }
 
@@ -153,7 +158,7 @@ impl LayoutJob {
         });
     }
 
-    /// The height of the tallest used font in the job.
+    /// The height of the tallest font used in the job.
     pub fn font_height(&self, fonts: &crate::Fonts) -> f32 {
         let mut max_height = 0.0_f32;
         for section in &self.sections {
@@ -193,8 +198,10 @@ impl std::hash::Hash for LayoutJob {
 pub struct LayoutSection {
     /// Can be used for first row indentation.
     pub leading_space: f32,
+
     /// Range into the galley text
     pub byte_range: Range<usize>,
+
     pub format: TextFormat,
 }
 
@@ -218,12 +225,18 @@ impl std::hash::Hash for LayoutSection {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextFormat {
     pub font_id: FontId,
+
     /// Text color
     pub color: Color32,
+
     pub background: Color32,
+
     pub italics: bool,
+
     pub underline: Stroke,
+
     pub strikethrough: Stroke,
+
     /// If you use a small font and [`Align::TOP`] you
     /// can get the effect of raised text.
     pub valign: Align,
@@ -258,22 +271,50 @@ impl TextFormat {
 
 // ----------------------------------------------------------------------------
 
+/// Controls the text wrapping and elision of a [`LayoutJob`].
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextWrapping {
-    /// Try to break text so that no row is wider than this.
-    /// Set to [`f32::INFINITY`] to turn off wrapping.
-    /// Note that `\n` always produces a new line.
+    /// Wrap text so that no row is wider than this.
+    ///
+    /// If you would rather truncate text that doesn't fit, set [`Self::max_rows`] to `1`.
+    ///
+    /// Set `max_width` to [`f32::INFINITY`] to turn off wrapping and elision.
+    ///
+    /// Note that `\n` always produces a new row
+    /// if [`LayoutJob::break_on_newline`] is `true`.
     pub max_width: f32,
 
-    /// Maximum amount of rows the text should have.
-    /// Set to `0` to disable this.
+    /// Maximum amount of rows the text galley should have.
+    ///
+    /// If this limit is reached, text will be truncated and
+    /// and [`Self::overflow_character`] appended to the final row.
+    /// You can detect this by checking [`Galley::elided`].
+    ///
+    /// If set to `0`, no text will be outputted.
+    ///
+    /// If set to `1`, a single row will be outputted,
+    /// eliding the text after [`Self::max_width`] is reached.
+    /// When you set `max_rows = 1`, it is recommended you also set [`Self::break_anywhere`] to `true`.
+    ///
+    /// Default value: `usize::MAX`.
     pub max_rows: usize,
 
-    /// Don't try to break text at an appropriate place.
+    /// If `true`: Allow breaking between any characters.
+    /// If `false` (default): prefer breaking between words, etc.
+    ///
+    /// NOTE: Due to limitations in the current implementation,
+    /// when truncating text using [`Self::max_rows`] the text may be truncated
+    /// in the middle of a word even if [`Self::break_anywhere`] is `false`.
+    /// Therefore it is recommended to set [`Self::break_anywhere`] to `true`
+    /// whenever [`Self::max_rows`] is set to `1`.
     pub break_anywhere: bool,
 
-    /// Character to use to represent clipped text, `…` for example, which is the default.
+    /// Character to use to represent elided text.
+    ///
+    /// The default is `…`.
+    ///
+    /// If not set, no character will be used (but the text will still be elided).
     pub overflow_character: Option<char>,
 }
 
@@ -297,9 +338,29 @@ impl Default for TextWrapping {
     fn default() -> Self {
         Self {
             max_width: f32::INFINITY,
-            max_rows: 0,
+            max_rows: usize::MAX,
             break_anywhere: false,
             overflow_character: Some('…'),
+        }
+    }
+}
+
+impl TextWrapping {
+    /// A row can be as long as it need to be
+    pub fn no_max_width() -> Self {
+        Self {
+            max_width: f32::INFINITY,
+            ..Default::default()
+        }
+    }
+
+    /// Elide text that doesn't fit within the given width.
+    pub fn elide_at_width(max_width: f32) -> Self {
+        Self {
+            max_width,
+            max_rows: 1,
+            break_anywhere: true,
+            ..Default::default()
         }
     }
 }
@@ -310,7 +371,13 @@ impl Default for TextWrapping {
 ///
 /// You can create a [`Galley`] using [`crate::Fonts::layout_job`];
 ///
-/// This needs to be recreated if `pixels_per_point` (dpi scale) changes.
+/// Needs to be recreated if the underlying font atlas texture changes, which
+/// happens under the following conditions:
+/// - `pixels_per_point` or `max_texture_size` change. These parameters are set
+///   in [`crate::text::Fonts::begin_frame`]. When using `egui` they are set
+///   from `egui::InputState` and can change at any time.
+/// - The atlas has become full. This can happen any time a new glyph is added
+///   to the atlas, which in turn can happen any time new text is laid out.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Galley {
@@ -319,10 +386,16 @@ pub struct Galley {
     pub job: Arc<LayoutJob>,
 
     /// Rows of text, from top to bottom.
-    /// The number of characters in all rows sum up to `job.text.chars().count()`.
-    /// Note that each paragraph (pieces of text separated with `\n`)
+    ///
+    /// The number of characters in all rows sum up to `job.text.chars().count()`
+    /// unless [`Self::elided`] is `true`.
+    ///
+    /// Note that a paragraph (a piece of text separated with `\n`)
     /// can be split up into multiple rows.
     pub rows: Vec<Row>,
+
+    /// Set to true the text was truncated due to [`TextWrapping::max_rows`].
+    pub elided: bool,
 
     /// Bounding rect.
     ///
@@ -491,6 +564,7 @@ impl Galley {
         self.job.is_empty()
     }
 
+    /// The full, non-elided text of the input job.
     #[inline(always)]
     pub fn text(&self) -> &str {
         &self.job.text

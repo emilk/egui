@@ -1,14 +1,16 @@
 //! Simple plotting library.
 
-use ahash::HashMap;
-use std::ops::RangeInclusive;
+use std::{ops::RangeInclusive, sync::Arc};
 
-use crate::*;
+use ahash::HashMap;
 use epaint::util::FloatOrd;
 use epaint::Hsva;
 
+use axis::AxisWidget;
 use items::PlotItem;
 use legend::LegendWidget;
+
+use crate::*;
 
 pub use items::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, HLine, Line, LineStyle, MarkerShape,
@@ -17,16 +19,17 @@ pub use items::{
 pub use legend::{Corner, Legend};
 pub use transform::{PlotBounds, PlotTransform};
 
-use self::items::{horizontal_line, rulers_color, vertical_line};
+use items::{horizontal_line, rulers_color, vertical_line};
 
+pub use axis::{Axis, AxisHints, HPlacement, Placement, VPlacement};
+
+mod axis;
 mod items;
 mod legend;
 mod transform;
 
 type LabelFormatterFn = dyn Fn(&str, &PlotPoint) -> String;
 type LabelFormatter = Option<Box<LabelFormatterFn>>;
-type AxisFormatterFn = dyn Fn(f64, &RangeInclusive<f64>) -> String;
-type AxisFormatter = Option<Box<AxisFormatterFn>>;
 
 type GridSpacerFn = dyn Fn(GridInput) -> Vec<GridMark>;
 type GridSpacer = Box<GridSpacerFn>;
@@ -78,6 +81,7 @@ pub struct AxisBools {
 }
 
 impl AxisBools {
+    #[inline]
     pub fn new(x: bool, y: bool) -> Self {
         Self { x, y }
     }
@@ -89,8 +93,16 @@ impl AxisBools {
 }
 
 impl From<bool> for AxisBools {
+    #[inline]
     fn from(val: bool) -> Self {
         AxisBools { x: val, y: val }
+    }
+}
+
+impl From<[bool; 2]> for AxisBools {
+    #[inline]
+    fn from([x, y]: [bool; 2]) -> Self {
+        AxisBools { x, y }
     }
 }
 
@@ -101,9 +113,11 @@ struct PlotMemory {
     /// Indicates if the user has modified the bounds, for example by moving or zooming,
     /// or if the bounds should be calculated based by included point or auto bounds.
     bounds_modified: AxisBools,
+
     hovered_entry: Option<String>,
     hidden_items: ahash::HashSet<String>,
     last_plot_transform: PlotTransform,
+
     /// Allows to remember the first click position when performing a boxed zoom
     last_click_pos_for_zoom: Option<Pos2>,
 }
@@ -180,8 +194,7 @@ pub struct PlotResponse<R> {
 pub struct Plot {
     id_source: Id,
 
-    center_x_axis: bool,
-    center_y_axis: bool,
+    center_axis: AxisBools,
     allow_zoom: AxisBools,
     allow_drag: AxisBools,
     allow_scroll: bool,
@@ -206,11 +219,12 @@ pub struct Plot {
     show_y: bool,
     label_formatter: LabelFormatter,
     coordinates_formatter: Option<(Corner, CoordinatesFormatter)>,
-    axis_formatters: [AxisFormatter; 2],
+    x_axes: Vec<AxisHints>, // default x axes
+    y_axes: Vec<AxisHints>, // default y axes
     legend_config: Option<Legend>,
     show_background: bool,
-    show_axes: [bool; 2],
-
+    show_axes: AxisBools,
+    show_grid: AxisBools,
     grid_spacers: [GridSpacer; 2],
     sharp_grid_lines: bool,
     clamp_grid: bool,
@@ -222,8 +236,7 @@ impl Plot {
         Self {
             id_source: Id::new(id_source),
 
-            center_x_axis: false,
-            center_y_axis: false,
+            center_axis: false.into(),
             allow_zoom: true.into(),
             allow_drag: true.into(),
             allow_scroll: true,
@@ -248,11 +261,12 @@ impl Plot {
             show_y: true,
             label_formatter: None,
             coordinates_formatter: None,
-            axis_formatters: [None, None], // [None; 2] requires Copy
+            x_axes: vec![Default::default()],
+            y_axes: vec![Default::default()],
             legend_config: None,
             show_background: true,
-            show_axes: [true; 2],
-
+            show_axes: true.into(),
+            show_grid: true.into(),
             grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
             sharp_grid_lines: true,
             clamp_grid: false,
@@ -309,15 +323,15 @@ impl Plot {
         self
     }
 
-    /// Always keep the x-axis centered. Default: `false`.
+    /// Always keep the X-axis centered. Default: `false`.
     pub fn center_x_axis(mut self, on: bool) -> Self {
-        self.center_x_axis = on;
+        self.center_axis.x = on;
         self
     }
 
-    /// Always keep the y-axis centered. Default: `false`.
+    /// Always keep the Y-axis centered. Default: `false`.
     pub fn center_y_axis(mut self, on: bool) -> Self {
-        self.center_y_axis = on;
+        self.center_axis.y = on;
         self
     }
 
@@ -415,36 +429,6 @@ impl Plot {
         self
     }
 
-    /// Provide a function to customize the labels for the X axis based on the current visible value range.
-    ///
-    /// This is useful for custom input domains, e.g. date/time.
-    ///
-    /// If axis labels should not appear for certain values or beyond a certain zoom/resolution,
-    /// the formatter function can return empty strings. This is also useful if your domain is
-    /// discrete (e.g. only full days in a calendar).
-    pub fn x_axis_formatter(
-        mut self,
-        func: impl Fn(f64, &RangeInclusive<f64>) -> String + 'static,
-    ) -> Self {
-        self.axis_formatters[0] = Some(Box::new(func));
-        self
-    }
-
-    /// Provide a function to customize the labels for the Y axis based on the current value range.
-    ///
-    /// This is useful for custom value representation, e.g. percentage or units.
-    ///
-    /// If axis labels should not appear for certain values or beyond a certain zoom/resolution,
-    /// the formatter function can return empty strings. This is also useful if your Y values are
-    /// discrete (e.g. only integers).
-    pub fn y_axis_formatter(
-        mut self,
-        func: impl Fn(f64, &RangeInclusive<f64>) -> String + 'static,
-    ) -> Self {
-        self.axis_formatters[1] = Some(Box::new(func));
-        self
-    }
-
     /// Configure how the grid in the background is spaced apart along the X axis.
     ///
     /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units.
@@ -536,11 +520,19 @@ impl Plot {
         self
     }
 
-    /// Show the axes.
-    /// Can be useful to disable if the plot is overlaid over an existing grid or content.
+    /// Show axis labels and grid tick values on the side of the plot.
+    ///
     /// Default: `[true; 2]`.
-    pub fn show_axes(mut self, show: [bool; 2]) -> Self {
-        self.show_axes = show;
+    pub fn show_axes(mut self, show: impl Into<AxisBools>) -> Self {
+        self.show_axes = show.into();
+        self
+    }
+
+    /// Show a grid overlay on the plot.
+    ///
+    /// Default: `[true; 2]`.
+    pub fn show_grid(mut self, show: impl Into<AxisBools>) -> Self {
+        self.show_grid = show.into();
         self
     }
 
@@ -583,6 +575,102 @@ impl Plot {
         self
     }
 
+    /// Set the x axis label of the main X-axis.
+    ///
+    /// Default: no label.
+    pub fn x_axis_label(mut self, label: impl Into<WidgetText>) -> Self {
+        if let Some(main) = self.x_axes.first_mut() {
+            main.label = label.into();
+        }
+        self
+    }
+
+    /// Set the y axis label of the main Y-axis.
+    ///
+    /// Default: no label.
+    pub fn y_axis_label(mut self, label: impl Into<WidgetText>) -> Self {
+        if let Some(main) = self.y_axes.first_mut() {
+            main.label = label.into();
+        }
+        self
+    }
+
+    /// Set the position of the main X-axis.
+    pub fn x_axis_position(mut self, placement: axis::VPlacement) -> Self {
+        if let Some(main) = self.x_axes.first_mut() {
+            main.placement = placement.into();
+        }
+        self
+    }
+
+    /// Set the position of the main Y-axis.
+    pub fn y_axis_position(mut self, placement: axis::HPlacement) -> Self {
+        if let Some(main) = self.y_axes.first_mut() {
+            main.placement = placement.into();
+        }
+        self
+    }
+
+    /// Specify custom formatter for ticks on the main X-axis.
+    ///
+    /// Arguments of `fmt`:
+    /// * raw tick value as `f64`.
+    /// * maximum requested number of characters per tick label.
+    /// * currently shown range on this axis.
+    pub fn x_axis_formatter(
+        mut self,
+        fmt: impl Fn(f64, usize, &RangeInclusive<f64>) -> String + 'static,
+    ) -> Self {
+        if let Some(main) = self.x_axes.first_mut() {
+            main.formatter = Arc::new(fmt);
+        }
+        self
+    }
+
+    /// Specify custom formatter for ticks on the main Y-axis.
+    ///
+    /// Arguments of `fmt`:
+    /// * raw tick value as `f64`.
+    /// * maximum requested number of characters per tick label.
+    /// * currently shown range on this axis.
+    pub fn y_axis_formatter(
+        mut self,
+        fmt: impl Fn(f64, usize, &RangeInclusive<f64>) -> String + 'static,
+    ) -> Self {
+        if let Some(main) = self.y_axes.first_mut() {
+            main.formatter = Arc::new(fmt);
+        }
+        self
+    }
+
+    /// Set the main Y-axis-width by number of digits
+    ///
+    /// The default is 5 digits.
+    ///
+    /// > Todo: This is experimental. Changing the font size might break this.
+    pub fn y_axis_width(mut self, digits: usize) -> Self {
+        if let Some(main) = self.y_axes.first_mut() {
+            main.digits = digits;
+        }
+        self
+    }
+
+    /// Set custom configuration for X-axis
+    ///
+    /// More than one axis may be specified. The first specified axis is considered the main axis.
+    pub fn custom_x_axes(mut self, hints: Vec<AxisHints>) -> Self {
+        self.x_axes = hints;
+        self
+    }
+
+    /// Set custom configuration for left Y-axis
+    ///
+    /// More than one axis may be specified. The first specified axis is considered the main axis.
+    pub fn custom_y_axes(mut self, hints: Vec<AxisHints>) -> Self {
+        self.y_axes = hints;
+        self
+    }
+
     /// Interact with and add items to the plot and finally draw it.
     pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> PlotResponse<R> {
         self.show_dyn(ui, Box::new(build_fn))
@@ -595,8 +683,7 @@ impl Plot {
     ) -> PlotResponse<R> {
         let Self {
             id_source,
-            center_x_axis,
-            center_y_axis,
+            center_axis,
             allow_zoom,
             allow_drag,
             allow_scroll,
@@ -615,11 +702,13 @@ impl Plot {
             mut show_y,
             label_formatter,
             coordinates_formatter,
-            axis_formatters,
+            x_axes,
+            y_axes,
             legend_config,
             reset,
             show_background,
             show_axes,
+            show_grid,
             linked_axes,
             linked_cursors,
 
@@ -628,7 +717,9 @@ impl Plot {
             sharp_grid_lines,
         } = self;
 
-        // Determine the size of the plot in the UI
+        // Determine position of widget.
+        let pos = ui.available_rect_before_wrap().min;
+        // Determine size of widget.
         let size = {
             let width = width
                 .unwrap_or_else(|| {
@@ -651,9 +742,79 @@ impl Plot {
                 .at_least(min_size.y);
             vec2(width, height)
         };
+        // Determine complete rect of widget.
+        let complete_rect = Rect {
+            min: pos,
+            max: pos + size,
+        };
+        // Next we want to create this layout.
+        // Incides are only examples.
+        //
+        //  left                     right
+        //  +---+---------x----------+   +
+        //  |   |      X-axis 3      |
+        //  |   +--------------------+    top
+        //  |   |      X-axis 2      |
+        //  +-+-+--------------------+-+-+
+        //  |y|y|                    |y|y|
+        //  |-|-|                    |-|-|
+        //  |A|A|                    |A|A|
+        // y|x|x|    Plot Window     |x|x|
+        //  |i|i|                    |i|i|
+        //  |s|s|                    |s|s|
+        //  |1|0|                    |2|3|
+        //  +-+-+--------------------+-+-+
+        //      |      X-axis 0      |   |
+        //      +--------------------+   | bottom
+        //      |      X-axis 1      |   |
+        //  +   +--------------------+---+
+        //
 
-        // Allocate the space.
-        let (rect, response) = ui.allocate_exact_size(size, Sense::drag());
+        let mut plot_rect: Rect = {
+            // Calcuclate the space needed for each axis labels.
+            let mut margin = Margin::ZERO;
+            if show_axes.x {
+                for cfg in &x_axes {
+                    match cfg.placement {
+                        axis::Placement::LeftBottom => {
+                            margin.bottom += cfg.thickness(Axis::X);
+                        }
+                        axis::Placement::RightTop => {
+                            margin.top += cfg.thickness(Axis::X);
+                        }
+                    }
+                }
+            }
+            if show_axes.y {
+                for cfg in &y_axes {
+                    match cfg.placement {
+                        axis::Placement::LeftBottom => {
+                            margin.left += cfg.thickness(Axis::Y);
+                        }
+                        axis::Placement::RightTop => {
+                            margin.right += cfg.thickness(Axis::Y);
+                        }
+                    }
+                }
+            }
+
+            // determine plot rectangle
+            margin.shrink_rect(complete_rect)
+        };
+
+        let [mut x_axis_widgets, mut y_axis_widgets] =
+            axis_widgets(show_axes, plot_rect, [&x_axes, &y_axes]);
+
+        // If too little space, remove axis widgets
+        if plot_rect.width() <= 0.0 || plot_rect.height() <= 0.0 {
+            y_axis_widgets.clear();
+            x_axis_widgets.clear();
+            plot_rect = complete_rect;
+        }
+
+        // Allocate the plot window.
+        let response = ui.allocate_rect(plot_rect, Sense::drag());
+        let rect = plot_rect;
 
         // Load or initialize the memory.
         let plot_id = ui.make_persistent_id(id_source);
@@ -677,8 +838,8 @@ impl Plot {
             last_plot_transform: PlotTransform::new(
                 rect,
                 min_auto_bounds,
-                center_x_axis,
-                center_y_axis,
+                center_axis.x,
+                center_axis.y,
             ),
             last_click_pos_for_zoom: None,
         });
@@ -711,12 +872,14 @@ impl Plot {
 
         // Background
         if show_background {
-            ui.painter().with_clip_rect(rect).add(epaint::RectShape {
-                rect,
-                rounding: Rounding::same(2.0),
-                fill: ui.visuals().extreme_bg_color,
-                stroke: ui.visuals().widgets.noninteractive.bg_stroke,
-            });
+            ui.painter()
+                .with_clip_rect(rect)
+                .add(epaint::RectShape::new(
+                    rect,
+                    Rounding::same(2.0),
+                    ui.visuals().extreme_bg_color,
+                    ui.visuals().widgets.noninteractive.bg_stroke,
+                ));
         }
 
         // --- Legend ---
@@ -839,7 +1002,7 @@ impl Plot {
             }
         }
 
-        let mut transform = PlotTransform::new(rect, bounds, center_x_axis, center_y_axis);
+        let mut transform = PlotTransform::new(rect, bounds, center_axis.x, center_axis.y);
 
         // Enforce aspect ratio
         if let Some(data_aspect) = data_aspect {
@@ -864,7 +1027,7 @@ impl Plot {
                 delta.y = 0.0;
             }
             transform.translate_bounds(delta);
-            bounds_modified = true.into();
+            bounds_modified = allow_drag;
         }
 
         // Zooming
@@ -935,7 +1098,7 @@ impl Plot {
                 }
                 if zoom_factor != Vec2::splat(1.0) {
                     transform.zoom(zoom_factor, hover_pos);
-                    bounds_modified = true.into();
+                    bounds_modified = allow_zoom;
                 }
             }
             if allow_scroll {
@@ -945,6 +1108,39 @@ impl Plot {
                     bounds_modified = true.into();
                 }
             }
+        }
+
+        // --- transform initialized
+
+        // Add legend widgets to plot
+        let bounds = transform.bounds();
+        let x_axis_range = bounds.range_x();
+        let x_steps = Arc::new({
+            let input = GridInput {
+                bounds: (bounds.min[0], bounds.max[0]),
+                base_step_size: transform.dvalue_dpos()[0] * MIN_LINE_SPACING_IN_POINTS * 2.0,
+            };
+            (grid_spacers[0])(input)
+        });
+        let y_axis_range = bounds.range_y();
+        let y_steps = Arc::new({
+            let input = GridInput {
+                bounds: (bounds.min[1], bounds.max[1]),
+                base_step_size: transform.dvalue_dpos()[1] * MIN_LINE_SPACING_IN_POINTS * 2.0,
+            };
+            (grid_spacers[1])(input)
+        });
+        for mut widget in x_axis_widgets {
+            widget.range = x_axis_range.clone();
+            widget.transform = Some(transform);
+            widget.steps = x_steps.clone();
+            widget.ui(ui, Axis::X);
+        }
+        for mut widget in y_axis_widgets {
+            widget.range = y_axis_range.clone();
+            widget.transform = Some(transform);
+            widget.steps = y_steps.clone();
+            widget.ui(ui, Axis::Y);
         }
 
         // Initialize values from functions.
@@ -958,16 +1154,16 @@ impl Plot {
             show_y,
             label_formatter,
             coordinates_formatter,
-            axis_formatters,
-            show_axes,
+            show_grid,
             transform,
-            draw_cursor_x: linked_cursors.as_ref().map_or(false, |(_, group)| group.x),
-            draw_cursor_y: linked_cursors.as_ref().map_or(false, |(_, group)| group.y),
+            draw_cursor_x: linked_cursors.as_ref().map_or(false, |group| group.1.x),
+            draw_cursor_y: linked_cursors.as_ref().map_or(false, |group| group.1.y),
             draw_cursors,
             grid_spacers,
             sharp_grid_lines,
             clamp_grid,
         };
+
         let plot_cursors = prepared.ui(ui, &response);
 
         if let Some(boxed_zoom_rect) = boxed_zoom_rect {
@@ -1022,13 +1218,86 @@ impl Plot {
         } else {
             response
         };
-
+        ui.advance_cursor_after_rect(complete_rect);
         PlotResponse {
             inner,
             response,
             transform,
         }
     }
+}
+
+fn axis_widgets(
+    show_axes: AxisBools,
+    plot_rect: Rect,
+    [x_axes, y_axes]: [&[AxisHints]; 2],
+) -> [Vec<AxisWidget>; 2] {
+    let mut x_axis_widgets = Vec::<AxisWidget>::new();
+    let mut y_axis_widgets = Vec::<AxisWidget>::new();
+
+    // Widget count per border of plot in order left, top, right, bottom
+    struct NumWidgets {
+        left: usize,
+        top: usize,
+        right: usize,
+        bottom: usize,
+    }
+    let mut num_widgets = NumWidgets {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+    };
+    if show_axes.x {
+        for cfg in x_axes {
+            let size_y = Vec2::new(0.0, cfg.thickness(Axis::X));
+            let rect = match cfg.placement {
+                axis::Placement::LeftBottom => {
+                    let off = num_widgets.bottom as f32;
+                    num_widgets.bottom += 1;
+                    Rect {
+                        min: plot_rect.left_bottom() + size_y * off,
+                        max: plot_rect.right_bottom() + size_y * (off + 1.0),
+                    }
+                }
+                axis::Placement::RightTop => {
+                    let off = num_widgets.top as f32;
+                    num_widgets.top += 1;
+                    Rect {
+                        min: plot_rect.left_top() - size_y * (off + 1.0),
+                        max: plot_rect.right_top() - size_y * off,
+                    }
+                }
+            };
+            x_axis_widgets.push(AxisWidget::new(cfg.clone(), rect));
+        }
+    }
+    if show_axes.y {
+        for cfg in y_axes {
+            let size_x = Vec2::new(cfg.thickness(Axis::Y), 0.0);
+            let rect = match cfg.placement {
+                axis::Placement::LeftBottom => {
+                    let off = num_widgets.left as f32;
+                    num_widgets.left += 1;
+                    Rect {
+                        min: plot_rect.left_top() - size_x * (off + 1.0),
+                        max: plot_rect.left_bottom() - size_x * off,
+                    }
+                }
+                axis::Placement::RightTop => {
+                    let off = num_widgets.right as f32;
+                    num_widgets.right += 1;
+                    Rect {
+                        min: plot_rect.right_top() + size_x * off,
+                        max: plot_rect.right_bottom() + size_x * (off + 1.0),
+                    }
+                }
+            };
+            y_axis_widgets.push(AxisWidget::new(cfg.clone(), rect));
+        }
+    }
+
+    [x_axis_widgets, y_axis_widgets]
 }
 
 /// User-requested modifications to the plot bounds. We collect them in the plot build function to later apply
@@ -1081,17 +1350,25 @@ impl PlotUi {
             .push(BoundsModification::Translate(delta_pos));
     }
 
+    /// Can be used to check if the plot was hovered or clicked.
+    pub fn response(&self) -> &Response {
+        &self.response
+    }
+
     /// Returns `true` if the plot area is currently hovered.
+    #[deprecated = "Use plot_ui.response().hovered()"]
     pub fn plot_hovered(&self) -> bool {
         self.response.hovered()
     }
 
     /// Returns `true` if the plot was clicked by the primary button.
+    #[deprecated = "Use plot_ui.response().clicked()"]
     pub fn plot_clicked(&self) -> bool {
         self.response.clicked()
     }
 
     /// Returns `true` if the plot was clicked by the secondary button.
+    #[deprecated = "Use plot_ui.response().secondary_clicked()"]
     pub fn plot_secondary_clicked(&self) -> bool {
         self.response.secondary_clicked()
     }
@@ -1258,6 +1535,7 @@ pub struct GridInput {
 }
 
 /// One mark (horizontal or vertical line) in the background grid of a plot.
+#[derive(Debug, Clone, Copy)]
 pub struct GridMark {
     /// X or Y value in the plot.
     pub value: f64,
@@ -1319,14 +1597,14 @@ struct PreparedPlot {
     show_y: bool,
     label_formatter: LabelFormatter,
     coordinates_formatter: Option<(Corner, CoordinatesFormatter)>,
-    axis_formatters: [AxisFormatter; 2],
-    show_axes: [bool; 2],
+    // axis_formatters: [AxisFormatter; 2],
     transform: PlotTransform,
+    show_grid: AxisBools,
+    grid_spacers: [GridSpacer; 2],
     draw_cursor_x: bool,
     draw_cursor_y: bool,
     draw_cursors: Vec<Cursor>,
 
-    grid_spacers: [GridSpacer; 2],
     sharp_grid_lines: bool,
     clamp_grid: bool,
 }
@@ -1335,16 +1613,11 @@ impl PreparedPlot {
     fn ui(self, ui: &mut Ui, response: &Response) -> Vec<Cursor> {
         let mut axes_shapes = Vec::new();
 
-        for d in 0..2 {
-            if self.show_axes[d] {
-                self.paint_axis(
-                    ui,
-                    d,
-                    self.show_axes[1 - d],
-                    &mut axes_shapes,
-                    self.sharp_grid_lines,
-                );
-            }
+        if self.show_grid.x {
+            self.paint_grid(ui, &mut axes_shapes, Axis::X);
+        }
+        if self.show_grid.y {
+            self.paint_grid(ui, &mut axes_shapes, Axis::Y);
         }
 
         // Sort the axes by strength so that those with higher strength are drawn in front.
@@ -1421,41 +1694,27 @@ impl PreparedPlot {
         cursors
     }
 
-    fn paint_axis(
-        &self,
-        ui: &Ui,
-        axis: usize,
-        other_axis_shown: bool,
-        shapes: &mut Vec<(Shape, f32)>,
-        sharp_grid_lines: bool,
-    ) {
+    fn paint_grid(&self, ui: &Ui, shapes: &mut Vec<(Shape, f32)>, axis: Axis) {
         #![allow(clippy::collapsible_else_if)]
-
         let Self {
             transform,
-            axis_formatters,
+            // axis_formatters,
             grid_spacers,
             clamp_grid,
             ..
         } = self;
 
-        let bounds = transform.bounds();
-        let axis_range = match axis {
-            0 => bounds.range_x(),
-            1 => bounds.range_y(),
-            _ => panic!("Axis {} does not exist.", axis),
-        };
-
-        let font_id = TextStyle::Body.resolve(ui.style());
+        let iaxis = usize::from(axis);
 
         // Where on the cross-dimension to show the label values
-        let value_cross = 0.0_f64.clamp(bounds.min[1 - axis], bounds.max[1 - axis]);
+        let bounds = transform.bounds();
+        let value_cross = 0.0_f64.clamp(bounds.min[1 - iaxis], bounds.max[1 - iaxis]);
 
         let input = GridInput {
-            bounds: (bounds.min[axis], bounds.max[axis]),
-            base_step_size: transform.dvalue_dpos()[axis] * MIN_LINE_SPACING_IN_POINTS,
+            bounds: (bounds.min[iaxis], bounds.max[iaxis]),
+            base_step_size: transform.dvalue_dpos()[iaxis] * MIN_LINE_SPACING_IN_POINTS,
         };
-        let steps = (grid_spacers[axis])(input);
+        let steps = (grid_spacers[iaxis])(input);
 
         let clamp_range = clamp_grid.then(|| {
             let mut tight_bounds = PlotBounds::NOTHING;
@@ -1471,25 +1730,27 @@ impl PreparedPlot {
             let value_main = step.value;
 
             if let Some(clamp_range) = clamp_range {
-                if axis == 0 {
-                    if !clamp_range.range_x().contains(&value_main) {
-                        continue;
-                    };
-                } else {
-                    if !clamp_range.range_y().contains(&value_main) {
-                        continue;
-                    };
+                match axis {
+                    Axis::X => {
+                        if !clamp_range.range_x().contains(&value_main) {
+                            continue;
+                        };
+                    }
+                    Axis::Y => {
+                        if !clamp_range.range_y().contains(&value_main) {
+                            continue;
+                        };
+                    }
                 }
             }
 
-            let value = if axis == 0 {
-                PlotPoint::new(value_main, value_cross)
-            } else {
-                PlotPoint::new(value_cross, value_main)
+            let value = match axis {
+                Axis::X => PlotPoint::new(value_main, value_cross),
+                Axis::Y => PlotPoint::new(value_cross, value_main),
             };
 
             let pos_in_gui = transform.position_from_point(&value);
-            let spacing_in_points = (transform.dpos_dvalue()[axis] * step.step_size).abs() as f32;
+            let spacing_in_points = (transform.dpos_dvalue()[iaxis] * step.step_size).abs() as f32;
 
             if spacing_in_points > MIN_LINE_SPACING_IN_POINTS as f32 {
                 let line_strength = remap_clamp(
@@ -1498,24 +1759,27 @@ impl PreparedPlot {
                     0.0..=1.0,
                 );
 
-                let line_color = color_from_contrast(ui, line_strength);
+                let line_color = color_from_strength(ui, line_strength);
 
                 let mut p0 = pos_in_gui;
                 let mut p1 = pos_in_gui;
-                p0[1 - axis] = transform.frame().min[1 - axis];
-                p1[1 - axis] = transform.frame().max[1 - axis];
+                p0[1 - iaxis] = transform.frame().min[1 - iaxis];
+                p1[1 - iaxis] = transform.frame().max[1 - iaxis];
 
                 if let Some(clamp_range) = clamp_range {
-                    if axis == 0 {
-                        p0.y = transform.position_from_point_y(clamp_range.min[1]);
-                        p1.y = transform.position_from_point_y(clamp_range.max[1]);
-                    } else {
-                        p0.x = transform.position_from_point_x(clamp_range.min[0]);
-                        p1.x = transform.position_from_point_x(clamp_range.max[0]);
+                    match axis {
+                        Axis::X => {
+                            p0.y = transform.position_from_point_y(clamp_range.min[1]);
+                            p1.y = transform.position_from_point_y(clamp_range.max[1]);
+                        }
+                        Axis::Y => {
+                            p0.x = transform.position_from_point_x(clamp_range.min[0]);
+                            p1.x = transform.position_from_point_x(clamp_range.max[0]);
+                        }
                     }
                 }
 
-                if sharp_grid_lines {
+                if self.sharp_grid_lines {
                     // Round to avoid aliasing
                     p0 = ui.ctx().round_pos_to_pixels(p0);
                     p1 = ui.ctx().round_pos_to_pixels(p1);
@@ -1526,47 +1790,6 @@ impl PreparedPlot {
                     line_strength,
                 ));
             }
-
-            const MIN_TEXT_SPACING: f32 = 40.0;
-            if spacing_in_points > MIN_TEXT_SPACING {
-                let text_strength =
-                    remap_clamp(spacing_in_points, MIN_TEXT_SPACING..=150.0, 0.0..=1.0);
-                let color = color_from_contrast(ui, text_strength);
-
-                let text: String = if let Some(formatter) = axis_formatters[axis].as_deref() {
-                    formatter(value_main, &axis_range)
-                } else {
-                    emath::round_to_decimals(value_main, 5).to_string() // hack
-                };
-
-                // Skip origin label for y-axis if x-axis is already showing it (otherwise displayed twice)
-                let skip_origin_y = axis == 1 && other_axis_shown && value_main == 0.0;
-
-                // Custom formatters can return empty string to signal "no label at this resolution"
-                if !text.is_empty() && !skip_origin_y {
-                    let galley = ui.painter().layout_no_wrap(text, font_id.clone(), color);
-
-                    let mut text_pos = pos_in_gui + vec2(1.0, -galley.size().y);
-
-                    // Make sure we see the labels, even if the axis is off-screen:
-                    text_pos[1 - axis] = text_pos[1 - axis]
-                        .at_most(transform.frame().max[1 - axis] - galley.size()[1 - axis] - 2.0)
-                        .at_least(transform.frame().min[1 - axis] + 1.0);
-
-                    shapes.push((Shape::galley(text_pos, galley), text_strength));
-                }
-            }
-        }
-
-        fn color_from_contrast(ui: &Ui, contrast: f32) -> Color32 {
-            let bg = ui.visuals().extreme_bg_color;
-            let fg = ui.visuals().widgets.open.fg_stroke.color;
-            let mix = 0.5 * contrast.sqrt();
-            Color32::from_rgb(
-                lerp((bg.r() as f32)..=(fg.r() as f32), mix) as u8,
-                lerp((bg.g() as f32)..=(fg.g() as f32), mix) as u8,
-                lerp((bg.b() as f32)..=(fg.b() as f32), mix) as u8,
-            )
         }
     }
 
@@ -1666,9 +1889,21 @@ pub fn format_number(number: f64, num_decimals: usize) -> String {
     let is_integral = number as i64 as f64 == number;
     if is_integral {
         // perfect integer - show it as such:
-        format!("{:.0}", number)
+        format!("{number:.0}")
     } else {
         // make sure we tell the user it is not an integer by always showing a decimal or two:
         format!("{:.*}", num_decimals.at_least(1), number)
     }
+}
+
+/// Determine a color from a 0-1 strength value.
+pub fn color_from_strength(ui: &Ui, strength: f32) -> Color32 {
+    let bg = ui.visuals().extreme_bg_color;
+    let fg = ui.visuals().widgets.open.fg_stroke.color;
+    let mix = 0.5 * strength.sqrt();
+    Color32::from_rgb(
+        lerp((bg.r() as f32)..=(fg.r() as f32), mix) as u8,
+        lerp((bg.g() as f32)..=(fg.g() as f32), mix) as u8,
+        lerp((bg.b() as f32)..=(fg.b() as f32), mix) as u8,
+    )
 }

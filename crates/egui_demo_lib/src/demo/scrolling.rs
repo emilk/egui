@@ -232,10 +232,10 @@ impl super::View for ScrollTo {
                     for item in 1..=50 {
                         if track_item && item == self.track_item {
                             let response =
-                                ui.colored_label(Color32::YELLOW, format!("This is item {}", item));
+                                ui.colored_label(Color32::YELLOW, format!("This is item {item}"));
                             response.scroll_to_me(self.tack_item_align);
                         } else {
-                            ui.label(format!("This is item {}", item));
+                            ui.label(format!("This is item {item}"));
                         }
                     }
                 });
@@ -254,8 +254,7 @@ impl super::View for ScrollTo {
         ui.separator();
 
         ui.label(format!(
-            "Scroll offset: {:.0}/{:.0} px",
-            current_scroll, max_scroll
+            "Scroll offset: {current_scroll:.0}/{max_scroll:.0} px"
         ));
 
         ui.separator();

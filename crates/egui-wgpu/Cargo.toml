@@ -8,7 +8,7 @@ authors = [
   "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
 ]
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.67"
 homepage = "https://github.com/emilk/egui/tree/master/crates/egui-wgpu"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -44,13 +44,13 @@ bytemuck = "1.7"
 log = { version = "0.4", features = ["std"] }
 thiserror.workspace = true
 type-map = "0.5.0"
-wgpu = "0.16.0"
+wgpu.workspace = true
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
 
-winit = { version = "0.28", optional = true }
+winit = { version = "0.28", default-features = false, optional = true }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

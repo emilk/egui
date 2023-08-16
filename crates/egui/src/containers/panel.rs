@@ -15,8 +15,6 @@
 //!
 //! Add your [`Window`]:s after any top-level panels.
 
-use std::ops::RangeInclusive;
-
 use crate::*;
 
 /// State regarding panels.
@@ -99,7 +97,7 @@ pub struct SidePanel {
     resizable: bool,
     show_separator_line: bool,
     default_width: f32,
-    width_range: RangeInclusive<f32>,
+    width_range: Rangef,
 }
 
 impl SidePanel {
@@ -122,7 +120,7 @@ impl SidePanel {
             resizable: true,
             show_separator_line: true,
             default_width: 200.0,
-            width_range: 96.0..=f32::INFINITY,
+            width_range: Rangef::new(96.0, f32::INFINITY),
         }
     }
 
@@ -153,26 +151,29 @@ impl SidePanel {
     /// The initial wrapping width of the [`SidePanel`].
     pub fn default_width(mut self, default_width: f32) -> Self {
         self.default_width = default_width;
-        self.width_range = self.width_range.start().at_most(default_width)
-            ..=self.width_range.end().at_least(default_width);
+        self.width_range = Rangef::new(
+            self.width_range.min.at_most(default_width),
+            self.width_range.max.at_least(default_width),
+        );
         self
     }
 
     /// Minimum width of the panel.
     pub fn min_width(mut self, min_width: f32) -> Self {
-        self.width_range = min_width..=self.width_range.end().at_least(min_width);
+        self.width_range = Rangef::new(min_width, self.width_range.max.at_least(min_width));
         self
     }
 
     /// Maximum width of the panel.
     pub fn max_width(mut self, max_width: f32) -> Self {
-        self.width_range = self.width_range.start().at_most(max_width)..=max_width;
+        self.width_range = Rangef::new(self.width_range.min.at_most(max_width), max_width);
         self
     }
 
     /// The allowable width range for the panel.
-    pub fn width_range(mut self, width_range: RangeInclusive<f32>) -> Self {
-        self.default_width = clamp_to_range(self.default_width, width_range.clone());
+    pub fn width_range(mut self, width_range: impl Into<Rangef>) -> Self {
+        let width_range = width_range.into();
+        self.default_width = clamp_to_range(self.default_width, width_range);
         self.width_range = width_range;
         self
     }
@@ -180,7 +181,7 @@ impl SidePanel {
     /// Enforce this exact width.
     pub fn exact_width(mut self, width: f32) -> Self {
         self.default_width = width;
-        self.width_range = width..=width;
+        self.width_range = Rangef::point(width);
         self
     }
 
@@ -224,7 +225,7 @@ impl SidePanel {
             if let Some(state) = PanelState::load(ui.ctx(), id) {
                 width = state.rect.width();
             }
-            width = clamp_to_range(width, width_range.clone()).at_most(available_rect.width());
+            width = clamp_to_range(width, width_range).at_most(available_rect.width());
             side.set_rect_width(&mut panel_rect, width);
             ui.ctx().check_for_id_clash(id, panel_rect, "SidePanel");
         }
@@ -241,7 +242,7 @@ impl SidePanel {
 
                 let resize_x = side.opposite().side_x(panel_rect);
                 let mouse_over_resize_line = we_are_on_top
-                    && panel_rect.y_range().contains(&pointer.y)
+                    && panel_rect.y_range().contains(pointer.y)
                     && (resize_x - pointer.x).abs()
                         <= ui.style().interaction.resize_grab_radius_side;
 
@@ -253,8 +254,7 @@ impl SidePanel {
                 is_resizing = ui.memory(|mem| mem.is_being_dragged(resize_id));
                 if is_resizing {
                     let width = (pointer.x - side.side_x(panel_rect)).abs();
-                    let width =
-                        clamp_to_range(width, width_range.clone()).at_most(available_rect.width());
+                    let width = clamp_to_range(width, width_range).at_most(available_rect.width());
                     side.set_rect_width(&mut panel_rect, width);
                 }
 
@@ -273,7 +273,7 @@ impl SidePanel {
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_height(ui.max_rect().height()); // Make sure the frame fills the full height
-            ui.set_min_width(*width_range.start());
+            ui.set_min_width(width_range.min);
             add_contents(ui)
         });
 
@@ -544,7 +544,7 @@ pub struct TopBottomPanel {
     resizable: bool,
     show_separator_line: bool,
     default_height: Option<f32>,
-    height_range: RangeInclusive<f32>,
+    height_range: Rangef,
 }
 
 impl TopBottomPanel {
@@ -567,7 +567,7 @@ impl TopBottomPanel {
             resizable: false,
             show_separator_line: true,
             default_height: None,
-            height_range: 20.0..=f32::INFINITY,
+            height_range: Rangef::new(20.0, f32::INFINITY),
         }
     }
 
@@ -599,28 +599,31 @@ impl TopBottomPanel {
     /// Defaults to [`style::Spacing::interact_size`].y.
     pub fn default_height(mut self, default_height: f32) -> Self {
         self.default_height = Some(default_height);
-        self.height_range = self.height_range.start().at_most(default_height)
-            ..=self.height_range.end().at_least(default_height);
+        self.height_range = Rangef::new(
+            self.height_range.min.at_most(default_height),
+            self.height_range.max.at_least(default_height),
+        );
         self
     }
 
     /// Minimum height of the panel.
     pub fn min_height(mut self, min_height: f32) -> Self {
-        self.height_range = min_height..=self.height_range.end().at_least(min_height);
+        self.height_range = Rangef::new(min_height, self.height_range.max.at_least(min_height));
         self
     }
 
     /// Maximum height of the panel.
     pub fn max_height(mut self, max_height: f32) -> Self {
-        self.height_range = self.height_range.start().at_most(max_height)..=max_height;
+        self.height_range = Rangef::new(self.height_range.min.at_most(max_height), max_height);
         self
     }
 
     /// The allowable height range for the panel.
-    pub fn height_range(mut self, height_range: RangeInclusive<f32>) -> Self {
+    pub fn height_range(mut self, height_range: impl Into<Rangef>) -> Self {
+        let height_range = height_range.into();
         self.default_height = self
             .default_height
-            .map(|default_height| clamp_to_range(default_height, height_range.clone()));
+            .map(|default_height| clamp_to_range(default_height, height_range));
         self.height_range = height_range;
         self
     }
@@ -628,7 +631,7 @@ impl TopBottomPanel {
     /// Enforce this exact height.
     pub fn exact_height(mut self, height: f32) -> Self {
         self.default_height = Some(height);
-        self.height_range = height..=height;
+        self.height_range = Rangef::point(height);
         self
     }
 
@@ -673,7 +676,7 @@ impl TopBottomPanel {
             } else {
                 default_height.unwrap_or_else(|| ui.style().spacing.interact_size.y)
             };
-            height = clamp_to_range(height, height_range.clone()).at_most(available_rect.height());
+            height = clamp_to_range(height, height_range).at_most(available_rect.height());
             side.set_rect_height(&mut panel_rect, height);
             ui.ctx()
                 .check_for_id_clash(id, panel_rect, "TopBottomPanel");
@@ -692,7 +695,7 @@ impl TopBottomPanel {
 
                 let resize_y = side.opposite().side_y(panel_rect);
                 let mouse_over_resize_line = we_are_on_top
-                    && panel_rect.x_range().contains(&pointer.x)
+                    && panel_rect.x_range().contains(pointer.x)
                     && (resize_y - pointer.y).abs()
                         <= ui.style().interaction.resize_grab_radius_side;
 
@@ -704,8 +707,8 @@ impl TopBottomPanel {
                 is_resizing = ui.memory(|mem| mem.interaction.drag_id == Some(resize_id));
                 if is_resizing {
                     let height = (pointer.y - side.side_y(panel_rect)).abs();
-                    let height = clamp_to_range(height, height_range.clone())
-                        .at_most(available_rect.height());
+                    let height =
+                        clamp_to_range(height, height_range).at_most(available_rect.height());
                     side.set_rect_height(&mut panel_rect, height);
                 }
 
@@ -724,7 +727,7 @@ impl TopBottomPanel {
         let frame = frame.unwrap_or_else(|| Frame::side_top_panel(ui.style()));
         let inner_response = frame.show(&mut panel_ui, |ui| {
             ui.set_min_width(ui.max_rect().width()); // Make the frame fill full width
-            ui.set_min_height(*height_range.start());
+            ui.set_min_height(height_range.min);
             add_contents(ui)
         });
 
@@ -1056,9 +1059,7 @@ impl CentralPanel {
     }
 }
 
-fn clamp_to_range(x: f32, range: RangeInclusive<f32>) -> f32 {
-    x.clamp(
-        range.start().min(*range.end()),
-        range.start().max(*range.end()),
-    )
+fn clamp_to_range(x: f32, range: Rangef) -> f32 {
+    let range = range.as_positive();
+    x.clamp(range.min, range.max)
 }

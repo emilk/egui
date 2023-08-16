@@ -13,17 +13,15 @@ use emath::*;
 
 #[allow(clippy::approx_constant)]
 mod precomputed_vertices {
-    /*
-    fn main() {
-        let n = 64;
-        println!("pub const CIRCLE_{}: [Vec2; {}] = [", n, n+1);
-        for i in 0..=n {
-            let a = std::f64::consts::TAU * i as f64 / n as f64;
-            println!("    vec2({:.06}, {:.06}),", a.cos(), a.sin());
-        }
-        println!("];")
-    }
-    */
+    // fn main() {
+    //     let n = 64;
+    //     println!("pub const CIRCLE_{}: [Vec2; {}] = [", n, n+1);
+    //     for i in 0..=n {
+    //         let a = std::f64::consts::TAU * i as f64 / n as f64;
+    //         println!("    vec2({:.06}, {:.06}),", a.cos(), a.sin());
+    //     }
+    //     println!("];")
+    // }
 
     use emath::{vec2, Vec2};
 
@@ -494,6 +492,20 @@ impl Path {
     pub fn fill(&mut self, feathering: f32, color: Color32, out: &mut Mesh) {
         fill_closed_path(feathering, &mut self.0, color, out);
     }
+
+    /// Like [`Self::fill`] but with texturing.
+    ///
+    /// The `uv_from_pos` is called for each vertex position.
+    pub fn fill_with_uv(
+        &mut self,
+        feathering: f32,
+        color: Color32,
+        texture_id: TextureId,
+        uv_from_pos: impl Fn(Pos2) -> Pos2,
+        out: &mut Mesh,
+    ) {
+        fill_closed_path_with_uv(feathering, &mut self.0, color, texture_id, uv_from_pos, out);
+    }
 }
 
 pub mod path {
@@ -510,7 +522,7 @@ pub mod path {
 
         let r = clamp_radius(rounding, rect);
 
-        if r == Rounding::none() {
+        if r == Rounding::ZERO {
             let min = rect.min;
             let max = rect.max;
             path.reserve(4);
@@ -722,6 +734,89 @@ fn fill_closed_path(feathering: f32, path: &mut [PathPoint], color: Color32, out
         out.vertices.extend(path.iter().map(|p| Vertex {
             pos: p.pos,
             uv: WHITE_UV,
+            color,
+        }));
+        for i in 2..n {
+            out.add_triangle(idx, idx + i - 1, idx + i);
+        }
+    }
+}
+
+/// Like [`fill_closed_path`] but with texturing.
+///
+/// The `uv_from_pos` is called for each vertex position.
+fn fill_closed_path_with_uv(
+    feathering: f32,
+    path: &mut [PathPoint],
+    color: Color32,
+    texture_id: TextureId,
+    uv_from_pos: impl Fn(Pos2) -> Pos2,
+    out: &mut Mesh,
+) {
+    if color == Color32::TRANSPARENT {
+        return;
+    }
+
+    if out.is_empty() {
+        out.texture_id = texture_id;
+    } else {
+        assert_eq!(
+            out.texture_id, texture_id,
+            "Mixing different `texture_id` in the same "
+        );
+    }
+
+    let n = path.len() as u32;
+    if feathering > 0.0 {
+        if cw_signed_area(path) < 0.0 {
+            // Wrong winding order - fix:
+            path.reverse();
+            for point in path.iter_mut() {
+                point.normal = -point.normal;
+            }
+        }
+
+        out.reserve_triangles(3 * n as usize);
+        out.reserve_vertices(2 * n as usize);
+        let color_outer = Color32::TRANSPARENT;
+        let idx_inner = out.vertices.len() as u32;
+        let idx_outer = idx_inner + 1;
+
+        // The fill:
+        for i in 2..n {
+            out.add_triangle(idx_inner + 2 * (i - 1), idx_inner, idx_inner + 2 * i);
+        }
+
+        // The feathering:
+        let mut i0 = n - 1;
+        for i1 in 0..n {
+            let p1 = &path[i1 as usize];
+            let dm = 0.5 * feathering * p1.normal;
+
+            let pos = p1.pos - dm;
+            out.vertices.push(Vertex {
+                pos,
+                uv: uv_from_pos(pos),
+                color,
+            });
+
+            let pos = p1.pos + dm;
+            out.vertices.push(Vertex {
+                pos,
+                uv: uv_from_pos(pos),
+                color: color_outer,
+            });
+
+            out.add_triangle(idx_inner + i1 * 2, idx_inner + i0 * 2, idx_outer + 2 * i0);
+            out.add_triangle(idx_outer + i0 * 2, idx_outer + i1 * 2, idx_inner + 2 * i1);
+            i0 = i1;
+        }
+    } else {
+        out.reserve_triangles(n as usize);
+        let idx = out.vertices.len() as u32;
+        out.vertices.extend(path.iter().map(|p| Vertex {
+            pos: p.pos,
+            uv: uv_from_pos(p.pos),
             color,
         }));
         for i in 2..n {
@@ -1036,7 +1131,10 @@ impl Tessellator {
         clipped_shape: ClippedShape,
         out_primitives: &mut Vec<ClippedPrimitive>,
     ) {
-        let ClippedShape(new_clip_rect, new_shape) = clipped_shape;
+        let ClippedShape {
+            clip_rect: new_clip_rect,
+            shape: new_shape,
+        } = clipped_shape;
 
         if !new_clip_rect.is_positive() {
             return; // skip empty clip rectangles
@@ -1044,7 +1142,13 @@ impl Tessellator {
 
         if let Shape::Vec(shapes) = new_shape {
             for shape in shapes {
-                self.tessellate_clipped_shape(ClippedShape(new_clip_rect, shape), out_primitives);
+                self.tessellate_clipped_shape(
+                    ClippedShape {
+                        clip_rect: new_clip_rect,
+                        shape,
+                    },
+                    out_primitives,
+                );
             }
             return;
         }
@@ -1297,6 +1401,8 @@ impl Tessellator {
             rounding,
             fill,
             stroke,
+            fill_texture_id,
+            uv,
         } = *rect;
 
         if self.options.coarse_tessellation_culling
@@ -1338,7 +1444,21 @@ impl Tessellator {
             path.clear();
             path::rounded_rectangle(&mut self.scratchpad_points, rect, rounding);
             path.add_line_loop(&self.scratchpad_points);
-            path.fill(self.feathering, fill, out);
+
+            if uv.is_positive() {
+                // Textured
+                let uv_from_pos = |p: Pos2| {
+                    pos2(
+                        remap(p.x, rect.x_range(), uv.x_range()),
+                        remap(p.y, rect.y_range(), uv.y_range()),
+                    )
+                };
+                path.fill_with_uv(self.feathering, fill, fill_texture_id, uv_from_pos, out);
+            } else {
+                // Untextured
+                path.fill(self.feathering, fill, out);
+            }
+
             path.stroke_closed(self.feathering, stroke, out);
         }
     }
@@ -1641,7 +1761,10 @@ fn test_tessellator() {
     shapes.push(Shape::mesh(mesh));
 
     let shape = Shape::Vec(shapes);
-    let clipped_shapes = vec![ClippedShape(rect, shape)];
+    let clipped_shapes = vec![ClippedShape {
+        clip_rect: rect,
+        shape,
+    }];
 
     let font_tex_size = [1024, 1024]; // unused
     let prepared_discs = vec![]; // unused

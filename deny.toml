@@ -47,8 +47,9 @@ skip = [
     { name = "windows" },             # old version via accesskit
 ]
 skip-tree = [
-    { name = "criterion" }, # dev-dependency
-    { name = "rfd" },       # example dependency
+    { name = "criterion" },     # dev-dependency
+    { name = "foreign-types" }, # small crate. Old version via cocoa and core-graphics (winit).
+    { name = "rfd" },           # example dependency
 ]
 
 

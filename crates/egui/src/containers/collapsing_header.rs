@@ -36,6 +36,10 @@ impl CollapsingState {
         ctx.data_mut(|d| d.insert_persisted(self.id, self.state));
     }
 
+    pub fn remove(&self, ctx: &Context) {
+        ctx.data_mut(|d| d.remove::<InnerState>(self.id));
+    }
+
     pub fn id(&self) -> Id {
         self.id
     }
@@ -551,13 +555,12 @@ impl CollapsingHeader {
             let visuals = ui.style().interact_selectable(&header_response, selected);
 
             if ui.visuals().collapsing_header_frame || show_background {
-                ui.painter().add(epaint::RectShape {
-                    rect: header_response.rect.expand(visuals.expansion),
-                    rounding: visuals.rounding,
-                    fill: visuals.weak_bg_fill,
-                    stroke: visuals.bg_stroke,
-                    // stroke: Default::default(),
-                });
+                ui.painter().add(epaint::RectShape::new(
+                    header_response.rect.expand(visuals.expansion),
+                    visuals.rounding,
+                    visuals.weak_bg_fill,
+                    visuals.bg_stroke,
+                ));
             }
 
             if selected || selectable && (header_response.hovered() || header_response.has_focus())
