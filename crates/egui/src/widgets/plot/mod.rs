@@ -378,8 +378,8 @@ impl Plot {
     }
 
     /// Whether to allow auto bounds. Default: `true`.
-    /// If `false`, we set bounds_modified to true to prevent auto adjusting,
-    /// also we check if the user double clicked to reset bounds. If so, set bounds_modified to false.
+    /// If `false`, it set bounds_modified to true to prevent auto adjusting bounds,
+    /// also it check if the user double clicked to reset bounds. If so, set bounds_modified to false.
     pub fn allow_auto_bounds(mut self, on: bool) -> Self {
         self.allow_auto_bounds = on;
         self
@@ -952,10 +952,6 @@ impl Plot {
             });
         };
 
-        if !allow_auto_bounds {
-            bounds_modified = true.into();
-        }
-
         let reset_bounds = allow_double_click_reset && response.double_clicked();
 
         // Allow double clicking to reset to the initial bounds.
@@ -963,7 +959,7 @@ impl Plot {
             bounds_modified = false.into();
         }
 
-        if allow_auto_bounds && reset_bounds {
+        if allow_auto_bounds {
             // Apply bounds modifications.
             for modification in bounds_modifications {
                 match modification {
@@ -978,7 +974,9 @@ impl Plot {
                 }
             }
         } else {
-            bounds_modified = true.into();
+            if !reset_bounds {
+                bounds_modified = true.into();
+            }
         }
 
         // Reset bounds to initial bounds if they haven't been modified.
