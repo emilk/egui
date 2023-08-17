@@ -281,10 +281,6 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             }
 
             winit::event::Event::UserEvent(UserEvent::RequestRepaint { when, frame_nr }) => {
-                // WaitUntil seems to not work on iOS
-                #[cfg(target_os = "ios")]
-                winit_app.window().unwrap().request_redraw();
-
                 if winit_app.frame_nr() == frame_nr {
                     EventResult::RepaintAt(when)
                 } else {
@@ -337,6 +333,11 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             next_repaint_time = extremely_far_future();
             ControlFlow::Poll
         } else {
+            // WaitUntil seems to not work on iOS
+            #[cfg(target_os = "ios")]
+            if let Some(window) = winit_app.window() {
+                window.request_redraw();
+            }
             ControlFlow::WaitUntil(next_repaint_time)
         };
     })
