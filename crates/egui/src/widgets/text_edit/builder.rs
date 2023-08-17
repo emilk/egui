@@ -368,31 +368,27 @@ impl<'t> TextEdit<'t> {
             let frame_rect = frame_rect.expand(visuals.expansion);
             let shape = if is_mutable {
                 if output.response.has_focus() {
-                    epaint::RectShape {
-                        rect: frame_rect,
-                        rounding: visuals.rounding,
-                        // fill: ui.visuals().selection.bg_fill,
-                        fill: ui.visuals().extreme_bg_color,
-                        stroke: ui.visuals().selection.stroke,
-                    }
+                    epaint::RectShape::new(
+                        frame_rect,
+                        visuals.rounding,
+                        ui.visuals().extreme_bg_color,
+                        ui.visuals().selection.stroke,
+                    )
                 } else {
-                    epaint::RectShape {
-                        rect: frame_rect,
-                        rounding: visuals.rounding,
-                        fill: ui.visuals().extreme_bg_color,
-                        stroke: visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
-                    }
+                    epaint::RectShape::new(
+                        frame_rect,
+                        visuals.rounding,
+                        ui.visuals().extreme_bg_color,
+                        visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                    )
                 }
             } else {
                 let visuals = &ui.style().visuals.widgets.inactive;
-                epaint::RectShape {
-                    rect: frame_rect,
-                    rounding: visuals.rounding,
-                    // fill: ui.visuals().extreme_bg_color,
-                    // fill: visuals.bg_fill,
-                    fill: Color32::TRANSPARENT,
-                    stroke: visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
-                }
+                epaint::RectShape::stroke(
+                    frame_rect,
+                    visuals.rounding,
+                    visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                )
             };
 
             ui.painter().set(where_to_put_background, shape);

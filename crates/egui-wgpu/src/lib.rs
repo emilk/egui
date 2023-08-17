@@ -10,8 +10,8 @@ pub use wgpu;
 
 /// Low-level painting of [`egui`](https://github.com/emilk/egui) on [`wgpu`].
 pub mod renderer;
-pub use renderer::CallbackFn;
 pub use renderer::Renderer;
+pub use renderer::{Callback, CallbackResources, CallbackTrait};
 
 /// Module for painting [`egui`](https://github.com/emilk/egui) with [`wgpu`] on [`winit`].
 #[cfg(feature = "winit")]

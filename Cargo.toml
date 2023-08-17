@@ -36,4 +36,4 @@ opt-level = 2
 
 [workspace.dependencies]
 thiserror = "1.0.37"
-wgpu = { version = "0.17.0", features = ["fragile-send-sync-non-atomic-wasm"] }
+wgpu = "0.17.0"

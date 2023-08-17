@@ -235,12 +235,7 @@ impl Frame {
             stroke,
         } = *self;
 
-        let frame_shape = Shape::Rect(epaint::RectShape {
-            rect: outer_rect,
-            rounding,
-            fill,
-            stroke,
-        });
+        let frame_shape = Shape::Rect(epaint::RectShape::new(outer_rect, rounding, fill, stroke));
 
         if shadow == Default::default() {
             frame_shape
