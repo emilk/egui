@@ -378,18 +378,16 @@ impl Plot {
     }
 
     /// Whether to allow auto bounds. Default: `true`.
-    /// If `false`, it set bounds_modified to true to prevent auto adjusting bounds,
-    /// also it check if the user double clicked to reset bounds. If so, it set bounds_modified to false.
+    /// If `false`, it set `bounds_modified` to true to prevent auto adjusting bounds,
+    /// also it check if the user double clicked to reset bounds. If so, it set `bounds_modified` to false.
     ///
     /// It's mainly needed when we start a new plot like when we reset the egui memory and
     /// we haven't used it before (pan/zoom) because bounds can be saved as persisted data.
-    ///
     ///
     /// Currently, if `allow_auto_bounds(false)` and `plot_ui.set_plot_bounds(PlotBounds)` are used in
     /// same time `set_plot_bounds` will be ignored.
     ///
     /// TODO: Refactor `Plot::allow_auto_bounds` and `Plot::set_plot_bounds` feature to work together.
-    ///
     pub fn allow_auto_bounds(mut self, on: bool) -> Self {
         self.allow_auto_bounds = on;
         self
@@ -993,10 +991,8 @@ impl Plot {
                     }
                 }
             }
-        } else {
-            if !reset_bounds {
-                bounds_modified = true.into();
-            }
+        } else if !reset_bounds {
+            bounds_modified = true.into();
         }
 
         // Reset bounds to initial bounds if they haven't been modified.
