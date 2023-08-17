@@ -381,8 +381,8 @@ impl Plot {
     /// If `false`, it set `bounds_modified` to true to prevent auto adjusting bounds,
     /// also it check if the user double clicked to reset bounds. If so, it set `bounds_modified` to false.
     ///
-    /// It's mainly needed when we start a new plot like when we reset the egui memory and
-    /// we haven't used it before (pan/zoom) because bounds can be saved as persisted data.
+    /// It's needed when a new plot is started, such as when resetting egui memory and pan/zoom that
+    /// have not been used before, as the limits can be saved as persistent data.
     ///
     /// Currently, if `allow_auto_bounds(false)` and `plot_ui.set_plot_bounds(PlotBounds)` are used in
     /// same time `set_plot_bounds` will be ignored.
