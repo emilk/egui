@@ -64,12 +64,7 @@ pub fn drop_target<R>(
 
     ui.painter().set(
         where_to_put_background,
-        epaint::RectShape {
-            rounding: style.rounding,
-            fill,
-            stroke,
-            rect,
-        },
+        epaint::RectShape::new(rect, style.rounding, fill, stroke),
     );
 
     InnerResponse::new(ret, response)

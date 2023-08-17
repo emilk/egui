@@ -55,6 +55,8 @@ impl State {
 ///     });
 /// # });
 /// ```
+///
+/// The previous rectangle used by this area can be obtained through [`crate::Memory::area_rect()`].
 #[must_use = "You should call .show()"]
 #[derive(Clone, Copy, Debug)]
 pub struct Area {

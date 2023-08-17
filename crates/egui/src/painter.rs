@@ -311,12 +311,7 @@ impl Painter {
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
     ) {
-        self.add(RectShape {
-            rect,
-            rounding: rounding.into(),
-            fill: fill_color.into(),
-            stroke: stroke.into(),
-        });
+        self.add(RectShape::new(rect, rounding, fill_color, stroke));
     }
 
     pub fn rect_filled(
@@ -325,12 +320,7 @@ impl Painter {
         rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
     ) {
-        self.add(RectShape {
-            rect,
-            rounding: rounding.into(),
-            fill: fill_color.into(),
-            stroke: Default::default(),
-        });
+        self.add(RectShape::filled(rect, rounding, fill_color));
     }
 
     pub fn rect_stroke(
@@ -339,12 +329,7 @@ impl Painter {
         rounding: impl Into<Rounding>,
         stroke: impl Into<Stroke>,
     ) {
-        self.add(RectShape {
-            rect,
-            rounding: rounding.into(),
-            fill: Default::default(),
-            stroke: stroke.into(),
-        });
+        self.add(RectShape::stroke(rect, rounding, stroke));
     }
 
     /// Show an arrow starting at `origin` and going in the direction of `vec`, with the length `vec.length()`.

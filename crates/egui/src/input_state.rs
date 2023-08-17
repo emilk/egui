@@ -568,6 +568,10 @@ pub struct PointerState {
     /// Used to check for triple-clicks.
     last_last_click_time: f64,
 
+    /// When was the pointer last moved?
+    /// Used for things like showing hover ui/tooltip with a delay.
+    last_move_time: f64,
+
     /// All button events that occurred this frame
     pub(crate) pointer_events: Vec<PointerEvent>,
 }
@@ -587,6 +591,7 @@ impl Default for PointerState {
             has_moved_too_much_for_a_click: false,
             last_click_time: std::f64::NEG_INFINITY,
             last_last_click_time: std::f64::NEG_INFINITY,
+            last_move_time: std::f64::NEG_INFINITY,
             pointer_events: vec![],
         }
     }
@@ -711,6 +716,9 @@ impl PointerState {
         } else {
             Vec2::default()
         };
+        if self.velocity != Vec2::ZERO {
+            self.last_move_time = time;
+        }
 
         self
     }
@@ -788,6 +796,12 @@ impl PointerState {
     #[inline]
     pub fn is_moving(&self) -> bool {
         self.velocity != Vec2::ZERO
+    }
+
+    /// How long has it been (in seconds) since the pointer was last moved?
+    #[inline(always)]
+    pub fn time_since_last_movement(&self) -> f64 {
+        self.time - self.last_move_time
     }
 
     /// Was any pointer button pressed (`!down -> down`) this frame?
@@ -1035,6 +1049,7 @@ impl PointerState {
             last_click_time,
             last_last_click_time,
             pointer_events,
+            last_move_time,
         } = self;
 
         ui.label(format!("latest_pos: {latest_pos:?}"));
@@ -1052,6 +1067,7 @@ impl PointerState {
         ));
         ui.label(format!("last_click_time: {last_click_time:#?}"));
         ui.label(format!("last_last_click_time: {last_last_click_time:#?}"));
+        ui.label(format!("last_move_time: {last_move_time:#?}"));
         ui.label(format!("pointer_events: {pointer_events:?}"));
     }
 }

@@ -22,6 +22,9 @@ use super::*;
 ///    ui.label("Hello World!");
 /// });
 /// # });
+/// ```
+///
+/// The previous rectangle used by this window can be obtained through [`crate::Memory::area_rect()`].
 #[must_use = "You should call .show()"]
 pub struct Window<'open> {
     title: WidgetText,
