@@ -313,7 +313,7 @@ pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
 pub struct EpiIntegration {
     pub frame: epi::Frame,
     last_auto_save: std::time::Instant,
-    pub beagining: Instant,
+    pub beginning: Instant,
     pub egui_ctx: egui::Context,
     pending_full_output: egui::FullOutput,
     /// When set, it is time to close the native window.
@@ -384,7 +384,7 @@ impl EpiIntegration {
             window_state,
             follow_system_theme: native_options.follow_system_theme,
             app_icon_setter,
-            beagining: Instant::now(),
+            beginning: Instant::now(),
         }
     }
 
@@ -489,7 +489,7 @@ impl EpiIntegration {
         self.frame.info.window_info =
             read_window_info(window, self.egui_ctx.pixels_per_point(), &self.window_state);
         let mut raw_input = egui_winit.take_egui_input(window);
-        raw_input.time = Some(self.beagining.elapsed().as_secs_f64());
+        raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 
         // Run user code:
         let full_output = self

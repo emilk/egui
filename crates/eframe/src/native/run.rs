@@ -986,7 +986,7 @@ mod glow_integration {
             let _gl = gl.clone();
             let painter = Arc::new(RwLock::new(painter));
             let _painter = painter.clone();
-            let time = integration.beagining;
+            let time = integration.beginning;
 
             let focused = self.is_focused.clone();
 
@@ -1961,7 +1961,7 @@ mod wgpu_integration {
             let _windows = windows.clone();
             let egui_ctx = integration.egui_ctx.clone();
             let focused = self.is_focused.clone();
-            let time = integration.beagining;
+            let time = integration.beginning;
             let painter = Arc::new(RwLock::new(painter));
             let _painter = painter.clone();
 
