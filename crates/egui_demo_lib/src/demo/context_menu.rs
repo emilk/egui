@@ -66,6 +66,11 @@ impl super::View for ContextMenus {
             ui.menu_button("Click for menu", Self::nested_menus);
             ui.button("Right-click for menu")
                 .context_menu(Self::nested_menus);
+            if ui.ctx().is_context_menu_open() {
+                ui.label("Context menu is open");
+            } else {
+                ui.label("Context menu is closed");
+            }
         });
 
         ui.separator();
