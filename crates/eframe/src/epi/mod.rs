@@ -774,6 +774,10 @@ impl Frame {
         self.info.clone()
     }
 
+    pub fn info_ref(&self) -> &IntegrationInfo {
+        &self.info
+    }
+
     /// A place where you can store custom data in a way that persists when you restart the app.
     pub fn storage(&self) -> Option<&dyn Storage> {
         self.storage.as_deref()
