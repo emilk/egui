@@ -25,7 +25,7 @@
 //! fn ui_counter(ui: &mut egui::Ui, counter: &mut i32) {
 //!     // Put the buttons and label on the same row:
 //!     ui.horizontal(|ui| {
-//!         if ui.button("-").clicked() {
+//!         if ui.button("−").clicked() {
 //!             *counter -= 1;
 //!         }
 //!         ui.label(counter.to_string());
@@ -466,6 +466,9 @@ macro_rules! egui_assert {
 }
 
 // ----------------------------------------------------------------------------
+
+/// The minus character: <https://www.compart.com/en/unicode/U+2212>
+pub(crate) const MINUS_CHAR_STR: &str = "−";
 
 /// The default egui fonts supports around 1216 emojis in total.
 /// Here are some of the most useful:
