@@ -2229,12 +2229,15 @@ impl Context {
         self.write(|ctx| ctx.viewport_commands.push((id, command)));
     }
 
-    /// With this you can create a viewport "is a native window"
-    /// You will need to wrap your viwport state in an ``RwLock`` or ``Mutex``!
+    /// This will be a native window if is possible!
+    /// You will need to wrap your viewport state in an ```Arc<RwLock<T>>``` or ```Arc<Mutex<T>>```!
     /// When this is called again with the same title in `ViewportBuilder` the render function for that viewport will be updated!
-    /// The render function will be called when the viewport receives a event or is requested to be redraw
+    /// * `render`: will be called when the viewport receives a event or is requested to be rendered
     ///
-    /// If this is no more called that viewport "native window" will be destroyed!
+    /// If this is no more called that viewport will be destroyed!
+    ///
+    /// If you use a ```egui::CentralPanel``` you need to check if the viewport is a new window like: ```ctx.get_viewport_id() != ViewportId::MAIN```
+    /// If the viewport id is ```ViewportId::MAIN``` you should create ```egui::Area``` then inside the area ```egui::Frame::popup(ctx.style())```
     pub fn create_viewport(
         &self,
         viewport_builder: ViewportBuilder,

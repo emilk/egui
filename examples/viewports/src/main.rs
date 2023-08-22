@@ -3,6 +3,7 @@ use std::sync::RwLock;
 
 use eframe::egui;
 use eframe::egui::ViewportBuilder;
+use eframe::egui::ViewportId;
 use eframe::NativeOptions;
 
 #[cfg(feature = "wgpu")]
@@ -65,7 +66,7 @@ impl eframe::App for App {
                     ViewportBuilder::default().with_title("Async Viewport"),
                     move |ctx| {
                         let mut state = state.write().unwrap();
-                        egui::CentralPanel::default().show(ctx, |ui| {
+                        let content = |ui: &mut egui::Ui| {
                             ui.label(format!("Frame: {}", ctx.frame_nr()));
                             ui.label(format!("Current Viewport Id: {}", ctx.get_viewport_id()));
                             ui.label(format!(
@@ -78,7 +79,16 @@ impl eframe::App for App {
                             if ui.button("Add").clicked() {
                                 *state += 1;
                             }
-                        });
+                        };
+
+                        // This will make the viewport content, a popup if is in the main window
+                        if ctx.get_viewport_id() == ViewportId::MAIN {
+                            egui::Area::new("Async Viewport").show(ctx, |ui| {
+                                egui::Frame::popup(ui.style()).show(ui, content);
+                            });
+                        } else {
+                            egui::CentralPanel::default().show(ctx, content);
+                        }
                     },
                 );
             }
@@ -88,7 +98,7 @@ impl eframe::App for App {
                 ctx.create_viewport_sync(
                     ViewportBuilder::default().with_title("Sync Viewport"),
                     |ctx| {
-                        egui::CentralPanel::default().show(ctx, |ui| {
+                        let content = |ui: &mut egui::Ui| {
                             ui.label(format!("Frame: {}", ctx.frame_nr()));
                             ui.label(format!("Current Viewport Id: {}", ctx.get_viewport_id()));
                             ui.label(format!(
@@ -101,7 +111,16 @@ impl eframe::App for App {
                             if ui.button("Add").clicked() {
                                 self.sync_viewport_state += 1;
                             }
-                        });
+                        };
+
+                        // This will make the viewport content, a popup if is in the main window
+                        if ctx.get_viewport_id() == ViewportId::MAIN {
+                            egui::Area::new("Sync Viewport").show(ctx, |ui| {
+                                egui::Frame::popup(ui.style()).show(ui, content);
+                            });
+                        } else {
+                            egui::CentralPanel::default().show(ctx, content);
+                        }
                     },
                 );
             }
