@@ -467,7 +467,7 @@ macro_rules! egui_assert {
 
 // ----------------------------------------------------------------------------
 
-/// https://www.compart.com/en/unicode/U+2212
+/// The minus character: <https://www.compart.com/en/unicode/U+2212>
 pub(crate) const MINUS_CHAR_STR: &str = "−";
 
 /// The default egui fonts supports around 1216 emojis in total.
