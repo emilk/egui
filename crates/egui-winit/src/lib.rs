@@ -392,6 +392,7 @@ impl State {
             | WindowEvent::Destroyed
             | WindowEvent::Occluded(_)
             | WindowEvent::Resized(_)
+            | WindowEvent::Moved(_)
             | WindowEvent::ThemeChanged(_)
             | WindowEvent::TouchpadPressure { .. } => EventResponse {
                 repaint: true,
@@ -400,7 +401,6 @@ impl State {
 
             // Things we completely ignore:
             WindowEvent::AxisMotion { .. }
-            | WindowEvent::Moved(_)
             | WindowEvent::SmartMagnify { .. }
             | WindowEvent::TouchpadRotate { .. } => EventResponse {
                 repaint: false,
