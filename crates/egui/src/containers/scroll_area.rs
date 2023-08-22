@@ -54,6 +54,10 @@ impl State {
     pub fn store(self, ctx: &Context, id: Id) {
         ctx.data_mut(|d| d.insert_persisted(id, self));
     }
+
+    pub fn has_momentum(&self) -> bool {
+        self.vel.x != 0.0 || self.vel.y != 0.0
+    }
 }
 
 pub struct ScrollAreaOutput<R> {
