@@ -172,9 +172,9 @@ impl BackendPanel {
                     }
                 }
                 {
-                    let mut is_desktop = ui.ctx().is_desktop();
-                    ui.checkbox(&mut is_desktop, "Is Desktop");
-                    ui.ctx().set_desktop(is_desktop);
+                    let mut force_embedding = ui.ctx().force_embedding();
+                    ui.checkbox(&mut force_embedding, "Force Embedding");
+                    ui.ctx().set_force_embedding(force_embedding);
                 }
 
                 if ui

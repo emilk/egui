@@ -48,9 +48,9 @@ impl eframe::App for App {
             ui.label(format!("Size: {:?}", ctx.screen_rect().max));
             ui.label("Look at the \"Frame: \" will tell you, what viewport is rendering!");
             {
-                let mut desktop = ctx.is_desktop();
-                ui.checkbox(&mut desktop, "Desktop");
-                ctx.set_desktop(desktop);
+                let mut force_embedding = ctx.force_embedding();
+                ui.checkbox(&mut force_embedding, "Force embedding!");
+                ctx.set_force_embedding(force_embedding);
             }
             ui.checkbox(&mut self.show_async_viewport, "Show Async Viewport");
             ui.checkbox(&mut self.show_sync_viewport, "Show Sync Viewport");

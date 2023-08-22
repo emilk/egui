@@ -224,6 +224,7 @@ struct ContextImpl {
 
     viewport_counter: u64,
     is_desktop: bool,
+    force_embedding: bool,
 
     /// Written to during the frame.
     layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
@@ -469,6 +470,7 @@ impl Default for Context {
         let clone = s.clone();
 
         s.write(|ctx| {
+            ctx.force_embedding = true;
             ctx.render_sync = Some(Arc::new(Box::new(
                 move |_builder, _viewport_id, _parent_viewport_id, render| render(&clone),
             )));
@@ -548,6 +550,15 @@ impl Context {
         parent_viewport_id: ViewportId,
     ) {
         self.write(|ctx| ctx.begin_frame_mut(new_input, viewport_id, parent_viewport_id));
+    }
+
+    pub fn new(desktop: bool) -> Context {
+        let context = Context::default();
+        context.write(|ctx| {
+            ctx.is_desktop = desktop;
+            ctx.force_embedding = !desktop;
+        });
+        context
     }
 }
 
@@ -2202,16 +2213,15 @@ impl Context {
         self.write(|ctx| ctx.render_sync = Some(Arc::new(callback)));
     }
 
-    /// This will tell you if the app can create multiples native windows
-    pub fn is_desktop(&self) -> bool {
-        self.read(|ctx| ctx.is_desktop)
+    /// If this is true no other native windows will be created
+    pub fn force_embedding(&self) -> bool {
+        self.read(|ctx| ctx.force_embedding)
     }
 
-    /// This should only be called with value true by the backend!
-    ///
-    /// With this you can tell egui that is able to open multiples native windows
-    pub fn set_desktop(&self, value: bool) {
-        self.write(|ctx| ctx.is_desktop = value);
+    /// If this is true no other native windows, will not be created for a ```egui::Window``` or Viewport
+    /// You will always be able to set to false
+    pub fn set_force_embedding(&self, value: bool) {
+        self.write(|ctx| ctx.force_embedding = value || !ctx.is_desktop);
     }
 
     /// With this you can send a command to a viewport
@@ -2230,7 +2240,7 @@ impl Context {
         viewport_builder: ViewportBuilder,
         render: impl Fn(&Context) + Send + Sync + 'static,
     ) {
-        if self.is_desktop() {
+        if !self.force_embedding() {
             self.write(|ctx| {
                 let viewport_id = ctx.get_viewport_id();
                 if let Some(window) = ctx.viewports.get_mut(&viewport_builder.title) {
@@ -2269,7 +2279,7 @@ impl Context {
         viewport_builder: ViewportBuilder,
         func: impl FnOnce(&Context) -> T,
     ) -> T {
-        if self.is_desktop() {
+        if !self.force_embedding() {
             let mut viewport_id = ViewportId::MAIN;
             let mut parent_viewport_id = ViewportId::MAIN;
             let render_sync = self.write(|ctx| {

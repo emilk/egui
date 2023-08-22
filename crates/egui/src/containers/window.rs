@@ -365,7 +365,7 @@ impl<'open> Window<'open> {
         let show_close_button = open.is_some();
 
         'create_viewport: {
-            if !is_embedded && ctx.is_desktop() {
+            if !is_embedded && !ctx.force_embedding() {
                 if let Some(size) = ctx.data(|data| data.get_temp::<Vec2>(area.id.with("size"))) {
                     let size = size.round()
                         + ctx.style().spacing.window_margin.sum() * ctx.pixels_per_point();
@@ -822,7 +822,7 @@ impl<'open> Window<'open> {
         let show_close_button = open.is_some();
 
         'create_viewport: {
-            if !is_embedded && ctx.is_desktop() {
+            if !is_embedded && !ctx.force_embedding() {
                 if let Some(size) = ctx.data(|data| data.get_temp::<Vec2>(area.id.with("size"))) {
                     let size = size.round()
                         + ctx.style().spacing.window_margin.sum() * ctx.pixels_per_point();

@@ -333,10 +333,11 @@ impl EpiIntegration {
         app_name: &str,
         native_options: &crate::NativeOptions,
         storage: Option<Box<dyn epi::Storage>>,
+        desktop: bool,
         #[cfg(feature = "glow")] gl: Option<std::sync::Arc<glow::Context>>,
         #[cfg(feature = "wgpu")] wgpu_render_state: Option<egui_wgpu::RenderState>,
     ) -> Self {
-        let egui_ctx = egui::Context::default();
+        let egui_ctx = egui::Context::new(desktop);
 
         let memory = load_egui_memory(storage.as_deref()).unwrap_or_default();
         egui_ctx.memory_mut(|mem| *mem = memory);

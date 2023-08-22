@@ -19,6 +19,16 @@ use super::epi_integration::{self, EpiIntegration};
 
 // ----------------------------------------------------------------------------
 
+pub const IS_DESKTOP: bool = cfg!(any(
+    target_os = "windows",
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "freebsd",
+    target_os = "openbsd"
+));
+
+// ----------------------------------------------------------------------------
+
 #[derive(Debug)]
 pub enum UserEvent {
     RequestRepaint {
@@ -891,6 +901,7 @@ mod glow_integration {
                 &self.app_name,
                 &self.native_options,
                 storage,
+                IS_DESKTOP,
                 Some(gl.clone()),
                 #[cfg(feature = "wgpu")]
                 None,
@@ -907,12 +918,6 @@ mod glow_integration {
             }
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
-
-            // !!! WARNING This is needed to be improved !!!
-            // I don't really know not to detect if is on desktop or web/mobile
-            // This allows to have multiples windows
-
-            integration.egui_ctx.set_desktop(true);
 
             gl_window
                 .window(ViewportId::MAIN)
@@ -1885,6 +1890,7 @@ mod wgpu_integration {
                 &self.app_name,
                 &self.native_options,
                 storage,
+                IS_DESKTOP,
                 #[cfg(feature = "glow")]
                 None,
                 wgpu_render_state.clone(),
