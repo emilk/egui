@@ -90,6 +90,7 @@ trait WinitApp {
     ) -> Option<Arc<RwLock<winit::window::Window>>>;
 
     fn get_window_winit_id(&self, id: ViewportId) -> Option<winit::window::WindowId>;
+
     fn get_window_id(&self, id: &winit::window::WindowId) -> Option<ViewportId>;
 
     fn save_and_destroy(&mut self);
@@ -471,6 +472,7 @@ mod glow_integration {
         render: Option<Arc<Box<ViewportRender>>>,
         pub egui_winit: Option<egui_winit::State>,
     }
+
     /// This struct will contain both persistent and temporary glutin state.
     ///
     /// Platform Quirks:
@@ -1246,7 +1248,7 @@ mod glow_integration {
                 let glutin_ctx = self.running.read().as_ref().unwrap().glutin_ctx.clone();
                 let painter = self.running.read().as_ref().unwrap().painter.clone();
 
-                // This onlt will happend when a viewport is sync
+                // This will only happen if the viewport is sync
                 // That means that the viewport cannot be rendered by itself and needs his parent to be rendered
                 {
                     let win = glutin_ctx.read().windows.get(&viewport_id).unwrap().clone();

@@ -23,7 +23,7 @@ impl ViewportId {
 pub type ViewportRender = dyn Fn(&Context) + Sync + Send;
 
 /// The filds in this struct should not be change directly, but is not problem tho!
-/// Every thing is wraped in Option<> indicates that thing should not be changed!
+/// Every thing is wrapped in Option<> indicates that thing should not be changed!
 #[derive(Hash, PartialEq, Eq, Clone)]
 pub struct ViewportBuilder {
     pub id: Id,
@@ -114,6 +114,7 @@ impl ViewportBuilder {
             hittest: None,
         }
     }
+
     pub fn with_title(mut self, title: impl Into<String>) -> Self {
         self.title = title.into();
         self
@@ -149,7 +150,7 @@ impl ViewportBuilder {
         self
     }
 
-    /// The icon needs to be wraped in Arc because will be copyed every frame
+    /// The icon needs to be wrapped in Arc because will be copied every frame
     pub fn with_window_icon(mut self, icon: Option<Arc<(u32, u32, Vec<u8>)>>) -> Self {
         self.icon = Some(icon);
         self
@@ -246,27 +247,32 @@ pub enum ViewportCommand {
     MinInnerSize(Option<(u32, u32)>),
     MaxInnerSize(Option<(u32, u32)>),
     ResizeIncrements(Option<(u32, u32)>),
+
     /// Top, Bottom, Right, Left
     Resize(bool, bool, bool, bool),
     Resizable(bool),
     EnableButtons {
         close: bool,
-        mimimize: bool,
+        minimized: bool,
         maximize: bool,
     },
     Minimized(bool),
     Maximized(bool),
     Fullscreen(bool),
     Decorations(bool),
+
     /// 0 = Normal, 1 = AlwaysOnBottom, 2 = AlwaysOnTop
     WindowLevel(u8),
     WindowIcon(Option<(Vec<u8>, u32, u32)>),
-    IMEPossition(u32, u32),
+    IMEPosition(u32, u32),
     IMEAllowed(bool),
+
     /// 0 = Normal, 1 = Password, 2 = Terminal
     IMEPurpose(u8),
+
     /// 0 = Informational, 1 = Critical
     RequestUserAttention(Option<u8>),
+
     /// 0 = Light, 1 = Dark
     SetTheme(Option<u8>),
 

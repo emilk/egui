@@ -85,7 +85,7 @@ impl<'open> Window<'open> {
     }
 
     /// This will only be used on window creation!
-    /// If embedded is false the window will be a native window, if is possibile
+    /// If embedded is false the window will be a native window, if is possible
     /// Look at `Context::is_desktop` to see if is possible to create a native window!
     pub fn default_embedded(mut self, embedded: bool) -> Self {
         self.default_embedded = embedded;
@@ -1714,7 +1714,7 @@ impl TitleBar {
         }
 
         // Don't cover the close- and collapse buttons:
-        // After 32 is used for a temporary embedd button!
+        // After 32 is used for a temporary embedded button!
         let double_click_rect = self.rect.shrink2(vec2(
             32.0 + ui.style().visuals.text_cursor.width + ui.style().spacing.icon_width,
             0.0,

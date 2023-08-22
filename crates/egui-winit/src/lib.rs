@@ -927,7 +927,7 @@ pub fn process_viewport_commands(
                 // if this is not checked on x11 the input will be permanently taken until the app is killed!
                 if let Some(focus) = focused {
                     if focus == viewport_id {
-                        // TODO possibile return the error to `egui::Context`
+                        // TODO possible return the error to `egui::Context`
                         let _ = win.drag_window();
                     }
                 }
@@ -968,14 +968,14 @@ pub fn process_viewport_commands(
             ViewportCommand::Resizable(v) => win.set_resizable(v),
             ViewportCommand::EnableButtons {
                 close,
-                mimimize,
+                minimized,
                 maximize,
             } => win.set_enabled_buttons(
                 if close {
                     WindowButtons::CLOSE
                 } else {
                     WindowButtons::empty()
-                } | if mimimize {
+                } | if minimized {
                     WindowButtons::MINIMIZE
                 } else {
                     WindowButtons::empty()
@@ -1002,7 +1002,7 @@ pub fn process_viewport_commands(
                         .expect("Invalid ICON data!")
                 }));
             }
-            ViewportCommand::IMEPossition(x, y) => win.set_ime_position(LogicalPosition::new(x, y)),
+            ViewportCommand::IMEPosition(x, y) => win.set_ime_position(LogicalPosition::new(x, y)),
             ViewportCommand::IMEAllowed(v) => win.set_ime_allowed(v),
             ViewportCommand::IMEPurpose(o) => win.set_ime_purpose(match o {
                 1 => winit::window::ImePurpose::Password,

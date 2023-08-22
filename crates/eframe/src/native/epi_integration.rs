@@ -316,6 +316,7 @@ pub struct EpiIntegration {
     pub beginning: Instant,
     pub egui_ctx: egui::Context,
     pending_full_output: egui::FullOutput,
+
     /// When set, it is time to close the native window.
     close: bool,
 
