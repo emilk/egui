@@ -63,7 +63,7 @@ impl eframe::App for App {
             if self.show_async_viewport {
                 let state = self.async_viewport_state.clone();
                 ctx.create_viewport(
-                    ViewportBuilder::default().with_title("Async Viewport"),
+                    ViewportBuilder::new("Async Viewport").with_title("Async Viewport"),
                     move |ctx| {
                         let mut state = state.write().unwrap();
                         let content = |ui: &mut egui::Ui| {
@@ -96,7 +96,7 @@ impl eframe::App for App {
             // Showing Sync Viewport
             if self.show_sync_viewport {
                 ctx.create_viewport_sync(
-                    ViewportBuilder::default().with_title("Sync Viewport"),
+                    ViewportBuilder::new("Sync Viewport").with_title("Sync Viewport"),
                     |ctx| {
                         let content = |ui: &mut egui::Ui| {
                             ui.label(format!("Frame: {}", ctx.frame_nr()));

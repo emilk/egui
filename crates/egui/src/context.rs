@@ -197,7 +197,7 @@ struct ContextImpl {
     repaint: Repaint,
 
     viewports: HashMap<
-        String,
+        Id,
         (
             ViewportBuilder,
             ViewportId,
@@ -2189,12 +2189,12 @@ impl Context {
         self.read(|ctx| ctx.get_parent_viewport_id())
     }
 
-    pub fn get_viewport_id_by_name(&self, name: &str) -> Option<ViewportId> {
-        self.read(|ctx| ctx.viewports.get(name).map(|v| v.1))
+    pub fn get_viewport_id_by_id(&self, id: impl Into<Id>) -> Option<ViewportId> {
+        self.read(|ctx| ctx.viewports.get(&id.into()).map(|v| v.1))
     }
 
-    pub fn get_viewport_parent_id_by_name(&self, name: &str) -> Option<ViewportId> {
-        self.read(|ctx| ctx.viewports.get(name).map(|v| v.1))
+    pub fn get_viewport_parent_id_by_id(&self, id: impl Into<Id>) -> Option<ViewportId> {
+        self.read(|ctx| ctx.viewports.get(&id.into()).map(|v| v.1))
     }
 
     /// This should only be used by the backend!
@@ -2246,7 +2246,7 @@ impl Context {
         if !self.force_embedding() {
             self.write(|ctx| {
                 let viewport_id = ctx.get_viewport_id();
-                if let Some(window) = ctx.viewports.get_mut(&viewport_builder.title) {
+                if let Some(window) = ctx.viewports.get_mut(&viewport_builder.id) {
                     window.0 = viewport_builder;
                     window.2 = viewport_id;
                     window.3 = true;
@@ -2255,7 +2255,7 @@ impl Context {
                     let id = ViewportId(ctx.viewport_counter + 1);
                     ctx.viewport_counter += 1;
                     ctx.viewports.insert(
-                        viewport_builder.title.clone(),
+                        viewport_builder.id,
                         (
                             viewport_builder,
                             id,
@@ -2287,7 +2287,7 @@ impl Context {
             let mut parent_viewport_id = ViewportId::MAIN;
             let render_sync = self.write(|ctx| {
                 viewport_id = ctx.get_viewport_id();
-                if let Some(window) = ctx.viewports.get_mut(&viewport_builder.title) {
+                if let Some(window) = ctx.viewports.get_mut(&viewport_builder.id) {
                     window.0 = viewport_builder.clone();
                     window.2 = viewport_id;
                     window.3 = true;
@@ -2298,7 +2298,7 @@ impl Context {
                     let id = ViewportId(ctx.viewport_counter + 1);
                     ctx.viewport_counter += 1;
                     ctx.viewports.insert(
-                        viewport_builder.title.clone(),
+                        viewport_builder.id,
                         (viewport_builder.clone(), id, viewport_id, true, None),
                     );
                     viewport_id = id;

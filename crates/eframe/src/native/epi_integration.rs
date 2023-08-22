@@ -90,7 +90,7 @@ pub fn window_builder<E>(
         ..
     } = native_options;
 
-    let mut window_builder = ViewportBuilder::default()
+    let mut window_builder = ViewportBuilder::new("")
         .with_title(title)
         .with_decorations(*decorated)
         .with_fullscreen(*fullscreen)

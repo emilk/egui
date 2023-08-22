@@ -48,7 +48,7 @@ impl<'open> Window<'open> {
         let title = title.into().fallback_text_style(TextStyle::Heading);
         let area = Area::new(Id::new(title.text()));
         Self {
-            window_builder: ViewportBuilder::default().with_title(title.text()),
+            window_builder: ViewportBuilder::new(title.text().to_owned()).with_title(title.text()),
             title,
             open: None,
             area,
@@ -70,6 +70,7 @@ impl<'open> Window<'open> {
     /// Assign a unique id to the Window. Required if the title changes, or is shared with another window.
     pub fn id(mut self, id: Id) -> Self {
         self.area = self.area.id(id);
+        self.window_builder.id = id;
         self
     }
 

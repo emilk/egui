@@ -1,6 +1,6 @@
 use std::{fmt::Display, sync::Arc};
 
-use crate::Context;
+use crate::{Context, Id};
 
 /// This is used to send a command to a specific viewport
 ///
@@ -26,6 +26,7 @@ pub type ViewportRender = dyn Fn(&Context) + Sync + Send;
 /// Every thing is wraped in Option<> indicates that thing should not be changed!
 #[derive(Hash, PartialEq, Eq, Clone)]
 pub struct ViewportBuilder {
+    pub id: Id,
     pub title: String,
     pub name: Option<(String, String)>,
     pub position: Option<Option<(i32, i32)>>,
@@ -53,10 +54,11 @@ pub struct ViewportBuilder {
     pub hittest: Option<bool>,
 }
 
-impl Default for ViewportBuilder {
-    fn default() -> Self {
+impl ViewportBuilder {
+    pub fn new(id: impl Into<Id>) -> Self {
         Self {
-            title: "Dummy EGUI Window".into(),
+            id: id.into(),
+            title: "Dummy egui viewport".into(),
             name: None,
             position: None,
             inner_size: Some(Some((300, 200))),
@@ -84,9 +86,10 @@ impl Default for ViewportBuilder {
 }
 
 impl ViewportBuilder {
-    pub fn empty() -> Self {
+    pub fn empty(id: impl Into<Id>) -> Self {
         Self {
-            title: "Dummy EGUI Window".into(),
+            id: id.into(),
+            title: "Dummy egui viewport".into(),
             name: None,
             position: None,
             inner_size: None,
