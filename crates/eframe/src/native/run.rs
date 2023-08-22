@@ -1858,8 +1858,8 @@ mod wgpu_integration {
         #[cfg(target_os = "android")]
         fn drop_window(&mut self) -> std::result::Result<(), egui_wgpu::WgpuError> {
             if let Some(running) = &mut self.running {
-                running.windows.remove(&0);
-                pollster::block_on(running.painter.set_window(None))?;
+                running.windows.write().remove(&ViewportId::MAIN);
+                pollster::block_on(running.painter.write().set_window(ViewportId::MAIN, None))?;
             }
             Ok(())
         }

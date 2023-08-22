@@ -1124,7 +1124,7 @@ pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::
     }
 
     #[cfg(target_os = "windows")]
-    if let Some(drag_and_drop) = builder.drag_and_drop {
+    if let Some(enable) = builder.drag_and_drop {
         use winit::platform::windows::WindowBuilderExtWindows as _;
         window_builder = window_builder.with_drag_and_drop(enable);
     }
