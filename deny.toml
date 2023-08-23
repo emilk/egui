@@ -22,6 +22,7 @@ unmaintained = "warn"
 yanked = "deny"
 ignore = [
     "RUSTSEC-2020-0071", # https://rustsec.org/advisories/RUSTSEC-2020-0071 - chrono/time: Potential segfault in the time crate
+    "RUSTSEC-2023-0052", # https://rustsec.org/advisories/RUSTSEC-2023-0052 - can be fixed by `cargo update -p ureq`, but then we run into duplicate crates: https://github.com/algesten/ureq/issues/653
 ]
 
 [bans]
