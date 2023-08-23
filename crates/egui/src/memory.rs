@@ -413,7 +413,6 @@ impl Focus {
         let mut focus_candidates: Vec<(&Id, f32, f32)> =
             Vec::with_capacity(self.focus_widgets_cache.len());
 
-        // The local cache is lagging behind the new rectangles so update them
         for (widget_id, widget_rect) in &mut self.focus_widgets_cache {
             if Some(*widget_id) == self.id {
                 continue;
@@ -461,7 +460,7 @@ impl Focus {
         }
 
         if !focus_candidates.is_empty() {
-            // Select widget based on highest dot product and than lowest distance.
+            // Select widget based on highest dot product and then lowest distance.
             focus_candidates.sort_by(|(_, dot1, _), (_, dot2, _)| dot2.partial_cmp(dot1).unwrap());
             focus_candidates.sort_by(|(_, _, len1), (_, _, len2)| len1.partial_cmp(len2).unwrap());
 
