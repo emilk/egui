@@ -1084,7 +1084,6 @@ mod glow_integration {
                                     break 'try_render;
                                 }
                             }
-                            Self::process_viewport_builders(&glutin, output.viewports);
                             egui_winit::process_viewports_commands(
                                 output.viewport_commands,
                                 *focused.read(),
