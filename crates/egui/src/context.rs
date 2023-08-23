@@ -2289,7 +2289,7 @@ impl Context {
         &self,
         viewport_builder: ViewportBuilder,
         func: impl FnOnce(&Context) -> T,
-    ) -> T {
+    ) -> Option<T> {
         if !self.force_embedding() {
             let mut viewport_id = ViewportId::MAIN;
             let mut parent_viewport_id = ViewportId::MAIN;
@@ -2326,9 +2326,9 @@ impl Context {
                 );
             }
 
-            out.unwrap()
+            out
         } else {
-            func(self)
+            Some(func(self))
         }
     }
 }

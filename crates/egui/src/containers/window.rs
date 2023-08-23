@@ -615,10 +615,10 @@ impl<'open> Window<'open> {
                         ctx.request_repaint_viewport(ctx.get_parent_viewport_id());
                     }
 
-                    Some(InnerResponse {
+                    InnerResponse {
                         inner: content_inner,
                         response: full_response,
-                    })
+                    }
                 });
             }
         }

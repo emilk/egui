@@ -1096,10 +1096,8 @@ mod glow_integration {
                                         .and_then(|w| w.read().window.clone())
                                 },
                             );
-                            return;
                         }
                     }
-                    render(&egui_ctx);
                 },
             );
 
@@ -2071,10 +2069,8 @@ mod wgpu_integration {
                                 *focused.read(),
                                 |id| _windows.read().get(&id).and_then(|w| w.0.clone()),
                             );
-                            return;
                         }
                     }
-                    render(&egui_ctx);
                 },
             );
 
