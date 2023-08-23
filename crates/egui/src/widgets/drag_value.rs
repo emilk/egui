@@ -271,7 +271,7 @@ impl<'a> DragValue<'a> {
             self.custom_formatter(move |n, _| format!("{:0>min_width$b}", n as i64))
         } else {
             self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { "-" } else { "" };
+                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
                 format!("{sign}{:0>min_width$b}", n.abs() as i64)
             })
         }
@@ -306,7 +306,7 @@ impl<'a> DragValue<'a> {
             self.custom_formatter(move |n, _| format!("{:0>min_width$o}", n as i64))
         } else {
             self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { "-" } else { "" };
+                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
                 format!("{sign}{:0>min_width$o}", n.abs() as i64)
             })
         }
@@ -345,11 +345,11 @@ impl<'a> DragValue<'a> {
                 self.custom_formatter(move |n, _| format!("{:0>min_width$x}", n as i64))
             }
             (false, true) => self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { "-" } else { "" };
+                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
                 format!("{sign}{:0>min_width$X}", n.abs() as i64)
             }),
             (false, false) => self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { "-" } else { "" };
+                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
                 format!("{sign}{:0>min_width$x}", n.abs() as i64)
             }),
         }

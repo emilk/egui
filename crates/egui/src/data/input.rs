@@ -796,7 +796,7 @@ impl Key {
             Key::ArrowLeft => "⏴",
             Key::ArrowRight => "⏵",
             Key::ArrowUp => "⏶",
-            Key::Minus => "-",
+            Key::Minus => crate::MINUS_CHAR_STR,
             Key::PlusEquals => "+",
             _ => self.name(),
         }

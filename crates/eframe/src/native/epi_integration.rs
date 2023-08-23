@@ -134,6 +134,9 @@ pub fn window_builder<E>(
 
     window_builder = window_builder.with_drag_and_drop(*drag_and_drop_support);
 
+    // Always use the default window size / position on iOS. Trying to restore the previous position
+    // causes the window to be shown too small.
+    #[cfg(not(target_os = "ios"))]
     let inner_size_points = if let Some(mut window_settings) = window_settings {
         // Restore pos/size from previous session
 
@@ -159,6 +162,7 @@ pub fn window_builder<E>(
         *initial_window_size
     };
 
+    #[cfg(not(target_os = "ios"))]
     if *centered {
         if let Some(monitor) = event_loop.available_monitors().next() {
             let monitor_size = monitor.size().to_logical::<f64>(monitor.scale_factor());

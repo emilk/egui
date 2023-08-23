@@ -1686,6 +1686,14 @@ impl Context {
     pub fn highlight_widget(&self, id: Id) {
         self.frame_state_mut(|fs| fs.highlight_next_frame.insert(id));
     }
+
+    /// Is an egui context menu open?
+    pub fn is_context_menu_open(&self) -> bool {
+        self.data(|d| {
+            d.get_temp::<crate::menu::BarState>(menu::CONTEXT_MENU_ID_STR.into())
+                .map_or(false, |state| state.has_root())
+        })
+    }
 }
 
 // Ergonomic methods to forward some calls often used in 'if let' without holding the borrow

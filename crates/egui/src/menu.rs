@@ -48,6 +48,10 @@ impl BarState {
         MenuRoot::stationary_click_interaction(response, &mut self.open_menu, response.id);
         self.open_menu.show(response, add_contents)
     }
+
+    pub(crate) fn has_root(&self) -> bool {
+        self.open_menu.inner.is_some()
+    }
 }
 
 impl std::ops::Deref for BarState {
@@ -212,12 +216,14 @@ fn stationary_menu_image_impl<'c, R>(
     InnerResponse::new(inner.map(|r| r.inner), button_response)
 }
 
+pub(crate) const CONTEXT_MENU_ID_STR: &str = "__egui::context_menu";
+
 /// Response to secondary clicks (right-clicks) by showing the given menu.
 pub(crate) fn context_menu(
     response: &Response,
     add_contents: impl FnOnce(&mut Ui),
 ) -> Option<InnerResponse<()>> {
-    let menu_id = Id::new("__egui::context_menu");
+    let menu_id = Id::new(CONTEXT_MENU_ID_STR);
     let mut bar_state = BarState::load(&response.ctx, menu_id);
 
     MenuRoot::context_click_interaction(response, &mut bar_state, response.id);
