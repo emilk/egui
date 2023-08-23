@@ -55,6 +55,8 @@ impl State {
 ///     });
 /// # });
 /// ```
+///
+/// The previous rectangle used by this area can be obtained through [`crate::Memory::area_rect()`].
 #[must_use = "You should call .show()"]
 #[derive(Clone, Copy, Debug)]
 pub struct Area {
@@ -426,7 +428,7 @@ impl Prepared {
             temporarily_invisible: _,
         } = self;
 
-        state.size = content_ui.min_rect().size();
+        state.size = content_ui.min_size();
 
         ctx.memory_mut(|m| m.areas.set_state(layer_id, state));
 

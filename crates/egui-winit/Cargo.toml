@@ -4,7 +4,7 @@ version = "0.22.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui with winit"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.67"
 homepage = "https://github.com/emilk/egui/tree/master/crates/egui-winit"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -18,7 +18,7 @@ all-features = true
 
 
 [features]
-default = ["clipboard", "links", "wayland", "winit/default"]
+default = ["clipboard", "links", "wayland", "winit/default", "x11"]
 
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
 accesskit = ["accesskit_winit", "egui/accesskit"]
@@ -41,6 +41,9 @@ serde = ["egui/serde", "dep:serde"]
 
 ## Enables Wayland support.
 wayland = ["winit/wayland"]
+
+## Enables compiling for x11.
+x11 = ["winit/x11"]
 
 # Allow crates to choose an android-activity backend via Winit
 # - It's important that most applications should not have to depend on android-activity directly, and can

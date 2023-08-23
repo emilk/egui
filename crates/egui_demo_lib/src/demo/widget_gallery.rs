@@ -126,7 +126,7 @@ impl WidgetGallery {
         ui.add(doc_link_label("Hyperlink", "Hyperlink"));
         use egui::special_emojis::GITHUB;
         ui.hyperlink_to(
-            format!("{} egui on GitHub", GITHUB),
+            format!("{GITHUB} egui on GitHub"),
             "https://github.com/emilk/egui",
         );
         ui.end_row();
@@ -173,7 +173,7 @@ impl WidgetGallery {
         ui.add(doc_link_label("ComboBox", "ComboBox"));
 
         egui::ComboBox::from_label("Take your pick")
-            .selected_text(format!("{:?}", radio))
+            .selected_text(format!("{radio:?}"))
             .show_ui(ui, |ui| {
                 ui.style_mut().wrap = Some(false);
                 ui.set_min_width(60.0);
@@ -271,14 +271,15 @@ fn example_plot(ui: &mut egui::Ui) -> egui::Response {
     let line = Line::new(line_points);
     egui::plot::Plot::new("example_plot")
         .height(32.0)
+        .show_axes(false)
         .data_aspect(1.0)
         .show(ui, |plot_ui| plot_ui.line(line))
         .response
 }
 
 fn doc_link_label<'a>(title: &'a str, search_term: &'a str) -> impl egui::Widget + 'a {
-    let label = format!("{}:", title);
-    let url = format!("https://docs.rs/egui?search={}", search_term);
+    let label = format!("{title}:");
+    let url = format!("https://docs.rs/egui?search={search_term}");
     move |ui: &mut egui::Ui| {
         ui.hyperlink_to(label, url).on_hover_ui(|ui| {
             ui.horizontal_wrapped(|ui| {

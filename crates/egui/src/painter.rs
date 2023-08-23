@@ -1,8 +1,7 @@
-use std::ops::RangeInclusive;
 use std::sync::Arc;
 
 use crate::{
-    emath::{Align2, Pos2, Rect, Vec2},
+    emath::{Align2, Pos2, Rangef, Rect, Vec2},
     layers::{LayerId, PaintList, ShapeIdx},
     Color32, Context, FontId,
 };
@@ -227,7 +226,7 @@ impl Painter {
 
     pub fn error(&self, pos: Pos2, text: impl std::fmt::Display) -> Rect {
         let color = self.ctx.style().visuals.error_fg_color;
-        self.debug_text(pos, Align2::LEFT_TOP, color, format!("🔥 {}", text))
+        self.debug_text(pos, Align2::LEFT_TOP, color, format!("🔥 {text}"))
     }
 
     /// text with a background
@@ -263,12 +262,12 @@ impl Painter {
     }
 
     /// Paints a horizontal line.
-    pub fn hline(&self, x: RangeInclusive<f32>, y: f32, stroke: impl Into<Stroke>) {
+    pub fn hline(&self, x: impl Into<Rangef>, y: f32, stroke: impl Into<Stroke>) {
         self.add(Shape::hline(x, y, stroke));
     }
 
     /// Paints a vertical line.
-    pub fn vline(&self, x: f32, y: RangeInclusive<f32>, stroke: impl Into<Stroke>) {
+    pub fn vline(&self, x: f32, y: impl Into<Rangef>, stroke: impl Into<Stroke>) {
         self.add(Shape::vline(x, y, stroke));
     }
 
@@ -312,12 +311,7 @@ impl Painter {
         fill_color: impl Into<Color32>,
         stroke: impl Into<Stroke>,
     ) {
-        self.add(RectShape {
-            rect,
-            rounding: rounding.into(),
-            fill: fill_color.into(),
-            stroke: stroke.into(),
-        });
+        self.add(RectShape::new(rect, rounding, fill_color, stroke));
     }
 
     pub fn rect_filled(
@@ -326,12 +320,7 @@ impl Painter {
         rounding: impl Into<Rounding>,
         fill_color: impl Into<Color32>,
     ) {
-        self.add(RectShape {
-            rect,
-            rounding: rounding.into(),
-            fill: fill_color.into(),
-            stroke: Default::default(),
-        });
+        self.add(RectShape::filled(rect, rounding, fill_color));
     }
 
     pub fn rect_stroke(
@@ -340,12 +329,7 @@ impl Painter {
         rounding: impl Into<Rounding>,
         stroke: impl Into<Stroke>,
     ) {
-        self.add(RectShape {
-            rect,
-            rounding: rounding.into(),
-            fill: Default::default(),
-            stroke: stroke.into(),
-        });
+        self.add(RectShape::stroke(rect, rounding, stroke));
     }
 
     /// Show an arrow starting at `origin` and going in the direction of `vec`, with the length `vec.length()`.

@@ -338,6 +338,13 @@ pub struct Margin {
 }
 
 impl Margin {
+    pub const ZERO: Self = Self {
+        left: 0.0,
+        right: 0.0,
+        top: 0.0,
+        bottom: 0.0,
+    };
+
     #[inline]
     pub fn same(margin: f32) -> Self {
         Self {
@@ -360,30 +367,46 @@ impl Margin {
     }
 
     /// Total margins on both sides
+    #[inline]
     pub fn sum(&self) -> Vec2 {
         vec2(self.left + self.right, self.top + self.bottom)
     }
 
+    #[inline]
     pub fn left_top(&self) -> Vec2 {
         vec2(self.left, self.top)
     }
 
+    #[inline]
     pub fn right_bottom(&self) -> Vec2 {
         vec2(self.right, self.bottom)
     }
 
+    #[inline]
     pub fn is_same(&self) -> bool {
         self.left == self.right && self.left == self.top && self.left == self.bottom
+    }
+
+    #[inline]
+    pub fn expand_rect(&self, rect: Rect) -> Rect {
+        Rect::from_min_max(rect.min - self.left_top(), rect.max + self.right_bottom())
+    }
+
+    #[inline]
+    pub fn shrink_rect(&self, rect: Rect) -> Rect {
+        Rect::from_min_max(rect.min + self.left_top(), rect.max - self.right_bottom())
     }
 }
 
 impl From<f32> for Margin {
+    #[inline]
     fn from(v: f32) -> Self {
         Self::same(v)
     }
 }
 
 impl From<Vec2> for Margin {
+    #[inline]
     fn from(v: Vec2) -> Self {
         Self::symmetric(v.x, v.y)
     }
@@ -392,6 +415,7 @@ impl From<Vec2> for Margin {
 impl std::ops::Add for Margin {
     type Output = Self;
 
+    #[inline]
     fn add(self, other: Self) -> Self {
         Self {
             left: self.left + other.left,
@@ -417,6 +441,9 @@ pub struct Interaction {
 
     /// If `false`, tooltips will show up anytime you hover anything, even is mouse is still moving
     pub show_tooltips_only_when_still: bool,
+
+    /// Delay in seconds before showing tooltips after the mouse stops moving
+    pub tooltip_delay: f64,
 }
 
 /// Controls the visual style (colors etc) of egui.
@@ -491,7 +518,8 @@ pub struct Visuals {
 
     pub resize_corner_size: f32,
 
-    pub text_cursor_width: f32,
+    /// The color and width of the text cursor
+    pub text_cursor: Stroke,
 
     /// show where the text cursor would be if you clicked
     pub text_cursor_preview: bool,
@@ -737,6 +765,7 @@ impl Default for Interaction {
             resize_grab_radius_side: 5.0,
             resize_grab_radius_corner: 10.0,
             show_tooltips_only_when_still: true,
+            tooltip_delay: 0.0,
         }
     }
 }
@@ -767,7 +796,7 @@ impl Visuals {
 
             popup_shadow: Shadow::small_dark(),
             resize_corner_size: 12.0,
-            text_cursor_width: 2.0,
+            text_cursor: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)),
             text_cursor_preview: false,
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
@@ -800,6 +829,7 @@ impl Visuals {
             panel_fill: Color32::from_gray(248),
 
             popup_shadow: Shadow::small_light(),
+            text_cursor: Stroke::new(2.0, Color32::from_rgb(0, 83, 125)),
             ..Self::dark()
         }
     }
@@ -1192,6 +1222,7 @@ impl Interaction {
             resize_grab_radius_side,
             resize_grab_radius_corner,
             show_tooltips_only_when_still,
+            tooltip_delay,
         } = self;
         ui.add(Slider::new(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
         ui.add(
@@ -1201,6 +1232,7 @@ impl Interaction {
             show_tooltips_only_when_still,
             "Only show tooltips if mouse is still",
         );
+        ui.add(Slider::new(tooltip_delay, 0.0..=1.0).text("tooltip_delay"));
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -1334,7 +1366,7 @@ impl Visuals {
             popup_shadow,
 
             resize_corner_size,
-            text_cursor_width,
+            text_cursor,
             text_cursor_preview,
             clip_rect_margin,
             button_frame,
@@ -1392,8 +1424,9 @@ impl Visuals {
         });
 
         ui_color(ui, hyperlink_color, "hyperlink_color");
+        stroke_ui(ui, text_cursor, "Text Cursor");
+
         ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-        ui.add(Slider::new(text_cursor_width, 0.0..=4.0).text("text_cursor_width"));
         ui.checkbox(text_cursor_preview, "Preview text cursor on hover");
         ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 

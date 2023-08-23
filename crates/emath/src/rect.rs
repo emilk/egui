@@ -1,5 +1,4 @@
 use std::f32::INFINITY;
-use std::ops::RangeInclusive;
 
 use crate::*;
 
@@ -59,6 +58,12 @@ impl Rect {
         max: pos2(f32::NAN, f32::NAN),
     };
 
+    /// A [`Rect`] filled with zeroes.
+    pub const ZERO: Self = Self {
+        min: Pos2::ZERO,
+        max: Pos2::ZERO,
+    };
+
     #[inline(always)]
     pub const fn from_min_max(min: Pos2, max: Pos2) -> Self {
         Rect { min, max }
@@ -82,15 +87,12 @@ impl Rect {
     }
 
     #[inline(always)]
-    pub fn from_x_y_ranges(
-        x_range: impl Into<RangeInclusive<f32>>,
-        y_range: impl Into<RangeInclusive<f32>>,
-    ) -> Self {
+    pub fn from_x_y_ranges(x_range: impl Into<Rangef>, y_range: impl Into<Rangef>) -> Self {
         let x_range = x_range.into();
         let y_range = y_range.into();
         Rect {
-            min: pos2(*x_range.start(), *y_range.start()),
-            max: pos2(*x_range.end(), *y_range.end()),
+            min: pos2(x_range.min, y_range.min),
+            max: pos2(x_range.max, y_range.max),
         }
     }
 
@@ -280,6 +282,7 @@ impl Rect {
         }
     }
 
+    /// `rect.size() == Vec2 { x: rect.width(), y: rect.height() }`
     #[inline(always)]
     pub fn size(&self) -> Vec2 {
         self.max - self.min
@@ -389,18 +392,18 @@ impl Rect {
     }
 
     #[inline(always)]
-    pub fn x_range(&self) -> RangeInclusive<f32> {
-        self.min.x..=self.max.x
+    pub fn x_range(&self) -> Rangef {
+        Rangef::new(self.min.x, self.max.x)
     }
 
     #[inline(always)]
-    pub fn y_range(&self) -> RangeInclusive<f32> {
-        self.min.y..=self.max.y
+    pub fn y_range(&self) -> Rangef {
+        Rangef::new(self.min.y, self.max.y)
     }
 
     #[inline(always)]
-    pub fn bottom_up_range(&self) -> RangeInclusive<f32> {
-        self.max.y..=self.min.y
+    pub fn bottom_up_range(&self) -> Rangef {
+        Rangef::new(self.max.y, self.min.y)
     }
 
     /// `width < 0 || height < 0`

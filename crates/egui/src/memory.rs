@@ -487,6 +487,11 @@ impl Memory {
     pub fn reset_areas(&mut self) {
         self.areas = Default::default();
     }
+
+    /// Obtain the previous rectangle of an area.
+    pub fn area_rect(&self, id: impl Into<Id>) -> Option<Rect> {
+        self.areas.get(id.into()).map(|state| state.rect())
+    }
 }
 
 /// ## Popups
@@ -546,8 +551,10 @@ impl Memory {
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Areas {
     areas: IdMap<area::State>,
+
     /// Back-to-front. Top is last.
     order: Vec<LayerId>,
+
     visible_last_frame: ahash::HashSet<LayerId>,
     visible_current_frame: ahash::HashSet<LayerId>,
 

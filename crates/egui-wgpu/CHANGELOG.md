@@ -2,8 +2,8 @@
 All notable changes to the `egui-wgpu` integration will be noted in this file.
 
 
-## Unreleased
-* Fix panic on wgpu GL backend due to new screenshot capability ([#3068](https://github.com/emilk/egui/issues/3068), [#3078](https://github.com/emilk/egui/pull/3078)
+This file is updated upon each release.
+Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
 
 ## 0.22.0 - 2023-05-23

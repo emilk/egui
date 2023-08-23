@@ -566,7 +566,7 @@ impl Context {
         }
 
         let show_error = |widget_rect: Rect, text: String| {
-            let text = format!("🔥 {}", text);
+            let text = format!("🔥 {text}");
             let color = self.style().visuals.error_fg_color;
             let painter = self.debug_painter();
             painter.rect_stroke(widget_rect, 0.0, (1.0, color));
@@ -612,10 +612,10 @@ impl Context {
         let id_str = id.short_debug_format();
 
         if prev_rect.min.distance(new_rect.min) < 4.0 {
-            show_error(new_rect, format!("Double use of {} ID {}", what, id_str));
+            show_error(new_rect, format!("Double use of {what} ID {id_str}"));
         } else {
-            show_error(prev_rect, format!("First use of {} ID {}", what, id_str));
-            show_error(new_rect, format!("Second use of {} ID {}", what, id_str));
+            show_error(prev_rect, format!("First use of {what} ID {id_str}"));
+            show_error(new_rect, format!("Second use of {what} ID {id_str}"));
         }
     }
 
@@ -1389,6 +1389,14 @@ impl Context {
     pub fn highlight_widget(&self, id: Id) {
         self.frame_state_mut(|fs| fs.highlight_next_frame.insert(id));
     }
+
+    /// Is an egui context menu open?
+    pub fn is_context_menu_open(&self) -> bool {
+        self.data(|d| {
+            d.get_temp::<crate::menu::BarState>(menu::CONTEXT_MENU_ID_STR.into())
+                .map_or(false, |state| state.has_root())
+        })
+    }
 }
 
 // Ergonomic methods to forward some calls often used in 'if let' without holding the borrow
@@ -1574,14 +1582,14 @@ impl Context {
 
         let pointer_pos = self
             .pointer_hover_pos()
-            .map_or_else(String::new, |pos| format!("{:?}", pos));
-        ui.label(format!("Pointer pos: {}", pointer_pos));
+            .map_or_else(String::new, |pos| format!("{pos:?}"));
+        ui.label(format!("Pointer pos: {pointer_pos}"));
 
         let top_layer = self
             .pointer_hover_pos()
             .and_then(|pos| self.layer_id_at(pos))
             .map_or_else(String::new, |layer| layer.short_debug_format());
-        ui.label(format!("Top layer under mouse: {}", top_layer));
+        ui.label(format!("Top layer under mouse: {top_layer}"));
 
         ui.add_space(16.0);
 
@@ -1667,7 +1675,7 @@ impl Context {
                                     ui.image(texture_id, size);
                                 });
 
-                                ui.label(format!("{} x {}", w, h));
+                                ui.label(format!("{w} x {h}"));
                                 ui.label(format!("{:.3} MB", meta.bytes_used() as f64 * 1e-6));
                                 ui.label(format!("{:?}", meta.name));
                                 ui.end_row();
@@ -1688,8 +1696,7 @@ impl Context {
 
         let (num_state, num_serialized) = self.data(|d| (d.len(), d.count_serialized()));
         ui.label(format!(
-            "{} widget states stored (of which {} are serialized).",
-            num_state, num_serialized
+            "{num_state} widget states stored (of which {num_serialized} are serialized)."
         ));
 
         ui.horizontal(|ui| {

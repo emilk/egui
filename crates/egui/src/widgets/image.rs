@@ -42,6 +42,7 @@ pub struct Image {
     tint: Color32,
     sense: Sense,
     rotation: Option<(Rot2, Vec2)>,
+    rounding: Rounding,
 }
 
 impl Image {
@@ -54,6 +55,7 @@ impl Image {
             tint: Color32::WHITE,
             sense: Sense::hover(),
             rotation: None,
+            rounding: Rounding::ZERO,
         }
     }
 
@@ -89,8 +91,26 @@ impl Image {
     /// Origin is a vector in normalized UV space ((0,0) in top-left, (1,1) bottom right).
     ///
     /// To rotate about the center you can pass `Vec2::splat(0.5)` as the origin.
+    ///
+    /// Due to limitations in the current implementation,
+    /// this will turn off rounding of the image.
     pub fn rotate(mut self, angle: f32, origin: Vec2) -> Self {
         self.rotation = Some((Rot2::from_angle(angle), origin));
+        self.rounding = Rounding::ZERO; // incompatible with rotation
+        self
+    }
+
+    /// Round the corners of the image.
+    ///
+    /// The default is no rounding ([`Rounding::ZERO`]).
+    ///
+    /// Due to limitations in the current implementation,
+    /// this will turn off any rotation of the image.
+    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
+        self.rounding = rounding.into();
+        if self.rounding != Rounding::ZERO {
+            self.rotation = None; // incompatible with rounding
+        }
         self
     }
 }
@@ -111,6 +131,7 @@ impl Image {
                 tint,
                 sense: _,
                 rotation,
+                rounding,
             } = self;
 
             if *bg_fill != Default::default() {
@@ -119,14 +140,27 @@ impl Image {
                 ui.painter().add(Shape::mesh(mesh));
             }
 
-            {
-                // TODO(emilk): builder pattern for Mesh
+            if let Some((rot, origin)) = rotation {
+                // TODO(emilk): implement this using `PathShape` (add texture support to it).
+                // This will also give us anti-aliasing of rotated images.
+                egui_assert!(
+                    *rounding == Rounding::ZERO,
+                    "Image had both rounding and rotation. Please pick only one"
+                );
+
                 let mut mesh = Mesh::with_texture(*texture_id);
                 mesh.add_rect_with_uv(rect, *uv, *tint);
-                if let Some((rot, origin)) = rotation {
-                    mesh.rotate(*rot, rect.min + *origin * *size);
-                }
+                mesh.rotate(*rot, rect.min + *origin * *size);
                 ui.painter().add(Shape::mesh(mesh));
+            } else {
+                ui.painter().add(RectShape {
+                    rect,
+                    rounding: *rounding,
+                    fill: *tint,
+                    stroke: Stroke::NONE,
+                    fill_texture_id: *texture_id,
+                    uv: *uv,
+                });
             }
         }
     }

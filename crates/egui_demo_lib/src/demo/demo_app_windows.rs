@@ -251,11 +251,11 @@ impl DemoWindows {
 
                 use egui::special_emojis::{GITHUB, TWITTER};
                 ui.hyperlink_to(
-                    format!("{} egui on GitHub", GITHUB),
+                    format!("{GITHUB} egui on GitHub"),
                     "https://github.com/emilk/egui",
                 );
                 ui.hyperlink_to(
-                    format!("{} @ernerfeldt", TWITTER),
+                    format!("{TWITTER} @ernerfeldt"),
                     "https://twitter.com/ernerfeldt",
                 );
 

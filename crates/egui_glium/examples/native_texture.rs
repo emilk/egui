@@ -8,7 +8,7 @@ fn main() {
 
     let mut egui_glium = egui_glium::EguiGlium::new(&display, &event_loop);
 
-    let png_data = include_bytes!("../../../examples/retained_image/src/rust-logo-256x256.png");
+    let png_data = include_bytes!("../../../examples/retained_image/src/crab.png");
     let image = load_glium_image(png_data);
     let image_size = egui::vec2(image.width as f32, image.height as f32);
     // Load to gpu memory
@@ -78,8 +78,8 @@ fn main() {
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
-            glutin::event::Event::RedrawEventsCleared if cfg!(windows) => redraw(),
-            glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
+            glutin::event::Event::RedrawEventsCleared if cfg!(target_os = "windows") => redraw(),
+            glutin::event::Event::RedrawRequested(_) if !cfg!(target_os = "windows") => redraw(),
 
             glutin::event::Event::WindowEvent { event, .. } => {
                 use glutin::event::WindowEvent;

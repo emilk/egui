@@ -383,12 +383,12 @@ fn button_frame(
 
         ui.painter().set(
             where_to_put_background,
-            epaint::RectShape {
-                rect: outer_rect.expand(visuals.expansion),
-                rounding: visuals.rounding,
-                fill: visuals.weak_bg_fill,
-                stroke: visuals.bg_stroke,
-            },
+            epaint::RectShape::new(
+                outer_rect.expand(visuals.expansion),
+                visuals.rounding,
+                visuals.weak_bg_fill,
+                visuals.bg_stroke,
+            ),
         );
     }
 

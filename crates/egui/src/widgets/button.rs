@@ -23,6 +23,7 @@ pub struct Button {
     text: WidgetText,
     shortcut_text: WidgetText,
     wrap: Option<bool>,
+
     /// None means default for interact
     fill: Option<Color32>,
     stroke: Option<Stroke>,
@@ -317,12 +318,12 @@ impl<'a> Widget for Checkbox<'a> {
             // let visuals = ui.style().interact_selectable(&response, *checked); // too colorful
             let visuals = ui.style().interact(&response);
             let (small_icon_rect, big_icon_rect) = ui.spacing().icon_rectangles(rect);
-            ui.painter().add(epaint::RectShape {
-                rect: big_icon_rect.expand(visuals.expansion),
-                rounding: visuals.rounding,
-                fill: visuals.bg_fill,
-                stroke: visuals.bg_stroke,
-            });
+            ui.painter().add(epaint::RectShape::new(
+                big_icon_rect.expand(visuals.expansion),
+                visuals.rounding,
+                visuals.bg_fill,
+                visuals.bg_stroke,
+            ));
 
             if *checked {
                 // Check mark:
@@ -534,7 +535,7 @@ impl Widget for ImageButton {
                 let selection = ui.visuals().selection;
                 (
                     Vec2::ZERO,
-                    Rounding::none(),
+                    Rounding::ZERO,
                     selection.bg_fill,
                     selection.stroke,
                 )
@@ -550,6 +551,8 @@ impl Widget for ImageButton {
             } else {
                 Default::default()
             };
+
+            let image = image.rounding(rounding); // apply rounding to the image
 
             // Draw frame background (for transparent images):
             ui.painter()

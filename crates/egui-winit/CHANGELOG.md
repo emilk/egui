@@ -1,8 +1,8 @@
 # Changelog for egui-winit
 All notable changes to the `egui-winit` integration will be noted in this file.
 
-
-## Unreleased
+This file is updated upon each release.
+Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
 
 ## 0.22.0 - 2023-05-23

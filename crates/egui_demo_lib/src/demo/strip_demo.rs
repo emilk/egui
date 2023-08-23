@@ -37,7 +37,7 @@ impl super::View for StripDemo {
             .size(Size::exact(50.0))
             .size(Size::remainder())
             .size(Size::relative(0.5).at_least(60.0))
-            .size(Size::exact(10.0))
+            .size(Size::exact(10.5))
             .vertical(|mut strip| {
                 strip.cell(|ui| {
                     ui.painter().rect_filled(
