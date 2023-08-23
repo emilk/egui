@@ -155,6 +155,9 @@ pub struct DroppedFile {
     /// Name of the file. Set by the `eframe` web backend.
     pub name: String,
 
+    /// With the `eframe` web backend, this is set to the mime-type of the file (if available).
+    pub mime: String,
+
     /// Set by the `eframe` web backend.
     pub last_modified: Option<std::time::SystemTime>,
 

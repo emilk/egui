@@ -53,10 +53,18 @@ impl eframe::App for MyApp {
                         } else {
                             "???".to_owned()
                         };
-                        if let Some(bytes) = &file.bytes {
-                            use std::fmt::Write as _;
-                            write!(info, " ({} bytes)", bytes.len()).ok();
+
+                        let mut additional_info = vec![];
+                        if !file.mime.is_empty() {
+                            additional_info.push(format!("type: {}", file.mime));
                         }
+                        if let Some(bytes) = &file.bytes {
+                            additional_info.push(format!("{} bytes", bytes.len()));
+                        }
+                        if !additional_info.is_empty() {
+                            info += &format!(" ({})", additional_info.join(", "));
+                        }
+
                         ui.label(info);
                     }
                 });

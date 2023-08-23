@@ -473,6 +473,7 @@ pub fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
                     for i in 0..files.length() {
                         if let Some(file) = files.get(i) {
                             let name = file.name();
+                            let mime = file.type_();
                             let last_modified = std::time::UNIX_EPOCH
                                 + std::time::Duration::from_millis(file.last_modified() as u64);
 
@@ -491,6 +492,7 @@ pub fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
                                             runner_lock.input.raw.dropped_files.push(
                                                 egui::DroppedFile {
                                                     name,
+                                                    mime,
                                                     last_modified: Some(last_modified),
                                                     bytes: Some(bytes.into()),
                                                     ..Default::default()
