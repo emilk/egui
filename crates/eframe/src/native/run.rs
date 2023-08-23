@@ -143,26 +143,22 @@ fn run_and_return(
                 return;
             }
 
-            // Platform-dependent event handlers to workaround a winit bug
-            // See: https://github.com/rust-windowing/winit/issues/987
-            // See: https://github.com/rust-windowing/winit/issues/1619
-            #[cfg(target_os = "windows")]
-            winit::event::Event::RedrawEventsCleared => {
-                next_repaint_time = extremely_far_future();
-                winit_app.run_ui_and_paint()
-            }
-            #[cfg(not(target_os = "windows"))]
             winit::event::Event::RedrawRequested(_) => {
+                log::trace!("Repaint caused by RedrawRequested");
                 next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint()
             }
 
             winit::event::Event::UserEvent(UserEvent::RequestRepaint { when, frame_nr }) => {
-                if winit_app.frame_nr() == *frame_nr {
+                if winit_app.frame_nr().abs_diff(*frame_nr) <= 1 {
                     log::trace!("UserEvent::RequestRepaint scheduling repaint at {when:?}");
                     EventResult::RepaintAt(*when)
                 } else {
-                    log::trace!("Got outdated UserEvent::RequestRepaint");
+                    log::trace!(
+                        "Got outdated UserEvent::RequestRepaint (current {}, request {})",
+                        winit_app.frame_nr(),
+                        *frame_nr
+                    );
                     EventResult::Wait // old request - we've already repainted
                 }
             }
@@ -268,14 +264,8 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                 EventResult::Exit
             }
 
-            // Platform-dependent event handlers to workaround a winit bug
-            // See: https://github.com/rust-windowing/winit/issues/987
-            // See: https://github.com/rust-windowing/winit/issues/1619
-            winit::event::Event::RedrawEventsCleared if cfg!(target_os = "windows") => {
-                next_repaint_time = extremely_far_future();
-                winit_app.run_ui_and_paint()
-            }
-            winit::event::Event::RedrawRequested(_) if !cfg!(target_os = "windows") => {
+            winit::event::Event::RedrawRequested(_) => {
+                log::trace!("Repaint caused by RedrawRequested");
                 next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint()
             }

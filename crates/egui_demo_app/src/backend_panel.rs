@@ -27,6 +27,8 @@ enum RunMode {
     /// For games or other interactive apps, this is probably what you want to do.
     /// It will guarantee that egui is always up-to-date.
     Continuous,
+
+    Periodic,
 }
 
 /// Default for demo is Reactive since
@@ -67,6 +69,9 @@ impl BackendPanel {
             .on_new_frame(ctx.input(|i| i.time), frame.info().cpu_usage);
 
         match self.run_mode {
+            RunMode::Periodic => {
+                ctx.request_repaint_after(std::time::Duration::from_secs(1));
+            }
             RunMode::Continuous => {
                 // Tell the backend to repaint as soon as possible
                 ctx.request_repaint();
@@ -254,6 +259,8 @@ impl BackendPanel {
                 .on_hover_text("Repaint when there are animations or input (e.g. mouse movement)");
             ui.radio_value(run_mode, RunMode::Continuous, "Continuous")
                 .on_hover_text("Repaint everything each frame");
+            ui.radio_value(run_mode, RunMode::Periodic, "Periodic")
+                .on_hover_text("Repaint every (at most) 3s");
         });
 
         if self.run_mode == RunMode::Continuous {
@@ -282,6 +289,10 @@ impl BackendPanel {
                             log::info!("Request a repaint in 3s...");
                             ctx.request_repaint_after(std::time::Duration::from_secs(3));
                         });
+                    }
+                    if ui.button("Request repaint after 3s").clicked() {
+                        ui.ctx()
+                            .request_repaint_after(std::time::Duration::from_secs(3));
                     }
                 });
             }
