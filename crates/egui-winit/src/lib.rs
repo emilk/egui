@@ -176,18 +176,20 @@ impl State {
         // This solves an issue where egui window positions would be changed when minimizing on Windows.
         let screen_size_in_pixels = screen_size_in_pixels(window);
         let screen_size_in_points = screen_size_in_pixels / pixels_per_point;
-        self.egui_input.screen_rect =
-            if screen_size_in_points.x > 0.0 && screen_size_in_points.y > 0.0 {
-                Some(egui::Rect::from_min_max(
-                    window
-                        .outer_position()
-                        .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
-                        .unwrap_or(Pos2::ZERO),
-                    screen_size_in_points.to_pos2(),
-                ))
-            } else {
-                None
-            };
+        self.egui_input.screen_rect = if !window.is_minimized().unwrap_or_else(|| {
+            eprintln!("Cannot determine the Viewport/native window minimized state");
+            true
+        }) {
+            Some(egui::Rect::from_min_max(
+                window
+                    .outer_position()
+                    .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
+                    .unwrap_or(Pos2::ZERO),
+                screen_size_in_points.to_pos2(),
+            ))
+        } else {
+            None
+        };
 
         self.egui_input.take()
     }

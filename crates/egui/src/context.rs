@@ -266,7 +266,7 @@ impl ContextImpl {
         self.output.entry(self.get_viewport_id()).or_default();
         self.repaint.start_frame(self.get_viewport_id());
 
-        if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
+        if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point {
             new_raw_input.pixels_per_point = Some(new_pixels_per_point);
 
             let input = self.input.entry(viewport_id).or_default();
