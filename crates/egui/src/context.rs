@@ -267,15 +267,26 @@ impl ContextImpl {
         self.repaint.start_frame(self.get_viewport_id());
 
         if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point {
-            new_raw_input.pixels_per_point = Some(new_pixels_per_point);
+            if self
+                .memory
+                .new_pixels_per_viewport
+                .get(&viewport_id)
+                .map(|pixels| *pixels != new_pixels_per_point)
+                .unwrap_or(true)
+            {
+                new_raw_input.pixels_per_point = Some(new_pixels_per_point);
+                self.memory
+                    .new_pixels_per_viewport
+                    .insert(viewport_id, new_pixels_per_point);
 
-            let input = self.input.entry(viewport_id).or_default();
-            // This is a bit hacky, but is required to avoid jitter:
-            let ratio = input.pixels_per_point / new_pixels_per_point;
-            let mut rect = input.screen_rect;
-            rect.min = (ratio * rect.min.to_vec2()).to_pos2();
-            rect.max = (ratio * rect.max.to_vec2()).to_pos2();
-            new_raw_input.screen_rect = Some(rect);
+                let input = self.input.entry(viewport_id).or_default();
+                // This is a bit hacky, but is required to avoid jitter:
+                let ratio = input.pixels_per_point / new_pixels_per_point;
+                let mut rect = input.screen_rect;
+                rect.min = (ratio * rect.min.to_vec2()).to_pos2();
+                rect.max = (ratio * rect.max.to_vec2()).to_pos2();
+                new_raw_input.screen_rect = Some(rect);
+            }
         }
 
         self.layer_rects_prev_frame = self
@@ -1493,6 +1504,9 @@ impl Context {
             ctx.output.retain(|id, _| viewports.contains(id));
             ctx.frame_state.retain(|id, _| viewports.contains(id));
             ctx.graphics.retain(|id, _| viewports.contains(id));
+            ctx.memory
+                .new_pixels_per_viewport
+                .retain(|id, _| viewports.contains(id));
         });
 
         let repaint_after =
@@ -1602,6 +1616,22 @@ impl Context {
     /// Position and size of the egui area.
     pub fn screen_rect(&self) -> Rect {
         self.input(|i| i.screen_rect())
+    }
+
+    pub fn viewport_inner_pos(&self) -> Pos2 {
+        self.input(|i| i.viewport_inner_pos)
+    }
+
+    pub fn viewport_outer_pos(&self) -> Pos2 {
+        self.input(|i| i.viewport_outer_pos)
+    }
+
+    pub fn viewport_inner_size(&self) -> Pos2 {
+        self.input(|i| i.viewport_inner_size)
+    }
+
+    pub fn viewport_outer_size(&self) -> Pos2 {
+        self.input(|i| i.viewport_outer_size)
     }
 
     /// How much space is still available after panels has been added.

@@ -16,7 +16,7 @@ pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{mutex::RwLock, ViewportBuilder, ViewportCommand, ViewportId};
+use egui::{mutex::RwLock, Pos2, ViewportBuilder, ViewportCommand, ViewportId};
 pub use winit;
 
 pub mod clipboard;
@@ -183,10 +183,39 @@ impl State {
         });
 
         self.egui_input.screen_rect = if getting_info {
-            Some(egui::Rect::from_min_size(
-                egui::Pos2::ZERO,
-                screen_size_in_points,
-            ))
+            Some(egui::Rect::from_min_size(Pos2::ZERO, screen_size_in_points))
+        } else {
+            None
+        };
+
+        self.egui_input.viewport_inner_pos = if getting_info {
+            window
+                .inner_position()
+                .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
+                .ok()
+        } else {
+            None
+        };
+
+        self.egui_input.viewport_outer_pos = if getting_info {
+            window
+                .outer_position()
+                .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
+                .ok()
+        } else {
+            None
+        };
+
+        self.egui_input.viewport_inner_size = if getting_info {
+            let size = window.inner_size();
+            Some(Pos2::new(size.width as f32, size.height as f32))
+        } else {
+            None
+        };
+
+        self.egui_input.viewport_outer_size = if getting_info {
+            let size = window.outer_size();
+            Some(Pos2::new(size.width as f32, size.height as f32))
         } else {
             None
         };
