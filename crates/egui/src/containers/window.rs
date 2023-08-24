@@ -368,10 +368,9 @@ impl<'open> Window<'open> {
         'create_viewport: {
             if !is_embedded && !ctx.force_embedding() {
                 if let Some(size) = ctx.data(|data| data.get_temp::<Vec2>(area.id.with("size"))) {
-                    let size = size.round()
-                        + ctx.style().spacing.window_margin.sum() * ctx.pixels_per_point();
-                    window_builder = window_builder
-                        .with_inner_size(Some((size.x as u32 + 1, size.y as u32 + 1)));
+                    let size = size.round() * ctx.pixels_per_point();
+                    window_builder =
+                        window_builder.with_inner_size(Some((size.x as u32, size.y as u32)));
                 } else {
                     ctx.request_repaint();
                     break 'create_viewport;
@@ -536,7 +535,7 @@ impl<'open> Window<'open> {
                             })
                             .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
                         if let Some(content_response) = &content_response {
-                            size = content_response.rect.size();
+                            size = content_response.rect.max.to_vec2();
                         }
 
                         let outer_rect = frame.end(&mut area_content_ui).rect;
@@ -596,22 +595,22 @@ impl<'open> Window<'open> {
                     }
 
                     if win_size.x < size.x {
-                        println!("Set size!");
+                        println!("Set size! {win_size:?} {size:?}");
                         ctx.viewport_command(
                             ctx.get_viewport_id(),
                             ViewportCommand::InnerSize(
-                                (size.x * ctx.pixels_per_point()) as u32,
-                                (win_size.y * ctx.pixels_per_point()) as u32,
+                                (size.x * ctx.pixels_per_point()).round() as u32,
+                                (win_size.y * ctx.pixels_per_point()).round() as u32,
                             ),
                         );
                     }
                     if win_size.y < size.y {
-                        println!("Set size!");
+                        println!("Set size! {win_size:?} {size:?}");
                         ctx.viewport_command(
                             ctx.get_viewport_id(),
                             ViewportCommand::InnerSize(
-                                (win_size.x * ctx.pixels_per_point()) as u32,
-                                (size.y * ctx.pixels_per_point()) as u32,
+                                (win_size.x * ctx.pixels_per_point()).round() as u32,
+                                (size.y * ctx.pixels_per_point()).round() as u32,
                             ),
                         );
                     }
@@ -725,7 +724,7 @@ impl<'open> Window<'open> {
                 })
                 .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
             if let Some(content_response) = &content_response {
-                size = content_response.rect.size();
+                size = content_response.rect.max.to_vec2();
             }
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
@@ -830,10 +829,9 @@ impl<'open> Window<'open> {
         'create_viewport: {
             if !is_embedded && !ctx.force_embedding() {
                 if let Some(size) = ctx.data(|data| data.get_temp::<Vec2>(area.id.with("size"))) {
-                    let size = (size.round() + ctx.style().spacing.window_margin.sum())
-                        * ctx.pixels_per_point();
-                    window_builder = window_builder
-                        .with_inner_size(Some((size.x as u32 + 1, size.y as u32 + 1)));
+                    let size = size.round() * ctx.pixels_per_point();
+                    window_builder =
+                        window_builder.with_inner_size(Some((size.x as u32, size.y as u32)));
                 } else {
                     ctx.request_repaint();
                     break 'create_viewport;
@@ -898,7 +896,7 @@ impl<'open> Window<'open> {
                     let mut resize = resize.id(resize_id);
 
                     let mut area = area.begin(ctx);
-                    let win_size = ctx.viewport_inner_size().to_vec2() * ctx.pixels_per_point();
+                    let win_size = ctx.screen_rect().size();
                     area.state_mut().set_left_top_pos(Pos2::ZERO);
                     area.state_mut().size = win_size;
                     let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
@@ -1050,7 +1048,7 @@ impl<'open> Window<'open> {
                     let full_response = area.end(ctx, area_content_ui);
 
                     if !collapsing.is_open() {
-                        let size = full_response.rect.size() * ctx.pixels_per_point();
+                        let size = full_response.rect.max.to_vec2() * ctx.pixels_per_point();
                         ctx.viewport_command(
                             ctx.get_viewport_id(),
                             ViewportCommand::InnerSize(size.x as u32, size.y as u32),
@@ -1059,22 +1057,22 @@ impl<'open> Window<'open> {
 
                     // let size = ctx.round_vec_to_pixels(full_response.rect.size());
                     if win_size.x < size.x {
-                        println!("Set size!");
+                        println!("Set size! {win_size:?} {size:?}");
                         ctx.viewport_command(
                             ctx.get_viewport_id(),
                             ViewportCommand::InnerSize(
-                                (size.x * ctx.pixels_per_point()) as u32,
-                                (win_size.y * ctx.pixels_per_point()) as u32,
+                                (size.x * ctx.pixels_per_point()).round() as u32,
+                                (win_size.y * ctx.pixels_per_point()).round() as u32,
                             ),
                         );
                     }
                     if win_size.y < size.y {
-                        println!("Set size!");
+                        println!("Set size! {win_size:?} {size:?}");
                         ctx.viewport_command(
                             ctx.get_viewport_id(),
                             ViewportCommand::InnerSize(
-                                (win_size.x * ctx.pixels_per_point()) as u32,
-                                (size.y * ctx.pixels_per_point()) as u32,
+                                (win_size.x * ctx.pixels_per_point()).round() as u32,
+                                (size.y * ctx.pixels_per_point()).round() as u32,
                             ),
                         );
                     }
