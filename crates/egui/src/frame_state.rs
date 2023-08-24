@@ -91,8 +91,8 @@ impl FrameState {
         } = self;
 
         used_ids.clear();
-        *available_rect = Rect::from_min_max(Pos2::ZERO, input.screen_rect().max);
-        *unused_rect = Rect::from_min_max(Pos2::ZERO, input.screen_rect().max);
+        *available_rect = input.screen_rect();
+        *unused_rect = input.screen_rect();
         *used_by_panels = Rect::NOTHING;
         *tooltip_state = None;
         *scroll_delta = input.scroll_delta;

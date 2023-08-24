@@ -16,7 +16,7 @@ pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{mutex::RwLock, Pos2, ViewportBuilder, ViewportCommand, ViewportId};
+use egui::{mutex::RwLock, ViewportBuilder, ViewportCommand, ViewportId};
 pub use winit;
 
 pub mod clipboard;
@@ -176,16 +176,16 @@ impl State {
         // This solves an issue where egui window positions would be changed when minimizing on Windows.
         let screen_size_in_pixels = screen_size_in_pixels(window);
         let screen_size_in_points = screen_size_in_pixels / pixels_per_point;
-        self.egui_input.screen_rect = if !window.is_minimized().unwrap_or_else(|| {
+
+        let getting_info = !window.is_minimized().unwrap_or_else(|| {
             eprintln!("Cannot determine the Viewport/native window minimized state");
             true
-        }) {
-            Some(egui::Rect::from_min_max(
-                window
-                    .outer_position()
-                    .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
-                    .unwrap_or(Pos2::ZERO),
-                screen_size_in_points.to_pos2(),
+        });
+
+        self.egui_input.screen_rect = if getting_info {
+            Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                screen_size_in_points,
             ))
         } else {
             None

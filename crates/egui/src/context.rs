@@ -272,7 +272,7 @@ impl ContextImpl {
             let input = self.input.entry(viewport_id).or_default();
             // This is a bit hacky, but is required to avoid jitter:
             let ratio = input.pixels_per_point / new_pixels_per_point;
-            let mut rect = Rect::from_min_max(Pos2::default(), input.screen_rect.max);
+            let mut rect = input.screen_rect;
             rect.min = (ratio * rect.min.to_vec2()).to_pos2();
             rect.max = (ratio * rect.max.to_vec2()).to_pos2();
             new_raw_input.screen_rect = Some(rect);
@@ -305,7 +305,7 @@ impl ContextImpl {
 
         // Ensure we register the background area so panels and background ui can catch clicks:
         let input = self.input.get(&viewport_id).unwrap();
-        let screen_rect = Rect::from_min_max(Pos2::ZERO, input.screen_rect().max);
+        let screen_rect = input.screen_rect();
         self.memory.areas.set_state(
             LayerId::background(),
             containers::area::State {
@@ -1059,7 +1059,7 @@ impl Context {
 
     /// Get a full-screen painter for a new or existing layer
     pub fn layer_painter(&self, layer_id: LayerId) -> Painter {
-        let screen_rect = Rect::from_min_max(Pos2::ZERO, self.screen_rect().max);
+        let screen_rect = self.screen_rect();
         Painter::new(self.clone(), layer_id, screen_rect)
     }
 
@@ -1384,12 +1384,12 @@ impl Context {
         if window.width() > area.width() {
             // Allow overlapping side bars.
             // This is important for small screens, e.g. mobiles running the web demo.
-            let screen_rect = Rect::from_min_max(Pos2::ZERO, self.screen_rect().max);
+            let screen_rect = self.screen_rect();
             (area.min.x, area.max.x) = (screen_rect.min.x, screen_rect.max.x);
         }
         if window.height() > area.height() {
             // Allow overlapping top/bottom bars:
-            let screen_rect = Rect::from_min_max(Pos2::ZERO, self.screen_rect().max);
+            let screen_rect = self.screen_rect();
             (area.min.y, area.max.y) = (screen_rect.min.y, screen_rect.max.y);
         }
 
@@ -1599,8 +1599,7 @@ impl Context {
 
     // ---------------------------------------------------------------------
 
-    /// Position and size of the current viewport.
-    /// min is the position, max is the size
+    /// Position and size of the egui area.
     pub fn screen_rect(&self) -> Rect {
         self.input(|i| i.screen_rect())
     }
@@ -1973,7 +1972,7 @@ impl Context {
                                 size *= (max_preview_size.y / size.y).min(1.0);
                                 ui.image(texture_id, size).on_hover_ui(|ui| {
                                     // show larger on hover
-                                    let max_size = 0.5 * ui.ctx().screen_rect().max.to_vec2();
+                                    let max_size = 0.5 * ui.ctx().screen_rect().size();
                                     let mut size = vec2(w as f32, h as f32);
                                     size *= max_size.x / size.x.max(max_size.x);
                                     size *= max_size.y / size.y.max(max_size.y);

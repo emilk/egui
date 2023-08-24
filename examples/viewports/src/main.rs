@@ -51,8 +51,6 @@ impl eframe::App for App {
                 "Current Parent Viewport Id: {}",
                 ctx.get_viewport_id()
             ));
-            ui.label(format!("Pos: {:?}", ctx.screen_rect().min));
-            ui.label(format!("Size: {:?}", ctx.screen_rect().max));
             ui.label("Look at the \"Frame: \" will tell you, what viewport is rendering!");
             {
                 let mut force_embedding = ctx.force_embedding();
@@ -335,8 +333,6 @@ impl eframe::App for App {
                             "Current Parent Viewport Id: {}",
                             ctx.get_viewport_id()
                         ));
-                        ui.label(format!("Pos: {:?}", ctx.screen_rect().min));
-                        ui.label(format!("Size: {:?}", ctx.screen_rect().max));
                         ui.label(format!("Count: {state}"));
                         if ui.button("Add").clicked() {
                             *state += 1;
@@ -350,13 +346,8 @@ impl eframe::App for App {
                     .default_embedded(false)
                     .show(ctx, |ui| {
                         ui.label(format!("Frame: {}", ui.ctx().frame_nr()));
+                        ui.label(format!("Frame: {}", ctx.frame_nr()));
                         ui.label(format!("Current Viewport Id: {}", ctx.get_viewport_id()));
-                        ui.label(format!(
-                            "Current Parent Viewport Id: {}",
-                            ctx.get_viewport_id()
-                        ));
-                        ui.label(format!("Pos: {:?}", ctx.screen_rect().min));
-                        ui.label(format!("Size: {:?}", ctx.screen_rect().max));
                         ui.label(format!("Count: {}", self.sync_window_state));
                         if ui.button("Add").clicked() {
                             self.sync_window_state += 1;

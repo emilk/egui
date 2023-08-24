@@ -150,7 +150,7 @@ pub(crate) fn menu_ui<'c, R>(
         .constrain(true)
         .fixed_pos(pos)
         .interactable(true)
-        .drag_bounds(Rect::from_min_max(Pos2::ZERO, ctx.screen_rect().max));
+        .drag_bounds(ctx.screen_rect());
 
     area.show(ctx, |ui| {
         set_menu_style(ui.style_mut());
@@ -330,8 +330,7 @@ impl MenuRoot {
             let mut pos = response.rect.left_bottom();
             if let Some(root) = root.inner.as_mut() {
                 let menu_rect = root.menu_state.read().rect;
-                let screen_rect =
-                    Rect::from_min_max(Pos2::ZERO, response.ctx.input(|i| i.screen_rect.max));
+                let screen_rect = response.ctx.input(|i| i.screen_rect);
 
                 if pos.y + menu_rect.height() > screen_rect.max.y {
                     pos.y = screen_rect.max.y - menu_rect.height() - response.rect.height();

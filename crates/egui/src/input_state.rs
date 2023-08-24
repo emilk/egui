@@ -229,8 +229,6 @@ impl InputState {
         }
     }
 
-    /// Position and size of the current viewport.
-    /// min is the position, max is the size
     #[inline(always)]
     pub fn screen_rect(&self) -> Rect {
         self.screen_rect
