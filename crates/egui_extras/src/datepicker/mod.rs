@@ -1,34 +1,35 @@
 mod button;
+#[cfg(feature = "chrono")]
+pub mod chrono;
+#[cfg(feature = "hifitime")]
+pub mod hifitime;
 mod popup;
 
 pub use button::DatePickerButton;
-use chrono::{Datelike, Duration, NaiveDate, Weekday};
+
+#[cfg(feature = "chrono")]
+pub type DatePickerButtonChrono<'a> = DatePickerButton<'a, self::chrono::Date>;
+#[cfg(feature = "hifitime")]
+pub type DatePickerButtonHifi<'a> = DatePickerButton<'a, self::hifitime::Date>;
 
 #[derive(Debug)]
-struct Week {
+pub struct Week<T> {
     number: u8,
-    days: Vec<NaiveDate>,
+    days: Vec<T>,
 }
 
-fn month_data(year: i32, month: u32) -> Vec<Week> {
-    let first = NaiveDate::from_ymd_opt(year, month, 1).expect("Could not create NaiveDate");
-    let mut start = first;
-    while start.weekday() != Weekday::Mon {
-        start = start.checked_sub_signed(Duration::days(1)).unwrap();
+impl<T> Week<T> {
+    pub fn new(number: u8, days: Vec<T>) -> Self {
+        Self { number, days }
     }
-    let mut weeks = vec![];
-    let mut week = vec![];
-    while start < first || start.month() == first.month() || start.weekday() != Weekday::Mon {
-        week.push(start);
+}
 
-        if start.weekday() == Weekday::Sun {
-            weeks.push(Week {
-                number: start.iso_week().week() as u8,
-                days: week.drain(..).collect(),
-            });
-        }
-        start = start.checked_add_signed(Duration::days(1)).unwrap();
-    }
-
-    weeks
+pub trait DateImpl: Eq + Sized {
+    fn now() -> Self;
+    fn from_ymd(year: i32, month: u8, day: u8) -> Self;
+    fn month_data(year: i32, month: u8) -> Vec<Week<Self>>;
+    fn last_day_of_month(year: i32, month: u8) -> u8;
+    fn format(&self) -> String;
+    fn year_month_day(&self) -> (i32, u8, u8);
+    fn is_weekend(&self) -> bool;
 }

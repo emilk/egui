@@ -1,3 +1,6 @@
+#[cfg(feature = "chrono")]
+use egui_extras::DateImpl;
+
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum Enum {
@@ -20,7 +23,7 @@ pub struct WidgetGallery {
 
     #[cfg(feature = "chrono")]
     #[cfg_attr(feature = "serde", serde(skip))]
-    date: Option<chrono::NaiveDate>,
+    date: Option<egui_extras::ChronoDate>,
 
     #[cfg_attr(feature = "serde", serde(skip))]
     texture: Option<egui::TextureHandle>,
@@ -220,9 +223,9 @@ impl WidgetGallery {
 
         #[cfg(feature = "chrono")]
         {
-            let date = date.get_or_insert_with(|| chrono::offset::Utc::now().date_naive());
+            let date = date.get_or_insert_with(egui_extras::ChronoDate::now);
             ui.add(doc_link_label("DatePickerButton", "DatePickerButton"));
-            ui.add(egui_extras::DatePickerButton::new(date));
+            ui.add(egui_extras::DatePickerButtonChrono::new(date));
             ui.end_row();
         }
 
