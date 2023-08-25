@@ -116,7 +116,9 @@ impl WindowSettings {
             return;
         }
 
-        let Some(inner_size_points) = self.inner_size_points else { return; };
+        let Some(inner_size_points) = self.inner_size_points else {
+            return;
+        };
 
         if let Some(pos_px) = &mut self.inner_position_pixels {
             clamp_pos_to_monitors(event_loop, inner_size_points, pos_px);

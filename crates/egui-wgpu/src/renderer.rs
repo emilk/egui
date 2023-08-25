@@ -822,7 +822,7 @@ impl Renderer {
                 )
                 .expect("Failed to create staging buffer for index data");
             let mut index_offset = 0;
-            for epaint::ClippedPrimitive { primitive, .. } in paint_jobs.iter() {
+            for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
                 match primitive {
                     Primitive::Mesh(mesh) => {
                         let size = mesh.indices.len() * std::mem::size_of::<u32>();
@@ -857,7 +857,7 @@ impl Renderer {
                 )
                 .expect("Failed to create staging buffer for vertex data");
             let mut vertex_offset = 0;
-            for epaint::ClippedPrimitive { primitive, .. } in paint_jobs.iter() {
+            for epaint::ClippedPrimitive { primitive, .. } in paint_jobs {
                 match primitive {
                     Primitive::Mesh(mesh) => {
                         let size = mesh.vertices.len() * std::mem::size_of::<Vertex>();

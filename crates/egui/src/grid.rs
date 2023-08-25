@@ -220,9 +220,15 @@ impl GridLayout {
 
     fn paint_row(&mut self, cursor: &mut Rect, painter: &Painter) {
         // handle row color painting based on color-picker function
-        let Some(color_picker) = self.color_picker.as_ref() else { return };
-        let Some(row_color)    = color_picker(self.row, &self.style) else { return };
-        let Some(height)       = self.prev_state.row_height(self.row) else {return };
+        let Some(color_picker) = self.color_picker.as_ref() else {
+            return;
+        };
+        let Some(row_color) = color_picker(self.row, &self.style) else {
+            return;
+        };
+        let Some(height) = self.prev_state.row_height(self.row) else {
+            return;
+        };
         // Paint background for coming row:
         let size = Vec2::new(self.prev_state.full_width(self.spacing.x), height);
         let rect = Rect::from_min_size(cursor.min, size);
