@@ -1034,6 +1034,11 @@ mod glow_integration {
                                         );
                                         let glutin = &mut *glutin.write();
 
+                                        let screen_size_in_pixels: [u32; 2] =
+                                            win.inner_size().into();
+
+                                        let clipped_primitives = egui_ctx.tessellate(output.shapes);
+
                                         glutin.current_gl_context = Some(
                                             glutin
                                                 .current_gl_context
@@ -1045,16 +1050,20 @@ mod glow_integration {
                                                 .unwrap(),
                                         );
 
-                                        let screen_size_in_pixels: [u32; 2] =
-                                            win.inner_size().into();
+                                        if !window
+                                            .gl_surface
+                                            .as_ref()
+                                            .unwrap()
+                                            .is_current(glutin.current_gl_context.as_ref().unwrap())
+                                        {
+                                            log::error!("egui::create_viewport_sync with title: `{}` is not created in main thread, try to use wgpu!", window.builder.title);
+                                        }
 
                                         egui_glow::painter::clear(
                                             &_gl,
                                             screen_size_in_pixels,
                                             [0.0, 0.0, 0.0, 0.0],
                                         );
-
-                                        let clipped_primitives = egui_ctx.tessellate(output.shapes);
 
                                         _painter.write().paint_and_update_textures(
                                             screen_size_in_pixels,

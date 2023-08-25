@@ -271,8 +271,7 @@ impl ContextImpl {
                 .memory
                 .new_pixels_per_viewport
                 .get(&viewport_id)
-                .map(|pixels| *pixels != new_pixels_per_point)
-                .unwrap_or(true)
+                .map_or(true, |pixels| *pixels != new_pixels_per_point)
             {
                 new_raw_input.pixels_per_point = Some(new_pixels_per_point);
                 self.memory

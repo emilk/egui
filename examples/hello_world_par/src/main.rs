@@ -136,9 +136,6 @@ impl eframe::App for MyApp {
 
         for (_handle, show_tx) in &self.threads {
             let _ = show_tx.send(ctx.clone());
-        }
-
-        for _ in 0..self.threads.len() {
             let _ = self.on_done_rc.recv();
         }
     }
