@@ -301,6 +301,7 @@ impl<'open> Window<'open> {
 }
 
 impl<'open> Window<'open> {
+    /// You can only use this on the main thread, or use ```Window::show_async```
     /// Returns `None` if the window is not open (if [`Window::open`] was called with `&mut false`).
     /// Returns `Some(InnerResponse { inner: None })` if the window is collapsed.
     #[inline]
@@ -312,6 +313,7 @@ impl<'open> Window<'open> {
         self.show_dyn(ctx, Box::new(add_contents))
     }
 
+    /// You will probably need to put your state in a ```Arc<RwLock<T>>```
     #[inline]
     pub fn show_async(self, ctx: &Context, add_contents: impl Fn(&mut Ui) + Send + Sync + 'static) {
         self.show_dyn_async(ctx, Box::new(add_contents));

@@ -2307,6 +2307,7 @@ impl Context {
         }
     }
 
+    /// This can only be called in the main thread, you can use ```Context::create_viewport_async```
     /// When this is called the current viewport will be paused
     /// This will render in a native window if he can!
     /// When this finishes then the last viewport will continue drawing
