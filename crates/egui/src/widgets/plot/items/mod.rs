@@ -2,8 +2,7 @@
 
 use std::ops::RangeInclusive;
 
-use epaint::util::FloatOrd;
-use epaint::Mesh;
+use epaint::{emath::Rot2, util::FloatOrd, Mesh};
 
 use crate::*;
 
@@ -517,7 +516,7 @@ pub struct Polygon {
     pub(super) stroke: Stroke,
     pub(super) name: String,
     pub(super) highlight: bool,
-    pub(super) fill_alpha: f32,
+    pub(super) fill_color: Option<Color32>,
     pub(super) style: LineStyle,
 }
 
@@ -528,7 +527,7 @@ impl Polygon {
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
             name: Default::default(),
             highlight: false,
-            fill_alpha: DEFAULT_FILL_ALPHA,
+            fill_color: None,
             style: LineStyle::Solid,
         }
     }
@@ -552,15 +551,21 @@ impl Polygon {
         self
     }
 
-    /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
+    #[deprecated = "Use `fill_color`."]
+    #[allow(unused, clippy::needless_pass_by_value)]
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
-        self.stroke.color = color.into();
         self
     }
 
-    /// Alpha of the filled area.
-    pub fn fill_alpha(mut self, alpha: impl Into<f32>) -> Self {
-        self.fill_alpha = alpha.into();
+    #[deprecated = "Use `fill_color`."]
+    #[allow(unused, clippy::needless_pass_by_value)]
+    pub fn fill_alpha(mut self, _alpha: impl Into<f32>) -> Self {
+        self
+    }
+
+    /// Fill color. Defaults to the stroke color with added transparency.
+    pub fn fill_color(mut self, color: impl Into<Color32>) -> Self {
+        self.fill_color = Some(color.into());
         self
     }
 
@@ -589,14 +594,10 @@ impl PlotItem for Polygon {
             series,
             stroke,
             highlight,
-            mut fill_alpha,
+            fill_color,
             style,
             ..
         } = self;
-
-        if *highlight {
-            fill_alpha = (2.0 * fill_alpha).at_most(1.0);
-        }
 
         let mut values_tf: Vec<_> = series
             .points()
@@ -604,9 +605,9 @@ impl PlotItem for Polygon {
             .map(|v| transform.position_from_point(v))
             .collect();
 
-        let fill = Rgba::from(stroke.color).to_opaque().multiply(fill_alpha);
+        let fill_color = fill_color.unwrap_or(stroke.color.linear_multiply(DEFAULT_FILL_ALPHA));
 
-        let shape = Shape::convex_polygon(values_tf.clone(), fill, Stroke::NONE);
+        let shape = Shape::convex_polygon(values_tf.clone(), fill_color, Stroke::NONE);
         shapes.push(shape);
         values_tf.push(*values_tf.first().unwrap());
         style.style_line(values_tf, *stroke, *highlight, shapes);
@@ -1135,11 +1136,11 @@ pub struct PlotImage {
     pub(super) texture_id: TextureId,
     pub(super) uv: Rect,
     pub(super) size: Vec2,
+    pub(crate) rotation: f64,
     pub(super) bg_fill: Color32,
     pub(super) tint: Color32,
     pub(super) highlight: bool,
     pub(super) name: String,
-    pub(crate) rotation: Option<(f32, Vec2)>,
 }
 
 impl PlotImage {
@@ -1156,9 +1157,9 @@ impl PlotImage {
             texture_id: texture_id.into(),
             uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
             size: size.into(),
+            rotation: 0.0,
             bg_fill: Default::default(),
             tint: Color32::WHITE,
-            rotation: None,
         }
     }
 
@@ -1198,14 +1199,9 @@ impl PlotImage {
         self
     }
 
-    /// Rotate the image about an origin by some angle
-    ///
-    /// Positive angle is clockwise.
-    /// Origin is a vector in normalized UV space ((0,0) in top-left, (1,1) bottom right).
-    ///
-    /// To rotate about the center you can pass `Vec2::splat(0.5)` as the origin.
-    pub fn rotate(mut self, angle: f32, origin: Vec2) -> Self {
-        self.rotation = Some((angle, origin));
+    /// Rotate the image counter-clockwise around its center by an angle in radians.
+    pub fn rotate(mut self, angle: f64) -> Self {
+        self.rotation = angle;
         self
     }
 }
@@ -1214,6 +1210,7 @@ impl PlotItem for PlotImage {
     fn shapes(&self, ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let Self {
             position,
+            rotation,
             texture_id,
             uv,
             size,
@@ -1222,31 +1219,40 @@ impl PlotItem for PlotImage {
             highlight,
             ..
         } = self;
-        let rect = {
+        let image_screen_rect = {
             let left_top = PlotPoint::new(
-                position.x as f32 - size.x / 2.0,
-                position.y as f32 - size.y / 2.0,
+                position.x - 0.5 * size.x as f64,
+                position.y - 0.5 * size.y as f64,
             );
             let right_bottom = PlotPoint::new(
-                position.x as f32 + size.x / 2.0,
-                position.y as f32 + size.y / 2.0,
+                position.x + 0.5 * size.x as f64,
+                position.y + 0.5 * size.y as f64,
             );
-            let left_top_tf = transform.position_from_point(&left_top);
-            let right_bottom_tf = transform.position_from_point(&right_bottom);
-            Rect::from_two_pos(left_top_tf, right_bottom_tf)
+            let left_top_screen = transform.position_from_point(&left_top);
+            let right_bottom_screen = transform.position_from_point(&right_bottom);
+            Rect::from_two_pos(left_top_screen, right_bottom_screen)
         };
-        let mut image = Image::new(*texture_id, *size)
+        let screen_rotation = -*rotation as f32;
+        Image::new(*texture_id, image_screen_rect.size())
             .bg_fill(*bg_fill)
             .tint(*tint)
-            .uv(*uv);
-        if let Some((angle, origin)) = self.rotation {
-            image = image.rotate(angle, origin);
-        }
-        image.paint_at(ui, rect);
+            .uv(*uv)
+            .rotate(screen_rotation, Vec2::splat(0.5))
+            .paint_at(ui, image_screen_rect);
         if *highlight {
-            shapes.push(Shape::rect_stroke(
-                rect,
-                0.0,
+            let center = image_screen_rect.center();
+            let rotation = Rot2::from_angle(screen_rotation);
+            let outline = [
+                image_screen_rect.right_bottom(),
+                image_screen_rect.right_top(),
+                image_screen_rect.left_top(),
+                image_screen_rect.left_bottom(),
+            ]
+            .iter()
+            .map(|point| center + rotation * (*point - center))
+            .collect();
+            shapes.push(Shape::closed_line(
+                outline,
                 Stroke::new(1.0, ui.visuals().strong_text_color()),
             ));
         }
