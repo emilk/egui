@@ -1,9 +1,7 @@
 use std::{fmt::Debug, ops::RangeInclusive, sync::Arc};
 
-use epaint::{
-    emath::{remap_clamp, round_to_decimals},
-    Pos2, Rect, Shape, Stroke, TextShape,
-};
+use egui::emath::{remap_clamp, round_to_decimals, Pos2, Rect};
+use egui::epaint::{Shape, Stroke, TextShape};
 
 use crate::{Response, Sense, TextStyle, Ui, WidgetText};
 

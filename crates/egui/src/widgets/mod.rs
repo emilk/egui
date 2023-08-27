@@ -12,7 +12,6 @@ pub(crate) mod drag_value;
 mod hyperlink;
 mod image;
 mod label;
-pub mod plot;
 mod progress_bar;
 mod selected_label;
 mod separator;

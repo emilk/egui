@@ -1,8 +1,9 @@
-use crate::emath::NumExt;
-use crate::epaint::{Color32, RectShape, Rounding, Shape, Stroke};
+use egui::emath::NumExt as _;
+use egui::epaint::{Color32, RectShape, Rounding, Shape, Stroke};
+
+use crate::{BoxPlot, Cursor, PlotPoint, PlotTransform};
 
 use super::{add_rulers_and_text, highlighted_color, Orientation, PlotConfig, RectElement};
-use crate::plot::{BoxPlot, Cursor, PlotPoint, PlotTransform};
 
 /// Contains the values of a single box in a box plot.
 #[derive(Clone, Debug, PartialEq)]
