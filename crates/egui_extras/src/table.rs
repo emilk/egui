@@ -1024,7 +1024,7 @@ impl<'a> Drop for TableBody<'a> {
 /// The row of a table.
 /// Is created by [`TableRow`] for each created [`TableBody::row`] or each visible row in rows created by calling [`TableBody::rows`].
 pub struct TableRow<'a, 'b> {
-    layout: &'b mut StripLayout<'a>,
+    pub layout: &'b mut StripLayout<'a>,
     columns: &'b [Column],
     widths: &'b [f32],
 
@@ -1033,7 +1033,7 @@ pub struct TableRow<'a, 'b> {
 
     col_index: usize,
     striped: bool,
-    height: f32,
+    pub height: f32,
 }
 
 impl<'a, 'b> TableRow<'a, 'b> {

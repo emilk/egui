@@ -829,6 +829,10 @@ impl Ui {
         &self.placer
     }
 
+    pub fn placer_mut(&mut self) -> &mut Placer {
+        &mut self.placer
+    }
+
     /// Where the next widget will be put.
     ///
     /// One side of this will always be infinite: the direction in which new widgets will be added.

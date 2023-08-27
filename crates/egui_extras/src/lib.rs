@@ -14,7 +14,7 @@
 mod datepicker;
 
 pub mod image;
-mod layout;
+pub mod layout;
 mod sizing;
 mod strip;
 mod table;
