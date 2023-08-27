@@ -187,10 +187,10 @@ impl PlotItem for HLine {
 
         // Round to minimize aliasing:
         let points = vec![
-            ui.ctx().round_pos_to_pixels(
+            ui.painter().round_pos_to_pixels(
                 transform.position_from_point(&PlotPoint::new(transform.bounds().min[0], *y)),
             ),
-            ui.ctx().round_pos_to_pixels(
+            ui.painter().round_pos_to_pixels(
                 transform.position_from_point(&PlotPoint::new(transform.bounds().max[0], *y)),
             ),
         ];
@@ -303,10 +303,10 @@ impl PlotItem for VLine {
 
         // Round to minimize aliasing:
         let points = vec![
-            ui.ctx().round_pos_to_pixels(
+            ui.painter().round_pos_to_pixels(
                 transform.position_from_point(&PlotPoint::new(*x, transform.bounds().min[1])),
             ),
-            ui.ctx().round_pos_to_pixels(
+            ui.painter().round_pos_to_pixels(
                 transform.position_from_point(&PlotPoint::new(*x, transform.bounds().max[1])),
             ),
         ];

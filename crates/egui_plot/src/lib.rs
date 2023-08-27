@@ -1,8 +1,12 @@
 //! Simple plotting library.
+//!
+//! ## Feature flags
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+//!
 
 use std::{ops::RangeInclusive, sync::Arc};
 
-use ahash::HashMap;
+use egui::ahash::HashMap;
 use epaint::util::FloatOrd;
 use epaint::Hsva;
 
@@ -10,7 +14,7 @@ use axis::AxisWidget;
 use items::PlotItem;
 use legend::LegendWidget;
 
-use crate::*;
+use egui::*;
 
 pub use items::{
     Arrows, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, HLine, Line, LineStyle, MarkerShape,
@@ -182,7 +186,7 @@ pub struct PlotResponse<R> {
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
-/// use egui::plot::{Line, Plot, PlotPoints};
+/// use egui_plot::{Line, Plot, PlotPoints};
 /// let sin: PlotPoints = (0..1000).map(|i| {
 ///     let x = i as f64 * 0.01;
 ///     [x, x.sin()]
@@ -394,7 +398,7 @@ impl Plot {
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// use egui::plot::{Line, Plot, PlotPoints};
+    /// use egui_plot::{Line, Plot, PlotPoints};
     /// let sin: PlotPoints = (0..1000).map(|i| {
     ///     let x = i as f64 * 0.01;
     ///     [x, x.sin()]
@@ -443,7 +447,7 @@ impl Plot {
     /// For example, if x = 80..=230 is visible and you want big marks at steps of
     /// 100 and small ones at 25, you can return:
     /// ```no_run
-    /// # use egui::plot::GridMark;
+    /// # use egui_plot::GridMark;
     /// vec![
     ///    // 100s
     ///    GridMark { value: 100.0, step_size: 100.0 },
@@ -1781,8 +1785,8 @@ impl PreparedPlot {
 
                 if self.sharp_grid_lines {
                     // Round to avoid aliasing
-                    p0 = ui.ctx().round_pos_to_pixels(p0);
-                    p1 = ui.ctx().round_pos_to_pixels(p1);
+                    p0 = ui.painter().round_pos_to_pixels(p0);
+                    p1 = ui.painter().round_pos_to_pixels(p1);
                 }
 
                 shapes.push((
@@ -1851,7 +1855,7 @@ impl PreparedPlot {
 /// Returns next bigger power in given base
 /// e.g.
 /// ```ignore
-/// use egui::plot::next_power;
+/// use egui_plot::next_power;
 /// assert_eq!(next_power(0.01, 10.0), 0.01);
 /// assert_eq!(next_power(0.02, 10.0), 0.1);
 /// assert_eq!(next_power(0.2,  10.0), 1);

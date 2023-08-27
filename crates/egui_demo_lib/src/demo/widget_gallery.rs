@@ -259,7 +259,7 @@ impl WidgetGallery {
 }
 
 fn example_plot(ui: &mut egui::Ui) -> egui::Response {
-    use egui::plot::{Line, PlotPoints};
+    use egui_plot::{Line, PlotPoints};
     let n = 128;
     let line_points: PlotPoints = (0..=n)
         .map(|i| {
@@ -269,7 +269,7 @@ fn example_plot(ui: &mut egui::Ui) -> egui::Response {
         })
         .collect();
     let line = Line::new(line_points);
-    egui::plot::Plot::new("example_plot")
+    egui_plot::Plot::new("example_plot")
         .height(32.0)
         .show_axes(false)
         .data_aspect(1.0)

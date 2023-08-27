@@ -1,8 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use eframe::egui;
-use eframe::egui::plot::{Legend, Line, Plot, PlotPoints};
 use eframe::egui::ColorImage;
+use egui_plot::{Legend, Line, Plot, PlotPoints};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).

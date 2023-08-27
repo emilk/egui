@@ -3,7 +3,7 @@ use std::ops::RangeInclusive;
 
 use egui::*;
 
-use egui::plot::{
+use egui_plot::{
     Arrows, AxisBools, AxisHints, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter,
     Corner, GridInput, GridMark, HLine, Legend, Line, LineStyle, MarkerShape, Plot, PlotImage,
     PlotPoint, PlotPoints, PlotResponse, Points, Polygon, Text, VLine,
@@ -575,7 +575,7 @@ impl CustomAxesDemo {
                 .max_digits(4),
             AxisHints::default()
                 .label("Absolute")
-                .placement(plot::HPlacement::Right),
+                .placement(egui_plot::HPlacement::Right),
         ];
         Plot::new("custom_axes")
             .data_aspect(2.0 * MINS_PER_DAY as f32)
@@ -636,7 +636,7 @@ impl LinkedAxesDemo {
         ))
     }
 
-    fn configure_plot(plot_ui: &mut plot::PlotUi) {
+    fn configure_plot(plot_ui: &mut egui_plot::PlotUi) {
         plot_ui.line(LinkedAxesDemo::line_with_slope(0.5));
         plot_ui.line(LinkedAxesDemo::line_with_slope(1.0));
         plot_ui.line(LinkedAxesDemo::line_with_slope(2.0));
@@ -671,7 +671,7 @@ impl LinkedAxesDemo {
                 .height(250.0)
                 .y_axis_width(3)
                 .y_axis_label("y")
-                .y_axis_position(plot::HPlacement::Right)
+                .y_axis_position(egui_plot::HPlacement::Right)
                 .link_axis(link_group_id, self.link_x, self.link_y)
                 .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
                 .show(ui, LinkedAxesDemo::configure_plot);

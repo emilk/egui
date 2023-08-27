@@ -809,7 +809,8 @@ impl Ui {
         self.interact(rect, id, sense)
     }
 
-    pub(crate) fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
+    /// Allocate a rect without interacting with it.
+    pub fn advance_cursor_after_rect(&mut self, rect: Rect) -> Id {
         egui_assert!(!rect.any_nan());
         let item_spacing = self.spacing().item_spacing;
         self.placer.advance_after_rects(rect, rect, item_spacing);
