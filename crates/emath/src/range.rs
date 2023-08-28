@@ -49,10 +49,46 @@ impl Rangef {
         self.max - self.min
     }
 
+    /// The length of the range, i.e. `max - min`.
+    #[inline]
+    pub fn center(self) -> f32 {
+        self.min + (self.span() / 2.0)
+    }
+
+    /// Returns the similarity between `self` and `other`.
+    ///
+    ///  * negative if `a` is left of `b`
+    /// * positive if `a` is right of `b`
+    /// * zero if the ranges overlap significantly
+    #[inline]
+    pub fn similarity(self, other: Rangef) -> f32 {
+        if self.contains_range(other) || other.contains_range(self) {
+            0.0
+        } else {
+            -(other.center() - self.center())
+        }
+    }
+
     #[inline]
     #[must_use]
     pub fn contains(self, x: f32) -> bool {
         self.min <= x && x <= self.max
+    }
+
+    /// Returns if `self` contains `other` for at least 50%.
+    #[inline]
+    pub fn contains_range(&self, other: Rangef) -> bool {
+        let overlap_start = self.min.max(other.min);
+        let overlap_end = self.max.min(other.max);
+
+        if overlap_start >= overlap_end {
+            return false;
+        }
+
+        let overlap_length = overlap_end - overlap_start;
+        let other_length = other.max - other.min;
+
+        overlap_length >= 0.5 * other_length
     }
 
     /// Equivalent to `x.clamp(min, max)`

@@ -1,4 +1,4 @@
-use epaint::Vec2;
+use epaint::{vec2, Vec2};
 
 use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 
@@ -91,22 +91,39 @@ pub struct Memory {
     everything_is_visible: bool,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum FocusDirection {
     // Select the widget closest above the current focused widget.
     Up,
+
     // Select the widget to the right of the current focused widget.
     Right,
+
     // Select the widget below the current focused widget.
     Down,
+
     // Select the widget to the left of the the current focused widget.
     Left,
+
     // Select the previous widget that had focus.
     Previous,
+
     // Select the next widget that wants focus.
     Next,
+
+    /// Don't change focus.
+
     #[default]
     None,
+}
+
+impl FocusDirection {
+    fn is_cardinal(&self) -> bool {
+        !matches!(
+            self,
+            FocusDirection::None | FocusDirection::Previous | FocusDirection::Next
+        )
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -324,10 +341,7 @@ impl Focus {
     }
 
     pub(crate) fn end_frame(&mut self, used_ids: &IdMap<Rect>) {
-        if !matches!(
-            self.focus_direction,
-            FocusDirection::None | FocusDirection::Previous | FocusDirection::Next
-        ) {
+        if self.focus_direction.is_cardinal() {
             if let Some(found_widget) = self.find_widget_in_direction(used_ids) {
                 self.id = Some(found_widget);
             }
@@ -368,17 +382,15 @@ impl Focus {
             self.id = Some(id);
             self.give_to_next = false;
         } else if self.id == Some(id) {
-            if matches!(self.focus_direction, FocusDirection::Next) && !self.is_focus_locked {
+            if self.focus_direction == FocusDirection::Next && !self.is_focus_locked {
                 self.id = None;
                 self.give_to_next = true;
                 self.reset_focus();
-            } else if matches!(self.focus_direction, FocusDirection::Previous)
-                && !self.is_focus_locked
-            {
+            } else if self.focus_direction == FocusDirection::Previous && !self.is_focus_locked {
                 self.id_next_frame = self.last_interested; // frame-delay so gained_focus works
                 self.reset_focus();
             }
-        } else if matches!(self.focus_direction, FocusDirection::Next)
+        } else if self.focus_direction == FocusDirection::Next
             && self.id.is_none()
             && !self.give_to_next
         {
@@ -397,6 +409,17 @@ impl Focus {
     pub fn find_widget_in_direction(&mut self, new_rects: &IdMap<Rect>) -> Option<Id> {
         let Some(focus_id) = self.id else {return None;};
 
+        // Check if the widget has the right dot product and length.
+        let focus_direction = match self.focus_direction {
+            FocusDirection::Up => Vec2::UP,
+            FocusDirection::Right => Vec2::RIGHT,
+            FocusDirection::Down => Vec2::DOWN,
+            FocusDirection::Left => Vec2::LEFT,
+            _ => {
+                return None;
+            }
+        };
+
         // Update cache with new rects
         self.focus_widgets_cache.retain(|id, old_rect| {
             if let Some(new_rect) = new_rects.get(id) {
@@ -407,8 +430,7 @@ impl Focus {
             }
         });
 
-        let current_focus_widget_rect = self.focus_widgets_cache.get(&focus_id).unwrap();
-        let current_widget_pos = current_focus_widget_rect.left_center();
+        let current_focus_widget_rect = *self.focus_widgets_cache.get(&focus_id).unwrap();
 
         let mut focus_candidates: Vec<(&Id, f32, f32)> =
             Vec::with_capacity(self.focus_widgets_cache.len());
@@ -418,39 +440,20 @@ impl Focus {
                 continue;
             }
 
-            let candidate_widget_pos = widget_rect.left_center();
+            let x_overlaps = -current_focus_widget_rect
+                .x_range()
+                .overlaps(widget_rect.x_range());
+            let y_overlaps = -current_focus_widget_rect
+                .y_range()
+                .overlaps(widget_rect.y_range());
 
-            let current_to_candidate = candidate_widget_pos - current_widget_pos;
+            let current_to_candidate = vec2(x_overlaps, y_overlaps);
 
-            // Early out if widget is not aligned with the focus direction
-            let aligns_with_focus_direction = match self.focus_direction {
-                FocusDirection::Up => current_to_candidate.y < 0.0,
-                FocusDirection::Right => current_to_candidate.x > 0.0,
-                FocusDirection::Down => current_to_candidate.y > 0.0,
-                FocusDirection::Left => current_to_candidate.x < 0.0,
-                _ => false,
-            };
-
-            if !aligns_with_focus_direction {
-                continue;
-            }
-
-            // Check if the widget has the right dot product and length.
-            let focus_direction = match self.focus_direction {
-                FocusDirection::Up => Vec2::UP,
-                FocusDirection::Right => Vec2::RIGHT,
-                FocusDirection::Down => Vec2::DOWN,
-                FocusDirection::Left => Vec2::LEFT,
-                _ => {
-                    continue;
-                }
-            };
-
-            let dot_current_candidate = current_to_candidate.dot(focus_direction);
+            let dot_current_candidate = current_to_candidate.normalized().dot(focus_direction);
             let distance_current_candidate = current_to_candidate.length();
 
             // Only interested in widgets that fall in 90 degrees to right or left from focus vector.
-            if dot_current_candidate >= 0.0 {
+            if dot_current_candidate > 0.0 {
                 focus_candidates.push((
                     widget_id,
                     dot_current_candidate,
@@ -460,9 +463,12 @@ impl Focus {
         }
 
         if !focus_candidates.is_empty() {
-            // Select widget based on highest dot product and then lowest distance.
+            // The ratio that decides what widget is closed in the desired direction.
+            // A high dot product or a small distance are individually not good metrics.
+            focus_candidates.sort_by(|(_, dot1, len1), (_, dot2, len2)| {
+                (len1 / dot1).partial_cmp(&(len2 / dot2)).unwrap()
+            });
             focus_candidates.sort_by(|(_, dot1, _), (_, dot2, _)| dot2.partial_cmp(dot1).unwrap());
-            focus_candidates.sort_by(|(_, _, len1), (_, _, len2)| len1.partial_cmp(len2).unwrap());
 
             let (id, _, _) = focus_candidates[0];
             return Some(*id);
