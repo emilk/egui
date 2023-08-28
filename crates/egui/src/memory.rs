@@ -440,14 +440,14 @@ impl Focus {
                 continue;
             }
 
-            let x_overlaps = -current_focus_widget_rect
+            let x_similarity = -current_focus_widget_rect
                 .x_range()
-                .overlaps(widget_rect.x_range());
-            let y_overlaps = -current_focus_widget_rect
+                .similarity(widget_rect.x_range());
+            let y_similarity = -current_focus_widget_rect
                 .y_range()
-                .overlaps(widget_rect.y_range());
+                .similarity(widget_rect.y_range());
 
-            let current_to_candidate = vec2(x_overlaps, y_overlaps);
+            let current_to_candidate = vec2(x_similarity, y_similarity);
 
             let dot_current_candidate = current_to_candidate.normalized().dot(focus_direction);
             let distance_current_candidate = current_to_candidate.length();
