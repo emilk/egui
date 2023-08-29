@@ -1,7 +1,8 @@
-use epaint::{Pos2, Shape, Stroke, Vec2};
 use std::ops::{Bound, RangeBounds, RangeInclusive};
 
-use crate::plot::transform::PlotBounds;
+use egui::{Pos2, Shape, Stroke, Vec2};
+
+use crate::transform::PlotBounds;
 
 /// A point coordinate in the plot.
 ///

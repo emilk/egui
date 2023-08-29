@@ -772,7 +772,7 @@ impl PointerState {
     /// Latest reported pointer position.
     /// When tapping a touch screen, this will be `None`.
     #[inline(always)]
-    pub(crate) fn latest_pos(&self) -> Option<Pos2> {
+    pub fn latest_pos(&self) -> Option<Pos2> {
         self.latest_pos
     }
 

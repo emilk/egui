@@ -1247,6 +1247,7 @@ dependencies = [
  "document-features",
  "egui",
  "egui_extras",
+ "egui_plot",
  "enum-map",
  "log",
  "serde",
@@ -1286,6 +1287,15 @@ dependencies = [
  "raw-window-handle",
  "wasm-bindgen",
  "web-sys",
+]
+
+[[package]]
+name = "egui_plot"
+version = "0.22.0"
+dependencies = [
+ "document-features",
+ "egui",
+ "serde",
 ]
 
 [[package]]
@@ -3129,6 +3139,7 @@ name = "save_plot"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "egui_plot",
  "env_logger",
  "image",
  "rfd",

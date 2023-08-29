@@ -329,6 +329,8 @@ pub mod widgets;
 #[cfg(feature = "accesskit")]
 pub use accesskit;
 
+pub use ahash;
+
 pub use epaint;
 pub use epaint::ecolor;
 pub use epaint::emath;
