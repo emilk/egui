@@ -61,12 +61,6 @@ impl Rangef {
         self.min <= x && x <= self.max
     }
 
-    /// Returns if `self` contains `other` for at least 50%.
-    #[inline]
-    pub fn contains_range(&self, other: Rangef) -> bool {
-        self.contains(other.min) && self.contains(other.max)
-    }
-
     /// Equivalent to `x.clamp(min, max)`
     #[inline]
     #[must_use]
