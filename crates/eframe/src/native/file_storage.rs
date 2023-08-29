@@ -3,6 +3,20 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// The folder where `eframe` will store its state.
+///
+/// The given `app_id` is either [`crate::NativeOptions::app_id`] or
+/// the title argument to [`crate::run_native`].
+///
+/// On native the path is picked using [`directories_next::ProjectDirs::data_dir`](https://docs.rs/directories-next/2.0.0/directories_next/struct.ProjectDirs.html#method.data_dir) which is:
+/// * Linux:   `/home/UserName/.local/share/APP_ID`
+/// * macOS:   `/Users/UserName/Library/Application Support/APP_ID`
+/// * Windows: `C:\Users\UserName\AppData\Roaming\APP_ID`
+pub fn storage_dir(app_id: &str) -> Option<PathBuf> {
+    directories_next::ProjectDirs::from("", "", app_id)
+        .map(|proj_dirs| proj_dirs.data_dir().to_path_buf())
+}
+
 // ----------------------------------------------------------------------------
 
 /// A key-value store backed by a [RON](https://github.com/ron-rs/ron) file on disk.
@@ -24,7 +38,7 @@ impl Drop for FileStorage {
 
 impl FileStorage {
     /// Store the state in this .ron file.
-    pub fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Self {
+    fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Self {
         let ron_filepath: PathBuf = ron_filepath.into();
         log::debug!("Loading app state from {:?}…", ron_filepath);
         Self {
@@ -36,9 +50,8 @@ impl FileStorage {
     }
 
     /// Find a good place to put the files that the OS likes.
-    pub fn from_app_name(app_name: &str) -> Option<Self> {
-        if let Some(proj_dirs) = directories_next::ProjectDirs::from("", "", app_name) {
-            let data_dir = proj_dirs.data_dir().to_path_buf();
+    pub fn from_app_id(app_id: &str) -> Option<Self> {
+        if let Some(data_dir) = storage_dir(app_id) {
             if let Err(err) = std::fs::create_dir_all(&data_dir) {
                 log::warn!(
                     "Saving disabled: Failed to create app path at {:?}: {}",
