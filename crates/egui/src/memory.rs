@@ -1,4 +1,4 @@
-use epaint::{vec2, Vec2};
+use epaint::{emath::Rangef, vec2, Vec2};
 
 use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 
@@ -440,12 +440,15 @@ impl Focus {
                 continue;
             }
 
-            let x_similarity = -current_focus_widget_rect
-                .x_range()
-                .similarity(widget_rect.x_range());
-            let y_similarity = -current_focus_widget_rect
-                .y_range()
-                .similarity(widget_rect.y_range());
+            let x_similarity = -Self::widget_similarity(
+                current_focus_widget_rect.x_range(),
+                widget_rect.x_range(),
+            );
+
+            let y_similarity = -Self::widget_similarity(
+                current_focus_widget_rect.y_range(),
+                widget_rect.y_range(),
+            );
 
             let current_to_candidate = vec2(x_similarity, y_similarity);
 
@@ -475,6 +478,34 @@ impl Focus {
         }
 
         None
+    }
+
+    /// Returns the similarity between `self` and `other`.
+    ///
+    ///  * negative if `a` is left of `b`
+    /// * positive if `a` is right of `b`
+    /// * zero if the ranges overlap significantly
+    #[inline]
+    pub fn widget_similarity(current: Rangef, other: Rangef) -> f32 {
+        if Self::has_significant_overlap(current, other)
+            || Self::has_significant_overlap(other, current)
+        {
+            0.0
+        } else {
+            -(other.center() - current.center())
+        }
+    }
+
+    #[inline]
+    pub fn has_significant_overlap(current: Rangef, other: Rangef) -> bool {
+        let overlap_start = current.min.max(other.min);
+        let overlap_end = current.max.min(other.max);
+        if overlap_start >= overlap_end {
+            return false;
+        }
+        let overlap_length = overlap_end - overlap_start;
+        let other_length = other.max - other.min;
+        overlap_length >= 0.5 * other_length
     }
 }
 
