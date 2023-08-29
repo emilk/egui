@@ -179,13 +179,16 @@ pub(crate) struct Interaction {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Focus {
     /// The widget with keyboard focus (i.e. a text input field).
-    pub(crate) id: Option<Id>,
+    id: Option<Id>,
 
     /// What had keyboard focus previous frame?
     id_previous_frame: Option<Id>,
 
     /// Give focus to this widget next frame
-    id_next_frame: Option<Id>,
+    /// We want `id` to stay consistent for the entire frame, so we only update it
+    /// at the start of the frame. Otherwise `gained_focus` and `lost_focus` will
+    /// produce inconsistent results.
+    id_next_frame: Option<Option<Id>>,
 
     #[cfg(feature = "accesskit")]
     id_requested_by_accesskit: Option<accesskit::NodeId>,
@@ -237,6 +240,7 @@ impl Interaction {
 
 impl Focus {
     /// Which widget currently has keyboard focus?
+    #[inline(always)]
     pub fn focused(&self) -> Option<Id> {
         self.id
     }
@@ -244,7 +248,7 @@ impl Focus {
     fn begin_frame(&mut self, new_input: &crate::data::input::RawInput) {
         self.id_previous_frame = self.id;
         if let Some(id) = self.id_next_frame.take() {
-            self.id = Some(id);
+            self.id = id;
         }
 
         #[cfg(feature = "accesskit")]
@@ -319,7 +323,7 @@ impl Focus {
         #[cfg(feature = "accesskit")]
         {
             if self.id_requested_by_accesskit == Some(id.accesskit_id()) {
-                self.id = Some(id);
+                self.id_next_frame = Some(Some(id));
                 self.id_requested_by_accesskit = None;
                 self.give_to_next = false;
                 self.pressed_tab = false;
@@ -328,20 +332,20 @@ impl Focus {
         }
 
         if self.give_to_next && !self.had_focus_last_frame(id) {
-            self.id = Some(id);
+            self.id_next_frame = Some(Some(id));
             self.give_to_next = false;
         } else if self.id == Some(id) {
             if self.pressed_tab && !self.is_focus_locked {
-                self.id = None;
+                self.id_next_frame = Some(None);
                 self.give_to_next = true;
                 self.pressed_tab = false;
             } else if self.pressed_shift_tab && !self.is_focus_locked {
-                self.id_next_frame = self.last_interested; // frame-delay so gained_focus works
+                self.id_next_frame = Some(self.last_interested);
                 self.pressed_shift_tab = false;
             }
         } else if self.pressed_tab && self.id.is_none() && !self.give_to_next {
             // nothing has focus and the user pressed tab - give focus to the first widgets that wants it:
-            self.id = Some(id);
+            self.id_next_frame = Some(Some(id));
             self.pressed_tab = false;
         }
 
@@ -401,12 +405,12 @@ impl Memory {
     /// from the window and back.
     #[inline(always)]
     pub fn has_focus(&self, id: Id) -> bool {
-        self.interaction.focus.id == Some(id)
+        self.interaction.focus.focused() == Some(id)
     }
 
     /// Which widget has keyboard focus?
     pub fn focus(&self) -> Option<Id> {
-        self.interaction.focus.id
+        self.interaction.focus.focused()
     }
 
     /// Prevent keyboard focus from moving away from this widget even if users presses the tab key.
@@ -430,7 +434,7 @@ impl Memory {
     /// See also [`crate::Response::request_focus`].
     #[inline(always)]
     pub fn request_focus(&mut self, id: Id) {
-        self.interaction.focus.id = Some(id);
+        self.interaction.focus.id_next_frame = Some(Some(id));
         self.interaction.focus.is_focus_locked = false;
     }
 
@@ -438,8 +442,8 @@ impl Memory {
     /// See also [`crate::Response::surrender_focus`].
     #[inline(always)]
     pub fn surrender_focus(&mut self, id: Id) {
-        if self.interaction.focus.id == Some(id) {
-            self.interaction.focus.id = None;
+        if self.interaction.focus.focused() == Some(id) {
+            self.interaction.focus.id_next_frame = Some(None);
             self.interaction.focus.is_focus_locked = false;
         }
     }
@@ -459,7 +463,7 @@ impl Memory {
     /// Stop editing of active [`TextEdit`](crate::TextEdit) (if any).
     #[inline(always)]
     pub fn stop_text_input(&mut self) {
-        self.interaction.focus.id = None;
+        self.interaction.focus.id_next_frame = Some(None);
     }
 
     #[inline(always)]
