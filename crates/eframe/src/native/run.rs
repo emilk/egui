@@ -147,8 +147,6 @@ fn run_and_return(
 
     log::debug!("Entering the winit event loop (run_return)…");
 
-    println!("Run and return");
-
     let mut windows_next_repaint_times = HashMap::default();
 
     let mut returned_result = Ok(());
@@ -309,8 +307,6 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
     log::debug!("Entering the winit event loop (run)…");
 
     let mut windows_next_repaint_times = HashMap::default();
-
-    println!("Run and exit");
 
     event_loop.run(move |event, event_loop, control_flow| {
         let events = match event {
@@ -735,7 +731,6 @@ mod glow_integration {
                     win.gl_surface = Some(gl_surface);
                     self.current_gl_context = Some(current_gl_context);
                     self.window_maps.insert(window.id(), win.window_id);
-                    window.request_redraw();
                 }
                 win.window = Some(window);
             }
@@ -1273,7 +1268,7 @@ mod glow_integration {
                     if win.read().render.is_none() && viewport_id != ViewportId::MAIN {
                         if let Some(win) = glutin_ctx.read().windows.get(&win.read().parent_id) {
                             if let Some(w) = win.read().window.as_ref() {
-                                w.read().request_redraw();
+                                return vec![EventResult::RepaintNow(w.read().id())];
                             }
                         }
                         return vec![];
@@ -2183,7 +2178,7 @@ mod wgpu_integration {
                     if viewport_id != ViewportId::MAIN && render.is_none() {
                         if let Some(window) = running.windows.read().get(&parent_viewport_id) {
                             if let Some(w) = window.0.as_ref() {
-                                w.read().request_redraw();
+                                return vec![EventResult::RepaintNow(w.read().id())];
                             }
                         }
                         return vec![];
