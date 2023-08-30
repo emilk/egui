@@ -3198,6 +3198,7 @@ dependencies = [
 [[package]]
 name = "serde-diff"
 version = "0.4.1"
+source = "git+https://bitbucket.amazondcl.com/scm/~emmamid/serde-diff.git?branch=fix#e507ffe77d422a94868eddf2b3402dc4c5a2fee6"
 dependencies = [
  "serde",
  "serde-diff-derive",
@@ -3207,6 +3208,7 @@ dependencies = [
 [[package]]
 name = "serde-diff-derive"
 version = "0.4.0"
+source = "git+https://bitbucket.amazondcl.com/scm/~emmamid/serde-diff.git?branch=fix#e507ffe77d422a94868eddf2b3402dc4c5a2fee6"
 dependencies = [
  "darling 0.10.2",
  "proc-macro2",

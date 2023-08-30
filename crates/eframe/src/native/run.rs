@@ -1274,7 +1274,7 @@ mod wgpu_integration {
             }
         }
 
-        fn run_ui_and_paint(&mut self) -> EventResult {
+        fn run_ui_and_paint(&mut self, _remote_rendering: bool) -> EventResult {
             if let (Some(running), Some(window)) = (&mut self.running, &self.window) {
                 #[cfg(feature = "puffin")]
                 puffin::GlobalProfiler::lock().new_frame();

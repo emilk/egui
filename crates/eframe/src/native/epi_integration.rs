@@ -502,7 +502,7 @@ impl EpiIntegration {
 
         // Run user code:
         if remote_rendering {
-            let (full_output, pixels_per_point) = app.update_remote(raw_input.clone());
+            let (full_output, pixels_per_point) = app.update_remote(raw_input.clone(), &self.frame);
             // Tessellate throws error if 'run' hasn't been called, so run and ignore result
             let mut raw_input = egui::RawInput::default();
             raw_input.pixels_per_point = Some(pixels_per_point);
