@@ -93,22 +93,22 @@ pub struct Memory {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum FocusDirection {
-    // Select the widget closest above the current focused widget.
+    /// Select the widget closest above the current focused widget.
     Up,
 
-    // Select the widget to the right of the current focused widget.
+    /// Select the widget to the right of the current focused widget.
     Right,
 
-    // Select the widget below the current focused widget.
+    /// Select the widget below the current focused widget.
     Down,
 
-    // Select the widget to the left of the the current focused widget.
+    /// Select the widget to the left of the the current focused widget.
     Left,
 
-    // Select the previous widget that had focus.
+    /// Select the previous widget that had focus.
     Previous,
 
-    // Select the next widget that wants focus.
+    /// Select the next widget that wants focus.
     Next,
 
     /// Don't change focus.
