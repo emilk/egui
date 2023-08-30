@@ -92,7 +92,7 @@ pub struct Memory {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum FocusDirection {
+enum FocusDirection {
     /// Select the widget closest above the current focused widget.
     Up,
 
@@ -405,7 +405,7 @@ impl Focus {
         self.last_interested = Some(id);
     }
 
-    pub fn reset_focus(&mut self) {
+    fn reset_focus(&mut self) {
         self.focus_direction = FocusDirection::None;
     }
 
