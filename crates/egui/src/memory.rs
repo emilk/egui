@@ -112,17 +112,20 @@ pub enum FocusDirection {
     Next,
 
     /// Don't change focus.
-
     #[default]
     None,
 }
 
 impl FocusDirection {
     fn is_cardinal(&self) -> bool {
-        !matches!(
-            self,
-            FocusDirection::None | FocusDirection::Previous | FocusDirection::Next
-        )
+        match self {
+            FocusDirection::Up
+            | FocusDirection::Right
+            | FocusDirection::Down
+            | FocusDirection::Left => true,
+
+            FocusDirection::Previous | FocusDirection::Next | FocusDirection::None => false,
+        }
     }
 }
 
@@ -406,8 +409,24 @@ impl Focus {
         self.focus_direction = FocusDirection::None;
     }
 
-    pub fn find_widget_in_direction(&mut self, new_rects: &IdMap<Rect>) -> Option<Id> {
-        let Some(focus_id) = self.id else {return None;};
+    fn find_widget_in_direction(&mut self, new_rects: &IdMap<Rect>) -> Option<Id> {
+        // NOTE: `new_rects` here include some widgets _not_ interested in focus.
+
+        /// * negative if `a` is left of `b`
+        /// * positive if `a` is right of `b`
+        /// * zero if the ranges overlap significantly
+        fn range_diff(a: Rangef, b: Rangef) -> f32 {
+            let has_significant_overlap = a.intersection(b).span() >= 0.5 * b.span().min(a.span());
+            if has_significant_overlap {
+                0.0
+            } else {
+                a.center() - b.center()
+            }
+        }
+
+        let Some(focus_id) = self.id else {
+            return None;
+        };
 
         // Check if the widget has the right dot product and length.
         let focus_direction = match self.focus_direction {
@@ -440,17 +459,10 @@ impl Focus {
                 continue;
             }
 
-            let x_similarity = -Self::widget_similarity(
-                current_focus_widget_rect.x_range(),
-                widget_rect.x_range(),
+            let current_to_candidate = -vec2(
+                range_diff(current_focus_widget_rect.x_range(), widget_rect.x_range()),
+                range_diff(current_focus_widget_rect.y_range(), widget_rect.y_range()),
             );
-
-            let y_similarity = -Self::widget_similarity(
-                current_focus_widget_rect.y_range(),
-                widget_rect.y_range(),
-            );
-
-            let current_to_candidate = vec2(x_similarity, y_similarity);
 
             let dot_current_candidate = current_to_candidate.normalized().dot(focus_direction);
             let distance_current_candidate = current_to_candidate.length();
@@ -478,34 +490,6 @@ impl Focus {
         }
 
         None
-    }
-
-    /// Returns the similarity between `self` and `other`.
-    ///
-    ///  * negative if `a` is left of `b`
-    /// * positive if `a` is right of `b`
-    /// * zero if the ranges overlap significantly
-    #[inline]
-    pub fn widget_similarity(current: Rangef, other: Rangef) -> f32 {
-        if Self::has_significant_overlap(current, other)
-            || Self::has_significant_overlap(other, current)
-        {
-            0.0
-        } else {
-            -(other.center() - current.center())
-        }
-    }
-
-    #[inline]
-    pub fn has_significant_overlap(current: Rangef, other: Rangef) -> bool {
-        let overlap_start = current.min.max(other.min);
-        let overlap_end = current.max.min(other.max);
-        if overlap_start >= overlap_end {
-            return false;
-        }
-        let overlap_length = overlap_end - overlap_start;
-        let other_length = other.max - other.min;
-        overlap_length >= 0.5 * other_length
     }
 }
 

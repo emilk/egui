@@ -96,6 +96,18 @@ impl Rangef {
             max: self.max + amnt,
         }
     }
+
+    /// The overlap of two ranges, i.e. the range that is contained by both.
+    ///
+    /// If the ranges do not overlap, returns a range with `span() < 0.0`.
+    #[inline]
+    #[must_use]
+    pub fn intersection(self, other: Self) -> Self {
+        Self {
+            min: self.min.max(other.min),
+            max: self.max.min(other.max),
+        }
+    }
 }
 
 impl From<Rangef> for RangeInclusive<f32> {
