@@ -449,47 +449,36 @@ impl Focus {
             }
         });
 
-        let current_focus_widget_rect = *self.focus_widgets_cache.get(&focus_id).unwrap();
+        let current_rect = *self.focus_widgets_cache.get(&focus_id).unwrap();
 
-        let mut focus_candidates: Vec<(&Id, f32, f32)> =
-            Vec::with_capacity(self.focus_widgets_cache.len());
+        let mut best_score = std::f32::INFINITY;
+        let mut best_id = None;
 
-        for (widget_id, widget_rect) in &mut self.focus_widgets_cache {
-            if Some(*widget_id) == self.id {
+        for (candidate_id, candidate_rect) in &self.focus_widgets_cache {
+            if Some(*candidate_id) == self.id {
                 continue;
             }
 
-            let current_to_candidate = -vec2(
-                range_diff(current_focus_widget_rect.x_range(), widget_rect.x_range()),
-                range_diff(current_focus_widget_rect.y_range(), widget_rect.y_range()),
+            let to_candidate = vec2(
+                range_diff(candidate_rect.x_range(), current_rect.x_range()),
+                range_diff(candidate_rect.y_range(), current_rect.y_range()),
             );
 
-            let dot_current_candidate = current_to_candidate.normalized().dot(focus_direction);
-            let distance_current_candidate = current_to_candidate.length();
+            let acos_angle = to_candidate.normalized().dot(focus_direction);
 
-            // Only interested in widgets that fall in 90 degrees to right or left from focus vector.
-            if dot_current_candidate > 0.0 {
-                focus_candidates.push((
-                    widget_id,
-                    dot_current_candidate,
-                    distance_current_candidate,
-                ));
+            // Only interested in widgets that fall in a 90° cone (+/- 45°)
+            if 0.5_f32.sqrt() <= acos_angle {
+                let distance = to_candidate.length();
+                let score = distance / acos_angle;
+
+                if score < best_score {
+                    best_score = score;
+                    best_id = Some(*candidate_id);
+                }
             }
         }
 
-        if !focus_candidates.is_empty() {
-            // The ratio that decides what widget is closed in the desired direction.
-            // A high dot product or a small distance are individually not good metrics.
-            focus_candidates.sort_by(|(_, dot1, len1), (_, dot2, len2)| {
-                (len1 / dot1).partial_cmp(&(len2 / dot2)).unwrap()
-            });
-            focus_candidates.sort_by(|(_, dot1, _), (_, dot2, _)| dot2.partial_cmp(dot1).unwrap());
-
-            let (id, _, _) = focus_candidates[0];
-            return Some(*id);
-        }
-
-        None
+        best_id
     }
 }
 
