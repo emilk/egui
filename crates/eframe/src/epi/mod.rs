@@ -140,13 +140,8 @@ pub trait App {
     /// Only called when the "persistence" feature is enabled.
     ///
     /// On web the state is stored to "Local Storage".
-    /// On native the path is picked using [`directories_next::ProjectDirs::data_dir`](https://docs.rs/directories-next/2.0.0/directories_next/struct.ProjectDirs.html#method.data_dir) which is:
-    /// * Linux:   `/home/UserName/.local/share/APP_ID`
-    /// * macOS:   `/Users/UserName/Library/Application Support/APP_ID`
-    /// * Windows: `C:\Users\UserName\AppData\Roaming\APP_ID`
     ///
-    /// where `APP_ID` is determined by either [`NativeOptions::app_id`] or
-    /// the title argument to [`crate::run_native`].
+    /// On native the path is picked using [`crate::storage_dir`].
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
     /// Called when the user attempts to close the desktop window and/or quit the application.
@@ -423,13 +418,10 @@ pub struct NativeOptions {
 
     /// The application id, used for determining the folder to persist the app to.
     ///
-    /// On native the path is picked using [`directories_next::ProjectDirs::data_dir`](https://docs.rs/directories-next/2.0.0/directories_next/struct.ProjectDirs.html#method.data_dir) which is:
-    /// * Linux:   `/home/UserName/.local/share/APP_ID`
-    /// * macOS:   `/Users/UserName/Library/Application Support/APP_ID`
-    /// * Windows: `C:\Users\UserName\AppData\Roaming\APP_ID`
+    /// On native the path is picked using [`crate::storage_dir`].
     ///
     /// If you don't set [`Self::app_id`], the title argument to [`crate::run_native`]
-    /// will be used instead.
+    /// will be used as app id instead.
     ///
     /// ### On Wayland
     /// On Wayland this sets the Application ID for the window.

@@ -49,6 +49,12 @@ impl Rangef {
         self.max - self.min
     }
 
+    /// The center of the range
+    #[inline]
+    pub fn center(self) -> f32 {
+        0.5 * (self.min + self.max)
+    }
+
     #[inline]
     #[must_use]
     pub fn contains(self, x: f32) -> bool {
@@ -88,6 +94,25 @@ impl Rangef {
         Self {
             min: self.min - amnt,
             max: self.max + amnt,
+        }
+    }
+
+    /// The overlap of two ranges, i.e. the range that is contained by both.
+    ///
+    /// If the ranges do not overlap, returns a range with `span() < 0.0`.
+    ///
+    /// ```
+    /// # use emath::Rangef;
+    /// assert_eq!(Rangef::new(0.0, 10.0).intersection(Rangef::new(5.0, 15.0)), Rangef::new(5.0, 10.0));
+    /// assert_eq!(Rangef::new(0.0, 10.0).intersection(Rangef::new(10.0, 20.0)), Rangef::new(10.0, 10.0));
+    /// assert!(Rangef::new(0.0, 10.0).intersection(Rangef::new(20.0, 30.0)).span() < 0.0);
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn intersection(self, other: Self) -> Self {
+        Self {
+            min: self.min.max(other.min),
+            max: self.max.min(other.max),
         }
     }
 }

@@ -159,6 +159,11 @@ pub use web::{WebLogger, WebRunner};
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 mod native;
 
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(feature = "persistence")]
+pub use native::file_storage::storage_dir;
+
 /// This is how you start a native (desktop) app.
 ///
 /// The first argument is name of your app, used for the title bar of the native window

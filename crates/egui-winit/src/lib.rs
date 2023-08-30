@@ -815,7 +815,7 @@ fn translate_virtual_key_code(key: winit::event::VirtualKeyCode) -> Option<egui:
         VirtualKeyCode::Escape => Key::Escape,
         VirtualKeyCode::Tab => Key::Tab,
         VirtualKeyCode::Back => Key::Backspace,
-        VirtualKeyCode::Return => Key::Enter,
+        VirtualKeyCode::Return | VirtualKeyCode::NumpadEnter => Key::Enter,
         VirtualKeyCode::Space => Key::Space,
 
         VirtualKeyCode::Insert => Key::Insert,
@@ -825,10 +825,12 @@ fn translate_virtual_key_code(key: winit::event::VirtualKeyCode) -> Option<egui:
         VirtualKeyCode::PageUp => Key::PageUp,
         VirtualKeyCode::PageDown => Key::PageDown,
 
-        VirtualKeyCode::Minus => Key::Minus,
+        VirtualKeyCode::Minus | VirtualKeyCode::NumpadSubtract => Key::Minus,
         // Using Mac the key with the Plus sign on it is reported as the Equals key
         // (with both English and Swedish keyboard).
-        VirtualKeyCode::Equals => Key::PlusEquals,
+        VirtualKeyCode::Equals | VirtualKeyCode::Plus | VirtualKeyCode::NumpadAdd => {
+            Key::PlusEquals
+        }
 
         VirtualKeyCode::Key0 | VirtualKeyCode::Numpad0 => Key::Num0,
         VirtualKeyCode::Key1 | VirtualKeyCode::Numpad1 => Key::Num1,

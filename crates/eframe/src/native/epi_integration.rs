@@ -305,7 +305,7 @@ pub fn handle_app_output(
 /// For loading/saving app state and/or egui memory to disk.
 pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
     #[cfg(feature = "persistence")]
-    if let Some(storage) = super::file_storage::FileStorage::from_app_name(_app_name) {
+    if let Some(storage) = super::file_storage::FileStorage::from_app_id(_app_name) {
         return Some(Box::new(storage));
     }
     None
