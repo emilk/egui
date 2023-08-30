@@ -428,8 +428,8 @@ impl Focus {
             return None;
         };
 
-        // Check if the widget has the right dot product and length.
-        let focus_direction = match self.focus_direction {
+        // In what direction we are looking for the next widget.
+        let search_direction = match self.focus_direction {
             FocusDirection::Up => Vec2::UP,
             FocusDirection::Right => Vec2::RIGHT,
             FocusDirection::Down => Vec2::DOWN,
@@ -459,17 +459,22 @@ impl Focus {
                 continue;
             }
 
+            // There is a lot of room for improvement here.
             let to_candidate = vec2(
                 range_diff(candidate_rect.x_range(), current_rect.x_range()),
                 range_diff(candidate_rect.y_range(), current_rect.y_range()),
             );
 
-            let acos_angle = to_candidate.normalized().dot(focus_direction);
+            let acos_angle = to_candidate.normalized().dot(search_direction);
 
-            // Only interested in widgets that fall in a 90° cone (+/- 45°)
-            if 0.5_f32.sqrt() <= acos_angle {
+            // Only interested in widgets that fall in a 90° cone (±45°)
+            // of the search direction.
+            let is_in_search_cone = 0.5_f32.sqrt() <= acos_angle;
+            if is_in_search_cone {
                 let distance = to_candidate.length();
-                let score = distance / acos_angle;
+
+                // There is a lot of room for improvement here.
+                let score = distance / (acos_angle * acos_angle);
 
                 if score < best_score {
                     best_score = score;

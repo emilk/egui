@@ -52,7 +52,7 @@ impl Rangef {
     /// The center of the range
     #[inline]
     pub fn center(self) -> f32 {
-        self.min + (self.span() / 2.0)
+        0.5 * (self.min + self.max)
     }
 
     #[inline]
