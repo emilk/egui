@@ -2318,7 +2318,7 @@ impl Context {
         &self,
         viewport_builder: ViewportBuilder,
         func: impl FnOnce(&Context) -> T,
-    ) -> Option<T> {
+    ) -> T {
         if !self.force_embedding() {
             let mut viewport_id = ViewportId::MAIN;
             let mut parent_viewport_id = ViewportId::MAIN;
@@ -2355,9 +2355,9 @@ impl Context {
                 );
             }
 
-            out
+            out.expect("egui backend is implemented incorrectly! Context::set_render_sync_callback")
         } else {
-            Some(func(self))
+            func(self)
         }
     }
 }

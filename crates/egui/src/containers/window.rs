@@ -396,7 +396,7 @@ impl<'open> Window<'open> {
                         .with_max_inner_size(Some((max_size.x as u32, max_size.y as u32)));
                 }
 
-                return ctx.create_viewport_sync(window_builder, move |ctx| {
+                return Some(ctx.create_viewport_sync(window_builder, move |ctx| {
                     let mut op = is_open;
                     let open = if show_close_button {
                         Some(&mut op)
@@ -625,7 +625,7 @@ impl<'open> Window<'open> {
                         inner: content_inner,
                         response: full_response,
                     }
-                });
+                }));
             }
         }
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));

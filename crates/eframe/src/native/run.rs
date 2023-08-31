@@ -29,6 +29,13 @@ pub const IS_DESKTOP: bool = cfg!(any(
 
 // ----------------------------------------------------------------------------
 
+thread_local! {
+    /// This makes `Context::create_viewport_sync` to have a native window in the same frame!
+    pub static WINIT_EVENT_LOOP: RwLock<*const EventLoopWindowTarget<UserEvent>> = RwLock::new(std::ptr::null());
+}
+
+// ----------------------------------------------------------------------------
+
 #[derive(Debug)]
 pub enum UserEvent {
     RequestRepaint {
@@ -152,6 +159,8 @@ fn run_and_return(
     let mut returned_result = Ok(());
 
     event_loop.run_return(|event, event_loop, control_flow| {
+        WINIT_EVENT_LOOP.with(|row_event_loop| *row_event_loop.write() = event_loop);
+
         let events = match &event {
             winit::event::Event::LoopDestroyed => {
                 // On Mac, Cmd-Q we get here and then `run_return` doesn't return (despite its name),
@@ -309,6 +318,8 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
     let mut windows_next_repaint_times = HashMap::default();
 
     event_loop.run(move |event, event_loop, control_flow| {
+        WINIT_EVENT_LOOP.with(|row_event_loop| *row_event_loop.write() = event_loop);
+
         let events = match event {
             winit::event::Event::LoopDestroyed => {
                 log::debug!("Received Event::LoopDestroyed");
@@ -654,86 +665,97 @@ mod glow_integration {
         /// 4. make surface and context current.
         ///
         /// we presently assume that we will
-        #[allow(unsafe_code)]
         fn on_resume(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
-            for win in self.windows.values_mut() {
-                let mut win = win.write();
-                if win.gl_surface.is_some() {
+            let values = self
+                .windows
+                .values()
+                .cloned()
+                .collect::<Vec<Arc<RwLock<Window>>>>();
+            for win in values {
+                if win.read().gl_surface.is_some() {
                     continue;
                 }
-                log::debug!("running on_resume fn.");
-                // make sure we have a window or create one.
-                let window = win.window.take().unwrap_or_else(|| {
-                    log::debug!("window doesn't exist yet. creating one now with finalize_window");
-                    Arc::new(RwLock::new(
-                        glutin_winit::finalize_window(
-                            event_loop,
-                            create_winit_window_builder(&win.builder),
-                            &self.gl_config,
-                        )
-                        .expect("failed to finalize glutin window"),
-                    ))
-                });
-                {
-                    let window = window.read();
-                    // surface attributes
-                    let (width, height): (u32, u32) = window.inner_size().into();
-                    let width = std::num::NonZeroU32::new(width.at_least(1)).unwrap();
-                    let height = std::num::NonZeroU32::new(height.at_least(1)).unwrap();
-                    let surface_attributes = glutin::surface::SurfaceAttributesBuilder::<
-                        glutin::surface::WindowSurface,
-                    >::new()
-                    .build(window.raw_window_handle(), width, height);
-                    log::debug!(
-                        "creating surface with attributes: {:?}",
-                        &surface_attributes
-                    );
-                    // create surface
-                    let gl_surface = unsafe {
-                        self.gl_config
-                            .display()
-                            .create_window_surface(&self.gl_config, &surface_attributes)?
-                    };
-                    log::debug!(
-                        "surface created successfully: {gl_surface:?}.making context current"
-                    );
-                    // make surface and context current.
-                    let not_current_gl_context =
-                        if let Some(not_current_context) = self.not_current_gl_context.take() {
-                            not_current_context
-                        } else {
-                            self.current_gl_context
-                                .take()
-                                .unwrap()
-                                .make_not_current()
-                                .unwrap()
-                        };
-                    let current_gl_context = not_current_gl_context.make_current(&gl_surface)?;
-                    // try setting swap interval. but its not absolutely necessary, so don't panic on failure.
-                    log::debug!("made context current. setting swap interval for surface");
-                    if let Err(e) =
-                        gl_surface.set_swap_interval(&current_gl_context, self.swap_interval)
-                    {
-                        log::error!("failed to set swap interval due to error: {e:?}");
-                    }
-                    // we will reach this point only once in most platforms except android.
-                    // create window/surface/make context current once and just use them forever.
-
-                    let native_pixels_per_point = window.scale_factor() as f32;
-
-                    if win.egui_winit.is_none() {
-                        let mut egui_winit = egui_winit::State::new(event_loop);
-                        // egui_winit.set_max_texture_side(max_texture_side);
-                        egui_winit.set_pixels_per_point(native_pixels_per_point);
-                        win.egui_winit = Some(egui_winit);
-                    }
-
-                    win.gl_surface = Some(gl_surface);
-                    self.current_gl_context = Some(current_gl_context);
-                    self.window_maps.insert(window.id(), win.window_id);
-                }
-                win.window = Some(window);
+                self.init_window(&win, event_loop)?;
             }
+            Ok(())
+        }
+
+        #[allow(unsafe_code)]
+        pub(crate) fn init_window(
+            &mut self,
+            win: &Arc<RwLock<Window>>,
+            event_loop: &EventLoopWindowTarget<UserEvent>,
+        ) -> Result<()> {
+            let mut win = win.write();
+            // make sure we have a window or create one.
+            let window = win.window.take().unwrap_or_else(|| {
+                log::debug!("window doesn't exist yet. creating one now with finalize_window");
+                Arc::new(RwLock::new(
+                    glutin_winit::finalize_window(
+                        event_loop,
+                        create_winit_window_builder(&win.builder),
+                        &self.gl_config,
+                    )
+                    .expect("failed to finalize glutin window"),
+                ))
+            });
+            {
+                let window = window.read();
+                // surface attributes
+                let (width, height): (u32, u32) = window.inner_size().into();
+                let width = std::num::NonZeroU32::new(width.at_least(1)).unwrap();
+                let height = std::num::NonZeroU32::new(height.at_least(1)).unwrap();
+                let surface_attributes = glutin::surface::SurfaceAttributesBuilder::<
+                    glutin::surface::WindowSurface,
+                >::new()
+                .build(window.raw_window_handle(), width, height);
+                log::debug!(
+                    "creating surface with attributes: {:?}",
+                    &surface_attributes
+                );
+                // create surface
+                let gl_surface = unsafe {
+                    self.gl_config
+                        .display()
+                        .create_window_surface(&self.gl_config, &surface_attributes)?
+                };
+                log::debug!("surface created successfully: {gl_surface:?}.making context current");
+                // make surface and context current.
+                let not_current_gl_context =
+                    if let Some(not_current_context) = self.not_current_gl_context.take() {
+                        not_current_context
+                    } else {
+                        self.current_gl_context
+                            .take()
+                            .unwrap()
+                            .make_not_current()
+                            .unwrap()
+                    };
+                let current_gl_context = not_current_gl_context.make_current(&gl_surface)?;
+                // try setting swap interval. but its not absolutely necessary, so don't panic on failure.
+                log::debug!("made context current. setting swap interval for surface");
+                if let Err(e) =
+                    gl_surface.set_swap_interval(&current_gl_context, self.swap_interval)
+                {
+                    log::error!("failed to set swap interval due to error: {e:?}");
+                }
+                // we will reach this point only once in most platforms except android.
+                // create window/surface/make context current once and just use them forever.
+
+                let native_pixels_per_point = window.scale_factor() as f32;
+
+                if win.egui_winit.is_none() {
+                    let mut egui_winit = egui_winit::State::new(event_loop);
+                    // egui_winit.set_max_texture_side(max_texture_side);
+                    egui_winit.set_pixels_per_point(native_pixels_per_point);
+                    win.egui_winit = Some(egui_winit);
+                }
+
+                win.gl_surface = Some(gl_surface);
+                self.current_gl_context = Some(current_gl_context);
+                self.window_maps.insert(window.id(), win.window_id);
+            }
+            win.window = Some(window);
             Ok(())
         }
 
@@ -1006,8 +1028,19 @@ mod glow_integration {
 
             // Sync Rendering
             integration.egui_ctx.set_render_sync_callback(
-                move |_viewport_builder, viewport_id, parent_viewport_id, render| {
-                    // TODO: we should use `_viewport_builder` to create a new window in this frame!
+                move |viewport_builder, viewport_id, parent_viewport_id, render| {
+                    let has_window = glutin.read().windows.get(&viewport_id).is_some();
+                    if !has_window{
+                        glutin.write().windows.entry(viewport_id).or_insert(Arc::new(RwLock::new(Window{ builder: viewport_builder, gl_surface: None, window: None, window_id: viewport_id, parent_id: parent_viewport_id, render: None, egui_winit: None })));
+                        let win = glutin.read().windows.get(&viewport_id).cloned().unwrap();
+                        let event_loop;
+                        #[allow(unsafe_code)]
+                        unsafe{
+                            event_loop = WINIT_EVENT_LOOP.with(|event_loop|event_loop.read().as_ref().unwrap());
+                        }
+                        glutin.write().init_window(&win, event_loop).expect("Cannot init window on egui::Context::create_viewport_sync");
+                    }
+
                     'try_render: {
                         let window = glutin.read().windows.get(&viewport_id).cloned();
                         if let Some(window) = window {
@@ -1787,7 +1820,7 @@ mod wgpu_integration {
         integration: Arc<RwLock<epi_integration::EpiIntegration>>,
         app: Box<dyn epi::App>,
         windows: Windows,
-        windows_id: HashMap<winit::window::WindowId, ViewportId>,
+        windows_id: Arc<RwLock<HashMap<winit::window::WindowId, ViewportId>>>,
     }
 
     struct WgpuWinitApp {
@@ -1848,19 +1881,41 @@ mod wgpu_integration {
             let Some(running) = &mut self.running else {return};
 
             for (id, (window, state, _, _, builder)) in running.windows.write().iter_mut() {
-                if window.is_none() {
-                    if let Ok(new_window) = create_winit_window_builder(builder).build(event_loop) {
-                        running.windows_id.insert(new_window.id(), *id);
-
-                        if let Err(err) = pollster::block_on(
-                            running.painter.write().set_window(*id, Some(&new_window)),
-                        ) {
-                            log::error!("on set_window: viewport_id {id} {err}");
-                        }
-                        *window = Some(Arc::new(RwLock::new(new_window)));
-                        *state.write() = Some(egui_winit::State::new(event_loop));
-                    }
+                if window.is_some() {
+                    continue;
                 }
+
+                Self::init_window(
+                    *id,
+                    builder,
+                    &mut running.windows_id.write(),
+                    &running.painter,
+                    window,
+                    state,
+                    event_loop,
+                );
+            }
+        }
+
+        fn init_window(
+            id: ViewportId,
+            builder: &ViewportBuilder,
+            windows_id: &mut HashMap<winit::window::WindowId, ViewportId>,
+            painter: &Arc<RwLock<egui_wgpu::winit::Painter>>,
+            window: &mut Option<Arc<RwLock<winit::window::Window>>>,
+            state: &Arc<RwLock<Option<egui_winit::State>>>,
+            event_loop: &EventLoopWindowTarget<UserEvent>,
+        ) {
+            if let Ok(new_window) = create_winit_window_builder(builder).build(event_loop) {
+                windows_id.insert(new_window.id(), id);
+
+                if let Err(err) =
+                    pollster::block_on(painter.write().set_window(id, Some(&new_window)))
+                {
+                    log::error!("on set_window: viewport_id {id} {err}");
+                }
+                *window = Some(Arc::new(RwLock::new(new_window)));
+                *state.write() = Some(egui_winit::State::new(event_loop));
             }
         }
 
@@ -1974,6 +2029,7 @@ mod wgpu_integration {
 
             let mut windows_id = HashMap::default();
             windows_id.insert(window.id(), ViewportId::MAIN);
+            let windows_id = Arc::new(RwLock::new(windows_id));
 
             let windows = Windows(Arc::new(RwLock::new(HashMap::default())));
             windows.write().insert(
@@ -1993,10 +2049,22 @@ mod wgpu_integration {
             let time = integration.beginning;
             let painter = Arc::new(RwLock::new(painter));
             let _painter = painter.clone();
+            let _windows_id = windows_id.clone();
 
             integration.egui_ctx.set_render_sync_callback(
-                move |_viewport_builder, viewport_id, parent_viewport_id, render| {
-                    // TODO: we should use `_viewport_builder` to create a new window in this frame!
+                move |viewport_builder, viewport_id, parent_viewport_id, render| {
+                    if _windows.read().get(&viewport_id).is_none(){
+                        let mut _windows = _windows.write();
+                        let (window, state, _, _, _) = _windows.entry(viewport_id).or_insert((None, Arc::new(RwLock::new(None)), None, viewport_id, viewport_builder.clone()));
+
+                        let event_loop;
+
+                        #[allow(unsafe_code)]
+                        unsafe{
+                            event_loop = WINIT_EVENT_LOOP.with(|event_loop|event_loop.read().as_ref().unwrap());
+                        }
+                        Self::init_window(viewport_id, &viewport_builder, &mut _windows_id.write(), &_painter, window, state, event_loop);
+                    }
                     'try_render: {
                         let window = _windows.read().get(&viewport_id).cloned();
                         if let Some(window) = window {
@@ -2116,6 +2184,7 @@ mod wgpu_integration {
                 .as_ref()
                 .and_then(|r| {
                     r.windows_id
+                        .read()
                         .get(&window_id)
                         .and_then(|id| r.windows.read().get(id).map(|w| w.0.clone()))
                 })
@@ -2173,7 +2242,7 @@ mod wgpu_integration {
                     viewport_commands,
                 };
                 {
-                    let Some((viewport_id, (Some(window), state, render, parent_viewport_id, _))) = windows_id.get(&window_id).and_then(|id|(windows.read().get(id).map(|w|(*id, w.clone())))) else{return vec![]};
+                    let Some((viewport_id, (Some(window), state, render, parent_viewport_id, _))) = windows_id.read().get(&window_id).and_then(|id|(windows.read().get(id).map(|w|(*id, w.clone())))) else{return vec![]};
                     // This is used to not render a viewport if is sync
                     if viewport_id != ViewportId::MAIN && render.is_none() {
                         if let Some(window) = running.windows.read().get(&parent_viewport_id) {
@@ -2265,7 +2334,9 @@ mod wgpu_integration {
                 windows
                     .write()
                     .retain(|id, _| active_viewports_ids.contains(id));
-                windows_id.retain(|_, id| active_viewports_ids.contains(id));
+                windows_id
+                    .write()
+                    .retain(|_, id| active_viewports_ids.contains(id));
                 painter.write().clean_surfaces(&active_viewports_ids);
 
                 let mut control_flow = vec![EventResult::Wait];
@@ -2300,7 +2371,7 @@ mod wgpu_integration {
                     });
                 }
 
-                let Some((_, (Some(window), _, _, _, _))) = windows_id.get(&window_id).and_then(|id|(windows.read().get(id).map(|w|(*id, w.clone())))) else{return vec![]};
+                let Some((_, (Some(window), _, _, _, _))) = windows_id.read().get(&window_id).and_then(|id|(windows.read().get(id).map(|w|(*id, w.clone())))) else{return vec![]};
                 integration
                     .write()
                     .maybe_autosave(app.as_mut(), window.clone());
@@ -2402,7 +2473,7 @@ mod wgpu_integration {
                                 // See: https://github.com/rust-windowing/winit/issues/208
                                 // This solves an issue where the app would panic when minimizing on Windows.
                                 if let Some(viewport_id) =
-                                    running.windows_id.get(window_id).copied()
+                                    running.windows_id.read().get(window_id).copied()
                                 {
                                     if physical_size.width > 0 && physical_size.height > 0 {
                                         running.painter.write().on_window_resized(
@@ -2418,7 +2489,7 @@ mod wgpu_integration {
                                 ..
                             } => {
                                 if let Some(viewport_id) =
-                                    running.windows_id.get(window_id).copied()
+                                    running.windows_id.read().get(window_id).copied()
                                 {
                                     repaint_asap = true;
                                     running.painter.write().on_window_resized(
@@ -2437,11 +2508,10 @@ mod wgpu_integration {
                             _ => {}
                         };
 
-                        let event_response = if let Some((id, (_, state, _, _, _))) = running
-                            .windows_id
-                            .get(window_id)
-                            .and_then(|id| running.windows.read().get(id).map(|w| (*id, w.clone())))
-                        {
+                        let event_response = if let Some((id, (_, state, _, _, _))) =
+                            running.windows_id.read().get(window_id).and_then(|id| {
+                                running.windows.read().get(id).map(|w| (*id, w.clone()))
+                            }) {
                             if let Some(state) = &mut *state.write() {
                                 Some(running.integration.write().on_event(
                                     running.app.as_mut(),
@@ -2482,6 +2552,7 @@ mod wgpu_integration {
                     if let Some(running) = &mut self.running {
                         if let Some((_, state, _, _, _)) = running
                             .windows_id
+                            .read()
                             .get(window_id)
                             .and_then(|id| running.windows.read().get(id).cloned())
                         {
@@ -2503,7 +2574,7 @@ mod wgpu_integration {
         fn get_window_id(&self, id: &winit::window::WindowId) -> Option<ViewportId> {
             self.running
                 .as_ref()
-                .and_then(|r| r.windows_id.get(id).copied())
+                .and_then(|r| r.windows_id.read().get(id).copied())
         }
     }
 
