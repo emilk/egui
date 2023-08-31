@@ -2,7 +2,6 @@
 
 use crate::collapsing_header::CollapsingState;
 use crate::{widget_text::WidgetTextGalley, *};
-use crate::{ViewportBuilder, ViewportCommand};
 use epaint::*;
 
 use super::*;
@@ -35,9 +34,7 @@ pub struct Window<'open> {
     scroll: ScrollArea,
     collapsible: bool,
     default_open: bool,
-    default_embedded: bool,
     with_title_bar: bool,
-    window_builder: ViewportBuilder,
 }
 
 impl<'open> Window<'open> {
@@ -48,7 +45,6 @@ impl<'open> Window<'open> {
         let title = title.into().fallback_text_style(TextStyle::Heading);
         let area = Area::new(Id::new(title.text()));
         Self {
-            window_builder: ViewportBuilder::new(title.text().to_owned()).with_title(title.text()),
             title,
             open: None,
             area,
@@ -57,20 +53,16 @@ impl<'open> Window<'open> {
                 .with_stroke(false)
                 .min_size([96.0, 32.0])
                 .default_size([340.0, 420.0]), // Default inner size of a window
-            scroll: ScrollArea::both()
-                .auto_shrink([false, false])
-                .enable_scrolling(true),
+            scroll: ScrollArea::neither(),
             collapsible: true,
             default_open: true,
             with_title_bar: true,
-            default_embedded: true,
         }
     }
 
     /// Assign a unique id to the Window. Required if the title changes, or is shared with another window.
     pub fn id(mut self, id: Id) -> Self {
         self.area = self.area.id(id);
-        self.window_builder.id = id;
         self
     }
 
@@ -81,14 +73,6 @@ impl<'open> Window<'open> {
     /// * If the close button is pressed, `*open` will be set to `false`.
     pub fn open(mut self, open: &'open mut bool) -> Self {
         self.open = Some(open);
-        self
-    }
-
-    /// This will only be used on window creation!
-    /// If embedded is false the window will be a native window, if is possible
-    /// Look at `Context::is_desktop` to see if is possible to create a native window!
-    pub fn default_embedded(mut self, embedded: bool) -> Self {
-        self.default_embedded = embedded;
         self
     }
 
@@ -301,7 +285,6 @@ impl<'open> Window<'open> {
 }
 
 impl<'open> Window<'open> {
-    /// You can only use this on the main thread, or use ```Window::show_async```
     /// Returns `None` if the window is not open (if [`Window::open`] was called with `&mut false`).
     /// Returns `Some(InnerResponse { inner: None })` if the window is collapsed.
     #[inline]
@@ -313,20 +296,14 @@ impl<'open> Window<'open> {
         self.show_dyn(ctx, Box::new(add_contents))
     }
 
-    /// You will probably need to put your state in a ```Arc<RwLock<T>>```
-    #[inline]
-    pub fn show_async(self, ctx: &Context, add_contents: impl Fn(&mut Ui) + Send + Sync + 'static) {
-        self.show_dyn_async(ctx, Box::new(add_contents));
-    }
-
-    fn show_dyn<'a, R>(
+    fn show_dyn<'c, R>(
         self,
         ctx: &Context,
-        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'a>,
+        add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     ) -> Option<InnerResponse<Option<R>>> {
         let Window {
             title,
-            mut open,
+            open,
             area,
             frame,
             resize,
@@ -334,303 +311,17 @@ impl<'open> Window<'open> {
             collapsible,
             default_open,
             with_title_bar,
-            mut window_builder,
-            default_embedded,
         } = self;
 
-        let is_embedded = ctx.data_mut(|data| {
-            *data.get_persisted_mut_or(area.id.with("_embedded"), default_embedded)
-        });
+        let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
-        let is_open = if let Some(open) = &mut open {
-            if let Some(tmp_open) = ctx.data_mut(|data| {
-                let tmp = data.get_persisted::<bool>(area.id.with("_open"));
-                data.remove::<bool>(area.id.with("_open"));
-                tmp
-            }) {
-                **open = tmp_open;
-            }
-            **open
-        } else {
-            true
-        };
-
-        let is_open = is_open || ctx.memory(|mem| mem.everything_is_visible());
-
-        ctx.data_mut(|data| {
-            data.insert_persisted(area.id.with("_is_open"), is_open);
-        });
+        let is_explicitly_closed = matches!(open, Some(false));
+        let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
+        area.show_open_close_animation(ctx, &frame, is_open);
 
         if !is_open {
             return None;
         }
-
-        let show_close_button = open.is_some();
-
-        'create_viewport: {
-            if !is_embedded && !ctx.force_embedding() {
-                if let Some(size) = ctx.data(|data| data.get_temp::<Vec2>(area.id.with("size"))) {
-                    let size = size.round() * ctx.pixels_per_point();
-                    window_builder =
-                        window_builder.with_inner_size(Some((size.x as u32, size.y as u32)));
-                } else {
-                    ctx.request_repaint();
-                    break 'create_viewport;
-                }
-                window_builder = window_builder
-                    .with_close_button(open.is_some())
-                    .with_resizable(resize.is_resizable())
-                    .with_decorations(!with_title_bar);
-                let pix = ctx.pixels_per_point();
-                let min_size = resize.min_size * pix;
-                let max_size = resize.max_size * pix;
-                let max_size = if !max_size.is_finite() {
-                    None
-                } else {
-                    Some(max_size)
-                };
-                window_builder = window_builder
-                    .with_min_inner_size(Some((min_size.x as u32, min_size.y as u32)));
-                if let Some(max_size) = max_size {
-                    window_builder = window_builder
-                        .with_max_inner_size(Some((max_size.x as u32, max_size.y as u32)));
-                }
-
-                return Some(ctx.create_viewport_sync(window_builder, move |ctx| {
-                    let mut op = is_open;
-                    let open = if show_close_button {
-                        Some(&mut op)
-                    } else {
-                        None
-                    };
-                    let scroll = scroll.clone();
-                    let title = title.clone();
-                    let frame = frame
-                        .unwrap_or_else(|| Frame::window(&ctx.style()))
-                        .outer_margin(0.0)
-                        .shadow(Shadow::NONE)
-                        .stroke(Stroke::new(
-                            1.0,
-                            if ctx.input(|i| i.focused) {
-                                Color32::BLUE
-                            } else {
-                                Color32::BROWN
-                            },
-                        ));
-
-                    area.show_open_close_animation(ctx, &frame, is_open);
-
-                    let area_id = area.id;
-                    let area_layer_id = area.layer();
-                    let resize_id = area_id.with("resize");
-                    let mut collapsing = CollapsingState::load_with_default_open(
-                        ctx,
-                        area_id.with("collapsing"),
-                        default_open,
-                    );
-
-                    let is_collapsed = with_title_bar && !collapsing.is_open();
-                    let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
-
-                    let area = area.movable(false); // We move it manually, or the area will move the window when we want to resize it
-                    let resize = resize.resizable(false); // We move it manually
-                    let mut resize = resize.id(resize_id);
-
-                    let mut area = area.begin(ctx);
-                    let win_size = ctx.screen_rect().size();
-                    area.state_mut().set_left_top_pos(Pos2::ZERO);
-                    area.state_mut().size = win_size;
-                    let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
-
-                    let title_bar_height = if with_title_bar {
-                        let style = ctx.style();
-                        ctx.fonts(|f| title.font_height(f, &style)) + title_content_spacing
-                    } else {
-                        0.0
-                    };
-                    let margins = frame.outer_margin.sum()
-                        + frame.inner_margin.sum()
-                        + vec2(0.0, title_bar_height)
-                        - vec2(0.0, 3.0); //magic number
-
-                    if let Some(mut state) = resize::State::load(ctx, resize_id) {
-                        state.requested_size = Some(win_size - margins);
-                        state.store(ctx, resize_id);
-                    }
-
-                    // First interact (move etc) to avoid frame delay:
-                    let last_frame_outer_rect = area.state().rect();
-
-                    let interaction = if possible.movable || possible.resizable() {
-                        window_interaction(
-                            ctx,
-                            possible,
-                            area_layer_id,
-                            area_id.with("frame_resize"),
-                            last_frame_outer_rect,
-                        )
-                        .map(|window_interaction| {
-                            // Calculate roughly how much larger the window size is compared to the inner rect
-
-                            window_interaction.set_cursor(ctx);
-                            if window_interaction.is_resize() {
-                                ctx.viewport_command(
-                                    ctx.get_viewport_id(),
-                                    ViewportCommand::Resize(
-                                        window_interaction.top,
-                                        window_interaction.bottom,
-                                        window_interaction.right,
-                                        window_interaction.left,
-                                    ),
-                                );
-                            } else if ctx.input(|i| i.pointer.primary_pressed()) {
-                            }
-                            ctx.memory_mut(|mem| mem.areas.move_to_top(area_layer_id));
-
-                            window_interaction
-                        })
-                    } else {
-                        None
-                    };
-
-                    let hover_interaction =
-                        resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect);
-
-                    let mut area_content_ui = area.content_ui(ctx);
-
-                    let mut size = Vec2::new(1.0, 1.0);
-
-                    let content_inner = {
-                        // BEGIN FRAME --------------------------------
-                        let frame_stroke = frame.stroke;
-                        let mut frame = frame.begin(&mut area_content_ui);
-
-                        let title_bar = if with_title_bar {
-                            let title_bar = show_title_bar(
-                                &mut frame.content_ui,
-                                title,
-                                show_close_button,
-                                &mut collapsing,
-                                collapsible,
-                                area_id,
-                            );
-
-                            resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
-                            Some(title_bar)
-                        } else {
-                            None
-                        };
-
-                        let (content_inner, content_response) = collapsing
-                            .show_body_unindented(&mut frame.content_ui, |ui| {
-                                resize.show(ui, |ui| {
-                                    if title_bar.is_some() {
-                                        ui.add_space(title_content_spacing);
-                                    }
-
-                                    if scroll.has_any_bar() {
-                                        scroll.show(ui, |ui| add_contents(ui)).inner
-                                    } else {
-                                        add_contents(ui)
-                                    }
-                                })
-                            })
-                            .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
-                        if let Some(content_response) = &content_response {
-                            size = content_response.rect.max.to_vec2();
-                        }
-
-                        let outer_rect = frame.end(&mut area_content_ui).rect;
-                        paint_resize_corner(
-                            &mut area_content_ui,
-                            &possible,
-                            outer_rect,
-                            frame_stroke,
-                        );
-
-                        // END FRAME --------------------------------
-
-                        if let Some(title_bar) = title_bar {
-                            let res = title_bar.ui(
-                                &mut area_content_ui,
-                                outer_rect,
-                                &content_response,
-                                open,
-                                &mut collapsing,
-                                collapsible,
-                            );
-                            if res.is_pointer_button_down_on() {
-                                ctx.viewport_command(ctx.get_viewport_id(), ViewportCommand::Drag);
-                            }
-                        }
-
-                        collapsing.store(ctx);
-
-                        if let Some(interaction) = interaction {
-                            paint_frame_interaction(
-                                &mut area_content_ui,
-                                outer_rect,
-                                interaction,
-                                ctx.style().visuals.widgets.active,
-                            );
-                        } else if let Some(hover_interaction) = hover_interaction {
-                            if ctx.input(|i| i.pointer.has_pointer()) {
-                                paint_frame_interaction(
-                                    &mut area_content_ui,
-                                    outer_rect,
-                                    hover_interaction,
-                                    ctx.style().visuals.widgets.hovered,
-                                );
-                            }
-                        }
-                        content_inner
-                    };
-
-                    let full_response = area.end(ctx, area_content_ui);
-
-                    if !collapsing.is_open() {
-                        let size = full_response.rect.size() * ctx.pixels_per_point();
-                        ctx.viewport_command(
-                            ctx.get_viewport_id(),
-                            ViewportCommand::InnerSize(size.x as u32, size.y as u32),
-                        );
-                    }
-
-                    if win_size.x < size.x {
-                        println!("Set size! {win_size:?} {size:?}");
-                        ctx.viewport_command(
-                            ctx.get_viewport_id(),
-                            ViewportCommand::InnerSize(
-                                (size.x * ctx.pixels_per_point()).round() as u32,
-                                (win_size.y * ctx.pixels_per_point()).round() as u32,
-                            ),
-                        );
-                    }
-                    if win_size.y < size.y {
-                        println!("Set size! {win_size:?} {size:?}");
-                        ctx.viewport_command(
-                            ctx.get_viewport_id(),
-                            ViewportCommand::InnerSize(
-                                (win_size.x * ctx.pixels_per_point()).round() as u32,
-                                (size.y * ctx.pixels_per_point()).round() as u32,
-                            ),
-                        );
-                    }
-                    if show_close_button && op != is_open {
-                        ctx.data_mut(|data| data.insert_persisted(area_id.with("_open"), op));
-                        ctx.request_repaint_viewport(ctx.get_parent_viewport_id());
-                    }
-
-                    InnerResponse {
-                        inner: content_inner,
-                        response: full_response,
-                    }
-                }));
-            }
-        }
-        let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
-
-        area.show_open_close_animation(ctx, &frame, is_open);
 
         let area_id = area.id;
         let area_layer_id = area.layer();
@@ -687,13 +378,12 @@ impl<'open> Window<'open> {
 
         let mut area_content_ui = area.content_ui(ctx);
 
-        let mut size = Vec2::new(1.0, 1.0);
-
         let content_inner = {
             // BEGIN FRAME --------------------------------
             let frame_stroke = frame.stroke;
             let mut frame = frame.begin(&mut area_content_ui);
 
+            let show_close_button = open.is_some();
             let title_bar = if with_title_bar {
                 let title_bar = show_title_bar(
                     &mut frame.content_ui,
@@ -701,9 +391,7 @@ impl<'open> Window<'open> {
                     show_close_button,
                     &mut collapsing,
                     collapsible,
-                    area_id,
                 );
-
                 resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
                 Some(title_bar)
             } else {
@@ -718,16 +406,13 @@ impl<'open> Window<'open> {
                         }
 
                         if scroll.has_any_bar() {
-                            scroll.show(ui, |ui| add_contents(ui)).inner
+                            scroll.show(ui, add_contents).inner
                         } else {
                             add_contents(ui)
                         }
                     })
                 })
                 .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
-            if let Some(content_response) = &content_response {
-                size = content_response.rect.max.to_vec2();
-            }
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
             paint_resize_corner(&mut area_content_ui, &possible, outer_rect, frame_stroke);
@@ -775,470 +460,12 @@ impl<'open> Window<'open> {
         }
 
         let full_response = area.end(ctx, area_content_ui);
-        ctx.data_mut(|data| data.insert_temp(area_id.with("size"), size));
 
         let inner_response = InnerResponse {
             inner: content_inner,
             response: full_response,
         };
         Some(inner_response)
-    }
-
-    fn show_dyn_async(self, ctx: &Context, add_contents: Box<dyn Fn(&mut Ui) + Send + Sync>) {
-        let Window {
-            title,
-            mut open,
-            area,
-            frame,
-            resize,
-            scroll,
-            collapsible,
-            default_open,
-            with_title_bar,
-            mut window_builder,
-            default_embedded,
-        } = self;
-
-        let is_embedded = ctx.data_mut(|data| {
-            *data.get_persisted_mut_or(area.id.with("_embedded"), default_embedded)
-        });
-
-        let is_open = if let Some(open) = &mut open {
-            if let Some(tmp_open) = ctx.data_mut(|data| {
-                let tmp = data.get_persisted::<bool>(area.id.with("_open"));
-                data.remove::<bool>(area.id.with("_open"));
-                tmp
-            }) {
-                **open = tmp_open;
-            }
-            **open
-        } else {
-            true
-        };
-
-        let is_open = is_open || ctx.memory(|mem| mem.everything_is_visible());
-
-        ctx.data_mut(|data| {
-            data.insert_persisted(area.id.with("_is_open"), is_open);
-        });
-
-        if !is_open {
-            return;
-        }
-
-        let show_close_button = open.is_some();
-
-        'create_viewport: {
-            if !is_embedded && !ctx.force_embedding() {
-                if let Some(size) = ctx.data(|data| data.get_temp::<Vec2>(area.id.with("size"))) {
-                    let size = size.round() * ctx.pixels_per_point();
-                    window_builder =
-                        window_builder.with_inner_size(Some((size.x as u32, size.y as u32)));
-                } else {
-                    ctx.request_repaint();
-                    break 'create_viewport;
-                }
-                window_builder = window_builder
-                    .with_close_button(open.is_some())
-                    .with_resizable(resize.is_resizable())
-                    .with_decorations(!with_title_bar);
-                let pix = ctx.pixels_per_point();
-                let min_size = resize.min_size * pix;
-                let max_size = resize.max_size * pix;
-                let max_size = if !max_size.is_finite() {
-                    None
-                } else {
-                    Some(max_size)
-                };
-                window_builder = window_builder
-                    .with_min_inner_size(Some((min_size.x as u32, min_size.y as u32)));
-                if let Some(max_size) = max_size {
-                    window_builder = window_builder
-                        .with_max_inner_size(Some((max_size.x as u32, max_size.y as u32)));
-                }
-
-                ctx.create_viewport(window_builder, move |ctx| {
-                    let mut op = is_open;
-                    let open = if show_close_button {
-                        Some(&mut op)
-                    } else {
-                        None
-                    };
-                    let scroll = scroll.clone();
-                    let title = title.clone();
-                    let frame = frame
-                        .unwrap_or_else(|| Frame::window(&ctx.style()))
-                        .outer_margin(0.0)
-                        .shadow(Shadow::NONE)
-                        .stroke(Stroke::new(
-                            1.0,
-                            if ctx.input(|i| i.focused) {
-                                Color32::BLUE
-                            } else {
-                                Color32::BROWN
-                            },
-                        ));
-
-                    area.show_open_close_animation(ctx, &frame, is_open);
-
-                    let area_id = area.id;
-                    let area_layer_id = area.layer();
-                    let resize_id = area_id.with("resize");
-                    let mut collapsing = CollapsingState::load_with_default_open(
-                        ctx,
-                        area_id.with("collapsing"),
-                        default_open,
-                    );
-
-                    let is_collapsed = with_title_bar && !collapsing.is_open();
-                    let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
-
-                    let area = area.movable(false); // We move it manually, or the area will move the window when we want to resize it
-                    let resize = resize.resizable(false); // We move it manually
-                    let mut resize = resize.id(resize_id);
-
-                    let mut area = area.begin(ctx);
-                    let win_size = ctx.screen_rect().size();
-                    area.state_mut().set_left_top_pos(Pos2::ZERO);
-                    area.state_mut().size = win_size;
-                    let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
-
-                    let title_bar_height = if with_title_bar {
-                        let style = ctx.style();
-                        ctx.fonts(|f| title.font_height(f, &style)) + title_content_spacing
-                    } else {
-                        0.0
-                    };
-                    let margins = frame.outer_margin.sum()
-                        + frame.inner_margin.sum()
-                        + vec2(0.0, title_bar_height)
-                        - vec2(0.0, 3.0); //magic number
-
-                    if let Some(mut state) = resize::State::load(ctx, resize_id) {
-                        state.requested_size = Some(win_size - margins);
-                        state.store(ctx, resize_id);
-                    }
-
-                    // First interact (move etc) to avoid frame delay:
-                    let last_frame_outer_rect = area.state().rect();
-
-                    let interaction = if possible.movable || possible.resizable() {
-                        window_interaction(
-                            ctx,
-                            possible,
-                            area_layer_id,
-                            area_id.with("frame_resize"),
-                            last_frame_outer_rect,
-                        )
-                        .map(|window_interaction| {
-                            // Calculate roughly how much larger the window size is compared to the inner rect
-
-                            window_interaction.set_cursor(ctx);
-                            if window_interaction.is_resize() {
-                                ctx.viewport_command(
-                                    ctx.get_viewport_id(),
-                                    ViewportCommand::Resize(
-                                        window_interaction.top,
-                                        window_interaction.bottom,
-                                        window_interaction.right,
-                                        window_interaction.left,
-                                    ),
-                                );
-                            } else if ctx.input(|i| i.pointer.primary_pressed()) {
-                            }
-                            ctx.memory_mut(|mem| mem.areas.move_to_top(area_layer_id));
-
-                            window_interaction
-                        })
-                    } else {
-                        None
-                    };
-
-                    let hover_interaction =
-                        resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect);
-
-                    let mut area_content_ui = area.content_ui(ctx);
-
-                    let mut size = Vec2::new(1.0, 1.0);
-
-                    let _content_inner = {
-                        // BEGIN FRAME --------------------------------
-                        let frame_stroke = frame.stroke;
-                        let mut frame = frame.begin(&mut area_content_ui);
-
-                        let title_bar = if with_title_bar {
-                            let title_bar = show_title_bar(
-                                &mut frame.content_ui,
-                                title,
-                                show_close_button,
-                                &mut collapsing,
-                                collapsible,
-                                area_id,
-                            );
-
-                            resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
-                            Some(title_bar)
-                        } else {
-                            None
-                        };
-
-                        let (content_inner, content_response) = collapsing
-                            .show_body_unindented(&mut frame.content_ui, |ui| {
-                                resize.show(ui, |ui| {
-                                    if title_bar.is_some() {
-                                        ui.add_space(title_content_spacing);
-                                    }
-
-                                    if scroll.has_any_bar() {
-                                        scroll.show(ui, |ui| add_contents(ui));
-                                    } else {
-                                        add_contents(ui);
-                                    }
-                                });
-                            })
-                            .map_or((None, None), |ir| (Some(()), Some(ir.response)));
-                        if let Some(content_response) = &content_response {
-                            size = content_response.rect.size();
-                        }
-
-                        let outer_rect = frame.end(&mut area_content_ui).rect;
-                        paint_resize_corner(
-                            &mut area_content_ui,
-                            &possible,
-                            outer_rect,
-                            frame_stroke,
-                        );
-
-                        // END FRAME --------------------------------
-
-                        if let Some(title_bar) = title_bar {
-                            let res = title_bar.ui(
-                                &mut area_content_ui,
-                                outer_rect,
-                                &content_response,
-                                open,
-                                &mut collapsing,
-                                collapsible,
-                            );
-                            if res.is_pointer_button_down_on() {
-                                ctx.viewport_command(ctx.get_viewport_id(), ViewportCommand::Drag);
-                            }
-                        }
-
-                        collapsing.store(ctx);
-
-                        if let Some(interaction) = interaction {
-                            paint_frame_interaction(
-                                &mut area_content_ui,
-                                outer_rect,
-                                interaction,
-                                ctx.style().visuals.widgets.active,
-                            );
-                        } else if let Some(hover_interaction) = hover_interaction {
-                            if ctx.input(|i| i.pointer.has_pointer()) {
-                                paint_frame_interaction(
-                                    &mut area_content_ui,
-                                    outer_rect,
-                                    hover_interaction,
-                                    ctx.style().visuals.widgets.hovered,
-                                );
-                            }
-                        }
-                        content_inner
-                    };
-
-                    let full_response = area.end(ctx, area_content_ui);
-
-                    if !collapsing.is_open() {
-                        let size = full_response.rect.max.to_vec2() * ctx.pixels_per_point();
-                        ctx.viewport_command(
-                            ctx.get_viewport_id(),
-                            ViewportCommand::InnerSize(size.x as u32, size.y as u32),
-                        );
-                    }
-
-                    // let size = ctx.round_vec_to_pixels(full_response.rect.size());
-                    if win_size.x < size.x {
-                        println!("Set size! {win_size:?} {size:?}");
-                        ctx.viewport_command(
-                            ctx.get_viewport_id(),
-                            ViewportCommand::InnerSize(
-                                (size.x * ctx.pixels_per_point()).round() as u32,
-                                (win_size.y * ctx.pixels_per_point()).round() as u32,
-                            ),
-                        );
-                    }
-                    if win_size.y < size.y {
-                        println!("Set size! {win_size:?} {size:?}");
-                        ctx.viewport_command(
-                            ctx.get_viewport_id(),
-                            ViewportCommand::InnerSize(
-                                (win_size.x * ctx.pixels_per_point()).round() as u32,
-                                (size.y * ctx.pixels_per_point()).round() as u32,
-                            ),
-                        );
-                    }
-                    if show_close_button && op != is_open {
-                        ctx.data_mut(|data| data.insert_persisted(area_id.with("_open"), op));
-                        ctx.request_repaint_viewport(ctx.get_parent_viewport_id());
-                    }
-                });
-                return;
-            }
-        }
-        let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
-
-        area.show_open_close_animation(ctx, &frame, is_open);
-
-        let area_id = area.id;
-        let area_layer_id = area.layer();
-        let resize_id = area_id.with("resize");
-        let mut collapsing =
-            CollapsingState::load_with_default_open(ctx, area_id.with("collapsing"), default_open);
-
-        let is_collapsed = with_title_bar && !collapsing.is_open();
-        let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
-
-        let area = area.movable(false); // We move it manually, or the area will move the window when we want to resize it
-        let resize = resize.resizable(false); // We move it manually
-        let mut resize = resize.id(resize_id);
-
-        let mut area = area.begin(ctx);
-
-        let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
-
-        // First interact (move etc) to avoid frame delay:
-        let last_frame_outer_rect = area.state().rect();
-        let interaction = if possible.movable || possible.resizable() {
-            window_interaction(
-                ctx,
-                possible,
-                area_layer_id,
-                area_id.with("frame_resize"),
-                last_frame_outer_rect,
-            )
-            .and_then(|window_interaction| {
-                // Calculate roughly how much larger the window size is compared to the inner rect
-                let title_bar_height = if with_title_bar {
-                    let style = ctx.style();
-                    ctx.fonts(|f| title.font_height(f, &style)) + title_content_spacing
-                } else {
-                    0.0
-                };
-                let margins = frame.outer_margin.sum()
-                    + frame.inner_margin.sum()
-                    + vec2(0.0, title_bar_height);
-
-                interact(
-                    window_interaction,
-                    ctx,
-                    margins,
-                    area_layer_id,
-                    &mut area,
-                    resize_id,
-                )
-            })
-        } else {
-            None
-        };
-        let hover_interaction = resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect);
-
-        let mut area_content_ui = area.content_ui(ctx);
-
-        let mut size = Vec2::new(1.0, 1.0);
-
-        let content_inner = {
-            // BEGIN FRAME --------------------------------
-            let frame_stroke = frame.stroke;
-            let mut frame = frame.begin(&mut area_content_ui);
-
-            let title_bar = if with_title_bar {
-                let title_bar = show_title_bar(
-                    &mut frame.content_ui,
-                    title,
-                    show_close_button,
-                    &mut collapsing,
-                    collapsible,
-                    area_id,
-                );
-
-                resize.min_size.x = resize.min_size.x.at_least(title_bar.rect.width()); // Prevent making window smaller than title bar width
-                Some(title_bar)
-            } else {
-                None
-            };
-
-            let (content_inner, content_response) = collapsing
-                .show_body_unindented(&mut frame.content_ui, |ui| {
-                    resize.show(ui, |ui| {
-                        if title_bar.is_some() {
-                            ui.add_space(title_content_spacing);
-                        }
-
-                        if scroll.has_any_bar() {
-                            scroll.show(ui, |ui| add_contents(ui));
-                        } else {
-                            add_contents(ui);
-                        }
-                    });
-                })
-                .map_or((None, None), |ir| (Some(()), Some(ir.response)));
-            if let Some(content_response) = &content_response {
-                size = content_response.rect.size();
-            }
-
-            let outer_rect = frame.end(&mut area_content_ui).rect;
-            paint_resize_corner(&mut area_content_ui, &possible, outer_rect, frame_stroke);
-
-            // END FRAME --------------------------------
-
-            if let Some(title_bar) = title_bar {
-                title_bar.ui(
-                    &mut area_content_ui,
-                    outer_rect,
-                    &content_response,
-                    open,
-                    &mut collapsing,
-                    collapsible,
-                );
-            }
-
-            collapsing.store(ctx);
-
-            if let Some(interaction) = interaction {
-                paint_frame_interaction(
-                    &mut area_content_ui,
-                    outer_rect,
-                    interaction,
-                    ctx.style().visuals.widgets.active,
-                );
-            } else if let Some(hover_interaction) = hover_interaction {
-                if ctx.input(|i| i.pointer.has_pointer()) {
-                    paint_frame_interaction(
-                        &mut area_content_ui,
-                        outer_rect,
-                        hover_interaction,
-                        ctx.style().visuals.widgets.hovered,
-                    );
-                }
-            }
-            content_inner
-        };
-
-        {
-            let pos = ctx
-                .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
-                .left_top();
-            area.state_mut().set_left_top_pos(pos);
-        }
-
-        let full_response = area.end(ctx, area_content_ui);
-        ctx.data_mut(|data| data.insert_temp(area_id.with("size"), size));
-
-        let _inner_response = InnerResponse {
-            inner: content_inner,
-            response: full_response,
-        };
     }
 }
 
@@ -1614,7 +841,6 @@ fn show_title_bar(
     show_close_button: bool,
     collapsing: &mut CollapsingState,
     collapsible: bool,
-    id: Id,
 ) -> TitleBar {
     let inner_response = ui.horizontal(|ui| {
         let height = ui
@@ -1632,25 +858,13 @@ fn show_title_bar(
             collapsing.show_default_button_with_size(ui, button_size);
         }
 
-        {
-            let embedded =
-                ui.data_mut(|data| data.get_persisted::<bool>(id.with("_embedded")).unwrap());
-            let c = if embedded { "^" } else { "-" };
-            if ui.button(c).clicked() {
-                ui.data_mut(|data| data.insert_persisted(id.with("_embedded"), !embedded));
-                // If the window is native to be embedded need for the parent to redraw
-                ui.ctx()
-                    .request_repaint_viewport(ui.ctx().get_parent_viewport_id());
-            }
-        }
-
         let title_galley = title.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Heading);
 
         let minimum_width = if collapsible || show_close_button {
             // If at least one button is shown we make room for both buttons (since title is centered):
             2.0 * (pad + button_size.x + item_spacing.x) + title_galley.size().x
         } else {
-            pad + pad + title_galley.size().x + pad
+            pad + title_galley.size().x + pad
         };
         let min_rect = Rect::from_min_size(ui.min_rect().min, vec2(minimum_width, height));
         let id = ui.advance_cursor_after_rect(min_rect);
@@ -1692,7 +906,7 @@ impl TitleBar {
         open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
         collapsible: bool,
-    ) -> Response {
+    ) {
         if let Some(content_response) = &content_response {
             // Now we know how large we got to be:
             self.rect.max.x = self.rect.max.x.max(content_response.rect.max.x);
@@ -1725,18 +939,15 @@ impl TitleBar {
         }
 
         // Don't cover the close- and collapse buttons:
-        // After 32 is used for a temporary embedded button!
-        let double_click_rect = self.rect.shrink2(vec2(
-            32.0 + ui.style().visuals.text_cursor.width + ui.style().spacing.icon_width,
-            0.0,
-        ));
+        let double_click_rect = self.rect.shrink2(vec2(32.0, 0.0));
 
-        let res = ui.interact(double_click_rect, self.id, Sense::click());
-
-        if res.double_clicked() && collapsible {
+        if ui
+            .interact(double_click_rect, self.id, Sense::click())
+            .double_clicked()
+            && collapsible
+        {
             collapsing.toggle(ui);
         }
-        res
     }
 
     /// Paints the "Close" button at the right side of the title bar

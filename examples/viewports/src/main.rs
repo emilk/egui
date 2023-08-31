@@ -15,13 +15,9 @@ const RENDERER: eframe::Renderer = eframe::Renderer::Glow;
 pub struct App {
     show_async_viewport: bool,
     show_sync_viewport: bool,
-    show_async_window: bool,
-    show_sync_window: bool,
 
     async_viewport_state: Arc<RwLock<usize>>,
     sync_viewport_state: usize,
-    async_window_state: Arc<RwLock<usize>>,
-    sync_window_state: usize,
 
     show_async_viewport2: Arc<RwLock<bool>>,
     show_sync_viewport2: Arc<RwLock<bool>>,
@@ -61,8 +57,6 @@ impl eframe::App for App {
             }
             ui.checkbox(&mut self.show_async_viewport, "Show Async Viewport");
             ui.checkbox(&mut self.show_sync_viewport, "Show Sync Viewport");
-            ui.checkbox(&mut self.show_async_window, "Show Async Window");
-            ui.checkbox(&mut self.show_sync_window, "Show Sync Window");
 
             let ctx = ui.ctx();
             // Showing Async Viewport
@@ -342,49 +336,6 @@ impl eframe::App for App {
                         }
                     },
                 );
-            }
-
-            // Showing Async Window
-            if self.show_async_window {
-                let state = self.async_window_state.clone();
-                egui::Window::new("Async Window")
-                    .default_embedded(false)
-                    .show_async(ctx, move |ui| {
-                        let ctx = ui.ctx().clone();
-                        let mut state = state.write().unwrap();
-                        ui.label(format!("Frame: {}", ctx.frame_nr()));
-                        ui.label(format!("Current Viewport Id: {}", ctx.get_viewport_id()));
-                        ui.label(format!(
-                            "Current Parent Viewport Id: {}",
-                            ctx.get_viewport_id()
-                        ));
-                        ui.label(format!("Pos: {:?}", ctx.viewport_outer_pos()));
-                        ui.label(format!("Size: {:?}", ctx.viewport_inner_size()));
-                        ui.label(format!("Count: {state}"));
-                        if ui.button("Add").clicked() {
-                            *state += 1;
-                        }
-                    });
-            }
-
-            // Showing Sync Window
-            if self.show_sync_window {
-                egui::Window::new("Sync Window")
-                    .default_embedded(false)
-                    .show(ctx, |ui| {
-                        ui.label(format!("Frame: {}", ctx.frame_nr()));
-                        ui.label(format!("Current Viewport Id: {}", ctx.get_viewport_id()));
-                        ui.label(format!(
-                            "Current Parent Viewport Id: {}",
-                            ctx.get_viewport_id()
-                        ));
-                        ui.label(format!("Pos: {:?}", ctx.viewport_outer_pos()));
-                        ui.label(format!("Size: {:?}", ctx.viewport_inner_size()));
-                        ui.label(format!("Count: {}", self.sync_window_state));
-                        if ui.button("Add").clicked() {
-                            self.sync_window_state += 1;
-                        }
-                    });
             }
         });
     }

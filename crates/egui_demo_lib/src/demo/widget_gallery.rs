@@ -74,6 +74,7 @@ impl super::View for WidgetGallery {
                     self.gallery_grid_contents(ui);
                 });
         });
+
         ui.separator();
 
         ui.horizontal(|ui| {

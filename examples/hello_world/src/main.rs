@@ -34,12 +34,8 @@ impl eframe::App for MyApp {
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
-        render: Option<&ViewportRender>,
+        _: Option<&ViewportRender>,
     ) {
-        if let Some(render) = render {
-            render(ctx);
-            return;
-        }
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("My egui Application");
             ui.horizontal(|ui| {

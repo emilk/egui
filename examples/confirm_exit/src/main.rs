@@ -54,12 +54,10 @@ impl eframe::App for MyApp {
 
                         if ui.button("Yes!").clicked() {
                             self.allowed_to_close = true;
+                            frame.close();
                         }
                     });
                 });
-            if self.allowed_to_close {
-                frame.close();
-            }
         }
     }
 }

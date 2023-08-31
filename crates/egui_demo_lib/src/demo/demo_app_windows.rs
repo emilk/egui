@@ -81,7 +81,7 @@ impl Demos {
 #[cfg_attr(feature = "serde", serde(default))]
 struct Tests {
     #[cfg_attr(feature = "serde", serde(skip))]
-    demos: Vec<Box<dyn Demo + Sync + Send>>,
+    demos: Vec<Box<dyn Demo>>,
 
     open: BTreeSet<String>,
 }
@@ -101,7 +101,7 @@ impl Default for Tests {
 }
 
 impl Tests {
-    pub fn from_demos(demos: Vec<Box<dyn Demo + Sync + Send>>) -> Self {
+    pub fn from_demos(demos: Vec<Box<dyn Demo>>) -> Self {
         let mut open = BTreeSet::new();
         open.insert(
             super::widget_gallery::WidgetGallery::default()
@@ -146,7 +146,6 @@ fn set_open(open: &mut BTreeSet<String>, key: &'static str, is_open: bool) {
 // ----------------------------------------------------------------------------
 
 /// A menu bar in which you can select different demo windows to show.
-
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct DemoWindows {

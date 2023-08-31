@@ -94,7 +94,7 @@ enum WidgetType {
     TextEdit,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ManualLayoutTest {
     widget_offset: egui::Vec2,
     widget_size: egui::Vec2,
@@ -133,7 +133,7 @@ impl super::View for ManualLayoutTest {
     fn ui(&mut self, ui: &mut egui::Ui) {
         egui::reset_button(ui, self);
 
-        let ManualLayoutTest {
+        let Self {
             widget_offset,
             widget_size,
             widget_type,

@@ -2,7 +2,8 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use std::{sync::mpsc, thread::JoinHandle};
+use std::sync::mpsc;
+use std::thread::JoinHandle;
 
 use eframe::egui::{self, ViewportRender};
 
@@ -39,20 +40,20 @@ impl ThreadState {
     }
 
     fn show(&mut self, ctx: &egui::Context) {
-        let thread_nr = self.thread_nr;
-        let pos = egui::pos2(16.0, 128.0 * (thread_nr as f32 + 1.0));
-        let title = self.title.clone();
-        egui::Window::new(title).default_pos(pos).show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.label("Your name: ");
-                ui.text_edit_singleline(&mut self.name);
+        let pos = egui::pos2(16.0, 128.0 * (self.thread_nr as f32 + 1.0));
+        egui::Window::new(&self.title)
+            .default_pos(pos)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Your name: ");
+                    ui.text_edit_singleline(&mut self.name);
+                });
+                ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
+                if ui.button("Click each year").clicked() {
+                    self.age += 1;
+                }
+                ui.label(format!("Hello '{}', age {}", self.name, self.age));
             });
-            ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
-            if ui.button("Click each year").clicked() {
-                self.age += 1;
-            }
-            ui.label(format!("Hello '{}', age {}", self.name, self.age));
-        });
     }
 }
 
@@ -96,9 +97,7 @@ impl MyApp {
 
         slf
     }
-}
 
-impl MyApp {
     fn spawn_thread(&mut self) {
         let thread_nr = self.threads.len();
         self.threads
@@ -120,22 +119,19 @@ impl eframe::App for MyApp {
         &mut self,
         ctx: &egui::Context,
         _frame: &mut eframe::Frame,
-        render: Option<&ViewportRender>,
+        _: Option<&ViewportRender>,
     ) {
-        if let Some(render) = render {
-            render(ctx);
-            return;
-        }
         egui::Window::new("Main thread").show(ctx, |ui| {
             if ui.button("Spawn another thread").clicked() {
                 self.spawn_thread();
-                ui.ctx()
-                    .request_repaint_viewport(ui.ctx().get_parent_viewport_id());
             }
         });
 
         for (_handle, show_tx) in &self.threads {
             let _ = show_tx.send(ctx.clone());
+        }
+
+        for _ in 0..self.threads.len() {
             let _ = self.on_done_rc.recv();
         }
     }
