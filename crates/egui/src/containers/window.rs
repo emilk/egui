@@ -336,6 +336,7 @@ impl<'open> Window<'open> {
         let resize = resize.resizable(false); // We move it manually
         let mut resize = resize.id(resize_id);
 
+        let on_top = Some( area_layer_id ) == ctx.get_top_layer_id();
         let mut area = area.begin(ctx);
 
         let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
@@ -427,6 +428,7 @@ impl<'open> Window<'open> {
                     open,
                     &mut collapsing,
                     collapsible,
+                    on_top,
                 );
             }
 
@@ -906,10 +908,14 @@ impl TitleBar {
         open: Option<&mut bool>,
         collapsing: &mut CollapsingState,
         collapsible: bool,
+        on_top: bool,
     ) {
         if let Some(content_response) = &content_response {
             // Now we know how large we got to be:
             self.rect.max.x = self.rect.max.x.max(content_response.rect.max.x);
+        }
+        if on_top {
+            ui.painter().rect_filled(self.rect, Rounding::ZERO, ui.visuals().window_selected_header_color());
         }
 
         if let Some(open) = open {

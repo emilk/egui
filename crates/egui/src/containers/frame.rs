@@ -29,6 +29,8 @@ pub struct Frame {
 
     pub fill: Color32,
 
+    pub selected_header_color: Color32,
+
     pub stroke: Stroke,
 }
 
@@ -69,6 +71,7 @@ impl Frame {
             rounding: style.visuals.window_rounding,
             shadow: style.visuals.window_shadow,
             fill: style.visuals.window_fill(),
+            selected_header_color: style.visuals.window_selected_header_color(),
             stroke: style.visuals.window_stroke(),
             ..Default::default()
         }
@@ -80,6 +83,7 @@ impl Frame {
             rounding: style.visuals.menu_rounding,
             shadow: style.visuals.popup_shadow,
             fill: style.visuals.window_fill(),
+            selected_header_color: style.visuals.window_selected_header_color(),
             stroke: style.visuals.window_stroke(),
             ..Default::default()
         }
@@ -91,6 +95,7 @@ impl Frame {
             rounding: style.visuals.menu_rounding,
             shadow: style.visuals.popup_shadow,
             fill: style.visuals.window_fill(),
+            selected_header_color: style.visuals.window_selected_header_color(),
             stroke: style.visuals.window_stroke(),
             ..Default::default()
         }
@@ -105,6 +110,7 @@ impl Frame {
             inner_margin: Margin::same(2.0),
             rounding: style.visuals.widgets.noninteractive.rounding,
             fill: style.visuals.extreme_bg_color,
+            selected_header_color: style.visuals.window_selected_header_color(),
             stroke: style.visuals.window_stroke(),
             ..Default::default()
         }
@@ -232,6 +238,7 @@ impl Frame {
             rounding,
             shadow,
             fill,
+            selected_header_color: _,
             stroke,
         } = *self;
 
