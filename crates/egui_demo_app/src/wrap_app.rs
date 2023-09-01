@@ -447,14 +447,12 @@ impl WrapApp {
         });
 
         // Show dropped files (if any):
-        let is_empty = self.dropped_files.is_empty();
-        if !is_empty {
+        if !self.dropped_files.is_empty() {
             let mut open = true;
-            let dropped_files = self.dropped_files.clone();
             egui::Window::new("Dropped files")
                 .open(&mut open)
                 .show(ctx, |ui| {
-                    for file in &dropped_files {
+                    for file in &self.dropped_files {
                         let mut info = if let Some(path) = &file.path {
                             path.display().to_string()
                         } else if !file.name.is_empty() {

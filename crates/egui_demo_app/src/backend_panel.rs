@@ -171,11 +171,6 @@ impl BackendPanel {
                         frame.set_fullscreen(fullscreen);
                     }
                 }
-                {
-                    let mut force_embedding = ui.ctx().force_embedding();
-                    ui.checkbox(&mut force_embedding, "Force Embedding");
-                    ui.ctx().set_force_embedding(force_embedding);
-                }
 
                 if ui
                     .button("📱 Phone Size")
@@ -398,39 +393,34 @@ impl EguiWindows {
             output_event_history,
         } = self;
 
-        {
-            ctx.output(|o| {
-                for event in &o.events {
-                    output_event_history.push_back(event.clone());
-                }
-            });
-            while output_event_history.len() > 1000 {
-                output_event_history.pop_front();
+        ctx.output(|o| {
+            for event in &o.events {
+                output_event_history.push_back(event.clone());
             }
+        });
+        while output_event_history.len() > 1000 {
+            output_event_history.pop_front();
         }
 
-        let tmp_ctx = ctx.clone();
         egui::Window::new("🔧 Settings")
             .open(settings)
             .vscroll(true)
             .show(ctx, |ui| {
-                tmp_ctx.settings_ui(ui);
+                ctx.settings_ui(ui);
             });
 
-        let tmp_ctx = ctx.clone();
         egui::Window::new("🔍 Inspection")
             .open(inspection)
             .vscroll(true)
             .show(ctx, |ui| {
-                tmp_ctx.inspection_ui(ui);
+                ctx.inspection_ui(ui);
             });
 
-        let tmp_ctx = ctx.clone();
         egui::Window::new("📝 Memory")
             .open(memory)
             .resizable(false)
             .show(ctx, |ui| {
-                tmp_ctx.memory_ui(ui);
+                ctx.memory_ui(ui);
             });
 
         egui::Window::new("📤 Output Events")

@@ -203,7 +203,7 @@ pub trait App {
         // NOTE: a bright gray makes the shadows of the windows look weird.
         // We use a bit of transparency so that if the user switches on the
         // `transparent()` option they get immediate results.
-        egui::Color32::from_rgba_unmultiplied(12, 12, 12, 0).to_normalized_gamma_f32()
+        egui::Color32::from_rgba_unmultiplied(12, 12, 12, 180).to_normalized_gamma_f32()
 
         // _visuals.window_fill() would also be a natural choice
     }
@@ -499,7 +499,7 @@ impl Default for NativeOptions {
             min_window_size: None,
             max_window_size: None,
             resizable: true,
-            transparent: true,
+            transparent: false,
             mouse_passthrough: false,
 
             active: true,
@@ -765,9 +765,6 @@ impl Frame {
     pub fn info(&self) -> IntegrationInfo {
         self.info.clone()
     }
-
-    /// If this is the main window will return true!
-    /// When is a single window mode will always return true!
 
     /// A place where you can store custom data in a way that persists when you restart the app.
     pub fn storage(&self) -> Option<&dyn Storage> {
