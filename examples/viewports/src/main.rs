@@ -3,7 +3,6 @@ use std::sync::RwLock;
 
 use eframe::egui;
 use eframe::egui::ViewportBuilder;
-use eframe::egui::ViewportId;
 use eframe::NativeOptions;
 
 #[cfg(feature = "wgpu")]
@@ -19,11 +18,17 @@ pub struct App {
     async_viewport_state: Arc<RwLock<usize>>,
     sync_viewport_state: usize,
 
-    show_async_viewport2: Arc<RwLock<bool>>,
-    show_sync_viewport2: Arc<RwLock<bool>>,
+    async_show_async_viewport: Arc<RwLock<bool>>,
+    async_show_sync_viewport: Arc<RwLock<bool>>,
 
-    async_viewport_state2: Arc<RwLock<usize>>,
-    sync_viewport_state2: Arc<RwLock<usize>>,
+    async_async_viewport_state: Arc<RwLock<usize>>,
+    async_sync_viewport_state: Arc<RwLock<usize>>,
+
+    sync_show_async_viewport: bool,
+    sync_show_sync_viewport: bool,
+
+    sync_async_viewport_state: Arc<RwLock<usize>>,
+    sync_sync_viewport_state: usize,
 }
 
 impl eframe::App for App {
@@ -41,14 +46,7 @@ impl eframe::App for App {
         }
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.label(format!("Frame: {}", ctx.frame_nr()));
-            ui.label(format!("Current Viewport Id: {}", ctx.get_viewport_id()));
-            ui.label(format!(
-                "Current Parent Viewport Id: {}",
-                ctx.get_viewport_id()
-            ));
-            ui.label(format!("Pos: {:?}", ctx.viewport_outer_pos()));
-            ui.label(format!("Size: {:?}", ctx.viewport_inner_size()));
+            ui_info(ui);
             ui.label("Look at the \"Frame: \" will tell you, what viewport is rendering!");
             {
                 let mut force_embedding = ctx.force_embedding();
@@ -63,11 +61,11 @@ impl eframe::App for App {
             if self.show_async_viewport {
                 let state = self.async_viewport_state.clone();
 
-                let show_async_viewport2 = self.show_async_viewport2.clone();
-                let show_sync_viewport2 = self.show_sync_viewport2.clone();
+                let show_async_viewport2 = self.async_show_async_viewport.clone();
+                let show_sync_viewport2 = self.async_show_sync_viewport.clone();
 
-                let async_viewport_state2 = self.async_viewport_state2.clone();
-                let sync_viewport_state2 = self.sync_viewport_state2.clone();
+                let async_viewport_state2 = self.async_async_viewport_state.clone();
+                let sync_viewport_state2 = self.async_sync_viewport_state.clone();
 
                 ctx.create_viewport(
                     ViewportBuilder::new("Async Viewport").with_title("Async Viewport"),
@@ -81,14 +79,7 @@ impl eframe::App for App {
                         let sync_viewport_state2 = sync_viewport_state2.clone();
 
                         let content = move |ui: &mut egui::Ui| {
-                            ui.label(format!("Frame: {}", ctx.frame_nr()));
-                            ui.label(format!("Current Viewport Id: {}", ctx.get_viewport_id()));
-                            ui.label(format!(
-                                "Current Parent Viewport Id: {}",
-                                ctx.get_viewport_id()
-                            ));
-                            ui.label(format!("Pos: {:?}", ctx.viewport_outer_pos()));
-                            ui.label(format!("Size: {:?}", ctx.viewport_inner_size()));
+                            ui_info(ui);
 
                             ui.checkbox(&mut show_async_viewport2, "Show Async Viewport 2");
                             ui.checkbox(&mut show_sync_viewport2, "Show Sync Viewport 2");
@@ -106,23 +97,7 @@ impl eframe::App for App {
                                         let mut state = async_viewport_state2.write().unwrap();
 
                                         let content = move |ui: &mut egui::Ui| {
-                                            ui.label(format!("Frame: {}", ctx.frame_nr()));
-                                            ui.label(format!(
-                                                "Current Viewport Id: {}",
-                                                ctx.get_viewport_id()
-                                            ));
-                                            ui.label(format!(
-                                                "Current Parent Viewport Id: {}",
-                                                ctx.get_viewport_id()
-                                            ));
-                                            ui.label(format!(
-                                                "Pos: {:?}",
-                                                ctx.viewport_outer_pos()
-                                            ));
-                                            ui.label(format!(
-                                                "Size: {:?}",
-                                                ctx.viewport_inner_size()
-                                            ));
+                                            ui_info(ui);
 
                                             ui.label(format!("Count: {state}"));
                                             if ui.button("Add").clicked() {
@@ -130,16 +105,11 @@ impl eframe::App for App {
                                             }
                                         };
 
-                                        // This will make the viewport content, a popup if is in the main window
-                                        if ctx.get_viewport_id() == ViewportId::MAIN {
-                                            egui::Area::new("Async Viewport in Async Viewport")
-                                                .show(ctx, |ui| {
-                                                    egui::Frame::popup(ui.style())
-                                                        .show(ui, content);
-                                                });
-                                        } else {
-                                            egui::CentralPanel::default().show(ctx, content);
-                                        };
+                                        show_as_popup(
+                                            ctx,
+                                            "Async Viewport in Async Viewport",
+                                            content,
+                                        );
                                     },
                                 );
                             }
@@ -152,23 +122,7 @@ impl eframe::App for App {
                                         let mut state = sync_viewport_state2.write().unwrap();
 
                                         let content = move |ui: &mut egui::Ui| {
-                                            ui.label(format!("Frame: {}", ctx.frame_nr()));
-                                            ui.label(format!(
-                                                "Current Viewport Id: {}",
-                                                ctx.get_viewport_id()
-                                            ));
-                                            ui.label(format!(
-                                                "Current Parent Viewport Id: {}",
-                                                ctx.get_viewport_id()
-                                            ));
-                                            ui.label(format!(
-                                                "Pos: {:?}",
-                                                ctx.viewport_outer_pos()
-                                            ));
-                                            ui.label(format!(
-                                                "Size: {:?}",
-                                                ctx.viewport_inner_size()
-                                            ));
+                                            ui_info(ui);
 
                                             ui.label(format!("Count: {state}"));
                                             if ui.button("Add").clicked() {
@@ -176,29 +130,17 @@ impl eframe::App for App {
                                             }
                                         };
 
-                                        // This will make the viewport content, a popup if is in the main window
-                                        if ctx.get_viewport_id() == ViewportId::MAIN {
-                                            egui::Area::new("Sync Viewport in Async Viewport")
-                                                .show(ctx, |ui| {
-                                                    egui::Frame::popup(ui.style())
-                                                        .show(ui, content);
-                                                });
-                                        } else {
-                                            egui::CentralPanel::default().show(ctx, content);
-                                        };
+                                        show_as_popup(
+                                            ctx,
+                                            "Sync Viewport in Async Viewport",
+                                            content,
+                                        );
                                     },
                                 );
                             }
                         };
 
-                        // This will make the viewport content, a popup if is in the main window
-                        if ctx.get_viewport_id() == ViewportId::MAIN {
-                            egui::Area::new("Async Viewport").show(ctx, |ui| {
-                                egui::Frame::popup(ui.style()).show(ui, content);
-                            });
-                        } else {
-                            egui::CentralPanel::default().show(ctx, content);
-                        }
+                        show_as_popup(ctx, "Async Viewport", content);
                     },
                 );
             }
@@ -208,137 +150,97 @@ impl eframe::App for App {
                 ctx.create_viewport_sync(
                     ViewportBuilder::new("Sync Viewport").with_title("Sync Viewport"),
                     |ctx| {
-                        let mut show_async_viewport2 = self.show_async_viewport2.write().unwrap();
-                        let mut show_sync_viewport2 = self.show_sync_viewport2.write().unwrap();
+                        let async_viewport_state3 = self.sync_async_viewport_state.clone();
 
-                        let async_viewport_state2 = self.async_viewport_state2.clone();
-                        let sync_viewport_state2 = self.sync_viewport_state2.clone();
+                        let content = |ui: &mut egui::Ui| {
+                            ui_info(ui);
 
-                        let content =
-                            |ui: &mut egui::Ui| {
-                                ui.label(format!("Frame: {}", ctx.frame_nr()));
-                                ui.label(format!("Current Viewport Id: {}", ctx.get_viewport_id()));
-                                ui.label(format!(
-                                    "Current Parent Viewport Id: {}",
-                                    ctx.get_viewport_id()
-                                ));
-                                ui.label(format!("Pos: {:?}", ctx.viewport_outer_pos()));
-                                ui.label(format!("Size: {:?}", ctx.viewport_inner_size()));
+                            ui.checkbox(&mut self.sync_show_async_viewport, "Show Async Viewport");
+                            ui.checkbox(&mut self.sync_show_sync_viewport, "Show Sync Viewport");
 
-                                ui.checkbox(&mut show_async_viewport2, "Show Async Viewport");
-                                ui.checkbox(&mut show_sync_viewport2, "Show Sync Viewport");
+                            ui.label(format!("Count: {}", self.sync_viewport_state));
+                            if ui.button("Add").clicked() {
+                                self.sync_viewport_state += 1;
+                            }
 
-                                ui.label(format!("Count: {}", self.sync_viewport_state));
-                                if ui.button("Add").clicked() {
-                                    self.sync_viewport_state += 1;
-                                }
+                            if self.sync_show_async_viewport {
+                                ctx.create_viewport(
+                                    ViewportBuilder::new("Async Viewport in Sync Viewport")
+                                        .with_title("Async Viewport in Sync Viewport"),
+                                    move |ctx| {
+                                        let mut state = async_viewport_state3.write().unwrap();
 
-                                if *show_async_viewport2 {
-                                    ctx.create_viewport(
-                                        ViewportBuilder::new("Async Viewport in Sync Viewport")
-                                            .with_title("Async Viewport in Sync Viewport"),
-                                        move |ctx| {
-                                            let mut state = async_viewport_state2.write().unwrap();
+                                        let content = move |ui: &mut egui::Ui| {
+                                            ui_info(ui);
 
-                                            let content = move |ui: &mut egui::Ui| {
-                                                ui.label(format!("Frame: {}", ctx.frame_nr()));
-                                                ui.label(format!(
-                                                    "Current Viewport Id: {}",
-                                                    ctx.get_viewport_id()
-                                                ));
-                                                ui.label(format!(
-                                                    "Current Parent Viewport Id: {}",
-                                                    ctx.get_viewport_id()
-                                                ));
-                                                ui.label(format!(
-                                                    "Pos: {:?}",
-                                                    ctx.viewport_outer_pos()
-                                                ));
-                                                ui.label(format!(
-                                                    "Size: {:?}",
-                                                    ctx.viewport_inner_size()
-                                                ));
+                                            ui.label(format!("Count: {state}"));
+                                            if ui.button("Add").clicked() {
+                                                *state += 1;
+                                            }
+                                        };
 
-                                                ui.label(format!("Count: {state}"));
-                                                if ui.button("Add").clicked() {
-                                                    *state += 1;
-                                                }
-                                            };
+                                        show_as_popup(
+                                            ctx,
+                                            "Async Viewport in Sync Viewport",
+                                            content,
+                                        );
+                                    },
+                                );
+                            }
 
-                                            // This will make the viewport content, a popup if is in the main window
-                                            if ctx.get_viewport_id() == ViewportId::MAIN {
-                                                egui::Area::new("Async Viewport in Sync Viewport")
-                                                    .show(ctx, |ui| {
-                                                        egui::Frame::popup(ui.style())
-                                                            .show(ui, content);
-                                                    });
-                                            } else {
-                                                egui::CentralPanel::default().show(ctx, content);
-                                            };
-                                        },
-                                    );
-                                }
+                            if self.sync_show_sync_viewport {
+                                ctx.create_viewport_sync(
+                                    ViewportBuilder::new("Sync Viewport in Sync Viewport")
+                                        .with_title("Sync Viewport in Sync Viewport"),
+                                    move |ctx| {
+                                        let state = &mut self.sync_sync_viewport_state;
 
-                                if *show_sync_viewport2 {
-                                    ctx.create_viewport_sync(
-                                        ViewportBuilder::new("Sync Viewport in Sync Viewport")
-                                            .with_title("Sync Viewport in Sync Viewport"),
-                                        move |ctx| {
-                                            let mut state = sync_viewport_state2.write().unwrap();
+                                        let content = move |ui: &mut egui::Ui| {
+                                            ui_info(ui);
 
-                                            let content = move |ui: &mut egui::Ui| {
-                                                ui.label(format!("Frame: {}", ctx.frame_nr()));
-                                                ui.label(format!(
-                                                    "Current Viewport Id: {}",
-                                                    ctx.get_viewport_id()
-                                                ));
-                                                ui.label(format!(
-                                                    "Current Parent Viewport Id: {}",
-                                                    ctx.get_viewport_id()
-                                                ));
-                                                ui.label(format!(
-                                                    "Pos: {:?}",
-                                                    ctx.viewport_outer_pos()
-                                                ));
-                                                ui.label(format!(
-                                                    "Size: {:?}",
-                                                    ctx.viewport_inner_size()
-                                                ));
+                                            ui.label(format!("Count: {state}"));
+                                            if ui.button("Add").clicked() {
+                                                *state += 1;
+                                            }
+                                        };
 
-                                                ui.label(format!("Count: {state}"));
-                                                if ui.button("Add").clicked() {
-                                                    *state += 1;
-                                                }
-                                            };
+                                        show_as_popup(
+                                            ctx,
+                                            "Sync Viewport in Sync Viewport",
+                                            content,
+                                        );
+                                    },
+                                );
+                            }
+                        };
 
-                                            // This will make the viewport content, a popup if is in the main window
-                                            if ctx.get_viewport_id() == ViewportId::MAIN {
-                                                egui::Area::new("Sync Viewport in Sync Viewport")
-                                                    .show(ctx, |ui| {
-                                                        egui::Frame::popup(ui.style())
-                                                            .show(ui, content);
-                                                    });
-                                            } else {
-                                                egui::CentralPanel::default().show(ctx, content);
-                                            };
-                                        },
-                                    );
-                                }
-                            };
-
-                        // This will make the viewport content, a popup if is in the main window
-                        if ctx.get_viewport_id() == ViewportId::MAIN {
-                            egui::Area::new("Sync Viewport").show(ctx, |ui| {
-                                egui::Frame::popup(ui.style()).show(ui, content);
-                            });
-                        } else {
-                            egui::CentralPanel::default().show(ctx, content);
-                        }
+                        show_as_popup(ctx, "Sync Viewport", content);
                     },
                 );
             }
         });
     }
+}
+
+/// This will make the content as a popup if cannot has his own native window
+fn show_as_popup(ctx: &egui::Context, name: &str, content: impl FnOnce(&mut egui::Ui)) {
+    if ctx.get_viewport_id() == ctx.get_parent_viewport_id() {
+        egui::Window::new(name).show(ctx, content);
+    } else {
+        egui::CentralPanel::default().show(ctx, content);
+    }
+}
+
+fn ui_info(ui: &mut egui::Ui) {
+    let ctx = ui.ctx().clone();
+    ui.label(format!("Frame: {}", ctx.frame_nr()));
+    ui.label(format!("Current Viewport Id: {}", ctx.get_viewport_id()));
+    ui.label(format!(
+        "Current Parent Viewport Id: {}",
+        ctx.get_viewport_id()
+    ));
+    ui.label(format!("Pos: {:?}", ctx.viewport_outer_pos()));
+    ui.label(format!("Size: {:?}", ctx.viewport_inner_size()));
 }
 
 fn main() {
