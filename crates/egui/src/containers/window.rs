@@ -900,6 +900,7 @@ impl TitleBar {
     ///   title if `collapsible` is `true`
     /// - `collapsible`: if `true`, double click on the title bar will be handled for a change
     ///   of `collapsing` state
+    #[allow(clippy::too_many_arguments)]
     fn ui(
         mut self,
         ui: &mut Ui,
@@ -915,7 +916,7 @@ impl TitleBar {
             self.rect.max.x = self.rect.max.x.max(content_response.rect.max.x);
         }
         if on_top {
-            ui.painter().rect_filled(self.rect, Rounding::ZERO, ui.visuals().window_selected_header_color());
+            ui.painter().rect_filled(self.rect, Rounding::ZERO, ui.visuals().window_focused_header_color());
         }
 
         if let Some(open) = open {
