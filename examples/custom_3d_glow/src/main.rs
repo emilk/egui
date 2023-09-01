@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(unsafe_code)]
 
-use eframe::egui::{self, ViewportRender};
+use eframe::egui;
 
 use egui::mutex::Mutex;
 use std::sync::Arc;
@@ -41,16 +41,7 @@ impl MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(
-        &mut self,
-        ctx: &egui::Context,
-        _frame: &mut eframe::Frame,
-        render: Option<&ViewportRender>,
-    ) {
-        if let Some(render) = render {
-            render(ctx);
-            return;
-        }
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;

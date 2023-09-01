@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::egui::{self, ViewportRender};
+use eframe::egui;
 use egui::{FontFamily, FontId, RichText, TextStyle};
 
 fn main() -> Result<(), eframe::Error> {
@@ -64,16 +64,7 @@ impl MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(
-        &mut self,
-        ctx: &egui::Context,
-        _frame: &mut eframe::Frame,
-        render: Option<&ViewportRender>,
-    ) {
-        if let Some(render) = render {
-            render(ctx);
-            return;
-        }
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, content);
     }
 }

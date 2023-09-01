@@ -32,7 +32,7 @@
 //! }
 //!
 //! impl eframe::App for MyEguiApp {
-//!    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame, _render: Option<&egui::ViewportRender>) {
+//!    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
 //!        egui::CentralPanel::default().show(ctx, |ui| {
 //!            ui.heading("Hello World!");
 //!        });
@@ -192,7 +192,7 @@ pub use native::file_storage::storage_dir;
 /// }
 ///
 /// impl eframe::App for MyEguiApp {
-///    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame, _render: Option<&egui::ViewportRender>) {
+///    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
 ///        egui::CentralPanel::default().show(ctx, |ui| {
 ///            ui.heading("Hello World!");
 ///        });
@@ -274,24 +274,13 @@ pub fn run_simple_native(
     native_options: NativeOptions,
     update_fun: impl FnMut(&egui::Context, &mut Frame) + 'static,
 ) -> Result<()> {
-    use egui::{ViewportId, ViewportRender};
-
     struct SimpleApp<U> {
         update_fun: U,
     }
 
     impl<U: FnMut(&egui::Context, &mut Frame)> App for SimpleApp<U> {
-        fn update(
-            &mut self,
-            ctx: &egui::Context,
-            frame: &mut Frame,
-            render: Option<&ViewportRender>,
-        ) {
-            if ctx.get_viewport_id() == ViewportId::MAIN {
-                (self.update_fun)(ctx, frame);
-            } else if let Some(render_function) = render {
-                render_function(ctx);
-            }
+        fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
+            (self.update_fun)(ctx, frame);
         }
     }
 

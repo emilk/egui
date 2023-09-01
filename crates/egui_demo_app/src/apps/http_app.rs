@@ -1,4 +1,3 @@
-use egui::ViewportRender;
 use egui_extras::RetainedImage;
 use poll_promise::Promise;
 
@@ -55,12 +54,7 @@ impl Default for HttpApp {
 }
 
 impl eframe::App for HttpApp {
-    fn update(
-        &mut self,
-        ctx: &egui::Context,
-        frame: &mut eframe::Frame,
-        _: Option<&ViewportRender>,
-    ) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::TopBottomPanel::bottom("http_bottom").show(ctx, |ui| {
             let layout = egui::Layout::top_down(egui::Align::Center).with_main_justify(true);
             ui.allocate_ui_with_layout(ui.available_size(), layout, |ui| {

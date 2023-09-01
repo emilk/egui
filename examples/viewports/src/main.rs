@@ -32,19 +32,7 @@ pub struct App {
 }
 
 impl eframe::App for App {
-    fn update(
-        &mut self,
-        ctx: &egui::Context,
-        _frame: &mut eframe::Frame,
-        render_function: Option<&egui::ViewportRender>,
-    ) {
-        // This needs to be like this to be able to show stuf on a async viewport
-        if let Some(render) = render_function {
-            // This is the render function for the current async viewport
-            render(ctx);
-            return;
-        }
-
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui_info(ui);
             ui.label("Look at the \"Frame: \" will tell you, what viewport is rendering!");

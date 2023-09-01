@@ -1,5 +1,5 @@
 use eframe::{
-    egui::{Button, CentralPanel, Context, UserAttentionType, ViewportRender},
+    egui::{Button, CentralPanel, Context, UserAttentionType},
     CreationContext, NativeOptions,
 };
 
@@ -54,16 +54,7 @@ impl Application {
 }
 
 impl eframe::App for Application {
-    fn update(
-        &mut self,
-        ctx: &Context,
-        frame: &mut eframe::Frame,
-        render: Option<&ViewportRender>,
-    ) {
-        if let Some(render) = render {
-            render(ctx);
-            return;
-        }
+    fn update(&mut self, ctx: &Context, frame: &mut eframe::Frame) {
         if let Some(request_at) = self.request_at {
             if request_at < SystemTime::now() {
                 self.request_at = None;

@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
 use eframe::egui::ColorImage;
-use eframe::egui::{self, ViewportRender};
+use eframe::egui::{self};
 use egui_plot::{Legend, Line, Plot, PlotPoints};
 
 fn main() -> Result<(), eframe::Error> {
@@ -24,16 +24,7 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(
-        &mut self,
-        ctx: &egui::Context,
-        frame: &mut eframe::Frame,
-        render: Option<&ViewportRender>,
-    ) {
-        if let Some(render) = render {
-            render(ctx);
-            return;
-        }
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         let mut plot_rect = None;
         egui::CentralPanel::default().show(ctx, |ui| {
             // these are just some dummy variables for the example,

@@ -5,7 +5,7 @@
 use std::sync::mpsc;
 use std::thread::JoinHandle;
 
-use eframe::egui::{self, ViewportRender};
+use eframe::egui;
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -115,12 +115,7 @@ impl std::ops::Drop for MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(
-        &mut self,
-        ctx: &egui::Context,
-        _frame: &mut eframe::Frame,
-        _: Option<&ViewportRender>,
-    ) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::Window::new("Main thread").show(ctx, |ui| {
             if ui.button("Spawn another thread").clicked() {
                 self.spawn_thread();

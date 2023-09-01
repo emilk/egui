@@ -9,7 +9,6 @@
 #[cfg(not(target_arch = "wasm32"))]
 mod icon_data;
 
-use egui::ViewportRender;
 #[cfg(not(target_arch = "wasm32"))]
 pub use icon_data::IconData;
 
@@ -113,7 +112,7 @@ pub trait App {
     /// The [`egui::Context`] can be cloned and saved if you like.
     ///
     /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
-    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame, render: Option<&ViewportRender>);
+    fn update(&mut self, ctx: &egui::Context, frame: &mut Frame);
 
     /// Get a handle to the app.
     ///
@@ -805,7 +804,7 @@ impl Frame {
     /// struct MyApp;
     ///
     /// impl eframe::App for MyApp {
-    ///     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame, _render: Option<&egui::ViewportRender>) {
+    ///     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
     ///         // In real code the app would render something here
     ///         frame.request_screenshot();
     ///         // Things that are added to the frame after the call to

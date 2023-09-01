@@ -502,7 +502,11 @@ impl EpiIntegration {
             .egui_ctx
             .run(raw_input, viewport_id, parent_id, |egui_ctx| {
                 crate::profile_scope!("App::update");
-                app.update(egui_ctx, &mut self.frame, render.as_ref().map(|r| &***r));
+                if let Some(render) = render {
+                    render(egui_ctx);
+                } else {
+                    app.update(egui_ctx, &mut self.frame);
+                }
             });
 
         self.pending_full_output.append(full_output);

@@ -182,7 +182,7 @@ impl AppRunner {
         let full_output =
             self.egui_ctx
                 .run(raw_input, ViewportId::MAIN, ViewportId::MAIN, |egui_ctx| {
-                    self.app.update(egui_ctx, &mut self.frame, None);
+                    self.app.update(egui_ctx, &mut self.frame);
                 });
         let egui::FullOutput {
             platform_output,
