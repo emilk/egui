@@ -17,27 +17,12 @@ fn main() -> Result<(), eframe::Error> {
         options,
         Box::new(|cc| {
             egui_extras::loaders::install(&cc.egui_ctx);
-            Box::<MyApp>::default()
+            Box::new(MyApp)
         }),
     )
 }
 
-struct MyApp {
-    svg_image: egui_extras::RetainedImage,
-}
-
-impl Default for MyApp {
-    fn default() -> Self {
-        Self {
-            svg_image: egui_extras::RetainedImage::from_svg_bytes_with_size(
-                "rustacean-flat-happy.svg",
-                include_bytes!("rustacean-flat-happy.svg"),
-                egui_extras::image::FitTo::Original,
-            )
-            .unwrap(),
-        }
-    }
-}
+struct MyApp;
 
 const URI: &str = concat!(
     "file://",
@@ -55,7 +40,6 @@ impl eframe::App for MyApp {
 
             let max_size = ui.available_size();
             ui.add(egui::Image2::from_uri(URI).size_hint(max_size));
-            // self.svg_image.show_size(ui, max_size);
         });
     }
 }
