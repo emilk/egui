@@ -774,6 +774,7 @@ impl Frame {
         self.info.clone()
     }
 
+    /// Get `IntegrationInfo` as a reference.
     pub fn info_ref(&self) -> &IntegrationInfo {
         &self.info
     }
