@@ -24,12 +24,6 @@ fn main() -> Result<(), eframe::Error> {
 
 struct MyApp;
 
-const URI: &str = concat!(
-    "file://",
-    env!("CARGO_MANIFEST_DIR"),
-    "/src/rustacean-flat-happy.svg"
-);
-
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -39,7 +33,13 @@ impl eframe::App for MyApp {
             ui.separator();
 
             let max_size = ui.available_size();
-            ui.add(egui::Image2::from_uri(URI).size_hint(max_size));
+            ui.add(
+                egui::Image2::from_static_bytes(
+                    "ferris.svg",
+                    include_bytes!("rustacean-flat-happy.svg"),
+                )
+                .size_hint(max_size),
+            );
         });
     }
 }
