@@ -165,6 +165,8 @@ struct ContextImpl {
     is_accesskit_enabled: bool,
     #[cfg(feature = "accesskit")]
     accesskit_node_classes: accesskit::NodeClassSet,
+
+    loaders: load::Loaders,
 }
 
 impl ContextImpl {
@@ -1872,6 +1874,110 @@ impl Context {
             )],
             tree: Some(Tree::new(root_id)),
             focus: None,
+        })
+    }
+}
+
+/// ## Image loading
+impl Context {
+    pub fn add_bytes_loader(&self, loader: Arc<dyn load::BytesLoader + Send + Sync + 'static>) {
+        self.write(|ctx| ctx.loaders.bytes.push(loader));
+    }
+
+    pub fn add_image_loader(&self, loader: Arc<dyn load::ImageLoader + Send + Sync + 'static>) {
+        self.write(|ctx| ctx.loaders.image.push(loader));
+    }
+
+    pub fn add_texture_loader(&self, loader: Arc<dyn load::TextureLoader + Send + Sync + 'static>) {
+        self.write(|ctx| ctx.loaders.texture.push(loader));
+    }
+
+    /// Try loading the bytes from the given uri using any available bytes loaders.
+    ///
+    /// This calls the loaders one by one in the order in which they were registered.
+    /// If a loader returns [`LoadError::NotSupported`][not_supported],
+    /// then the next loader is called. This process repeats until all loaders have
+    /// been exhausted, at which point this returns [`LoadError::NotSupported`][not_supported].
+    ///
+    /// # Errors
+    /// This may fail with:
+    /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
+    /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    ///
+    /// [not_supported]: crate::load::LoadError::NotSupported
+    /// [custom]: crate::load::LoadError::Custom
+    pub fn try_load_bytes(&self, uri: &str) -> load::BytesLoadResult {
+        self.read(|this| {
+            let ctx = self.clone();
+            for loader in &this.loaders.bytes {
+                match loader.load(&ctx, uri) {
+                    Err(load::LoadError::NotSupported) => continue,
+                    result => return result,
+                }
+            }
+
+            Err(load::LoadError::NotSupported)
+        })
+    }
+
+    /// Try loading the image from the given uri using any available image loaders.
+    ///
+    /// This calls the loaders one by one in the order in which they were registered.
+    /// If a loader returns [`LoadError::NotSupported`][not_supported],
+    /// then the next loader is called. This process repeats until all loaders have
+    /// been exhausted, at which point this returns [`LoadError::NotSupported`][not_supported].
+    ///
+    /// # Errors
+    /// This may fail with:
+    /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
+    /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    ///
+    /// [not_supported]: crate::load::LoadError::NotSupported
+    /// [custom]: crate::load::LoadError::Custom
+    pub fn try_load_image(&self, uri: &str, size_hint: load::SizeHint) -> load::ImageLoadResult {
+        self.read(|this| {
+            let ctx = self.clone();
+            for loader in &this.loaders.image {
+                match loader.load(&ctx, uri, size_hint) {
+                    Err(load::LoadError::NotSupported) => continue,
+                    result => return result,
+                }
+            }
+
+            Err(load::LoadError::NotSupported)
+        })
+    }
+
+    /// Try loading the texture from the given uri using any available texture loaders.
+    ///
+    /// This calls the loaders one by one in the order in which they were registered.
+    /// If a loader returns [`LoadError::NotSupported`][not_supported],
+    /// then the next loader is called. This process repeats until all loaders have
+    /// been exhausted, at which point this returns [`LoadError::NotSupported`][not_supported].
+    ///
+    /// # Errors
+    /// This may fail with:
+    /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
+    /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    ///
+    /// [not_supported]: crate::load::LoadError::NotSupported
+    /// [custom]: crate::load::LoadError::Custom
+    pub fn try_load_texture(
+        &self,
+        uri: &str,
+        texture_options: TextureOptions,
+        size_hint: load::SizeHint,
+    ) -> load::TextureLoadResult {
+        self.read(|this| {
+            let ctx = self.clone();
+            for loader in &this.loaders.texture {
+                match loader.load(&ctx, uri, texture_options, size_hint) {
+                    Err(load::LoadError::NotSupported) => continue,
+                    result => return result,
+                }
+            }
+
+            Err(load::LoadError::NotSupported)
         })
     }
 }
