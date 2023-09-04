@@ -582,6 +582,21 @@ pub fn accesskit_root_id() -> Id {
 
 // ---------------------------------------------------------------------------
 
+// Disabled on web because of the coarse 1ms clock resolution there.
+#[cfg(target_arch = "wasm32")]
+mod profiling_scopes {
+    #![allow(unused_macros)]
+    #![allow(unused_imports)]
+
+    /// Profiling macro for feature "puffin"
+    macro_rules! profile_function { }
+    pub(crate) use profile_function;
+
+    /// Profiling macro for feature "puffin"
+    macro_rules! profile_scope { }
+    pub(crate) use profile_scope;
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 mod profiling_scopes {
     #![allow(unused_macros)]
@@ -606,5 +621,4 @@ mod profiling_scopes {
     pub(crate) use profile_scope;
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 pub(crate) use profiling_scopes::*;
