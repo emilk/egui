@@ -244,19 +244,18 @@ impl<'a> Image2<'a> {
 
 impl<'a> Widget for Image2<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let poll = match self.source {
-            ImageSource::Uri(uri) => {
-                ui.ctx()
-                    .try_load_texture(uri, self.texture_options, self.size_hint)
-            }
+        let uri = match self.source {
+            ImageSource::Uri(uri) => uri,
             ImageSource::Bytes(name, bytes) => {
                 ui.ctx().load_include_bytes(name, bytes);
-                ui.ctx()
-                    .try_load_texture(name, self.texture_options, self.size_hint)
+                name
             }
         };
 
-        match poll {
+        match ui
+            .ctx()
+            .try_load_texture(uri, self.texture_options, self.size_hint)
+        {
             Ok(TexturePoll::Ready { texture }) => {
                 let (rect, response) = ui.allocate_exact_size(
                     Vec2::new(texture.size[0] as f32, texture.size[1] as f32),
