@@ -12,6 +12,7 @@ pub struct WindowOptions {
     anchored: bool,
     anchor: egui::Align2,
     anchor_offset: egui::Vec2,
+    has_focus: bool,
 }
 
 impl Default for WindowOptions {
@@ -27,6 +28,7 @@ impl Default for WindowOptions {
             anchored: false,
             anchor: egui::Align2::RIGHT_TOP,
             anchor_offset: egui::Vec2::ZERO,
+            has_focus: false,
         }
     }
 }
@@ -48,6 +50,7 @@ impl super::Demo for WindowOptions {
             anchored,
             anchor,
             anchor_offset,
+            has_focus: _,
         } = self.clone();
 
         let enabled = ctx.input(|i| i.time) - disabled_time > 2.0;
@@ -63,6 +66,7 @@ impl super::Demo for WindowOptions {
             .title_bar(title_bar)
             .scroll2(scroll2)
             .enabled(enabled);
+        self.has_focus = window.has_focus(ctx);
         if closable {
             window = window.open(open);
         }
@@ -86,6 +90,7 @@ impl super::View for WindowOptions {
             anchored,
             anchor,
             anchor_offset,
+            has_focus,
         } = self;
         ui.horizontal(|ui| {
             ui.label("title:");
@@ -129,7 +134,8 @@ impl super::View for WindowOptions {
         });
 
         ui.separator();
-
+        ui.label(format!("This window has focus: {has_focus}."));
+        ui.separator();
         ui.horizontal(|ui| {
             if ui.button("Disable for 2 seconds").clicked() {
                 self.disabled_time = ui.input(|i| i.time);
