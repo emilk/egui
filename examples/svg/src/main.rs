@@ -15,7 +15,10 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "svg example",
         options,
-        Box::new(|_cc| Box::<MyApp>::default()),
+        Box::new(|cc| {
+            egui_extras::loaders::install(&cc.egui_ctx);
+            Box::<MyApp>::default()
+        }),
     )
 }
 
@@ -36,6 +39,12 @@ impl Default for MyApp {
     }
 }
 
+const URI: &str = concat!(
+    "file://",
+    env!("CARGO_MANIFEST_DIR"),
+    "/src/rustacean-flat-happy.svg"
+);
+
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -45,7 +54,8 @@ impl eframe::App for MyApp {
             ui.separator();
 
             let max_size = ui.available_size();
-            self.svg_image.show_size(ui, max_size);
+            ui.add(egui::Image2::from_uri(URI).size_hint(max_size));
+            // self.svg_image.show_size(ui, max_size);
         });
     }
 }
