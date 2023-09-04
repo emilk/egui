@@ -174,6 +174,16 @@ impl Widget for Image {
     }
 }
 
+/// A widget which displays an image.
+///
+/// There are two ways to construct this image:
+/// - [`Image2::from_uri`]
+/// - [`Image2::from_static_bytes`]
+///
+/// In both cases the task of actually loading the image
+/// is deferred to when the `Image2` is added to the [`Ui`].
+///
+/// See [`load::BytesLoader`], [`load::ImageLoader`], and [`load::TextureLoader`] for more details.
 pub struct Image2<'a> {
     source: ImageSource<'a>,
     texture_options: TextureOptions,
@@ -192,8 +202,17 @@ enum ImageFit {
     ShrinkToFit,
 }
 
+/// This type tells the [`Ui`] how to load the image.
 pub enum ImageSource<'a> {
+    /// Load the image from a URI.
+    ///
+    /// This could be a `file://` url, `http://` url, or a `bare` identifier.
+    /// How the URI will be turned into a texture for rendering purposes is
+    /// up to the registered loaders to handle.
     Uri(&'a str),
+    /// Load the image from the raw bytes of an image obtained via [`include_bytes`].
+    ///
+    /// This instructs the [`Ui`] to cache the raw bytes, which are then further processed by any registered loaders.
     Bytes(&'static str, &'static [u8]),
 }
 
@@ -220,6 +239,9 @@ impl<'a> Image2<'a> {
         }
     }
 
+    /// Load the image from a URI.
+    ///
+    /// See [`ImageSource::Uri`].
     pub fn from_uri(uri: &'a str) -> Self {
         Self {
             source: ImageSource::Uri(uri),
@@ -230,6 +252,9 @@ impl<'a> Image2<'a> {
         }
     }
 
+    /// Load the image from the raw bytes of an image obtained via [`include_bytes`].
+    ///
+    /// See [`ImageSource::Bytes`].
     pub fn from_static_bytes(name: &'static str, bytes: &'static [u8]) -> Self {
         Self {
             source: ImageSource::Bytes(name, bytes),
@@ -240,16 +265,19 @@ impl<'a> Image2<'a> {
         }
     }
 
+    /// Texture options used when creating the texture.
     pub fn texture_options(mut self, texture_options: TextureOptions) -> Self {
         self.texture_options = texture_options;
         self
     }
 
+    /// Size hint used when creating the texture.
     pub fn size_hint(mut self, size_hint: impl Into<SizeHint>) -> Self {
         self.size_hint = size_hint.into();
         self
     }
 
+    /// Make the image respond to clicks and/or drags.
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = sense;
         self
