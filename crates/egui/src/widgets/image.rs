@@ -230,7 +230,7 @@ impl<'a> Widget for Image2<'a> {
                 response
             }
             Ok(TexturePoll::Pending { .. }) => ui.spinner(),
-            Err(err) => ui.colored_label(Color32::RED, err.to_string()),
+            Err(err) => ui.colored_label(ui.visuals().error_fg_color, err.to_string()),
         }
     }
 }
