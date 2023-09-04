@@ -753,7 +753,7 @@ mod glow_integration {
                 .expect("Single-use AppCreator has unexpectedly already been taken");
             let mut app = app_creator(&epi::CreationContext {
                 egui_ctx: integration.egui_ctx.clone(),
-                integration_info: integration.frame.info(),
+                integration_info: integration.frame.info().clone(),
                 storage: integration.frame.storage(),
                 gl: Some(gl.clone()),
                 #[cfg(feature = "wgpu")]
