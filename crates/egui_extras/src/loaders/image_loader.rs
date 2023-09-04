@@ -17,7 +17,6 @@ fn is_supported(uri: &str) -> bool {
 impl ImageLoader for ImageCrateLoader {
     fn load(&self, ctx: &egui::Context, uri: &str, _: SizeHint) -> ImageLoadResult {
         if !is_supported(uri) {
-            crate::log_trace!("cannot load `{uri}`, not supported");
             return Err(LoadError::NotSupported);
         }
 

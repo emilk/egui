@@ -12,7 +12,6 @@ impl BytesLoader for FileLoader {
     fn load(&self, ctx: &egui::Context, uri: &str) -> BytesLoadResult {
         // File loader only supports the `file` protocol.
         let Some(path) = uri.strip_prefix(PROTOCOL) else {
-            crate::log_trace!("cannot load `{uri}`, not supported");
             return Err(LoadError::NotSupported);
         };
 
