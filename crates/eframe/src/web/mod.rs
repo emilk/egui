@@ -38,8 +38,6 @@ mod web_painter_wgpu;
 pub(crate) type ActiveWebPainter = web_painter_wgpu::WebPainterWgpu;
 
 pub use backend::*;
-pub use events::*;
-pub use storage::*;
 
 use egui::Vec2;
 use wasm_bindgen::prelude::*;
