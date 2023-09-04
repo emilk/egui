@@ -1,5 +1,7 @@
-use crate::{ahash, Context};
-use epaint::{mutex::RwLock, textures::TextureOptions, ColorImage, TextureId, Vec2};
+use crate::Context;
+use ahash::HashMap;
+use epaint::mutex::Mutex;
+use epaint::{textures::TextureOptions, ColorImage, TextureId, Vec2};
 use std::{error::Error as StdError, fmt::Display, sync::Arc};
 
 #[derive(Clone, Debug)]
@@ -201,6 +203,37 @@ pub trait TextureLoader {
     fn byte_size(&self) -> usize;
 }
 
+#[derive(Default)]
+pub(crate) struct IncludeBytesLoader {
+    cache: Mutex<HashMap<&'static str, Arc<[u8]>>>,
+}
+
+impl IncludeBytesLoader {
+    pub(crate) fn insert(&self, name: &'static str, bytes: &'static [u8]) {
+        self.cache
+            .lock()
+            .entry(name)
+            .or_insert_with(|| bytes.into());
+    }
+}
+
+impl BytesLoader for IncludeBytesLoader {
+    fn load(&self, _: &Context, uri: &str) -> BytesLoadResult {
+        match self.cache.lock().get(uri).cloned() {
+            Some(bytes) => Ok(BytesPoll::Ready { size: None, bytes }),
+            None => Err(LoadError::NotSupported),
+        }
+    }
+
+    fn forget(&self, uri: &str) {
+        let _ = self.cache.lock().remove(uri);
+    }
+
+    fn byte_size(&self) -> usize {
+        self.cache.lock().values().map(|bytes| bytes.len()).sum()
+    }
+}
+
 struct DefaultTextureLoader;
 
 impl TextureLoader for DefaultTextureLoader {
@@ -238,6 +271,7 @@ impl TextureLoader for DefaultTextureLoader {
 }
 
 pub(crate) struct Loaders {
+    pub include: Arc<IncludeBytesLoader>,
     pub bytes: Vec<Arc<dyn BytesLoader + Send + Sync + 'static>>,
     pub image: Vec<Arc<dyn ImageLoader + Send + Sync + 'static>>,
     pub texture: Vec<Arc<dyn TextureLoader + Send + Sync + 'static>>,
@@ -245,11 +279,13 @@ pub(crate) struct Loaders {
 
 impl Default for Loaders {
     fn default() -> Self {
+        let include = Arc::new(IncludeBytesLoader::default());
         Self {
-            bytes: Vec::new(),
+            bytes: vec![include.clone()],
             image: Vec::new(),
             // By default we only include `DefaultTextureLoader`.
             texture: vec![Arc::new(DefaultTextureLoader)],
+            include,
         }
     }
 }

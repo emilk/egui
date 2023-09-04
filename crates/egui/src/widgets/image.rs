@@ -175,16 +175,51 @@ impl Widget for Image {
 }
 
 pub struct Image2<'a> {
-    uri: &'a str,
+    source: ImageSource<'a>,
     texture_options: TextureOptions,
     size_hint: SizeHint,
     sense: Sense,
 }
 
+pub enum ImageSource<'a> {
+    Uri(&'a str),
+    Bytes(&'static str, &'static [u8]),
+}
+
+impl<'a> From<&'a str> for ImageSource<'a> {
+    fn from(value: &'a str) -> Self {
+        Self::Uri(value)
+    }
+}
+
+impl From<(&'static str, &'static [u8])> for ImageSource<'static> {
+    fn from(value: (&'static str, &'static [u8])) -> Self {
+        Self::Bytes(value.0, value.1)
+    }
+}
+
 impl<'a> Image2<'a> {
-    pub fn new(uri: &'a str) -> Self {
+    pub fn new(source: ImageSource<'a>) -> Self {
         Self {
-            uri,
+            source,
+            texture_options: TextureOptions::LINEAR,
+            size_hint: SizeHint::Original,
+            sense: Sense::hover(),
+        }
+    }
+
+    pub fn from_uri(uri: &'a str) -> Self {
+        Self {
+            source: ImageSource::Uri(uri),
+            texture_options: TextureOptions::LINEAR,
+            size_hint: SizeHint::Original,
+            sense: Sense::hover(),
+        }
+    }
+
+    pub fn from_static_bytes(name: &'static str, bytes: &'static [u8]) -> Self {
+        Self {
+            source: ImageSource::Bytes(name, bytes),
             texture_options: TextureOptions::LINEAR,
             size_hint: SizeHint::Original,
             sense: Sense::hover(),
@@ -209,10 +244,19 @@ impl<'a> Image2<'a> {
 
 impl<'a> Widget for Image2<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        match ui
-            .ctx()
-            .try_load_texture(self.uri, self.texture_options, self.size_hint)
-        {
+        let poll = match self.source {
+            ImageSource::Uri(uri) => {
+                ui.ctx()
+                    .try_load_texture(uri, self.texture_options, self.size_hint)
+            }
+            ImageSource::Bytes(name, bytes) => {
+                ui.ctx().load_include_bytes(name, bytes);
+                ui.ctx()
+                    .try_load_texture(name, self.texture_options, self.size_hint)
+            }
+        };
+
+        match poll {
             Ok(TexturePoll::Ready { texture }) => {
                 let (rect, response) = ui.allocate_exact_size(
                     Vec2::new(texture.size[0] as f32, texture.size[1] as f32),

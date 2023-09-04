@@ -1880,6 +1880,10 @@ impl Context {
 
 /// ## Image loading
 impl Context {
+    pub(crate) fn load_include_bytes(&self, name: &'static str, bytes: &'static [u8]) {
+        self.read(|ctx| ctx.loaders.include.insert(name, bytes));
+    }
+
     pub fn add_bytes_loader(&self, loader: Arc<dyn load::BytesLoader + Send + Sync + 'static>) {
         self.write(|ctx| ctx.loaders.bytes.push(loader));
     }
@@ -1895,6 +1899,10 @@ impl Context {
     // TODO: evict caches
     pub fn forget(&self, uri: &str) {
         self.write(|ctx| {
+            use crate::load::BytesLoader as _;
+
+            ctx.loaders.include.forget(uri);
+
             for loader in &ctx.loaders.bytes {
                 loader.forget(uri);
             }

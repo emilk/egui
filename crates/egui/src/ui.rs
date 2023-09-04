@@ -1594,8 +1594,8 @@ impl Ui {
     }
 
     #[inline]
-    pub fn image2(&mut self, uri: &str) -> Response {
-        Image2::new(uri).ui(self)
+    pub fn image2<'a>(&mut self, source: impl Into<ImageSource<'a>>) -> Response {
+        Image2::new(source.into()).ui(self)
     }
 }
 
