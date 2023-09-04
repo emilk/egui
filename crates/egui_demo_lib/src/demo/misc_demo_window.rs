@@ -651,14 +651,18 @@ struct TextBreakDemo {
     break_anywhere: bool,
     max_rows: usize,
     overflow_character: Option<char>,
+    extra_letter_spacing_pixels: i32,
+    line_height_pixels: u32,
 }
 
 impl Default for TextBreakDemo {
     fn default() -> Self {
         Self {
-            max_rows: 1,
+            max_rows: 3,
             break_anywhere: true,
             overflow_character: Some('…'),
+            extra_letter_spacing_pixels: 0,
+            line_height_pixels: 0,
         }
     }
 }
@@ -669,9 +673,14 @@ impl TextBreakDemo {
             break_anywhere,
             max_rows,
             overflow_character,
+            extra_letter_spacing_pixels,
+            line_height_pixels,
         } = self;
 
         use egui::text::LayoutJob;
+
+        let pixels_per_point = ui.ctx().pixels_per_point();
+        let points_per_pixel = 1.0 / pixels_per_point;
 
         ui.horizontal(|ui| {
             ui.add(DragValue::new(max_rows));
@@ -692,8 +701,42 @@ impl TextBreakDemo {
             ui.label("Overflow character");
         });
 
-        let mut job =
-            LayoutJob::single_section(crate::LOREM_IPSUM_LONG.to_owned(), TextFormat::default());
+        ui.horizontal(|ui| {
+            ui.label("Extra letter spacing in pixels (NOT points):");
+            ui.add(egui::DragValue::new(extra_letter_spacing_pixels));
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Line height in pixels (NOT points):");
+            if ui
+                .selectable_label(*line_height_pixels == 0, "Default")
+                .clicked()
+            {
+                *line_height_pixels = 0;
+            }
+            if ui
+                .selectable_label(*line_height_pixels != 0, "Custom")
+                .clicked()
+            {
+                *line_height_pixels = (pixels_per_point * 20.0).round() as _;
+            }
+            if *line_height_pixels != 0 {
+                ui.add(egui::DragValue::new(line_height_pixels));
+            }
+        });
+
+        ui.add_space(8.0);
+
+        let mut job = LayoutJob::single_section(
+            crate::LOREM_IPSUM_LONG.to_owned(),
+            TextFormat {
+                extra_letter_spacing: points_per_pixel * *extra_letter_spacing_pixels as f32,
+                line_height: (*line_height_pixels != 0)
+                    .then_some(points_per_pixel * *line_height_pixels as f32),
+                background: ui.visuals().extreme_bg_color.gamma_multiply(0.5),
+                ..Default::default()
+            },
+        );
         job.wrap = TextWrapping {
             max_rows: *max_rows,
             break_anywhere: *break_anywhere,
