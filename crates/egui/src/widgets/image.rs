@@ -274,7 +274,6 @@ impl<'a> Widget for Image2<'a> {
                 let size = Vec2::new(texture.size[0] as f32, texture.size[1] as f32);
                 let aspect_ratio = size.x / size.y;
                 let available_size = ui.available_size();
-                println!("{:?} {:?} {:?}", texture.size, available_size, aspect_ratio);
 
                 // TODO: more image sizing options
                 let final_size = match self.fit {
@@ -293,7 +292,6 @@ impl<'a> Widget for Image2<'a> {
                         } else {
                             size.y
                         };
-                        println!("{width:?} {height:?}");
                         if width < height {
                             Vec2::new(width, width / aspect_ratio)
                         } else {
