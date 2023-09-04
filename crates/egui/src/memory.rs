@@ -493,6 +493,7 @@ impl Memory {
         prev_input: &crate::input_state::InputState,
         new_input: &crate::data::input::RawInput,
     ) {
+        crate::profile_function!();
         self.interaction.begin_frame(prev_input, new_input);
 
         if !prev_input.pointer.any_down() {

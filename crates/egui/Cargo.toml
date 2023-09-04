@@ -54,6 +54,11 @@ mint = ["epaint/mint"]
 ## Enable persistence of memory (window positions etc).
 persistence = ["serde", "epaint/serde", "ron"]
 
+## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
+##
+## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
+puffin = ["dep:puffin"]
+
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = ["dep:serde", "epaint/serde", "accesskit?/serde"]
 
@@ -79,5 +84,6 @@ accesskit = { version = "0.11", optional = true }
 document-features = { version = "0.2", optional = true }
 
 log = { version = "0.4", optional = true, features = ["std"] }
+puffin = { version = "0.16", optional = true }
 ron = { version = "0.8", optional = true }
 serde = { version = "1", optional = true, features = ["derive", "rc"] }
