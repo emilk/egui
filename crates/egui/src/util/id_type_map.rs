@@ -3,8 +3,8 @@
 // For non-serializable types, these simply return `None`.
 // This will also allow users to pick their own serialization format per type.
 
-use std::any::Any;
 use std::sync::Arc;
+use std::{any::Any, collections::BTreeMap};
 
 // -----------------------------------------------------------------------------------------------
 
@@ -31,6 +31,8 @@ impl From<std::any::TypeId> for TypeId {
         Self(epaint::util::hash(id))
     }
 }
+
+impl nohash_hasher::IsEnabled for TypeId {}
 
 // -----------------------------------------------------------------------------------------------
 
@@ -65,6 +67,8 @@ struct SerializedElement {
     ron: Arc<str>,
 
     /// Increased by one each time we re-serialize an element that was never deserialized.
+    ///
+    /// Large value = old value that hasn't been read in a while.
     ///
     /// Used to garbage collect old values that hasn't been read in a while.
     generation: usize,
@@ -344,10 +348,21 @@ use crate::Id;
 /// assert_eq!(map.get_persisted::<f64>(b), Some(13.37));
 /// assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_owned()));
 /// ```
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 // We store use `id XOR typeid` as a key, so we don't need to hash again!
 pub struct IdTypeMap {
     map: nohash_hasher::IntMap<u64, Element>,
+
+    max_bytes_per_type: usize,
+}
+
+impl Default for IdTypeMap {
+    fn default() -> Self {
+        Self {
+            map: Default::default(),
+            max_bytes_per_type: 1_000_000,
+        }
+    }
 }
 
 impl IdTypeMap {
@@ -514,6 +529,20 @@ impl IdTypeMap {
             })
             .count()
     }
+
+    /// When serializing, try to not use up more than this many bytes for each type.
+    ///
+    /// The things that has most recently been read will be be prioritized during serialization.
+    ///
+    /// This value in itself will not be serialized.
+    pub fn max_bytes_per_type(&self) -> usize {
+        self.max_bytes_per_type
+    }
+
+    /// See [`Self::max_bytes_per_type`].
+    pub fn set_max_bytes_per_type(&mut self, max_bytes_per_type: usize) {
+        self.max_bytes_per_type = max_bytes_per_type;
+    }
 }
 
 #[inline(always)]
@@ -532,13 +561,61 @@ struct PersistedMap(Vec<(u64, SerializedElement)>);
 impl PersistedMap {
     fn from_map(map: &IdTypeMap) -> Self {
         crate::profile_function!();
-        // filter out the elements which cannot be serialized:
-        Self(
-            map.map
-                .iter()
-                .filter_map(|(&hash, element)| Some((hash, element.to_serialize()?)))
-                .collect(),
-        )
+
+        let mut types_map: nohash_hasher::IntMap<TypeId, TypeStats> = Default::default();
+        #[derive(Default)]
+        struct TypeStats {
+            num_bytes: usize,
+            generations: BTreeMap<usize, GenerationStats>,
+        }
+        #[derive(Default)]
+        struct GenerationStats {
+            num_bytes: usize,
+            elements: Vec<(u64, SerializedElement)>,
+        }
+
+        let max_bytes_per_type = map.max_bytes_per_type;
+
+        {
+            crate::profile_scope!("gather");
+            for (hash, element) in &map.map {
+                if let Some(element) = element.to_serialize() {
+                    let mut stats = types_map.entry(element.type_id).or_default();
+                    stats.num_bytes += element.ron.len();
+                    let mut generation_stats =
+                        stats.generations.entry(element.generation).or_default();
+                    generation_stats.num_bytes += element.ron.len();
+                    generation_stats.elements.push((*hash, element));
+                } else {
+                    // temporary value that shouldn't be serialized
+                }
+            }
+        }
+
+        let mut persisted = vec![];
+
+        {
+            crate::profile_scope!("gc");
+            for stats in types_map.values() {
+                let mut bytes_written = 0;
+
+                // Start with the most recently read values, and then go as far as we are allowed.
+                // Always include at least one generation.
+                for generation in stats.generations.values() {
+                    if bytes_written == 0
+                        || bytes_written + generation.num_bytes <= max_bytes_per_type
+                    {
+                        persisted.append(&mut generation.elements.clone());
+                        bytes_written += generation.num_bytes;
+                    } else {
+                        // Omit the rest. The user hasn't read the values in a while.
+                        break;
+                    }
+                }
+            }
+        }
+
+        Self(persisted)
     }
 
     fn into_map(self) -> IdTypeMap {
@@ -566,7 +643,10 @@ impl PersistedMap {
                 },
             )
             .collect();
-        IdTypeMap { map }
+        IdTypeMap {
+            map,
+            ..Default::default()
+        }
     }
 }
 
