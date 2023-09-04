@@ -367,21 +367,23 @@ use crate::Id;
 /// ```
 #[derive(Clone, Debug, Default)]
 // We store use `id XOR typeid` as a key, so we don't need to hash again!
-pub struct IdTypeMap(nohash_hasher::IntMap<u64, Element>);
+pub struct IdTypeMap {
+    map: nohash_hasher::IntMap<u64, Element>,
+}
 
 impl IdTypeMap {
     /// Insert a value that will not be persisted.
     #[inline]
     pub fn insert_temp<T: 'static + Any + Clone + Send + Sync>(&mut self, id: Id, value: T) {
         let hash = hash(TypeId::of::<T>(), id);
-        self.0.insert(hash, Element::new_temp(value));
+        self.map.insert(hash, Element::new_temp(value));
     }
 
     /// Insert a value that will be persisted next time you start the app.
     #[inline]
     pub fn insert_persisted<T: SerializableAny>(&mut self, id: Id, value: T) {
         let hash = hash(TypeId::of::<T>(), id);
-        self.0.insert(hash, Element::new_persisted(value));
+        self.map.insert(hash, Element::new_persisted(value));
     }
 
     /// Read a value without trying to deserialize a persisted value.
@@ -390,7 +392,7 @@ impl IdTypeMap {
     #[inline]
     pub fn get_temp<T: 'static + Clone>(&self, id: Id) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
-        self.0.get(&hash).and_then(|x| x.get_temp()).cloned()
+        self.map.get(&hash).and_then(|x| x.get_temp()).cloned()
     }
 
     /// Read a value, optionally deserializing it if available.
@@ -402,7 +404,7 @@ impl IdTypeMap {
     #[inline]
     pub fn get_persisted<T: SerializableAny>(&mut self, id: Id) -> Option<T> {
         let hash = hash(TypeId::of::<T>(), id);
-        self.0
+        self.map
             .get_mut(&hash)
             .and_then(|x| x.get_mut_persisted())
             .cloned()
@@ -442,7 +444,7 @@ impl IdTypeMap {
     ) -> &mut T {
         let hash = hash(TypeId::of::<T>(), id);
         use std::collections::hash_map::Entry;
-        match self.0.entry(hash) {
+        match self.map.entry(hash) {
             Entry::Vacant(vacant) => vacant
                 .insert(Element::new_temp(insert_with()))
                 .get_mut_temp()
@@ -460,7 +462,7 @@ impl IdTypeMap {
     ) -> &mut T {
         let hash = hash(TypeId::of::<T>(), id);
         use std::collections::hash_map::Entry;
-        match self.0.entry(hash) {
+        match self.map.entry(hash) {
             Entry::Vacant(vacant) => vacant
                 .insert(Element::new_persisted(insert_with()))
                 .get_mut_persisted()
@@ -475,7 +477,7 @@ impl IdTypeMap {
     #[cfg(feature = "persistence")]
     #[allow(unused)]
     fn get_generation<T: SerializableAny>(&self, id: Id) -> Option<usize> {
-        let element = self.0.get(&hash(TypeId::of::<T>(), id))?;
+        let element = self.map.get(&hash(TypeId::of::<T>(), id))?;
         match element {
             Element::Value { .. } => Some(0),
             Element::Serialized { generation, .. } => Some(*generation),
@@ -486,13 +488,13 @@ impl IdTypeMap {
     #[inline]
     pub fn remove<T: 'static>(&mut self, id: Id) {
         let hash = hash(TypeId::of::<T>(), id);
-        self.0.remove(&hash);
+        self.map.remove(&hash);
     }
 
     /// Note all state of the given type.
     pub fn remove_by_type<T: 'static>(&mut self) {
         let key = TypeId::of::<T>();
-        self.0.retain(|_, e| {
+        self.map.retain(|_, e| {
             let e: &Element = e;
             e.type_id() != key
         });
@@ -500,23 +502,23 @@ impl IdTypeMap {
 
     #[inline]
     pub fn clear(&mut self) {
-        self.0.clear();
+        self.map.clear();
     }
 
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.map.is_empty()
     }
 
     #[inline]
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.map.len()
     }
 
     /// Count how many values are stored but not yet deserialized.
     #[inline]
     pub fn count_serialized(&self) -> usize {
-        self.0
+        self.map
             .values()
             .filter(|e| matches!(e, Element::Serialized { .. }))
             .count()
@@ -525,7 +527,7 @@ impl IdTypeMap {
     /// Count the number of values are stored with the given type.
     pub fn count<T: 'static>(&self) -> usize {
         let key = TypeId::of::<T>();
-        self.0
+        self.map
             .iter()
             .filter(|(_, e)| {
                 let e: &Element = e;
@@ -553,7 +555,7 @@ impl PersistedMap {
         crate::profile_function!();
         // filter out the elements which cannot be serialized:
         Self(
-            map.0
+            map.map
                 .iter()
                 .filter_map(|(&hash, element)| Some((hash, element.to_serialize()?)))
                 .collect(),
@@ -562,30 +564,30 @@ impl PersistedMap {
 
     fn into_map(self) -> IdTypeMap {
         crate::profile_function!();
-        IdTypeMap(
-            self.0
-                .into_iter()
-                .map(
-                    |(
+        let map = self
+            .0
+            .into_iter()
+            .map(
+                |(
+                    hash,
+                    SerializedElement {
+                        type_id,
+                        ron,
+                        generation,
+                    },
+                )| {
+                    (
                         hash,
-                        SerializedElement {
+                        Element::Serialized {
                             type_id,
                             ron,
-                            generation,
+                            generation: generation + 1, // This is where we increment the generation!
                         },
-                    )| {
-                        (
-                            hash,
-                            Element::Serialized {
-                                type_id,
-                                ron,
-                                generation: generation + 1, // This is where we increment the generation!
-                            },
-                        )
-                    },
-                )
-                .collect(),
-        )
+                    )
+                },
+            )
+            .collect();
+        IdTypeMap { map }
     }
 }
 
