@@ -360,7 +360,7 @@ impl Default for IdTypeMap {
     fn default() -> Self {
         Self {
             map: Default::default(),
-            max_bytes_per_type: 1_000_000,
+            max_bytes_per_type: 256 * 1024,
         }
     }
 }
@@ -530,9 +530,17 @@ impl IdTypeMap {
             .count()
     }
 
-    /// When serializing, try to not use up more than this many bytes for each type.
+    /// The maximum number of bytes that will be used to
+    /// store the persisted state of a single widget type.
     ///
-    /// The things that has most recently been read will be be prioritized during serialization.
+    /// Some egui widgets store persisted state that is
+    /// serialized to disk by some backends (e.g. `eframe`).
+    ///
+    /// Example of such widgets is `CollapsingHeader` and `Window`.
+    /// If you keep creating widgets with unique ids (e.g. `Windows` with many different names),
+    /// egui will use up more and more space for these widgets, until this limit is reached.
+    ///
+    /// Once this limit is reached, the state that was read the longest time ago will be dropped first.
     ///
     /// This value in itself will not be serialized.
     pub fn max_bytes_per_type(&self) -> usize {
