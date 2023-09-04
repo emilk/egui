@@ -71,3 +71,12 @@ macro_rules! log_warn {
 
 #[allow(unused_imports)]
 pub(crate) use log_warn;
+
+macro_rules! log_trace {
+    ($fmt: literal) => {$crate::log_trace!($fmt,)};
+    ($fmt: literal, $($arg: tt)*) => {{
+        #[cfg(feature = "log")]
+        log::trace!($fmt, $($arg)*);
+    }};
+}
+pub(crate) use log_trace;
