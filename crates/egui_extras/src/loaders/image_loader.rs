@@ -65,3 +65,18 @@ impl ImageLoader for ImageCrateLoader {
             .sum()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_support() {
+        assert!(is_supported("https://test.png"));
+        assert!(is_supported("test.jpeg"));
+        assert!(is_supported("http://test.gif"));
+        assert!(is_supported("test.webp"));
+        assert!(is_supported("file://test"));
+        assert!(!is_supported("test.svg"));
+    }
+}
