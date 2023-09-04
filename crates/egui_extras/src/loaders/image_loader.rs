@@ -55,15 +55,13 @@ impl ImageLoader for ImageCrateLoader {
     }
 
     fn byte_size(&self) -> usize {
-        let mut size = 0;
-
-        for result in self.cache.lock().values() {
-            match result {
-                Ok(image) => size += image.pixels.len() * size_of::<egui::Color32>(),
-                Err(err) => size += err.len(),
-            }
-        }
-
-        size
+        self.cache
+            .lock()
+            .values()
+            .map(|result| match result {
+                Ok(image) => image.pixels.len() * size_of::<egui::Color32>(),
+                Err(err) => err.len(),
+            })
+            .sum()
     }
 }
