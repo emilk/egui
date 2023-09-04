@@ -25,6 +25,7 @@ use crate::{
 pub struct RichText {
     text: String,
     size: Option<f32>,
+    extra_letter_spacing: f32,
     family: Option<FontFamily>,
     text_style: Option<TextStyle>,
     background_color: Color32,
@@ -97,6 +98,15 @@ impl RichText {
     #[inline]
     pub fn size(mut self, size: f32) -> Self {
         self.size = Some(size);
+        self
+    }
+
+    /// Extra spacing between letters, in points.
+    ///
+    /// Default: 0.0. Round to whole _pixels_ for crisp text.
+    #[inline]
+    pub fn extra_letter_spacing(mut self, extra_letter_spacing: f32) -> Self {
+        self.extra_letter_spacing = extra_letter_spacing;
         self
     }
 
@@ -253,6 +263,7 @@ impl RichText {
         let Self {
             text,
             size,
+            extra_letter_spacing,
             family,
             text_style,
             background_color,
@@ -315,6 +326,7 @@ impl RichText {
             underline,
             strikethrough,
             valign,
+            extra_letter_spacing,
         };
 
         let job = LayoutJob::single_section(text, text_format);

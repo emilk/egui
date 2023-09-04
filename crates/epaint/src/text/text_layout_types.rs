@@ -221,10 +221,16 @@ impl std::hash::Hash for LayoutSection {
 
 // ----------------------------------------------------------------------------
 
-#[derive(Clone, Debug, Hash, PartialEq)]
+/// Formatting option for a section of text.
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct TextFormat {
     pub font_id: FontId,
+
+    /// Extra spacing between letters, in points.
+    ///
+    /// Default: 0.0. Round to whole _pixels_ for crisp text.
+    pub extra_letter_spacing: f32,
 
     /// Text color
     pub color: Color32,
@@ -243,6 +249,30 @@ pub struct TextFormat {
     // TODO(emilk): lowered
 }
 
+impl std::hash::Hash for TextFormat {
+    #[inline]
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let Self {
+            font_id,
+            extra_letter_spacing,
+            color,
+            background,
+            italics,
+            underline,
+            strikethrough,
+            valign,
+        } = self;
+        font_id.hash(state);
+        crate::f32_hash(state, *extra_letter_spacing);
+        color.hash(state);
+        background.hash(state);
+        italics.hash(state);
+        underline.hash(state);
+        strikethrough.hash(state);
+        valign.hash(state);
+    }
+}
+
 impl Default for TextFormat {
     #[inline]
     fn default() -> Self {
@@ -254,6 +284,7 @@ impl Default for TextFormat {
             underline: Stroke::NONE,
             strikethrough: Stroke::NONE,
             valign: Align::BOTTOM,
+            extra_letter_spacing: 0.0,
         }
     }
 }

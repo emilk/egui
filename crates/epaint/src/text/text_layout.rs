@@ -134,6 +134,7 @@ fn layout_section(
             if let Some(font_impl) = font_impl {
                 if let Some(last_glyph_id) = last_glyph_id {
                     paragraph.cursor_x += font_impl.pair_kerning(last_glyph_id, glyph_info.id);
+                    paragraph.cursor_x += section.format.extra_letter_spacing;
                 }
             }
 
@@ -338,10 +339,13 @@ fn replace_last_glyph_with_overflow_character(
 
         // undo kerning with previous glyph
         let (font_impl, glyph_info) = font.glyph_info_and_font_impl(last_glyph.chr);
-        last_glyph.pos.x -= font_impl
-            .zip(prev_glyph_id)
-            .map(|(font_impl, prev_glyph_id)| font_impl.pair_kerning(prev_glyph_id, glyph_info.id))
-            .unwrap_or_default();
+        last_glyph.pos.x -= section.format.extra_letter_spacing
+            + font_impl
+                .zip(prev_glyph_id)
+                .map(|(font_impl, prev_glyph_id)| {
+                    font_impl.pair_kerning(prev_glyph_id, glyph_info.id)
+                })
+                .unwrap_or_default();
 
         // replace the glyph
         last_glyph.chr = overflow_character;
@@ -351,10 +355,13 @@ fn replace_last_glyph_with_overflow_character(
         last_glyph.ascent = glyph_info.ascent;
 
         // reapply kerning
-        last_glyph.pos.x += font_impl
-            .zip(prev_glyph_id)
-            .map(|(font_impl, prev_glyph_id)| font_impl.pair_kerning(prev_glyph_id, glyph_info.id))
-            .unwrap_or_default();
+        last_glyph.pos.x += section.format.extra_letter_spacing
+            + font_impl
+                .zip(prev_glyph_id)
+                .map(|(font_impl, prev_glyph_id)| {
+                    font_impl.pair_kerning(prev_glyph_id, glyph_info.id)
+                })
+                .unwrap_or_default();
 
         row.rect.max.x = last_glyph.max_x();
 
