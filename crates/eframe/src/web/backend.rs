@@ -42,8 +42,6 @@ impl WebInput {
 
 // ----------------------------------------------------------------------------
 
-use std::sync::atomic::Ordering::SeqCst;
-
 /// Stores when to do the next repaint.
 pub(crate) struct NeedRepaint(Mutex<f64>);
 
