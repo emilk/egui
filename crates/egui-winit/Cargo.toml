@@ -60,8 +60,9 @@ egui = { version = "0.22.0", path = "../egui", default-features = false, feature
   "log",
 ] }
 log = { version = "0.4", features = ["std"] }
-winit = { version = "0.28", default-features = false }
 raw-window-handle = "0.5.0"
+web-time = { version = "0.1" } # We use web-time so we can (maybe) compile for web
+winit = { version = "0.28", default-features = false }
 
 #! ### Optional dependencies
 
@@ -73,16 +74,7 @@ document-features = { version = "0.2", optional = true }
 
 puffin = { version = "0.16", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
-
 webbrowser = { version = "0.8.3", optional = true }
-
-[target.'cfg(not(target_arch="wasm32"))'.dependencies]
-instant = { version = "0.1" }
-
-[target.'cfg(target_arch="wasm32")'.dependencies]
-instant = { version = "0.1", features = [
-  "wasm-bindgen",
-] } # We use instant so we can (maybe) compile for web
 
 [target.'cfg(any(target_os="linux", target_os="dragonfly", target_os="freebsd", target_os="netbsd", target_os="openbsd"))'.dependencies]
 smithay-clipboard = { version = "0.6.3", optional = true }
