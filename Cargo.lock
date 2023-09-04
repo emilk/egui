@@ -1229,7 +1229,7 @@ dependencies = [
  "env_logger",
  "image",
  "log",
- "poll-promise 0.2.0",
+ "poll-promise",
  "serde",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -1263,7 +1263,6 @@ dependencies = [
  "ehttp 0.3.0",
  "image",
  "log",
- "poll-promise 0.3.0",
  "resvg",
  "serde",
  "tiny-skia",
@@ -2767,16 +2766,6 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fcf2a02372dfae23c9c01267fb296b8a3413bb4e45fbd589c3ac73c6dcfbb305"
 dependencies = [
- "static_assertions",
-]
-
-[[package]]
-name = "poll-promise"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f6a58fecbf9da8965bcdb20ce4fd29788d1acee68ddbb64f0ba1b81bccdb7df"
-dependencies = [
- "document-features",
  "static_assertions",
 ]
 
