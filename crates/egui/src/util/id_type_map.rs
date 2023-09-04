@@ -349,7 +349,7 @@ use crate::Id;
 /// assert_eq!(map.get_temp::<String>(b), Some("Hello World".to_owned()));
 /// ```
 #[derive(Clone, Debug)]
-// We store use `id XOR typeid` as a key, so we don't need to hash again!
+// We use `id XOR typeid` as a key, so we don't need to hash again!
 pub struct IdTypeMap {
     map: nohash_hasher::IntMap<u64, Element>,
 
@@ -883,4 +883,88 @@ fn test_serialize_generations() {
     map = serialize_and_deserialize(&map);
     assert_eq!(map.get_generation::<A>(Id::new(0)), Some(2));
     assert_eq!(map.get_generation::<A>(Id::new(1)), Some(3));
+}
+
+#[test]
+fn test_serialize_gc() {
+    use serde::{Deserialize, Serialize};
+
+    fn serialize_and_deserialize(mut map: IdTypeMap, max_bytes_per_type: usize) -> IdTypeMap {
+        map.set_max_bytes_per_type(max_bytes_per_type);
+        let serialized = ron::to_string(&map).unwrap();
+        ron::from_str(&serialized).unwrap()
+    }
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct A(usize);
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct B(usize);
+
+    let mut map: IdTypeMap = Default::default();
+
+    let num_a = 1_000;
+    let num_b = 10;
+
+    for i in 0..num_a {
+        map.insert_persisted(Id::new(i), A(i));
+    }
+    for i in 0..num_b {
+        map.insert_persisted(Id::new(i), B(i));
+    }
+
+    map = serialize_and_deserialize(map, 100);
+
+    // We always serialize at least one generation:
+    assert_eq!(map.count::<A>(), num_a);
+    assert_eq!(map.count::<B>(), num_b);
+
+    // Create a new small generation:
+    map.insert_persisted(Id::new(1_000_000), A(1_000_000));
+    map.insert_persisted(Id::new(1_000_000), B(1_000_000));
+
+    assert_eq!(map.count::<A>(), num_a + 1);
+    assert_eq!(map.count::<B>(), num_b + 1);
+
+    // And read a value:
+    assert_eq!(map.get_persisted::<A>(Id::new(0)), Some(A(0)));
+    assert_eq!(map.get_persisted::<B>(Id::new(0)), Some(B(0)));
+
+    map = serialize_and_deserialize(map, 100);
+
+    assert_eq!(
+        map.count::<A>(),
+        2,
+        "We should have dropped the oldest generation, but kept the new value and the read value"
+    );
+    assert_eq!(
+        map.count::<B>(),
+        num_b + 1,
+        "B should fit under the byte limit"
+    );
+
+    // Create another small generation:
+    map.insert_persisted(Id::new(2_000_000), A(2_000_000));
+    map.insert_persisted(Id::new(2_000_000), B(2_000_000));
+
+    map = serialize_and_deserialize(map, 100);
+
+    assert_eq!(map.count::<A>(), 3); // The read value, plus the two new ones
+    assert_eq!(map.count::<B>(), num_b + 2); // all the old ones, plus two new ones
+
+    // Lower the limit, and we should only have the latest generation:
+
+    map = serialize_and_deserialize(map, 1);
+
+    assert_eq!(map.count::<A>(), 1);
+    assert_eq!(map.count::<B>(), 1);
+
+    assert_eq!(
+        map.get_persisted::<A>(Id::new(2_000_000)),
+        Some(A(2_000_000))
+    );
+    assert_eq!(
+        map.get_persisted::<B>(Id::new(2_000_000)),
+        Some(B(2_000_000))
+    );
 }
