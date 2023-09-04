@@ -893,6 +893,7 @@ fn test_serialize_generations() {
     assert_eq!(map.get_generation::<A>(Id::new(1)), Some(3));
 }
 
+#[cfg(feature = "persistence")]
 #[test]
 fn test_serialize_gc() {
     use serde::{Deserialize, Serialize};
