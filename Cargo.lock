@@ -1092,7 +1092,6 @@ dependencies = [
  "ehttp 0.2.0",
  "env_logger",
  "image",
- "poll-promise 0.2.0",
 ]
 
 [[package]]
