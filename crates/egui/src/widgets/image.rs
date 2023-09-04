@@ -178,7 +178,18 @@ pub struct Image2<'a> {
     source: ImageSource<'a>,
     texture_options: TextureOptions,
     size_hint: SizeHint,
+    fit: ImageFit,
     sense: Sense,
+}
+
+enum ImageFit {
+    // TODO: options for aspect ratio
+    // TODO: other fit strategies
+    // FitToWidth,
+    // FitToHeight,
+    // FitToWidthExact(f32),
+    // FitToHeightExact(f32),
+    ShrinkToFit,
 }
 
 pub enum ImageSource<'a> {
@@ -204,6 +215,7 @@ impl<'a> Image2<'a> {
             source,
             texture_options: TextureOptions::LINEAR,
             size_hint: SizeHint::Original,
+            fit: ImageFit::ShrinkToFit,
             sense: Sense::hover(),
         }
     }
@@ -213,6 +225,7 @@ impl<'a> Image2<'a> {
             source: ImageSource::Uri(uri),
             texture_options: TextureOptions::LINEAR,
             size_hint: SizeHint::Original,
+            fit: ImageFit::ShrinkToFit,
             sense: Sense::hover(),
         }
     }
@@ -222,6 +235,7 @@ impl<'a> Image2<'a> {
             source: ImageSource::Bytes(name, bytes),
             texture_options: TextureOptions::LINEAR,
             size_hint: SizeHint::Original,
+            fit: ImageFit::ShrinkToFit,
             sense: Sense::hover(),
         }
     }
@@ -257,10 +271,38 @@ impl<'a> Widget for Image2<'a> {
             .try_load_texture(uri, self.texture_options, self.size_hint)
         {
             Ok(TexturePoll::Ready { texture }) => {
-                let (rect, response) = ui.allocate_exact_size(
-                    Vec2::new(texture.size[0] as f32, texture.size[1] as f32),
-                    self.sense,
-                );
+                let size = Vec2::new(texture.size[0] as f32, texture.size[1] as f32);
+                let aspect_ratio = size.x / size.y;
+                let available_size = ui.available_size();
+                println!("{:?} {:?} {:?}", texture.size, available_size, aspect_ratio);
+
+                // TODO: more image sizing options
+                let final_size = match self.fit {
+                    // ImageFit::FitToWidth => todo!(),
+                    // ImageFit::FitToHeight => todo!(),
+                    // ImageFit::FitToWidthExact(_) => todo!(),
+                    // ImageFit::FitToHeightExact(_) => todo!(),
+                    ImageFit::ShrinkToFit => {
+                        let width = if available_size.x < size.x {
+                            available_size.x
+                        } else {
+                            size.x
+                        };
+                        let height = if available_size.y < size.y {
+                            available_size.y
+                        } else {
+                            size.y
+                        };
+                        println!("{width:?} {height:?}");
+                        if width < height {
+                            Vec2::new(width, width / aspect_ratio)
+                        } else {
+                            Vec2::new(height * aspect_ratio, height)
+                        }
+                    }
+                };
+
+                let (rect, response) = ui.allocate_exact_size(final_size, self.sense);
 
                 let mut mesh = Mesh::with_texture(texture.id);
                 mesh.add_rect_with_uv(
