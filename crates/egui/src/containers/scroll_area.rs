@@ -55,9 +55,9 @@ impl State {
         ctx.data_mut(|d| d.insert_persisted(id, self));
     }
 
-    /// Returns true if the scroll area currently has a velocity due to momentum.
-    pub fn has_velocity(&self) -> bool {
-        self.vel.x != 0.0 || self.vel.y != 0.0
+    /// Get the current kinetic scrolling velocity.
+    pub fn velocity(&self) -> Vec2 {
+        self.vel
     }
 }
 
