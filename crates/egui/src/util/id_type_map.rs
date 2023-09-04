@@ -515,6 +515,7 @@ struct PersistedMap(Vec<(u64, SerializedElement)>);
 #[cfg(feature = "persistence")]
 impl PersistedMap {
     fn from_map(map: &IdTypeMap) -> Self {
+        crate::profile_function!();
         // filter out the elements which cannot be serialized:
         Self(
             map.0
@@ -525,6 +526,7 @@ impl PersistedMap {
     }
 
     fn into_map(self) -> IdTypeMap {
+        crate::profile_function!();
         IdTypeMap(
             self.0
                 .into_iter()
@@ -542,6 +544,7 @@ impl serde::Serialize for IdTypeMap {
     where
         S: serde::Serializer,
     {
+        crate::profile_scope!("IdTypeMap::serialize");
         PersistedMap::from_map(self).serialize(serializer)
     }
 }
@@ -552,6 +555,7 @@ impl<'de> serde::Deserialize<'de> for IdTypeMap {
     where
         D: serde::Deserializer<'de>,
     {
+        crate::profile_scope!("IdTypeMap::deserialize");
         <PersistedMap>::deserialize(deserializer).map(PersistedMap::into_map)
     }
 }

@@ -169,6 +169,7 @@ impl InputState {
         mut new: RawInput,
         requested_repaint_last_frame: bool,
     ) -> InputState {
+        crate::profile_function!();
         let time = new.time.unwrap_or(self.time + new.predicted_dt as f64);
         let unstable_dt = (time - self.time) as f32;
 

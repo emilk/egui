@@ -328,6 +328,7 @@ impl ContextImpl {
 
         #[cfg(feature = "accesskit")]
         if self.is_accesskit_enabled {
+            crate::profile_scope!("accesskit");
             use crate::frame_state::AccessKitFrameState;
             let id = crate::accesskit_root_id();
             let mut builder = accesskit::NodeBuilder::new(accesskit::Role::Window);
@@ -346,25 +347,33 @@ impl ContextImpl {
 
     /// Load fonts unless already loaded.
     fn update_fonts_mut(&mut self) {
+        crate::profile_function!();
+
         let input = self.input.entry(self.get_viewport_id()).or_default();
         let pixels_per_point = input.pixels_per_point();
         let max_texture_side = input.max_texture_side;
 
         if let Some(font_definitions) = self.memory.new_font_definitions.take() {
+            crate::profile_scope!("Fonts::new");
             let fonts = Fonts::new(pixels_per_point, max_texture_side, font_definitions);
             self.fonts = Some(fonts);
         }
 
         let fonts = self.fonts.get_or_insert_with(|| {
             let font_definitions = FontDefinitions::default();
+            crate::profile_scope!("Fonts::new");
             Fonts::new(pixels_per_point, max_texture_side, font_definitions)
         });
 
-        fonts.begin_frame(pixels_per_point, max_texture_side);
+        {
+            crate::profile_scope!("Fonts::begin_frame");
+            fonts.begin_frame(pixels_per_point, max_texture_side);
+        }
 
         if self.memory.options.preload_font_glyphs {
+            crate::profile_scope!("preload_font_glyphs");
             // Preload the most common characters for the most common fonts.
-            // This is not very important to do, but may a few GPU operations.
+            // This is not very important to do, but may save a few GPU operations.
             for font_id in self.memory.options.style.text_styles.values() {
                 fonts.lock().fonts.font(font_id).preload_common_characters();
             }
@@ -531,6 +540,8 @@ impl Context {
         parent_viewport_id: ViewportId,
         run_ui: impl FnOnce(&Context),
     ) -> FullOutput {
+        crate::profile_function!();
+
         self.begin_frame(new_input, viewport_id, parent_viewport_id);
         run_ui(self);
         self.end_frame()
@@ -559,6 +570,8 @@ impl Context {
         viewport_id: ViewportId,
         parent_viewport_id: ViewportId,
     ) {
+        crate::profile_function!();
+
         self.write(|ctx| ctx.begin_frame_mut(new_input, viewport_id, parent_viewport_id));
     }
 
@@ -1424,6 +1437,8 @@ impl Context {
     /// Call at the end of each frame.
     #[must_use]
     pub fn end_frame(&self) -> FullOutput {
+        crate::profile_function!();
+
         let mut viewports: Vec<ViewportId> = self.write(|ctx| {
             ctx.layer_rects_prev_viewports.insert(
                 ctx.get_viewport_id(),
@@ -1466,6 +1481,7 @@ impl Context {
 
         #[cfg(feature = "accesskit")]
         {
+            crate::profile_scope!("accesskit");
             let state = self.frame_state_mut(|fs| fs.accesskit_state.take());
             if let Some(state) = state {
                 let has_focus = self.input(|i| i.raw.focused);
@@ -1564,6 +1580,7 @@ impl Context {
     }
 
     fn drain_paint_lists(&self) -> Vec<ClippedShape> {
+        crate::profile_function!();
         self.write(|ctx| {
             ctx.graphics
                 .entry(ctx.get_viewport_id())
@@ -1575,6 +1592,8 @@ impl Context {
 
     /// Tessellate the given shapes into triangle meshes.
     pub fn tessellate(&self, shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
+        crate::profile_function!();
+
         // A tempting optimization is to reuse the tessellation from last frame if the
         // shapes are the same, but just comparing the shapes takes about 50% of the time
         // it takes to tessellate them, so it is not a worth optimization.
@@ -1598,13 +1617,16 @@ impl Context {
             };
 
             let paint_stats = PaintStats::from_shapes(&shapes);
-            let clipped_primitives = tessellator::tessellate_shapes(
-                pixels_per_point,
-                tessellation_options,
-                font_tex_size,
-                prepared_discs,
-                shapes,
-            );
+            let clipped_primitives = {
+                crate::profile_scope!("tessellator::tessellate_shapes");
+                tessellator::tessellate_shapes(
+                    pixels_per_point,
+                    tessellation_options,
+                    font_tex_size,
+                    prepared_discs,
+                    shapes,
+                )
+            };
             ctx.paint_stats = paint_stats.with_clipped_primitives(&clipped_primitives);
             clipped_primitives
         })

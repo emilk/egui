@@ -511,6 +511,8 @@ impl Memory {
         new_input: &crate::data::input::RawInput,
         viewport_id: ViewportId,
     ) {
+        crate::profile_function!();
+
         self.viewport_id = viewport_id;
         self.interactions
             .entry(viewport_id)
