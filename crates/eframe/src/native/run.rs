@@ -36,16 +36,22 @@ thread_local! {
 
 // ----------------------------------------------------------------------------
 
+/// The custom even `eframe` uses with the [`winit`] event loop.
 #[derive(Debug)]
 pub enum UserEvent {
+    /// A repaint is requested.
     RequestRepaint {
+        /// What to repaint.
         id: ViewportId,
+
+        /// When to repaint.
         when: Instant,
 
         /// What the frame number was when the repaint was _requested_.
         frame_nr: u64,
     },
 
+    /// A request related to [`accesskit`](https://accesskit.dev/).
     #[cfg(feature = "accesskit")]
     AccessKitActionRequest(accesskit_winit::ActionRequestEvent),
 }

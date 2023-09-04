@@ -2,16 +2,18 @@ fn local_storage() -> Option<web_sys::Storage> {
     web_sys::window()?.local_storage().ok()?
 }
 
+/// Read data from local storage.
 pub fn local_storage_get(key: &str) -> Option<String> {
     local_storage().map(|storage| storage.get_item(key).ok())??
 }
 
+/// Write data to local storage.
 pub fn local_storage_set(key: &str, value: &str) {
     local_storage().map(|storage| storage.set_item(key, value));
 }
 
 #[cfg(feature = "persistence")]
-pub fn load_memory(ctx: &egui::Context) {
+pub(crate) fn load_memory(ctx: &egui::Context) {
     if let Some(memory_string) = local_storage_get("egui_memory_ron") {
         match ron::from_str(&memory_string) {
             Ok(memory) => {
@@ -25,10 +27,10 @@ pub fn load_memory(ctx: &egui::Context) {
 }
 
 #[cfg(not(feature = "persistence"))]
-pub fn load_memory(_: &egui::Context) {}
+pub(crate) fn load_memory(_: &egui::Context) {}
 
 #[cfg(feature = "persistence")]
-pub fn save_memory(ctx: &egui::Context) {
+pub(crate) fn save_memory(ctx: &egui::Context) {
     match ctx.memory(|mem| ron::to_string(mem)) {
         Ok(ron) => {
             local_storage_set("egui_memory_ron", &ron);
@@ -40,4 +42,4 @@ pub fn save_memory(ctx: &egui::Context) {
 }
 
 #[cfg(not(feature = "persistence"))]
-pub fn save_memory(_: &egui::Context) {}
+pub(crate) fn save_memory(_: &egui::Context) {}

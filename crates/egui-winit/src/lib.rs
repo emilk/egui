@@ -56,7 +56,7 @@ pub struct EventResponse {
 
 /// Handles the integration between egui and winit.
 pub struct State {
-    start_time: instant::Instant,
+    start_time: web_time::Instant,
     egui_input: egui::RawInput,
     pointer_pos_in_points: Option<egui::Pos2>,
     any_pointer_button_down: bool,
@@ -98,7 +98,7 @@ impl State {
         };
 
         Self {
-            start_time: instant::Instant::now(),
+            start_time: web_time::Instant::now(),
             egui_input,
             pointer_pos_in_points: None,
             any_pointer_button_down: false,

@@ -57,7 +57,7 @@ impl AppRunner {
         egui_ctx.set_os(egui::os::OperatingSystem::from_user_agent(
             &super::user_agent().unwrap_or_default(),
         ));
-        super::load_memory(&egui_ctx);
+        super::storage::load_memory(&egui_ctx);
 
         let theme = system_theme.unwrap_or(web_options.default_theme);
         egui_ctx.set_visuals(theme.egui_visuals());
@@ -141,7 +141,7 @@ impl AppRunner {
 
     pub fn save(&mut self) {
         if self.app.persist_egui_memory() {
-            super::save_memory(&self.egui_ctx);
+            super::storage::save_memory(&self.egui_ctx);
         }
         if let Some(storage) = self.frame.storage_mut() {
             self.app.save(storage);
@@ -267,11 +267,11 @@ struct LocalStorage {}
 
 impl epi::Storage for LocalStorage {
     fn get_string(&self, key: &str) -> Option<String> {
-        super::local_storage_get(key)
+        super::storage::local_storage_get(key)
     }
 
     fn set_string(&mut self, key: &str, value: String) {
-        super::local_storage_set(key, &value);
+        super::storage::local_storage_set(key, &value);
     }
 
     fn flush(&mut self) {}
