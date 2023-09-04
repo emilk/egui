@@ -72,6 +72,7 @@ macro_rules! log_warn {
 #[allow(unused_imports)]
 pub(crate) use log_warn;
 
+#[allow(unused_macros)]
 macro_rules! log_trace {
     ($fmt: literal) => {$crate::log_trace!($fmt,)};
     ($fmt: literal, $($arg: tt)*) => {{
@@ -79,4 +80,5 @@ macro_rules! log_trace {
         log::trace!($fmt, $($arg)*);
     }};
 }
+#[allow(unused_imports)]
 pub(crate) use log_trace;

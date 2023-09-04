@@ -1,4 +1,10 @@
-use super::*;
+use egui::{
+    ahash::HashMap,
+    load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
+    mutex::Mutex,
+    ColorImage,
+};
+use std::path::Path;
 
 #[derive(Default)]
 pub struct ImageCrateLoader {

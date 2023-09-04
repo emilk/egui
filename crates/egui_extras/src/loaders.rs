@@ -1,13 +1,4 @@
-use egui::{
-    ahash::HashMap,
-    load::{
-        BytesLoadResult, BytesLoader, BytesPoll, ImageLoadResult, ImageLoader, ImagePoll,
-        LoadError, SizeHint,
-    },
-    mutex::Mutex,
-    ColorImage,
-};
-use std::{path::Path, sync::Arc, task::Poll, thread};
+use std::sync::Arc;
 
 pub fn install(ctx: &egui::Context) {
     #[cfg(not(target_arch = "wasm32"))]
