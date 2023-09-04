@@ -124,12 +124,10 @@ pub fn window_builder<E>(
     }
 
     if let Some(min_size) = *min_window_size {
-        window_builder =
-            window_builder.with_min_inner_size(Some((min_size.x as u32, min_size.y as u32)));
+        window_builder = window_builder.with_min_inner_size(Some(min_size.to_pos2()));
     }
     if let Some(max_size) = *max_window_size {
-        window_builder =
-            window_builder.with_max_inner_size(Some((max_size.x as u32, max_size.y as u32)));
+        window_builder = window_builder.with_max_inner_size(Some(max_size.to_pos2()));
     }
 
     window_builder = window_builder.with_drag_and_drop(*drag_and_drop_support);
@@ -147,16 +145,13 @@ pub fn window_builder<E>(
         window_settings.inner_size_points()
     } else {
         if let Some(pos) = *initial_window_pos {
-            window_builder = window_builder.with_position(Some((pos.x as i32, pos.y as i32)));
+            window_builder = window_builder.with_position(Some(pos));
         }
 
         if let Some(initial_window_size) = *initial_window_size {
             let initial_window_size =
                 initial_window_size.at_most(largest_monitor_point_size(event_loop));
-            window_builder = window_builder.with_inner_size(Some((
-                initial_window_size.x as u32,
-                initial_window_size.y as u32,
-            )));
+            window_builder = window_builder.with_inner_size(Some(initial_window_size.to_pos2()));
         }
 
         *initial_window_size
@@ -165,12 +160,12 @@ pub fn window_builder<E>(
     #[cfg(not(target_os = "ios"))]
     if *centered {
         if let Some(monitor) = event_loop.available_monitors().next() {
-            let monitor_size = monitor.size().to_logical::<f64>(monitor.scale_factor());
+            let monitor_size = monitor.size().to_logical::<f32>(monitor.scale_factor());
             let inner_size = inner_size_points.unwrap_or(egui::Vec2 { x: 800.0, y: 600.0 });
             if monitor_size.width > 0.0 && monitor_size.height > 0.0 {
-                let x = (monitor_size.width - inner_size.x as f64) / 2.0;
-                let y = (monitor_size.height - inner_size.y as f64) / 2.0;
-                window_builder = window_builder.with_position(Some((x as i32, y as i32)));
+                let x = (monitor_size.width - inner_size.x) / 2.0;
+                let y = (monitor_size.height - inner_size.y) / 2.0;
+                window_builder = window_builder.with_position(Some(egui::Pos2::new(x, y)));
             }
         }
     }

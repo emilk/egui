@@ -54,10 +54,21 @@ pub struct InputState {
     /// Position and size of the egui area.
     pub screen_rect: Rect,
 
-    pub viewport_inner_pos: Pos2,
-    pub viewport_outer_pos: Pos2,
-    pub viewport_inner_size: Pos2,
-    pub viewport_outer_size: Pos2,
+    /// Viewport inner position, only the drowable area
+    /// If is not working as expected is a winit bug!
+    pub inner_pos: Pos2,
+
+    /// Viewport outer position, drowable area + decorations
+    /// If is not working as expected is a winit bug!
+    pub outer_pos: Pos2,
+
+    /// Viewport inner size, only drowable area
+    /// If is not working as expected is a winit bug!
+    pub inner_size: Pos2,
+
+    /// Viewport outer size, drowable area + decorations
+    /// If is not working as expected is a winit bug!
+    pub outer_size: Pos2,
 
     /// Also known as device pixel ratio, > 1 for high resolution screens.
     pub pixels_per_point: f32,
@@ -143,10 +154,10 @@ impl Default for InputState {
             modifiers: Default::default(),
             keys_down: Default::default(),
             events: Default::default(),
-            viewport_inner_pos: Pos2::ZERO,
-            viewport_outer_pos: Pos2::ZERO,
-            viewport_inner_size: pos2(10_000.0, 10_000.0),
-            viewport_outer_size: pos2(10_000.0, 10_000.0),
+            inner_pos: Pos2::ZERO,
+            outer_pos: Pos2::ZERO,
+            inner_size: pos2(10_000.0, 10_000.0),
+            outer_size: pos2(10_000.0, 10_000.0),
         }
     }
 }
@@ -170,10 +181,10 @@ impl InputState {
         };
 
         let screen_rect = new.screen_rect.unwrap_or(self.screen_rect);
-        let viewport_inner_pos = new.viewport_inner_pos.unwrap_or(self.viewport_inner_pos);
-        let viewport_outer_pos = new.viewport_outer_pos.unwrap_or(self.viewport_outer_pos);
-        let viewport_inner_size = new.viewport_inner_size.unwrap_or(self.viewport_inner_size);
-        let viewport_outer_size = new.viewport_outer_size.unwrap_or(self.viewport_outer_size);
+        let viewport_inner_pos = new.inner_pos.unwrap_or(self.inner_pos);
+        let viewport_outer_pos = new.outer_pos.unwrap_or(self.outer_pos);
+        let viewport_inner_size = new.inner_size.unwrap_or(self.inner_size);
+        let viewport_outer_size = new.outer_size.unwrap_or(self.outer_size);
 
         self.create_touch_states_for_new_devices(&new.events);
         for touch_state in self.touch_states.values_mut() {
@@ -229,10 +240,10 @@ impl InputState {
             scroll_delta,
             zoom_factor_delta,
             screen_rect,
-            viewport_inner_pos,
-            viewport_outer_pos,
-            viewport_inner_size,
-            viewport_outer_size,
+            inner_pos: viewport_inner_pos,
+            outer_pos: viewport_outer_pos,
+            inner_size: viewport_inner_size,
+            outer_size: viewport_outer_size,
             pixels_per_point: new.pixels_per_point.unwrap_or(self.pixels_per_point),
             max_texture_side: new.max_texture_side.unwrap_or(self.max_texture_side),
             time,
@@ -990,10 +1001,10 @@ impl InputState {
             scroll_delta,
             zoom_factor_delta,
             screen_rect,
-            viewport_inner_pos,
-            viewport_outer_pos,
-            viewport_inner_size,
-            viewport_outer_size,
+            inner_pos: viewport_inner_pos,
+            outer_pos: viewport_outer_pos,
+            inner_size: viewport_inner_size,
+            outer_size: viewport_outer_size,
             pixels_per_point,
             max_texture_side,
             time,

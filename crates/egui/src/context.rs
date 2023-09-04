@@ -1618,19 +1618,19 @@ impl Context {
     }
 
     pub fn viewport_inner_pos(&self) -> Pos2 {
-        self.input(|i| i.viewport_inner_pos)
+        self.input(|i| i.inner_pos)
     }
 
     pub fn viewport_outer_pos(&self) -> Pos2 {
-        self.input(|i| i.viewport_outer_pos)
+        self.input(|i| i.outer_pos)
     }
 
     pub fn viewport_inner_size(&self) -> Pos2 {
-        self.input(|i| i.viewport_inner_size)
+        self.input(|i| i.inner_size)
     }
 
     pub fn viewport_outer_size(&self) -> Pos2 {
-        self.input(|i| i.viewport_outer_size)
+        self.input(|i| i.outer_size)
     }
 
     /// How much space is still available after panels has been added.
@@ -2261,7 +2261,11 @@ impl Context {
     }
 
     /// With this you can send a command to a viewport
-    pub fn viewport_command(&self, id: ViewportId, command: ViewportCommand) {
+    pub fn viewport_command(&self, command: ViewportCommand) {
+        self.viewport_command_for(self.get_viewport_id(), command);
+    }
+
+    pub fn viewport_command_for(&self, id: ViewportId, command: ViewportCommand) {
         self.write(|ctx| ctx.viewport_commands.push((id, command)));
     }
 

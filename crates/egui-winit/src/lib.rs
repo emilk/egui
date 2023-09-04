@@ -188,7 +188,7 @@ impl State {
             None
         };
 
-        self.egui_input.viewport_inner_pos = if getting_info {
+        self.egui_input.inner_pos = if getting_info {
             window
                 .inner_position()
                 .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
@@ -197,7 +197,7 @@ impl State {
             None
         };
 
-        self.egui_input.viewport_outer_pos = if getting_info {
+        self.egui_input.outer_pos = if getting_info {
             window
                 .outer_position()
                 .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
@@ -206,14 +206,14 @@ impl State {
             None
         };
 
-        self.egui_input.viewport_inner_size = if getting_info {
+        self.egui_input.inner_size = if getting_info {
             let size = window.inner_size();
             Some(Pos2::new(size.width as f32, size.height as f32))
         } else {
             None
         };
 
-        self.egui_input.viewport_outer_size = if getting_info {
+        self.egui_input.outer_size = if getting_info {
             let size = window.outer_size();
             Some(Pos2::new(size.width as f32, size.height as f32))
         } else {
@@ -950,7 +950,6 @@ pub fn process_viewport_commands(
     focused: Option<ViewportId>,
     window: &Arc<RwLock<winit::window::Window>>,
 ) {
-    use winit::dpi::PhysicalSize;
     use winit::window::ResizeDirection;
     let win = window.read();
 
@@ -965,10 +964,10 @@ pub fn process_viewport_commands(
                     }
                 }
             }
-            egui::ViewportCommand::InnerSize(width, height) => {
-                let width = width.max(1);
-                let height = height.max(1);
-                win.set_inner_size(PhysicalSize::new(width, height));
+            egui::ViewportCommand::InnerSize(size) => {
+                let width = size.x.max(1.0);
+                let height = size.y.max(1.0);
+                win.set_inner_size(LogicalSize::new(width, height));
             }
             egui::ViewportCommand::Resize(top, bottom, right, left) => {
                 // TODO posibile return the error to `egui::Context`
@@ -986,17 +985,17 @@ pub fn process_viewport_commands(
             ViewportCommand::Title(title) => win.set_title(&title),
             ViewportCommand::Transparent(v) => win.set_transparent(v),
             ViewportCommand::Visible(v) => win.set_visible(v),
-            ViewportCommand::OuterPosition(x, y) => {
-                win.set_outer_position(LogicalPosition::new(x, y));
+            ViewportCommand::OuterPosition(pos) => {
+                win.set_outer_position(LogicalPosition::new(pos.x, pos.y));
             }
             ViewportCommand::MinInnerSize(s) => {
-                win.set_min_inner_size(s.map(|s| LogicalSize::new(s.0, s.1)));
+                win.set_min_inner_size(s.map(|s| LogicalSize::new(s.x, s.y)));
             }
             ViewportCommand::MaxInnerSize(s) => {
-                win.set_max_inner_size(s.map(|s| LogicalSize::new(s.0, s.1)));
+                win.set_max_inner_size(s.map(|s| LogicalSize::new(s.x, s.y)));
             }
             ViewportCommand::ResizeIncrements(s) => {
-                win.set_resize_increments(s.map(|s| LogicalSize::new(s.0, s.1)));
+                win.set_resize_increments(s.map(|s| LogicalSize::new(s.x, s.y)));
             }
             ViewportCommand::Resizable(v) => win.set_resizable(v),
             ViewportCommand::EnableButtons {
@@ -1035,7 +1034,9 @@ pub fn process_viewport_commands(
                         .expect("Invalid ICON data!")
                 }));
             }
-            ViewportCommand::IMEPosition(x, y) => win.set_ime_position(LogicalPosition::new(x, y)),
+            ViewportCommand::IMEPosition(pos) => {
+                win.set_ime_position(LogicalPosition::new(pos.x, pos.y));
+            }
             ViewportCommand::IMEAllowed(v) => win.set_ime_allowed(v),
             ViewportCommand::IMEPurpose(o) => win.set_ime_purpose(match o {
                 1 => winit::window::ImePurpose::Password,
@@ -1057,8 +1058,8 @@ pub fn process_viewport_commands(
                 }
             })),
             ViewportCommand::ContentProtected(v) => win.set_content_protected(v),
-            ViewportCommand::CursorPosition(x, y) => {
-                if let Err(err) = win.set_cursor_position(LogicalPosition::new(x, y)) {
+            ViewportCommand::CursorPosition(pos) => {
+                if let Err(err) = win.set_cursor_position(LogicalPosition::new(pos.x, pos.y)) {
                     log::error!("{err}");
                 }
             }
@@ -1097,9 +1098,9 @@ pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::
     let mut window_builder = winit::window::WindowBuilder::new()
         .with_title(builder.title.clone())
         .with_transparent(builder.transparent.map_or(false, |e| e))
-        .with_decorations(builder.decorations.map_or(false, |e| e))
-        .with_resizable(builder.resizable.map_or(false, |e| e))
-        .with_visible(builder.visible.map_or(false, |e| e))
+        .with_decorations(builder.decorations.map_or(true, |e| e))
+        .with_resizable(builder.resizable.map_or(true, |e| e))
+        .with_visible(builder.visible.map_or(true, |e| e))
         .with_maximized(builder.minimized.map_or(false, |e| e))
         .with_maximized(builder.maximized.map_or(false, |e| e))
         .with_fullscreen(
@@ -1122,25 +1123,29 @@ pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::
                     .unwrap_or(WindowButtons::empty()),
         )
         .with_active(builder.active.map_or(false, |e| e));
+
     if let Some(Some(inner_size)) = builder.inner_size {
         window_builder = window_builder
-            .with_inner_size(winit::dpi::PhysicalSize::new(inner_size.0, inner_size.1));
+            .with_inner_size(winit::dpi::LogicalSize::new(inner_size.x, inner_size.y));
     }
+
     if let Some(Some(min_inner_size)) = builder.min_inner_size {
-        window_builder = window_builder.with_min_inner_size(winit::dpi::PhysicalSize::new(
-            min_inner_size.0,
-            min_inner_size.1,
+        window_builder = window_builder.with_min_inner_size(winit::dpi::LogicalSize::new(
+            min_inner_size.x,
+            min_inner_size.y,
         ));
     }
+
     if let Some(Some(max_inner_size)) = builder.max_inner_size {
-        window_builder = window_builder.with_max_inner_size(winit::dpi::PhysicalSize::new(
-            max_inner_size.0,
-            max_inner_size.1,
+        window_builder = window_builder.with_max_inner_size(winit::dpi::LogicalSize::new(
+            max_inner_size.x,
+            max_inner_size.y,
         ));
     }
+
     if let Some(Some(position)) = builder.position {
         window_builder =
-            window_builder.with_position(winit::dpi::PhysicalPosition::new(position.0, position.1));
+            window_builder.with_position(winit::dpi::LogicalPosition::new(position.x, position.y));
     }
 
     if let Some(Some(icon)) = builder.icon.clone() {
@@ -1181,7 +1186,7 @@ pub fn changes_between_builders(
         if Some(position) != last.position {
             last.position = Some(position);
             if let Some(position) = position {
-                commands.push(ViewportCommand::OuterPosition(position.0, position.1));
+                commands.push(ViewportCommand::OuterPosition(position));
             }
         }
     }
@@ -1190,7 +1195,7 @@ pub fn changes_between_builders(
         if Some(inner_size) != last.inner_size {
             last.inner_size = Some(inner_size);
             if let Some(inner_size) = inner_size {
-                commands.push(ViewportCommand::InnerSize(inner_size.0, inner_size.1));
+                commands.push(ViewportCommand::InnerSize(inner_size));
             }
         }
     }

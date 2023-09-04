@@ -57,15 +57,12 @@ impl WindowSettings {
             self.outer_position_pixels
         };
         if let Some(pos) = pos_px {
-            window = window.with_position(Some((pos.x as i32, pos.y as i32)));
+            window = window.with_position(Some(pos));
         }
 
         if let Some(inner_size_points) = self.inner_size_points {
             window
-                .with_inner_size(Some((
-                    inner_size_points.x as u32,
-                    inner_size_points.y as u32,
-                )))
+                .with_inner_size(Some(inner_size_points.to_pos2()))
                 .with_fullscreen(self.fullscreen)
         } else {
             window

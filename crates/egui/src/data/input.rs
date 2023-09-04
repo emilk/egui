@@ -23,10 +23,21 @@ pub struct RawInput {
     /// `None` will be treated as "same as last frame", with the default being a very big area.
     pub screen_rect: Option<Rect>,
 
-    pub viewport_inner_pos: Option<Pos2>,
-    pub viewport_outer_pos: Option<Pos2>,
-    pub viewport_inner_size: Option<Pos2>,
-    pub viewport_outer_size: Option<Pos2>,
+    /// Viewport inner position, only the drowable area
+    /// If is not working as expected is a winit bug!
+    pub inner_pos: Option<Pos2>,
+
+    /// Viewport outer position, drowable area + decorations
+    /// If is not working as expected is a winit bug!
+    pub outer_pos: Option<Pos2>,
+
+    /// Viewport inner size, only drowable area
+    /// If is not working as expected is a winit bug!
+    pub inner_size: Option<Pos2>,
+
+    /// Viewport outer size, drowable area + decorations
+    /// If is not working as expected is a winit bug!
+    pub outer_size: Option<Pos2>,
 
     /// Also known as device pixel ratio, > 1 for high resolution screens.
     /// If text looks blurry you probably forgot to set this.
@@ -78,10 +89,10 @@ impl Default for RawInput {
     fn default() -> Self {
         Self {
             screen_rect: None,
-            viewport_inner_pos: None,
-            viewport_outer_pos: None,
-            viewport_inner_size: None,
-            viewport_outer_size: None,
+            inner_pos: None,
+            outer_pos: None,
+            inner_size: None,
+            outer_size: None,
             pixels_per_point: None,
             max_texture_side: None,
             time: None,
@@ -103,10 +114,10 @@ impl RawInput {
     pub fn take(&mut self) -> RawInput {
         RawInput {
             screen_rect: self.screen_rect.take(),
-            viewport_inner_pos: self.viewport_inner_pos.take(),
-            viewport_outer_pos: self.viewport_outer_pos.take(),
-            viewport_inner_size: self.viewport_inner_size.take(),
-            viewport_outer_size: self.viewport_outer_size.take(),
+            inner_pos: self.inner_pos.take(),
+            outer_pos: self.outer_pos.take(),
+            inner_size: self.inner_size.take(),
+            outer_size: self.outer_size.take(),
             pixels_per_point: self.pixels_per_point.take(),
             max_texture_side: self.max_texture_side.take(),
             time: self.time.take(),
@@ -123,10 +134,10 @@ impl RawInput {
     pub fn append(&mut self, newer: Self) {
         let Self {
             screen_rect,
-            viewport_inner_pos,
-            viewport_outer_pos,
-            viewport_inner_size,
-            viewport_outer_size,
+            inner_pos: viewport_inner_pos,
+            outer_pos: viewport_outer_pos,
+            inner_size: viewport_inner_size,
+            outer_size: viewport_outer_size,
             pixels_per_point,
             max_texture_side,
             time,
@@ -139,10 +150,10 @@ impl RawInput {
         } = newer;
 
         self.screen_rect = screen_rect.or(self.screen_rect);
-        self.viewport_inner_pos = viewport_inner_pos.or(self.viewport_inner_pos);
-        self.viewport_outer_pos = viewport_outer_pos.or(self.viewport_outer_pos);
-        self.viewport_inner_size = viewport_inner_size.or(self.viewport_inner_size);
-        self.viewport_outer_size = viewport_outer_size.or(self.viewport_outer_size);
+        self.inner_pos = viewport_inner_pos.or(self.inner_pos);
+        self.outer_pos = viewport_outer_pos.or(self.outer_pos);
+        self.inner_size = viewport_inner_size.or(self.inner_size);
+        self.outer_size = viewport_outer_size.or(self.outer_size);
         self.pixels_per_point = pixels_per_point.or(self.pixels_per_point);
         self.max_texture_side = max_texture_side.or(self.max_texture_side);
         self.time = time; // use latest time
@@ -958,10 +969,10 @@ impl RawInput {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
             screen_rect,
-            viewport_inner_pos,
-            viewport_outer_pos,
-            viewport_inner_size,
-            viewport_outer_size,
+            inner_pos: viewport_inner_pos,
+            outer_pos: viewport_outer_pos,
+            inner_size: viewport_inner_size,
+            outer_size: viewport_outer_size,
             pixels_per_point,
             max_texture_side,
             time,

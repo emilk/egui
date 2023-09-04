@@ -1,5 +1,7 @@
 use std::{fmt::Display, sync::Arc};
 
+use epaint::Pos2;
+
 use crate::{Context, Id};
 
 /// This is used to send a command to a specific viewport
@@ -24,13 +26,13 @@ pub type ViewportRender = dyn Fn(&Context) + Sync + Send;
 
 /// The filds in this struct should not be change directly, but is not problem tho!
 /// Every thing is wrapped in Option<> indicates that thing should not be changed!
-#[derive(Hash, PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct ViewportBuilder {
     pub id: Id,
     pub title: String,
     pub name: Option<(String, String)>,
-    pub position: Option<Option<(i32, i32)>>,
-    pub inner_size: Option<Option<(u32, u32)>>,
+    pub position: Option<Option<Pos2>>,
+    pub inner_size: Option<Option<Pos2>>,
     pub fullscreen: Option<bool>,
     pub maximized: Option<bool>,
     pub minimized: Option<bool>,
@@ -43,8 +45,8 @@ pub struct ViewportBuilder {
     pub title_hidden: Option<bool>,
     pub titlebar_transparent: Option<bool>,
     pub fullsize_content_view: Option<bool>,
-    pub min_inner_size: Option<Option<(u32, u32)>>,
-    pub max_inner_size: Option<Option<(u32, u32)>>,
+    pub min_inner_size: Option<Option<Pos2>>,
+    pub max_inner_size: Option<Option<Pos2>>,
     pub drag_and_drop: Option<bool>,
 
     pub close_button: Option<bool>,
@@ -61,7 +63,7 @@ impl ViewportBuilder {
             title: "Dummy egui viewport".into(),
             name: None,
             position: None,
-            inner_size: Some(Some((300, 200))),
+            inner_size: Some(Some(Pos2::new(300.0, 200.0))),
             fullscreen: None,
             maximized: None,
             resizable: Some(true),
@@ -181,17 +183,20 @@ impl ViewportBuilder {
         self
     }
 
-    pub fn with_inner_size(mut self, value: Option<(u32, u32)>) -> Self {
+    /// Should be bigger then 0
+    pub fn with_inner_size(mut self, value: Option<Pos2>) -> Self {
         self.inner_size = Some(value);
         self
     }
 
-    pub fn with_min_inner_size(mut self, value: Option<(u32, u32)>) -> Self {
+    /// Should be bigger then 0
+    pub fn with_min_inner_size(mut self, value: Option<Pos2>) -> Self {
         self.min_inner_size = Some(value);
         self
     }
 
-    pub fn with_max_inner_size(mut self, value: Option<(u32, u32)>) -> Self {
+    /// Should be bigger then 0
+    pub fn with_max_inner_size(mut self, value: Option<Pos2>) -> Self {
         self.max_inner_size = Some(value);
         self
     }
@@ -211,12 +216,13 @@ impl ViewportBuilder {
         self
     }
 
+    /// This currently only work on windows to be disabled!
     pub fn with_drag_and_drop(mut self, value: bool) -> Self {
         self.drag_and_drop = Some(value);
         self
     }
 
-    pub fn with_position(mut self, value: Option<(i32, i32)>) -> Self {
+    pub fn with_position(mut self, value: Option<Pos2>) -> Self {
         self.position = Some(value);
         self
     }
@@ -242,11 +248,17 @@ pub enum ViewportCommand {
     Transparent(bool),
     Visible(bool),
     Drag,
-    OuterPosition(i32, i32),
-    InnerSize(u32, u32),
-    MinInnerSize(Option<(u32, u32)>),
-    MaxInnerSize(Option<(u32, u32)>),
-    ResizeIncrements(Option<(u32, u32)>),
+    OuterPosition(Pos2),
+
+    /// Should be bigger then 0
+    InnerSize(Pos2),
+
+    /// Should be bigger then 0
+    MinInnerSize(Option<Pos2>),
+
+    /// Should be bigger then 0
+    MaxInnerSize(Option<Pos2>),
+    ResizeIncrements(Option<Pos2>),
 
     /// Top, Bottom, Right, Left
     Resize(bool, bool, bool, bool),
@@ -264,7 +276,7 @@ pub enum ViewportCommand {
     /// 0 = Normal, 1 = AlwaysOnBottom, 2 = AlwaysOnTop
     WindowLevel(u8),
     WindowIcon(Option<(Vec<u8>, u32, u32)>),
-    IMEPosition(u32, u32),
+    IMEPosition(Pos2),
     IMEAllowed(bool),
 
     /// 0 = Normal, 1 = Password, 2 = Terminal
@@ -278,7 +290,7 @@ pub enum ViewportCommand {
 
     ContentProtected(bool),
 
-    CursorPosition(i32, i32),
+    CursorPosition(Pos2),
 
     /// 0 = None, 1 = Confined, 2 = Locked
     CursorGrab(u8),
