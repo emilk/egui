@@ -55,6 +55,7 @@ impl State {
         ctx.data_mut(|d| d.insert_persisted(id, self));
     }
 
+    /// Returns true if the scroll area has momentum.
     pub fn has_momentum(&self) -> bool {
         self.vel.x != 0.0 || self.vel.y != 0.0
     }
