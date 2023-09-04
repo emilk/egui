@@ -66,13 +66,6 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Returns true if the window is open and is at the foreground.
-    /// Should be used at window creation, before the show function.
-    /// The result can then be provided to the show closure.
-    pub fn has_focus(&self, ctx: &Context) -> bool {
-        Some(self.area.layer()) == ctx.get_top_layer_id()
-    }
-
     /// Call this to add a close-button to the window title bar.
     ///
     /// * If `*open == false`, the window will not be visible.
