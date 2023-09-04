@@ -1089,10 +1089,10 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui_extras",
- "ehttp",
+ "ehttp 0.2.0",
  "env_logger",
  "image",
- "poll-promise",
+ "poll-promise 0.2.0",
 ]
 
 [[package]]
@@ -1226,11 +1226,11 @@ dependencies = [
  "egui",
  "egui_demo_lib",
  "egui_extras",
- "ehttp",
+ "ehttp 0.2.0",
  "env_logger",
  "image",
  "log",
- "poll-promise",
+ "poll-promise 0.2.0",
  "serde",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -1261,8 +1261,10 @@ dependencies = [
  "chrono",
  "document-features",
  "egui",
+ "ehttp 0.3.0",
  "image",
  "log",
+ "poll-promise 0.3.0",
  "resvg",
  "serde",
  "tiny-skia",
@@ -1303,6 +1305,20 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80b69a6f9168b96c0ae04763bec27a8b06b34343c334dd2703a4ec21f0f5e110"
 dependencies = [
+ "js-sys",
+ "ureq",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
+name = "ehttp"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31e4525e883dd283d12b755ab3ad71d7c8dea2ee8e8a062b9f4c4f84637ed681"
+dependencies = [
+ "document-features",
  "js-sys",
  "ureq",
  "wasm-bindgen",
@@ -2752,6 +2768,16 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fcf2a02372dfae23c9c01267fb296b8a3413bb4e45fbd589c3ac73c6dcfbb305"
 dependencies = [
+ "static_assertions",
+]
+
+[[package]]
+name = "poll-promise"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f6a58fecbf9da8965bcdb20ce4fd29788d1acee68ddbb64f0ba1b81bccdb7df"
+dependencies = [
+ "document-features",
  "static_assertions",
 ]
 

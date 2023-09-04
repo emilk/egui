@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{load::SizeHint, load::TexturePoll, *};
 use emath::Rot2;
 
 /// An widget to show an image of a given size.
@@ -171,5 +171,66 @@ impl Widget for Image {
         let (rect, response) = ui.allocate_exact_size(self.size, self.sense);
         self.paint_at(ui, rect);
         response
+    }
+}
+
+pub struct Image2<'a> {
+    uri: &'a str,
+    texture_options: TextureOptions,
+    size_hint: SizeHint,
+    sense: Sense,
+}
+
+impl<'a> Image2<'a> {
+    pub fn from_uri(uri: &'a str) -> Self {
+        Self {
+            uri,
+            texture_options: TextureOptions::LINEAR,
+            size_hint: SizeHint::Original,
+            sense: Sense::hover(),
+        }
+    }
+
+    pub fn texture_options(mut self, texture_options: TextureOptions) -> Self {
+        self.texture_options = texture_options;
+        self
+    }
+
+    pub fn size_hint(mut self, size_hint: SizeHint) -> Self {
+        self.size_hint = size_hint;
+        self
+    }
+
+    pub fn sense(mut self, sense: Sense) -> Self {
+        self.sense = sense;
+        self
+    }
+}
+
+impl<'a> Widget for Image2<'a> {
+    fn ui(self, ui: &mut Ui) -> Response {
+        match ui
+            .ctx()
+            .try_load_texture(self.uri, self.texture_options, self.size_hint)
+        {
+            Ok(TexturePoll::Ready { texture }) => {
+                let (rect, response) = ui.allocate_exact_size(
+                    Vec2::new(texture.size[0] as f32, texture.size[1] as f32),
+                    self.sense,
+                );
+
+                let mut mesh = Mesh::with_texture(texture.id);
+                mesh.add_rect_with_uv(
+                    rect,
+                    Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+                    Color32::WHITE,
+                );
+                ui.painter().add(Shape::mesh(mesh));
+
+                response
+            }
+            Ok(TexturePoll::Pending { .. }) => ui.spinner(),
+            Err(err) => ui.colored_label(Color32::RED, err.to_string()),
+        }
     }
 }

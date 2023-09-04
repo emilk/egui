@@ -35,6 +35,8 @@ svg = ["resvg", "tiny-skia", "usvg"]
 ## Log warnings using [`log`](https://docs.rs/log) crate.
 log = ["dep:log", "egui/log"]
 
+## Add support for loading images via HTTP.
+ehttp = ["dep:ehttp", "dep:poll-promise"]
 
 [dependencies]
 egui = { version = "0.22.0", path = "../egui", default-features = false }
@@ -69,3 +71,7 @@ log = { version = "0.4", optional = true, features = ["std"] }
 resvg = { version = "0.28", optional = true, default-features = false }
 tiny-skia = { version = "0.8", optional = true, default-features = false } # must be updated in lock-step with resvg
 usvg = { version = "0.28", optional = true, default-features = false }
+
+# ehttp feature
+ehttp = { version = "0.3.0", optional = true, default-features = false }
+poll-promise = { version = "0.3.0", optional = true }

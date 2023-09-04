@@ -2,7 +2,7 @@ use crate::{ahash, Context};
 use epaint::{mutex::RwLock, textures::TextureOptions, ColorImage, TextureId};
 use std::{error::Error as StdError, fmt::Display, sync::Arc};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum LoadError {
     /// This loader does not support this protocol or image format.
     NotSupported,
@@ -31,7 +31,7 @@ pub type Result<T, E = LoadError> = std::result::Result<T, E>;
 /// All variants will preserve the original aspect ratio.
 ///
 /// Similar to `usvg::FitTo`.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SizeHint {
     /// Keep original size.
     Original,
@@ -48,6 +48,7 @@ pub enum SizeHint {
 
 pub type Size = [usize; 2];
 
+#[derive(Clone)]
 pub enum BytesPoll {
     /// Bytes are being loaded.
     Pending {
@@ -86,6 +87,7 @@ pub trait BytesLoader {
     }
 }
 
+#[derive(Clone)]
 pub enum ImagePoll {
     /// Image is loading.
     Pending {
@@ -119,11 +121,13 @@ pub trait ImageLoader {
 }
 
 /// A texture with a known size.
+#[derive(Clone)]
 pub struct SizedTexture {
     pub id: TextureId,
     pub size: Size,
 }
 
+#[derive(Clone)]
 pub enum TexturePoll {
     /// Texture is loading.
     Pending {
