@@ -196,8 +196,8 @@ impl<'a> Image2<'a> {
         self
     }
 
-    pub fn size_hint(mut self, size_hint: SizeHint) -> Self {
-        self.size_hint = size_hint;
+    pub fn size_hint(mut self, size_hint: impl Into<SizeHint>) -> Self {
+        self.size_hint = size_hint.into();
         self
     }
 

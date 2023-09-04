@@ -1,5 +1,5 @@
 use crate::{ahash, Context};
-use epaint::{mutex::RwLock, textures::TextureOptions, ColorImage, TextureId};
+use epaint::{mutex::RwLock, textures::TextureOptions, ColorImage, TextureId, Vec2};
 use std::{error::Error as StdError, fmt::Display, sync::Arc};
 
 #[derive(Clone, Debug)]
@@ -44,6 +44,12 @@ pub enum SizeHint {
 
     /// Scale to size.
     Size(u32, u32),
+}
+
+impl From<Vec2> for SizeHint {
+    fn from(value: Vec2) -> Self {
+        Self::Size(value.x as u32, value.y as u32)
+    }
 }
 
 pub type Size = [usize; 2];
