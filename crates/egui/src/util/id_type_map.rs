@@ -56,12 +56,17 @@ impl<T> SerializableAny for T where T: 'static + Any + Clone + for<'a> Send + Sy
 
 #[cfg(feature = "persistence")]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Clone, Debug)]
 struct SerializedElement {
+    /// The type of value we are storing.
     type_id: TypeId,
 
+    /// The ron data we can deserialize.
     ron: Arc<str>,
 
-    /// Increased by one each time we re-serialize an element that wss never deserialized.
+    /// Increased by one each time we re-serialize an element that was never deserialized.
+    ///
+    /// Used to garbage collect old values that hasn't been read in a while.
     generation: usize,
 }
 
@@ -84,17 +89,7 @@ enum Element {
     },
 
     /// A serialized value
-    Serialized {
-        /// The type of value we are storing.
-        type_id: TypeId,
-
-        /// The ron data we can deserialize.
-        ron: Arc<str>,
-
-        /// Increased by one each time we re-serialize an element that wss never deserialized.
-        /// Used for garbage collection.
-        generation: usize,
-    },
+    Serialized(SerializedElement),
 }
 
 impl Clone for Element {
@@ -112,15 +107,7 @@ impl Clone for Element {
                 serialize_fn: *serialize_fn,
             },
 
-            Self::Serialized {
-                type_id,
-                ron,
-                generation,
-            } => Self::Serialized {
-                type_id: *type_id,
-                ron: ron.clone(),
-                generation: *generation,
-            },
+            Self::Serialized(element) => Self::Serialized(element.clone()),
         }
     }
 }
@@ -132,11 +119,11 @@ impl std::fmt::Debug for Element {
                 .debug_struct("Element::Value")
                 .field("type_id", &value.type_id())
                 .finish_non_exhaustive(),
-            Self::Serialized {
+            Self::Serialized(SerializedElement {
                 type_id,
                 ron,
                 generation,
-            } => f
+            }) => f
                 .debug_struct("Element::Serialized")
                 .field("type_id", type_id)
                 .field("ron", ron)
@@ -183,7 +170,7 @@ impl Element {
     pub(crate) fn type_id(&self) -> TypeId {
         match self {
             Self::Value { value, .. } => (**value).type_id().into(),
-            Self::Serialized { type_id, .. } => *type_id,
+            Self::Serialized(SerializedElement { type_id, .. }) => *type_id,
         }
     }
 
@@ -191,7 +178,7 @@ impl Element {
     pub(crate) fn get_temp<T: 'static>(&self) -> Option<&T> {
         match self {
             Self::Value { value, .. } => value.downcast_ref(),
-            Self::Serialized { .. } => None,
+            Self::Serialized(_) => None,
         }
     }
 
@@ -199,7 +186,7 @@ impl Element {
     pub(crate) fn get_mut_temp<T: 'static>(&mut self) -> Option<&mut T> {
         match self {
             Self::Value { value, .. } => value.downcast_mut(),
-            Self::Serialized { .. } => None,
+            Self::Serialized(_) => None,
         }
     }
 
@@ -214,14 +201,14 @@ impl Element {
                     *self = Self::new_temp(insert_with());
                 }
             }
-            Self::Serialized { .. } => {
+            Self::Serialized(_) => {
                 *self = Self::new_temp(insert_with());
             }
         }
 
         match self {
             Self::Value { value, .. } => value.downcast_mut().unwrap(), // This unwrap will never panic because we already converted object to required type
-            Self::Serialized { .. } => unreachable!(),
+            Self::Serialized(_) => unreachable!(),
         }
     }
 
@@ -238,19 +225,19 @@ impl Element {
             }
 
             #[cfg(feature = "persistence")]
-            Self::Serialized { ron, .. } => {
+            Self::Serialized(SerializedElement { ron, .. }) => {
                 *self = Self::new_persisted(from_ron_str::<T>(ron).unwrap_or_else(insert_with));
             }
 
             #[cfg(not(feature = "persistence"))]
-            Self::Serialized { .. } => {
+            Self::Serialized(_) => {
                 *self = Self::new_persisted(insert_with());
             }
         }
 
         match self {
             Self::Value { value, .. } => value.downcast_mut().unwrap(), // This unwrap will never panic because we already converted object to required type
-            Self::Serialized { .. } => unreachable!(),
+            Self::Serialized(_) => unreachable!(),
         }
     }
 
@@ -259,17 +246,17 @@ impl Element {
             Self::Value { value, .. } => value.downcast_mut(),
 
             #[cfg(feature = "persistence")]
-            Self::Serialized { ron, .. } => {
+            Self::Serialized(SerializedElement { ron, .. }) => {
                 *self = Self::new_persisted(from_ron_str::<T>(ron)?);
 
                 match self {
                     Self::Value { value, .. } => value.downcast_mut(),
-                    Self::Serialized { .. } => unreachable!(),
+                    Self::Serialized(_) => unreachable!(),
                 }
             }
 
             #[cfg(not(feature = "persistence"))]
-            Self::Serialized { .. } => None,
+            Self::Serialized(_) => None,
         }
     }
 
@@ -292,15 +279,7 @@ impl Element {
                     None
                 }
             }
-            Self::Serialized {
-                type_id,
-                ron,
-                generation,
-            } => Some(SerializedElement {
-                type_id: *type_id,
-                ron: ron.clone(),
-                generation: *generation,
-            }),
+            Self::Serialized(element) => Some(element.clone()),
         }
     }
 }
@@ -480,7 +459,7 @@ impl IdTypeMap {
         let element = self.map.get(&hash(TypeId::of::<T>(), id))?;
         match element {
             Element::Value { .. } => Some(0),
-            Element::Serialized { generation, .. } => Some(*generation),
+            Element::Serialized(SerializedElement { generation, .. }) => Some(*generation),
         }
     }
 
@@ -520,7 +499,7 @@ impl IdTypeMap {
     pub fn count_serialized(&self) -> usize {
         self.map
             .values()
-            .filter(|e| matches!(e, Element::Serialized { .. }))
+            .filter(|e| matches!(e, Element::Serialized(_)))
             .count()
     }
 
@@ -578,11 +557,11 @@ impl PersistedMap {
                 )| {
                     (
                         hash,
-                        Element::Serialized {
+                        Element::Serialized(SerializedElement {
                             type_id,
                             ron,
                             generation: generation + 1, // This is where we increment the generation!
-                        },
+                        }),
                     )
                 },
             )
