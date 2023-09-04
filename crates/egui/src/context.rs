@@ -1892,6 +1892,23 @@ impl Context {
         self.write(|ctx| ctx.loaders.texture.push(loader));
     }
 
+    // TODO: evict caches
+    pub fn forget(&self, uri: &str) {
+        self.write(|ctx| {
+            for loader in &ctx.loaders.bytes {
+                loader.forget(uri);
+            }
+
+            for loader in &ctx.loaders.image {
+                loader.forget(uri);
+            }
+
+            for loader in &ctx.loaders.texture {
+                loader.forget(uri);
+            }
+        });
+    }
+
     /// Try loading the bytes from the given uri using any available bytes loaders.
     ///
     /// This calls the loaders one by one in the order in which they were registered.

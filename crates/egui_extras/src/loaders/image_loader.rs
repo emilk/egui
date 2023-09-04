@@ -4,11 +4,11 @@ use egui::{
     mutex::Mutex,
     ColorImage,
 };
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 #[derive(Default)]
 pub struct ImageCrateLoader {
-    cache: Mutex<HashMap<String, Result<ColorImage, String>>>,
+    cache: Mutex<HashMap<String, Result<Arc<ColorImage>, String>>>,
 }
 
 fn is_supported(uri: &str) -> bool {
@@ -27,7 +27,6 @@ impl ImageLoader for ImageCrateLoader {
         }
 
         let mut cache = self.cache.lock();
-        // NOTE: this `clone` may clone the entire image.
         if let Some(entry) = cache.get(uri).cloned() {
             match entry {
                 Ok(image) => Ok(ImagePoll::Ready { image }),
@@ -37,9 +36,9 @@ impl ImageLoader for ImageCrateLoader {
             match ctx.try_load_bytes(uri) {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
                     crate::log_trace!("started loading `{uri}`");
-                    let result = crate::image::load_image_bytes(&bytes);
+                    let result = crate::image::load_image_bytes(&bytes).map(Arc::new);
                     crate::log_trace!("finished loading `{uri}`");
-                    cache.insert(uri.into(), result.clone()); // cloning the image again
+                    cache.insert(uri.into(), result.clone());
                     match result {
                         Ok(image) => Ok(ImagePoll::Ready { image }),
                         Err(err) => Err(LoadError::Custom(err)),
@@ -49,5 +48,9 @@ impl ImageLoader for ImageCrateLoader {
                 Err(err) => Err(err),
             }
         }
+    }
+
+    fn forget(&self, uri: &str) {
+        let _ = self.cache.lock().remove(uri);
     }
 }

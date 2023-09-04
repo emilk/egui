@@ -1,4 +1,5 @@
 use crate::{textures::TextureOptions, Color32};
+use std::sync::Arc;
 
 /// An image stored in RAM.
 ///
@@ -11,7 +12,7 @@ use crate::{textures::TextureOptions, Color32};
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ImageData {
     /// RGBA image.
-    Color(ColorImage),
+    Color(Arc<ColorImage>),
 
     /// Used for the font texture.
     Font(FontImage),
@@ -226,6 +227,12 @@ impl std::ops::IndexMut<(usize, usize)> for ColorImage {
 impl From<ColorImage> for ImageData {
     #[inline(always)]
     fn from(image: ColorImage) -> Self {
+        Self::Color(Arc::new(image))
+    }
+}
+
+impl From<Arc<ColorImage>> for ImageData {
+    fn from(image: Arc<ColorImage>) -> Self {
         Self::Color(image)
     }
 }

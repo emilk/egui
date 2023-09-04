@@ -4,11 +4,11 @@ use egui::{
     mutex::Mutex,
     ColorImage,
 };
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 #[derive(Default)]
 pub struct SvgLoader {
-    cache: Mutex<HashMap<(String, SizeHint), Result<ColorImage, String>>>,
+    cache: Mutex<HashMap<(String, SizeHint), Result<Arc<ColorImage>, String>>>,
 }
 
 fn is_supported(uri: &str) -> bool {
@@ -26,8 +26,7 @@ impl ImageLoader for SvgLoader {
         let uri = uri.to_owned();
 
         let mut cache = self.cache.lock();
-        // NOTE: this `clone` may clone the entire image.
-        // We also can't avoid the `uri` clone without unsafe code.
+        // We can't avoid the `uri` clone here without unsafe code.
         if let Some(entry) = cache.get(&(uri.clone(), size_hint)).cloned() {
             match entry {
                 Ok(image) => Ok(ImagePoll::Ready { image }),
@@ -43,9 +42,10 @@ impl ImageLoader for SvgLoader {
                         SizeHint::Height(h) => usvg::FitTo::Height(h),
                         SizeHint::Size(w, h) => usvg::FitTo::Size(w, h),
                     };
-                    let result = crate::image::load_svg_bytes_with_size(&bytes, fit_to);
+                    let result =
+                        crate::image::load_svg_bytes_with_size(&bytes, fit_to).map(Arc::new);
                     crate::log_trace!("finished loading `{uri}`");
-                    cache.insert((uri, size_hint), result.clone()); // potentially cloning the image again
+                    cache.insert((uri, size_hint), result.clone());
                     match result {
                         Ok(image) => Ok(ImagePoll::Ready { image }),
                         Err(err) => Err(LoadError::Custom(err)),
@@ -55,5 +55,9 @@ impl ImageLoader for SvgLoader {
                 Err(err) => Err(err),
             }
         }
+    }
+
+    fn forget(&self, uri: &str) {
+        self.cache.lock().retain(|(u, _), _| u != uri);
     }
 }

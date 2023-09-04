@@ -83,4 +83,8 @@ impl BytesLoader for EhttpLoader {
             Ok(BytesPoll::Pending { size: None })
         }
     }
+
+    fn forget(&self, uri: &str) {
+        let _ = self.cache.lock().remove(uri);
+    }
 }

@@ -57,4 +57,8 @@ impl BytesLoader for FileLoader {
             Ok(BytesPoll::Pending { size: None })
         }
     }
+
+    fn forget(&self, uri: &str) {
+        let _ = self.cache.lock().remove(uri);
+    }
 }

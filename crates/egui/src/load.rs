@@ -52,6 +52,8 @@ impl From<Vec2> for SizeHint {
     }
 }
 
+// TODO: API for querying bytes caches in each loader
+
 pub type Size = [usize; 2];
 
 #[derive(Clone)]
@@ -86,6 +88,12 @@ pub trait BytesLoader {
     /// - [`LoadError::Custom`] if the loading process failed.
     fn load(&self, ctx: &Context, uri: &str) -> BytesLoadResult;
 
+    /// Forget the given `uri`.
+    ///
+    /// If `uri` is cached, it should be evicted from cache,
+    /// so that it may be fully reloaded.
+    fn forget(&self, uri: &str);
+
     /// Implementations may use this to perform work at the end of a frame,
     /// such as evicting unused entries from a cache.
     fn end_frame(&self, frame_index: usize) {
@@ -102,7 +110,7 @@ pub enum ImagePoll {
     },
 
     /// Image is loaded.
-    Ready { image: ColorImage },
+    Ready { image: Arc<ColorImage> },
 }
 
 pub type ImageLoadResult = Result<ImagePoll>;
@@ -118,6 +126,12 @@ pub trait ImageLoader {
     /// - [`LoadError::NotSupported`] if the loader does not support loading `uri`.
     /// - [`LoadError::Custom`] if the loading process failed.
     fn load(&self, ctx: &Context, uri: &str, size_hint: SizeHint) -> ImageLoadResult;
+
+    /// Forget the given `uri`.
+    ///
+    /// If `uri` is cached, it should be evicted from cache,
+    /// so that it may be fully reloaded.
+    fn forget(&self, uri: &str);
 
     /// Implementations may use this to perform work at the end of a frame,
     /// such as evicting unused entries from a cache.
@@ -165,6 +179,12 @@ pub trait TextureLoader {
         size_hint: SizeHint,
     ) -> TextureLoadResult;
 
+    /// Forget the given `uri`.
+    ///
+    /// If `uri` is cached, it should be evicted from cache,
+    /// so that it may be fully reloaded.
+    fn forget(&self, uri: &str);
+
     /// Implementations may use this to perform work at the end of a frame,
     /// such as evicting unused entries from a cache.
     fn end_frame(&self, frame_index: usize) {
@@ -199,6 +219,10 @@ impl BytesLoader for StaticBytesLoader {
         }
     }
 
+    fn forget(&self, _: &str) {
+        // This loader never evicts any data
+    }
+
     fn end_frame(&self, _: usize) {
         // This loader never evicts any data
     }
@@ -225,6 +249,10 @@ impl TextureLoader for DefaultTextureLoader {
                 Ok(TexturePoll::Ready { texture })
             }
         }
+    }
+
+    fn forget(&self, _: &str) {
+        // This loader never evicts any data
     }
 
     fn end_frame(&self, _: usize) {

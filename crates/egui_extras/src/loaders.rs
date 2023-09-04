@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+// TODO: automatic cache eviction
+
 pub fn install(ctx: &egui::Context) {
     #[cfg(not(target_arch = "wasm32"))]
     ctx.add_bytes_loader(Arc::new(self::file_loader::FileLoader::default()));
