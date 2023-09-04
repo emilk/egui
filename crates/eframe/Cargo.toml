@@ -63,9 +63,9 @@ persistence = [
 
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 ##
-## Only enabled on native, because of the low resolution (1ms) of time keeping in browsers.
+## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
 ## `eframe` will call `puffin::GlobalProfiler::lock().new_frame()` for you
-puffin = ["dep:puffin", "egui_glow?/puffin", "egui-wgpu?/puffin"]
+puffin = ["dep:puffin", "egui/puffin", "egui_glow?/puffin", "egui-wgpu?/puffin"]
 
 ## Enable screen reader support (requires `ctx.options_mut(|o| o.screen_reader = true);`) on web.
 ##

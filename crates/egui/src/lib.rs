@@ -579,3 +579,32 @@ pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
 pub fn accesskit_root_id() -> Id {
     Id::new("accesskit_root")
 }
+
+// ---------------------------------------------------------------------------
+
+#[cfg(not(target_arch = "wasm32"))]
+mod profiling_scopes {
+    #![allow(unused_macros)]
+    #![allow(unused_imports)]
+
+    /// Profiling macro for feature "puffin"
+    macro_rules! profile_function {
+        ($($arg: tt)*) => {
+            #[cfg(feature = "puffin")]
+            puffin::profile_function!($($arg)*);
+        };
+    }
+    pub(crate) use profile_function;
+
+    /// Profiling macro for feature "puffin"
+    macro_rules! profile_scope {
+        ($($arg: tt)*) => {
+            #[cfg(feature = "puffin")]
+            puffin::profile_scope!($($arg)*);
+        };
+    }
+    pub(crate) use profile_scope;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use profiling_scopes::*;

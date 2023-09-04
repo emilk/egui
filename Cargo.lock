@@ -1179,6 +1179,7 @@ dependencies = [
  "epaint",
  "log",
  "nohash-hasher",
+ "puffin",
  "ron",
  "serde",
 ]
