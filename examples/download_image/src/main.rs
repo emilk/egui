@@ -22,9 +22,19 @@ struct MyApp;
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.add(egui::Image2::from_uri(
-                "https://picsum.photos/seed/1.759706314/1024",
-            ))
+            let width = ui.available_width();
+            let half_height = ui.available_height() / 2.0;
+
+            ui.allocate_ui(egui::Vec2::new(width, half_height), |ui| {
+                ui.add(egui::Image2::from_uri(
+                    "https://picsum.photos/seed/1.759706314/1024",
+                ))
+            });
+            ui.allocate_ui(egui::Vec2::new(width, half_height), |ui| {
+                ui.add(egui::Image2::from_uri(
+                    "https://this-is-hopefully-not-a-real-website.rs/image.png",
+                ))
+            });
         });
     }
 }
