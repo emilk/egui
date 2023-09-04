@@ -1,19 +1,21 @@
-use std::sync::Arc;
-
 // TODO: automatic cache eviction
 
 pub fn install(ctx: &egui::Context) {
     #[cfg(not(target_arch = "wasm32"))]
-    ctx.add_bytes_loader(Arc::new(self::file_loader::FileLoader::default()));
+    ctx.add_bytes_loader(std::sync::Arc::new(self::file_loader::FileLoader::default()));
 
     #[cfg(feature = "ehttp")]
-    ctx.add_bytes_loader(Arc::new(self::ehttp_loader::EhttpLoader::default()));
+    ctx.add_bytes_loader(std::sync::Arc::new(
+        self::ehttp_loader::EhttpLoader::default(),
+    ));
 
     #[cfg(feature = "image")]
-    ctx.add_image_loader(Arc::new(self::image_loader::ImageCrateLoader::default()));
+    ctx.add_image_loader(std::sync::Arc::new(
+        self::image_loader::ImageCrateLoader::default(),
+    ));
 
     #[cfg(feature = "svg")]
-    ctx.add_image_loader(Arc::new(self::svg_loader::SvgLoader::default()));
+    ctx.add_image_loader(std::sync::Arc::new(self::svg_loader::SvgLoader::default()));
 
     #[cfg(all(
         target_arch = "wasm32",
@@ -22,6 +24,8 @@ pub fn install(ctx: &egui::Context) {
         not(feature = "svg")
     ))]
     crate::log_warn!("`loaders::install` was called, but no loaders are enabled");
+
+    let _ = ctx;
 }
 
 #[cfg(not(target_arch = "wasm32"))]
