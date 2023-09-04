@@ -770,12 +770,7 @@ impl Frame {
     }
 
     /// Information about the integration.
-    pub fn info(&self) -> IntegrationInfo {
-        self.info.clone()
-    }
-
-    /// Get `IntegrationInfo` as a reference.
-    pub fn info_ref(&self) -> &IntegrationInfo {
+    pub fn info(&self) -> &IntegrationInfo {
         &self.info
     }
 
