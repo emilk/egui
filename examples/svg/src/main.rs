@@ -16,6 +16,8 @@ fn main() -> Result<(), eframe::Error> {
         "svg example",
         options,
         Box::new(|cc| {
+            // Without the following call, the `Image2` created below
+            // will simply output a `not supported` error message.
             egui_extras::loaders::install(&cc.egui_ctx);
             Box::new(MyApp)
         }),

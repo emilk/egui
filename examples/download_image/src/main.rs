@@ -9,7 +9,8 @@ fn main() -> Result<(), eframe::Error> {
         "Download and show an image with eframe/egui",
         options,
         Box::new(|cc| {
-            // Load bearing function:
+            // Without the following call, the `Image2` created below
+            // will simply output `not supported` error messages.
             egui_extras::loaders::install(&cc.egui_ctx);
             Box::new(MyApp)
         }),
