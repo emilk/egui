@@ -99,6 +99,9 @@ pub trait BytesLoader {
     fn end_frame(&self, frame_index: usize) {
         let _ = frame_index;
     }
+
+    /// If the loader caches any data, this should return the size of that cache.
+    fn byte_size(&self) -> usize;
 }
 
 #[derive(Clone)]
@@ -138,6 +141,9 @@ pub trait ImageLoader {
     fn end_frame(&self, frame_index: usize) {
         let _ = frame_index;
     }
+
+    /// If the loader caches any data, this should return the size of that cache.
+    fn byte_size(&self) -> usize;
 }
 
 /// A texture with a known size.
@@ -190,42 +196,9 @@ pub trait TextureLoader {
     fn end_frame(&self, frame_index: usize) {
         let _ = frame_index;
     }
-}
 
-#[derive(Default)]
-pub struct StaticBytesLoader {
-    data: RwLock<ahash::HashMap<String, Arc<[u8]>>>,
-}
-
-impl StaticBytesLoader {
-    pub fn new() -> Self {
-        Self {
-            data: RwLock::new(ahash::HashMap::default()),
-        }
-    }
-
-    pub fn add(&self, id: impl Into<String>, bytes: &'static [u8]) {
-        let _ = self.data.write().insert(id.into(), bytes.into());
-    }
-}
-
-impl BytesLoader for StaticBytesLoader {
-    fn load(&self, _: &Context, uri: &str) -> BytesLoadResult {
-        match self.data.read().get(uri).cloned() {
-            Some(bytes) => Ok(BytesPoll::Ready { size: None, bytes }),
-            // The loading didn't actually "fail", we just couldn't find the data.
-            // Let a different bytes loader attempt to load `uri`.
-            None => Err(LoadError::NotSupported),
-        }
-    }
-
-    fn forget(&self, _: &str) {
-        // This loader never evicts any data
-    }
-
-    fn end_frame(&self, _: usize) {
-        // This loader never evicts any data
-    }
+    /// If the loader caches any data, this should return the size of that cache.
+    fn byte_size(&self) -> usize;
 }
 
 struct DefaultTextureLoader;
@@ -257,6 +230,10 @@ impl TextureLoader for DefaultTextureLoader {
 
     fn end_frame(&self, _: usize) {
         // This loader never evicts any data
+    }
+
+    fn byte_size(&self) -> usize {
+        0
     }
 }
 

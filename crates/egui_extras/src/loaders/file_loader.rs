@@ -61,4 +61,19 @@ impl BytesLoader for FileLoader {
     fn forget(&self, uri: &str) {
         let _ = self.cache.lock().remove(uri);
     }
+
+    fn byte_size(&self) -> usize {
+        let mut size = 0;
+
+        for entry in self.cache.lock().values() {
+            if let Poll::Ready(result) = entry {
+                match result {
+                    Ok(bytes) => size += bytes.len(),
+                    Err(err) => size += err.len(),
+                }
+            }
+        }
+
+        size
+    }
 }
