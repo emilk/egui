@@ -232,6 +232,15 @@ pub struct TextFormat {
     /// Default: 0.0. Round to whole _pixels_ for crisp text.
     pub extra_letter_spacing: f32,
 
+    /// Explicit line height of the text in points.
+    ///
+    /// This is the distance between the bottom row of two subsequent lines of text.
+    ///
+    /// If `None` (the default), the line height is determined by the font.
+    ///
+    /// Round to whole _pixels_ for crisp text.
+    pub line_height: Option<f32>,
+
     /// Text color
     pub color: Color32,
 
@@ -249,12 +258,30 @@ pub struct TextFormat {
     // TODO(emilk): lowered
 }
 
+impl Default for TextFormat {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            font_id: FontId::default(),
+            extra_letter_spacing: 0.0,
+            line_height: None,
+            color: Color32::GRAY,
+            background: Color32::TRANSPARENT,
+            italics: false,
+            underline: Stroke::NONE,
+            strikethrough: Stroke::NONE,
+            valign: Align::BOTTOM,
+        }
+    }
+}
+
 impl std::hash::Hash for TextFormat {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let Self {
             font_id,
             extra_letter_spacing,
+            line_height,
             color,
             background,
             italics,
@@ -264,28 +291,15 @@ impl std::hash::Hash for TextFormat {
         } = self;
         font_id.hash(state);
         crate::f32_hash(state, *extra_letter_spacing);
+        if let Some(line_height) = *line_height {
+            crate::f32_hash(state, line_height);
+        }
         color.hash(state);
         background.hash(state);
         italics.hash(state);
         underline.hash(state);
         strikethrough.hash(state);
         valign.hash(state);
-    }
-}
-
-impl Default for TextFormat {
-    #[inline]
-    fn default() -> Self {
-        Self {
-            font_id: FontId::default(),
-            color: Color32::GRAY,
-            background: Color32::TRANSPARENT,
-            italics: false,
-            underline: Stroke::NONE,
-            strikethrough: Stroke::NONE,
-            valign: Align::BOTTOM,
-            extra_letter_spacing: 0.0,
-        }
     }
 }
 
@@ -517,10 +531,12 @@ pub struct Glyph {
     /// `ascent` value from the font
     pub ascent: f32,
 
-    /// Advance width and font row height.
+    /// Advance width and line height.
+    ///
+    /// Does not control the visual size of the glyph (see [`Self::uv_rect`] for that).
     pub size: Vec2,
 
-    /// Position of the glyph in the font texture, in texels.
+    /// Position and size of the glyph in the font texture, in texels.
     pub uv_rect: UvRect,
 
     /// Index into [`LayoutJob::sections`]. Decides color etc.

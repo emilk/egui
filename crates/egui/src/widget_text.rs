@@ -1,5 +1,4 @@
-use std::borrow::Cow;
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use crate::{
     style::WidgetVisuals, text::LayoutJob, Align, Color32, FontFamily, FontSelection, Galley, Pos2,
@@ -26,6 +25,7 @@ pub struct RichText {
     text: String,
     size: Option<f32>,
     extra_letter_spacing: f32,
+    line_height: Option<f32>,
     family: Option<FontFamily>,
     text_style: Option<TextStyle>,
     background_color: Color32,
@@ -107,6 +107,19 @@ impl RichText {
     #[inline]
     pub fn extra_letter_spacing(mut self, extra_letter_spacing: f32) -> Self {
         self.extra_letter_spacing = extra_letter_spacing;
+        self
+    }
+
+    /// Explicit line height of the text in points.
+    ///
+    /// This is the distance between the bottom row of two subsequent lines of text.
+    ///
+    /// If `None` (the default), the line height is determined by the font.
+    ///
+    /// Round to whole _pixels_ for crisp text.
+    #[inline]
+    pub fn line_height(mut self, line_height: Option<f32>) -> Self {
+        self.line_height = line_height;
         self
     }
 
@@ -264,6 +277,7 @@ impl RichText {
             text,
             size,
             extra_letter_spacing,
+            line_height,
             family,
             text_style,
             background_color,
@@ -320,13 +334,14 @@ impl RichText {
 
         let text_format = crate::text::TextFormat {
             font_id,
+            extra_letter_spacing,
+            line_height,
             color: text_color,
             background: background_color,
             italics,
             underline,
             strikethrough,
             valign,
-            extra_letter_spacing,
         };
 
         let job = LayoutJob::single_section(text, text_format);
