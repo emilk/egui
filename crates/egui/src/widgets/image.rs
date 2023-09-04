@@ -182,7 +182,7 @@ pub struct Image2<'a> {
 }
 
 impl<'a> Image2<'a> {
-    pub fn from_uri(uri: &'a str) -> Self {
+    pub fn new(uri: &'a str) -> Self {
         Self {
             uri,
             texture_options: TextureOptions::LINEAR,

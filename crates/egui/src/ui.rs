@@ -1592,6 +1592,11 @@ impl Ui {
     pub fn image(&mut self, texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {
         Image::new(texture_id, size).ui(self)
     }
+
+    #[inline]
+    pub fn image2(&mut self, uri: &str) -> Response {
+        Image2::new(uri).ui(self)
+    }
 }
 
 /// # Colors
