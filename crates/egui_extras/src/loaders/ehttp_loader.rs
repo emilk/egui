@@ -1,13 +1,9 @@
 use egui::{
     ahash::HashMap,
-    load::{
-        BytesLoadResult, BytesLoader, BytesPoll, ImageLoadResult, ImageLoader, ImagePoll,
-        LoadError, SizeHint,
-    },
+    load::{BytesLoadResult, BytesLoader, BytesPoll, LoadError},
     mutex::Mutex,
-    ColorImage,
 };
-use std::{path::Path, sync::Arc, task::Poll, thread};
+use std::{sync::Arc, task::Poll};
 
 #[derive(Default)]
 pub struct EhttpLoader {
