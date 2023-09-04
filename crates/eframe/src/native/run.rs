@@ -18,15 +18,19 @@ use super::epi_integration::{self, EpiIntegration};
 
 // ----------------------------------------------------------------------------
 
+/// The custom even `eframe` uses with the [`winit`] event loop.
 #[derive(Debug)]
 pub enum UserEvent {
+    /// A repaint is requested.
     RequestRepaint {
+        /// When to repaint.
         when: Instant,
 
         /// What the frame number was when the repaint was _requested_.
         frame_nr: u64,
     },
 
+    /// A request related to [`accesskit`](https://accesskit.dev/).
     #[cfg(feature = "accesskit")]
     AccessKitActionRequest(accesskit_winit::ActionRequestEvent),
 }

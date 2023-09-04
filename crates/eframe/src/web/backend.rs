@@ -10,13 +10,14 @@ use super::percent_decode;
 
 /// Data gathered between frames.
 #[derive(Default)]
-pub struct WebInput {
+pub(crate) struct WebInput {
     /// Required because we don't get a position on touched
     pub latest_touch_pos: Option<egui::Pos2>,
 
     /// Required to maintain a stable touch position for multi-touch gestures.
     pub latest_touch_pos_id: Option<egui::TouchId>,
 
+    /// The raw input to `egui`.
     pub raw: egui::RawInput,
 }
 
@@ -41,10 +42,8 @@ impl WebInput {
 
 // ----------------------------------------------------------------------------
 
-use std::sync::atomic::Ordering::SeqCst;
-
 /// Stores when to do the next repaint.
-pub struct NeedRepaint(Mutex<f64>);
+pub(crate) struct NeedRepaint(Mutex<f64>);
 
 impl Default for NeedRepaint {
     fn default() -> Self {
@@ -74,30 +73,14 @@ impl NeedRepaint {
     }
 }
 
-pub struct IsDestroyed(std::sync::atomic::AtomicBool);
-
-impl Default for IsDestroyed {
-    fn default() -> Self {
-        Self(false.into())
-    }
-}
-
-impl IsDestroyed {
-    pub fn fetch(&self) -> bool {
-        self.0.load(SeqCst)
-    }
-
-    pub fn set_true(&self) {
-        self.0.store(true, SeqCst);
-    }
-}
-
 // ----------------------------------------------------------------------------
 
+/// The User-Agent of the user's browser.
 pub fn user_agent() -> Option<String> {
     web_sys::window()?.navigator().user_agent().ok()
 }
 
+/// Get the [`epi::Location`] from the browser.
 pub fn web_location() -> epi::Location {
     let location = web_sys::window().unwrap().location();
 

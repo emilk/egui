@@ -3,15 +3,19 @@
 #![allow(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
 
 mod app_runner;
-pub mod backend;
+mod backend;
 mod events;
 mod input;
 mod panic_handler;
-pub mod screen_reader;
-pub mod storage;
 mod text_agent;
 mod web_logger;
 mod web_runner;
+
+/// Access to the browser screen reader.
+pub mod screen_reader;
+
+/// Access to local browser storage.
+pub mod storage;
 
 pub(crate) use app_runner::AppRunner;
 pub use panic_handler::{PanicHandler, PanicSummary};
@@ -34,8 +38,6 @@ mod web_painter_wgpu;
 pub(crate) type ActiveWebPainter = web_painter_wgpu::WebPainterWgpu;
 
 pub use backend::*;
-pub use events::*;
-pub use storage::*;
 
 use egui::Vec2;
 use wasm_bindgen::prelude::*;
@@ -59,15 +61,9 @@ pub fn now_sec() -> f64 {
         / 1000.0
 }
 
-#[allow(dead_code)]
-pub fn screen_size_in_native_points() -> Option<egui::Vec2> {
-    let window = web_sys::window()?;
-    Some(egui::vec2(
-        window.inner_width().ok()?.as_f64()? as f32,
-        window.inner_height().ok()?.as_f64()? as f32,
-    ))
-}
-
+/// The native GUI scale factor, taking into account the browser zoom.
+///
+/// Corresponds to [`window.devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) in JavaScript.
 pub fn native_pixels_per_point() -> f32 {
     let pixels_per_point = web_sys::window().unwrap().device_pixel_ratio() as f32;
     if pixels_per_point > 0.0 && pixels_per_point.is_finite() {
@@ -77,6 +73,9 @@ pub fn native_pixels_per_point() -> f32 {
     }
 }
 
+/// Ask the browser about the preferred system theme.
+///
+/// `None` means unknown.
 pub fn system_theme() -> Option<Theme> {
     let dark_mode = prefers_color_scheme_dark(&web_sys::window()?)
         .ok()??
@@ -96,13 +95,13 @@ fn theme_from_dark_mode(dark_mode: bool) -> Theme {
     }
 }
 
-pub fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
+fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
     let document = web_sys::window()?.document()?;
     let canvas = document.get_element_by_id(canvas_id)?;
     canvas.dyn_into::<web_sys::HtmlCanvasElement>().ok()
 }
 
-pub fn canvas_element_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
+fn canvas_element_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
     canvas_element(canvas_id)
         .unwrap_or_else(|| panic!("Failed to find canvas with id {canvas_id:?}"))
 }
@@ -114,7 +113,7 @@ fn canvas_origin(canvas_id: &str) -> egui::Pos2 {
     egui::pos2(rect.left() as f32, rect.top() as f32)
 }
 
-pub fn canvas_size_in_points(canvas_id: &str) -> egui::Vec2 {
+fn canvas_size_in_points(canvas_id: &str) -> egui::Vec2 {
     let canvas = canvas_element(canvas_id).unwrap();
     let pixels_per_point = native_pixels_per_point();
     egui::vec2(
@@ -123,7 +122,7 @@ pub fn canvas_size_in_points(canvas_id: &str) -> egui::Vec2 {
     )
 }
 
-pub fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2) -> Option<()> {
+fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2) -> Option<()> {
     let canvas = canvas_element(canvas_id)?;
     let parent = canvas.parent_element()?;
 
@@ -178,7 +177,8 @@ pub fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2
 
 // ----------------------------------------------------------------------------
 
-pub fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
+/// Set the cursor icon.
+fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
     let document = web_sys::window()?.document()?;
     document
         .body()?
@@ -187,8 +187,9 @@ pub fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
         .ok()
 }
 
+/// Set the clipboard text.
 #[cfg(web_sys_unstable_apis)]
-pub fn set_clipboard_text(s: &str) {
+fn set_clipboard_text(s: &str) {
     if let Some(window) = web_sys::window() {
         if let Some(clipboard) = window.navigator().clipboard() {
             let promise = clipboard.write_text(s);
@@ -245,6 +246,7 @@ fn cursor_web_name(cursor: egui::CursorIcon) -> &'static str {
     }
 }
 
+/// Open the given url in the browser.
 pub fn open_url(url: &str, new_tab: bool) -> Option<()> {
     let name = if new_tab { "_blank" } else { "_self" };
 
@@ -267,6 +269,7 @@ pub fn location_hash() -> String {
     )
 }
 
+/// Percent-decodes a string.
 pub fn percent_decode(s: &str) -> String {
     percent_encoding::percent_decode_str(s)
         .decode_utf8_lossy()
