@@ -320,6 +320,7 @@ impl<'open> Window<'open> {
         area.show_open_close_animation(ctx, &frame, is_open);
 
         if !is_open {
+            ctx.remove_from_layer_order(area.layer());
             return None;
         }
 

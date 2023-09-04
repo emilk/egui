@@ -726,6 +726,12 @@ impl Areas {
         }
     }
 
+    pub(crate) fn remove_state(&mut self, layer_id: LayerId) {
+        self.visible_current_frame.remove(&layer_id);
+        self.order.retain(|x| *x!= layer_id);
+    }
+
+
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
         for layer in self.order.iter().rev() {

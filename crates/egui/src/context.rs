@@ -1459,6 +1459,10 @@ impl Context {
         self.memory(|mem| mem.areas.get_top_layer_id(Order::Middle))
     }
 
+    pub fn remove_from_layer_order(&self, layer_id: LayerId) {
+        self.memory_mut(|mem| mem.areas.remove_state(layer_id));
+    }
+
     pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
         rect.is_positive() && {
             let pointer_pos = self.input(|i| i.pointer.interact_pos());
