@@ -3,8 +3,7 @@
 // For non-serializable types, these simply return `None`.
 // This will also allow users to pick their own serialization format per type.
 
-use std::sync::Arc;
-use std::{any::Any, collections::BTreeMap};
+use std::{any::Any, sync::Arc};
 
 // -----------------------------------------------------------------------------------------------
 
@@ -56,7 +55,6 @@ impl<T> SerializableAny for T where T: 'static + Any + Clone + for<'a> Send + Sy
 
 // -----------------------------------------------------------------------------------------------
 
-#[cfg(feature = "persistence")]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Debug)]
 struct SerializedElement {
@@ -569,6 +567,8 @@ struct PersistedMap(Vec<(u64, SerializedElement)>);
 impl PersistedMap {
     fn from_map(map: &IdTypeMap) -> Self {
         crate::profile_function!();
+
+        use std::collections::BTreeMap;
 
         let mut types_map: nohash_hasher::IntMap<TypeId, TypeStats> = Default::default();
         #[derive(Default)]
