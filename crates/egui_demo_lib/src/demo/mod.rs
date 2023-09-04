@@ -26,6 +26,7 @@ pub mod strip_demo;
 pub mod table_demo;
 pub mod tests;
 pub mod text_edit;
+pub mod text_layout;
 pub mod toggle_switch;
 pub mod widget_gallery;
 pub mod window_options;

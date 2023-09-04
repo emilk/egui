@@ -352,7 +352,7 @@ pub mod text {
     pub use crate::text_edit::CCursorRange;
     pub use epaint::text::{
         cursor::CCursor, FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob,
-        LayoutSection, TextFormat, TAB_SIZE,
+        LayoutSection, TextFormat, TextWrapping, TAB_SIZE,
     };
 }
 
