@@ -58,7 +58,11 @@ impl<T> SerializableAny for T where T: 'static + Any + Clone + for<'a> Send + Sy
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 struct SerializedElement {
     type_id: TypeId,
+
     ron: Arc<str>,
+
+    /// Increased by one each time we re-serialize an element that wss never deserialized.
+    generation: usize,
 }
 
 #[cfg(feature = "persistence")]
@@ -86,6 +90,10 @@ enum Element {
 
         /// The ron data we can deserialize.
         ron: Arc<str>,
+
+        /// Increased by one each time we re-serialize an element that wss never deserialized.
+        /// Used for garbage collection.
+        generation: usize,
     },
 }
 
@@ -104,9 +112,14 @@ impl Clone for Element {
                 serialize_fn: *serialize_fn,
             },
 
-            Self::Serialized { type_id, ron } => Self::Serialized {
+            Self::Serialized {
+                type_id,
+                ron,
+                generation,
+            } => Self::Serialized {
                 type_id: *type_id,
                 ron: ron.clone(),
+                generation: *generation,
             },
         }
     }
@@ -116,13 +129,18 @@ impl std::fmt::Debug for Element {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
             Self::Value { value, .. } => f
-                .debug_struct("MaybeSerializable::Value")
+                .debug_struct("Element::Value")
                 .field("type_id", &value.type_id())
                 .finish_non_exhaustive(),
-            Self::Serialized { type_id, ron } => f
-                .debug_struct("MaybeSerializable::Serialized")
-                .field("type_id", &type_id)
-                .field("ron", &ron)
+            Self::Serialized {
+                type_id,
+                ron,
+                generation,
+            } => f
+                .debug_struct("Element::Serialized")
+                .field("type_id", type_id)
+                .field("ron", ron)
+                .field("generation", generation)
                 .finish(),
         }
     }
@@ -268,14 +286,20 @@ impl Element {
                     Some(SerializedElement {
                         type_id: (**value).type_id().into(),
                         ron: ron.into(),
+                        generation: 1,
                     })
                 } else {
                     None
                 }
             }
-            Self::Serialized { type_id, ron } => Some(SerializedElement {
+            Self::Serialized {
+                type_id,
+                ron,
+                generation,
+            } => Some(SerializedElement {
                 type_id: *type_id,
                 ron: ron.clone(),
+                generation: *generation,
             }),
         }
     }
@@ -447,6 +471,17 @@ impl IdTypeMap {
         }
     }
 
+    /// For tests
+    #[cfg(feature = "persistence")]
+    #[allow(unused)]
+    fn get_generation<T: SerializableAny>(&self, id: Id) -> Option<usize> {
+        let element = self.0.get(&hash(TypeId::of::<T>(), id))?;
+        match element {
+            Element::Value { .. } => Some(0),
+            Element::Serialized { generation, .. } => Some(*generation),
+        }
+    }
+
     /// Remove the state of this type an id.
     #[inline]
     pub fn remove<T: 'static>(&mut self, id: Id) {
@@ -530,9 +565,25 @@ impl PersistedMap {
         IdTypeMap(
             self.0
                 .into_iter()
-                .map(|(hash, SerializedElement { type_id, ron })| {
-                    (hash, Element::Serialized { type_id, ron })
-                })
+                .map(
+                    |(
+                        hash,
+                        SerializedElement {
+                            type_id,
+                            ron,
+                            generation,
+                        },
+                    )| {
+                        (
+                            hash,
+                            Element::Serialized {
+                                type_id,
+                                ron,
+                                generation: generation + 1, // This is where we increment the generation!
+                            },
+                        )
+                    },
+                )
                 .collect(),
         )
     }
@@ -730,4 +781,45 @@ fn test_mix_serialize() {
         Some(Serializable(555))
     );
     assert_eq!(map.get_temp::<Serializable>(id), Some(Serializable(555)));
+}
+
+#[cfg(feature = "persistence")]
+#[test]
+fn test_serialize_generations() {
+    use serde::{Deserialize, Serialize};
+
+    fn serialize_and_deserialize(map: &IdTypeMap) -> IdTypeMap {
+        let serialized = ron::to_string(map).unwrap();
+        ron::from_str(&serialized).unwrap()
+    }
+
+    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    struct A(i32);
+
+    let mut map: IdTypeMap = Default::default();
+    for i in 0..3 {
+        map.insert_persisted(Id::new(i), A(i));
+    }
+    for i in 0..3 {
+        assert_eq!(map.get_generation::<A>(Id::new(i)), Some(0));
+    }
+
+    map = serialize_and_deserialize(&map);
+
+    // We use generation 0 for non-serilized,
+    // 1 for things that have been serialized but never deserialized,
+    // and then we increment with 1 on each deserialize.
+    // So we should have generation 2 now:
+    for i in 0..3 {
+        assert_eq!(map.get_generation::<A>(Id::new(i)), Some(2));
+    }
+
+    // Reading should reset:
+    assert_eq!(map.get_persisted::<A>(Id::new(0)), Some(A(0)));
+    assert_eq!(map.get_generation::<A>(Id::new(0)), Some(0));
+
+    // Generations should increment:
+    map = serialize_and_deserialize(&map);
+    assert_eq!(map.get_generation::<A>(Id::new(0)), Some(2));
+    assert_eq!(map.get_generation::<A>(Id::new(1)), Some(3));
 }
