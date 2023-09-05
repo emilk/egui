@@ -29,7 +29,7 @@ impl BytesLoader for FileLoader {
                 Poll::Pending => Ok(BytesPoll::Pending { size: None }),
             }
         } else {
-            crate::log_trace!("started loading `{uri}`");
+            crate::log_trace!("started loading {uri:?}");
             // We need to load the file at `path`.
 
             // Set the file to `pending` until we finish loading it.
@@ -50,7 +50,7 @@ impl BytesLoader for FileLoader {
                     let prev = cache.lock().insert(path, Poll::Ready(result));
                     assert!(matches!(prev, Some(Poll::Pending)));
                     ctx.request_repaint();
-                    crate::log_trace!("finished loading `{uri}`");
+                    crate::log_trace!("finished loading {uri:?}");
                 }
             });
 

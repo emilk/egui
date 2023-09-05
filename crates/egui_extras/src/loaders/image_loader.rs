@@ -35,9 +35,9 @@ impl ImageLoader for ImageCrateLoader {
         } else {
             match ctx.try_load_bytes(uri) {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
-                    crate::log_trace!("started loading `{uri}`");
+                    crate::log_trace!("started loading {uri:?}");
                     let result = crate::image::load_image_bytes(&bytes).map(Arc::new);
-                    crate::log_trace!("finished loading `{uri}`");
+                    crate::log_trace!("finished loading {uri:?}");
                     cache.insert(uri.into(), result.clone());
                     match result {
                         Ok(image) => Ok(ImagePoll::Ready { image }),

@@ -25,13 +25,13 @@ fn get_image_bytes(
         match response.text() {
             Some(response_text) => {
                 return Err(format!(
-                    "failed to load `{uri}`: {} {} {response_text}",
+                    "failed to load {uri:?}: {} {} {response_text}",
                     response.status, response.status_text
                 ))
             }
             None => {
                 return Err(format!(
-                    "failed to load `{uri}`: {} {}",
+                    "failed to load {uri:?}: {} {}",
                     response.status, response.status_text
                 ))
             }
@@ -39,10 +39,10 @@ fn get_image_bytes(
     }
 
     let Some(content_type) = response.content_type() else {
-    return Err(format!("failed to load `{uri}`: no content-type header found"));
+    return Err(format!("failed to load {uri:?}: no content-type header found"));
   };
     if !content_type.starts_with("image/") {
-        return Err(format!("failed to load `{uri}`: expected content-type starting with \"image/\", found {content_type:?}"));
+        return Err(format!("failed to load {uri:?}: expected content-type starting with \"image/\", found {content_type:?}"));
     }
 
     Ok(response.bytes.into())
@@ -62,7 +62,7 @@ impl BytesLoader for EhttpLoader {
                 Poll::Pending => Ok(BytesPoll::Pending { size: None }),
             }
         } else {
-            crate::log_trace!("started loading `{uri}`");
+            crate::log_trace!("started loading {uri:?}");
 
             let uri = uri.to_owned();
             cache.insert(uri.clone(), Poll::Pending);
@@ -73,7 +73,7 @@ impl BytesLoader for EhttpLoader {
                 let cache = self.cache.clone();
                 move |response| {
                     let result = get_image_bytes(&uri, response);
-                    crate::log_trace!("finished loading `{uri}`");
+                    crate::log_trace!("finished loading {uri:?}");
                     let prev = cache.lock().insert(uri, Poll::Ready(result));
                     assert!(matches!(prev, Some(Poll::Pending)));
                     ctx.request_repaint();
