@@ -155,7 +155,7 @@ impl BackendPanel {
         // On web, the browser controls `pixels_per_point`.
         let integration_controls_pixels_per_point = frame.is_web();
         if !integration_controls_pixels_per_point {
-            self.pixels_per_point_ui(ui, &frame.info());
+            self.pixels_per_point_ui(ui, frame.info());
         }
 
         #[cfg(not(target_arch = "wasm32"))]
