@@ -51,6 +51,7 @@
 use crate::Context;
 use ahash::HashMap;
 use epaint::mutex::Mutex;
+use epaint::TextureHandle;
 use epaint::{textures::TextureOptions, ColorImage, TextureId, Vec2};
 use std::{error::Error as StdError, fmt::Display, sync::Arc};
 
@@ -205,6 +206,15 @@ pub struct SizedTexture {
     pub size: Size,
 }
 
+impl SizedTexture {
+    pub fn from_handle(handle: &TextureHandle) -> Self {
+        Self {
+            id: handle.id(),
+            size: handle.size(),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub enum TexturePoll {
     /// Texture is loading.
@@ -281,7 +291,10 @@ impl BytesLoader for IncludeBytesLoader {
     }
 }
 
-struct DefaultTextureLoader;
+#[derive(Default)]
+struct DefaultTextureLoader {
+    cache: Mutex<HashMap<(String, TextureOptions), TextureHandle>>,
+}
 
 impl TextureLoader for DefaultTextureLoader {
     fn load(
@@ -291,15 +304,19 @@ impl TextureLoader for DefaultTextureLoader {
         texture_options: TextureOptions,
         size_hint: SizeHint,
     ) -> TextureLoadResult {
-        match ctx.try_load_image(uri, size_hint)? {
-            ImagePoll::Pending { size } => Ok(TexturePoll::Pending { size }),
-            ImagePoll::Ready { image } => {
-                let handle = ctx.load_texture(uri, image, texture_options);
-                let texture = SizedTexture {
-                    id: handle.id(),
-                    size: handle.size(),
-                };
-                Ok(TexturePoll::Ready { texture })
+        let mut cache = self.cache.lock();
+        if let Some(handle) = cache.get(&(uri.into(), texture_options)) {
+            let texture = SizedTexture::from_handle(handle);
+            Ok(TexturePoll::Ready { texture })
+        } else {
+            match ctx.try_load_image(uri, size_hint)? {
+                ImagePoll::Pending { size } => Ok(TexturePoll::Pending { size }),
+                ImagePoll::Ready { image } => {
+                    let handle = ctx.load_texture(uri, image, texture_options);
+                    let texture = SizedTexture::from_handle(&handle);
+                    cache.insert((uri.into(), texture_options), handle);
+                    Ok(TexturePoll::Ready { texture })
+                }
             }
         }
     }
@@ -331,7 +348,7 @@ impl Default for Loaders {
             bytes: vec![include.clone()],
             image: Vec::new(),
             // By default we only include `DefaultTextureLoader`.
-            texture: vec![Arc::new(DefaultTextureLoader)],
+            texture: vec![Arc::new(DefaultTextureLoader::default())],
             include,
         }
     }
