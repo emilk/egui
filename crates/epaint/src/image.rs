@@ -232,6 +232,7 @@ impl From<ColorImage> for ImageData {
 }
 
 impl From<Arc<ColorImage>> for ImageData {
+    #[inline]
     fn from(image: Arc<ColorImage>) -> Self {
         Self::Color(image)
     }
