@@ -38,21 +38,24 @@ impl BytesLoader for FileLoader {
             drop(cache);
 
             // Spawn a thread to read the file, so that we don't block the render for too long.
-            thread::spawn({
-                let ctx = ctx.clone();
-                let cache = self.cache.clone();
-                let uri = uri.to_owned();
-                move || {
-                    let result = match std::fs::read(&path) {
-                        Ok(bytes) => Ok(bytes.into()),
-                        Err(err) => Err(err.to_string()),
-                    };
-                    let prev = cache.lock().insert(path, Poll::Ready(result));
-                    assert!(matches!(prev, Some(Poll::Pending)));
-                    ctx.request_repaint();
-                    crate::log_trace!("finished loading {uri:?}");
-                }
-            });
+            thread::Builder::new()
+                .name(format!("egui_extras::FileLoader::load({uri:?})"))
+                .spawn({
+                    let ctx = ctx.clone();
+                    let cache = self.cache.clone();
+                    let uri = uri.to_owned();
+                    move || {
+                        let result = match std::fs::read(&path) {
+                            Ok(bytes) => Ok(bytes.into()),
+                            Err(err) => Err(err.to_string()),
+                        };
+                        let prev = cache.lock().insert(path, Poll::Ready(result));
+                        assert!(matches!(prev, Some(Poll::Pending)));
+                        ctx.request_repaint();
+                        crate::log_trace!("finished loading {uri:?}");
+                    }
+                })
+                .expect("failed to spawn thread");
 
             Ok(BytesPoll::Pending { size: None })
         }
