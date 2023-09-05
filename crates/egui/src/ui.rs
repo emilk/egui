@@ -249,11 +249,6 @@ impl Ui {
         self.painter.is_visible()
     }
 
-    #[deprecated = "Renamed is_visible"]
-    pub fn visible(&self) -> bool {
-        self.painter.is_visible()
-    }
-
     /// Calling `set_visible(false)` will cause all further widgets to be invisible,
     /// yet still allocate space.
     ///
@@ -2036,11 +2031,6 @@ impl Ui {
         }
 
         InnerResponse::new(inner, self.interact(rect, child_ui.id, Sense::hover()))
-    }
-
-    #[deprecated = "Use ui.vertical_centered or ui.centered_and_justified"]
-    pub fn centered<R>(&mut self, add_contents: impl FnOnce(&mut Self) -> R) -> InnerResponse<R> {
-        self.vertical_centered(add_contents)
     }
 
     /// This will make the next added widget centered and justified in the available space.
