@@ -33,7 +33,9 @@ syntax_highlighting = ["syntect"]
 
 [dependencies]
 egui = { version = "0.22.0", path = "../egui", default-features = false }
-egui_extras = { version = "0.22.0", path = "../egui_extras" }
+egui_extras = { version = "0.22.0", path = "../egui_extras", features = [
+    "log",
+] }
 egui_plot = { version = "0.22.0", path = "../egui_plot" }
 enum-map = { version = "2", features = ["serde"] }
 log = { version = "0.4", features = ["std"] }
