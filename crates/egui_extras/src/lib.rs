@@ -28,6 +28,37 @@ pub use crate::sizing::Size;
 pub use crate::strip::*;
 pub use crate::table::*;
 
+// ---------------------------------------------------------------------------
+
+mod profiling_scopes {
+    #![allow(unused_macros)]
+    #![allow(unused_imports)]
+
+    /// Profiling macro for feature "puffin"
+    macro_rules! profile_function {
+        ($($arg: tt)*) => {
+            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
+            #[cfg(feature = "puffin")]
+            puffin::profile_function!($($arg)*);
+        };
+    }
+    pub(crate) use profile_function;
+
+    /// Profiling macro for feature "puffin"
+    macro_rules! profile_scope {
+        ($($arg: tt)*) => {
+            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
+            #[cfg(feature = "puffin")]
+            puffin::profile_scope!($($arg)*);
+        };
+    }
+    pub(crate) use profile_scope;
+}
+
+pub(crate) use profiling_scopes::*;
+
+// ---------------------------------------------------------------------------
+
 /// Log an error with either `log` or `eprintln`
 macro_rules! log_err {
     ($fmt: literal, $($arg: tt)*) => {{
