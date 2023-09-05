@@ -400,6 +400,7 @@ impl EpiIntegration {
             screenshot: std::cell::Cell::new(None),
             raw_display_handle: window.raw_display_handle(),
             raw_window_handle: window.raw_window_handle(),
+            allow_ime: None,
         };
 
         let mut egui_winit = egui_winit::State::new(event_loop);
@@ -519,6 +520,10 @@ impl EpiIntegration {
             crate::profile_scope!("App::update");
             app.update(egui_ctx, &mut self.frame);
         });
+
+        if let Some(allow_ime) = self.frame.allow_ime.take() {
+            window.set_ime_allowed(allow_ime);
+        }
 
         self.pending_full_output.append(full_output);
         let full_output = std::mem::take(&mut self.pending_full_output);

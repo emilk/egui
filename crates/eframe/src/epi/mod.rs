@@ -730,6 +730,9 @@ pub struct Frame {
     /// Raw platform display handle for window
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) raw_display_handle: RawDisplayHandle,
+
+    /// Option for enabling/disabling IME.
+    pub(crate) allow_ime: Option<bool>,
 }
 
 // Implementing `Clone` would violate the guarantees of `HasRawWindowHandle` and `HasRawDisplayHandle`.
@@ -976,6 +979,11 @@ impl Frame {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_always_on_top(&mut self, always_on_top: bool) {
         self.output.always_on_top = Some(always_on_top);
+    }
+
+    /// Enable/disable IME.
+    pub fn allow_ime(&mut self, allow: bool) {
+        self.allow_ime = Some(allow);
     }
 
     /// On desktop: Set the window to be centered.
