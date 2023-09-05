@@ -33,7 +33,7 @@ pub type Result<T, E = LoadError> = std::result::Result<T, E>;
 /// All variants will preserve the original aspect ratio.
 ///
 /// Similar to `usvg::FitTo`.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SizeHint {
     /// Keep original size.
     Original,
