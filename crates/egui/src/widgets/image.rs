@@ -183,7 +183,7 @@ impl Widget for Image {
 /// In both cases the task of actually loading the image
 /// is deferred to when the `Image2` is added to the [`Ui`].
 ///
-/// See [`load::BytesLoader`], [`load::ImageLoader`], and [`load::TextureLoader`] for more details.
+/// See [`crate::load`] for more information.
 pub struct Image2<'a> {
     source: ImageSource<'a>,
     texture_options: TextureOptions,
@@ -209,11 +209,15 @@ pub enum ImageSource<'a> {
     /// This could be a `file://` url, `http://` url, or a `bare` identifier.
     /// How the URI will be turned into a texture for rendering purposes is
     /// up to the registered loaders to handle.
+    ///
+    /// See [`crate::load`] for more information.
     Uri(&'a str),
 
     /// Load the image from the raw bytes of an image obtained via [`include_bytes`].
     ///
     /// This instructs the [`Ui`] to cache the raw bytes, which are then further processed by any registered loaders.
+    ///
+    /// See [`crate::load`] for more information.
     Bytes(&'static str, &'static [u8]),
 }
 
@@ -230,6 +234,7 @@ impl From<(&'static str, &'static [u8])> for ImageSource<'static> {
 }
 
 impl<'a> Image2<'a> {
+    /// Load the image from some source.
     pub fn new(source: ImageSource<'a>) -> Self {
         Self {
             source,
