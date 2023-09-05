@@ -320,9 +320,8 @@ fn replace_last_glyph_with_overflow_character(
     job: &LayoutJob,
     row: &mut Row,
 ) {
-    let overflow_character = match job.wrap.overflow_character {
-        Some(c) => c,
-        None => return,
+    let Some(overflow_character) = job.wrap.overflow_character else {
+        return;
     };
 
     loop {
