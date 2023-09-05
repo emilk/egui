@@ -1933,9 +1933,8 @@ impl Context {
     /// [custom]: crate::load::LoadError::Custom
     pub fn try_load_bytes(&self, uri: &str) -> load::BytesLoadResult {
         self.read(|this| {
-            let ctx = self.clone();
             for loader in &this.loaders.bytes {
-                match loader.load(&ctx, uri) {
+                match loader.load(self, uri) {
                     Err(load::LoadError::NotSupported) => continue,
                     result => return result,
                 }
@@ -1961,9 +1960,8 @@ impl Context {
     /// [custom]: crate::load::LoadError::Custom
     pub fn try_load_image(&self, uri: &str, size_hint: load::SizeHint) -> load::ImageLoadResult {
         self.read(|this| {
-            let ctx = self.clone();
             for loader in &this.loaders.image {
-                match loader.load(&ctx, uri, size_hint) {
+                match loader.load(self, uri, size_hint) {
                     Err(load::LoadError::NotSupported) => continue,
                     result => return result,
                 }
@@ -1994,9 +1992,8 @@ impl Context {
         size_hint: load::SizeHint,
     ) -> load::TextureLoadResult {
         self.read(|this| {
-            let ctx = self.clone();
             for loader in &this.loaders.texture {
-                match loader.load(&ctx, uri, texture_options, size_hint) {
+                match loader.load(self, uri, texture_options, size_hint) {
                     Err(load::LoadError::NotSupported) => continue,
                     result => return result,
                 }
