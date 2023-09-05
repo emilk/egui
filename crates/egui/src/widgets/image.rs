@@ -204,6 +204,36 @@ enum ImageFit {
     ShrinkToFit,
 }
 
+impl ImageFit {
+    pub fn calculate_final_size(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
+        let aspect_ratio = image_size.x / image_size.y;
+        // TODO: more image sizing options
+        match self {
+            // ImageFit::FitToWidth => todo!(),
+            // ImageFit::FitToHeight => todo!(),
+            // ImageFit::FitToWidthExact(_) => todo!(),
+            // ImageFit::FitToHeightExact(_) => todo!(),
+            ImageFit::ShrinkToFit => {
+                let width = if available_size.x < image_size.x {
+                    available_size.x
+                } else {
+                    image_size.x
+                };
+                let height = if available_size.y < image_size.y {
+                    available_size.y
+                } else {
+                    image_size.y
+                };
+                if width < height {
+                    Vec2::new(width, width / aspect_ratio)
+                } else {
+                    Vec2::new(height * aspect_ratio, height)
+                }
+            }
+        }
+    }
+}
+
 /// This type tells the [`Ui`] how to load the image.
 pub enum ImageSource<'a> {
     /// Load the image from a URI.
@@ -276,18 +306,21 @@ impl<'a> Image2<'a> {
     }
 
     /// Texture options used when creating the texture.
+    #[inline]
     pub fn texture_options(mut self, texture_options: TextureOptions) -> Self {
         self.texture_options = texture_options;
         self
     }
 
     /// Size hint used when creating the texture.
+    #[inline]
     pub fn size_hint(mut self, size_hint: impl Into<SizeHint>) -> Self {
         self.size_hint = size_hint.into();
         self
     }
 
     /// Make the image respond to clicks and/or drags.
+    #[inline]
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = sense;
         self
@@ -309,34 +342,10 @@ impl<'a> Widget for Image2<'a> {
             .try_load_texture(uri, self.texture_options, self.size_hint)
         {
             Ok(TexturePoll::Ready { texture }) => {
-                let size = Vec2::new(texture.size[0] as f32, texture.size[1] as f32);
-                let aspect_ratio = size.x / size.y;
-                let available_size = ui.available_size();
-
-                // TODO: more image sizing options
-                let final_size = match self.fit {
-                    // ImageFit::FitToWidth => todo!(),
-                    // ImageFit::FitToHeight => todo!(),
-                    // ImageFit::FitToWidthExact(_) => todo!(),
-                    // ImageFit::FitToHeightExact(_) => todo!(),
-                    ImageFit::ShrinkToFit => {
-                        let width = if available_size.x < size.x {
-                            available_size.x
-                        } else {
-                            size.x
-                        };
-                        let height = if available_size.y < size.y {
-                            available_size.y
-                        } else {
-                            size.y
-                        };
-                        if width < height {
-                            Vec2::new(width, width / aspect_ratio)
-                        } else {
-                            Vec2::new(height * aspect_ratio, height)
-                        }
-                    }
-                };
+                let final_size = self.fit.calculate_final_size(
+                    ui.available_size(),
+                    Vec2::new(texture.size[0] as f32, texture.size[1] as f32),
+                );
 
                 let (rect, response) = ui.allocate_exact_size(final_size, self.sense);
 
