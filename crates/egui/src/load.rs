@@ -50,7 +50,7 @@ pub enum SizeHint {
 
 impl From<Vec2> for SizeHint {
     fn from(value: Vec2) -> Self {
-        Self::Size(value.x as u32, value.y as u32)
+        Self::Size(value.x.round() as u32, value.y.round() as u32)
     }
 }
 
