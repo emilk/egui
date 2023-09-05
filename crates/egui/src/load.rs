@@ -259,11 +259,8 @@ pub(crate) struct IncludeBytesLoader {
 }
 
 impl IncludeBytesLoader {
-    pub(crate) fn insert(&self, name: &'static str, bytes: &'static [u8]) {
-        self.cache
-            .lock()
-            .entry(name)
-            .or_insert_with(|| bytes.into());
+    pub(crate) fn insert(&self, uri: &'static str, bytes: &'static [u8]) {
+        self.cache.lock().entry(uri).or_insert_with(|| bytes.into());
     }
 }
 

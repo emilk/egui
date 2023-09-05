@@ -1905,8 +1905,11 @@ impl Context {
 
 /// ## Image loading
 impl Context {
-    pub(crate) fn load_include_bytes(&self, name: &'static str, bytes: &'static [u8]) {
-        self.read(|ctx| ctx.loaders.include.insert(name, bytes));
+    /// Associate some static bytes with a `uri`.
+    ///
+    /// The same `uri` may be passed to [`Ui::image2`] later to load the bytes as an image.
+    pub fn load_include_bytes(&self, uri: &'static str, bytes: &'static [u8]) {
+        self.read(|ctx| ctx.loaders.include.insert(uri, bytes));
     }
 
     /// Append an entry onto the chain of bytes loaders.
