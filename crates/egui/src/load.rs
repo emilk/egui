@@ -136,6 +136,9 @@ pub trait BytesLoader {
     /// Implementations should call `ctx.request_repaint` to wake up the ui
     /// once the data is ready.
     ///
+    /// The implementation should cache any result, so that calling this
+    /// is immediate-mode safe.
+    ///
     /// # Errors
     /// This may fail with:
     /// - [`LoadError::NotSupported`] if the loader does not support loading `uri`.
@@ -177,6 +180,9 @@ pub trait ImageLoader {
     ///
     /// Implementations should call `ctx.request_repaint` to wake up the ui
     /// once the image is ready.
+    ///
+    /// The implementation should cache any result, so that calling this
+    /// is immediate-mode safe.
     ///
     /// # Errors
     /// This may fail with:
@@ -235,6 +241,9 @@ pub trait TextureLoader {
     ///
     /// Implementations should call `ctx.request_repaint` to wake up the ui
     /// once the texture is ready.
+    ///
+    /// The implementation should cache any result, so that calling this
+    /// is immediate-mode safe.
     ///
     /// # Errors
     /// This may fail with:

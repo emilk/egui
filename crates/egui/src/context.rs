@@ -1958,6 +1958,8 @@ impl Context {
 
     /// Try loading the bytes from the given uri using any available bytes loaders.
     ///
+    /// Loaders are expected to cache results, so that this call is immediate-mode safe.
+    ///
     /// This calls the loaders one by one in the order in which they were registered.
     /// If a loader returns [`LoadError::NotSupported`][not_supported],
     /// then the next loader is called. This process repeats until all loaders have
@@ -1985,6 +1987,8 @@ impl Context {
 
     /// Try loading the image from the given uri using any available image loaders.
     ///
+    /// Loaders are expected to cache results, so that this call is immediate-mode safe.
+    ///
     /// This calls the loaders one by one in the order in which they were registered.
     /// If a loader returns [`LoadError::NotSupported`][not_supported],
     /// then the next loader is called. This process repeats until all loaders have
@@ -2011,6 +2015,8 @@ impl Context {
     }
 
     /// Try loading the texture from the given uri using any available texture loaders.
+    ///
+    /// Loaders are expected to cache results, so that this call is immediate-mode safe.
     ///
     /// This calls the loaders one by one in the order in which they were registered.
     /// If a loader returns [`LoadError::NotSupported`][not_supported],
