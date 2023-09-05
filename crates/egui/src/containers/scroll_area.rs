@@ -54,6 +54,11 @@ impl State {
     pub fn store(self, ctx: &Context, id: Id) {
         ctx.data_mut(|d| d.insert_persisted(id, self));
     }
+
+    /// Get the current kinetic scrolling velocity.
+    pub fn velocity(&self) -> Vec2 {
+        self.vel
+    }
 }
 
 pub struct ScrollAreaOutput<R> {
