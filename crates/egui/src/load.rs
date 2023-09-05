@@ -1,3 +1,53 @@
+//! Types and traits related to image loading.
+//!
+//! If you just want to load some images, see [`egui_extras`](https://crates.io/crates/egui_extras/),
+//! which contains reasonable default implementations of these traits. You can get started quickly
+//! using [`egui_extras::loaders::install`](https://docs.rs/egui_extras/latest/egui_extras/loaders/fn.install.html).
+//!
+//! ## Loading process
+//!
+//! There are three kinds of loaders:
+//! - [`BytesLoader`]: load the raw bytes of an image
+//! - [`ImageLoader`]: decode the bytes into an array of colors
+//! - [`TextureLoader`]: ask the backend to put an image onto the GPU
+//!
+//! The different kinds of loaders represent different layers in the loading process:
+//!
+//! ```text,ignore
+//! ui.image2("file://image.png")
+//! └► ctx.try_load_texture("file://image.png", ...)
+//! └► TextureLoader::load("file://image.png", ...)
+//!    └► ctx.try_load_image("file://image.png", ...)
+//!    └► ImageLoader::load("file://image.png", ...)
+//!       └► ctx.try_load_bytes("file://image.png", ...)
+//!       └► BytesLoader::load("file://image.png", ...)
+//! ```
+//!
+//! As each layer attempts to load the URI, it first asks the layer below it
+//! for the data it needs to do its job. But this is not a strict requirement,
+//! an implementation could instead generate the data it needs!
+//!
+//! Loader trait implementations may be registered on a context with:
+//! - [`Context::add_bytes_loader`]
+//! - [`Context::add_image_loader`]
+//! - [`Context::add_texture_loader`]
+//!
+//! There may be multiple loaders of the same kind registered at the same time.
+//! The `try_load` methods on [`Context`] will attempt to call each loader one by one,
+//! until one of them returns something other than [`LoadError::NotSupported`].
+//!
+//! The loaders are stored in the context. This means they may hold state across frames,
+//! which they can (and _should_) use to cache the results of the operations they perform.
+//!
+//! For example, a [`BytesLoader`] that loads file URIs (`file://image.png`)
+//! would cache each file read. A [`TextureLoader`] would cache each combination
+//! of `(URI, TextureOptions)`, and so on.
+//!
+//! Each URI will be passed through the loaders as a plain `&str`.
+//! The loaders are free to derive as much meaning from the URI as they wish to.
+//! For example, a loader may determine that it doesn't support loading a specific URI
+//! if the protocol does not match what it expects.
+
 use crate::Context;
 use ahash::HashMap;
 use epaint::mutex::Mutex;
