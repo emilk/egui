@@ -4055,9 +4055,9 @@ dependencies = [
 
 [[package]]
 name = "web-time"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa75ec260dcf59cc310827bae1d7f629809b173dbfe808a633e19754dd4282a5"
+checksum = "19353897b48e2c4d849a2d73cb0aeb16dc2be4e00c565abfc11eb65a806e47de"
 dependencies = [
  "js-sys",
  "once_cell",
