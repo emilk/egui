@@ -1265,6 +1265,7 @@ dependencies = [
  "egui",
  "image",
  "log",
+ "puffin",
  "resvg",
  "serde",
  "tiny-skia",
