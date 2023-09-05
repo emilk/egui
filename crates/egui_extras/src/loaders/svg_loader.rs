@@ -14,7 +14,7 @@ pub struct SvgLoader {
 fn is_supported(uri: &str) -> bool {
     let Some(ext) = Path::new(uri).extension().and_then(|ext| ext.to_str()) else { return false };
 
-    matches!(ext, "svg")
+    ext == "svg"
 }
 
 impl ImageLoader for SvgLoader {

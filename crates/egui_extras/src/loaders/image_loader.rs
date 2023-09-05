@@ -17,7 +17,7 @@ fn is_supported(uri: &str) -> bool {
         return true
     };
 
-    !matches!(ext, "svg")
+    ext != "svg"
 }
 
 impl ImageLoader for ImageCrateLoader {
