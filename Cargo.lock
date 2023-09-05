@@ -1089,7 +1089,7 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui_extras",
- "ehttp 0.2.0",
+ "ehttp",
  "env_logger",
  "image",
 ]
@@ -1225,7 +1225,7 @@ dependencies = [
  "egui",
  "egui_demo_lib",
  "egui_extras",
- "ehttp 0.2.0",
+ "ehttp",
  "env_logger",
  "image",
  "log",
@@ -1260,7 +1260,7 @@ dependencies = [
  "chrono",
  "document-features",
  "egui",
- "ehttp 0.3.0",
+ "ehttp",
  "image",
  "log",
  "resvg",
@@ -1295,19 +1295,6 @@ dependencies = [
  "document-features",
  "egui",
  "serde",
-]
-
-[[package]]
-name = "ehttp"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80b69a6f9168b96c0ae04763bec27a8b06b34343c334dd2703a4ec21f0f5e110"
-dependencies = [
- "js-sys",
- "ureq",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
 ]
 
 [[package]]
