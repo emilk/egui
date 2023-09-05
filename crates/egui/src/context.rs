@@ -1,4 +1,5 @@
-// #![warn(missing_docs)]
+#![warn(missing_docs)] // Let's keep `Context` well-documented.
+
 use std::sync::Arc;
 
 use crate::{
@@ -1552,6 +1553,7 @@ impl Context {
 }
 
 impl Context {
+    /// Show a ui for settings (style and tessellation options).
     pub fn settings_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
 
@@ -1574,6 +1576,7 @@ impl Context {
             });
     }
 
+    /// Show the state of egui, including its input and output.
     pub fn inspection_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
         crate::trace!(ui);
@@ -1703,6 +1706,7 @@ impl Context {
         });
     }
 
+    /// Shows the contents of [`Self::memory`].
     pub fn memory_ui(&self, ui: &mut crate::Ui) {
         if ui
             .button("Reset all")
@@ -1803,6 +1807,7 @@ impl Context {
 }
 
 impl Context {
+    /// Edit the active [`Style`].
     pub fn style_ui(&self, ui: &mut Ui) {
         let mut style: Style = (*self.style()).clone();
         style.ui(ui);
@@ -1818,6 +1823,8 @@ impl Context {
     /// the function is still called, but with no other effect.
     ///
     /// No locks are held while the given closure is called.
+    #[allow(clippy::unused_self)]
+    #[inline]
     pub fn with_accessibility_parent(&self, _id: Id, f: impl FnOnce()) {
         // TODO(emilk): this isn't thread-safe - another thread can call this function between the push/pop calls
         #[cfg(feature = "accesskit")]
