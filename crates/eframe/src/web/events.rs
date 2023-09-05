@@ -29,7 +29,7 @@ fn paint_if_needed(runner: &mut AppRunner) -> Result<(), JsValue> {
     Ok(())
 }
 
-pub fn request_animation_frame(runner_ref: WebRunner) -> Result<(), JsValue> {
+pub(crate) fn request_animation_frame(runner_ref: WebRunner) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let closure = Closure::once(move || paint_and_schedule(&runner_ref));
     window.request_animation_frame(closure.as_ref().unchecked_ref())?;
@@ -39,7 +39,7 @@ pub fn request_animation_frame(runner_ref: WebRunner) -> Result<(), JsValue> {
 
 // ------------------------------------------------------------------------
 
-pub fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
+pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let document = web_sys::window().unwrap().document().unwrap();
 
     {
@@ -189,7 +189,7 @@ pub fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
     Ok(())
 }
 
-pub fn install_window_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
+pub(crate) fn install_window_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
 
     // Save-on-close
@@ -211,7 +211,7 @@ pub fn install_window_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
     Ok(())
 }
 
-pub fn install_color_scheme_change_event(runner_ref: &WebRunner) -> Result<(), JsValue> {
+pub(crate) fn install_color_scheme_change_event(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
 
     if let Some(media_query_list) = prefers_color_scheme_dark(&window)? {
@@ -230,7 +230,7 @@ pub fn install_color_scheme_change_event(runner_ref: &WebRunner) -> Result<(), J
     Ok(())
 }
 
-pub fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
+pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValue> {
     let canvas = canvas_element(runner_ref.try_lock().unwrap().canvas_id()).unwrap();
 
     {

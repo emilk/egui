@@ -1,3 +1,4 @@
+/// Screen reader support.
 pub struct ScreenReader {
     #[cfg(feature = "tts")]
     tts: Option<tts::Tts>,
@@ -29,10 +30,12 @@ impl Default for ScreenReader {
 }
 
 impl ScreenReader {
+    /// Speak the given text out loud.
     #[cfg(not(feature = "tts"))]
     #[allow(clippy::unused_self)]
     pub fn speak(&mut self, _text: &str) {}
 
+    /// Speak the given text out loud.
     #[cfg(feature = "tts")]
     pub fn speak(&mut self, text: &str) {
         if text.is_empty() {

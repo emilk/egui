@@ -1,4 +1,4 @@
-// #![warn(missing_docs)]
+#![warn(missing_docs)] // Let's keep `Ui` well-documented.
 
 use std::hash::Hash;
 use std::sync::Arc;
@@ -249,11 +249,6 @@ impl Ui {
         self.painter.is_visible()
     }
 
-    #[deprecated = "Renamed is_visible"]
-    pub fn visible(&self) -> bool {
-        self.painter.is_visible()
-    }
-
     /// Calling `set_visible(false)` will cause all further widgets to be invisible,
     /// yet still allocate space.
     ///
@@ -281,6 +276,7 @@ impl Ui {
         }
     }
 
+    /// Read the [`Layout`].
     #[inline]
     pub fn layout(&self) -> &Layout {
         self.placer.layout()
@@ -611,6 +607,7 @@ impl Ui {
         Id::new(self.next_auto_id_source)
     }
 
+    /// Same as `ui.next_auto_id().with(id_source)`
     pub fn auto_id_with<IdSource>(&self, id_source: IdSource) -> Id
     where
         IdSource: Hash,
@@ -618,6 +615,7 @@ impl Ui {
         Id::new(self.next_auto_id_source).with(id_source)
     }
 
+    /// Pretend like `count` widgets have been allocated.
     pub fn skip_ahead_auto_ids(&mut self, count: usize) {
         self.next_auto_id_source = self.next_auto_id_source.wrapping_add(count as u64);
     }
@@ -2043,11 +2041,6 @@ impl Ui {
         InnerResponse::new(inner, self.interact(rect, child_ui.id, Sense::hover()))
     }
 
-    #[deprecated = "Use ui.vertical_centered or ui.centered_and_justified"]
-    pub fn centered<R>(&mut self, add_contents: impl FnOnce(&mut Self) -> R) -> InnerResponse<R> {
-        self.vertical_centered(add_contents)
-    }
-
     /// This will make the next added widget centered and justified in the available space.
     ///
     /// Only one widget may be added to the inner `Ui`!
@@ -2227,7 +2220,7 @@ impl Ui {
         if let Some(menu_state) = self.menu_state.clone() {
             menu::submenu_button(self, menu_state, String::new(), add_contents)
         } else {
-            menu::menu_image_button(self, texture_id, image_size, add_contents)
+            menu::menu_image_button(self, ImageButton::new(texture_id, image_size), add_contents)
         }
     }
 }

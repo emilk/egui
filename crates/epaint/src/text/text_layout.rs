@@ -113,11 +113,15 @@ fn layout_section(
         format,
     } = section;
     let font = fonts.font(&format.font_id);
-    let font_height = font.row_height();
+    let line_height = section
+        .format
+        .line_height
+        .unwrap_or_else(|| font.row_height());
+    let extra_letter_spacing = section.format.extra_letter_spacing;
 
     let mut paragraph = out_paragraphs.last_mut().unwrap();
     if paragraph.glyphs.is_empty() {
-        paragraph.empty_paragraph_height = font_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
+        paragraph.empty_paragraph_height = line_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
     }
 
     paragraph.cursor_x += leading_space;
@@ -128,19 +132,20 @@ fn layout_section(
         if job.break_on_newline && chr == '\n' {
             out_paragraphs.push(Paragraph::default());
             paragraph = out_paragraphs.last_mut().unwrap();
-            paragraph.empty_paragraph_height = font_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
+            paragraph.empty_paragraph_height = line_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
         } else {
             let (font_impl, glyph_info) = font.glyph_info_and_font_impl(chr);
             if let Some(font_impl) = font_impl {
                 if let Some(last_glyph_id) = last_glyph_id {
                     paragraph.cursor_x += font_impl.pair_kerning(last_glyph_id, glyph_info.id);
+                    paragraph.cursor_x += extra_letter_spacing;
                 }
             }
 
             paragraph.glyphs.push(Glyph {
                 chr,
                 pos: pos2(paragraph.cursor_x, f32::NAN),
-                size: vec2(glyph_info.advance_width, glyph_info.row_height),
+                size: vec2(glyph_info.advance_width, line_height),
                 ascent: glyph_info.ascent,
                 uv_rect: glyph_info.uv_rect,
                 section_index,
@@ -328,8 +333,12 @@ fn replace_last_glyph_with_overflow_character(
         };
 
         let section = &job.sections[last_glyph.section_index as usize];
+        let extra_letter_spacing = section.format.extra_letter_spacing;
         let font = fonts.font(&section.format.font_id);
-        let font_height = font.row_height();
+        let line_height = section
+            .format
+            .line_height
+            .unwrap_or_else(|| font.row_height());
 
         let prev_glyph_id = prev_glyph.map(|prev_glyph| {
             let (_, prev_glyph_info) = font.glyph_info_and_font_impl(prev_glyph.chr);
@@ -338,23 +347,29 @@ fn replace_last_glyph_with_overflow_character(
 
         // undo kerning with previous glyph
         let (font_impl, glyph_info) = font.glyph_info_and_font_impl(last_glyph.chr);
-        last_glyph.pos.x -= font_impl
-            .zip(prev_glyph_id)
-            .map(|(font_impl, prev_glyph_id)| font_impl.pair_kerning(prev_glyph_id, glyph_info.id))
-            .unwrap_or_default();
+        last_glyph.pos.x -= extra_letter_spacing
+            + font_impl
+                .zip(prev_glyph_id)
+                .map(|(font_impl, prev_glyph_id)| {
+                    font_impl.pair_kerning(prev_glyph_id, glyph_info.id)
+                })
+                .unwrap_or_default();
 
         // replace the glyph
         last_glyph.chr = overflow_character;
         let (font_impl, glyph_info) = font.glyph_info_and_font_impl(last_glyph.chr);
-        last_glyph.size = vec2(glyph_info.advance_width, font_height);
+        last_glyph.size = vec2(glyph_info.advance_width, line_height);
         last_glyph.uv_rect = glyph_info.uv_rect;
         last_glyph.ascent = glyph_info.ascent;
 
         // reapply kerning
-        last_glyph.pos.x += font_impl
-            .zip(prev_glyph_id)
-            .map(|(font_impl, prev_glyph_id)| font_impl.pair_kerning(prev_glyph_id, glyph_info.id))
-            .unwrap_or_default();
+        last_glyph.pos.x += extra_letter_spacing
+            + font_impl
+                .zip(prev_glyph_id)
+                .map(|(font_impl, prev_glyph_id)| {
+                    font_impl.pair_kerning(prev_glyph_id, glyph_info.id)
+                })
+                .unwrap_or_default();
 
         row.rect.max.x = last_glyph.max_x();
 
@@ -474,7 +489,7 @@ fn galley_from_rows(
     let mut min_x: f32 = 0.0;
     let mut max_x: f32 = 0.0;
     for row in &mut rows {
-        let mut row_height = first_row_min_height.max(row.rect.height());
+        let mut line_height = first_row_min_height.max(row.rect.height());
         let mut row_ascent = 0.0f32;
         first_row_min_height = 0.0;
 
@@ -484,10 +499,10 @@ fn galley_from_rows(
             .iter()
             .max_by(|a, b| a.size.y.partial_cmp(&b.size.y).unwrap())
         {
-            row_height = glyph.size.y;
+            line_height = glyph.size.y;
             row_ascent = glyph.ascent;
         }
-        row_height = point_scale.round_to_pixel(row_height);
+        line_height = point_scale.round_to_pixel(line_height);
 
         // Now positions each glyph:
         for glyph in &mut row.glyphs {
@@ -503,11 +518,11 @@ fn galley_from_rows(
         }
 
         row.rect.min.y = cursor_y;
-        row.rect.max.y = cursor_y + row_height;
+        row.rect.max.y = cursor_y + line_height;
 
         min_x = min_x.min(row.rect.min.x);
         max_x = max_x.max(row.rect.max.x);
-        cursor_y += row_height;
+        cursor_y += line_height;
         cursor_y = point_scale.round_to_pixel(cursor_y);
     }
 

@@ -54,6 +54,11 @@ impl State {
     pub fn store(self, ctx: &Context, id: Id) {
         ctx.data_mut(|d| d.insert_persisted(id, self));
     }
+
+    /// Get the current kinetic scrolling velocity.
+    pub fn velocity(&self) -> Vec2 {
+        self.vel
+    }
 }
 
 pub struct ScrollAreaOutput<R> {
@@ -445,20 +450,12 @@ impl ScrollArea {
         {
             // Clip the content, but only when we really need to:
             let clip_rect_margin = ui.visuals().clip_rect_margin;
-            let scroll_bar_inner_margin = ui.spacing().scroll_bar_inner_margin;
             let mut content_clip_rect = ui.clip_rect();
             for d in 0..2 {
                 if has_bar[d] {
                     if state.content_is_too_large[d] {
                         content_clip_rect.min[d] = inner_rect.min[d] - clip_rect_margin;
                         content_clip_rect.max[d] = inner_rect.max[d] + clip_rect_margin;
-                    }
-
-                    if state.show_scroll[d] {
-                        // Make sure content doesn't cover scroll bars
-                        let tiny_gap = 1.0;
-                        content_clip_rect.max[1 - d] =
-                            inner_rect.max[1 - d] + scroll_bar_inner_margin - tiny_gap;
                     }
                 } else {
                     // Nice handling of forced resizing beyond the possible:

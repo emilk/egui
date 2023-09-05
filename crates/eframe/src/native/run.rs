@@ -18,15 +18,19 @@ use super::epi_integration::{self, EpiIntegration};
 
 // ----------------------------------------------------------------------------
 
+/// The custom even `eframe` uses with the [`winit`] event loop.
 #[derive(Debug)]
 pub enum UserEvent {
+    /// A repaint is requested.
     RequestRepaint {
+        /// When to repaint.
         when: Instant,
 
         /// What the frame number was when the repaint was _requested_.
         frame_nr: u64,
     },
 
+    /// A request related to [`accesskit`](https://accesskit.dev/).
     #[cfg(feature = "accesskit")]
     AccessKitActionRequest(accesskit_winit::ActionRequestEvent),
 }
@@ -764,7 +768,7 @@ mod glow_integration {
                 .expect("Single-use AppCreator has unexpectedly already been taken");
             let mut app = app_creator(&epi::CreationContext {
                 egui_ctx: integration.egui_ctx.clone(),
-                integration_info: integration.frame.info(),
+                integration_info: integration.frame.info().clone(),
                 storage: integration.frame.storage(),
                 gl: Some(gl.clone()),
                 #[cfg(feature = "wgpu")]
@@ -1088,6 +1092,8 @@ pub use glow_integration::run_glow;
 mod wgpu_integration {
     use std::sync::Arc;
 
+    use parking_lot::Mutex;
+
     use super::*;
 
     /// State that is initialized when the application is first starts running via
@@ -1100,7 +1106,7 @@ mod wgpu_integration {
     }
 
     struct WgpuWinitApp {
-        repaint_proxy: Arc<std::sync::Mutex<EventLoopProxy<UserEvent>>>,
+        repaint_proxy: Arc<Mutex<EventLoopProxy<UserEvent>>>,
         app_name: String,
         native_options: epi::NativeOptions,
         app_creator: Option<epi::AppCreator>,
@@ -1126,7 +1132,7 @@ mod wgpu_integration {
             );
 
             Self {
-                repaint_proxy: Arc::new(std::sync::Mutex::new(event_loop.create_proxy())),
+                repaint_proxy: Arc::new(Mutex::new(event_loop.create_proxy())),
                 app_name: app_name.to_owned(),
                 native_options,
                 running: None,
@@ -1211,7 +1217,7 @@ mod wgpu_integration {
             );
             #[cfg(feature = "accesskit")]
             {
-                integration.init_accesskit(&window, self.repaint_proxy.lock().unwrap().clone());
+                integration.init_accesskit(&window, self.repaint_proxy.lock().clone());
             }
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
@@ -1228,7 +1234,6 @@ mod wgpu_integration {
                         let frame_nr = info.current_frame_nr;
                         event_loop_proxy
                             .lock()
-                            .unwrap()
                             .send_event(UserEvent::RequestRepaint { when, frame_nr })
                             .ok();
                     });
@@ -1238,7 +1243,7 @@ mod wgpu_integration {
                 .expect("Single-use AppCreator has unexpectedly already been taken");
             let mut app = app_creator(&epi::CreationContext {
                 egui_ctx: integration.egui_ctx.clone(),
-                integration_info: integration.frame.info(),
+                integration_info: integration.frame.info().clone(),
                 storage: integration.frame.storage(),
                 #[cfg(feature = "glow")]
                 gl: None,

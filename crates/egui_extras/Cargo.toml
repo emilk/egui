@@ -29,11 +29,17 @@ default = []
 ## Enable [`DatePickerButton`] widget.
 datepicker = ["chrono"]
 
+## Log warnings using [`log`](https://docs.rs/log) crate.
+log = ["dep:log", "egui/log"]
+
+## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
+##
+## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
+puffin = ["dep:puffin", "egui/puffin"]
+
 ## Support loading svg images.
 svg = ["resvg", "tiny-skia", "usvg"]
 
-## Log warnings using [`log`](https://docs.rs/log) crate.
-log = ["dep:log", "egui/log"]
 
 [dependencies]
 egui = { version = "0.22.0", path = "../egui", default-features = false }
@@ -63,6 +69,8 @@ image = { version = "0.24", optional = true, default-features = false }
 
 # feature "log"
 log = { version = "0.4", optional = true, features = ["std"] }
+
+puffin = { version = "0.16", optional = true }
 
 # svg feature
 resvg = { version = "0.28", optional = true, default-features = false }

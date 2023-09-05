@@ -27,7 +27,7 @@ pub struct WebRunner {
 }
 
 impl WebRunner {
-    // Will install a panic handler that will catch and log any panics
+    /// Will install a panic handler that will catch and log any panics
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         #[cfg(not(web_sys_unstable_apis))]
@@ -102,6 +102,7 @@ impl WebRunner {
         }
     }
 
+    /// Shut down eframe and clean up resources.
     pub fn destroy(&self) {
         self.unsubscribe_from_all_events();
 

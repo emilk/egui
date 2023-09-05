@@ -76,6 +76,7 @@ impl Default for FrameState {
 
 impl FrameState {
     pub(crate) fn begin_frame(&mut self, input: &InputState) {
+        crate::profile_function!();
         let Self {
             used_ids,
             available_rect,

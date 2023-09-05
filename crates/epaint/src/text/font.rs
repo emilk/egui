@@ -49,11 +49,6 @@ pub struct GlyphInfo {
     /// Unit: points.
     pub ascent: f32,
 
-    /// row height computed from the font metrics.
-    ///
-    /// Unit: points.
-    pub row_height: f32,
-
     /// Texture coordinates.
     pub uv_rect: UvRect,
 }
@@ -65,7 +60,6 @@ impl Default for GlyphInfo {
             id: ab_glyph::GlyphId(0),
             advance_width: 0.0,
             ascent: 0.0,
-            row_height: 0.0,
             uv_rect: Default::default(),
         }
     }
@@ -250,7 +244,7 @@ impl FontImpl {
             / self.pixels_per_point
     }
 
-    /// Height of one row of text. In points
+    /// Height of one row of text in points.
     #[inline(always)]
     pub fn row_height(&self) -> f32 {
         self.height_in_points
@@ -312,7 +306,6 @@ impl FontImpl {
             id: glyph_id,
             advance_width: advance_width_in_points,
             ascent: self.ascent,
-            row_height: self.row_height(),
             uv_rect,
         }
     }
