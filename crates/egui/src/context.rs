@@ -1909,14 +1909,23 @@ impl Context {
         self.read(|ctx| ctx.loaders.include.insert(name, bytes));
     }
 
+    /// Append an entry onto the chain of bytes loaders.
+    ///
+    /// See [`load`] for more information.
     pub fn add_bytes_loader(&self, loader: Arc<dyn load::BytesLoader + Send + Sync + 'static>) {
         self.write(|ctx| ctx.loaders.bytes.push(loader));
     }
 
+    /// Append an entry onto the chain of image loaders.
+    ///
+    /// See [`load`] for more information.
     pub fn add_image_loader(&self, loader: Arc<dyn load::ImageLoader + Send + Sync + 'static>) {
         self.write(|ctx| ctx.loaders.image.push(loader));
     }
 
+    /// Append an entry onto the chain of texture loaders.
+    ///
+    /// See [`load`] for more information.
     pub fn add_texture_loader(&self, loader: Arc<dyn load::TextureLoader + Send + Sync + 'static>) {
         self.write(|ctx| ctx.loaders.texture.push(loader));
     }
