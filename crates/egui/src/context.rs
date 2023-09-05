@@ -1455,7 +1455,7 @@ impl Context {
         self.memory_mut(|mem| mem.areas.move_to_top(layer_id));
     }
 
-    pub fn get_top_layer_id(&self) -> Option<LayerId>{
+    pub fn get_top_layer_id(&self) -> Option<LayerId> {
         self.memory(|mem| mem.areas.get_top_layer_id(Order::Middle))
     }
 

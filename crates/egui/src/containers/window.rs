@@ -337,7 +337,7 @@ impl<'open> Window<'open> {
         let resize = resize.resizable(false); // We move it manually
         let mut resize = resize.id(resize_id);
 
-        let on_top = Some( area_layer_id ) == ctx.get_top_layer_id();
+        let on_top = Some(area_layer_id) == ctx.get_top_layer_id();
         let mut area = area.begin(ctx);
 
         let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
@@ -917,7 +917,11 @@ impl TitleBar {
             self.rect.max.x = self.rect.max.x.max(content_response.rect.max.x);
         }
         if on_top {
-            ui.painter().rect_filled(self.rect, Rounding::ZERO, ui.visuals().window_focused_header_color());
+            ui.painter().rect_filled(
+                self.rect,
+                Rounding::ZERO,
+                ui.visuals().window_focused_header_color(),
+            );
         }
 
         if let Some(open) = open {

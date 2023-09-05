@@ -1,6 +1,6 @@
 use epaint::{emath::Rangef, vec2, Vec2};
 
-use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style, Order};
+use crate::{area, window, Id, IdMap, InputState, LayerId, Order, Pos2, Rect, Style};
 
 // ----------------------------------------------------------------------------
 
@@ -728,9 +728,8 @@ impl Areas {
 
     pub(crate) fn remove_state(&mut self, layer_id: LayerId) {
         self.visible_current_frame.remove(&layer_id);
-        self.order.retain(|x| *x!= layer_id);
+        self.order.retain(|x| *x != layer_id);
     }
-
 
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
@@ -785,7 +784,11 @@ impl Areas {
     }
 
     pub fn get_top_layer_id(&self, order: Order) -> Option<LayerId> {
-        self.order.iter().filter(|layer| layer.order == order).last().copied()
+        self.order
+            .iter()
+            .filter(|layer| layer.order == order)
+            .last()
+            .copied()
     }
 
     pub(crate) fn end_frame(&mut self) {
