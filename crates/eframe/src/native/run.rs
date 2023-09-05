@@ -1771,6 +1771,7 @@ mod wgpu_integration {
 
     use egui::ViewportRender;
     use egui_winit::create_winit_window_builder;
+    use parking_lot::Mutex;
 
     use super::*;
 
@@ -1830,7 +1831,7 @@ mod wgpu_integration {
     }
 
     struct WgpuWinitApp {
-        repaint_proxy: Arc<std::sync::Mutex<EventLoopProxy<UserEvent>>>,
+        repaint_proxy: Arc<Mutex<EventLoopProxy<UserEvent>>>,
         app_name: String,
         native_options: epi::NativeOptions,
         app_creator: Option<epi::AppCreator>,
@@ -1855,7 +1856,7 @@ mod wgpu_integration {
             );
 
             Self {
-                repaint_proxy: Arc::new(std::sync::Mutex::new(event_loop.create_proxy())),
+                repaint_proxy: Arc::new(Mutex::new(event_loop.create_proxy())),
                 app_name: app_name.to_owned(),
                 native_options,
                 running: None,
@@ -1983,11 +1984,7 @@ mod wgpu_integration {
             let mut state = egui_winit::State::new(event_loop);
             #[cfg(feature = "accesskit")]
             {
-                integration.init_accesskit(
-                    &mut state,
-                    &window,
-                    self.repaint_proxy.lock().unwrap().clone(),
-                );
+                integration.init_accesskit(&mut state, &window, self.repaint_proxy.lock().clone());
             }
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
@@ -2006,7 +2003,6 @@ mod wgpu_integration {
 
                         event_loop_proxy
                             .lock()
-                            .unwrap()
                             .send_event(UserEvent::RequestRepaint {
                                 when,
                                 frame_nr,
