@@ -1921,8 +1921,10 @@ impl Context {
         self.write(|ctx| ctx.loaders.texture.push(loader));
     }
 
-    // TODO: evict caches
-    pub fn forget(&self, uri: &str) {
+    /// Release all memory and textures related to the given image URI.
+    ///
+    /// If you attempt to load the image again, it will be reloaded from scratch.
+    pub fn forget_image(&self, uri: &str) {
         self.write(|ctx| {
             use crate::load::BytesLoader as _;
 
