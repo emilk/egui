@@ -192,6 +192,7 @@ pub struct Image2<'a> {
     sense: Sense,
 }
 
+#[derive(Default, Clone, Copy)]
 enum ImageFit {
     // TODO: options for aspect ratio
     // TODO: other fit strategies
@@ -199,6 +200,7 @@ enum ImageFit {
     // FitToHeight,
     // FitToWidthExact(f32),
     // FitToHeightExact(f32),
+    #[default]
     ShrinkToFit,
 }
 
@@ -222,12 +224,14 @@ pub enum ImageSource<'a> {
 }
 
 impl<'a> From<&'a str> for ImageSource<'a> {
+    #[inline]
     fn from(value: &'a str) -> Self {
         Self::Uri(value)
     }
 }
 
 impl From<(&'static str, &'static [u8])> for ImageSource<'static> {
+    #[inline]
     fn from(value: (&'static str, &'static [u8])) -> Self {
         Self::Bytes(value.0, value.1)
     }
@@ -238,9 +242,9 @@ impl<'a> Image2<'a> {
     pub fn new(source: ImageSource<'a>) -> Self {
         Self {
             source,
-            texture_options: TextureOptions::LINEAR,
-            size_hint: SizeHint::Original,
-            fit: ImageFit::ShrinkToFit,
+            texture_options: Default::default(),
+            size_hint: Default::default(),
+            fit: Default::default(),
             sense: Sense::hover(),
         }
     }
@@ -251,9 +255,9 @@ impl<'a> Image2<'a> {
     pub fn from_uri(uri: &'a str) -> Self {
         Self {
             source: ImageSource::Uri(uri),
-            texture_options: TextureOptions::LINEAR,
-            size_hint: SizeHint::Original,
-            fit: ImageFit::ShrinkToFit,
+            texture_options: Default::default(),
+            size_hint: Default::default(),
+            fit: Default::default(),
             sense: Sense::hover(),
         }
     }
@@ -264,9 +268,9 @@ impl<'a> Image2<'a> {
     pub fn from_static_bytes(name: &'static str, bytes: &'static [u8]) -> Self {
         Self {
             source: ImageSource::Bytes(name, bytes),
-            texture_options: TextureOptions::LINEAR,
-            size_hint: SizeHint::Original,
-            fit: ImageFit::ShrinkToFit,
+            texture_options: Default::default(),
+            size_hint: Default::default(),
+            fit: Default::default(),
             sense: Sense::hover(),
         }
     }
