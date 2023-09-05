@@ -238,6 +238,10 @@ impl Widget for Button {
             }
         }
 
+        if response.hovered {
+            ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
+        }
+
         response
     }
 }
