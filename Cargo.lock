@@ -1152,6 +1152,7 @@ dependencies = [
  "js-sys",
  "log",
  "objc",
+ "parking_lot",
  "percent-encoding",
  "pollster",
  "puffin",
