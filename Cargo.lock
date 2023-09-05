@@ -1089,7 +1089,6 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui_extras",
- "ehttp",
  "env_logger",
  "image",
 ]
@@ -3164,7 +3163,6 @@ dependencies = [
  "eframe",
  "env_logger",
  "image",
- "itertools",
 ]
 
 [[package]]
