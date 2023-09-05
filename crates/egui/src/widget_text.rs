@@ -103,7 +103,10 @@ impl RichText {
 
     /// Extra spacing between letters, in points.
     ///
-    /// Default: 0.0. Round to whole _pixels_ for crisp text.
+    /// Default: 0.0.
+    ///
+    /// For even text it is recommended you round this to an even number of _pixels_,
+    /// e.g. using [`crate::Painter::round_to_pixel`].
     #[inline]
     pub fn extra_letter_spacing(mut self, extra_letter_spacing: f32) -> Self {
         self.extra_letter_spacing = extra_letter_spacing;
@@ -116,7 +119,8 @@ impl RichText {
     ///
     /// If `None` (the default), the line height is determined by the font.
     ///
-    /// Round to whole _pixels_ for crisp text.
+    /// For even text it is recommended you round this to an even number of _pixels_,
+    /// e.g. using [`crate::Painter::round_to_pixel`].
     #[inline]
     pub fn line_height(mut self, line_height: Option<f32>) -> Self {
         self.line_height = line_height;
