@@ -35,7 +35,6 @@ pub fn pos_from_touch_event(
         // search for the touch we previously used for the position
         // (unfortunately, `event.touches()` is not a rust collection):
         (0..event.touches().length())
-            .into_iter()
             .map(|i| event.touches().get(i).unwrap())
             .find(|touch| egui::TouchId::from(touch.identifier()) == *touch_id_for_pos)
     } else {
