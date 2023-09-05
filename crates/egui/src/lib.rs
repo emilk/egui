@@ -92,14 +92,16 @@
 //! # });
 //! ```
 //!
-//! ## Conventions
+//! ## Coordinate system
+//! The left-top corner of the screen is `(0.0, 0.0)`,
+//! with X increasing to the right and Y increasing downwards.
 //!
-//! Conventions unless otherwise specified:
+//! `egui` uses logical _points_ as its coordinate system.
+//! Those related to physical _pixels_ by the `pixels_per_point` scale factor.
+//! For example, a high-dpi screeen can have `pixels_per_point = 2.0`,
+//! meaning there are two physical screen pixels for each logical point.
 //!
-//! * angles are in radians
-//! * `Vec2::X` is right and `Vec2::Y` is down.
-//! * `Pos2::ZERO` is left top.
-//! * Positions and sizes are measured in _points_. Each point may consist of many physical pixels.
+//! Angles are in radians, and are measured clockwise from the X-axis, which has angle=0.
 //!
 //! # Integrating with egui
 //!
@@ -352,7 +354,7 @@ pub mod text {
     pub use crate::text_edit::CCursorRange;
     pub use epaint::text::{
         cursor::CCursor, FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob,
-        LayoutSection, TextFormat, TAB_SIZE,
+        LayoutSection, TextFormat, TextWrapping, TAB_SIZE,
     };
 }
 
