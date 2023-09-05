@@ -359,7 +359,9 @@ impl<'a> Widget for Image2<'a> {
 
                 response
             }
-            Ok(TexturePoll::Pending { .. }) => ui.spinner(),
+            Ok(TexturePoll::Pending { .. }) => {
+                ui.spinner().on_hover_text(format!("Loading {uri:?}…"))
+            }
             Err(err) => ui.colored_label(ui.visuals().error_fg_color, err.to_string()),
         }
     }
