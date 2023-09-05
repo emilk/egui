@@ -210,6 +210,7 @@ pub enum ImageSource<'a> {
     /// How the URI will be turned into a texture for rendering purposes is
     /// up to the registered loaders to handle.
     Uri(&'a str),
+
     /// Load the image from the raw bytes of an image obtained via [`include_bytes`].
     ///
     /// This instructs the [`Ui`] to cache the raw bytes, which are then further processed by any registered loaders.
