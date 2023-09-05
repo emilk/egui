@@ -8,7 +8,7 @@ authors = [
 ]
 description = "Immediate mode plotting for the egui GUI library"
 edition = "2021"
-rust-version = "1.67"
+rust-version = "1.70"
 homepage = "https://github.com/emilk/egui"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
