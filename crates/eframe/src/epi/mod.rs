@@ -762,8 +762,8 @@ impl Frame {
     }
 
     /// Information about the integration.
-    pub fn info(&self) -> IntegrationInfo {
-        self.info.clone()
+    pub fn info(&self) -> &IntegrationInfo {
+        &self.info
     }
 
     /// A place where you can store custom data in a way that persists when you restart the app.

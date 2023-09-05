@@ -15,7 +15,7 @@ jobs:
     name: Format + check + test
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -84,7 +84,7 @@ jobs:
     name: Check wasm32 + wasm-bindgen
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.67.0
@@ -142,7 +142,7 @@ jobs:
     name: cargo-deny ${{ matrix.target }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
           rust-version: "1.67.0"
@@ -156,7 +156,7 @@ jobs:
     name: android
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -175,7 +175,7 @@ jobs:
     name: Check Windows
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.67.0

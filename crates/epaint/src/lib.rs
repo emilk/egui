@@ -5,6 +5,17 @@
 //! Create some [`Shape`]:s and pass them to [`tessellate_shapes`] to generate [`Mesh`]:es
 //! that you can then paint using some graphics API of your choice (e.g. OpenGL).
 //!
+//! ## Coordinate system
+//! The left-top corner of the screen is `(0.0, 0.0)`,
+//! with X increasing to the right and Y increasing downwards.
+//!
+//! `epaint` uses logical _points_ as its coordinate system.
+//! Those related to physical _pixels_ by the `pixels_per_point` scale factor.
+//! For example, a high-dpi screeen can have `pixels_per_point = 2.0`,
+//! meaning there are two physical screen pixels for each logical point.
+//!
+//! Angles are in radians, and are measured clockwise from the X-axis, which has angle=0.
+//!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!

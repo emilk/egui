@@ -653,7 +653,7 @@ impl FontsImpl {
         self.font(font_id).has_glyphs(s)
     }
 
-    /// Height of one row of text. In points
+    /// Height of one row of text in points.
     fn row_height(&mut self, font_id: &FontId) -> f32 {
         self.font(font_id).row_height()
     }

@@ -1,5 +1,4 @@
-use std::borrow::Cow;
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use crate::{
     style::WidgetVisuals, text::LayoutJob, Align, Color32, FontFamily, FontSelection, Galley, Pos2,
@@ -25,6 +24,8 @@ use crate::{
 pub struct RichText {
     text: String,
     size: Option<f32>,
+    extra_letter_spacing: f32,
+    line_height: Option<f32>,
     family: Option<FontFamily>,
     text_style: Option<TextStyle>,
     background_color: Color32,
@@ -97,6 +98,32 @@ impl RichText {
     #[inline]
     pub fn size(mut self, size: f32) -> Self {
         self.size = Some(size);
+        self
+    }
+
+    /// Extra spacing between letters, in points.
+    ///
+    /// Default: 0.0.
+    ///
+    /// For even text it is recommended you round this to an even number of _pixels_,
+    /// e.g. using [`crate::Painter::round_to_pixel`].
+    #[inline]
+    pub fn extra_letter_spacing(mut self, extra_letter_spacing: f32) -> Self {
+        self.extra_letter_spacing = extra_letter_spacing;
+        self
+    }
+
+    /// Explicit line height of the text in points.
+    ///
+    /// This is the distance between the bottom row of two subsequent lines of text.
+    ///
+    /// If `None` (the default), the line height is determined by the font.
+    ///
+    /// For even text it is recommended you round this to an even number of _pixels_,
+    /// e.g. using [`crate::Painter::round_to_pixel`].
+    #[inline]
+    pub fn line_height(mut self, line_height: Option<f32>) -> Self {
+        self.line_height = line_height;
         self
     }
 
@@ -253,6 +280,8 @@ impl RichText {
         let Self {
             text,
             size,
+            extra_letter_spacing,
+            line_height,
             family,
             text_style,
             background_color,
@@ -309,6 +338,8 @@ impl RichText {
 
         let text_format = crate::text::TextFormat {
             font_id,
+            extra_letter_spacing,
+            line_height,
             color: text_color,
             background: background_color,
             italics,
