@@ -1596,7 +1596,7 @@ impl Ui {
     /// ⚠ This will do nothing unless you install some image loaders first!
     /// The easiest way to do this is via [`egui_extras::loaders::install`](https://docs.rs/egui_extras/latest/egui_extras/loaders/fn.install.html).
     ///
-    /// The context handles caching the images across frames, so calling this is immediate-mode safe.
+    /// The loaders handle caching image data, sampled textures, etc. across frames, so calling this is immediate-mode safe.
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
