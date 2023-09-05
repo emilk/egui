@@ -576,6 +576,7 @@ impl Context {
         self.write(|ctx| ctx.begin_frame_mut(new_input, viewport_id, parent_viewport_id));
     }
 
+    /// Create a new Context and specify if is desktop
     pub fn new(desktop: bool) -> Context {
         let context = Context::default();
         context.write(|ctx| {
@@ -1174,12 +1175,24 @@ impl Context {
     /// If called from outside the UI thread, the UI thread will wake up and run,
     /// provided the egui integration has set that up via [`Self::set_request_repaint_callback`]
     /// (this will work on `eframe`).
+    ///
+    /// This will repaint the current viewport
     pub fn request_repaint(&self) {
         // request two frames of repaint, just to cover some corner cases (frame delays):
         self.write(|ctx| ctx.repaint.request_repaint(ctx.get_viewport_id()));
     }
 
-    pub fn request_repaint_viewport(&self, id: ViewportId) {
+    /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
+    ///
+    /// If this is called at least once in a frame, then there will be another frame right after this.
+    /// Call as many times as you wish, only one repaint will be issued.
+    ///
+    /// If called from outside the UI thread, the UI thread will wake up and run,
+    /// provided the egui integration has set that up via [`Self::set_request_repaint_callback`]
+    /// (this will work on `eframe`).
+    ///
+    /// This will repaint the specified viewport
+    pub fn request_repaint_for(&self, id: ViewportId) {
         self.write(|ctx| ctx.repaint.request_repaint(id));
     }
 
@@ -1212,6 +1225,8 @@ impl Context {
     /// timeout takes 500 milliseconds AFTER the vsync swap buffer.
     /// So, its not that we are requesting repaint within X duration. We are rather timing out
     /// during app idle time where we are not receiving any new input events.
+    ///
+    /// This repaints the current viewport
     pub fn request_repaint_after(&self, duration: std::time::Duration) {
         // Maybe we can check if duration is ZERO, and call self.request_repaint()?
         self.write(|ctx| {
@@ -1220,7 +1235,38 @@ impl Context {
         });
     }
 
-    pub fn request_repaint_viewport_after(&self, duration: std::time::Duration, id: ViewportId) {
+    /// Request repaint after at most the specified duration elapses.
+    ///
+    /// The backend can chose to repaint sooner, for instance if some other code called
+    /// this method with a lower duration, or if new events arrived.
+    ///
+    /// The function can be multiple times, but only the *smallest* duration will be considered.
+    /// So, if the function is called two times with `1 second` and `2 seconds`, egui will repaint
+    /// after `1 second`
+    ///
+    /// This is primarily useful for applications who would like to save battery by avoiding wasted
+    /// redraws when the app is not in focus. But sometimes the GUI of the app might become stale
+    /// and outdated if it is not updated for too long.
+    ///
+    /// Lets say, something like a stop watch widget that displays the time in seconds. You would waste
+    /// resources repainting multiple times within the same second (when you have no input),
+    /// just calculate the difference of duration between current time and next second change,
+    /// and call this function, to make sure that you are displaying the latest updated time, but
+    /// not wasting resources on needless repaints within the same second.
+    ///
+    /// NOTE: only works if called before `Context::end_frame()`. to force egui to update,
+    /// use `Context::request_repaint()` instead.
+    ///
+    /// ### Quirk:
+    /// Duration begins at the next frame. lets say for example that its a very inefficient app
+    /// and takes 500 milliseconds per frame at 2 fps. The widget / user might want a repaint in
+    /// next 500 milliseconds. Now, app takes 1000 ms per frame (1 fps) because the backend event
+    /// timeout takes 500 milliseconds AFTER the vsync swap buffer.
+    /// So, its not that we are requesting repaint within X duration. We are rather timing out
+    /// during app idle time where we are not receiving any new input events.
+    ///
+    /// This repaints the specified viewport
+    pub fn request_repaint_after_for(&self, duration: std::time::Duration, id: ViewportId) {
         self.write(|ctx| ctx.repaint.request_repaint_after(duration, id));
     }
 
@@ -1640,18 +1686,26 @@ impl Context {
         self.input(|i| i.screen_rect())
     }
 
+    /// This will return the inner position of the current viewport
+    /// Viewport inner position, only the drowable area
     pub fn viewport_inner_pos(&self) -> Pos2 {
         self.input(|i| i.inner_pos)
     }
 
+    /// This will return the outer position of the current viewport
+    /// Viewport outer position, drowable area + decorations
     pub fn viewport_outer_pos(&self) -> Pos2 {
         self.input(|i| i.outer_pos)
     }
 
+    /// This will return the inner size of the current viewport
+    /// Viewport inner size, only drowable area
     pub fn viewport_inner_size(&self) -> Pos2 {
         self.input(|i| i.inner_size)
     }
 
+    /// This will return the outer size of the current viewport
+    /// Viewport outer size, drowable area + decorations
     pub fn viewport_outer_size(&self) -> Pos2 {
         self.input(|i| i.outer_size)
     }
@@ -2254,10 +2308,12 @@ impl Context {
         self.read(|ctx| ctx.get_parent_viewport_id())
     }
 
+    /// This will return the `ViewportId` of the specified id
     pub fn get_viewport_id_by_id(&self, id: impl Into<Id>) -> Option<ViewportId> {
         self.read(|ctx| ctx.viewports.get(&id.into()).map(|v| v.1))
     }
 
+    /// This will return the parent `ViewportId` of the specified id
     pub fn get_viewport_parent_id_by_id(&self, id: impl Into<Id>) -> Option<ViewportId> {
         self.read(|ctx| ctx.viewports.get(&id.into()).map(|v| v.1))
     }
@@ -2289,11 +2345,12 @@ impl Context {
         self.write(|ctx| ctx.force_embedding = value || !ctx.is_desktop);
     }
 
-    /// With this you can send a command to a viewport
+    /// This will send the `ViewportCommand` to the current viewport
     pub fn viewport_command(&self, command: ViewportCommand) {
         self.viewport_command_for(self.get_viewport_id(), command);
     }
 
+    /// With this you can send a command to a viewport
     pub fn viewport_command_for(&self, id: ViewportId, command: ViewportCommand) {
         self.write(|ctx| ctx.viewport_commands.push((id, command)));
     }
