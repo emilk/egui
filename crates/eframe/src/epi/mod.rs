@@ -455,6 +455,9 @@ pub struct NativeOptions {
     /// }
     /// ```
     pub app_id: Option<String>,
+
+    /// Enable/disable IME at startup.
+    pub allow_ime: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -529,6 +532,7 @@ impl Default for NativeOptions {
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
 
             app_id: None,
+            allow_ime: false,
         }
     }
 }

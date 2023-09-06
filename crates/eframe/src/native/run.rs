@@ -744,6 +744,10 @@ mod glow_integration {
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
 
+            gl_window
+                .window()
+                .set_ime_allowed(self.native_options.allow_ime);
+
             if self.native_options.mouse_passthrough {
                 gl_window.window().set_cursor_hittest(false).unwrap();
             }
@@ -1220,6 +1224,8 @@ mod wgpu_integration {
             }
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
+
+            window.set_ime_allowed(self.native_options.allow_ime);
 
             {
                 let event_loop_proxy = self.repaint_proxy.clone();
