@@ -1980,16 +1980,15 @@ impl Context {
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Custom
     pub fn try_load_bytes(&self, uri: &str) -> load::BytesLoadResult {
-        self.read(|this| {
-            for loader in &this.loaders.bytes {
-                match loader.load(self, uri) {
-                    Err(load::LoadError::NotSupported) => continue,
-                    result => return result,
-                }
+        let loaders = self.loaders();
+        for loader in &loaders.bytes {
+            match loader.load(self, uri) {
+                Err(load::LoadError::NotSupported) => continue,
+                result => return result,
             }
+        }
 
-            Err(load::LoadError::NotSupported)
-        })
+        Err(load::LoadError::NotSupported)
     }
 
     /// Try loading the image from the given uri using any available image loaders.
@@ -2009,16 +2008,15 @@ impl Context {
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Custom
     pub fn try_load_image(&self, uri: &str, size_hint: load::SizeHint) -> load::ImageLoadResult {
-        self.read(|this| {
-            for loader in &this.loaders.image {
-                match loader.load(self, uri, size_hint) {
-                    Err(load::LoadError::NotSupported) => continue,
-                    result => return result,
-                }
+        let loaders = self.loaders();
+        for loader in &loaders.image {
+            match loader.load(self, uri, size_hint) {
+                Err(load::LoadError::NotSupported) => continue,
+                result => return result,
             }
+        }
 
-            Err(load::LoadError::NotSupported)
-        })
+        Err(load::LoadError::NotSupported)
     }
 
     /// Try loading the texture from the given uri using any available texture loaders.
@@ -2043,16 +2041,21 @@ impl Context {
         texture_options: TextureOptions,
         size_hint: load::SizeHint,
     ) -> load::TextureLoadResult {
-        self.read(|this| {
-            for loader in &this.loaders.texture {
-                match loader.load(self, uri, texture_options, size_hint) {
-                    Err(load::LoadError::NotSupported) => continue,
-                    result => return result,
-                }
-            }
+        let loaders = self.loaders();
 
-            Err(load::LoadError::NotSupported)
-        })
+        for loader in &loaders.texture {
+            match loader.load(self, uri, texture_options, size_hint) {
+                Err(load::LoadError::NotSupported) => continue,
+                result => return result,
+            }
+        }
+
+        Err(load::LoadError::NotSupported)
+    }
+
+    fn loaders(&self) -> load::Loaders {
+        crate::profile_function!();
+        self.read(|this| this.loaders.clone()) // TODO(emilk): something less slow
     }
 }
 

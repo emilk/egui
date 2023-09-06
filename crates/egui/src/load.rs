@@ -396,6 +396,7 @@ impl TextureLoader for DefaultTextureLoader {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct Loaders {
     pub include: Arc<DefaultBytesLoader>,
     pub bytes: Vec<Arc<dyn BytesLoader + Send + Sync + 'static>>,
