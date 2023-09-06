@@ -179,8 +179,9 @@ impl Widget for Image {
 
 /// A widget which displays an image.
 ///
-/// There are two ways to construct this image:
+/// There are three ways to construct this widget:
 /// - [`Image2::from_uri`]
+/// - [`Image2::from_bytes`]
 /// - [`Image2::from_static_bytes`]
 ///
 /// In both cases the task of actually loading the image
