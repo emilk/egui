@@ -21,7 +21,7 @@ pub fn install(ctx: &egui::Context) {
     #[cfg(not(target_arch = "wasm32"))]
     ctx.add_bytes_loader(std::sync::Arc::new(self::file_loader::FileLoader::default()));
 
-    #[cfg(feature = "ehttp")]
+    #[cfg(feature = "http")]
     ctx.add_bytes_loader(std::sync::Arc::new(
         self::ehttp_loader::EhttpLoader::default(),
     ));
@@ -36,7 +36,7 @@ pub fn install(ctx: &egui::Context) {
 
     #[cfg(all(
         target_arch = "wasm32",
-        not(feature = "ehttp"),
+        not(feature = "http"),
         not(feature = "image"),
         not(feature = "svg")
     ))]
@@ -48,7 +48,7 @@ pub fn install(ctx: &egui::Context) {
 #[cfg(not(target_arch = "wasm32"))]
 mod file_loader;
 
-#[cfg(feature = "ehttp")]
+#[cfg(feature = "http")]
 mod ehttp_loader;
 
 #[cfg(feature = "image")]
