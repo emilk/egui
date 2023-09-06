@@ -492,7 +492,7 @@ mod glow_integration {
         builder: ViewportBuilder,
         gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
         window: Option<Arc<RwLock<winit::window::Window>>>,
-        window_id: ViewportId,
+        viewport_id: ViewportId,
         parent_id: ViewportId,
         render: Option<Arc<Box<ViewportRender>>>,
         pub egui_winit: Option<egui_winit::State>,
@@ -642,7 +642,7 @@ mod glow_integration {
                     builder: window_builder,
                     gl_surface: None,
                     window: window.map(|w| Arc::new(RwLock::new(w))),
-                    window_id: ViewportId::MAIN,
+                    viewport_id: ViewportId::MAIN,
                     egui_winit: None,
                     render: None,
                     parent_id: ViewportId::MAIN,
@@ -759,7 +759,7 @@ mod glow_integration {
 
                 win.gl_surface = Some(gl_surface);
                 self.current_gl_context = Some(current_gl_context);
-                self.window_maps.insert(window.id(), win.window_id);
+                self.window_maps.insert(window.id(), win.viewport_id);
             }
             win.window = Some(window);
             Ok(())
@@ -1032,12 +1032,14 @@ mod glow_integration {
 
             let focused = self.is_focused.clone();
 
-            // Sync Rendering
+            // ## Sync Rendering
             integration.egui_ctx.set_render_sync_callback(
-                move |viewport_builder, viewport_id, parent_viewport_id, render| {
+                move |viewport_builder, viewport_id, parent_id, render| {
+                    // TODO: If the `viewport_builder` do not have a icon set the icon to be the icon of the parent viewport
+
                     let has_window = glutin.read().windows.get(&viewport_id).is_some();
                     if !has_window{
-                        glutin.write().windows.entry(viewport_id).or_insert(Arc::new(RwLock::new(Window{ builder: viewport_builder, gl_surface: None, window: None, window_id: viewport_id, parent_id: parent_viewport_id, render: None, egui_winit: None })));
+                        glutin.write().windows.entry(viewport_id).or_insert(Arc::new(RwLock::new(Window{ builder: viewport_builder, gl_surface: None, window: None, viewport_id, parent_id, render: None, egui_winit: None })));
                         let win = glutin.read().windows.get(&viewport_id).cloned().unwrap();
                         let event_loop;
                         #[allow(unsafe_code)]
@@ -1061,7 +1063,7 @@ mod glow_integration {
                                         output = egui_ctx.run(
                                             input,
                                             viewport_id,
-                                            parent_viewport_id,
+                                            parent_id,
                                             |ctx| {
                                                 render(ctx);
                                             },
@@ -1186,17 +1188,27 @@ mod glow_integration {
                 }
             });
 
-            for (id, parent, builder, render) in viewports {
+            for (id, parent_id, mut builder, render) in viewports {
+                let default_icon = glutin_ctx
+                    .read()
+                    .windows
+                    .get(&parent_id)
+                    .map(|w| w.read().builder.icon.clone())
+                    .flatten();
+
+                if builder.icon.is_none() {
+                    builder.icon = default_icon;
+                }
                 glutin_ctx.write().windows.insert(
                     id,
                     Arc::new(RwLock::new(Window {
                         builder,
                         gl_surface: None,
                         window: None,
-                        window_id: id,
+                        viewport_id: id,
                         egui_winit: None,
-                        render: render.clone(),
-                        parent_id: parent,
+                        render,
+                        parent_id,
                     })),
                 );
                 active_viewports_ids.push(id);
@@ -1359,7 +1371,7 @@ mod glow_integration {
                             &win.window.as_ref().unwrap().read(),
                             win.egui_winit.as_mut().unwrap(),
                             &win.render.clone(),
-                            win.window_id,
+                            win.viewport_id,
                             win.parent_id,
                         );
 
@@ -1641,7 +1653,7 @@ mod glow_integration {
                                         if let Some(win) = window.read().window.as_ref() {
                                             let win = win.read();
                                             if win.id() == *window_id {
-                                                Some(window.read().window_id)
+                                                Some(window.read().viewport_id)
                                             } else {
                                                 None
                                             }
@@ -1680,7 +1692,7 @@ mod glow_integration {
                                         running.app.write().as_mut(),
                                         event,
                                         viewport.egui_winit.as_mut().unwrap(),
-                                        viewport.window_id,
+                                        viewport.viewport_id,
                                     );
                                 }
                             }
@@ -2048,8 +2060,11 @@ mod wgpu_integration {
             let _painter = painter.clone();
             let _windows_id = windows_id.clone();
 
+            // ## Sync Rendering
             integration.egui_ctx.set_render_sync_callback(
                 move |viewport_builder, viewport_id, parent_viewport_id, render| {
+                    // TODO: If the `viewport_builder` do not have a icon set the icon to be the icon of the parent viewport
+
                     if _windows.read().get(&viewport_id).is_none(){
                         let mut _windows = _windows.write();
                         let Window{window, state, ..} = _windows.entry(viewport_id).or_insert(Window{window: None, state: Arc::new(RwLock::new(None)), render: None, parent_id: viewport_id, builder: viewport_builder.clone()});
@@ -2110,33 +2125,10 @@ mod wgpu_integration {
                                 }
                             }
 
-                            let mut viewports = output.viewports;
-                            let mut active_viewports_ids = vec![ViewportId::MAIN];
-
-                            viewports.retain_mut(|(id, parent, _builder, render)| {
-                                if let Some(w) = _windows.write().get_mut(id) {
-                                    w.render = render.clone();
-                                    w.parent_id = *parent;
-                                    active_viewports_ids.push(*id);
-                                    false
-                                } else {
-                                    true
-                                }
-                            });
-
-                            for (id, parent, builder, render) in viewports {
-                                _windows.write().insert(
-                                    id,
-                                    Window{window: None, state: Arc::new(RwLock::new(None)), render, parent_id: parent, builder},
-                                );
-                                active_viewports_ids.push(id);
-                            }
-
                             egui_winit::process_viewports_commands(
                                 output.viewport_commands,
                                 *focused.read(),
-                                |id| _windows.read().get(&id).and_then(|w| w.window.clone())
-,
+                                |id| _windows.read().get(&id).and_then(|w| w.window.clone()),
                             );
                         }
                     }
@@ -2315,14 +2307,22 @@ mod wgpu_integration {
                     }
                 });
 
-                for (id, parent, builder, render) in viewports {
+                for (id, parent_id, mut builder, render) in viewports {
+                    if builder.icon.is_none() {
+                        builder.icon = windows
+                            .read()
+                            .get(&parent_id)
+                            .map(|w| w.builder.icon.clone())
+                            .flatten();
+                    }
+
                     windows.write().insert(
                         id,
                         Window {
                             window: None,
                             state: Arc::new(RwLock::new(None)),
                             render,
-                            parent_id: parent,
+                            parent_id,
                             builder,
                         },
                     );
