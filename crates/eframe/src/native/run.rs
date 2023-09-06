@@ -489,7 +489,6 @@ mod glow_integration {
     }
 
     struct Window {
-        builder: ViewportBuilder,
         gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
         window: Option<Arc<RwLock<winit::window::Window>>>,
         viewport_id: ViewportId,
@@ -520,6 +519,7 @@ mod glow_integration {
 
         windows: HashMap<ViewportId, Arc<RwLock<Window>>>,
         window_maps: HashMap<winit::window::WindowId, ViewportId>,
+        builders: HashMap<ViewportId, ViewportBuilder>,
     }
 
     #[allow(unsafe_code)]
@@ -639,7 +639,6 @@ mod glow_integration {
             windows.insert(
                 ViewportId::MAIN,
                 Arc::new(RwLock::new(Window {
-                    builder: window_builder,
                     gl_surface: None,
                     window: window.map(|w| Arc::new(RwLock::new(w))),
                     viewport_id: ViewportId::MAIN,
@@ -648,6 +647,9 @@ mod glow_integration {
                     parent_id: ViewportId::MAIN,
                 })),
             );
+
+            let mut builders = HashMap::default();
+            builders.insert(ViewportId::MAIN, window_builder);
 
             // the fun part with opengl gl is that we never know whether there is an error. the context creation might have failed, but
             // it could keep working until we try to make surface current or swap buffers or something else. future glutin improvements might
@@ -659,6 +661,7 @@ mod glow_integration {
                 current_gl_context: None,
                 not_current_gl_context,
                 windows,
+                builders,
                 window_maps,
             })
         }
@@ -692,6 +695,7 @@ mod glow_integration {
             win: &Arc<RwLock<Window>>,
             event_loop: &EventLoopWindowTarget<UserEvent>,
         ) -> Result<()> {
+            let builder = &self.builders[&win.read().viewport_id];
             let mut win = win.write();
             // make sure we have a window or create one.
             let window = win.window.take().unwrap_or_else(|| {
@@ -699,7 +703,7 @@ mod glow_integration {
                 Arc::new(RwLock::new(
                     glutin_winit::finalize_window(
                         event_loop,
-                        create_winit_window_builder(&win.builder),
+                        create_winit_window_builder(builder),
                         &self.gl_config,
                     )
                     .expect("failed to finalize glutin window"),
@@ -1032,13 +1036,20 @@ mod glow_integration {
 
             // ## Sync Rendering
             integration.egui_ctx.set_render_sync_callback(
-                move |viewport_builder, viewport_id, parent_id, render| {
-                    // TODO: If the `viewport_builder` do not have a icon set the icon to be the icon of the parent viewport
+                move |mut viewport_builder, viewport_id, parent_id, render| {
+                    if viewport_builder.icon.is_none(){
+                        viewport_builder.icon = glutin.read().builders.get(&parent_id).and_then(|b|b.icon.clone());
+                    }
 
                     let has_window = glutin.read().windows.get(&viewport_id).is_some();
                     if !has_window{
-                        glutin.write().windows.entry(viewport_id).or_insert(Arc::new(RwLock::new(Window{ builder: viewport_builder, gl_surface: None, window: None, viewport_id, parent_id, render: None, egui_winit: None })));
-                        let win = glutin.read().windows.get(&viewport_id).cloned().unwrap();
+                        {
+                            let mut glutin = glutin.write();
+                            glutin.windows.entry(viewport_id).or_insert(Arc::new(RwLock::new(Window{ gl_surface: None, window: None, viewport_id, parent_id, render: None, egui_winit: None })));
+                            glutin.builders.entry(viewport_id).or_insert(viewport_builder);
+                        }
+
+                        let win = glutin.read().windows[&viewport_id].clone();
                         let event_loop;
                         #[allow(unsafe_code)]
                         unsafe{
@@ -1090,7 +1101,8 @@ mod glow_integration {
                                             .unwrap()
                                             .is_current(glutin.current_gl_context.as_ref().unwrap())
                                         {
-                                            log::error!("egui::create_viewport_sync with title: `{}` is not created in main thread, try to use wgpu!", window.builder.title);
+                                            let builder = &&glutin.builders[&window.viewport_id];
+                                            log::error!("egui::create_viewport_sync with title: `{}` is not created in main thread, try to use wgpu!", builder.title);
                                         }
 
                                         egui_glow::painter::clear(
@@ -1155,14 +1167,16 @@ mod glow_integration {
             let mut active_viewports_ids = vec![ViewportId::MAIN];
 
             viewports.retain_mut(|(id, _, builder, render)| {
+                let mut glutin = glutin_ctx.write();
+                let last_builder = glutin.builders.entry(*id).or_insert(builder.clone());
+                let (commands, recreate) = changes_between_builders(builder, last_builder);
+                drop(glutin);
                 if let Some(w) = glutin_ctx.read().windows.get(id) {
                     let mut w = w.write();
-                    let (commands, recreate) = changes_between_builders(builder, &mut w.builder);
                     if recreate {
                         w.window = None;
                         w.gl_surface = None;
                         w.render = render.clone();
-                        w.builder = builder.clone();
                         w.parent_id = *id;
                     }
                     if let Some(w) = w.window.clone() {
@@ -1178,32 +1192,37 @@ mod glow_integration {
             for (id, parent_id, mut builder, render) in viewports {
                 let default_icon = glutin_ctx
                     .read()
-                    .windows
+                    .builders
                     .get(&parent_id)
-                    .map(|w| w.read().builder.icon.clone())
-                    .flatten();
+                    .and_then(|b| b.icon.clone());
 
                 if builder.icon.is_none() {
                     builder.icon = default_icon;
                 }
-                glutin_ctx.write().windows.insert(
-                    id,
-                    Arc::new(RwLock::new(Window {
-                        builder,
-                        gl_surface: None,
-                        window: None,
-                        viewport_id: id,
-                        egui_winit: None,
-                        render,
-                        parent_id,
-                    })),
-                );
+                {
+                    let mut glutin = glutin_ctx.write();
+                    glutin.windows.insert(
+                        id,
+                        Arc::new(RwLock::new(Window {
+                            gl_surface: None,
+                            window: None,
+                            viewport_id: id,
+                            egui_winit: None,
+                            render,
+                            parent_id,
+                        })),
+                    );
+                    glutin.builders.insert(id, builder);
+                }
                 active_viewports_ids.push(id);
             }
 
             let mut gl_window = glutin_ctx.write();
             gl_window
                 .windows
+                .retain(|id, _| active_viewports_ids.contains(id));
+            gl_window
+                .builders
                 .retain(|id, _| active_viewports_ids.contains(id));
             gl_window
                 .window_maps
@@ -2041,7 +2060,6 @@ mod wgpu_integration {
 
             let _windows = windows.clone();
             let egui_ctx = integration.egui_ctx.clone();
-            let focused = self.is_focused.clone();
             let time = integration.beginning;
             let painter = Arc::new(RwLock::new(painter));
             let _painter = painter.clone();
@@ -2293,8 +2311,7 @@ mod wgpu_integration {
                         builder.icon = windows
                             .read()
                             .get(&parent_id)
-                            .map(|w| w.builder.icon.clone())
-                            .flatten();
+                            .and_then(|w| w.builder.icon.clone());
                     }
 
                     windows.write().insert(
