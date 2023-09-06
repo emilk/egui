@@ -15,26 +15,16 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "svg example",
         options,
-        Box::new(|_cc| Box::<MyApp>::default()),
+        Box::new(|cc| {
+            // Without the following call, the `Image2` created below
+            // will simply output a `not supported` error message.
+            egui_extras::loaders::install(&cc.egui_ctx);
+            Box::new(MyApp)
+        }),
     )
 }
 
-struct MyApp {
-    svg_image: egui_extras::RetainedImage,
-}
-
-impl Default for MyApp {
-    fn default() -> Self {
-        Self {
-            svg_image: egui_extras::RetainedImage::from_svg_bytes_with_size(
-                "rustacean-flat-happy.svg",
-                include_bytes!("rustacean-flat-happy.svg"),
-                egui_extras::image::FitTo::Original,
-            )
-            .unwrap(),
-        }
-    }
-}
+struct MyApp;
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -45,7 +35,13 @@ impl eframe::App for MyApp {
             ui.separator();
 
             let max_size = ui.available_size();
-            self.svg_image.show_size(ui, max_size);
+            ui.add(
+                egui::Image2::from_static_bytes(
+                    "ferris.svg",
+                    include_bytes!("rustacean-flat-happy.svg"),
+                )
+                .size_hint(max_size),
+            );
         });
     }
 }

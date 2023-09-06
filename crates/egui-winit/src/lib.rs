@@ -87,10 +87,6 @@ pub struct State {
 
 impl State {
     /// Construct a new instance
-    ///
-    /// # Safety
-    ///
-    /// The returned `State` must not outlive the input `display_target`.
     pub fn new(display_target: &dyn HasRawDisplayHandle) -> Self {
         let egui_input = egui::RawInput {
             focused: false, // winit will tell us when we have focus

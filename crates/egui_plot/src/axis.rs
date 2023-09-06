@@ -255,9 +255,8 @@ impl AxisWidget {
 
             // --- add ticks ---
             let font_id = TextStyle::Body.resolve(ui.style());
-            let transform = match self.transform {
-                Some(t) => t,
-                None => return response,
+            let Some(transform) = self.transform else {
+                return response;
             };
 
             for step in self.steps.iter() {

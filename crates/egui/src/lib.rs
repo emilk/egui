@@ -314,6 +314,7 @@ mod input_state;
 pub mod introspection;
 pub mod layers;
 mod layout;
+pub mod load;
 mod memory;
 pub mod menu;
 pub mod os;
@@ -371,6 +372,7 @@ pub use {
     input_state::{InputState, MultiTouchInfo, PointerState},
     layers::{LayerId, Order},
     layout::*,
+    load::SizeHint,
     memory::{Memory, Options},
     painter::Painter,
     response::{InnerResponse, Response},

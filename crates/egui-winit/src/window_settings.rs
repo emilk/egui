@@ -127,12 +127,10 @@ fn clamp_pos_to_monitors<E>(
     let monitors = event_loop.available_monitors();
 
     // default to primary monitor, in case the correct monitor was disconnected.
-    let mut active_monitor = if let Some(active_monitor) = event_loop
+    let Some(mut active_monitor) = event_loop
         .primary_monitor()
         .or_else(|| event_loop.available_monitors().next())
-    {
-        active_monitor
-    } else {
+    else {
         return; // no monitors 🤷
     };
 

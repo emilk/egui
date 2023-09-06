@@ -1590,6 +1590,25 @@ impl Ui {
     pub fn image(&mut self, texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {
         Image::new(texture_id, size).ui(self)
     }
+
+    /// Show an image available at the given `uri`.
+    ///
+    /// ⚠ This will do nothing unless you install some image loaders first!
+    /// The easiest way to do this is via [`egui_extras::loaders::install`](https://docs.rs/egui_extras/latest/egui_extras/loaders/fn.install.html).
+    ///
+    /// The loaders handle caching image data, sampled textures, etc. across frames, so calling this is immediate-mode safe.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.image2("file://ferris.svg");
+    /// # });
+    /// ```
+    ///
+    /// See also [`crate::Image2`] and [`crate::ImageSource`].
+    #[inline]
+    pub fn image2<'a>(&mut self, source: impl Into<ImageSource<'a>>) -> Response {
+        Image2::new(source.into()).ui(self)
+    }
 }
 
 /// # Colors

@@ -26,10 +26,6 @@ pub struct Clipboard {
 
 impl Clipboard {
     /// Construct a new instance
-    ///
-    /// # Safety
-    ///
-    /// The returned `Clipboard` must not outlive the input `_display_target`.
     pub fn new(_display_target: &dyn HasRawDisplayHandle) -> Self {
         Self {
             #[cfg(all(feature = "arboard", not(target_os = "android")))]

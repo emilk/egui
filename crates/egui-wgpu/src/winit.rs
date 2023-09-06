@@ -181,12 +181,6 @@ impl Painter {
     /// [`set_window`](Self::set_window) may be called with `Some(window)` as soon as you have a
     /// valid [`winit::window::Window`].
     ///
-    /// # Safety
-    ///
-    /// The raw Window handle associated with the given `window` must be a valid object to create a
-    /// surface upon and must remain valid for the lifetime of the created surface. (The surface may
-    /// be cleared by passing `None`).
-    ///
     /// # Errors
     /// If the provided wgpu configuration does not match an available device.
     pub async fn set_window(

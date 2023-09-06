@@ -466,7 +466,9 @@ impl Focus {
             }
         });
 
-        let current_rect = *self.focus_widgets_cache.get(&focus_id).unwrap();
+        let Some(current_rect) = self.focus_widgets_cache.get(&focus_id) else {
+            return None;
+        };
 
         let mut best_score = std::f32::INFINITY;
         let mut best_id = None;

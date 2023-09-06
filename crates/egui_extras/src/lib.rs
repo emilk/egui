@@ -15,6 +15,7 @@ mod datepicker;
 
 pub mod image;
 mod layout;
+pub mod loaders;
 mod sizing;
 mod strip;
 mod table;
@@ -85,3 +86,31 @@ macro_rules! log_or_panic {
     }};
 }
 pub(crate) use log_or_panic;
+
+#[allow(unused_macros)]
+macro_rules! log_warn {
+    ($fmt: literal) => {$crate::log_warn!($fmt,)};
+    ($fmt: literal, $($arg: tt)*) => {{
+        #[cfg(feature = "log")]
+        log::warn!($fmt, $($arg)*);
+
+        #[cfg(not(feature = "log"))]
+        println!(
+            concat!("egui_extras: warning: ", $fmt), $($arg)*
+        )
+    }};
+}
+
+#[allow(unused_imports)]
+pub(crate) use log_warn;
+
+#[allow(unused_macros)]
+macro_rules! log_trace {
+    ($fmt: literal) => {$crate::log_trace!($fmt,)};
+    ($fmt: literal, $($arg: tt)*) => {{
+        #[cfg(feature = "log")]
+        log::trace!($fmt, $($arg)*);
+    }};
+}
+#[allow(unused_imports)]
+pub(crate) use log_trace;

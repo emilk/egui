@@ -1,4 +1,7 @@
-use crate::*;
+use std::sync::Arc;
+
+use crate::load::Bytes;
+use crate::{load::SizeHint, load::TexturePoll, *};
 use emath::Rot2;
 
 /// An widget to show an image of a given size.
@@ -171,5 +174,221 @@ impl Widget for Image {
         let (rect, response) = ui.allocate_exact_size(self.size, self.sense);
         self.paint_at(ui, rect);
         response
+    }
+}
+
+/// A widget which displays an image.
+///
+/// There are three ways to construct this widget:
+/// - [`Image2::from_uri`]
+/// - [`Image2::from_bytes`]
+/// - [`Image2::from_static_bytes`]
+///
+/// In both cases the task of actually loading the image
+/// is deferred to when the `Image2` is added to the [`Ui`].
+///
+/// See [`crate::load`] for more information.
+pub struct Image2<'a> {
+    source: ImageSource<'a>,
+    texture_options: TextureOptions,
+    size_hint: SizeHint,
+    fit: ImageFit,
+    sense: Sense,
+}
+
+#[derive(Default, Clone, Copy)]
+enum ImageFit {
+    // TODO: options for aspect ratio
+    // TODO: other fit strategies
+    // FitToWidth,
+    // FitToHeight,
+    // FitToWidthExact(f32),
+    // FitToHeightExact(f32),
+    #[default]
+    ShrinkToFit,
+}
+
+impl ImageFit {
+    pub fn calculate_final_size(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
+        let aspect_ratio = image_size.x / image_size.y;
+        // TODO: more image sizing options
+        match self {
+            // ImageFit::FitToWidth => todo!(),
+            // ImageFit::FitToHeight => todo!(),
+            // ImageFit::FitToWidthExact(_) => todo!(),
+            // ImageFit::FitToHeightExact(_) => todo!(),
+            ImageFit::ShrinkToFit => {
+                let width = if available_size.x < image_size.x {
+                    available_size.x
+                } else {
+                    image_size.x
+                };
+                let height = if available_size.y < image_size.y {
+                    available_size.y
+                } else {
+                    image_size.y
+                };
+                if width < height {
+                    Vec2::new(width, width / aspect_ratio)
+                } else {
+                    Vec2::new(height * aspect_ratio, height)
+                }
+            }
+        }
+    }
+}
+
+/// This type tells the [`Ui`] how to load the image.
+pub enum ImageSource<'a> {
+    /// Load the image from a URI.
+    ///
+    /// This could be a `file://` url, `http://` url, or a `bare` identifier.
+    /// How the URI will be turned into a texture for rendering purposes is
+    /// up to the registered loaders to handle.
+    ///
+    /// See [`crate::load`] for more information.
+    Uri(&'a str),
+
+    /// Load the image from some raw bytes.
+    ///
+    /// The [`Bytes`] may be:
+    /// - `'static`, obtained from `include_bytes!` or similar
+    /// - Anything that can be converted to `Arc<[u8]>`
+    ///
+    /// This instructs the [`Ui`] to cache the raw bytes, which are then further processed by any registered loaders.
+    ///
+    /// See [`crate::load`] for more information.
+    Bytes(&'static str, Bytes),
+}
+
+impl<'a> From<&'a str> for ImageSource<'a> {
+    #[inline]
+    fn from(value: &'a str) -> Self {
+        Self::Uri(value)
+    }
+}
+
+impl<T: Into<Bytes>> From<(&'static str, T)> for ImageSource<'static> {
+    #[inline]
+    fn from((uri, bytes): (&'static str, T)) -> Self {
+        Self::Bytes(uri, bytes.into())
+    }
+}
+
+impl<'a> Image2<'a> {
+    /// Load the image from some source.
+    pub fn new(source: ImageSource<'a>) -> Self {
+        Self {
+            source,
+            texture_options: Default::default(),
+            size_hint: Default::default(),
+            fit: Default::default(),
+            sense: Sense::hover(),
+        }
+    }
+
+    /// Load the image from a URI.
+    ///
+    /// See [`ImageSource::Uri`].
+    pub fn from_uri(uri: &'a str) -> Self {
+        Self {
+            source: ImageSource::Uri(uri),
+            texture_options: Default::default(),
+            size_hint: Default::default(),
+            fit: Default::default(),
+            sense: Sense::hover(),
+        }
+    }
+
+    /// Load the image from some raw `'static` bytes.
+    ///
+    /// For example, you can use this to load an image from bytes obtained via [`include_bytes`].
+    ///
+    /// See [`ImageSource::Bytes`].
+    pub fn from_static_bytes(name: &'static str, bytes: &'static [u8]) -> Self {
+        Self {
+            source: ImageSource::Bytes(name, Bytes::Static(bytes)),
+            texture_options: Default::default(),
+            size_hint: Default::default(),
+            fit: Default::default(),
+            sense: Sense::hover(),
+        }
+    }
+
+    /// Load the image from some raw bytes.
+    ///
+    /// See [`ImageSource::Bytes`].
+    pub fn from_bytes(name: &'static str, bytes: impl Into<Arc<[u8]>>) -> Self {
+        Self {
+            source: ImageSource::Bytes(name, Bytes::Shared(bytes.into())),
+            texture_options: Default::default(),
+            size_hint: Default::default(),
+            fit: Default::default(),
+            sense: Sense::hover(),
+        }
+    }
+
+    /// Texture options used when creating the texture.
+    #[inline]
+    pub fn texture_options(mut self, texture_options: TextureOptions) -> Self {
+        self.texture_options = texture_options;
+        self
+    }
+
+    /// Size hint used when creating the texture.
+    #[inline]
+    pub fn size_hint(mut self, size_hint: impl Into<SizeHint>) -> Self {
+        self.size_hint = size_hint.into();
+        self
+    }
+
+    /// Make the image respond to clicks and/or drags.
+    #[inline]
+    pub fn sense(mut self, sense: Sense) -> Self {
+        self.sense = sense;
+        self
+    }
+}
+
+impl<'a> Widget for Image2<'a> {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let uri = match self.source {
+            ImageSource::Uri(uri) => uri,
+            ImageSource::Bytes(uri, bytes) => {
+                match bytes {
+                    Bytes::Static(bytes) => ui.ctx().include_static_bytes(uri, bytes),
+                    Bytes::Shared(bytes) => ui.ctx().include_bytes(uri, bytes),
+                }
+                uri
+            }
+        };
+
+        match ui
+            .ctx()
+            .try_load_texture(uri, self.texture_options, self.size_hint)
+        {
+            Ok(TexturePoll::Ready { texture }) => {
+                let final_size = self.fit.calculate_final_size(
+                    ui.available_size(),
+                    Vec2::new(texture.size[0] as f32, texture.size[1] as f32),
+                );
+
+                let (rect, response) = ui.allocate_exact_size(final_size, self.sense);
+
+                let mut mesh = Mesh::with_texture(texture.id);
+                mesh.add_rect_with_uv(
+                    rect,
+                    Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+                    Color32::WHITE,
+                );
+                ui.painter().add(Shape::mesh(mesh));
+
+                response
+            }
+            Ok(TexturePoll::Pending { .. }) => {
+                ui.spinner().on_hover_text(format!("Loading {uri:?}…"))
+            }
+            Err(err) => ui.colored_label(ui.visuals().error_fg_color, err.to_string()),
+        }
     }
 }

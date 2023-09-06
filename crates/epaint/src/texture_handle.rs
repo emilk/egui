@@ -95,6 +95,11 @@ impl TextureHandle {
         crate::Vec2::new(w as f32, h as f32)
     }
 
+    /// `width x height x bytes_per_pixel`
+    pub fn byte_size(&self) -> usize {
+        self.tex_mngr.read().meta(self.id).unwrap().bytes_used()
+    }
+
     /// width / height
     pub fn aspect_ratio(&self) -> f32 {
         let [w, h] = self.size();

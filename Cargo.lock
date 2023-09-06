@@ -1089,10 +1089,8 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui_extras",
- "ehttp",
  "env_logger",
  "image",
- "poll-promise",
 ]
 
 [[package]]
@@ -1264,6 +1262,7 @@ dependencies = [
  "chrono",
  "document-features",
  "egui",
+ "ehttp",
  "image",
  "log",
  "puffin",
@@ -1303,10 +1302,11 @@ dependencies = [
 
 [[package]]
 name = "ehttp"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80b69a6f9168b96c0ae04763bec27a8b06b34343c334dd2703a4ec21f0f5e110"
+checksum = "31e4525e883dd283d12b755ab3ad71d7c8dea2ee8e8a062b9f4c4f84637ed681"
 dependencies = [
+ "document-features",
  "js-sys",
  "ureq",
  "wasm-bindgen",
@@ -3167,7 +3167,6 @@ dependencies = [
  "eframe",
  "env_logger",
  "image",
- "itertools",
 ]
 
 [[package]]

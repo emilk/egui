@@ -4,7 +4,7 @@ version = "0.22.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.67"
+rust-version = "1.70"
 publish = false
 default-run = "egui_demo_app"
 
@@ -45,10 +45,12 @@ log = { version = "0.4", features = ["std"] }
 # Optional dependencies:
 
 bytemuck = { version = "1.7.1", optional = true }
-egui_extras = { version = "0.22.0", optional = true, path = "../egui_extras" }
+egui_extras = { version = "0.22.0", optional = true, path = "../egui_extras", features = [
+  "log",
+] }
 
 # feature "http":
-ehttp = { version = "0.2.0", optional = true }
+ehttp = { version = "0.3.0", optional = true }
 image = { version = "0.24", optional = true, default-features = false, features = [
   "jpeg",
   "png",

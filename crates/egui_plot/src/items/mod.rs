@@ -1,4 +1,5 @@
 //! Contains items that can be added to a plot.
+#![allow(clippy::type_complexity)] // TODO(emilk): simplify some of the callback types with type aliases
 
 use std::ops::RangeInclusive;
 
