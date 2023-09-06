@@ -1,14 +1,9 @@
+use egui::mutex::RwLock;
 use std::sync::Arc;
-use std::sync::RwLock;
 
 use eframe::egui;
 use eframe::egui::ViewportBuilder;
 use eframe::NativeOptions;
-
-#[cfg(feature = "wgpu")]
-const RENDERER: eframe::Renderer = eframe::Renderer::Wgpu;
-#[cfg(not(feature = "wgpu"))]
-const RENDERER: eframe::Renderer = eframe::Renderer::Glow;
 
 #[derive(Default)]
 pub struct App {
@@ -58,10 +53,10 @@ impl eframe::App for App {
                 ctx.create_viewport(
                     ViewportBuilder::new("Async Viewport").with_title("Async Viewport"),
                     move |ctx| {
-                        let mut state = state.write().unwrap();
+                        let mut state = state.write();
 
-                        let mut show_async_viewport2 = show_async_viewport2.write().unwrap();
-                        let mut show_sync_viewport2 = show_sync_viewport2.write().unwrap();
+                        let mut show_async_viewport2 = show_async_viewport2.write();
+                        let mut show_sync_viewport2 = show_sync_viewport2.write();
 
                         let async_viewport_state2 = async_viewport_state2.clone();
                         let sync_viewport_state2 = sync_viewport_state2.clone();
@@ -72,7 +67,7 @@ impl eframe::App for App {
                             ui.checkbox(&mut show_async_viewport2, "Show Async Viewport 2");
                             ui.checkbox(&mut show_sync_viewport2, "Show Sync Viewport 2");
 
-                            ui.label(format!("Count: {state}"));
+                            ui.label(format!("Count: {}", *state));
                             if ui.button("Add").clicked() {
                                 *state += 1;
                             }
@@ -82,12 +77,12 @@ impl eframe::App for App {
                                     ViewportBuilder::new("Async Viewport in Async Viewport")
                                         .with_title("Async Viewport in Async Viewport"),
                                     move |ctx| {
-                                        let mut state = async_viewport_state2.write().unwrap();
+                                        let mut state = async_viewport_state2.write();
 
                                         let content = move |ui: &mut egui::Ui| {
                                             ui_info(ui);
 
-                                            ui.label(format!("Count: {state}"));
+                                            ui.label(format!("Count: {}", *state));
                                             if ui.button("Add").clicked() {
                                                 *state += 1;
                                             }
@@ -107,12 +102,12 @@ impl eframe::App for App {
                                     ViewportBuilder::new("Sync Viewport in Async Viewport")
                                         .with_title("Sync Viewport in Async Viewport"),
                                     move |ctx| {
-                                        let mut state = sync_viewport_state2.write().unwrap();
+                                        let mut state = sync_viewport_state2.write();
 
                                         let content = move |ui: &mut egui::Ui| {
                                             ui_info(ui);
 
-                                            ui.label(format!("Count: {state}"));
+                                            ui.label(format!("Count: {}", *state));
                                             if ui.button("Add").clicked() {
                                                 *state += 1;
                                             }
@@ -156,12 +151,12 @@ impl eframe::App for App {
                                     ViewportBuilder::new("Async Viewport in Sync Viewport")
                                         .with_title("Async Viewport in Sync Viewport"),
                                     move |ctx| {
-                                        let mut state = async_viewport_state3.write().unwrap();
+                                        let mut state = async_viewport_state3.write();
 
                                         let content = move |ui: &mut egui::Ui| {
                                             ui_info(ui);
 
-                                            ui.label(format!("Count: {state}"));
+                                            ui.label(format!("Count: {}", *state));
                                             if ui.button("Add").clicked() {
                                                 *state += 1;
                                             }
@@ -186,7 +181,7 @@ impl eframe::App for App {
                                         let content = move |ui: &mut egui::Ui| {
                                             ui_info(ui);
 
-                                            ui.label(format!("Count: {state}"));
+                                            ui.label(format!("Count: {}", *state));
                                             if ui.button("Add").clicked() {
                                                 *state += 1;
                                             }
@@ -237,7 +232,9 @@ fn main() {
     let _ = eframe::run_native(
         "Viewports",
         NativeOptions {
-            renderer: RENDERER,
+            #[cfg(feature = "wgpu")]
+            renderer: eframe::Renderer::Wgpu,
+
             initial_window_size: Some(egui::Vec2::new(400.0, 220.0)),
             ..NativeOptions::default()
         },

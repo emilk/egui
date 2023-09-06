@@ -945,7 +945,7 @@ mod glow_integration {
             );
             #[cfg(feature = "accesskit")]
             {
-                let window = gl_window.windows.get(&ViewportId::MAIN).unwrap();
+                let window = &gl_window.windows[&ViewportId::MAIN];
                 let window = &mut *window.write();
                 integration.init_accesskit(
                     window.egui_winit.as_mut().unwrap(),
@@ -1303,7 +1303,7 @@ mod glow_integration {
                 // This will only happen if the viewport is sync
                 // That means that the viewport cannot be rendered by itself and needs his parent to be rendered
                 {
-                    let win = glutin_ctx.read().windows.get(&viewport_id).unwrap().clone();
+                    let win = &glutin_ctx.read().windows[&viewport_id].clone();
                     if win.read().render.is_none() && viewport_id != ViewportId::MAIN {
                         if let Some(win) = glutin_ctx.read().windows.get(&win.read().parent_id) {
                             if let Some(w) = win.read().window.as_ref() {
@@ -1776,22 +1776,16 @@ mod wgpu_integration {
     use super::*;
 
     #[derive(Clone)]
-    pub struct Windows(
-        Arc<
-            RwLock<
-                HashMap<
-                    ViewportId,
-                    (
-                        Option<Arc<RwLock<winit::window::Window>>>,
-                        Arc<RwLock<Option<egui_winit::State>>>,
-                        Option<Arc<Box<ViewportRender>>>,
-                        ViewportId,
-                        ViewportBuilder,
-                    ),
-                >,
-            >,
-        >,
-    );
+    pub struct Window {
+        window: Option<Arc<RwLock<winit::window::Window>>>,
+        state: Arc<RwLock<Option<egui_winit::State>>>,
+        render: Option<Arc<Box<ViewportRender>>>,
+        parent_id: ViewportId,
+        builder: ViewportBuilder,
+    }
+
+    #[derive(Clone)]
+    pub struct Windows(Arc<RwLock<HashMap<ViewportId, Window>>>);
 
     #[allow(unsafe_code)]
     unsafe impl Send for Windows {}
@@ -1799,20 +1793,7 @@ mod wgpu_integration {
     unsafe impl Sync for Windows {}
 
     impl std::ops::Deref for Windows {
-        type Target = Arc<
-            RwLock<
-                HashMap<
-                    ViewportId,
-                    (
-                        Option<Arc<RwLock<winit::window::Window>>>,
-                        Arc<RwLock<Option<egui_winit::State>>>,
-                        Option<Arc<Box<ViewportRender>>>,
-                        ViewportId,
-                        ViewportBuilder,
-                    ),
-                >,
-            >,
-        >;
+        type Target = Arc<RwLock<HashMap<ViewportId, Window>>>;
 
         fn deref(&self) -> &Self::Target {
             &self.0
@@ -1887,7 +1868,16 @@ mod wgpu_integration {
         fn build_windows(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) {
             let Some(running) = &mut self.running else {return};
 
-            for (id, (window, state, _, _, builder)) in running.windows.write().iter_mut() {
+            for (
+                id,
+                Window {
+                    window,
+                    state,
+                    builder,
+                    ..
+                },
+            ) in running.windows.write().iter_mut()
+            {
                 if window.is_some() {
                     continue;
                 }
@@ -1928,10 +1918,15 @@ mod wgpu_integration {
 
         fn set_window(&mut self, id: ViewportId) -> std::result::Result<(), egui_wgpu::WgpuError> {
             if let Some(running) = &mut self.running {
-                if let Some((Some(window), _, _, _, _)) = running.windows.read().get(&id) {
-                    return pollster::block_on(
-                        running.painter.write().set_window(id, Some(&window.read())),
-                    );
+                if let Some(Window { window, .. }) = running.windows.read().get(&id) {
+                    let window = window.clone();
+                    if let Some(win) = &window {
+                        return pollster::block_on(
+                            running.painter.write().set_window(id, Some(&*win.read())),
+                        );
+                    } else {
+                        return pollster::block_on(running.painter.write().set_window(id, None));
+                    };
                 }
             }
             Ok(())
@@ -2036,13 +2031,13 @@ mod wgpu_integration {
             let windows = Windows(Arc::new(RwLock::new(HashMap::default())));
             windows.write().insert(
                 ViewportId::MAIN,
-                (
-                    Some(Arc::new(RwLock::new(window))),
-                    Arc::new(RwLock::new(Some(state))),
-                    None,
-                    ViewportId::MAIN,
+                Window {
+                    window: Some(Arc::new(RwLock::new(window))),
+                    state: Arc::new(RwLock::new(Some(state))),
+                    render: None,
+                    parent_id: ViewportId::MAIN,
                     builder,
-                ),
+                },
             );
 
             let _windows = windows.clone();
@@ -2057,7 +2052,7 @@ mod wgpu_integration {
                 move |viewport_builder, viewport_id, parent_viewport_id, render| {
                     if _windows.read().get(&viewport_id).is_none(){
                         let mut _windows = _windows.write();
-                        let (window, state, _, _, _) = _windows.entry(viewport_id).or_insert((None, Arc::new(RwLock::new(None)), None, viewport_id, viewport_builder.clone()));
+                        let Window{window, state, ..} = _windows.entry(viewport_id).or_insert(Window{window: None, state: Arc::new(RwLock::new(None)), render: None, parent_id: viewport_id, builder: viewport_builder.clone()});
 
                         let event_loop;
 
@@ -2072,8 +2067,8 @@ mod wgpu_integration {
                         if let Some(window) = window {
                             let output;
                             {
-                                if let Some(winit_state) = &mut *window.1.write() {
-                                    if let Some(win) = window.0.clone() {
+                                if let Some(winit_state) = &mut *window.state.write() {
+                                    if let Some(win) = window.window {
                                         let win = win.read();
                                         let mut input = winit_state.take_egui_input(&win);
                                         input.time = Some(time.elapsed().as_secs_f64());
@@ -2120,8 +2115,8 @@ mod wgpu_integration {
 
                             viewports.retain_mut(|(id, parent, _builder, render)| {
                                 if let Some(w) = _windows.write().get_mut(id) {
-                                    w.2 = render.clone();
-                                    w.3 = *parent;
+                                    w.render = render.clone();
+                                    w.parent_id = *parent;
                                     active_viewports_ids.push(*id);
                                     false
                                 } else {
@@ -2132,7 +2127,7 @@ mod wgpu_integration {
                             for (id, parent, builder, render) in viewports {
                                 _windows.write().insert(
                                     id,
-                                    (None, Arc::new(RwLock::new(None)), render, parent, builder),
+                                    Window{window: None, state: Arc::new(RwLock::new(None)), render, parent_id: parent, builder},
                                 );
                                 active_viewports_ids.push(id);
                             }
@@ -2140,7 +2135,8 @@ mod wgpu_integration {
                             egui_winit::process_viewports_commands(
                                 output.viewport_commands,
                                 *focused.read(),
-                                |id| _windows.read().get(&id).and_then(|w| w.0.clone()),
+                                |id| _windows.read().get(&id).and_then(|w| w.window.clone())
+,
                             );
                         }
                     }
@@ -2188,7 +2184,7 @@ mod wgpu_integration {
                     r.windows_id
                         .read()
                         .get(&window_id)
-                        .and_then(|id| r.windows.read().get(id).map(|w| w.0.clone()))
+                        .and_then(|id| r.windows.read().get(id).map(|w| w.window.clone()))
                 })
                 .flatten()
         }
@@ -2198,13 +2194,13 @@ mod wgpu_integration {
                 r.windows
                     .read()
                     .get(&id)
-                    .and_then(|w| w.0.as_ref().map(|w| w.read().id()))
+                    .and_then(|w| w.window.as_ref().map(|w| w.read().id()))
             })
         }
 
         fn save_and_destroy(&mut self) {
             if let Some(mut running) = self.running.take() {
-                if let Some((window, _, _, _, _)) = running.windows.read().get(&ViewportId::MAIN) {
+                if let Some(Window { window, .. }) = running.windows.read().get(&ViewportId::MAIN) {
                     running
                         .integration
                         .write()
@@ -2244,11 +2240,11 @@ mod wgpu_integration {
                     viewport_commands,
                 };
                 {
-                    let Some((viewport_id, (Some(window), state, render, parent_viewport_id, _))) = windows_id.read().get(&window_id).and_then(|id|(windows.read().get(id).map(|w|(*id, w.clone())))) else{return vec![]};
+                    let Some((viewport_id, Window{window: Some(window), state, render, parent_id, ..})) = windows_id.read().get(&window_id).and_then(|id|(windows.read().get(id).map(|w|(*id, w.clone())))) else{return vec![]};
                     // This is used to not render a viewport if is sync
                     if viewport_id != ViewportId::MAIN && render.is_none() {
-                        if let Some(window) = running.windows.read().get(&parent_viewport_id) {
-                            if let Some(w) = window.0.as_ref() {
+                        if let Some(window) = running.windows.read().get(&parent_id) {
+                            if let Some(w) = window.window.as_ref() {
                                 return vec![EventResult::RepaintNow(w.read().id())];
                             }
                         }
@@ -2274,7 +2270,7 @@ mod wgpu_integration {
                         state.write().as_mut().unwrap(),
                         &render.clone(),
                         viewport_id,
-                        parent_viewport_id,
+                        parent_id,
                     );
 
                     integration.write().handle_platform_output(
@@ -2310,8 +2306,8 @@ mod wgpu_integration {
 
                 viewports.retain_mut(|(id, parent, _builder, render)| {
                     if let Some(w) = windows.write().get_mut(id) {
-                        w.2 = render.clone();
-                        w.3 = *parent;
+                        w.render = render.clone();
+                        w.parent_id = *parent;
                         active_viewports_ids.push(*id);
                         false
                     } else {
@@ -2322,7 +2318,13 @@ mod wgpu_integration {
                 for (id, parent, builder, render) in viewports {
                     windows.write().insert(
                         id,
-                        (None, Arc::new(RwLock::new(None)), render, parent, builder),
+                        Window {
+                            window: None,
+                            state: Arc::new(RwLock::new(None)),
+                            render,
+                            parent_id: parent,
+                            builder,
+                        },
                     );
                     active_viewports_ids.push(id);
                 }
@@ -2330,7 +2332,12 @@ mod wgpu_integration {
                 egui_winit::process_viewports_commands(
                     viewport_commands,
                     *self.is_focused.read(),
-                    |viewport_id| windows.read().get(&viewport_id).and_then(|w| w.0.clone()),
+                    |viewport_id| {
+                        windows
+                            .read()
+                            .get(&viewport_id)
+                            .and_then(|w| w.window.clone())
+                    },
                 );
 
                 windows
@@ -2346,8 +2353,10 @@ mod wgpu_integration {
                     control_flow.push(if integration.read().should_close() {
                         EventResult::Exit
                     } else if repaint_after.1.is_zero() {
-                        if let Some((Some(window), _, _, _, _)) =
-                            windows.read().get(&repaint_after.0)
+                        if let Some(Window {
+                            window: Some(window),
+                            ..
+                        }) = windows.read().get(&repaint_after.0)
                         {
                             EventResult::RepaintNext(window.read().id())
                         } else {
@@ -2361,8 +2370,10 @@ mod wgpu_integration {
                         // technically, this might lead to some weird corner cases where the user *WANTS*
                         // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
                         // egui backend impl i guess.
-                        if let Some((Some(window), _, _, _, _)) =
-                            windows.read().get(&repaint_after.0)
+                        if let Some(Window {
+                            window: Some(window),
+                            ..
+                        }) = windows.read().get(&repaint_after.0)
                         {
                             EventResult::RepaintAt(window.read().id(), repaint_after_instant)
                         } else {
@@ -2373,7 +2384,7 @@ mod wgpu_integration {
                     });
                 }
 
-                let Some((_, (Some(window), _, _, _, _))) = windows_id.read().get(&window_id).and_then(|id|(windows.read().get(id).map(|w|(*id, w.clone())))) else{return vec![]};
+                let Some((_, Window{window: Some(window), ..})) = windows_id.read().get(&window_id).and_then(|id|(windows.read().get(id).map(|w|(*id, w.clone())))) else{return vec![]};
                 integration
                     .write()
                     .maybe_autosave(app.as_mut(), window.clone());
@@ -2432,7 +2443,7 @@ mod wgpu_integration {
                             .read()
                             .get(&ViewportId::MAIN)
                             .unwrap()
-                            .0
+                            .window
                             .as_ref()
                             .unwrap()
                             .read()
@@ -2510,7 +2521,7 @@ mod wgpu_integration {
                             _ => {}
                         };
 
-                        let event_response = if let Some((id, (_, state, _, _, _))) =
+                        let event_response = if let Some((id, Window { state, .. })) =
                             running.windows_id.read().get(window_id).and_then(|id| {
                                 running.windows.read().get(id).map(|w| (*id, w.clone()))
                             }) {
@@ -2552,7 +2563,7 @@ mod wgpu_integration {
                     accesskit_winit::ActionRequestEvent { request, window_id },
                 )) => {
                     if let Some(running) = &mut self.running {
-                        if let Some((_, state, _, _, _)) = running
+                        if let Some(Window { state, .. }) = running
                             .windows_id
                             .read()
                             .get(window_id)

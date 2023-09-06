@@ -24,9 +24,14 @@ impl ViewportId {
 /// This is used to render an async viewport
 pub type ViewportRender = dyn Fn(&Context) + Sync + Send;
 
+pub type ViewportRenderSyncCallback = dyn for<'a> Fn(ViewportBuilder, ViewportId, ViewportId, Box<dyn FnOnce(&Context) + 'a>)
+    + Send
+    + Sync;
+
 /// The filds in this struct should not be change directly, but is not problem tho!
 /// Every thing is wrapped in Option<> indicates that thing should not be changed!
 #[derive(PartialEq, Eq, Clone)]
+#[allow(clippy::option_option)]
 pub struct ViewportBuilder {
     pub id: Id,
     pub title: String,

@@ -209,19 +209,7 @@ struct ContextImpl {
     >,
     viewport_commands: Vec<(ViewportId, ViewportCommand)>,
 
-    render_sync: Option<
-        Arc<
-            Box<
-                dyn for<'a> Fn(
-                        ViewportBuilder,
-                        ViewportId,
-                        ViewportId,
-                        Box<dyn FnOnce(&Context) + 'a>,
-                    ) + Send
-                    + Sync,
-            >,
-        >,
-    >,
+    render_sync: Option<Arc<Box<ViewportRenderSyncCallback>>>,
 
     viewport_counter: u64,
     is_desktop: bool,
@@ -312,12 +300,12 @@ impl ContextImpl {
         self.frame_state
             .entry(viewport_id)
             .or_default()
-            .begin_frame(self.input.get(&viewport_id).unwrap());
+            .begin_frame(&self.input[&viewport_id]);
 
         self.update_fonts_mut();
 
         // Ensure we register the background area so panels and background ui can catch clicks:
-        let input = self.input.get(&viewport_id).unwrap();
+        let input = &self.input[&viewport_id];
         let screen_rect = input.screen_rect();
         self.memory.areas.set_state(
             LayerId::background(),
@@ -694,7 +682,7 @@ impl Context {
     /// Read-only access to [`FrameState`].
     #[inline]
     pub(crate) fn frame_state<R>(&self, reader: impl FnOnce(&FrameState) -> R) -> R {
-        self.read(move |ctx| reader(ctx.frame_state.get(&ctx.get_viewport_id()).unwrap()))
+        self.read(move |ctx| reader(&ctx.frame_state[&ctx.get_viewport_id()]))
     }
 
     /// Read-write access to [`FrameState`].
@@ -882,19 +870,14 @@ impl Context {
                     .push((id, interact_rect));
 
                 if hovered {
-                    let pointer_pos = ctx
-                        .input
-                        .get(&ctx.get_viewport_id())
-                        .unwrap()
-                        .pointer
-                        .interact_pos();
+                    let pointer_pos = &ctx.input[&ctx.get_viewport_id()].pointer.interact_pos();
                     if let Some(pointer_pos) = pointer_pos {
                         if let Some(rects) = ctx.layer_rects_prev_frame.get(&layer_id) {
                             for &(prev_id, prev_rect) in rects.iter().rev() {
                                 if prev_id == id {
                                     break; // there is no other interactive widget covering us at the pointer position.
                                 }
-                                if prev_rect.contains(pointer_pos) {
+                                if prev_rect.contains(*pointer_pos) {
                                     // Another interactive widget is covering us at the pointer position,
                                     // so we aren't hovered.
 
@@ -1506,7 +1489,7 @@ impl Context {
 
         let textures_delta = self.write(|ctx| {
             ctx.memory.end_frame(
-                ctx.input.get(&ctx.get_viewport_id()).unwrap(),
+                &ctx.input[&ctx.get_viewport_id()],
                 &viewports,
                 &ctx.frame_state
                     .entry(ctx.get_viewport_id())
@@ -1723,11 +1706,7 @@ impl Context {
     /// How much space is used by panels and windows.
     pub fn used_rect(&self) -> Rect {
         self.read(|ctx| {
-            let mut used = ctx
-                .frame_state
-                .get(&ctx.get_viewport_id())
-                .unwrap()
-                .used_by_panels;
+            let mut used = ctx.frame_state[&ctx.get_viewport_id()].used_by_panels;
             for window in ctx.memory.areas.visible_windows() {
                 used = used.union(window.rect());
             }
@@ -1905,7 +1884,7 @@ impl Context {
     pub fn animate_bool_with_time(&self, id: Id, target_value: bool, animation_time: f32) -> f32 {
         let animated_value = self.write(|ctx| {
             ctx.animation_manager.animate_bool(
-                ctx.input.get(&ctx.get_viewport_id()).unwrap(),
+                &ctx.input[&ctx.get_viewport_id()],
                 animation_time,
                 id,
                 target_value,
@@ -1925,7 +1904,7 @@ impl Context {
     pub fn animate_value_with_time(&self, id: Id, target_value: f32, animation_time: f32) -> f32 {
         let animated_value = self.write(|ctx| {
             ctx.animation_manager.animate_value(
-                ctx.input.get(&ctx.get_viewport_id()).unwrap(),
+                &ctx.input[&ctx.get_viewport_id()],
                 animation_time,
                 id,
                 target_value,
