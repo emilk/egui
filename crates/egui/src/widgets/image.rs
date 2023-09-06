@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use crate::load::Bytes;
 use crate::{load::SizeHint, load::TexturePoll, *};
 use emath::Rot2;
 
@@ -245,12 +248,16 @@ pub enum ImageSource<'a> {
     /// See [`crate::load`] for more information.
     Uri(&'a str),
 
-    /// Load the image from the raw bytes of an image obtained via [`include_bytes`].
+    /// Load the image from some raw bytes.
+    ///
+    /// The [`Bytes`] may be:
+    /// - `'static`, obtained from `include_bytes!` or similar
+    /// - Anything that can be converted to `Arc<[u8]>`
     ///
     /// This instructs the [`Ui`] to cache the raw bytes, which are then further processed by any registered loaders.
     ///
     /// See [`crate::load`] for more information.
-    Bytes(&'static str, &'static [u8]),
+    Bytes(&'static str, Bytes),
 }
 
 impl<'a> From<&'a str> for ImageSource<'a> {
@@ -260,10 +267,10 @@ impl<'a> From<&'a str> for ImageSource<'a> {
     }
 }
 
-impl From<(&'static str, &'static [u8])> for ImageSource<'static> {
+impl<T: Into<Bytes>> From<(&'static str, T)> for ImageSource<'static> {
     #[inline]
-    fn from(value: (&'static str, &'static [u8])) -> Self {
-        Self::Bytes(value.0, value.1)
+    fn from((uri, bytes): (&'static str, T)) -> Self {
+        Self::Bytes(uri, bytes.into())
     }
 }
 
@@ -292,12 +299,27 @@ impl<'a> Image2<'a> {
         }
     }
 
-    /// Load the image from the raw bytes of an image obtained via [`include_bytes`].
+    /// Load the image from some raw `'static` bytes.
+    ///
+    /// For example, you can use this to load an image from bytes obtained via [`include_bytes`].
     ///
     /// See [`ImageSource::Bytes`].
     pub fn from_static_bytes(name: &'static str, bytes: &'static [u8]) -> Self {
         Self {
-            source: ImageSource::Bytes(name, bytes),
+            source: ImageSource::Bytes(name, Bytes::Static(bytes)),
+            texture_options: Default::default(),
+            size_hint: Default::default(),
+            fit: Default::default(),
+            sense: Sense::hover(),
+        }
+    }
+
+    /// Load the image from some raw bytes.
+    ///
+    /// See [`ImageSource::Bytes`].
+    pub fn from_bytes(name: &'static str, bytes: impl Into<Arc<[u8]>>) -> Self {
+        Self {
+            source: ImageSource::Bytes(name, Bytes::Shared(bytes.into())),
             texture_options: Default::default(),
             size_hint: Default::default(),
             fit: Default::default(),
@@ -331,9 +353,12 @@ impl<'a> Widget for Image2<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
         let uri = match self.source {
             ImageSource::Uri(uri) => uri,
-            ImageSource::Bytes(name, bytes) => {
-                ui.ctx().load_include_bytes(name, bytes);
-                name
+            ImageSource::Bytes(uri, bytes) => {
+                match bytes {
+                    Bytes::Static(bytes) => ui.ctx().include_static_bytes(uri, bytes),
+                    Bytes::Shared(bytes) => ui.ctx().include_bytes(uri, bytes),
+                }
+                uri
             }
         };
 

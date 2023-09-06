@@ -1908,8 +1908,15 @@ impl Context {
     /// Associate some static bytes with a `uri`.
     ///
     /// The same `uri` may be passed to [`Ui::image2`] later to load the bytes as an image.
-    pub fn load_include_bytes(&self, uri: &'static str, bytes: &'static [u8]) {
-        self.read(|ctx| ctx.loaders.include.insert(uri, bytes));
+    pub fn include_static_bytes(&self, uri: &'static str, bytes: &'static [u8]) {
+        self.read(|ctx| ctx.loaders.include.insert_static(uri, bytes));
+    }
+
+    /// Associate some bytes with a `uri`.
+    ///
+    /// The same `uri` may be passed to [`Ui::image2`] later to load the bytes as an image.
+    pub fn include_bytes(&self, uri: &'static str, bytes: impl Into<Arc<[u8]>>) {
+        self.read(|ctx| ctx.loaders.include.insert_shared(uri, bytes));
     }
 
     /// Append an entry onto the chain of bytes loaders.

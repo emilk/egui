@@ -1,6 +1,6 @@
 use egui::{
     ahash::HashMap,
-    load::{BytesLoadResult, BytesLoader, BytesPoll, LoadError},
+    load::{Bytes, BytesLoadResult, BytesLoader, BytesPoll, LoadError},
     mutex::Mutex,
 };
 use std::{sync::Arc, task::Poll, thread};
@@ -24,7 +24,10 @@ impl BytesLoader for FileLoader {
         if let Some(entry) = cache.get(path).cloned() {
             // `path` has either begun loading, is loaded, or has failed to load.
             match entry {
-                Poll::Ready(Ok(bytes)) => Ok(BytesPoll::Ready { size: None, bytes }),
+                Poll::Ready(Ok(bytes)) => Ok(BytesPoll::Ready {
+                    size: None,
+                    bytes: Bytes::Shared(bytes),
+                }),
                 Poll::Ready(Err(err)) => Err(LoadError::Custom(err)),
                 Poll::Pending => Ok(BytesPoll::Pending { size: None }),
             }

@@ -53,6 +53,7 @@ use ahash::HashMap;
 use epaint::mutex::Mutex;
 use epaint::TextureHandle;
 use epaint::{textures::TextureOptions, ColorImage, TextureId, Vec2};
+use std::ops::Deref;
 use std::{error::Error as StdError, fmt::Display, sync::Arc};
 
 #[derive(Clone, Debug)]
@@ -111,6 +112,45 @@ impl From<Vec2> for SizeHint {
 pub type Size = [usize; 2];
 
 #[derive(Clone)]
+pub enum Bytes {
+    Static(&'static [u8]),
+    Shared(Arc<[u8]>),
+}
+
+impl From<&'static [u8]> for Bytes {
+    #[inline]
+    fn from(value: &'static [u8]) -> Self {
+        Bytes::Static(value)
+    }
+}
+
+impl From<Arc<[u8]>> for Bytes {
+    #[inline]
+    fn from(value: Arc<[u8]>) -> Self {
+        Bytes::Shared(value)
+    }
+}
+
+impl AsRef<[u8]> for Bytes {
+    #[inline]
+    fn as_ref(&self) -> &[u8] {
+        match self {
+            Bytes::Static(bytes) => bytes,
+            Bytes::Shared(bytes) => bytes,
+        }
+    }
+}
+
+impl Deref for Bytes {
+    type Target = [u8];
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+
+#[derive(Clone)]
 pub enum BytesPoll {
     /// Bytes are being loaded.
     Pending {
@@ -124,7 +164,7 @@ pub enum BytesPoll {
         size: Option<Size>,
 
         /// File contents, e.g. the contents of a `.png`.
-        bytes: Arc<[u8]>,
+        bytes: Bytes,
     },
 }
 
@@ -274,17 +314,27 @@ pub trait TextureLoader {
 }
 
 #[derive(Default)]
-pub(crate) struct IncludeBytesLoader {
-    cache: Mutex<HashMap<&'static str, Arc<[u8]>>>,
+pub(crate) struct DefaultBytesLoader {
+    cache: Mutex<HashMap<&'static str, Bytes>>,
 }
 
-impl IncludeBytesLoader {
-    pub(crate) fn insert(&self, uri: &'static str, bytes: &'static [u8]) {
-        self.cache.lock().entry(uri).or_insert_with(|| bytes.into());
+impl DefaultBytesLoader {
+    pub(crate) fn insert_static(&self, uri: &'static str, bytes: &'static [u8]) {
+        self.cache
+            .lock()
+            .entry(uri)
+            .or_insert_with(|| Bytes::Static(bytes));
+    }
+
+    pub(crate) fn insert_shared(&self, uri: &'static str, bytes: impl Into<Arc<[u8]>>) {
+        self.cache
+            .lock()
+            .entry(uri)
+            .or_insert_with(|| Bytes::Shared(bytes.into()));
     }
 }
 
-impl BytesLoader for IncludeBytesLoader {
+impl BytesLoader for DefaultBytesLoader {
     fn load(&self, _: &Context, uri: &str) -> BytesLoadResult {
         match self.cache.lock().get(uri).cloned() {
             Some(bytes) => Ok(BytesPoll::Ready { size: None, bytes }),
@@ -331,21 +381,23 @@ impl TextureLoader for DefaultTextureLoader {
         }
     }
 
-    fn forget(&self, _: &str) {
-        // This loader never evicts any data
+    fn forget(&self, uri: &str) {
+        self.cache.lock().retain(|(u, _), _| u != uri);
     }
 
-    fn end_frame(&self, _: usize) {
-        // This loader never evicts any data
-    }
+    fn end_frame(&self, _: usize) {}
 
     fn byte_size(&self) -> usize {
-        0
+        self.cache
+            .lock()
+            .values()
+            .map(|texture| texture.byte_size())
+            .sum()
     }
 }
 
 pub(crate) struct Loaders {
-    pub include: Arc<IncludeBytesLoader>,
+    pub include: Arc<DefaultBytesLoader>,
     pub bytes: Vec<Arc<dyn BytesLoader + Send + Sync + 'static>>,
     pub image: Vec<Arc<dyn ImageLoader + Send + Sync + 'static>>,
     pub texture: Vec<Arc<dyn TextureLoader + Send + Sync + 'static>>,
@@ -353,7 +405,7 @@ pub(crate) struct Loaders {
 
 impl Default for Loaders {
     fn default() -> Self {
-        let include = Arc::new(IncludeBytesLoader::default());
+        let include = Arc::new(DefaultBytesLoader::default());
         Self {
             bytes: vec![include.clone()],
             image: Vec::new(),

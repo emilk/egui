@@ -1,6 +1,6 @@
 use egui::{
     ahash::HashMap,
-    load::{BytesLoadResult, BytesLoader, BytesPoll, LoadError},
+    load::{Bytes, BytesLoadResult, BytesLoader, BytesPoll, LoadError},
     mutex::Mutex,
 };
 use std::{sync::Arc, task::Poll};
@@ -57,7 +57,10 @@ impl BytesLoader for EhttpLoader {
         let mut cache = self.cache.lock();
         if let Some(entry) = cache.get(uri).cloned() {
             match entry {
-                Poll::Ready(Ok(bytes)) => Ok(BytesPoll::Ready { size: None, bytes }),
+                Poll::Ready(Ok(bytes)) => Ok(BytesPoll::Ready {
+                    size: None,
+                    bytes: Bytes::Shared(bytes),
+                }),
                 Poll::Ready(Err(err)) => Err(LoadError::Custom(err)),
                 Poll::Pending => Ok(BytesPoll::Pending { size: None }),
             }
