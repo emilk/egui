@@ -101,7 +101,8 @@ unsafe impl HasRawDisplayHandle for CreationContext<'_> {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum RemoteRenderingMessageType {
     Connect(f32),
     PixelsPerPoint(f32),
