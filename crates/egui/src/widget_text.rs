@@ -269,12 +269,34 @@ impl RichText {
         fonts.row_height(&font_id)
     }
 
+    pub fn append_to(self,
+        layout_job: &mut LayoutJob,
+        style: &Style,
+        fallback_font: FontSelection,
+        default_valign: Align) {
+        let (text, format) = self.into_text_and_format(style, fallback_font, default_valign);
+
+        layout_job.append(&text, 0.0, format);
+    }
+
     fn into_text_job(
         self,
         style: &Style,
         fallback_font: FontSelection,
         default_valign: Align,
     ) -> WidgetTextJob {
+        let job_has_color = self.get_text_color(&style.visuals).is_some();
+        let (text, text_format) = self.into_text_and_format(style, fallback_font, default_valign);
+
+        let job = LayoutJob::single_section(text, text_format);
+        WidgetTextJob { job, job_has_color }
+    }
+
+    fn into_text_and_format(self,
+        style: &Style,
+        fallback_font: FontSelection,
+        default_valign: Align,
+    ) -> (String, crate::text::TextFormat) {
         let text_color = self.get_text_color(&style.visuals);
 
         let Self {
@@ -295,7 +317,6 @@ impl RichText {
             raised,
         } = self;
 
-        let job_has_color = text_color.is_some();
         let line_color = text_color.unwrap_or_else(|| style.visuals.text_color());
         let text_color = text_color.unwrap_or(crate::Color32::TEMPORARY_COLOR);
 
@@ -336,7 +357,7 @@ impl RichText {
             default_valign
         };
 
-        let text_format = crate::text::TextFormat {
+        (text, crate::text::TextFormat {
             font_id,
             extra_letter_spacing,
             line_height,
@@ -346,10 +367,7 @@ impl RichText {
             underline,
             strikethrough,
             valign,
-        };
-
-        let job = LayoutJob::single_section(text, text_format);
-        WidgetTextJob { job, job_has_color }
+        })
     }
 
     fn get_text_color(&self, visuals: &Visuals) -> Option<Color32> {
