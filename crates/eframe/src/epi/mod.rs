@@ -101,6 +101,13 @@ unsafe impl HasRawDisplayHandle for CreationContext<'_> {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub enum RemoteRenderingMessageType {
+    Connect(f32),
+    PixelsPerPoint(f32),
+    RawInput(egui::RawInput),
+}
+
 // ----------------------------------------------------------------------------
 
 /// Implement this trait to write apps that can be compiled for both web/wasm and desktop/native using [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe).
@@ -120,7 +127,7 @@ pub trait App {
     fn update_remote(
         &mut self,
         _raw_input: egui::RawInput,
-        frame: &Frame,
+        _frame: &Frame,
     ) -> (egui::output::FullOutput, f32) {
         (egui::output::FullOutput::default(), 2.0)
     }
@@ -942,7 +949,6 @@ impl Frame {
     /// Set the desired inner size of the window (in egui points).
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_window_size(&mut self, size: egui::Vec2) {
-        println!("In set_window_size");
         self.output.window_size = Some(size);
         self.info.window_info.size = size; // so that subsequent calls see the updated value
     }

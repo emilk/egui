@@ -251,7 +251,6 @@ pub fn handle_app_output(
     }
 
     if let Some(window_size) = window_size {
-        println!("Calling set inner size with size {:?}", window_size);
         window.set_inner_size(
             winit::dpi::PhysicalSize {
                 width: (current_pixels_per_point * window_size.x).round(),
