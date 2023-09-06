@@ -435,9 +435,7 @@ impl Renderer {
                     }
                 }
                 Primitive::Callback(callback) => {
-                    let cbfn = if let Some(c) = callback.callback.downcast_ref::<Callback>() {
-                        c
-                    } else {
+                    let Some(cbfn) = callback.callback.downcast_ref::<Callback>() else {
                         // We already warned in the `prepare` callback
                         continue;
                     };

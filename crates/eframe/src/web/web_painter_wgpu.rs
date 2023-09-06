@@ -148,9 +148,7 @@ impl WebPainter for WebPainterWgpu {
     ) -> Result<(), JsValue> {
         let size_in_pixels = [self.canvas.width(), self.canvas.height()];
 
-        let render_state = if let Some(render_state) = &self.render_state {
-            render_state
-        } else {
+        let Some(render_state) = &self.render_state else {
             return Err(JsValue::from_str(
                 "Can't paint, wgpu renderer was already disposed",
             ));
