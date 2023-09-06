@@ -1570,15 +1570,23 @@ impl Context {
             avalibile_viewports
         });
 
+        let viewport_id = self.get_viewport_id();
+
+        // We should not process viewport commands when we are a sync viewport, because that will cause a deadlock or a memory race
+        let mut is_async = viewport_id == ViewportId::MAIN;
+
         let mut viewports = Vec::new();
         self.write(|ctx| {
-            let viewport_id = ctx.get_viewport_id();
             ctx.viewports
                 .retain(|_, (builder, id, parent, used, render)| {
                     let out = *used;
 
                     if viewport_id == *parent {
                         *used = false;
+                    }
+
+                    if !is_async && viewport_id == *id {
+                        is_async = render.is_some();
                     }
 
                     viewports.push((*id, *parent, builder.clone(), render.clone()));
@@ -1601,13 +1609,18 @@ impl Context {
                 ctx.memory.resume_frame(viewport_id);
             });
         }
+
         FullOutput {
             platform_output,
             repaint_after,
             textures_delta,
             shapes,
             viewports,
-            viewport_commands: self.write(|ctx| std::mem::take(&mut ctx.viewport_commands)),
+            viewport_commands: if is_async {
+                self.write(|ctx| std::mem::take(&mut ctx.viewport_commands))
+            } else {
+                Vec::new()
+            },
         }
     }
 

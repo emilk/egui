@@ -86,6 +86,17 @@ impl eframe::App for App {
                                             if ui.button("Add").clicked() {
                                                 *state += 1;
                                             }
+
+                                            if ui.button("Set parent pos {0, 0}").clicked() {
+                                                let ctx = ui.ctx().clone();
+                                                let parent_id = ctx.get_parent_viewport_id();
+                                                ctx.viewport_command_for(
+                                                    parent_id,
+                                                    egui::ViewportCommand::OuterPosition(
+                                                        egui::pos2(0.0, 0.0),
+                                                    ),
+                                                );
+                                            }
                                         };
 
                                         show_as_popup(
@@ -110,6 +121,17 @@ impl eframe::App for App {
                                             ui.label(format!("Count: {}", *state));
                                             if ui.button("Add").clicked() {
                                                 *state += 1;
+                                            }
+
+                                            if ui.button("Set parent pos {0, 0}").clicked() {
+                                                let ctx = ui.ctx().clone();
+                                                let parent_id = ctx.get_parent_viewport_id();
+                                                ctx.viewport_command_for(
+                                                    parent_id,
+                                                    egui::ViewportCommand::OuterPosition(
+                                                        egui::pos2(0.0, 0.0),
+                                                    ),
+                                                );
                                             }
                                         };
 
@@ -160,6 +182,17 @@ impl eframe::App for App {
                                             if ui.button("Add").clicked() {
                                                 *state += 1;
                                             }
+
+                                            if ui.button("Set parent pos {0, 0}").clicked() {
+                                                let ctx = ui.ctx().clone();
+                                                let parent_id = ctx.get_parent_viewport_id();
+                                                ctx.viewport_command_for(
+                                                    parent_id,
+                                                    egui::ViewportCommand::OuterPosition(
+                                                        egui::pos2(0.0, 0.0),
+                                                    ),
+                                                );
+                                            }
                                         };
 
                                         show_as_popup(
@@ -184,6 +217,17 @@ impl eframe::App for App {
                                             ui.label(format!("Count: {}", *state));
                                             if ui.button("Add").clicked() {
                                                 *state += 1;
+                                            }
+
+                                            if ui.button("Set parent pos {0, 0}").clicked() {
+                                                let ctx = ui.ctx().clone();
+                                                let parent_id = ctx.get_parent_viewport_id();
+                                                ctx.viewport_command_for(
+                                                    parent_id,
+                                                    egui::ViewportCommand::OuterPosition(
+                                                        egui::pos2(0.0, 0.0),
+                                                    ),
+                                                );
                                             }
                                         };
 

@@ -1030,8 +1030,6 @@ mod glow_integration {
             let _painter = painter.clone();
             let time = integration.beginning;
 
-            let focused = self.is_focused.clone();
-
             // ## Sync Rendering
             integration.egui_ctx.set_render_sync_callback(
                 move |viewport_builder, viewport_id, parent_id, render| {
@@ -1129,17 +1127,6 @@ mod glow_integration {
                                     break 'try_render;
                                 }
                             }
-                            egui_winit::process_viewports_commands(
-                                output.viewport_commands,
-                                *focused.read(),
-                                |id| {
-                                    glutin
-                                        .read()
-                                        .windows
-                                        .get(&id)
-                                        .and_then(|w| w.read().window.clone())
-                                },
-                            );
                         }
                     }
                 },
@@ -2124,12 +2111,6 @@ mod wgpu_integration {
                                     break 'try_render;
                                 }
                             }
-
-                            egui_winit::process_viewports_commands(
-                                output.viewport_commands,
-                                *focused.read(),
-                                |id| _windows.read().get(&id).and_then(|w| w.window.clone()),
-                            );
                         }
                     }
                 },
