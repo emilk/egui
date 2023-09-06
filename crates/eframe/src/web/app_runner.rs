@@ -87,6 +87,7 @@ impl AppRunner {
             wgpu_render_state: painter.render_state(),
             #[cfg(all(feature = "wgpu", feature = "glow"))]
             wgpu_render_state: None,
+            allow_ime: None,
         };
 
         let needs_repaint: std::sync::Arc<NeedRepaint> = Default::default();
