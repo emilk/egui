@@ -6,9 +6,11 @@ use egui::{
 };
 use std::{mem::size_of, path::Path, sync::Arc};
 
+type Entry = Result<Arc<ColorImage>, String>;
+
 #[derive(Default)]
 pub struct ImageCrateLoader {
-    cache: Mutex<HashMap<String, Result<Arc<ColorImage>, String>>>,
+    cache: Mutex<HashMap<String, Entry>>,
 }
 
 fn is_supported(uri: &str) -> bool {

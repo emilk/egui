@@ -6,9 +6,11 @@ use egui::{
 };
 use std::{mem::size_of, path::Path, sync::Arc};
 
+type Entry = Result<Arc<ColorImage>, String>;
+
 #[derive(Default)]
 pub struct SvgLoader {
-    cache: Mutex<HashMap<(String, SizeHint), Result<Arc<ColorImage>, String>>>,
+    cache: Mutex<HashMap<(String, SizeHint), Entry>>,
 }
 
 fn is_supported(uri: &str) -> bool {

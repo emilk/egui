@@ -5,10 +5,12 @@ use egui::{
 };
 use std::{sync::Arc, task::Poll, thread};
 
+type Entry = Poll<Result<Arc<[u8]>, String>>;
+
 #[derive(Default)]
 pub struct FileLoader {
     /// Cache for loaded files
-    cache: Arc<Mutex<HashMap<String, Poll<Result<Arc<[u8]>, String>>>>>,
+    cache: Arc<Mutex<HashMap<String, Entry>>>,
 }
 
 const PROTOCOL: &str = "file://";

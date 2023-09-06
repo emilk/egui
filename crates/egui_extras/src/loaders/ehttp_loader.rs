@@ -5,9 +5,11 @@ use egui::{
 };
 use std::{sync::Arc, task::Poll};
 
+type Entry = Poll<Result<Arc<[u8]>, String>>;
+
 #[derive(Default)]
 pub struct EhttpLoader {
-    cache: Arc<Mutex<HashMap<String, Poll<Result<Arc<[u8]>, String>>>>>,
+    cache: Arc<Mutex<HashMap<String, Entry>>>,
 }
 
 const PROTOCOLS: &[&str] = &["http://", "https://"];
