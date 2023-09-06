@@ -26,6 +26,9 @@ all-features = true
 [features]
 default = []
 
+## Shorthand for enabling `svg`, `image`, and `ehttp`.
+all-loaders = ["svg", "image", "ehttp"]
+
 ## Enable [`DatePickerButton`] widget.
 datepicker = ["chrono"]
 
@@ -39,9 +42,6 @@ puffin = ["dep:puffin", "egui/puffin"]
 
 ## Support loading svg images.
 svg = ["resvg", "tiny-skia", "usvg"]
-
-## Shorthand for enabling `svg`, `image`, and `ehttp`.
-all-loaders = ["svg", "image", "ehttp"]
 
 [dependencies]
 egui = { version = "0.22.0", path = "../egui", default-features = false }
