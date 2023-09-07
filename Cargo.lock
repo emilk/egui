@@ -2028,6 +2028,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "images"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_extras",
+ "env_logger",
+ "image",
+ "rfd",
+]
+
+[[package]]
 name = "imagesize"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

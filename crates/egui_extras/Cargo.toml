@@ -27,7 +27,7 @@ all-features = true
 default = ["dep:mime_guess"]
 
 ## Shorthand for enabling `svg`, `image`, and `ehttp`.
-all-loaders = ["svg", "image", "http"]
+all-loaders = ["svg", "image", "http", "file"]
 
 ## Enable [`DatePickerButton`] widget.
 datepicker = ["chrono"]
