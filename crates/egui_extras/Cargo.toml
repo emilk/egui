@@ -32,6 +32,9 @@ all-loaders = ["svg", "image", "http"]
 ## Enable [`DatePickerButton`] widget.
 datepicker = ["chrono"]
 
+## Add support for loading images from `file://` URIs.
+file = []
+
 ## Log warnings using [`log`](https://docs.rs/log) crate.
 log = ["dep:log", "egui/log"]
 

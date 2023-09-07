@@ -18,7 +18,7 @@
 ///
 /// See [`egui::load`] for more information about how loaders work.
 pub fn install(ctx: &egui::Context) {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "file"))]
     ctx.add_bytes_loader(std::sync::Arc::new(self::file_loader::FileLoader::default()));
 
     #[cfg(feature = "http")]
@@ -35,7 +35,7 @@ pub fn install(ctx: &egui::Context) {
     ctx.add_image_loader(std::sync::Arc::new(self::svg_loader::SvgLoader::default()));
 
     #[cfg(all(
-        target_arch = "wasm32",
+        any(target_arch = "wasm32", not(feature = "file")),
         not(feature = "http"),
         not(feature = "image"),
         not(feature = "svg")
