@@ -109,8 +109,8 @@ impl eframe::App for MyApp {
         let full_output_diff = received_message.into_text();
 
         if let Ok(diff) = full_output_diff {
-            let mut deserializer = serde_json::Deserializer::from_str(&diff);
-            let _ = Apply::apply(&mut deserializer, &mut self.full_output);
+            let deserialized: egui::FullOutput = serde_json::from_str(&diff).unwrap();
+            self.full_output = deserialized;
         }
 
         (self.full_output.clone(), self.pixels_per_point)
