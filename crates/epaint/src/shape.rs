@@ -62,7 +62,7 @@ pub enum Shape {
     /// Backend-specific painting.
     Callback(
         #[cfg_attr(feature = "serde", serde(skip))]
-        #[cfg_attr(feature = "serde", serde_diff(skip))]
+        #[cfg_attr(feature = "serde-diff", serde_diff(skip))]
         PaintCallback,
     ),
 }
@@ -637,7 +637,7 @@ pub struct TextShape {
     pub pos: Pos2,
 
     /// The laid out text, from [`Fonts::layout_job`].
-    #[cfg_attr(feature = "serde", serde_diff(opaque))]
+    #[cfg_attr(feature = "serde-diff", serde_diff(opaque))]
     pub galley: Arc<Galley>,
 
     /// Add this underline to the whole text.

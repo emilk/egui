@@ -90,7 +90,7 @@ pub struct PlatformOutput {
     pub text_cursor_pos: Option<crate::Pos2>,
 
     #[cfg(feature = "accesskit")]
-    #[cfg_attr(feature = "serde", serde_diff(opaque))]
+    #[cfg_attr(feature = "serde-diff", serde_diff(opaque))]
     pub accesskit_update: Option<accesskit::TreeUpdate>,
 }
 
@@ -461,7 +461,7 @@ pub struct WidgetInfo {
     pub value: Option<f64>,
 
     /// Selected range of characters in [`Self::current_text_value`].
-    #[cfg_attr(feature = "serde", serde_diff(opaque))]
+    #[cfg_attr(feature = "serde-diff", serde_diff(opaque))]
     pub text_selection: Option<std::ops::RangeInclusive<usize>>,
 }
 
