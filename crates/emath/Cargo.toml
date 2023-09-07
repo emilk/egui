@@ -42,6 +42,3 @@ mint = { version = "0.5.6", optional = true }
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = { version = "1", optional = true, features = ["derive"] }
-
-## Allow calculating and applying diffs using [`serde-diff] (https://docs.rs/serde-diff/latest/serde_diff/).
-serde-diff = "0.4.1"

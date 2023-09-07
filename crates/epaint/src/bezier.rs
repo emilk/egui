@@ -10,10 +10,8 @@ use emath::*;
 ///
 /// See also [`QuadraticBezierShape`].
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
 pub struct CubicBezierShape {
     /// The first point is the starting point and the last one is the ending point of the curve.
     /// The middle points are the control points.
@@ -376,10 +374,8 @@ impl From<CubicBezierShape> for Shape {
 ///
 /// See also [`CubicBezierShape`].
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
 pub struct QuadraticBezierShape {
     /// The first point is the starting point and the last one is the ending point of the curve.
     /// The middle point is the control points.

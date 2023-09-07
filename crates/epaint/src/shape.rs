@@ -20,10 +20,8 @@ pub use crate::{CubicBezierShape, QuadraticBezierShape};
 /// and so must be recreated every time `pixels_per_point` changes.
 #[must_use = "Add a Shape to a Painter"]
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
 pub enum Shape {
     /// Paint nothing. This can be useful as a placeholder.
     Noop,
@@ -346,10 +344,8 @@ impl Shape {
 
 /// How to paint a circle.
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
 pub struct CircleShape {
     pub center: Pos2,
     pub radius: f32,
@@ -402,10 +398,8 @@ impl From<CircleShape> for Shape {
 
 /// A path which can be stroked and/or filled (if closed).
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
 pub struct PathShape {
     /// Filled paths should prefer clockwise order.
     pub points: Vec<Pos2>,
@@ -485,10 +479,8 @@ impl From<PathShape> for Shape {
 
 /// How to paint a rectangle.
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
 pub struct RectShape {
     pub rect: Rect,
 
@@ -546,10 +538,8 @@ impl From<RectShape> for Shape {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
 /// How rounded the corners of things should be
 pub struct Rounding {
     /// Radius of the rounding of the North-West (left top) corner.
@@ -640,10 +630,8 @@ impl Rounding {
 ///
 /// This needs to be recreated if `pixels_per_point` (dpi scale) changes.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
 pub struct TextShape {
     /// Top left corner of the first character.
     pub pos: Pos2,

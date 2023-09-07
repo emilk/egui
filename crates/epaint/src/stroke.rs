@@ -6,10 +6,8 @@ use super::*;
 ///
 /// The default stroke is the same as [`Stroke::none`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Deserialize, serde::Serialize, serde_diff::SerdeDiff)
-)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
 pub struct Stroke {
     pub width: f32,
     pub color: Color32,
