@@ -1234,7 +1234,7 @@ impl PlotItem for PlotImage {
             Rect::from_two_pos(left_top_screen, right_bottom_screen)
         };
         let screen_rotation = -*rotation as f32;
-        Image::new(*texture_id, image_screen_rect.size())
+        RawImage::new((*texture_id, image_screen_rect.size()))
             .bg_fill(*bg_fill)
             .tint(*tint)
             .uv(*uv)

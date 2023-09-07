@@ -1611,7 +1611,7 @@ impl Ui {
     /// See also [`crate::Image2`] and [`crate::ImageSource`].
     #[inline]
     pub fn raw_image(&mut self, texture: impl Into<SizedTexture>) -> Response {
-        RawImage::new(texture.into()).ui(self)
+        RawImage::new(texture).ui(self)
     }
 }
 

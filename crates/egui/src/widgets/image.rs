@@ -423,9 +423,9 @@ pub struct RawImage {
 
 impl RawImage {
     /// Load the image from some source.
-    pub fn new(texture: SizedTexture) -> Self {
+    pub fn new(texture: impl Into<SizedTexture>) -> Self {
         Self {
-            texture,
+            texture: texture.into(),
             texture_options: Default::default(),
             image_options: ImageOptions {
                 uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
