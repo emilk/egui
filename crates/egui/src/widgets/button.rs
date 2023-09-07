@@ -238,7 +238,7 @@ impl Widget for Button {
             }
         }
 
-        if response.hovered && ui.visuals().pointinghand_if_interactable {
+        if response.hovered && ui.visuals().pointinghand_if_interactive {
             ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
         }
 

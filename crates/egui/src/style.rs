@@ -550,7 +550,7 @@ pub struct Visuals {
     ///
     /// This is consistent with web browser behaviour, but inconsistent with native
     /// UI toolkits.
-    pub pointinghand_if_interactable: bool,
+    pub pointinghand_if_interactive: bool,
 }
 
 impl Visuals {
@@ -814,7 +814,7 @@ impl Visuals {
 
             slider_trailing_fill: false,
 
-            pointinghand_if_interactable: false,
+            pointinghand_if_interactive: false,
         }
     }
 
@@ -1385,7 +1385,7 @@ impl Visuals {
             striped,
 
             slider_trailing_fill,
-            pointinghand_if_interactable,
+            pointinghand_if_interactive,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1452,7 +1452,7 @@ impl Visuals {
         ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
 
         ui.checkbox(
-            pointinghand_if_interactable,
+            pointinghand_if_interactive,
             "Change cursor to PointingHand when an interactive item is hovered.",
         );
 
