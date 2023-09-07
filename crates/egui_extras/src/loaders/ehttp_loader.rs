@@ -22,7 +22,13 @@ fn get_image_bytes(
     uri: &str,
     response: Result<ehttp::Response, String>,
 ) -> Result<Arc<[u8]>, String> {
-    let response = response?;
+    let response = match response {
+        Ok(response) => response,
+        Err(err) => {
+            crate::log_err!("failed to load {uri:?}\n{err}");
+            return Err(format!("failed to load {uri:?}"));
+        }
+    };
     if !response.ok {
         match response.text() {
             Some(response_text) => {
