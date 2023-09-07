@@ -1,6 +1,7 @@
 use crate::load::Bytes;
 use crate::{load::SizeHint, load::TexturePoll, *};
 use emath::Rot2;
+use epaint::util::FloatOrd;
 
 /// An widget to show an image of a given size.
 ///
@@ -188,49 +189,146 @@ impl Widget for Image {
 pub struct Image2<'a> {
     source: ImageSource<'a>,
     texture_options: TextureOptions,
-    size_hint: SizeHint,
-    fit: ImageFit,
+    size: ImageSize,
     sense: Sense,
+    uv: Rect,
+    bg_fill: Color32,
+    tint: Color32,
+    rotation: Option<(Rot2, Vec2)>,
+    rounding: Rounding,
 }
 
-#[derive(Default, Clone, Copy)]
-enum ImageFit {
-    // TODO: options for aspect ratio
-    // TODO: other fit strategies
-    // FitToWidth,
-    // FitToHeight,
-    // FitToWidthExact(f32),
-    // FitToHeightExact(f32),
-    #[default]
-    ShrinkToFit,
+/// This type determines the constraints on how
+/// the size of an image should be calculated.
+#[derive(Clone, Copy)]
+pub struct ImageSize {
+    /// Whether or not the final size should maintain the original aspect ratio.
+    ///
+    /// This setting is applied last.
+    ///
+    /// This defaults to `true`.
+    pub maintain_aspect_ratio: bool,
+    /// Determines the maximum extent of the image.
+    ///
+    /// This setting is applied after calculating `fit`.
+    ///
+    /// Defaults to `None`
+    pub extent: Option<Vec2>,
+    /// Determines how the image should shrink/expand/stretch/etc. to fit within its allocated space.
+    ///
+    /// This setting is applied first.
+    ///
+    /// Defaults to `ImageFit::Fraction([1, 1])`
+    pub fit: ImageFit,
 }
 
-impl ImageFit {
-    pub fn calculate_final_size(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
-        let aspect_ratio = image_size.x / image_size.y;
-        // TODO: more image sizing options
-        match self {
-            // ImageFit::FitToWidth => todo!(),
-            // ImageFit::FitToHeight => todo!(),
-            // ImageFit::FitToWidthExact(_) => todo!(),
-            // ImageFit::FitToHeightExact(_) => todo!(),
-            ImageFit::ShrinkToFit => {
-                let width = if available_size.x < image_size.x {
-                    available_size.x
-                } else {
-                    image_size.x
-                };
-                let height = if available_size.y < image_size.y {
-                    available_size.y
-                } else {
-                    image_size.y
-                };
-                if width < height {
-                    Vec2::new(width, width / aspect_ratio)
-                } else {
-                    Vec2::new(height * aspect_ratio, height)
+/// This type determines how the image should try to fit within the UI.
+///
+/// This has lower precedence than [`ImageSize::extents`], meaning that the image size will be clamped to [`ImageSize::extents`].
+#[derive(Clone, Copy)]
+pub enum ImageFit {
+    /// Fit the image to its original size, optionally scaling it by some factor.
+    Original(Option<f32>),
+    /// Fit the image to a fraction of the available size.
+    Fraction(Vec2),
+    /// Fit the image to an exact size.
+    Exact(Vec2),
+}
+
+impl ImageSize {
+    fn hint(&self, available_size: Vec2) -> SizeHint {
+        if self.maintain_aspect_ratio {
+            return SizeHint::Original(None);
+        };
+
+        let fit = match self.fit {
+            ImageFit::Original(scale) => return SizeHint::Original(scale.map(FloatOrd::ord)),
+            ImageFit::Fraction(fract) => available_size * fract,
+            ImageFit::Exact(size) => size,
+        };
+
+        let fit = match self.extent {
+            Some(extent) => fit.min(extent),
+            None => fit,
+        };
+
+        // `inf` on an axis means "any value"
+        match (fit.x.is_finite(), fit.y.is_finite()) {
+            (true, true) => SizeHint::Size(fit.x.round() as u32, fit.y.round() as u32),
+            (true, false) => SizeHint::Width(fit.x.round() as u32),
+            (false, true) => SizeHint::Height(fit.y.round() as u32),
+            (false, false) => SizeHint::Original(None),
+        }
+    }
+
+    fn finalize(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
+        match self.fit {
+            ImageFit::Original(None) => {
+                if let Some(available_size) = self.extent {
+                    if self.maintain_aspect_ratio {
+                        let ratio_x = available_size.x / image_size.x;
+                        let ratio_y = available_size.y / image_size.y;
+                        let ratio = if ratio_x < ratio_y { ratio_x } else { ratio_y };
+
+                        return Vec2::new(image_size.x * ratio, image_size.y * ratio);
+                    }
                 }
+
+                image_size
             }
+            ImageFit::Original(Some(scale)) => {
+                let image_size = image_size * scale;
+
+                if let Some(available_size) = self.extent {
+                    if self.maintain_aspect_ratio {
+                        let ratio_x = available_size.x / image_size.x;
+                        let ratio_y = available_size.y / image_size.y;
+                        let ratio = if ratio_x < ratio_y { ratio_x } else { ratio_y };
+
+                        return Vec2::new(image_size.x * ratio, image_size.y * ratio);
+                    }
+                }
+
+                image_size
+            }
+            ImageFit::Fraction(fract) => {
+                let available_size =
+                    (available_size * fract).max(self.extent.unwrap_or(Vec2::ZERO));
+
+                if self.maintain_aspect_ratio {
+                    let ratio_x = available_size.x / image_size.x;
+                    let ratio_y = available_size.y / image_size.y;
+                    let ratio = if ratio_x < ratio_y { ratio_x } else { ratio_y };
+
+                    return Vec2::new(image_size.x * ratio, image_size.y * ratio);
+                }
+
+                available_size
+            }
+            ImageFit::Exact(size) => {
+                let available_size = size.max(self.extent.unwrap_or(Vec2::ZERO));
+
+                if self.maintain_aspect_ratio {
+                    let ratio_x = available_size.x / image_size.x;
+                    let ratio_y = available_size.y / image_size.y;
+                    let ratio = if ratio_x < ratio_y { ratio_x } else { ratio_y };
+
+                    return Vec2::new(image_size.x * ratio, image_size.y * ratio);
+                }
+
+                available_size
+            }
+        }
+    }
+}
+
+impl Default for ImageSize {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            extent: None,
+            fit: ImageFit::Fraction(Vec2::new(1.0, 1.0)),
+            maintain_aspect_ratio: true,
         }
     }
 }
@@ -278,9 +376,13 @@ impl<'a> Image2<'a> {
         Self {
             source,
             texture_options: Default::default(),
-            size_hint: Default::default(),
-            fit: Default::default(),
+            size: Default::default(),
             sense: Sense::hover(),
+            uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+            bg_fill: Default::default(),
+            tint: Color32::WHITE,
+            rotation: None,
+            rounding: Rounding::ZERO,
         }
     }
 
@@ -288,26 +390,14 @@ impl<'a> Image2<'a> {
     ///
     /// See [`ImageSource::Uri`].
     pub fn from_uri(uri: &'a str) -> Self {
-        Self {
-            source: ImageSource::Uri(uri),
-            texture_options: Default::default(),
-            size_hint: Default::default(),
-            fit: Default::default(),
-            sense: Sense::hover(),
-        }
+        Self::new(ImageSource::Uri(uri))
     }
 
     /// Load the image from some raw bytes.
     ///
     /// See [`ImageSource::Bytes`].
-    pub fn from_bytes(name: &'static str, bytes: impl Into<Bytes>) -> Self {
-        Self {
-            source: ImageSource::Bytes(name, bytes.into()),
-            texture_options: Default::default(),
-            size_hint: Default::default(),
-            fit: Default::default(),
-            sense: Sense::hover(),
-        }
+    pub fn from_bytes(uri: &'static str, bytes: impl Into<Bytes>) -> Self {
+        Self::new(ImageSource::Bytes(uri, bytes.into()))
     }
 
     /// Texture options used when creating the texture.
@@ -317,17 +407,86 @@ impl<'a> Image2<'a> {
         self
     }
 
-    /// Size hint used when creating the texture.
     #[inline]
-    pub fn size_hint(mut self, size_hint: impl Into<SizeHint>) -> Self {
-        self.size_hint = size_hint.into();
+    pub fn extent(mut self, extent: Option<Vec2>) -> Self {
+        self.size.extent = extent;
         self
+    }
+
+    #[inline]
+    pub fn fit_to_original_size(mut self, scale: Option<f32>) -> Self {
+        self.size.fit = ImageFit::Original(scale);
+        self
+    }
+
+    #[inline]
+    pub fn fit_to_exact_size(mut self, size: Vec2) -> Self {
+        self.size.fit = ImageFit::Exact(size);
+        self
+    }
+
+    #[inline]
+    pub fn fit_to_fraction(mut self, fraction: Vec2) -> Self {
+        self.size.fit = ImageFit::Fraction(fraction);
+        self
+    }
+
+    #[inline]
+    pub fn shrink_to_fit(self) -> Self {
+        self.fit_to_fraction(Vec2::new(1.0, 1.0))
     }
 
     /// Make the image respond to clicks and/or drags.
     #[inline]
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = sense;
+        self
+    }
+
+    /// Select UV range. Default is (0,0) in top-left, (1,1) bottom right.
+    pub fn uv(mut self, uv: impl Into<Rect>) -> Self {
+        self.uv = uv.into();
+        self
+    }
+
+    /// A solid color to put behind the image. Useful for transparent images.
+    pub fn bg_fill(mut self, bg_fill: impl Into<Color32>) -> Self {
+        self.bg_fill = bg_fill.into();
+        self
+    }
+
+    /// Multiply image color with this. Default is WHITE (no tint).
+    pub fn tint(mut self, tint: impl Into<Color32>) -> Self {
+        self.tint = tint.into();
+        self
+    }
+
+    /// Rotate the image about an origin by some angle
+    ///
+    /// Positive angle is clockwise.
+    /// Origin is a vector in normalized UV space ((0,0) in top-left, (1,1) bottom right).
+    ///
+    /// To rotate about the center you can pass `Vec2::splat(0.5)` as the origin.
+    ///
+    /// Due to limitations in the current implementation,
+    /// this will turn off rounding of the image.
+    pub fn rotate(mut self, angle: f32, origin: Vec2) -> Self {
+        self.rotation = Some((Rot2::from_angle(angle), origin));
+        self.rounding = Rounding::ZERO; // incompatible with rotation
+        self
+    }
+
+    /// Round the corners of the image.
+    ///
+    /// The default is no rounding ([`Rounding::ZERO`]).
+    ///
+    /// Due to limitations in the current implementation,
+    /// this will turn off any rotation of the image.
+    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
+        self.rounding = rounding.into();
+        if self.rounding != Rounding::ZERO {
+            self.rotation = None; // incompatible with rounding
+        }
         self
     }
 }
@@ -342,13 +501,14 @@ impl<'a> Widget for Image2<'a> {
             }
         };
 
+        let available_size = ui.available_size();
         match ui
             .ctx()
-            .try_load_texture(uri, self.texture_options, self.size_hint)
+            .try_load_texture(uri, self.texture_options, self.size.hint(available_size))
         {
             Ok(TexturePoll::Ready { texture }) => {
-                let final_size = self.fit.calculate_final_size(
-                    ui.available_size(),
+                let final_size = self.size.finalize(
+                    available_size,
                     Vec2::new(texture.size[0] as f32, texture.size[1] as f32),
                 );
 

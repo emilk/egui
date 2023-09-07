@@ -51,6 +51,7 @@
 use crate::Context;
 use ahash::HashMap;
 use epaint::mutex::Mutex;
+use epaint::util::OrderedFloat;
 use epaint::TextureHandle;
 use epaint::{textures::TextureOptions, ColorImage, TextureId, Vec2};
 use std::ops::Deref;
@@ -85,11 +86,10 @@ pub type Result<T, E = LoadError> = std::result::Result<T, E>;
 /// All variants will preserve the original aspect ratio.
 ///
 /// Similar to `usvg::FitTo`.
-#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SizeHint {
-    /// Keep original size.
-    #[default]
-    Original,
+    /// Keep original size, optionally scale by some factor.
+    Original(Option<OrderedFloat<f32>>),
 
     /// Scale to width.
     Width(u32),
@@ -99,6 +99,12 @@ pub enum SizeHint {
 
     /// Scale to size.
     Size(u32, u32),
+}
+
+impl Default for SizeHint {
+    fn default() -> Self {
+        Self::Original(None)
+    }
 }
 
 impl From<Vec2> for SizeHint {

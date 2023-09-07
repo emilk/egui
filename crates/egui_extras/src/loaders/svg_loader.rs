@@ -39,7 +39,8 @@ impl ImageLoader for SvgLoader {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
                     crate::log_trace!("started loading {uri:?}");
                     let fit_to = match size_hint {
-                        SizeHint::Original => usvg::FitTo::Original,
+                        SizeHint::Original(None) => usvg::FitTo::Original,
+                        SizeHint::Original(Some(factor)) => usvg::FitTo::Zoom(factor.get()),
                         SizeHint::Width(w) => usvg::FitTo::Width(w),
                         SizeHint::Height(h) => usvg::FitTo::Height(h),
                         SizeHint::Size(w, h) => usvg::FitTo::Size(w, h),

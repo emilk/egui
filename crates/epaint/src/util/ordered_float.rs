@@ -8,7 +8,15 @@ use std::hash::{Hash, Hasher};
 /// Possible types for `T` are `f32` and `f64`.
 ///
 /// See also [`FloatOrd`].
+#[derive(Clone, Copy)]
 pub struct OrderedFloat<T>(T);
+
+impl<T: Float + Clone> OrderedFloat<T> {
+    #[inline]
+    pub fn get(&self) -> T {
+        self.0.clone()
+    }
+}
 
 impl<T: Float> Eq for OrderedFloat<T> {}
 
