@@ -86,7 +86,10 @@ impl TextureHandle {
 
     /// width x height
     pub fn size(&self) -> [usize; 2] {
-        self.tex_mngr.read().meta(self.id).unwrap().size
+        self.tex_mngr
+            .read()
+            .meta(self.id)
+            .map_or([0, 0], |tex| tex.size)
     }
 
     /// width x height
@@ -97,7 +100,10 @@ impl TextureHandle {
 
     /// `width x height x bytes_per_pixel`
     pub fn byte_size(&self) -> usize {
-        self.tex_mngr.read().meta(self.id).unwrap().bytes_used()
+        self.tex_mngr
+            .read()
+            .meta(self.id)
+            .map_or(0, |tex| tex.bytes_used())
     }
 
     /// width / height
@@ -108,7 +114,10 @@ impl TextureHandle {
 
     /// Debug-name.
     pub fn name(&self) -> String {
-        self.tex_mngr.read().meta(self.id).unwrap().name.clone()
+        self.tex_mngr
+            .read()
+            .meta(self.id)
+            .map_or_else(|| "<none>".to_owned(), |tex| tex.name.clone())
     }
 }
 
