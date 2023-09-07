@@ -238,8 +238,11 @@ impl Widget for Button {
             }
         }
 
-        if response.hovered && ui.visuals().pointinghand_if_interactive {
-            ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
+        // n.b. no let chains here...
+        if let Some(cursor) = ui.visuals().interact_cursor {
+            if response.hovered {
+                ui.ctx().set_cursor_icon(cursor);
+            }
         }
 
         response

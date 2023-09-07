@@ -2,7 +2,9 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use crate::{ecolor::*, emath::*, FontFamily, FontId, Response, RichText, WidgetText};
+use crate::{
+    ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Response, RichText, WidgetText,
+};
 use epaint::{Rounding, Shadow, Stroke};
 use std::collections::BTreeMap;
 
@@ -545,12 +547,12 @@ pub struct Visuals {
     /// Enabling this will affect ALL sliders, and can be enabled/disabled per slider with [`Slider::trailing_fill`].
     pub slider_trailing_fill: bool,
 
-    /// Should the cursor change into a [`CursorIcon::PointingHand`][crate::CursorIcon::PointingHand]
-    /// if the user hovers over an interactive/clickable item?
+    /// Should the cursor change when the user hovers over an interactive/clickable item?
     ///
-    /// This is consistent with web browser behaviour, but inconsistent with native
-    /// UI toolkits.
-    pub pointinghand_if_interactive: bool,
+    /// This is consistent with a lot of browser-based applications (vscode, github
+    /// all turn your cursor into [`CursorIcon::PointingHand`] when a button is
+    /// hovered) but it is inconsistent with native UI toolkits.
+    pub interact_cursor: Option<CursorIcon>,
 }
 
 impl Visuals {
@@ -814,7 +816,7 @@ impl Visuals {
 
             slider_trailing_fill: false,
 
-            pointinghand_if_interactive: false,
+            interact_cursor: None,
         }
     }
 
@@ -1385,7 +1387,7 @@ impl Visuals {
             striped,
 
             slider_trailing_fill,
-            pointinghand_if_interactive,
+            interact_cursor,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1451,10 +1453,15 @@ impl Visuals {
 
         ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
 
-        ui.checkbox(
-            pointinghand_if_interactive,
-            "Change cursor to PointingHand when an interactive item is hovered.",
-        );
+        ComboBox::from_label("Interact Cursor")
+            .selected_text(format!("{interact_cursor:?}"))
+            .show_ui(ui, |ui| {
+                ui.selectable_value(interact_cursor, None, "None");
+
+                for icon in CursorIcon::ALL {
+                    ui.selectable_value(interact_cursor, Some(icon), format!("{icon:?}"));
+                }
+            });
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
