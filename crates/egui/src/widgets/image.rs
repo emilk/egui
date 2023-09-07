@@ -232,12 +232,14 @@ pub struct ImageSize {
     ///
     /// This defaults to `true`.
     pub maintain_aspect_ratio: bool,
+
     /// Determines the maximum extent of the image.
     ///
     /// This setting is applied after calculating `fit`.
     ///
     /// Defaults to `None`
     pub extent: Option<Vec2>,
+
     /// Determines how the image should shrink/expand/stretch/etc. to fit within its allocated space.
     ///
     /// This setting is applied first.
@@ -253,8 +255,10 @@ pub struct ImageSize {
 pub enum ImageFit {
     /// Fit the image to its original size, optionally scaling it by some factor.
     Original(Option<f32>),
+
     /// Fit the image to a fraction of the available size.
     Fraction(Vec2),
+
     /// Fit the image to an exact size.
     Exact(Vec2),
 }

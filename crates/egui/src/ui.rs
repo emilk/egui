@@ -1568,7 +1568,7 @@ impl Ui {
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// ui.("file://ferris.svg");
+    /// ui.image("file://ferris.svg");
     /// # });
     /// ```
     ///
@@ -2210,6 +2210,8 @@ impl Ui {
     /// If called from within a menu this will instead create a button for a sub-menu.
     ///
     /// ```ignore
+    /// #![allow(deprecated)]
+    ///
     /// use egui_extras;
     ///
     /// let img = egui_extras::RetainedImage::from_svg_bytes_with_size(

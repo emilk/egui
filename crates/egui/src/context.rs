@@ -1145,7 +1145,7 @@ impl Context {
     ///         });
     ///
     ///         // Show the image:
-    ///         ui.image(texture, texture.size_vec2());
+    ///         ui.raw_image((texture.id(), texture.size_vec2()));
     ///     }
     /// }
     /// ```
