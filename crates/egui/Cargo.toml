@@ -20,7 +20,7 @@ all-features = true
 
 
 [features]
-default = ["default_fonts"]
+default = ["default_fonts", "serde-diff"]
 
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`epaint::Vertex`], [`emath::Vec2`] etc to `&[u8]`.
 bytemuck = ["epaint/bytemuck"]

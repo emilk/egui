@@ -29,7 +29,7 @@ all-features = true
 
 
 [features]
-default = ["default_fonts"]
+default = ["default_fonts", "serde-diff"]
 
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`Vertex`] to `&[u8]`.
 bytemuck = ["dep:bytemuck", "emath/bytemuck", "ecolor/bytemuck"]
