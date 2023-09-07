@@ -590,9 +590,20 @@ impl<'a> Widget for Image2<'a> {
                 self.paint_at(ui, rect, &texture);
                 response
             }
-            Ok(TexturePoll::Pending { .. }) => ui
-                .spinner()
-                .on_hover_text(format!("Loading {:?}…", self.uri())),
+            Ok(TexturePoll::Pending { size }) => match size {
+                Some(size) => {
+                    ui.allocate_ui(Vec2::new(size[0] as f32, size[1] as f32), |ui| {
+                        ui.with_layout(Layout::centered_and_justified(Direction::TopDown), |ui| {
+                            ui.spinner()
+                                .on_hover_text(format!("Loading {:?}…", self.uri()))
+                        })
+                    })
+                    .response
+                }
+                None => ui
+                    .spinner()
+                    .on_hover_text(format!("Loading {:?}…", self.uri())),
+            },
             Err(err) => ui.colored_label(ui.visuals().error_fg_color, err.to_string()),
         }
     }
