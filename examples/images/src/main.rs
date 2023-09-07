@@ -34,6 +34,8 @@ impl Default for MyApp {
     }
 }
 
+// TODO(jprochazk): expand this example to showcase different image/texture options
+
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::new(TopBottomSide::Top, "controls").show(ctx, |ui| {

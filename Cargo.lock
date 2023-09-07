@@ -1084,16 +1084,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 
 [[package]]
-name = "download_image"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "egui_extras",
- "env_logger",
- "image",
-]
-
-[[package]]
 name = "dyn-clonable"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3425,15 +3415,6 @@ name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
-
-[[package]]
-name = "svg"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "egui_extras",
- "env_logger",
-]
 
 [[package]]
 name = "svgtypes"
