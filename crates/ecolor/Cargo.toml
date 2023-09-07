@@ -50,4 +50,4 @@ document-features = { version = "0.2", optional = true }
 serde = { version = "1", optional = true, features = ["derive"] }
 
 ## Allow calculating and applying diffs using [`serde-diff] (https://docs.rs/serde-diff/latest/serde_diff/).
-serde-diff = { path = "../../crates/egui_serde-diff/serde-diff" }
+serde-diff = "0.4.1"

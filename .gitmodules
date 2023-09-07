@@ -1,3 +1,0 @@
-[submodule "crates/serde-diff"]
-	path = crates/serde-diff
-	url = https://github.com/amethyst/serde-diff.git

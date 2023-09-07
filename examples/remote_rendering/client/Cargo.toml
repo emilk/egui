@@ -1,0 +1,15 @@
+[package]
+name = "client-app"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tungstenite = "0.18.0"
+serde = "1.0.171"
+serde_json = "*"
+serde_derive = "*"
+serde-diff = "0.4.1"
+egui = { path = "../../crates/egui" }
+eframe = { path = "../../crates/eframe" }
