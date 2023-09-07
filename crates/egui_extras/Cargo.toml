@@ -24,7 +24,7 @@ all-features = true
 
 
 [features]
-default = []
+default = ["dep:mime_guess"]
 
 ## Shorthand for enabling `svg`, `image`, and `ehttp`.
 all-loaders = ["svg", "image", "http"]
@@ -33,7 +33,7 @@ all-loaders = ["svg", "image", "http"]
 datepicker = ["chrono"]
 
 ## Add support for loading images from `file://` URIs.
-file = []
+file = ["dep:mime_guess"]
 
 ## Log warnings using [`log`](https://docs.rs/log) crate.
 log = ["dep:log", "egui/log"]
@@ -77,6 +77,9 @@ image = { version = "0.24", optional = true, default-features = false }
 
 # feature "log"
 log = { version = "0.4", optional = true, features = ["std"] }
+
+# file feature
+mime_guess = { version = "2.0.4", optional = true, default-features = false }
 
 puffin = { version = "0.16", optional = true }
 

@@ -185,6 +185,9 @@ pub enum BytesPoll {
 
         /// File contents, e.g. the contents of a `.png`.
         bytes: Bytes,
+
+        /// Mime type of the content, e.g. `image/png`.
+        mime: Option<String>,
     },
 }
 
@@ -351,7 +354,11 @@ impl DefaultBytesLoader {
 impl BytesLoader for DefaultBytesLoader {
     fn load(&self, _: &Context, uri: &str) -> BytesLoadResult {
         match self.cache.lock().get(uri).cloned() {
-            Some(bytes) => Ok(BytesPoll::Ready { size: None, bytes }),
+            Some(bytes) => Ok(BytesPoll::Ready {
+                size: None,
+                bytes,
+                mime: None,
+            }),
             None => Err(LoadError::NotSupported),
         }
     }

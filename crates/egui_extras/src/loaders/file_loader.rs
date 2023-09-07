@@ -5,7 +5,13 @@ use egui::{
 };
 use std::{sync::Arc, task::Poll, thread};
 
-type Entry = Poll<Result<Arc<[u8]>, String>>;
+#[derive(Clone)]
+struct File {
+    bytes: Arc<[u8]>,
+    mime: Option<String>,
+}
+
+type Entry = Poll<Result<File, String>>;
 
 #[derive(Default)]
 pub struct FileLoader {
@@ -26,9 +32,10 @@ impl BytesLoader for FileLoader {
         if let Some(entry) = cache.get(path).cloned() {
             // `path` has either begun loading, is loaded, or has failed to load.
             match entry {
-                Poll::Ready(Ok(bytes)) => Ok(BytesPoll::Ready {
+                Poll::Ready(Ok(file)) => Ok(BytesPoll::Ready {
                     size: None,
-                    bytes: Bytes::Shared(bytes),
+                    bytes: Bytes::Shared(file.bytes),
+                    mime: file.mime,
                 }),
                 Poll::Ready(Err(err)) => Err(LoadError::Custom(err)),
                 Poll::Pending => Ok(BytesPoll::Pending { size: None }),
@@ -51,7 +58,12 @@ impl BytesLoader for FileLoader {
                     let uri = uri.to_owned();
                     move || {
                         let result = match std::fs::read(&path) {
-                            Ok(bytes) => Ok(bytes.into()),
+                            Ok(bytes) => Ok(File {
+                                bytes: bytes.into(),
+                                mime: mime_guess::from_path(&path)
+                                    .first_raw()
+                                    .map(|v| v.to_owned()),
+                            }),
                             Err(err) => Err(err.to_string()),
                         };
                         let prev = cache.lock().insert(path, Poll::Ready(result));
@@ -75,7 +87,9 @@ impl BytesLoader for FileLoader {
             .lock()
             .values()
             .map(|entry| match entry {
-                Poll::Ready(Ok(bytes)) => bytes.len(),
+                Poll::Ready(Ok(file)) => {
+                    file.bytes.len() + file.mime.as_ref().map_or(0, |m| m.len())
+                }
                 Poll::Ready(Err(err)) => err.len(),
                 _ => 0,
             })
