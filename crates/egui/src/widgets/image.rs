@@ -1,7 +1,10 @@
-use crate::load::Bytes;
-use crate::{load::SizeHint, load::TexturePoll, *};
+use crate::load::TextureLoadResult;
+use crate::{
+    load::{Bytes, SizeHint, SizedTexture, TexturePoll},
+    *,
+};
 use emath::Rot2;
-use epaint::util::FloatOrd;
+use epaint::{util::FloatOrd, RectShape};
 
 /// An widget to show an image of a given size.
 ///
@@ -334,6 +337,7 @@ impl Default for ImageSize {
 }
 
 /// This type tells the [`Ui`] how to load the image.
+#[derive(Clone)]
 pub enum ImageSource<'a> {
     /// Load the image from a URI.
     ///
@@ -343,6 +347,12 @@ pub enum ImageSource<'a> {
     ///
     /// See [`crate::load`] for more information.
     Uri(&'a str),
+
+    /// Load the image from an existing texture.
+    ///
+    /// The user is responsible for loading the texture, determining its size,
+    /// and allocating a [`TextureId`] for it.
+    Texture(SizedTexture),
 
     /// Load the image from some raw bytes.
     ///
@@ -391,6 +401,13 @@ impl<'a> Image2<'a> {
     /// See [`ImageSource::Uri`].
     pub fn from_uri(uri: &'a str) -> Self {
         Self::new(ImageSource::Uri(uri))
+    }
+
+    /// Load the iamge from an existing texture.
+    ///
+    /// See [`ImageSource::Texture`].
+    pub fn from_texture(texture: SizedTexture) -> Self {
+        Self::new(ImageSource::Texture(texture))
     }
 
     /// Load the image from some raw bytes.
@@ -489,44 +506,93 @@ impl<'a> Image2<'a> {
         }
         self
     }
+
+    fn load_texture(&self, ui: &Ui) -> TextureLoadResult {
+        match self.source.clone() {
+            ImageSource::Texture(texture) => Ok(TexturePoll::Ready { texture }),
+            ImageSource::Uri(uri) => ui.ctx().try_load_texture(
+                uri,
+                self.texture_options,
+                self.size.hint(ui.available_size()),
+            ),
+            ImageSource::Bytes(uri, bytes) => {
+                ui.ctx().include_bytes(uri, bytes);
+                ui.ctx().try_load_texture(
+                    uri,
+                    self.texture_options,
+                    self.size.hint(ui.available_size()),
+                )
+            }
+        }
+    }
+
+    fn uri(&self) -> &str {
+        match self.source {
+            ImageSource::Uri(uri) | ImageSource::Bytes(uri, _) => uri,
+            // Note: texture source is never in "loading" state
+            ImageSource::Texture(_) => "<unknown>",
+        }
+    }
+
+    fn paint_at(&self, ui: &mut Ui, rect: Rect, texture: &SizedTexture) {
+        if !ui.is_rect_visible(rect) {
+            return;
+        }
+
+        let mut mesh = Mesh::with_texture(texture.id);
+        mesh.add_rect_with_uv(
+            rect,
+            Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+            Color32::WHITE,
+        );
+        ui.painter().add(Shape::mesh(mesh));
+
+        if self.bg_fill != Default::default() {
+            let mut mesh = Mesh::default();
+            mesh.add_colored_rect(rect, self.bg_fill);
+            ui.painter().add(Shape::mesh(mesh));
+        }
+
+        match self.rotation {
+            Some((rot, origin)) => {
+                // TODO(emilk): implement this using `PathShape` (add texture support to it).
+                // This will also give us anti-aliasing of rotated images.
+                egui_assert!(
+                    self.rounding == Rounding::ZERO,
+                    "Image had both rounding and rotation. Please pick only one"
+                );
+
+                let mut mesh = Mesh::with_texture(texture.id);
+                mesh.add_rect_with_uv(rect, self.uv, self.tint);
+                mesh.rotate(rot, rect.min + origin * rect.size());
+                ui.painter().add(Shape::mesh(mesh));
+            }
+            None => {
+                ui.painter().add(RectShape {
+                    rect,
+                    rounding: self.rounding,
+                    fill: self.tint,
+                    stroke: Stroke::NONE,
+                    fill_texture_id: texture.id,
+                    uv: self.uv,
+                });
+            }
+        }
+    }
 }
 
 impl<'a> Widget for Image2<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let uri = match self.source {
-            ImageSource::Uri(uri) => uri,
-            ImageSource::Bytes(uri, bytes) => {
-                ui.ctx().include_bytes(uri, bytes);
-                uri
-            }
-        };
-
-        let available_size = ui.available_size();
-        match ui
-            .ctx()
-            .try_load_texture(uri, self.texture_options, self.size.hint(available_size))
-        {
+        match self.load_texture(ui) {
             Ok(TexturePoll::Ready { texture }) => {
-                let final_size = self.size.finalize(
-                    available_size,
-                    Vec2::new(texture.size[0] as f32, texture.size[1] as f32),
-                );
-
+                let final_size = self.size.finalize(ui.available_size(), texture.size_f32());
                 let (rect, response) = ui.allocate_exact_size(final_size, self.sense);
-
-                let mut mesh = Mesh::with_texture(texture.id);
-                mesh.add_rect_with_uv(
-                    rect,
-                    Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
-                    Color32::WHITE,
-                );
-                ui.painter().add(Shape::mesh(mesh));
-
+                self.paint_at(ui, rect, &texture);
                 response
             }
-            Ok(TexturePoll::Pending { .. }) => {
-                ui.spinner().on_hover_text(format!("Loading {uri:?}…"))
-            }
+            Ok(TexturePoll::Pending { .. }) => ui
+                .spinner()
+                .on_hover_text(format!("Loading {:?}…", self.uri())),
             Err(err) => ui.colored_label(ui.visuals().error_fg_color, err.to_string()),
         }
     }

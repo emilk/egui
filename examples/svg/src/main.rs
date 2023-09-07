@@ -34,10 +34,9 @@ impl eframe::App for MyApp {
 
             ui.separator();
 
-            let max_size = ui.available_size();
             ui.add(
                 egui::Image2::from_bytes("ferris.svg", include_bytes!("rustacean-flat-happy.svg"))
-                    .size_hint(max_size),
+                    .shrink_to_fit(),
             );
         });
     }

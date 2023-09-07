@@ -280,6 +280,10 @@ impl SizedTexture {
             size: handle.size(),
         }
     }
+
+    pub fn size_f32(&self) -> Vec2 {
+        Vec2::new(self.size[0] as f32, self.size[1] as f32)
+    }
 }
 
 #[derive(Clone)]
