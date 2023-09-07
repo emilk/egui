@@ -269,6 +269,35 @@ impl RichText {
         fonts.row_height(&font_id)
     }
 
+    /// Append to an existing [`LayoutJob`]
+    ///
+    /// Note that the color of the [`RichText`] must be set, or may default to an undesirable color.
+    ///
+    /// ### Example
+    /// ```
+    /// use egui::{Style, RichText, text::LayoutJob, Color32, FontSelection, Align};
+    ///
+    /// let style = Style::default();
+    /// let mut layout_job = LayoutJob::default();
+    /// RichText::new("Normal")
+    ///     .color(style.visuals.text_color())
+    ///     .append_to(
+    ///         &mut layout_job,
+    ///         &style,
+    ///         FontSelection::Default,
+    ///         Align::Center,
+    ///     );
+    /// RichText::new("Large and underlined")
+    ///     .color(style.visuals.text_color())
+    ///     .size(20.0)
+    ///     .underline()
+    ///     .append_to(
+    ///         &mut layout_job,
+    ///         &style,
+    ///         FontSelection::Default,
+    ///         Align::Center,
+    ///     );
+    /// ```
     pub fn append_to(
         self,
         layout_job: &mut LayoutJob,
