@@ -1910,7 +1910,7 @@ impl Context {
 impl Context {
     /// Associate some static bytes with a `uri`.
     ///
-    /// The same `uri` may be passed to [`Ui::image2`] later to load the bytes as an image.
+    /// The same `uri` may be passed to [`Ui::image`] later to load the bytes as an image.
     pub fn include_bytes(&self, uri: &'static str, bytes: impl Into<Bytes>) {
         self.loaders().include.insert(uri, bytes.into());
     }

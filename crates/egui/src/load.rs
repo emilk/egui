@@ -14,7 +14,7 @@
 //! The different kinds of loaders represent different layers in the loading process:
 //!
 //! ```text,ignore
-//! ui.image2("file://image.png")
+//! ui.image("file://image.png")
 //! └► ctx.try_load_texture("file://image.png", ...)
 //! └► TextureLoader::load("file://image.png", ...)
 //!    └► ctx.try_load_image("file://image.png", ...)

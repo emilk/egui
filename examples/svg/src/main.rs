@@ -16,7 +16,7 @@ fn main() -> Result<(), eframe::Error> {
         "svg example",
         options,
         Box::new(|cc| {
-            // Without the following call, the `Image2` created below
+            // Without the following call, the `Image` created below
             // will simply output a `not supported` error message.
             egui_extras::loaders::install(&cc.egui_ctx);
             Box::new(MyApp)
@@ -35,7 +35,7 @@ impl eframe::App for MyApp {
             ui.separator();
 
             ui.add(
-                egui::Image2::from_bytes("ferris.svg", include_bytes!("rustacean-flat-happy.svg"))
+                egui::Image::from_bytes("ferris.svg", include_bytes!("rustacean-flat-happy.svg"))
                     .shrink_to_fit(),
             );
         });

@@ -1568,19 +1568,19 @@ impl Ui {
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// ui.image2("file://ferris.svg");
+    /// ui.("file://ferris.svg");
     /// # });
     /// ```
     ///
-    /// See also [`crate::Image2`] and [`crate::ImageSource`].
+    /// See also [`crate::Image`] and [`crate::ImageSource`].
     #[inline]
-    pub fn image2(&mut self, source: impl Into<ImageSource>) -> Response {
-        Image2::new(source.into()).ui(self)
+    pub fn image(&mut self, source: impl Into<ImageSource>) -> Response {
+        Image::new(source.into()).ui(self)
     }
 
     /// Show an image created from a sized texture.
     ///
-    /// You use this method over [`Ui::image2`] if you already have a [`TextureHandle`].
+    /// You use this method over [`Ui::image`] if you already have a [`TextureHandle`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
@@ -1608,7 +1608,7 @@ impl Ui {
     /// # });
     /// ```
     ///
-    /// See also [`crate::Image2`] and [`crate::ImageSource`].
+    /// See also [`crate::RawImage`].
     #[inline]
     pub fn raw_image(&mut self, texture: impl Into<SizedTexture>) -> Response {
         RawImage::new(texture).ui(self)

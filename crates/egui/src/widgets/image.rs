@@ -9,15 +9,15 @@ use epaint::{util::FloatOrd, RectShape};
 /// A widget which displays an image.
 ///
 /// There are two ways to construct this widget:
-/// - [`Image2::from_uri`]
-/// - [`Image2::from_bytes`]
+/// - [`Image::from_uri`]
+/// - [`Image::from_bytes`]
 ///
 /// In both cases the task of actually loading the image
-/// is deferred to when the `Image2` is added to the [`Ui`].
+/// is deferred to when the `Image` is added to the [`Ui`].
 ///
 /// See [`crate::load`] for more information.
 #[derive(Debug, Clone)]
-pub struct Image2 {
+pub struct Image {
     source: ImageSource,
     texture_options: TextureOptions,
     image_options: ImageOptions,
@@ -25,7 +25,7 @@ pub struct Image2 {
     size: ImageSize,
 }
 
-impl Image2 {
+impl Image {
     /// Load the image from some source.
     pub fn new(source: ImageSource) -> Self {
         Self {
@@ -155,7 +155,7 @@ impl Image2 {
     }
 }
 
-impl Image2 {
+impl Image {
     pub fn calculate_size(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
         self.size.get(available_size, image_size)
     }
@@ -193,7 +193,7 @@ impl Image2 {
     }
 }
 
-impl Widget for Image2 {
+impl Widget for Image {
     fn ui(self, ui: &mut Ui) -> Response {
         match self.load_texture(ui) {
             Ok(TexturePoll::Ready { texture }) => {
@@ -408,11 +408,6 @@ impl<T: Into<Bytes>> From<(&'static str, T)> for ImageSource {
 }
 
 /// A widget which displays a sized texture.
-///
-/// In both cases the task of actually loading the image
-/// is deferred to when the `Image2` is added to the [`Ui`].
-///
-/// See [`crate::load`] for more information.
 #[derive(Debug, Clone)]
 pub struct RawImage {
     texture: SizedTexture,

@@ -9,7 +9,7 @@ fn main() -> Result<(), eframe::Error> {
         "Download and show an image with eframe/egui",
         options,
         Box::new(|cc| {
-            // Without the following call, the `Image2` created below
+            // Without the following call, the `Image` created below
             // will simply output `not supported` error messages.
             egui_extras::loaders::install(&cc.egui_ctx);
             Box::new(MyApp)
@@ -28,12 +28,12 @@ impl eframe::App for MyApp {
 
             ui.add_sized(
                 egui::Vec2::new(width, half_height),
-                egui::Image2::from_uri("https://picsum.photos/seed/1.759706314/1024")
+                egui::Image::from_uri("https://picsum.photos/seed/1.759706314/1024")
                     .shrink_to_fit(),
             );
             ui.add_sized(
                 egui::Vec2::new(width, half_height),
-                egui::Image2::from_uri("https://this-is-hopefully-not-a-real-website.rs/image.png")
+                egui::Image::from_uri("https://this-is-hopefully-not-a-real-website.rs/image.png")
                     .shrink_to_fit(),
             );
         });
