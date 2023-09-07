@@ -269,11 +269,13 @@ impl RichText {
         fonts.row_height(&font_id)
     }
 
-    pub fn append_to(self,
+    pub fn append_to(
+        self,
         layout_job: &mut LayoutJob,
         style: &Style,
         fallback_font: FontSelection,
-        default_valign: Align) {
+        default_valign: Align,
+    ) {
         let (text, format) = self.into_text_and_format(style, fallback_font, default_valign);
 
         layout_job.append(&text, 0.0, format);
@@ -292,7 +294,8 @@ impl RichText {
         WidgetTextJob { job, job_has_color }
     }
 
-    fn into_text_and_format(self,
+    fn into_text_and_format(
+        self,
         style: &Style,
         fallback_font: FontSelection,
         default_valign: Align,
@@ -357,17 +360,20 @@ impl RichText {
             default_valign
         };
 
-        (text, crate::text::TextFormat {
-            font_id,
-            extra_letter_spacing,
-            line_height,
-            color: text_color,
-            background: background_color,
-            italics,
-            underline,
-            strikethrough,
-            valign,
-        })
+        (
+            text,
+            crate::text::TextFormat {
+                font_id,
+                extra_letter_spacing,
+                line_height,
+                color: text_color,
+                background: background_color,
+                italics,
+                underline,
+                strikethrough,
+                valign,
+            },
+        )
     }
 
     fn get_text_color(&self, visuals: &Visuals) -> Option<Color32> {
