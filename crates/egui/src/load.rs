@@ -124,10 +124,24 @@ impl From<&'static [u8]> for Bytes {
     }
 }
 
+impl<const N: usize> From<&'static [u8; N]> for Bytes {
+    #[inline]
+    fn from(value: &'static [u8; N]) -> Self {
+        Bytes::Static(value)
+    }
+}
+
 impl From<Arc<[u8]>> for Bytes {
     #[inline]
     fn from(value: Arc<[u8]>) -> Self {
         Bytes::Shared(value)
+    }
+}
+
+impl From<Vec<u8>> for Bytes {
+    #[inline]
+    fn from(value: Vec<u8>) -> Self {
+        Bytes::Shared(value.into())
     }
 }
 

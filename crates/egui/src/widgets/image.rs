@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::load::Bytes;
 use crate::{load::SizeHint, load::TexturePoll, *};
 use emath::Rot2;
@@ -179,10 +177,9 @@ impl Widget for Image {
 
 /// A widget which displays an image.
 ///
-/// There are three ways to construct this widget:
+/// There are two ways to construct this widget:
 /// - [`Image2::from_uri`]
 /// - [`Image2::from_bytes`]
-/// - [`Image2::from_static_bytes`]
 ///
 /// In both cases the task of actually loading the image
 /// is deferred to when the `Image2` is added to the [`Ui`].
@@ -300,27 +297,12 @@ impl<'a> Image2<'a> {
         }
     }
 
-    /// Load the image from some raw `'static` bytes.
-    ///
-    /// For example, you can use this to load an image from bytes obtained via [`include_bytes`].
-    ///
-    /// See [`ImageSource::Bytes`].
-    pub fn from_static_bytes(name: &'static str, bytes: &'static [u8]) -> Self {
-        Self {
-            source: ImageSource::Bytes(name, Bytes::Static(bytes)),
-            texture_options: Default::default(),
-            size_hint: Default::default(),
-            fit: Default::default(),
-            sense: Sense::hover(),
-        }
-    }
-
     /// Load the image from some raw bytes.
     ///
     /// See [`ImageSource::Bytes`].
-    pub fn from_bytes(name: &'static str, bytes: impl Into<Arc<[u8]>>) -> Self {
+    pub fn from_bytes(name: &'static str, bytes: impl Into<Bytes>) -> Self {
         Self {
-            source: ImageSource::Bytes(name, Bytes::Shared(bytes.into())),
+            source: ImageSource::Bytes(name, bytes.into()),
             texture_options: Default::default(),
             size_hint: Default::default(),
             fit: Default::default(),
