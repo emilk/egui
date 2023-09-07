@@ -1274,7 +1274,7 @@ mod wgpu_integration {
             }
         }
 
-        fn run_ui_and_paint(&mut self, remote_rendering: bool) -> EventResult {
+        fn run_ui_and_paint(&mut self, _remote_rendering: bool) -> EventResult {
             if let (Some(running), Some(window)) = (&mut self.running, &self.window) {
                 #[cfg(feature = "puffin")]
                 puffin::GlobalProfiler::lock().new_frame();
@@ -1291,7 +1291,7 @@ mod wgpu_integration {
                     repaint_after,
                     textures_delta,
                     shapes,
-                } = integration.update(app.as_mut(), window, remote_rendering);
+                } = integration.update(app.as_mut(), window, false);
 
                 integration.handle_platform_output(window, platform_output);
 
@@ -1480,13 +1480,12 @@ mod wgpu_integration {
         app_name: &str,
         mut native_options: epi::NativeOptions,
         app_creator: epi::AppCreator,
-        remote_rendering: bool,
     ) -> Result<()> {
         if native_options.run_and_return {
             with_event_loop(native_options, |event_loop, native_options| {
                 let wgpu_eframe =
                     WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
-                run_and_return(event_loop, wgpu_eframe, remote_rendering)
+                run_and_return(event_loop, wgpu_eframe, false)
             })
         } else {
             let event_loop = create_event_loop_builder(&mut native_options).build();

@@ -67,7 +67,7 @@ mint = ["emath/mint"]
 serde = ["dep:serde", "ahash/serde", "emath/serde", "ecolor/serde"]
 
 ## Allow diffing serialization using [`serde`](https://docs.rs/serde).
-serde-diff = ["dep:serde"]
+serde-diff = ["dep:serde-diff"]
 
 ## Change Vertex layout to be compatible with unity
 unity = []

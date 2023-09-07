@@ -224,7 +224,7 @@ pub fn run_native(
         #[cfg(feature = "wgpu")]
         Renderer::Wgpu => {
             log::debug!("Using the wgpu renderer");
-            native::run::run_wgpu(app_name, native_options, app_creator, remote_rendering)
+            native::run::run_wgpu(app_name, native_options, app_creator)
         }
     }
 }
