@@ -592,7 +592,11 @@ impl<'a> Widget for Image2<'a> {
             }
             Ok(TexturePoll::Pending { size }) => match size {
                 Some(size) => {
-                    ui.allocate_ui(Vec2::new(size[0] as f32, size[1] as f32), |ui| {
+                    let final_size = self.size.finalize(
+                        ui.available_size(),
+                        Vec2::new(size[0] as f32, size[1] as f32),
+                    );
+                    ui.allocate_ui(final_size, |ui| {
                         ui.with_layout(Layout::centered_and_justified(Direction::TopDown), |ui| {
                             ui.spinner()
                                 .on_hover_text(format!("Loading {:?}…", self.uri()))
