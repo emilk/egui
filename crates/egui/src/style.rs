@@ -544,6 +544,13 @@ pub struct Visuals {
     ///
     /// Enabling this will affect ALL sliders, and can be enabled/disabled per slider with [`Slider::trailing_fill`].
     pub slider_trailing_fill: bool,
+
+    /// Should the cursor change into a [`CursorIcon::PointingHand`][crate::CursorIcon::PointingHand]
+    /// if the user hovers over an interactive/clickable item?
+    ///
+    /// This is consistent with web browser behaviour, but inconsistent with native
+    /// UI toolkits.
+    pub pointinghand_if_interactable: bool,
 }
 
 impl Visuals {
@@ -806,6 +813,8 @@ impl Visuals {
             striped: false,
 
             slider_trailing_fill: false,
+
+            pointinghand_if_interactable: false,
         }
     }
 
@@ -1376,6 +1385,7 @@ impl Visuals {
             striped,
 
             slider_trailing_fill,
+            pointinghand_if_interactable,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1440,6 +1450,11 @@ impl Visuals {
         ui.checkbox(striped, "By default, add stripes to grids and tables?");
 
         ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
+
+        ui.checkbox(
+            pointinghand_if_interactable,
+            "Change cursor to PointingHand when an interactive item is hovered.",
+        );
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
