@@ -319,18 +319,8 @@ pub(crate) struct DefaultBytesLoader {
 }
 
 impl DefaultBytesLoader {
-    pub(crate) fn insert_static(&self, uri: &'static str, bytes: &'static [u8]) {
-        self.cache
-            .lock()
-            .entry(uri)
-            .or_insert_with(|| Bytes::Static(bytes));
-    }
-
-    pub(crate) fn insert_shared(&self, uri: &'static str, bytes: impl Into<Arc<[u8]>>) {
-        self.cache
-            .lock()
-            .entry(uri)
-            .or_insert_with(|| Bytes::Shared(bytes.into()));
+    pub(crate) fn insert(&self, uri: &'static str, bytes: impl Into<Bytes>) {
+        self.cache.lock().entry(uri).or_insert_with(|| bytes.into());
     }
 }
 
@@ -396,22 +386,26 @@ impl TextureLoader for DefaultTextureLoader {
     }
 }
 
+type BytesLoaderImpl = Arc<dyn BytesLoader + Send + Sync + 'static>;
+type ImageLoaderImpl = Arc<dyn ImageLoader + Send + Sync + 'static>;
+type TextureLoaderImpl = Arc<dyn TextureLoader + Send + Sync + 'static>;
+
 #[derive(Clone)]
 pub(crate) struct Loaders {
     pub include: Arc<DefaultBytesLoader>,
-    pub bytes: Vec<Arc<dyn BytesLoader + Send + Sync + 'static>>,
-    pub image: Vec<Arc<dyn ImageLoader + Send + Sync + 'static>>,
-    pub texture: Vec<Arc<dyn TextureLoader + Send + Sync + 'static>>,
+    pub bytes: Mutex<Vec<BytesLoaderImpl>>,
+    pub image: Mutex<Vec<ImageLoaderImpl>>,
+    pub texture: Mutex<Vec<TextureLoaderImpl>>,
 }
 
 impl Default for Loaders {
     fn default() -> Self {
         let include = Arc::new(DefaultBytesLoader::default());
         Self {
-            bytes: vec![include.clone()],
-            image: Vec::new(),
+            bytes: Mutex::new(vec![include.clone()]),
+            image: Mutex::new(Vec::new()),
             // By default we only include `DefaultTextureLoader`.
-            texture: vec![Arc::new(DefaultTextureLoader::default())],
+            texture: Mutex::new(vec![Arc::new(DefaultTextureLoader::default())]),
             include,
         }
     }

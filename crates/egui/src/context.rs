@@ -2,9 +2,10 @@
 
 use std::sync::Arc;
 
+use crate::load::Bytes;
 use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
-    input_state::*, layers::GraphicLayers, memory::Options, os::OperatingSystem,
+    input_state::*, layers::GraphicLayers, load::Loaders, memory::Options, os::OperatingSystem,
     output::FullOutput, util::IdTypeMap, TextureHandle, *,
 };
 use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
@@ -167,7 +168,7 @@ struct ContextImpl {
     #[cfg(feature = "accesskit")]
     accesskit_node_classes: accesskit::NodeClassSet,
 
-    loaders: load::Loaders,
+    loaders: Arc<Loaders>,
 }
 
 impl ContextImpl {
@@ -1908,59 +1909,54 @@ impl Context {
     /// Associate some static bytes with a `uri`.
     ///
     /// The same `uri` may be passed to [`Ui::image2`] later to load the bytes as an image.
-    pub fn include_static_bytes(&self, uri: &'static str, bytes: &'static [u8]) {
-        self.read(|ctx| ctx.loaders.include.insert_static(uri, bytes));
-    }
-
-    /// Associate some bytes with a `uri`.
-    ///
-    /// The same `uri` may be passed to [`Ui::image2`] later to load the bytes as an image.
-    pub fn include_bytes(&self, uri: &'static str, bytes: impl Into<Arc<[u8]>>) {
-        self.read(|ctx| ctx.loaders.include.insert_shared(uri, bytes));
+    pub fn include_bytes(&self, uri: &'static str, bytes: impl Into<Bytes>) {
+        self.loaders().include.insert(uri, bytes.into());
     }
 
     /// Append an entry onto the chain of bytes loaders.
     ///
     /// See [`load`] for more information.
     pub fn add_bytes_loader(&self, loader: Arc<dyn load::BytesLoader + Send + Sync + 'static>) {
-        self.write(|ctx| ctx.loaders.bytes.push(loader));
+        self.loaders().bytes.lock().push(loader);
     }
 
     /// Append an entry onto the chain of image loaders.
     ///
     /// See [`load`] for more information.
     pub fn add_image_loader(&self, loader: Arc<dyn load::ImageLoader + Send + Sync + 'static>) {
-        self.write(|ctx| ctx.loaders.image.push(loader));
+        self.loaders().image.lock().push(loader);
     }
 
     /// Append an entry onto the chain of texture loaders.
     ///
     /// See [`load`] for more information.
     pub fn add_texture_loader(&self, loader: Arc<dyn load::TextureLoader + Send + Sync + 'static>) {
-        self.write(|ctx| ctx.loaders.texture.push(loader));
+        self.loaders().texture.lock().push(loader);
     }
 
     /// Release all memory and textures related to the given image URI.
     ///
     /// If you attempt to load the image again, it will be reloaded from scratch.
     pub fn forget_image(&self, uri: &str) {
-        self.write(|ctx| {
-            use crate::load::BytesLoader as _;
+        crate::profile_function!();
 
-            ctx.loaders.include.forget(uri);
+        use load::BytesLoader as _;
 
-            for loader in &ctx.loaders.bytes {
-                loader.forget(uri);
-            }
+        let loaders = self.loaders();
 
-            for loader in &ctx.loaders.image {
-                loader.forget(uri);
-            }
+        loaders.include.forget(uri);
 
-            for loader in &ctx.loaders.texture {
-                loader.forget(uri);
-            }
-        });
+        for loader in loaders.bytes.lock().iter() {
+            loader.forget(uri);
+        }
+
+        for loader in loaders.image.lock().iter() {
+            loader.forget(uri);
+        }
+
+        for loader in loaders.texture.lock().iter() {
+            loader.forget(uri);
+        }
     }
 
     /// Try loading the bytes from the given uri using any available bytes loaders.
@@ -1977,11 +1973,14 @@ impl Context {
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
     /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
     ///
+    /// ⚠ May deadlock if called from within a `BytesLoader`!
+    ///
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Custom
     pub fn try_load_bytes(&self, uri: &str) -> load::BytesLoadResult {
-        let loaders = self.loaders();
-        for loader in &loaders.bytes {
+        crate::profile_function!();
+
+        for loader in self.loaders().bytes.lock().iter() {
             match loader.load(self, uri) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,
@@ -2005,11 +2004,14 @@ impl Context {
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
     /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
     ///
+    /// ⚠ May deadlock if called from within an `ImageLoader`!
+    ///
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Custom
     pub fn try_load_image(&self, uri: &str, size_hint: load::SizeHint) -> load::ImageLoadResult {
-        let loaders = self.loaders();
-        for loader in &loaders.image {
+        crate::profile_function!();
+
+        for loader in self.loaders().image.lock().iter() {
             match loader.load(self, uri, size_hint) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,
@@ -2033,6 +2035,8 @@ impl Context {
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
     /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
     ///
+    /// ⚠ May deadlock if called from within a `TextureLoader`!
+    ///
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Custom
     pub fn try_load_texture(
@@ -2041,9 +2045,9 @@ impl Context {
         texture_options: TextureOptions,
         size_hint: load::SizeHint,
     ) -> load::TextureLoadResult {
-        let loaders = self.loaders();
+        crate::profile_function!();
 
-        for loader in &loaders.texture {
+        for loader in self.loaders().texture.lock().iter() {
             match loader.load(self, uri, texture_options, size_hint) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,
@@ -2053,9 +2057,9 @@ impl Context {
         Err(load::LoadError::NotSupported)
     }
 
-    fn loaders(&self) -> load::Loaders {
+    fn loaders(&self) -> Arc<Loaders> {
         crate::profile_function!();
-        self.read(|this| this.loaders.clone()) // TODO(emilk): something less slow
+        self.read(|this| this.loaders.clone())
     }
 }
 

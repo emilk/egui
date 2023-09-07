@@ -355,10 +355,7 @@ impl<'a> Widget for Image2<'a> {
         let uri = match self.source {
             ImageSource::Uri(uri) => uri,
             ImageSource::Bytes(uri, bytes) => {
-                match bytes {
-                    Bytes::Static(bytes) => ui.ctx().include_static_bytes(uri, bytes),
-                    Bytes::Shared(bytes) => ui.ctx().include_bytes(uri, bytes),
-                }
+                ui.ctx().include_bytes(uri, bytes);
                 uri
             }
         };
