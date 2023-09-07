@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use epaint::mutex::RwLock;
 
+use crate::load::SizedTexture;
 use crate::{
     containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
     util::IdTypeMap, widgets::*, *,
@@ -1558,39 +1559,6 @@ impl Ui {
         response
     }
 
-    /// Show an image here with the given size.
-    ///
-    /// In order to display an image you must first acquire a [`TextureHandle`].
-    /// This is best done with [`egui_extras::RetainedImage`](https://docs.rs/egui_extras/latest/egui_extras/image/struct.RetainedImage.html) or [`Context::load_texture`].
-    ///
-    /// ```
-    /// struct MyImage {
-    ///     texture: Option<egui::TextureHandle>,
-    /// }
-    ///
-    /// impl MyImage {
-    ///     fn ui(&mut self, ui: &mut egui::Ui) {
-    ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
-    ///             // Load the texture only once.
-    ///             ui.ctx().load_texture(
-    ///                 "my-image",
-    ///                 egui::ColorImage::example(),
-    ///                 Default::default()
-    ///             )
-    ///         });
-    ///
-    ///         // Show the image:
-    ///         ui.image(texture, texture.size_vec2());
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// See also [`crate::Image`] and [`crate::ImageButton`].
-    #[inline]
-    pub fn image(&mut self, texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {
-        Image::new(texture_id, size).ui(self)
-    }
-
     /// Show an image available at the given `uri`.
     ///
     /// ⚠ This will do nothing unless you install some image loaders first!
@@ -1606,8 +1574,44 @@ impl Ui {
     ///
     /// See also [`crate::Image2`] and [`crate::ImageSource`].
     #[inline]
-    pub fn image2<'a>(&mut self, source: impl Into<ImageSource<'a>>) -> Response {
+    pub fn image2(&mut self, source: impl Into<ImageSource>) -> Response {
         Image2::new(source.into()).ui(self)
+    }
+
+    /// Show an image created from a sized texture.
+    ///
+    /// You use this method over [`Ui::image2`] if you already have a [`TextureHandle`].
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// struct MyImage {
+    ///     texture: Option<egui::TextureHandle>,
+    /// }
+    ///
+    /// impl MyImage {
+    ///     fn ui(&mut self, ui: &mut egui::Ui) {
+    ///         let texture = self
+    ///             .texture
+    ///             .get_or_insert_with(|| {
+    ///                 // Load the texture only once.
+    ///                 ui.ctx().load_texture(
+    ///                     "my-image",
+    ///                     egui::ColorImage::example(),
+    ///                     Default::default()
+    ///                 )
+    ///             });
+    ///
+    ///         // Show the image:
+    ///         ui.raw_image((texture.id(), texture.size_vec2()));
+    ///     }
+    /// }
+    /// # });
+    /// ```
+    ///
+    /// See also [`crate::Image2`] and [`crate::ImageSource`].
+    #[inline]
+    pub fn raw_image(&mut self, texture: impl Into<SizedTexture>) -> Response {
+        RawImage::new(texture.into()).ui(self)
     }
 }
 

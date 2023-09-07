@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use crate::load::Bytes;
+use crate::load::SizedTexture;
 use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
     input_state::*, layers::GraphicLayers, load::Loaders, memory::Options, os::OperatingSystem,
@@ -1690,14 +1691,15 @@ impl Context {
                                 let mut size = vec2(w as f32, h as f32);
                                 size *= (max_preview_size.x / size.x).min(1.0);
                                 size *= (max_preview_size.y / size.y).min(1.0);
-                                ui.image(texture_id, size).on_hover_ui(|ui| {
-                                    // show larger on hover
-                                    let max_size = 0.5 * ui.ctx().screen_rect().size();
-                                    let mut size = vec2(w as f32, h as f32);
-                                    size *= max_size.x / size.x.max(max_size.x);
-                                    size *= max_size.y / size.y.max(max_size.y);
-                                    ui.image(texture_id, size);
-                                });
+                                ui.raw_image(SizedTexture::new(texture_id, size))
+                                    .on_hover_ui(|ui| {
+                                        // show larger on hover
+                                        let max_size = 0.5 * ui.ctx().screen_rect().size();
+                                        let mut size = vec2(w as f32, h as f32);
+                                        size *= max_size.x / size.x.max(max_size.x);
+                                        size *= max_size.y / size.y.max(max_size.y);
+                                        ui.raw_image(SizedTexture::new(texture_id, size));
+                                    });
 
                                 ui.label(format!("{w} x {h}"));
                                 ui.label(format!("{:.3} MB", meta.bytes_used() as f64 * 1e-6));

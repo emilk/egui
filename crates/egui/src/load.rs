@@ -54,6 +54,7 @@ use epaint::mutex::Mutex;
 use epaint::util::OrderedFloat;
 use epaint::TextureHandle;
 use epaint::{textures::TextureOptions, ColorImage, TextureId, Vec2};
+use std::fmt::Debug;
 use std::ops::Deref;
 use std::{error::Error as StdError, fmt::Display, sync::Arc};
 
@@ -115,12 +116,19 @@ impl From<Vec2> for SizeHint {
 
 // TODO: API for querying bytes caches in each loader
 
-pub type Size = [usize; 2];
-
 #[derive(Clone)]
 pub enum Bytes {
     Static(&'static [u8]),
     Shared(Arc<[u8]>),
+}
+
+impl Debug for Bytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Static(arg0) => f.debug_tuple("Static").field(&arg0.len()).finish(),
+            Self::Shared(arg0) => f.debug_tuple("Shared").field(&arg0.len()).finish(),
+        }
+    }
 }
 
 impl From<&'static [u8]> for Bytes {
@@ -175,13 +183,13 @@ pub enum BytesPoll {
     /// Bytes are being loaded.
     Pending {
         /// Set if known (e.g. from a HTTP header, or by parsing the image file header).
-        size: Option<Size>,
+        size: Option<Vec2>,
     },
 
     /// Bytes are loaded.
     Ready {
         /// Set if known (e.g. from a HTTP header, or by parsing the image file header).
-        size: Option<Size>,
+        size: Option<Vec2>,
 
         /// File contents, e.g. the contents of a `.png`.
         bytes: Bytes,
@@ -229,7 +237,7 @@ pub enum ImagePoll {
     /// Image is loading.
     Pending {
         /// Set if known (e.g. from a HTTP header, or by parsing the image file header).
-        size: Option<Size>,
+        size: Option<Vec2>,
     },
 
     /// Image is loaded.
@@ -270,22 +278,32 @@ pub trait ImageLoader {
 }
 
 /// A texture with a known size.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct SizedTexture {
     pub id: TextureId,
-    pub size: Size,
+    pub size: Vec2,
 }
 
 impl SizedTexture {
-    pub fn from_handle(handle: &TextureHandle) -> Self {
+    pub fn new(id: impl Into<TextureId>, size: impl Into<Vec2>) -> Self {
         Self {
-            id: handle.id(),
-            size: handle.size(),
+            id: id.into(),
+            size: size.into(),
         }
     }
 
-    pub fn size_f32(&self) -> Vec2 {
-        Vec2::new(self.size[0] as f32, self.size[1] as f32)
+    pub fn from_handle(handle: &TextureHandle) -> Self {
+        let size = handle.size();
+        Self {
+            id: handle.id(),
+            size: Vec2::new(size[0] as f32, size[1] as f32),
+        }
+    }
+}
+
+impl From<(TextureId, Vec2)> for SizedTexture {
+    fn from((id, size): (TextureId, Vec2)) -> Self {
+        SizedTexture { id, size }
     }
 }
 
@@ -294,7 +312,7 @@ pub enum TexturePoll {
     /// Texture is loading.
     Pending {
         /// Set if known (e.g. from a HTTP header, or by parsing the image file header).
-        size: Option<Size>,
+        size: Option<Vec2>,
     },
 
     /// Texture is loaded.

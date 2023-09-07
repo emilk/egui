@@ -1,3 +1,4 @@
+use crate::load::SizedTexture;
 use crate::*;
 
 /// Clickable button with text.
@@ -32,7 +33,7 @@ pub struct Button {
     frame: Option<bool>,
     min_size: Vec2,
     rounding: Option<Rounding>,
-    image: Option<widgets::Image>,
+    image: Option<widgets::RawImage>,
 }
 
 impl Button {
@@ -60,7 +61,10 @@ impl Button {
         text: impl Into<WidgetText>,
     ) -> Self {
         Self {
-            image: Some(widgets::Image::new(texture_id, image_size)),
+            image: Some(widgets::RawImage::new(SizedTexture {
+                id: texture_id,
+                size: image_size.into(),
+            })),
             ..Self::new(text)
         }
     }
@@ -161,7 +165,7 @@ impl Widget for Button {
         }
 
         let mut text_wrap_width = ui.available_width() - 2.0 * button_padding.x;
-        if let Some(image) = image {
+        if let Some(image) = &image {
             text_wrap_width -= image.size().x + ui.spacing().icon_spacing;
         }
         if !shortcut_text.is_empty() {
@@ -173,7 +177,7 @@ impl Widget for Button {
             .then(|| shortcut_text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Button));
 
         let mut desired_size = text.size();
-        if let Some(image) = image {
+        if let Some(image) = &image {
             desired_size.x += image.size().x + ui.spacing().icon_spacing;
             desired_size.y = desired_size.y.max(image.size().y);
         }
@@ -201,7 +205,7 @@ impl Widget for Button {
                     .rect(rect.expand(visuals.expansion), rounding, fill, stroke);
             }
 
-            let text_pos = if let Some(image) = image {
+            let text_pos = if let Some(image) = &image {
                 let icon_spacing = ui.spacing().icon_spacing;
                 pos2(
                     rect.min.x + button_padding.x + image.size().x + icon_spacing,
@@ -226,7 +230,7 @@ impl Widget for Button {
                 );
             }
 
-            if let Some(image) = image {
+            if let Some(image) = &image {
                 let image_rect = Rect::from_min_size(
                     pos2(
                         rect.min.x + button_padding.x,
@@ -463,7 +467,7 @@ impl Widget for RadioButton {
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Clone, Debug)]
 pub struct ImageButton {
-    image: widgets::Image,
+    image: widgets::RawImage,
     sense: Sense,
     frame: bool,
     selected: bool,
@@ -472,7 +476,7 @@ pub struct ImageButton {
 impl ImageButton {
     pub fn new(texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Self {
         Self {
-            image: widgets::Image::new(texture_id, size),
+            image: widgets::RawImage::new(SizedTexture::new(texture_id, size)),
             sense: Sense::click(),
             frame: true,
             selected: false,
