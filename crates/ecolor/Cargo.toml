@@ -50,4 +50,4 @@ document-features = { version = "0.2", optional = true }
 serde = { version = "1", optional = true, features = ["derive"] }
 
 ## Allow calculating and applying diffs using [`serde-diff] (https://docs.rs/serde-diff/latest/serde_diff/).
-serde-diff = { git = "https://bitbucket.amazondcl.com/scm/~emmamid/serde-diff.git", branch = "fix" }
+serde-diff = "0.4.1"
