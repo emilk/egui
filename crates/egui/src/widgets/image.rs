@@ -313,6 +313,10 @@ impl ImageSize {
                 let image_size = image_size * scale.unwrap_or(1.0);
 
                 if let Some(available_size) = self.max_size {
+                    if image_size.x < available_size.x && image_size.y < available_size.y {
+                        return image_size;
+                    }
+
                     if self.maintain_aspect_ratio {
                         let ratio_x = available_size.x / image_size.x;
                         let ratio_y = available_size.y / image_size.y;
