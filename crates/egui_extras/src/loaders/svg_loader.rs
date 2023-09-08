@@ -60,8 +60,11 @@ impl ImageLoader for SvgLoader {
         }
     }
 
-    fn forget(&self, uri: &str) {
-        self.cache.lock().retain(|(u, _), _| u != uri);
+    fn forget(&self, uri: Option<&str>) {
+        match uri {
+            Some(uri) => self.cache.lock().retain(|(u, _), _| u != uri),
+            None => self.cache.lock().clear(),
+        }
     }
 
     fn byte_size(&self) -> usize {

@@ -78,8 +78,13 @@ impl BytesLoader for FileLoader {
         }
     }
 
-    fn forget(&self, uri: &str) {
-        let _ = self.cache.lock().remove(uri);
+    fn forget(&self, uri: Option<&str>) {
+        match uri {
+            Some(uri) => {
+                let _ = self.cache.lock().remove(uri);
+            }
+            None => self.cache.lock().clear(),
+        }
     }
 
     fn byte_size(&self) -> usize {

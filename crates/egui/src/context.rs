@@ -1940,24 +1940,43 @@ impl Context {
     ///
     /// If you attempt to load the image again, it will be reloaded from scratch.
     pub fn forget_image(&self, uri: &str) {
-        crate::profile_function!();
-
         use load::BytesLoader as _;
+
+        crate::profile_function!();
 
         let loaders = self.loaders();
 
-        loaders.include.forget(uri);
-
+        loaders.include.forget(Some(uri));
         for loader in loaders.bytes.lock().iter() {
-            loader.forget(uri);
+            loader.forget(Some(uri));
         }
-
         for loader in loaders.image.lock().iter() {
-            loader.forget(uri);
+            loader.forget(Some(uri));
         }
-
         for loader in loaders.texture.lock().iter() {
-            loader.forget(uri);
+            loader.forget(Some(uri));
+        }
+    }
+
+    /// Release all memory and textures related to images used in [`Ui::image`] or [`Image`].
+    ///
+    /// If you attempt to load any images again, they will be reloaded from scratch.
+    pub fn forget_all_images(&self) {
+        use load::BytesLoader as _;
+
+        crate::profile_function!();
+
+        let loaders = self.loaders();
+
+        loaders.include.forget(None);
+        for loader in loaders.bytes.lock().iter() {
+            loader.forget(None);
+        }
+        for loader in loaders.image.lock().iter() {
+            loader.forget(None);
+        }
+        for loader in loaders.texture.lock().iter() {
+            loader.forget(None);
         }
     }
 
