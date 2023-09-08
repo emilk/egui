@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::load::TextureLoadResult;
 use crate::{
     load::{Bytes, SizeHint, SizedTexture, TexturePoll},
@@ -40,8 +42,8 @@ impl<'a> Image<'a> {
     /// Load the image from a URI.
     ///
     /// See [`ImageSource::Uri`].
-    pub fn from_uri(uri: &'a str) -> Self {
-        Self::new(ImageSource::Uri(uri))
+    pub fn from_uri(uri: impl Into<Cow<'a, str>>) -> Self {
+        Self::new(ImageSource::Uri(uri.into()))
     }
 
     /// Load the image from an existing texture.
@@ -162,7 +164,8 @@ impl<'a> Image<'a> {
 
     pub fn uri(&self) -> &str {
         match &self.source {
-            ImageSource::Bytes(uri, _) | ImageSource::Uri(uri) => uri,
+            ImageSource::Bytes(uri, _) => uri,
+            ImageSource::Uri(uri) => uri,
             // Note: texture source is never in "loading" state
             ImageSource::Texture(_) => "<unknown>",
         }
@@ -172,14 +175,14 @@ impl<'a> Image<'a> {
         match self.source.clone() {
             ImageSource::Texture(texture) => Ok(TexturePoll::Ready { texture }),
             ImageSource::Uri(uri) => ui.ctx().try_load_texture(
-                uri,
+                uri.as_ref(),
                 self.texture_options,
                 self.size.hint(ui.available_size()),
             ),
             ImageSource::Bytes(uri, bytes) => {
-                ui.ctx().include_bytes(uri, bytes);
+                ui.ctx().include_bytes(uri.as_ref(), bytes);
                 ui.ctx().try_load_texture(
-                    uri,
+                    uri.as_ref(),
                     self.texture_options,
                     self.size.hint(ui.available_size()),
                 )
@@ -370,7 +373,7 @@ pub enum ImageSource<'a> {
     /// up to the registered loaders to handle.
     ///
     /// See [`crate::load`] for more information.
-    Uri(&'a str),
+    Uri(Cow<'a, str>),
 
     /// Load the image from an existing texture.
     ///
@@ -393,6 +396,33 @@ pub enum ImageSource<'a> {
 impl<'a> From<&'a str> for ImageSource<'a> {
     #[inline]
     fn from(value: &'a str) -> Self {
+        Self::Uri(value.into())
+    }
+}
+
+impl<'a> From<&'a String> for ImageSource<'a> {
+    #[inline]
+    fn from(value: &'a String) -> Self {
+        Self::Uri(value.as_str().into())
+    }
+}
+
+impl From<String> for ImageSource<'static> {
+    fn from(value: String) -> Self {
+        Self::Uri(value.into())
+    }
+}
+
+impl<'a> From<&'a Cow<'a, str>> for ImageSource<'a> {
+    #[inline]
+    fn from(value: &'a Cow<'a, str>) -> Self {
+        Self::Uri(value.clone())
+    }
+}
+
+impl<'a> From<Cow<'a, str>> for ImageSource<'a> {
+    #[inline]
+    fn from(value: Cow<'a, str>) -> Self {
         Self::Uri(value)
     }
 }
