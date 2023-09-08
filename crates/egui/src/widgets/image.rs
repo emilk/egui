@@ -17,27 +17,21 @@ use epaint::{util::FloatOrd, RectShape};
 ///
 /// See [`crate::load`] for more information.
 #[derive(Debug, Clone)]
-pub struct Image {
-    source: ImageSource,
+pub struct Image<'a> {
+    source: ImageSource<'a>,
     texture_options: TextureOptions,
     image_options: ImageOptions,
     sense: Sense,
     size: ImageSize,
 }
 
-impl Image {
+impl<'a> Image<'a> {
     /// Load the image from some source.
-    pub fn new(source: ImageSource) -> Self {
+    pub fn new(source: ImageSource<'a>) -> Self {
         Self {
             source,
             texture_options: Default::default(),
-            image_options: ImageOptions {
-                uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
-                bg_fill: Default::default(),
-                tint: Color32::WHITE,
-                rotation: None,
-                rounding: Rounding::ZERO,
-            },
+            image_options: Default::default(),
             sense: Sense::hover(),
             size: Default::default(),
         }
@@ -46,8 +40,8 @@ impl Image {
     /// Load the image from a URI.
     ///
     /// See [`ImageSource::Uri`].
-    pub fn from_uri<S: Into<String>>(uri: S) -> Self {
-        Self::new(ImageSource::Uri(uri.into()))
+    pub fn from_uri(uri: &'a str) -> Self {
+        Self::new(ImageSource::Uri(uri))
     }
 
     /// Load the image from an existing texture.
@@ -74,6 +68,12 @@ impl Image {
     #[inline]
     pub fn extent(mut self, extent: Option<Vec2>) -> Self {
         self.size.extent = extent;
+        self
+    }
+
+    #[inline]
+    pub fn maintain_aspect_ratio(mut self, value: bool) -> Self {
+        self.size.maintain_aspect_ratio = value;
         self
     }
 
@@ -155,15 +155,14 @@ impl Image {
     }
 }
 
-impl Image {
+impl<'a> Image<'a> {
     pub fn calculate_size(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
         self.size.get(available_size, image_size)
     }
 
     pub fn uri(&self) -> &str {
         match &self.source {
-            ImageSource::Uri(uri) => uri,
-            ImageSource::Bytes(uri, _) => uri,
+            ImageSource::Bytes(uri, _) | ImageSource::Uri(uri) => uri,
             // Note: texture source is never in "loading" state
             ImageSource::Texture(_) => "<unknown>",
         }
@@ -173,7 +172,7 @@ impl Image {
         match self.source.clone() {
             ImageSource::Texture(texture) => Ok(TexturePoll::Ready { texture }),
             ImageSource::Uri(uri) => ui.ctx().try_load_texture(
-                &uri,
+                uri,
                 self.texture_options,
                 self.size.hint(ui.available_size()),
             ),
@@ -193,7 +192,7 @@ impl Image {
     }
 }
 
-impl Widget for Image {
+impl<'a> Widget for Image<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
         match self.load_texture(ui) {
             Ok(TexturePoll::Ready { texture }) => {
@@ -363,7 +362,7 @@ impl Default for ImageSize {
 
 /// This type tells the [`Ui`] how to load the image.
 #[derive(Debug, Clone)]
-pub enum ImageSource {
+pub enum ImageSource<'a> {
     /// Load the image from a URI.
     ///
     /// This could be a `file://` url, `http://` url, or a `bare` identifier.
@@ -371,7 +370,7 @@ pub enum ImageSource {
     /// up to the registered loaders to handle.
     ///
     /// See [`crate::load`] for more information.
-    Uri(String),
+    Uri(&'a str),
 
     /// Load the image from an existing texture.
     ///
@@ -391,20 +390,14 @@ pub enum ImageSource {
     Bytes(&'static str, Bytes),
 }
 
-impl<'a> From<&'a str> for ImageSource {
-    fn from(value: &'a str) -> Self {
-        Self::Uri(value.into())
-    }
-}
-
-impl From<String> for ImageSource {
+impl<'a> From<&'a str> for ImageSource<'a> {
     #[inline]
-    fn from(value: String) -> Self {
+    fn from(value: &'a str) -> Self {
         Self::Uri(value)
     }
 }
 
-impl<T: Into<Bytes>> From<(&'static str, T)> for ImageSource {
+impl<T: Into<Bytes>> From<(&'static str, T)> for ImageSource<'static> {
     #[inline]
     fn from((uri, bytes): (&'static str, T)) -> Self {
         Self::Bytes(uri, bytes.into())
@@ -426,13 +419,7 @@ impl RawImage {
         Self {
             texture: texture.into(),
             texture_options: Default::default(),
-            image_options: ImageOptions {
-                uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
-                bg_fill: Default::default(),
-                tint: Color32::WHITE,
-                rotation: None,
-                rounding: Rounding::ZERO,
-            },
+            image_options: Default::default(),
             sense: Sense::hover(),
         }
     }
@@ -519,11 +506,23 @@ impl Widget for RawImage {
 
 #[derive(Debug, Clone)]
 pub struct ImageOptions {
-    uv: Rect,
-    bg_fill: Color32,
-    tint: Color32,
-    rotation: Option<(Rot2, Vec2)>,
-    rounding: Rounding,
+    pub uv: Rect,
+    pub bg_fill: Color32,
+    pub tint: Color32,
+    pub rotation: Option<(Rot2, Vec2)>,
+    pub rounding: Rounding,
+}
+
+impl Default for ImageOptions {
+    fn default() -> Self {
+        Self {
+            uv: Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+            bg_fill: Default::default(),
+            tint: Color32::WHITE,
+            rotation: None,
+            rounding: Rounding::ZERO,
+        }
+    }
 }
 
 pub fn paint_image_at(ui: &mut Ui, rect: Rect, options: &ImageOptions, texture: &SizedTexture) {
