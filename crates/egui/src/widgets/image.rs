@@ -238,7 +238,7 @@ impl<'a> Image<'a> {
         }
     }
 
-    fn paint_at(&self, ui: &mut Ui, rect: Rect, texture: &SizedTexture) {
+    pub fn paint_at(&self, ui: &mut Ui, rect: Rect, texture: &SizedTexture) {
         paint_image_at(ui, rect, &self.image_options, texture);
     }
 }
@@ -576,7 +576,7 @@ impl RawImage {
         self.texture.size
     }
 
-    fn paint_at(&self, ui: &mut Ui, rect: Rect) {
+    pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
         paint_image_at(ui, rect, &self.image_options, &self.texture);
     }
 }
