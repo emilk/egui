@@ -43,7 +43,7 @@ fn main() {
     let mut name = "Ted";
     let mut age = 41;
 
-    let handle_events = std::sync::Arc::new(std::sync::Mutex::new(
+    let run_egui = std::sync::Arc::new(std::sync::Mutex::new(
         |event: Option<sdl2::event::Event>| {
             let mut quit_clicked: bool = false;
             egui_glow.run(&window, clipboard, |egui_ctx| {
@@ -98,12 +98,8 @@ fn main() {
         },
     ));
 
-    let try_handle = |event: Option<sdl2::event::Event>| -> bool {
-        if let Ok(handle) = &mut handle_events.try_lock() {
-            handle(event)
-        } else {
-            true
-        }
+    let handle = |event: Option<sdl2::event::Event>| -> bool {
+        run_egui.lock().map_or(true, |mut handle| handle(event))
     };
 
     //Note: this is a workaround for https://stackoverflow.com/a/40693139
@@ -114,12 +110,12 @@ fn main() {
             ..
         } = event
         {
-            try_handle(Some(event));
+            handle(Some(event));
         };
     });
 
     'mainloop: loop {
-        if !try_handle(events_loop.wait_event_timeout(5)) {
+        if !handle(events_loop.wait_event_timeout(5)) {
             break 'mainloop;
         }
     }
