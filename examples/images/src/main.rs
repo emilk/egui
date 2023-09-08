@@ -32,6 +32,7 @@ struct MyApp {
     chosen_fit: ChosenFit,
     fit: ImageFit,
     maintain_aspect_ratio: bool,
+    max_size: Option<Vec2>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -60,6 +61,7 @@ impl Default for MyApp {
             chosen_fit: ChosenFit::Fraction,
             fit: ImageFit::Fraction(Vec2::splat(1.0)),
             maintain_aspect_ratio: true,
+            max_size: None,
         }
     }
 }
@@ -116,7 +118,7 @@ impl eframe::App for MyApp {
                 *rot = Rot2::from_angle(angle);
 
                 ui.add(Slider::new(&mut origin.x, 0.0..=1.0).text("origin x"));
-                ui.add(Slider::new(&mut origin.y, 0.0..=1.0).text("origin x"));
+                ui.add(Slider::new(&mut origin.y, 0.0..=1.0).text("origin y"));
             }
 
             // bg_fill
@@ -181,6 +183,24 @@ impl eframe::App for MyApp {
                 }
             }
 
+            // max size
+            ui.add_space(2.0);
+            let had_max_size = self.max_size.is_some();
+            let mut has_max_size = had_max_size;
+            ui.checkbox(&mut has_max_size, "Max size");
+            match (had_max_size, has_max_size) {
+                (true, false) => self.max_size = None,
+                (false, true) => {
+                    self.max_size = Some(ui.available_size());
+                }
+                (true, true) | (false, false) => {}
+            }
+
+            if let Some(max_size) = self.max_size.as_mut() {
+                ui.add(Slider::new(&mut max_size.x, 0.0..=2048.0).text("width"));
+                ui.add(Slider::new(&mut max_size.y, 0.0..=2048.0).text("height"));
+            }
+
             // TODO:
             // texture_options
             // extent
@@ -205,6 +225,7 @@ impl eframe::App for MyApp {
                     ImageFit::Exact(size) => image = image.fit_to_exact_size(size),
                 }
                 image = image.maintain_aspect_ratio(self.maintain_aspect_ratio);
+                image = image.max_size(self.max_size);
 
                 ui.add_sized(ui.available_size(), image);
             });

@@ -68,8 +68,26 @@ impl<'a> Image<'a> {
     }
 
     #[inline]
-    pub fn extent(mut self, extent: Option<Vec2>) -> Self {
-        self.size.extent = extent;
+    pub fn max_width(mut self, width: f32) -> Self {
+        match self.size.max_size.as_mut() {
+            Some(max_size) => max_size.x = width,
+            None => self.size.max_size = Some(Vec2::new(width, f32::INFINITY)),
+        }
+        self
+    }
+
+    #[inline]
+    pub fn max_height(mut self, height: f32) -> Self {
+        match self.size.max_size.as_mut() {
+            Some(max_size) => max_size.y = height,
+            None => self.size.max_size = Some(Vec2::new(f32::INFINITY, height)),
+        }
+        self
+    }
+
+    #[inline]
+    pub fn max_size(mut self, size: Option<Vec2>) -> Self {
+        self.size.max_size = size;
         self
     }
 
@@ -235,12 +253,10 @@ pub struct ImageSize {
     /// This defaults to `true`.
     pub maintain_aspect_ratio: bool,
 
-    /// Determines the maximum extent of the image.
-    ///
-    /// This setting is applied after calculating `fit`.
+    /// Determines the maximum size of the image.
     ///
     /// Defaults to `None`
-    pub extent: Option<Vec2>,
+    pub max_size: Option<Vec2>,
 
     /// Determines how the image should shrink/expand/stretch/etc. to fit within its allocated space.
     ///
@@ -277,7 +293,7 @@ impl ImageSize {
             ImageFit::Exact(size) => size,
         };
 
-        let fit = match self.extent {
+        let fit = match self.max_size {
             Some(extent) => fit.min(extent),
             None => fit,
         };
@@ -293,42 +309,36 @@ impl ImageSize {
 
     fn get(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
         match self.fit {
-            ImageFit::Original(None) => {
-                if let Some(available_size) = self.extent {
+            ImageFit::Original(scale) => {
+                let image_size = image_size * scale.unwrap_or(1.0);
+
+                if let Some(available_size) = self.max_size {
                     if self.maintain_aspect_ratio {
                         let ratio_x = available_size.x / image_size.x;
                         let ratio_y = available_size.y / image_size.y;
                         let ratio = if ratio_x < ratio_y { ratio_x } else { ratio_y };
+                        let ratio = if ratio.is_infinite() { 1.0 } else { ratio };
 
                         return Vec2::new(image_size.x * ratio, image_size.y * ratio);
-                    }
-                }
-
-                image_size
-            }
-            ImageFit::Original(Some(scale)) => {
-                let image_size = image_size * scale;
-
-                if let Some(available_size) = self.extent {
-                    if self.maintain_aspect_ratio {
-                        let ratio_x = available_size.x / image_size.x;
-                        let ratio_y = available_size.y / image_size.y;
-                        let ratio = if ratio_x < ratio_y { ratio_x } else { ratio_y };
-
-                        return Vec2::new(image_size.x * ratio, image_size.y * ratio);
+                    } else {
+                        return image_size.min(available_size);
                     }
                 }
 
                 image_size
             }
             ImageFit::Fraction(fract) => {
-                let available_size =
-                    (available_size * fract).max(self.extent.unwrap_or(Vec2::ZERO));
+                let available_size = available_size * fract;
+                let available_size = match self.max_size {
+                    Some(max_size) => available_size.min(max_size),
+                    None => available_size,
+                };
 
                 if self.maintain_aspect_ratio {
                     let ratio_x = available_size.x / image_size.x;
                     let ratio_y = available_size.y / image_size.y;
                     let ratio = if ratio_x < ratio_y { ratio_x } else { ratio_y };
+                    let ratio = if ratio.is_infinite() { 1.0 } else { ratio };
 
                     return Vec2::new(image_size.x * ratio, image_size.y * ratio);
                 }
@@ -336,12 +346,17 @@ impl ImageSize {
                 available_size
             }
             ImageFit::Exact(size) => {
-                let available_size = size.max(self.extent.unwrap_or(Vec2::ZERO));
+                let available_size = size;
+                let available_size = match self.max_size {
+                    Some(max_size) => available_size.min(max_size),
+                    None => available_size,
+                };
 
                 if self.maintain_aspect_ratio {
                     let ratio_x = available_size.x / image_size.x;
                     let ratio_y = available_size.y / image_size.y;
                     let ratio = if ratio_x < ratio_y { ratio_x } else { ratio_y };
+                    let ratio = if ratio.is_infinite() { 1.0 } else { ratio };
 
                     return Vec2::new(image_size.x * ratio, image_size.y * ratio);
                 }
@@ -356,7 +371,7 @@ impl Default for ImageSize {
     #[inline]
     fn default() -> Self {
         Self {
-            extent: None,
+            max_size: None,
             fit: ImageFit::Fraction(Vec2::new(1.0, 1.0)),
             maintain_aspect_ratio: true,
         }
