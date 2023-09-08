@@ -1,4 +1,3 @@
-use serde;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 use crate::*;
@@ -16,15 +15,16 @@ use crate::*;
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Pos2 {
     /// How far to the right.
-    #[serde(serialize_with = "serialize_f32_custom")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_f32_custom"))]
     pub x: f32,
 
     /// How far down.
-    #[serde(serialize_with = "serialize_f32_custom")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_f32_custom"))]
     pub y: f32,
     // implicit w = 1
 }
 
+#[cfg(feature = "serde")]
 fn serialize_f32_custom<S>(x: &f32, s: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,

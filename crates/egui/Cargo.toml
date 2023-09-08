@@ -57,8 +57,7 @@ persistence = ["serde", "epaint/serde", "ron"]
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = ["dep:serde", "epaint/serde", "accesskit?/serde"]
 
-## Allow diffing with serialization using [`serde-diff`](https://docs.rs/serde-diff/latest/serde_diff/) .
-serde-diff = ["dep:serde-diff"]
+serde-diff = ["dep:serde-diff", "epaint/serde-diff"]
 
 ## Change Vertex layout to be compatible with unity
 unity = ["epaint/unity"]

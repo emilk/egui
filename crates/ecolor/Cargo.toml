@@ -48,3 +48,6 @@ document-features = { version = "0.2", optional = true }
 
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = { version = "1", optional = true, features = ["derive"] }
+
+## Allow diffing with serialization using [`serde-diff`](https://docs.rs/serde-diff/latest/serde_diff/) .
+serde-diff = "0.4.1"

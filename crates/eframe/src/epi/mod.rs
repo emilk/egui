@@ -101,11 +101,15 @@ unsafe impl HasRawDisplayHandle for CreationContext<'_> {
     }
 }
 
+/// Message types for client to server communication for remote rendering
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum RemoteRenderingMessageType {
+    /// Initial connection, specifying pixels_per_point as the content
     Connect(f32),
+    /// Request to update pixels_per_point
     PixelsPerPoint(f32),
+    /// Send input events to server
     RawInput(egui::RawInput),
 }
 
@@ -124,7 +128,7 @@ pub trait App {
 
     /// Called each time the UI needs repainting when rendering on a remote client, which may be many times per second.
     ///
-    /// Retrieves the FullOutput from the client rather than constructing it internally
+    /// Retrieves the `FullOutput` from the client rather than constructing it internally
     fn update_remote(
         &mut self,
         _raw_input: egui::RawInput,

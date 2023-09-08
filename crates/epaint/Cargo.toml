@@ -29,7 +29,7 @@ all-features = true
 
 
 [features]
-default = ["default_fonts", "serde-diff"]
+default = ["default_fonts"]
 
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`Vertex`] to `&[u8]`.
 bytemuck = ["dep:bytemuck", "emath/bytemuck", "ecolor/bytemuck"]
@@ -67,7 +67,12 @@ mint = ["emath/mint"]
 serde = ["dep:serde", "ahash/serde", "emath/serde", "ecolor/serde"]
 
 ## Allow diffing serialization using [`serde`](https://docs.rs/serde).
-serde-diff = ["dep:serde-diff"]
+serde-diff = [
+  "dep:serde",
+  "dep:serde-diff",
+  "emath/serde-diff",
+  "ecolor/serde-diff",
+]
 
 ## Change Vertex layout to be compatible with unity
 unity = []

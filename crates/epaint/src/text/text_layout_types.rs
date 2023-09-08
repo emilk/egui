@@ -264,7 +264,7 @@ pub struct TextWrapping {
     /// Try to break text so that no row is wider than this.
     /// Set to [`f32::INFINITY`] to turn off wrapping.
     /// Note that `\n` always produces a new line.
-    #[serde(serialize_with = "serialize_f32_custom")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_f32_custom"))]
     pub max_width: f32,
 
     /// Maximum amount of rows the text should have.
@@ -278,6 +278,7 @@ pub struct TextWrapping {
     pub overflow_character: Option<char>,
 }
 
+#[cfg(feature = "serde")]
 fn serialize_f32_custom<S>(x: &f32, s: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
