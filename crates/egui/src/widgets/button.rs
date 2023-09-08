@@ -238,6 +238,12 @@ impl Widget for Button {
             }
         }
 
+        if let Some(cursor) = ui.visuals().interact_cursor {
+            if response.hovered {
+                ui.ctx().set_cursor_icon(cursor);
+            }
+        }
+
         response
     }
 }
