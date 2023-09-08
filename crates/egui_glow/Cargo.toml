@@ -82,6 +82,10 @@ glutin-winit = "0.3.0"
 raw-window-handle = "0.5.0"
 # examples/pure_glow_sdl2
 env_logger = "0.10"
+sdl2 = { git = "https://github.com/Rust-SDL2/rust-sdl2.git", features = [
+  "bundled",
+  "static-link",
+] }
 
 [[example]]
 name = "pure_glow_winit"
