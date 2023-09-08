@@ -207,6 +207,10 @@ impl<'a> Image<'a> {
         self.size.get(available_size, image_size)
     }
 
+    pub fn source(&self) -> &ImageSource<'a> {
+        &self.source
+    }
+
     /// Get the `uri` that this image was constructed from.
     ///
     /// This will return `<unknown>` for [`ImageSource::Texture`].
@@ -219,7 +223,12 @@ impl<'a> Image<'a> {
         }
     }
 
-    fn load_texture(&self, ui: &Ui) -> TextureLoadResult {
+    /// Load the image from its [`Image::source`], returning the resulting [`SizedTexture`].
+    ///
+    /// # Errors
+    ///
+    /// May fail if they underlying [`Context::try_load_texture`] call fails.
+    pub fn load(&self, ui: &Ui) -> TextureLoadResult {
         match self.source.clone() {
             ImageSource::Texture(texture) => Ok(TexturePoll::Ready { texture }),
             ImageSource::Uri(uri) => ui.ctx().try_load_texture(
@@ -245,7 +254,7 @@ impl<'a> Image<'a> {
 
 impl<'a> Widget for Image<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        match self.load_texture(ui) {
+        match self.load(ui) {
             Ok(TexturePoll::Ready { texture }) => {
                 let size = self.calculate_size(ui.available_size(), texture.size);
                 let (rect, response) = ui.allocate_exact_size(size, self.sense);
@@ -480,6 +489,12 @@ impl<T: Into<Bytes>> From<(&'static str, T)> for ImageSource<'static> {
     #[inline]
     fn from((uri, bytes): (&'static str, T)) -> Self {
         Self::Bytes(uri, bytes.into())
+    }
+}
+
+impl<T: Into<SizedTexture>> From<T> for ImageSource<'static> {
+    fn from(value: T) -> Self {
+        Self::Texture(value.into())
     }
 }
 

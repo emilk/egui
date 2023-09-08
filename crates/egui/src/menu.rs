@@ -111,7 +111,7 @@ pub fn menu_button<R>(
 /// Returns `None` if the menu is not open.
 pub fn menu_image_button<R>(
     ui: &mut Ui,
-    image_button: ImageButton,
+    image_button: ImageButton<'_>,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> InnerResponse<Option<R>> {
     stationary_menu_image_impl(ui, image_button, Box::new(add_contents))
@@ -201,7 +201,7 @@ fn stationary_menu_impl<'c, R>(
 /// Responds to primary clicks.
 fn stationary_menu_image_impl<'c, R>(
     ui: &mut Ui,
-    image_button: ImageButton,
+    image_button: ImageButton<'_>,
     add_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
 ) -> InnerResponse<Option<R>> {
     let bar_id = ui.id();

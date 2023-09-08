@@ -213,7 +213,10 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("ImageButton", "ImageButton"));
-        if ui.add(egui::ImageButton::new(texture, img_size)).clicked() {
+        if ui
+            .add(egui::ImageButton::new((texture.id(), img_size)))
+            .clicked()
+        {
             *boolean = !*boolean;
         }
         ui.end_row();

@@ -2240,7 +2240,11 @@ impl Ui {
         if let Some(menu_state) = self.menu_state.clone() {
             menu::submenu_button(self, menu_state, String::new(), add_contents)
         } else {
-            menu::menu_image_button(self, ImageButton::new(texture_id, image_size), add_contents)
+            menu::menu_image_button(
+                self,
+                ImageButton::new((texture_id, image_size.into())),
+                add_contents,
+            )
         }
     }
 }
