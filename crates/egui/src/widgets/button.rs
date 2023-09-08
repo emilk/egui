@@ -238,7 +238,6 @@ impl Widget for Button {
             }
         }
 
-        // n.b. no let chains here...
         if let Some(cursor) = ui.visuals().interact_cursor {
             if response.hovered {
                 ui.ctx().set_cursor_icon(cursor);
