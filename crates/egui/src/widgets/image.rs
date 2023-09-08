@@ -268,7 +268,7 @@ pub struct ImageSize {
 
 /// This type determines how the image should try to fit within the UI.
 ///
-/// This has lower precedence than [`ImageSize::extent`], meaning that the image size will be clamped to [`ImageSize::extent`].
+/// The final fit will be clamped to [`ImageSize::max_size`].
 #[derive(Debug, Clone, Copy)]
 pub enum ImageFit {
     /// Fit the image to its original size, optionally scaling it by some factor.
