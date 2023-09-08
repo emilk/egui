@@ -25,6 +25,11 @@ pub mod winit;
 #[cfg(all(not(target_arch = "wasm32"), feature = "winit"))]
 pub use winit::*;
 
+#[cfg(feature = "sdl2")]
+pub mod sdl2;
+#[cfg(feature = "sdl2")]
+pub use crate::sdl2::*;
+
 /// Check for OpenGL error and report it using `log::error`.
 ///
 /// Only active in debug builds!
