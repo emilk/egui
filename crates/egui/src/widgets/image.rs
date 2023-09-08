@@ -653,14 +653,6 @@ pub fn paint_image_at(ui: &mut Ui, rect: Rect, options: &ImageOptions, texture: 
         return;
     }
 
-    let mut mesh = Mesh::with_texture(texture.id);
-    mesh.add_rect_with_uv(
-        rect,
-        Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
-        Color32::WHITE,
-    );
-    ui.painter().add(Shape::mesh(mesh));
-
     if options.bg_fill != Default::default() {
         let mut mesh = Mesh::default();
         mesh.add_colored_rect(rect, options.bg_fill);
