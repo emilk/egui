@@ -67,6 +67,9 @@ impl<'a> Image<'a> {
         self
     }
 
+    /// Set the max width of the image.
+    ///
+    /// No matter what the image is scaled to, it will never exceed this limit.
     #[inline]
     pub fn max_width(mut self, width: f32) -> Self {
         match self.size.max_size.as_mut() {
@@ -76,6 +79,9 @@ impl<'a> Image<'a> {
         self
     }
 
+    /// Set the max height of the image.
+    ///
+    /// No matter what the image is scaled to, it will never exceed this limit.
     #[inline]
     pub fn max_height(mut self, height: f32) -> Self {
         match self.size.max_size.as_mut() {
@@ -85,36 +91,56 @@ impl<'a> Image<'a> {
         self
     }
 
+    /// Set the max size of the image.
+    ///
+    /// No matter what the image is scaled to, it will never exceed this limit.
     #[inline]
     pub fn max_size(mut self, size: Option<Vec2>) -> Self {
         self.size.max_size = size;
         self
     }
 
+    /// Whether or not the [`ImageFit`] should maintain the image's original aspect ratio.
     #[inline]
     pub fn maintain_aspect_ratio(mut self, value: bool) -> Self {
         self.size.maintain_aspect_ratio = value;
         self
     }
 
+    /// Fit the image to its original size.
+    ///
+    /// This will cause the image to overflow if it is larger than the available space.
+    ///
+    /// If [`Image::max_size`] is set, this is guaranteed to never exceed that limit.
     #[inline]
     pub fn fit_to_original_size(mut self, scale: Option<f32>) -> Self {
         self.size.fit = ImageFit::Original(scale);
         self
     }
 
+    /// Fit the image to an exact size.
+    ///
+    /// If [`Image::max_size`] is set, this is guaranteed to never exceed that limit.
     #[inline]
     pub fn fit_to_exact_size(mut self, size: Vec2) -> Self {
         self.size.fit = ImageFit::Exact(size);
         self
     }
 
+    /// Fit the image to a fraction of the available space.
+    ///
+    /// If [`Image::max_size`] is set, this is guaranteed to never exceed that limit.
     #[inline]
     pub fn fit_to_fraction(mut self, fraction: Vec2) -> Self {
         self.size.fit = ImageFit::Fraction(fraction);
         self
     }
 
+    /// Fit the image to 100% of its available size, shrinking it if necessary.
+    ///
+    /// This is a shorthand for [`Image::fit_to_fraction`] with `1.0` for both width and height.
+    ///
+    /// If [`Image::max_size`] is set, this is guaranteed to never exceed that limit.
     #[inline]
     pub fn shrink_to_fit(self) -> Self {
         self.fit_to_fraction(Vec2::new(1.0, 1.0))
@@ -176,10 +202,14 @@ impl<'a> Image<'a> {
 }
 
 impl<'a> Image<'a> {
+    /// Returns the size the image will occupy in the final UI.
     pub fn calculate_size(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
         self.size.get(available_size, image_size)
     }
 
+    /// Get the `uri` that this image was constructed from.
+    ///
+    /// This will return `<unknown>` for [`ImageSource::Texture`].
     pub fn uri(&self) -> &str {
         match &self.source {
             ImageSource::Bytes(uri, _) => uri,
@@ -536,11 +566,17 @@ impl RawImage {
 }
 
 impl RawImage {
+    /// Returns the [`TextureId`] of the texture from which this image was created.
+    pub fn texture_id(&self) -> TextureId {
+        self.texture.id
+    }
+
+    /// Returns the size of the texture from which this image was created.
     pub fn size(&self) -> Vec2 {
         self.texture.size
     }
 
-    pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
+    fn paint_at(&self, ui: &mut Ui, rect: Rect) {
         paint_image_at(ui, rect, &self.image_options, &self.texture);
     }
 }
@@ -555,10 +591,32 @@ impl Widget for RawImage {
 
 #[derive(Debug, Clone)]
 pub struct ImageOptions {
+    /// Select UV range. Default is (0,0) in top-left, (1,1) bottom right.
     pub uv: Rect,
+
+    /// A solid color to put behind the image. Useful for transparent images.
     pub bg_fill: Color32,
+
+    /// Multiply image color with this. Default is WHITE (no tint).
     pub tint: Color32,
+
+    /// Rotate the image about an origin by some angle
+    ///
+    /// Positive angle is clockwise.
+    /// Origin is a vector in normalized UV space ((0,0) in top-left, (1,1) bottom right).
+    ///
+    /// To rotate about the center you can pass `Vec2::splat(0.5)` as the origin.
+    ///
+    /// Due to limitations in the current implementation,
+    /// this will turn off rounding of the image.
     pub rotation: Option<(Rot2, Vec2)>,
+
+    /// Round the corners of the image.
+    ///
+    /// The default is no rounding ([`Rounding::ZERO`]).
+    ///
+    /// Due to limitations in the current implementation,
+    /// this will turn off any rotation of the image.
     pub rounding: Rounding,
 }
 
@@ -574,6 +632,7 @@ impl Default for ImageOptions {
     }
 }
 
+/// Paint a `SizedTexture` as an image according to some `ImageOptions` at a given `rect`.
 pub fn paint_image_at(ui: &mut Ui, rect: Rect, options: &ImageOptions, texture: &SizedTexture) {
     if !ui.is_rect_visible(rect) {
         return;
