@@ -1298,6 +1298,11 @@ mod glow_integration {
                         .window
                         .clone(),
                 );
+                running
+                    .integration
+                    .read()
+                    .egui_ctx
+                    .set_render_sync_callback(|_, _, _, _| {});
                 running.app.write().on_exit(Some(&running.gl));
                 running.painter.write().destroy();
             }
@@ -2197,6 +2202,12 @@ mod wgpu_integration {
                         .write()
                         .save(running.app.as_mut(), window.clone());
                 }
+
+                running
+                    .integration
+                    .read()
+                    .egui_ctx
+                    .set_render_sync_callback(|_, _, _, _| {});
 
                 #[cfg(feature = "glow")]
                 running.app.on_exit(None);
