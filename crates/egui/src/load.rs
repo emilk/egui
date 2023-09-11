@@ -216,7 +216,7 @@ pub type BytesLoadResult = Result<BytesPoll>;
 pub trait BytesLoader {
     /// Unique ID of this loader.
     ///
-    /// To reduce the chance of collisions, use [`generate_id`] for this.
+    /// To reduce the chance of collisions, use [`generate_loader_id`] for this.
     fn id(&self) -> &str;
 
     /// Try loading the bytes from the given uri.
