@@ -564,8 +564,11 @@ impl Memory {
     }
 
     pub(crate) fn resume_frame(&mut self, viewport_id: ViewportId) {
-        self.interaction = self.interactions.remove(&viewport_id).unwrap();
-        self.areas = self.viewports_areas.remove(&viewport_id).unwrap();
+        self.interaction = self.interactions.remove(&viewport_id).unwrap_or_default();
+        self.areas = self
+            .viewports_areas
+            .remove(&viewport_id)
+            .unwrap_or_default();
         self.viewport_id = viewport_id;
         self.window_interaction = self.window_interactions.remove(&viewport_id);
     }

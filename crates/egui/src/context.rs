@@ -1540,27 +1540,9 @@ impl Context {
             }
         }
 
-        // Context Cleanup
-        self.write(|ctx| {
-            ctx.input.retain(|id, _| viewports.contains(id));
-            ctx.layer_rects_prev_viewports
-                .retain(|id, _| viewports.contains(id));
-            ctx.layer_rects_this_viewports
-                .retain(|id, _| viewports.contains(id));
-            ctx.output.retain(|id, _| viewports.contains(id));
-            ctx.frame_state.retain(|id, _| viewports.contains(id));
-            ctx.graphics.retain(|id, _| viewports.contains(id));
-            ctx.memory
-                .new_pixels_per_viewport
-                .retain(|id, _| viewports.contains(id));
-        });
-
-        let repaint_after =
-            self.write(|ctx| ctx.repaint.end_frame(ctx.get_viewport_id(), &viewports));
         let shapes = self.drain_paint_lists();
 
-        // This is used for,
-        // If there are no viewport that contains the current viewpor that viewport needs to be destroyed!
+        // If there are no viewport that contains the current viewport that viewport needs to be destroyed!
         let avalibile_viewports = self.read(|ctx| {
             let mut avalibile_viewports = vec![ViewportId::MAIN];
             for (_, id, _, _, _) in ctx.viewports.values() {
@@ -1571,9 +1553,6 @@ impl Context {
 
         let viewport_id = self.get_viewport_id();
 
-        // We should not process viewport commands when we are a sync viewport, because that will cause a deadlock or a memory race
-        let mut is_async = viewport_id == ViewportId::MAIN;
-
         let mut viewports = Vec::new();
         self.write(|ctx| {
             ctx.viewports
@@ -1582,10 +1561,6 @@ impl Context {
 
                     if viewport_id == *parent {
                         *used = false;
-                    }
-
-                    if !is_async && viewport_id == *id {
-                        is_async = render.is_some();
                     }
 
                     viewports.push((*id, *parent, builder.clone(), render.clone()));
@@ -1598,6 +1573,7 @@ impl Context {
             ctx.frame_stack.pop();
             ctx.frame_stack.is_empty()
         });
+
         if !is_last {
             let viewport_id = self.get_viewport_id();
             self.write(|ctx| {
@@ -1607,7 +1583,29 @@ impl Context {
                     ctx.layer_rects_this_viewports.remove(&viewport_id).unwrap();
                 ctx.memory.resume_frame(viewport_id);
             });
+        } else {
+            // ## Context Cleanup
+            self.write(|ctx| {
+                ctx.input.retain(|id, _| avalibile_viewports.contains(id));
+                ctx.layer_rects_prev_viewports
+                    .retain(|id, _| avalibile_viewports.contains(id));
+                ctx.layer_rects_this_viewports
+                    .retain(|id, _| avalibile_viewports.contains(id));
+                ctx.output.retain(|id, _| avalibile_viewports.contains(id));
+                ctx.frame_state
+                    .retain(|id, _| avalibile_viewports.contains(id));
+                ctx.graphics
+                    .retain(|id, _| avalibile_viewports.contains(id));
+                ctx.memory
+                    .new_pixels_per_viewport
+                    .retain(|id, _| avalibile_viewports.contains(id));
+            });
         }
+
+        let repaint_after = self.write(|ctx| {
+            ctx.repaint
+                .end_frame(ctx.get_viewport_id(), &avalibile_viewports)
+        });
 
         FullOutput {
             platform_output,
@@ -1615,7 +1613,8 @@ impl Context {
             textures_delta,
             shapes,
             viewports,
-            viewport_commands: if is_async {
+            // We should not process viewport commands when we are a sync viewport, because that will cause a deadlock for egui backend
+            viewport_commands: if is_last {
                 self.write(|ctx| std::mem::take(&mut ctx.viewport_commands))
             } else {
                 Vec::new()
