@@ -428,8 +428,7 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 ///
 /// This is a wrapper over `include_bytes!`, and behaves in the same way.
 ///
-/// It produces a tuple an [`ImageSource`] which can be used directly in [`Ui::image`]
-/// or [`Image::new`]:
+/// It produces an [`ImageSource`] which can be used directly in [`Ui::image`] or [`Image::new`]:
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
