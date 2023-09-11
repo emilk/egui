@@ -424,6 +424,25 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 
 // ----------------------------------------------------------------------------
 
+/// Include an image in the binary.
+///
+/// This is a wrapper over `include_bytes!`, and behaves in the same way.
+///
+/// It produces a tuple of `(path, bytes): (&str, &[u8])` which can be used
+/// directly as a source in [`Ui::image`]:
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// ui.image(egui::include_image!("../assets/ferris.png"));
+/// # });
+/// ```
+#[macro_export]
+macro_rules! include_image {
+    ($path: expr) => {
+        (stringify!($path), include_bytes!($path))
+    };
+}
+
 /// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] (and line) on Github
 ///
 /// ```

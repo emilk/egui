@@ -1568,7 +1568,11 @@ impl Ui {
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// ui.image("file://ferris.svg");
+    /// ui.image("file://ferris.png");
+    /// ui.image("https://picsum.photos/480");
+    ///
+    /// const FERRIS: (&str, &[u8]) = egui::include_image!("../assets/ferris.png");
+    /// ui.image(FERRIS);
     /// # });
     /// ```
     ///
