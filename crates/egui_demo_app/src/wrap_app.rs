@@ -164,22 +164,22 @@ pub struct WrapApp {
 }
 
 impl WrapApp {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         #[cfg(feature = "image_viewer")]
-        egui_extras::loaders::install(&cc.egui_ctx);
+        egui_extras::loaders::install(&_cc.egui_ctx);
 
         #[allow(unused_mut)]
         let mut slf = Self {
             state: State::default(),
 
             #[cfg(any(feature = "glow", feature = "wgpu"))]
-            custom3d: crate::apps::Custom3d::new(cc),
+            custom3d: crate::apps::Custom3d::new(_cc),
 
             dropped_files: Default::default(),
         };
 
         #[cfg(feature = "persistence")]
-        if let Some(storage) = cc.storage {
+        if let Some(storage) = _cc.storage {
             if let Some(state) = eframe::get_value(storage, eframe::APP_KEY) {
                 slf.state = state;
             }
