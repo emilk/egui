@@ -1576,7 +1576,7 @@ impl Ui {
     /// # });
     /// ```
     ///
-    /// See also [`crate::Image`] and [`crate::ImageSource`].
+    /// See also [`crate::Image`], [`crate::ImageSource`] and [`Self::raw_image`].
     #[inline]
     pub fn image<'a>(&mut self, source: impl Into<ImageSource<'a>>) -> Response {
         Image::new(source.into()).ui(self)
