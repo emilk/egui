@@ -323,11 +323,11 @@ pub enum ImageFit {
 impl ImageSize {
     fn hint(&self, available_size: Vec2) -> SizeHint {
         if self.maintain_aspect_ratio {
-            return SizeHint::Original(None);
+            return SizeHint::Scale(1.0.ord());
         };
 
         let fit = match self.fit {
-            ImageFit::Original(scale) => return SizeHint::Original(scale.map(FloatOrd::ord)),
+            ImageFit::Original(scale) => return SizeHint::Scale(scale.unwrap_or(1.0).ord()),
             ImageFit::Fraction(fract) => available_size * fract,
             ImageFit::Exact(size) => size,
         };
@@ -342,7 +342,7 @@ impl ImageSize {
             (true, true) => SizeHint::Size(fit.x.round() as u32, fit.y.round() as u32),
             (true, false) => SizeHint::Width(fit.x.round() as u32),
             (false, true) => SizeHint::Height(fit.y.round() as u32),
-            (false, false) => SizeHint::Original(None),
+            (false, false) => SizeHint::Scale(1.0.ord()),
         }
     }
 

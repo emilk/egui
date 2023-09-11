@@ -51,6 +51,7 @@
 use crate::Context;
 use ahash::HashMap;
 use epaint::mutex::Mutex;
+use epaint::util::FloatOrd;
 use epaint::util::OrderedFloat;
 use epaint::TextureHandle;
 use epaint::{textures::TextureOptions, ColorImage, TextureId, Vec2};
@@ -89,8 +90,8 @@ pub type Result<T, E = LoadError> = std::result::Result<T, E>;
 /// Similar to `usvg::FitTo`.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SizeHint {
-    /// Keep original size, optionally scale by some factor.
-    Original(Option<OrderedFloat<f32>>),
+    /// Scale original size by some factor.
+    Scale(OrderedFloat<f32>),
 
     /// Scale to width.
     Width(u32),
@@ -104,7 +105,7 @@ pub enum SizeHint {
 
 impl Default for SizeHint {
     fn default() -> Self {
-        Self::Original(None)
+        Self::Scale(1.0.ord())
     }
 }
 
@@ -113,8 +114,6 @@ impl From<Vec2> for SizeHint {
         Self::Size(value.x.round() as u32, value.y.round() as u32)
     }
 }
-
-// TODO: API for querying bytes caches in each loader
 
 #[derive(Clone)]
 pub enum Bytes {
