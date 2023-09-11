@@ -2,7 +2,9 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use crate::{ecolor::*, emath::*, FontFamily, FontId, Response, RichText, WidgetText};
+use crate::{
+    ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Response, RichText, WidgetText,
+};
 use epaint::{Rounding, Shadow, Stroke};
 use std::collections::BTreeMap;
 
@@ -544,6 +546,13 @@ pub struct Visuals {
     ///
     /// Enabling this will affect ALL sliders, and can be enabled/disabled per slider with [`Slider::trailing_fill`].
     pub slider_trailing_fill: bool,
+
+    /// Should the cursor change when the user hovers over an interactive/clickable item?
+    ///
+    /// This is consistent with a lot of browser-based applications (vscode, github
+    /// all turn your cursor into [`CursorIcon::PointingHand`] when a button is
+    /// hovered) but it is inconsistent with native UI toolkits.
+    pub interact_cursor: Option<CursorIcon>,
 }
 
 impl Visuals {
@@ -806,6 +815,8 @@ impl Visuals {
             striped: false,
 
             slider_trailing_fill: false,
+
+            interact_cursor: None,
         }
     }
 
@@ -1376,6 +1387,7 @@ impl Visuals {
             striped,
 
             slider_trailing_fill,
+            interact_cursor,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1440,6 +1452,16 @@ impl Visuals {
         ui.checkbox(striped, "By default, add stripes to grids and tables?");
 
         ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
+
+        ComboBox::from_label("Interact Cursor")
+            .selected_text(format!("{interact_cursor:?}"))
+            .show_ui(ui, |ui| {
+                ui.selectable_value(interact_cursor, None, "None");
+
+                for icon in CursorIcon::ALL {
+                    ui.selectable_value(interact_cursor, Some(icon), format!("{icon:?}"));
+                }
+            });
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
