@@ -1570,9 +1570,11 @@ impl Ui {
     /// # egui::__run_test_ui(|ui| {
     /// ui.image("file://ferris.png");
     /// ui.image("https://picsum.photos/480");
-    ///
-    /// const FERRIS: (&str, &[u8]) = egui::include_image!("../assets/ferris.png");
-    /// ui.image(FERRIS);
+    /// ui.image(egui::include_image!("../assets/ferris.png"));
+    /// ui.add(
+    ///     egui::Image::new(egui::include_image!("../assets/ferris.png"))
+    ///         .rounding(egui::Rounding::same(6.0))
+    /// );
     /// # });
     /// ```
     ///

@@ -428,18 +428,22 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 ///
 /// This is a wrapper over `include_bytes!`, and behaves in the same way.
 ///
-/// It produces a tuple of `(path, bytes): (&str, &[u8])` which can be used
-/// directly as a source in [`Ui::image`]:
+/// It produces a tuple an [`ImageSource`] which can be used directly in [`Ui::image`]
+/// or [`Image::new`]:
 ///
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// ui.image(egui::include_image!("../assets/ferris.png"));
+/// ui.add(
+///     egui::Image::new(egui::include_image!("../assets/ferris.png"))
+///         .rounding(egui::Rounding::same(6.0))
+/// );
 /// # });
 /// ```
 #[macro_export]
 macro_rules! include_image {
     ($path: literal) => {
-        ($path, include_bytes!($path))
+        $crate::ImageSource::Bytes($path, $crate::load::Bytes::Static(include_bytes!($path)))
     };
 }
 

@@ -28,7 +28,7 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::new([true, true]).show(ui, |ui| {
                 ui.add(
-                    egui::Image::new(egui::include_image!("ferris.svg").into())
+                    egui::Image::new(egui::include_image!("ferris.svg"))
                         .fit_to_fraction(vec2(1.0, 0.5)),
                 );
                 ui.add(
