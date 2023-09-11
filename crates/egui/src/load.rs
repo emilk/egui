@@ -368,6 +368,7 @@ impl SizedTexture {
 }
 
 impl From<(TextureId, Vec2)> for SizedTexture {
+    #[inline]
     fn from((id, size): (TextureId, Vec2)) -> Self {
         SizedTexture { id, size }
     }
