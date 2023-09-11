@@ -20,6 +20,7 @@ use epaint::{util::FloatOrd, RectShape};
 /// To use a texture you already have with a simpler API, consider using [`RawImage`].
 ///
 /// See [`load`] for more information.
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug, Clone)]
 pub struct Image<'a> {
     source: ImageSource<'a>,
@@ -508,6 +509,7 @@ impl<T: Into<SizedTexture>> From<T> for ImageSource<'static> {
 }
 
 /// A widget which displays a sized texture.
+#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug, Clone)]
 pub struct RawImage {
     texture: SizedTexture,
