@@ -89,8 +89,9 @@ impl BytesLoader for EhttpLoader {
                     let result = match response {
                         Ok(response) => File::from_response(&uri, response),
                         Err(err) => {
-                            crate::log_err!("failed to load {uri:?}\n{err}");
-                            Err(format!("failed to load {uri:?}"))
+                            // Log details; return summary
+                            crate::log_err!("Failed to load {uri:?}: {err}");
+                            Err(format!("Failed to load {uri:?}"))
                         }
                     };
                     crate::log_trace!("finished loading {uri:?}");
