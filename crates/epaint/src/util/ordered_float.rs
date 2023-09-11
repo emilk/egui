@@ -11,10 +11,10 @@ use std::hash::{Hash, Hasher};
 #[derive(Clone, Copy)]
 pub struct OrderedFloat<T>(T);
 
-impl<T: Float + Clone> OrderedFloat<T> {
+impl<T: Float + Copy> OrderedFloat<T> {
     #[inline]
-    pub fn get(&self) -> T {
-        self.0.clone()
+    pub fn into_inner(self) -> T {
+        self.0
     }
 }
 
