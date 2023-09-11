@@ -477,12 +477,11 @@ impl std::cmp::PartialEq for Context {
 impl Default for Context {
     fn default() -> Self {
         let s = Self(Arc::new(RwLock::new(ContextImpl::default())));
-        let clone = s.clone();
 
         s.write(|ctx| {
             ctx.force_embedding = true;
             ctx.render_sync = Some(Arc::new(Box::new(
-                move |_builder, _viewport_id, _parent_viewport_id, render| render(&clone),
+                move |ctx, _builder, _viewport_id, _parent_viewport_id, render| render(ctx),
             )));
         });
 
@@ -2472,8 +2471,13 @@ impl Context {
     /// Look in `crates/eframe/native/run.rs` and search for ``set_render_sync_callback`` to see for what is used!
     pub fn set_render_sync_callback(
         &self,
-        callback: impl for<'a> Fn(ViewportBuilder, ViewportId, ViewportId, Box<dyn FnOnce(&Context) + 'a>)
-            + Send
+        callback: impl for<'a> Fn(
+                &Context,
+                ViewportBuilder,
+                ViewportId,
+                ViewportId,
+                Box<dyn FnOnce(&Context) + 'a>,
+            ) + Send
             + Sync
             + 'static,
     ) {
@@ -2585,6 +2589,7 @@ impl Context {
             {
                 let out = &mut out;
                 render_sync.unwrap()(
+                    self,
                     viewport_builder,
                     viewport_id,
                     parent_viewport_id,

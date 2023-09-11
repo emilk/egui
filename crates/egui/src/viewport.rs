@@ -24,7 +24,7 @@ impl ViewportId {
 /// This is used to render an async viewport
 pub type ViewportRender = dyn Fn(&Context) + Sync + Send;
 
-pub type ViewportRenderSyncCallback = dyn for<'a> Fn(ViewportBuilder, ViewportId, ViewportId, Box<dyn FnOnce(&Context) + 'a>)
+pub type ViewportRenderSyncCallback = dyn for<'a> Fn(&Context, ViewportBuilder, ViewportId, ViewportId, Box<dyn FnOnce(&Context) + 'a>)
     + Send
     + Sync;
 

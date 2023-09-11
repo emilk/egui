@@ -1027,7 +1027,6 @@ mod glow_integration {
 
             let glutin_ctx = Arc::new(RwLock::new(gl_window));
 
-            let egui_ctx = integration.egui_ctx.clone();
             let glutin = glutin_ctx.clone();
             let _gl = gl.clone();
             let painter = Arc::new(RwLock::new(painter));
@@ -1036,7 +1035,7 @@ mod glow_integration {
 
             // ## Sync Rendering
             integration.egui_ctx.set_render_sync_callback(
-                move |mut viewport_builder, viewport_id, parent_id, render| {
+                move |egui_ctx, mut viewport_builder, viewport_id, parent_id, render| {
                     if viewport_builder.icon.is_none(){
                         viewport_builder.icon = glutin.read().builders.get(&parent_id).and_then(|b|b.icon.clone());
                     }
@@ -1129,7 +1128,7 @@ mod glow_integration {
                                             );
                                         winit_state.handle_platform_output(
                                             &win,
-                                            &egui_ctx,
+                                            egui_ctx,
                                             output.platform_output,
                                         );
                                     } else {
@@ -1298,11 +1297,6 @@ mod glow_integration {
                         .window
                         .clone(),
                 );
-                running
-                    .integration
-                    .read()
-                    .egui_ctx
-                    .set_render_sync_callback(|_, _, _, _| {});
                 running.app.write().on_exit(Some(&running.gl));
                 running.painter.write().destroy();
             }
@@ -2064,7 +2058,6 @@ mod wgpu_integration {
             );
 
             let _windows = windows.clone();
-            let egui_ctx = integration.egui_ctx.clone();
             let time = integration.beginning;
             let painter = Arc::new(RwLock::new(painter));
             let _painter = painter.clone();
@@ -2072,7 +2065,7 @@ mod wgpu_integration {
 
             // ## Sync Rendering
             integration.egui_ctx.set_render_sync_callback(
-                move |viewport_builder, viewport_id, parent_viewport_id, render| {
+                move |egui_ctx, viewport_builder, viewport_id, parent_viewport_id, render| {
                     // TODO: If the `viewport_builder` do not have a icon set the icon to be the icon of the parent viewport
 
                     if _windows.read().get(&viewport_id).is_none(){
@@ -2124,7 +2117,7 @@ mod wgpu_integration {
 
                                         winit_state.handle_platform_output(
                                             &win,
-                                            &egui_ctx,
+                                            egui_ctx,
                                             output.platform_output,
                                         );
                                     } else {
@@ -2202,12 +2195,6 @@ mod wgpu_integration {
                         .write()
                         .save(running.app.as_mut(), window.clone());
                 }
-
-                running
-                    .integration
-                    .read()
-                    .egui_ctx
-                    .set_render_sync_callback(|_, _, _, _| {});
 
                 #[cfg(feature = "glow")]
                 running.app.on_exit(None);
