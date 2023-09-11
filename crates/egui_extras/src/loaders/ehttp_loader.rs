@@ -44,6 +44,10 @@ pub struct EhttpLoader {
     cache: Arc<Mutex<HashMap<String, Entry>>>,
 }
 
+impl EhttpLoader {
+    pub const ID: &str = egui::generate_loader_id!(EhttpLoader);
+}
+
 const PROTOCOLS: &[&str] = &["http://", "https://"];
 
 fn starts_with_one_of(s: &str, prefixes: &[&str]) -> bool {
@@ -51,6 +55,10 @@ fn starts_with_one_of(s: &str, prefixes: &[&str]) -> bool {
 }
 
 impl BytesLoader for EhttpLoader {
+    fn id(&self) -> &str {
+        Self::ID
+    }
+
     fn load(&self, ctx: &egui::Context, uri: &str) -> BytesLoadResult {
         if !starts_with_one_of(uri, PROTOCOLS) {
             return Err(LoadError::NotSupported);

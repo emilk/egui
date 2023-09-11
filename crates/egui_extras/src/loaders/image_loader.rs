@@ -13,6 +13,10 @@ pub struct ImageCrateLoader {
     cache: Mutex<HashMap<String, Entry>>,
 }
 
+impl ImageCrateLoader {
+    pub const ID: &str = egui::generate_loader_id!(ImageCrateLoader);
+}
+
 fn is_supported_uri(uri: &str) -> bool {
     let Some(ext) = Path::new(uri).extension().and_then(|ext| ext.to_str()) else {
         // `true` because if there's no extension, assume that we support it
@@ -27,6 +31,10 @@ fn is_unsupported_mime(mime: &str) -> bool {
 }
 
 impl ImageLoader for ImageCrateLoader {
+    fn id(&self) -> &str {
+        Self::ID
+    }
+
     fn load(&self, ctx: &egui::Context, uri: &str, _: SizeHint) -> ImageLoadResult {
         // three stages of guessing if we support loading the image:
         // 1. URI extension

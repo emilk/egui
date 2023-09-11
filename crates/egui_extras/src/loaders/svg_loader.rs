@@ -13,6 +13,10 @@ pub struct SvgLoader {
     cache: Mutex<HashMap<(String, SizeHint), Entry>>,
 }
 
+impl SvgLoader {
+    pub const ID: &str = egui::generate_loader_id!(SvgLoader);
+}
+
 fn is_supported(uri: &str) -> bool {
     let Some(ext) = Path::new(uri).extension().and_then(|ext| ext.to_str()) else { return false };
 
@@ -20,6 +24,10 @@ fn is_supported(uri: &str) -> bool {
 }
 
 impl ImageLoader for SvgLoader {
+    fn id(&self) -> &str {
+        Self::ID
+    }
+
     fn load(&self, ctx: &egui::Context, uri: &str, size_hint: SizeHint) -> ImageLoadResult {
         if !is_supported(uri) {
             return Err(LoadError::NotSupported);

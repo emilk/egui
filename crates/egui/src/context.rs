@@ -1915,6 +1915,27 @@ impl Context {
         self.loaders().include.insert(uri, bytes.into());
     }
 
+    /// Returns `true` if the chain of bytes, image, or texture loaders
+    /// contains a loader with the given `id`.
+    pub fn is_loader_installed(&self, id: &str) -> bool {
+        let loaders = self.loaders();
+        if loaders.bytes.lock().iter().any(|loader| loader.id() == id) {
+            return true;
+        }
+        if loaders.image.lock().iter().any(|loader| loader.id() == id) {
+            return true;
+        }
+        if loaders
+            .texture
+            .lock()
+            .iter()
+            .any(|loader| loader.id() == id)
+        {
+            return true;
+        }
+        false
+    }
+
     /// Append an entry onto the chain of bytes loaders.
     ///
     /// See [`load`] for more information.

@@ -19,9 +19,17 @@ pub struct FileLoader {
     cache: Arc<Mutex<HashMap<String, Entry>>>,
 }
 
+impl FileLoader {
+    pub const ID: &str = egui::generate_loader_id!(FileLoader);
+}
+
 const PROTOCOL: &str = "file://";
 
 impl BytesLoader for FileLoader {
+    fn id(&self) -> &str {
+        Self::ID
+    }
+
     fn load(&self, ctx: &egui::Context, uri: &str) -> BytesLoadResult {
         // File loader only supports the `file` protocol.
         let Some(path) = uri.strip_prefix(PROTOCOL) else {

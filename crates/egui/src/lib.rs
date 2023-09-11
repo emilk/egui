@@ -438,8 +438,8 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 /// ```
 #[macro_export]
 macro_rules! include_image {
-    ($path: expr) => {
-        (stringify!($path), include_bytes!($path))
+    ($path: literal) => {
+        ($path, include_bytes!($path))
     };
 }
 

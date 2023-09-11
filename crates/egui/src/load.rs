@@ -200,9 +200,25 @@ pub enum BytesPoll {
     },
 }
 
+/// Used to get a unique ID when implementing one of the loader traits: [`BytesLoader::id`], [`ImageLoader::id`], and [`TextureLoader::id`].
+///
+/// This just expands to `module_path!()` concatenated with the given type name.
+#[macro_export]
+macro_rules! generate_loader_id {
+    ($ty:ident) => {
+        concat!(module_path!(), "::", stringify!($ty))
+    };
+}
+pub use crate::generate_loader_id;
+
 pub type BytesLoadResult = Result<BytesPoll>;
 
 pub trait BytesLoader {
+    /// Unique ID of this loader.
+    ///
+    /// To reduce the chance of collisions, use [`generate_id`] for this.
+    fn id(&self) -> &str;
+
     /// Try loading the bytes from the given uri.
     ///
     /// Implementations should call `ctx.request_repaint` to wake up the ui
@@ -255,6 +271,14 @@ pub enum ImagePoll {
 pub type ImageLoadResult = Result<ImagePoll>;
 
 pub trait ImageLoader {
+    /// Unique ID of this loader.
+    ///
+    /// To reduce the chance of collisions, include `module_path!()` as part of this ID.
+    ///
+    /// For example: `concat!(module_path!(), "::MyLoader")`
+    /// for `my_crate::my_loader::MyLoader`.
+    fn id(&self) -> &str;
+
     /// Try loading the image from the given uri.
     ///
     /// Implementations should call `ctx.request_repaint` to wake up the ui
@@ -337,6 +361,14 @@ pub enum TexturePoll {
 pub type TextureLoadResult = Result<TexturePoll>;
 
 pub trait TextureLoader {
+    /// Unique ID of this loader.
+    ///
+    /// To reduce the chance of collisions, include `module_path!()` as part of this ID.
+    ///
+    /// For example: `concat!(module_path!(), "::MyLoader")`
+    /// for `my_crate::my_loader::MyLoader`.
+    fn id(&self) -> &str;
+
     /// Try loading the texture from the given uri.
     ///
     /// Implementations should call `ctx.request_repaint` to wake up the ui
@@ -392,6 +424,10 @@ impl DefaultBytesLoader {
 }
 
 impl BytesLoader for DefaultBytesLoader {
+    fn id(&self) -> &str {
+        generate_loader_id!(DefaultBytesLoader)
+    }
+
     fn load(&self, _: &Context, uri: &str) -> BytesLoadResult {
         match self.cache.lock().get(uri).cloned() {
             Some(bytes) => Ok(BytesPoll::Ready {
@@ -422,6 +458,10 @@ struct DefaultTextureLoader {
 }
 
 impl TextureLoader for DefaultTextureLoader {
+    fn id(&self) -> &str {
+        generate_loader_id!(DefaultTextureLoader)
+    }
+
     fn load(
         &self,
         ctx: &Context,

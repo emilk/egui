@@ -19,20 +19,28 @@
 /// See [`egui::load`] for more information about how loaders work.
 pub fn install(ctx: &egui::Context) {
     #[cfg(all(not(target_arch = "wasm32"), feature = "file"))]
-    ctx.add_bytes_loader(std::sync::Arc::new(self::file_loader::FileLoader::default()));
+    if !ctx.is_loader_installed(self::file_loader::FileLoader::ID) {
+        ctx.add_bytes_loader(std::sync::Arc::new(self::file_loader::FileLoader::default()));
+    }
 
     #[cfg(feature = "http")]
-    ctx.add_bytes_loader(std::sync::Arc::new(
-        self::ehttp_loader::EhttpLoader::default(),
-    ));
+    if !ctx.is_loader_installed(self::ehttp_loader::EhttpLoader::ID) {
+        ctx.add_bytes_loader(std::sync::Arc::new(
+            self::ehttp_loader::EhttpLoader::default(),
+        ));
+    }
 
     #[cfg(feature = "image")]
-    ctx.add_image_loader(std::sync::Arc::new(
-        self::image_loader::ImageCrateLoader::default(),
-    ));
+    if !ctx.is_loader_installed(self::image_loader::ImageCrateLoader::ID) {
+        ctx.add_image_loader(std::sync::Arc::new(
+            self::image_loader::ImageCrateLoader::default(),
+        ));
+    }
 
     #[cfg(feature = "svg")]
-    ctx.add_image_loader(std::sync::Arc::new(self::svg_loader::SvgLoader::default()));
+    if !ctx.is_loader_installed(self::svg_loader::SvgLoader::ID) {
+        ctx.add_image_loader(std::sync::Arc::new(self::svg_loader::SvgLoader::default()));
+    }
 
     #[cfg(all(
         any(target_arch = "wasm32", not(feature = "file")),
