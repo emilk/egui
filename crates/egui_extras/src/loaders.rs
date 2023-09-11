@@ -1,20 +1,51 @@
 // TODO: automatic cache eviction
 
-/// Installs the default set of loaders:
+/// Installs the default set of loaders
+///
 /// - `file` loader on non-Wasm targets
-/// - `http` loader (with the `ehttp` feature)
+/// - `http` loader (with the `http` feature)
 /// - `image` loader (with the `image` feature)
 /// - `svg` loader with the `svg` feature
 ///
-/// ⚠ This will do nothing and you won't see any images unless you enable some features!
-/// If you just want to be able to load `file://` and `http://` images, enable the `all-loaders` feature.
+/// ⚠ This will do nothing and you won't see any images unless you enable some features:
 ///
-/// ⚠ The supported set of image formats is configured by adding the [`image`](https://crates.io/crates/image)
+/// - If you just want to be able to load `file://` and `http://` URIs, enable the `all-loaders` feature.
+/// - The supported set of image formats is configured by adding the [`image`](https://crates.io/crates/image)
 /// crate as your direct dependency, and enabling features on it:
 ///
 /// ```toml,ignore
 /// image = { version = "0.24", features = ["jpeg", "png"] }
 /// ```
+///
+/// ⚠ You have to configure both the supported loaders in `egui_extras` _and_ the supported image formats
+/// in `image` to get any output!
+///
+/// ## Loader-specific information
+///
+/// ⚠ The exact way bytes, images, and textures are loaded is subject to change,
+/// but the supported protocols and file extensions are not.
+///
+/// The `file` loader is a [`BytesLoader`][`egui::load::BytesLoader`].
+/// It will attempt to load `file://` URIs, and infer the content type from the extension.
+/// The path will be passed to [`std::fs::read`] after trimming the `file://` prefix,
+/// and is resolved the same way as with `std::fs::read(path)`:
+/// - Relative paths are relative to the current working directory
+/// - Absolute paths are left as is.
+///
+/// The `http` loader is a [`BytesLoader`][`egui::load::BytesLoader`].
+/// It will attempt to load `http://` and `https://` URIs, and infer the content type from the `Content-Type` header.
+///
+/// The `image` loader is an [`ImageLoader`][`egui::load::ImageLoader`].
+/// It will attempt to load any URI with any extension other than `svg`. It will also load any URI without an extension.
+/// The content type specified by [`BytesPoll::Ready::mime`][`egui::load::BytesPoll::Ready::mime`] always takes precedence.
+/// This means that even if the URI has a `png` extension, and the `png` image format is enabled, if the content type is
+/// not one of the supported and enabled image formats, the loader will return [`LoadError::NotSupported`][`egui::load::LoadError::NotSupported`],
+/// allowing a different loader to attempt to load the image.
+///
+/// The `svg` loader is an [`ImageLoader`][`egui::load::ImageLoader`].
+/// It will attempt to load any URI with an `svg` extension. It will _not_ attempt to load a URI without an extension.
+/// The content type specified by [`BytesPoll::Ready::mime`][`egui::load::BytesPoll::Ready::mime`] always takes precedence,
+/// and must include `svg` for it to be considered supported. For example, `image/svg+xml` would be loaded by the `svg` loader.
 ///
 /// See [`egui::load`] for more information about how loaders work.
 pub fn install(ctx: &egui::Context) {
