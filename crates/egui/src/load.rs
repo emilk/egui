@@ -222,7 +222,13 @@ pub trait BytesLoader {
     ///
     /// If `uri` is cached, it should be evicted from cache,
     /// so that it may be fully reloaded.
-    fn forget(&self, uri: Option<&str>);
+    fn forget(&self, uri: &str);
+
+    /// Forget all URIs ever given to this loader.
+    ///
+    /// If the loader caches any URIs, the entire cache should be cleared,
+    /// so that all of them may be fully reloaded.
+    fn forget_all(&self);
 
     /// Implementations may use this to perform work at the end of a frame,
     /// such as evicting unused entries from a cache.
@@ -268,7 +274,13 @@ pub trait ImageLoader {
     ///
     /// If `uri` is cached, it should be evicted from cache,
     /// so that it may be fully reloaded.
-    fn forget(&self, uri: Option<&str>);
+    fn forget(&self, uri: &str);
+
+    /// Forget all URIs ever given to this loader.
+    ///
+    /// If the loader caches any URIs, the entire cache should be cleared,
+    /// so that all of them may be fully reloaded.
+    fn forget_all(&self);
 
     /// Implementations may use this to perform work at the end of a frame,
     /// such as evicting unused entries from a cache.
@@ -350,7 +362,13 @@ pub trait TextureLoader {
     ///
     /// If `uri` is cached, it should be evicted from cache,
     /// so that it may be fully reloaded.
-    fn forget(&self, uri: Option<&str>);
+    fn forget(&self, uri: &str);
+
+    /// Forget all URIs ever given to this loader.
+    ///
+    /// If the loader caches any URIs, the entire cache should be cleared,
+    /// so that all of them may be fully reloaded.
+    fn forget_all(&self);
 
     /// Implementations may use this to perform work at the end of a frame,
     /// such as evicting unused entries from a cache.
@@ -385,15 +403,12 @@ impl BytesLoader for DefaultBytesLoader {
         }
     }
 
-    fn forget(&self, uri: Option<&str>) {
-        match uri {
-            Some(uri) => {
-                let _ = self.cache.lock().remove(uri);
-            }
-            None => {
-                self.cache.lock().clear();
-            }
-        }
+    fn forget(&self, uri: &str) {
+        let _ = self.cache.lock().remove(uri);
+    }
+
+    fn forget_all(&self) {
+        self.cache.lock().clear();
     }
 
     fn byte_size(&self) -> usize {
@@ -431,11 +446,12 @@ impl TextureLoader for DefaultTextureLoader {
         }
     }
 
-    fn forget(&self, uri: Option<&str>) {
-        match uri {
-            Some(uri) => self.cache.lock().retain(|(u, _), _| u != uri),
-            None => self.cache.lock().clear(),
-        }
+    fn forget(&self, uri: &str) {
+        self.cache.lock().retain(|(u, _), _| u != uri);
+    }
+
+    fn forget_all(&self) {
+        self.cache.lock().clear();
     }
 
     fn end_frame(&self, _: usize) {}

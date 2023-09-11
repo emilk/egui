@@ -1946,15 +1946,15 @@ impl Context {
 
         let loaders = self.loaders();
 
-        loaders.include.forget(Some(uri));
+        loaders.include.forget(uri);
         for loader in loaders.bytes.lock().iter() {
-            loader.forget(Some(uri));
+            loader.forget(uri);
         }
         for loader in loaders.image.lock().iter() {
-            loader.forget(Some(uri));
+            loader.forget(uri);
         }
         for loader in loaders.texture.lock().iter() {
-            loader.forget(Some(uri));
+            loader.forget(uri);
         }
     }
 
@@ -1968,15 +1968,15 @@ impl Context {
 
         let loaders = self.loaders();
 
-        loaders.include.forget(None);
+        loaders.include.forget_all();
         for loader in loaders.bytes.lock().iter() {
-            loader.forget(None);
+            loader.forget_all();
         }
         for loader in loaders.image.lock().iter() {
-            loader.forget(None);
+            loader.forget_all();
         }
         for loader in loaders.texture.lock().iter() {
-            loader.forget(None);
+            loader.forget_all();
         }
     }
 
