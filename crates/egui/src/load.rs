@@ -293,7 +293,7 @@ pub trait ImageLoader {
 }
 
 /// A texture with a known size.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SizedTexture {
     pub id: TextureId,
     pub size: Vec2,
