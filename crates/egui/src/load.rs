@@ -194,6 +194,8 @@ pub enum BytesPoll {
         bytes: Bytes,
 
         /// Mime type of the content, e.g. `image/png`.
+        ///
+        /// Set if known (e.g. from `Content-Type` HTTP header).
         mime: Option<String>,
     },
 }
