@@ -21,4 +21,3 @@ image = { version = "0.24", default-features = false, features = [
   "jpeg",
   "png",
 ] }
-rfd = "0.11"

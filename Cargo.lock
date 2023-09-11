@@ -2026,7 +2026,6 @@ dependencies = [
  "egui_extras",
  "env_logger",
  "image",
- "rfd",
 ]
 
 [[package]]
