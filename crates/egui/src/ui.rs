@@ -1568,8 +1568,8 @@ impl Ui {
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// ui.image("file://ferris.png");
     /// ui.image("https://picsum.photos/480");
+    /// ui.image("file://assets/ferris.png");
     /// ui.image(egui::include_image!("../assets/ferris.png"));
     /// ui.add(
     ///     egui::Image::new(egui::include_image!("../assets/ferris.png"))
@@ -1577,6 +1577,10 @@ impl Ui {
     /// );
     /// # });
     /// ```
+    ///
+    /// Note: Prefer `include_image` as a source if you're loading an image
+    /// from a file with a statically known path, unless you really want to
+    /// load it at runtime instead!
     ///
     /// See also [`crate::Image`], [`crate::ImageSource`] and [`Self::raw_image`].
     #[inline]
