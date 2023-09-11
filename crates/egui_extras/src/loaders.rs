@@ -1,11 +1,14 @@
 // TODO: automatic cache eviction
 
-/// Installs the default set of loaders
+/// Installs the default set of loaders.
 ///
 /// - `file` loader on non-Wasm targets
 /// - `http` loader (with the `http` feature)
 /// - `image` loader (with the `image` feature)
 /// - `svg` loader with the `svg` feature
+///
+/// Calling this multiple times on the same [`egui::Context`] is safe.
+/// It will never install duplicate loaders.
 ///
 /// ⚠ This will do nothing and you won't see any images unless you enable some features:
 ///
