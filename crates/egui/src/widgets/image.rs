@@ -309,6 +309,7 @@ pub struct ImageSize {
 ///
 /// The final fit will be clamped to [`ImageSize::max_size`].
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ImageFit {
     /// Fit the image to its original size, optionally scaling it by some factor.
     Original(Option<f32>),
@@ -605,6 +606,7 @@ impl Widget for RawImage {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ImageOptions {
     /// Select UV range. Default is (0,0) in top-left, (1,1) bottom right.
     pub uv: Rect,

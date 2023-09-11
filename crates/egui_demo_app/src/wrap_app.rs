@@ -82,6 +82,8 @@ enum Anchor {
     EasyMarkEditor,
     #[cfg(feature = "http")]
     Http,
+    #[cfg(feature = "image_viewer")]
+    ImageViewer,
     Clock,
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     Custom3d,
@@ -142,6 +144,8 @@ pub struct State {
     easy_mark_editor: EasyMarkApp,
     #[cfg(feature = "http")]
     http: crate::apps::HttpApp,
+    #[cfg(feature = "image_viewer")]
+    image_viewer: crate::apps::ImageViewer,
     clock: FractalClockApp,
     color_test: ColorTestApp,
 
@@ -160,19 +164,22 @@ pub struct WrapApp {
 }
 
 impl WrapApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        #[cfg(feature = "image_viewer")]
+        egui_extras::loaders::install(&cc.egui_ctx);
+
         #[allow(unused_mut)]
         let mut slf = Self {
             state: State::default(),
 
             #[cfg(any(feature = "glow", feature = "wgpu"))]
-            custom3d: crate::apps::Custom3d::new(_cc),
+            custom3d: crate::apps::Custom3d::new(cc),
 
             dropped_files: Default::default(),
         };
 
         #[cfg(feature = "persistence")]
-        if let Some(storage) = _cc.storage {
+        if let Some(storage) = cc.storage {
             if let Some(state) = eframe::get_value(storage, eframe::APP_KEY) {
                 slf.state = state;
             }
@@ -203,6 +210,12 @@ impl WrapApp {
                 "🕑 Fractal Clock",
                 Anchor::Clock,
                 &mut self.state.clock as &mut dyn eframe::App,
+            ),
+            #[cfg(feature = "image_viewer")]
+            (
+                "🖼️ Image Viewer",
+                Anchor::ImageViewer,
+                &mut self.state.image_viewer as &mut dyn eframe::App,
             ),
         ];
 
