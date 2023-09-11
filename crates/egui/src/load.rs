@@ -253,7 +253,6 @@ pub trait BytesLoader {
     fn load(&self, ctx: &Context, uri: &str) -> BytesLoadResult;
 
     /// Forget the given `uri`.
-    /// If `uri` is `None`, forget all data.
     ///
     /// If `uri` is cached, it should be evicted from cache,
     /// so that it may be fully reloaded.
@@ -321,7 +320,6 @@ pub trait ImageLoader {
     fn load(&self, ctx: &Context, uri: &str, size_hint: SizeHint) -> ImageLoadResult;
 
     /// Forget the given `uri`.
-    /// If `uri` is `None`, forget all data.
     ///
     /// If `uri` is cached, it should be evicted from cache,
     /// so that it may be fully reloaded.
@@ -427,7 +425,6 @@ pub trait TextureLoader {
     ) -> TextureLoadResult;
 
     /// Forget the given `uri`.
-    /// If `uri` is `None`, forget all data.
     ///
     /// If `uri` is cached, it should be evicted from cache,
     /// so that it may be fully reloaded.
