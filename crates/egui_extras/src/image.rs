@@ -10,7 +10,9 @@ pub use usvg::FitTo;
 /// Load once, and save somewhere in your app state.
 ///
 /// Use the `svg` and `image` features to enable more constructors.
-#[deprecated]
+///
+/// ⚠ This type is deprecated: Consider using [`egui::Image`] instead.
+#[deprecated = "consider using `egui::Image` instead"]
 pub struct RetainedImage {
     debug_name: String,
 

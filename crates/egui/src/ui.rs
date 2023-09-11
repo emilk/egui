@@ -1584,7 +1584,8 @@ impl Ui {
 
     /// Show an image created from a sized texture.
     ///
-    /// You use this method over [`Ui::image`] if you already have a [`TextureHandle`].
+    /// You may use this method over [`Ui::image`] if you already have a [`TextureHandle`]
+    /// or a [`SizedTexture`].
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {

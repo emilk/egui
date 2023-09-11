@@ -1,8 +1,12 @@
-//! Types and traits related to image loading.
+//! # Image loading
 //!
-//! If you just want to load some images, see [`egui_extras`](https://crates.io/crates/egui_extras/),
-//! which contains reasonable default implementations of these traits. You can get started quickly
-//! using [`egui_extras::loaders::install`](https://docs.rs/egui_extras/latest/egui_extras/loaders/fn.install.html).
+//! If you just want to display some images, [`egui_extras`](https://crates.io/crates/egui_extras/)
+//! will get you up and running quickly with its reasonable default implementations of the traits described below.
+//!
+//! 1. Add [`egui_extras`](https://crates.io/crates/egui_extras/) as a dependency with the `all-loaders` feature.
+//! 2. Add a call to [`egui_extras::loaders::install`](https://docs.rs/egui_extras/latest/egui_extras/loaders/fn.install.html)
+//!    in your app's setup code.
+//! 3. Use [`Ui::image`][`crate::ui::Ui::image`] with some [`ImageSource`][`crate::ImageSource`].
 //!
 //! ## Loading process
 //!
@@ -15,12 +19,12 @@
 //!
 //! ```text,ignore
 //! ui.image("file://image.png")
-//! └► ctx.try_load_texture("file://image.png", ...)
-//! └► TextureLoader::load("file://image.png", ...)
-//!    └► ctx.try_load_image("file://image.png", ...)
-//!    └► ImageLoader::load("file://image.png", ...)
-//!       └► ctx.try_load_bytes("file://image.png", ...)
-//!       └► BytesLoader::load("file://image.png", ...)
+//! └► Context::try_load_texture
+//! └► TextureLoader::load
+//!    └► Context::try_load_image
+//!    └► ImageLoader::load
+//!       └► Context::try_load_bytes
+//!       └► BytesLoader::load
 //! ```
 //!
 //! As each layer attempts to load the URI, it first asks the layer below it
@@ -59,6 +63,7 @@ use std::fmt::Debug;
 use std::ops::Deref;
 use std::{error::Error as StdError, fmt::Display, sync::Arc};
 
+/// Represents a failed attempt at loading an image.
 #[derive(Clone, Debug)]
 pub enum LoadError {
     /// This loader does not support this protocol or image format.
@@ -115,6 +120,9 @@ impl From<Vec2> for SizeHint {
     }
 }
 
+/// Represents a byte buffer.
+///
+/// This is essentially `Cow<'static, [u8]>` but with the `Owned` variant being an `Arc`.
 #[derive(Clone)]
 pub enum Bytes {
     Static(&'static [u8]),
@@ -177,6 +185,11 @@ impl Deref for Bytes {
     }
 }
 
+/// Represents bytes which are currently being loaded.
+///
+/// This is similar to [`std::task::Poll`], but the `Pending` variant
+/// contains an optional `size`, which may be used during layout to
+/// pre-allocate space the image.
 #[derive(Clone)]
 pub enum BytesPoll {
     /// Bytes are being loaded.
@@ -213,6 +226,12 @@ pub use crate::generate_loader_id;
 
 pub type BytesLoadResult = Result<BytesPoll>;
 
+/// Represents a loader capable of loading raw unstructured bytes.
+///
+/// It should also provide any subsequent loaders a hint for what the bytes may
+/// represent using [`BytesPoll::Ready::mime`], if it can be inferred.
+///
+/// Implementations are expected to cache at least each `URI`.
 pub trait BytesLoader {
     /// Unique ID of this loader.
     ///
@@ -256,6 +275,11 @@ pub trait BytesLoader {
     fn byte_size(&self) -> usize;
 }
 
+/// Represents an image which is currently being loaded.
+///
+/// This is similar to [`std::task::Poll`], but the `Pending` variant
+/// contains an optional `size`, which may be used during layout to
+/// pre-allocate space the image.
 #[derive(Clone)]
 pub enum ImagePoll {
     /// Image is loading.
@@ -270,6 +294,9 @@ pub enum ImagePoll {
 
 pub type ImageLoadResult = Result<ImagePoll>;
 
+/// Represents a loader capable of loading a raw image.
+///
+/// Implementations are expected to cache at least each `URI`.
 pub trait ImageLoader {
     /// Unique ID of this loader.
     ///
@@ -324,6 +351,7 @@ pub struct SizedTexture {
 }
 
 impl SizedTexture {
+    /// Create a [`SizedTexture`] from a texture `id` with a specific `size`.
     pub fn new(id: impl Into<TextureId>, size: impl Into<Vec2>) -> Self {
         Self {
             id: id.into(),
@@ -331,6 +359,7 @@ impl SizedTexture {
         }
     }
 
+    /// Fetch the [id][`SizedTexture::id`] and [size][`SizedTexture::size`] from a [`TextureHandle`].
     pub fn from_handle(handle: &TextureHandle) -> Self {
         let size = handle.size();
         Self {
@@ -346,6 +375,11 @@ impl From<(TextureId, Vec2)> for SizedTexture {
     }
 }
 
+/// Represents a texture is currently being loaded.
+///
+/// This is similar to [`std::task::Poll`], but the `Pending` variant
+/// contains an optional `size`, which may be used during layout to
+/// pre-allocate space the image.
 #[derive(Clone)]
 pub enum TexturePoll {
     /// Texture is loading.
@@ -360,6 +394,9 @@ pub enum TexturePoll {
 
 pub type TextureLoadResult = Result<TexturePoll>;
 
+/// Represents a loader capable of loading a full texture.
+///
+/// Implementations are expected to cache each combination of `(URI, TextureOptions)`.
 pub trait TextureLoader {
     /// Unique ID of this loader.
     ///

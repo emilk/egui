@@ -10,14 +10,16 @@ use epaint::{util::FloatOrd, RectShape};
 
 /// A widget which displays an image.
 ///
-/// There are two ways to construct this widget:
-/// - [`Image::from_uri`]
-/// - [`Image::from_bytes`]
+/// The task of actually loading the image is deferred to when the `Image` is added to the [`Ui`],
+/// and how it is loaded depends on the provided [`ImageSource`]:
 ///
-/// In both cases the task of actually loading the image
-/// is deferred to when the `Image` is added to the [`Ui`].
+/// - [`ImageSource::Uri`] will load the image using the [asynchronous loading process][`load`].
+/// - [`ImageSource::Bytes`] will also load the image using the [asynchronous loading process][`load`], but with lower latency.
+/// - [`ImageSource::Texture`] will use the provided texture.
 ///
-/// See [`crate::load`] for more information.
+/// To use a texture you already have with a simpler API, consider using [`RawImage`].
+///
+/// See [`load`] for more information.
 #[derive(Debug, Clone)]
 pub struct Image<'a> {
     source: ImageSource<'a>,
@@ -422,12 +424,14 @@ impl Default for ImageSize {
     }
 }
 
-/// This type tells the [`Ui`] how to load the image.
+/// This type tells the [`Ui`] how to load an image.
+///
+/// This is used by [`Image::new`] and [`Ui::image`].
 #[derive(Debug, Clone)]
 pub enum ImageSource<'a> {
     /// Load the image from a URI.
     ///
-    /// This could be a `file://` url, `http://` url, or a `bare` identifier.
+    /// This could be a `file://` url, `http(s)?://` url, or a `bare` identifier.
     /// How the URI will be turned into a texture for rendering purposes is
     /// up to the registered loaders to handle.
     ///
@@ -438,6 +442,8 @@ pub enum ImageSource<'a> {
     ///
     /// The user is responsible for loading the texture, determining its size,
     /// and allocating a [`TextureId`] for it.
+    ///
+    /// Note that a simpler API for this exists in [`RawImage`].
     Texture(SizedTexture),
 
     /// Load the image from some raw bytes.
@@ -447,6 +453,8 @@ pub enum ImageSource<'a> {
     /// - Anything that can be converted to `Arc<[u8]>`
     ///
     /// This instructs the [`Ui`] to cache the raw bytes, which are then further processed by any registered loaders.
+    ///
+    /// See also [`include_image`] for an easy way to load and display static images.
     ///
     /// See [`crate::load`] for more information.
     Bytes(&'static str, Bytes),
