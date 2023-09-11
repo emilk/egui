@@ -1919,21 +1919,16 @@ impl Context {
     /// contains a loader with the given `id`.
     pub fn is_loader_installed(&self, id: &str) -> bool {
         let loaders = self.loaders();
-        if loaders.bytes.lock().iter().any(|loader| loader.id() == id) {
-            return true;
-        }
-        if loaders.image.lock().iter().any(|loader| loader.id() == id) {
-            return true;
-        }
-        if loaders
+
+        let in_bytes = loaders.bytes.lock().iter().any(|loader| loader.id() == id);
+        let in_image = loaders.image.lock().iter().any(|loader| loader.id() == id);
+        let in_texture = loaders
             .texture
             .lock()
             .iter()
-            .any(|loader| loader.id() == id)
-        {
-            return true;
-        }
-        false
+            .any(|loader| loader.id() == id);
+
+        in_bytes || in_image || in_texture
     }
 
     /// Append an entry onto the chain of bytes loaders.
