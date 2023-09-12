@@ -113,12 +113,11 @@ impl eframe::App for ImageViewer {
             ui.label("Tint");
             ui.color_edit_button_srgba(&mut self.image_options.tint);
 
-            // aspect ratio
-            ui.add_space(2.0);
-            ui.checkbox(&mut self.maintain_aspect_ratio, "Maintain aspect ratio");
-
             // fit
-            ui.add_space(2.0);
+            ui.add_space(10.0);
+            ui.label(
+                "The chosen fit will determine how the image tries to fill the available space",
+            );
             egui::ComboBox::from_label("Fit")
                 .selected_text(self.chosen_fit.as_str())
                 .show_ui(ui, |ui| {
@@ -166,7 +165,8 @@ impl eframe::App for ImageViewer {
             }
 
             // max size
-            ui.add_space(2.0);
+            ui.add_space(5.0);
+            ui.label("The calculated size will not exceed the maximum size");
             let had_max_size = self.max_size.is_some();
             let mut has_max_size = had_max_size;
             ui.checkbox(&mut has_max_size, "Max size");
@@ -182,6 +182,11 @@ impl eframe::App for ImageViewer {
                 ui.add(Slider::new(&mut max_size.x, 0.0..=2048.0).text("width"));
                 ui.add(Slider::new(&mut max_size.y, 0.0..=2048.0).text("height"));
             }
+
+            // aspect ratio
+            ui.add_space(5.0);
+            ui.label("Aspect ratio is maintained by scaling both sides as necessary");
+            ui.checkbox(&mut self.maintain_aspect_ratio, "Maintain aspect ratio");
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
