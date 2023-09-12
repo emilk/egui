@@ -210,6 +210,13 @@ impl<'a> Image<'a> {
         self.size.get(available_size, image_size)
     }
 
+    pub fn size(&self) -> Option<Vec2> {
+        match &self.source {
+            ImageSource::Texture(texture) => Some(texture.size),
+            ImageSource::Uri(_) | ImageSource::Bytes(_, _) => None,
+        }
+    }
+
     pub fn source(&self) -> &ImageSource<'a> {
         &self.source
     }
