@@ -1,3 +1,5 @@
+use crate::load::SizedTexture;
+use crate::load::TexturePoll;
 use crate::*;
 
 /// Clickable button with text.
@@ -32,7 +34,7 @@ pub struct Button {
     frame: Option<bool>,
     min_size: Vec2,
     rounding: Option<Rounding>,
-    image: Option<widgets::Image>,
+    image: Option<widgets::RawImage>,
 }
 
 impl Button {
@@ -60,7 +62,10 @@ impl Button {
         text: impl Into<WidgetText>,
     ) -> Self {
         Self {
-            image: Some(widgets::Image::new(texture_id, image_size)),
+            image: Some(widgets::RawImage::new(SizedTexture {
+                id: texture_id,
+                size: image_size.into(),
+            })),
             ..Self::new(text)
         }
     }
@@ -161,7 +166,7 @@ impl Widget for Button {
         }
 
         let mut text_wrap_width = ui.available_width() - 2.0 * button_padding.x;
-        if let Some(image) = image {
+        if let Some(image) = &image {
             text_wrap_width -= image.size().x + ui.spacing().icon_spacing;
         }
         if !shortcut_text.is_empty() {
@@ -173,7 +178,7 @@ impl Widget for Button {
             .then(|| shortcut_text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Button));
 
         let mut desired_size = text.size();
-        if let Some(image) = image {
+        if let Some(image) = &image {
             desired_size.x += image.size().x + ui.spacing().icon_spacing;
             desired_size.y = desired_size.y.max(image.size().y);
         }
@@ -201,7 +206,7 @@ impl Widget for Button {
                     .rect(rect.expand(visuals.expansion), rounding, fill, stroke);
             }
 
-            let text_pos = if let Some(image) = image {
+            let text_pos = if let Some(image) = &image {
                 let icon_spacing = ui.spacing().icon_spacing;
                 pos2(
                     rect.min.x + button_padding.x + image.size().x + icon_spacing,
@@ -226,7 +231,7 @@ impl Widget for Button {
                 );
             }
 
-            if let Some(image) = image {
+            if let Some(image) = &image {
                 let image_rect = Rect::from_min_size(
                     pos2(
                         rect.min.x + button_padding.x,
@@ -468,17 +473,17 @@ impl Widget for RadioButton {
 /// A clickable image within a frame.
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Clone, Debug)]
-pub struct ImageButton {
-    image: widgets::Image,
+pub struct ImageButton<'a> {
+    image: Image<'a>,
     sense: Sense,
     frame: bool,
     selected: bool,
 }
 
-impl ImageButton {
-    pub fn new(texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Self {
+impl<'a> ImageButton<'a> {
+    pub fn new(source: impl Into<ImageSource<'a>>) -> Self {
         Self {
-            image: widgets::Image::new(texture_id, size),
+            image: Image::new(source.into()),
             sense: Sense::click(),
             frame: true,
             selected: false,
@@ -515,29 +520,21 @@ impl ImageButton {
         self.sense = sense;
         self
     }
-}
 
-impl Widget for ImageButton {
-    fn ui(self, ui: &mut Ui) -> Response {
-        let Self {
-            image,
-            sense,
-            frame,
-            selected,
-        } = self;
-
-        let padding = if frame {
+    fn show(&self, ui: &mut Ui, texture: &SizedTexture) -> Response {
+        let padding = if self.frame {
             // so we can see that it is a button:
             Vec2::splat(ui.spacing().button_padding.x)
         } else {
             Vec2::ZERO
         };
-        let padded_size = image.size() + 2.0 * padding;
-        let (rect, response) = ui.allocate_exact_size(padded_size, sense);
+
+        let padded_size = texture.size + 2.0 * padding;
+        let (rect, response) = ui.allocate_exact_size(padded_size, self.sense);
         response.widget_info(|| WidgetInfo::new(WidgetType::ImageButton));
 
         if ui.is_rect_visible(rect) {
-            let (expansion, rounding, fill, stroke) = if selected {
+            let (expansion, rounding, fill, stroke) = if self.selected {
                 let selection = ui.visuals().selection;
                 (
                     Vec2::ZERO,
@@ -545,7 +542,7 @@ impl Widget for ImageButton {
                     selection.bg_fill,
                     selection.stroke,
                 )
-            } else if frame {
+            } else if self.frame {
                 let visuals = ui.style().interact(&response);
                 let expansion = Vec2::splat(visuals.expansion);
                 (
@@ -558,17 +555,19 @@ impl Widget for ImageButton {
                 Default::default()
             };
 
-            let image = image.rounding(rounding); // apply rounding to the image
-
             // Draw frame background (for transparent images):
             ui.painter()
                 .rect_filled(rect.expand2(expansion), rounding, fill);
 
             let image_rect = ui
                 .layout()
-                .align_size_within_rect(image.size(), rect.shrink2(padding));
+                .align_size_within_rect(texture.size, rect.shrink2(padding));
             // let image_rect = image_rect.expand2(expansion); // can make it blurry, so let's not
-            image.paint_at(ui, image_rect);
+            let image_options = ImageOptions {
+                rounding,
+                ..Default::default()
+            }; // apply rounding to the image
+            crate::widgets::image::paint_image_at(ui, image_rect, &image_options, texture);
 
             // Draw frame outline:
             ui.painter()
@@ -576,5 +575,19 @@ impl Widget for ImageButton {
         }
 
         response
+    }
+}
+
+impl<'a> Widget for ImageButton<'a> {
+    fn ui(self, ui: &mut Ui) -> Response {
+        match self.image.load(ui) {
+            Ok(TexturePoll::Ready { texture }) => self.show(ui, &texture),
+            Ok(TexturePoll::Pending { .. }) => ui
+                .spinner()
+                .on_hover_text(format!("Loading {:?}…", self.image.uri())),
+            Err(err) => ui
+                .colored_label(ui.visuals().error_fg_color, "⚠")
+                .on_hover_text(err.to_string()),
+        }
     }
 }

@@ -84,7 +84,7 @@
 //! ui.separator();
 //!
 //! # let my_image = egui::TextureId::default();
-//! ui.image(my_image, [640.0, 480.0]);
+//! ui.raw_image((my_image, egui::Vec2::new(640.0, 480.0)));
 //!
 //! ui.collapsing("Click to see what is hidden!", |ui| {
 //!     ui.label("Not much, as it turns out");
@@ -423,6 +423,28 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 }
 
 // ----------------------------------------------------------------------------
+
+/// Include an image in the binary.
+///
+/// This is a wrapper over `include_bytes!`, and behaves in the same way.
+///
+/// It produces an [`ImageSource`] which can be used directly in [`Ui::image`] or [`Image::new`]:
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// ui.image(egui::include_image!("../assets/ferris.png"));
+/// ui.add(
+///     egui::Image::new(egui::include_image!("../assets/ferris.png"))
+///         .rounding(egui::Rounding::same(6.0))
+/// );
+/// # });
+/// ```
+#[macro_export]
+macro_rules! include_image {
+    ($path: literal) => {
+        $crate::ImageSource::Bytes($path, $crate::load::Bytes::Static(include_bytes!($path)))
+    };
+}
 
 /// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] (and line) on Github
 ///

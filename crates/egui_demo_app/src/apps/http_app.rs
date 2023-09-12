@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use egui_extras::RetainedImage;
 use poll_promise::Promise;
 

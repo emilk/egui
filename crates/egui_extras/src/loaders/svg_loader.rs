@@ -13,6 +13,10 @@ pub struct SvgLoader {
     cache: Mutex<HashMap<(String, SizeHint), Entry>>,
 }
 
+impl SvgLoader {
+    pub const ID: &str = egui::generate_loader_id!(SvgLoader);
+}
+
 fn is_supported(uri: &str) -> bool {
     let Some(ext) = Path::new(uri).extension().and_then(|ext| ext.to_str()) else { return false };
 
@@ -20,6 +24,10 @@ fn is_supported(uri: &str) -> bool {
 }
 
 impl ImageLoader for SvgLoader {
+    fn id(&self) -> &str {
+        Self::ID
+    }
+
     fn load(&self, ctx: &egui::Context, uri: &str, size_hint: SizeHint) -> ImageLoadResult {
         if !is_supported(uri) {
             return Err(LoadError::NotSupported);
@@ -39,7 +47,7 @@ impl ImageLoader for SvgLoader {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
                     crate::log_trace!("started loading {uri:?}");
                     let fit_to = match size_hint {
-                        SizeHint::Original => usvg::FitTo::Original,
+                        SizeHint::Scale(factor) => usvg::FitTo::Zoom(factor.into_inner()),
                         SizeHint::Width(w) => usvg::FitTo::Width(w),
                         SizeHint::Height(h) => usvg::FitTo::Height(h),
                         SizeHint::Size(w, h) => usvg::FitTo::Size(w, h),
@@ -61,6 +69,10 @@ impl ImageLoader for SvgLoader {
 
     fn forget(&self, uri: &str) {
         self.cache.lock().retain(|(u, _), _| u != uri);
+    }
+
+    fn forget_all(&self) {
+        self.cache.lock().clear();
     }
 
     fn byte_size(&self) -> usize {

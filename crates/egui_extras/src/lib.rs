@@ -23,6 +23,7 @@ mod table;
 #[cfg(feature = "chrono")]
 pub use crate::datepicker::DatePickerButton;
 
+#[allow(deprecated)]
 pub use crate::image::RetainedImage;
 pub(crate) use crate::layout::StripLayout;
 pub use crate::sizing::Size;
@@ -63,6 +64,7 @@ pub(crate) use profiling_scopes::*;
 
 /// Log an error with either `log` or `eprintln`
 macro_rules! log_err {
+    ($fmt: literal) => {$crate::log_err!($fmt,)};
     ($fmt: literal, $($arg: tt)*) => {{
         #[cfg(feature = "log")]
         log::error!($fmt, $($arg)*);
@@ -77,6 +79,7 @@ pub(crate) use log_err;
 
 /// Panic in debug builds, log otherwise.
 macro_rules! log_or_panic {
+    ($fmt: literal) => {$crate::log_or_panic!($fmt,)};
     ($fmt: literal, $($arg: tt)*) => {{
         if cfg!(debug_assertions) {
             panic!($fmt, $($arg)*);

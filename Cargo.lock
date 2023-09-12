@@ -1084,16 +1084,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 
 [[package]]
-name = "download_image"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "egui_extras",
- "env_logger",
- "image",
-]
-
-[[package]]
 name = "dyn-clonable"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1231,6 +1221,7 @@ dependencies = [
  "image",
  "log",
  "poll-promise",
+ "rfd",
  "serde",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -1264,6 +1255,7 @@ dependencies = [
  "ehttp",
  "image",
  "log",
+ "mime_guess",
  "puffin",
  "resvg",
  "serde",
@@ -2027,6 +2019,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "images"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui_extras",
+ "env_logger",
+ "image",
+]
+
+[[package]]
 name = "imagesize"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2308,6 +2310,22 @@ dependencies = [
  "log",
  "objc",
  "paste",
+]
+
+[[package]]
+name = "mime"
+version = "0.3.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
+
+[[package]]
+name = "mime_guess"
+version = "2.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4192263c238a5f0d0c6bfd21f336a313a4ce1c450542449ca191bb657b4642ef"
+dependencies = [
+ "mime",
+ "unicase",
 ]
 
 [[package]]
@@ -2999,16 +3017,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "retained_image"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "egui_extras",
- "env_logger",
- "image",
-]
-
-[[package]]
 name = "rfd"
 version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3409,15 +3417,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
-name = "svg"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "egui_extras",
- "env_logger",
-]
-
-[[package]]
 name = "svgtypes"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3745,6 +3744,15 @@ checksum = "ce65604324d3cce9b966701489fbd0cf318cb1f7bd9dd07ac9a4ee6fb791930d"
 dependencies = [
  "tempfile",
  "winapi",
+]
+
+[[package]]
+name = "unicase"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7d2d4dafb69621809a81864c9c1b864479e1235c0dd4e199924b9742439ed89"
+dependencies = [
+ "version_check",
 ]
 
 [[package]]

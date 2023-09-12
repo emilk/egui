@@ -2,9 +2,11 @@
 
 use std::sync::Arc;
 
+use crate::load::Bytes;
+use crate::load::SizedTexture;
 use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
-    input_state::*, layers::GraphicLayers, memory::Options, os::OperatingSystem,
+    input_state::*, layers::GraphicLayers, load::Loaders, memory::Options, os::OperatingSystem,
     output::FullOutput, util::IdTypeMap, TextureHandle, *,
 };
 use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
@@ -167,7 +169,7 @@ struct ContextImpl {
     #[cfg(feature = "accesskit")]
     accesskit_node_classes: accesskit::NodeClassSet,
 
-    loaders: load::Loaders,
+    loaders: Arc<Loaders>,
 }
 
 impl ContextImpl {
@@ -1143,7 +1145,7 @@ impl Context {
     ///         });
     ///
     ///         // Show the image:
-    ///         ui.image(texture, texture.size_vec2());
+    ///         ui.raw_image((texture.id(), texture.size_vec2()));
     ///     }
     /// }
     /// ```
@@ -1689,14 +1691,15 @@ impl Context {
                                 let mut size = vec2(w as f32, h as f32);
                                 size *= (max_preview_size.x / size.x).min(1.0);
                                 size *= (max_preview_size.y / size.y).min(1.0);
-                                ui.image(texture_id, size).on_hover_ui(|ui| {
-                                    // show larger on hover
-                                    let max_size = 0.5 * ui.ctx().screen_rect().size();
-                                    let mut size = vec2(w as f32, h as f32);
-                                    size *= max_size.x / size.x.max(max_size.x);
-                                    size *= max_size.y / size.y.max(max_size.y);
-                                    ui.image(texture_id, size);
-                                });
+                                ui.raw_image(SizedTexture::new(texture_id, size))
+                                    .on_hover_ui(|ui| {
+                                        // show larger on hover
+                                        let max_size = 0.5 * ui.ctx().screen_rect().size();
+                                        let mut size = vec2(w as f32, h as f32);
+                                        size *= max_size.x / size.x.max(max_size.x);
+                                        size *= max_size.y / size.y.max(max_size.y);
+                                        ui.raw_image(SizedTexture::new(texture_id, size));
+                                    });
 
                                 ui.label(format!("{w} x {h}"));
                                 ui.label(format!("{:.3} MB", meta.bytes_used() as f64 * 1e-6));
@@ -1907,60 +1910,90 @@ impl Context {
 impl Context {
     /// Associate some static bytes with a `uri`.
     ///
-    /// The same `uri` may be passed to [`Ui::image2`] later to load the bytes as an image.
-    pub fn include_static_bytes(&self, uri: &'static str, bytes: &'static [u8]) {
-        self.read(|ctx| ctx.loaders.include.insert_static(uri, bytes));
+    /// The same `uri` may be passed to [`Ui::image`] later to load the bytes as an image.
+    pub fn include_bytes(&self, uri: &'static str, bytes: impl Into<Bytes>) {
+        self.loaders().include.insert(uri, bytes.into());
     }
 
-    /// Associate some bytes with a `uri`.
-    ///
-    /// The same `uri` may be passed to [`Ui::image2`] later to load the bytes as an image.
-    pub fn include_bytes(&self, uri: &'static str, bytes: impl Into<Arc<[u8]>>) {
-        self.read(|ctx| ctx.loaders.include.insert_shared(uri, bytes));
+    /// Returns `true` if the chain of bytes, image, or texture loaders
+    /// contains a loader with the given `id`.
+    pub fn is_loader_installed(&self, id: &str) -> bool {
+        let loaders = self.loaders();
+
+        let in_bytes = loaders.bytes.lock().iter().any(|loader| loader.id() == id);
+        let in_image = loaders.image.lock().iter().any(|loader| loader.id() == id);
+        let in_texture = loaders
+            .texture
+            .lock()
+            .iter()
+            .any(|loader| loader.id() == id);
+
+        in_bytes || in_image || in_texture
     }
 
     /// Append an entry onto the chain of bytes loaders.
     ///
     /// See [`load`] for more information.
     pub fn add_bytes_loader(&self, loader: Arc<dyn load::BytesLoader + Send + Sync + 'static>) {
-        self.write(|ctx| ctx.loaders.bytes.push(loader));
+        self.loaders().bytes.lock().push(loader);
     }
 
     /// Append an entry onto the chain of image loaders.
     ///
     /// See [`load`] for more information.
     pub fn add_image_loader(&self, loader: Arc<dyn load::ImageLoader + Send + Sync + 'static>) {
-        self.write(|ctx| ctx.loaders.image.push(loader));
+        self.loaders().image.lock().push(loader);
     }
 
     /// Append an entry onto the chain of texture loaders.
     ///
     /// See [`load`] for more information.
     pub fn add_texture_loader(&self, loader: Arc<dyn load::TextureLoader + Send + Sync + 'static>) {
-        self.write(|ctx| ctx.loaders.texture.push(loader));
+        self.loaders().texture.lock().push(loader);
     }
 
     /// Release all memory and textures related to the given image URI.
     ///
     /// If you attempt to load the image again, it will be reloaded from scratch.
     pub fn forget_image(&self, uri: &str) {
-        self.write(|ctx| {
-            use crate::load::BytesLoader as _;
+        use load::BytesLoader as _;
 
-            ctx.loaders.include.forget(uri);
+        crate::profile_function!();
 
-            for loader in &ctx.loaders.bytes {
-                loader.forget(uri);
-            }
+        let loaders = self.loaders();
 
-            for loader in &ctx.loaders.image {
-                loader.forget(uri);
-            }
+        loaders.include.forget(uri);
+        for loader in loaders.bytes.lock().iter() {
+            loader.forget(uri);
+        }
+        for loader in loaders.image.lock().iter() {
+            loader.forget(uri);
+        }
+        for loader in loaders.texture.lock().iter() {
+            loader.forget(uri);
+        }
+    }
 
-            for loader in &ctx.loaders.texture {
-                loader.forget(uri);
-            }
-        });
+    /// Release all memory and textures related to images used in [`Ui::image`] or [`Image`].
+    ///
+    /// If you attempt to load any images again, they will be reloaded from scratch.
+    pub fn forget_all_images(&self) {
+        use load::BytesLoader as _;
+
+        crate::profile_function!();
+
+        let loaders = self.loaders();
+
+        loaders.include.forget_all();
+        for loader in loaders.bytes.lock().iter() {
+            loader.forget_all();
+        }
+        for loader in loaders.image.lock().iter() {
+            loader.forget_all();
+        }
+        for loader in loaders.texture.lock().iter() {
+            loader.forget_all();
+        }
     }
 
     /// Try loading the bytes from the given uri using any available bytes loaders.
@@ -1977,11 +2010,14 @@ impl Context {
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
     /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
     ///
+    /// ⚠ May deadlock if called from within a `BytesLoader`!
+    ///
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Custom
     pub fn try_load_bytes(&self, uri: &str) -> load::BytesLoadResult {
-        let loaders = self.loaders();
-        for loader in &loaders.bytes {
+        crate::profile_function!();
+
+        for loader in self.loaders().bytes.lock().iter() {
             match loader.load(self, uri) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,
@@ -2005,11 +2041,14 @@ impl Context {
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
     /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
     ///
+    /// ⚠ May deadlock if called from within an `ImageLoader`!
+    ///
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Custom
     pub fn try_load_image(&self, uri: &str, size_hint: load::SizeHint) -> load::ImageLoadResult {
-        let loaders = self.loaders();
-        for loader in &loaders.image {
+        crate::profile_function!();
+
+        for loader in self.loaders().image.lock().iter() {
             match loader.load(self, uri, size_hint) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,
@@ -2033,6 +2072,8 @@ impl Context {
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
     /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
     ///
+    /// ⚠ May deadlock if called from within a `TextureLoader`!
+    ///
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Custom
     pub fn try_load_texture(
@@ -2041,9 +2082,9 @@ impl Context {
         texture_options: TextureOptions,
         size_hint: load::SizeHint,
     ) -> load::TextureLoadResult {
-        let loaders = self.loaders();
+        crate::profile_function!();
 
-        for loader in &loaders.texture {
+        for loader in self.loaders().texture.lock().iter() {
             match loader.load(self, uri, texture_options, size_hint) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,
@@ -2053,9 +2094,9 @@ impl Context {
         Err(load::LoadError::NotSupported)
     }
 
-    fn loaders(&self) -> load::Loaders {
+    fn loaders(&self) -> Arc<Loaders> {
         crate::profile_function!();
-        self.read(|this| this.loaders.clone()) // TODO(emilk): something less slow
+        self.read(|this| this.loaders.clone())
     }
 }
 

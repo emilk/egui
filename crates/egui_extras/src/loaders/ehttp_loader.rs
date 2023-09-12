@@ -5,11 +5,47 @@ use egui::{
 };
 use std::{sync::Arc, task::Poll};
 
-type Entry = Poll<Result<Arc<[u8]>, String>>;
+#[derive(Clone)]
+struct File {
+    bytes: Arc<[u8]>,
+    mime: Option<String>,
+}
+
+impl File {
+    fn from_response(uri: &str, response: ehttp::Response) -> Result<Self, String> {
+        if !response.ok {
+            match response.text() {
+                Some(response_text) => {
+                    return Err(format!(
+                        "failed to load {uri:?}: {} {} {response_text}",
+                        response.status, response.status_text
+                    ))
+                }
+                None => {
+                    return Err(format!(
+                        "failed to load {uri:?}: {} {}",
+                        response.status, response.status_text
+                    ))
+                }
+            }
+        }
+
+        let mime = response.content_type().map(|v| v.to_owned());
+        let bytes = response.bytes.into();
+
+        Ok(File { bytes, mime })
+    }
+}
+
+type Entry = Poll<Result<File, String>>;
 
 #[derive(Default)]
 pub struct EhttpLoader {
     cache: Arc<Mutex<HashMap<String, Entry>>>,
+}
+
+impl EhttpLoader {
+    pub const ID: &str = egui::generate_loader_id!(EhttpLoader);
 }
 
 const PROTOCOLS: &[&str] = &["http://", "https://"];
@@ -18,39 +54,11 @@ fn starts_with_one_of(s: &str, prefixes: &[&str]) -> bool {
     prefixes.iter().any(|prefix| s.starts_with(prefix))
 }
 
-fn get_image_bytes(
-    uri: &str,
-    response: Result<ehttp::Response, String>,
-) -> Result<Arc<[u8]>, String> {
-    let response = response?;
-    if !response.ok {
-        match response.text() {
-            Some(response_text) => {
-                return Err(format!(
-                    "failed to load {uri:?}: {} {} {response_text}",
-                    response.status, response.status_text
-                ))
-            }
-            None => {
-                return Err(format!(
-                    "failed to load {uri:?}: {} {}",
-                    response.status, response.status_text
-                ))
-            }
-        }
-    }
-
-    let Some(content_type) = response.content_type() else {
-    return Err(format!("failed to load {uri:?}: no content-type header found"));
-  };
-    if !content_type.starts_with("image/") {
-        return Err(format!("failed to load {uri:?}: expected content-type starting with \"image/\", found {content_type:?}"));
-    }
-
-    Ok(response.bytes.into())
-}
-
 impl BytesLoader for EhttpLoader {
+    fn id(&self) -> &str {
+        Self::ID
+    }
+
     fn load(&self, ctx: &egui::Context, uri: &str) -> BytesLoadResult {
         if !starts_with_one_of(uri, PROTOCOLS) {
             return Err(LoadError::NotSupported);
@@ -59,9 +67,10 @@ impl BytesLoader for EhttpLoader {
         let mut cache = self.cache.lock();
         if let Some(entry) = cache.get(uri).cloned() {
             match entry {
-                Poll::Ready(Ok(bytes)) => Ok(BytesPoll::Ready {
+                Poll::Ready(Ok(file)) => Ok(BytesPoll::Ready {
                     size: None,
-                    bytes: Bytes::Shared(bytes),
+                    bytes: Bytes::Shared(file.bytes),
+                    mime: file.mime,
                 }),
                 Poll::Ready(Err(err)) => Err(LoadError::Custom(err)),
                 Poll::Pending => Ok(BytesPoll::Pending { size: None }),
@@ -77,7 +86,14 @@ impl BytesLoader for EhttpLoader {
                 let ctx = ctx.clone();
                 let cache = self.cache.clone();
                 move |response| {
-                    let result = get_image_bytes(&uri, response);
+                    let result = match response {
+                        Ok(response) => File::from_response(&uri, response),
+                        Err(err) => {
+                            // Log details; return summary
+                            crate::log_err!("Failed to load {uri:?}: {err}");
+                            Err(format!("Failed to load {uri:?}"))
+                        }
+                    };
                     crate::log_trace!("finished loading {uri:?}");
                     let prev = cache.lock().insert(uri, Poll::Ready(result));
                     assert!(matches!(prev, Some(Poll::Pending)));
@@ -93,12 +109,18 @@ impl BytesLoader for EhttpLoader {
         let _ = self.cache.lock().remove(uri);
     }
 
+    fn forget_all(&self) {
+        self.cache.lock().clear();
+    }
+
     fn byte_size(&self) -> usize {
         self.cache
             .lock()
             .values()
             .map(|entry| match entry {
-                Poll::Ready(Ok(bytes)) => bytes.len(),
+                Poll::Ready(Ok(file)) => {
+                    file.bytes.len() + file.mime.as_ref().map_or(0, |m| m.len())
+                }
                 Poll::Ready(Err(err)) => err.len(),
                 _ => 0,
             })

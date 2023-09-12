@@ -209,11 +209,14 @@ impl WidgetGallery {
         let img_size = 16.0 * texture.size_vec2() / texture.size_vec2().y;
 
         ui.add(doc_link_label("Image", "Image"));
-        ui.image(texture, img_size);
+        ui.raw_image((texture.id(), img_size));
         ui.end_row();
 
         ui.add(doc_link_label("ImageButton", "ImageButton"));
-        if ui.add(egui::ImageButton::new(texture, img_size)).clicked() {
+        if ui
+            .add(egui::ImageButton::new((texture.id(), img_size)))
+            .clicked()
+        {
             *boolean = !*boolean;
         }
         ui.end_row();
