@@ -2038,17 +2038,25 @@ impl Context {
     ///
     /// # Errors
     /// This may fail with:
+    /// - [`LoadError::NoImageLoaders`][no_image_loaders] if tbere are no registered image loaders.
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
     /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
     ///
     /// ⚠ May deadlock if called from within an `ImageLoader`!
     ///
+    /// [no_image_loaders]: crate::load::LoadError::NoImageLoaders
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Custom
     pub fn try_load_image(&self, uri: &str, size_hint: load::SizeHint) -> load::ImageLoadResult {
         crate::profile_function!();
 
-        for loader in self.loaders().image.lock().iter() {
+        let loaders = self.loaders();
+        let loaders = loaders.image.lock();
+        if loaders.is_empty() {
+            return Err(load::LoadError::NoImageLoaders);
+        }
+
+        for loader in loaders.iter() {
             match loader.load(self, uri, size_hint) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,

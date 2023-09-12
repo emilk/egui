@@ -66,6 +66,9 @@ use std::{error::Error as StdError, fmt::Display, sync::Arc};
 /// Represents a failed attempt at loading an image.
 #[derive(Clone, Debug)]
 pub enum LoadError {
+    /// There are no image loaders installed.
+    NoImageLoaders,
+
     /// This loader does not support this protocol or image format.
     NotSupported,
 
@@ -76,6 +79,7 @@ pub enum LoadError {
 impl Display for LoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            LoadError::NoImageLoaders => f.write_str("no image loaders are installed"),
             LoadError::NotSupported => f.write_str("not supported"),
             LoadError::Custom(message) => f.write_str(message),
         }
