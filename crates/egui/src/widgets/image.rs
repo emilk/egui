@@ -279,7 +279,9 @@ impl<'a> Widget for Image<'a> {
                     .spinner()
                     .on_hover_text(format!("Loading {:?}…", self.uri())),
             },
-            Err(err) => ui.colored_label(ui.visuals().error_fg_color, err.to_string()),
+            Err(err) => ui
+                .colored_label(ui.visuals().error_fg_color, "⚠")
+                .on_hover_text(err.to_string()),
         }
     }
 }

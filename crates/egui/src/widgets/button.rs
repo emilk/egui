@@ -582,10 +582,12 @@ impl<'a> Widget for ImageButton<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
         match self.image.load(ui) {
             Ok(TexturePoll::Ready { texture }) => self.show(ui, &texture),
-            Ok(TexturePoll::Pending { .. }) | Err(..) => {
-                // TODO(jprochazk): what to display here?
-                ui.allocate_response(Vec2::ZERO, self.sense)
-            }
+            Ok(TexturePoll::Pending { .. }) => ui
+                .spinner()
+                .on_hover_text(format!("Loading {:?}…", self.image.uri())),
+            Err(err) => ui
+                .colored_label(ui.visuals().error_fg_color, "⚠")
+                .on_hover_text(err.to_string()),
         }
     }
 }
