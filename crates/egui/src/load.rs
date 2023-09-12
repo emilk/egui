@@ -59,6 +59,7 @@ use epaint::util::FloatOrd;
 use epaint::util::OrderedFloat;
 use epaint::TextureHandle;
 use epaint::{textures::TextureOptions, ColorImage, TextureId, Vec2};
+use std::borrow::Cow;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::{error::Error as StdError, fmt::Display, sync::Arc};
@@ -453,12 +454,15 @@ pub trait TextureLoader {
 
 #[derive(Default)]
 pub(crate) struct DefaultBytesLoader {
-    cache: Mutex<HashMap<&'static str, Bytes>>,
+    cache: Mutex<HashMap<Cow<'static, str>, Bytes>>,
 }
 
 impl DefaultBytesLoader {
-    pub(crate) fn insert(&self, uri: &'static str, bytes: impl Into<Bytes>) {
-        self.cache.lock().entry(uri).or_insert_with(|| bytes.into());
+    pub(crate) fn insert(&self, uri: impl Into<Cow<'static, str>>, bytes: impl Into<Bytes>) {
+        self.cache
+            .lock()
+            .entry(uri.into())
+            .or_insert_with(|| bytes.into());
     }
 }
 

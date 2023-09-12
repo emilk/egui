@@ -59,8 +59,8 @@ impl<'a> Image<'a> {
     /// Load the image from some raw bytes.
     ///
     /// See [`ImageSource::Bytes`].
-    pub fn from_bytes(uri: &'static str, bytes: impl Into<Bytes>) -> Self {
-        Self::new(ImageSource::Bytes(uri, bytes.into()))
+    pub fn from_bytes(uri: impl Into<Cow<'static, str>>, bytes: impl Into<Bytes>) -> Self {
+        Self::new(ImageSource::Bytes(uri.into(), bytes.into()))
     }
 
     /// Texture options used when creating the texture.
@@ -226,8 +226,7 @@ impl<'a> Image<'a> {
     /// This will return `<unknown>` for [`ImageSource::Texture`].
     pub fn uri(&self) -> &str {
         match &self.source {
-            ImageSource::Bytes(uri, _) => uri,
-            ImageSource::Uri(uri) => uri,
+            ImageSource::Bytes(uri, _) | ImageSource::Uri(uri) => uri,
             // Note: texture source is never in "loading" state
             ImageSource::Texture(_) => "<unknown>",
         }
@@ -247,7 +246,7 @@ impl<'a> Image<'a> {
                 self.size.hint(ui.available_size()),
             ),
             ImageSource::Bytes(uri, bytes) => {
-                ui.ctx().include_bytes(uri.as_ref(), bytes);
+                ui.ctx().include_bytes(uri.clone(), bytes);
                 ui.ctx().try_load_texture(
                     uri.as_ref(),
                     self.texture_options,
@@ -467,7 +466,7 @@ pub enum ImageSource<'a> {
     /// See also [`include_image`] for an easy way to load and display static images.
     ///
     /// See [`crate::load`] for more information.
-    Bytes(&'static str, Bytes),
+    Bytes(Cow<'static, str>, Bytes),
 }
 
 impl<'a> From<&'a str> for ImageSource<'a> {
@@ -507,7 +506,21 @@ impl<'a> From<Cow<'a, str>> for ImageSource<'a> {
 impl<T: Into<Bytes>> From<(&'static str, T)> for ImageSource<'static> {
     #[inline]
     fn from((uri, bytes): (&'static str, T)) -> Self {
+        Self::Bytes(uri.into(), bytes.into())
+    }
+}
+
+impl<T: Into<Bytes>> From<(Cow<'static, str>, T)> for ImageSource<'static> {
+    #[inline]
+    fn from((uri, bytes): (Cow<'static, str>, T)) -> Self {
         Self::Bytes(uri, bytes.into())
+    }
+}
+
+impl<T: Into<Bytes>> From<(String, T)> for ImageSource<'static> {
+    #[inline]
+    fn from((uri, bytes): (String, T)) -> Self {
+        Self::Bytes(uri.into(), bytes.into())
     }
 }
 

@@ -1,5 +1,6 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use crate::load::Bytes;
@@ -1911,8 +1912,8 @@ impl Context {
     /// Associate some static bytes with a `uri`.
     ///
     /// The same `uri` may be passed to [`Ui::image`] later to load the bytes as an image.
-    pub fn include_bytes(&self, uri: &'static str, bytes: impl Into<Bytes>) {
-        self.loaders().include.insert(uri, bytes.into());
+    pub fn include_bytes(&self, uri: impl Into<Cow<'static, str>>, bytes: impl Into<Bytes>) {
+        self.loaders().include.insert(uri, bytes);
     }
 
     /// Returns `true` if the chain of bytes, image, or texture loaders
