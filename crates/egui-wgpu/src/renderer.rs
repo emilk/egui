@@ -605,9 +605,8 @@ impl Renderer {
 
     /// Get the WGPU texture and bind group associated to a texture that has been allocated by egui.
     ///
-    /// This could be used by custom paint hooks to render images that have been added through with
-    /// [`egui_extras::RetainedImage`](https://docs.rs/egui_extras/latest/egui_extras/image/struct.RetainedImage.html)
-    /// or [`epaint::Context::load_texture`](https://docs.rs/egui/latest/egui/struct.Context.html#method.load_texture).
+    /// This could be used by custom paint hooks to render images that have been added through
+    /// [`epaint::Context::load_texture`](https://docs.rs/egui/latest/egui/struct.Context.html#method.load_texture).
     pub fn texture(
         &self,
         id: &epaint::TextureId,
