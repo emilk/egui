@@ -16,7 +16,7 @@ crate-type = ["cdylib", "rlib"]
 
 
 [features]
-default = ["glow", "persistence", "image_viewer"]
+default = ["glow", "persistence"]
 
 http = ["ehttp", "image", "poll-promise", "egui_extras/image"]
 image_viewer = ["image", "egui_extras/all-loaders", "rfd"]
