@@ -193,7 +193,7 @@ impl Widget for Button<'_> {
         }
         desired_size = desired_size.at_least(min_size);
 
-        let (rect, response) = ui.allocate_at_least(desired_size, sense);
+        let (rect, mut response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, text.text()));
 
         if ui.is_rect_visible(rect) {
@@ -245,12 +245,12 @@ impl Widget for Button<'_> {
                         image.paint_at(ui, image_rect, &texture);
                     }
                     Ok(TexturePoll::Pending { .. }) => {
-                        ui.add(Spinner::new().size(image_rect.size().min_elem()))
-                            .on_hover_text(format!("Loading {:?}…", image.uri()));
+                        Spinner::new().paint_at(ui, image_rect);
+                        response = response.on_hover_text(format!("Loading {:?}…", image.uri()));
                     }
                     Err(err) => {
-                        ui.colored_label(ui.visuals().error_fg_color, "⚠")
-                            .on_hover_text(err.to_string());
+                        ui.colored_label(ui.visuals().error_fg_color, "⚠");
+                        response = response.on_hover_text(err.to_string());
                     }
                 };
             }
