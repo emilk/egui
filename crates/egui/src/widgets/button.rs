@@ -153,11 +153,9 @@ impl Widget for Button<'_> {
 
         let image_size = match image
             .as_ref()
-            .and_then(|image| Some((image, image.load(ui).ok()?)))
+            .and_then(|image| Some((image, image.load(ui).ok()?.size()?)))
         {
-            Some((image, TexturePoll::Ready { texture })) => {
-                image.calculate_size(ui.available_size(), texture.size)
-            }
+            Some((image, image_size)) => image.calculate_size(ui.available_size(), image_size),
             _ => Vec2::splat(0.0),
         };
 
