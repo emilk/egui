@@ -153,7 +153,7 @@ impl From<Vec<Size>> for Sizing {
 #[test]
 fn test_sizing() {
     let sizing: Sizing = vec![].into();
-    assert_eq!(sizing.to_lengths(50.0, 0.0), vec![]);
+    assert_eq!(sizing.to_lengths(50.0, 0.0), Vec::<f32>::new());
 
     let sizing: Sizing = vec![Size::remainder().at_least(20.0), Size::remainder()].into();
     assert_eq!(sizing.to_lengths(50.0, 0.0), vec![25.0, 25.0]);

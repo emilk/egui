@@ -45,7 +45,6 @@ impl super::View for About {
 }
 
 fn about_immediate_mode(ui: &mut egui::Ui) {
-    use crate::syntax_highlighting::code_view_ui;
     ui.style_mut().spacing.interact_size.y = 0.0; // hack to make `horizontal_wrapped` work better with text.
 
     ui.horizontal_wrapped(|ui| {
@@ -56,7 +55,7 @@ fn about_immediate_mode(ui: &mut egui::Ui) {
         });
 
     ui.add_space(8.0);
-    code_view_ui(
+    crate::rust_view_ui(
         ui,
         r#"
   if ui.button("Save").clicked() {

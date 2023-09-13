@@ -10,11 +10,11 @@ impl DefaultBytesLoader {
         self.cache
             .lock()
             .entry(uri.into())
-            .or_insert_with_key(|uri| {
+            .or_insert_with_key(|_uri| {
                 let bytes: Bytes = bytes.into();
 
                 #[cfg(feature = "log")]
-                log::trace!("loaded {} bytes for uri {uri:?}", bytes.len());
+                log::trace!("loaded {} bytes for uri {_uri:?}", bytes.len());
 
                 bytes
             });

@@ -23,7 +23,7 @@ image_viewer = ["image", "egui_extras/all-loaders", "rfd"]
 persistence = ["eframe/persistence", "egui/persistence", "serde"]
 web_screen_reader = ["eframe/web_screen_reader"]                  # experimental
 serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]
-syntax_highlighting = ["egui_demo_lib/syntax_highlighting"]
+syntect = ["egui_demo_lib/syntect"]
 
 glow = ["eframe/glow"]
 wgpu = ["eframe/wgpu", "bytemuck"]
