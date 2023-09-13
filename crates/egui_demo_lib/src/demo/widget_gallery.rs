@@ -209,10 +209,8 @@ impl WidgetGallery {
         let img_size = 16.0 * texture.size_vec2() / texture.size_vec2().y;
 
         ui.add(doc_link_label("Image", "Image"));
-        ui.allocate_ui(img_size * 2.0 + egui::Vec2::new(8.0, 0.0), |ui| {
-            ui.image((texture.id(), img_size));
-            ui.image(egui::include_image!("../../assets/icon.png"));
-        });
+        let egui_icon = egui::include_image!("../../assets/icon.png");
+        ui.add(egui::Image::new(egui_icon).max_size(Some(egui::Vec2::splat(32.0))));
         ui.end_row();
 
         ui.add(doc_link_label("ImageButton", "ImageButton"));
