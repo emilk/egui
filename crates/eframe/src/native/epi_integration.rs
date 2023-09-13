@@ -622,6 +622,7 @@ const STORAGE_EGUI_MEMORY_KEY: &str = "egui";
 const STORAGE_WINDOW_KEY: &str = "window";
 
 pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<WindowSettings> {
+    crate::profile_function!();
     #[cfg(feature = "persistence")]
     {
         epi::get_value(_storage?, STORAGE_WINDOW_KEY)
@@ -631,6 +632,7 @@ pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<Windo
 }
 
 pub fn load_egui_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Memory> {
+    crate::profile_function!();
     #[cfg(feature = "persistence")]
     {
         epi::get_value(_storage?, STORAGE_EGUI_MEMORY_KEY)
