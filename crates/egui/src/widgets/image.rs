@@ -317,34 +317,15 @@ impl<'a> Widget for Image<'a> {
                 response
             }
             Ok(TexturePoll::Pending { size }) => {
-                let spinner = |ui: &mut Ui| {
-                    let show_spinner = self
-                        .show_loading_spinner
-                        .unwrap_or(ui.style().image_loading_spinners);
-                    if show_spinner {
-                        ui.spinner()
-                            .on_hover_text(format!("Loading {:?}…", self.uri()))
-                    } else {
-                        ui.allocate_response(
-                            Vec2::splat(ui.style().spacing.interact_size.y),
-                            Sense::hover(),
-                        )
-                    }
-                };
-
-                match size {
-                    Some(size) => {
-                        let size = self.calculate_size(ui.available_size(), size);
-                        ui.allocate_ui(size, |ui| {
-                            ui.with_layout(
-                                Layout::centered_and_justified(Direction::TopDown),
-                                spinner,
-                            )
-                        })
-                        .response
-                    }
-                    None => spinner(ui),
+                let size = size.unwrap_or_else(|| Vec2::splat(ui.style().spacing.interact_size.y));
+                let response = ui.allocate_response(size, Sense::hover());
+                let show_spinner = self
+                    .show_loading_spinner
+                    .unwrap_or(ui.style().image_loading_spinners);
+                if show_spinner {
+                    Spinner::new().paint_at(ui, response.rect);
                 }
+                response.on_hover_text(format!("Loading {:?}…", self.uri()))
             }
             Err(err) => ui
                 .colored_label(ui.visuals().error_fg_color, "⚠")
