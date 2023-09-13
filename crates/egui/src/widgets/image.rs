@@ -26,7 +26,7 @@ pub struct Image<'a> {
     image_options: ImageOptions,
     sense: Sense,
     size: ImageSize,
-    show_loading_spinner: Option<bool>,
+    pub(crate) show_loading_spinner: Option<bool>,
 }
 
 impl<'a> Image<'a> {
@@ -275,11 +275,7 @@ impl<'a> Image<'a> {
     /// This will return `<unknown>` for [`ImageSource::Texture`].
     #[inline]
     pub fn uri(&self) -> &str {
-        match &self.source {
-            ImageSource::Bytes(uri, _) | ImageSource::Uri(uri) => uri,
-            // Note: texture source is never in "loading" state
-            ImageSource::Texture(_) => "<unknown>",
-        }
+        self.source.uri().unwrap_or("<unknown>")
     }
 
     /// Load the image from its [`Image::source`], returning the resulting [`SizedTexture`].
@@ -288,22 +284,10 @@ impl<'a> Image<'a> {
     ///
     /// May fail if they underlying [`Context::try_load_texture`] call fails.
     pub fn load(&self, ui: &Ui) -> TextureLoadResult {
-        match self.source.clone() {
-            ImageSource::Texture(texture) => Ok(TexturePoll::Ready { texture }),
-            ImageSource::Uri(uri) => ui.ctx().try_load_texture(
-                uri.as_ref(),
-                self.texture_options,
-                self.size.hint(ui.available_size()),
-            ),
-            ImageSource::Bytes(uri, bytes) => {
-                ui.ctx().include_bytes(uri.clone(), bytes);
-                ui.ctx().try_load_texture(
-                    uri.as_ref(),
-                    self.texture_options,
-                    self.size.hint(ui.available_size()),
-                )
-            }
-        }
+        let size_hint = self.size.hint(ui.available_size());
+        self.source
+            .clone()
+            .load(ui.ctx(), self.texture_options, size_hint)
     }
 
     #[inline]
@@ -315,22 +299,27 @@ impl<'a> Image<'a> {
 impl<'a> Widget for Image<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
         match self.load(ui) {
-            Ok(TexturePoll::Ready { texture }) => {
-                let size = self.calculate_size(ui.available_size(), texture.size);
-                let (rect, response) = ui.allocate_exact_size(size, self.sense);
-                self.paint_at(ui, rect, &texture);
-                response
-            }
-            Ok(TexturePoll::Pending { size }) => {
-                let size = size.unwrap_or_else(|| Vec2::splat(ui.style().spacing.interact_size.y));
-                let response = ui.allocate_response(size, Sense::hover());
-                let show_spinner = self
-                    .show_loading_spinner
-                    .unwrap_or(ui.style().image_loading_spinners);
-                if show_spinner {
-                    Spinner::new().paint_at(ui, response.rect);
+            Ok(texture_poll) => {
+                let texture_size = texture_poll.size();
+                let texture_size =
+                    texture_size.unwrap_or_else(|| Vec2::splat(ui.style().spacing.interact_size.y));
+                let ui_size = self.calculate_size(ui.available_size(), texture_size);
+                let (rect, response) = ui.allocate_exact_size(ui_size, self.sense);
+                match texture_poll {
+                    TexturePoll::Ready { texture } => {
+                        self.paint_at(ui, rect, &texture);
+                        response
+                    }
+                    TexturePoll::Pending { .. } => {
+                        let show_spinner = self
+                            .show_loading_spinner
+                            .unwrap_or(ui.style().image_loading_spinners);
+                        if show_spinner {
+                            Spinner::new().paint_at(ui, response.rect);
+                        }
+                        response.on_hover_text(format!("Loading {:?}…", self.uri()))
+                    }
                 }
-                response.on_hover_text(format!("Loading {:?}…", self.uri()))
             }
             Err(err) => ui
                 .colored_label(ui.visuals().error_fg_color, "⚠")
@@ -514,6 +503,83 @@ pub enum ImageSource<'a> {
     Bytes(Cow<'static, str>, Bytes),
 }
 
+impl<'a> ImageSource<'a> {
+    /// # Errors
+    /// Failure to load the texture.
+    pub fn load(
+        self,
+        ctx: &Context,
+        texture_options: TextureOptions,
+        size_hint: SizeHint,
+    ) -> TextureLoadResult {
+        match self {
+            Self::Texture(texture) => Ok(TexturePoll::Ready { texture }),
+            Self::Uri(uri) => ctx.try_load_texture(uri.as_ref(), texture_options, size_hint),
+            Self::Bytes(uri, bytes) => {
+                ctx.include_bytes(uri.clone(), bytes);
+                ctx.try_load_texture(uri.as_ref(), texture_options, size_hint)
+            }
+        }
+    }
+
+    /// Get the `uri` that this image was constructed from.
+    ///
+    /// This will return `None` for [`Self::Texture`].
+    pub fn uri(&self) -> Option<&str> {
+        match self {
+            ImageSource::Bytes(uri, _) | ImageSource::Uri(uri) => Some(uri),
+            ImageSource::Texture(_) => None,
+        }
+    }
+}
+
+pub fn paint_texture_load_result(
+    ui: &Ui,
+    tlr: &TextureLoadResult,
+    rect: Rect,
+    show_loading_spinner: bool,
+    options: &ImageOptions,
+) {
+    match tlr {
+        Ok(TexturePoll::Ready { texture }) => {
+            paint_image_at(ui, rect, options, texture);
+        }
+        Ok(TexturePoll::Pending { .. }) => {
+            if show_loading_spinner {
+                Spinner::new().paint_at(ui, rect);
+            }
+        }
+        Err(_) => {
+            let font_id = TextStyle::Body.resolve(ui.style());
+            ui.painter().text(
+                rect.center(),
+                Align2::CENTER_CENTER,
+                "⚠",
+                font_id,
+                ui.visuals().error_fg_color,
+            );
+        }
+    }
+}
+
+pub fn texture_load_result_response(
+    source: &ImageSource<'_>,
+    tlr: &TextureLoadResult,
+    response: Response,
+) -> Response {
+    match tlr {
+        Ok(TexturePoll::Ready { .. }) => response,
+        Ok(TexturePoll::Pending { .. }) => {
+            if let Some(uri) = source.uri() {
+                response.on_hover_text(format!("Loading {uri}…"))
+            } else {
+                response.on_hover_text("Loading image…")
+            }
+        }
+        Err(err) => response.on_hover_text(err.to_string()),
+    }
+}
+
 impl<'a> From<&'a str> for ImageSource<'a> {
     #[inline]
     fn from(value: &'a str) -> Self {
@@ -620,7 +686,7 @@ impl Default for ImageOptions {
 }
 
 /// Paint a `SizedTexture` as an image according to some `ImageOptions` at a given `rect`.
-pub fn paint_image_at(ui: &mut Ui, rect: Rect, options: &ImageOptions, texture: &SizedTexture) {
+pub fn paint_image_at(ui: &Ui, rect: Rect, options: &ImageOptions, texture: &SizedTexture) {
     if !ui.is_rect_visible(rect) {
         return;
     }

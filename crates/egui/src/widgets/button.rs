@@ -237,19 +237,19 @@ impl Widget for Button<'_> {
                     ),
                     image_size,
                 );
-                match image.load(ui) {
-                    Ok(TexturePoll::Ready { texture }) => {
-                        image.paint_at(ui, image_rect, &texture);
-                    }
-                    Ok(TexturePoll::Pending { .. }) => {
-                        Spinner::new().paint_at(ui, image_rect);
-                        response = response.on_hover_text(format!("Loading {:?}…", image.uri()));
-                    }
-                    Err(err) => {
-                        ui.colored_label(ui.visuals().error_fg_color, "⚠");
-                        response = response.on_hover_text(err.to_string());
-                    }
-                };
+                let tlr = image.load(ui);
+                let show_loading_spinner = image
+                    .show_loading_spinner
+                    .unwrap_or(ui.style().image_loading_spinners);
+                widgets::image::paint_texture_load_result(
+                    ui,
+                    &tlr,
+                    image_rect,
+                    show_loading_spinner,
+                    image.image_options(),
+                );
+                response =
+                    widgets::image::texture_load_result_response(image.source(), &tlr, response);
             }
         }
 

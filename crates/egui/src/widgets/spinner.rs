@@ -32,7 +32,7 @@ impl Spinner {
         self
     }
 
-    pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
+    pub fn paint_at(&self, ui: &Ui, rect: Rect) {
         if ui.is_rect_visible(rect) {
             ui.ctx().request_repaint();
 
