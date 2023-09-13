@@ -28,7 +28,7 @@ pub fn code_view_ui(
     )
 }
 
-/// Add syntax highlighing to a code string.
+/// Add syntax highlighting to a code string.
 ///
 /// The results are memoized, so you can call this every frame without performance penalty.
 pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &str) -> LayoutJob {
