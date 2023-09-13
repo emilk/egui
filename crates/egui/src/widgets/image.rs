@@ -256,6 +256,11 @@ impl<'a> Image<'a> {
     }
 
     #[inline]
+    pub fn image_options(&self) -> &ImageOptions {
+        &self.image_options
+    }
+
+    #[inline]
     pub fn source(&self) -> &ImageSource<'a> {
         &self.source
     }

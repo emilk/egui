@@ -574,9 +574,9 @@ impl<'a> ImageButton<'a> {
                 .align_size_within_rect(texture.size, rect.shrink2(padding));
             // let image_rect = image_rect.expand2(expansion); // can make it blurry, so let's not
             let image_options = ImageOptions {
-                rounding,
-                ..Default::default()
-            }; // apply rounding to the image
+                rounding, // apply rounding to the image
+                ..self.image.image_options().clone()
+            };
             crate::widgets::image::paint_image_at(ui, image_rect, &image_options, texture);
 
             // Draw frame outline:
