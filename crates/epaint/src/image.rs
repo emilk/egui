@@ -280,6 +280,7 @@ impl FontImage {
     /// `gamma` should normally be set to `None`.
     ///
     /// If you are having problems with text looking skinny and pixelated, try using a low gamma, e.g. `0.4`.
+    #[inline]
     pub fn srgba_pixels(
         &'_ self,
         gamma: Option<f32>,
@@ -338,6 +339,7 @@ impl From<FontImage> for ImageData {
     }
 }
 
+#[inline]
 fn fast_round(r: f32) -> u8 {
     (r + 0.5).floor() as _ // rust does a saturating cast since 1.45
 }

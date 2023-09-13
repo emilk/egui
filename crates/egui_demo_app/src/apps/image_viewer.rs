@@ -143,7 +143,9 @@ impl eframe::App for ImageViewer {
                     if !matches!(self.fit, ImageFit::Exact(_)) {
                         self.fit = ImageFit::Exact(Vec2::splat(128.0));
                     }
-                    let ImageFit::Exact(size) = &mut self.fit else { unreachable!() };
+                    let ImageFit::Exact(size) = &mut self.fit else {
+                        unreachable!()
+                    };
                     ui.add(Slider::new(&mut size.x, 0.0..=2048.0).text("width"));
                     ui.add(Slider::new(&mut size.y, 0.0..=2048.0).text("height"));
                 }
@@ -151,7 +153,9 @@ impl eframe::App for ImageViewer {
                     if !matches!(self.fit, ImageFit::Fraction(_)) {
                         self.fit = ImageFit::Fraction(Vec2::splat(1.0));
                     }
-                    let ImageFit::Fraction(fract) = &mut self.fit else { unreachable!() };
+                    let ImageFit::Fraction(fract) = &mut self.fit else {
+                        unreachable!()
+                    };
                     ui.add(Slider::new(&mut fract.x, 0.0..=1.0).text("width"));
                     ui.add(Slider::new(&mut fract.y, 0.0..=1.0).text("height"));
                 }
@@ -159,7 +163,9 @@ impl eframe::App for ImageViewer {
                     if !matches!(self.fit, ImageFit::Original(_)) {
                         self.fit = ImageFit::Original(Some(1.0));
                     }
-                    let ImageFit::Original(Some(scale)) = &mut self.fit else { unreachable!() };
+                    let ImageFit::Original(Some(scale)) = &mut self.fit else {
+                        unreachable!()
+                    };
                     ui.add(Slider::new(scale, 0.1..=4.0).text("scale"));
                 }
             }
