@@ -85,7 +85,9 @@ pub enum LoadError {
 impl Display for LoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LoadError::NoImageLoaders => f.write_str("no image loaders are installed"),
+            LoadError::NoImageLoaders => f.write_str(
+                "No image loaders are installed. If you're trying to load some images \
+                for the first time, follow the steps outlined in https://docs.rs/egui/latest/egui/load/index.html"),
             LoadError::NotSupported => f.write_str("not supported"),
             LoadError::Custom(message) => f.write_str(message),
         }
