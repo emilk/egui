@@ -104,7 +104,10 @@ fn create_event_loop_builder(
 
 fn create_event_loop(native_options: &mut epi::NativeOptions) -> EventLoop<UserEvent> {
     crate::profile_function!();
-    create_event_loop_builder(native_options).build()
+    let mut builder = create_event_loop_builder(native_options);
+
+    crate::profile_scope!("EventLoopBuilder::build");
+    builder.build()
 }
 
 /// Access a thread-local event loop.
@@ -142,7 +145,7 @@ fn run_and_return(
     let mut returned_result = Ok(());
 
     event_loop.run_return(|event, event_loop, control_flow| {
-        crate::profile_scope!("on_winit_event", short_event_description(&event));
+        crate::profile_scope!("winit_event", short_event_description(&event));
 
         let event_result = match &event {
             winit::event::Event::LoopDestroyed => {
@@ -273,7 +276,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
     let mut next_repaint_time = Instant::now();
 
     event_loop.run(move |event, event_loop, control_flow| {
-        crate::profile_scope!("on_winit_event", short_event_description(&event));
+        crate::profile_scope!("winit_event", short_event_description(&event));
 
         let event_result = match event {
             winit::event::Event::LoopDestroyed => {
@@ -429,6 +432,8 @@ mod glow_integration {
             native_options: &epi::NativeOptions,
             event_loop: &EventLoopWindowTarget<UserEvent>,
         ) -> Result<Self> {
+            crate::profile_function!();
+
             use glutin::prelude::*;
             // convert native options to glutin options
             let hardware_acceleration = match native_options.hardware_acceleration {
@@ -469,26 +474,35 @@ mod glow_integration {
                 "trying to create glutin Display with config: {:?}",
                 &config_template_builder
             );
-            // create gl display. this may probably create a window too on most platforms. definitely on `MS windows`. never on android.
-            let (window, gl_config) = glutin_winit::DisplayBuilder::new()
+
+            // Create GL display. This may probably create a window too on most platforms. Definitely on `MS windows`. Never on Android.
+            let display_builder = glutin_winit::DisplayBuilder::new()
                 // we might want to expose this option to users in the future. maybe using an env var or using native_options.
                 .with_preference(glutin_winit::ApiPrefence::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
-                .with_window_builder(Some(winit_window_builder.clone()))
-                .build(
-                    event_loop,
-                    config_template_builder.clone(),
-                    |mut config_iterator| {
-                        let config = config_iterator.next().expect(
+                .with_window_builder(Some(winit_window_builder.clone()));
+
+            let (window, gl_config) = {
+                crate::profile_scope!("DisplayBuilder::build");
+
+                display_builder
+                    .build(
+                        event_loop,
+                        config_template_builder.clone(),
+                        |mut config_iterator| {
+                            let config = config_iterator.next().expect(
                             "failed to find a matching configuration for creating glutin config",
                         );
-                        log::debug!(
-                            "using the first config from config picker closure. config: {:?}",
-                            &config
-                        );
-                        config
-                    },
-                )
-                .map_err(|e| crate::Error::NoGlutinConfigs(config_template_builder.build(), e))?;
+                            log::debug!(
+                                "using the first config from config picker closure. config: {:?}",
+                                &config
+                            );
+                            config
+                        },
+                    )
+                    .map_err(|e| {
+                        crate::Error::NoGlutinConfigs(config_template_builder.build(), e)
+                    })?
+            };
 
             let gl_display = gl_config.display();
             log::debug!(
@@ -508,10 +522,15 @@ mod glow_integration {
             let fallback_context_attributes = glutin::context::ContextAttributesBuilder::new()
                 .with_context_api(glutin::context::ContextApi::Gles(None))
                 .build(raw_window_handle);
-            let gl_context = match gl_config
-                .display()
-                .create_context(&gl_config, &context_attributes)
-            {
+
+            let gl_context_result = {
+                crate::profile_scope!("create_context");
+                gl_config
+                    .display()
+                    .create_context(&gl_config, &context_attributes)
+            };
+
+            let gl_context = match gl_context_result {
                 Ok(it) => it,
                 Err(err) => {
                     log::warn!("failed to create context using default context attributes {context_attributes:?} due to error: {err}");
@@ -703,6 +722,7 @@ mod glow_integration {
             }
 
             let gl = unsafe {
+                crate::profile_scope!("glow::Context::from_loader_function");
                 glow::Context::from_loader_function(|s| {
                     let s = std::ffi::CString::new(s)
                         .expect("failed to construct C string from string for gl proc address");
@@ -1204,6 +1224,7 @@ mod wgpu_integration {
             window: winit::window::Window,
         ) -> std::result::Result<(), egui_wgpu::WgpuError> {
             crate::profile_function!();
+
             #[allow(unsafe_code, unused_mut, unused_unsafe)]
             let mut painter = egui_wgpu::winit::Painter::new(
                 self.native_options.wgpu_options.clone(),
@@ -1582,6 +1603,7 @@ fn short_event_description(event: &winit::event::Event<'_, UserEvent>) -> &'stat
         Event::LoopDestroyed => "Event::LoopDestroyed",
         Event::UserEvent(user_event) => match user_event {
             UserEvent::RequestRepaint { .. } => "UserEvent::RequestRepaint",
+            #[cfg(feature = "accesskit")]
             UserEvent::AccessKitActionRequest(_) => "UserEvent::AccessKitActionRequest",
         },
         Event::DeviceEvent { event, .. } => match event {

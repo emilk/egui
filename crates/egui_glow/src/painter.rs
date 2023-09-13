@@ -494,10 +494,13 @@ impl Painter {
                     "Mismatch between texture size and texel count"
                 );
 
-                let data: Vec<u8> = image
-                    .srgba_pixels(None)
-                    .flat_map(|a| a.to_array())
-                    .collect();
+                let data: Vec<u8> = {
+                    crate::profile_scope!("font -> sRGBA");
+                    image
+                        .srgba_pixels(None)
+                        .flat_map(|a| a.to_array())
+                        .collect()
+                };
 
                 self.upload_texture_srgb(delta.pos, image.size, delta.options, &data);
             }
@@ -511,6 +514,7 @@ impl Painter {
         options: egui::TextureOptions,
         data: &[u8],
     ) {
+        crate::profile_function!();
         assert_eq!(data.len(), w * h * 4);
         assert!(
             w <= self.max_texture_side && h <= self.max_texture_side,
@@ -561,6 +565,7 @@ impl Painter {
 
             let level = 0;
             if let Some([x, y]) = pos {
+                crate::profile_scope!("gl.tex_sub_image_2d");
                 self.gl.tex_sub_image_2d(
                     glow::TEXTURE_2D,
                     level,
@@ -575,6 +580,7 @@ impl Painter {
                 check_for_gl_error!(&self.gl, "tex_sub_image_2d");
             } else {
                 let border = 0;
+                crate::profile_scope!("gl.tex_image_2d");
                 self.gl.tex_image_2d(
                     glow::TEXTURE_2D,
                     level,
