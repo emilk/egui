@@ -203,22 +203,29 @@ pub fn depth_format_from_bits(depth_buffer: u8, stencil_buffer: u8) -> Option<wg
 
 // ---------------------------------------------------------------------------
 
-/// Profiling macro for feature "puffin"
-macro_rules! profile_function {
-    ($($arg: tt)*) => {
-        #[cfg(feature = "puffin")]
-        #[cfg(not(target_arch = "wasm32"))]
-        puffin::profile_function!($($arg)*);
-    };
-}
-pub(crate) use profile_function;
+mod profiling_scopes {
+    #![allow(unused_macros)]
+    #![allow(unused_imports)]
 
-/// Profiling macro for feature "puffin"
-macro_rules! profile_scope {
-    ($($arg: tt)*) => {
-        #[cfg(feature = "puffin")]
-        #[cfg(not(target_arch = "wasm32"))]
-        puffin::profile_scope!($($arg)*);
-    };
+    /// Profiling macro for feature "puffin"
+    macro_rules! profile_function {
+        ($($arg: tt)*) => {
+            #[cfg(feature = "puffin")]
+            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
+            puffin::profile_function!($($arg)*);
+        };
+    }
+    pub(crate) use profile_function;
+
+    /// Profiling macro for feature "puffin"
+    macro_rules! profile_scope {
+        ($($arg: tt)*) => {
+            #[cfg(feature = "puffin")]
+            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
+            puffin::profile_scope!($($arg)*);
+        };
+    }
+    pub(crate) use profile_scope;
 }
-pub(crate) use profile_scope;
+
+pub(crate) use profiling_scopes::*;

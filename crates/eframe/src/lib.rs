@@ -324,7 +324,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 // ---------------------------------------------------------------------------
 
-#[cfg(not(target_arch = "wasm32"))]
 mod profiling_scopes {
     #![allow(unused_macros)]
     #![allow(unused_imports)]
@@ -333,6 +332,7 @@ mod profiling_scopes {
     macro_rules! profile_function {
         ($($arg: tt)*) => {
             #[cfg(feature = "puffin")]
+            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
             puffin::profile_function!($($arg)*);
         };
     }
@@ -342,11 +342,11 @@ mod profiling_scopes {
     macro_rules! profile_scope {
         ($($arg: tt)*) => {
             #[cfg(feature = "puffin")]
+            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
             puffin::profile_scope!($($arg)*);
         };
     }
     pub(crate) use profile_scope;
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 pub(crate) use profiling_scopes::*;
