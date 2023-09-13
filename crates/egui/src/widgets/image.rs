@@ -17,8 +17,6 @@ use epaint::{util::FloatOrd, RectShape};
 /// - [`ImageSource::Bytes`] will also load the image using the [asynchronous loading process][`load`], but with lower latency.
 /// - [`ImageSource::Texture`] will use the provided texture.
 ///
-/// To use a texture you already have with a simpler API, consider using [`RawImage`].
-///
 /// See [`load`] for more information.
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug, Clone)]
@@ -477,8 +475,6 @@ pub enum ImageSource<'a> {
     ///
     /// The user is responsible for loading the texture, determining its size,
     /// and allocating a [`TextureId`] for it.
-    ///
-    /// Note that a simpler API for this exists in [`RawImage`].
     Texture(SizedTexture),
 
     /// Load the image from some raw bytes.
@@ -553,113 +549,6 @@ impl<T: Into<Bytes>> From<(String, T)> for ImageSource<'static> {
 impl<T: Into<SizedTexture>> From<T> for ImageSource<'static> {
     fn from(value: T) -> Self {
         Self::Texture(value.into())
-    }
-}
-
-/// A widget which displays a sized texture.
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
-#[derive(Debug, Clone)]
-pub struct RawImage {
-    texture: SizedTexture,
-    texture_options: TextureOptions,
-    image_options: ImageOptions,
-    sense: Sense,
-}
-
-impl RawImage {
-    /// Load the image from some source.
-    pub fn new(texture: impl Into<SizedTexture>) -> Self {
-        Self {
-            texture: texture.into(),
-            texture_options: Default::default(),
-            image_options: Default::default(),
-            sense: Sense::hover(),
-        }
-    }
-
-    /// Texture options used when creating the texture.
-    #[inline]
-    pub fn texture_options(mut self, texture_options: TextureOptions) -> Self {
-        self.texture_options = texture_options;
-        self
-    }
-
-    /// Make the image respond to clicks and/or drags.
-    #[inline]
-    pub fn sense(mut self, sense: Sense) -> Self {
-        self.sense = sense;
-        self
-    }
-
-    /// Select UV range. Default is (0,0) in top-left, (1,1) bottom right.
-    pub fn uv(mut self, uv: impl Into<Rect>) -> Self {
-        self.image_options.uv = uv.into();
-        self
-    }
-
-    /// A solid color to put behind the image. Useful for transparent images.
-    pub fn bg_fill(mut self, bg_fill: impl Into<Color32>) -> Self {
-        self.image_options.bg_fill = bg_fill.into();
-        self
-    }
-
-    /// Multiply image color with this. Default is WHITE (no tint).
-    pub fn tint(mut self, tint: impl Into<Color32>) -> Self {
-        self.image_options.tint = tint.into();
-        self
-    }
-
-    /// Rotate the image about an origin by some angle
-    ///
-    /// Positive angle is clockwise.
-    /// Origin is a vector in normalized UV space ((0,0) in top-left, (1,1) bottom right).
-    ///
-    /// To rotate about the center you can pass `Vec2::splat(0.5)` as the origin.
-    ///
-    /// Due to limitations in the current implementation,
-    /// this will turn off rounding of the image.
-    pub fn rotate(mut self, angle: f32, origin: Vec2) -> Self {
-        self.image_options.rotation = Some((Rot2::from_angle(angle), origin));
-        self.image_options.rounding = Rounding::ZERO; // incompatible with rotation
-        self
-    }
-
-    /// Round the corners of the image.
-    ///
-    /// The default is no rounding ([`Rounding::ZERO`]).
-    ///
-    /// Due to limitations in the current implementation,
-    /// this will turn off any rotation of the image.
-    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
-        self.image_options.rounding = rounding.into();
-        if self.image_options.rounding != Rounding::ZERO {
-            self.image_options.rotation = None; // incompatible with rounding
-        }
-        self
-    }
-}
-
-impl RawImage {
-    /// Returns the [`TextureId`] of the texture from which this image was created.
-    pub fn texture_id(&self) -> TextureId {
-        self.texture.id
-    }
-
-    /// Returns the size of the texture from which this image was created.
-    pub fn size(&self) -> Vec2 {
-        self.texture.size
-    }
-
-    pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
-        paint_image_at(ui, rect, &self.image_options, &self.texture);
-    }
-}
-
-impl Widget for RawImage {
-    fn ui(self, ui: &mut Ui) -> Response {
-        let (rect, response) = ui.allocate_exact_size(self.size(), self.sense);
-        self.paint_at(ui, rect);
-        response
     }
 }
 

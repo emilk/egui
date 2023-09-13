@@ -36,6 +36,7 @@ chrono = { version = "0.4", default-features = false, features = [
 eframe = { version = "0.22.0", path = "../eframe", default-features = false }
 egui = { version = "0.22.0", path = "../egui", features = [
   "extra_debug_asserts",
+  "log",
 ] }
 egui_demo_lib = { version = "0.22.0", path = "../egui_demo_lib", features = [
   "chrono",

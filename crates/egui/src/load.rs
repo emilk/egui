@@ -52,6 +52,11 @@
 //! For example, a loader may determine that it doesn't support loading a specific URI
 //! if the protocol does not match what it expects.
 
+mod bytes_loader;
+mod texture_loader;
+
+use self::bytes_loader::DefaultBytesLoader;
+use self::texture_loader::DefaultTextureLoader;
 use crate::Context;
 use ahash::HashMap;
 use epaint::mutex::Mutex;
@@ -456,102 +461,6 @@ pub trait TextureLoader {
 
     /// If the loader caches any data, this should return the size of that cache.
     fn byte_size(&self) -> usize;
-}
-
-#[derive(Default)]
-pub(crate) struct DefaultBytesLoader {
-    cache: Mutex<HashMap<Cow<'static, str>, Bytes>>,
-}
-
-impl DefaultBytesLoader {
-    pub(crate) fn insert(&self, uri: impl Into<Cow<'static, str>>, bytes: impl Into<Bytes>) {
-        self.cache
-            .lock()
-            .entry(uri.into())
-            .or_insert_with(|| bytes.into());
-    }
-}
-
-impl BytesLoader for DefaultBytesLoader {
-    fn id(&self) -> &str {
-        generate_loader_id!(DefaultBytesLoader)
-    }
-
-    fn load(&self, _: &Context, uri: &str) -> BytesLoadResult {
-        match self.cache.lock().get(uri).cloned() {
-            Some(bytes) => Ok(BytesPoll::Ready {
-                size: None,
-                bytes,
-                mime: None,
-            }),
-            None => Err(LoadError::NotSupported),
-        }
-    }
-
-    fn forget(&self, uri: &str) {
-        let _ = self.cache.lock().remove(uri);
-    }
-
-    fn forget_all(&self) {
-        self.cache.lock().clear();
-    }
-
-    fn byte_size(&self) -> usize {
-        self.cache.lock().values().map(|bytes| bytes.len()).sum()
-    }
-}
-
-#[derive(Default)]
-struct DefaultTextureLoader {
-    cache: Mutex<HashMap<(String, TextureOptions), TextureHandle>>,
-}
-
-impl TextureLoader for DefaultTextureLoader {
-    fn id(&self) -> &str {
-        generate_loader_id!(DefaultTextureLoader)
-    }
-
-    fn load(
-        &self,
-        ctx: &Context,
-        uri: &str,
-        texture_options: TextureOptions,
-        size_hint: SizeHint,
-    ) -> TextureLoadResult {
-        let mut cache = self.cache.lock();
-        if let Some(handle) = cache.get(&(uri.into(), texture_options)) {
-            let texture = SizedTexture::from_handle(handle);
-            Ok(TexturePoll::Ready { texture })
-        } else {
-            match ctx.try_load_image(uri, size_hint)? {
-                ImagePoll::Pending { size } => Ok(TexturePoll::Pending { size }),
-                ImagePoll::Ready { image } => {
-                    let handle = ctx.load_texture(uri, image, texture_options);
-                    let texture = SizedTexture::from_handle(&handle);
-                    cache.insert((uri.into(), texture_options), handle);
-                    Ok(TexturePoll::Ready { texture })
-                }
-            }
-        }
-    }
-
-    fn forget(&self, uri: &str) {
-        self.cache.lock().retain(|(u, _), _| u != uri);
-    }
-
-    fn forget_all(&self) {
-        self.cache.lock().clear();
-    }
-
-    fn end_frame(&self, _: usize) {}
-
-    fn byte_size(&self) -> usize {
-        self.cache
-            .lock()
-            .values()
-            .map(|texture| texture.byte_size())
-            .sum()
-    }
 }
 
 type BytesLoaderImpl = Arc<dyn BytesLoader + Send + Sync + 'static>;

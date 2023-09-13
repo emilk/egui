@@ -21,7 +21,7 @@ use crate::*;
 /// # });
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
-pub struct Button {
+pub struct Button<'a> {
     text: WidgetText,
     shortcut_text: WidgetText,
     wrap: Option<bool>,
@@ -34,10 +34,10 @@ pub struct Button {
     frame: Option<bool>,
     min_size: Vec2,
     rounding: Option<Rounding>,
-    image: Option<widgets::RawImage>,
+    image: Option<Image<'a>>,
 }
 
-impl Button {
+impl<'a> Button<'a> {
     pub fn new(text: impl Into<WidgetText>) -> Self {
         Self {
             text: text.into(),
@@ -57,15 +57,11 @@ impl Button {
     /// Creates a button with an image to the left of the text. The size of the image as displayed is defined by the provided size.
     #[allow(clippy::needless_pass_by_value)]
     pub fn image_and_text(
-        texture_id: TextureId,
-        image_size: impl Into<Vec2>,
+        image_source: impl Into<ImageSource<'a>>,
         text: impl Into<WidgetText>,
     ) -> Self {
         Self {
-            image: Some(widgets::RawImage::new(SizedTexture {
-                id: texture_id,
-                size: image_size.into(),
-            })),
+            image: Some(Image::new(image_source)),
             ..Self::new(text)
         }
     }
@@ -142,7 +138,7 @@ impl Button {
     }
 }
 
-impl Widget for Button {
+impl Widget for Button<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let Button {
             text,
@@ -158,6 +154,11 @@ impl Widget for Button {
             image,
         } = self;
 
+        let image_size = image
+            .as_ref()
+            .and_then(|image| image.size())
+            .unwrap_or(Vec2::splat(0.0));
+
         let frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
         let mut button_padding = ui.spacing().button_padding;
@@ -166,8 +167,8 @@ impl Widget for Button {
         }
 
         let mut text_wrap_width = ui.available_width() - 2.0 * button_padding.x;
-        if let Some(image) = &image {
-            text_wrap_width -= image.size().x + ui.spacing().icon_spacing;
+        if image.is_some() {
+            text_wrap_width -= image_size.x + ui.spacing().icon_spacing;
         }
         if !shortcut_text.is_empty() {
             text_wrap_width -= 60.0; // Some space for the shortcut text (which we never wrap).
@@ -178,9 +179,9 @@ impl Widget for Button {
             .then(|| shortcut_text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Button));
 
         let mut desired_size = text.size();
-        if let Some(image) = &image {
-            desired_size.x += image.size().x + ui.spacing().icon_spacing;
-            desired_size.y = desired_size.y.max(image.size().y);
+        if image.is_some() {
+            desired_size.x += image_size.x + ui.spacing().icon_spacing;
+            desired_size.y = desired_size.y.max(image_size.y);
         }
         if let Some(shortcut_text) = &shortcut_text {
             desired_size.x += ui.spacing().item_spacing.x + shortcut_text.size().x;
@@ -206,10 +207,10 @@ impl Widget for Button {
                     .rect(rect.expand(visuals.expansion), rounding, fill, stroke);
             }
 
-            let text_pos = if let Some(image) = &image {
+            let text_pos = if image.is_some() {
                 let icon_spacing = ui.spacing().icon_spacing;
                 pos2(
-                    rect.min.x + button_padding.x + image.size().x + icon_spacing,
+                    rect.min.x + button_padding.x + image_size.x + icon_spacing,
                     rect.center().y - 0.5 * text.size().y,
                 )
             } else {
@@ -235,11 +236,23 @@ impl Widget for Button {
                 let image_rect = Rect::from_min_size(
                     pos2(
                         rect.min.x + button_padding.x,
-                        rect.center().y - 0.5 - (image.size().y / 2.0),
+                        rect.center().y - 0.5 - (image_size.y / 2.0),
                     ),
-                    image.size(),
+                    image_size,
                 );
-                image.paint_at(ui, image_rect);
+                match image.load(ui) {
+                    Ok(TexturePoll::Ready { texture }) => {
+                        image.paint_at(ui, image_rect, &texture);
+                    }
+                    Ok(TexturePoll::Pending { .. }) => {
+                        ui.add(Spinner::new().size(image_rect.size().min_elem()))
+                            .on_hover_text(format!("Loading {:?}…", image.uri()));
+                    }
+                    Err(err) => {
+                        ui.colored_label(ui.visuals().error_fg_color, "⚠")
+                            .on_hover_text(err.to_string());
+                    }
+                };
             }
         }
 
