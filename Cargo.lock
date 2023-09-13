@@ -1238,10 +1238,8 @@ dependencies = [
  "egui",
  "egui_extras",
  "egui_plot",
- "enum-map",
  "log",
  "serde",
- "syntect",
  "unicode_names2",
 ]
 
@@ -1253,12 +1251,14 @@ dependencies = [
  "document-features",
  "egui",
  "ehttp",
+ "enum-map",
  "image",
  "log",
  "mime_guess",
  "puffin",
  "resvg",
  "serde",
+ "syntect",
  "tiny-skia",
  "usvg",
 ]

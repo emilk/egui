@@ -63,21 +63,29 @@ impl BytesLoader for FileLoader {
                 .spawn({
                     let ctx = ctx.clone();
                     let cache = self.cache.clone();
-                    let uri = uri.to_owned();
+                    let _uri = uri.to_owned();
                     move || {
                         let result = match std::fs::read(&path) {
-                            Ok(bytes) => Ok(File {
-                                bytes: bytes.into(),
-                                mime: mime_guess::from_path(&path)
+                            Ok(bytes) => {
+                                #[cfg(feature = "mime_guess")]
+                                let mime = mime_guess::from_path(&path)
                                     .first_raw()
-                                    .map(|v| v.to_owned()),
-                            }),
+                                    .map(|v| v.to_owned());
+
+                                #[cfg(not(feature = "mime_guess"))]
+                                let mime = None;
+
+                                Ok(File {
+                                    bytes: bytes.into(),
+                                    mime,
+                                })
+                            }
                             Err(err) => Err(err.to_string()),
                         };
                         let prev = cache.lock().insert(path, Poll::Ready(result));
                         assert!(matches!(prev, Some(Poll::Pending)));
                         ctx.request_repaint();
-                        crate::log_trace!("finished loading {uri:?}");
+                        crate::log_trace!("finished loading {_uri:?}");
                     }
                 })
                 .expect("failed to spawn thread");

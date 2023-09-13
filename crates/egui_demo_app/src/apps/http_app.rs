@@ -223,23 +223,17 @@ fn selectable_text(ui: &mut egui::Ui, mut text: &str) {
 // ----------------------------------------------------------------------------
 // Syntax highlighting:
 
-#[cfg(feature = "syntect")]
 fn syntax_highlighting(
     ctx: &egui::Context,
     response: &ehttp::Response,
     text: &str,
 ) -> Option<ColoredText> {
     let extension_and_rest: Vec<&str> = response.url.rsplitn(2, '.').collect();
-    let extension = extension_and_rest.get(0)?;
-    let theme = crate::syntax_highlighting::CodeTheme::from_style(&ctx.style());
-    Some(ColoredText(crate::syntax_highlighting::highlight(
+    let extension = extension_and_rest.first()?;
+    let theme = egui_extras::syntax_highlighting::CodeTheme::from_style(&ctx.style());
+    Some(ColoredText(egui_extras::syntax_highlighting::highlight(
         ctx, &theme, text, extension,
     )))
-}
-
-#[cfg(not(feature = "syntect"))]
-fn syntax_highlighting(_ctx: &egui::Context, _: &ehttp::Response, _: &str) -> Option<ColoredText> {
-    None
 }
 
 struct ColoredText(egui::text::LayoutJob);
