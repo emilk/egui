@@ -21,9 +21,6 @@ pub struct WidgetGallery {
     #[cfg(feature = "chrono")]
     #[cfg_attr(feature = "serde", serde(skip))]
     date: Option<chrono::NaiveDate>,
-
-    #[cfg_attr(feature = "serde", serde(skip))]
-    texture: Option<egui::TextureHandle>,
 }
 
 impl Default for WidgetGallery {
@@ -39,7 +36,6 @@ impl Default for WidgetGallery {
             animate_progress_bar: false,
             #[cfg(feature = "chrono")]
             date: None,
-            texture: None,
         }
     }
 }
@@ -111,13 +107,7 @@ impl WidgetGallery {
             animate_progress_bar,
             #[cfg(feature = "chrono")]
             date,
-            texture,
         } = self;
-
-        let texture: &egui::TextureHandle = texture.get_or_insert_with(|| {
-            ui.ctx()
-                .load_texture("example", egui::ColorImage::example(), Default::default())
-        });
 
         ui.add(doc_link_label("Label", "label,heading"));
         ui.label("Welcome to the widget gallery!");
@@ -206,15 +196,16 @@ impl WidgetGallery {
         ui.color_edit_button_srgba(color);
         ui.end_row();
 
-        let img_size = 16.0 * texture.size_vec2() / texture.size_vec2().y;
-
         ui.add(doc_link_label("Image", "Image"));
-        ui.raw_image((texture.id(), img_size));
+        let egui_icon = egui::include_image!("../../assets/icon.png");
+        ui.add(egui::Image::new(egui_icon.clone()));
         ui.end_row();
 
         ui.add(doc_link_label("ImageButton", "ImageButton"));
         if ui
-            .add(egui::ImageButton::new((texture.id(), img_size)))
+            .add(egui::ImageButton::new(
+                egui::Image::from(egui_icon).max_size(egui::Vec2::splat(16.0)),
+            ))
             .clicked()
         {
             *boolean = !*boolean;

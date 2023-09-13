@@ -30,8 +30,7 @@ fn main() {
                 egui::SidePanel::left("my_side_panel").show(egui_ctx, |ui| {
                     if ui
                         .add(egui::Button::image_and_text(
-                            texture_id,
-                            button_image_size,
+                            (texture_id, button_image_size),
                             "Quit",
                         ))
                         .clicked()

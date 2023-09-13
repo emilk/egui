@@ -17,8 +17,6 @@ use epaint::{util::FloatOrd, RectShape};
 /// - [`ImageSource::Bytes`] will also load the image using the [asynchronous loading process][`load`], but with lower latency.
 /// - [`ImageSource::Texture`] will use the provided texture.
 ///
-/// To use a texture you already have with a simpler API, consider using [`RawImage`].
-///
 /// See [`load`] for more information.
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug, Clone)]
@@ -28,18 +26,36 @@ pub struct Image<'a> {
     image_options: ImageOptions,
     sense: Sense,
     size: ImageSize,
+    pub(crate) show_loading_spinner: Option<bool>,
 }
 
 impl<'a> Image<'a> {
     /// Load the image from some source.
-    pub fn new(source: ImageSource<'a>) -> Self {
-        Self {
-            source,
-            texture_options: Default::default(),
-            image_options: Default::default(),
-            sense: Sense::hover(),
-            size: Default::default(),
+    pub fn new(source: impl Into<ImageSource<'a>>) -> Self {
+        fn new_mono(source: ImageSource<'_>) -> Image<'_> {
+            let size = if let ImageSource::Texture(tex) = &source {
+                // User is probably expecting their texture to have
+                // the exact size of the provided `SizedTexture`.
+                ImageSize {
+                    maintain_aspect_ratio: true,
+                    max_size: Vec2::INFINITY,
+                    fit: ImageFit::Exact(tex.size),
+                }
+            } else {
+                Default::default()
+            };
+
+            Image {
+                source,
+                texture_options: Default::default(),
+                image_options: Default::default(),
+                sense: Sense::hover(),
+                size,
+                show_loading_spinner: None,
+            }
         }
+
+        new_mono(source.into())
     }
 
     /// Load the image from a URI.
@@ -52,15 +68,15 @@ impl<'a> Image<'a> {
     /// Load the image from an existing texture.
     ///
     /// See [`ImageSource::Texture`].
-    pub fn from_texture(texture: SizedTexture) -> Self {
-        Self::new(ImageSource::Texture(texture))
+    pub fn from_texture(texture: impl Into<SizedTexture>) -> Self {
+        Self::new(ImageSource::Texture(texture.into()))
     }
 
     /// Load the image from some raw bytes.
     ///
     /// See [`ImageSource::Bytes`].
-    pub fn from_bytes(uri: &'static str, bytes: impl Into<Bytes>) -> Self {
-        Self::new(ImageSource::Bytes(uri, bytes.into()))
+    pub fn from_bytes(uri: impl Into<Cow<'static, str>>, bytes: impl Into<Bytes>) -> Self {
+        Self::new(ImageSource::Bytes(uri.into(), bytes.into()))
     }
 
     /// Texture options used when creating the texture.
@@ -75,10 +91,7 @@ impl<'a> Image<'a> {
     /// No matter what the image is scaled to, it will never exceed this limit.
     #[inline]
     pub fn max_width(mut self, width: f32) -> Self {
-        match self.size.max_size.as_mut() {
-            Some(max_size) => max_size.x = width,
-            None => self.size.max_size = Some(Vec2::new(width, f32::INFINITY)),
-        }
+        self.size.max_size.x = width;
         self
     }
 
@@ -87,10 +100,7 @@ impl<'a> Image<'a> {
     /// No matter what the image is scaled to, it will never exceed this limit.
     #[inline]
     pub fn max_height(mut self, height: f32) -> Self {
-        match self.size.max_size.as_mut() {
-            Some(max_size) => max_size.y = height,
-            None => self.size.max_size = Some(Vec2::new(f32::INFINITY, height)),
-        }
+        self.size.max_size.y = height;
         self
     }
 
@@ -98,7 +108,7 @@ impl<'a> Image<'a> {
     ///
     /// No matter what the image is scaled to, it will never exceed this limit.
     #[inline]
-    pub fn max_size(mut self, size: Option<Vec2>) -> Self {
+    pub fn max_size(mut self, size: Vec2) -> Self {
         self.size.max_size = size;
         self
     }
@@ -110,14 +120,14 @@ impl<'a> Image<'a> {
         self
     }
 
-    /// Fit the image to its original size.
+    /// Fit the image to its original size with some scaling.
     ///
     /// This will cause the image to overflow if it is larger than the available space.
     ///
     /// If [`Image::max_size`] is set, this is guaranteed to never exceed that limit.
     #[inline]
-    pub fn fit_to_original_size(mut self, scale: Option<f32>) -> Self {
-        self.size.fit = ImageFit::Original(scale);
+    pub fn fit_to_original_size(mut self, scale: f32) -> Self {
+        self.size.fit = ImageFit::Original { scale };
         self
     }
 
@@ -157,18 +167,21 @@ impl<'a> Image<'a> {
     }
 
     /// Select UV range. Default is (0,0) in top-left, (1,1) bottom right.
+    #[inline]
     pub fn uv(mut self, uv: impl Into<Rect>) -> Self {
         self.image_options.uv = uv.into();
         self
     }
 
     /// A solid color to put behind the image. Useful for transparent images.
+    #[inline]
     pub fn bg_fill(mut self, bg_fill: impl Into<Color32>) -> Self {
         self.image_options.bg_fill = bg_fill.into();
         self
     }
 
     /// Multiply image color with this. Default is WHITE (no tint).
+    #[inline]
     pub fn tint(mut self, tint: impl Into<Color32>) -> Self {
         self.image_options.tint = tint.into();
         self
@@ -183,6 +196,7 @@ impl<'a> Image<'a> {
     ///
     /// Due to limitations in the current implementation,
     /// this will turn off rounding of the image.
+    #[inline]
     pub fn rotate(mut self, angle: f32, origin: Vec2) -> Self {
         self.image_options.rotation = Some((Rot2::from_angle(angle), origin));
         self.image_options.rounding = Rounding::ZERO; // incompatible with rotation
@@ -195,6 +209,7 @@ impl<'a> Image<'a> {
     ///
     /// Due to limitations in the current implementation,
     /// this will turn off any rotation of the image.
+    #[inline]
     pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
         self.image_options.rounding = rounding.into();
         if self.image_options.rounding != Rounding::ZERO {
@@ -202,14 +217,36 @@ impl<'a> Image<'a> {
         }
         self
     }
+
+    /// Show a spinner when the image is loading.
+    ///
+    /// By default this uses the value of [`Style::image_loading_spinners`].
+    #[inline]
+    pub fn show_loading_spinner(mut self, show: bool) -> Self {
+        self.show_loading_spinner = Some(show);
+        self
+    }
+}
+
+impl<'a, T: Into<ImageSource<'a>>> From<T> for Image<'a> {
+    fn from(value: T) -> Self {
+        Image::new(value)
+    }
 }
 
 impl<'a> Image<'a> {
     /// Returns the size the image will occupy in the final UI.
+    #[inline]
     pub fn calculate_size(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
         self.size.get(available_size, image_size)
     }
 
+    pub fn load_and_calculate_size(&self, ui: &mut Ui, available_size: Vec2) -> Option<Vec2> {
+        let image_size = self.load(ui).ok()?.size()?;
+        Some(self.size.get(available_size, image_size))
+    }
+
+    #[inline]
     pub fn size(&self) -> Option<Vec2> {
         match &self.source {
             ImageSource::Texture(texture) => Some(texture.size),
@@ -217,6 +254,12 @@ impl<'a> Image<'a> {
         }
     }
 
+    #[inline]
+    pub fn image_options(&self) -> &ImageOptions {
+        &self.image_options
+    }
+
+    #[inline]
     pub fn source(&self) -> &ImageSource<'a> {
         &self.source
     }
@@ -224,13 +267,9 @@ impl<'a> Image<'a> {
     /// Get the `uri` that this image was constructed from.
     ///
     /// This will return `<unknown>` for [`ImageSource::Texture`].
+    #[inline]
     pub fn uri(&self) -> &str {
-        match &self.source {
-            ImageSource::Bytes(uri, _) => uri,
-            ImageSource::Uri(uri) => uri,
-            // Note: texture source is never in "loading" state
-            ImageSource::Texture(_) => "<unknown>",
-        }
+        self.source.uri().unwrap_or("<unknown>")
     }
 
     /// Load the image from its [`Image::source`], returning the resulting [`SizedTexture`].
@@ -239,24 +278,13 @@ impl<'a> Image<'a> {
     ///
     /// May fail if they underlying [`Context::try_load_texture`] call fails.
     pub fn load(&self, ui: &Ui) -> TextureLoadResult {
-        match self.source.clone() {
-            ImageSource::Texture(texture) => Ok(TexturePoll::Ready { texture }),
-            ImageSource::Uri(uri) => ui.ctx().try_load_texture(
-                uri.as_ref(),
-                self.texture_options,
-                self.size.hint(ui.available_size()),
-            ),
-            ImageSource::Bytes(uri, bytes) => {
-                ui.ctx().include_bytes(uri.as_ref(), bytes);
-                ui.ctx().try_load_texture(
-                    uri.as_ref(),
-                    self.texture_options,
-                    self.size.hint(ui.available_size()),
-                )
-            }
-        }
+        let size_hint = self.size.hint(ui.available_size());
+        self.source
+            .clone()
+            .load(ui.ctx(), self.texture_options, size_hint)
     }
 
+    #[inline]
     pub fn paint_at(&self, ui: &mut Ui, rect: Rect, texture: &SizedTexture) {
         paint_image_at(ui, rect, &self.image_options, texture);
     }
@@ -265,27 +293,28 @@ impl<'a> Image<'a> {
 impl<'a> Widget for Image<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
         match self.load(ui) {
-            Ok(TexturePoll::Ready { texture }) => {
-                let size = self.calculate_size(ui.available_size(), texture.size);
-                let (rect, response) = ui.allocate_exact_size(size, self.sense);
-                self.paint_at(ui, rect, &texture);
-                response
-            }
-            Ok(TexturePoll::Pending { size }) => match size {
-                Some(size) => {
-                    let size = self.calculate_size(ui.available_size(), size);
-                    ui.allocate_ui(size, |ui| {
-                        ui.with_layout(Layout::centered_and_justified(Direction::TopDown), |ui| {
-                            ui.spinner()
-                                .on_hover_text(format!("Loading {:?}…", self.uri()))
-                        })
-                    })
-                    .response
+            Ok(texture_poll) => {
+                let texture_size = texture_poll.size();
+                let texture_size =
+                    texture_size.unwrap_or_else(|| Vec2::splat(ui.style().spacing.interact_size.y));
+                let ui_size = self.calculate_size(ui.available_size(), texture_size);
+                let (rect, response) = ui.allocate_exact_size(ui_size, self.sense);
+                match texture_poll {
+                    TexturePoll::Ready { texture } => {
+                        self.paint_at(ui, rect, &texture);
+                        response
+                    }
+                    TexturePoll::Pending { .. } => {
+                        let show_spinner = self
+                            .show_loading_spinner
+                            .unwrap_or(ui.style().image_loading_spinners);
+                        if show_spinner {
+                            Spinner::new().paint_at(ui, response.rect);
+                        }
+                        response.on_hover_text(format!("Loading {:?}…", self.uri()))
+                    }
                 }
-                None => ui
-                    .spinner()
-                    .on_hover_text(format!("Loading {:?}…", self.uri())),
-            },
+            }
             Err(err) => ui
                 .colored_label(ui.visuals().error_fg_color, "⚠")
                 .on_hover_text(err.to_string()),
@@ -306,8 +335,8 @@ pub struct ImageSize {
 
     /// Determines the maximum size of the image.
     ///
-    /// Defaults to `None`
-    pub max_size: Option<Vec2>,
+    /// Defaults to `Vec2::INFINITY` (no limit).
+    pub max_size: Vec2,
 
     /// Determines how the image should shrink/expand/stretch/etc. to fit within its allocated space.
     ///
@@ -323,14 +352,24 @@ pub struct ImageSize {
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ImageFit {
-    /// Fit the image to its original size, optionally scaling it by some factor.
-    Original(Option<f32>),
+    /// Fit the image to its original size, scaled by some factor.
+    Original { scale: f32 },
 
     /// Fit the image to a fraction of the available size.
     Fraction(Vec2),
 
     /// Fit the image to an exact size.
     Exact(Vec2),
+}
+
+impl ImageFit {
+    pub fn resolve(self, available_size: Vec2, image_size: Vec2) -> Vec2 {
+        match self {
+            ImageFit::Original { scale } => image_size * scale,
+            ImageFit::Fraction(fract) => available_size * fract,
+            ImageFit::Exact(size) => size,
+        }
+    }
 }
 
 impl ImageSize {
@@ -340,15 +379,12 @@ impl ImageSize {
         };
 
         let fit = match self.fit {
-            ImageFit::Original(scale) => return SizeHint::Scale(scale.unwrap_or(1.0).ord()),
+            ImageFit::Original { scale } => return SizeHint::Scale(scale.ord()),
             ImageFit::Fraction(fract) => available_size * fract,
             ImageFit::Exact(size) => size,
         };
 
-        let fit = match self.max_size {
-            Some(extent) => fit.min(extent),
-            None => fit,
-        };
+        let fit = fit.min(self.max_size);
 
         // `inf` on an axis means "any value"
         match (fit.x.is_finite(), fit.y.is_finite()) {
@@ -360,66 +396,42 @@ impl ImageSize {
     }
 
     fn get(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
-        match self.fit {
-            ImageFit::Original(scale) => {
-                let image_size = image_size * scale.unwrap_or(1.0);
-
-                if let Some(available_size) = self.max_size {
-                    if image_size.x < available_size.x && image_size.y < available_size.y {
-                        return image_size;
-                    }
-
-                    if self.maintain_aspect_ratio {
-                        let ratio_x = available_size.x / image_size.x;
-                        let ratio_y = available_size.y / image_size.y;
-                        let ratio = if ratio_x < ratio_y { ratio_x } else { ratio_y };
-                        let ratio = if ratio.is_infinite() { 1.0 } else { ratio };
-
-                        return Vec2::new(image_size.x * ratio, image_size.y * ratio);
-                    } else {
-                        return image_size.min(available_size);
-                    }
+        let Self {
+            maintain_aspect_ratio,
+            max_size,
+            fit,
+        } = *self;
+        match fit {
+            ImageFit::Original { scale } => {
+                let image_size = image_size * scale;
+                if image_size.x <= max_size.x && image_size.y <= max_size.y {
+                    image_size
+                } else {
+                    scale_to_fit(image_size, max_size, maintain_aspect_ratio)
                 }
-
-                image_size
             }
             ImageFit::Fraction(fract) => {
-                let available_size = available_size * fract;
-                let available_size = match self.max_size {
-                    Some(max_size) => available_size.min(max_size),
-                    None => available_size,
-                };
-
-                if self.maintain_aspect_ratio {
-                    let ratio_x = available_size.x / image_size.x;
-                    let ratio_y = available_size.y / image_size.y;
-                    let ratio = if ratio_x < ratio_y { ratio_x } else { ratio_y };
-                    let ratio = if ratio.is_infinite() { 1.0 } else { ratio };
-
-                    return Vec2::new(image_size.x * ratio, image_size.y * ratio);
-                }
-
-                available_size
+                let scale_to_size = (available_size * fract).min(max_size);
+                scale_to_fit(image_size, scale_to_size, maintain_aspect_ratio)
             }
             ImageFit::Exact(size) => {
-                let available_size = size;
-                let available_size = match self.max_size {
-                    Some(max_size) => available_size.min(max_size),
-                    None => available_size,
-                };
-
-                if self.maintain_aspect_ratio {
-                    let ratio_x = available_size.x / image_size.x;
-                    let ratio_y = available_size.y / image_size.y;
-                    let ratio = if ratio_x < ratio_y { ratio_x } else { ratio_y };
-                    let ratio = if ratio.is_infinite() { 1.0 } else { ratio };
-
-                    return Vec2::new(image_size.x * ratio, image_size.y * ratio);
-                }
-
-                available_size
+                let scale_to_size = size.min(max_size);
+                scale_to_fit(image_size, scale_to_size, maintain_aspect_ratio)
             }
         }
+    }
+}
+
+// TODO: unit-tests
+fn scale_to_fit(image_size: Vec2, available_size: Vec2, maintain_aspect_ratio: bool) -> Vec2 {
+    if maintain_aspect_ratio {
+        let ratio_x = available_size.x / image_size.x;
+        let ratio_y = available_size.y / image_size.y;
+        let ratio = if ratio_x < ratio_y { ratio_x } else { ratio_y };
+        let ratio = if ratio.is_finite() { ratio } else { 1.0 };
+        image_size * ratio
+    } else {
+        available_size
     }
 }
 
@@ -427,7 +439,7 @@ impl Default for ImageSize {
     #[inline]
     fn default() -> Self {
         Self {
-            max_size: None,
+            max_size: Vec2::INFINITY,
             fit: ImageFit::Fraction(Vec2::new(1.0, 1.0)),
             maintain_aspect_ratio: true,
         }
@@ -452,8 +464,6 @@ pub enum ImageSource<'a> {
     ///
     /// The user is responsible for loading the texture, determining its size,
     /// and allocating a [`TextureId`] for it.
-    ///
-    /// Note that a simpler API for this exists in [`RawImage`].
     Texture(SizedTexture),
 
     /// Load the image from some raw bytes.
@@ -467,7 +477,84 @@ pub enum ImageSource<'a> {
     /// See also [`include_image`] for an easy way to load and display static images.
     ///
     /// See [`crate::load`] for more information.
-    Bytes(&'static str, Bytes),
+    Bytes(Cow<'static, str>, Bytes),
+}
+
+impl<'a> ImageSource<'a> {
+    /// # Errors
+    /// Failure to load the texture.
+    pub fn load(
+        self,
+        ctx: &Context,
+        texture_options: TextureOptions,
+        size_hint: SizeHint,
+    ) -> TextureLoadResult {
+        match self {
+            Self::Texture(texture) => Ok(TexturePoll::Ready { texture }),
+            Self::Uri(uri) => ctx.try_load_texture(uri.as_ref(), texture_options, size_hint),
+            Self::Bytes(uri, bytes) => {
+                ctx.include_bytes(uri.clone(), bytes);
+                ctx.try_load_texture(uri.as_ref(), texture_options, size_hint)
+            }
+        }
+    }
+
+    /// Get the `uri` that this image was constructed from.
+    ///
+    /// This will return `None` for [`Self::Texture`].
+    pub fn uri(&self) -> Option<&str> {
+        match self {
+            ImageSource::Bytes(uri, _) | ImageSource::Uri(uri) => Some(uri),
+            ImageSource::Texture(_) => None,
+        }
+    }
+}
+
+pub fn paint_texture_load_result(
+    ui: &Ui,
+    tlr: &TextureLoadResult,
+    rect: Rect,
+    show_loading_spinner: bool,
+    options: &ImageOptions,
+) {
+    match tlr {
+        Ok(TexturePoll::Ready { texture }) => {
+            paint_image_at(ui, rect, options, texture);
+        }
+        Ok(TexturePoll::Pending { .. }) => {
+            if show_loading_spinner {
+                Spinner::new().paint_at(ui, rect);
+            }
+        }
+        Err(_) => {
+            let font_id = TextStyle::Body.resolve(ui.style());
+            ui.painter().text(
+                rect.center(),
+                Align2::CENTER_CENTER,
+                "⚠",
+                font_id,
+                ui.visuals().error_fg_color,
+            );
+        }
+    }
+}
+
+pub fn texture_load_result_response(
+    source: &ImageSource<'_>,
+    tlr: &TextureLoadResult,
+    response: Response,
+) -> Response {
+    match tlr {
+        Ok(TexturePoll::Ready { .. }) => response,
+        Ok(TexturePoll::Pending { .. }) => {
+            if let Some(uri) = source.uri() {
+                response.on_hover_text(format!("Loading {uri}…"))
+            } else {
+                response.on_hover_text("Loading image…")
+            }
+        }
+        Err(err) => response.on_hover_text(err.to_string()),
+    }
 }
 
 impl<'a> From<&'a str> for ImageSource<'a> {
@@ -507,120 +594,27 @@ impl<'a> From<Cow<'a, str>> for ImageSource<'a> {
 impl<T: Into<Bytes>> From<(&'static str, T)> for ImageSource<'static> {
     #[inline]
     fn from((uri, bytes): (&'static str, T)) -> Self {
+        Self::Bytes(uri.into(), bytes.into())
+    }
+}
+
+impl<T: Into<Bytes>> From<(Cow<'static, str>, T)> for ImageSource<'static> {
+    #[inline]
+    fn from((uri, bytes): (Cow<'static, str>, T)) -> Self {
         Self::Bytes(uri, bytes.into())
+    }
+}
+
+impl<T: Into<Bytes>> From<(String, T)> for ImageSource<'static> {
+    #[inline]
+    fn from((uri, bytes): (String, T)) -> Self {
+        Self::Bytes(uri.into(), bytes.into())
     }
 }
 
 impl<T: Into<SizedTexture>> From<T> for ImageSource<'static> {
     fn from(value: T) -> Self {
         Self::Texture(value.into())
-    }
-}
-
-/// A widget which displays a sized texture.
-#[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
-#[derive(Debug, Clone)]
-pub struct RawImage {
-    texture: SizedTexture,
-    texture_options: TextureOptions,
-    image_options: ImageOptions,
-    sense: Sense,
-}
-
-impl RawImage {
-    /// Load the image from some source.
-    pub fn new(texture: impl Into<SizedTexture>) -> Self {
-        Self {
-            texture: texture.into(),
-            texture_options: Default::default(),
-            image_options: Default::default(),
-            sense: Sense::hover(),
-        }
-    }
-
-    /// Texture options used when creating the texture.
-    #[inline]
-    pub fn texture_options(mut self, texture_options: TextureOptions) -> Self {
-        self.texture_options = texture_options;
-        self
-    }
-
-    /// Make the image respond to clicks and/or drags.
-    #[inline]
-    pub fn sense(mut self, sense: Sense) -> Self {
-        self.sense = sense;
-        self
-    }
-
-    /// Select UV range. Default is (0,0) in top-left, (1,1) bottom right.
-    pub fn uv(mut self, uv: impl Into<Rect>) -> Self {
-        self.image_options.uv = uv.into();
-        self
-    }
-
-    /// A solid color to put behind the image. Useful for transparent images.
-    pub fn bg_fill(mut self, bg_fill: impl Into<Color32>) -> Self {
-        self.image_options.bg_fill = bg_fill.into();
-        self
-    }
-
-    /// Multiply image color with this. Default is WHITE (no tint).
-    pub fn tint(mut self, tint: impl Into<Color32>) -> Self {
-        self.image_options.tint = tint.into();
-        self
-    }
-
-    /// Rotate the image about an origin by some angle
-    ///
-    /// Positive angle is clockwise.
-    /// Origin is a vector in normalized UV space ((0,0) in top-left, (1,1) bottom right).
-    ///
-    /// To rotate about the center you can pass `Vec2::splat(0.5)` as the origin.
-    ///
-    /// Due to limitations in the current implementation,
-    /// this will turn off rounding of the image.
-    pub fn rotate(mut self, angle: f32, origin: Vec2) -> Self {
-        self.image_options.rotation = Some((Rot2::from_angle(angle), origin));
-        self.image_options.rounding = Rounding::ZERO; // incompatible with rotation
-        self
-    }
-
-    /// Round the corners of the image.
-    ///
-    /// The default is no rounding ([`Rounding::ZERO`]).
-    ///
-    /// Due to limitations in the current implementation,
-    /// this will turn off any rotation of the image.
-    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
-        self.image_options.rounding = rounding.into();
-        if self.image_options.rounding != Rounding::ZERO {
-            self.image_options.rotation = None; // incompatible with rounding
-        }
-        self
-    }
-}
-
-impl RawImage {
-    /// Returns the [`TextureId`] of the texture from which this image was created.
-    pub fn texture_id(&self) -> TextureId {
-        self.texture.id
-    }
-
-    /// Returns the size of the texture from which this image was created.
-    pub fn size(&self) -> Vec2 {
-        self.texture.size
-    }
-
-    pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
-        paint_image_at(ui, rect, &self.image_options, &self.texture);
-    }
-}
-
-impl Widget for RawImage {
-    fn ui(self, ui: &mut Ui) -> Response {
-        let (rect, response) = ui.allocate_exact_size(self.size(), self.sense);
-        self.paint_at(ui, rect);
-        response
     }
 }
 
@@ -669,7 +663,7 @@ impl Default for ImageOptions {
 }
 
 /// Paint a `SizedTexture` as an image according to some `ImageOptions` at a given `rect`.
-pub fn paint_image_at(ui: &mut Ui, rect: Rect, options: &ImageOptions, texture: &SizedTexture) {
+pub fn paint_image_at(ui: &Ui, rect: Rect, options: &ImageOptions, texture: &SizedTexture) {
     if !ui.is_rect_visible(rect) {
         return;
     }

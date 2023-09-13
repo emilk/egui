@@ -1,5 +1,6 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use crate::load::Bytes;
@@ -1145,7 +1146,7 @@ impl Context {
     ///         });
     ///
     ///         // Show the image:
-    ///         ui.raw_image((texture.id(), texture.size_vec2()));
+    ///         ui.image((texture.id(), texture.size_vec2()));
     ///     }
     /// }
     /// ```
@@ -1691,14 +1692,14 @@ impl Context {
                                 let mut size = vec2(w as f32, h as f32);
                                 size *= (max_preview_size.x / size.x).min(1.0);
                                 size *= (max_preview_size.y / size.y).min(1.0);
-                                ui.raw_image(SizedTexture::new(texture_id, size))
+                                ui.image(SizedTexture::new(texture_id, size))
                                     .on_hover_ui(|ui| {
                                         // show larger on hover
                                         let max_size = 0.5 * ui.ctx().screen_rect().size();
                                         let mut size = vec2(w as f32, h as f32);
                                         size *= max_size.x / size.x.max(max_size.x);
                                         size *= max_size.y / size.y.max(max_size.y);
-                                        ui.raw_image(SizedTexture::new(texture_id, size));
+                                        ui.image(SizedTexture::new(texture_id, size));
                                     });
 
                                 ui.label(format!("{w} x {h}"));
@@ -1911,8 +1912,8 @@ impl Context {
     /// Associate some static bytes with a `uri`.
     ///
     /// The same `uri` may be passed to [`Ui::image`] later to load the bytes as an image.
-    pub fn include_bytes(&self, uri: &'static str, bytes: impl Into<Bytes>) {
-        self.loaders().include.insert(uri, bytes.into());
+    pub fn include_bytes(&self, uri: impl Into<Cow<'static, str>>, bytes: impl Into<Bytes>) {
+        self.loaders().include.insert(uri, bytes);
     }
 
     /// Returns `true` if the chain of bytes, image, or texture loaders
@@ -2038,17 +2039,25 @@ impl Context {
     ///
     /// # Errors
     /// This may fail with:
+    /// - [`LoadError::NoImageLoaders`][no_image_loaders] if tbere are no registered image loaders.
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
     /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
     ///
     /// ⚠ May deadlock if called from within an `ImageLoader`!
     ///
+    /// [no_image_loaders]: crate::load::LoadError::NoImageLoaders
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Custom
     pub fn try_load_image(&self, uri: &str, size_hint: load::SizeHint) -> load::ImageLoadResult {
         crate::profile_function!();
 
-        for loader in self.loaders().image.lock().iter() {
+        let loaders = self.loaders();
+        let loaders = loaders.image.lock();
+        if loaders.is_empty() {
+            return Err(load::LoadError::NoImageLoaders);
+        }
+
+        for loader in loaders.iter() {
             match loader.load(self, uri, size_hint) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,

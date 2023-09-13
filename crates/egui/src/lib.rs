@@ -84,7 +84,7 @@
 //! ui.separator();
 //!
 //! # let my_image = egui::TextureId::default();
-//! ui.raw_image((my_image, egui::Vec2::new(640.0, 480.0)));
+//! ui.image((my_image, egui::Vec2::new(640.0, 480.0)));
 //!
 //! ui.collapsing("Click to see what is hidden!", |ui| {
 //!     ui.label("Not much, as it turns out");
@@ -442,7 +442,10 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 #[macro_export]
 macro_rules! include_image {
     ($path: literal) => {
-        $crate::ImageSource::Bytes($path, $crate::load::Bytes::Static(include_bytes!($path)))
+        $crate::ImageSource::Bytes(
+            ::std::borrow::Cow::Borrowed($path),
+            $crate::load::Bytes::Static(include_bytes!($path)),
+        )
     };
 }
 

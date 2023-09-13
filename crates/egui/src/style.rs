@@ -207,6 +207,9 @@ pub struct Style {
     ///
     /// This only affects a few egui widgets.
     pub explanation_tooltips: bool,
+
+    /// Show a spinner when loading an image.
+    pub image_loading_spinners: bool,
 }
 
 impl Style {
@@ -738,6 +741,7 @@ impl Default for Style {
             animation_time: 1.0 / 12.0,
             debug: Default::default(),
             explanation_tooltips: false,
+            image_loading_spinners: true,
         }
     }
 }
@@ -990,6 +994,7 @@ impl Style {
             animation_time,
             debug,
             explanation_tooltips,
+            image_loading_spinners,
         } = self;
 
         visuals.light_dark_radio_buttons(ui);
@@ -1056,6 +1061,9 @@ impl Style {
             .on_hover_text(
                 "Show explanatory text when hovering DragValue:s and other egui widgets",
             );
+
+        ui.checkbox(image_loading_spinners, "Image loading spinners")
+            .on_hover_text("Show a spinner when an Image is loading");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }

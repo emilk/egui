@@ -21,7 +21,7 @@ use crate::*;
 /// # });
 /// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
-pub struct Button {
+pub struct Button<'a> {
     text: WidgetText,
     shortcut_text: WidgetText,
     wrap: Option<bool>,
@@ -34,10 +34,10 @@ pub struct Button {
     frame: Option<bool>,
     min_size: Vec2,
     rounding: Option<Rounding>,
-    image: Option<widgets::RawImage>,
+    image: Option<Image<'a>>,
 }
 
-impl Button {
+impl<'a> Button<'a> {
     pub fn new(text: impl Into<WidgetText>) -> Self {
         Self {
             text: text.into(),
@@ -56,16 +56,9 @@ impl Button {
 
     /// Creates a button with an image to the left of the text. The size of the image as displayed is defined by the provided size.
     #[allow(clippy::needless_pass_by_value)]
-    pub fn image_and_text(
-        texture_id: TextureId,
-        image_size: impl Into<Vec2>,
-        text: impl Into<WidgetText>,
-    ) -> Self {
+    pub fn image_and_text(image: impl Into<Image<'a>>, text: impl Into<WidgetText>) -> Self {
         Self {
-            image: Some(widgets::RawImage::new(SizedTexture {
-                id: texture_id,
-                size: image_size.into(),
-            })),
+            image: Some(image.into()),
             ..Self::new(text)
         }
     }
@@ -142,7 +135,7 @@ impl Button {
     }
 }
 
-impl Widget for Button {
+impl Widget for Button<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let Button {
             text,
@@ -158,6 +151,11 @@ impl Widget for Button {
             image,
         } = self;
 
+        let image_size = image
+            .as_ref()
+            .and_then(|image| image.load_and_calculate_size(ui, ui.available_size()))
+            .unwrap_or(Vec2::ZERO);
+
         let frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
         let mut button_padding = ui.spacing().button_padding;
@@ -166,8 +164,8 @@ impl Widget for Button {
         }
 
         let mut text_wrap_width = ui.available_width() - 2.0 * button_padding.x;
-        if let Some(image) = &image {
-            text_wrap_width -= image.size().x + ui.spacing().icon_spacing;
+        if image.is_some() {
+            text_wrap_width -= image_size.x + ui.spacing().icon_spacing;
         }
         if !shortcut_text.is_empty() {
             text_wrap_width -= 60.0; // Some space for the shortcut text (which we never wrap).
@@ -178,9 +176,9 @@ impl Widget for Button {
             .then(|| shortcut_text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Button));
 
         let mut desired_size = text.size();
-        if let Some(image) = &image {
-            desired_size.x += image.size().x + ui.spacing().icon_spacing;
-            desired_size.y = desired_size.y.max(image.size().y);
+        if image.is_some() {
+            desired_size.x += image_size.x + ui.spacing().icon_spacing;
+            desired_size.y = desired_size.y.max(image_size.y);
         }
         if let Some(shortcut_text) = &shortcut_text {
             desired_size.x += ui.spacing().item_spacing.x + shortcut_text.size().x;
@@ -192,7 +190,7 @@ impl Widget for Button {
         }
         desired_size = desired_size.at_least(min_size);
 
-        let (rect, response) = ui.allocate_at_least(desired_size, sense);
+        let (rect, mut response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, text.text()));
 
         if ui.is_rect_visible(rect) {
@@ -206,10 +204,10 @@ impl Widget for Button {
                     .rect(rect.expand(visuals.expansion), rounding, fill, stroke);
             }
 
-            let text_pos = if let Some(image) = &image {
+            let text_pos = if image.is_some() {
                 let icon_spacing = ui.spacing().icon_spacing;
                 pos2(
-                    rect.min.x + button_padding.x + image.size().x + icon_spacing,
+                    rect.min.x + button_padding.x + image_size.x + icon_spacing,
                     rect.center().y - 0.5 * text.size().y,
                 )
             } else {
@@ -235,11 +233,23 @@ impl Widget for Button {
                 let image_rect = Rect::from_min_size(
                     pos2(
                         rect.min.x + button_padding.x,
-                        rect.center().y - 0.5 - (image.size().y / 2.0),
+                        rect.center().y - 0.5 - (image_size.y / 2.0),
                     ),
-                    image.size(),
+                    image_size,
                 );
-                image.paint_at(ui, image_rect);
+                let tlr = image.load(ui);
+                let show_loading_spinner = image
+                    .show_loading_spinner
+                    .unwrap_or(ui.style().image_loading_spinners);
+                widgets::image::paint_texture_load_result(
+                    ui,
+                    &tlr,
+                    image_rect,
+                    show_loading_spinner,
+                    image.image_options(),
+                );
+                response =
+                    widgets::image::texture_load_result_response(image.source(), &tlr, response);
             }
         }
 
@@ -481,9 +491,9 @@ pub struct ImageButton<'a> {
 }
 
 impl<'a> ImageButton<'a> {
-    pub fn new(source: impl Into<ImageSource<'a>>) -> Self {
+    pub fn new(image: impl Into<Image<'a>>) -> Self {
         Self {
-            image: Image::new(source.into()),
+            image: image.into(),
             sense: Sense::click(),
             frame: true,
             selected: false,
@@ -564,9 +574,9 @@ impl<'a> ImageButton<'a> {
                 .align_size_within_rect(texture.size, rect.shrink2(padding));
             // let image_rect = image_rect.expand2(expansion); // can make it blurry, so let's not
             let image_options = ImageOptions {
-                rounding,
-                ..Default::default()
-            }; // apply rounding to the image
+                rounding, // apply rounding to the image
+                ..self.image.image_options().clone()
+            };
             crate::widgets::image::paint_image_at(ui, image_rect, &image_options, texture);
 
             // Draw frame outline:
@@ -581,7 +591,10 @@ impl<'a> ImageButton<'a> {
 impl<'a> Widget for ImageButton<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
         match self.image.load(ui) {
-            Ok(TexturePoll::Ready { texture }) => self.show(ui, &texture),
+            Ok(TexturePoll::Ready { mut texture }) => {
+                texture.size = self.image.calculate_size(ui.available_size(), texture.size);
+                self.show(ui, &texture)
+            }
             Ok(TexturePoll::Pending { .. }) => ui
                 .spinner()
                 .on_hover_text(format!("Loading {:?}…", self.image.uri())),

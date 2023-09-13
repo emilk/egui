@@ -32,7 +32,7 @@ impl eframe::App for MyApp {
                         .fit_to_fraction(vec2(1.0, 0.5)),
                 );
                 ui.add(
-                    egui::Image::new("https://picsum.photos/seed/1.759706314/1024".into())
+                    egui::Image::new("https://picsum.photos/seed/1.759706314/1024")
                         .rounding(egui::Rounding::same(10.0)),
                 );
             });

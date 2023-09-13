@@ -88,7 +88,7 @@ impl ColorTest {
                 let texel_offset = 0.5 / (g.0.len() as f32);
                 let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
                 ui.add(
-                    RawImage::new((tex.id(), GRADIENT_SIZE))
+                    Image::from_texture((tex.id(), GRADIENT_SIZE))
                         .tint(vertex_color)
                         .uv(uv),
                 )
@@ -230,7 +230,7 @@ impl ColorTest {
             let texel_offset = 0.5 / (gradient.0.len() as f32);
             let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
             ui.add(
-                RawImage::new((tex.id(), GRADIENT_SIZE))
+                Image::from_texture((tex.id(), GRADIENT_SIZE))
                     .bg_fill(bg_fill)
                     .uv(uv),
             )

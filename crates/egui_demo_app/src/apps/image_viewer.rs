@@ -13,7 +13,7 @@ pub struct ImageViewer {
     chosen_fit: ChosenFit,
     fit: ImageFit,
     maintain_aspect_ratio: bool,
-    max_size: Option<Vec2>,
+    max_size: Vec2,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -43,7 +43,7 @@ impl Default for ImageViewer {
             chosen_fit: ChosenFit::Fraction,
             fit: ImageFit::Fraction(Vec2::splat(1.0)),
             maintain_aspect_ratio: true,
-            max_size: None,
+            max_size: Vec2::splat(2048.0),
         }
     }
 }
@@ -160,10 +160,10 @@ impl eframe::App for ImageViewer {
                     ui.add(Slider::new(&mut fract.y, 0.0..=1.0).text("height"));
                 }
                 ChosenFit::OriginalSize => {
-                    if !matches!(self.fit, ImageFit::Original(_)) {
-                        self.fit = ImageFit::Original(Some(1.0));
+                    if !matches!(self.fit, ImageFit::Original { .. }) {
+                        self.fit = ImageFit::Original { scale: 1.0 };
                     }
-                    let ImageFit::Original(Some(scale)) = &mut self.fit else {
+                    let ImageFit::Original{scale} = &mut self.fit else {
                         unreachable!()
                     };
                     ui.add(Slider::new(scale, 0.1..=4.0).text("scale"));
@@ -173,21 +173,8 @@ impl eframe::App for ImageViewer {
             // max size
             ui.add_space(5.0);
             ui.label("The calculated size will not exceed the maximum size");
-            let had_max_size = self.max_size.is_some();
-            let mut has_max_size = had_max_size;
-            ui.checkbox(&mut has_max_size, "Max size");
-            match (had_max_size, has_max_size) {
-                (true, false) => self.max_size = None,
-                (false, true) => {
-                    self.max_size = Some(ui.available_size());
-                }
-                (true, true) | (false, false) => {}
-            }
-
-            if let Some(max_size) = self.max_size.as_mut() {
-                ui.add(Slider::new(&mut max_size.x, 0.0..=2048.0).text("width"));
-                ui.add(Slider::new(&mut max_size.y, 0.0..=2048.0).text("height"));
-            }
+            ui.add(Slider::new(&mut self.max_size.x, 0.0..=2048.0).text("width"));
+            ui.add(Slider::new(&mut self.max_size.y, 0.0..=2048.0).text("height"));
 
             // aspect ratio
             ui.add_space(5.0);
@@ -209,7 +196,7 @@ impl eframe::App for ImageViewer {
                     });
                 image = image.rotate(angle, origin);
                 match self.fit {
-                    ImageFit::Original(scale) => image = image.fit_to_original_size(scale),
+                    ImageFit::Original { scale } => image = image.fit_to_original_size(scale),
                     ImageFit::Fraction(fract) => image = image.fit_to_fraction(fract),
                     ImageFit::Exact(size) => image = image.fit_to_exact_size(size),
                 }
