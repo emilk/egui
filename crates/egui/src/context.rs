@@ -1146,7 +1146,7 @@ impl Context {
     ///         });
     ///
     ///         // Show the image:
-    ///         ui.raw_image((texture.id(), texture.size_vec2()));
+    ///         ui.image((texture.id(), texture.size_vec2()));
     ///     }
     /// }
     /// ```
@@ -1692,14 +1692,14 @@ impl Context {
                                 let mut size = vec2(w as f32, h as f32);
                                 size *= (max_preview_size.x / size.x).min(1.0);
                                 size *= (max_preview_size.y / size.y).min(1.0);
-                                ui.raw_image(SizedTexture::new(texture_id, size))
+                                ui.image(SizedTexture::new(texture_id, size))
                                     .on_hover_ui(|ui| {
                                         // show larger on hover
                                         let max_size = 0.5 * ui.ctx().screen_rect().size();
                                         let mut size = vec2(w as f32, h as f32);
                                         size *= max_size.x / size.x.max(max_size.x);
                                         size *= max_size.y / size.y.max(max_size.y);
-                                        ui.raw_image(SizedTexture::new(texture_id, size));
+                                        ui.image(SizedTexture::new(texture_id, size));
                                     });
 
                                 ui.label(format!("{w} x {h}"));

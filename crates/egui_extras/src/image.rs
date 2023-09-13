@@ -191,7 +191,7 @@ impl RetainedImage {
         // We need to convert the SVG to a texture to display it:
         // Future improvement: tell backend to do mip-mapping of the image to
         // make it look smoother when downsized.
-        ui.raw_image((self.texture_id(ui.ctx()), desired_size))
+        ui.image((self.texture_id(ui.ctx()), desired_size))
     }
 }
 

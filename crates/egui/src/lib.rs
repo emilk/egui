@@ -84,7 +84,7 @@
 //! ui.separator();
 //!
 //! # let my_image = egui::TextureId::default();
-//! ui.raw_image((my_image, egui::Vec2::new(640.0, 480.0)));
+//! ui.image((my_image, egui::Vec2::new(640.0, 480.0)));
 //!
 //! ui.collapsing("Click to see what is hidden!", |ui| {
 //!     ui.label("Not much, as it turns out");

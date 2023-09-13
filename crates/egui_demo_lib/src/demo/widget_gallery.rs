@@ -210,7 +210,7 @@ impl WidgetGallery {
 
         ui.add(doc_link_label("Image", "Image"));
         ui.allocate_ui(img_size * 2.0 + egui::Vec2::new(8.0, 0.0), |ui| {
-            ui.raw_image((texture.id(), img_size));
+            ui.image((texture.id(), img_size));
             ui.image(egui::include_image!("../../assets/icon.png"));
         });
         ui.end_row();

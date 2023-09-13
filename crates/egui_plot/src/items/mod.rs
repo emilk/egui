@@ -1234,12 +1234,13 @@ impl PlotItem for PlotImage {
             Rect::from_two_pos(left_top_screen, right_bottom_screen)
         };
         let screen_rotation = -*rotation as f32;
-        RawImage::new((*texture_id, image_screen_rect.size()))
-            .bg_fill(*bg_fill)
-            .tint(*tint)
-            .uv(*uv)
-            .rotate(screen_rotation, Vec2::splat(0.5))
-            .paint_at(ui, image_screen_rect);
+        ui.add(
+            Image::from_texture((*texture_id, image_screen_rect.size()))
+                .bg_fill(*bg_fill)
+                .tint(*tint)
+                .uv(*uv)
+                .rotate(screen_rotation, Vec2::splat(0.5)),
+        );
         if *highlight {
             let center = image_screen_rect.center();
             let rotation = Rot2::from_angle(screen_rotation);

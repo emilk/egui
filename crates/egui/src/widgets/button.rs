@@ -483,7 +483,7 @@ pub struct ImageButton<'a> {
 impl<'a> ImageButton<'a> {
     pub fn new(source: impl Into<ImageSource<'a>>) -> Self {
         Self {
-            image: Image::new(source.into()),
+            image: Image::new(source),
             sense: Sense::click(),
             frame: true,
             selected: false,

@@ -375,7 +375,13 @@ impl SizedTexture {
 impl From<(TextureId, Vec2)> for SizedTexture {
     #[inline]
     fn from((id, size): (TextureId, Vec2)) -> Self {
-        SizedTexture { id, size }
+        Self { id, size }
+    }
+}
+
+impl<'a> From<&'a TextureHandle> for SizedTexture {
+    fn from(handle: &'a TextureHandle) -> Self {
+        Self::from_handle(handle)
     }
 }
 

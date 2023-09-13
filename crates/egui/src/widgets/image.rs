@@ -32,14 +32,30 @@ pub struct Image<'a> {
 
 impl<'a> Image<'a> {
     /// Load the image from some source.
-    pub fn new(source: ImageSource<'a>) -> Self {
-        Self {
-            source,
-            texture_options: Default::default(),
-            image_options: Default::default(),
-            sense: Sense::hover(),
-            size: Default::default(),
+    pub fn new(source: impl Into<ImageSource<'a>>) -> Self {
+        fn new_mono(source: ImageSource<'_>) -> Image<'_> {
+            let size = if let ImageSource::Texture(tex) = &source {
+                // User is probably expecting their texture to have
+                // the exact size of the provided `SizedTexture`.
+                ImageSize {
+                    maintain_aspect_ratio: false,
+                    max_size: None,
+                    fit: ImageFit::Exact(tex.size),
+                }
+            } else {
+                Default::default()
+            };
+
+            Image {
+                source,
+                texture_options: Default::default(),
+                image_options: Default::default(),
+                sense: Sense::hover(),
+                size,
+            }
         }
+
+        new_mono(source.into())
     }
 
     /// Load the image from a URI.
@@ -52,8 +68,8 @@ impl<'a> Image<'a> {
     /// Load the image from an existing texture.
     ///
     /// See [`ImageSource::Texture`].
-    pub fn from_texture(texture: SizedTexture) -> Self {
-        Self::new(ImageSource::Texture(texture))
+    pub fn from_texture(texture: impl Into<SizedTexture>) -> Self {
+        Self::new(ImageSource::Texture(texture.into()))
     }
 
     /// Load the image from some raw bytes.
@@ -157,18 +173,21 @@ impl<'a> Image<'a> {
     }
 
     /// Select UV range. Default is (0,0) in top-left, (1,1) bottom right.
+    #[inline]
     pub fn uv(mut self, uv: impl Into<Rect>) -> Self {
         self.image_options.uv = uv.into();
         self
     }
 
     /// A solid color to put behind the image. Useful for transparent images.
+    #[inline]
     pub fn bg_fill(mut self, bg_fill: impl Into<Color32>) -> Self {
         self.image_options.bg_fill = bg_fill.into();
         self
     }
 
     /// Multiply image color with this. Default is WHITE (no tint).
+    #[inline]
     pub fn tint(mut self, tint: impl Into<Color32>) -> Self {
         self.image_options.tint = tint.into();
         self
@@ -183,6 +202,7 @@ impl<'a> Image<'a> {
     ///
     /// Due to limitations in the current implementation,
     /// this will turn off rounding of the image.
+    #[inline]
     pub fn rotate(mut self, angle: f32, origin: Vec2) -> Self {
         self.image_options.rotation = Some((Rot2::from_angle(angle), origin));
         self.image_options.rounding = Rounding::ZERO; // incompatible with rotation
@@ -195,6 +215,7 @@ impl<'a> Image<'a> {
     ///
     /// Due to limitations in the current implementation,
     /// this will turn off any rotation of the image.
+    #[inline]
     pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
         self.image_options.rounding = rounding.into();
         if self.image_options.rounding != Rounding::ZERO {
@@ -206,10 +227,12 @@ impl<'a> Image<'a> {
 
 impl<'a> Image<'a> {
     /// Returns the size the image will occupy in the final UI.
+    #[inline]
     pub fn calculate_size(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
         self.size.get(available_size, image_size)
     }
 
+    #[inline]
     pub fn size(&self) -> Option<Vec2> {
         match &self.source {
             ImageSource::Texture(texture) => Some(texture.size),
@@ -217,6 +240,7 @@ impl<'a> Image<'a> {
         }
     }
 
+    #[inline]
     pub fn source(&self) -> &ImageSource<'a> {
         &self.source
     }
@@ -224,6 +248,7 @@ impl<'a> Image<'a> {
     /// Get the `uri` that this image was constructed from.
     ///
     /// This will return `<unknown>` for [`ImageSource::Texture`].
+    #[inline]
     pub fn uri(&self) -> &str {
         match &self.source {
             ImageSource::Bytes(uri, _) | ImageSource::Uri(uri) => uri,
@@ -256,6 +281,7 @@ impl<'a> Image<'a> {
         }
     }
 
+    #[inline]
     pub fn paint_at(&self, ui: &mut Ui, rect: Rect, texture: &SizedTexture) {
         paint_image_at(ui, rect, &self.image_options, texture);
     }

@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use epaint::mutex::RwLock;
 
-use crate::load::SizedTexture;
 use crate::{
     containers::*, ecolor::*, epaint::text::Fonts, layout::*, menu::MenuState, placer::Placer,
     util::IdTypeMap, widgets::*, *,
@@ -1585,44 +1584,7 @@ impl Ui {
     /// See also [`crate::Image`], [`crate::ImageSource`] and [`Self::raw_image`].
     #[inline]
     pub fn image<'a>(&mut self, source: impl Into<ImageSource<'a>>) -> Response {
-        Image::new(source.into()).ui(self)
-    }
-
-    /// Show an image created from a sized texture.
-    ///
-    /// You may use this method over [`Ui::image`] if you already have a [`TextureHandle`]
-    /// or a [`SizedTexture`].
-    ///
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// struct MyImage {
-    ///     texture: Option<egui::TextureHandle>,
-    /// }
-    ///
-    /// impl MyImage {
-    ///     fn ui(&mut self, ui: &mut egui::Ui) {
-    ///         let texture = self
-    ///             .texture
-    ///             .get_or_insert_with(|| {
-    ///                 // Load the texture only once.
-    ///                 ui.ctx().load_texture(
-    ///                     "my-image",
-    ///                     egui::ColorImage::example(),
-    ///                     Default::default()
-    ///                 )
-    ///             });
-    ///
-    ///         // Show the image:
-    ///         ui.raw_image((texture.id(), texture.size_vec2()));
-    ///     }
-    /// }
-    /// # });
-    /// ```
-    ///
-    /// See also [`crate::RawImage`].
-    #[inline]
-    pub fn raw_image(&mut self, texture: impl Into<SizedTexture>) -> Response {
-        RawImage::new(texture).ui(self)
+        Image::new(source).ui(self)
     }
 }
 
