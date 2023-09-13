@@ -187,6 +187,7 @@ pub fn apply_native_options_to_window(
     native_options: &crate::NativeOptions,
     window_settings: Option<WindowSettings>,
 ) {
+    crate::profile_function!();
     use winit::window::WindowLevel;
     window.set_window_level(if native_options.always_on_top {
         WindowLevel::AlwaysOnTop
@@ -465,6 +466,8 @@ impl EpiIntegration {
         app: &mut dyn epi::App,
         event: &winit::event::WindowEvent<'_>,
     ) -> EventResponse {
+        crate::profile_function!();
+
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
         match event {

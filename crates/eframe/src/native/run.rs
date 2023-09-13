@@ -567,6 +567,8 @@ mod glow_integration {
         /// we presently assume that we will
         #[allow(unsafe_code)]
         fn on_resume(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
+            crate::profile_function!();
+
             if self.gl_surface.is_some() {
                 log::warn!("on_resume called even thought we already have a surface. early return");
                 return Ok(());
@@ -981,6 +983,8 @@ mod glow_integration {
             event_loop: &EventLoopWindowTarget<UserEvent>,
             event: &winit::event::Event<'_, UserEvent>,
         ) -> Result<EventResult> {
+            crate::profile_function!();
+
             Ok(match event {
                 winit::event::Event::Resumed => {
                     // first resume event.
@@ -1031,7 +1035,7 @@ mod glow_integration {
                                 // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                                 // See: https://github.com/rust-windowing/winit/issues/208
                                 // This solves an issue where the app would panic when minimizing on Windows.
-                                if physical_size.width > 0 && physical_size.height > 0 {
+                                if 0 < physical_size.width && 0 < physical_size.height {
                                     running.gl_window.resize(*physical_size);
                                 }
                             }
@@ -1069,11 +1073,13 @@ mod glow_integration {
                         EventResult::Wait
                     }
                 }
+
                 #[cfg(feature = "accesskit")]
                 winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
                     accesskit_winit::ActionRequestEvent { request, .. },
                 )) => {
                     if let Some(running) = &mut self.running {
+                        crate::profile_scope!("on_accesskit_action_request");
                         running
                             .integration
                             .on_accesskit_action_request(request.clone());
@@ -1182,10 +1188,14 @@ mod wgpu_integration {
             native_options: &NativeOptions,
         ) -> std::result::Result<winit::window::Window, winit::error::OsError> {
             crate::profile_function!();
+
             let window_settings = epi_integration::load_window_settings(storage);
             let window_builder =
                 epi_integration::window_builder(event_loop, title, native_options, window_settings);
-            let window = window_builder.build(event_loop)?;
+            let window = {
+                crate::profile_scope!("WindowBuilder::build");
+                window_builder.build(event_loop)?
+            };
             epi_integration::apply_native_options_to_window(
                 &window,
                 native_options,
@@ -1278,7 +1288,7 @@ mod wgpu_integration {
 
             let app_creator = std::mem::take(&mut self.app_creator)
                 .expect("Single-use AppCreator has unexpectedly already been taken");
-            let mut app = app_creator(&epi::CreationContext {
+            let cc = epi::CreationContext {
                 egui_ctx: integration.egui_ctx.clone(),
                 integration_info: integration.frame.info().clone(),
                 storage: integration.frame.storage(),
@@ -1287,7 +1297,11 @@ mod wgpu_integration {
                 wgpu_render_state,
                 raw_display_handle: window.raw_display_handle(),
                 raw_window_handle: window.raw_window_handle(),
-            });
+            };
+            let mut app = {
+                crate::profile_scope!("user_app_creator");
+                app_creator(&cc)
+            };
 
             if app.warm_up_enabled() {
                 integration.warm_up(app.as_mut(), &window);
@@ -1418,6 +1432,8 @@ mod wgpu_integration {
             event_loop: &EventLoopWindowTarget<UserEvent>,
             event: &winit::event::Event<'_, UserEvent>,
         ) -> Result<EventResult> {
+            crate::profile_function!();
+
             Ok(match event {
                 winit::event::Event::Resumed => {
                     if let Some(running) = &self.running {
@@ -1480,7 +1496,7 @@ mod wgpu_integration {
                                 // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                                 // See: https://github.com/rust-windowing/winit/issues/208
                                 // This solves an issue where the app would panic when minimizing on Windows.
-                                if physical_size.width > 0 && physical_size.height > 0 {
+                                if 0 < physical_size.width && 0 < physical_size.height {
                                     running.painter.on_window_resized(
                                         physical_size.width,
                                         physical_size.height,
