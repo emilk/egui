@@ -1581,7 +1581,7 @@ impl Ui {
     /// from a file with a statically known path, unless you really want to
     /// load it at runtime instead!
     ///
-    /// See also [`crate::Image`], [`crate::ImageSource`] and [`Self::raw_image`].
+    /// See also [`crate::Image`], [`crate::ImageSource`].
     #[inline]
     pub fn image<'a>(&mut self, source: impl Into<ImageSource<'a>>) -> Response {
         Image::new(source).ui(self)
