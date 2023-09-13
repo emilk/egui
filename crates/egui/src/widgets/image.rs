@@ -26,7 +26,7 @@ pub struct Image<'a> {
     image_options: ImageOptions,
     sense: Sense,
     size: ImageSize,
-    show_spinner: Option<bool>,
+    show_loading_spinner: Option<bool>,
 }
 
 impl<'a> Image<'a> {
@@ -51,7 +51,7 @@ impl<'a> Image<'a> {
                 image_options: Default::default(),
                 sense: Sense::hover(),
                 size,
-                show_spinner: None,
+                show_loading_spinner: None,
             }
         }
 
@@ -228,8 +228,8 @@ impl<'a> Image<'a> {
     ///
     /// By default this uses the value of [`Style::image_loading_spinners`].
     #[inline]
-    pub fn show_spinner(mut self, show: bool) -> Self {
-        self.show_spinner = Some(show);
+    pub fn show_loading_spinner(mut self, show: bool) -> Self {
+        self.show_loading_spinner = Some(show);
         self
     }
 }
@@ -319,7 +319,7 @@ impl<'a> Widget for Image<'a> {
             Ok(TexturePoll::Pending { size }) => {
                 let spinner = |ui: &mut Ui| {
                     let show_spinner = self
-                        .show_spinner
+                        .show_loading_spinner
                         .unwrap_or(ui.style().image_loading_spinners);
                     if show_spinner {
                         ui.spinner()
