@@ -247,6 +247,11 @@ impl<'a> Image<'a> {
         self.size.get(available_size, image_size)
     }
 
+    pub fn load_and_calculate_size(&self, ui: &mut Ui, available_size: Vec2) -> Option<Vec2> {
+        let image_size = self.load(ui).ok()?.size()?;
+        Some(self.size.get(available_size, image_size))
+    }
+
     #[inline]
     pub fn size(&self) -> Option<Vec2> {
         match &self.source {

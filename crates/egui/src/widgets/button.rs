@@ -151,13 +151,10 @@ impl Widget for Button<'_> {
             image,
         } = self;
 
-        let image_size = match image
+        let image_size = image
             .as_ref()
-            .and_then(|image| Some((image, image.load(ui).ok()?.size()?)))
-        {
-            Some((image, image_size)) => image.calculate_size(ui.available_size(), image_size),
-            _ => Vec2::splat(0.0),
-        };
+            .and_then(|image| image.load_and_calculate_size(ui, ui.available_size()))
+            .unwrap_or(Vec2::ZERO);
 
         let frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
