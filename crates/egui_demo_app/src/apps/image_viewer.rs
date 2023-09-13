@@ -160,10 +160,10 @@ impl eframe::App for ImageViewer {
                     ui.add(Slider::new(&mut fract.y, 0.0..=1.0).text("height"));
                 }
                 ChosenFit::OriginalSize => {
-                    if !matches!(self.fit, ImageFit::Original(_)) {
-                        self.fit = ImageFit::Original(Some(1.0));
+                    if !matches!(self.fit, ImageFit::Original { .. }) {
+                        self.fit = ImageFit::Original { scale: 1.0 };
                     }
-                    let ImageFit::Original(Some(scale)) = &mut self.fit else {
+                    let ImageFit::Original{scale} = &mut self.fit else {
                         unreachable!()
                     };
                     ui.add(Slider::new(scale, 0.1..=4.0).text("scale"));
@@ -196,7 +196,7 @@ impl eframe::App for ImageViewer {
                     });
                 image = image.rotate(angle, origin);
                 match self.fit {
-                    ImageFit::Original(scale) => image = image.fit_to_original_size(scale),
+                    ImageFit::Original { scale } => image = image.fit_to_original_size(scale),
                     ImageFit::Fraction(fract) => image = image.fit_to_fraction(fract),
                     ImageFit::Exact(size) => image = image.fit_to_exact_size(size),
                 }

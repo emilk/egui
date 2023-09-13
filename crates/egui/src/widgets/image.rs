@@ -120,14 +120,14 @@ impl<'a> Image<'a> {
         self
     }
 
-    /// Fit the image to its original size.
+    /// Fit the image to its original size with some scaling.
     ///
     /// This will cause the image to overflow if it is larger than the available space.
     ///
     /// If [`Image::max_size`] is set, this is guaranteed to never exceed that limit.
     #[inline]
-    pub fn fit_to_original_size(mut self, scale: Option<f32>) -> Self {
-        self.size.fit = ImageFit::Original(scale);
+    pub fn fit_to_original_size(mut self, scale: f32) -> Self {
+        self.size.fit = ImageFit::Original { scale };
         self
     }
 
@@ -352,8 +352,8 @@ pub struct ImageSize {
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ImageFit {
-    /// Fit the image to its original size, optionally scaling it by some factor.
-    Original(Option<f32>),
+    /// Fit the image to its original size, scaled by some factor.
+    Original { scale: f32 },
 
     /// Fit the image to a fraction of the available size.
     Fraction(Vec2),
@@ -365,7 +365,7 @@ pub enum ImageFit {
 impl ImageFit {
     pub fn resolve(self, available_size: Vec2, image_size: Vec2) -> Vec2 {
         match self {
-            ImageFit::Original(scale) => image_size * scale.unwrap_or(1.0),
+            ImageFit::Original { scale } => image_size * scale,
             ImageFit::Fraction(fract) => available_size * fract,
             ImageFit::Exact(size) => size,
         }
@@ -379,7 +379,7 @@ impl ImageSize {
         };
 
         let fit = match self.fit {
-            ImageFit::Original(scale) => return SizeHint::Scale(scale.unwrap_or(1.0).ord()),
+            ImageFit::Original { scale } => return SizeHint::Scale(scale.ord()),
             ImageFit::Fraction(fract) => available_size * fract,
             ImageFit::Exact(size) => size,
         };
@@ -398,8 +398,8 @@ impl ImageSize {
     fn get(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
         let max_size = self.max_size;
         match self.fit {
-            ImageFit::Original(scale) => {
-                let image_size = image_size * scale.unwrap_or(1.0);
+            ImageFit::Original { scale } => {
+                let image_size = image_size * scale;
 
                 if image_size.x <= max_size.x && image_size.y <= max_size.y {
                     image_size
