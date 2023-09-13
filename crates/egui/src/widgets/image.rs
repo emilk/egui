@@ -26,6 +26,7 @@ pub struct Image<'a> {
     image_options: ImageOptions,
     sense: Sense,
     size: ImageSize,
+    show_spinner: Option<bool>,
 }
 
 impl<'a> Image<'a> {
@@ -50,6 +51,7 @@ impl<'a> Image<'a> {
                 image_options: Default::default(),
                 sense: Sense::hover(),
                 size,
+                show_spinner: None,
             }
         }
 
@@ -221,6 +223,15 @@ impl<'a> Image<'a> {
         }
         self
     }
+
+    /// Show a spinner when the image is loading.
+    ///
+    /// By default this uses the value of [`Style::image_loading_spinners`].
+    #[inline]
+    pub fn show_spinner(mut self, show: bool) -> Self {
+        self.show_spinner = Some(show);
+        self
+    }
 }
 
 impl<'a> Image<'a> {
@@ -294,21 +305,36 @@ impl<'a> Widget for Image<'a> {
                 self.paint_at(ui, rect, &texture);
                 response
             }
-            Ok(TexturePoll::Pending { size }) => match size {
-                Some(size) => {
-                    let size = self.calculate_size(ui.available_size(), size);
-                    ui.allocate_ui(size, |ui| {
-                        ui.with_layout(Layout::centered_and_justified(Direction::TopDown), |ui| {
-                            ui.spinner()
-                                .on_hover_text(format!("Loading {:?}…", self.uri()))
+            Ok(TexturePoll::Pending { size }) => {
+                let spinner = |ui: &mut Ui| {
+                    let show_spinner = self
+                        .show_spinner
+                        .unwrap_or(ui.style().image_loading_spinners);
+                    if show_spinner {
+                        ui.spinner()
+                            .on_hover_text(format!("Loading {:?}…", self.uri()))
+                    } else {
+                        ui.allocate_response(
+                            Vec2::splat(ui.style().spacing.interact_size.y),
+                            Sense::hover(),
+                        )
+                    }
+                };
+
+                match size {
+                    Some(size) => {
+                        let size = self.calculate_size(ui.available_size(), size);
+                        ui.allocate_ui(size, |ui| {
+                            ui.with_layout(
+                                Layout::centered_and_justified(Direction::TopDown),
+                                spinner,
+                            )
                         })
-                    })
-                    .response
+                        .response
+                    }
+                    None => spinner(ui),
                 }
-                None => ui
-                    .spinner()
-                    .on_hover_text(format!("Loading {:?}…", self.uri())),
-            },
+            }
             Err(err) => ui
                 .colored_label(ui.visuals().error_fg_color, "⚠")
                 .on_hover_text(err.to_string()),
