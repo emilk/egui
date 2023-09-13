@@ -335,7 +335,7 @@ pub struct ImageSize {
 
     /// Determines the maximum size of the image.
     ///
-    /// Defaults to `None`
+    /// Defaults to `Vec2::INFINITY` (no limit).
     pub max_size: Vec2,
 
     /// Determines how the image should shrink/expand/stretch/etc. to fit within its allocated space.
