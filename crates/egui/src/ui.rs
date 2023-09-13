@@ -2198,13 +2198,13 @@ impl Ui {
     #[inline]
     pub fn menu_image_button<'a, R>(
         &mut self,
-        image_source: impl Into<ImageSource<'a>>,
+        image: impl Into<Image<'a>>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
         if let Some(menu_state) = self.menu_state.clone() {
             menu::submenu_button(self, menu_state, String::new(), add_contents)
         } else {
-            menu::menu_image_button(self, ImageButton::new(image_source), add_contents)
+            menu::menu_image_button(self, ImageButton::new(image), add_contents)
         }
     }
 }

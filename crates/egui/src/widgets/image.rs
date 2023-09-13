@@ -234,6 +234,12 @@ impl<'a> Image<'a> {
     }
 }
 
+impl<'a, T: Into<ImageSource<'a>>> From<T> for Image<'a> {
+    fn from(value: T) -> Self {
+        Image::new(value)
+    }
+}
+
 impl<'a> Image<'a> {
     /// Returns the size the image will occupy in the final UI.
     #[inline]

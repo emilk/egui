@@ -56,12 +56,9 @@ impl<'a> Button<'a> {
 
     /// Creates a button with an image to the left of the text. The size of the image as displayed is defined by the provided size.
     #[allow(clippy::needless_pass_by_value)]
-    pub fn image_and_text(
-        image_source: impl Into<ImageSource<'a>>,
-        text: impl Into<WidgetText>,
-    ) -> Self {
+    pub fn image_and_text(image: impl Into<Image<'a>>, text: impl Into<WidgetText>) -> Self {
         Self {
-            image: Some(Image::new(image_source)),
+            image: Some(image.into()),
             ..Self::new(text)
         }
     }
@@ -494,9 +491,9 @@ pub struct ImageButton<'a> {
 }
 
 impl<'a> ImageButton<'a> {
-    pub fn new(source: impl Into<ImageSource<'a>>) -> Self {
+    pub fn new(image: impl Into<Image<'a>>) -> Self {
         Self {
-            image: Image::new(source),
+            image: image.into(),
             sense: Sense::click(),
             frame: true,
             selected: false,
