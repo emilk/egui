@@ -37,7 +37,7 @@ impl<'a> Image<'a> {
                 // User is probably expecting their texture to have
                 // the exact size of the provided `SizedTexture`.
                 ImageSize {
-                    maintain_aspect_ratio: false,
+                    maintain_aspect_ratio: true,
                     max_size: None,
                     fit: ImageFit::Exact(tex.size),
                 }
