@@ -396,23 +396,27 @@ impl ImageSize {
     }
 
     fn get(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
-        let max_size = self.max_size;
-        match self.fit {
+        let Self {
+            maintain_aspect_ratio,
+            max_size,
+            fit,
+        } = *self;
+        match fit {
             ImageFit::Original { scale } => {
                 let image_size = image_size * scale;
                 if image_size.x <= max_size.x && image_size.y <= max_size.y {
                     image_size
                 } else {
-                    scale_to_fit(image_size, max_size, self.maintain_aspect_ratio)
+                    scale_to_fit(image_size, max_size, maintain_aspect_ratio)
                 }
             }
             ImageFit::Fraction(fract) => {
                 let scale_to_size = (available_size * fract).min(max_size);
-                scale_to_fit(image_size, scale_to_size, self.maintain_aspect_ratio)
+                scale_to_fit(image_size, scale_to_size, maintain_aspect_ratio)
             }
             ImageFit::Exact(size) => {
                 let scale_to_size = size.min(max_size);
-                scale_to_fit(image_size, scale_to_size, self.maintain_aspect_ratio)
+                scale_to_fit(image_size, scale_to_size, maintain_aspect_ratio)
             }
         }
     }
