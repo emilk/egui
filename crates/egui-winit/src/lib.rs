@@ -190,6 +190,8 @@ impl State {
         egui_ctx: &egui::Context,
         event: &winit::event::WindowEvent<'_>,
     ) -> EventResponse {
+        crate::profile_function!();
+
         use winit::event::WindowEvent;
         match event {
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
