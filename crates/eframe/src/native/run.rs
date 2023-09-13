@@ -92,6 +92,7 @@ trait WinitApp {
 fn create_event_loop_builder(
     native_options: &mut epi::NativeOptions,
 ) -> EventLoopBuilder<UserEvent> {
+    crate::profile_function!();
     let mut event_loop_builder = winit::event_loop::EventLoopBuilder::with_user_event();
 
     if let Some(hook) = std::mem::take(&mut native_options.event_loop_builder) {
@@ -99,6 +100,11 @@ fn create_event_loop_builder(
     }
 
     event_loop_builder
+}
+
+fn create_event_loop(native_options: &mut epi::NativeOptions) -> EventLoop<UserEvent> {
+    crate::profile_function!();
+    create_event_loop_builder(native_options).build()
 }
 
 /// Access a thread-local event loop.
@@ -117,8 +123,7 @@ fn with_event_loop<R>(
         // do that as part of the lazy thread local storage initialization and so we instead
         // create the event loop lazily here
         let mut event_loop = event_loop.borrow_mut();
-        let event_loop = event_loop
-            .get_or_insert_with(|| create_event_loop_builder(&mut native_options).build());
+        let event_loop = event_loop.get_or_insert_with(|| create_event_loop(&mut native_options));
         f(event_loop, native_options)
     })
 }
@@ -137,6 +142,8 @@ fn run_and_return(
     let mut returned_result = Ok(());
 
     event_loop.run_return(|event, event_loop, control_flow| {
+        crate::profile_scope!("on_winit_event", short_event_description(&event));
+
         let event_result = match &event {
             winit::event::Event::LoopDestroyed => {
                 // On Mac, Cmd-Q we get here and then `run_return` doesn't return (despite its name),
@@ -266,6 +273,8 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
     let mut next_repaint_time = Instant::now();
 
     event_loop.run(move |event, event_loop, control_flow| {
+        crate::profile_scope!("on_winit_event", short_event_description(&event));
+
         let event_result = match event {
             winit::event::Event::LoopDestroyed => {
                 log::debug!("Received Event::LoopDestroyed");
@@ -656,6 +665,7 @@ mod glow_integration {
             native_options: epi::NativeOptions,
             app_creator: epi::AppCreator,
         ) -> Self {
+            crate::profile_function!();
             Self {
                 repaint_proxy: Arc::new(egui::mutex::Mutex::new(event_loop.create_proxy())),
                 app_name: app_name.to_owned(),
@@ -705,6 +715,7 @@ mod glow_integration {
         }
 
         fn init_run_state(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
+            crate::profile_function!();
             let storage = epi_integration::create_storage(
                 self.native_options
                     .app_id
@@ -814,6 +825,7 @@ mod glow_integration {
 
         fn save_and_destroy(&mut self) {
             if let Some(mut running) = self.running.take() {
+                crate::profile_function!();
                 running
                     .integration
                     .save(running.app.as_mut(), running.gl_window.window.as_ref());
@@ -823,125 +835,125 @@ mod glow_integration {
         }
 
         fn run_ui_and_paint(&mut self) -> EventResult {
-            if let Some(running) = &mut self.running {
-                if running.gl_window.window.is_none() {
-                    return EventResult::Wait;
-                }
+            let Some(running) = &mut self.running else {
+                return EventResult::Wait;
+            };
 
-                #[cfg(feature = "puffin")]
-                puffin::GlobalProfiler::lock().new_frame();
-                crate::profile_scope!("frame");
+            if running.gl_window.window.is_none() {
+                return EventResult::Wait;
+            }
 
-                let GlowWinitRunning {
-                    gl_window,
-                    gl,
-                    app,
-                    integration,
-                    painter,
-                } = running;
+            #[cfg(feature = "puffin")]
+            puffin::GlobalProfiler::lock().new_frame();
+            crate::profile_scope!("frame");
 
-                let window = gl_window.window();
+            let GlowWinitRunning {
+                gl_window,
+                gl,
+                app,
+                integration,
+                painter,
+            } = running;
 
-                let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
+            let window = gl_window.window();
 
-                egui_glow::painter::clear(
-                    gl,
-                    screen_size_in_pixels,
-                    app.clear_color(&integration.egui_ctx.style().visuals),
-                );
+            let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
-                let egui::FullOutput {
-                    platform_output,
-                    repaint_after,
-                    textures_delta,
-                    shapes,
-                } = integration.update(app.as_mut(), window);
+            egui_glow::painter::clear(
+                gl,
+                screen_size_in_pixels,
+                app.clear_color(&integration.egui_ctx.style().visuals),
+            );
 
-                integration.handle_platform_output(window, platform_output);
+            let egui::FullOutput {
+                platform_output,
+                repaint_after,
+                textures_delta,
+                shapes,
+            } = integration.update(app.as_mut(), window);
 
-                let clipped_primitives = {
-                    crate::profile_scope!("tessellate");
-                    integration.egui_ctx.tessellate(shapes)
-                };
+            integration.handle_platform_output(window, platform_output);
 
-                painter.paint_and_update_textures(
-                    screen_size_in_pixels,
-                    integration.egui_ctx.pixels_per_point(),
-                    &clipped_primitives,
-                    &textures_delta,
-                );
+            let clipped_primitives = {
+                crate::profile_scope!("tessellate");
+                integration.egui_ctx.tessellate(shapes)
+            };
 
-                let screenshot_requested = &mut integration.frame.output.screenshot_requested;
+            painter.paint_and_update_textures(
+                screen_size_in_pixels,
+                integration.egui_ctx.pixels_per_point(),
+                &clipped_primitives,
+                &textures_delta,
+            );
 
-                if *screenshot_requested {
-                    *screenshot_requested = false;
+            let screenshot_requested = &mut integration.frame.output.screenshot_requested;
+
+            if *screenshot_requested {
+                *screenshot_requested = false;
+                let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
+                integration.frame.screenshot.set(Some(screenshot));
+            }
+
+            integration.post_rendering(app.as_mut(), window);
+
+            {
+                crate::profile_scope!("swap_buffers");
+                gl_window.swap_buffers().unwrap();
+            }
+
+            integration.post_present(window);
+
+            #[cfg(feature = "__screenshot")]
+            // give it time to settle:
+            if integration.egui_ctx.frame_nr() == 2 {
+                if let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO") {
+                    assert!(
+                        path.ends_with(".png"),
+                        "Expected EFRAME_SCREENSHOT_TO to end with '.png', got {path:?}"
+                    );
                     let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
-                    integration.frame.screenshot.set(Some(screenshot));
+                    image::save_buffer(
+                        &path,
+                        screenshot.as_raw(),
+                        screenshot.width() as u32,
+                        screenshot.height() as u32,
+                        image::ColorType::Rgba8,
+                    )
+                    .unwrap_or_else(|err| {
+                        panic!("Failed to save screenshot to {path:?}: {err}");
+                    });
+                    eprintln!("Screenshot saved to {path:?}.");
+                    std::process::exit(0);
                 }
+            }
 
-                integration.post_rendering(app.as_mut(), window);
-
-                {
-                    crate::profile_scope!("swap_buffers");
-                    gl_window.swap_buffers().unwrap();
-                }
-
-                integration.post_present(window);
-
-                #[cfg(feature = "__screenshot")]
-                // give it time to settle:
-                if integration.egui_ctx.frame_nr() == 2 {
-                    if let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO") {
-                        assert!(
-                            path.ends_with(".png"),
-                            "Expected EFRAME_SCREENSHOT_TO to end with '.png', got {path:?}"
-                        );
-                        let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
-                        image::save_buffer(
-                            &path,
-                            screenshot.as_raw(),
-                            screenshot.width() as u32,
-                            screenshot.height() as u32,
-                            image::ColorType::Rgba8,
-                        )
-                        .unwrap_or_else(|err| {
-                            panic!("Failed to save screenshot to {path:?}: {err}");
-                        });
-                        eprintln!("Screenshot saved to {path:?}.");
-                        std::process::exit(0);
-                    }
-                }
-
-                let control_flow = if integration.should_close() {
-                    EventResult::Exit
-                } else if repaint_after.is_zero() {
-                    EventResult::RepaintNext
-                } else if let Some(repaint_after_instant) =
-                    std::time::Instant::now().checked_add(repaint_after)
-                {
-                    // if repaint_after is something huge and can't be added to Instant,
-                    // we will use `ControlFlow::Wait` instead.
-                    // technically, this might lead to some weird corner cases where the user *WANTS*
-                    // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
-                    // egui backend impl i guess.
-                    EventResult::RepaintAt(repaint_after_instant)
-                } else {
-                    EventResult::Wait
-                };
-
-                integration.maybe_autosave(app.as_mut(), window);
-
-                if window.is_minimized() == Some(true) {
-                    // On Mac, a minimized Window uses up all CPU:
-                    // https://github.com/emilk/egui/issues/325
-                    crate::profile_scope!("bg_sleep");
-                    std::thread::sleep(std::time::Duration::from_millis(10));
-                }
-
-                control_flow
+            let control_flow = if integration.should_close() {
+                EventResult::Exit
+            } else if repaint_after.is_zero() {
+                EventResult::RepaintNext
+            } else if let Some(repaint_after_instant) =
+                std::time::Instant::now().checked_add(repaint_after)
+            {
+                // if repaint_after is something huge and can't be added to Instant,
+                // we will use `ControlFlow::Wait` instead.
+                // technically, this might lead to some weird corner cases where the user *WANTS*
+                // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
+                // egui backend impl i guess.
+                EventResult::RepaintAt(repaint_after_instant)
             } else {
                 EventResult::Wait
+            };
+
+            integration.maybe_autosave(app.as_mut(), window);
+
+            if window.is_minimized() == Some(true) {
+                // On Mac, a minimized Window uses up all CPU:
+                // https://github.com/emilk/egui/issues/325
+                crate::profile_scope!("bg_sleep");
+                std::thread::sleep(std::time::Duration::from_millis(10));
             }
+
+            control_flow
         }
 
         fn on_event(
@@ -1070,14 +1082,14 @@ mod glow_integration {
                 run_and_return(event_loop, glow_eframe)
             })
         } else {
-            let event_loop = create_event_loop_builder(&mut native_options).build();
+            let event_loop = create_event_loop(&mut native_options);
             let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, glow_eframe);
         }
 
         #[cfg(target_os = "ios")]
         {
-            let event_loop = create_event_loop_builder(&mut native_options).build();
+            let event_loop = create_event_loop(&mut native_options);
             let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, glow_eframe);
         }
@@ -1125,6 +1137,7 @@ mod wgpu_integration {
             native_options: epi::NativeOptions,
             app_creator: epi::AppCreator,
         ) -> Self {
+            crate::profile_function!();
             #[cfg(feature = "__screenshot")]
             assert!(
                 std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
@@ -1148,6 +1161,7 @@ mod wgpu_integration {
             title: &str,
             native_options: &NativeOptions,
         ) -> std::result::Result<winit::window::Window, winit::error::OsError> {
+            crate::profile_function!();
             let window_settings = epi_integration::load_window_settings(storage);
             let window_builder =
                 epi_integration::window_builder(event_loop, title, native_options, window_settings);
@@ -1167,6 +1181,7 @@ mod wgpu_integration {
         ) -> std::result::Result<(), egui_wgpu::WgpuError> {
             self.window = Some(window);
             if let Some(running) = &mut self.running {
+                crate::profile_function!();
                 pollster::block_on(running.painter.set_window(self.window.as_ref()))?;
             }
             Ok(())
@@ -1188,6 +1203,7 @@ mod wgpu_integration {
             storage: Option<Box<dyn epi::Storage>>,
             window: winit::window::Window,
         ) -> std::result::Result<(), egui_wgpu::WgpuError> {
+            crate::profile_function!();
             #[allow(unsafe_code, unused_mut, unused_unsafe)]
             let mut painter = egui_wgpu::winit::Painter::new(
                 self.native_options.wgpu_options.clone(),
@@ -1288,6 +1304,7 @@ mod wgpu_integration {
 
         fn save_and_destroy(&mut self) {
             if let Some(mut running) = self.running.take() {
+                crate::profile_function!();
                 running
                     .integration
                     .save(running.app.as_mut(), self.window.as_ref());
@@ -1303,76 +1320,76 @@ mod wgpu_integration {
         }
 
         fn run_ui_and_paint(&mut self) -> EventResult {
-            if let (Some(running), Some(window)) = (&mut self.running, &self.window) {
-                #[cfg(feature = "puffin")]
-                puffin::GlobalProfiler::lock().new_frame();
-                crate::profile_scope!("frame");
+            let (Some(running), Some(window)) = (&mut self.running, &self.window) else {
+                return EventResult::Wait;
+            };
 
-                let WgpuWinitRunning {
-                    app,
-                    integration,
-                    painter,
-                } = running;
+            #[cfg(feature = "puffin")]
+            puffin::GlobalProfiler::lock().new_frame();
+            crate::profile_scope!("frame");
 
-                let egui::FullOutput {
-                    platform_output,
-                    repaint_after,
-                    textures_delta,
-                    shapes,
-                } = integration.update(app.as_mut(), window);
+            let WgpuWinitRunning {
+                app,
+                integration,
+                painter,
+            } = running;
 
-                integration.handle_platform_output(window, platform_output);
+            let egui::FullOutput {
+                platform_output,
+                repaint_after,
+                textures_delta,
+                shapes,
+            } = integration.update(app.as_mut(), window);
 
-                let clipped_primitives = {
-                    crate::profile_scope!("tessellate");
-                    integration.egui_ctx.tessellate(shapes)
-                };
+            integration.handle_platform_output(window, platform_output);
 
-                let screenshot_requested = &mut integration.frame.output.screenshot_requested;
+            let clipped_primitives = {
+                crate::profile_scope!("tessellate");
+                integration.egui_ctx.tessellate(shapes)
+            };
 
-                let screenshot = painter.paint_and_update_textures(
-                    integration.egui_ctx.pixels_per_point(),
-                    app.clear_color(&integration.egui_ctx.style().visuals),
-                    &clipped_primitives,
-                    &textures_delta,
-                    *screenshot_requested,
-                );
-                *screenshot_requested = false;
-                integration.frame.screenshot.set(screenshot);
+            let screenshot_requested = &mut integration.frame.output.screenshot_requested;
 
-                integration.post_rendering(app.as_mut(), window);
-                integration.post_present(window);
+            let screenshot = painter.paint_and_update_textures(
+                integration.egui_ctx.pixels_per_point(),
+                app.clear_color(&integration.egui_ctx.style().visuals),
+                &clipped_primitives,
+                &textures_delta,
+                *screenshot_requested,
+            );
+            *screenshot_requested = false;
+            integration.frame.screenshot.set(screenshot);
 
-                let control_flow = if integration.should_close() {
-                    EventResult::Exit
-                } else if repaint_after.is_zero() {
-                    EventResult::RepaintNext
-                } else if let Some(repaint_after_instant) =
-                    std::time::Instant::now().checked_add(repaint_after)
-                {
-                    // if repaint_after is something huge and can't be added to Instant,
-                    // we will use `ControlFlow::Wait` instead.
-                    // technically, this might lead to some weird corner cases where the user *WANTS*
-                    // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
-                    // egui backend impl i guess.
-                    EventResult::RepaintAt(repaint_after_instant)
-                } else {
-                    EventResult::Wait
-                };
+            integration.post_rendering(app.as_mut(), window);
+            integration.post_present(window);
 
-                integration.maybe_autosave(app.as_mut(), window);
-
-                if window.is_minimized() == Some(true) {
-                    // On Mac, a minimized Window uses up all CPU:
-                    // https://github.com/emilk/egui/issues/325
-                    crate::profile_scope!("bg_sleep");
-                    std::thread::sleep(std::time::Duration::from_millis(10));
-                }
-
-                control_flow
+            let control_flow = if integration.should_close() {
+                EventResult::Exit
+            } else if repaint_after.is_zero() {
+                EventResult::RepaintNext
+            } else if let Some(repaint_after_instant) =
+                std::time::Instant::now().checked_add(repaint_after)
+            {
+                // if repaint_after is something huge and can't be added to Instant,
+                // we will use `ControlFlow::Wait` instead.
+                // technically, this might lead to some weird corner cases where the user *WANTS*
+                // winit to use `WaitUntil(MAX_INSTANT)` explicitly. they can roll their own
+                // egui backend impl i guess.
+                EventResult::RepaintAt(repaint_after_instant)
             } else {
                 EventResult::Wait
+            };
+
+            integration.maybe_autosave(app.as_mut(), window);
+
+            if window.is_minimized() == Some(true) {
+                // On Mac, a minimized Window uses up all CPU:
+                // https://github.com/emilk/egui/issues/325
+                crate::profile_scope!("bg_sleep");
+                std::thread::sleep(std::time::Duration::from_millis(10));
             }
+
+            control_flow
         }
 
         fn on_event(
@@ -1517,14 +1534,14 @@ mod wgpu_integration {
                 run_and_return(event_loop, wgpu_eframe)
             })
         } else {
-            let event_loop = create_event_loop_builder(&mut native_options).build();
+            let event_loop = create_event_loop(&mut native_options);
             let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, wgpu_eframe);
         }
 
         #[cfg(target_os = "ios")]
         {
-            let event_loop = create_event_loop_builder(&mut native_options).build();
+            let event_loop = create_event_loop(&mut native_options);
             let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, wgpu_eframe);
         }
@@ -1550,4 +1567,66 @@ fn system_theme(window: &winit::window::Window, options: &NativeOptions) -> Opti
 
 fn extremely_far_future() -> std::time::Instant {
     std::time::Instant::now() + std::time::Duration::from_secs(10_000_000_000)
+}
+
+// For the puffin profiler!
+fn short_event_description(event: &winit::event::Event<'_, UserEvent>) -> &'static str {
+    use winit::event::{DeviceEvent, Event, StartCause, WindowEvent};
+
+    match event {
+        Event::Suspended => "Event::Suspended",
+        Event::Resumed => "Event::Resumed",
+        Event::MainEventsCleared => "Event::MainEventsCleared",
+        Event::RedrawRequested(_) => "Event::RedrawRequested",
+        Event::RedrawEventsCleared => "Event::RedrawEventsCleared",
+        Event::LoopDestroyed => "Event::LoopDestroyed",
+        Event::UserEvent(user_event) => match user_event {
+            UserEvent::RequestRepaint { .. } => "UserEvent::RequestRepaint",
+            UserEvent::AccessKitActionRequest(_) => "UserEvent::AccessKitActionRequest",
+        },
+        Event::DeviceEvent { event, .. } => match event {
+            DeviceEvent::Added { .. } => "DeviceEvent::Added",
+            DeviceEvent::Removed { .. } => "DeviceEvent::Removed",
+            DeviceEvent::MouseMotion { .. } => "DeviceEvent::MouseMotion",
+            DeviceEvent::MouseWheel { .. } => "DeviceEvent::MouseWheel",
+            DeviceEvent::Motion { .. } => "DeviceEvent::Motion",
+            DeviceEvent::Button { .. } => "DeviceEvent::Button",
+            DeviceEvent::Key { .. } => "DeviceEvent::Key",
+            DeviceEvent::Text { .. } => "DeviceEvent::Text",
+        },
+        Event::NewEvents(start_cause) => match start_cause {
+            StartCause::ResumeTimeReached { .. } => "NewEvents::ResumeTimeReached",
+            StartCause::WaitCancelled { .. } => "NewEvents::WaitCancelled",
+            StartCause::Poll => "NewEvents::Poll",
+            StartCause::Init => "NewEvents::Init",
+        },
+        Event::WindowEvent { event, .. } => match event {
+            WindowEvent::Resized { .. } => "WindowEvent::Resized",
+            WindowEvent::Moved { .. } => "WindowEvent::Moved",
+            WindowEvent::CloseRequested { .. } => "WindowEvent::CloseRequested",
+            WindowEvent::Destroyed { .. } => "WindowEvent::Destroyed",
+            WindowEvent::DroppedFile { .. } => "WindowEvent::DroppedFile",
+            WindowEvent::HoveredFile { .. } => "WindowEvent::HoveredFile",
+            WindowEvent::HoveredFileCancelled { .. } => "WindowEvent::HoveredFileCancelled",
+            WindowEvent::ReceivedCharacter { .. } => "WindowEvent::ReceivedCharacter",
+            WindowEvent::Focused { .. } => "WindowEvent::Focused",
+            WindowEvent::KeyboardInput { .. } => "WindowEvent::KeyboardInput",
+            WindowEvent::ModifiersChanged { .. } => "WindowEvent::ModifiersChanged",
+            WindowEvent::Ime { .. } => "WindowEvent::Ime",
+            WindowEvent::CursorMoved { .. } => "WindowEvent::CursorMoved",
+            WindowEvent::CursorEntered { .. } => "WindowEvent::CursorEntered",
+            WindowEvent::CursorLeft { .. } => "WindowEvent::CursorLeft",
+            WindowEvent::MouseWheel { .. } => "WindowEvent::MouseWheel",
+            WindowEvent::MouseInput { .. } => "WindowEvent::MouseInput",
+            WindowEvent::TouchpadMagnify { .. } => "WindowEvent::TouchpadMagnify",
+            WindowEvent::SmartMagnify { .. } => "WindowEvent::SmartMagnify",
+            WindowEvent::TouchpadRotate { .. } => "WindowEvent::TouchpadRotate",
+            WindowEvent::TouchpadPressure { .. } => "WindowEvent::TouchpadPressure",
+            WindowEvent::AxisMotion { .. } => "WindowEvent::AxisMotion",
+            WindowEvent::Touch { .. } => "WindowEvent::Touch",
+            WindowEvent::ScaleFactorChanged { .. } => "WindowEvent::ScaleFactorChanged",
+            WindowEvent::ThemeChanged { .. } => "WindowEvent::ThemeChanged",
+            WindowEvent::Occluded { .. } => "WindowEvent::Occluded",
+        },
+    }
 }
