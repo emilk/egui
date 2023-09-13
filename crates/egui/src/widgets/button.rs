@@ -596,7 +596,10 @@ impl<'a> ImageButton<'a> {
 impl<'a> Widget for ImageButton<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
         match self.image.load(ui) {
-            Ok(TexturePoll::Ready { texture }) => self.show(ui, &texture),
+            Ok(TexturePoll::Ready { mut texture }) => {
+                texture.size = self.image.calculate_size(ui.available_size(), texture.size);
+                self.show(ui, &texture)
+            }
             Ok(TexturePoll::Pending { .. }) => ui
                 .spinner()
                 .on_hover_text(format!("Loading {:?}…", self.image.uri())),
