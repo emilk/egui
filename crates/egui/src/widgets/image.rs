@@ -400,51 +400,34 @@ impl ImageSize {
         match self.fit {
             ImageFit::Original { scale } => {
                 let image_size = image_size * scale;
-
                 if image_size.x <= max_size.x && image_size.y <= max_size.y {
                     image_size
-                } else if self.maintain_aspect_ratio {
-                    let ratio_x = max_size.x / image_size.x;
-                    let ratio_y = max_size.y / image_size.y;
-                    let ratio = if ratio_x < ratio_y { ratio_x } else { ratio_y };
-                    let ratio = if ratio.is_infinite() { 1.0 } else { ratio };
-
-                    Vec2::new(image_size.x * ratio, image_size.y * ratio)
                 } else {
-                    image_size.min(max_size)
+                    scale_to_fit(image_size, max_size, self.maintain_aspect_ratio)
                 }
             }
             ImageFit::Fraction(fract) => {
-                let available_size = available_size * fract;
-                let available_size = available_size.min(max_size);
-
-                if self.maintain_aspect_ratio {
-                    let ratio_x = available_size.x / image_size.x;
-                    let ratio_y = available_size.y / image_size.y;
-                    let ratio = if ratio_x < ratio_y { ratio_x } else { ratio_y };
-                    let ratio = if ratio.is_infinite() { 1.0 } else { ratio };
-
-                    return Vec2::new(image_size.x * ratio, image_size.y * ratio);
-                }
-
-                available_size
+                let scale_to_size = (available_size * fract).min(max_size);
+                scale_to_fit(image_size, scale_to_size, self.maintain_aspect_ratio)
             }
             ImageFit::Exact(size) => {
-                let available_size = size;
-                let available_size = available_size.min(max_size);
-
-                if self.maintain_aspect_ratio {
-                    let ratio_x = available_size.x / image_size.x;
-                    let ratio_y = available_size.y / image_size.y;
-                    let ratio = if ratio_x < ratio_y { ratio_x } else { ratio_y };
-                    let ratio = if ratio.is_infinite() { 1.0 } else { ratio };
-
-                    return Vec2::new(image_size.x * ratio, image_size.y * ratio);
-                }
-
-                available_size
+                let scale_to_size = size.min(max_size);
+                scale_to_fit(image_size, scale_to_size, self.maintain_aspect_ratio)
             }
         }
+    }
+}
+
+// TODO: unit-tests
+fn scale_to_fit(image_size: Vec2, available_size: Vec2, maintain_aspect_ratio: bool) -> Vec2 {
+    if maintain_aspect_ratio {
+        let ratio_x = available_size.x / image_size.x;
+        let ratio_y = available_size.y / image_size.y;
+        let ratio = if ratio_x < ratio_y { ratio_x } else { ratio_y };
+        let ratio = if ratio.is_finite() { ratio } else { 1.0 };
+        image_size * ratio
+    } else {
+        available_size
     }
 }
 
