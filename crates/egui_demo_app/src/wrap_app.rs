@@ -165,7 +165,6 @@ pub struct WrapApp {
 
 impl WrapApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        #[cfg(feature = "image_viewer")]
         egui_extras::loaders::install(&_cc.egui_ctx);
 
         #[allow(unused_mut)]
