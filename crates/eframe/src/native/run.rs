@@ -1591,6 +1591,7 @@ fn extremely_far_future() -> std::time::Instant {
 }
 
 // For the puffin profiler!
+#[allow(dead_code)] // Only used for profiling
 fn short_event_description(event: &winit::event::Event<'_, UserEvent>) -> &'static str {
     use winit::event::{DeviceEvent, Event, StartCause, WindowEvent};
 
