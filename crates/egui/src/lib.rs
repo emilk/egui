@@ -437,13 +437,16 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 ///     egui::Image::new(egui::include_image!("../assets/ferris.png"))
 ///         .rounding(egui::Rounding::same(6.0))
 /// );
+///
+/// let image_source: egui::ImageSource = egui::include_image!("../assets/ferris.png");
+/// assert_eq!(image_source.uri(), Some("bytes://../assets/ferris.png"));
 /// # });
 /// ```
 #[macro_export]
 macro_rules! include_image {
     ($path: literal) => {
         $crate::ImageSource::Bytes(
-            ::std::borrow::Cow::Borrowed($path),
+            ::std::borrow::Cow::Borrowed(concat!("bytes://", $path)), // uri
             $crate::load::Bytes::Static(include_bytes!($path)),
         )
     };

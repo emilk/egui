@@ -1,5 +1,8 @@
 use super::*;
 
+/// Maps URI:s to [`Bytes`], e.g. found with `include_bytes!`.
+///
+/// By convention, the URI:s should be prefixed with `bytes://`.
 #[derive(Default)]
 pub struct DefaultBytesLoader {
     cache: Mutex<HashMap<Cow<'static, str>, Bytes>>,
@@ -27,13 +30,22 @@ impl BytesLoader for DefaultBytesLoader {
     }
 
     fn load(&self, _: &Context, uri: &str) -> BytesLoadResult {
+        // We accept uri:s that don't start with `bytes://` too… for now.
         match self.cache.lock().get(uri).cloned() {
             Some(bytes) => Ok(BytesPoll::Ready {
                 size: None,
                 bytes,
                 mime: None,
             }),
-            None => Err(LoadError::NotSupported),
+            None => {
+                if uri.starts_with("bytes://") {
+                    Err(LoadError::Loading(
+                        "Bytes not found. Did you forget to call Context::include_bytes?".into(),
+                    ))
+                } else {
+                    Err(LoadError::NotSupported)
+                }
+            }
         }
     }
 

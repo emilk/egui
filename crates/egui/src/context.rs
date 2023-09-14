@@ -1912,6 +1912,9 @@ impl Context {
     /// Associate some static bytes with a `uri`.
     ///
     /// The same `uri` may be passed to [`Ui::image`] later to load the bytes as an image.
+    ///
+    /// By convention, the `uri` should start wtih `bytes://`.
+    /// Following that convention will lead to better error messages.
     pub fn include_bytes(&self, uri: impl Into<Cow<'static, str>>, bytes: impl Into<Bytes>) {
         self.loaders().include.insert(uri, bytes);
     }

@@ -74,6 +74,8 @@ impl<'a> Image<'a> {
 
     /// Load the image from some raw bytes.
     ///
+    /// For better error messages, use the `bytes://` prefix for the URI.
+    ///
     /// See [`ImageSource::Bytes`].
     pub fn from_bytes(uri: impl Into<Cow<'static, str>>, bytes: impl Into<Bytes>) -> Self {
         Self::new(ImageSource::Bytes(uri.into(), bytes.into()))
@@ -471,6 +473,8 @@ pub enum ImageSource<'a> {
     Texture(SizedTexture),
 
     /// Load the image from some raw bytes.
+    ///
+    /// For better error messages, use the `bytes://` prefix for the URI.
     ///
     /// The [`Bytes`] may be:
     /// - `'static`, obtained from `include_bytes!` or similar
