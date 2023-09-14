@@ -309,7 +309,7 @@ impl<'a> Widget for Image<'a> {
                     TexturePoll::Pending { .. } => {
                         let show_spinner = self
                             .show_loading_spinner
-                            .unwrap_or(ui.style().image_loading_spinners);
+                            .unwrap_or(ui.visuals().image_loading_spinners);
                         if show_spinner {
                             Spinner::new().paint_at(ui, response.rect);
                         }

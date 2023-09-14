@@ -207,9 +207,6 @@ pub struct Style {
     ///
     /// This only affects a few egui widgets.
     pub explanation_tooltips: bool,
-
-    /// Show a spinner when loading an image.
-    pub image_loading_spinners: bool,
 }
 
 impl Style {
@@ -556,6 +553,9 @@ pub struct Visuals {
     /// all turn your cursor into [`CursorIcon::PointingHand`] when a button is
     /// hovered) but it is inconsistent with native UI toolkits.
     pub interact_cursor: Option<CursorIcon>,
+
+    /// Show a spinner when loading an image.
+    pub image_loading_spinners: bool,
 }
 
 impl Visuals {
@@ -741,7 +741,6 @@ impl Default for Style {
             animation_time: 1.0 / 12.0,
             debug: Default::default(),
             explanation_tooltips: false,
-            image_loading_spinners: true,
         }
     }
 }
@@ -821,6 +820,8 @@ impl Visuals {
             slider_trailing_fill: false,
 
             interact_cursor: None,
+
+            image_loading_spinners: true,
         }
     }
 
@@ -994,7 +995,6 @@ impl Style {
             animation_time,
             debug,
             explanation_tooltips,
-            image_loading_spinners,
         } = self;
 
         visuals.light_dark_radio_buttons(ui);
@@ -1061,9 +1061,6 @@ impl Style {
             .on_hover_text(
                 "Show explanatory text when hovering DragValue:s and other egui widgets",
             );
-
-        ui.checkbox(image_loading_spinners, "Image loading spinners")
-            .on_hover_text("Show a spinner when an Image is loading");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -1396,6 +1393,8 @@ impl Visuals {
 
             slider_trailing_fill,
             interact_cursor,
+
+            image_loading_spinners,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1470,6 +1469,9 @@ impl Visuals {
                     ui.selectable_value(interact_cursor, Some(icon), format!("{icon:?}"));
                 }
             });
+
+        ui.checkbox(image_loading_spinners, "Image loading spinners")
+            .on_hover_text("Show a spinner when an Image is loading");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }

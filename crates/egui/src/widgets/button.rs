@@ -240,7 +240,7 @@ impl Widget for Button<'_> {
                 let tlr = image.load(ui);
                 let show_loading_spinner = image
                     .show_loading_spinner
-                    .unwrap_or(ui.style().image_loading_spinners);
+                    .unwrap_or(ui.visuals().image_loading_spinners);
                 widgets::image::paint_texture_load_result(
                     ui,
                     &tlr,
