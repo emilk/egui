@@ -178,7 +178,7 @@ impl Widget for Button<'_> {
             button_padding.y = 0.0;
         }
 
-        let space_avilable_for_image = if let Some(text) = &text {
+        let space_available_for_image = if let Some(text) = &text {
             let font_height = ui.fonts(|fonts| text.font_height(fonts, ui.style()));
             Vec2::splat(font_height) // Reasonable?
         } else {
@@ -187,8 +187,8 @@ impl Widget for Button<'_> {
 
         let image_size = if let Some(image) = &image {
             image
-                .load_and_calculate_size(ui, space_avilable_for_image)
-                .unwrap_or(space_avilable_for_image)
+                .load_and_calculate_size(ui, space_available_for_image)
+                .unwrap_or(space_available_for_image)
         } else {
             Vec2::ZERO
         };

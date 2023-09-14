@@ -240,7 +240,7 @@ impl<'a> Image<'a> {
     /// Returns the size the image will occupy in the final UI.
     #[inline]
     pub fn calculate_size(&self, available_size: Vec2, image_size: Option<Vec2>) -> Vec2 {
-        let image_size = image_size.unwrap_or(Vec2::splat(24.0)); // Fallback for still-loading texturers, or failure to load.
+        let image_size = image_size.unwrap_or(Vec2::splat(24.0)); // Fallback for still-loading textures, or failure to load.
         self.size.get(available_size, image_size)
     }
 
@@ -335,7 +335,7 @@ pub struct ImageSize {
 pub enum ImageFit {
     /// Fit the image to its original size, scaled by some factor.
     ///
-    /// Ignores how much space is actually avilable in the ui.
+    /// Ignores how much space is actually available in the ui.
     Original { scale: f32 },
 
     /// Fit the image to a fraction of the available size.
@@ -343,7 +343,7 @@ pub enum ImageFit {
 
     /// Fit the image to an exact size.
     ///
-    /// Ignores how much space is actually avilable in the ui.
+    /// Ignores how much space is actually available in the ui.
     Exact(Vec2),
 }
 
