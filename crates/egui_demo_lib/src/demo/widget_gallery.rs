@@ -202,9 +202,16 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("ImageButton", "ImageButton"));
+        if ui.add(egui::ImageButton::new(egui_icon.clone())).clicked() {
+            *boolean = !*boolean;
+        }
+        ui.end_row();
+
+        ui.add(doc_link_label("Button with image", "Button"));
         if ui
-            .add(egui::ImageButton::new(
-                egui::Image::from(egui_icon).max_size(egui::Vec2::splat(16.0)),
+            .add(egui::Button::image_and_text(
+                egui_icon,
+                "A button with an image",
             ))
             .clicked()
         {

@@ -1,5 +1,3 @@
-use crate::load::SizedTexture;
-use crate::load::TexturePoll;
 use crate::*;
 
 /// Clickable button with text.
@@ -151,10 +149,13 @@ impl Widget for Button<'_> {
             image,
         } = self;
 
+        let font_height = ui.fonts(|fonts| text.font_height(fonts, ui.style()));
+        let space_avilable_for_button = Vec2::splat(font_height); // Reasonable?
+
         let image_size = image
             .as_ref()
-            .and_then(|image| image.load_and_calculate_size(ui, ui.available_size()))
-            .unwrap_or(Vec2::ZERO);
+            .and_then(|image| image.load_and_calculate_size(ui, space_avilable_for_button))
+            .unwrap_or(space_avilable_for_button);
 
         let frame = frame.unwrap_or_else(|| ui.visuals().button_frame);
 
@@ -238,14 +239,11 @@ impl Widget for Button<'_> {
                     image_size,
                 );
                 let tlr = image.load(ui);
-                let show_loading_spinner = image
-                    .show_loading_spinner
-                    .unwrap_or(ui.visuals().image_loading_spinners);
                 widgets::image::paint_texture_load_result(
                     ui,
                     &tlr,
                     image_rect,
-                    show_loading_spinner,
+                    image.show_loading_spinner,
                     image.image_options(),
                 );
                 response =
@@ -530,8 +528,10 @@ impl<'a> ImageButton<'a> {
         self.sense = sense;
         self
     }
+}
 
-    fn show(&self, ui: &mut Ui, texture: &SizedTexture) -> Response {
+impl<'a> Widget for ImageButton<'a> {
+    fn ui(self, ui: &mut Ui) -> Response {
         let padding = if self.frame {
             // so we can see that it is a button:
             Vec2::splat(ui.spacing().button_padding.x)
@@ -539,7 +539,13 @@ impl<'a> ImageButton<'a> {
             Vec2::ZERO
         };
 
-        let padded_size = texture.size + 2.0 * padding;
+        let tlr = self.image.load(ui);
+        let texture_size = tlr.as_ref().ok().and_then(|t| t.size());
+        let image_size = self
+            .image
+            .calculate_size(ui.available_size() - 2.0 * padding, texture_size);
+
+        let padded_size = image_size + 2.0 * padding;
         let (rect, response) = ui.allocate_exact_size(padded_size, self.sense);
         response.widget_info(|| WidgetInfo::new(WidgetType::ImageButton));
 
@@ -571,36 +577,19 @@ impl<'a> ImageButton<'a> {
 
             let image_rect = ui
                 .layout()
-                .align_size_within_rect(texture.size, rect.shrink2(padding));
+                .align_size_within_rect(image_size, rect.shrink2(padding));
             // let image_rect = image_rect.expand2(expansion); // can make it blurry, so let's not
             let image_options = ImageOptions {
                 rounding, // apply rounding to the image
                 ..self.image.image_options().clone()
             };
-            crate::widgets::image::paint_image_at(ui, image_rect, &image_options, texture);
+            widgets::image::paint_texture_load_result(ui, &tlr, image_rect, None, &image_options);
 
             // Draw frame outline:
             ui.painter()
                 .rect_stroke(rect.expand2(expansion), rounding, stroke);
         }
 
-        response
-    }
-}
-
-impl<'a> Widget for ImageButton<'a> {
-    fn ui(self, ui: &mut Ui) -> Response {
-        match self.image.load(ui) {
-            Ok(TexturePoll::Ready { mut texture }) => {
-                texture.size = self.image.calculate_size(ui.available_size(), texture.size);
-                self.show(ui, &texture)
-            }
-            Ok(TexturePoll::Pending { .. }) => ui
-                .spinner()
-                .on_hover_text(format!("Loading {:?}…", self.image.uri())),
-            Err(err) => ui
-                .colored_label(ui.visuals().error_fg_color, "⚠")
-                .on_hover_text(err.to_string()),
-        }
+        widgets::image::texture_load_result_response(self.image.source(), &tlr, response)
     }
 }
