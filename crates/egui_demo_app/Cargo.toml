@@ -19,7 +19,7 @@ crate-type = ["cdylib", "rlib"]
 default = ["glow", "persistence"]
 
 http = ["ehttp", "image", "poll-promise", "egui_extras/image"]
-image_viewer = ["image", "egui_extras/all-loaders", "rfd"]
+image_viewer = ["image", "egui_extras/all_loaders", "rfd"]
 persistence = ["eframe/persistence", "egui/persistence", "serde"]
 web_screen_reader = ["eframe/web_screen_reader"]                  # experimental
 serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]

@@ -787,6 +787,8 @@ pub struct PaintCallbackInfo {
     /// Rect is the [-1, +1] of the Normalized Device Coordinates.
     ///
     /// Note than only a portion of this may be visible due to [`Self::clip_rect`].
+    ///
+    /// This comes from [`PaintCallback::rect`].
     pub viewport: Rect,
 
     /// Clip rectangle in points.
@@ -819,7 +821,7 @@ pub struct ViewportInPixels {
 }
 
 impl PaintCallbackInfo {
-    fn points_to_pixels(&self, rect: &Rect) -> ViewportInPixels {
+    fn pixels_from_points(&self, rect: &Rect) -> ViewportInPixels {
         ViewportInPixels {
             left_px: rect.min.x * self.pixels_per_point,
             top_px: rect.min.y * self.pixels_per_point,
@@ -831,12 +833,12 @@ impl PaintCallbackInfo {
 
     /// The viewport rectangle. This is what you would use in e.g. `glViewport`.
     pub fn viewport_in_pixels(&self) -> ViewportInPixels {
-        self.points_to_pixels(&self.viewport)
+        self.pixels_from_points(&self.viewport)
     }
 
     /// The "scissor" or "clip" rectangle. This is what you would use in e.g. `glScissor`.
     pub fn clip_rect_in_pixels(&self) -> ViewportInPixels {
-        self.points_to_pixels(&self.clip_rect)
+        self.pixels_from_points(&self.clip_rect)
     }
 }
 
@@ -846,6 +848,8 @@ impl PaintCallbackInfo {
 #[derive(Clone)]
 pub struct PaintCallback {
     /// Where to paint.
+    ///
+    /// This will become [`PaintCallbackInfo::viewport`].
     pub rect: Rect,
 
     /// Paint something custom (e.g. 3D stuff).

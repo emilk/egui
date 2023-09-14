@@ -74,6 +74,8 @@ impl<'a> Image<'a> {
 
     /// Load the image from some raw bytes.
     ///
+    /// For better error messages, use the `bytes://` prefix for the URI.
+    ///
     /// See [`ImageSource::Bytes`].
     pub fn from_bytes(uri: impl Into<Cow<'static, str>>, bytes: impl Into<Bytes>) -> Self {
         Self::new(ImageSource::Bytes(uri.into(), bytes.into()))
@@ -220,7 +222,7 @@ impl<'a> Image<'a> {
 
     /// Show a spinner when the image is loading.
     ///
-    /// By default this uses the value of [`Style::image_loading_spinners`].
+    /// By default this uses the value of [`Visuals::image_loading_spinners`].
     #[inline]
     pub fn show_loading_spinner(mut self, show: bool) -> Self {
         self.show_loading_spinner = Some(show);
@@ -237,7 +239,8 @@ impl<'a, T: Into<ImageSource<'a>>> From<T> for Image<'a> {
 impl<'a> Image<'a> {
     /// Returns the size the image will occupy in the final UI.
     #[inline]
-    pub fn calculate_size(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
+    pub fn calculate_size(&self, available_size: Vec2, image_size: Option<Vec2>) -> Vec2 {
+        let image_size = image_size.unwrap_or(Vec2::splat(24.0)); // Fallback for still-loading textures, or failure to load.
         self.size.get(available_size, image_size)
     }
 
@@ -264,18 +267,9 @@ impl<'a> Image<'a> {
         &self.source
     }
 
-    /// Get the `uri` that this image was constructed from.
-    ///
-    /// This will return `<unknown>` for [`ImageSource::Texture`].
-    #[inline]
-    pub fn uri(&self) -> &str {
-        self.source.uri().unwrap_or("<unknown>")
-    }
-
     /// Load the image from its [`Image::source`], returning the resulting [`SizedTexture`].
     ///
     /// # Errors
-    ///
     /// May fail if they underlying [`Context::try_load_texture`] call fails.
     pub fn load(&self, ui: &Ui) -> TextureLoadResult {
         let size_hint = self.size.hint(ui.available_size());
@@ -284,41 +278,34 @@ impl<'a> Image<'a> {
             .load(ui.ctx(), self.texture_options, size_hint)
     }
 
+    /// Paint the image in the given rectangle.
     #[inline]
-    pub fn paint_at(&self, ui: &mut Ui, rect: Rect, texture: &SizedTexture) {
-        paint_image_at(ui, rect, &self.image_options, texture);
+    pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
+        paint_texture_load_result(
+            ui,
+            &self.load(ui),
+            rect,
+            self.show_loading_spinner,
+            &self.image_options,
+        );
     }
 }
 
 impl<'a> Widget for Image<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        match self.load(ui) {
-            Ok(texture_poll) => {
-                let texture_size = texture_poll.size();
-                let texture_size =
-                    texture_size.unwrap_or_else(|| Vec2::splat(ui.style().spacing.interact_size.y));
-                let ui_size = self.calculate_size(ui.available_size(), texture_size);
-                let (rect, response) = ui.allocate_exact_size(ui_size, self.sense);
-                match texture_poll {
-                    TexturePoll::Ready { texture } => {
-                        self.paint_at(ui, rect, &texture);
-                        response
-                    }
-                    TexturePoll::Pending { .. } => {
-                        let show_spinner = self
-                            .show_loading_spinner
-                            .unwrap_or(ui.style().image_loading_spinners);
-                        if show_spinner {
-                            Spinner::new().paint_at(ui, response.rect);
-                        }
-                        response.on_hover_text(format!("Loading {:?}…", self.uri()))
-                    }
-                }
-            }
-            Err(err) => ui
-                .colored_label(ui.visuals().error_fg_color, "⚠")
-                .on_hover_text(err.to_string()),
-        }
+        let tlr = self.load(ui);
+        let texture_size = tlr.as_ref().ok().and_then(|t| t.size());
+        let ui_size = self.calculate_size(ui.available_size(), texture_size);
+
+        let (rect, response) = ui.allocate_exact_size(ui_size, self.sense);
+        paint_texture_load_result(
+            ui,
+            &tlr,
+            rect,
+            self.show_loading_spinner,
+            &self.image_options,
+        );
+        texture_load_result_response(&self.source, &tlr, response)
     }
 }
 
@@ -353,12 +340,16 @@ pub struct ImageSize {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ImageFit {
     /// Fit the image to its original size, scaled by some factor.
+    ///
+    /// Ignores how much space is actually available in the ui.
     Original { scale: f32 },
 
     /// Fit the image to a fraction of the available size.
     Fraction(Vec2),
 
     /// Fit the image to an exact size.
+    ///
+    /// Ignores how much space is actually available in the ui.
     Exact(Vec2),
 }
 
@@ -373,7 +364,7 @@ impl ImageFit {
 }
 
 impl ImageSize {
-    fn hint(&self, available_size: Vec2) -> SizeHint {
+    pub fn hint(&self, available_size: Vec2) -> SizeHint {
         if self.maintain_aspect_ratio {
             return SizeHint::Scale(1.0.ord());
         };
@@ -395,7 +386,7 @@ impl ImageSize {
         }
     }
 
-    fn get(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
+    pub fn get(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
         let Self {
             maintain_aspect_ratio,
             max_size,
@@ -449,7 +440,7 @@ impl Default for ImageSize {
 /// This type tells the [`Ui`] how to load an image.
 ///
 /// This is used by [`Image::new`] and [`Ui::image`].
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum ImageSource<'a> {
     /// Load the image from a URI.
     ///
@@ -468,6 +459,8 @@ pub enum ImageSource<'a> {
 
     /// Load the image from some raw bytes.
     ///
+    /// For better error messages, use the `bytes://` prefix for the URI.
+    ///
     /// The [`Bytes`] may be:
     /// - `'static`, obtained from `include_bytes!` or similar
     /// - Anything that can be converted to `Arc<[u8]>`
@@ -478,6 +471,15 @@ pub enum ImageSource<'a> {
     ///
     /// See [`crate::load`] for more information.
     Bytes(Cow<'static, str>, Bytes),
+}
+
+impl<'a> std::fmt::Debug for ImageSource<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ImageSource::Bytes(uri, _) | ImageSource::Uri(uri) => uri.as_ref().fmt(f),
+            ImageSource::Texture(st) => st.id.fmt(f),
+        }
+    }
 }
 
 impl<'a> ImageSource<'a> {
@@ -514,7 +516,7 @@ pub fn paint_texture_load_result(
     ui: &Ui,
     tlr: &TextureLoadResult,
     rect: Rect,
-    show_loading_spinner: bool,
+    show_loading_spinner: Option<bool>,
     options: &ImageOptions,
 ) {
     match tlr {
@@ -522,6 +524,8 @@ pub fn paint_texture_load_result(
             paint_image_at(ui, rect, options, texture);
         }
         Ok(TexturePoll::Pending { .. }) => {
+            let show_loading_spinner =
+                show_loading_spinner.unwrap_or(ui.visuals().image_loading_spinners);
             if show_loading_spinner {
                 Spinner::new().paint_at(ui, rect);
             }
@@ -539,6 +543,7 @@ pub fn paint_texture_load_result(
     }
 }
 
+/// Attach tooltips like "Loading…" or "Failed loading: …".
 pub fn texture_load_result_response(
     source: &ImageSource<'_>,
     tlr: &TextureLoadResult,
@@ -547,13 +552,13 @@ pub fn texture_load_result_response(
     match tlr {
         Ok(TexturePoll::Ready { .. }) => response,
         Ok(TexturePoll::Pending { .. }) => {
-            if let Some(uri) = source.uri() {
-                response.on_hover_text(format!("Loading {uri}…"))
-            } else {
-                response.on_hover_text("Loading image…")
-            }
+            let uri = source.uri().unwrap_or("image");
+            response.on_hover_text(format!("Loading {uri}…"))
         }
-        Err(err) => response.on_hover_text(err.to_string()),
+        Err(err) => {
+            let uri = source.uri().unwrap_or("image");
+            response.on_hover_text(format!("Failed loading {uri}: {err}"))
+        }
     }
 }
 

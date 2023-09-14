@@ -27,7 +27,7 @@ all-features = true
 default = ["dep:mime_guess"]
 
 ## Shorthand for enabling the different types of image loaders (`file`, `http`, `image`, `svg`).
-all-loaders = ["file", "http", "image", "svg"]
+all_loaders = ["file", "http", "image", "svg"]
 
 ## Enable [`DatePickerButton`] widget.
 datepicker = ["chrono"]
@@ -37,6 +37,14 @@ file = ["dep:mime_guess"]
 
 ## Add support for loading images via HTTP.
 http = ["dep:ehttp"]
+
+## Add support for loading images with the [`image`](https://docs.rs/image) crate.
+##
+## You also need to ALSO opt-in to the image formats you want to support, like so:
+## ```toml
+## image = { version = "0.24", features = ["jpeg", "png"] }
+## ```
+image = ["dep:image"]
 
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 ##
@@ -71,12 +79,6 @@ chrono = { version = "0.4", optional = true, default-features = false, features 
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
 
-## Add support for loading images with the [`image`](https://docs.rs/image) crate.
-##
-## You also need to ALSO opt-in to the image formats you want to support, like so:
-## ```toml
-## image = { version = "0.24", features = ["jpeg", "png"] }
-## ```
 image = { version = "0.24", optional = true, default-features = false }
 
 # file feature

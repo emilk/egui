@@ -165,7 +165,7 @@ pub struct WrapApp {
 
 impl WrapApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        egui_extras::loaders::install(&_cc.egui_ctx);
+        egui_extras::install_image_loaders(&_cc.egui_ctx);
 
         #[allow(unused_mut)]
         let mut slf = Self {

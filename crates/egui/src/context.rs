@@ -1121,9 +1121,16 @@ impl Context {
 
     /// Allocate a texture.
     ///
-    /// In order to display an image you must convert it to a texture using this function.
+    /// This is for advanced users.
+    /// Most users should use [`crate::Ui::image`] or [`Self::try_load_texture`]
+    /// instead.
     ///
-    /// Make sure to only call this once for each image, i.e. NOT in your main GUI code.
+    /// In order to display an image you must convert it to a texture using this function.
+    /// The function will hand over the image data to the egui backend, which will
+    /// upload it to the GPU.
+    ///
+    /// ⚠️ Make sure to only call this ONCE for each image, i.e. NOT in your main GUI code.
+    /// The call is NOT immediate safe.
     ///
     /// The given name can be useful for later debugging, and will be visible if you call [`Self::texture_ui`].
     ///
@@ -1151,7 +1158,7 @@ impl Context {
     /// }
     /// ```
     ///
-    /// Se also [`crate::ImageData`], [`crate::Ui::image`] and [`crate::ImageButton`].
+    /// See also [`crate::ImageData`], [`crate::Ui::image`] and [`crate::Image`].
     pub fn load_texture(
         &self,
         name: impl Into<String>,
@@ -1912,6 +1919,9 @@ impl Context {
     /// Associate some static bytes with a `uri`.
     ///
     /// The same `uri` may be passed to [`Ui::image`] later to load the bytes as an image.
+    ///
+    /// By convention, the `uri` should start with `bytes://`.
+    /// Following that convention will lead to better error messages.
     pub fn include_bytes(&self, uri: impl Into<Cow<'static, str>>, bytes: impl Into<Bytes>) {
         self.loaders().include.insert(uri, bytes);
     }
@@ -1921,32 +1931,32 @@ impl Context {
     pub fn is_loader_installed(&self, id: &str) -> bool {
         let loaders = self.loaders();
 
-        let in_bytes = loaders.bytes.lock().iter().any(|loader| loader.id() == id);
-        let in_image = loaders.image.lock().iter().any(|loader| loader.id() == id);
-        let in_texture = loaders
-            .texture
-            .lock()
-            .iter()
-            .any(|loader| loader.id() == id);
-
-        in_bytes || in_image || in_texture
+        loaders.bytes.lock().iter().any(|l| l.id() == id)
+            || loaders.image.lock().iter().any(|l| l.id() == id)
+            || loaders.texture.lock().iter().any(|l| l.id() == id)
     }
 
-    /// Append an entry onto the chain of bytes loaders.
+    /// Add a new bytes loader.
+    ///
+    /// It will be tried first, before any already installed loaders.
     ///
     /// See [`load`] for more information.
     pub fn add_bytes_loader(&self, loader: Arc<dyn load::BytesLoader + Send + Sync + 'static>) {
         self.loaders().bytes.lock().push(loader);
     }
 
-    /// Append an entry onto the chain of image loaders.
+    /// Add a new image loader.
+    ///
+    /// It will be tried first, before any already installed loaders.
     ///
     /// See [`load`] for more information.
     pub fn add_image_loader(&self, loader: Arc<dyn load::ImageLoader + Send + Sync + 'static>) {
         self.loaders().image.lock().push(loader);
     }
 
-    /// Append an entry onto the chain of texture loaders.
+    /// Add a new texture loader.
+    ///
+    /// It will be tried first, before any already installed loaders.
     ///
     /// See [`load`] for more information.
     pub fn add_texture_loader(&self, loader: Arc<dyn load::TextureLoader + Send + Sync + 'static>) {
@@ -2009,23 +2019,27 @@ impl Context {
     /// # Errors
     /// This may fail with:
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
-    /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    /// - [`LoadError::Loading`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
     ///
     /// ⚠ May deadlock if called from within a `BytesLoader`!
     ///
     /// [not_supported]: crate::load::LoadError::NotSupported
-    /// [custom]: crate::load::LoadError::Custom
+    /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_bytes(&self, uri: &str) -> load::BytesLoadResult {
         crate::profile_function!();
 
-        for loader in self.loaders().bytes.lock().iter() {
+        let loaders = self.loaders();
+        let bytes_loaders = loaders.bytes.lock();
+
+        // Try most recently added loaders first (hence `.rev()`)
+        for loader in bytes_loaders.iter().rev() {
             match loader.load(self, uri) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,
             }
         }
 
-        Err(load::LoadError::NotSupported)
+        Err(load::LoadError::NoMatchingBytesLoader)
     }
 
     /// Try loading the image from the given uri using any available image loaders.
@@ -2041,30 +2055,31 @@ impl Context {
     /// This may fail with:
     /// - [`LoadError::NoImageLoaders`][no_image_loaders] if tbere are no registered image loaders.
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
-    /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    /// - [`LoadError::Loading`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
     ///
     /// ⚠ May deadlock if called from within an `ImageLoader`!
     ///
     /// [no_image_loaders]: crate::load::LoadError::NoImageLoaders
     /// [not_supported]: crate::load::LoadError::NotSupported
-    /// [custom]: crate::load::LoadError::Custom
+    /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_image(&self, uri: &str, size_hint: load::SizeHint) -> load::ImageLoadResult {
         crate::profile_function!();
 
         let loaders = self.loaders();
-        let loaders = loaders.image.lock();
-        if loaders.is_empty() {
+        let image_loaders = loaders.image.lock();
+        if image_loaders.is_empty() {
             return Err(load::LoadError::NoImageLoaders);
         }
 
-        for loader in loaders.iter() {
+        // Try most recently added loaders first (hence `.rev()`)
+        for loader in image_loaders.iter().rev() {
             match loader.load(self, uri, size_hint) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,
             }
         }
 
-        Err(load::LoadError::NotSupported)
+        Err(load::LoadError::NoMatchingImageLoader)
     }
 
     /// Try loading the texture from the given uri using any available texture loaders.
@@ -2079,12 +2094,12 @@ impl Context {
     /// # Errors
     /// This may fail with:
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
-    /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    /// - [`LoadError::Loading`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
     ///
     /// ⚠ May deadlock if called from within a `TextureLoader`!
     ///
     /// [not_supported]: crate::load::LoadError::NotSupported
-    /// [custom]: crate::load::LoadError::Custom
+    /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_texture(
         &self,
         uri: &str,
@@ -2093,17 +2108,22 @@ impl Context {
     ) -> load::TextureLoadResult {
         crate::profile_function!();
 
-        for loader in self.loaders().texture.lock().iter() {
+        let loaders = self.loaders();
+        let texture_loaders = loaders.texture.lock();
+
+        // Try most recently added loaders first (hence `.rev()`)
+        for loader in texture_loaders.iter().rev() {
             match loader.load(self, uri, texture_options, size_hint) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,
             }
         }
 
-        Err(load::LoadError::NotSupported)
+        Err(load::LoadError::NoMatchingTextureLoader)
     }
 
-    fn loaders(&self) -> Arc<Loaders> {
+    /// The loaders of bytes, images, and textures.
+    pub fn loaders(&self) -> Arc<Loaders> {
         crate::profile_function!();
         self.read(|this| this.loaders.clone())
     }

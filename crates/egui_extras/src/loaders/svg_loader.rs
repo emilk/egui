@@ -42,7 +42,7 @@ impl ImageLoader for SvgLoader {
         if let Some(entry) = cache.get(&(uri.clone(), size_hint)).cloned() {
             match entry {
                 Ok(image) => Ok(ImagePoll::Ready { image }),
-                Err(err) => Err(LoadError::Custom(err)),
+                Err(err) => Err(LoadError::Loading(err)),
             }
         } else {
             match ctx.try_load_bytes(&uri) {
@@ -60,7 +60,7 @@ impl ImageLoader for SvgLoader {
                     cache.insert((uri, size_hint), result.clone());
                     match result {
                         Ok(image) => Ok(ImagePoll::Ready { image }),
-                        Err(err) => Err(LoadError::Custom(err)),
+                        Err(err) => Err(LoadError::Loading(err)),
                     }
                 }
                 Ok(BytesPoll::Pending { size }) => Ok(ImagePoll::Pending { size }),

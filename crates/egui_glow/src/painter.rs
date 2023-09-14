@@ -370,25 +370,6 @@ impl Painter {
                 Primitive::Callback(callback) => {
                     if callback.rect.is_positive() {
                         crate::profile_scope!("callback");
-                        // Transform callback rect to physical pixels:
-                        let rect_min_x = pixels_per_point * callback.rect.min.x;
-                        let rect_min_y = pixels_per_point * callback.rect.min.y;
-                        let rect_max_x = pixels_per_point * callback.rect.max.x;
-                        let rect_max_y = pixels_per_point * callback.rect.max.y;
-
-                        let rect_min_x = rect_min_x.round() as i32;
-                        let rect_min_y = rect_min_y.round() as i32;
-                        let rect_max_x = rect_max_x.round() as i32;
-                        let rect_max_y = rect_max_y.round() as i32;
-
-                        unsafe {
-                            self.gl.viewport(
-                                rect_min_x,
-                                size_in_pixels.1 as i32 - rect_max_y,
-                                rect_max_x - rect_min_x,
-                                rect_max_y - rect_min_y,
-                            );
-                        }
 
                         let info = egui::PaintCallbackInfo {
                             viewport: callback.rect,
@@ -396,6 +377,16 @@ impl Painter {
                             pixels_per_point,
                             screen_size_px,
                         };
+
+                        let viewport_px = info.viewport_in_pixels();
+                        unsafe {
+                            self.gl.viewport(
+                                viewport_px.left_px.round() as _,
+                                viewport_px.from_bottom_px.round() as _,
+                                viewport_px.width_px.round() as _,
+                                viewport_px.height_px.round() as _,
+                            );
+                        }
 
                         if let Some(callback) = callback.callback.downcast_ref::<CallbackFn>() {
                             (callback.f)(info, self);

@@ -3,8 +3,8 @@
 //! If you just want to display some images, [`egui_extras`](https://crates.io/crates/egui_extras/)
 //! will get you up and running quickly with its reasonable default implementations of the traits described below.
 //!
-//! 1. Add [`egui_extras`](https://crates.io/crates/egui_extras/) as a dependency with the `all-loaders` feature.
-//! 2. Add a call to [`egui_extras::loaders::install`](https://docs.rs/egui_extras/latest/egui_extras/loaders/fn.install.html)
+//! 1. Add [`egui_extras`](https://crates.io/crates/egui_extras/) as a dependency with the `all_loaders` feature.
+//! 2. Add a call to [`egui_extras::install_image_loaders`](https://docs.rs/egui_extras/latest/egui_extras/loaders/fn.install.html)
 //!    in your app's setup code.
 //! 3. Use [`Ui::image`][`crate::ui::Ui::image`] with some [`ImageSource`][`crate::ImageSource`].
 //!
@@ -55,8 +55,6 @@
 mod bytes_loader;
 mod texture_loader;
 
-use self::bytes_loader::DefaultBytesLoader;
-use self::texture_loader::DefaultTextureLoader;
 use crate::Context;
 use ahash::HashMap;
 use epaint::mutex::Mutex;
@@ -69,27 +67,50 @@ use std::fmt::Debug;
 use std::ops::Deref;
 use std::{error::Error as StdError, fmt::Display, sync::Arc};
 
+pub use self::bytes_loader::DefaultBytesLoader;
+pub use self::texture_loader::DefaultTextureLoader;
+
 /// Represents a failed attempt at loading an image.
 #[derive(Clone, Debug)]
 pub enum LoadError {
-    /// There are no image loaders installed.
+    /// Programmer error: There are no image loaders installed.
     NoImageLoaders,
 
-    /// This loader does not support this protocol or image format.
+    /// A specific loader does not support this schema, protocol or image format.
     NotSupported,
 
-    /// A custom error message (e.g. "File not found: foo.png").
-    Custom(String),
+    /// Programmer error: Failed to find the bytes for this image because
+    /// there was no [`BytesLoader`] supporting the schema.
+    NoMatchingBytesLoader,
+
+    /// Programmer error: Failed to parse the bytes as an image because
+    /// there was no [`ImageLoader`] supporting the schema.
+    NoMatchingImageLoader,
+
+    /// Programmer error: no matching [`TextureLoader`].
+    /// Because of the [`DefaultTextureLoader`], this error should never happen.
+    NoMatchingTextureLoader,
+
+    /// Runtime error: Loading was attempted, but failed (e.g. "File not found").
+    Loading(String),
 }
 
 impl Display for LoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LoadError::NoImageLoaders => f.write_str(
+            Self::NoImageLoaders => f.write_str(
                 "No image loaders are installed. If you're trying to load some images \
                 for the first time, follow the steps outlined in https://docs.rs/egui/latest/egui/load/index.html"),
-            LoadError::NotSupported => f.write_str("not supported"),
-            LoadError::Custom(message) => f.write_str(message),
+
+            Self::NoMatchingBytesLoader => f.write_str("No matching BytesLoader. Either you need to call Context::include_bytes, or install some more bytes loaders, e.g. using egui_extras."),
+
+            Self::NoMatchingImageLoader => f.write_str("No matching ImageLoader. Either you need to call Context::include_bytes, or install some more bytes loaders, e.g. using egui_extras."),
+
+            Self::NoMatchingTextureLoader => f.write_str("No matching TextureLoader. Did you remove the default one?"),
+
+            Self::NotSupported => f.write_str("Iagge schema or URI not supported by this loader"),
+
+            Self::Loading(message) => f.write_str(message),
         }
     }
 }
@@ -238,7 +259,8 @@ pub use crate::generate_loader_id;
 
 pub type BytesLoadResult = Result<BytesPoll>;
 
-/// Represents a loader capable of loading raw unstructured bytes.
+/// Represents a loader capable of loading raw unstructured bytes from somewhere,
+/// e.g. from disk or network.
 ///
 /// It should also provide any subsequent loaders a hint for what the bytes may
 /// represent using [`BytesPoll::Ready::mime`], if it can be inferred.
@@ -261,7 +283,7 @@ pub trait BytesLoader {
     /// # Errors
     /// This may fail with:
     /// - [`LoadError::NotSupported`] if the loader does not support loading `uri`.
-    /// - [`LoadError::Custom`] if the loading process failed.
+    /// - [`LoadError::Loading`] if the loading process failed.
     fn load(&self, ctx: &Context, uri: &str) -> BytesLoadResult;
 
     /// Forget the given `uri`.
@@ -305,7 +327,7 @@ pub enum ImagePoll {
 
 pub type ImageLoadResult = Result<ImagePoll>;
 
-/// Represents a loader capable of loading a raw image.
+/// An `ImageLoader` decodes raw bytes into a [`ColorImage`].
 ///
 /// Implementations are expected to cache at least each `URI`.
 pub trait ImageLoader {
@@ -328,7 +350,7 @@ pub trait ImageLoader {
     /// # Errors
     /// This may fail with:
     /// - [`LoadError::NotSupported`] if the loader does not support loading `uri`.
-    /// - [`LoadError::Custom`] if the loading process failed.
+    /// - [`LoadError::Loading`] if the loading process failed.
     fn load(&self, ctx: &Context, uri: &str, size_hint: SizeHint) -> ImageLoadResult;
 
     /// Forget the given `uri`.
@@ -420,7 +442,14 @@ impl TexturePoll {
 
 pub type TextureLoadResult = Result<TexturePoll>;
 
-/// Represents a loader capable of loading a full texture.
+/// A `TextureLoader` uploads a [`ColorImage`] to the GPU, returning a [`SizedTexture`].
+///
+/// `egui` comes with an implementation that uses [`Context::load_texture`],
+/// which just asks the egui backend to upload the image to the GPU.
+///
+/// You can implement this trait if you do your own uploading of images to the GPU.
+/// For instance, you can use this to refer to textures in a game engine that egui
+/// doesn't otherwise know about.
 ///
 /// Implementations are expected to cache each combination of `(URI, TextureOptions)`.
 pub trait TextureLoader {
@@ -443,7 +472,7 @@ pub trait TextureLoader {
     /// # Errors
     /// This may fail with:
     /// - [`LoadError::NotSupported`] if the loader does not support loading `uri`.
-    /// - [`LoadError::Custom`] if the loading process failed.
+    /// - [`LoadError::Loading`] if the loading process failed.
     fn load(
         &self,
         ctx: &Context,
@@ -479,7 +508,8 @@ type ImageLoaderImpl = Arc<dyn ImageLoader + Send + Sync + 'static>;
 type TextureLoaderImpl = Arc<dyn TextureLoader + Send + Sync + 'static>;
 
 #[derive(Clone)]
-pub(crate) struct Loaders {
+/// The loaders of bytes, images, and textures.
+pub struct Loaders {
     pub include: Arc<DefaultBytesLoader>,
     pub bytes: Mutex<Vec<BytesLoaderImpl>>,
     pub image: Mutex<Vec<ImageLoaderImpl>>,
