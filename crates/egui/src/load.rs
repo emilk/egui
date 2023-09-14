@@ -238,7 +238,8 @@ pub use crate::generate_loader_id;
 
 pub type BytesLoadResult = Result<BytesPoll>;
 
-/// Represents a loader capable of loading raw unstructured bytes.
+/// Represents a loader capable of loading raw unstructured bytes from somewhere,
+/// e.g. from disk or network.
 ///
 /// It should also provide any subsequent loaders a hint for what the bytes may
 /// represent using [`BytesPoll::Ready::mime`], if it can be inferred.
@@ -305,7 +306,7 @@ pub enum ImagePoll {
 
 pub type ImageLoadResult = Result<ImagePoll>;
 
-/// Represents a loader capable of loading a raw image.
+/// An `ImageLoader` decodes raw bytes into a [`ColorImage`].
 ///
 /// Implementations are expected to cache at least each `URI`.
 pub trait ImageLoader {
@@ -420,7 +421,14 @@ impl TexturePoll {
 
 pub type TextureLoadResult = Result<TexturePoll>;
 
-/// Represents a loader capable of loading a full texture.
+/// A `TextureLoader` uploads a [`ColorImage`] to the GPU, returning a [`SizedTexture`].
+///
+/// `egui` comes with an implementation that uses [`Context::load_texture`],
+/// which just asks the egui backend to upload the image to the GPU.
+///
+/// You can implement this trait if you do your own uploading of images to the GPU.
+/// For instance, you can use this to refer to textures in a game engine that egui
+/// doesn't otherwise know about.
 ///
 /// Implementations are expected to cache each combination of `(URI, TextureOptions)`.
 pub trait TextureLoader {
