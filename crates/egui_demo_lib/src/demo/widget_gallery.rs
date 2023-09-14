@@ -201,18 +201,12 @@ impl WidgetGallery {
         ui.add(egui::Image::new(egui_icon.clone()));
         ui.end_row();
 
-        ui.add(doc_link_label("ImageButton", "ImageButton"));
-        if ui.add(egui::ImageButton::new(egui_icon.clone())).clicked() {
-            *boolean = !*boolean;
-        }
-        ui.end_row();
-
-        ui.add(doc_link_label("Button with image", "Button"));
+        ui.add(doc_link_label(
+            "Button with image",
+            "Button::image_and_text",
+        ));
         if ui
-            .add(egui::Button::image_and_text(
-                egui_icon,
-                "A button with an image",
-            ))
+            .add(egui::Button::image_and_text(egui_icon, "Click me!"))
             .clicked()
         {
             *boolean = !*boolean;
