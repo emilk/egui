@@ -86,7 +86,7 @@ pub fn install(ctx: &egui::Context) {
         not(feature = "image"),
         not(feature = "svg")
     ))]
-    crate::log_warn!("`loaders::install` was called, but no loaders are enabled");
+    log::warn!("`loaders::install` was called, but no loaders are enabled");
 
     let _ = ctx;
 }
