@@ -1921,15 +1921,9 @@ impl Context {
     pub fn is_loader_installed(&self, id: &str) -> bool {
         let loaders = self.loaders();
 
-        let in_bytes = loaders.bytes.lock().iter().any(|loader| loader.id() == id);
-        let in_image = loaders.image.lock().iter().any(|loader| loader.id() == id);
-        let in_texture = loaders
-            .texture
-            .lock()
-            .iter()
-            .any(|loader| loader.id() == id);
-
-        in_bytes || in_image || in_texture
+        loaders.bytes.lock().iter().any(|l| l.id() == id)
+            || loaders.image.lock().iter().any(|l| l.id() == id)
+            || loaders.texture.lock().iter().any(|l| l.id() == id)
     }
 
     /// Append an entry onto the chain of bytes loaders.
@@ -2028,7 +2022,7 @@ impl Context {
             }
         }
 
-        Err(load::LoadError::NotSupported)
+        Err(load::LoadError::NoMatchingBytesLoader)
     }
 
     /// Try loading the image from the given uri using any available image loaders.
@@ -2067,7 +2061,7 @@ impl Context {
             }
         }
 
-        Err(load::LoadError::NotSupported)
+        Err(load::LoadError::NoMatchingImageLoader)
     }
 
     /// Try loading the texture from the given uri using any available texture loaders.
@@ -2103,7 +2097,7 @@ impl Context {
             }
         }
 
-        Err(load::LoadError::NotSupported)
+        Err(load::LoadError::NoMatchingTextureLoader)
     }
 
     /// The loaders of bytes, images, and textures.

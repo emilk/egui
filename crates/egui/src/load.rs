@@ -72,24 +72,44 @@ use std::{error::Error as StdError, fmt::Display, sync::Arc};
 /// Represents a failed attempt at loading an image.
 #[derive(Clone, Debug)]
 pub enum LoadError {
-    /// There are no image loaders installed.
+    /// Programmer error: There are no image loaders installed.
     NoImageLoaders,
 
-    /// This loader does not support this schema, protocol or image format.
+    /// A specific loader does not support this schema, protocol or image format.
     NotSupported,
 
-    /// A custom error message (e.g. "File not found: foo.png").
-    Custom(String),
+    /// Programmer error: Failed to find the bytes for this image because
+    /// there was no [`BytesLoader`] supporting the schema.
+    NoMatchingBytesLoader,
+
+    /// Programmer error: Failed to parse the bytes as an image because
+    /// there was no [`ImageLoader`] supporting the schema.
+    NoMatchingImageLoader,
+
+    /// Programmer error: no matching [`TextureLoader`].
+    /// Because of the [`DefaultTextureLoader`], this error should never happen.
+    NoMatchingTextureLoader,
+
+    /// Runtime error: Loading was attempted, but failed (e.g. "File not found").
+    Loading(String),
 }
 
 impl Display for LoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LoadError::NoImageLoaders => f.write_str(
+            Self::NoImageLoaders => f.write_str(
                 "No image loaders are installed. If you're trying to load some images \
                 for the first time, follow the steps outlined in https://docs.rs/egui/latest/egui/load/index.html"),
-            LoadError::NotSupported => f.write_str("not supported"),
-            LoadError::Custom(message) => f.write_str(message),
+
+            Self::NoMatchingBytesLoader => f.write_str("No matching BytesLoader. Either you need to call Context::include_bytes, or install some more bytes loaders, e.g. using egui_extras."),
+
+            Self::NoMatchingImageLoader => f.write_str("No matching ImageLoader. Either you need to call Context::include_bytes, or install some more bytes loaders, e.g. using egui_extras."),
+
+            Self::NoMatchingTextureLoader => f.write_str("No matching TextureLoader. Did you remove the default one?"),
+
+            Self::NotSupported => f.write_str("Iagge schema or URI not supported by this loader"),
+
+            Self::Loading(message) => f.write_str(message),
         }
     }
 }

@@ -45,7 +45,7 @@ impl BytesLoader for FileLoader {
                     bytes: Bytes::Shared(file.bytes),
                     mime: file.mime,
                 }),
-                Poll::Ready(Err(err)) => Err(LoadError::Custom(err)),
+                Poll::Ready(Err(err)) => Err(LoadError::Loading(err)),
                 Poll::Pending => Ok(BytesPoll::Pending { size: None }),
             }
         } else {
