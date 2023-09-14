@@ -27,6 +27,7 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::new([true, true]).show(ui, |ui| {
                 ui.image(egui::include_image!("ferris.svg"));
+
                 ui.add(
                     egui::Image::new("https://picsum.photos/seed/1.759706314/1024")
                         .rounding(egui::Rounding::same(10.0)),

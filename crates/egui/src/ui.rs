@@ -1577,9 +1577,10 @@ impl Ui {
     /// # });
     /// ```
     ///
-    /// Note: Prefer `include_image` as a source if you're loading an image
-    /// from a file with a statically known path, unless you really want to
-    /// load it at runtime instead!
+    /// Using [`include_image`] is often the most ergonomic, and the path
+    /// will be resolved at compile-time and embedded in the binary.
+    /// When using a "file://" url on the other hand, you need to make sure
+    /// the files can be found in the right spot at runtime!
     ///
     /// See also [`crate::Image`], [`crate::ImageSource`].
     #[inline]
@@ -1687,7 +1688,7 @@ impl Ui {
     /// # });
     /// ```
     ///
-    /// Se also [`Self::scope`].
+    /// See also [`Self::scope`].
     pub fn group<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         crate::Frame::group(self.style()).show(self, add_contents)
     }

@@ -1063,7 +1063,7 @@ fn mul_color(color: Color32, factor: f32) -> Color32 {
 ///
 /// For performance reasons it is smart to reuse the same [`Tessellator`].
 ///
-/// Se also [`tessellate_shapes`], a convenient wrapper around [`Tessellator`].
+/// See also [`tessellate_shapes`], a convenient wrapper around [`Tessellator`].
 pub struct Tessellator {
     pixels_per_point: f32,
     options: TessellationOptions,

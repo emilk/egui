@@ -1121,9 +1121,16 @@ impl Context {
 
     /// Allocate a texture.
     ///
-    /// In order to display an image you must convert it to a texture using this function.
+    /// This is for advanced users.
+    /// Most users should use [`crate::Ui::image`] or [`Self::try_load_texture`]
+    /// instead.
     ///
-    /// Make sure to only call this once for each image, i.e. NOT in your main GUI code.
+    /// In order to display an image you must convert it to a texture using this function.
+    /// The function will hand over the image data to the egui backend, which will
+    /// upload it to the GPU.
+    ///
+    /// ⚠️ Make sure to only call this ONCE for each image, i.e. NOT in your main GUI code.
+    /// The call is NOT immediate safe.
     ///
     /// The given name can be useful for later debugging, and will be visible if you call [`Self::texture_ui`].
     ///
@@ -1151,7 +1158,7 @@ impl Context {
     /// }
     /// ```
     ///
-    /// Se also [`crate::ImageData`], [`crate::Ui::image`] and [`crate::ImageButton`].
+    /// See also [`crate::ImageData`], [`crate::Ui::image`] and [`crate::Image`].
     pub fn load_texture(
         &self,
         name: impl Into<String>,
