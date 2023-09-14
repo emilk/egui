@@ -1929,21 +1929,27 @@ impl Context {
             || loaders.texture.lock().iter().any(|l| l.id() == id)
     }
 
-    /// Append an entry onto the chain of bytes loaders.
+    /// Add a new bytes loader.
+    ///
+    /// It will be tried first, before any already installed loaders.
     ///
     /// See [`load`] for more information.
     pub fn add_bytes_loader(&self, loader: Arc<dyn load::BytesLoader + Send + Sync + 'static>) {
         self.loaders().bytes.lock().push(loader);
     }
 
-    /// Append an entry onto the chain of image loaders.
+    /// Add a new image loader.
+    ///
+    /// It will be tried first, before any already installed loaders.
     ///
     /// See [`load`] for more information.
     pub fn add_image_loader(&self, loader: Arc<dyn load::ImageLoader + Send + Sync + 'static>) {
         self.loaders().image.lock().push(loader);
     }
 
-    /// Append an entry onto the chain of texture loaders.
+    /// Add a new texture loader.
+    ///
+    /// It will be tried first, before any already installed loaders.
     ///
     /// See [`load`] for more information.
     pub fn add_texture_loader(&self, loader: Arc<dyn load::TextureLoader + Send + Sync + 'static>) {
@@ -2016,9 +2022,10 @@ impl Context {
         crate::profile_function!();
 
         let loaders = self.loaders();
-        let loaders = loaders.bytes.lock();
+        let bytes_loaders = loaders.bytes.lock();
 
-        for loader in loaders.iter() {
+        // Try most recently added loaders first (hence `.rev()`)
+        for loader in bytes_loaders.iter().rev() {
             match loader.load(self, uri) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,
@@ -2052,12 +2059,13 @@ impl Context {
         crate::profile_function!();
 
         let loaders = self.loaders();
-        let loaders = loaders.image.lock();
-        if loaders.is_empty() {
+        let image_loaders = loaders.image.lock();
+        if image_loaders.is_empty() {
             return Err(load::LoadError::NoImageLoaders);
         }
 
-        for loader in loaders.iter() {
+        // Try most recently added loaders first (hence `.rev()`)
+        for loader in image_loaders.iter().rev() {
             match loader.load(self, uri, size_hint) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,
@@ -2093,7 +2101,11 @@ impl Context {
     ) -> load::TextureLoadResult {
         crate::profile_function!();
 
-        for loader in self.loaders().texture.lock().iter() {
+        let loaders = self.loaders();
+        let texture_loaders = loaders.texture.lock();
+
+        // Try most recently added loaders first (hence `.rev()`)
+        for loader in texture_loaders.iter().rev() {
             match loader.load(self, uri, texture_options, size_hint) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,
