@@ -2012,12 +2012,12 @@ impl Context {
     /// # Errors
     /// This may fail with:
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
-    /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    /// - [`LoadError::Loading`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
     ///
     /// ⚠ May deadlock if called from within a `BytesLoader`!
     ///
     /// [not_supported]: crate::load::LoadError::NotSupported
-    /// [custom]: crate::load::LoadError::Custom
+    /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_bytes(&self, uri: &str) -> load::BytesLoadResult {
         crate::profile_function!();
 
@@ -2048,13 +2048,13 @@ impl Context {
     /// This may fail with:
     /// - [`LoadError::NoImageLoaders`][no_image_loaders] if tbere are no registered image loaders.
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
-    /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    /// - [`LoadError::Loading`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
     ///
     /// ⚠ May deadlock if called from within an `ImageLoader`!
     ///
     /// [no_image_loaders]: crate::load::LoadError::NoImageLoaders
     /// [not_supported]: crate::load::LoadError::NotSupported
-    /// [custom]: crate::load::LoadError::Custom
+    /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_image(&self, uri: &str, size_hint: load::SizeHint) -> load::ImageLoadResult {
         crate::profile_function!();
 
@@ -2087,12 +2087,12 @@ impl Context {
     /// # Errors
     /// This may fail with:
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
-    /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    /// - [`LoadError::Loading`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
     ///
     /// ⚠ May deadlock if called from within a `TextureLoader`!
     ///
     /// [not_supported]: crate::load::LoadError::NotSupported
-    /// [custom]: crate::load::LoadError::Custom
+    /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_texture(
         &self,
         uri: &str,

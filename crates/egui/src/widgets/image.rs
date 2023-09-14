@@ -222,7 +222,7 @@ impl<'a> Image<'a> {
 
     /// Show a spinner when the image is loading.
     ///
-    /// By default this uses the value of [`Style::image_loading_spinners`].
+    /// By default this uses the value of [`Visuals::image_loading_spinners`].
     #[inline]
     pub fn show_loading_spinner(mut self, show: bool) -> Self {
         self.show_loading_spinner = Some(show);

@@ -55,8 +55,6 @@
 mod bytes_loader;
 mod texture_loader;
 
-use self::bytes_loader::DefaultBytesLoader;
-use self::texture_loader::DefaultTextureLoader;
 use crate::Context;
 use ahash::HashMap;
 use epaint::mutex::Mutex;
@@ -68,6 +66,9 @@ use std::borrow::Cow;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::{error::Error as StdError, fmt::Display, sync::Arc};
+
+pub use self::bytes_loader::DefaultBytesLoader;
+pub use self::texture_loader::DefaultTextureLoader;
 
 /// Represents a failed attempt at loading an image.
 #[derive(Clone, Debug)]
@@ -282,7 +283,7 @@ pub trait BytesLoader {
     /// # Errors
     /// This may fail with:
     /// - [`LoadError::NotSupported`] if the loader does not support loading `uri`.
-    /// - [`LoadError::Custom`] if the loading process failed.
+    /// - [`LoadError::Loading`] if the loading process failed.
     fn load(&self, ctx: &Context, uri: &str) -> BytesLoadResult;
 
     /// Forget the given `uri`.
@@ -349,7 +350,7 @@ pub trait ImageLoader {
     /// # Errors
     /// This may fail with:
     /// - [`LoadError::NotSupported`] if the loader does not support loading `uri`.
-    /// - [`LoadError::Custom`] if the loading process failed.
+    /// - [`LoadError::Loading`] if the loading process failed.
     fn load(&self, ctx: &Context, uri: &str, size_hint: SizeHint) -> ImageLoadResult;
 
     /// Forget the given `uri`.
@@ -471,7 +472,7 @@ pub trait TextureLoader {
     /// # Errors
     /// This may fail with:
     /// - [`LoadError::NotSupported`] if the loader does not support loading `uri`.
-    /// - [`LoadError::Custom`] if the loading process failed.
+    /// - [`LoadError::Loading`] if the loading process failed.
     fn load(
         &self,
         ctx: &Context,
