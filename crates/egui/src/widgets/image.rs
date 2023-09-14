@@ -270,7 +270,6 @@ impl<'a> Image<'a> {
     /// Load the image from its [`Image::source`], returning the resulting [`SizedTexture`].
     ///
     /// # Errors
-    ///
     /// May fail if they underlying [`Context::try_load_texture`] call fails.
     pub fn load(&self, ui: &Ui) -> TextureLoadResult {
         let size_hint = self.size.hint(ui.available_size());
@@ -279,9 +278,16 @@ impl<'a> Image<'a> {
             .load(ui.ctx(), self.texture_options, size_hint)
     }
 
+    /// Paint the image in the given rectangle.
     #[inline]
-    pub fn paint_at(&self, ui: &mut Ui, rect: Rect, texture: &SizedTexture) {
-        paint_image_at(ui, rect, &self.image_options, texture);
+    pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
+        paint_texture_load_result(
+            ui,
+            &self.load(ui),
+            rect,
+            self.show_loading_spinner,
+            &self.image_options,
+        );
     }
 }
 
