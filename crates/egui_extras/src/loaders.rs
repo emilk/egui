@@ -1,16 +1,18 @@
 // TODO: automatic cache eviction
 
-/// Installs the default set of loaders.
+/// Installs a set of image loaders.
 ///
-/// - `file` loader on non-Wasm targets
-/// - `http` loader (with the `http` feature)
-/// - `image` loader (with the `image` feature)
-/// - `svg` loader with the `svg` feature
+/// Calling this enables the use of [`egui::Image`] and [`egui::Ui::image`].
+///
+/// ⚠ This will do nothing and you won't see any images unless you also enable some feature flags on `egui_extras`:
+///
+/// - `file` feature: `file://` loader on non-Wasm targets
+/// - `http` feature: `http(s)://` loader
+/// - `image` feature: Loader of png, jpeg etc using the [`image`] crate
+/// - `svg` feature: `.svg` loader
 ///
 /// Calling this multiple times on the same [`egui::Context`] is safe.
 /// It will never install duplicate loaders.
-///
-/// ⚠ This will do nothing and you won't see any images unless you enable some features:
 ///
 /// - If you just want to be able to load `file://` and `http://` URIs, enable the `all_loaders` feature.
 /// - The supported set of image formats is configured by adding the [`image`](https://crates.io/crates/image)
@@ -40,7 +42,8 @@
 /// It will attempt to load `http://` and `https://` URIs, and infer the content type from the `Content-Type` header.
 ///
 /// The `image` loader is an [`ImageLoader`][`egui::load::ImageLoader`].
-/// It will attempt to load any URI with any extension other than `svg`. It will also load any URI without an extension.
+/// It will attempt to load any URI with any extension other than `svg`.
+/// It will also try to load any URI without an extension.
 /// The content type specified by [`BytesPoll::Ready::mime`][`egui::load::BytesPoll::Ready::mime`] always takes precedence.
 /// This means that even if the URI has a `png` extension, and the `png` image format is enabled, if the content type is
 /// not one of the supported and enabled image formats, the loader will return [`LoadError::NotSupported`][`egui::load::LoadError::NotSupported`],
@@ -52,7 +55,7 @@
 /// and must include `svg` for it to be considered supported. For example, `image/svg+xml` would be loaded by the `svg` loader.
 ///
 /// See [`egui::load`] for more information about how loaders work.
-pub fn install(ctx: &egui::Context) {
+pub fn install_image_loaders(ctx: &egui::Context) {
     #[cfg(all(not(target_arch = "wasm32"), feature = "file"))]
     if !ctx.is_loader_installed(self::file_loader::FileLoader::ID) {
         ctx.add_bytes_loader(std::sync::Arc::new(self::file_loader::FileLoader::default()));
@@ -87,7 +90,7 @@ pub fn install(ctx: &egui::Context) {
         not(feature = "image"),
         not(feature = "svg")
     ))]
-    log::warn!("`loaders::install` was called, but no loaders are enabled");
+    log::warn!("`install_image_loaders` was called, but no loaders are enabled");
 
     let _ = ctx;
 }

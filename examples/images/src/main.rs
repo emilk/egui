@@ -13,7 +13,7 @@ fn main() -> Result<(), eframe::Error> {
         options,
         Box::new(|cc| {
             // The following call is needed to load images when using `ui.image` and `egui::Image`:
-            egui_extras::loaders::install(&cc.egui_ctx);
+            egui_extras::install_image_loaders(&cc.egui_ctx);
             Box::<MyApp>::default()
         }),
     )
