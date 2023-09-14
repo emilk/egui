@@ -62,9 +62,9 @@ impl ImageLoader for ImageCrateLoader {
                         return Err(LoadError::NotSupported);
                     }
 
-                    crate::log_trace!("started loading {uri:?}");
+                    log::trace!("started loading {uri:?}");
                     let result = crate::image::load_image_bytes(&bytes).map(Arc::new);
-                    crate::log_trace!("finished loading {uri:?}");
+                    log::trace!("finished loading {uri:?}");
                     cache.insert(uri.into(), result.clone());
                     match result {
                         Ok(image) => Ok(ImagePoll::Ready { image }),
