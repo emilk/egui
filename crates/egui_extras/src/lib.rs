@@ -66,21 +66,6 @@ pub(crate) use profiling_scopes::*;
 
 // ---------------------------------------------------------------------------
 
-/// Log an error with either `log` or `eprintln`
-macro_rules! log_err {
-    ($fmt: literal) => {$crate::log_err!($fmt,)};
-    ($fmt: literal, $($arg: tt)*) => {{
-        #[cfg(feature = "log")]
-        log::error!($fmt, $($arg)*);
-
-        #[cfg(not(feature = "log"))]
-        eprintln!(
-            concat!("egui_extras: ", $fmt), $($arg)*
-        );
-    }};
-}
-pub(crate) use log_err;
-
 /// Panic in debug builds, log otherwise.
 macro_rules! log_or_panic {
     ($fmt: literal) => {$crate::log_or_panic!($fmt,)};
@@ -88,36 +73,8 @@ macro_rules! log_or_panic {
         if cfg!(debug_assertions) {
             panic!($fmt, $($arg)*);
         } else {
-            $crate::log_err!($fmt, $($arg)*);
+            log::error!($fmt, $($arg)*);
         }
     }};
 }
 pub(crate) use log_or_panic;
-
-#[allow(unused_macros)]
-macro_rules! log_warn {
-    ($fmt: literal) => {$crate::log_warn!($fmt,)};
-    ($fmt: literal, $($arg: tt)*) => {{
-        #[cfg(feature = "log")]
-        log::warn!($fmt, $($arg)*);
-
-        #[cfg(not(feature = "log"))]
-        println!(
-            concat!("egui_extras: warning: ", $fmt), $($arg)*
-        )
-    }};
-}
-
-#[allow(unused_imports)]
-pub(crate) use log_warn;
-
-#[allow(unused_macros)]
-macro_rules! log_trace {
-    ($fmt: literal) => {$crate::log_trace!($fmt,)};
-    ($fmt: literal, $($arg: tt)*) => {{
-        #[cfg(feature = "log")]
-        log::trace!($fmt, $($arg)*);
-    }};
-}
-#[allow(unused_imports)]
-pub(crate) use log_trace;

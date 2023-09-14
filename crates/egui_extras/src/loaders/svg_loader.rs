@@ -47,7 +47,7 @@ impl ImageLoader for SvgLoader {
         } else {
             match ctx.try_load_bytes(&uri) {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
-                    crate::log_trace!("started loading {uri:?}");
+                    log::trace!("started loading {uri:?}");
                     let fit_to = match size_hint {
                         SizeHint::Scale(factor) => usvg::FitTo::Zoom(factor.into_inner()),
                         SizeHint::Width(w) => usvg::FitTo::Width(w),
@@ -56,7 +56,7 @@ impl ImageLoader for SvgLoader {
                     };
                     let result =
                         crate::image::load_svg_bytes_with_size(&bytes, fit_to).map(Arc::new);
-                    crate::log_trace!("finished loading {uri:?}");
+                    log::trace!("finished loading {uri:?}");
                     cache.insert((uri, size_hint), result.clone());
                     match result {
                         Ok(image) => Ok(ImagePoll::Ready { image }),

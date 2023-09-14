@@ -76,7 +76,7 @@ impl BytesLoader for EhttpLoader {
                 Poll::Pending => Ok(BytesPoll::Pending { size: None }),
             }
         } else {
-            crate::log_trace!("started loading {uri:?}");
+            log::trace!("started loading {uri:?}");
 
             let uri = uri.to_owned();
             cache.insert(uri.clone(), Poll::Pending);
@@ -90,11 +90,11 @@ impl BytesLoader for EhttpLoader {
                         Ok(response) => File::from_response(&uri, response),
                         Err(err) => {
                             // Log details; return summary
-                            crate::log_err!("Failed to load {uri:?}: {err}");
+                            log::error!("Failed to load {uri:?}: {err}");
                             Err(format!("Failed to load {uri:?}"))
                         }
                     };
-                    crate::log_trace!("finished loading {uri:?}");
+                    log::trace!("finished loading {uri:?}");
                     let prev = cache.lock().insert(uri, Poll::Ready(result));
                     assert!(matches!(prev, Some(Poll::Pending)));
                     ctx.request_repaint();

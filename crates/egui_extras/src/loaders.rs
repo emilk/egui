@@ -55,7 +55,7 @@ pub fn install(ctx: &egui::Context) {
     #[cfg(all(not(target_arch = "wasm32"), feature = "file"))]
     if !ctx.is_loader_installed(self::file_loader::FileLoader::ID) {
         ctx.add_bytes_loader(std::sync::Arc::new(self::file_loader::FileLoader::default()));
-        crate::log_trace!("installed FileLoader");
+        log::trace!("installed FileLoader");
     }
 
     #[cfg(feature = "http")]
@@ -63,7 +63,7 @@ pub fn install(ctx: &egui::Context) {
         ctx.add_bytes_loader(std::sync::Arc::new(
             self::ehttp_loader::EhttpLoader::default(),
         ));
-        crate::log_trace!("installed EhttpLoader");
+        log::trace!("installed EhttpLoader");
     }
 
     #[cfg(feature = "image")]
@@ -71,13 +71,13 @@ pub fn install(ctx: &egui::Context) {
         ctx.add_image_loader(std::sync::Arc::new(
             self::image_loader::ImageCrateLoader::default(),
         ));
-        crate::log_trace!("installed ImageCrateLoader");
+        log::trace!("installed ImageCrateLoader");
     }
 
     #[cfg(feature = "svg")]
     if !ctx.is_loader_installed(self::svg_loader::SvgLoader::ID) {
         ctx.add_image_loader(std::sync::Arc::new(self::svg_loader::SvgLoader::default()));
-        crate::log_trace!("installed SvgLoader");
+        log::trace!("installed SvgLoader");
     }
 
     #[cfg(all(
@@ -86,7 +86,7 @@ pub fn install(ctx: &egui::Context) {
         not(feature = "image"),
         not(feature = "svg")
     ))]
-    crate::log_warn!("`loaders::install` was called, but no loaders are enabled");
+    log::warn!("`loaders::install` was called, but no loaders are enabled");
 
     let _ = ctx;
 }
