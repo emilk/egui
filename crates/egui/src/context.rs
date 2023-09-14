@@ -2018,7 +2018,10 @@ impl Context {
     pub fn try_load_bytes(&self, uri: &str) -> load::BytesLoadResult {
         crate::profile_function!();
 
-        for loader in self.loaders().bytes.lock().iter() {
+        let loaders = self.loaders();
+        let loaders = loaders.bytes.lock();
+
+        for loader in loaders.iter() {
             match loader.load(self, uri) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,
@@ -2103,7 +2106,8 @@ impl Context {
         Err(load::LoadError::NotSupported)
     }
 
-    fn loaders(&self) -> Arc<Loaders> {
+    /// The loaders of bytes, images, and textures.
+    pub fn loaders(&self) -> Arc<Loaders> {
         crate::profile_function!();
         self.read(|this| this.loaders.clone())
     }

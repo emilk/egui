@@ -75,7 +75,7 @@ pub enum LoadError {
     /// There are no image loaders installed.
     NoImageLoaders,
 
-    /// This loader does not support this protocol or image format.
+    /// This loader does not support this schema, protocol or image format.
     NotSupported,
 
     /// A custom error message (e.g. "File not found: foo.png").
@@ -487,7 +487,8 @@ type ImageLoaderImpl = Arc<dyn ImageLoader + Send + Sync + 'static>;
 type TextureLoaderImpl = Arc<dyn TextureLoader + Send + Sync + 'static>;
 
 #[derive(Clone)]
-pub(crate) struct Loaders {
+/// The loaders of bytes, images, and textures.
+pub struct Loaders {
     pub include: Arc<DefaultBytesLoader>,
     pub bytes: Mutex<Vec<BytesLoaderImpl>>,
     pub image: Mutex<Vec<ImageLoaderImpl>>,
