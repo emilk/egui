@@ -3,7 +3,7 @@
 //! If you just want to display some images, [`egui_extras`](https://crates.io/crates/egui_extras/)
 //! will get you up and running quickly with its reasonable default implementations of the traits described below.
 //!
-//! 1. Add [`egui_extras`](https://crates.io/crates/egui_extras/) as a dependency with the `all-loaders` feature.
+//! 1. Add [`egui_extras`](https://crates.io/crates/egui_extras/) as a dependency with the `all_loaders` feature.
 //! 2. Add a call to [`egui_extras::loaders::install`](https://docs.rs/egui_extras/latest/egui_extras/loaders/fn.install.html)
 //!    in your app's setup code.
 //! 3. Use [`Ui::image`][`crate::ui::Ui::image`] with some [`ImageSource`][`crate::ImageSource`].
