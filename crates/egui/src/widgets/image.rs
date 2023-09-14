@@ -311,13 +311,17 @@ impl<'a> Widget for Image<'a> {
                         if show_spinner {
                             Spinner::new().paint_at(ui, response.rect);
                         }
-                        response.on_hover_text(format!("Loading {:?}…", self.uri()))
+
+                        let uri = self.source.uri().unwrap_or("image");
+                        response.on_hover_text(format!("Loading {uri}…"))
                     }
                 }
             }
-            Err(err) => ui
-                .colored_label(ui.visuals().error_fg_color, "⚠")
-                .on_hover_text(err.to_string()),
+            Err(err) => {
+                let uri = self.source.uri().unwrap_or("image");
+                ui.colored_label(ui.visuals().error_fg_color, "⚠")
+                    .on_hover_text(format!("Failed loading {uri}: {err}"))
+            }
         }
     }
 }
@@ -547,13 +551,13 @@ pub fn texture_load_result_response(
     match tlr {
         Ok(TexturePoll::Ready { .. }) => response,
         Ok(TexturePoll::Pending { .. }) => {
-            if let Some(uri) = source.uri() {
-                response.on_hover_text(format!("Loading {uri}…"))
-            } else {
-                response.on_hover_text("Loading image…")
-            }
+            let uri = source.uri().unwrap_or("image");
+            response.on_hover_text(format!("Loading {uri}…"))
         }
-        Err(err) => response.on_hover_text(err.to_string()),
+        Err(err) => {
+            let uri = source.uri().unwrap_or("image");
+            response.on_hover_text(format!("Failed loading {uri}: {err}"))
+        }
     }
 }
 
