@@ -4,8 +4,9 @@
 use std::time::Instant;
 
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
-use winit::event_loop::{
-    ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget,
+use winit::{
+    event::Event,
+    event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget},
 };
 
 #[cfg(feature = "accesskit")]
@@ -270,14 +271,59 @@ fn run_and_return(
     returned_result
 }
 
-fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp + 'static) -> ! {
-    log::debug!("Entering the winit event loop (run)…");
+/// An eframe app detached from the event loop.
+///
+/// This is useful to run `eframe` apps while still having control over the event loop.
+/// For example, when you need to have a window managed by `egui` and another managed
+/// by yourself.
+///
+/// The `winit` window is managed internally, and can be accessed through [`Detached::window`].
+/// It can be closed by dropping this object.
+///
+/// The app state and window drawing will only get updated on calls to [`Detached::on_event`].
+pub trait Detached {
+    /// Returns the managed window object
+    fn window(&self) -> Option<&winit::window::Window>;
+    /// Should be called with event loop events.
+    ///
+    /// Events targeted at windows not managed by the app will be ignored.
+    fn on_event(
+        &mut self,
+        event: &Event<'_, UserEvent>,
+        event_loop: &EventLoopWindowTarget<UserEvent>,
+    ) -> Result<DetachedResult>;
+}
 
-    let mut next_repaint_time = Instant::now();
+/// Indicates what is the current state of the app after a [`Detached::on_event`] call.
+pub enum DetachedResult {
+    /// Indicates the next call to [`Detached::on_event`] will result in either a state or paint update.
+    /// Ideally, the event loop control should be set to [`winit::event_loop::ControlFlow::Poll`].
+    UpdateNext,
+    /// Indicates a call to [`Detached::on_event`] will only be required after the specified time.
+    /// Ideally, the event loop control should be set to [`winit::event_loop::ControlFlow::WaitUntil`].
+    UpdateAt(Instant),
+    /// Indicates the app received a close request.
+    Exit,
+}
 
-    event_loop.run(move |event, event_loop, control_flow| {
-        crate::profile_scope!("winit_event", short_event_description(&event));
+struct DetachedRunner<T: WinitApp + 'static> {
+    winit_app: T,
+    next_repaint_time: Instant,
+}
 
+impl<T: WinitApp + 'static> DetachedRunner<T> {
+    pub fn new(winit_app: T) -> Self {
+        Self {
+            winit_app,
+            next_repaint_time: Instant::now(),
+        }
+    }
+
+    fn on_event_internal(
+        &mut self,
+        event: &Event<'_, UserEvent>,
+        event_loop: &EventLoopWindowTarget<UserEvent>,
+    ) -> Result<DetachedResult> {
         let event_result = match event {
             winit::event::Event::LoopDestroyed => {
                 log::debug!("Received Event::LoopDestroyed");
@@ -287,18 +333,18 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
-            winit::event::Event::RedrawEventsCleared if cfg!(target_os = "windows") => {
-                next_repaint_time = extremely_far_future();
-                winit_app.run_ui_and_paint()
+            winit::event::Event::RedrawEventsCleared if cfg!(windows) => {
+                self.next_repaint_time = extremely_far_future();
+                self.winit_app.run_ui_and_paint()
             }
-            winit::event::Event::RedrawRequested(_) if !cfg!(target_os = "windows") => {
-                next_repaint_time = extremely_far_future();
-                winit_app.run_ui_and_paint()
+            winit::event::Event::RedrawRequested(_) if !cfg!(windows) => {
+                self.next_repaint_time = extremely_far_future();
+                self.winit_app.run_ui_and_paint()
             }
 
             winit::event::Event::UserEvent(UserEvent::RequestRepaint { when, frame_nr }) => {
-                if winit_app.frame_nr() == frame_nr {
-                    EventResult::RepaintAt(when)
+                if self.winit_app.frame_nr() == *frame_nr {
+                    EventResult::RepaintAt(*when)
                 } else {
                     EventResult::Wait // old request - we've already repainted
                 }
@@ -308,7 +354,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                 ..
             }) => EventResult::Wait, // We just woke up to check next_repaint_time
 
-            event => match winit_app.on_event(event_loop, &event) {
+            event => match self.winit_app.on_event(event_loop, &event) {
                 Ok(event_result) => event_result,
                 Err(err) => {
                     panic!("eframe encountered a fatal error: {err}");
@@ -319,42 +365,88 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
         match event_result {
             EventResult::Wait => {}
             EventResult::RepaintNow => {
-                if cfg!(target_os = "windows") {
+                if cfg!(windows) {
                     // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
-                    next_repaint_time = extremely_far_future();
-                    winit_app.run_ui_and_paint();
+                    self.next_repaint_time = extremely_far_future();
+                    self.winit_app.run_ui_and_paint();
                 } else {
                     // Fix for https://github.com/emilk/egui/issues/2425
-                    next_repaint_time = Instant::now();
+                    self.next_repaint_time = Instant::now();
                 }
             }
             EventResult::RepaintNext => {
-                next_repaint_time = Instant::now();
+                self.next_repaint_time = Instant::now();
             }
             EventResult::RepaintAt(repaint_time) => {
-                next_repaint_time = next_repaint_time.min(repaint_time);
+                self.next_repaint_time = self.next_repaint_time.min(repaint_time);
             }
             EventResult::Exit => {
                 log::debug!("Quitting - saving app state…");
-                winit_app.save_and_destroy();
-                #[allow(clippy::exit)]
-                std::process::exit(0);
+                self.winit_app.save_and_destroy();
+                return Ok(DetachedResult::Exit);
             }
         }
-
-        *control_flow = if next_repaint_time <= Instant::now() {
-            if let Some(window) = winit_app.window() {
+        if self.next_repaint_time <= Instant::now() {
+            if let Some(window) = self.winit_app.window() {
                 window.request_redraw();
             }
-            next_repaint_time = extremely_far_future();
-            ControlFlow::Poll
+            self.next_repaint_time = extremely_far_future();
+            Ok(DetachedResult::UpdateNext)
         } else {
             // WaitUntil seems to not work on iOS
             #[cfg(target_os = "ios")]
-            if let Some(window) = winit_app.window() {
+            if let Some(window) = runner.winit_app.window() {
                 window.request_redraw();
             }
-            ControlFlow::WaitUntil(next_repaint_time)
+            Ok(DetachedResult::UpdateAt(self.next_repaint_time))
+        }
+    }
+}
+
+impl<T: WinitApp + 'static> Detached for DetachedRunner<T> {
+    fn window(&self) -> Option<&winit::window::Window> {
+        self.winit_app.window()
+    }
+
+    fn on_event(
+        &mut self,
+        event: &Event<'_, UserEvent>,
+        event_loop: &EventLoopWindowTarget<UserEvent>,
+    ) -> Result<DetachedResult> {
+        match &event {
+            Event::WindowEvent {
+                window_id,
+                event: _event,
+            } => {
+                // Ignore window events for other windows
+                if let Some(window) = self.winit_app.window() {
+                    if *window_id == window.id() {
+                        return self.on_event_internal(event, event_loop);
+                    }
+                }
+                Ok(DetachedResult::UpdateAt(self.next_repaint_time))
+            }
+            _ => self.on_event_internal(event, event_loop),
+        }
+    }
+}
+
+fn run_and_exit(event_loop: EventLoop<UserEvent>, winit_app: impl WinitApp + 'static) -> ! {
+    log::debug!("Entering the winit event loop (run)…");
+
+    let mut runner = DetachedRunner::new(winit_app);
+    event_loop.run(move |event, event_loop, control_flow| {
+        crate::profile_scope!("winit_event", short_event_description(&event));
+
+        *control_flow = match runner.on_event_internal(&event, event_loop).unwrap() {
+            DetachedResult::UpdateNext => ControlFlow::Poll,
+            DetachedResult::UpdateAt(next_repaint_time) => {
+                ControlFlow::WaitUntil(next_repaint_time)
+            }
+            DetachedResult::Exit => {
+                #[allow(clippy::exit)]
+                std::process::exit(0);
+            }
         };
     })
 }
@@ -1120,8 +1212,24 @@ mod glow_integration {
             run_and_exit(event_loop, glow_eframe);
         }
     }
+
+    pub fn detached_glow(
+        app_name: &str,
+        event_loop: &EventLoop<UserEvent>,
+        native_options: epi::NativeOptions,
+        app_creator: epi::AppCreator,
+    ) -> impl Detached {
+        DetachedRunner::new(GlowWinitApp::new(
+            event_loop,
+            app_name,
+            native_options,
+            app_creator,
+        ))
+    }
 }
 
+#[cfg(feature = "glow")]
+pub use glow_integration::detached_glow;
 #[cfg(feature = "glow")]
 pub use glow_integration::run_glow;
 // ----------------------------------------------------------------------------
@@ -1583,8 +1691,20 @@ mod wgpu_integration {
             run_and_exit(event_loop, wgpu_eframe);
         }
     }
+
+    pub fn detached_wgpu(
+        app_name: &str,
+        event_loop: &EventLoop<UserEvent>,
+        native_options: epi::NativeOptions,
+        app_creator: epi::AppCreator,
+    ) -> impl Detached {
+        let app = WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
+        DetachedRunner::new(app)
+    }
 }
 
+#[cfg(feature = "wgpu")]
+pub use wgpu_integration::detached_wgpu;
 #[cfg(feature = "wgpu")]
 pub use wgpu_integration::run_wgpu;
 
@@ -1609,7 +1729,7 @@ fn extremely_far_future() -> std::time::Instant {
 // For the puffin profiler!
 #[allow(dead_code)] // Only used for profiling
 fn short_event_description(event: &winit::event::Event<'_, UserEvent>) -> &'static str {
-    use winit::event::{DeviceEvent, Event, StartCause, WindowEvent};
+    use winit::event::{DeviceEvent, StartCause, WindowEvent};
 
     match event {
         Event::Suspended => "Event::Suspended",

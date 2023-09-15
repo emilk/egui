@@ -163,6 +163,10 @@ mod native;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
+pub use native::run::{Detached, DetachedResult};
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
 #[cfg(feature = "persistence")]
 pub use native::file_storage::storage_dir;
 
@@ -291,6 +295,92 @@ pub fn run_simple_native(
         native_options,
         Box::new(|_cc| Box::new(SimpleApp { update_fun })),
     )
+}
+
+// ----------------------------------------------------------------------------
+
+/// Execute an app in a detached state.
+///
+/// This allows you to control the event loop itself, which is necessary in a few
+/// ocasions, like when you need a screen not managed by `egui`.
+///
+/// See [`Detached`] for more info on how to run detached apps.
+///
+/// # Example
+/// ``` no_run
+/// fn main() {
+///     let native_options = eframe::NativeOptions::default();
+///     let event_loop: winit::event_loop::EventLoop<eframe::UserEvent> =
+///         EventLoopBuilder::with_user_event().build();
+///     let mut detached = eframe::run_detached_native(
+///         "MyApp",
+///         &event_loop,
+///         native_options,
+///         Box::new(|cc| Box::new(MyEguiApp::new(cc))),
+///     );
+///     event_loop.run(move |event, event_loop, control_flow| {
+///         *control_flow = match detached.on_event(&event, event_loop).unwrap() {
+///             DetachedResult::RepaintNext => ControlFlow::Poll,
+///             DetachedResult::RepaintAt(next_repaint) => ControlFlow::WaitUntil(next_repaint),
+///             DetachedResult::Exit => ControlFlow::Exit,
+///         }
+///     })
+/// }
+///
+/// #[derive(Default)]
+/// struct MyEguiApp {}
+///
+/// impl MyEguiApp {
+///     fn new(cc: &eframe::CreationContext<'_>) -> Self {
+///         // Customize egui here with cc.egui_ctx.set_fonts and cc.egui_ctx.set_visuals.
+///         // Restore app state using cc.storage (requires the "persistence" feature).
+///         // Use the cc.gl (a glow::Context) to create graphics shaders and buffers that you can use
+///         // for e.g. egui::PaintCallback.
+///         Self::default()
+///     }
+/// }
+///
+/// impl eframe::App for MyEguiApp {
+///     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+///         egui::CentralPanel::default().show(ctx, |ui| {
+///             ui.heading("Hello World!");
+///         });
+///     }
+/// }
+/// ```
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[allow(clippy::needless_pass_by_value)]
+pub fn run_detached_native(
+    app_name: &str,
+    event_loop: &winit::event_loop::EventLoop<UserEvent>,
+    native_options: NativeOptions,
+    app_creator: AppCreator,
+) -> Box<dyn Detached> {
+    let renderer = native_options.renderer;
+
+    match renderer {
+        #[cfg(feature = "glow")]
+        Renderer::Glow => {
+            log::debug!("Using the glow renderer");
+            Box::new(native::run::detached_glow(
+                app_name,
+                event_loop,
+                native_options,
+                app_creator,
+            ))
+        }
+        #[cfg(feature = "wgpu")]
+        Renderer::Wgpu => {
+            log::debug!("Using the wgpu renderer");
+            Box::new(native::run::detached_wgpu(
+                app_name,
+                event_loop,
+                native_options,
+                app_creator,
+            ))
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
