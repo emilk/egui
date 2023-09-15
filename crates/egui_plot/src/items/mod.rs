@@ -1235,8 +1235,8 @@ impl PlotItem for PlotImage {
         };
         let screen_rotation = -*rotation as f32;
 
-        egui::paint_image_at(
-            ui,
+        egui::paint_texture_at(
+            ui.painter(),
             image_screen_rect,
             &ImageOptions {
                 uv: *uv,

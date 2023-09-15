@@ -18,6 +18,28 @@ use epaint::{util::FloatOrd, RectShape};
 /// - [`ImageSource::Texture`] will use the provided texture.
 ///
 /// See [`load`] for more information.
+///
+/// ### Examples
+/// // Using it in a layout:
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// ui.add(
+///     egui::Image::new(egui::include_image!("../../assets/ferris.png"))
+///         .rounding(5.0)
+/// );
+/// # });
+/// ```
+///
+/// // Using it just to paint:
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// # let rect = egui::Rect::from_min_size(Default::default(), egui::Vec2::splat(100.0));
+/// egui::Image::new(egui::include_image!("../../assets/ferris.png"))
+///     .rounding(5.0)
+///     .tint(egui::Color32::LIGHT_BLUE)
+///     .paint_at(ui, rect);
+/// # });
+/// ```
 #[must_use = "You should put this widget in an ui with `ui.add(widget);`"]
 #[derive(Debug, Clone)]
 pub struct Image<'a> {
@@ -281,6 +303,16 @@ impl<'a> Image<'a> {
     }
 
     /// Paint the image in the given rectangle.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let rect = egui::Rect::from_min_size(Default::default(), egui::Vec2::splat(100.0));
+    /// egui::Image::new(egui::include_image!("../../assets/ferris.png"))
+    ///     .rounding(5.0)
+    ///     .tint(egui::Color32::LIGHT_BLUE)
+    ///     .paint_at(ui, rect);
+    /// # });
+    /// ```
     #[inline]
     pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
         paint_texture_load_result(
@@ -300,13 +332,15 @@ impl<'a> Widget for Image<'a> {
         let ui_size = self.calc_size(ui.available_size(), original_image_size);
 
         let (rect, response) = ui.allocate_exact_size(ui_size, self.sense);
-        paint_texture_load_result(
-            ui,
-            &tlr,
-            rect,
-            self.show_loading_spinner,
-            &self.image_options,
-        );
+        if ui.is_rect_visible(rect) {
+            paint_texture_load_result(
+                ui,
+                &tlr,
+                rect,
+                self.show_loading_spinner,
+                &self.image_options,
+            );
+        }
         texture_load_result_response(&self.source, &tlr, response)
     }
 }
@@ -532,7 +566,7 @@ pub fn paint_texture_load_result(
 ) {
     match tlr {
         Ok(TexturePoll::Ready { texture }) => {
-            paint_image_at(ui, rect, options, texture);
+            paint_texture_at(ui.painter(), rect, options, texture);
         }
         Ok(TexturePoll::Pending { .. }) => {
             let show_loading_spinner =
@@ -678,16 +712,16 @@ impl Default for ImageOptions {
     }
 }
 
-/// Paint a `SizedTexture` as an image according to some `ImageOptions` at a given `rect`.
-pub fn paint_image_at(ui: &Ui, rect: Rect, options: &ImageOptions, texture: &SizedTexture) {
-    if !ui.is_rect_visible(rect) {
-        return;
-    }
-
+pub fn paint_texture_at(
+    painter: &Painter,
+    rect: Rect,
+    options: &ImageOptions,
+    texture: &SizedTexture,
+) {
     if options.bg_fill != Default::default() {
         let mut mesh = Mesh::default();
         mesh.add_colored_rect(rect, options.bg_fill);
-        ui.painter().add(Shape::mesh(mesh));
+        painter.add(Shape::mesh(mesh));
     }
 
     match options.rotation {
@@ -702,10 +736,10 @@ pub fn paint_image_at(ui: &Ui, rect: Rect, options: &ImageOptions, texture: &Siz
             let mut mesh = Mesh::with_texture(texture.id);
             mesh.add_rect_with_uv(rect, options.uv, options.tint);
             mesh.rotate(rot, rect.min + origin * rect.size());
-            ui.painter().add(Shape::mesh(mesh));
+            painter.add(Shape::mesh(mesh));
         }
         None => {
-            ui.painter().add(RectShape {
+            painter.add(RectShape {
                 rect,
                 rounding: options.rounding,
                 fill: options.tint,
