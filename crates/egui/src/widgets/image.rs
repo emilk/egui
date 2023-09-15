@@ -24,7 +24,7 @@ use epaint::{util::FloatOrd, RectShape};
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// ui.add(
-///     egui::Image::new(egui::include_image!("../assets/ferris.png"))
+///     egui::Image::new(egui::include_image!("../../assets/ferris.png"))
 ///         .rounding(5.0)
 /// );
 /// # });
@@ -34,7 +34,7 @@ use epaint::{util::FloatOrd, RectShape};
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// # let rect = egui::Rect::from_min_size(Default::default(), egui::Vec2::splat(100.0));
-/// egui::Image::new(egui::include_image!("../assets/ferris.png"))
+/// egui::Image::new(egui::include_image!("../../assets/ferris.png"))
 ///     .rounding(5.0)
 ///     .tint(egui::Color32::LIGHT_BLUE)
 ///     .paint_at(ui, rect);
@@ -307,7 +307,7 @@ impl<'a> Image<'a> {
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// # let rect = egui::Rect::from_min_size(Default::default(), egui::Vec2::splat(100.0));
-    /// egui::Image::new(egui::include_image!("../assets/ferris.png"))
+    /// egui::Image::new(egui::include_image!("../../assets/ferris.png"))
     ///     .rounding(5.0)
     ///     .tint(egui::Color32::LIGHT_BLUE)
     ///     .paint_at(ui, rect);
