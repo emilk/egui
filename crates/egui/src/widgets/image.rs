@@ -239,14 +239,15 @@ impl<'a, T: Into<ImageSource<'a>>> From<T> for Image<'a> {
 impl<'a> Image<'a> {
     /// Returns the size the image will occupy in the final UI.
     #[inline]
-    pub fn calculate_size(&self, available_size: Vec2, image_size: Option<Vec2>) -> Vec2 {
-        let image_size = image_size.unwrap_or(Vec2::splat(24.0)); // Fallback for still-loading textures, or failure to load.
-        self.size.calc_size(available_size, image_size)
+    pub fn calculate_size(&self, available_size: Vec2, original_image_size: Option<Vec2>) -> Vec2 {
+        let original_image_size = original_image_size.unwrap_or(Vec2::splat(24.0)); // Fallback for still-loading textures, or failure to load.
+        self.size
+            .calculate_size(available_size, original_image_size)
     }
 
     pub fn load_and_calculate_size(&self, ui: &mut Ui, available_size: Vec2) -> Option<Vec2> {
         let image_size = self.load_for_size(ui.ctx(), available_size).ok()?.size()?;
-        Some(self.size.calc_size(available_size, image_size))
+        Some(self.size.calculate_size(available_size, image_size))
     }
 
     #[inline]
@@ -296,8 +297,8 @@ impl<'a> Image<'a> {
 impl<'a> Widget for Image<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
         let tlr = self.load_for_size(ui.ctx(), ui.available_size());
-        let texture_size = tlr.as_ref().ok().and_then(|t| t.size());
-        let ui_size = self.calculate_size(ui.available_size(), texture_size);
+        let original_image_size = tlr.as_ref().ok().and_then(|t| t.size());
+        let ui_size = self.calculate_size(ui.available_size(), original_image_size);
 
         let (rect, response) = ui.allocate_exact_size(ui_size, self.sense);
         paint_texture_load_result(
@@ -388,7 +389,7 @@ impl ImageSize {
     }
 
     /// Calculate the final on-screen size in points.
-    pub fn calc_size(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
+    pub fn calculate_size(&self, available_size: Vec2, original_image_size: Vec2) -> Vec2 {
         let Self {
             maintain_aspect_ratio,
             max_size,
@@ -396,7 +397,7 @@ impl ImageSize {
         } = *self;
         match fit {
             ImageFit::Original { scale } => {
-                let image_size = image_size * scale;
+                let image_size = original_image_size * scale;
                 if image_size.x <= max_size.x && image_size.y <= max_size.y {
                     image_size
                 } else {
@@ -405,11 +406,11 @@ impl ImageSize {
             }
             ImageFit::Fraction(fract) => {
                 let scale_to_size = (available_size * fract).min(max_size);
-                scale_to_fit(image_size, scale_to_size, maintain_aspect_ratio)
+                scale_to_fit(original_image_size, scale_to_size, maintain_aspect_ratio)
             }
             ImageFit::Exact(size) => {
                 let scale_to_size = size.min(max_size);
-                scale_to_fit(image_size, scale_to_size, maintain_aspect_ratio)
+                scale_to_fit(original_image_size, scale_to_size, maintain_aspect_ratio)
             }
         }
     }
@@ -485,6 +486,15 @@ impl<'a> std::fmt::Debug for ImageSource<'a> {
 }
 
 impl<'a> ImageSource<'a> {
+    /// Size of the texture, if known.
+    #[inline]
+    pub fn texture_size(&self) -> Option<Vec2> {
+        match self {
+            ImageSource::Texture(texture) => Some(texture.size),
+            ImageSource::Uri(_) | ImageSource::Bytes(_, _) => None,
+        }
+    }
+
     /// # Errors
     /// Failure to load the texture.
     pub fn load(

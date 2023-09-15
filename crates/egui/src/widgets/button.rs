@@ -607,10 +607,10 @@ impl<'a> Widget for ImageButton<'a> {
 
         let available_size_for_image = ui.available_size() - 2.0 * padding;
         let tlr = self.image.load_for_size(ui.ctx(), available_size_for_image);
-        let texture_size = tlr.as_ref().ok().and_then(|t| t.size());
+        let original_image_size = tlr.as_ref().ok().and_then(|t| t.size());
         let image_size = self
             .image
-            .calculate_size(available_size_for_image, texture_size);
+            .calculate_size(available_size_for_image, original_image_size);
 
         let padded_size = image_size + 2.0 * padding;
         let (rect, response) = ui.allocate_exact_size(padded_size, self.sense);
