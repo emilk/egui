@@ -105,13 +105,17 @@ impl eframe::App for ImageViewer {
 
             // bg_fill
             ui.add_space(2.0);
-            ui.label("Background color");
-            ui.color_edit_button_srgba(&mut self.image_options.bg_fill);
+            ui.horizontal(|ui| {
+                ui.color_edit_button_srgba(&mut self.image_options.bg_fill);
+                ui.label("Background color");
+            });
 
             // tint
             ui.add_space(2.0);
-            ui.label("Tint");
-            ui.color_edit_button_srgba(&mut self.image_options.tint);
+            ui.horizontal(|ui| {
+                ui.color_edit_button_srgba(&mut self.image_options.tint);
+                ui.label("Tint");
+            });
 
             // fit
             ui.add_space(10.0);

@@ -212,7 +212,7 @@ impl WrapApp {
             ),
             #[cfg(feature = "image_viewer")]
             (
-                "🖼️ Image Viewer",
+                "🖼 Image Viewer",
                 Anchor::ImageViewer,
                 &mut self.state.image_viewer as &mut dyn eframe::App,
             ),
