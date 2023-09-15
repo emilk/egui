@@ -187,7 +187,7 @@ impl Widget for Button<'_> {
 
         let image_size = if let Some(image) = &image {
             image
-                .load_and_calculate_size(ui, space_available_for_image)
+                .load_and_calc_size(ui, space_available_for_image)
                 .unwrap_or(space_available_for_image)
         } else {
             Vec2::ZERO
@@ -610,7 +610,7 @@ impl<'a> Widget for ImageButton<'a> {
         let original_image_size = tlr.as_ref().ok().and_then(|t| t.size());
         let image_size = self
             .image
-            .calculate_size(available_size_for_image, original_image_size);
+            .calc_size(available_size_for_image, original_image_size);
 
         let padded_size = image_size + 2.0 * padding;
         let (rect, response) = ui.allocate_exact_size(padded_size, self.sense);
