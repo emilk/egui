@@ -241,12 +241,12 @@ impl<'a> Image<'a> {
     #[inline]
     pub fn calculate_size(&self, available_size: Vec2, image_size: Option<Vec2>) -> Vec2 {
         let image_size = image_size.unwrap_or(Vec2::splat(24.0)); // Fallback for still-loading textures, or failure to load.
-        self.size.get(available_size, image_size)
+        self.size.calc_size(available_size, image_size)
     }
 
     pub fn load_and_calculate_size(&self, ui: &mut Ui, available_size: Vec2) -> Option<Vec2> {
-        let image_size = self.load(ui).ok()?.size()?;
-        Some(self.size.get(available_size, image_size))
+        let image_size = self.load_for_size(ui.ctx(), available_size).ok()?.size()?;
+        Some(self.size.calc_size(available_size, image_size))
     }
 
     #[inline]
@@ -269,13 +269,15 @@ impl<'a> Image<'a> {
 
     /// Load the image from its [`Image::source`], returning the resulting [`SizedTexture`].
     ///
+    /// The `available_size` is used as a hint when e.g. rendering an svg.
+    ///
     /// # Errors
     /// May fail if they underlying [`Context::try_load_texture`] call fails.
-    pub fn load(&self, ui: &Ui) -> TextureLoadResult {
-        let size_hint = self.size.hint(ui.available_size());
+    pub fn load_for_size(&self, ctx: &Context, available_size: Vec2) -> TextureLoadResult {
+        let size_hint = self.size.hint(available_size);
         self.source
             .clone()
-            .load(ui.ctx(), self.texture_options, size_hint)
+            .load(ctx, self.texture_options, size_hint)
     }
 
     /// Paint the image in the given rectangle.
@@ -283,7 +285,7 @@ impl<'a> Image<'a> {
     pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
         paint_texture_load_result(
             ui,
-            &self.load(ui),
+            &self.load_for_size(ui.ctx(), rect.size()),
             rect,
             self.show_loading_spinner,
             &self.image_options,
@@ -293,7 +295,7 @@ impl<'a> Image<'a> {
 
 impl<'a> Widget for Image<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let tlr = self.load(ui);
+        let tlr = self.load_for_size(ui.ctx(), ui.available_size());
         let texture_size = tlr.as_ref().ok().and_then(|t| t.size());
         let ui_size = self.calculate_size(ui.available_size(), texture_size);
 
@@ -364,29 +366,29 @@ impl ImageFit {
 }
 
 impl ImageSize {
+    /// Size hint for e.g. rasterizing an svg.
     pub fn hint(&self, available_size: Vec2) -> SizeHint {
-        if self.maintain_aspect_ratio {
-            return SizeHint::Scale(1.0.ord());
-        };
-
-        let fit = match self.fit {
+        let size = match self.fit {
             ImageFit::Original { scale } => return SizeHint::Scale(scale.ord()),
             ImageFit::Fraction(fract) => available_size * fract,
             ImageFit::Exact(size) => size,
         };
 
-        let fit = fit.min(self.max_size);
+        let size = size.min(self.max_size);
+
+        // TODO(emilk): take pixels_per_point into account here!
 
         // `inf` on an axis means "any value"
-        match (fit.x.is_finite(), fit.y.is_finite()) {
-            (true, true) => SizeHint::Size(fit.x.round() as u32, fit.y.round() as u32),
-            (true, false) => SizeHint::Width(fit.x.round() as u32),
-            (false, true) => SizeHint::Height(fit.y.round() as u32),
+        match (size.x.is_finite(), size.y.is_finite()) {
+            (true, true) => SizeHint::Size(size.x.round() as u32, size.y.round() as u32),
+            (true, false) => SizeHint::Width(size.x.round() as u32),
+            (false, true) => SizeHint::Height(size.y.round() as u32),
             (false, false) => SizeHint::Scale(1.0.ord()),
         }
     }
 
-    pub fn get(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
+    /// Calculate the final on-screen size in points.
+    pub fn calc_size(&self, available_size: Vec2, image_size: Vec2) -> Vec2 {
         let Self {
             maintain_aspect_ratio,
             max_size,
