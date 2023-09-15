@@ -350,6 +350,18 @@ impl Painter {
     /// unless you want to crop or flip the image.
     ///
     /// `tint` is a color multiplier. Use [`Color32::WHITE`] if you don't want to tint the image.
+    ///
+    /// Usually it is easier to use [`crate::Image::paint_at`] instead:
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// # let rect = egui::Rect::from_min_size(Default::default(), egui::Vec2::splat(100.0));
+    /// egui::Image::new(egui::include_image!("../assets/ferris.png"))
+    ///     .rounding(5.0)
+    ///     .tint(egui::Color32::LIGHT_BLUE)
+    ///     .paint_at(ui, rect);
+    /// # });
+    /// ```
     pub fn image(&self, texture_id: epaint::TextureId, rect: Rect, uv: Rect, tint: Color32) {
         self.add(Shape::image(texture_id, rect, uv, tint));
     }
