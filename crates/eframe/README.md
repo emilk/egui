@@ -60,4 +60,4 @@ Not all rust crates work when compiled to WASM, but here are some useful crates 
 
 
 ## Name
-The _frame_ in `eframe` stands both for the frame in which your `egui` app resides and also for "framework" (`frame` is a framework, `egui` is a library).
+The _frame_ in `eframe` stands both for the frame in which your `egui` app resides and also for "framework" (`eframe` is a framework, `egui` is a library).
