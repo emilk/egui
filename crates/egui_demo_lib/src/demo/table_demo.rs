@@ -15,6 +15,8 @@ pub struct TableDemo {
     num_rows: usize,
     scroll_to_row_slider: usize,
     scroll_to_row: Option<usize>,
+    selection: std::collections::HashSet<usize>,
+    checked: bool,
 }
 
 impl Default for TableDemo {
@@ -26,6 +28,8 @@ impl Default for TableDemo {
             num_rows: 10_000,
             scroll_to_row_slider: 0,
             scroll_to_row: None,
+            selection: Default::default(),
+            checked: false,
         }
     }
 }
@@ -124,9 +128,11 @@ impl TableDemo {
         let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
 
         let mut table = TableBuilder::new(ui)
+            .sense(egui::Sense::click())
             .striped(self.striped)
             .resizable(self.resizable)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+            .column(Column::auto())
             .column(Column::auto())
             .column(Column::initial(100.0).range(40.0..=300.0))
             .column(Column::initial(100.0).at_least(40.0).clip(true))
@@ -141,6 +147,9 @@ impl TableDemo {
             .header(20.0, |mut header| {
                 header.col(|ui| {
                     ui.strong("Row");
+                });
+                header.col(|ui| {
+                    ui.strong("Interaction");
                 });
                 header.col(|ui| {
                     ui.strong("Expanding content");
@@ -158,8 +167,13 @@ impl TableDemo {
                         let is_thick = thick_row(row_index);
                         let row_height = if is_thick { 30.0 } else { 18.0 };
                         body.row(row_height, |mut row| {
+                            row.select(self.selection.contains(&row_index));
+
                             row.col(|ui| {
                                 ui.label(row_index.to_string());
+                            });
+                            row.col(|ui| {
+                                ui.checkbox(&mut self.checked, "Click me");
                             });
                             row.col(|ui| {
                                 expanding_content(ui);
@@ -175,13 +189,21 @@ impl TableDemo {
                                     ui.label("Normal row");
                                 }
                             });
+
+                            self.toggle_row_selection(row_index, row.response());
                         });
                     }
                 }
                 DemoType::ManyHomogeneous => {
-                    body.rows(text_height, self.num_rows, |row_index, mut row| {
+                    body.rows(text_height, self.num_rows, |mut row| {
+                        let row_index = row.index();
+                        row.select(self.selection.contains(&row_index));
+
                         row.col(|ui| {
                             ui.label(row_index.to_string());
+                        });
+                        row.col(|ui| {
+                            ui.checkbox(&mut self.checked, "Click me");
                         });
                         row.col(|ui| {
                             expanding_content(ui);
@@ -194,6 +216,8 @@ impl TableDemo {
                                 egui::Label::new("Thousands of rows of even height").wrap(false),
                             );
                         });
+
+                        self.toggle_row_selection(row_index, row.response());
                     });
                 }
                 DemoType::ManyHeterogenous => {
@@ -204,30 +228,45 @@ impl TableDemo {
                             18.0
                         }
                     }
-                    body.heterogeneous_rows(
-                        (0..self.num_rows).map(row_thickness),
-                        |row_index, mut row| {
-                            row.col(|ui| {
-                                ui.label(row_index.to_string());
-                            });
-                            row.col(|ui| {
-                                expanding_content(ui);
-                            });
-                            row.col(|ui| {
-                                ui.label(long_text(row_index));
-                            });
-                            row.col(|ui| {
-                                ui.style_mut().wrap = Some(false);
-                                if thick_row(row_index) {
-                                    ui.heading("Extra thick row");
-                                } else {
-                                    ui.label("Normal row");
-                                }
-                            });
-                        },
-                    );
+                    body.heterogeneous_rows((0..self.num_rows).map(row_thickness), |mut row| {
+                        let row_index = row.index();
+                        row.select(self.selection.contains(&row_index));
+
+                        row.col(|ui| {
+                            ui.label(row_index.to_string());
+                        });
+                        row.col(|ui| {
+                            ui.checkbox(&mut self.checked, "Click me");
+                        });
+                        row.col(|ui| {
+                            expanding_content(ui);
+                        });
+                        row.col(|ui| {
+                            ui.label(long_text(row_index));
+                        });
+                        row.col(|ui| {
+                            ui.style_mut().wrap = Some(false);
+                            if thick_row(row_index) {
+                                ui.heading("Extra thick row");
+                            } else {
+                                ui.label("Normal row");
+                            }
+                        });
+
+                        self.toggle_row_selection(row_index, row.response());
+                    });
                 }
             });
+    }
+
+    fn toggle_row_selection(&mut self, row_index: usize, row_response: egui::Response) {
+        if row_response.clicked() {
+            if self.selection.contains(&row_index) {
+                self.selection.remove(&row_index);
+            } else {
+                self.selection.insert(row_index);
+            }
+        }
     }
 }
 

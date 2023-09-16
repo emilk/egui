@@ -46,6 +46,7 @@ pub struct StripBuilder<'a> {
     sizing: Sizing,
     clip: bool,
     cell_layout: egui::Layout,
+    sense: egui::Sense,
 }
 
 impl<'a> StripBuilder<'a> {
@@ -55,8 +56,9 @@ impl<'a> StripBuilder<'a> {
         Self {
             ui,
             sizing: Default::default(),
-            cell_layout,
             clip: false,
+            cell_layout,
+            sense: egui::Sense::hover(),
         }
     }
 
@@ -69,6 +71,12 @@ impl<'a> StripBuilder<'a> {
     /// What layout should we use for the individual cells?
     pub fn cell_layout(mut self, cell_layout: egui::Layout) -> Self {
         self.cell_layout = cell_layout;
+        self
+    }
+
+    /// What should strip cells sense for? Default: [`egui::Sense::hover()`].
+    pub fn sense(mut self, sense: egui::Sense) -> Self {
+        self.sense = sense;
         self
     }
 
@@ -98,7 +106,12 @@ impl<'a> StripBuilder<'a> {
             self.ui.available_rect_before_wrap().width(),
             self.ui.spacing().item_spacing.x,
         );
-        let mut layout = StripLayout::new(self.ui, CellDirection::Horizontal, self.cell_layout);
+        let mut layout = StripLayout::new(
+            self.ui,
+            CellDirection::Horizontal,
+            self.cell_layout,
+            self.sense,
+        );
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Horizontal,
@@ -121,7 +134,12 @@ impl<'a> StripBuilder<'a> {
             self.ui.available_rect_before_wrap().height(),
             self.ui.spacing().item_spacing.y,
         );
-        let mut layout = StripLayout::new(self.ui, CellDirection::Vertical, self.cell_layout);
+        let mut layout = StripLayout::new(
+            self.ui,
+            CellDirection::Vertical,
+            self.cell_layout,
+            self.sense,
+        );
         strip(Strip {
             layout: &mut layout,
             direction: CellDirection::Vertical,
@@ -167,9 +185,8 @@ impl<'a, 'b> Strip<'a, 'b> {
     #[cfg_attr(debug_assertions, track_caller)]
     pub fn cell(&mut self, add_contents: impl FnOnce(&mut Ui)) {
         let (width, height) = self.next_cell_size();
-        let striped = false;
         self.layout
-            .add(self.clip, striped, width, height, add_contents);
+            .add(self.clip, false, false, width, height, add_contents);
     }
 
     /// Add an empty cell.
