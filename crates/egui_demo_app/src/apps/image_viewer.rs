@@ -167,7 +167,7 @@ impl eframe::App for ImageViewer {
                     if !matches!(self.fit, ImageFit::Original { .. }) {
                         self.fit = ImageFit::Original { scale: 1.0 };
                     }
-                    let ImageFit::Original{scale} = &mut self.fit else {
+                    let ImageFit::Original { scale } = &mut self.fit else {
                         unreachable!()
                     };
                     ui.add(Slider::new(scale, 0.1..=4.0).text("scale"));
