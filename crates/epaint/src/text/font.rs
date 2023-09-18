@@ -43,12 +43,6 @@ pub struct GlyphInfo {
     /// Unit: points.
     pub advance_width: f32,
 
-    /// `ascent` value from the font metrics.
-    /// this is the distance from the top to the baseline.
-    ///
-    /// Unit: points.
-    pub ascent: f32,
-
     /// Texture coordinates.
     pub uv_rect: UvRect,
 }
@@ -59,7 +53,6 @@ impl Default for GlyphInfo {
         Self {
             id: ab_glyph::GlyphId(0),
             advance_width: 0.0,
-            ascent: 0.0,
             uv_rect: Default::default(),
         }
     }
@@ -255,6 +248,14 @@ impl FontImpl {
         self.pixels_per_point
     }
 
+    /// This is the distance from the top to the baseline.
+    ///
+    /// Unit: points.
+    #[inline(always)]
+    pub fn ascent(&self) -> f32 {
+        self.ascent
+    }
+
     fn allocate_glyph(&self, glyph_id: ab_glyph::GlyphId) -> GlyphInfo {
         assert!(glyph_id.0 != 0);
         use ab_glyph::{Font as _, ScaleFont};
@@ -305,7 +306,6 @@ impl FontImpl {
         GlyphInfo {
             id: glyph_id,
             advance_width: advance_width_in_points,
-            ascent: self.ascent,
             uv_rect,
         }
     }

@@ -146,7 +146,7 @@ fn layout_section(
                 chr,
                 pos: pos2(paragraph.cursor_x, f32::NAN),
                 size: vec2(glyph_info.advance_width, line_height),
-                ascent: glyph_info.ascent,
+                ascent: font_impl.map_or(0.0, |font| font.ascent()), // Failure to find the font here would be weird
                 uv_rect: glyph_info.uv_rect,
                 section_index,
             });
@@ -359,7 +359,6 @@ fn replace_last_glyph_with_overflow_character(
         let (font_impl, glyph_info) = font.glyph_info_and_font_impl(last_glyph.chr);
         last_glyph.size = vec2(glyph_info.advance_width, line_height);
         last_glyph.uv_rect = glyph_info.uv_rect;
-        last_glyph.ascent = glyph_info.ascent;
 
         // reapply kerning
         last_glyph.pos.x += extra_letter_spacing
