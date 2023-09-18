@@ -1,6 +1,6 @@
 use epaint::{emath::Rangef, vec2, Vec2};
 
-use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
+use crate::{area, window, EventFilter, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 
 // ----------------------------------------------------------------------------
 
@@ -219,7 +219,7 @@ pub(crate) struct Interaction {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Focus {
     /// The widget with keyboard focus (i.e. a text input field).
-    pub(crate) id: Option<Id>,
+    focused_widget: Option<FocusWidget>,
 
     /// What had keyboard focus previous frame?
     id_previous_frame: Option<Id>,
@@ -237,14 +237,27 @@ pub(crate) struct Focus {
     /// The last widget interested in focus.
     last_interested: Option<Id>,
 
-    /// If `true`, pressing tab will NOT move focus away from the current widget.
-    is_focus_locked: bool,
-
     /// Set when looking for widget with navigational keys like arrows, tab, shift+tab
     focus_direction: FocusDirection,
 
     /// A cache of widget ids that are interested in focus with their corresponding rectangles.
     focus_widgets_cache: IdMap<Rect>,
+}
+
+/// The widget with focus.
+#[derive(Clone, Copy, Debug)]
+struct FocusWidget {
+    pub id: Id,
+    pub filter: EventFilter,
+}
+
+impl FocusWidget {
+    pub fn new(id: Id) -> Self {
+        Self {
+            id,
+            filter: Default::default(),
+        }
+    }
 }
 
 impl Interaction {
@@ -278,14 +291,15 @@ impl Interaction {
 impl Focus {
     /// Which widget currently has keyboard focus?
     pub fn focused(&self) -> Option<Id> {
-        self.id
+        self.focused_widget.as_ref().map(|w| w.id)
     }
 
     fn begin_frame(&mut self, new_input: &crate::data::input::RawInput) {
-        self.id_previous_frame = self.id;
+        self.id_previous_frame = self.focused();
         if let Some(id) = self.id_next_frame.take() {
-            self.id = Some(id);
+            self.focused_widget = Some(FocusWidget::new(id));
         }
+        let event_filter = self.focused_widget.map(|w| w.filter).unwrap_or_default();
 
         #[cfg(feature = "accesskit")]
         {
@@ -295,37 +309,35 @@ impl Focus {
         self.focus_direction = FocusDirection::None;
 
         for event in &new_input.events {
-            if let crate::Event::Key {
-                key,
-                pressed: true,
-                modifiers,
-                ..
-            } = event
-            {
-                if let Some(cardinality) = match key {
-                    crate::Key::ArrowUp => Some(FocusDirection::Up),
-                    crate::Key::ArrowRight => Some(FocusDirection::Right),
-                    crate::Key::ArrowDown => Some(FocusDirection::Down),
-                    crate::Key::ArrowLeft => Some(FocusDirection::Left),
-                    crate::Key::Tab => {
-                        if !self.is_focus_locked {
+            if !event_filter.matches(event) {
+                if let crate::Event::Key {
+                    key,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } = event
+                {
+                    if let Some(cardinality) = match key {
+                        crate::Key::ArrowUp => Some(FocusDirection::Up),
+                        crate::Key::ArrowRight => Some(FocusDirection::Right),
+                        crate::Key::ArrowDown => Some(FocusDirection::Down),
+                        crate::Key::ArrowLeft => Some(FocusDirection::Left),
+
+                        crate::Key::Tab => {
                             if modifiers.shift {
                                 Some(FocusDirection::Previous)
                             } else {
                                 Some(FocusDirection::Next)
                             }
-                        } else {
-                            None
                         }
+                        crate::Key::Escape => {
+                            self.focused_widget = None;
+                            Some(FocusDirection::None)
+                        }
+                        _ => None,
+                    } {
+                        self.focus_direction = cardinality;
                     }
-                    crate::Key::Escape => {
-                        self.id = None;
-                        self.is_focus_locked = false;
-                        Some(FocusDirection::None)
-                    }
-                    _ => None,
-                } {
-                    self.focus_direction = cardinality;
                 }
             }
 
@@ -346,17 +358,17 @@ impl Focus {
     pub(crate) fn end_frame(&mut self, used_ids: &IdMap<Rect>) {
         if self.focus_direction.is_cardinal() {
             if let Some(found_widget) = self.find_widget_in_direction(used_ids) {
-                self.id = Some(found_widget);
+                self.focused_widget = Some(FocusWidget::new(found_widget));
             }
         }
 
-        if let Some(id) = self.id {
+        if let Some(focused_widget) = self.focused_widget {
             // Allow calling `request_focus` one frame and not using it until next frame
-            let recently_gained_focus = self.id_previous_frame != Some(id);
+            let recently_gained_focus = self.id_previous_frame != Some(focused_widget.id);
 
-            if !recently_gained_focus && !used_ids.contains_key(&id) {
+            if !recently_gained_focus && !used_ids.contains_key(&focused_widget.id) {
                 // Dead-mans-switch: the widget with focus has disappeared!
-                self.id = None;
+                self.focused_widget = None;
             }
         }
     }
@@ -369,7 +381,7 @@ impl Focus {
         #[cfg(feature = "accesskit")]
         {
             if self.id_requested_by_accesskit == Some(id.accesskit_id()) {
-                self.id = Some(id);
+                self.focused_widget = Some(FocusWidget::new(id));
                 self.id_requested_by_accesskit = None;
                 self.give_to_next = false;
                 self.reset_focus();
@@ -382,23 +394,23 @@ impl Focus {
             .or_insert(Rect::EVERYTHING);
 
         if self.give_to_next && !self.had_focus_last_frame(id) {
-            self.id = Some(id);
+            self.focused_widget = Some(FocusWidget::new(id));
             self.give_to_next = false;
-        } else if self.id == Some(id) {
-            if self.focus_direction == FocusDirection::Next && !self.is_focus_locked {
-                self.id = None;
+        } else if self.focused() == Some(id) {
+            if self.focus_direction == FocusDirection::Next {
+                self.focused_widget = None;
                 self.give_to_next = true;
                 self.reset_focus();
-            } else if self.focus_direction == FocusDirection::Previous && !self.is_focus_locked {
+            } else if self.focus_direction == FocusDirection::Previous {
                 self.id_next_frame = self.last_interested; // frame-delay so gained_focus works
                 self.reset_focus();
             }
         } else if self.focus_direction == FocusDirection::Next
-            && self.id.is_none()
+            && self.focused_widget.is_none()
             && !self.give_to_next
         {
             // nothing has focus and the user pressed tab - give focus to the first widgets that wants it:
-            self.id = Some(id);
+            self.focused_widget = Some(FocusWidget::new(id));
             self.reset_focus();
         }
 
@@ -424,7 +436,7 @@ impl Focus {
             }
         }
 
-        let Some(focus_id) = self.id else {
+        let Some(current_focused) = self.focused_widget else {
             return None;
         };
 
@@ -449,7 +461,7 @@ impl Focus {
             }
         });
 
-        let Some(current_rect) = self.focus_widgets_cache.get(&focus_id) else {
+        let Some(current_rect) = self.focus_widgets_cache.get(&current_focused.id) else {
             return None;
         };
 
@@ -457,7 +469,7 @@ impl Focus {
         let mut best_id = None;
 
         for (candidate_id, candidate_rect) in &self.focus_widgets_cache {
-            if Some(*candidate_id) == self.id {
+            if *candidate_id == current_focused.id {
                 continue;
             }
 
@@ -542,46 +554,58 @@ impl Memory {
     /// from the window and back.
     #[inline(always)]
     pub fn has_focus(&self, id: Id) -> bool {
-        self.interaction.focus.id == Some(id)
+        self.interaction.focus.focused() == Some(id)
     }
 
     /// Which widget has keyboard focus?
     pub fn focus(&self) -> Option<Id> {
-        self.interaction.focus.id
+        self.interaction.focus.focused()
     }
 
-    /// Prevent keyboard focus from moving away from this widget even if users presses the tab key.
+    /// Set an event filter for a widget.
+    ///
+    /// This allows you to control wether the widget will loose focus
+    /// when the user presses tab, arrow keys, or escape.
+    ///
     /// You must first give focus to the widget before calling this.
-    pub fn lock_focus(&mut self, id: Id, lock_focus: bool) {
+    pub fn set_focus_lock_filter(&mut self, id: Id, event_filter: EventFilter) {
         if self.had_focus_last_frame(id) && self.has_focus(id) {
-            self.interaction.focus.is_focus_locked = lock_focus;
+            if let Some(focused) = &mut self.interaction.focus.focused_widget {
+                if focused.id == id {
+                    focused.filter = event_filter;
+                }
+            }
         }
     }
 
-    /// Is the keyboard focus locked on this widget? If so the focus won't move even if the user presses the tab key.
-    pub fn has_lock_focus(&self, id: Id) -> bool {
-        if self.had_focus_last_frame(id) && self.has_focus(id) {
-            self.interaction.focus.is_focus_locked
-        } else {
-            false
-        }
+    /// Set an event filter for a widget.
+    ///
+    /// You must first give focus to the widget before calling this.
+    #[deprecated = "Use set_focus_lock_filter instead"]
+    pub fn lock_focus(&mut self, id: Id, lock_focus: bool) {
+        self.set_focus_lock_filter(
+            id,
+            EventFilter {
+                tab: lock_focus,
+                arrows: lock_focus,
+                escape: false,
+            },
+        );
     }
 
     /// Give keyboard focus to a specific widget.
     /// See also [`crate::Response::request_focus`].
     #[inline(always)]
     pub fn request_focus(&mut self, id: Id) {
-        self.interaction.focus.id = Some(id);
-        self.interaction.focus.is_focus_locked = false;
+        self.interaction.focus.focused_widget = Some(FocusWidget::new(id));
     }
 
     /// Surrender keyboard focus for a specific widget.
     /// See also [`crate::Response::surrender_focus`].
     #[inline(always)]
     pub fn surrender_focus(&mut self, id: Id) {
-        if self.interaction.focus.id == Some(id) {
-            self.interaction.focus.id = None;
-            self.interaction.focus.is_focus_locked = false;
+        if self.interaction.focus.focused() == Some(id) {
+            self.interaction.focus.focused_widget = None;
         }
     }
 
@@ -600,7 +624,7 @@ impl Memory {
     /// Stop editing of active [`TextEdit`](crate::TextEdit) (if any).
     #[inline(always)]
     pub fn stop_text_input(&mut self) {
-        self.interaction.focus.id = None;
+        self.interaction.focus.focused_widget = None;
     }
 
     #[inline(always)]
