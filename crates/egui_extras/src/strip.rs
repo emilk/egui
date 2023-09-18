@@ -1,5 +1,5 @@
 use crate::{
-    layout::{CellDirection, CellSize, StripLayout},
+    layout::{CellDirection, CellSize, StripLayout, StripLayoutFlags},
     sizing::Sizing,
     Size,
 };
@@ -185,8 +185,11 @@ impl<'a, 'b> Strip<'a, 'b> {
     #[cfg_attr(debug_assertions, track_caller)]
     pub fn cell(&mut self, add_contents: impl FnOnce(&mut Ui)) {
         let (width, height) = self.next_cell_size();
-        self.layout
-            .add(self.clip, false, false, width, height, add_contents);
+        let flags = StripLayoutFlags {
+            clip: self.clip,
+            ..Default::default()
+        };
+        self.layout.add(flags, width, height, add_contents);
     }
 
     /// Add an empty cell.

@@ -26,6 +26,14 @@ pub(crate) enum CellDirection {
     Vertical,
 }
 
+/// Flags used by [`StripLayout::add`].
+#[derive(Clone, Copy, Default)]
+pub(crate) struct StripLayoutFlags {
+    pub(crate) clip: bool,
+    pub(crate) striped: bool,
+    pub(crate) highlighted: bool,
+}
+
 /// Positions cells in [`CellDirection`] and starts a new line on [`StripLayout::end_line`]
 pub struct StripLayout<'l> {
     pub(crate) ui: &'l mut Ui,
@@ -101,9 +109,7 @@ impl<'l> StripLayout<'l> {
     /// Return the used space (`min_rect`) plus the [`Response`] of the whole cell.
     pub(crate) fn add(
         &mut self,
-        clip: bool,
-        striped: bool,
-        highlighted: bool,
+        flags: StripLayoutFlags,
         width: CellSize,
         height: CellSize,
         add_cell_contents: impl FnOnce(&mut Ui),
@@ -113,7 +119,7 @@ impl<'l> StripLayout<'l> {
         // Make sure we don't have a gap in the stripe/frame/selection background:
         let gapless_rect = || max_rect.expand2(0.5 * self.ui.spacing().item_spacing);
 
-        if striped {
+        if flags.striped {
             self.ui.painter().rect_filled(
                 gapless_rect(),
                 egui::Rounding::ZERO,
@@ -121,7 +127,7 @@ impl<'l> StripLayout<'l> {
             );
         }
 
-        if highlighted {
+        if flags.highlighted {
             self.ui.painter().rect_filled(
                 gapless_rect(),
                 egui::Rounding::ZERO,
@@ -130,11 +136,11 @@ impl<'l> StripLayout<'l> {
         }
 
         let response = self.ui.allocate_rect(max_rect, self.sense);
-        let used_rect = self.cell(clip, max_rect, add_cell_contents);
+        let used_rect = self.cell(flags.clip, max_rect, add_cell_contents);
 
         self.set_pos(max_rect);
 
-        let allocation_rect = if clip {
+        let allocation_rect = if flags.clip {
             max_rect
         } else {
             max_rect.union(used_rect)

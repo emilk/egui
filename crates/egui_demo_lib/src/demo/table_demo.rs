@@ -190,7 +190,7 @@ impl TableDemo {
                                 }
                             });
 
-                            self.toggle_row_selection(row_index, row.response());
+                            self.toggle_row_selection(row_index, &row.response());
                         });
                     }
                 }
@@ -217,7 +217,7 @@ impl TableDemo {
                             );
                         });
 
-                        self.toggle_row_selection(row_index, row.response());
+                        self.toggle_row_selection(row_index, &row.response());
                     });
                 }
                 DemoType::ManyHeterogenous => {
@@ -253,13 +253,13 @@ impl TableDemo {
                             }
                         });
 
-                        self.toggle_row_selection(row_index, row.response());
+                        self.toggle_row_selection(row_index, &row.response());
                     });
                 }
             });
     }
 
-    fn toggle_row_selection(&mut self, row_index: usize, row_response: egui::Response) {
+    fn toggle_row_selection(&mut self, row_index: usize, row_response: &egui::Response) {
         if row_response.clicked() {
             if self.selection.contains(&row_index) {
                 self.selection.remove(&row_index);

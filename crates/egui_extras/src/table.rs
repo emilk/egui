@@ -6,7 +6,7 @@
 use egui::{Align, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2};
 
 use crate::{
-    layout::{CellDirection, CellSize},
+    layout::{CellDirection, CellSize, StripLayoutFlags},
     StripLayout,
 };
 
@@ -839,7 +839,7 @@ impl<'a> TableBody<'a> {
     ///     .body(|mut body| {
     ///         let row_height = 18.0;
     ///         let num_rows = 10_000;
-    ///         body.rows(row_height, num_rows, |row_index, mut row| {
+    ///         body.rows(row_height, num_rows, |mut row| {
     ///             row.col(|ui| {
     ///                 ui.label("First column");
     ///             });
@@ -917,7 +917,8 @@ impl<'a> TableBody<'a> {
     ///     .column(Column::remainder().at_least(100.0))
     ///     .body(|mut body| {
     ///         let row_heights: Vec<f32> = vec![60.0, 18.0, 31.0, 240.0];
-    ///         body.heterogeneous_rows(row_heights.into_iter(), |row_index, mut row| {
+    ///         body.heterogeneous_rows(row_heights.into_iter(), |mut row| {
+    ///             let row_index = row.index();
     ///             let thick = row_index % 6 == 0;
     ///             row.col(|ui| {
     ///                 ui.centered_and_justified(|ui| {
@@ -1091,14 +1092,13 @@ impl<'a, 'b> TableRow<'a, 'b> {
         let width = CellSize::Absolute(width);
         let height = CellSize::Absolute(self.height);
 
-        let (used_rect, response) = self.layout.add(
+        let flags = StripLayoutFlags {
             clip,
-            self.striped,
-            self.selected,
-            width,
-            height,
-            add_cell_contents,
-        );
+            striped: self.striped,
+            highlighted: self.selected,
+        };
+
+        let (used_rect, response) = self.layout.add(flags, width, height, add_cell_contents);
 
         if let Some(max_w) = self.max_used_widths.get_mut(col_index) {
             *max_w = max_w.max(used_rect.width());
