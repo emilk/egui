@@ -564,7 +564,7 @@ impl Memory {
 
     /// Set an event filter for a widget.
     ///
-    /// This allows you to control wether the widget will loose focus
+    /// This allows you to control whether the widget will loose focus
     /// when the user presses tab, arrow keys, or escape.
     ///
     /// You must first give focus to the widget before calling this.
