@@ -1042,14 +1042,20 @@ impl From<u32> for TouchId {
 pub struct EventFilter {
     /// If `true`, pressing tab will act on the widget,
     /// and NOT move focus away from the focused widget.
+    ///
+    /// Default: `false`
     pub tab: bool,
 
     /// If `true`, pressing arrows will act on the widget,
     /// and NOT move focus away from the focused widget.
+    ///
+    /// Default: `false`
     pub arrows: bool,
 
     /// If `true`, pressing escape will act on the widget,
     /// and NOT surrender focus from the focused widget.
+    ///
+    /// Default: `false`
     pub escape: bool,
 }
 

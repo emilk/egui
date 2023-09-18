@@ -570,6 +570,16 @@ impl<'a> Slider<'a> {
         let mut increment = 0usize;
 
         if response.has_focus() {
+            ui.ctx().memory_mut(|m| {
+                m.set_focus_lock_filter(
+                    response.id,
+                    EventFilter {
+                        arrows: true, // pressing arrows should not move focus to next widget
+                        ..Default::default()
+                    },
+                );
+            });
+
             let (dec_key, inc_key) = match self.orientation {
                 SliderOrientation::Horizontal => (Key::ArrowLeft, Key::ArrowRight),
                 // Note that this is for moving the slider position,
