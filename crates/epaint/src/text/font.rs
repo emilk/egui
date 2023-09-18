@@ -442,7 +442,7 @@ impl Font {
     }
 
     #[inline]
-    pub(crate) fn glyph_info_and_font_impl(&mut self, c: char) -> (Option<&FontImpl>, GlyphInfo) {
+    pub(crate) fn font_impl_and_glyph_info(&mut self, c: char) -> (Option<&FontImpl>, GlyphInfo) {
         if self.fonts.is_empty() {
             return (None, self.replacement_glyph.1);
         }

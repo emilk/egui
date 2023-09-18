@@ -134,7 +134,7 @@ fn layout_section(
             paragraph = out_paragraphs.last_mut().unwrap();
             paragraph.empty_paragraph_height = line_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
         } else {
-            let (font_impl, glyph_info) = font.glyph_info_and_font_impl(chr);
+            let (font_impl, glyph_info) = font.font_impl_and_glyph_info(chr);
             if let Some(font_impl) = font_impl {
                 if let Some(last_glyph_id) = last_glyph_id {
                     paragraph.cursor_x += font_impl.pair_kerning(last_glyph_id, glyph_info.id);
@@ -340,12 +340,12 @@ fn replace_last_glyph_with_overflow_character(
             .unwrap_or_else(|| font.row_height());
 
         let prev_glyph_id = prev_glyph.map(|prev_glyph| {
-            let (_, prev_glyph_info) = font.glyph_info_and_font_impl(prev_glyph.chr);
+            let (_, prev_glyph_info) = font.font_impl_and_glyph_info(prev_glyph.chr);
             prev_glyph_info.id
         });
 
         // undo kerning with previous glyph
-        let (font_impl, glyph_info) = font.glyph_info_and_font_impl(last_glyph.chr);
+        let (font_impl, glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
         last_glyph.pos.x -= extra_letter_spacing
             + font_impl
                 .zip(prev_glyph_id)
@@ -356,7 +356,7 @@ fn replace_last_glyph_with_overflow_character(
 
         // replace the glyph
         last_glyph.chr = overflow_character;
-        let (font_impl, glyph_info) = font.glyph_info_and_font_impl(last_glyph.chr);
+        let (font_impl, glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
         last_glyph.size = vec2(glyph_info.advance_width, line_height);
         last_glyph.uv_rect = glyph_info.uv_rect;
 
