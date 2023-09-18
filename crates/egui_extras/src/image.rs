@@ -156,7 +156,7 @@ impl RetainedImage {
         &self.debug_name
     }
 
-    /// The texture if for this image.
+    /// The texture id for this image.
     pub fn texture_id(&self, ctx: &egui::Context) -> egui::TextureId {
         self.texture
             .lock()
