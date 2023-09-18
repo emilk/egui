@@ -1276,7 +1276,7 @@ impl Context {
                     nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
                     focus: has_focus.then(|| {
-                        let focus_id = self.memory(|mem| mem.interaction.focus.id);
+                        let focus_id = self.memory(|mem| mem.focus());
                         focus_id.map_or(root_id, |id| id.accesskit_id())
                     }),
                 });
