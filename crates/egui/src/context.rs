@@ -1049,17 +1049,24 @@ impl Context {
         self.options(|opt| opt.style.clone())
     }
 
-    /// The [`Style`] used by all new windows, panels etc.
-    ///
-    /// You can also use [`Ui::style_mut`] to change the style of a single [`Ui`].
+    /// Mutate the [`Style`] used by all subsequent windows, panels etc.
     ///
     /// Example:
     /// ```
     /// # let mut ctx = egui::Context::default();
-    /// let mut style: egui::Style = (*ctx.style()).clone();
-    /// style.spacing.item_spacing = egui::vec2(10.0, 20.0);
-    /// ctx.set_style(style);
+    /// ctx.style_mut(|style| {
+    ///     style.spacing.item_spacing = egui::vec2(10.0, 20.0);
+    /// });
     /// ```
+    pub fn style_mut(&self, mutate_style: impl FnOnce(&mut Style)) {
+        self.options_mut(|opt| mutate_style(std::sync::Arc::make_mut(&mut opt.style)));
+    }
+
+    /// The [`Style`] used by all new windows, panels etc.
+    ///
+    /// You can also change this using [`Self::style_mut]`
+    ///
+    /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
     pub fn set_style(&self, style: impl Into<Arc<Style>>) {
         self.options_mut(|opt| opt.style = style.into());
     }
