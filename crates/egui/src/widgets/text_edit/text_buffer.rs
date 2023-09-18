@@ -110,7 +110,7 @@ impl<'a> TextBuffer for Cow<'a, str> {
     }
 
     fn insert_text(&mut self, text: &str, char_index: usize) -> usize {
-        <String as TextBuffer>::insert_text(self.to_mut(), text, char_index);
+        <String as TextBuffer>::insert_text(self.to_mut(), text, char_index)
     }
 
     fn delete_char_range(&mut self, char_range: Range<usize>) {
