@@ -16,7 +16,7 @@ pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{mutex::RwLock, Pos2, ViewportBuilder, ViewportCommand, ViewportId};
+use egui::{mutex::RwLock, Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId};
 pub use winit;
 
 pub mod clipboard;
@@ -188,7 +188,7 @@ impl State {
             None
         };
 
-        self.egui_input.inner_pos = if getting_info {
+        let inner_pos = if getting_info {
             window
                 .inner_position()
                 .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
@@ -197,7 +197,7 @@ impl State {
             None
         };
 
-        self.egui_input.outer_pos = if getting_info {
+        let outer_pos = if getting_info {
             window
                 .outer_position()
                 .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
@@ -206,16 +206,28 @@ impl State {
             None
         };
 
-        self.egui_input.inner_size = if getting_info {
+        let inner_size = if getting_info {
             let size = window.inner_size();
-            Some(Pos2::new(size.width as f32, size.height as f32))
+            Some(Vec2::new(size.width as f32, size.height as f32))
         } else {
             None
         };
 
-        self.egui_input.outer_size = if getting_info {
+        let outer_size = if getting_info {
             let size = window.outer_size();
-            Some(Pos2::new(size.width as f32, size.height as f32))
+            Some(Vec2::new(size.width as f32, size.height as f32))
+        } else {
+            None
+        };
+
+        self.egui_input.inner_rect = if let (Some(pos), Some(size)) = (inner_pos, inner_size) {
+            Some(Rect::from_min_size(pos, size))
+        } else {
+            None
+        };
+
+        self.egui_input.outer_rect = if let (Some(pos), Some(size)) = (outer_pos, outer_size) {
+            Some(Rect::from_min_size(pos, size))
         } else {
             None
         };

@@ -23,21 +23,13 @@ pub struct RawInput {
     /// `None` will be treated as "same as last frame", with the default being a very big area.
     pub screen_rect: Option<Rect>,
 
-    /// Viewport inner position, only the drowable area
-    /// If is not working as expected is a winit bug!
-    pub inner_pos: Option<Pos2>,
+    /// Viewport inner position and size, only the drowable area
+    /// unit = physical pixels
+    pub inner_rect: Option<Rect>,
 
-    /// Viewport outer position, drowable area + decorations
-    /// If is not working as expected is a winit bug!
-    pub outer_pos: Option<Pos2>,
-
-    /// Viewport inner size, only drowable area
-    /// If is not working as expected is a winit bug!
-    pub inner_size: Option<Pos2>,
-
-    /// Viewport outer size, drowable area + decorations
-    /// If is not working as expected is a winit bug!
-    pub outer_size: Option<Pos2>,
+    /// Viewport outer position and size, drowable area + decorations
+    /// unit = physical pixels
+    pub outer_rect: Option<Rect>,
 
     /// Also known as device pixel ratio, > 1 for high resolution screens.
     /// If text looks blurry you probably forgot to set this.
@@ -89,10 +81,8 @@ impl Default for RawInput {
     fn default() -> Self {
         Self {
             screen_rect: None,
-            inner_pos: None,
-            outer_pos: None,
-            inner_size: None,
-            outer_size: None,
+            inner_rect: None,
+            outer_rect: None,
             pixels_per_point: None,
             max_texture_side: None,
             time: None,
@@ -114,10 +104,8 @@ impl RawInput {
     pub fn take(&mut self) -> RawInput {
         RawInput {
             screen_rect: self.screen_rect.take(),
-            inner_pos: self.inner_pos.take(),
-            outer_pos: self.outer_pos.take(),
-            inner_size: self.inner_size.take(),
-            outer_size: self.outer_size.take(),
+            inner_rect: self.inner_rect.take(),
+            outer_rect: self.outer_rect.take(),
             pixels_per_point: self.pixels_per_point.take(),
             max_texture_side: self.max_texture_side.take(),
             time: self.time.take(),
@@ -134,10 +122,8 @@ impl RawInput {
     pub fn append(&mut self, newer: Self) {
         let Self {
             screen_rect,
-            inner_pos: viewport_inner_pos,
-            outer_pos: viewport_outer_pos,
-            inner_size: viewport_inner_size,
-            outer_size: viewport_outer_size,
+            inner_rect,
+            outer_rect,
             pixels_per_point,
             max_texture_side,
             time,
@@ -150,10 +136,8 @@ impl RawInput {
         } = newer;
 
         self.screen_rect = screen_rect.or(self.screen_rect);
-        self.inner_pos = viewport_inner_pos.or(self.inner_pos);
-        self.outer_pos = viewport_outer_pos.or(self.outer_pos);
-        self.inner_size = viewport_inner_size.or(self.inner_size);
-        self.outer_size = viewport_outer_size.or(self.outer_size);
+        self.inner_rect = inner_rect.or(self.inner_rect);
+        self.outer_rect = outer_rect.or(self.outer_rect);
         self.pixels_per_point = pixels_per_point.or(self.pixels_per_point);
         self.max_texture_side = max_texture_side.or(self.max_texture_side);
         self.time = time; // use latest time
@@ -969,10 +953,8 @@ impl RawInput {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
             screen_rect,
-            inner_pos: viewport_inner_pos,
-            outer_pos: viewport_outer_pos,
-            inner_size: viewport_inner_size,
-            outer_size: viewport_outer_size,
+            inner_rect,
+            outer_rect,
             pixels_per_point,
             max_texture_side,
             time,
@@ -985,14 +967,8 @@ impl RawInput {
         } = self;
 
         ui.label(format!("screen_rect: {screen_rect:?} points"));
-        ui.label(format!("viewport_inner_pos: {viewport_inner_pos:?} pixels"));
-        ui.label(format!("viewport_outer_pos: {viewport_outer_pos:?} pixels"));
-        ui.label(format!(
-            "viewport_inner_size: {viewport_inner_size:?} pixels"
-        ));
-        ui.label(format!(
-            "viewport_outer_size: {viewport_outer_size:?} pixels"
-        ));
+        ui.label(format!("inner_rect: {inner_rect:?} pixels"));
+        ui.label(format!("outer_rect: {outer_rect:?} pixels"));
         ui.label(format!("pixels_per_point: {pixels_per_point:?}"))
             .on_hover_text(
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",

@@ -1717,28 +1717,16 @@ impl Context {
         self.input(|i| i.screen_rect())
     }
 
-    /// This will return the inner position of the current viewport
-    /// Viewport inner position, only the drowable area
-    pub fn viewport_inner_pos(&self) -> Pos2 {
-        self.input(|i| i.inner_pos)
+    /// Viewport inner position and size, only the drowable area
+    /// unit = physical pixels
+    pub fn inner_rect(&self) -> Rect {
+        self.input(|i| i.inner_rect)
     }
 
-    /// This will return the outer position of the current viewport
-    /// Viewport outer position, drowable area + decorations
-    pub fn viewport_outer_pos(&self) -> Pos2 {
-        self.input(|i| i.outer_pos)
-    }
-
-    /// This will return the inner size of the current viewport
-    /// Viewport inner size, only drowable area
-    pub fn viewport_inner_size(&self) -> Pos2 {
-        self.input(|i| i.inner_size)
-    }
-
-    /// This will return the outer size of the current viewport
-    /// Viewport outer size, drowable area + decorations
-    pub fn viewport_outer_size(&self) -> Pos2 {
-        self.input(|i| i.outer_size)
+    /// Viewport outer position and size, drowable area + decorations
+    /// unit = physical pixels
+    pub fn outer_rect(&self) -> Rect {
+        self.input(|i| i.outer_rect)
     }
 
     /// How much space is still available after panels has been added.

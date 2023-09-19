@@ -263,8 +263,18 @@ fn ui_info(ui: &mut egui::Ui) {
     ui.label(format!("Frame: {}", ctx.frame_nr()));
     ui.label(format!("Current Viewport Id: {}", ctx.viewport_id()));
     ui.label(format!("Current Parent Viewport Id: {}", ctx.viewport_id()));
-    ui.label(format!("Pos: {:?}", ctx.viewport_outer_pos()));
-    ui.label(format!("Size: {:?}", ctx.viewport_inner_size()));
+    let inner_rect = ctx.inner_rect();
+    let outer_rect = ctx.outer_rect();
+    ui.label(format!(
+        "Inner Rect: Pos: {:?}, Size: {:?}",
+        inner_rect.min,
+        inner_rect.size()
+    ));
+    ui.label(format!(
+        "Outer Rect: Pos: {:?}, Size: {:?}",
+        outer_rect.min,
+        outer_rect.size()
+    ));
 }
 
 fn main() {
