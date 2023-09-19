@@ -669,7 +669,7 @@ impl State {
 
         let allow_ime = text_cursor_pos.is_some();
         if self.allow_ime != allow_ime {
-            self.allow_ime == allow_ime;
+            self.allow_ime = allow_ime;
             window.set_ime_allowed(allow_ime);
         }
 
