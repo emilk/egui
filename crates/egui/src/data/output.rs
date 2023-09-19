@@ -1,9 +1,7 @@
 //! All the data egui returns to the backend at the end of each frame.
 
-use std::sync::Arc;
-
-use crate::{ViewportBuilder, ViewportCommand, WidgetType};
-use crate::{ViewportId, ViewportRender};
+use crate::ViewportId;
+use crate::{ViewportCommand, ViewportOutput, WidgetType};
 
 /// What egui emits each frame from [`crate::Context::run`].
 ///
@@ -34,12 +32,7 @@ pub struct FullOutput {
     /// You can use [`crate::Context::tessellate`] to turn this into triangles.
     pub shapes: Vec<epaint::ClippedShape>,
 
-    pub viewports: Vec<(
-        ViewportId,
-        ViewportId,
-        ViewportBuilder,
-        Option<Arc<Box<ViewportRender>>>,
-    )>,
+    pub viewports: Vec<ViewportOutput>,
 
     pub viewport_commands: Vec<(ViewportId, ViewportCommand)>,
 }

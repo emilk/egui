@@ -461,7 +461,10 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 mod glow_integration {
     use std::sync::Arc;
 
-    use egui::{epaint::ahash::HashMap, mutex::RwLock, NumExt as _, ViewportRender};
+    use egui::{
+        epaint::ahash::HashMap, mutex::RwLock, NumExt as _, ViewportIdPair, ViewportOutput,
+        ViewportRender,
+    };
     use egui_winit::{
         changes_between_builders, create_winit_window_builder, process_viewport_commands,
         EventResponse,
@@ -1060,7 +1063,7 @@ mod glow_integration {
 
             // ## Sync Rendering
             integration.egui_ctx.set_render_sync_callback(
-                move |egui_ctx, mut viewport_builder, viewport_id, parent_id, render| {
+                move |egui_ctx, mut viewport_builder, ViewportIdPair{ this: viewport_id, parent: parent_id }, render| {
                     if viewport_builder.icon.is_none(){
                         viewport_builder.icon = glutin.read().builders.get(&parent_id).and_then(|b|b.icon.clone());
                     }
@@ -1181,39 +1184,49 @@ mod glow_integration {
 
         fn process_viewport_builders(
             glutin_ctx: &Arc<RwLock<GlutinWindowContext>>,
-            mut viewports: Vec<(
-                ViewportId,
-                ViewportId,
-                ViewportBuilder,
-                Option<Arc<Box<ViewportRender>>>,
-            )>,
+            mut viewports: Vec<ViewportOutput>,
         ) {
             let mut active_viewports_ids = vec![ViewportId::MAIN];
 
-            viewports.retain_mut(|(id, _, builder, render)| {
-                let mut glutin = glutin_ctx.write();
-                let last_builder = glutin.builders.entry(*id).or_insert(builder.clone());
-                let (commands, recreate) = changes_between_builders(builder, last_builder);
-                drop(glutin);
-                if let Some(w) = glutin_ctx.read().windows.get(id) {
-                    let mut w = w.write();
-                    if recreate {
-                        w.window = None;
-                        w.gl_surface = None;
-                        w.render = render.clone();
-                        w.parent_id = *id;
+            viewports.retain_mut(
+                |ViewportOutput {
+                     builder,
+                     pair: ViewportIdPair { this: id, .. },
+                     render,
+                 }| {
+                    let mut glutin = glutin_ctx.write();
+                    let last_builder = glutin.builders.entry(*id).or_insert(builder.clone());
+                    let (commands, recreate) = changes_between_builders(builder, last_builder);
+                    drop(glutin);
+                    if let Some(w) = glutin_ctx.read().windows.get(id) {
+                        let mut w = w.write();
+                        if recreate {
+                            w.window = None;
+                            w.gl_surface = None;
+                            w.render = render.clone();
+                            w.parent_id = *id;
+                        }
+                        if let Some(w) = w.window.clone() {
+                            process_viewport_commands(commands, *id, None, &w);
+                        }
+                        active_viewports_ids.push(*id);
+                        false
+                    } else {
+                        true
                     }
-                    if let Some(w) = w.window.clone() {
-                        process_viewport_commands(commands, *id, None, &w);
-                    }
-                    active_viewports_ids.push(*id);
-                    false
-                } else {
-                    true
-                }
-            });
+                },
+            );
 
-            for (id, parent_id, mut builder, render) in viewports {
+            for ViewportOutput {
+                mut builder,
+                pair:
+                    ViewportIdPair {
+                        this: id,
+                        parent: parent_id,
+                    },
+                render,
+            } in viewports
+            {
                 let default_icon = glutin_ctx
                     .read()
                     .builders
@@ -1819,7 +1832,7 @@ pub use glow_integration::run_glow;
 mod wgpu_integration {
     use std::sync::Arc;
 
-    use egui::ViewportRender;
+    use egui::{ViewportIdPair, ViewportOutput, ViewportRender};
     use egui_winit::create_winit_window_builder;
     use parking_lot::Mutex;
 
@@ -2109,7 +2122,7 @@ mod wgpu_integration {
 
             // ## Sync Rendering
             integration.egui_ctx.set_render_sync_callback(
-                move |egui_ctx, viewport_builder, viewport_id, parent_viewport_id, render| {
+                move |egui_ctx, viewport_builder, ViewportIdPair{this: viewport_id, parent: parent_viewport_id} , render| {
                     // TODO: If the `viewport_builder` do not have a icon set the icon to be the icon of the parent viewport
 
                     if _windows.read().get(&viewport_id).is_none(){
@@ -2338,18 +2351,33 @@ mod wgpu_integration {
 
                 let mut active_viewports_ids = vec![ViewportId::MAIN];
 
-                viewports.retain_mut(|(id, parent, _builder, render)| {
-                    if let Some(w) = windows.write().get_mut(id) {
-                        w.render = render.clone();
-                        w.parent_id = *parent;
-                        active_viewports_ids.push(*id);
-                        false
-                    } else {
-                        true
-                    }
-                });
+                viewports.retain_mut(
+                    |ViewportOutput {
+                         pair: ViewportIdPair { this: id, parent },
+                         render,
+                         ..
+                     }| {
+                        if let Some(w) = windows.write().get_mut(id) {
+                            w.render = render.clone();
+                            w.parent_id = *parent;
+                            active_viewports_ids.push(*id);
+                            false
+                        } else {
+                            true
+                        }
+                    },
+                );
 
-                for (id, parent_id, mut builder, render) in viewports {
+                for ViewportOutput {
+                    mut builder,
+                    pair:
+                        ViewportIdPair {
+                            this: id,
+                            parent: parent_id,
+                        },
+                    render,
+                } in viewports
+                {
                     if builder.icon.is_none() {
                         builder.icon = windows
                             .read()

@@ -200,16 +200,7 @@ struct ContextImpl {
 
     repaint: Repaint,
 
-    viewports: HashMap<
-        Id,
-        (
-            ViewportBuilder,
-            ViewportId,
-            ViewportId,
-            bool,
-            Option<Arc<Box<ViewportRender>>>,
-        ),
-    >,
+    viewports: HashMap<Id, Viewport>,
     viewport_commands: Vec<(ViewportId, ViewportCommand)>,
 
     render_sync: Option<Arc<Box<ViewportRenderSyncCallback>>>,
@@ -483,9 +474,9 @@ impl Default for Context {
 
         s.write(|ctx| {
             ctx.force_embedding = true;
-            ctx.render_sync = Some(Arc::new(Box::new(
-                move |ctx, _builder, _viewport_id, _parent_viewport_id, render| render(ctx),
-            )));
+            ctx.render_sync = Some(Arc::new(Box::new(move |ctx, _builder, _pair, render| {
+                render(ctx);
+            })));
         });
 
         s
@@ -1494,7 +1485,15 @@ impl Context {
             );
             ctx.viewports
                 .iter()
-                .map(|(_, (_, id, _, _, _))| *id)
+                .map(
+                    |(
+                        _,
+                        Viewport {
+                            pair: ViewportIdPair { this, .. },
+                            ..
+                        },
+                    )| *this,
+                )
                 .collect()
         });
         viewports.push(ViewportId::MAIN);
@@ -1562,8 +1561,12 @@ impl Context {
         // If there are no viewport that contains the current viewport that viewport needs to be destroyed!
         let avalibile_viewports = self.read(|ctx| {
             let mut avalibile_viewports = vec![ViewportId::MAIN];
-            for (_, id, _, _, _) in ctx.viewports.values() {
-                avalibile_viewports.push(*id);
+            for Viewport {
+                pair: ViewportIdPair { this, .. },
+                ..
+            } in ctx.viewports.values()
+            {
+                avalibile_viewports.push(*this);
             }
             avalibile_viewports
         });
@@ -1572,17 +1575,29 @@ impl Context {
 
         let mut viewports = Vec::new();
         self.write(|ctx| {
-            ctx.viewports
-                .retain(|_, (builder, id, parent, used, render)| {
+            ctx.viewports.retain(
+                |_,
+                 Viewport {
+                     builder,
+                     pair,
+                     used,
+                     render,
+                 }| {
                     let out = *used;
 
-                    if viewport_id == *parent {
+                    if viewport_id == pair.parent {
                         *used = false;
                     }
 
-                    viewports.push((*id, *parent, builder.clone(), render.clone()));
-                    (out || viewport_id != *parent) && avalibile_viewports.contains(parent)
-                });
+                    viewports.push(ViewportOutput {
+                        builder: builder.clone(),
+                        pair: *pair,
+                        render: render.clone(),
+                    });
+                    (out || viewport_id != pair.parent)
+                        && avalibile_viewports.contains(&pair.parent)
+                },
+            );
         });
 
         // This is used to resume the last frame!
@@ -2533,14 +2548,9 @@ impl Context {
         self.read(|ctx| ctx.get_parent_viewport_id())
     }
 
-    /// This will return the `ViewportId` of the specified id
-    pub fn get_viewport_id_by_id(&self, id: impl Into<Id>) -> Option<ViewportId> {
-        self.read(|ctx| ctx.viewports.get(&id.into()).map(|v| v.1))
-    }
-
-    /// This will return the parent `ViewportId` of the specified id
-    pub fn get_viewport_parent_id_by_id(&self, id: impl Into<Id>) -> Option<ViewportId> {
-        self.read(|ctx| ctx.viewports.get(&id.into()).map(|v| v.1))
+    /// This will return the `ViewportIdPair` of the specified id
+    pub fn get_viewport_id_pair(&self, id: impl Into<Id>) -> Option<ViewportIdPair> {
+        self.read(|ctx| ctx.viewports.get(&id.into()).map(|v| v.pair))
     }
 
     /// This should only be used by the backend!
@@ -2550,13 +2560,8 @@ impl Context {
     /// Look in `crates/eframe/native/run.rs` and search for ``set_render_sync_callback`` to see for what is used!
     pub fn set_render_sync_callback(
         &self,
-        callback: impl for<'a> Fn(
-                &Context,
-                ViewportBuilder,
-                ViewportId,
-                ViewportId,
-                Box<dyn FnOnce(&Context) + 'a>,
-            ) + Send
+        callback: impl for<'a> Fn(&Context, ViewportBuilder, ViewportIdPair, Box<dyn FnOnce(&Context) + 'a>)
+            + Send
             + Sync
             + 'static,
     ) {
@@ -2603,22 +2608,24 @@ impl Context {
             self.write(|ctx| {
                 let viewport_id = ctx.get_viewport_id();
                 if let Some(window) = ctx.viewports.get_mut(&viewport_builder.id) {
-                    window.0 = viewport_builder;
-                    window.2 = viewport_id;
-                    window.3 = true;
-                    window.4 = Some(Arc::new(Box::new(render)));
+                    window.builder = viewport_builder;
+                    window.pair.parent = viewport_id;
+                    window.used = true;
+                    window.render = Some(Arc::new(Box::new(render)));
                 } else {
                     let id = ViewportId(ctx.viewport_counter + 1);
                     ctx.viewport_counter += 1;
                     ctx.viewports.insert(
                         viewport_builder.id,
-                        (
-                            viewport_builder,
-                            id,
-                            viewport_id,
-                            true,
-                            Some(Arc::new(Box::new(render))),
-                        ),
+                        Viewport {
+                            builder: viewport_builder,
+                            pair: ViewportIdPair {
+                                this: id,
+                                parent: viewport_id,
+                            },
+                            used: true,
+                            render: Some(Arc::new(Box::new(render))),
+                        },
                     );
                 }
             });
@@ -2640,26 +2647,28 @@ impl Context {
         func: impl FnOnce(&Context) -> T,
     ) -> T {
         if !self.force_embedding() {
-            let mut viewport_id = ViewportId::MAIN;
-            let mut parent_viewport_id = ViewportId::MAIN;
+            let mut id_pair = ViewportIdPair::MAIN;
             let render_sync = self.write(|ctx| {
-                viewport_id = ctx.get_viewport_id();
+                id_pair.parent = ctx.get_viewport_id();
                 if let Some(window) = ctx.viewports.get_mut(&viewport_builder.id) {
-                    window.0 = viewport_builder.clone();
-                    window.2 = viewport_id;
-                    window.3 = true;
-                    window.4 = None;
-                    viewport_id = window.1;
-                    parent_viewport_id = window.2;
+                    window.builder = viewport_builder.clone();
+                    window.pair.parent = id_pair.parent;
+                    window.used = true;
+                    window.render = None;
+                    id_pair = window.pair;
                 } else {
                     let id = ViewportId(ctx.viewport_counter + 1);
                     ctx.viewport_counter += 1;
+                    id_pair.this = id;
                     ctx.viewports.insert(
                         viewport_builder.id,
-                        (viewport_builder.clone(), id, viewport_id, true, None),
+                        Viewport {
+                            builder: viewport_builder.clone(),
+                            pair: id_pair,
+                            used: true,
+                            render: None,
+                        },
                     );
-                    viewport_id = id;
-                    parent_viewport_id = ctx.get_viewport_id();
                 }
 
                 ctx.render_sync.clone()
@@ -2670,8 +2679,7 @@ impl Context {
                 render_sync.unwrap()(
                     self,
                     viewport_builder,
-                    viewport_id,
-                    parent_viewport_id,
+                    id_pair,
                     Box::new(move |context| *out = Some(func(context))),
                 );
             }

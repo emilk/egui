@@ -21,10 +21,24 @@ impl ViewportId {
     pub const MAIN: Self = Self(0);
 }
 
+#[derive(Default, Debug, Hash, Clone, Copy, PartialEq, Eq)]
+pub struct ViewportIdPair {
+    pub this: ViewportId,
+    pub parent: ViewportId,
+}
+
+impl ViewportIdPair {
+    /// This will return the `ViewportIdPair` of the main viewport
+    pub const MAIN: Self = Self {
+        this: ViewportId::MAIN,
+        parent: ViewportId::MAIN,
+    };
+}
+
 /// This is used to render an async viewport
 pub type ViewportRender = dyn Fn(&Context) + Sync + Send;
 
-pub type ViewportRenderSyncCallback = dyn for<'a> Fn(&Context, ViewportBuilder, ViewportId, ViewportId, Box<dyn FnOnce(&Context) + 'a>)
+pub type ViewportRenderSyncCallback = dyn for<'a> Fn(&Context, ViewportBuilder, ViewportIdPair, Box<dyn FnOnce(&Context) + 'a>)
     + Send
     + Sync;
 
@@ -303,4 +317,19 @@ pub enum ViewportCommand {
     CursorVisible(bool),
 
     CursorHitTest(bool),
+}
+
+#[derive(Clone)]
+pub(crate) struct Viewport {
+    pub(crate) builder: ViewportBuilder,
+    pub(crate) pair: ViewportIdPair,
+    pub(crate) used: bool,
+    pub(crate) render: Option<Arc<Box<ViewportRender>>>,
+}
+
+#[derive(Clone)]
+pub struct ViewportOutput {
+    pub builder: ViewportBuilder,
+    pub pair: ViewportIdPair,
+    pub render: Option<Arc<Box<ViewportRender>>>,
 }
