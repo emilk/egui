@@ -663,6 +663,7 @@ impl State {
             self.clipboard.set(copied_text);
         }
 
+        window.set_ime_allowed(text_cursor_pos.is_some());
         if let Some(egui::Pos2 { x, y }) = text_cursor_pos {
             window.set_ime_position(winit::dpi::LogicalPosition { x, y });
         }
