@@ -9,6 +9,8 @@
 
 #![allow(clippy::manual_range_contains)]
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 #[cfg(feature = "accesskit")]
 pub use accesskit_winit;
 pub use egui;
@@ -80,6 +82,8 @@ pub struct State {
 
     #[cfg(feature = "accesskit")]
     accesskit: Option<accesskit_winit::Adapter>,
+
+    allow_ime: AtomicBool,
 }
 
 impl State {
@@ -107,6 +111,8 @@ impl State {
 
             #[cfg(feature = "accesskit")]
             accesskit: None,
+
+            allow_ime: AtomicBool::new(false),
         }
     }
 
@@ -663,7 +669,11 @@ impl State {
             self.clipboard.set(copied_text);
         }
 
-        window.set_ime_allowed(text_cursor_pos.is_some());
+        let allow_ime = text_cursor_pos.is_some();
+        if self.allow_ime.swap(allow_ime, Ordering::Relaxed) != allow_ime {
+            window.set_ime_allowed(allow_ime);
+        }
+
         if let Some(egui::Pos2 { x, y }) = text_cursor_pos {
             window.set_ime_position(winit::dpi::LogicalPosition { x, y });
         }
