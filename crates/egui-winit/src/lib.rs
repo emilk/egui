@@ -9,8 +9,6 @@
 
 #![allow(clippy::manual_range_contains)]
 
-use std::sync::atomic::{AtomicBool, Ordering};
-
 #[cfg(feature = "accesskit")]
 pub use accesskit_winit;
 pub use egui;
