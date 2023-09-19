@@ -83,7 +83,7 @@ pub struct State {
     #[cfg(feature = "accesskit")]
     accesskit: Option<accesskit_winit::Adapter>,
 
-    allow_ime: AtomicBool,
+    allow_ime: bool,
 }
 
 impl State {
@@ -112,7 +112,7 @@ impl State {
             #[cfg(feature = "accesskit")]
             accesskit: None,
 
-            allow_ime: AtomicBool::new(false),
+            allow_ime: false,
         }
     }
 
@@ -670,7 +670,8 @@ impl State {
         }
 
         let allow_ime = text_cursor_pos.is_some();
-        if self.allow_ime.swap(allow_ime, Ordering::Relaxed) != allow_ime {
+        if self.allow_ime != allow_ime {
+            self.allow_ime == allow_ime;
             window.set_ime_allowed(allow_ime);
         }
 
