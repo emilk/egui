@@ -89,7 +89,7 @@ impl eframe::App for App {
 
                                             if ui.button("Set parent pos {0, 0}").clicked() {
                                                 let ctx = ui.ctx().clone();
-                                                let parent_id = ctx.get_parent_viewport_id();
+                                                let parent_id = ctx.parent_viewport_id();
                                                 ctx.viewport_command_for(
                                                     parent_id,
                                                     egui::ViewportCommand::OuterPosition(
@@ -125,7 +125,7 @@ impl eframe::App for App {
 
                                             if ui.button("Set parent pos {0, 0}").clicked() {
                                                 let ctx = ui.ctx().clone();
-                                                let parent_id = ctx.get_parent_viewport_id();
+                                                let parent_id = ctx.parent_viewport_id();
                                                 ctx.viewport_command_for(
                                                     parent_id,
                                                     egui::ViewportCommand::OuterPosition(
@@ -185,7 +185,7 @@ impl eframe::App for App {
 
                                             if ui.button("Set parent pos {0, 0}").clicked() {
                                                 let ctx = ui.ctx().clone();
-                                                let parent_id = ctx.get_parent_viewport_id();
+                                                let parent_id = ctx.parent_viewport_id();
                                                 ctx.viewport_command_for(
                                                     parent_id,
                                                     egui::ViewportCommand::OuterPosition(
@@ -221,7 +221,7 @@ impl eframe::App for App {
 
                                             if ui.button("Set parent pos {0, 0}").clicked() {
                                                 let ctx = ui.ctx().clone();
-                                                let parent_id = ctx.get_parent_viewport_id();
+                                                let parent_id = ctx.parent_viewport_id();
                                                 ctx.viewport_command_for(
                                                     parent_id,
                                                     egui::ViewportCommand::OuterPosition(
@@ -251,7 +251,7 @@ impl eframe::App for App {
 
 /// This will make the content as a popup if cannot has his own native window
 fn show_as_popup(ctx: &egui::Context, name: &str, content: impl FnOnce(&mut egui::Ui)) {
-    if ctx.get_viewport_id() == ctx.get_parent_viewport_id() {
+    if ctx.viewport_id() == ctx.parent_viewport_id() {
         egui::Window::new(name).show(ctx, content);
     } else {
         egui::CentralPanel::default().show(ctx, content);
@@ -261,11 +261,8 @@ fn show_as_popup(ctx: &egui::Context, name: &str, content: impl FnOnce(&mut egui
 fn ui_info(ui: &mut egui::Ui) {
     let ctx = ui.ctx().clone();
     ui.label(format!("Frame: {}", ctx.frame_nr()));
-    ui.label(format!("Current Viewport Id: {}", ctx.get_viewport_id()));
-    ui.label(format!(
-        "Current Parent Viewport Id: {}",
-        ctx.get_viewport_id()
-    ));
+    ui.label(format!("Current Viewport Id: {}", ctx.viewport_id()));
+    ui.label(format!("Current Parent Viewport Id: {}", ctx.viewport_id()));
     ui.label(format!("Pos: {:?}", ctx.viewport_outer_pos()));
     ui.label(format!("Size: {:?}", ctx.viewport_inner_size()));
 }
