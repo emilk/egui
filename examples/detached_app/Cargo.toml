@@ -1,0 +1,16 @@
+[package]
+name = "detached_app"
+version = "0.1.0"
+authors = ["rockisch <rockischplay@gmail.com>"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.70"
+publish = false
+
+
+[dependencies]
+eframe = { path = "../../crates/eframe", features = [
+    "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
+] }
+winit = { version = "0.28" }
+env_logger = "0.10"

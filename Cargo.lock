@@ -1003,6 +1003,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "detached_app"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "env_logger",
+ "winit",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
