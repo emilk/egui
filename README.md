@@ -198,55 +198,7 @@ These are the official egui integrations:
 Missing an integration for the thing you're working on? Create one, it's easy!
 
 ### Writing your own egui integration
-
-You need to collect [`egui::RawInput`](https://docs.rs/egui/latest/egui/struct.RawInput.html) and handle [`egui::FullOutput`](https://docs.rs/egui/latest/egui/struct.FullOutput.html). The basic structure is this:
-
-``` rust
-let mut egui_ctx = egui::CtxRef::default();
-
-// Game loop:
-loop {
-    // Gather input (mouse, touches, keyboard, screen size, etc):
-    let raw_input: egui::RawInput = my_integration.gather_input();
-    let full_output = egui_ctx.run(raw_input, |egui_ctx| {
-        my_app.ui(egui_ctx); // add panels, windows and widgets to `egui_ctx` here
-    });
-    let clipped_primitives = egui_ctx.tessellate(full_output.shapes); // creates triangles to paint
-
-    my_integration.paint(&full_output.textures_delta, clipped_primitives);
-
-    let platform_output = full_output.platform_output;
-    my_integration.set_cursor_icon(platform_output.cursor_icon);
-    if !platform_output.copied_text.is_empty() {
-        my_integration.set_clipboard_text(platform_output.copied_text);
-    }
-    // See `egui::FullOutput` and `egui::PlatformOutput` for more
-}
-```
-
-For a reference OpenGL backend, see [the `egui_glium` painter](https://github.com/emilk/egui/blob/master/crates/egui_glium/src/painter.rs) or [the `egui_glow` painter](https://github.com/emilk/egui/blob/master/crates/egui_glow/src/painter.rs).
-
-### Debugging your integration
-
-#### Things look jagged
-
-* Turn off backface culling.
-
-#### My text is blurry
-
-* Make sure you set the proper `pixels_per_point` in the input to egui.
-* Make sure the texture sampler is not off by half a pixel. Try nearest-neighbor sampler to check.
-
-#### My windows are too transparent or too dark
-
-* egui uses premultiplied alpha, so make sure your blending function is `(ONE, ONE_MINUS_SRC_ALPHA)`.
-* Make sure your texture sampler is clamped (`GL_CLAMP_TO_EDGE`).
-* egui prefers linear color spaces for all blending so:
-  * Use an sRGBA-aware texture if available (e.g. `GL_SRGB8_ALPHA8`).
-    * Otherwise: remember to decode gamma in the fragment shader.
-  * Decode the gamma of the incoming vertex colors in your vertex shader.
-  * Turn on sRGBA/linear framebuffer if available (`GL_FRAMEBUFFER_SRGB`).
-    * Otherwise: gamma-encode the colors before you write them again.
+See <https://docs.rs/egui/latest/egui/#integrating-with-egui>.
 
 
 ## Why immediate mode

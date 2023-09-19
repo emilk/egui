@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    io::Write,
     path::{Path, PathBuf},
 };
 
@@ -31,6 +32,7 @@ pub struct FileStorage {
 impl Drop for FileStorage {
     fn drop(&mut self) {
         if let Some(join_handle) = self.last_save_join_handle.take() {
+            crate::profile_scope!("wait_for_save");
             join_handle.join().ok();
         }
     }
@@ -39,6 +41,7 @@ impl Drop for FileStorage {
 impl FileStorage {
     /// Store the state in this .ron file.
     fn from_ron_filepath(ron_filepath: impl Into<PathBuf>) -> Self {
+        crate::profile_function!();
         let ron_filepath: PathBuf = ron_filepath.into();
         log::debug!("Loading app state from {:?}…", ron_filepath);
         Self {
@@ -51,6 +54,7 @@ impl FileStorage {
 
     /// Find a good place to put the files that the OS likes.
     pub fn from_app_id(app_id: &str) -> Option<Self> {
+        crate::profile_function!(app_id);
         if let Some(data_dir) = storage_dir(app_id) {
             if let Err(err) = std::fs::create_dir_all(&data_dir) {
                 log::warn!(
@@ -83,6 +87,7 @@ impl crate::Storage for FileStorage {
 
     fn flush(&mut self) {
         if self.dirty {
+            crate::profile_function!();
             self.dirty = false;
 
             let file_path = self.ron_filepath.clone();
@@ -122,10 +127,13 @@ fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
 
     match std::fs::File::create(file_path) {
         Ok(file) => {
+            let mut writer = std::io::BufWriter::new(file);
             let config = Default::default();
 
-            if let Err(err) = ron::ser::to_writer_pretty(file, &kv, config) {
-                log::warn!("Failed to serialize app state: {err}");
+            if let Err(err) = ron::ser::to_writer_pretty(&mut writer, &kv, config)
+                .and_then(|_| writer.flush().map_err(|err| err.into()))
+            {
+                log::warn!("Failed to serialize app state: {}", err);
             } else {
                 log::trace!("Persisted to {:?}", file_path);
             }
@@ -142,6 +150,7 @@ fn read_ron<T>(ron_path: impl AsRef<Path>) -> Option<T>
 where
     T: serde::de::DeserializeOwned,
 {
+    crate::profile_function!();
     match std::fs::File::open(ron_path) {
         Ok(file) => {
             let reader = std::io::BufReader::new(file);

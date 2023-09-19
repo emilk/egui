@@ -13,18 +13,36 @@ pub struct ImageCrateLoader {
     cache: Mutex<HashMap<String, Entry>>,
 }
 
-fn is_supported(uri: &str) -> bool {
+impl ImageCrateLoader {
+    pub const ID: &str = egui::generate_loader_id!(ImageCrateLoader);
+}
+
+fn is_supported_uri(uri: &str) -> bool {
     let Some(ext) = Path::new(uri).extension().and_then(|ext| ext.to_str()) else {
         // `true` because if there's no extension, assume that we support it
-        return true
+        return true;
     };
 
     ext != "svg"
 }
 
+fn is_unsupported_mime(mime: &str) -> bool {
+    mime.contains("svg")
+}
+
 impl ImageLoader for ImageCrateLoader {
+    fn id(&self) -> &str {
+        Self::ID
+    }
+
     fn load(&self, ctx: &egui::Context, uri: &str, _: SizeHint) -> ImageLoadResult {
-        if !is_supported(uri) {
+        // three stages of guessing if we support loading the image:
+        // 1. URI extension
+        // 2. Mime from `BytesPoll::Ready`
+        // 3. image::guess_format
+
+        // (1)
+        if !is_supported_uri(uri) {
             return Err(LoadError::NotSupported);
         }
 
@@ -32,18 +50,25 @@ impl ImageLoader for ImageCrateLoader {
         if let Some(entry) = cache.get(uri).cloned() {
             match entry {
                 Ok(image) => Ok(ImagePoll::Ready { image }),
-                Err(err) => Err(LoadError::Custom(err)),
+                Err(err) => Err(LoadError::Loading(err)),
             }
         } else {
             match ctx.try_load_bytes(uri) {
-                Ok(BytesPoll::Ready { bytes, .. }) => {
-                    crate::log_trace!("started loading {uri:?}");
+                Ok(BytesPoll::Ready { bytes, mime, .. }) => {
+                    // (2 and 3)
+                    if mime.as_deref().is_some_and(is_unsupported_mime)
+                        || image::guess_format(&bytes).is_err()
+                    {
+                        return Err(LoadError::NotSupported);
+                    }
+
+                    log::trace!("started loading {uri:?}");
                     let result = crate::image::load_image_bytes(&bytes).map(Arc::new);
-                    crate::log_trace!("finished loading {uri:?}");
+                    log::trace!("finished loading {uri:?}");
                     cache.insert(uri.into(), result.clone());
                     match result {
                         Ok(image) => Ok(ImagePoll::Ready { image }),
-                        Err(err) => Err(LoadError::Custom(err)),
+                        Err(err) => Err(LoadError::Loading(err)),
                     }
                 }
                 Ok(BytesPoll::Pending { size }) => Ok(ImagePoll::Pending { size }),
@@ -54,6 +79,10 @@ impl ImageLoader for ImageCrateLoader {
 
     fn forget(&self, uri: &str) {
         let _ = self.cache.lock().remove(uri);
+    }
+
+    fn forget_all(&self) {
+        self.cache.lock().clear();
     }
 
     fn byte_size(&self) -> usize {
@@ -74,11 +103,11 @@ mod tests {
 
     #[test]
     fn check_support() {
-        assert!(is_supported("https://test.png"));
-        assert!(is_supported("test.jpeg"));
-        assert!(is_supported("http://test.gif"));
-        assert!(is_supported("test.webp"));
-        assert!(is_supported("file://test"));
-        assert!(!is_supported("test.svg"));
+        assert!(is_supported_uri("https://test.png"));
+        assert!(is_supported_uri("test.jpeg"));
+        assert!(is_supported_uri("http://test.gif"));
+        assert!(is_supported_uri("test.webp"));
+        assert!(is_supported_uri("file://test"));
+        assert!(!is_supported_uri("test.svg"));
     }
 }

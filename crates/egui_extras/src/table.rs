@@ -648,7 +648,9 @@ impl<'a> Table<'a> {
                 // If the last column is 'remainder', then let it fill the remainder!
                 let eps = 0.1; // just to avoid some rounding errors.
                 *column_width = available_width - eps;
-                *column_width = column_width.at_least(max_used_widths[i]);
+                if !column.clip {
+                    *column_width = column_width.at_least(max_used_widths[i]);
+                }
                 *column_width = width_range.clamp(*column_width);
                 break;
             }

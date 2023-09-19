@@ -120,6 +120,7 @@ trait WinitApp {
 fn create_event_loop_builder(
     native_options: &mut epi::NativeOptions,
 ) -> EventLoopBuilder<UserEvent> {
+    crate::profile_function!();
     let mut event_loop_builder = winit::event_loop::EventLoopBuilder::with_user_event();
 
     if let Some(hook) = std::mem::take(&mut native_options.event_loop_builder) {
@@ -127,6 +128,14 @@ fn create_event_loop_builder(
     }
 
     event_loop_builder
+}
+
+fn create_event_loop(native_options: &mut epi::NativeOptions) -> EventLoop<UserEvent> {
+    crate::profile_function!();
+    let mut builder = create_event_loop_builder(native_options);
+
+    crate::profile_scope!("EventLoopBuilder::build");
+    builder.build()
 }
 
 /// Access a thread-local event loop.
@@ -145,8 +154,7 @@ fn with_event_loop<R>(
         // do that as part of the lazy thread local storage initialization and so we instead
         // create the event loop lazily here
         let mut event_loop = event_loop.borrow_mut();
-        let event_loop = event_loop
-            .get_or_insert_with(|| create_event_loop_builder(&mut native_options).build());
+        let event_loop = event_loop.get_or_insert_with(|| create_event_loop(&mut native_options));
         f(event_loop, native_options)
     })
 }
@@ -165,6 +173,8 @@ fn run_and_return(
     let mut returned_result = Ok(());
 
     event_loop.run_return(|event, event_loop, control_flow| {
+        crate::profile_scope!("winit_event", short_event_description(&event));
+
         WINIT_EVENT_LOOP.with(|row_event_loop| *row_event_loop.write() = event_loop);
 
         let events = match &event {
@@ -324,6 +334,8 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
     let mut windows_next_repaint_times = HashMap::default();
 
     event_loop.run(move |event, event_loop, control_flow| {
+        crate::profile_scope!("winit_event", short_event_description(&event));
+
         WINIT_EVENT_LOOP.with(|row_event_loop| *row_event_loop.write() = event_loop);
 
         let events = match event {
@@ -536,6 +548,8 @@ mod glow_integration {
             native_options: &epi::NativeOptions,
             event_loop: &EventLoopWindowTarget<UserEvent>,
         ) -> Result<Self> {
+            crate::profile_function!();
+
             use glutin::prelude::*;
             // convert native options to glutin options
             let hardware_acceleration = match native_options.hardware_acceleration {
@@ -576,26 +590,35 @@ mod glow_integration {
                 "trying to create glutin Display with config: {:?}",
                 &config_template_builder
             );
-            // create gl display. this may probably create a window too on most platforms. definitely on `MS windows`. never on android.
-            let (window, gl_config) = glutin_winit::DisplayBuilder::new()
+
+            // Create GL display. This may probably create a window too on most platforms. Definitely on `MS windows`. Never on Android.
+            let display_builder = glutin_winit::DisplayBuilder::new()
                 // we might want to expose this option to users in the future. maybe using an env var or using native_options.
                 .with_preference(glutin_winit::ApiPrefence::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
-                .with_window_builder(Some(create_winit_window_builder(&window_builder)))
-                .build(
-                    event_loop,
-                    config_template_builder.clone(),
-                    |mut config_iterator| {
-                        let config = config_iterator.next().expect(
+                .with_window_builder(Some(create_winit_window_builder(&window_builder)));
+
+            let (window, gl_config) = {
+                crate::profile_scope!("DisplayBuilder::build");
+
+                display_builder
+                    .build(
+                        event_loop,
+                        config_template_builder.clone(),
+                        |mut config_iterator| {
+                            let config = config_iterator.next().expect(
                             "failed to find a matching configuration for creating glutin config",
                         );
-                        log::debug!(
-                            "using the first config from config picker closure. config: {:?}",
-                            &config
-                        );
-                        config
-                    },
-                )
-                .map_err(|e| crate::Error::NoGlutinConfigs(config_template_builder.build(), e))?;
+                            log::debug!(
+                                "using the first config from config picker closure. config: {:?}",
+                                &config
+                            );
+                            config
+                        },
+                    )
+                    .map_err(|e| {
+                        crate::Error::NoGlutinConfigs(config_template_builder.build(), e)
+                    })?
+            };
 
             let gl_display = gl_config.display();
             log::debug!(
@@ -615,10 +638,15 @@ mod glow_integration {
             let fallback_context_attributes = glutin::context::ContextAttributesBuilder::new()
                 .with_context_api(glutin::context::ContextApi::Gles(None))
                 .build(raw_window_handle);
-            let gl_context = match gl_config
-                .display()
-                .create_context(&gl_config, &context_attributes)
-            {
+
+            let gl_context_result = {
+                crate::profile_scope!("create_context");
+                gl_config
+                    .display()
+                    .create_context(&gl_config, &context_attributes)
+            };
+
+            let gl_context = match gl_context_result {
                 Ok(it) => it,
                 Err(err) => {
                     log::warn!("failed to create context using default context attributes {context_attributes:?} due to error: {err}");
@@ -675,6 +703,8 @@ mod glow_integration {
         ///
         /// we presently assume that we will
         fn on_resume(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
+            crate::profile_function!();
+
             let values = self
                 .windows
                 .values()
@@ -849,6 +879,7 @@ mod glow_integration {
             native_options: epi::NativeOptions,
             app_creator: epi::AppCreator,
         ) -> Self {
+            crate::profile_function!();
             Self {
                 repaint_proxy: Arc::new(egui::mutex::Mutex::new(event_loop.create_proxy())),
                 app_name: app_name.to_owned(),
@@ -889,6 +920,7 @@ mod glow_integration {
             }
 
             let gl = unsafe {
+                crate::profile_scope!("glow::Context::from_loader_function");
                 glow::Context::from_loader_function(|s| {
                     let s = std::ffi::CString::new(s)
                         .expect("failed to construct C string from string for gl proc address");
@@ -901,6 +933,7 @@ mod glow_integration {
         }
 
         fn init_run_state(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
+            crate::profile_function!();
             let storage = epi_integration::create_storage(
                 self.native_options
                     .app_id
@@ -960,14 +993,6 @@ mod glow_integration {
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
 
-            gl_window
-                .window(ViewportId::MAIN)
-                .read()
-                .window
-                .as_ref()
-                .unwrap()
-                .read()
-                .set_ime_allowed(true);
             if self.native_options.mouse_passthrough {
                 gl_window
                     .window(ViewportId::MAIN)
@@ -1286,7 +1311,10 @@ mod glow_integration {
         }
 
         fn save_and_destroy(&mut self) {
+            crate::profile_function!();
             if let Some(running) = self.running.write().take() {
+                crate::profile_function!();
+
                 running.integration.write().save(
                     running.app.write().as_mut(),
                     running
@@ -1543,6 +1571,8 @@ mod glow_integration {
             event_loop: &EventLoopWindowTarget<UserEvent>,
             event: &winit::event::Event<'_, UserEvent>,
         ) -> Result<EventResult> {
+            crate::profile_function!();
+
             Ok(match event {
                 winit::event::Event::Resumed => {
                     // first resume event.
@@ -1632,7 +1662,7 @@ mod glow_integration {
                                 // See: https://github.com/rust-windowing/winit/issues/208
                                 // This solves an issue where the app would panic when minimizing on Windows.
                                 let glutin_ctx = &mut *running.glutin_ctx.write();
-                                if physical_size.width > 0 && physical_size.height > 0 {
+                                if 0 < physical_size.width && 0 < physical_size.height {
                                     if let Some(id) = glutin_ctx.window_maps.get(window_id) {
                                         glutin_ctx.resize(*id, *physical_size);
                                     }
@@ -1723,11 +1753,14 @@ mod glow_integration {
                         EventResult::Wait
                     }
                 }
+
                 #[cfg(feature = "accesskit")]
                 winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
                     accesskit_winit::ActionRequestEvent { request, window_id },
                 )) => {
                     if let Some(running) = self.running.read().as_ref() {
+                        crate::profile_scope!("on_accesskit_action_request");
+
                         let glutin_ctx = running.glutin_ctx.read();
                         if let Some(viewport_id) = glutin_ctx.window_maps.get(window_id).copied() {
                             if let Some(viewport) = glutin_ctx.windows.get(&viewport_id).cloned() {
@@ -1764,14 +1797,14 @@ mod glow_integration {
                 run_and_return(event_loop, glow_eframe)
             })
         } else {
-            let event_loop = create_event_loop_builder(&mut native_options).build();
+            let event_loop = create_event_loop(&mut native_options);
             let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, glow_eframe);
         }
 
         #[cfg(target_os = "ios")]
         {
-            let event_loop = create_event_loop_builder(&mut native_options).build();
+            let event_loop = create_event_loop(&mut native_options);
             let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, glow_eframe);
         }
@@ -1847,6 +1880,7 @@ mod wgpu_integration {
             native_options: epi::NativeOptions,
             app_creator: epi::AppCreator,
         ) -> Self {
+            crate::profile_function!();
             #[cfg(feature = "__screenshot")]
             assert!(
                 std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
@@ -1870,10 +1904,15 @@ mod wgpu_integration {
             native_options: &NativeOptions,
         ) -> std::result::Result<(winit::window::Window, ViewportBuilder), winit::error::OsError>
         {
+            crate::profile_function!();
+
             let window_settings = epi_integration::load_window_settings(storage);
             let window_builder =
                 epi_integration::window_builder(event_loop, title, native_options, window_settings);
-            let window = create_winit_window_builder(&window_builder).build(event_loop)?;
+            let window = {
+                crate::profile_scope!("WindowBuilder::build");
+                create_winit_window_builder(&window_builder).build(event_loop)?
+            };
             epi_integration::apply_native_options_to_window(
                 &window,
                 native_options,
@@ -1935,6 +1974,7 @@ mod wgpu_integration {
 
         fn set_window(&mut self, id: ViewportId) -> std::result::Result<(), egui_wgpu::WgpuError> {
             if let Some(running) = &mut self.running {
+                crate::profile_function!();
                 if let Some(Window { window, .. }) = running.windows.read().get(&id) {
                     let window = window.clone();
                     if let Some(win) = &window {
@@ -1966,6 +2006,8 @@ mod wgpu_integration {
             window: winit::window::Window,
             builder: ViewportBuilder,
         ) -> std::result::Result<(), egui_wgpu::WgpuError> {
+            crate::profile_function!();
+
             #[allow(unsafe_code, unused_mut, unused_unsafe)]
             let mut painter = egui_wgpu::winit::Painter::new(
                 self.native_options.wgpu_options.clone(),
@@ -2001,8 +2043,6 @@ mod wgpu_integration {
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
 
-            window.set_ime_allowed(true);
-
             {
                 let event_loop_proxy = self.repaint_proxy.clone();
 
@@ -2026,7 +2066,7 @@ mod wgpu_integration {
 
             let app_creator = std::mem::take(&mut self.app_creator)
                 .expect("Single-use AppCreator has unexpectedly already been taken");
-            let mut app = app_creator(&epi::CreationContext {
+            let cc = epi::CreationContext {
                 egui_ctx: integration.egui_ctx.clone(),
                 integration_info: integration.frame.info().clone(),
                 storage: integration.frame.storage(),
@@ -2035,7 +2075,11 @@ mod wgpu_integration {
                 wgpu_render_state,
                 raw_display_handle: window.raw_display_handle(),
                 raw_window_handle: window.raw_window_handle(),
-            });
+            };
+            let mut app = {
+                crate::profile_scope!("user_app_creator");
+                app_creator(&cc)
+            };
 
             if app.warm_up_enabled() {
                 integration.warm_up(app.as_mut(), &window, &mut state);
@@ -2189,6 +2233,7 @@ mod wgpu_integration {
 
         fn save_and_destroy(&mut self) {
             if let Some(mut running) = self.running.take() {
+                crate::profile_function!();
                 if let Some(Window { window, .. }) = running.windows.read().get(&ViewportId::MAIN) {
                     running
                         .integration
@@ -2403,7 +2448,9 @@ mod wgpu_integration {
             event_loop: &EventLoopWindowTarget<UserEvent>,
             event: &winit::event::Event<'_, UserEvent>,
         ) -> Result<EventResult> {
+            crate::profile_function!();
             self.build_windows(event_loop);
+
             Ok(match event {
                 winit::event::Event::Resumed => {
                     if let Some(running) = &self.running {
@@ -2484,7 +2531,7 @@ mod wgpu_integration {
                                 if let Some(viewport_id) =
                                     running.windows_id.read().get(window_id).copied()
                                 {
-                                    if physical_size.width > 0 && physical_size.height > 0 {
+                                    if 0 < physical_size.width && 0 < physical_size.height {
                                         running.painter.write().on_window_resized(
                                             viewport_id,
                                             physical_size.width,
@@ -2600,14 +2647,14 @@ mod wgpu_integration {
                 run_and_return(event_loop, wgpu_eframe)
             })
         } else {
-            let event_loop = create_event_loop_builder(&mut native_options).build();
+            let event_loop = create_event_loop(&mut native_options);
             let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, wgpu_eframe);
         }
 
         #[cfg(target_os = "ios")]
         {
-            let event_loop = create_event_loop_builder(&mut native_options).build();
+            let event_loop = create_event_loop(&mut native_options);
             let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
             run_and_exit(event_loop, wgpu_eframe);
         }
@@ -2626,5 +2673,69 @@ fn system_theme(window: &winit::window::Window, options: &NativeOptions) -> Opti
             .map(super::epi_integration::theme_from_winit_theme)
     } else {
         None
+    }
+}
+
+// For the puffin profiler!
+#[allow(dead_code)] // Only used for profiling
+fn short_event_description(event: &winit::event::Event<'_, UserEvent>) -> &'static str {
+    use winit::event::{DeviceEvent, Event, StartCause, WindowEvent};
+
+    match event {
+        Event::Suspended => "Event::Suspended",
+        Event::Resumed => "Event::Resumed",
+        Event::MainEventsCleared => "Event::MainEventsCleared",
+        Event::RedrawRequested(_) => "Event::RedrawRequested",
+        Event::RedrawEventsCleared => "Event::RedrawEventsCleared",
+        Event::LoopDestroyed => "Event::LoopDestroyed",
+        Event::UserEvent(user_event) => match user_event {
+            UserEvent::RequestRepaint { .. } => "UserEvent::RequestRepaint",
+            #[cfg(feature = "accesskit")]
+            UserEvent::AccessKitActionRequest(_) => "UserEvent::AccessKitActionRequest",
+        },
+        Event::DeviceEvent { event, .. } => match event {
+            DeviceEvent::Added { .. } => "DeviceEvent::Added",
+            DeviceEvent::Removed { .. } => "DeviceEvent::Removed",
+            DeviceEvent::MouseMotion { .. } => "DeviceEvent::MouseMotion",
+            DeviceEvent::MouseWheel { .. } => "DeviceEvent::MouseWheel",
+            DeviceEvent::Motion { .. } => "DeviceEvent::Motion",
+            DeviceEvent::Button { .. } => "DeviceEvent::Button",
+            DeviceEvent::Key { .. } => "DeviceEvent::Key",
+            DeviceEvent::Text { .. } => "DeviceEvent::Text",
+        },
+        Event::NewEvents(start_cause) => match start_cause {
+            StartCause::ResumeTimeReached { .. } => "NewEvents::ResumeTimeReached",
+            StartCause::WaitCancelled { .. } => "NewEvents::WaitCancelled",
+            StartCause::Poll => "NewEvents::Poll",
+            StartCause::Init => "NewEvents::Init",
+        },
+        Event::WindowEvent { event, .. } => match event {
+            WindowEvent::Resized { .. } => "WindowEvent::Resized",
+            WindowEvent::Moved { .. } => "WindowEvent::Moved",
+            WindowEvent::CloseRequested { .. } => "WindowEvent::CloseRequested",
+            WindowEvent::Destroyed { .. } => "WindowEvent::Destroyed",
+            WindowEvent::DroppedFile { .. } => "WindowEvent::DroppedFile",
+            WindowEvent::HoveredFile { .. } => "WindowEvent::HoveredFile",
+            WindowEvent::HoveredFileCancelled { .. } => "WindowEvent::HoveredFileCancelled",
+            WindowEvent::ReceivedCharacter { .. } => "WindowEvent::ReceivedCharacter",
+            WindowEvent::Focused { .. } => "WindowEvent::Focused",
+            WindowEvent::KeyboardInput { .. } => "WindowEvent::KeyboardInput",
+            WindowEvent::ModifiersChanged { .. } => "WindowEvent::ModifiersChanged",
+            WindowEvent::Ime { .. } => "WindowEvent::Ime",
+            WindowEvent::CursorMoved { .. } => "WindowEvent::CursorMoved",
+            WindowEvent::CursorEntered { .. } => "WindowEvent::CursorEntered",
+            WindowEvent::CursorLeft { .. } => "WindowEvent::CursorLeft",
+            WindowEvent::MouseWheel { .. } => "WindowEvent::MouseWheel",
+            WindowEvent::MouseInput { .. } => "WindowEvent::MouseInput",
+            WindowEvent::TouchpadMagnify { .. } => "WindowEvent::TouchpadMagnify",
+            WindowEvent::SmartMagnify { .. } => "WindowEvent::SmartMagnify",
+            WindowEvent::TouchpadRotate { .. } => "WindowEvent::TouchpadRotate",
+            WindowEvent::TouchpadPressure { .. } => "WindowEvent::TouchpadPressure",
+            WindowEvent::AxisMotion { .. } => "WindowEvent::AxisMotion",
+            WindowEvent::Touch { .. } => "WindowEvent::Touch",
+            WindowEvent::ScaleFactorChanged { .. } => "WindowEvent::ScaleFactorChanged",
+            WindowEvent::ThemeChanged { .. } => "WindowEvent::ThemeChanged",
+            WindowEvent::Occluded { .. } => "WindowEvent::Occluded",
+        },
     }
 }

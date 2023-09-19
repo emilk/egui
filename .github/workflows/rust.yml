@@ -49,7 +49,7 @@ jobs:
         run: cargo check --locked --all-features --all-targets
 
       - name: check egui_extras --all-features
-        run: cargo check --locked --all-features --all-targets -p egui_extras
+        run: cargo check --locked --all-features -p egui_extras
 
       - name: check default features
         run: cargo check --locked --all-targets
@@ -57,11 +57,14 @@ jobs:
       - name: check --no-default-features
         run: cargo check --locked --no-default-features --lib --all-targets
 
-      - name: check epaint --no-default-features
-        run: cargo check --locked --no-default-features --lib --all-targets -p epaint
-
       - name: check eframe --no-default-features
-        run: cargo check --locked --no-default-features --features x11 --lib --all-targets -p eframe
+        run: cargo check --locked --no-default-features --features x11 --lib -p eframe
+
+      - name: check egui_extras --no-default-features
+        run: cargo check --locked --no-default-features --lib -p egui_extras
+
+      - name: check epaint --no-default-features
+        run: cargo check --locked --no-default-features --lib -p epaint
 
       - name: Test doc-tests
         run: cargo test --doc --all-features

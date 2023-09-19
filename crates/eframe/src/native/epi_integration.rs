@@ -178,6 +178,7 @@ pub fn apply_native_options_to_window(
     native_options: &crate::NativeOptions,
     window_settings: Option<WindowSettings>,
 ) {
+    crate::profile_function!();
     use winit::window::WindowLevel;
     window.set_window_level(if native_options.always_on_top {
         WindowLevel::AlwaysOnTop
@@ -443,6 +444,8 @@ impl EpiIntegration {
         egui_winit: &mut egui_winit::State,
         viewport_id: ViewportId,
     ) -> EventResponse {
+        crate::profile_function!();
+
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
         match event {
@@ -614,6 +617,7 @@ const STORAGE_EGUI_MEMORY_KEY: &str = "egui";
 const STORAGE_WINDOW_KEY: &str = "window";
 
 pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<WindowSettings> {
+    crate::profile_function!();
     #[cfg(feature = "persistence")]
     {
         epi::get_value(_storage?, STORAGE_WINDOW_KEY)
@@ -623,6 +627,7 @@ pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<Windo
 }
 
 pub fn load_egui_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Memory> {
+    crate::profile_function!();
     #[cfg(feature = "persistence")]
     {
         epi::get_value(_storage?, STORAGE_EGUI_MEMORY_KEY)

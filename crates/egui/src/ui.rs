@@ -1558,56 +1558,34 @@ impl Ui {
         response
     }
 
-    /// Show an image here with the given size.
-    ///
-    /// In order to display an image you must first acquire a [`TextureHandle`].
-    /// This is best done with [`egui_extras::RetainedImage`](https://docs.rs/egui_extras/latest/egui_extras/image/struct.RetainedImage.html) or [`Context::load_texture`].
-    ///
-    /// ```
-    /// struct MyImage {
-    ///     texture: Option<egui::TextureHandle>,
-    /// }
-    ///
-    /// impl MyImage {
-    ///     fn ui(&mut self, ui: &mut egui::Ui) {
-    ///         let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
-    ///             // Load the texture only once.
-    ///             ui.ctx().load_texture(
-    ///                 "my-image",
-    ///                 egui::ColorImage::example(),
-    ///                 Default::default()
-    ///             )
-    ///         });
-    ///
-    ///         // Show the image:
-    ///         ui.image(texture, texture.size_vec2());
-    ///     }
-    /// }
-    /// ```
-    ///
-    /// See also [`crate::Image`] and [`crate::ImageButton`].
-    #[inline]
-    pub fn image(&mut self, texture_id: impl Into<TextureId>, size: impl Into<Vec2>) -> Response {
-        Image::new(texture_id, size).ui(self)
-    }
-
     /// Show an image available at the given `uri`.
     ///
     /// ⚠ This will do nothing unless you install some image loaders first!
-    /// The easiest way to do this is via [`egui_extras::loaders::install`](https://docs.rs/egui_extras/latest/egui_extras/loaders/fn.install.html).
+    /// The easiest way to do this is via [`egui_extras::install_image_loaders`](https://docs.rs/egui_extras/latest/egui_extras/loaders/fn.install.html).
     ///
     /// The loaders handle caching image data, sampled textures, etc. across frames, so calling this is immediate-mode safe.
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {
-    /// ui.image2("file://ferris.svg");
+    /// ui.image("https://picsum.photos/480");
+    /// ui.image("file://assets/ferris.png");
+    /// ui.image(egui::include_image!("../assets/ferris.png"));
+    /// ui.add(
+    ///     egui::Image::new(egui::include_image!("../assets/ferris.png"))
+    ///         .rounding(egui::Rounding::same(6.0))
+    /// );
     /// # });
     /// ```
     ///
-    /// See also [`crate::Image2`] and [`crate::ImageSource`].
+    /// Using [`include_image`] is often the most ergonomic, and the path
+    /// will be resolved at compile-time and embedded in the binary.
+    /// When using a "file://" url on the other hand, you need to make sure
+    /// the files can be found in the right spot at runtime!
+    ///
+    /// See also [`crate::Image`], [`crate::ImageSource`].
     #[inline]
-    pub fn image2<'a>(&mut self, source: impl Into<ImageSource<'a>>) -> Response {
-        Image2::new(source.into()).ui(self)
+    pub fn image<'a>(&mut self, source: impl Into<ImageSource<'a>>) -> Response {
+        Image::new(source).ui(self)
     }
 }
 
@@ -1710,7 +1688,7 @@ impl Ui {
     /// # });
     /// ```
     ///
-    /// Se also [`Self::scope`].
+    /// See also [`Self::scope`].
     pub fn group<R>(&mut self, add_contents: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
         crate::Frame::group(self.style()).show(self, add_contents)
     }
@@ -2206,15 +2184,9 @@ impl Ui {
     /// If called from within a menu this will instead create a button for a sub-menu.
     ///
     /// ```ignore
-    /// use egui_extras;
+    /// let img = egui::include_image!("../assets/ferris.png");
     ///
-    /// let img = egui_extras::RetainedImage::from_svg_bytes_with_size(
-    ///     "rss",
-    ///     include_bytes!("rss.svg"),
-    ///     egui_extras::image::FitTo::Size(24, 24),
-    /// );
-    ///
-    /// ui.menu_image_button(img.texture_id(ctx), img.size_vec2(), |ui| {
+    /// ui.menu_image_button(img, |ui| {
     ///     ui.menu_button("My sub-menu", |ui| {
     ///         if ui.button("Close the menu").clicked() {
     ///             ui.close_menu();
@@ -2225,16 +2197,15 @@ impl Ui {
     ///
     /// See also: [`Self::close_menu`] and [`Response::context_menu`].
     #[inline]
-    pub fn menu_image_button<R>(
+    pub fn menu_image_button<'a, R>(
         &mut self,
-        texture_id: TextureId,
-        image_size: impl Into<Vec2>,
+        image: impl Into<Image<'a>>,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
         if let Some(menu_state) = self.menu_state.clone() {
             menu::submenu_button(self, menu_state, String::new(), add_contents)
         } else {
-            menu::menu_image_button(self, ImageButton::new(texture_id, image_size), add_contents)
+            menu::menu_image_button(self, ImageButton::new(image), add_contents)
         }
     }
 }

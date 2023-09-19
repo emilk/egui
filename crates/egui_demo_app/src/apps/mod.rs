@@ -9,6 +9,12 @@ mod fractal_clock;
 #[cfg(feature = "http")]
 mod http_app;
 
+#[cfg(feature = "image_viewer")]
+mod image_viewer;
+
+#[cfg(feature = "image_viewer")]
+pub use image_viewer::ImageViewer;
+
 #[cfg(all(feature = "glow", not(feature = "wgpu")))]
 pub use custom3d_glow::Custom3d;
 

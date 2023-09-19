@@ -445,6 +445,13 @@ impl Renderer {
 
                         needs_reset = true;
 
+                        let info = PaintCallbackInfo {
+                            viewport: callback.rect,
+                            clip_rect: *clip_rect,
+                            pixels_per_point,
+                            screen_size_px: size_in_pixels,
+                        };
+
                         {
                             // We're setting a default viewport for the render pass as a
                             // courtesy for the user, so that they don't have to think about
@@ -455,29 +462,19 @@ impl Renderer {
                             // viewport during the paint callback, effectively overriding this
                             // one.
 
-                            let min = (callback.rect.min.to_vec2() * pixels_per_point).round();
-                            let max = (callback.rect.max.to_vec2() * pixels_per_point).round();
+                            let viewport_px = info.viewport_in_pixels();
 
                             render_pass.set_viewport(
-                                min.x,
-                                min.y,
-                                max.x - min.x,
-                                max.y - min.y,
+                                viewport_px.left_px,
+                                viewport_px.top_px,
+                                viewport_px.width_px,
+                                viewport_px.height_px,
                                 0.0,
                                 1.0,
                             );
                         }
 
-                        cbfn.0.paint(
-                            PaintCallbackInfo {
-                                viewport: callback.rect,
-                                clip_rect: *clip_rect,
-                                pixels_per_point,
-                                screen_size_px: size_in_pixels,
-                            },
-                            render_pass,
-                            &self.callback_resources,
-                        );
+                        cbfn.0.paint(info, render_pass, &self.callback_resources);
                     }
                 }
             }
@@ -605,9 +602,8 @@ impl Renderer {
 
     /// Get the WGPU texture and bind group associated to a texture that has been allocated by egui.
     ///
-    /// This could be used by custom paint hooks to render images that have been added through with
-    /// [`egui_extras::RetainedImage`](https://docs.rs/egui_extras/latest/egui_extras/image/struct.RetainedImage.html)
-    /// or [`epaint::Context::load_texture`](https://docs.rs/egui/latest/egui/struct.Context.html#method.load_texture).
+    /// This could be used by custom paint hooks to render images that have been added through
+    /// [`epaint::Context::load_texture`](https://docs.rs/egui/latest/egui/struct.Context.html#method.load_texture).
     pub fn texture(
         &self,
         id: &epaint::TextureId,

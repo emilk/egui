@@ -63,7 +63,7 @@ impl eframe::App for MyApp {
             });
 
             if let Some(texture) = self.texture.as_ref() {
-                ui.image(texture, ui.available_size());
+                ui.image((texture.id(), ui.available_size()));
             } else {
                 ui.spinner();
             }

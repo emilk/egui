@@ -1,12 +1,19 @@
+//! Syntax highlighting for code.
+//!
+//! Turn on the `syntect` feature for great syntax highlighting of any language.
+//! Otherwise, a very simple fallback will be used, that works okish for C, C++, Rust, and Python.
+
 use egui::text::LayoutJob;
 
 /// View some code with syntax highlighting and selection.
-pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str) {
-    let language = "rs";
-    let theme = CodeTheme::from_memory(ui.ctx());
-
+pub fn code_view_ui(
+    ui: &mut egui::Ui,
+    theme: &CodeTheme,
+    mut code: &str,
+    language: &str,
+) -> egui::Response {
     let mut layouter = |ui: &egui::Ui, string: &str, _wrap_width: f32| {
-        let layout_job = highlight(ui.ctx(), &theme, string, language);
+        let layout_job = highlight(ui.ctx(), theme, string, language);
         // layout_job.wrap.max_width = wrap_width; // no wrapping
         ui.fonts(|f| f.layout_job(layout_job))
     };
@@ -18,10 +25,12 @@ pub fn code_view_ui(ui: &mut egui::Ui, mut code: &str) {
             .desired_rows(1)
             .lock_focus(true)
             .layouter(&mut layouter),
-    );
+    )
 }
 
-/// Memoized Code highlighting
+/// Add syntax highlighting to a code string.
+///
+/// The results are memoized, so you can call this every frame without performance penalty.
 pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &str) -> LayoutJob {
     impl egui::util::cache::ComputerMut<(&CodeTheme, &str, &str), LayoutJob> for Highlighter {
         fn compute(&mut self, (theme, code, lang): (&CodeTheme, &str, &str)) -> LayoutJob {
@@ -41,9 +50,7 @@ pub fn highlight(ctx: &egui::Context, theme: &CodeTheme, code: &str, language: &
 // ----------------------------------------------------------------------------
 
 #[cfg(not(feature = "syntect"))]
-#[derive(Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(enum_map::Enum)]
+#[derive(Clone, Copy, PartialEq, serde::Deserialize, serde::Serialize, enum_map::Enum)]
 enum TokenType {
     Comment,
     Keyword,
@@ -54,8 +61,7 @@ enum TokenType {
 }
 
 #[cfg(feature = "syntect")]
-#[derive(Clone, Copy, Hash, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Clone, Copy, Hash, PartialEq, serde::Deserialize, serde::Serialize)]
 enum SyntectTheme {
     Base16EightiesDark,
     Base16MochaDark,
@@ -118,9 +124,9 @@ impl SyntectTheme {
     }
 }
 
-#[derive(Clone, Hash, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde", serde(default))]
+/// A selected color theme.
+#[derive(Clone, Hash, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(default)]
 pub struct CodeTheme {
     dark_mode: bool,
 
@@ -138,6 +144,7 @@ impl Default for CodeTheme {
 }
 
 impl CodeTheme {
+    /// Selects either dark or light theme based on the given style.
     pub fn from_style(style: &egui::Style) -> Self {
         if style.visuals.dark_mode {
             Self::dark()
@@ -146,6 +153,9 @@ impl CodeTheme {
         }
     }
 
+    /// Load code theme from egui memory.
+    ///
+    /// There is one dark and one light theme stored at any one time.
     pub fn from_memory(ctx: &egui::Context) -> Self {
         if ctx.style().visuals.dark_mode {
             ctx.data_mut(|d| {
@@ -160,6 +170,9 @@ impl CodeTheme {
         }
     }
 
+    /// Store theme to egui memory.
+    ///
+    /// There is one dark and one light theme stored at any one time.
     pub fn store_in_memory(self, ctx: &egui::Context) {
         if self.dark_mode {
             ctx.data_mut(|d| d.insert_persisted(egui::Id::new("dark"), self));
@@ -185,6 +198,7 @@ impl CodeTheme {
         }
     }
 
+    /// Show UI for changing the color theme.
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         egui::widgets::global_dark_light_mode_buttons(ui);
 
@@ -231,6 +245,7 @@ impl CodeTheme {
         }
     }
 
+    /// Show UI for changing the color theme.
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal_top(|ui| {
             let selected_id = egui::Id::null();
@@ -306,6 +321,7 @@ struct Highlighter {
 #[cfg(feature = "syntect")]
 impl Default for Highlighter {
     fn default() -> Self {
+        crate::profile_function!();
         Self {
             ps: syntect::parsing::SyntaxSet::load_defaults_newlines(),
             ts: syntect::highlighting::ThemeSet::load_defaults(),
@@ -313,7 +329,6 @@ impl Default for Highlighter {
     }
 }
 
-#[cfg(feature = "syntect")]
 impl Highlighter {
     #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
     fn highlight(&self, theme: &CodeTheme, code: &str, lang: &str) -> LayoutJob {
@@ -332,7 +347,10 @@ impl Highlighter {
         })
     }
 
+    #[cfg(feature = "syntect")]
     fn highlight_impl(&self, theme: &CodeTheme, text: &str, language: &str) -> Option<LayoutJob> {
+        crate::profile_function!();
+
         use syntect::easy::HighlightLines;
         use syntect::highlighting::FontStyle;
         use syntect::util::LinesWithEndings;
@@ -400,13 +418,24 @@ struct Highlighter {}
 #[cfg(not(feature = "syntect"))]
 impl Highlighter {
     #[allow(clippy::unused_self, clippy::unnecessary_wraps)]
-    fn highlight(&self, theme: &CodeTheme, mut text: &str, _language: &str) -> LayoutJob {
+    fn highlight_impl(
+        &self,
+        theme: &CodeTheme,
+        mut text: &str,
+        language: &str,
+    ) -> Option<LayoutJob> {
+        crate::profile_function!();
+
+        let language = Language::new(language)?;
+
         // Extremely simple syntax highlighter for when we compile without syntect
 
         let mut job = LayoutJob::default();
 
         while !text.is_empty() {
-            if text.starts_with("//") {
+            if language.double_slash_comments && text.starts_with("//")
+                || language.hash_comments && text.starts_with('#')
+            {
                 let end = text.find('\n').unwrap_or(text.len());
                 job.append(&text[..end], 0.0, theme.formats[TokenType::Comment].clone());
                 text = &text[end..];
@@ -427,7 +456,7 @@ impl Highlighter {
                     .find(|c: char| !c.is_ascii_alphanumeric())
                     .map_or_else(|| text.len(), |i| i + 1);
                 let word = &text[..end];
-                let tt = if is_keyword(word) {
+                let tt = if language.is_keyword(word) {
                     TokenType::Keyword
                 } else {
                     TokenType::Literal
@@ -457,50 +486,173 @@ impl Highlighter {
             }
         }
 
-        job
+        Some(job)
     }
 }
 
 #[cfg(not(feature = "syntect"))]
-fn is_keyword(word: &str) -> bool {
-    matches!(
-        word,
-        "as" | "async"
-            | "await"
-            | "break"
-            | "const"
-            | "continue"
-            | "crate"
-            | "dyn"
-            | "else"
-            | "enum"
-            | "extern"
-            | "false"
-            | "fn"
-            | "for"
-            | "if"
-            | "impl"
-            | "in"
-            | "let"
-            | "loop"
-            | "match"
-            | "mod"
-            | "move"
-            | "mut"
-            | "pub"
-            | "ref"
-            | "return"
-            | "self"
-            | "Self"
-            | "static"
-            | "struct"
-            | "super"
-            | "trait"
-            | "true"
-            | "type"
-            | "unsafe"
-            | "use"
-            | "where"
-            | "while"
-    )
+struct Language {
+    /// `// comment`
+    double_slash_comments: bool,
+
+    /// `# comment`
+    hash_comments: bool,
+
+    keywords: std::collections::BTreeSet<&'static str>,
+}
+
+#[cfg(not(feature = "syntect"))]
+impl Language {
+    fn new(language: &str) -> Option<Self> {
+        match language.to_lowercase().as_str() {
+            "c" | "h" | "hpp" | "cpp" | "c++" => Some(Self::cpp()),
+            "py" | "python" => Some(Self::python()),
+            "rs" | "rust" => Some(Self::rust()),
+            _ => {
+                None // unsupported language
+            }
+        }
+    }
+
+    fn is_keyword(&self, word: &str) -> bool {
+        self.keywords.contains(word)
+    }
+
+    fn cpp() -> Self {
+        Self {
+            double_slash_comments: true,
+            hash_comments: false,
+            keywords: [
+                "alignas",
+                "alignof",
+                "and_eq",
+                "and",
+                "asm",
+                "atomic_cancel",
+                "atomic_commit",
+                "atomic_noexcept",
+                "auto",
+                "bitand",
+                "bitor",
+                "bool",
+                "break",
+                "case",
+                "catch",
+                "char",
+                "char16_t",
+                "char32_t",
+                "char8_t",
+                "class",
+                "co_await",
+                "co_return",
+                "co_yield",
+                "compl",
+                "concept",
+                "const_cast",
+                "const",
+                "consteval",
+                "constexpr",
+                "constinit",
+                "continue",
+                "decltype",
+                "default",
+                "delete",
+                "do",
+                "double",
+                "dynamic_cast",
+                "else",
+                "enum",
+                "explicit",
+                "export",
+                "extern",
+                "false",
+                "float",
+                "for",
+                "friend",
+                "goto",
+                "if",
+                "inline",
+                "int",
+                "long",
+                "mutable",
+                "namespace",
+                "new",
+                "noexcept",
+                "not_eq",
+                "not",
+                "nullptr",
+                "operator",
+                "or_eq",
+                "or",
+                "private",
+                "protected",
+                "public",
+                "reflexpr",
+                "register",
+                "reinterpret_cast",
+                "requires",
+                "return",
+                "short",
+                "signed",
+                "sizeof",
+                "static_assert",
+                "static_cast",
+                "static",
+                "struct",
+                "switch",
+                "synchronized",
+                "template",
+                "this",
+                "thread_local",
+                "throw",
+                "true",
+                "try",
+                "typedef",
+                "typeid",
+                "typename",
+                "union",
+                "unsigned",
+                "using",
+                "virtual",
+                "void",
+                "volatile",
+                "wchar_t",
+                "while",
+                "xor_eq",
+                "xor",
+            ]
+            .into_iter()
+            .collect(),
+        }
+    }
+
+    fn python() -> Self {
+        Self {
+            double_slash_comments: false,
+            hash_comments: true,
+            keywords: [
+                "and", "as", "assert", "break", "class", "continue", "def", "del", "elif", "else",
+                "except", "False", "finally", "for", "from", "global", "if", "import", "in", "is",
+                "lambda", "None", "nonlocal", "not", "or", "pass", "raise", "return", "True",
+                "try", "while", "with", "yield",
+            ]
+            .into_iter()
+            .collect(),
+        }
+    }
+
+    fn rust() -> Self {
+        Self {
+            double_slash_comments: true,
+            hash_comments: false,
+            keywords: [
+                "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else",
+                "enum", "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop", "match",
+                "mod", "move", "mut", "pub", "ref", "return", "self", "Self", "static", "struct",
+                "super", "trait", "true", "type", "unsafe", "use", "where", "while",
+            ]
+            .into_iter()
+            .collect(),
+        }
+    }
 }

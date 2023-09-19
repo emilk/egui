@@ -19,14 +19,14 @@ crate-type = ["cdylib", "rlib"]
 default = ["glow", "persistence"]
 
 http = ["ehttp", "image", "poll-promise", "egui_extras/image"]
+image_viewer = ["image", "egui_extras/all_loaders", "rfd"]
 persistence = ["eframe/persistence", "egui/persistence", "serde"]
 web_screen_reader = ["eframe/web_screen_reader"]                  # experimental
 serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]
-syntax_highlighting = ["egui_demo_lib/syntax_highlighting"]
+syntect = ["egui_demo_lib/syntect"]
 
 glow = ["eframe/glow"]
 wgpu = ["eframe/wgpu", "bytemuck"]
-
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = [
@@ -36,6 +36,7 @@ chrono = { version = "0.4", default-features = false, features = [
 eframe = { version = "0.22.0", path = "../eframe", default-features = false }
 egui = { version = "0.22.0", path = "../egui", features = [
   "extra_debug_asserts",
+  "log",
 ] }
 egui_demo_lib = { version = "0.22.0", path = "../egui_demo_lib", features = [
   "chrono",
@@ -45,9 +46,10 @@ log = { version = "0.4", features = ["std"] }
 # Optional dependencies:
 
 bytemuck = { version = "1.7.1", optional = true }
-egui_extras = { version = "0.22.0", optional = true, path = "../egui_extras", features = [
-  "log",
+egui_extras = { version = "0.22.0", path = "../egui_extras", features = [
+  "image",
 ] }
+rfd = { version = "0.11", optional = true }
 
 # feature "http":
 ehttp = { version = "0.3.0", optional = true }

@@ -84,7 +84,7 @@
 //! ui.separator();
 //!
 //! # let my_image = egui::TextureId::default();
-//! ui.image(my_image, [640.0, 480.0]);
+//! ui.image((my_image, egui::Vec2::new(640.0, 480.0)));
 //!
 //! ui.collapsing("Click to see what is hidden!", |ui| {
 //!     ui.label("Not much, as it turns out");
@@ -107,9 +107,9 @@
 //!
 //! Most likely you are using an existing `egui` backend/integration such as [`eframe`](https://docs.rs/eframe), [`bevy_egui`](https://docs.rs/bevy_egui),
 //! or [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad),
-//! but if you want to integrate `egui` into a new game engine, this is the section for you.
+//! but if you want to integrate `egui` into a new game engine or graphics backend, this is the section for you.
 //!
-//! To write your own integration for egui you need to do this:
+//! You need to collect [`RawInput`] and handle [`FullOutput`]. The basic structure is this:
 //!
 //! ``` no_run
 //! # fn handle_platform_output(_: egui::PlatformOutput) {}
@@ -134,6 +134,31 @@
 //!     paint(full_output.textures_delta, clipped_primitives);
 //! }
 //! ```
+//!
+//! For a reference OpenGL renderer, see [the `egui_glow` painter](https://github.com/emilk/egui/blob/master/crates/egui_glow/src/painter.rs).
+//!
+//!
+//! ### Debugging your renderer
+//!
+//! #### Things look jagged
+//!
+//! * Turn off backface culling.
+//!
+//! #### My text is blurry
+//!
+//! * Make sure you set the proper `pixels_per_point` in the input to egui.
+//! * Make sure the texture sampler is not off by half a pixel. Try nearest-neighbor sampler to check.
+//!
+//! #### My windows are too transparent or too dark
+//!
+//! * egui uses premultiplied alpha, so make sure your blending function is `(ONE, ONE_MINUS_SRC_ALPHA)`.
+//! * Make sure your texture sampler is clamped (`GL_CLAMP_TO_EDGE`).
+//! * egui prefers linear color spaces for all blending so:
+//!   * Use an sRGBA-aware texture if available (e.g. `GL_SRGB8_ALPHA8`).
+//!     * Otherwise: remember to decode gamma in the fragment shader.
+//!   * Decode the gamma of the incoming vertex colors in your vertex shader.
+//!   * Turn on sRGBA/linear framebuffer if available (`GL_FRAMEBUFFER_SRGB`).
+//!     * Otherwise: gamma-encode the colors before you write them again.
 //!
 //!
 //! # Understanding immediate mode
@@ -401,6 +426,34 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 
 // ----------------------------------------------------------------------------
 
+/// Include an image in the binary.
+///
+/// This is a wrapper over `include_bytes!`, and behaves in the same way.
+///
+/// It produces an [`ImageSource`] which can be used directly in [`Ui::image`] or [`Image::new`]:
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// ui.image(egui::include_image!("../assets/ferris.png"));
+/// ui.add(
+///     egui::Image::new(egui::include_image!("../assets/ferris.png"))
+///         .rounding(egui::Rounding::same(6.0))
+/// );
+///
+/// let image_source: egui::ImageSource = egui::include_image!("../assets/ferris.png");
+/// assert_eq!(image_source.uri(), Some("bytes://../assets/ferris.png"));
+/// # });
+/// ```
+#[macro_export]
+macro_rules! include_image {
+    ($path: literal) => {
+        $crate::ImageSource::Bytes(
+            ::std::borrow::Cow::Borrowed(concat!("bytes://", $path)), // uri
+            $crate::load::Bytes::Static(include_bytes!($path)),
+        )
+    };
+}
+
 /// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] (and line) on Github
 ///
 /// ```
@@ -605,8 +658,8 @@ mod profiling_scopes {
     /// Profiling macro for feature "puffin"
     macro_rules! profile_function {
         ($($arg: tt)*) => {
-            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
             #[cfg(feature = "puffin")]
+            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
             puffin::profile_function!($($arg)*);
         };
     }
@@ -615,12 +668,13 @@ mod profiling_scopes {
     /// Profiling macro for feature "puffin"
     macro_rules! profile_scope {
         ($($arg: tt)*) => {
-            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
             #[cfg(feature = "puffin")]
+            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
             puffin::profile_scope!($($arg)*);
         };
     }
     pub(crate) use profile_scope;
 }
 
+#[allow(unused_imports)]
 pub(crate) use profiling_scopes::*;

@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use egui::{mutex::Mutex, TextureFilter, TextureOptions};
 
 #[cfg(feature = "svg")]
@@ -8,6 +10,9 @@ pub use usvg::FitTo;
 /// Load once, and save somewhere in your app state.
 ///
 /// Use the `svg` and `image` features to enable more constructors.
+///
+/// ⚠ This type is deprecated: Consider using [`egui::Image`] instead.
+#[deprecated = "consider using `egui::Image` instead"]
 pub struct RetainedImage {
     debug_name: String,
 
@@ -151,7 +156,7 @@ impl RetainedImage {
         &self.debug_name
     }
 
-    /// The texture if for this image.
+    /// The texture id for this image.
     pub fn texture_id(&self, ctx: &egui::Context) -> egui::TextureId {
         self.texture
             .lock()
@@ -186,7 +191,7 @@ impl RetainedImage {
         // We need to convert the SVG to a texture to display it:
         // Future improvement: tell backend to do mip-mapping of the image to
         // make it look smoother when downsized.
-        ui.image(self.texture_id(ui.ctx()), desired_size)
+        ui.image((self.texture_id(ui.ctx()), desired_size))
     }
 }
 

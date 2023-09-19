@@ -43,12 +43,6 @@ pub struct GlyphInfo {
     /// Unit: points.
     pub advance_width: f32,
 
-    /// `ascent` value from the font metrics.
-    /// this is the distance from the top to the baseline.
-    ///
-    /// Unit: points.
-    pub ascent: f32,
-
     /// Texture coordinates.
     pub uv_rect: UvRect,
 }
@@ -59,7 +53,6 @@ impl Default for GlyphInfo {
         Self {
             id: ab_glyph::GlyphId(0),
             advance_width: 0.0,
-            ascent: 0.0,
             uv_rect: Default::default(),
         }
     }
@@ -188,7 +181,7 @@ impl FontImpl {
             if let Some(space) = self.glyph_info(' ') {
                 let glyph_info = GlyphInfo {
                     advance_width: crate::text::TAB_SIZE as f32 * space.advance_width,
-                    ..GlyphInfo::default()
+                    ..space
                 };
                 self.glyph_info_cache.write().insert(c, glyph_info);
                 return Some(glyph_info);
@@ -205,7 +198,7 @@ impl FontImpl {
                 let advance_width = f32::min(em / 6.0, space.advance_width * 0.5);
                 let glyph_info = GlyphInfo {
                     advance_width,
-                    ..GlyphInfo::default()
+                    ..space
                 };
                 self.glyph_info_cache.write().insert(c, glyph_info);
                 return Some(glyph_info);
@@ -253,6 +246,14 @@ impl FontImpl {
     #[inline(always)]
     pub fn pixels_per_point(&self) -> f32 {
         self.pixels_per_point
+    }
+
+    /// This is the distance from the top to the baseline.
+    ///
+    /// Unit: points.
+    #[inline(always)]
+    pub fn ascent(&self) -> f32 {
+        self.ascent
     }
 
     fn allocate_glyph(&self, glyph_id: ab_glyph::GlyphId) -> GlyphInfo {
@@ -305,7 +306,6 @@ impl FontImpl {
         GlyphInfo {
             id: glyph_id,
             advance_width: advance_width_in_points,
-            ascent: self.ascent,
             uv_rect,
         }
     }
@@ -442,7 +442,7 @@ impl Font {
     }
 
     #[inline]
-    pub(crate) fn glyph_info_and_font_impl(&mut self, c: char) -> (Option<&FontImpl>, GlyphInfo) {
+    pub(crate) fn font_impl_and_glyph_info(&mut self, c: char) -> (Option<&FontImpl>, GlyphInfo) {
         if self.fonts.is_empty() {
             return (None, self.replacement_glyph.1);
         }
