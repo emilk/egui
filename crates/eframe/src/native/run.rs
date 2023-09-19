@@ -284,9 +284,13 @@ fn run_and_return(
 pub trait Detached {
     /// Returns the managed window object
     fn window(&self) -> Option<&winit::window::Window>;
+
     /// Should be called with event loop events.
     ///
     /// Events targeted at windows not managed by the app will be ignored.
+    ///
+    /// # Errors
+    /// This function can fail if we fail to set up a graphics context.
     fn on_event(
         &mut self,
         event: &Event<'_, UserEvent>,
@@ -299,9 +303,11 @@ pub enum DetachedResult {
     /// Indicates the next call to [`Detached::on_event`] will result in either a state or paint update.
     /// Ideally, the event loop control should be set to [`winit::event_loop::ControlFlow::Poll`].
     UpdateNext,
+
     /// Indicates a call to [`Detached::on_event`] will only be required after the specified time.
     /// Ideally, the event loop control should be set to [`winit::event_loop::ControlFlow::WaitUntil`].
     UpdateAt(Instant),
+
     /// Indicates the app received a close request.
     Exit,
 }
@@ -354,12 +360,7 @@ impl<T: WinitApp + 'static> DetachedRunner<T> {
                 ..
             }) => EventResult::Wait, // We just woke up to check next_repaint_time
 
-            event => match self.winit_app.on_event(event_loop, &event) {
-                Ok(event_result) => event_result,
-                Err(err) => {
-                    panic!("eframe encountered a fatal error: {err}");
-                }
-            },
+            event => self.winit_app.on_event(event_loop, event)?,
         };
 
         match event_result {
@@ -438,7 +439,10 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, winit_app: impl WinitApp + 'st
     event_loop.run(move |event, event_loop, control_flow| {
         crate::profile_scope!("winit_event", short_event_description(&event));
 
-        *control_flow = match runner.on_event_internal(&event, event_loop).unwrap() {
+        let result = runner
+            .on_event_internal(&event, event_loop)
+            .expect("eframe encountered a fatal error");
+        *control_flow = match result {
             DetachedResult::UpdateNext => ControlFlow::Poll,
             DetachedResult::UpdateAt(next_repaint_time) => {
                 ControlFlow::WaitUntil(next_repaint_time)

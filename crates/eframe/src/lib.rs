@@ -302,16 +302,18 @@ pub fn run_simple_native(
 /// Execute an app in a detached state.
 ///
 /// This allows you to control the event loop itself, which is necessary in a few
-/// ocasions, like when you need a screen not managed by `egui`.
+/// occasions, like when you need a screen not managed by `egui`.
 ///
 /// See [`Detached`] for more info on how to run detached apps.
 ///
 /// # Example
 /// ``` no_run
+/// use eframe::DetachedResult;
+/// use winit::event_loop::ControlFlow;
+///
 /// fn main() {
 ///     let native_options = eframe::NativeOptions::default();
-///     let event_loop: winit::event_loop::EventLoop<eframe::UserEvent> =
-///         EventLoopBuilder::with_user_event().build();
+///     let event_loop = eframe::EventLoopBuilder::<eframe::UserEvent>::with_user_event().build();
 ///     let mut detached = eframe::run_detached_native(
 ///         "MyApp",
 ///         &event_loop,
@@ -320,8 +322,8 @@ pub fn run_simple_native(
 ///     );
 ///     event_loop.run(move |event, event_loop, control_flow| {
 ///         *control_flow = match detached.on_event(&event, event_loop).unwrap() {
-///             DetachedResult::RepaintNext => ControlFlow::Poll,
-///             DetachedResult::RepaintAt(next_repaint) => ControlFlow::WaitUntil(next_repaint),
+///             DetachedResult::UpdateNext => ControlFlow::Poll,
+///             DetachedResult::UpdateAt(next_repaint) => ControlFlow::WaitUntil(next_repaint),
 ///             DetachedResult::Exit => ControlFlow::Exit,
 ///         }
 ///     })
