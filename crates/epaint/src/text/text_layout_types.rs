@@ -394,7 +394,7 @@ impl Default for TextWrapping {
 }
 
 impl TextWrapping {
-    /// A row can be as long as it need to be
+    /// A row can be as long as it need to be.
     pub fn no_max_width() -> Self {
         Self {
             max_width: f32::INFINITY,
@@ -402,14 +402,19 @@ impl TextWrapping {
         }
     }
 
-    /// Elide text that doesn't fit within the given width.
-    pub fn elide_at_width(max_width: f32) -> Self {
+    /// Elide text that doesn't fit within the given width, replaced with `…`.
+    pub fn truncate_at_width(max_width: f32) -> Self {
         Self {
             max_width,
             max_rows: 1,
             break_anywhere: true,
             ..Default::default()
         }
+    }
+
+    #[deprecated = "Renamed `truncate_at_width`"]
+    pub fn elide_at_width(max_width: f32) -> Self {
+        Self::truncate_at_width(max_width)
     }
 }
 
