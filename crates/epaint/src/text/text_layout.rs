@@ -40,15 +40,29 @@ impl PointScale {
 // ----------------------------------------------------------------------------
 
 /// Temporary storage before line-wrapping.
-#[derive(Default, Clone)]
+#[derive(Clone)]
 struct Paragraph {
     /// Start of the next glyph to be added.
     pub cursor_x: f32,
+
+    /// This is included in case there are no glyphs
+    pub section_index_at_start: u32,
 
     pub glyphs: Vec<Glyph>,
 
     /// In case of an empty paragraph ("\n"), use this as height.
     pub empty_paragraph_height: f32,
+}
+
+impl Paragraph {
+    pub fn from_section_index(section_index_at_start: u32) -> Self {
+        Self {
+            cursor_x: 0.0,
+            section_index_at_start,
+            glyphs: vec![],
+            empty_paragraph_height: 0.0,
+        }
+    }
 }
 
 /// Layout text into a [`Galley`].
@@ -70,7 +84,9 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
         };
     }
 
-    let mut paragraphs = vec![Paragraph::default()];
+    // For most of this we ignore the y coordinate:
+
+    let mut paragraphs = vec![Paragraph::from_section_index(0)];
     for (section_index, section) in job.sections.iter().enumerate() {
         layout_section(fonts, &job, section_index as u32, section, &mut paragraphs);
     }
@@ -102,9 +118,11 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
         }
     }
 
+    // Calculate the Y positions and tessellate the text:
     galley_from_rows(point_scale, job, rows, elided)
 }
 
+// Ignores the Y coordinate.
 fn layout_section(
     fonts: &mut FontsImpl,
     job: &LayoutJob,
@@ -135,7 +153,7 @@ fn layout_section(
 
     for chr in job.text[byte_range.clone()].chars() {
         if job.break_on_newline && chr == '\n' {
-            out_paragraphs.push(Paragraph::default());
+            out_paragraphs.push(Paragraph::from_section_index(section_index));
             paragraph = out_paragraphs.last_mut().unwrap();
             paragraph.empty_paragraph_height = line_height; // TODO(emilk): replace this hack with actually including `\n` in the glyphs?
         } else {
@@ -168,6 +186,7 @@ fn rect_from_x_range(x_range: RangeInclusive<f32>) -> Rect {
     Rect::from_x_y_ranges(x_range, 0.0..=0.0)
 }
 
+// Ignores the Y coordinate.
 fn rows_from_paragraphs(
     paragraphs: Vec<Paragraph>,
     job: &LayoutJob,
@@ -187,6 +206,7 @@ fn rows_from_paragraphs(
 
         if paragraph.glyphs.is_empty() {
             rows.push(Row {
+                section_index_at_start: paragraph.section_index_at_start,
                 glyphs: vec![],
                 visuals: Default::default(),
                 rect: Rect::from_min_size(
@@ -201,6 +221,7 @@ fn rows_from_paragraphs(
                 // Early-out optimization: the whole paragraph fits on one row.
                 let paragraph_min_x = paragraph.glyphs[0].pos.x;
                 rows.push(Row {
+                    section_index_at_start: paragraph.section_index_at_start,
                     glyphs: paragraph.glyphs,
                     visuals: Default::default(),
                     rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
@@ -241,6 +262,7 @@ fn line_break(paragraph: &Paragraph, job: &LayoutJob, out_rows: &mut Vec<Row>, e
                 // Allow the first row to be completely empty, because we know there will be more space on the next row:
                 // TODO(emilk): this records the height of this first row as zero, though that is probably fine since first_row_indentation usually comes with a first_row_min_height.
                 out_rows.push(Row {
+                    section_index_at_start: paragraph.section_index_at_start,
                     glyphs: vec![],
                     visuals: Default::default(),
                     rect: rect_from_x_range(first_row_indentation..=first_row_indentation),
@@ -259,10 +281,12 @@ fn line_break(paragraph: &Paragraph, job: &LayoutJob, out_rows: &mut Vec<Row>, e
                     })
                     .collect();
 
+                let section_index_at_start = glyphs[0].section_index;
                 let paragraph_min_x = glyphs[0].pos.x;
                 let paragraph_max_x = glyphs.last().unwrap().max_x();
 
                 out_rows.push(Row {
+                    section_index_at_start,
                     glyphs,
                     visuals: Default::default(),
                     rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
@@ -296,10 +320,12 @@ fn line_break(paragraph: &Paragraph, job: &LayoutJob, out_rows: &mut Vec<Row>, e
                 })
                 .collect();
 
+            let section_index_at_start = glyphs[0].section_index;
             let paragraph_min_x = glyphs[0].pos.x;
             let paragraph_max_x = glyphs.last().unwrap().max_x();
 
             out_rows.push(Row {
+                section_index_at_start,
                 glyphs,
                 visuals: Default::default(),
                 rect: rect_from_x_range(paragraph_min_x..=paragraph_max_x),
@@ -309,12 +335,79 @@ fn line_break(paragraph: &Paragraph, job: &LayoutJob, out_rows: &mut Vec<Row>, e
     }
 }
 
+fn append_overflow_characer(fonts: &mut FontsImpl, job: &LayoutJob, row: &mut Row) {
+    let Some(overflow_character) = job.wrap.overflow_character else {
+        return;
+    };
+
+    if let Some(last_glyph) = row.glyphs.last() {
+        let section_index = last_glyph.section_index;
+        let section = &job.sections[section_index as usize];
+        let font = fonts.font(&section.format.font_id);
+        let line_height = section
+            .format
+            .line_height
+            .unwrap_or_else(|| font.row_height());
+
+        let mut x = last_glyph.pos.x + last_glyph.size.x;
+
+        let (_, replacement_glyph_info) = font.font_impl_and_glyph_info(overflow_character);
+
+        {
+            // Kerning:
+            let (last_font_impl, last_glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
+            x += section.format.extra_letter_spacing;
+            if let Some(last_font_impl) = last_font_impl {
+                x += last_font_impl.pair_kerning(last_glyph_info.id, replacement_glyph_info.id);
+            }
+        }
+
+        let (font_impl, replacement_glyph_info) = font.font_impl_and_glyph_info(overflow_character);
+
+        row.glyphs.push(Glyph {
+            chr: overflow_character,
+            pos: pos2(x, f32::NAN),
+            size: vec2(replacement_glyph_info.advance_width, line_height),
+            ascent: font_impl.map_or(0.0, |font| font.ascent()), // Failure to find the font here would be weird
+            uv_rect: replacement_glyph_info.uv_rect,
+            section_index,
+        });
+    } else {
+        let section_index = row.section_index_at_start;
+        let section = &job.sections[section_index as usize];
+        let font = fonts.font(&section.format.font_id);
+        let line_height = section
+            .format
+            .line_height
+            .unwrap_or_else(|| font.row_height());
+
+        let x = 0.0; // TODO(emilk): heed paragraph leading_space 😬
+
+        let (font_impl, replacement_glyph_info) = font.font_impl_and_glyph_info(overflow_character);
+
+        row.glyphs.push(Glyph {
+            chr: overflow_character,
+            pos: pos2(x, f32::NAN),
+            size: vec2(replacement_glyph_info.advance_width, line_height),
+            ascent: font_impl.map_or(0.0, |font| font.ascent()), // Failure to find the font here would be weird
+            uv_rect: replacement_glyph_info.uv_rect,
+            section_index,
+        });
+    }
+}
+
 /// Trims the last glyphs in the row and replaces it with an overflow character (e.g. `…`).
+///
+/// Called before we have any Y coordinates.
 fn replace_last_glyph_with_overflow_character(
     fonts: &mut FontsImpl,
     job: &LayoutJob,
     row: &mut Row,
 ) {
+    if row.glyphs.is_empty() {
+        return append_overflow_characer(fonts, job, row);
+    }
+
     let Some(overflow_character) = job.wrap.overflow_character else {
         return;
     };
@@ -324,9 +417,7 @@ fn replace_last_glyph_with_overflow_character(
             [.., prev, last] => (Some(prev), last),
             [.., last] => (None, last),
             _ => {
-                // Empty row - we can do nothing here, because we don't know
-                // what section we are in.
-                return;
+                unreachable!("We've already explicitly handled the empty row");
             }
         };
 
@@ -383,6 +474,9 @@ fn replace_last_glyph_with_overflow_character(
     }
 }
 
+/// Horizontally aligned the text on a row.
+///
+/// /// Ignores the Y coordinate.
 fn halign_and_justify_row(
     point_scale: PointScale,
     row: &mut Row,

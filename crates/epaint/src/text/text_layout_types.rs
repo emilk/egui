@@ -480,6 +480,9 @@ pub struct Galley {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Row {
+    /// This is included in case there are no glyphs
+    pub section_index_at_start: u32,
+
     /// One for each `char`.
     pub glyphs: Vec<Glyph>,
 
