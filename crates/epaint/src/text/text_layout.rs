@@ -893,6 +893,37 @@ mod tests {
     }
 
     #[test]
+    fn test_truncate_with_newline() {
+        // No matter where we wrap, we should be appending the newline character.
+
+        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut text_format = TextFormat::default();
+        text_format.font_id.family = FontFamily::Monospace;
+
+        for text in ["Hello\nworld", "\nfoo"] {
+            for break_anywhere in [false, true] {
+                for max_width in [0.0, 5.0, 10.0, 20.0, f32::INFINITY] {
+                    let mut layout_job =
+                        LayoutJob::single_section(text.into(), text_format.clone());
+                    layout_job.wrap.max_width = max_width;
+                    layout_job.wrap.max_rows = 1;
+                    layout_job.wrap.break_anywhere = break_anywhere;
+
+                    let galley = layout(&mut fonts, layout_job.into());
+
+                    assert!(galley.elided);
+                    assert_eq!(galley.rows.len(), 1);
+                    let row_text = galley.rows[0].text();
+                    assert!(
+                        row_text.ends_with('…'),
+                        "Expected row to end with `…`, got {row_text:?} when line-breaking the text {text:?} with max_width {max_width} and break_anywhere {break_anywhere}.",
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
     fn test_cjk() {
         let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
         let mut layout_job = LayoutJob::single_section(
