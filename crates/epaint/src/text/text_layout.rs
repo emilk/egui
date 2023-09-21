@@ -78,7 +78,12 @@ pub fn layout(fonts: &mut FontsImpl, job: Arc<LayoutJob>) -> Galley {
     let point_scale = PointScale::new(fonts.pixels_per_point());
 
     let mut elided = false;
-    let mut rows = rows_from_paragraphs(fonts, paragraphs, &job, &mut elided);
+    let mut rows = rows_from_paragraphs(paragraphs, &job, &mut elided);
+    if elided {
+        if let Some(last_row) = rows.last_mut() {
+            replace_last_glyph_with_overflow_character(fonts, &job, last_row);
+        }
+    }
 
     let justify = job.justify && job.wrap.max_width.is_finite();
 
@@ -164,7 +169,6 @@ fn rect_from_x_range(x_range: RangeInclusive<f32>) -> Rect {
 }
 
 fn rows_from_paragraphs(
-    fonts: &mut FontsImpl,
     paragraphs: Vec<Paragraph>,
     job: &LayoutJob,
     elided: &mut bool,
@@ -203,7 +207,7 @@ fn rows_from_paragraphs(
                     ends_with_newline: !is_last_paragraph,
                 });
             } else {
-                line_break(fonts, &paragraph, job, &mut rows, elided);
+                line_break(&paragraph, job, &mut rows, elided);
                 rows.last_mut().unwrap().ends_with_newline = !is_last_paragraph;
             }
         }
@@ -212,13 +216,7 @@ fn rows_from_paragraphs(
     rows
 }
 
-fn line_break(
-    fonts: &mut FontsImpl,
-    paragraph: &Paragraph,
-    job: &LayoutJob,
-    out_rows: &mut Vec<Row>,
-    elided: &mut bool,
-) {
+fn line_break(paragraph: &Paragraph, job: &LayoutJob, out_rows: &mut Vec<Row>, elided: &mut bool) {
     // Keeps track of good places to insert row break if we exceed `wrap_width`.
     let mut row_break_candidates = RowBreakCandidates::default();
 
@@ -227,12 +225,12 @@ fn line_break(
     let mut row_start_idx = 0;
 
     for i in 0..paragraph.glyphs.len() {
-        let potential_row_width = paragraph.glyphs[i].max_x() - row_start_x;
-
         if job.wrap.max_rows <= out_rows.len() {
             *elided = true;
             break;
         }
+
+        let potential_row_width = paragraph.glyphs[i].max_x() - row_start_x;
 
         if job.wrap.max_width < potential_row_width {
             // Row break:
@@ -287,10 +285,7 @@ fn line_break(
         // Final row of text:
 
         if job.wrap.max_rows <= out_rows.len() {
-            if let Some(last_row) = out_rows.last_mut() {
-                replace_last_glyph_with_overflow_character(fonts, job, last_row);
-                *elided = true;
-            }
+            *elided = true; // can't fit another row
         } else {
             let glyphs: Vec<Glyph> = paragraph.glyphs[row_start_idx..]
                 .iter()
@@ -328,7 +323,11 @@ fn replace_last_glyph_with_overflow_character(
         let (prev_glyph, last_glyph) = match row.glyphs.as_mut_slice() {
             [.., prev, last] => (Some(prev), last),
             [.., last] => (None, last),
-            _ => break,
+            _ => {
+                // Empty row - we can do nothing here, because we don't know
+                // what section we are in.
+                return;
+            }
         };
 
         let section = &job.sections[last_glyph.section_index as usize];
@@ -375,14 +374,13 @@ fn replace_last_glyph_with_overflow_character(
         let row_end_x = last_glyph.max_x();
         let row_start_x = row.glyphs.first().unwrap().pos.x; // if `last_mut()` returned `Some`, then so will `first()`
         let row_width = row_end_x - row_start_x;
-        if row_width <= job.wrap.max_width {
+        if row_width <= job.wrap.max_width || row.glyphs.len() == 1 {
             return; // we are done
         }
 
+        // We didn't fit - pop the last glyph and try again.
         row.glyphs.pop();
     }
-
-    // We failed to insert `overflow_character` without exceeding `wrap_width`.
 }
 
 fn halign_and_justify_row(
