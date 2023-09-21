@@ -879,41 +879,46 @@ fn is_cjk_break_allowed(c: char) -> bool {
 
 // ----------------------------------------------------------------------------
 
-#[test]
-fn test_zero_max_width() {
-    let mut fonts = FontsImpl::new(1.0, 1024, super::FontDefinitions::default());
-    let mut layout_job = LayoutJob::single_section("W".into(), super::TextFormat::default());
-    layout_job.wrap.max_width = 0.0;
-    let galley = super::layout(&mut fonts, layout_job.into());
-    assert_eq!(galley.rows.len(), 1);
-}
+#[cfg(test)]
+mod tests {
+    use super::{super::*, *};
 
-#[test]
-fn test_cjk() {
-    let mut fonts = FontsImpl::new(1.0, 1024, super::FontDefinitions::default());
-    let mut layout_job = LayoutJob::single_section(
-        "日本語とEnglishの混在した文章".into(),
-        super::TextFormat::default(),
-    );
-    layout_job.wrap.max_width = 90.0;
-    let galley = super::layout(&mut fonts, layout_job.into());
-    assert_eq!(
-        galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
-        vec!["日本語と", "Englishの混在", "した文章"]
-    );
-}
+    #[test]
+    fn test_zero_max_width() {
+        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut layout_job = LayoutJob::single_section("W".into(), TextFormat::default());
+        layout_job.wrap.max_width = 0.0;
+        let galley = layout(&mut fonts, layout_job.into());
+        assert_eq!(galley.rows.len(), 1);
+    }
 
-#[test]
-fn test_pre_cjk() {
-    let mut fonts = FontsImpl::new(1.0, 1024, super::FontDefinitions::default());
-    let mut layout_job = LayoutJob::single_section(
-        "日本語とEnglishの混在した文章".into(),
-        super::TextFormat::default(),
-    );
-    layout_job.wrap.max_width = 110.0;
-    let galley = super::layout(&mut fonts, layout_job.into());
-    assert_eq!(
-        galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
-        vec!["日本語とEnglish", "の混在した文章"]
-    );
+    #[test]
+    fn test_cjk() {
+        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut layout_job = LayoutJob::single_section(
+            "日本語とEnglishの混在した文章".into(),
+            TextFormat::default(),
+        );
+        layout_job.wrap.max_width = 90.0;
+        let galley = layout(&mut fonts, layout_job.into());
+        assert_eq!(
+            galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
+            vec!["日本語と", "Englishの混在", "した文章"]
+        );
+    }
+
+    #[test]
+    fn test_pre_cjk() {
+        let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
+        let mut layout_job = LayoutJob::single_section(
+            "日本語とEnglishの混在した文章".into(),
+            TextFormat::default(),
+        );
+        layout_job.wrap.max_width = 110.0;
+        let galley = layout(&mut fonts, layout_job.into());
+        assert_eq!(
+            galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
+            vec!["日本語とEnglish", "の混在した文章"]
+        );
+    }
 }
