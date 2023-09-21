@@ -494,6 +494,13 @@ pub struct Row {
     pub ends_with_newline: bool,
 }
 
+impl Row {
+    /// The text on this row, excluding the implicit `\n` if any.
+    pub fn text(&self) -> String {
+        self.glyphs.iter().map(|g| g.chr).collect()
+    }
+}
+
 /// The tessellated output of a row.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

@@ -898,11 +898,7 @@ fn test_cjk() {
     layout_job.wrap.max_width = 90.0;
     let galley = super::layout(&mut fonts, layout_job.into());
     assert_eq!(
-        galley
-            .rows
-            .iter()
-            .map(|row| row.glyphs.iter().map(|g| g.chr).collect::<String>())
-            .collect::<Vec<_>>(),
+        galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
         vec!["日本語と", "Englishの混在", "した文章"]
     );
 }
@@ -917,11 +913,7 @@ fn test_pre_cjk() {
     layout_job.wrap.max_width = 110.0;
     let galley = super::layout(&mut fonts, layout_job.into());
     assert_eq!(
-        galley
-            .rows
-            .iter()
-            .map(|row| row.glyphs.iter().map(|g| g.chr).collect::<String>())
-            .collect::<Vec<_>>(),
+        galley.rows.iter().map(|row| row.text()).collect::<Vec<_>>(),
         vec!["日本語とEnglish", "の混在した文章"]
     );
 }
