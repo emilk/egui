@@ -411,11 +411,6 @@ impl TextWrapping {
             ..Default::default()
         }
     }
-
-    #[deprecated = "Renamed `truncate_at_width`"]
-    pub fn elide_at_width(max_width: f32) -> Self {
-        Self::truncate_at_width(max_width)
-    }
 }
 
 // ----------------------------------------------------------------------------
@@ -502,13 +497,6 @@ pub struct Row {
     pub ends_with_newline: bool,
 }
 
-impl Row {
-    /// The text on this row, excluding the implicit `\n` if any.
-    pub fn text(&self) -> String {
-        self.glyphs.iter().map(|g| g.chr).collect()
-    }
-}
-
 /// The tessellated output of a row.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -576,6 +564,11 @@ impl Glyph {
 // ----------------------------------------------------------------------------
 
 impl Row {
+    /// The text on this row, excluding the implicit `\n` if any.
+    pub fn text(&self) -> String {
+        self.glyphs.iter().map(|g| g.chr).collect()
+    }
+
     /// Excludes the implicit `\n` after the [`Row`], if any.
     #[inline]
     pub fn char_count_excluding_newline(&self) -> usize {

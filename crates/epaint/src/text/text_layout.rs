@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use emath::*;
 
-use crate::{Color32, Mesh, Stroke, Vertex};
+use crate::{text::font::Font, Color32, Mesh, Stroke, Vertex};
 
 use super::{FontsImpl, Galley, Glyph, LayoutJob, LayoutSection, Row, RowVisuals};
 
@@ -335,34 +335,53 @@ fn line_break(paragraph: &Paragraph, job: &LayoutJob, out_rows: &mut Vec<Row>, e
     }
 }
 
-fn append_overflow_characer(fonts: &mut FontsImpl, job: &LayoutJob, row: &mut Row) {
+/// Trims the last glyphs in the row and replaces it with an overflow character (e.g. `…`).
+///
+/// Called before we have any Y coordinates.
+fn replace_last_glyph_with_overflow_character(
+    fonts: &mut FontsImpl,
+    job: &LayoutJob,
+    row: &mut Row,
+) {
+    fn row_width(row: &Row) -> f32 {
+        if let (Some(first), Some(last)) = (row.glyphs.first(), row.glyphs.last()) {
+            last.max_x() - first.pos.x
+        } else {
+            0.0
+        }
+    }
+
+    fn row_height(section: &LayoutSection, font: &Font) -> f32 {
+        section
+            .format
+            .line_height
+            .unwrap_or_else(|| font.row_height())
+    }
+
     let Some(overflow_character) = job.wrap.overflow_character else {
         return;
     };
 
+    // We always try to just append the character first:
     if let Some(last_glyph) = row.glyphs.last() {
         let section_index = last_glyph.section_index;
         let section = &job.sections[section_index as usize];
         let font = fonts.font(&section.format.font_id);
-        let line_height = section
-            .format
-            .line_height
-            .unwrap_or_else(|| font.row_height());
+        let line_height = row_height(section, font);
+
+        let (_, last_glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
 
         let mut x = last_glyph.pos.x + last_glyph.size.x;
 
-        let (_, replacement_glyph_info) = font.font_impl_and_glyph_info(overflow_character);
+        let (font_impl, replacement_glyph_info) = font.font_impl_and_glyph_info(overflow_character);
 
         {
             // Kerning:
-            let (last_font_impl, last_glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
             x += section.format.extra_letter_spacing;
-            if let Some(last_font_impl) = last_font_impl {
-                x += last_font_impl.pair_kerning(last_glyph_info.id, replacement_glyph_info.id);
+            if let Some(font_impl) = font_impl {
+                x += font_impl.pair_kerning(last_glyph_info.id, replacement_glyph_info.id);
             }
         }
-
-        let (font_impl, replacement_glyph_info) = font.font_impl_and_glyph_info(overflow_character);
 
         row.glyphs.push(Glyph {
             chr: overflow_character,
@@ -376,10 +395,7 @@ fn append_overflow_characer(fonts: &mut FontsImpl, job: &LayoutJob, row: &mut Ro
         let section_index = row.section_index_at_start;
         let section = &job.sections[section_index as usize];
         let font = fonts.font(&section.format.font_id);
-        let line_height = section
-            .format
-            .line_height
-            .unwrap_or_else(|| font.row_height());
+        let line_height = row_height(section, font);
 
         let x = 0.0; // TODO(emilk): heed paragraph leading_space 😬
 
@@ -394,23 +410,16 @@ fn append_overflow_characer(fonts: &mut FontsImpl, job: &LayoutJob, row: &mut Ro
             section_index,
         });
     }
-}
 
-/// Trims the last glyphs in the row and replaces it with an overflow character (e.g. `…`).
-///
-/// Called before we have any Y coordinates.
-fn replace_last_glyph_with_overflow_character(
-    fonts: &mut FontsImpl,
-    job: &LayoutJob,
-    row: &mut Row,
-) {
-    if row.glyphs.is_empty() {
-        return append_overflow_characer(fonts, job, row);
+    if row_width(row) <= job.wrap.max_width || row.glyphs.len() == 1 {
+        return; // we are done
     }
 
-    let Some(overflow_character) = job.wrap.overflow_character else {
-        return;
-    };
+    // We didn't fit it. Remove it again…
+    row.glyphs.pop();
+
+    // …then go into a loop where we replace the last character with the overflow character
+    // until we fit within the max_width:
 
     loop {
         let (prev_glyph, last_glyph) = match row.glyphs.as_mut_slice() {
@@ -424,53 +433,45 @@ fn replace_last_glyph_with_overflow_character(
         let section = &job.sections[last_glyph.section_index as usize];
         let extra_letter_spacing = section.format.extra_letter_spacing;
         let font = fonts.font(&section.format.font_id);
-        let line_height = section
-            .format
-            .line_height
-            .unwrap_or_else(|| font.row_height());
+        let line_height = row_height(section, font);
 
-        let prev_glyph_id = prev_glyph.map(|prev_glyph| {
-            let (_, prev_glyph_info) = font.font_impl_and_glyph_info(prev_glyph.chr);
-            prev_glyph_info.id
-        });
+        if let Some(prev_glyph) = prev_glyph {
+            let prev_glyph_id = font.font_impl_and_glyph_info(prev_glyph.chr).1.id;
 
-        // undo kerning with previous glyph
-        let (font_impl, glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
-        last_glyph.pos.x -= extra_letter_spacing
-            + font_impl
-                .zip(prev_glyph_id)
-                .map(|(font_impl, prev_glyph_id)| {
-                    font_impl.pair_kerning(prev_glyph_id, glyph_info.id)
-                })
-                .unwrap_or_default();
+            // Undo kerning with previous glyph:
+            let (font_impl, glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
+            last_glyph.pos.x -= extra_letter_spacing;
+            if let Some(font_impl) = font_impl {
+                last_glyph.pos.x -= font_impl.pair_kerning(prev_glyph_id, glyph_info.id);
+            }
 
-        // replace the glyph
-        last_glyph.chr = overflow_character;
-        let (font_impl, glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
-        last_glyph.size = vec2(glyph_info.advance_width, line_height);
-        last_glyph.uv_rect = glyph_info.uv_rect;
+            // Replace the glyph:
+            last_glyph.chr = overflow_character;
+            let (font_impl, glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
+            last_glyph.size = vec2(glyph_info.advance_width, line_height);
+            last_glyph.uv_rect = glyph_info.uv_rect;
 
-        // reapply kerning
-        last_glyph.pos.x += extra_letter_spacing
-            + font_impl
-                .zip(prev_glyph_id)
-                .map(|(font_impl, prev_glyph_id)| {
-                    font_impl.pair_kerning(prev_glyph_id, glyph_info.id)
-                })
-                .unwrap_or_default();
+            // Reapply kerning:
+            last_glyph.pos.x += extra_letter_spacing;
+            if let Some(font_impl) = font_impl {
+                last_glyph.pos.x += font_impl.pair_kerning(prev_glyph_id, glyph_info.id);
+            }
 
-        row.rect.max.x = last_glyph.max_x();
+            // Check if we're within width budget:
+            if row_width(row) <= job.wrap.max_width || row.glyphs.len() == 1 {
+                return; // We are done
+            }
 
-        // check if we're within width budget
-        let row_end_x = last_glyph.max_x();
-        let row_start_x = row.glyphs.first().unwrap().pos.x; // if `last_mut()` returned `Some`, then so will `first()`
-        let row_width = row_end_x - row_start_x;
-        if row_width <= job.wrap.max_width || row.glyphs.len() == 1 {
-            return; // we are done
+            // We didn't fit - pop the last glyph and try again.
+            row.glyphs.pop();
+        } else {
+            // Just replace and be done with it.
+            last_glyph.chr = overflow_character;
+            let (_, glyph_info) = font.font_impl_and_glyph_info(last_glyph.chr);
+            last_glyph.size = vec2(glyph_info.advance_width, line_height);
+            last_glyph.uv_rect = glyph_info.uv_rect;
+            return;
         }
-
-        // We didn't fit - pop the last glyph and try again.
-        row.glyphs.pop();
     }
 }
 
@@ -989,8 +990,10 @@ mod tests {
         // No matter where we wrap, we should be appending the newline character.
 
         let mut fonts = FontsImpl::new(1.0, 1024, FontDefinitions::default());
-        let mut text_format = TextFormat::default();
-        text_format.font_id.family = FontFamily::Monospace;
+        let text_format = TextFormat {
+            font_id: FontId::monospace(12.0),
+            ..Default::default()
+        };
 
         for text in ["Hello\nworld", "\nfoo"] {
             for break_anywhere in [false, true] {
@@ -1012,6 +1015,20 @@ mod tests {
                     );
                 }
             }
+        }
+
+        {
+            let mut layout_job = LayoutJob::single_section("Hello\nworld".into(), text_format);
+            layout_job.wrap.max_width = 50.0;
+            layout_job.wrap.max_rows = 1;
+            layout_job.wrap.break_anywhere = false;
+
+            let galley = layout(&mut fonts, layout_job.into());
+
+            assert!(galley.elided);
+            assert_eq!(galley.rows.len(), 1);
+            let row_text = galley.rows[0].text();
+            assert_eq!(row_text, "Hello…");
         }
     }
 
