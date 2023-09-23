@@ -962,6 +962,18 @@ pub enum Key {
     /// `,`
     Comma,
 
+    /// '/'
+    Backslash,
+
+    // '['
+    OpenBracket,
+
+    // ']'
+    CloseBracket,
+
+    /// '`'
+    Backtick,
+
     /// `-`
     Minus,
 
@@ -1094,6 +1106,10 @@ impl Key {
         Self::Plus,
         Self::Equals,
         Self::Semicolon,
+        Self::OpenBracket,
+        Self::CloseBracket,
+        Self::Backtick,
+        Self::Backslash,
         // Digits:
         Self::Num0,
         Self::Num1,
@@ -1195,6 +1211,10 @@ impl Key {
             "Plus" | "+" => Self::Plus,
             "Equals" | "=" => Self::Equals,
             "Semicolon" | ";" => Self::Semicolon,
+            "Backslash" | "\\" => Self::Backslash,
+            "OpenBracket" | "[" => Self::OpenBracket,
+            "CloseBracket" | "]" => Self::CloseBracket,
+            "Backtick" | "`" => Self::Backtick,
 
             "0" => Self::Num0,
             "1" => Self::Num1,
@@ -1308,6 +1328,11 @@ impl Key {
             Key::Plus => "Plus",
             Key::Equals => "Equals",
             Key::Semicolon => "Semicolon",
+
+            Key::Backslash => "Backslash",
+            Key::OpenBracket => "OpenBracket",
+            Key::CloseBracket => "CloseBracket",
+            Key::Backtick => "Backtick",
 
             Key::Num0 => "0",
             Key::Num1 => "1",
