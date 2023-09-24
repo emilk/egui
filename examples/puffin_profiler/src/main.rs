@@ -28,7 +28,7 @@ impl eframe::App for MyApp {
             ui.horizontal(|ui| {
                 ui.monospace(cmd);
                 if ui.small_button("📋").clicked() {
-                    ui.output_mut(|o| o.copied_text = cmd.into());
+                    ui.ctx().copy_text(cmd.into());
                 }
             });
 

@@ -389,7 +389,9 @@ pub use {
     context::{Context, RequestRepaintInfo},
     data::{
         input::*,
-        output::{self, CursorIcon, FullOutput, PlatformOutput, UserAttentionType, WidgetInfo},
+        output::{
+            self, CursorIcon, FullOutput, OpenUrl, PlatformOutput, UserAttentionType, WidgetInfo,
+        },
     },
     grid::Grid,
     id::{Id, IdMap},

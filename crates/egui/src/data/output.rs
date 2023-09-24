@@ -92,7 +92,9 @@ pub struct PlatformOutput {
 
 impl PlatformOutput {
     /// Open the given url in a web browser.
+    ///
     /// If egui is running in a browser, the same tab will be reused.
+    #[deprecated = "Use Context::open_url instead"]
     pub fn open_url(&mut self, url: impl ToString) {
         self.open_url = Some(OpenUrl::same_tab(url));
     }
@@ -156,6 +158,8 @@ impl PlatformOutput {
 }
 
 /// What URL to open, and how.
+///
+/// Use with [`crate::Context::open_url`].
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct OpenUrl {
