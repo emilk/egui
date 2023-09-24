@@ -28,7 +28,7 @@ use static_assertions::assert_not_impl_any;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
-pub use winit::event_loop::EventLoopBuilder;
+pub use winit::{event_loop::EventLoopBuilder, window::WindowBuilder};
 
 /// Hook into the building of an event loop before it is run
 ///
@@ -37,6 +37,14 @@ pub use winit::event_loop::EventLoopBuilder;
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)>;
+
+/// Hook into the building of a the native window.
+///
+/// You can configure any platform specific details required on top of the default configuration
+/// done by `EFrame`.
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
+pub type WindowBuilderHook = Box<dyn FnOnce(WindowBuilder) -> WindowBuilder>;
 
 /// This is how your app is created.
 ///
@@ -397,6 +405,15 @@ pub struct NativeOptions {
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     pub event_loop_builder: Option<EventLoopBuilderHook>,
 
+    /// Hook into the building of a window.
+    ///
+    /// Specify a callback here in case you need to make platform specific changes to the
+    /// window appearance.
+    ///
+    /// Note: A [`NativeOptions`] clone will not include any `window_builder` hook.
+    #[cfg(any(feature = "glow", feature = "wgpu"))]
+    pub window_builder: Option<WindowBuilderHook>,
+
     #[cfg(feature = "glow")]
     /// Needed for cross compiling for VirtualBox VMSVGA driver with OpenGL ES 2.0 and OpenGL 2.1 which doesn't support SRGB texture.
     /// See <https://github.com/emilk/egui/pull/1993>.
@@ -466,6 +483,9 @@ impl Clone for NativeOptions {
             #[cfg(any(feature = "glow", feature = "wgpu"))]
             event_loop_builder: None, // Skip any builder callbacks if cloning
 
+            #[cfg(any(feature = "glow", feature = "wgpu"))]
+            window_builder: None, // Skip any builder callbacks if cloning
+
             #[cfg(feature = "wgpu")]
             wgpu_options: self.wgpu_options.clone(),
 
@@ -519,6 +539,9 @@ impl Default for NativeOptions {
 
             #[cfg(any(feature = "glow", feature = "wgpu"))]
             event_loop_builder: None,
+
+            #[cfg(any(feature = "glow", feature = "wgpu"))]
+            window_builder: None,
 
             #[cfg(feature = "glow")]
             shader_version: None,
