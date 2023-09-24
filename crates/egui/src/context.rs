@@ -920,10 +920,10 @@ impl Context {
     /// Equivalent to:
     /// ```
     /// # let ctx = egui::Context::default();
-    /// # let open_url = crate::output::OpenUrl::same_tab("http://www.example.com");
-    /// ctx.output_mut(|o| o.open_url = Some(open_url);
+    /// # let open_url = egui::OpenUrl::same_tab("http://www.example.com");
+    /// ctx.output_mut(|o| o.open_url = Some(open_url));
     /// ```
-    pub fn open_url(&self, open_url: crate::output::OpenUrl) {
+    pub fn open_url(&self, open_url: crate::OpenUrl) {
         self.output_mut(|o| o.open_url = Some(open_url));
     }
 
