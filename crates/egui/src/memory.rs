@@ -1,3 +1,5 @@
+#![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
+
 use epaint::{emath::Rangef, vec2, Vec2};
 
 use crate::{area, window, EventFilter, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
@@ -17,6 +19,7 @@ use crate::{area, window, EventFilter, Id, IdMap, InputState, LayerId, Pos2, Rec
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
+    /// Global egui options.
     pub options: Options,
 
     /// This map stores some superficial state for all widgets with custom [`Id`]s.
@@ -627,21 +630,25 @@ impl Memory {
         self.interaction.focus.focused_widget = None;
     }
 
+    /// Is any widget being dragged?
     #[inline(always)]
     pub fn is_anything_being_dragged(&self) -> bool {
         self.interaction.drag_id.is_some()
     }
 
+    /// Is this specific widget being dragged?
     #[inline(always)]
     pub fn is_being_dragged(&self, id: Id) -> bool {
         self.interaction.drag_id == Some(id)
     }
 
+    /// Set which widget is being dragged.
     #[inline(always)]
     pub fn set_dragged_id(&mut self, id: Id) {
         self.interaction.drag_id = Some(id);
     }
 
+    /// Stop dragging any widget.
     #[inline(always)]
     pub fn stop_dragging(&mut self) {
         self.interaction.drag_id = None;
@@ -663,22 +670,29 @@ impl Memory {
 /// Popups are things like combo-boxes, color pickers, menus etc.
 /// Only one can be be open at a time.
 impl Memory {
+    /// Is the given popup open?
     pub fn is_popup_open(&self, popup_id: Id) -> bool {
         self.popup == Some(popup_id) || self.everything_is_visible()
     }
 
+    /// Is any popup open?
     pub fn any_popup_open(&self) -> bool {
         self.popup.is_some() || self.everything_is_visible()
     }
 
+    /// Open the given popup, and close all other.
     pub fn open_popup(&mut self, popup_id: Id) {
         self.popup = Some(popup_id);
     }
 
+    /// Close the open popup, if any.
     pub fn close_popup(&mut self) {
         self.popup = None;
     }
 
+    /// Toggle the given popup between closed and open.
+    ///
+    /// Note: at most one popup can be open at one time.
     pub fn toggle_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
             self.close_popup();
