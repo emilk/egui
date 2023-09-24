@@ -84,6 +84,8 @@ pub struct PlatformOutput {
     pub mutable_text_under_cursor: bool,
 
     /// Screen-space position of text edit cursor (used for IME).
+    ///
+    /// Iff `Some`, the user is editing text.
     pub text_cursor_pos: Option<crate::Pos2>,
 
     #[cfg(feature = "accesskit")]
