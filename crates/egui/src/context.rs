@@ -934,7 +934,7 @@ impl Context {
     /// Equivalent to:
     /// ```
     /// # let ctx = egui::Context::default();
-    /// ctx.output_mut(|o| o.copied_text = "Copy this".to_owned();
+    /// ctx.output_mut(|o| o.copied_text = "Copy this".to_owned());
     /// ```
     pub fn copy_text(&self, text: String) {
         self.output_mut(|o| o.copied_text = text);
