@@ -636,13 +636,13 @@ impl Memory {
         self.interaction.drag_id.is_some()
     }
 
-    /// Is this specific widget beeing dragged?
+    /// Is this specific widget being dragged?
     #[inline(always)]
     pub fn is_being_dragged(&self, id: Id) -> bool {
         self.interaction.drag_id == Some(id)
     }
 
-    /// Set which widget is beeing dragged.
+    /// Set which widget is being dragged.
     #[inline(always)]
     pub fn set_dragged_id(&mut self, id: Id) {
         self.interaction.drag_id = Some(id);
