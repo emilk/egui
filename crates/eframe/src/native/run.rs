@@ -970,7 +970,7 @@ mod glow_integration {
             if window.is_minimized() == Some(true) {
                 // On Mac, a minimized Window uses up all CPU:
                 // https://github.com/emilk/egui/issues/325
-                crate::profile_scope!("bg_sleep");
+                crate::profile_scope!("minimized_sleep");
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
@@ -1417,7 +1417,7 @@ mod wgpu_integration {
             if window.is_minimized() == Some(true) {
                 // On Mac, a minimized Window uses up all CPU:
                 // https://github.com/emilk/egui/issues/325
-                crate::profile_scope!("bg_sleep");
+                crate::profile_scope!("minimized_sleep");
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
