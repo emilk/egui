@@ -112,6 +112,16 @@ pub fn window_builder<E>(
         // We must also keep the window hidden until AccessKit is initialized.
         .with_visible(false);
 
+    // As of winit 0.28, with the addition of the WindowsButtons API, resizable no
+    // longer controls whether the maximize button is disabled. So here we emulate
+    // the behavior of older versions of winit until we change our API.
+    //
+    // https://github.com/rust-windowing/winit/blob/master/CHANGELOG.md#0280
+    if !resizable {
+        window_builder =
+            window_builder.with_enabled_buttons(!winit::window::WindowButtons::MAXIMIZE);
+    }
+
     #[cfg(target_os = "macos")]
     if *fullsize_content {
         window_builder = window_builder
