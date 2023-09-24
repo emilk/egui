@@ -87,7 +87,7 @@ On Fedora Rawhide you need to run:
 * Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/crates/egui_demo_lib/src/demo/toggle_switch.rs)
 * Modular: You should be able to use small parts of egui and combine them in new ways
 * Safe: there is no `unsafe` code in egui
-* Minimal dependencies: [`ab_glyph`](https://crates.io/crates/ab_glyph) [`ahash`](https://crates.io/crates/ahash) [`nohash-hasher`](https://crates.io/crates/nohash-hasher) [`parking_lot`](https://crates.io/crates/parking_lot)
+* Minimal dependencies
 
 egui is *not* a framework. egui is a library you call into, not an environment you program for.
 
@@ -98,6 +98,21 @@ egui is *not* a framework. egui is a library you call into, not an environment y
 * Become the most powerful GUI library
 * Native looking interface
 * Advanced and flexible layouts (that's fundamentally incompatible with immediate mode)
+
+## Dependencies
+`egui` has a minimal set of default dependencies:
+
+* [`ab_glyph`](https://crates.io/crates/ab_glyph)
+* [`ahash`](https://crates.io/crates/ahash)
+* [`nohash-hasher`](https://crates.io/crates/nohash-hasher)
+* [`parking_lot`](https://crates.io/crates/parking_lot)
+
+Heavier dependencies are kept out of `egui`, even as opt-in.
+No code that isn't fully Wasm-friendly is part of `egui`.
+
+To load images into `egui` you can use the official [`egui_extras`](https://github.com/emilk/egui/tree/master/crates/egui_extras) crate.
+
+[`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe) on the other hand has a lot of dependencies, including [`winit`](https://crates.io/crates/winit), [`image`](https://crates.io/crates/image), graphics crates, clipboard crates, etc,
 
 ## Who is egui for?
 
