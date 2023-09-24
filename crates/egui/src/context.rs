@@ -927,6 +927,19 @@ impl Context {
         self.output_mut(|o| o.open_url = Some(open_url));
     }
 
+    /// Copy the given text to the system clipboard.
+    ///
+    /// Empty strings are ignored.
+    ///
+    /// Equivalent to:
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// ctx.output_mut(|o| o.copied_text = "Copy this".to_owned();
+    /// ```
+    pub fn copy_text(&self, text: String) {
+        self.output_mut(|o| o.copied_text = text);
+    }
+
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
     ///
     /// Can be used to get the text for [`Button::shortcut_text`].

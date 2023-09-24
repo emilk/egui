@@ -234,9 +234,9 @@ fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>, alpha: Alpha) {
 
         if ui.button("📋").on_hover_text("Click to copy").clicked() {
             if alpha == Alpha::Opaque {
-                ui.output_mut(|o| o.copied_text = format!("{r}, {g}, {b}"));
+                ui.ctx().copy_text(format!("{r}, {g}, {b}"));
             } else {
-                ui.output_mut(|o| o.copied_text = format!("{r}, {g}, {b}, {a}"));
+                ui.ctx().copy_text(format!("{r}, {g}, {b}, {a}"));
             }
         }
 
