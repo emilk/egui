@@ -118,21 +118,18 @@ impl Widget for Hyperlink {
         let Self { url, text, new_tab } = self;
 
         let response = ui.add(Link::new(text));
+
         if response.clicked() {
             let modifiers = ui.ctx().input(|i| i.modifiers);
-            ui.ctx().output_mut(|o| {
-                o.open_url = Some(crate::output::OpenUrl {
-                    url: url.clone(),
-                    new_tab: new_tab || modifiers.any(),
-                });
+            ui.ctx().open_url(crate::OpenUrl {
+                url: url.clone(),
+                new_tab: new_tab || modifiers.any(),
             });
         }
         if response.middle_clicked() {
-            ui.ctx().output_mut(|o| {
-                o.open_url = Some(crate::output::OpenUrl {
-                    url: url.clone(),
-                    new_tab: true,
-                });
+            ui.ctx().open_url(crate::OpenUrl {
+                url: url.clone(),
+                new_tab: true,
             });
         }
         response.on_hover_text(url)

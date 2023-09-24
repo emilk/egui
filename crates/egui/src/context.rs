@@ -551,10 +551,6 @@ impl Context {
     ) -> R {
         self.write(move |ctx| writer(&mut ctx.memory.options.tessellation_options))
     }
-}
-
-impl Context {
-    // ---------------------------------------------------------------------
 
     /// If the given [`Id`] has been used previously the same frame at at different position,
     /// then an error will be printed on screen.
@@ -917,6 +913,18 @@ impl Context {
     /// ```
     pub fn set_cursor_icon(&self, cursor_icon: CursorIcon) {
         self.output_mut(|o| o.cursor_icon = cursor_icon);
+    }
+
+    /// Open an URL in a browser.
+    ///
+    /// Equivalent to:
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// # let open_url = crate::output::OpenUrl::same_tab("http://www.example.com");
+    /// ctx.output_mut(|o| o.open_url = Some(open_url);
+    /// ```
+    pub fn open_url(&self, open_url: crate::output::OpenUrl) {
+        self.output_mut(|o| o.open_url = Some(open_url));
     }
 
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).

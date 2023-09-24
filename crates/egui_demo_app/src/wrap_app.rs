@@ -396,7 +396,8 @@ impl WrapApp {
             {
                 selected_anchor = anchor;
                 if frame.is_web() {
-                    ui.output_mut(|o| o.open_url(format!("#{anchor}")));
+                    ui.ctx()
+                        .open_url(egui::OpenUrl::same_tab(format!("#{anchor}")));
                 }
             }
         }
@@ -408,7 +409,7 @@ impl WrapApp {
                 if clock_button(ui, crate::seconds_since_midnight()).clicked() {
                     self.state.selected_anchor = Anchor::Clock;
                     if frame.is_web() {
-                        ui.output_mut(|o| o.open_url("#clock"));
+                        ui.ctx().open_url(egui::OpenUrl::same_tab("#clock"));
                     }
                 }
             }
