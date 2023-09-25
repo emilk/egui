@@ -1,5 +1,5 @@
 use egui::TexturesDelta;
-use egui::ViewportId;
+use egui::ViewportIdPair;
 use wasm_bindgen::JsValue;
 
 use crate::{epi, App};
@@ -179,11 +179,11 @@ impl AppRunner {
         let canvas_size = super::canvas_size_in_points(self.canvas_id());
         let raw_input = self.input.new_frame(canvas_size);
 
-        let full_output =
-            self.egui_ctx
-                .run(raw_input, ViewportId::MAIN, ViewportId::MAIN, |egui_ctx| {
-                    self.app.update(egui_ctx, &mut self.frame);
-                });
+        let full_output = self
+            .egui_ctx
+            .run(raw_input, ViewportIdPair::MAIN, |egui_ctx| {
+                self.app.update(egui_ctx, &mut self.frame);
+            });
         let egui::FullOutput {
             platform_output,
             repaint_after,
