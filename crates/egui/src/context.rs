@@ -76,14 +76,15 @@ struct Repaint {
 impl Default for Repaint {
     fn default() -> Self {
         let mut repaint_after = HashMap::default();
+
+        // Start with painting an extra frame to compensate for some widgets
+        // that take two frames before they "settle":
         repaint_after.insert(ViewportId::MAIN, std::time::Duration::from_millis(100));
         let mut repaint_requests = HashMap::default();
         repaint_requests.insert(ViewportId::MAIN, 1);
         Self {
             frame_nr: 0,
             repaint_after,
-            // Start with painting an extra frame to compensate for some widgets
-            // that take two frames before they "settle":
             repaint_requests,
             request_repaint_callback: None,
             requested_repaint_last_frame: false,
