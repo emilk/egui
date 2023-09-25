@@ -340,7 +340,7 @@ impl State {
                             .events
                             .push(egui::Event::CompositionEnd(text.clone()));
                     }
-                    winit::event::Ime::Preedit(text, ..) => {
+                    winit::event::Ime::Preedit(text, Some(_)) => {
                         if !self.input_method_editor_started {
                             self.input_method_editor_started = true;
                             self.egui_input.events.push(egui::Event::CompositionStart);
@@ -349,6 +349,7 @@ impl State {
                             .events
                             .push(egui::Event::CompositionUpdate(text.clone()));
                     }
+                    winit::event::Ime::Preedit(_, None) => {}
                 };
 
                 EventResponse {

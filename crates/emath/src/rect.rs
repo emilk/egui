@@ -13,6 +13,10 @@ use crate::*;
 /// of `min` and `max` are swapped. These are usually a sign of an error.
 ///
 /// Normally the unit is points (logical pixels) in screen space coordinates.
+///
+/// `Rect` does NOT implement `Default`, because there is no obvious default value.
+/// [`Rect::ZERO`] may seem reasonable, but when used as a bounding box, [`Rect::NOTHING`]
+/// is a better default - so be explicit instead!
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]

@@ -734,10 +734,6 @@ impl Context {
     ) -> R {
         self.write(move |ctx| writer(&mut ctx.memory.options.tessellation_options))
     }
-}
-
-impl Context {
-    // ---------------------------------------------------------------------
 
     /// If the given [`Id`] has been used previously the same frame at at different position,
     /// then an error will be printed on screen.
@@ -1102,6 +1098,31 @@ impl Context {
     /// ```
     pub fn set_cursor_icon(&self, cursor_icon: CursorIcon) {
         self.output_mut(|o| o.cursor_icon = cursor_icon);
+    }
+
+    /// Open an URL in a browser.
+    ///
+    /// Equivalent to:
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// # let open_url = egui::OpenUrl::same_tab("http://www.example.com");
+    /// ctx.output_mut(|o| o.open_url = Some(open_url));
+    /// ```
+    pub fn open_url(&self, open_url: crate::OpenUrl) {
+        self.output_mut(|o| o.open_url = Some(open_url));
+    }
+
+    /// Copy the given text to the system clipboard.
+    ///
+    /// Empty strings are ignored.
+    ///
+    /// Equivalent to:
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// ctx.output_mut(|o| o.copied_text = "Copy this".to_owned());
+    /// ```
+    pub fn copy_text(&self, text: String) {
+        self.output_mut(|o| o.copied_text = text);
     }
 
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).

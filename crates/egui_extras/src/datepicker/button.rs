@@ -7,6 +7,7 @@ pub(crate) struct DatePickerButtonState {
     pub picker_visible: bool,
 }
 
+/// Shows a date, and will open a date picker popup when clicked.
 pub struct DatePickerButton<'a> {
     selection: &'a mut NaiveDate,
     id_source: Option<&'a str>,
