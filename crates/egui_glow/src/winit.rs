@@ -1,5 +1,5 @@
 use crate::shader_version::ShaderVersion;
-use egui::ViewportId;
+use egui::ViewportIdPair;
 pub use egui_winit;
 use egui_winit::winit;
 pub use egui_winit::EventResponse;
@@ -55,9 +55,7 @@ impl EguiGlow {
             textures_delta,
             shapes,
             ..
-        } = self
-            .egui_ctx
-            .run(raw_input, ViewportId::MAIN, ViewportId::MAIN, run_ui);
+        } = self.egui_ctx.run(raw_input, ViewportIdPair::MAIN, run_ui);
 
         self.egui_winit
             .handle_platform_output(window, &self.egui_ctx, platform_output);

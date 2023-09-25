@@ -121,7 +121,7 @@
 //! loop {
 //!     let raw_input: egui::RawInput = gather_input();
 //!
-//!     let full_output = ctx.run(raw_input, egui::ViewportId::MAIN, egui::ViewportId::MAIN, |ctx| {
+//!     let full_output = ctx.run(raw_input, egui::ViewportIdPair::MAIN, |ctx| {
 //!         egui::CentralPanel::default().show(&ctx, |ui| {
 //!             ui.label("Hello world!");
 //!             if ui.button("Click me").clicked() {

@@ -673,7 +673,7 @@ mod glow_integration {
                     window: window.map(|w| Arc::new(RwLock::new(w))),
                     egui_winit: None,
                     render: None,
-                    pair: ViewportIdPair::MAIN
+                    pair: ViewportIdPair::MAIN,
                 })),
             );
 
@@ -1241,7 +1241,7 @@ mod glow_integration {
                             window: None,
                             egui_winit: None,
                             render,
-                            pair
+                            pair,
                         })),
                     );
                     glutin.builders.insert(pair.this, builder);
@@ -1353,7 +1353,12 @@ mod glow_integration {
                 let (integration, app, glutin, painter) = {
                     let running = self.running.read();
                     let running = running.as_ref().unwrap();
-                    (running.integration.clone(), running.app.clone(), running.glutin_ctx.clone(), running.painter.clone())
+                    (
+                        running.integration.clone(),
+                        running.app.clone(),
+                        running.glutin_ctx.clone(),
+                        running.painter.clone(),
+                    )
                 };
 
                 // This will only happen if the viewport is sync
@@ -2131,7 +2136,7 @@ mod wgpu_integration {
                                 viewport_builder.icon = builders.get(&parent_id).unwrap().icon.clone();
                             }
                         }
-                        
+
                         let Window{window, state, ..} = _windows.entry(viewport_id).or_insert(Window{window: None, state: Arc::new(RwLock::new(None)), render: None, parent_id });
                         let _ = c_builders.write().entry(viewport_id).or_insert(viewport_builder.clone());
 
@@ -2324,7 +2329,7 @@ mod wgpu_integration {
                         &window.read(),
                         state.write().as_mut().unwrap(),
                         &render.clone(),
-                        ViewportIdPair::new(viewport_id, parent_id)
+                        ViewportIdPair::new(viewport_id, parent_id),
                     );
 
                     integration.write().handle_platform_output(
