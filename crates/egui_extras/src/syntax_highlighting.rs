@@ -508,6 +508,7 @@ impl Language {
             "c" | "h" | "hpp" | "cpp" | "c++" => Some(Self::cpp()),
             "py" | "python" => Some(Self::python()),
             "rs" | "rust" => Some(Self::rust()),
+            "toml" => Some(Self::toml()),
             _ => {
                 None // unsupported language
             }
@@ -653,6 +654,14 @@ impl Language {
             ]
             .into_iter()
             .collect(),
+        }
+    }
+
+    fn toml() -> Self {
+        Self {
+            double_slash_comments: false,
+            hash_comments: true,
+            keywords: Default::default(),
         }
     }
 }
