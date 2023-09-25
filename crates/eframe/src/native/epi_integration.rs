@@ -7,7 +7,9 @@ use winit::platform::macos::WindowBuilderExtMacOS as _;
 
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
-use egui::{mutex::RwLock, NumExt as _, ViewportBuilder, ViewportId, ViewportRender};
+use egui::{
+    mutex::RwLock, NumExt as _, ViewportBuilder, ViewportId, ViewportIdPair, ViewportRender,
+};
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
@@ -419,14 +421,7 @@ impl EpiIntegration {
         let saved_memory: egui::Memory = self.egui_ctx.memory(|mem| mem.clone());
         self.egui_ctx
             .memory_mut(|mem| mem.set_everything_is_visible(true));
-        let full_output = self.update(
-            app,
-            window,
-            egui_winit,
-            &None,
-            ViewportId::MAIN,
-            ViewportId::MAIN,
-        );
+        let full_output = self.update(app, window, egui_winit, &None, ViewportIdPair::MAIN);
         self.pending_full_output.append(full_output); // Handle it next frame
         self.egui_ctx.memory_mut(|mem| *mem = saved_memory); // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
@@ -483,8 +478,7 @@ impl EpiIntegration {
         window: &winit::window::Window,
         egui_winit: &mut egui_winit::State,
         render: &Option<Arc<Box<ViewportRender>>>,
-        viewport_id: egui::ViewportId,
-        parent_id: egui::ViewportId,
+        pair: ViewportIdPair,
     ) -> egui::FullOutput {
         let frame_start = std::time::Instant::now();
 
@@ -496,16 +490,14 @@ impl EpiIntegration {
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 
         // Run user code:
-        let full_output = self
-            .egui_ctx
-            .run(raw_input, viewport_id, parent_id, |egui_ctx| {
-                crate::profile_scope!("App::update");
-                if let Some(render) = render {
-                    render(egui_ctx);
-                } else {
-                    app.update(egui_ctx, &mut self.frame);
-                }
-            });
+        let full_output = self.egui_ctx.run(raw_input, pair, |egui_ctx| {
+            crate::profile_scope!("App::update");
+            if let Some(render) = render {
+                render(egui_ctx);
+            } else {
+                app.update(egui_ctx, &mut self.frame);
+            }
+        });
 
         self.pending_full_output.append(full_output);
         let full_output = std::mem::take(&mut self.pending_full_output);

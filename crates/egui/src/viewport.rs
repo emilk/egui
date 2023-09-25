@@ -21,6 +21,7 @@ impl ViewportId {
     pub const MAIN: Self = Self(0);
 }
 
+/// This will deref to `ViewportIdPair::this`
 #[derive(Default, Debug, Hash, Clone, Copy, PartialEq, Eq)]
 pub struct ViewportIdPair {
     pub this: ViewportId,
@@ -33,6 +34,18 @@ impl ViewportIdPair {
         this: ViewportId::MAIN,
         parent: ViewportId::MAIN,
     };
+
+    pub fn new(this: ViewportId, parent: ViewportId) -> Self {
+        Self { this, parent }
+    }
+}
+
+impl std::ops::Deref for ViewportIdPair {
+    type Target = ViewportId;
+
+    fn deref(&self) -> &Self::Target {
+        &self.this
+    }
 }
 
 /// This is used to render an async viewport

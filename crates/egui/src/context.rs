@@ -227,12 +227,7 @@ struct ContextImpl {
 }
 
 impl ContextImpl {
-    fn begin_frame_mut(
-        &mut self,
-        mut new_raw_input: RawInput,
-        viewport_id: ViewportId,
-        parent_viewport_id: ViewportId,
-    ) {
+    fn begin_frame_mut(&mut self, mut new_raw_input: RawInput, pair: ViewportIdPair) {
         // This is used to pause the last frame
         if !self.frame_stack.is_empty() {
             let viewport_id = self.viewport_id();
@@ -248,10 +243,7 @@ impl ContextImpl {
             );
         }
 
-        self.frame_stack.push(ViewportIdPair {
-            this: viewport_id,
-            parent: parent_viewport_id,
-        });
+        self.frame_stack.push(pair);
         self.output.entry(self.viewport_id()).or_default();
         self.repaint.start_frame(self.viewport_id());
 
@@ -259,15 +251,15 @@ impl ContextImpl {
             if self
                 .memory
                 .new_pixels_per_viewport
-                .get(&viewport_id)
+                .get(&pair)
                 .map_or(true, |pixels| *pixels != new_pixels_per_point)
             {
                 new_raw_input.pixels_per_point = Some(new_pixels_per_point);
                 self.memory
                     .new_pixels_per_viewport
-                    .insert(viewport_id, new_pixels_per_point);
+                    .insert(pair.this, new_pixels_per_point);
 
-                let input = self.input.entry(viewport_id).or_default();
+                let input = self.input.entry(pair.this).or_default();
                 // This is a bit hacky, but is required to avoid jitter:
                 let ratio = input.pixels_per_point / new_pixels_per_point;
                 let mut rect = input.screen_rect;
@@ -279,31 +271,31 @@ impl ContextImpl {
 
         self.layer_rects_prev_frame = self
             .layer_rects_prev_viewports
-            .remove(&viewport_id)
+            .remove(&pair)
             .unwrap_or_default();
 
         self.memory.begin_frame(
-            self.input.get(&viewport_id).unwrap_or(&Default::default()),
+            self.input.get(&pair).unwrap_or(&Default::default()),
             &new_raw_input,
-            viewport_id,
+            pair.this,
         );
 
         let input = self
             .input
-            .remove(&viewport_id)
+            .remove(&pair)
             .unwrap_or_default()
             .begin_frame(new_raw_input, self.repaint.requested_repaint_last_frame);
-        self.input.insert(viewport_id, input);
+        self.input.insert(pair.this, input);
 
         self.frame_state
-            .entry(viewport_id)
+            .entry(pair.this)
             .or_default()
-            .begin_frame(&self.input[&viewport_id]);
+            .begin_frame(&self.input[&pair]);
 
         self.update_fonts_mut();
 
         // Ensure we register the background area so panels and background ui can catch clicks:
-        let input = &self.input[&viewport_id];
+        let input = &self.input[&pair];
         let screen_rect = input.screen_rect();
         self.memory.areas.set_state(
             LayerId::background(),
@@ -524,13 +516,12 @@ impl Context {
     pub fn run(
         &self,
         new_input: RawInput,
-        viewport_id: ViewportId,
-        parent_viewport_id: ViewportId,
+        pair: ViewportIdPair,
         run_ui: impl FnOnce(&Context),
     ) -> FullOutput {
         crate::profile_function!();
 
-        self.begin_frame(new_input, viewport_id, parent_viewport_id);
+        self.begin_frame(new_input, pair);
         run_ui(self);
         self.end_frame()
     }
@@ -552,15 +543,10 @@ impl Context {
     /// let full_output = ctx.end_frame();
     /// // handle full_output
     /// ```
-    pub fn begin_frame(
-        &self,
-        new_input: RawInput,
-        viewport_id: ViewportId,
-        parent_viewport_id: ViewportId,
-    ) {
+    pub fn begin_frame(&self, new_input: RawInput, pair: ViewportIdPair) {
         crate::profile_function!();
 
-        self.write(|ctx| ctx.begin_frame_mut(new_input, viewport_id, parent_viewport_id));
+        self.write(|ctx| ctx.begin_frame_mut(new_input, pair));
     }
 
     /// Create a new Context and specify if is desktop

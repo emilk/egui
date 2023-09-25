@@ -620,30 +620,20 @@ pub enum WidgetType {
 pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let _ = ctx.run(
-        Default::default(),
-        ViewportId::MAIN,
-        ViewportId::MAIN,
-        |ctx| {
-            run_ui(ctx);
-        },
-    );
+    let _ = ctx.run(Default::default(), ViewportIdPair::MAIN, |ctx| {
+        run_ui(ctx);
+    });
 }
 
 /// For use in tests; especially doctests.
 pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let _ = ctx.run(
-        Default::default(),
-        ViewportId::MAIN,
-        ViewportId::MAIN,
-        |ctx| {
-            crate::CentralPanel::default().show(ctx, |ui| {
-                add_contents(ui);
-            });
-        },
-    );
+    let _ = ctx.run(Default::default(), ViewportIdPair::MAIN, |ctx| {
+        crate::CentralPanel::default().show(ctx, |ui| {
+            add_contents(ui);
+        });
+    });
 }
 
 #[cfg(feature = "accesskit")]

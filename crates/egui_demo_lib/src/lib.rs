@@ -19,7 +19,7 @@ pub mod easy_mark;
 pub use color_test::ColorTest;
 pub use demo::DemoWindows;
 #[cfg(test)]
-use egui::ViewportId;
+use egui::ViewportIdPair;
 
 /// View some Rust code with syntax highlighting and selection.
 pub(crate) fn rust_view_ui(ui: &mut egui::Ui, code: &str) {
@@ -76,14 +76,9 @@ fn test_egui_e2e() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        let full_output = ctx.run(
-            raw_input.clone(),
-            ViewportId::MAIN,
-            ViewportId::MAIN,
-            |ctx| {
-                demo_windows.ui(ctx);
-            },
-        );
+        let full_output = ctx.run(raw_input.clone(), ViewportIdPair::MAIN, |ctx| {
+            demo_windows.ui(ctx);
+        });
         let clipped_primitives = ctx.tessellate(full_output.shapes);
         assert!(!clipped_primitives.is_empty());
     }
@@ -100,14 +95,9 @@ fn test_egui_zero_window_size() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        let full_output = ctx.run(
-            raw_input.clone(),
-            ViewportId::MAIN,
-            ViewportId::MAIN,
-            |ctx| {
-                demo_windows.ui(ctx);
-            },
-        );
+        let full_output = ctx.run(raw_input.clone(), ViewportIdPair::MAIN, |ctx| {
+            demo_windows.ui(ctx);
+        });
         let clipped_primitives = ctx.tessellate(full_output.shapes);
         assert!(
             clipped_primitives.is_empty(),
