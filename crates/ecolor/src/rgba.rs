@@ -122,6 +122,12 @@ impl Rgba {
         Self([r, g, b, 0.0])
     }
 
+    /// Is the alpha=0 ?
+    #[inline(always)]
+    pub fn is_additive(self) -> bool {
+        self.a() == 0.0
+    }
+
     /// Multiply with e.g. 0.5 to make us half transparent
     #[inline(always)]
     pub fn multiply(self, alpha: f32) -> Self {
