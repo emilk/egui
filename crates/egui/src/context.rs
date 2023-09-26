@@ -136,7 +136,7 @@ impl Repaint {
         &mut self,
         viewport_id: ViewportId,
         viewports: &[ViewportId],
-    ) -> Vec<(ViewportId, std::time::Duration)> {
+    ) -> HashMap<ViewportId, std::time::Duration> {
         // if repaint_requests is greater than zero. just set the duration to zero for immediate
         // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
         let repaint_after = if self
@@ -166,10 +166,7 @@ impl Repaint {
         self.repaint_requests
             .retain(|id, repaints| viewports.contains(id) && *repaints != 0);
 
-        self.repaint_after
-            .iter()
-            .map(|(id, time)| (*id, *time))
-            .collect()
+        self.repaint_after.clone()
     }
 }
 

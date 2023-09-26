@@ -1,5 +1,7 @@
 //! All the data egui returns to the backend at the end of each frame.
 
+use ahash::HashMap;
+
 use crate::ViewportId;
 use crate::{ViewportCommand, ViewportOutput, WidgetType};
 
@@ -19,7 +21,7 @@ pub struct FullOutput {
     /// duration elapses. when in reactive mode, egui spends forever waiting for input and only then,
     /// will it repaint itself. this can be used to make sure that backend will only wait for a
     /// specified amount of time, and repaint egui without any new input.
-    pub repaint_after: Vec<(ViewportId, std::time::Duration)>,
+    pub repaint_after: HashMap<ViewportId, std::time::Duration>,
 
     /// Texture changes since last frame (including the font texture).
     ///
