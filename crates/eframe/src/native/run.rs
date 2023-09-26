@@ -177,7 +177,7 @@ fn run_and_return(
 
         WINIT_EVENT_LOOP.with(|row_event_loop| *row_event_loop.write() = event_loop);
 
-        let events = match &event {
+        let event_results = match &event {
             winit::event::Event::LoopDestroyed => {
                 // On Mac, Cmd-Q we get here and then `run_return` doesn't return (despite its name),
                 // so we need to save state now:
@@ -245,13 +245,13 @@ fn run_and_return(
             },
         };
 
-        for event in events {
-            match event {
+        for event_result in event_results {
+            match event_result {
                 EventResult::Wait => {
                     control_flow.set_wait();
                 }
                 EventResult::RepaintNow(window_id) => {
-                    log::trace!("Repaint caused by winit::Event: {:?}", event);
+                    log::trace!("Repaint caused by winit::Event: {:?}", event_result);
                     if cfg!(target_os = "windows") {
                         // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                         windows_next_repaint_times.remove(&window_id);
@@ -263,7 +263,7 @@ fn run_and_return(
                     }
                 }
                 EventResult::RepaintNext(window_id) => {
-                    log::trace!("Repaint caused by winit::Event: {:?}", event);
+                    log::trace!("Repaint caused by winit::Event: {:?}", event_result);
                     windows_next_repaint_times.insert(window_id, Instant::now());
                 }
                 EventResult::RepaintAt(window_id, repaint_time) => {
@@ -338,7 +338,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 
         WINIT_EVENT_LOOP.with(|row_event_loop| *row_event_loop.write() = event_loop);
 
-        let events = match event {
+        let event_results = match event {
             winit::event::Event::LoopDestroyed => {
                 log::debug!("Received Event::LoopDestroyed");
                 vec![EventResult::Exit]
@@ -385,8 +385,8 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             },
         };
 
-        for event in events {
-            match event {
+        for event_result in event_results {
+            match event_result {
                 EventResult::Wait => {}
                 EventResult::RepaintNow(window_id) => {
                     if cfg!(target_os = "windows") {
