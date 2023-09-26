@@ -81,6 +81,9 @@ jobs:
       - name: Cranky
         run: cargo cranky --all-targets --all-features -- -D warnings
 
+      - name: Cranky release
+        run: cargo cranky --all-targets --all-features --release -- -D warnings
+
   # ---------------------------------------------------------------------------
 
   check_wasm:

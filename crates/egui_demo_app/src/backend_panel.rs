@@ -82,8 +82,6 @@ impl BackendPanel {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        egui::trace!(ui);
-
         self.integration_ui(ui, frame);
 
         ui.separator();
@@ -101,11 +99,9 @@ impl BackendPanel {
 
         ui.separator();
 
-        {
-            let mut debug_on_hover = ui.ctx().debug_on_hover();
-            ui.checkbox(&mut debug_on_hover, "🐛 Debug on hover")
-                .on_hover_text("Show structure of the ui when you hover with the mouse");
-            ui.ctx().set_debug_on_hover(debug_on_hover);
+        #[cfg(debug_assertions)]
+        if ui.ctx().style().debug.debug_on_hover_with_all_modifiers {
+            ui.label("Press down all modifiers and hover a widget to see a callstack for it");
         }
 
         #[cfg(target_arch = "wasm32")]

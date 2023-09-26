@@ -662,6 +662,7 @@ impl Context {
         // This solves the problem of overlapping widgets.
         // Whichever widget is added LAST (=on top) gets the input:
         if interact_rect.is_positive() && sense.interactive() {
+            #[cfg(debug_assertions)]
             if self.style().debug.show_interactive_widgets {
                 Self::layer_painter(self, LayerId::debug()).rect(
                     interact_rect,
@@ -670,6 +671,8 @@ impl Context {
                     Stroke::new(1.0, Color32::YELLOW.additive().linear_multiply(0.05)),
                 );
             }
+
+            #[cfg(debug_assertions)]
             let mut show_blocking_widget = None;
 
             self.write(|ctx| {
@@ -690,6 +693,7 @@ impl Context {
                                     // Another interactive widget is covering us at the pointer position,
                                     // so we aren't hovered.
 
+                                    #[cfg(debug_assertions)]
                                     if ctx.memory.options.style.debug.show_blocking_widget {
                                         // Store the rects to use them outside the write() call to
                                         // avoid deadlock
@@ -705,6 +709,7 @@ impl Context {
                 }
             });
 
+            #[cfg(debug_assertions)]
             if let Some((interact_rect, prev_rect)) = show_blocking_widget {
                 Self::layer_painter(self, LayerId::debug()).debug_rect(
                     interact_rect,
@@ -1528,15 +1533,15 @@ impl Context {
     // ---------------------------------------------------------------------
 
     /// Whether or not to debug widget layout on hover.
+    #[cfg(debug_assertions)]
     pub fn debug_on_hover(&self) -> bool {
         self.options(|opt| opt.style.debug.debug_on_hover)
     }
 
     /// Turn on/off whether or not to debug widget layout on hover.
+    #[cfg(debug_assertions)]
     pub fn set_debug_on_hover(&self, debug_on_hover: bool) {
-        let mut style = self.options(|opt| (*opt.style).clone());
-        style.debug.debug_on_hover = debug_on_hover;
-        self.set_style(style);
+        self.style_mut(|style| style.debug.debug_on_hover = debug_on_hover);
     }
 }
 
@@ -1619,7 +1624,6 @@ impl Context {
     /// Show the state of egui, including its input and output.
     pub fn inspection_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
-        crate::trace!(ui);
 
         ui.label(format!("Is using pointer: {}", self.is_using_pointer()))
             .on_hover_text(
