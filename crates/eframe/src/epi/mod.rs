@@ -1164,7 +1164,8 @@ pub fn get_value<T: serde::de::DeserializeOwned>(storage: &dyn Storage, key: &st
         .and_then(|value| match ron::from_str(&value) {
             Ok(value) => Some(value),
             Err(err) => {
-                log::warn!("Failed to decode RON: {err}");
+                // This happens on when we break the format, e.g. when updating egui.
+                log::debug!("Failed to decode RON: {err}");
                 None
             }
         })
