@@ -959,6 +959,12 @@ mod glow_integration {
                     .unwrap_or_else(|err| panic!("An OpenGL error occurred: {err}\n"));
 
             glutin_ctx.max_texture_side = painter.max_texture_side();
+            glutin_ctx.viewports[&ViewportId::MAIN]
+                .write()
+                .egui_winit
+                .as_mut()
+                .unwrap()
+                .set_max_texture_side(glutin_ctx.max_texture_side);
 
             let system_theme = system_theme(
                 &glutin_ctx
