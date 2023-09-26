@@ -51,9 +51,9 @@ ui.image(egui::include_image!("ferris.png"));
 * [Quick start](#quick-start)
 * [Demo](#demo)
 * [Goals](#goals)
-* [Who is egui for?](#who-is-egui-for)
-* [Dependencies](#dependencies)
 * [State / features](#state)
+* [Dependencies](#dependencies)
+* [Who is egui for?](#who-is-egui-for)
 * [Integrations](#integrations)
 * [Why immediate mode](#why-immediate-mode)
 * [FAQ](#faq)
@@ -112,6 +112,32 @@ egui is *not* a framework. egui is a library you call into, not an environment y
 * Native looking interface
 * Advanced and flexible layouts (that's fundamentally incompatible with immediate mode)
 
+## State
+
+egui is in active development. It works well for what it does, but it lacks many features and the interfaces are still in flux. New releases will have breaking changes.
+
+Still, egui can be used to create professional looking applications, like [the Rerun Viewer](https://app.rerun.io/).
+
+### Features
+
+* Widgets: label, text button, hyperlink, checkbox, radio button, slider, draggable value, text editing, combo box, color picker, spinner
+* Images
+* Layouts: horizontal, vertical, columns, automatic wrapping
+* Text editing: multiline, copy/paste, undo, emoji supports
+* Windows: move, resize, name, minimize and close. Automatically sized and positioned.
+* Regions: resizing, vertical scrolling, collapsing headers (sections)
+* Rendering: Anti-aliased rendering of lines, circles, text and convex polygons.
+* Tooltips on hover
+* Accessibility via [AccessKit](https://accesskit.dev/)
+* More
+
+<img src="media/widget_gallery_0.23.gif" width="50%">
+
+Light Theme:
+
+<img src="media/widget_gallery_0.23_light.png" width="50%">
+
+
 ## Dependencies
 `egui` has a minimal set of default dependencies:
 
@@ -154,31 +180,6 @@ So in summary:
 
 * egui: pure Rust, new, exciting, work in progress
 * Dear ImGui: feature rich, well tested, cumbersome Rust integration
-
-## State
-
-egui is in active development. It works well for what it does, but it lacks many features and the interfaces are still in flux. New releases will have breaking changes.
-
-Still, egui can be used to create professional looking applications, like [the Rerun Viewer](https://app.rerun.io/).
-
-### Features
-
-* Widgets: label, text button, hyperlink, checkbox, radio button, slider, draggable value, text editing, combo box, color picker, spinner
-* Images
-* Layouts: horizontal, vertical, columns, automatic wrapping
-* Text editing: multiline, copy/paste, undo, emoji supports
-* Windows: move, resize, name, minimize and close. Automatically sized and positioned.
-* Regions: resizing, vertical scrolling, collapsing headers (sections)
-* Rendering: Anti-aliased rendering of lines, circles, text and convex polygons.
-* Tooltips on hover
-* Accessibility via [AccessKit](https://accesskit.dev/)
-* More
-
-<img src="media/widget_gallery_0.23.gif" width="50%">
-
-Light Theme:
-
-<img src="media/widget_gallery_0.23_light.png" width="50%">
 
 ## Integrations
 
