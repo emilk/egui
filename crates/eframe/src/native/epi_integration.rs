@@ -126,10 +126,10 @@ pub fn window_builder<E>(
     }
 
     if let Some(min_size) = *min_window_size {
-        window_builder = window_builder.with_min_inner_size(Some(min_size.to_pos2()));
+        window_builder = window_builder.with_min_inner_size(Some(min_size));
     }
     if let Some(max_size) = *max_window_size {
-        window_builder = window_builder.with_max_inner_size(Some(max_size.to_pos2()));
+        window_builder = window_builder.with_max_inner_size(Some(max_size));
     }
 
     window_builder = window_builder.with_drag_and_drop(*drag_and_drop_support);
@@ -153,7 +153,7 @@ pub fn window_builder<E>(
         if let Some(initial_window_size) = *initial_window_size {
             let initial_window_size =
                 initial_window_size.at_most(largest_monitor_point_size(event_loop));
-            window_builder = window_builder.with_inner_size(Some(initial_window_size.to_pos2()));
+            window_builder = window_builder.with_inner_size(Some(initial_window_size));
         }
 
         *initial_window_size

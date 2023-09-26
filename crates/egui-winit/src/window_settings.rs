@@ -62,7 +62,7 @@ impl WindowSettings {
 
         if let Some(inner_size_points) = self.inner_size_points {
             window
-                .with_inner_size(Some(inner_size_points.to_pos2()))
+                .with_inner_size(Some(inner_size_points))
                 .with_fullscreen(self.fullscreen)
         } else {
             window

@@ -1,6 +1,6 @@
 use std::{fmt::Display, sync::Arc};
 
-use epaint::Pos2;
+use epaint::{Pos2, Vec2};
 
 use crate::{Context, Id};
 
@@ -64,7 +64,7 @@ pub struct ViewportBuilder {
     pub title: String,
     pub name: Option<(String, String)>,
     pub position: Option<Option<Pos2>>,
-    pub inner_size: Option<Option<Pos2>>,
+    pub inner_size: Option<Option<Vec2>>,
     pub fullscreen: Option<bool>,
     pub maximized: Option<bool>,
     pub minimized: Option<bool>,
@@ -77,8 +77,8 @@ pub struct ViewportBuilder {
     pub title_hidden: Option<bool>,
     pub titlebar_transparent: Option<bool>,
     pub fullsize_content_view: Option<bool>,
-    pub min_inner_size: Option<Option<Pos2>>,
-    pub max_inner_size: Option<Option<Pos2>>,
+    pub min_inner_size: Option<Option<Vec2>>,
+    pub max_inner_size: Option<Option<Vec2>>,
     pub drag_and_drop: Option<bool>,
 
     pub close_button: Option<bool>,
@@ -95,7 +95,7 @@ impl ViewportBuilder {
             title: "Dummy egui viewport".into(),
             name: None,
             position: None,
-            inner_size: Some(Some(Pos2::new(300.0, 200.0))),
+            inner_size: Some(Some(Vec2::new(300.0, 200.0))),
             fullscreen: None,
             maximized: None,
             resizable: Some(true),
@@ -216,19 +216,19 @@ impl ViewportBuilder {
     }
 
     /// Should be bigger then 0
-    pub fn with_inner_size(mut self, value: Option<Pos2>) -> Self {
+    pub fn with_inner_size(mut self, value: Option<Vec2>) -> Self {
         self.inner_size = Some(value);
         self
     }
 
     /// Should be bigger then 0
-    pub fn with_min_inner_size(mut self, value: Option<Pos2>) -> Self {
+    pub fn with_min_inner_size(mut self, value: Option<Vec2>) -> Self {
         self.min_inner_size = Some(value);
         self
     }
 
     /// Should be bigger then 0
-    pub fn with_max_inner_size(mut self, value: Option<Pos2>) -> Self {
+    pub fn with_max_inner_size(mut self, value: Option<Vec2>) -> Self {
         self.max_inner_size = Some(value);
         self
     }
@@ -283,14 +283,14 @@ pub enum ViewportCommand {
     OuterPosition(Pos2),
 
     /// Should be bigger then 0
-    InnerSize(Pos2),
+    InnerSize(Vec2),
 
     /// Should be bigger then 0
-    MinInnerSize(Option<Pos2>),
+    MinInnerSize(Option<Vec2>),
 
     /// Should be bigger then 0
-    MaxInnerSize(Option<Pos2>),
-    ResizeIncrements(Option<Pos2>),
+    MaxInnerSize(Option<Vec2>),
+    ResizeIncrements(Option<Vec2>),
 
     /// Top, Bottom, Right, Left
     Resize(bool, bool, bool, bool),
