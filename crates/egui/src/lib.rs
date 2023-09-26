@@ -353,6 +353,10 @@ pub mod util;
 pub mod widget_text;
 pub mod widgets;
 
+#[cfg(feature = "callstack")]
+#[cfg(debug_assertions)]
+mod callstack;
+
 #[cfg(feature = "accesskit")]
 pub use accesskit;
 
@@ -481,32 +485,6 @@ macro_rules! github_link_file {
     ($github_url: expr, $label: expr) => {{
         let url = format!("{}{}", $github_url, file!());
         $crate::Hyperlink::from_label_and_url($label, url)
-    }};
-}
-
-// ----------------------------------------------------------------------------
-
-/// Show debug info on hover when [`Context::set_debug_on_hover`] has been turned on.
-///
-/// ```
-/// # egui::__run_test_ui(|ui| {
-/// // Turn on tracing of widgets
-/// ui.ctx().set_debug_on_hover(true);
-///
-/// /// Show [`std::file`], [`std::line`] and argument on hover
-/// egui::trace!(ui, "MyWindow");
-///
-/// /// Show [`std::file`] and [`std::line`] on hover
-/// egui::trace!(ui);
-/// # });
-/// ```
-#[macro_export]
-macro_rules! trace {
-    ($ui: expr) => {{
-        $ui.trace_location(format!("{}:{}", file!(), line!()))
-    }};
-    ($ui: expr, $label: expr) => {{
-        $ui.trace_location(format!("{} - {}:{}", $label, file!(), line!()))
     }};
 }
 

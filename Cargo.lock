@@ -1164,6 +1164,7 @@ version = "0.22.0"
 dependencies = [
  "accesskit",
  "ahash 0.8.3",
+ "backtrace",
  "document-features",
  "epaint",
  "log",

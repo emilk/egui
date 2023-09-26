@@ -25,6 +25,11 @@ default = ["default_fonts"]
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`epaint::Vertex`], [`emath::Vec2`] etc to `&[u8]`.
 bytemuck = ["epaint/bytemuck"]
 
+## Show a debug-ui on hover including the stacktrace to the hovered item.
+## This is very useful in finding the code that creates a part of the UI.
+## Does not work on web.
+callstack = ["dep:backtrace"]
+
 ## [`cint`](https://docs.rs/cint) enables interoperability with other color libraries.
 cint = ["epaint/cint"]
 
@@ -79,6 +84,8 @@ nohash-hasher = "0.2"
 ## Exposes detailed accessibility implementation required by platform
 ## accessibility APIs. Also requires support in the egui integration.
 accesskit = { version = "0.11", optional = true }
+
+backtrace = { version = "0.3", optional = true }
 
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }

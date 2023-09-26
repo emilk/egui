@@ -164,21 +164,21 @@ pub struct WrapApp {
 }
 
 impl WrapApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        egui_extras::install_image_loaders(&_cc.egui_ctx);
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        egui_extras::install_image_loaders(&cc.egui_ctx);
 
         #[allow(unused_mut)]
         let mut slf = Self {
             state: State::default(),
 
             #[cfg(any(feature = "glow", feature = "wgpu"))]
-            custom3d: crate::apps::Custom3d::new(_cc),
+            custom3d: crate::apps::Custom3d::new(cc),
 
             dropped_files: Default::default(),
         };
 
         #[cfg(feature = "persistence")]
-        if let Some(storage) = _cc.storage {
+        if let Some(storage) = cc.storage {
             if let Some(state) = eframe::get_value(storage, eframe::APP_KEY) {
                 slf.state = state;
             }
@@ -263,7 +263,6 @@ impl eframe::App for WrapApp {
 
         let mut cmd = Command::Nothing;
         egui::TopBottomPanel::top("wrap_app_top_bar").show(ctx, |ui| {
-            egui::trace!(ui);
             ui.horizontal_wrapped(|ui| {
                 ui.visuals_mut().button_frame = false;
                 self.bar_contents(ui, frame, &mut cmd);

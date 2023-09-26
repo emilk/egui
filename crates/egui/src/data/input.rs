@@ -455,6 +455,11 @@ impl Modifiers {
         !self.is_none()
     }
 
+    #[inline]
+    pub fn all(&self) -> bool {
+        self.alt && self.ctrl && self.shift && self.command
+    }
+
     /// Is shift the only pressed button?
     #[inline]
     pub fn shift_only(&self) -> bool {
