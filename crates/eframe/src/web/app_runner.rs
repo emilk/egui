@@ -203,7 +203,7 @@ impl AppRunner {
 
         self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
 
-        let (_, repaint_after) = repaint_after[0];
+        let repaint_after = repaint_after[&egui::ViewportId::MAIN];
         (repaint_after, clipped_primitives)
     }
 

@@ -62,7 +62,10 @@ impl EguiGlow {
 
         self.shapes = shapes;
         self.textures_delta.append(textures_delta);
-        repaint_after.last().map(|(_, t)| *t).unwrap_or_default()
+        repaint_after
+            .get(&egui::ViewportId::MAIN)
+            .cloned()
+            .unwrap_or_default()
     }
 
     /// Paint the results of the last call to [`Self::run`].
