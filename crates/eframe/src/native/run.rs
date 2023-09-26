@@ -1073,113 +1073,18 @@ mod glow_integration {
             let c_painter = painter.clone();
             let c_time = integration.beginning;
 
-            // ## Sync Rendering
             integration.egui_ctx.set_render_sync_callback(
-                move |egui_ctx, mut viewport_builder, pair, render| {
-
-                    let has_window = c_glutin.read().viewports.get(&pair).is_some();
-                    if !has_window{
-                        if viewport_builder.icon.is_none(){
-                            viewport_builder.icon = c_glutin.read().builders.get(&pair.parent).and_then(|b|b.icon.clone());
-                        }
-
-                        {
-                            let mut glutin = c_glutin.write();
-                            glutin.viewports.entry(pair.this).or_insert(Arc::new(RwLock::new(Window{ gl_surface: None, window: None, pair, render: None, egui_winit: None })));
-                            glutin.builders.entry(pair.this).or_insert(viewport_builder);
-                        }
-
-                        let win = c_glutin.read().viewports[&pair].clone();
-                        let event_loop;
-                        #[allow(unsafe_code)]
-                        unsafe{
-                            event_loop = WINIT_EVENT_LOOP.with(|event_loop|event_loop.read().as_ref().unwrap());
-                        }
-                        c_glutin.write().init_window(&win, event_loop).expect("Cannot init window on egui::Context::create_viewport_sync");
-                    }
-
-                    'try_render: {
-                        let window = c_glutin.read().viewports.get(&pair).cloned();
-                        if let Some(window) = window {
-                            let output;
-                            {
-                                let window = &mut *window.write();
-                                if let Some(winit_state) = &mut window.egui_winit {
-                                    if let Some(win) = window.window.clone() {
-                                        let win = win.read();
-                                        let mut input = winit_state.take_egui_input(&win);
-                                        input.time = Some(c_time.elapsed().as_secs_f64());
-                                        output = egui_ctx.run(
-                                            input,
-                                            pair,
-                                            |ctx| {
-                                                render(ctx);
-                                            },
-                                        );
-                                        let glutin = &mut *c_glutin.write();
-
-                                        let screen_size_in_pixels: [u32; 2] =
-                                            win.inner_size().into();
-
-                                        let clipped_primitives = egui_ctx.tessellate(output.shapes);
-
-                                        glutin.current_gl_context = Some(
-                                            glutin
-                                                .current_gl_context
-                                                .take()
-                                                .unwrap()
-                                                .make_not_current()
-                                                .unwrap()
-                                                .make_current(window.gl_surface.as_ref().unwrap())
-                                                .unwrap(),
-                                        );
-
-                                        if !window
-                                            .gl_surface
-                                            .as_ref()
-                                            .unwrap()
-                                            .is_current(glutin.current_gl_context.as_ref().unwrap())
-                                        {
-                                            let builder = &&glutin.builders[&window.pair];
-                                            log::error!("egui::create_viewport_sync with title: `{}` is not created in main thread, try to use wgpu!", builder.title);
-                                        }
-
-                                        egui_glow::painter::clear(
-                                            &c_gl,
-                                            screen_size_in_pixels,
-                                            [0.0, 0.0, 0.0, 0.0],
-                                        );
-
-                                        c_painter.write().paint_and_update_textures(
-                                            screen_size_in_pixels,
-                                            egui_ctx.pixels_per_point(),
-                                            &clipped_primitives,
-                                            &output.textures_delta,
-                                        );
-                                        crate::profile_scope!("swap_buffers");
-                                        let _ = window
-                                            .gl_surface
-                                            .as_ref()
-                                            .expect("failed to get surface to swap buffers")
-                                            .swap_buffers(
-                                                glutin.current_gl_context.as_ref().expect(
-                                                    "failed to get current context to swap buffers",
-                                                ),
-                                            );
-                                        winit_state.handle_platform_output(
-                                            &win,
-                                            egui_ctx,
-                                            output.platform_output,
-                                        );
-                                    } else {
-                                        break 'try_render;
-                                    }
-                                } else {
-                                    break 'try_render;
-                                }
-                            }
-                        }
-                    }
+                move |egui_ctx, viewport_builder, pair, render| {
+                    Self::render_sync_viewport(
+                        egui_ctx,
+                        viewport_builder,
+                        pair,
+                        render,
+                        &c_glutin,
+                        &c_gl,
+                        &c_painter,
+                        c_time,
+                    );
                 },
             );
 
@@ -1192,6 +1097,125 @@ mod glow_integration {
             });
 
             Ok(())
+        }
+
+        #[inline(always)]
+        #[allow(clippy::too_many_arguments)]
+        fn render_sync_viewport(
+            egui_ctx: &egui::Context,
+            mut viewport_builder: ViewportBuilder,
+            pair: ViewportIdPair,
+            render: Box<dyn FnOnce(&egui::Context) + '_>,
+            glutin: &RwLock<GlutinWindowContext>,
+            gl: &glow::Context,
+            painter: &RwLock<egui_glow::Painter>,
+            time: Instant,
+        ) {
+            let has_window = glutin.read().viewports.get(&pair).is_some();
+
+            // This will create a new native window if is needed
+            if !has_window {
+                // Inherit parent icon if none
+                {
+                    let glutin = glutin.read();
+                    if viewport_builder.icon.is_none() && glutin.builders.get(&pair).is_none() {
+                        viewport_builder.icon = glutin
+                            .builders
+                            .get(&pair.parent)
+                            .and_then(|b| b.icon.clone());
+                    }
+                }
+
+                {
+                    let mut glutin = glutin.write();
+                    glutin
+                        .viewports
+                        .entry(pair.this)
+                        .or_insert(Arc::new(RwLock::new(Window {
+                            gl_surface: None,
+                            window: None,
+                            pair,
+                            render: None,
+                            egui_winit: None,
+                        })));
+                    glutin.builders.entry(pair.this).or_insert(viewport_builder);
+                }
+
+                let win = glutin.read().viewports[&pair].clone();
+                let event_loop;
+                #[allow(unsafe_code)]
+                unsafe {
+                    event_loop =
+                        WINIT_EVENT_LOOP.with(|event_loop| event_loop.read().as_ref().unwrap());
+                }
+                glutin
+                    .write()
+                    .init_window(&win, event_loop)
+                    .expect("Cannot init window on egui::Context::create_viewport_sync");
+            }
+
+            // Rendering the sync viewport
+
+            let window = glutin.read().viewports.get(&pair).cloned();
+            let Some(window) = window else { return };
+            let output;
+
+            let window = &mut *window.write();
+            let Some(winit_state) = &mut window.egui_winit else { return };
+            let Some(win) = window.window.clone() else { return };
+            let win = win.read();
+            let mut input = winit_state.take_egui_input(&win);
+            input.time = Some(time.elapsed().as_secs_f64());
+            output = egui_ctx.run(input, pair, |ctx| {
+                render(ctx);
+            });
+            let glutin = &mut *glutin.write();
+
+            let screen_size_in_pixels: [u32; 2] = win.inner_size().into();
+
+            let clipped_primitives = egui_ctx.tessellate(output.shapes);
+
+            glutin.current_gl_context = Some(
+                glutin
+                    .current_gl_context
+                    .take()
+                    .unwrap()
+                    .make_not_current()
+                    .unwrap()
+                    .make_current(window.gl_surface.as_ref().unwrap())
+                    .unwrap(),
+            );
+
+            if !window
+                .gl_surface
+                .as_ref()
+                .unwrap()
+                .is_current(glutin.current_gl_context.as_ref().unwrap())
+            {
+                let builder = &&glutin.builders[&window.pair];
+                log::error!("egui::create_viewport_sync with title: `{}` is not created in main thread, try to use wgpu!", builder.title);
+            }
+
+            egui_glow::painter::clear(gl, screen_size_in_pixels, [0.0, 0.0, 0.0, 0.0]);
+
+            painter.write().paint_and_update_textures(
+                screen_size_in_pixels,
+                egui_ctx.pixels_per_point(),
+                &clipped_primitives,
+                &output.textures_delta,
+            );
+            crate::profile_scope!("swap_buffers");
+            let _ = window
+                .gl_surface
+                .as_ref()
+                .expect("failed to get surface to swap buffers")
+                .swap_buffers(
+                    glutin
+                        .current_gl_context
+                        .as_ref()
+                        .expect("failed to get current context to swap buffers"),
+                );
+            winit_state.handle_platform_output(&win, egui_ctx, output.platform_output);
         }
 
         fn process_viewport_builders(
@@ -1976,9 +2000,9 @@ mod wgpu_integration {
             id: ViewportId,
             builder: &ViewportBuilder,
             windows_id: &mut HashMap<winit::window::WindowId, ViewportId>,
-            painter: &Arc<RwLock<egui_wgpu::winit::Painter>>,
+            painter: &RwLock<egui_wgpu::winit::Painter>,
             window: &mut Option<Arc<RwLock<winit::window::Window>>>,
-            state: &Arc<RwLock<Option<egui_winit::State>>>,
+            state: &RwLock<Option<egui_winit::State>>,
             event_loop: &EventLoopWindowTarget<UserEvent>,
         ) {
             if let Ok(new_window) = create_winit_window_builder(builder).build(event_loop) {
@@ -2135,79 +2159,19 @@ mod wgpu_integration {
             let c_painter = painter.clone();
             let c_windows_id = windows_id.clone();
 
-            // ## Sync Rendering
             integration.egui_ctx.set_render_sync_callback(
-                move |egui_ctx, mut viewport_builder, ViewportIdPair{ this: viewport_id, parent: parent_id }, render| {
-                    // Creating a new native window
-                    if c_viewports.read().get(&viewport_id).is_none(){
-                        let mut _windows = c_viewports.write();
-
-                        {
-                            let builders = c_builders.read();
-                            if viewport_builder.icon.is_none() && builders.get(&viewport_id).is_none(){
-                                viewport_builder.icon = builders.get(&parent_id).unwrap().icon.clone();
-                            }
-                        }
-
-                        let Window{window, state, ..} = _windows.entry(viewport_id).or_insert(Window{window: None, state: Arc::new(RwLock::new(None)), render: None, parent_id });
-                        let _ = c_builders.write().entry(viewport_id).or_insert(viewport_builder.clone());
-
-                        let event_loop;
-
-                        #[allow(unsafe_code)]
-                        unsafe{
-                            event_loop = WINIT_EVENT_LOOP.with(|event_loop|event_loop.read().as_ref().unwrap());
-                        }
-                        Self::init_window(viewport_id, &viewport_builder, &mut c_windows_id.write(), &c_painter, window, state, event_loop);
-                    }
-                    'try_render: {
-                        let window = c_viewports.read().get(&viewport_id).cloned();
-                        if let Some(window) = window {
-                            let output;
-                            {
-                                if let Some(winit_state) = &mut *window.state.write() {
-                                    if let Some(win) = window.window {
-                                        let win = win.read();
-                                        let mut input = winit_state.take_egui_input(&win);
-                                        input.time = Some(c_time.elapsed().as_secs_f64());
-                                        output = egui_ctx.run(
-                                            input,
-                                            ViewportIdPair::new(viewport_id, parent_id),
-                                            |ctx| {
-                                                render(ctx);
-                                            },
-                                        );
-
-                                        if let Err(err) = pollster::block_on(
-                                            c_painter.write().set_window(viewport_id, Some(&win)),
-                                        ){
-                                            log::error!("when rendering viewport_id: {viewport_id}, set_window Error {err}");
-                                        }
-
-                                        let clipped_primitives = egui_ctx.tessellate(output.shapes);
-                                        c_painter.write().paint_and_update_textures(
-                                            viewport_id,
-                                            egui_ctx.pixels_per_point(),
-                                            [0.0, 0.0, 0.0, 0.0],
-                                            &clipped_primitives,
-                                            &output.textures_delta,
-                                            false,
-                                        );
-
-                                        winit_state.handle_platform_output(
-                                            &win,
-                                            egui_ctx,
-                                            output.platform_output,
-                                        );
-                                    } else {
-                                        break 'try_render;
-                                    }
-                                } else {
-                                    break 'try_render;
-                                }
-                            }
-                        }
-                    }
+                move |egui_ctx, viewport_builder, pair, render| {
+                    Self::render_sync_viewport(
+                        egui_ctx,
+                        viewport_builder,
+                        pair,
+                        render,
+                        &c_viewports,
+                        &c_builders,
+                        c_time,
+                        &c_painter,
+                        &c_windows_id,
+                    );
                 },
             );
 
@@ -2221,6 +2185,97 @@ mod wgpu_integration {
             });
 
             Ok(())
+        }
+
+        #[inline(always)]
+        #[allow(clippy::too_many_arguments)]
+        fn render_sync_viewport(
+            egui_ctx: &egui::Context,
+            mut viewport_builder: ViewportBuilder,
+            pair: ViewportIdPair,
+            render: Box<dyn FnOnce(&egui::Context) + '_>,
+            c_viewports: &Viewports,
+            c_builders: &RwLock<HashMap<ViewportId, ViewportBuilder>>,
+            c_time: Instant,
+            c_painter: &RwLock<egui_wgpu::winit::Painter>,
+            c_windows_id: &RwLock<HashMap<winit::window::WindowId, ViewportId>>,
+        ) {
+            // Creating a new native window if is needed
+            if c_viewports.read().get(&pair).is_none() {
+                let mut _windows = c_viewports.write();
+
+                {
+                    let builders = c_builders.read();
+                    if viewport_builder.icon.is_none() && builders.get(&pair).is_none() {
+                        viewport_builder.icon =
+                            builders.get(&pair.parent).and_then(|b| b.icon.clone());
+                    }
+                }
+
+                let Window { window, state, .. } = _windows.entry(pair.this).or_insert(Window {
+                    window: None,
+                    state: Arc::new(RwLock::new(None)),
+                    render: None,
+                    parent_id: pair.parent,
+                });
+                let _ = c_builders
+                    .write()
+                    .entry(pair.this)
+                    .or_insert(viewport_builder.clone());
+
+                let event_loop;
+
+                #[allow(unsafe_code)]
+                unsafe {
+                    event_loop =
+                        WINIT_EVENT_LOOP.with(|event_loop| event_loop.read().as_ref().unwrap());
+                }
+
+                Self::init_window(
+                    pair.this,
+                    &viewport_builder,
+                    &mut c_windows_id.write(),
+                    c_painter,
+                    window,
+                    state,
+                    event_loop,
+                );
+            }
+
+            // render sync viewport
+
+            let window = c_viewports.read().get(&pair).cloned();
+            let Some(window) = window else { return };
+            let output;
+            let Some(winit_state) = &mut *window.state.write() else { return };
+            let Some(win) = window.window else { return };
+            let win = win.read();
+            let mut input = winit_state.take_egui_input(&win);
+            input.time = Some(c_time.elapsed().as_secs_f64());
+            output = egui_ctx.run(input, pair, |ctx| {
+                render(ctx);
+            });
+
+            if let Err(err) =
+                pollster::block_on(c_painter.write().set_window(pair.this, Some(&win)))
+            {
+                log::error!(
+                    "when rendering viewport_id: {}, set_window Error {err}",
+                    pair.this
+                );
+            }
+
+            let clipped_primitives = egui_ctx.tessellate(output.shapes);
+            c_painter.write().paint_and_update_textures(
+                pair.this,
+                egui_ctx.pixels_per_point(),
+                [0.0, 0.0, 0.0, 0.0],
+                &clipped_primitives,
+                &output.textures_delta,
+                false,
+            );
+
+            winit_state.handle_platform_output(&win, egui_ctx, output.platform_output);
         }
     }
 
