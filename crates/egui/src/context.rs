@@ -172,6 +172,12 @@ impl Repaint {
 
 // ----------------------------------------------------------------------------
 
+thread_local! {
+    static EGUI_RENDER_SYNC: RwLock<Option<Box<ViewportRenderSyncCallback>>> = RwLock::new(None);
+}
+
+// ----------------------------------------------------------------------------
+
 #[derive(Default)]
 struct ContextImpl {
     /// `None` until the start of the first frame.
@@ -200,8 +206,6 @@ struct ContextImpl {
 
     viewports: HashMap<Id, Viewport>,
     viewport_commands: Vec<(ViewportId, ViewportCommand)>,
-
-    render_sync: Option<Arc<Box<ViewportRenderSyncCallback>>>,
 
     viewport_counter: u64,
     is_desktop: bool,
@@ -467,9 +471,6 @@ impl Default for Context {
 
         s.write(|ctx| {
             ctx.force_embedding = true;
-            ctx.render_sync = Some(Arc::new(Box::new(move |ctx, _builder, _pair, render| {
-                render(ctx);
-            })));
         });
 
         s
@@ -2554,15 +2555,16 @@ impl Context {
     /// When a viewport sync is created will be rendered by this function
     ///
     /// Look in `crates/eframe/native/run.rs` and search for ``set_render_sync_callback`` to see for what is used!
+    #[allow(clippy::unused_self)]
     pub fn set_render_sync_callback(
         &self,
         callback: impl for<'a> Fn(&Context, ViewportBuilder, ViewportIdPair, Box<dyn FnOnce(&Context) + 'a>)
-            + Send
-            + Sync
             + 'static,
     ) {
         let callback = Box::new(callback);
-        self.write(|ctx| ctx.render_sync = Some(Arc::new(callback)));
+        EGUI_RENDER_SYNC.with(|render_sync| {
+            *render_sync.write() = Some(callback);
+        });
     }
 
     /// If this is true no other native windows will be created
@@ -2644,7 +2646,7 @@ impl Context {
     ) -> T {
         if !self.force_embedding() {
             let mut id_pair = ViewportIdPair::MAIN;
-            let render_sync = self.write(|ctx| {
+            self.write(|ctx| {
                 id_pair.parent = ctx.viewport_id();
                 if let Some(window) = ctx.viewports.get_mut(&viewport_builder.id) {
                     window.builder = viewport_builder.clone();
@@ -2666,18 +2668,20 @@ impl Context {
                         },
                     );
                 }
-
-                ctx.render_sync.clone()
             });
             let mut out = None;
             {
                 let out = &mut out;
-                render_sync.unwrap()(
-                    self,
-                    viewport_builder,
-                    id_pair,
-                    Box::new(move |context| *out = Some(func(context))),
-                );
+                EGUI_RENDER_SYNC.with(|render_sync|{
+                    let render_sync = render_sync.read();
+                    let render_sync = render_sync.as_ref().expect("No EGUI_RENDER_SYNC callback on this thread, if you try to use Context::create_viewport_sync you cannot do that in other thread! If that is not the issue your egui intrecration is invalid or do not support sync viewports!");
+                    render_sync(
+                        self,
+                        viewport_builder,
+                        id_pair,
+                        Box::new(move |context| *out = Some(func(context))),
+                    );
+                });
             }
 
             out.expect("egui backend is implemented incorrectly! Context::set_render_sync_callback")

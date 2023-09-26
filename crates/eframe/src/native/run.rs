@@ -538,11 +538,6 @@ mod glow_integration {
         builders: HashMap<ViewportId, ViewportBuilder>,
     }
 
-    #[allow(unsafe_code)]
-    unsafe impl Sync for GlutinWindowContext {}
-    #[allow(unsafe_code)]
-    unsafe impl Send for GlutinWindowContext {}
-
     impl GlutinWindowContext {
         /// There is a lot of complexity with opengl creation, so prefer extensive logging to get all the help we can to debug issues.
         ///
@@ -1888,11 +1883,6 @@ mod wgpu_integration {
 
     #[derive(Clone)]
     pub struct Viewports(Arc<RwLock<HashMap<ViewportId, Window>>>);
-
-    #[allow(unsafe_code)]
-    unsafe impl Send for Viewports {}
-    #[allow(unsafe_code)]
-    unsafe impl Sync for Viewports {}
 
     impl std::ops::Deref for Viewports {
         type Target = Arc<RwLock<HashMap<ViewportId, Window>>>;
