@@ -11,7 +11,12 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "My egui App",
         options,
-        Box::new(|_cc| Box::<MyApp>::default()),
+        Box::new(|cc| {
+            // This gives us image support:
+            egui_extras::install_image_loaders(&cc.egui_ctx);
+
+            Box::<MyApp>::default()
+        }),
     )
 }
 
@@ -43,6 +48,10 @@ impl eframe::App for MyApp {
                 self.age += 1;
             }
             ui.label(format!("Hello '{}', age {}", self.name, self.age));
+
+            ui.image(egui::include_image!(
+                "../../../crates/egui/assets/ferris.png"
+            ));
         });
     }
 }
