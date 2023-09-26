@@ -9,29 +9,23 @@
 [![Apache](https://img.shields.io/badge/license-Apache-blue.svg)](https://github.com/emilk/egui/blob/master/LICENSE-APACHE)
 [![Discord](https://img.shields.io/discord/900275882684477440?label=egui%20discord)](https://discord.gg/JFcEma9bJq)
 
+
+<div align="center">
+<a href="https://www.rerun.io/"><img src="media/rerun_io_logo.png" width="25%"></a>
+
+egui development is sponsored by [Rerun](https://www.rerun.io/), a startup doing<br>
+visualizations for computer vision and robotics.
+</div>
+
+---
+
 👉 [Click to run the web demo](https://www.egui.rs/#demo) 👈
 
-egui (pronounced "e-gooey") is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations) (or will soon).
+egui (pronounced "e-gooey") is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations).
 
 egui aims to be the easiest-to-use Rust GUI library, and the simplest way to make a web app in Rust.
 
 egui can be used anywhere you can draw textured triangles, which means you can easily integrate it into your game engine of choice.
-
-Sections:
-
-* [Example](#example)
-* [Quick start](#quick-start)
-* [Demo](#demo)
-* [Goals](#goals)
-* [Who is egui for?](#who-is-egui-for)
-* [State / features](#state)
-* [Integrations](#integrations)
-* [Why immediate mode](#why-immediate-mode)
-* [FAQ](#faq)
-* [Other](#other)
-* [Credits](#credits)
-
-([egui 的中文翻译文档 / chinese translation](https://github.com/Re-Ch-Love/egui-doc-cn/blob/main/README_zh-hans.md))
 
 ## Example
 
@@ -46,9 +40,28 @@ if ui.button("Click each year").clicked() {
     age += 1;
 }
 ui.label(format!("Hello '{name}', age {age}"));
+ui.image(egui::include_image!("ferris.png"));
 ```
 
 <img src="media/demo.gif">
+
+## Sections:
+
+* [Example](#example)
+* [Quick start](#quick-start)
+* [Demo](#demo)
+* [Goals](#goals)
+* [State / features](#state)
+* [Dependencies](#dependencies)
+* [Who is egui for?](#who-is-egui-for)
+* [Integrations](#integrations)
+* [Why immediate mode](#why-immediate-mode)
+* [FAQ](#faq)
+* [Other](#other)
+* [Credits](#credits)
+
+([egui 的中文翻译文档 / chinese translation](https://github.com/Re-Ch-Love/egui-doc-cn/blob/main/README_zh-hans.md))
+
 
 ## Quick start
 
@@ -99,6 +112,32 @@ egui is *not* a framework. egui is a library you call into, not an environment y
 * Native looking interface
 * Advanced and flexible layouts (that's fundamentally incompatible with immediate mode)
 
+## State
+
+egui is in active development. It works well for what it does, but it lacks many features and the interfaces are still in flux. New releases will have breaking changes.
+
+Still, egui can be used to create professional looking applications, like [the Rerun Viewer](https://app.rerun.io/).
+
+### Features
+
+* Widgets: label, text button, hyperlink, checkbox, radio button, slider, draggable value, text editing, combo box, color picker, spinner
+* Images
+* Layouts: horizontal, vertical, columns, automatic wrapping
+* Text editing: multiline, copy/paste, undo, emoji supports
+* Windows: move, resize, name, minimize and close. Automatically sized and positioned.
+* Regions: resizing, vertical scrolling, collapsing headers (sections)
+* Rendering: Anti-aliased rendering of lines, circles, text and convex polygons.
+* Tooltips on hover
+* Accessibility via [AccessKit](https://accesskit.dev/)
+* More
+
+<img src="media/widget_gallery_0.23.gif" width="50%">
+
+Light Theme:
+
+<img src="media/widget_gallery_0.23_light.png" width="50%">
+
+
 ## Dependencies
 `egui` has a minimal set of default dependencies:
 
@@ -141,27 +180,6 @@ So in summary:
 
 * egui: pure Rust, new, exciting, work in progress
 * Dear ImGui: feature rich, well tested, cumbersome Rust integration
-
-## State
-
-egui is in active development. It works well for what it does, but it lacks many features and the interfaces are still in flux. New releases will have breaking changes.
-
-### Features
-
-* Widgets: label, text button, hyperlink, checkbox, radio button, slider, draggable value, text editing, combo box, color picker
-* Layouts: horizontal, vertical, columns, automatic wrapping
-* Text editing: multiline, copy/paste, undo, emoji supports
-* Windows: move, resize, name, minimize and close. Automatically sized and positioned.
-* Regions: resizing, vertical scrolling, collapsing headers (sections)
-* Rendering: Anti-aliased rendering of lines, circles, text and convex polygons.
-* Tooltips on hover
-* More
-
-<img src="media/widget_gallery.gif" width="50%">
-
-Light Theme:
-
-<img src="media/light_theme.png" width="50%">
 
 ## Integrations
 
@@ -255,7 +273,7 @@ For "atomic" widgets (e.g. a button) `egui` knows the size before showing it, so
 #### CPU usage
 Since an immediate mode GUI does a full layout each frame, the layout code needs to be quick. If you have a very complex GUI this can tax the CPU. In particular, having a very large UI in a scroll area (with very long scrollback) can be slow, as the content needs to be laid out each frame.
 
-If you design the GUI with this in mind and refrain from huge scroll areas (or only lay out the part that is in view) then the performance hit is generally pretty small. For most cases you can expect `egui` to take up 1-2 ms per frame, but `egui` still has a lot of room for optimization (it's not something I've focused on yet). You can also set up `egui` to only repaint when there is interaction (e.g. mouse movement).
+If you design the GUI with this in mind and refrain from huge scroll areas (or only lay out the part that is in view) then the performance hit is generally pretty small. For most cases you can expect `egui` to take up 1-2 ms per frame, but `egui` still has a lot of room for optimization (it's not something I've focused on yet). `egui` only repaints when there is interaction (e.g. mouse movement) or an animation, so if your app is idle, no CPU is wasted.
 
 If your GUI is highly interactive, then immediate mode may actually be more performant compared to retained mode. Go to any web page and resize the browser window, and you'll notice that the browser is very slow to do the layout and eats a lot of CPU doing it. Resize a window in `egui` by contrast, and you'll get smooth 60 FPS at no extra CPU cost.
 
@@ -278,6 +296,8 @@ Yes! But you need to install your own font (`.ttf` or `.otf`) using `Context::se
 ### Can I customize the look of egui?
 Yes! You can customize the colors, spacing, fonts and sizes of everything using `Context::set_style`.
 
+This is not yet as powerful as say CSS, [but this is going to improve soon](https://github.com/emilk/egui/issues/3284).
+
 Here is an example (from https://github.com/AlexxxRu/TinyPomodoro):
 
 <img src="media/pompodoro-skin.png" width="50%">
@@ -286,7 +306,7 @@ Here is an example (from https://github.com/AlexxxRu/TinyPomodoro):
 If you call `.await` in your GUI code, the UI will freeze, which is very bad UX. Instead, keep the GUI thread non-blocking and communicate with any concurrent tasks (`async` tasks or other threads) with something like:
 * Channels (e.g. [`std::sync::mpsc::channel`](https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html)). Make sure to use [`try_recv`](https://doc.rust-lang.org/std/sync/mpsc/struct.Receiver.html#method.try_recv) so you don't block the gui thread!
 * `Arc<Mutex<Value>>` (background thread sets a value; GUI thread reads it)
-* [`poll_promise::Promise`](https://docs.rs/poll-promise) (example: [`examples/download_image/`](https://github.com/emilk/egui/blob/master/examples/download_image/))
+* [`poll_promise::Promise`](https://docs.rs/poll-promise)
 * [`eventuals::Eventual`](https://docs.rs/eventuals/latest/eventuals/struct.Eventual.html)
 * [`tokio::sync::watch::channel`](https://docs.rs/tokio/latest/tokio/sync/watch/fn.channel.html)
 
@@ -385,7 +405,7 @@ Default fonts:
 ---
 
 <div align="center">
-<img src="media/rerun_io_logo.png" width="50%">
+<a href="https://www.rerun.io/"><img src="media/rerun_io_logo.png" width="50%"></a>
 
 egui development is sponsored by [Rerun](https://www.rerun.io/), a startup doing<br>
 visualizations for computer vision and robotics.
