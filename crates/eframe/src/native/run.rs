@@ -528,6 +528,8 @@ mod glow_integration {
         swap_interval: glutin::surface::SwapInterval,
         gl_config: glutin::config::Config,
 
+        max_texture_side: usize,
+
         current_gl_context: Option<glutin::context::PossiblyCurrentContext>,
         not_current_gl_context: Option<glutin::context::NotCurrentContext>,
 
@@ -692,6 +694,8 @@ mod glow_integration {
                 viewports: windows,
                 builders,
                 viewports_maps: window_maps,
+                // This is initializate in init_run_state
+                max_texture_side: 0,
             })
         }
 
@@ -787,7 +791,7 @@ mod glow_integration {
 
                 if win.egui_winit.is_none() {
                     let mut egui_winit = egui_winit::State::new(event_loop);
-                    // egui_winit.set_max_texture_side(max_texture_side);
+                    egui_winit.set_max_texture_side(self.max_texture_side);
                     egui_winit.set_pixels_per_point(native_pixels_per_point);
                     win.egui_winit = Some(egui_winit);
                 }
@@ -942,7 +946,7 @@ mod glow_integration {
                     .unwrap_or(&self.app_name),
             );
 
-            let (gl_window, gl) = Self::create_glutin_windowed_context(
+            let (mut glutin_ctx, gl) = Self::create_glutin_windowed_context(
                 event_loop,
                 storage.as_deref(),
                 &self.app_name,
@@ -954,8 +958,10 @@ mod glow_integration {
                 egui_glow::Painter::new(gl.clone(), "", self.native_options.shader_version)
                     .unwrap_or_else(|err| panic!("An OpenGL error occurred: {err}\n"));
 
+            glutin_ctx.max_texture_side = painter.max_texture_side();
+
             let system_theme = system_theme(
-                &gl_window
+                &glutin_ctx
                     .window(ViewportId::MAIN)
                     .read()
                     .window
@@ -965,7 +971,7 @@ mod glow_integration {
                 &self.native_options,
             );
             let mut integration = epi_integration::EpiIntegration::new(
-                &gl_window
+                &glutin_ctx
                     .window(ViewportId::MAIN)
                     .read()
                     .window
@@ -983,7 +989,7 @@ mod glow_integration {
             );
             #[cfg(feature = "accesskit")]
             {
-                let window = &gl_window.viewports[&ViewportId::MAIN];
+                let window = &glutin_ctx.viewports[&ViewportId::MAIN];
                 let window = &mut *window.write();
                 integration.init_accesskit(
                     window.egui_winit.as_mut().unwrap(),
@@ -995,7 +1001,7 @@ mod glow_integration {
             integration.egui_ctx.set_visuals(theme.egui_visuals());
 
             if self.native_options.mouse_passthrough {
-                gl_window
+                glutin_ctx
                     .window(ViewportId::MAIN)
                     .read()
                     .window
@@ -1029,7 +1035,7 @@ mod glow_integration {
                 .expect("Single-use AppCreator has unexpectedly already been taken");
             let mut app;
             {
-                let window = gl_window.window(ViewportId::MAIN);
+                let window = glutin_ctx.window(ViewportId::MAIN);
                 let window = &mut *window.write();
                 app = app_creator(&epi::CreationContext {
                     egui_ctx: integration.egui_ctx.clone(),
@@ -1051,7 +1057,7 @@ mod glow_integration {
                 }
             }
 
-            let glutin_ctx = Arc::new(RwLock::new(gl_window));
+            let glutin_ctx = Arc::new(RwLock::new(glutin_ctx));
             let painter = Arc::new(RwLock::new(painter));
 
             // c_* means that will be taken by the next closure
