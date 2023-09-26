@@ -46,6 +46,7 @@ if ui.button("Click each year").clicked() {
     age += 1;
 }
 ui.label(format!("Hello '{name}', age {age}"));
+ui.image(egui::include_image!("ferris.png"));
 ```
 
 <img src="media/demo.gif">
@@ -157,11 +158,11 @@ egui is in active development. It works well for what it does, but it lacks many
 * Tooltips on hover
 * More
 
-<img src="media/widget_gallery.gif" width="50%">
+<img src="media/widget_gallery_0.23.gif" width="50%">
 
 Light Theme:
 
-<img src="media/light_theme.png" width="50%">
+<img src="media/widget_gallery_0.23_light.png" width="50%">
 
 ## Integrations
 
