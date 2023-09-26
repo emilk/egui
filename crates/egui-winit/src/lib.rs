@@ -1050,9 +1050,13 @@ pub fn process_viewport_commands(
                 _ => WindowLevel::Normal,
             }),
             ViewportCommand::WindowIcon(icon) => {
-                win.set_window_icon(icon.map(|(bytes, width, height)| {
-                    winit::window::Icon::from_rgba(bytes, width, height)
-                        .expect("Invalid ICON data!")
+                win.set_window_icon(icon.map(|icon| {
+                    winit::window::Icon::from_rgba(
+                        icon.as_raw().to_owned(),
+                        icon.width() as u32,
+                        icon.height() as u32,
+                    )
+                    .expect("Invalid ICON data!")
                 }));
             }
             ViewportCommand::IMEPosition(pos) => {
@@ -1171,8 +1175,12 @@ pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::
 
     if let Some(Some(icon)) = builder.icon.clone() {
         window_builder = window_builder.with_window_icon(Some(
-            winit::window::Icon::from_rgba(icon.2.clone(), icon.0, icon.1)
-                .expect("Invalid Icon Data!"),
+            winit::window::Icon::from_rgba(
+                icon.as_raw().to_owned(),
+                icon.width() as u32,
+                icon.height() as u32,
+            )
+            .expect("Invalid Icon Data!"),
         ));
     }
 
@@ -1291,7 +1299,7 @@ pub fn changes_between_builders(
 
         if !eq {
             commands.push(ViewportCommand::WindowIcon(
-                icon.as_ref().map(|i| (i.2.clone(), i.0, i.1)),
+                icon.as_ref().map(|i| i.as_ref().clone()),
             ));
             last.icon = Some(icon);
         }

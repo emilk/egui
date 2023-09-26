@@ -99,11 +99,12 @@ pub fn window_builder<E>(
         .with_maximized(*maximized)
         .with_resizable(*resizable)
         .with_transparent(*transparent)
-        .with_window_icon(
-            icon_data
-                .clone()
-                .map(|d| Arc::new((d.width, d.height, d.rgba))),
-        )
+        .with_window_icon(icon_data.clone().map(|d| {
+            Arc::new(egui::ColorImage::from_rgba_premultiplied(
+                [d.width as usize, d.height as usize],
+                &d.rgba,
+            ))
+        }))
         .with_active(*active)
         // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
         // We must also keep the window hidden until AccessKit is initialized.

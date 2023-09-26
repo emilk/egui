@@ -1,6 +1,6 @@
 use std::{fmt::Display, sync::Arc};
 
-use epaint::{Pos2, Vec2};
+use epaint::{ColorImage, Pos2, Vec2};
 
 use crate::{Context, Id};
 
@@ -70,7 +70,7 @@ pub struct ViewportBuilder {
     pub resizable: Option<bool>,
     pub transparent: Option<bool>,
     pub decorations: Option<bool>,
-    pub icon: Option<Option<Arc<(u32, u32, Vec<u8>)>>>,
+    pub icon: Option<Option<Arc<ColorImage>>>,
     pub active: Option<bool>,
     pub visible: Option<bool>,
     pub title_hidden: Option<bool>,
@@ -184,7 +184,7 @@ impl ViewportBuilder {
     }
 
     /// The icon needs to be wrapped in Arc because will be copied every frame
-    pub fn with_window_icon(mut self, icon: Option<Arc<(u32, u32, Vec<u8>)>>) -> Self {
+    pub fn with_window_icon(mut self, icon: Option<Arc<ColorImage>>) -> Self {
         self.icon = Some(icon);
         self
     }
@@ -306,7 +306,7 @@ pub enum ViewportCommand {
 
     /// 0 = Normal, 1 = AlwaysOnBottom, 2 = AlwaysOnTop
     WindowLevel(u8),
-    WindowIcon(Option<(Vec<u8>, u32, u32)>),
+    WindowIcon(Option<ColorImage>),
     IMEPosition(Pos2),
     IMEAllowed(bool),
 
