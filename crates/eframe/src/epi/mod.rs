@@ -41,7 +41,7 @@ pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)
 /// Hook into the building of a the native window.
 ///
 /// You can configure any platform specific details required on top of the default configuration
-/// done by `EFrame`.
+/// done by `eframe`.
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 pub type WindowBuilderHook = Box<dyn FnOnce(WindowBuilder) -> WindowBuilder>;
