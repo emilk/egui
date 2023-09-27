@@ -163,7 +163,14 @@
 //!
 //! # Understanding immediate mode
 //!
-//! `egui` is an immediate mode GUI library. It is useful to fully grok what "immediate mode" implies.
+//! `egui` is an immediate mode GUI library.
+//!
+//! Immediate mode has its roots in gaming, where everything on the screen is painted at the
+//! display refresh rate, i.e. at 60+ frames per second.
+//! In immediate mode GUIs, the entire interface is laid out and painted at the same high rate.
+//! This makes immediate mode GUIs especially well suited for highly interactive applications.
+//!
+//! It is useful to fully grok what "immediate mode" implies.
 //!
 //! Here is an example to illustrate it:
 //!
@@ -198,7 +205,7 @@
 //! # });
 //! ```
 //!
-//! Here egui will read `value` to display the slider, then look if the mouse is dragging the slider and if so change the `value`.
+//! Here egui will read `value` (an `f32`) to display the slider, then look if the mouse is dragging the slider and if so change the `value`.
 //! Note that `egui` does not store the slider value for you - it only displays the current value, and changes it
 //! by how much the slider has been dragged in the previous few milliseconds.
 //! This means it is responsibility of the egui user to store the state (`value`) so that it persists between frames.
