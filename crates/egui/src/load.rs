@@ -55,17 +55,20 @@
 mod bytes_loader;
 mod texture_loader;
 
-use crate::Context;
+use std::borrow::Cow;
+use std::fmt::Debug;
+use std::ops::Deref;
+use std::{error::Error as StdError, fmt::Display, sync::Arc};
+
 use ahash::HashMap;
+
 use epaint::mutex::Mutex;
 use epaint::util::FloatOrd;
 use epaint::util::OrderedFloat;
 use epaint::TextureHandle;
 use epaint::{textures::TextureOptions, ColorImage, TextureId, Vec2};
-use std::borrow::Cow;
-use std::fmt::Debug;
-use std::ops::Deref;
-use std::{error::Error as StdError, fmt::Display, sync::Arc};
+
+use crate::Context;
 
 pub use self::bytes_loader::DefaultBytesLoader;
 pub use self::texture_loader::DefaultTextureLoader;
