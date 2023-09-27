@@ -105,7 +105,7 @@ impl super::View for WindowOptions {
                     ui.checkbox(collapsible, "collapsible");
                     ui.checkbox(resizable, "resizable");
                     ui.checkbox(constrain, "constrain")
-                        .on_hover_text("Contrain window to the screen");
+                        .on_hover_text("Constrain window to the screen");
                     ui.checkbox(&mut scroll2[0], "hscroll");
                     ui.checkbox(&mut scroll2[1], "vscroll");
                 });
