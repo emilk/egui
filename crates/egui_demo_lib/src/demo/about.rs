@@ -41,6 +41,15 @@ impl super::View for About {
         ui.add_space(12.0); // ui.separator();
         ui.heading("Links");
         links(ui);
+
+        ui.add_space(12.0);
+
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing.x = 0.0;
+            ui.label("egui development is sponsored by ");
+            ui.hyperlink_to("Rerun.io", "https://www.rerun.io/");
+            ui.label(", a startup doing visualizations for computer vision and robotics.");
+        });
     }
 }
 
