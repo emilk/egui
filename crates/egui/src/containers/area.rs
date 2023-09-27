@@ -271,7 +271,7 @@ impl Area {
         }
 
         // interact right away to prevent frame-delay
-        let move_response = {
+        let mut move_response = {
             let interact_id = layer_id.id.with("move");
             let sense = if movable {
                 Sense::click_and_drag()
@@ -291,16 +291,8 @@ impl Area {
                 enabled,
             );
 
-            // Important check - don't try to move e.g. a combobox popup!
-            if movable {
-                if move_response.dragged() {
-                    state.pivot_pos += ctx.input(|i| i.pointer.delta());
-                }
-
-                state.set_left_top_pos(
-                    ctx.constrain_window_rect_to_area(state.rect(), drag_bounds)
-                        .min,
-                );
+            if movable && move_response.dragged() {
+                state.pivot_pos += ctx.input(|i| i.pointer.delta());
             }
 
             if (move_response.dragged() || move_response.clicked())
@@ -314,14 +306,17 @@ impl Area {
             move_response
         };
 
-        state.set_left_top_pos(ctx.round_pos_to_pixels(state.left_top_pos()));
-
         if constrain {
             state.set_left_top_pos(
                 ctx.constrain_window_rect_to_area(state.rect(), drag_bounds)
-                    .left_top(),
+                    .min,
             );
         }
+
+        state.set_left_top_pos(ctx.round_pos_to_pixels(state.left_top_pos()));
+
+        // Update responsbe with posisbly moved/constrained rect:
+        move_response = move_response.with_new_rect(state.rect());
 
         Prepared {
             layer_id,
