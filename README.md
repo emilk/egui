@@ -13,8 +13,8 @@
 <div align="center">
 <a href="https://www.rerun.io/"><img src="media/rerun_io_logo.png" width="250"></a>
 
-egui development is sponsored by [Rerun](https://www.rerun.io/), a startup doing<br>
-visualizations for computer vision and robotics.
+egui development is sponsored by [Rerun](https://www.rerun.io/), a startup building<br>
+an SDK for visualizing streams of multimodal data.
 </div>
 
 ---
@@ -405,8 +405,8 @@ Default fonts:
 ---
 
 <div align="center">
-<a href="https://www.rerun.io/"><img src="media/rerun_io_logo.png" width="420"></a>
+<a href="https://www.rerun.io/"><img src="media/rerun_io_logo.png" width="440"></a>
 
-egui development is sponsored by [Rerun](https://www.rerun.io/), a startup doing<br>
-visualizations for computer vision and robotics.
+egui development is sponsored by [Rerun](https://www.rerun.io/), a startup building<br>
+an SDK for visualizing streams of multimodal data.
 </div>

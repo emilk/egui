@@ -11,6 +11,7 @@ impl super::Demo for About {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .default_width(320.0)
+            .default_height(480.0)
             .open(open)
             .show(ctx, |ui| {
                 use super::View as _;
@@ -48,7 +49,7 @@ impl super::View for About {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.label("egui development is sponsored by ");
             ui.hyperlink_to("Rerun.io", "https://www.rerun.io/");
-            ui.label(", a startup doing visualizations for computer vision and robotics.");
+            ui.label(", a startup building an SDK for visualizing streams of multimodal data");
         });
     }
 }
