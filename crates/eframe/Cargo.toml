@@ -139,7 +139,7 @@ wgpu = { workspace = true, optional = true }
 
 # mac:
 [target.'cfg(any(target_os = "macos"))'.dependencies]
-cocoa = "0.24.1"
+cocoa = "0.24.1" # Stuck on old version until we update to winit 0.29
 objc = "0.2.7"
 
 # windows:

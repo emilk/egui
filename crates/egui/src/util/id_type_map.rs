@@ -588,10 +588,9 @@ impl PersistedMap {
             crate::profile_scope!("gather");
             for (hash, element) in &map.map {
                 if let Some(element) = element.to_serialize() {
-                    let mut stats = types_map.entry(element.type_id).or_default();
+                    let stats = types_map.entry(element.type_id).or_default();
                     stats.num_bytes += element.ron.len();
-                    let mut generation_stats =
-                        stats.generations.entry(element.generation).or_default();
+                    let generation_stats = stats.generations.entry(element.generation).or_default();
                     generation_stats.num_bytes += element.ron.len();
                     generation_stats.elements.push((*hash, element));
                 } else {

@@ -36,6 +36,7 @@ deny = [
 skip = [
     { name = "arrayvec" },            # old version via tiny-skiaz
     { name = "libloading" },          # wgpu-hal itself depends on 0.8 while some of its dependencies, like ash and d3d12, depend on 0.7
+    { name = "memoffset" },           # tiny dependency
     { name = "nix" },                 # old version via winit
     { name = "redox_syscall" },       # old version via winit
     { name = "time" },                # old version pulled in by unmaintianed crate 'chrono'
