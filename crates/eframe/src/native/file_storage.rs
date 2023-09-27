@@ -130,6 +130,7 @@ fn save_to_disk(file_path: &PathBuf, kv: &HashMap<String, String>) {
             let mut writer = std::io::BufWriter::new(file);
             let config = Default::default();
 
+            crate::profile_scope!("ron::serialize");
             if let Err(err) = ron::ser::to_writer_pretty(&mut writer, &kv, config)
                 .and_then(|_| writer.flush().map_err(|err| err.into()))
             {
