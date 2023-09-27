@@ -448,7 +448,8 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 /// ui.image(egui::include_image!("../assets/ferris.png"));
 /// ui.add(
 ///     egui::Image::new(egui::include_image!("../assets/ferris.png"))
-///         .rounding(egui::Rounding::same(6.0))
+///         .max_width(200.0)
+///         .rounding(10.0),
 /// );
 ///
 /// let image_source: egui::ImageSource = egui::include_image!("../assets/ferris.png");

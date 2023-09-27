@@ -1560,7 +1560,8 @@ impl Ui {
     /// ui.image(egui::include_image!("../assets/ferris.png"));
     /// ui.add(
     ///     egui::Image::new(egui::include_image!("../assets/ferris.png"))
-    ///         .rounding(egui::Rounding::same(6.0))
+    ///         .max_width(200.0)
+    ///         .rounding(10.0),
     /// );
     /// # });
     /// ```

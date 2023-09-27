@@ -29,8 +29,7 @@ impl eframe::App for MyApp {
                 ui.image(egui::include_image!("ferris.svg"));
 
                 ui.add(
-                    egui::Image::new("https://picsum.photos/seed/1.759706314/1024")
-                        .rounding(egui::Rounding::same(10.0)),
+                    egui::Image::new("https://picsum.photos/seed/1.759706314/1024").rounding(10.0),
                 );
             });
         });
