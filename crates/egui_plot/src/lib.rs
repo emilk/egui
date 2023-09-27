@@ -1,4 +1,4 @@
-//! Simple plotting library.
+//! Simple plotting library for [`egui`](https://github.com/emilk/egui).
 //!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
@@ -77,6 +77,7 @@ impl Default for CoordinatesFormatter {
 
 const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO(emilk): large enough for a wide label
 
+/// Two bools, one for each axis (X and Y).
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct AxisBools {

@@ -23,6 +23,15 @@ default = ["clipboard", "links", "wayland", "winit/default", "x11"]
 ## Enable platform accessibility API implementations through [AccessKit](https://accesskit.dev/).
 accesskit = ["accesskit_winit", "egui/accesskit"]
 
+# Allow crates to choose an android-activity backend via Winit
+# - It's important that most applications should not have to depend on android-activity directly, and can
+#   rely on Winit to pull in a suitable version (unlike most Rust crates, any version conflicts won't link)
+# - It's also important that we don't impose an android-activity backend by taking this choice away from applications.
+## Enable the `game-activity` backend via Winit on Android
+android-game-activity = ["winit/android-game-activity"]
+## Enable the `native-activity` backend via Winit on Android
+android-native-activity = ["winit/android-native-activity"]
+
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`egui::epaint::Vertex`], [`egui::Vec2`] etc to `&[u8]`.
 bytemuck = ["egui/bytemuck"]
 
@@ -44,16 +53,6 @@ wayland = ["winit/wayland"]
 
 ## Enables compiling for x11.
 x11 = ["winit/x11"]
-
-# Allow crates to choose an android-activity backend via Winit
-# - It's important that most applications should not have to depend on android-activity directly, and can
-#   rely on Winit to pull in a suitable version (unlike most Rust crates, any version conflicts won't link)
-# - It's also important that we don't impose an android-activity backend by taking this choice away from applications.
-
-## Enable the `native-activity` backend via Winit on Android
-android-native-activity = ["winit/android-native-activity"]
-## Enable the `game-activity` backend via Winit on Android
-android-game-activity = ["winit/android-game-activity"]
 
 [dependencies]
 egui = { version = "0.22.0", path = "../egui", default-features = false, features = [

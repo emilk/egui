@@ -22,6 +22,10 @@ all-features = true
 [features]
 default = ["default_fonts"]
 
+## Exposes detailed accessibility implementation required by platform
+## accessibility APIs. Also requires support in the egui integration.
+accesskit = ["dep:accesskit"]
+
 ## [`bytemuck`](https://docs.rs/bytemuck) enables you to cast [`epaint::Vertex`], [`emath::Vec2`] etc to `&[u8]`.
 bytemuck = ["epaint/bytemuck"]
 
@@ -81,8 +85,6 @@ ahash = { version = "0.8.1", default-features = false, features = [
 nohash-hasher = "0.2"
 
 #! ### Optional dependencies
-## Exposes detailed accessibility implementation required by platform
-## accessibility APIs. Also requires support in the egui integration.
 accesskit = { version = "0.11", optional = true }
 
 backtrace = { version = "0.3", optional = true }

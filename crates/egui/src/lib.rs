@@ -12,6 +12,10 @@
 //! Then you add a [`Window`] or a [`SidePanel`] to get a [`Ui`], which is what you'll be using to add all the buttons and labels that you need.
 //!
 //!
+//! ## Feature flags
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+//!
+//!
 //! # Using egui
 //!
 //! To see what is possible to build with egui you can check out the online demo at <https://www.egui.rs/#demo>.
@@ -325,10 +329,6 @@
 //! }); // the temporary settings are reverted here
 //! # });
 //! ```
-//!
-//! ## Feature flags
-#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
-//!
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]

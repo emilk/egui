@@ -1,6 +1,6 @@
 //! [`egui`] bindings for [`glow`](https://github.com/grovesNL/glow).
 //!
-//! The main types you want to look are are [`Painter`].
+//! The main type you want to look at is [`Painter`].
 //!
 //! If you are writing an app, you may want to look at [`eframe`](https://docs.rs/eframe) instead.
 //!
