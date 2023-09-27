@@ -208,12 +208,6 @@ pub trait App {
         // _visuals.window_fill() would also be a natural choice
     }
 
-    /// Controls whether or not the native window position and size will be
-    /// persisted (only if the "persistence" feature is enabled).
-    fn persist_native_window(&self) -> bool {
-        true
-    }
-
     /// Controls whether or not the egui memory (window positions etc) will be
     /// persisted (only if the "persistence" feature is enabled).
     fn persist_egui_memory(&self) -> bool {
@@ -455,6 +449,10 @@ pub struct NativeOptions {
     /// }
     /// ```
     pub app_id: Option<String>,
+
+    /// Controls whether or not the native window position and size will be
+    /// persisted (only if the "persistence" feature is enabled).
+    pub persist_window: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -529,6 +527,8 @@ impl Default for NativeOptions {
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
 
             app_id: None,
+
+            persist_window: true,
         }
     }
 }
