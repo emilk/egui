@@ -123,6 +123,16 @@ pub struct WgpuConfiguration {
     pub on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
 }
 
+impl std::fmt::Debug for WgpuConfiguration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WgpuConfiguration")
+            .field("supported_backends", &self.supported_backends)
+            .field("present_mode", &self.present_mode)
+            .field("power_preference", &self.power_preference)
+            .finish_non_exhaustive()
+    }
+}
+
 impl Default for WgpuConfiguration {
     fn default() -> Self {
         Self {
