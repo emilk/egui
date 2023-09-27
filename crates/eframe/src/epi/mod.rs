@@ -182,13 +182,6 @@ pub trait App {
         std::time::Duration::from_secs(30)
     }
 
-    /// The size limit of the web app canvas.
-    ///
-    /// By default the max size is [`egui::Vec2::INFINITY`], i.e. unlimited.
-    fn max_size_points(&self) -> egui::Vec2 {
-        egui::Vec2::INFINITY
-    }
-
     /// Background color values for the app, e.g. what is sent to `gl.clearColor`.
     ///
     /// This is the background of your windows if you don't set a central panel.
@@ -566,6 +559,11 @@ pub struct WebOptions {
     /// Configures wgpu instance/device/adapter/surface creation and renderloop.
     #[cfg(feature = "wgpu")]
     pub wgpu_options: egui_wgpu::WgpuConfiguration,
+
+    /// The size limit of the web app canvas.
+    ///
+    /// By default the max size is [`egui::Vec2::INFINITY`], i.e. unlimited.
+    pub max_size_points: egui::Vec2,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -581,6 +579,8 @@ impl Default for WebOptions {
 
             #[cfg(feature = "wgpu")]
             wgpu_options: egui_wgpu::WgpuConfiguration::default(),
+
+            max_size_points: egui::Vec2::INFINITY,
         }
     }
 }

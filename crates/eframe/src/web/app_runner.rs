@@ -6,6 +6,7 @@ use crate::{epi, App};
 use super::{now_sec, web_painter::WebPainter, NeedRepaint};
 
 pub struct AppRunner {
+    web_options: WebOptions,
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
     painter: super::ActiveWebPainter,
@@ -98,6 +99,7 @@ impl AppRunner {
         }
 
         let mut runner = Self {
+            web_options,
             frame,
             egui_ctx,
             painter,
@@ -174,7 +176,7 @@ impl AppRunner {
     pub fn logic(&mut self) -> (std::time::Duration, Vec<egui::ClippedPrimitive>) {
         let frame_start = now_sec();
 
-        super::resize_canvas_to_screen_size(self.canvas_id(), self.app.max_size_points());
+        super::resize_canvas_to_screen_size(self.canvas_id(), self.web_options.max_size_points);
         let canvas_size = super::canvas_size_in_points(self.canvas_id());
         let raw_input = self.input.new_frame(canvas_size);
 
