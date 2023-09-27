@@ -354,6 +354,7 @@ pub struct EpiIntegration {
     can_drag_window: bool,
     window_state: WindowState,
     follow_system_theme: bool,
+    #[cfg(feature = "persistence")]
     persist_window: bool,
     app_icon_setter: super::app_icon::AppTitleIconSetter,
 }
@@ -423,6 +424,7 @@ impl EpiIntegration {
             can_drag_window: false,
             window_state,
             follow_system_theme: native_options.follow_system_theme,
+            #[cfg(feature = "persistence")]
             persist_window: native_options.persist_window,
             app_icon_setter,
         }

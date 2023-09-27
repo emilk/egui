@@ -6,7 +6,7 @@ use crate::{epi, App};
 use super::{now_sec, web_painter::WebPainter, NeedRepaint};
 
 pub struct AppRunner {
-    web_options: WebOptions,
+    web_options: crate::WebOptions,
     pub(crate) frame: epi::Frame,
     egui_ctx: egui::Context,
     painter: super::ActiveWebPainter,
