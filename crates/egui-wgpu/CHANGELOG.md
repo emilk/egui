@@ -6,6 +6,13 @@ This file is updated upon each release.
 Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
 
+## 0.23.0 - 2023-09-27
+* Update to `wgpu` 0.17.0 [#3170](https://github.com/emilk/egui/pull/3170) (thanks [@Aaron1011](https://github.com/Aaron1011)!)
+* Improved wgpu callbacks [#3253](https://github.com/emilk/egui/pull/3253) (thanks [@Wumpf](https://github.com/Wumpf)!)
+* Fix depth texture init with multisampling [#3207](https://github.com/emilk/egui/pull/3207) (thanks [@mauliu](https://github.com/mauliu)!)
+* Fix panic on wgpu GL backend due to new screenshot capability [#3078](https://github.com/emilk/egui/pull/3078) (thanks [@amfaber](https://github.com/amfaber)!)
+
+
 ## 0.22.0 - 2023-05-23
 * Update to wgpu 0.16 [#2884](https://github.com/emilk/egui/pull/2884) (thanks [@niklaskorz](https://github.com/niklaskorz)!)
 * Device configuration is now dependent on adapter [#2951](https://github.com/emilk/egui/pull/2951) (thanks [@Wumpf](https://github.com/Wumpf)!)

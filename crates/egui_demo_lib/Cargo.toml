@@ -1,6 +1,6 @@
 [package]
 name = "egui_demo_lib"
-version = "0.22.0"
+version = "0.23.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Example library for egui"
 edition = "2021"
@@ -11,7 +11,13 @@ readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/crates/egui_demo_lib"
 categories = ["gui", "graphics"]
 keywords = ["glium", "egui", "gui", "gamedev"]
-include = ["../LICENSE-APACHE", "../LICENSE-MIT", "**/*.rs", "Cargo.toml"]
+include = [
+    "../LICENSE-APACHE",
+    "../LICENSE-MIT",
+    "**/*.rs",
+    "Cargo.toml",
+    "data/icon.png",
+]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -32,9 +38,9 @@ syntect = ["egui_extras/syntect"]
 
 
 [dependencies]
-egui = { version = "0.22.0", path = "../egui", default-features = false }
-egui_extras = { version = "0.22.0", path = "../egui_extras" }
-egui_plot = { version = "0.22.0", path = "../egui_plot" }
+egui = { version = "0.23.0", path = "../egui", default-features = false }
+egui_extras = { version = "0.23.0", path = "../egui_extras" }
+egui_plot = { version = "0.23.0", path = "../egui_plot" }
 log = { version = "0.4", features = ["std"] }
 unicode_names2 = { version = "0.6.0", default-features = false }
 
