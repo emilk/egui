@@ -165,6 +165,7 @@ pub struct WrapApp {
 
 impl WrapApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // This gives us image support:
         egui_extras::install_image_loaders(&cc.egui_ctx);
 
         #[allow(unused_mut)]

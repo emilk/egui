@@ -313,6 +313,7 @@ pub struct NativeOptions {
     pub resizable: bool,
 
     /// On desktop: make the window transparent.
+    ///
     /// You control the transparency with [`App::clear_color()`].
     /// You should avoid having a [`egui::CentralPanel`], or make sure its frame is also transparent.
     pub transparent: bool,
