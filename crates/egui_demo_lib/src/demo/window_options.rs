@@ -6,6 +6,7 @@ pub struct WindowOptions {
     closable: bool,
     collapsible: bool,
     resizable: bool,
+    constrain: bool,
     scroll2: [bool; 2],
     disabled_time: f64,
 
@@ -22,6 +23,7 @@ impl Default for WindowOptions {
             closable: true,
             collapsible: true,
             resizable: true,
+            constrain: true,
             scroll2: [true; 2],
             disabled_time: f64::NEG_INFINITY,
             anchored: false,
@@ -43,6 +45,7 @@ impl super::Demo for WindowOptions {
             closable,
             collapsible,
             resizable,
+            constrain,
             scroll2,
             disabled_time,
             anchored,
@@ -59,6 +62,7 @@ impl super::Demo for WindowOptions {
         let mut window = egui::Window::new(title)
             .id(egui::Id::new("demo_window_options")) // required since we change the title
             .resizable(resizable)
+            .constrain(constrain)
             .collapsible(collapsible)
             .title_bar(title_bar)
             .scroll2(scroll2)
@@ -81,6 +85,7 @@ impl super::View for WindowOptions {
             closable,
             collapsible,
             resizable,
+            constrain,
             scroll2,
             disabled_time: _,
             anchored,
@@ -99,6 +104,8 @@ impl super::View for WindowOptions {
                     ui.checkbox(closable, "closable");
                     ui.checkbox(collapsible, "collapsible");
                     ui.checkbox(resizable, "resizable");
+                    ui.checkbox(constrain, "constrain")
+                        .on_hover_text("Constrain window to the screen");
                     ui.checkbox(&mut scroll2[0], "hscroll");
                     ui.checkbox(&mut scroll2[1], "vscroll");
                 });

@@ -146,10 +146,9 @@ pub(crate) fn menu_ui<'c, R>(
 
     let area = Area::new(menu_id)
         .order(Order::Foreground)
-        .constrain(true)
         .fixed_pos(pos)
-        .interactable(true)
-        .drag_bounds(ctx.screen_rect());
+        .constrain_to(ctx.screen_rect())
+        .interactable(true);
 
     area.show(ctx, |ui| {
         set_menu_style(ui.style_mut());
