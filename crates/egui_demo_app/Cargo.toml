@@ -18,6 +18,9 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["glow", "persistence"]
 
+# image_viewer adds about 0.9 MB of WASM
+web_app = ["http", "persistence", "web_screen_reader"]
+
 http = ["ehttp", "image", "poll-promise", "egui_extras/image"]
 image_viewer = ["image", "egui_extras/all_loaders", "rfd"]
 persistence = ["eframe/persistence", "egui/persistence", "serde"]
@@ -50,7 +53,6 @@ bytemuck = { version = "1.7.1", optional = true }
 egui_extras = { version = "0.23.0", path = "../egui_extras", features = [
   "image",
 ] }
-rfd = { version = "0.11", optional = true }
 
 # feature "http":
 ehttp = { version = "0.3.1", optional = true }
@@ -70,6 +72,7 @@ env_logger = "0.10"
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+rfd = { version = "0.11", optional = true }
 wasm-bindgen = "=0.2.87"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3"
