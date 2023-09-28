@@ -5,7 +5,7 @@ This file is updated upon each release.
 Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
 
-## 0.23.0 - 2023-09-27 - Initial release, after beeing forked out from `egui`
+## 0.23.0 - 2023-09-27 - Initial release, after being forked out from `egui`
 * Draw axis labels and ticks outside of plotting window [#2284](https://github.com/emilk/egui/pull/2284) (thanks [@JohannesProgrammiert](https://github.com/JohannesProgrammiert)!)
 * Add `PlotUi::response()` to replace `plot_clicked()` etc [#3223](https://github.com/emilk/egui/pull/3223)
 * Add rotation feature to plot images [#3121](https://github.com/emilk/egui/pull/3121) (thanks [@ThundR67](https://github.com/ThundR67)!)

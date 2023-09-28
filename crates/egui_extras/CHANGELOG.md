@@ -7,7 +7,7 @@ Changes since the last release can be found by running the `scripts/generate_cha
 
 ## 0.23.0 - 2023-09-27
 * `egui_extras::install_image_loaders` [#3297](https://github.com/emilk/egui/pull/3297) [#3315](https://github.com/emilk/egui/pull/3315) [#3328](https://github.com/emilk/egui/pull/3328) (thanks [@jprochazk](https://github.com/jprochazk)!)
-* Add syntax highlighing feature to `egui_extras` [#3333](https://github.com/emilk/egui/pull/3333) [#3388](https://github.com/emilk/egui/pull/3388)
+* Add syntax highlighting feature to `egui_extras` [#3333](https://github.com/emilk/egui/pull/3333) [#3388](https://github.com/emilk/egui/pull/3388)
 * Add `TableBuilder::drag_to_scroll` [#3100](https://github.com/emilk/egui/pull/3100) (thanks [@KYovchevski](https://github.com/KYovchevski)!)
 * Add opt-in `puffin` feature to `egui-extras` [#3307](https://github.com/emilk/egui/pull/3307)
 * Always depend on `log` crate [#3336](https://github.com/emilk/egui/pull/3336)

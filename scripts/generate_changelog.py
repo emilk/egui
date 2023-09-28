@@ -160,7 +160,7 @@ def main() -> None:
             title = pr_info.pr_title if pr_info else title
             labels = pr_info.labels if pr_info else []
 
-            if 'exclude from changlog' in labels:
+            if 'exclude from changelog' in labels:
                 continue
             if 'typo' in labels:
                 # We get so many typo PRs. Let's not flood the changelog with them.
