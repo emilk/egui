@@ -14,7 +14,7 @@ This release contains a simple and powerful image API:
 // Load from web:
 ui.image("https://www.example.com/some_image.png");
 
-// Included image in the binary using `include_bytes`:
+// Include image in the binary using `include_bytes`:
 ui.image(egui::include_image!("../assets/ferris.svg"));
 
 // With options:
