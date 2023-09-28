@@ -705,16 +705,16 @@ mod glow_integration {
         fn on_resume(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
             crate::profile_function!();
 
-            let values = self
+            let windows = self
                 .viewports
                 .values()
                 .cloned()
                 .collect::<Vec<Arc<RwLock<Window>>>>();
-            for win in values {
-                if win.read().gl_surface.is_some() {
+            for window in windows {
+                if window.read().gl_surface.is_some() {
                     continue;
                 }
-                self.init_window(&win, event_loop)?;
+                self.init_window(&window, event_loop)?;
             }
             Ok(())
         }
