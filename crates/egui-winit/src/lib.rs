@@ -1122,12 +1122,11 @@ pub fn process_viewports_commands(
 pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::WindowBuilder {
     let mut window_builder = winit::window::WindowBuilder::new()
         .with_title(builder.title.clone())
-        .with_transparent(builder.transparent.map_or(false, |e| e))
-        .with_decorations(builder.decorations.map_or(true, |e| e))
-        .with_resizable(builder.resizable.map_or(true, |e| e))
-        .with_visible(builder.visible.map_or(true, |e| e))
-        .with_maximized(builder.minimized.map_or(false, |e| e))
-        .with_maximized(builder.maximized.map_or(false, |e| e))
+        .with_transparent(builder.transparent.unwrap_or(false))
+        .with_decorations(builder.decorations.unwrap_or(true))
+        .with_resizable(builder.resizable.unwrap_or(true))
+        .with_visible(builder.visible.unwrap_or(true))
+        .with_maximized(builder.maximized.unwrap_or(false))
         .with_fullscreen(
             builder
                 .fullscreen
@@ -1196,6 +1195,15 @@ pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::
         window_builder = window_builder.with_drag_and_drop(enable);
     }
 
+    #[cfg(target_os = "macos")]
+    {
+        use winit::platform::macos::WindowBuilderExtMacOS;
+        window_builder = window_builder
+            .with_title_hidden(builder.title_hidden.unwrap_or(false))
+            .with_titlebar_transparent(builder.titlebar_transparent.unwrap_or(false))
+            .with_fullsize_content_view(builder.fullsize_content_view.unwrap_or(false));
+    }
+
     // TODO: implement `ViewportBuilder::hittest`
     // Is not implemented because winit in his current state will not allow to set cursor_hittest on a `WindowBuilder`
 
@@ -1247,13 +1255,6 @@ pub fn changes_between_builders(
         if Some(fullscreen) != last.fullscreen {
             last.fullscreen = Some(fullscreen);
             commands.push(ViewportCommand::Fullscreen(fullscreen));
-        }
-    }
-
-    if let Some(minimized) = new.minimized {
-        if Some(minimized) != last.minimized {
-            last.minimized = Some(minimized);
-            commands.push(ViewportCommand::Minimized(minimized));
         }
     }
 

@@ -55,7 +55,7 @@ pub type ViewportRenderSyncCallback =
     dyn for<'a> Fn(&Context, ViewportBuilder, ViewportIdPair, Box<dyn FnOnce(&Context) + 'a>);
 
 /// The filds in this struct should not be change directly, but is not problem tho!
-/// Every thing is wrapped in Option<> indicates that thing should not be changed!
+/// Every thing is wrapped in ``Option<T>`` indicates that nothing changed from the last ``ViewportBuilder``!
 #[derive(PartialEq, Eq, Clone)]
 #[allow(clippy::option_option)]
 pub struct ViewportBuilder {
@@ -66,7 +66,6 @@ pub struct ViewportBuilder {
     pub inner_size: Option<Option<Vec2>>,
     pub fullscreen: Option<bool>,
     pub maximized: Option<bool>,
-    pub minimized: Option<bool>,
     pub resizable: Option<bool>,
     pub transparent: Option<bool>,
     pub decorations: Option<bool>,
@@ -110,7 +109,6 @@ impl ViewportBuilder {
             max_inner_size: None,
             drag_and_drop: None,
             close_button: None,
-            minimized: Some(false),
             minimize_button: Some(true),
             maximize_button: Some(true),
             hittest: Some(true),
@@ -141,107 +139,178 @@ impl ViewportBuilder {
             max_inner_size: None,
             drag_and_drop: None,
             close_button: None,
-            minimized: None,
             minimize_button: None,
             maximize_button: None,
             hittest: None,
         }
     }
 
+    /// Sets the initial title of the window in the title bar.
+    ///
+    /// The default is `"winit window"`.
+    ///
+    /// See [`Window::set_title`] for details.
     pub fn with_title(mut self, title: impl Into<String>) -> Self {
         self.title = title.into();
         self
     }
 
+    /// Sets whether the window should have a border, a title bar, etc.
+    ///
+    /// The default is `true`.
+    ///
+    /// See [`Window::set_decorations`] for details.
     pub fn with_decorations(mut self, decorations: bool) -> Self {
         self.decorations = Some(decorations);
         self
     }
 
+    /// Sets whether the window should be put into fullscreen upon creation.
+    ///
+    /// The default is `None`.
+    ///
+    /// See [`Window::set_fullscreen`] for details.
+    /// This will use borderless
     pub fn with_fullscreen(mut self, fullscreen: bool) -> Self {
         self.fullscreen = Some(fullscreen);
         self
     }
 
+    /// Request that the window is maximized upon creation.
+    ///
+    /// The default is `false`.
+    ///
+    /// See [`Window::set_maximized`] for details.
     pub fn with_maximized(mut self, maximized: bool) -> Self {
         self.maximized = Some(maximized);
         self
     }
 
-    pub fn with_mimimized(mut self, minimized: bool) -> Self {
-        self.minimized = Some(minimized);
-        self
-    }
-
+    /// Sets whether the window is resizable or not.
+    ///
+    /// The default is `true`.
+    ///
+    /// See [`Window::set_resizable`] for details.
     pub fn with_resizable(mut self, resizable: bool) -> Self {
         self.resizable = Some(resizable);
         self
     }
 
+    /// Sets whether the background of the window should be transparent.
+    ///
+    /// If this is `true`, writing colors with alpha values different than
+    /// `1.0` will produce a transparent window. On some platforms this
+    /// is more of a hint for the system and you'd still have the alpha
+    /// buffer. To control it see [`Window::set_transparent`].
+    ///
+    /// The default is `false`.
+    /// If this is not working is because the graphic context dozen't support transparency,
+    /// you will need to set the transparency in the eframe!
     pub fn with_transparent(mut self, transparent: bool) -> Self {
         self.transparent = Some(transparent);
         self
     }
 
-    /// The icon needs to be wrapped in Arc because will be copied every frame
+    /// The icon needs to be wrapped in Arc because will be cloned every frame
     pub fn with_window_icon(mut self, icon: Option<Arc<ColorImage>>) -> Self {
         self.icon = Some(icon);
         self
     }
 
+    /// Whether the window will be initially focused or not.
+    ///
+    /// The window should be assumed as not focused by default
+    /// following by the [`WindowEvent::Focused`].
+    ///
+    /// ## Platform-specific:
+    ///
+    /// **Android / iOS / X11 / Wayland / Orbital:** Unsupported.
+    ///
+    /// [`WindowEvent::Focused`]: crate::event::WindowEvent::Focused.
     pub fn with_active(mut self, active: bool) -> Self {
         self.active = Some(active);
         self
     }
 
+    /// Sets whether the window will be initially visible or hidden.
+    ///
+    /// The default is to show the window.
+    ///
+    /// See [`Window::set_visible`] for details.
     pub fn with_visible(mut self, visible: bool) -> Self {
         self.visible = Some(visible);
         self
     }
 
+    /// Mac Os only
+    /// Hides the window title.
     pub fn with_title_hidden(mut self, title_hidden: bool) -> Self {
         self.title_hidden = Some(title_hidden);
         self
     }
 
+    /// Mac Os only
+    /// Makes the titlebar transparent and allows the content to appear behind it.
     pub fn with_titlebar_transparent(mut self, value: bool) -> Self {
         self.titlebar_transparent = Some(value);
         self
     }
 
+    /// Mac Os only
+    /// Makes the window content appear behind the titlebar.
     pub fn with_fullsize_content_view(mut self, value: bool) -> Self {
         self.fullsize_content_view = Some(value);
         self
     }
 
+    /// Requests the window to be of specific dimensions.
+    ///
+    /// If this is not set, some platform-specific dimensions will be used.
+    ///
+    /// See [`Window::set_inner_size`] for details.
     /// Should be bigger then 0
     pub fn with_inner_size(mut self, value: Option<Vec2>) -> Self {
         self.inner_size = Some(value);
         self
     }
 
+    /// Sets the minimum dimensions a window can have.
+    ///
+    /// If this is not set, the window will have no minimum dimensions (aside
+    /// from reserved).
+    ///
+    /// See [`Window::set_min_inner_size`] for details.
     /// Should be bigger then 0
     pub fn with_min_inner_size(mut self, value: Option<Vec2>) -> Self {
         self.min_inner_size = Some(value);
         self
     }
 
+    /// Sets the maximum dimensions a window can have.
+    ///
+    /// If this is not set, the window will have no maximum or will be set to
+    /// the primary monitor's dimensions by the platform.
+    ///
+    /// See [`Window::set_max_inner_size`] for details.
     /// Should be bigger then 0
     pub fn with_max_inner_size(mut self, value: Option<Vec2>) -> Self {
         self.max_inner_size = Some(value);
         self
     }
 
+    /// X11 not working!
     pub fn with_close_button(mut self, value: bool) -> Self {
         self.close_button = Some(value);
         self
     }
 
+    /// X11 not working!
     pub fn with_minimize_button(mut self, value: bool) -> Self {
         self.minimize_button = Some(value);
         self
     }
 
+    /// X11 not working!
     pub fn with_maximize_button(mut self, value: bool) -> Self {
         self.maximize_button = Some(value);
         self
@@ -258,6 +327,14 @@ impl ViewportBuilder {
         self
     }
 
+    /// This is wayland only!
+    /// Build window with the given name.
+    ///
+    /// The `general` name sets an application ID, which should match the `.desktop`
+    /// file destributed with your program. The `instance` is a `no-op`.
+    ///
+    /// For details about application ID conventions, see the
+    /// [Desktop Entry Spec](https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#desktop-file-id)
     pub fn with_name(mut self, id: impl Into<String>, instance: impl Into<String>) -> Self {
         self.name = Some((id.into(), instance.into()));
         self
@@ -265,6 +342,7 @@ impl ViewportBuilder {
 
     /// Is not implemented for winit
     /// You should use `ViewportCommand::CursorHitTest` if you want to set this!
+    #[deprecated]
     pub fn with_hittest(mut self, value: bool) -> Self {
         self.hittest = Some(value);
         self
