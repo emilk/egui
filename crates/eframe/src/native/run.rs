@@ -895,7 +895,7 @@ mod glow_integration {
             event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<&dyn epi::Storage>,
             title: &str,
-            native_options: &NativeOptions,
+            native_options: &mut NativeOptions,
         ) -> Result<(GlutinWindowContext, glow::Context)> {
             crate::profile_function!();
 
@@ -945,7 +945,7 @@ mod glow_integration {
                 event_loop,
                 storage.as_deref(),
                 &self.app_name,
-                &self.native_options,
+                &mut self.native_options,
             )?;
             let gl = Arc::new(gl);
 
@@ -1944,7 +1944,7 @@ mod wgpu_integration {
             event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<&dyn epi::Storage>,
             title: &str,
-            native_options: &NativeOptions,
+            native_options: &mut NativeOptions,
         ) -> std::result::Result<(winit::window::Window, ViewportBuilder), winit::error::OsError>
         {
             crate::profile_function!();
@@ -2556,7 +2556,7 @@ mod wgpu_integration {
                                 event_loop,
                                 running.integration.read().frame.storage(),
                                 &self.app_name,
-                                &self.native_options,
+                                &mut self.native_options,
                             )?;
                             self.set_window(ViewportId::MAIN)?;
                         }
@@ -2571,7 +2571,7 @@ mod wgpu_integration {
                             event_loop,
                             storage.as_deref(),
                             &self.app_name,
-                            &self.native_options,
+                            &mut self.native_options,
                         )?;
                         self.init_run_state(event_loop, storage, window, builder)?;
                     }

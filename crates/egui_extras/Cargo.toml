@@ -1,6 +1,6 @@
 [package]
 name = "egui_extras"
-version = "0.22.0"
+version = "0.23.0"
 authors = [
   "Dominik Rössler <dominik@freshx.de>",
   "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
@@ -42,7 +42,8 @@ http = ["dep:ehttp"]
 ##
 ## You also need to ALSO opt-in to the image formats you want to support, like so:
 ## ```toml
-## image = { version = "0.24", features = ["jpeg", "png"] }
+## image = { version = "0.24", features = ["jpeg", "png"] } # Add the types you want support for
+
 ## ```
 image = ["dep:image"]
 
@@ -59,7 +60,7 @@ syntect = ["dep:syntect"]
 
 
 [dependencies]
-egui = { version = "0.22.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.23.0", path = "../egui", default-features = false, features = [
   "serde",
 ] }
 enum-map = { version = "2", features = ["serde"] }
@@ -96,4 +97,4 @@ tiny-skia = { version = "0.8", optional = true, default-features = false } # mus
 usvg = { version = "0.28", optional = true, default-features = false }
 
 # http feature
-ehttp = { version = "0.3.0", optional = true, default-features = false }
+ehttp = { version = "0.3.1", optional = true, default-features = false }

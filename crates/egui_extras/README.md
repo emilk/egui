@@ -13,7 +13,7 @@ One thing `egui_extras` is commonly used for is to install image loaders for `eg
 
 ```toml
 egui_extras = { version = "*", features = ["all_loaders"] }
-image = { version = "0.24", features = ["jpeg", "png"] }
+image = { version = "0.24", features = ["jpeg", "png"] } # Add the types you want support for
 ```
 
 ```rs

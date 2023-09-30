@@ -47,6 +47,7 @@ impl PlotPoint {
 
 // ----------------------------------------------------------------------------
 
+/// Solid, dotted, dashed, etc.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum LineStyle {
     Solid,
@@ -319,6 +320,7 @@ impl PlotPoints {
 
 // ----------------------------------------------------------------------------
 
+/// Circle, Diamond, Square, Cross, …
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum MarkerShape {
     Circle,

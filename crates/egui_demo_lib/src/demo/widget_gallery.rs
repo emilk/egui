@@ -197,7 +197,7 @@ impl WidgetGallery {
         ui.end_row();
 
         ui.add(doc_link_label("Image", "Image"));
-        let egui_icon = egui::include_image!("../../assets/icon.png");
+        let egui_icon = egui::include_image!("../../data/icon.png");
         ui.add(egui::Image::new(egui_icon.clone()));
         ui.end_row();
 

@@ -43,7 +43,7 @@ impl<'open> Window<'open> {
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl Into<WidgetText>) -> Self {
         let title = title.into().fallback_text_style(TextStyle::Heading);
-        let area = Area::new(Id::new(title.text()));
+        let area = Area::new(Id::new(title.text())).constrain(true);
         Self {
             title,
             open: None,
@@ -146,8 +146,28 @@ impl<'open> Window<'open> {
     }
 
     /// Constrains this window to the screen bounds.
+    ///
+    /// To change the area to constrain to, use [`Self::constraint_to`].
+    ///
+    /// Default: `true`.
     pub fn constrain(mut self, constrain: bool) -> Self {
         self.area = self.area.constrain(constrain);
+        self
+    }
+
+    /// Constraint the movement of the window to the given rectangle.
+    ///
+    /// For instance: `.constrain_to(ctx.screen_rect())`.
+    pub fn constraint_to(mut self, constrain_rect: Rect) -> Self {
+        self.area = self.area.constrain_to(constrain_rect);
+        self
+    }
+
+    #[deprecated = "Use `constrain_to` instead"]
+    pub fn drag_bounds(mut self, constrain_rect: Rect) -> Self {
+        #![allow(deprecated)]
+
+        self.area = self.area.drag_bounds(constrain_rect);
         self
     }
 
@@ -274,12 +294,6 @@ impl<'open> Window<'open> {
     /// See [`ScrollArea::drag_to_scroll`] for more.
     pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
         self.scroll = self.scroll.drag_to_scroll(drag_to_scroll);
-        self
-    }
-
-    /// Constrain the area up to which the window can be dragged.
-    pub fn drag_bounds(mut self, bounds: Rect) -> Self {
-        self.area = self.area.drag_bounds(bounds);
         self
     }
 }
@@ -452,13 +466,6 @@ impl<'open> Window<'open> {
             content_inner
         };
 
-        {
-            let pos = ctx
-                .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
-                .left_top();
-            area.state_mut().set_left_top_pos(pos);
-        }
-
         let full_response = area.end(ctx, area_content_ui);
 
         let inner_response = InnerResponse {
@@ -562,9 +569,11 @@ fn interact(
     resize_id: Id,
 ) -> Option<WindowInteraction> {
     let new_rect = move_and_resize_window(ctx, &window_interaction)?;
-    let new_rect = ctx.round_rect_to_pixels(new_rect);
+    let mut new_rect = ctx.round_rect_to_pixels(new_rect);
 
-    let new_rect = ctx.constrain_window_rect_to_area(new_rect, area.drag_bounds());
+    if area.constrain() {
+        new_rect = ctx.constrain_window_rect_to_area(new_rect, area.constrain_rect());
+    }
 
     // TODO(emilk): add this to a Window state instead as a command "move here next frame"
     area.state_mut().set_left_top_pos(new_rect.left_top());

@@ -5,7 +5,12 @@ This file is updated upon each release.
 Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
 
+## 0.23.0 - 2023-09-27
+* Update `egui`
+
+
 ## 0.22.0 - 2023-05-23
+* Update `egui`
 
 
 ## 0.21.0 - 2023-02-08

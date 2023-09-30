@@ -65,12 +65,12 @@ pub struct Area {
     interactable: bool,
     enabled: bool,
     constrain: bool,
+    constrain_rect: Option<Rect>,
     order: Order,
     default_pos: Option<Pos2>,
     pivot: Align2,
     anchor: Option<(Align2, Vec2)>,
     new_pos: Option<Pos2>,
-    drag_bounds: Option<Rect>,
 }
 
 impl Area {
@@ -80,13 +80,13 @@ impl Area {
             movable: true,
             interactable: true,
             constrain: false,
+            constrain_rect: None,
             enabled: true,
             order: Order::Middle,
             default_pos: None,
             new_pos: None,
             pivot: Align2::LEFT_TOP,
             anchor: None,
-            drag_bounds: None,
         }
     }
 
@@ -155,6 +155,21 @@ impl Area {
         self
     }
 
+    /// Constraint the movement of the window to the given rectangle.
+    ///
+    /// For instance: `.constrain_to(ctx.screen_rect())`.
+    pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {
+        self.constrain = true;
+        self.constrain_rect = Some(constrain_rect);
+        self
+    }
+
+    #[deprecated = "Use `constrain_to` instead"]
+    pub fn drag_bounds(mut self, constrain_rect: Rect) -> Self {
+        self.constrain_rect = Some(constrain_rect);
+        self
+    }
+
     /// Where the "root" of the area is.
     ///
     /// For instance, if you set this to [`Align2::RIGHT_TOP`]
@@ -189,12 +204,6 @@ impl Area {
         self.movable(false)
     }
 
-    /// Constrain the area up to which the window can be dragged.
-    pub fn drag_bounds(mut self, bounds: Rect) -> Self {
-        self.drag_bounds = Some(bounds);
-        self
-    }
-
     pub(crate) fn get_pivot(&self) -> Align2 {
         if let Some((pivot, _)) = self.anchor {
             pivot
@@ -209,7 +218,8 @@ pub(crate) struct Prepared {
     state: State,
     move_response: Response,
     enabled: bool,
-    drag_bounds: Option<Rect>,
+    constrain: bool,
+    constrain_rect: Option<Rect>,
 
     /// We always make windows invisible the first frame to hide "first-frame-jitters".
     ///
@@ -243,8 +253,8 @@ impl Area {
             new_pos,
             pivot,
             anchor,
-            drag_bounds,
             constrain,
+            constrain_rect,
         } = self;
 
         let layer_id = LayerId::new(order, id);
@@ -271,7 +281,7 @@ impl Area {
         }
 
         // interact right away to prevent frame-delay
-        let move_response = {
+        let mut move_response = {
             let interact_id = layer_id.id.with("move");
             let sense = if movable {
                 Sense::click_and_drag()
@@ -291,16 +301,8 @@ impl Area {
                 enabled,
             );
 
-            // Important check - don't try to move e.g. a combobox popup!
-            if movable {
-                if move_response.dragged() {
-                    state.pivot_pos += ctx.input(|i| i.pointer.delta());
-                }
-
-                state.set_left_top_pos(
-                    ctx.constrain_window_rect_to_area(state.rect(), drag_bounds)
-                        .min,
-                );
+            if movable && move_response.dragged() {
+                state.pivot_pos += ctx.input(|i| i.pointer.delta());
             }
 
             if (move_response.dragged() || move_response.clicked())
@@ -314,21 +316,25 @@ impl Area {
             move_response
         };
 
-        state.set_left_top_pos(ctx.round_pos_to_pixels(state.left_top_pos()));
-
         if constrain {
             state.set_left_top_pos(
-                ctx.constrain_window_rect_to_area(state.rect(), drag_bounds)
-                    .left_top(),
+                ctx.constrain_window_rect_to_area(state.rect(), constrain_rect)
+                    .min,
             );
         }
+
+        state.set_left_top_pos(ctx.round_pos_to_pixels(state.left_top_pos()));
+
+        // Update responsbe with posisbly moved/constrained rect:
+        move_response = move_response.with_new_rect(state.rect());
 
         Prepared {
             layer_id,
             state,
             move_response,
             enabled,
-            drag_bounds,
+            constrain,
+            constrain_rect,
             temporarily_invisible: is_new,
         }
     }
@@ -371,15 +377,19 @@ impl Prepared {
         &mut self.state
     }
 
-    pub(crate) fn drag_bounds(&self) -> Option<Rect> {
-        self.drag_bounds
+    pub(crate) fn constrain(&self) -> bool {
+        self.constrain
+    }
+
+    pub(crate) fn constrain_rect(&self) -> Option<Rect> {
+        self.constrain_rect
     }
 
     pub(crate) fn content_ui(&self, ctx: &Context) -> Ui {
         let screen_rect = ctx.screen_rect();
 
-        let bounds = if let Some(bounds) = self.drag_bounds {
-            bounds.intersect(screen_rect) // protect against infinite bounds
+        let constrain_rect = if let Some(constrain_rect) = self.constrain_rect {
+            constrain_rect.intersect(screen_rect) // protect against infinite bounds
         } else {
             let central_area = ctx.available_rect();
 
@@ -393,7 +403,7 @@ impl Prepared {
 
         let max_rect = Rect::from_min_max(
             self.state.left_top_pos(),
-            bounds
+            constrain_rect
                 .max
                 .at_least(self.state.left_top_pos() + Vec2::splat(32.0)),
         );
@@ -401,9 +411,9 @@ impl Prepared {
         let shadow_radius = ctx.style().visuals.window_shadow.extrusion; // hacky
         let clip_rect_margin = ctx.style().visuals.clip_rect_margin.max(shadow_radius);
 
-        let clip_rect = Rect::from_min_max(self.state.left_top_pos(), bounds.max)
+        let clip_rect = Rect::from_min_max(self.state.left_top_pos(), constrain_rect.max)
             .expand(clip_rect_margin)
-            .intersect(bounds);
+            .intersect(constrain_rect);
 
         let mut ui = Ui::new(
             ctx.clone(),
@@ -424,7 +434,8 @@ impl Prepared {
             mut state,
             move_response,
             enabled: _,
-            drag_bounds: _,
+            constrain: _,
+            constrain_rect: _,
             temporarily_invisible: _,
         } = self;
 
