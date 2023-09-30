@@ -2571,6 +2571,11 @@ impl Context {
         });
     }
 
+    /// This will tell you if is possible to open a native window
+    pub fn is_desktop(&self) -> bool {
+        self.read(|ctx| ctx.is_desktop)
+    }
+
     /// If this is true no other native windows will be created
     pub fn force_embedding(&self) -> bool {
         self.read(|ctx| ctx.force_embedding)

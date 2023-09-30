@@ -331,7 +331,7 @@ impl ViewportBuilder {
     /// Build window with the given name.
     ///
     /// The `general` name sets an application ID, which should match the `.desktop`
-    /// file destributed with your program. The `instance` is a `no-op`.
+    /// file distributed with your program. The `instance` is a `no-op`.
     ///
     /// For details about application ID conventions, see the
     /// [Desktop Entry Spec](https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#desktop-file-id)

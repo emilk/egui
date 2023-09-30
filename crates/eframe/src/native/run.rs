@@ -689,7 +689,7 @@ mod glow_integration {
                 viewports: windows,
                 builders,
                 viewports_maps: window_maps,
-                // This is initializate in init_run_state
+                // This is initialize in init_run_state
                 max_texture_side: 0,
             })
         }
