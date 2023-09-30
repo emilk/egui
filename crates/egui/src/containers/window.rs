@@ -480,7 +480,7 @@ fn paint_resize_corner(
     ui: &mut Ui,
     possible: &PossibleInteractions,
     outer_rect: Rect,
-    stroke: Stroke,
+    stroke: impl Into<Stroke>,
 ) {
     let corner = if possible.resize_right && possible.resize_bottom {
         Align2::RIGHT_BOTTOM
