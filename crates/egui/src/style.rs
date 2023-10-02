@@ -880,6 +880,20 @@ pub struct Selection {
     pub stroke: Stroke,
 }
 
+/// Shape of the handle for sliders and similar widgets.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum HandleShape {
+    /// Circular handle
+    Circle,
+
+    /// Rectangular handle
+    Rect {
+        /// Aspect ratio of the rectangle. Set to < 1.0 to make it narrower.
+        aspect_ratio: f32,
+    },
+}
+
 /// The visuals of widgets for different states of interaction.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -948,6 +962,9 @@ pub struct WidgetVisuals {
 
     /// Make the frame this much larger.
     pub expansion: f32,
+
+    /// Shape of the handle for sliders and similar widgets.
+    pub handle_shape: HandleShape,
 }
 
 impl WidgetVisuals {
@@ -1196,6 +1213,7 @@ impl Widgets {
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
+                handle_shape: HandleShape::Circle,
             },
             inactive: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(60), // button background
@@ -1204,6 +1222,7 @@ impl Widgets {
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
+                handle_shape: HandleShape::Circle,
             },
             hovered: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(70),
@@ -1212,6 +1231,7 @@ impl Widgets {
                 fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
                 rounding: Rounding::same(3.0),
                 expansion: 1.0,
+                handle_shape: HandleShape::Circle,
             },
             active: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(55),
@@ -1220,6 +1240,7 @@ impl Widgets {
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
                 rounding: Rounding::same(2.0),
                 expansion: 1.0,
+                handle_shape: HandleShape::Circle,
             },
             open: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(27),
@@ -1228,6 +1249,7 @@ impl Widgets {
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
+                handle_shape: HandleShape::Circle,
             },
         }
     }
@@ -1241,6 +1263,7 @@ impl Widgets {
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(80)),  // normal text color
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
+                handle_shape: HandleShape::Circle,
             },
             inactive: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(230), // button background
@@ -1249,6 +1272,7 @@ impl Widgets {
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
+                handle_shape: HandleShape::Circle,
             },
             hovered: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(220),
@@ -1257,6 +1281,7 @@ impl Widgets {
                 fg_stroke: Stroke::new(1.5, Color32::BLACK),
                 rounding: Rounding::same(3.0),
                 expansion: 1.0,
+                handle_shape: HandleShape::Circle,
             },
             active: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(165),
@@ -1265,6 +1290,7 @@ impl Widgets {
                 fg_stroke: Stroke::new(2.0, Color32::BLACK),
                 rounding: Rounding::same(2.0),
                 expansion: 1.0,
+                handle_shape: HandleShape::Circle,
             },
             open: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(220),
@@ -1273,6 +1299,7 @@ impl Widgets {
                 fg_stroke: Stroke::new(1.0, Color32::BLACK),
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
+                handle_shape: HandleShape::Circle,
             },
         }
     }
@@ -1604,6 +1631,7 @@ impl WidgetVisuals {
             rounding,
             fg_stroke,
             expansion,
+            handle_shape,
         } = self;
         ui_color(ui, weak_bg_fill, "optional background fill")
             .on_hover_text("For buttons, combo-boxes, etc");
@@ -1616,6 +1644,7 @@ impl WidgetVisuals {
         stroke_ui(ui, fg_stroke, "foreground stroke (text)");
         ui.add(Slider::new(expansion, -5.0..=5.0).text("expansion"))
             .on_hover_text("make shapes this much larger");
+        handle_shape_ui(ui, handle_shape);
     }
 }
 
@@ -1874,6 +1903,25 @@ fn rounding_ui(ui: &mut Ui, rounding: &mut Rounding) {
             if rounding.is_same() {
                 rounding.se *= 1.00001;
             }
+        }
+    });
+}
+
+fn handle_shape_ui(ui: &mut Ui, handle_shape: &mut HandleShape) {
+    ui.label("Widget handle shape");
+    ui.horizontal(|ui| {
+        ui.radio_value(handle_shape, HandleShape::Circle, "Circle");
+        if ui
+            .radio(
+                matches!(handle_shape, HandleShape::Rect { aspect_ratio: _ }),
+                "Rectangle",
+            )
+            .clicked()
+        {
+            *handle_shape = HandleShape::Rect { aspect_ratio: 0.5 };
+        }
+        if let HandleShape::Rect { aspect_ratio } = handle_shape {
+            ui.add(Slider::new(aspect_ratio, 0.1..=3.0).text("Aspect ratio"));
         }
     });
 }

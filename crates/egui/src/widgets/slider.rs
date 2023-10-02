@@ -551,7 +551,7 @@ impl<'a> Slider<'a> {
     /// Just the slider, no text
     fn slider_ui(&mut self, ui: &Ui, response: &Response) {
         let rect = &response.rect;
-        let position_range = self.position_range(rect);
+        let position_range = self.position_range(rect, &ui.style().interact(response).handle_shape);
 
         if let Some(pointer_position_2d) = response.interact_pointer_pos() {
             let position = self.pointer_position(pointer_position_2d);
@@ -677,12 +677,36 @@ impl<'a> Slider<'a> {
                 );
             }
 
-            ui.painter().add(epaint::CircleShape {
-                center,
-                radius: self.handle_radius(rect) + visuals.expansion,
-                fill: visuals.bg_fill,
-                stroke: visuals.fg_stroke,
-            });
+            let radius = self.handle_radius(rect, &visuals.handle_shape);
+            match visuals.handle_shape {
+                style::HandleShape::Circle => {
+                    ui.painter().add(epaint::CircleShape {
+                        center,
+                        radius: radius + visuals.expansion,
+                        fill: visuals.bg_fill,
+                        stroke: visuals.fg_stroke,
+                    });
+                }
+                style::HandleShape::Rect { aspect_ratio } => {
+                    let v = match self.orientation {
+                        SliderOrientation::Horizontal => Vec2::new(radius, radius / aspect_ratio),
+                        SliderOrientation::Vertical => Vec2::new(radius / aspect_ratio, radius),
+                    };
+                    let v = v + Vec2::splat(visuals.expansion);
+                    let rect = Rect {
+                        min: center - v,
+                        max: center + v,
+                    };
+                    ui.painter().add(epaint::RectShape {
+                        fill: visuals.bg_fill,
+                        stroke: visuals.fg_stroke,
+                        rect,
+                        rounding: visuals.rounding,
+                        fill_texture_id: Default::default(),
+                        uv: Rect::ZERO,
+                    });
+                }
+            }
         }
     }
 
@@ -700,8 +724,8 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn position_range(&self, rect: &Rect) -> Rangef {
-        let handle_radius = self.handle_radius(rect);
+    fn position_range(&self, rect: &Rect, handle_shape: &style::HandleShape) -> Rangef {
+        let handle_radius = self.handle_radius(rect, handle_shape);
         match self.orientation {
             SliderOrientation::Horizontal => rect.x_range().shrink(handle_radius),
             // The vertical case has to be flipped because the largest slider value maps to the
@@ -723,12 +747,16 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn handle_radius(&self, rect: &Rect) -> f32 {
+    fn handle_radius(&self, rect: &Rect, handle_shape: &style::HandleShape) -> f32 {
         let limit = match self.orientation {
             SliderOrientation::Horizontal => rect.height(),
             SliderOrientation::Vertical => rect.width(),
         };
-        limit / 2.5
+        let aspect_ratio = match handle_shape {
+            style::HandleShape::Circle => 1.0,
+            style::HandleShape::Rect { aspect_ratio } => *aspect_ratio,
+        };
+        limit / (2.5 / aspect_ratio)
     }
 
     fn rail_radius_limit(&self, rect: &Rect) -> f32 {
@@ -823,7 +851,8 @@ impl<'a> Slider<'a> {
         let slider_response = response.clone();
 
         let value_response = if self.show_value {
-            let position_range = self.position_range(&response.rect);
+            let position_range =
+                self.position_range(&response.rect, &ui.style().interact(&response).handle_shape);
             let value_response = self.value_ui(ui, position_range);
             if value_response.gained_focus()
                 || value_response.has_focus()
