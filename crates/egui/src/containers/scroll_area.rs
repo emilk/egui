@@ -107,6 +107,12 @@ pub struct ScrollArea {
     max_size: Vec2,
     min_scrolled_size: Vec2,
     scroll_bar_visibility: ScrollBarVisibility,
+
+    /// Should the scroll bar only be visible when this area is hovered over?
+    ///
+    /// defaults to `false`.
+    hide_scroll_bar_unless_hovered: bool,
+
     id_source: Option<Id>,
     offset_x: Option<f32>,
     offset_y: Option<f32>,
@@ -155,6 +161,7 @@ impl ScrollArea {
             id_source: None,
             offset_x: None,
             offset_y: None,
+            hide_scroll_bar_unless_hovered: false,
             scrolling_enabled: true,
             drag_to_scroll: true,
             stick_to_end: [false; 2],
@@ -208,6 +215,17 @@ impl ScrollArea {
     /// With `ScrollBarVisibility::VisibleWhenNeeded` (default), the scroll bar will be visible only when needed.
     pub fn scroll_bar_visibility(mut self, scroll_bar_visibility: ScrollBarVisibility) -> Self {
         self.scroll_bar_visibility = scroll_bar_visibility;
+        self
+    }
+
+    /// Determine whether the scroll bar should be hidden until hovered over.
+    ///
+    /// If false, the scroll bar will never be hidden.
+    /// If true, the scroll bar will be hidden unless the area is hovered over.
+    ///
+    /// Default: `false`.
+    pub fn hide_scroll_bar_unless_hovered(mut self, hide_unless_hovered: bool) -> Self {
+        self.hide_scroll_bar_unless_hovered = hide_unless_hovered;
         self
     }
 
@@ -345,6 +363,7 @@ struct Prepared {
     current_bar_use: Vec2,
 
     scroll_bar_visibility: ScrollBarVisibility,
+    hide_scroll_bar_unless_hovered: bool,
 
     /// Where on the screen the content is (excludes scroll bars).
     inner_rect: Rect,
@@ -373,6 +392,7 @@ impl ScrollArea {
             scrolling_enabled,
             drag_to_scroll,
             stick_to_end,
+            hide_scroll_bar_unless_hovered,
         } = self;
 
         let ctx = ui.ctx().clone();
@@ -514,6 +534,7 @@ impl ScrollArea {
             auto_shrink,
             current_bar_use,
             scroll_bar_visibility,
+            hide_scroll_bar_unless_hovered,
             inner_rect,
             content_ui,
             viewport,
@@ -625,6 +646,7 @@ impl Prepared {
             auto_shrink,
             mut current_bar_use,
             scroll_bar_visibility,
+            hide_scroll_bar_unless_hovered,
             content_ui,
             viewport: _,
             scrolling_enabled,
@@ -839,6 +861,17 @@ impl Prepared {
                 state.vel[d] = 0.0;
             }
 
+            let opacity = if hide_scroll_bar_unless_hovered {
+                let response = ui.interact(outer_rect, interact_id, Sense::click_and_drag());
+
+                ui.ctx().animate_bool(
+                    id.with("hover_opacity"),
+                    response.hovered || response.dragged,
+                )
+            } else {
+                1.0
+            };
+
             if ui.is_rect_visible(outer_scroll_rect) {
                 // Avoid frame-delay by calculating a new handle rect:
                 let mut handle_rect = if d == 0 {
@@ -876,13 +909,13 @@ impl Prepared {
                 ui.painter().add(epaint::Shape::rect_filled(
                     outer_scroll_rect,
                     visuals.rounding,
-                    ui.visuals().extreme_bg_color,
+                    ui.visuals().extreme_bg_color.gamma_multiply(opacity),
                 ));
 
                 ui.painter().add(epaint::Shape::rect_filled(
                     handle_rect,
                     visuals.rounding,
-                    visuals.bg_fill,
+                    visuals.bg_fill.gamma_multiply(opacity),
                 ));
             }
         }
