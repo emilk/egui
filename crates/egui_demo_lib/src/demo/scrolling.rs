@@ -159,6 +159,7 @@ struct ScrollTo {
     track_item: usize,
     tack_item_align: Option<Align>,
     offset: f32,
+    hide_unless_hovered: bool,
 }
 
 impl Default for ScrollTo {
@@ -167,6 +168,7 @@ impl Default for ScrollTo {
             track_item: 25,
             tack_item_align: Some(Align::Center),
             offset: 0.0,
+            hide_unless_hovered: false,
         }
     }
 }
@@ -204,6 +206,13 @@ impl super::View for ScrollTo {
         });
 
         ui.horizontal(|ui| {
+            ui.add(Checkbox::new(
+                &mut self.hide_unless_hovered,
+                "Hide scrollbar unless interacting",
+            ))
+        });
+
+        ui.horizontal(|ui| {
             ui.label("Scroll to a specific offset:");
             go_to_scroll_offset |= ui
                 .add(DragValue::new(&mut self.offset).speed(1.0).suffix("px"))
@@ -217,6 +226,7 @@ impl super::View for ScrollTo {
 
         let mut scroll_area = ScrollArea::vertical()
             .max_height(200.0)
+            .hide_scroll_bar_unless_hovered(self.hide_unless_hovered)
             .auto_shrink([false; 2]);
         if go_to_scroll_offset {
             scroll_area = scroll_area.vertical_scroll_offset(self.offset);
