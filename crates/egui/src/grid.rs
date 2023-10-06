@@ -221,7 +221,7 @@ impl GridLayout {
         self.col += 1;
     }
 
-    fn paint_row(&mut self, cursor: &mut Rect, painter: &Painter) {
+    fn paint_row(&mut self, cursor: &Rect, painter: &Painter) {
         // handle row color painting based on color-picker function
         let Some(color_picker) = self.color_picker.as_ref() else {
             return;
@@ -433,9 +433,9 @@ impl Grid {
 
                 // paint first incoming row
                 if is_color {
-                    let mut cursor = ui.cursor();
+                    let cursor = ui.cursor();
                     let painter = ui.painter();
-                    grid.paint_row(&mut cursor, painter);
+                    grid.paint_row(&cursor, painter);
                 }
 
                 ui.set_grid(grid);

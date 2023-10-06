@@ -269,7 +269,7 @@ impl<'a> Image<'a> {
         self.size.calc_size(available_size, original_image_size)
     }
 
-    pub fn load_and_calc_size(&self, ui: &mut Ui, available_size: Vec2) -> Option<Vec2> {
+    pub fn load_and_calc_size(&self, ui: &Ui, available_size: Vec2) -> Option<Vec2> {
         let image_size = self.load_for_size(ui.ctx(), available_size).ok()?.size()?;
         Some(self.size.calc_size(available_size, image_size))
     }
@@ -317,7 +317,7 @@ impl<'a> Image<'a> {
     /// # });
     /// ```
     #[inline]
-    pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
+    pub fn paint_at(&self, ui: &Ui, rect: Rect) {
         paint_texture_load_result(
             ui,
             &self.load_for_size(ui.ctx(), rect.size()),

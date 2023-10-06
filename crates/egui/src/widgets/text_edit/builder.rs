@@ -876,7 +876,7 @@ fn ccursor_from_accesskit_text_position(
 /// Check for (keyboard) events to edit the cursor and/or text.
 #[allow(clippy::too_many_arguments)]
 fn events(
-    ui: &mut crate::Ui,
+    ui: &crate::Ui,
     state: &mut TextEditState,
     text: &mut dyn TextBuffer,
     galley: &mut Arc<Galley>,
@@ -1089,7 +1089,7 @@ fn events(
 // ----------------------------------------------------------------------------
 
 fn paint_cursor_selection(
-    ui: &mut Ui,
+    ui: &Ui,
     painter: &Painter,
     pos: Pos2,
     galley: &Galley,
@@ -1131,7 +1131,7 @@ fn paint_cursor_selection(
 }
 
 fn paint_cursor_end(
-    ui: &mut Ui,
+    ui: &Ui,
     row_height: f32,
     painter: &Painter,
     pos: Pos2,

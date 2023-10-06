@@ -548,7 +548,7 @@ impl<'a> Slider<'a> {
     }
 
     /// Just the slider, no text
-    fn slider_ui(&mut self, ui: &mut Ui, response: &Response) {
+    fn slider_ui(&mut self, ui: &Ui, response: &Response) {
         let rect = &response.rect;
         let position_range = self.position_range(rect);
 
