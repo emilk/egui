@@ -20,6 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: streetsidesoftware/cspell-action@v2
+        with:
+          files: "**/*.md"
   linkinator:
     name: linkinator
     runs-on: ubuntu-latest
