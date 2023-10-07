@@ -1,20 +1,30 @@
 # https://github.com/ericseppanen/cargo-cranky
 # cargo install cargo-cranky && cargo cranky
+# See also clippy.toml
 
-deny = ["unsafe_code"]
+deny = [
+  "unsafe_code",
+  # Disabled waiting on https://github.com/rust-lang/rust-clippy/issues/9602
+  #"clippy::self_named_module_files",
+]
 
 warn = [
   "clippy::all",
+  "clippy::as_ptr_cast_mut",
   "clippy::await_holding_lock",
   "clippy::bool_to_int_with_if",
   "clippy::char_lit_as_u8",
   "clippy::checked_conversions",
+  "clippy::clear_with_drain",
   "clippy::cloned_instead_of_copied",
   "clippy::dbg_macro",
   "clippy::debug_assert_with_mut_call",
   "clippy::derive_partial_eq_without_eq",
-  "clippy::disallowed_methods",
-  "clippy::disallowed_script_idents",
+  "clippy::disallowed_macros",                  # See clippy.toml
+  "clippy::disallowed_methods",                 # See clippy.toml
+  "clippy::disallowed_names",                   # See clippy.toml
+  "clippy::disallowed_script_idents",           # See clippy.toml
+  "clippy::disallowed_types",                   # See clippy.toml
   "clippy::doc_link_with_quotes",
   "clippy::doc_markdown",
   "clippy::empty_enum",
@@ -32,6 +42,7 @@ warn = [
   "clippy::fn_params_excessive_bools",
   "clippy::fn_to_numeric_cast_any",
   "clippy::from_iter_instead_of_collect",
+  "clippy::get_unwrap",
   "clippy::if_let_mutex",
   "clippy::implicit_clone",
   "clippy::imprecise_flops",
@@ -42,6 +53,7 @@ warn = [
   "clippy::iter_on_empty_collections",
   "clippy::iter_on_single_items",
   "clippy::large_digit_groups",
+  "clippy::large_include_file",
   "clippy::large_stack_arrays",
   "clippy::large_types_passed_by_value",
   "clippy::let_unit_value",
@@ -49,7 +61,9 @@ warn = [
   "clippy::lossy_float_literal",
   "clippy::macro_use_imports",
   "clippy::manual_assert",
+  "clippy::manual_clamp",
   "clippy::manual_instant_elapsed",
+  "clippy::manual_let_else",
   "clippy::manual_ok_or",
   "clippy::manual_string_new",
   "clippy::map_err_ignore",
@@ -87,10 +101,17 @@ warn = [
   "clippy::string_add",
   "clippy::string_lit_as_bytes",
   "clippy::string_to_string",
+  "clippy::suspicious_command_arg_space",
+  "clippy::suspicious_xor_used_as_pow",
   "clippy::todo",
   "clippy::trailing_empty_array",
   "clippy::trait_duplication_in_bounds",
+  "clippy::unchecked_duration_subtraction",
   "clippy::unimplemented",
+  "clippy::uninlined_format_args",
+  "clippy::unnecessary_box_returns",
+  "clippy::unnecessary_safety_doc",
+  "clippy::unnecessary_struct_initialization",
   "clippy::unnecessary_wraps",
   "clippy::unnested_or_patterns",
   "clippy::unused_peekable",
@@ -98,6 +119,7 @@ warn = [
   "clippy::unused_self",
   "clippy::useless_transmute",
   "clippy::verbose_file_reads",
+  "clippy::wildcard_dependencies",
   "clippy::zero_sized_map_values",
   "elided_lifetimes_in_paths",
   "future_incompatible",
@@ -113,11 +135,16 @@ warn = [
 ]
 
 allow = [
-  "clippy::manual_range_contains", # This one is just annoying
+  "clippy::manual_range_contains", # this one is just worse imho
 
-  # Some of these we should try to put in "warn":
-  "clippy::type_complexity",
+  "clippy::significant_drop_tightening", # False positives
+
+  # TODO(emilk): enable more of these lints:
+  "clippy::let_underscore_untyped",
+  "clippy::missing_assert_message",
   "clippy::undocumented_unsafe_blocks",
+  "clippy::unwrap_used",
+  "clippy::wildcard_imports",
   "trivial_casts",
   "unsafe_op_in_unsafe_fn",             # `unsafe_op_in_unsafe_fn` may become the default in future Rust versions: https://github.com/rust-lang/rust/issues/71668
   "unused_qualifications",

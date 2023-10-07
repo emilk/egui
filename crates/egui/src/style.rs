@@ -2,7 +2,9 @@
 
 #![allow(clippy::if_same_then_else)]
 
-use crate::{ecolor::*, emath::*, FontFamily, FontId, Response, RichText, WidgetText};
+use crate::{
+    ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Response, RichText, WidgetText,
+};
 use epaint::{Rounding, Shadow, Stroke};
 use std::collections::BTreeMap;
 
@@ -199,6 +201,9 @@ pub struct Style {
     pub animation_time: f32,
 
     /// Options to help debug why egui behaves strangely.
+    ///
+    /// Only available in debug builds.
+    #[cfg(debug_assertions)]
     pub debug: DebugOptions,
 
     /// Show tooltips explaining [`DragValue`]:s etc when hovered.
@@ -338,6 +343,13 @@ pub struct Margin {
 }
 
 impl Margin {
+    pub const ZERO: Self = Self {
+        left: 0.0,
+        right: 0.0,
+        top: 0.0,
+        bottom: 0.0,
+    };
+
     #[inline]
     pub fn same(margin: f32) -> Self {
         Self {
@@ -360,30 +372,46 @@ impl Margin {
     }
 
     /// Total margins on both sides
+    #[inline]
     pub fn sum(&self) -> Vec2 {
         vec2(self.left + self.right, self.top + self.bottom)
     }
 
+    #[inline]
     pub fn left_top(&self) -> Vec2 {
         vec2(self.left, self.top)
     }
 
+    #[inline]
     pub fn right_bottom(&self) -> Vec2 {
         vec2(self.right, self.bottom)
     }
 
+    #[inline]
     pub fn is_same(&self) -> bool {
         self.left == self.right && self.left == self.top && self.left == self.bottom
+    }
+
+    #[inline]
+    pub fn expand_rect(&self, rect: Rect) -> Rect {
+        Rect::from_min_max(rect.min - self.left_top(), rect.max + self.right_bottom())
+    }
+
+    #[inline]
+    pub fn shrink_rect(&self, rect: Rect) -> Rect {
+        Rect::from_min_max(rect.min + self.left_top(), rect.max - self.right_bottom())
     }
 }
 
 impl From<f32> for Margin {
+    #[inline]
     fn from(v: f32) -> Self {
         Self::same(v)
     }
 }
 
 impl From<Vec2> for Margin {
+    #[inline]
     fn from(v: Vec2) -> Self {
         Self::symmetric(v.x, v.y)
     }
@@ -392,6 +420,7 @@ impl From<Vec2> for Margin {
 impl std::ops::Add for Margin {
     type Output = Self;
 
+    #[inline]
     fn add(self, other: Self) -> Self {
         Self {
             left: self.left + other.left,
@@ -417,6 +446,9 @@ pub struct Interaction {
 
     /// If `false`, tooltips will show up anytime you hover anything, even is mouse is still moving
     pub show_tooltips_only_when_still: bool,
+
+    /// Delay in seconds before showing tooltips after the mouse stops moving
+    pub tooltip_delay: f64,
 }
 
 /// Controls the visual style (colors etc) of egui.
@@ -491,7 +523,8 @@ pub struct Visuals {
 
     pub resize_corner_size: f32,
 
-    pub text_cursor_width: f32,
+    /// The color and width of the text cursor
+    pub text_cursor: Stroke,
 
     /// show where the text cursor would be if you clicked
     pub text_cursor_preview: bool,
@@ -508,7 +541,7 @@ pub struct Visuals {
     /// Draw a vertical lien left of indented region, in e.g. [`crate::CollapsingHeader`].
     pub indent_has_left_vline: bool,
 
-    /// Wether or not Grids and Tables should be striped by default
+    /// Whether or not Grids and Tables should be striped by default
     /// (have alternating rows differently colored).
     pub striped: bool,
 
@@ -516,6 +549,16 @@ pub struct Visuals {
     ///
     /// Enabling this will affect ALL sliders, and can be enabled/disabled per slider with [`Slider::trailing_fill`].
     pub slider_trailing_fill: bool,
+
+    /// Should the cursor change when the user hovers over an interactive/clickable item?
+    ///
+    /// This is consistent with a lot of browser-based applications (vscode, github
+    /// all turn your cursor into [`CursorIcon::PointingHand`] when a button is
+    /// hovered) but it is inconsistent with native UI toolkits.
+    pub interact_cursor: Option<CursorIcon>,
+
+    /// Show a spinner when loading an image.
+    pub image_loading_spinners: bool,
 }
 
 impl Visuals {
@@ -650,11 +693,35 @@ impl WidgetVisuals {
 }
 
 /// Options for help debug egui by adding extra visualization
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg(debug_assertions)]
 pub struct DebugOptions {
-    /// However over widgets to see their rectangles
+    /// Always show callstack to ui on hover.
+    ///
+    /// Useful for figuring out where in the code some UI is being created.
+    ///
+    /// Only works in debug builds.
+    /// Requires the `callstack` feature.
+    /// Does not work on web.
+    #[cfg(debug_assertions)]
     pub debug_on_hover: bool,
+
+    /// Show callstack for the current widget on hover if all modifier keys are pressed down.
+    ///
+    /// Useful for figuring out where in the code some UI is being created.
+    ///
+    /// Only works in debug builds.
+    /// Requires the `callstack` feature.
+    /// Does not work on web.
+    ///
+    /// Default is `true` in debug builds, on native, if the `callstack` feature is enabled.
+    #[cfg(debug_assertions)]
+    pub debug_on_hover_with_all_modifiers: bool,
+
+    /// If we show the hover ui, include where the next widget is placed.
+    #[cfg(debug_assertions)]
+    pub hover_shows_next: bool,
 
     /// Show which widgets make their parent wider
     pub show_expand_width: bool,
@@ -669,6 +736,23 @@ pub struct DebugOptions {
 
     /// Show what widget blocks the interaction of another widget.
     pub show_blocking_widget: bool,
+}
+
+#[cfg(debug_assertions)]
+impl Default for DebugOptions {
+    fn default() -> Self {
+        Self {
+            debug_on_hover: false,
+            debug_on_hover_with_all_modifiers: cfg!(feature = "callstack")
+                && !cfg!(target_arch = "wasm32"),
+            hover_shows_next: false,
+            show_expand_width: false,
+            show_expand_height: false,
+            show_resize: false,
+            show_interactive_widgets: false,
+            show_blocking_widget: false,
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -699,6 +783,7 @@ impl Default for Style {
             interaction: Interaction::default(),
             visuals: Visuals::default(),
             animation_time: 1.0 / 12.0,
+            #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
         }
@@ -737,6 +822,7 @@ impl Default for Interaction {
             resize_grab_radius_side: 5.0,
             resize_grab_radius_corner: 10.0,
             show_tooltips_only_when_still: true,
+            tooltip_delay: 0.0,
         }
     }
 }
@@ -767,7 +853,7 @@ impl Visuals {
 
             popup_shadow: Shadow::small_dark(),
             resize_corner_size: 12.0,
-            text_cursor_width: 2.0,
+            text_cursor: Stroke::new(2.0, Color32::from_rgb(192, 222, 255)),
             text_cursor_preview: false,
             clip_rect_margin: 3.0, // should be at least half the size of the widest frame stroke + max WidgetVisuals::expansion
             button_frame: true,
@@ -777,6 +863,10 @@ impl Visuals {
             striped: false,
 
             slider_trailing_fill: false,
+
+            interact_cursor: None,
+
+            image_loading_spinners: true,
         }
     }
 
@@ -800,6 +890,7 @@ impl Visuals {
             panel_fill: Color32::from_gray(248),
 
             popup_shadow: Shadow::small_light(),
+            text_cursor: Stroke::new(2.0, Color32::from_rgb(0, 83, 125)),
             ..Self::dark()
         }
     }
@@ -947,6 +1038,7 @@ impl Style {
             interaction,
             visuals,
             animation_time,
+            #[cfg(debug_assertions)]
             debug,
             explanation_tooltips,
         } = self;
@@ -1009,6 +1101,8 @@ impl Style {
         ui.collapsing("📏 Spacing", |ui| spacing.ui(ui));
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
+
+        #[cfg(debug_assertions)]
         ui.collapsing("🐛 Debug", |ui| debug.ui(ui));
 
         ui.checkbox(explanation_tooltips, "Explanation tooltips")
@@ -1192,6 +1286,7 @@ impl Interaction {
             resize_grab_radius_side,
             resize_grab_radius_corner,
             show_tooltips_only_when_still,
+            tooltip_delay,
         } = self;
         ui.add(Slider::new(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
         ui.add(
@@ -1201,6 +1296,7 @@ impl Interaction {
             show_tooltips_only_when_still,
             "Only show tooltips if mouse is still",
         );
+        ui.add(Slider::new(tooltip_delay, 0.0..=1.0).text("tooltip_delay"));
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -1334,7 +1430,7 @@ impl Visuals {
             popup_shadow,
 
             resize_corner_size,
-            text_cursor_width,
+            text_cursor,
             text_cursor_preview,
             clip_rect_margin,
             button_frame,
@@ -1344,6 +1440,9 @@ impl Visuals {
             striped,
 
             slider_trailing_fill,
+            interact_cursor,
+
+            image_loading_spinners,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1392,8 +1491,9 @@ impl Visuals {
         });
 
         ui_color(ui, hyperlink_color, "hyperlink_color");
+        stroke_ui(ui, text_cursor, "Text Cursor");
+
         ui.add(Slider::new(resize_corner_size, 0.0..=20.0).text("resize_corner_size"));
-        ui.add(Slider::new(text_cursor_width, 0.0..=4.0).text("text_cursor_width"));
         ui.checkbox(text_cursor_preview, "Preview text cursor on hover");
         ui.add(Slider::new(clip_rect_margin, 0.0..=20.0).text("clip_rect_margin"));
 
@@ -1408,14 +1508,30 @@ impl Visuals {
 
         ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
 
+        ComboBox::from_label("Interact Cursor")
+            .selected_text(format!("{interact_cursor:?}"))
+            .show_ui(ui, |ui| {
+                ui.selectable_value(interact_cursor, None, "None");
+
+                for icon in CursorIcon::ALL {
+                    ui.selectable_value(interact_cursor, Some(icon), format!("{icon:?}"));
+                }
+            });
+
+        ui.checkbox(image_loading_spinners, "Image loading spinners")
+            .on_hover_text("Show a spinner when an Image is loading");
+
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
 }
 
+#[cfg(debug_assertions)]
 impl DebugOptions {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             debug_on_hover,
+            debug_on_hover_with_all_modifiers,
+            hover_shows_next,
             show_expand_width,
             show_expand_height,
             show_resize,
@@ -1423,7 +1539,16 @@ impl DebugOptions {
             show_blocking_widget,
         } = self;
 
-        ui.checkbox(debug_on_hover, "Show debug info on hover");
+        {
+            ui.checkbox(debug_on_hover, "Show widget info on hover.");
+            ui.checkbox(
+                debug_on_hover_with_all_modifiers,
+                "Show widget info on hover if holding all modifier keys",
+            );
+
+            ui.checkbox(hover_shows_next, "Show next widget placement on hover");
+        }
+
         ui.checkbox(
             show_expand_width,
             "Show which widgets make their parent wider",
@@ -1441,7 +1566,7 @@ impl DebugOptions {
 
         ui.checkbox(
             show_blocking_widget,
-            "Show wha widget blocks the interaction of another widget",
+            "Show which widget blocks the interaction of another widget",
         );
 
         ui.vertical_centered(|ui| reset_button(ui, self));

@@ -3,13 +3,13 @@
 use eframe::egui;
 
 fn main() -> Result<(), eframe::Error> {
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     start_puffin_server(); // NOTE: you may only want to call this if the users specifies some flag or clicks a button!
-
     let options = eframe::NativeOptions::default();
     eframe::run_native(
         "My egui App",
         options,
-        Box::new(|_cc| Box::new(MyApp::default())),
+        Box::new(|_cc| Box::<MyApp>::default()),
     )
 }
 
@@ -28,7 +28,7 @@ impl eframe::App for MyApp {
             ui.horizontal(|ui| {
                 ui.monospace(cmd);
                 if ui.small_button("📋").clicked() {
-                    ui.output_mut(|o| o.copied_text = cmd.into());
+                    ui.ctx().copy_text(cmd.into());
                 }
             });
 
@@ -56,13 +56,19 @@ fn start_puffin_server() {
         Ok(puffin_server) => {
             eprintln!("Run:  cargo install puffin_viewer && puffin_viewer --url 127.0.0.1:8585");
 
+            std::process::Command::new("puffin_viewer")
+                .arg("--url")
+                .arg("127.0.0.1:8585")
+                .spawn()
+                .ok();
+
             // We can store the server if we want, but in this case we just want
             // it to keep running. Dropping it closes the server, so let's not drop it!
             #[allow(clippy::mem_forget)]
             std::mem::forget(puffin_server);
         }
         Err(err) => {
-            eprintln!("Failed to start puffin server: {}", err);
+            eprintln!("Failed to start puffin server: {err}");
         }
     };
 }

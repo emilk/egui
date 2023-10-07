@@ -3,8 +3,82 @@ All notable changes to the `eframe` crate.
 
 NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/CHANGELOG.md), [`egui_glow`](../egui_glow/CHANGELOG.md),and [`egui-wgpu`](../egui-wgpu/CHANGELOG.md) have their own changelogs!
 
+This file is updated upon each release.
+Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
-## Unreleased
+## 0.23.0 - 2023-09-27
+* Update MSRV to Rust 1.70.0 [#3310](https://github.com/emilk/egui/pull/3310)
+* Update to puffin 0.16 [#3144](https://github.com/emilk/egui/pull/3144)
+* Update to `wgpu` 0.17.0 [#3170](https://github.com/emilk/egui/pull/3170) (thanks [@Aaron1011](https://github.com/Aaron1011)!)
+* Improved wgpu callbacks [#3253](https://github.com/emilk/egui/pull/3253) (thanks [@Wumpf](https://github.com/Wumpf)!)
+* Improve documentation of `eframe`, especially for wasm32 [#3295](https://github.com/emilk/egui/pull/3295)
+* `eframe::Frame::info` returns a reference [#3301](https://github.com/emilk/egui/pull/3301) (thanks [@Barugon](https://github.com/Barugon)!)
+* Move `App::persist_window` to `NativeOptions` and `App::max_size_points` to `WebOptions` [#3397](https://github.com/emilk/egui/pull/3397)
+
+#### Desktop/Native:
+* Only show on-screen-keyboard and IME when editing text [#3362](https://github.com/emilk/egui/pull/3362) (thanks [@Barugon](https://github.com/Barugon)!)
+* Add `eframe::storage_dir` [#3286](https://github.com/emilk/egui/pull/3286)
+* Add `NativeOptions::window_builder` for more customization [#3390](https://github.com/emilk/egui/pull/3390) (thanks [@twop](https://github.com/twop)!)
+* Better restore Window position on Mac when on secondary monitor [#3239](https://github.com/emilk/egui/pull/3239)
+* Fix iOS support in `eframe` [#3241](https://github.com/emilk/egui/pull/3241) (thanks [@lucasmerlin](https://github.com/lucasmerlin)!)
+* Speed up `eframe` state storage [#3353](https://github.com/emilk/egui/pull/3353) (thanks [@sebbert](https://github.com/sebbert)!)
+* Allow users to opt-out of default `winit` features [#3228](https://github.com/emilk/egui/pull/3228)
+* Expose Raw Window and Display Handles [#3073](https://github.com/emilk/egui/pull/3073) (thanks [@bash](https://github.com/bash)!)
+* Use window title as fallback when app_id is not set [#3107](https://github.com/emilk/egui/pull/3107) (thanks [@jacekpoz](https://github.com/jacekpoz)!)
+* Sleep a bit only when minimized [#3139](https://github.com/emilk/egui/pull/3139) (thanks [@icedrocket](https://github.com/icedrocket)!)
+* Prevent text from being cleared when selected due to winit IME [#3376](https://github.com/emilk/egui/pull/3376) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+* Fix android app quit on resume with glow backend [#3080](https://github.com/emilk/egui/pull/3080) (thanks [@tkkcc](https://github.com/tkkcc)!)
+* Fix panic with persistence without window [#3167](https://github.com/emilk/egui/pull/3167) (thanks [@sagebind](https://github.com/sagebind)!)
+* Only call `run_return` twice on Windows [#3053](https://github.com/emilk/egui/pull/3053) (thanks [@pan93412](https://github.com/pan93412)!)
+* Gracefully catch error saving state to disk [#3230](https://github.com/emilk/egui/pull/3230)
+* Recognize numpad enter/plus/minus [#3285](https://github.com/emilk/egui/pull/3285)
+* Add more puffin profile scopes to `eframe` [#3330](https://github.com/emilk/egui/pull/3330) [#3332](https://github.com/emilk/egui/pull/3332)
+
+#### Web:
+* Update to wasm-bindgen 0.2.87 [#3237](https://github.com/emilk/egui/pull/3237)
+* Remove `Function()` invocation from eframe text_agent to bypass "unsafe-eval" restrictions in Chrome browser extensions. [#3349](https://github.com/emilk/egui/pull/3349) (thanks [@aspect](https://github.com/aspect)!)
+* Fix docs about web [#3026](https://github.com/emilk/egui/pull/3026) (thanks [@kerryeon](https://github.com/kerryeon)!)
+
+
+## 0.22.0 - 2023-05-23
+* Fix: `request_repaint_after` works even when called from background thread [#2939](https://github.com/emilk/egui/pull/2939)
+* Clear all keys and modifies on focus change [#2857](https://github.com/emilk/egui/pull/2857) [#2933](https://github.com/emilk/egui/pull/2933)
+* Remove dark-light dependency [#2929](https://github.com/emilk/egui/pull/2929)
+* Replace `tracing` with `log` [#2928](https://github.com/emilk/egui/pull/2928)
+* Update accesskit to 0.11 [#3012](https://github.com/emilk/egui/pull/3012)
+
+#### Desktop/Native:
+* Automatically change theme when system dark/light mode changes [#2750](https://github.com/emilk/egui/pull/2750) (thanks [@bash](https://github.com/bash)!)
+* Enabled wayland feature for winit when running native [#2751](https://github.com/emilk/egui/pull/2751) (thanks [@ItsEthra](https://github.com/ItsEthra)!)
+* Fix eframe window position bug (pixels vs points) [#2763](https://github.com/emilk/egui/pull/2763) (thanks [@get200](https://github.com/get200)!)
+* Add `Frame::request_screenshot` and `Frame::screenshot` to communicate to the backend that a screenshot of the current frame should be exposed by `Frame` during `App::post_rendering` ([#2676](https://github.com/emilk/egui/pull/2676)).
+* Add `eframe::run_simple_native` * a simple API for simple apps ([#2453](https://github.com/emilk/egui/pull/2453)).
+* Add `NativeOptions::app_id` which allows to set the Wayland application ID under Linux ([#1600](https://github.com/emilk/egui/issues/1600)).
+* Add `NativeOptions::active` [#2813](https://github.com/emilk/egui/pull/2813) (thanks [@Dixeran](https://github.com/Dixeran)!)
+* Remove `android-activity` dependency + add `Activity` backend features [#2863](https://github.com/emilk/egui/pull/2863) (thanks [@rib](https://github.com/rib)!)
+* Fix bug where the eframe window is never destroyed on Linux when using `run_and_return` ([#2892](https://github.com/emilk/egui/issues/2892))
+* Fix state persisting when exiting on Linux [#2895](https://github.com/emilk/egui/pull/2895) (thanks [@flukejones](https://github.com/flukejones)!)
+* Allow for requesting the user's attention to the window [#2905](https://github.com/emilk/egui/pull/2905) (thanks [@TicClick](https://github.com/TicClick)!)
+* Read and request window focus [#2900](https://github.com/emilk/egui/pull/2900) (thanks [@TicClick](https://github.com/TicClick)!)
+* Set app icon on Mac and Windows [#2940](https://github.com/emilk/egui/pull/2940)
+* Set a default icon for all eframe apps: a white `e` on black background [#2996](https://github.com/emilk/egui/pull/2996)
+* Add `NativeOptions::app_id` for the persistence location [#3014](https://github.com/emilk/egui/pull/3014) and for Wayland [#3007](https://github.com/emilk/egui/pull/3007) (thanks [@thomaskrause](https://github.com/thomaskrause)!)
+* capture a screenshot using `Frame::request_screenshot` [870264b](https://github.com/emilk/egui/commit/870264b00577a95d3fd9bdf36efaf87fd351de62)
+
+
+#### Web:
+* ⚠️ BREAKING: `eframe::start_web` has been replaced with `eframe::WebRunner`, which also installs a nice panic hook (no need for `console_error_panic_hook`).
+* ⚠️ BREAKING: WebGPU is now the default web renderer when using the `wgpu` feature of `eframe`. To use WebGL with `wgpu`, you need to add `wgpu = { version = "0.16.0", features = ["webgl"] }` to your own `Cargo.toml`. ([#2945](https://github.com/emilk/egui/pull/2945))
+* Add `eframe::WebLogger` for redirecting `log` calls to the web console (`console.log`).
+* Prefer the client width/height for the canvas parent [#2804](https://github.com/emilk/egui/pull/2804) (thanks [@samitbasu](https://github.com/samitbasu)!)
+* eframe web: Persist app state to local storage when leaving site [#2927](https://github.com/emilk/egui/pull/2927)
+* Better panic handling [#2942](https://github.com/emilk/egui/pull/2942) [#2992](https://github.com/emilk/egui/pull/2992)
+* Update wasm-bindgen to 0.2.86 [#2995](https://github.com/emilk/egui/pull/2995)
+* Properly unsubscribe from events on destroy [4d360f6](https://github.com/emilk/egui/commit/4d360f67a4ae2314fbc8b83b01b701ec8e9cea5b)
+
+
+## 0.21.3 - 2023-02-15
+* Fix typing the letter 'P' on web ([#2740](https://github.com/emilk/egui/pull/2740)).
 
 
 ## 0.21.2 - 2023-02-12

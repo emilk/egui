@@ -7,6 +7,7 @@ pub(crate) struct DatePickerButtonState {
     pub picker_visible: bool,
 }
 
+/// Shows a date, and will open a date picker popup when clicked.
 pub struct DatePickerButton<'a> {
     selection: &'a mut NaiveDate,
     id_source: Option<&'a str>,
@@ -14,6 +15,7 @@ pub struct DatePickerButton<'a> {
     arrows: bool,
     calendar: bool,
     calendar_week: bool,
+    show_icon: bool,
 }
 
 impl<'a> DatePickerButton<'a> {
@@ -25,6 +27,7 @@ impl<'a> DatePickerButton<'a> {
             arrows: true,
             calendar: true,
             calendar_week: true,
+            show_icon: true,
         }
     }
 
@@ -58,6 +61,12 @@ impl<'a> DatePickerButton<'a> {
         self.calendar_week = week;
         self
     }
+
+    /// Show the calendar icon on the button. (Default: true)
+    pub fn show_icon(mut self, show_icon: bool) -> Self {
+        self.show_icon = show_icon;
+        self
+    }
 }
 
 impl<'a> Widget for DatePickerButton<'a> {
@@ -67,7 +76,11 @@ impl<'a> Widget for DatePickerButton<'a> {
             .memory_mut(|mem| mem.data.get_persisted::<DatePickerButtonState>(id))
             .unwrap_or_default();
 
-        let mut text = RichText::new(format!("{} 📆", self.selection.format("%Y-%m-%d")));
+        let mut text = if self.show_icon {
+            RichText::new(format!("{} 📆", self.selection.format("%Y-%m-%d")))
+        } else {
+            RichText::new(format!("{}", self.selection.format("%Y-%m-%d")))
+        };
         let visuals = ui.visuals().widgets.open;
         if button_state.picker_visible {
             text = text.color(visuals.text_color());
@@ -104,6 +117,7 @@ impl<'a> Widget for DatePickerButton<'a> {
             } = Area::new(ui.make_persistent_id(self.id_source))
                 .order(Order::Foreground)
                 .fixed_pos(pos)
+                .constrain_to(ui.ctx().screen_rect())
                 .show(ui.ctx(), |ui| {
                     let frame = Frame::popup(ui.style());
                     frame

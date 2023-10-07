@@ -3,6 +3,7 @@
 use eframe::egui;
 
 fn main() -> Result<(), eframe::Error> {
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         drag_and_drop_support: true,
         initial_window_size: Some(egui::vec2(320.0, 240.0)),
@@ -11,7 +12,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Native file dialogs and drag-and-drop files",
         options,
-        Box::new(|_cc| Box::new(MyApp::default())),
+        Box::new(|_cc| Box::<MyApp>::default()),
     )
 }
 
@@ -52,10 +53,18 @@ impl eframe::App for MyApp {
                         } else {
                             "???".to_owned()
                         };
-                        if let Some(bytes) = &file.bytes {
-                            use std::fmt::Write as _;
-                            write!(info, " ({} bytes)", bytes.len()).ok();
+
+                        let mut additional_info = vec![];
+                        if !file.mime.is_empty() {
+                            additional_info.push(format!("type: {}", file.mime));
                         }
+                        if let Some(bytes) = &file.bytes {
+                            additional_info.push(format!("{} bytes", bytes.len()));
+                        }
+                        if !additional_info.is_empty() {
+                            info += &format!(" ({})", additional_info.join(", "));
+                        }
+
                         ui.label(info);
                     }
                 });

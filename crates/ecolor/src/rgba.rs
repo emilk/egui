@@ -38,7 +38,7 @@ pub(crate) fn f32_hash<H: std::hash::Hasher>(state: &mut H, f: f32) {
     }
 }
 
-#[allow(clippy::derive_hash_xor_eq)]
+#[allow(clippy::derived_hash_with_manual_eq)]
 impl std::hash::Hash for Rgba {
     #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -120,6 +120,12 @@ impl Rgba {
     pub fn additive(self) -> Self {
         let [r, g, b, _] = self.0;
         Self([r, g, b, 0.0])
+    }
+
+    /// Is the alpha=0 ?
+    #[inline(always)]
+    pub fn is_additive(self) -> bool {
+        self.a() == 0.0
     }
 
     /// Multiply with e.g. 0.5 to make us half transparent

@@ -184,10 +184,7 @@ mod test {
             let expected = vec2(0.0, 3.0);
             assert!(
                 (rotated - expected).length() < 1e-5,
-                "Expected {:?} to equal {:?}. rot: {:?}",
-                rotated,
-                expected,
-                rot,
+                "Expected {rotated:?} to equal {expected:?}. rot: {rot:?}",
             );
 
             let undone = rot.inverse() * rot;

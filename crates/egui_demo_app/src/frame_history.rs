@@ -34,12 +34,6 @@ impl FrameHistory {
 
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         ui.label(format!(
-            "Total frames painted: {}",
-            self.frame_times.total_count()
-        ))
-        .on_hover_text("Includes this frame.");
-
-        ui.label(format!(
             "Mean CPU usage: {:.2} ms / frame",
             1e3 * self.mean_frame_time()
         ))
@@ -76,12 +70,12 @@ impl FrameHistory {
         let to_screen = emath::RectTransform::from_to(graph_rect, rect);
 
         let mut shapes = Vec::with_capacity(3 + 2 * history.len());
-        shapes.push(Shape::Rect(epaint::RectShape {
+        shapes.push(Shape::Rect(epaint::RectShape::new(
             rect,
-            rounding: style.rounding,
-            fill: ui.visuals().extreme_bg_color,
-            stroke: ui.style().noninteractive().bg_stroke,
-        }));
+            style.rounding,
+            ui.visuals().extreme_bg_color,
+            ui.style().noninteractive().bg_stroke,
+        )));
 
         let rect = rect.shrink(4.0);
         let color = ui.visuals().text_color();

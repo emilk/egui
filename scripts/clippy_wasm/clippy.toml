@@ -1,0 +1,49 @@
+# This is used by `scripts/clippy_wasm.sh` so we can forbid some methods that are not available in wasm.
+#
+# We cannot forbid all these methods in the main `clippy.toml` because of
+# https://github.com/rust-lang/rust-clippy/issues/10406
+
+# -----------------------------------------------------------------------------
+# Section identical to the root clippy.toml:
+
+msrv = "1.70"
+
+allow-unwrap-in-tests = true
+
+# https://doc.rust-lang.org/nightly/clippy/lint_configuration.html#avoid-breaking-exported-api
+# We want suggestions, even if it changes public API.
+avoid-breaking-exported-api = false
+
+max-fn-params-bools = 2 # TODO(emilk): decrease this to 1
+
+# https://rust-lang.github.io/rust-clippy/master/index.html#/large_include_file
+max-include-file-size = 1000000
+
+# https://rust-lang.github.io/rust-clippy/master/index.html#/type_complexity
+type-complexity-threshold = 350
+
+# -----------------------------------------------------------------------------
+
+# https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_methods
+disallowed-methods = [
+  "std::time::Instant::now",      # use `instant` crate instead for wasm/web compatibility
+  "std::time::Duration::elapsed", # use `instant` crate instead for wasm/web compatibility
+  "std::time::SystemTime::now",   # use `instant` or `time` crates instead for wasm/web compatibility
+
+  # Cannot spawn threads on wasm:
+  "std::thread::spawn",
+]
+
+# https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_types
+disallowed-types = [
+  { path = "instant::SystemTime", reason = "Known bugs. Use web-time." },
+  { path = "std::thread::Builder", reason = "Cannot spawn threads on wasm" },
+  # { path = "std::path::PathBuf", reason = "Can't read/write files on web" }, // TODO(emilk): consider banning Path on wasm
+]
+
+# Allow-list of words for markdown in dosctrings https://rust-lang.github.io/rust-clippy/master/index.html#doc_markdown
+doc-valid-idents = [
+  # You must also update the same list in the root `clippy.toml`!
+  "AccessKit",
+  "..",
+]

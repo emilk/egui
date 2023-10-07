@@ -31,10 +31,7 @@ pub(crate) fn font_texture_ui(ui: &mut Ui, [width, height]: [usize; 2]) -> Respo
             Color32::BLACK
         };
 
-        ui.label(format!(
-            "Texture size: {} x {} (hover to zoom)",
-            width, height
-        ));
+        ui.label(format!("Texture size: {width} x {height} (hover to zoom)"));
         if width <= 1 || height <= 1 {
             return;
         }
@@ -108,7 +105,7 @@ impl Widget for &epaint::stats::PaintStats {
             label(ui, shape_path, "paths");
             label(ui, shape_mesh, "nested meshes");
             label(ui, shape_vec, "nested shapes");
-            ui.label(format!("{:6} callbacks", num_callbacks));
+            ui.label(format!("{num_callbacks:6} callbacks"));
             ui.add_space(10.0);
 
             ui.label("Text shapes:");

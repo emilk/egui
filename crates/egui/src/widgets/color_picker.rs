@@ -155,6 +155,12 @@ fn color_slider_1d(ui: &mut Ui, value: &mut f32, color_at: impl Fn(f32) -> Color
     response
 }
 
+/// # Arguments
+/// * `x_value` - X axis, either saturation or value (0.0-1.0).
+/// * `y_value` - Y axis, either saturation or value (0.0-1.0).
+/// * `color_at` - A function that dictates how the mix of saturation and value will be displayed in the 2d slider.
+/// E.g.: `|x_value, y_value| HsvaGamma { h: 1.0, s: x_value, v: y_value, a: 1.0 }.into()` displays the colors as follows: top-left: white \[s: 0.0, v: 1.0], top-right: fully saturated color \[s: 1.0, v: 1.0], bottom-right: black \[s: 0.0, v: 1.0].
+///
 fn color_slider_2d(
     ui: &mut Ui,
     x_value: &mut f32,
@@ -228,17 +234,17 @@ fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>, alpha: Alpha) {
 
         if ui.button("📋").on_hover_text("Click to copy").clicked() {
             if alpha == Alpha::Opaque {
-                ui.output_mut(|o| o.copied_text = format!("{}, {}, {}", r, g, b));
+                ui.ctx().copy_text(format!("{r}, {g}, {b}"));
             } else {
-                ui.output_mut(|o| o.copied_text = format!("{}, {}, {}, {}", r, g, b, a));
+                ui.ctx().copy_text(format!("{r}, {g}, {b}, {a}"));
             }
         }
 
         if alpha == Alpha::Opaque {
-            ui.label(format!("rgb({}, {}, {})", r, g, b))
+            ui.label(format!("rgb({r}, {g}, {b})"))
                 .on_hover_text("Red Green Blue");
         } else {
-            ui.label(format!("rgba({}, {}, {}, {})", r, g, b, a))
+            ui.label(format!("rgba({r}, {g}, {b}, {a})"))
                 .on_hover_text("Red Green Blue with premultiplied Alpha");
         }
     });
@@ -363,7 +369,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
         color_slider_1d(ui, v, |v| HsvaGamma { v, ..opaque }.into()).on_hover_text("Value");
     }
 
-    color_slider_2d(ui, v, s, |v, s| HsvaGamma { s, v, ..opaque }.into());
+    color_slider_2d(ui, s, v, |s, v| HsvaGamma { s, v, ..opaque }.into());
 }
 
 /// Shows 4 `DragValue` widgets to be used to edit the RGBA u8 values.
@@ -433,7 +439,74 @@ fn rgba_edit_ui(ui: &mut Ui, rgba: &mut [f32; 4], alpha: Alpha) -> bool {
     edited
 }
 
-//// Shows a color picker where the user can change the given [`Hsva`] color.
+/// Shows 4 `DragValue` widgets to be used to edit the RGBA u8 values.
+/// Alpha's `DragValue` is hidden when `Alpha::Opaque`.
+///
+/// Returns `true` on change.
+fn srgba_edit_ui(ui: &mut Ui, rgba: &mut [u8; 4], alpha: Alpha) -> bool {
+    let [r, g, b, a] = rgba;
+
+    let mut edited = false;
+    ui.horizontal(|ui| {
+        edited |= DragValue::new(r).speed(0.5).prefix("R: ").ui(ui).changed();
+        edited |= DragValue::new(g).speed(0.5).prefix("G: ").ui(ui).changed();
+        edited |= DragValue::new(b).speed(0.5).prefix("B: ").ui(ui).changed();
+        edited |=
+            alpha != Alpha::Opaque && DragValue::new(a).speed(0.5).prefix("A: ").ui(ui).changed();
+    });
+
+    edited
+}
+/// Shows 4 `DragValue` widgets to be used to edit the RGBA f32 values.
+/// Alpha's `DragValue` is hidden when `Alpha::Opaque`.
+///
+/// Returns `true` on change.
+fn rgba_edit_ui(ui: &mut Ui, rgba: &mut [f32; 4], alpha: Alpha) -> bool {
+    use core::ops::RangeInclusive;
+
+    let [r, g, b, a] = rgba;
+
+    let mut edited = false;
+    ui.horizontal(|ui| {
+        edited |= DragValue::new(r)
+            .speed(0.003)
+            .prefix("R: ")
+            .clamp_range(RangeInclusive::new(0., 1.))
+            .min_decimals(3)
+            .max_decimals(3)
+            .ui(ui)
+            .changed();
+        edited |= DragValue::new(g)
+            .speed(0.003)
+            .prefix("G: ")
+            .clamp_range(RangeInclusive::new(0., 1.))
+            .min_decimals(3)
+            .max_decimals(3)
+            .ui(ui)
+            .changed();
+        edited |= DragValue::new(b)
+            .speed(0.003)
+            .prefix("B: ")
+            .clamp_range(RangeInclusive::new(0., 1.))
+            .min_decimals(3)
+            .max_decimals(3)
+            .ui(ui)
+            .changed();
+        edited |= alpha != Alpha::Opaque
+            && DragValue::new(a)
+                .speed(0.003)
+                .prefix("A: ")
+                .clamp_range(RangeInclusive::new(0., 1.))
+                .min_decimals(3)
+                .max_decimals(3)
+                .ui(ui)
+                .changed();
+    });
+
+    edited
+}
+
+/// Shows a color picker where the user can change the given [`Hsva`] color.
 ///
 /// Returns `true` on change.
 pub fn color_picker_hsva_2d(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> bool {

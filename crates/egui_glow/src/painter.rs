@@ -15,6 +15,7 @@ use crate::misc_util::{compile_shader, link_program};
 use crate::shader_version::ShaderVersion;
 use crate::vao;
 
+/// Re-exported [`glow::Context`].
 pub use glow::Context;
 
 const VERT_SRC: &str = include_str!("shader/vertex.glsl");
@@ -111,7 +112,7 @@ impl Painter {
             let version = gl.get_parameter_string(glow::VERSION);
             let renderer = gl.get_parameter_string(glow::RENDERER);
             let vendor = gl.get_parameter_string(glow::VENDOR);
-            tracing::debug!(
+            log::debug!(
                 "\nopengl version: {version}\nopengl renderer: {renderer}\nopengl vendor: {vendor}"
             );
         }
@@ -127,16 +128,16 @@ impl Painter {
         let shader_version = shader_version.unwrap_or_else(|| ShaderVersion::get(&gl));
         let is_webgl_1 = shader_version == ShaderVersion::Es100;
         let shader_version_declaration = shader_version.version_declaration();
-        tracing::debug!("Shader header: {:?}.", shader_version_declaration);
+        log::debug!("Shader header: {:?}.", shader_version_declaration);
 
         let supported_extensions = gl.supported_extensions();
-        tracing::trace!("OpenGL extensions: {supported_extensions:?}");
+        log::trace!("OpenGL extensions: {supported_extensions:?}");
         let srgb_textures = shader_version == ShaderVersion::Es300 // WebGL2 always support sRGB
             || supported_extensions.iter().any(|extension| {
                 // EXT_sRGB, GL_ARB_framebuffer_sRGB, GL_EXT_sRGB, GL_EXT_texture_sRGB_decode, …
                 extension.contains("sRGB")
             });
-        tracing::debug!("SRGB texture Support: {:?}", srgb_textures);
+        log::debug!("SRGB texture Support: {:?}", srgb_textures);
 
         unsafe {
             let vert = compile_shader(
@@ -369,25 +370,6 @@ impl Painter {
                 Primitive::Callback(callback) => {
                     if callback.rect.is_positive() {
                         crate::profile_scope!("callback");
-                        // Transform callback rect to physical pixels:
-                        let rect_min_x = pixels_per_point * callback.rect.min.x;
-                        let rect_min_y = pixels_per_point * callback.rect.min.y;
-                        let rect_max_x = pixels_per_point * callback.rect.max.x;
-                        let rect_max_y = pixels_per_point * callback.rect.max.y;
-
-                        let rect_min_x = rect_min_x.round() as i32;
-                        let rect_min_y = rect_min_y.round() as i32;
-                        let rect_max_x = rect_max_x.round() as i32;
-                        let rect_max_y = rect_max_y.round() as i32;
-
-                        unsafe {
-                            self.gl.viewport(
-                                rect_min_x,
-                                size_in_pixels.1 as i32 - rect_max_y,
-                                rect_max_x - rect_min_x,
-                                rect_max_y - rect_min_y,
-                            );
-                        }
 
                         let info = egui::PaintCallbackInfo {
                             viewport: callback.rect,
@@ -396,10 +378,20 @@ impl Painter {
                             screen_size_px,
                         };
 
+                        let viewport_px = info.viewport_in_pixels();
+                        unsafe {
+                            self.gl.viewport(
+                                viewport_px.left_px.round() as _,
+                                viewport_px.from_bottom_px.round() as _,
+                                viewport_px.width_px.round() as _,
+                                viewport_px.height_px.round() as _,
+                            );
+                        }
+
                         if let Some(callback) = callback.callback.downcast_ref::<CallbackFn>() {
                             (callback.f)(info, self);
                         } else {
-                            tracing::warn!("Warning: Unsupported render callback. Expected egui_glow::CallbackFn");
+                            log::warn!("Warning: Unsupported render callback. Expected egui_glow::CallbackFn");
                         }
 
                         check_for_gl_error!(&self.gl, "callback");
@@ -455,7 +447,7 @@ impl Painter {
 
             check_for_gl_error!(&self.gl, "paint_mesh");
         } else {
-            tracing::warn!("Failed to find texture {:?}", mesh.texture_id);
+            log::warn!("Failed to find texture {:?}", mesh.texture_id);
         }
     }
 
@@ -493,10 +485,13 @@ impl Painter {
                     "Mismatch between texture size and texel count"
                 );
 
-                let data: Vec<u8> = image
-                    .srgba_pixels(None)
-                    .flat_map(|a| a.to_array())
-                    .collect();
+                let data: Vec<u8> = {
+                    crate::profile_scope!("font -> sRGBA");
+                    image
+                        .srgba_pixels(None)
+                        .flat_map(|a| a.to_array())
+                        .collect()
+                };
 
                 self.upload_texture_srgb(delta.pos, image.size, delta.options, &data);
             }
@@ -510,6 +505,7 @@ impl Painter {
         options: egui::TextureOptions,
         data: &[u8],
     ) {
+        crate::profile_function!();
         assert_eq!(data.len(), w * h * 4);
         assert!(
             w <= self.max_texture_side && h <= self.max_texture_side,
@@ -560,6 +556,7 @@ impl Painter {
 
             let level = 0;
             if let Some([x, y]) = pos {
+                crate::profile_scope!("gl.tex_sub_image_2d");
                 self.gl.tex_sub_image_2d(
                     glow::TEXTURE_2D,
                     level,
@@ -574,6 +571,7 @@ impl Painter {
                 check_for_gl_error!(&self.gl, "tex_sub_image_2d");
             } else {
                 let border = 0;
+                crate::profile_scope!("gl.tex_image_2d");
                 self.gl.tex_image_2d(
                     glow::TEXTURE_2D,
                     level,
@@ -622,7 +620,7 @@ impl Painter {
         }
     }
 
-    pub fn read_screen_rgba(&self, [w, h]: [u32; 2]) -> Vec<u8> {
+    pub fn read_screen_rgba(&self, [w, h]: [u32; 2]) -> egui::ColorImage {
         let mut pixels = vec![0_u8; (w * h * 4) as usize];
         unsafe {
             self.gl.read_pixels(
@@ -635,7 +633,14 @@ impl Painter {
                 glow::PixelPackData::Slice(&mut pixels),
             );
         }
-        pixels
+        let mut flipped = Vec::with_capacity((w * h * 4) as usize);
+        for row in pixels.chunks_exact((w * 4) as usize).rev() {
+            flipped.extend_from_slice(bytemuck::cast_slice(row));
+        }
+        egui::ColorImage {
+            size: [w as usize, h as usize],
+            pixels: flipped,
+        }
     }
 
     pub fn read_screen_rgb(&self, [w, h]: [u32; 2]) -> Vec<u8> {
@@ -706,7 +711,7 @@ pub fn clear(gl: &glow::Context, screen_size_in_pixels: [u32; 2], clear_color: [
 impl Drop for Painter {
     fn drop(&mut self) {
         if !self.destroyed {
-            tracing::warn!(
+            log::warn!(
                 "You forgot to call destroy() on the egui glow painter. Resources will leak!"
             );
         }

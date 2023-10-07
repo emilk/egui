@@ -2,7 +2,7 @@ use epaint::Shape;
 
 use crate::{style::WidgetVisuals, *};
 
-/// Indicate wether or not a popup will be shown above or below the box.
+/// Indicate whether or not a popup will be shown above or below the box.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum AboveOrBelow {
     Above,
@@ -198,16 +198,16 @@ impl ComboBox {
     ///     ui,
     ///     &mut selected,
     ///     alternatives.len(),
-    ///     |i| alternatives[i].to_owned()
+    ///     |i| alternatives[i]
     /// );
     /// # });
     /// ```
-    pub fn show_index(
+    pub fn show_index<Text: Into<WidgetText>>(
         self,
         ui: &mut Ui,
         selected: &mut usize,
         len: usize,
-        get: impl Fn(usize) -> String,
+        get: impl Fn(usize) -> Text,
     ) -> Response {
         let slf = self.selected_text(get(*selected));
 
@@ -383,12 +383,12 @@ fn button_frame(
 
         ui.painter().set(
             where_to_put_background,
-            epaint::RectShape {
-                rect: outer_rect.expand(visuals.expansion),
-                rounding: visuals.rounding,
-                fill: visuals.weak_bg_fill,
-                stroke: visuals.bg_stroke,
-            },
+            epaint::RectShape::new(
+                outer_rect.expand(visuals.expansion),
+                visuals.rounding,
+                visuals.weak_bg_fill,
+                visuals.bg_stroke,
+            ),
         );
     }
 

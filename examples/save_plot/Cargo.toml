@@ -1,0 +1,17 @@
+[package]
+name = "save_plot"
+version = "0.1.0"
+authors = ["hacknus <l_stoeckli@bluewin.ch>"]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.70"
+publish = false
+
+[dependencies]
+eframe = { path = "../../crates/eframe", features = [
+    "__screenshot", # __screenshot is so we can dump a screenshot using EFRAME_SCREENSHOT_TO
+] }
+egui_plot = { path = "../../crates/egui_plot" }
+image = { version = "0.24", default-features = false, features = ["png"] }
+rfd = "0.11.0"
+env_logger = "0.10"

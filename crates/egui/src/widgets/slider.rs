@@ -77,8 +77,10 @@ pub struct Slider<'a> {
     prefix: String,
     suffix: String,
     text: WidgetText,
+
     /// Sets the minimal step of the widget value
     step: Option<f64>,
+
     drag_value_speed: Option<f64>,
     min_decimals: usize,
     max_decimals: Option<usize>,
@@ -393,7 +395,7 @@ impl<'a> Slider<'a> {
             self.custom_formatter(move |n, _| format!("{:0>min_width$b}", n as i64))
         } else {
             self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { "-" } else { "" };
+                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
                 format!("{sign}{:0>min_width$b}", n.abs() as i64)
             })
         }
@@ -428,7 +430,7 @@ impl<'a> Slider<'a> {
             self.custom_formatter(move |n, _| format!("{:0>min_width$o}", n as i64))
         } else {
             self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { "-" } else { "" };
+                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
                 format!("{sign}{:0>min_width$o}", n.abs() as i64)
             })
         }
@@ -467,11 +469,11 @@ impl<'a> Slider<'a> {
                 self.custom_formatter(move |n, _| format!("{:0>min_width$x}", n as i64))
             }
             (false, true) => self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { "-" } else { "" };
+                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
                 format!("{sign}{:0>min_width$X}", n.abs() as i64)
             }),
             (false, false) => self.custom_formatter(move |n, _| {
-                let sign = if n < 0.0 { "-" } else { "" };
+                let sign = if n < 0.0 { MINUS_CHAR_STR } else { "" };
                 format!("{sign}{:0>min_width$x}", n.abs() as i64)
             }),
         }
@@ -524,12 +526,12 @@ impl<'a> Slider<'a> {
     }
 
     /// For instance, `position` is the mouse position and `position_range` is the physical location of the slider on the screen.
-    fn value_from_position(&self, position: f32, position_range: RangeInclusive<f32>) -> f64 {
+    fn value_from_position(&self, position: f32, position_range: Rangef) -> f64 {
         let normalized = remap_clamp(position, position_range, 0.0..=1.0) as f64;
         value_from_normalized(normalized, self.range(), &self.spec)
     }
 
-    fn position_from_value(&self, value: f64, position_range: RangeInclusive<f32>) -> f32 {
+    fn position_from_value(&self, value: f64, position_range: Rangef) -> f32 {
         let normalized = normalized_from_value(value, self.range(), &self.spec);
         lerp(position_range, normalized as f32)
     }
@@ -546,7 +548,7 @@ impl<'a> Slider<'a> {
     }
 
     /// Just the slider, no text
-    fn slider_ui(&mut self, ui: &mut Ui, response: &Response) {
+    fn slider_ui(&mut self, ui: &Ui, response: &Response) {
         let rect = &response.rect;
         let position_range = self.position_range(rect);
 
@@ -555,11 +557,11 @@ impl<'a> Slider<'a> {
             let new_value = if self.smart_aim {
                 let aim_radius = ui.input(|i| i.aim_radius());
                 emath::smart_aim::best_in_range_f64(
-                    self.value_from_position(position - aim_radius, position_range.clone()),
-                    self.value_from_position(position + aim_radius, position_range.clone()),
+                    self.value_from_position(position - aim_radius, position_range),
+                    self.value_from_position(position + aim_radius, position_range),
                 )
             } else {
-                self.value_from_position(position, position_range.clone())
+                self.value_from_position(position, position_range)
             };
             self.set_value(new_value);
         }
@@ -568,6 +570,16 @@ impl<'a> Slider<'a> {
         let mut increment = 0usize;
 
         if response.has_focus() {
+            ui.ctx().memory_mut(|m| {
+                m.set_focus_lock_filter(
+                    response.id,
+                    EventFilter {
+                        arrows: true, // pressing arrows should not move focus to next widget
+                        ..Default::default()
+                    },
+                );
+            });
+
             let (dec_key, inc_key) = match self.orientation {
                 SliderOrientation::Horizontal => (Key::ArrowLeft, Key::ArrowRight),
                 // Note that this is for moving the slider position,
@@ -593,19 +605,20 @@ impl<'a> Slider<'a> {
         let kb_step = increment as f32 - decrement as f32;
 
         if kb_step != 0.0 {
+            let ui_point_per_step = 1.0; // move this many ui points for each kb_step
             let prev_value = self.get_value();
-            let prev_position = self.position_from_value(prev_value, position_range.clone());
-            let new_position = prev_position + kb_step;
+            let prev_position = self.position_from_value(prev_value, position_range);
+            let new_position = prev_position + ui_point_per_step * kb_step;
             let new_value = match self.step {
                 Some(step) => prev_value + (kb_step as f64 * step),
                 None if self.smart_aim => {
-                    let aim_radius = ui.input(|i| i.aim_radius());
+                    let aim_radius = 0.49 * ui_point_per_step; // Chosen so we don't include `prev_value` in the search.
                     emath::smart_aim::best_in_range_f64(
-                        self.value_from_position(new_position - aim_radius, position_range.clone()),
-                        self.value_from_position(new_position + aim_radius, position_range.clone()),
+                        self.value_from_position(new_position - aim_radius, position_range),
+                        self.value_from_position(new_position + aim_radius, position_range),
                     )
                 }
-                _ => self.value_from_position(new_position, position_range.clone()),
+                _ => self.value_from_position(new_position, position_range),
             };
             self.set_value(new_value);
         }
@@ -686,15 +699,11 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn position_range(&self, rect: &Rect) -> RangeInclusive<f32> {
+    fn position_range(&self, rect: &Rect) -> Rangef {
         let handle_radius = self.handle_radius(rect);
         match self.orientation {
-            SliderOrientation::Horizontal => {
-                (rect.left() + handle_radius)..=(rect.right() - handle_radius)
-            }
-            SliderOrientation::Vertical => {
-                (rect.bottom() - handle_radius)..=(rect.top() + handle_radius)
-            }
+            SliderOrientation::Horizontal => rect.x_range().shrink(handle_radius),
+            SliderOrientation::Vertical => rect.y_range().shrink(handle_radius),
         }
     }
 
@@ -726,7 +735,7 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn value_ui(&mut self, ui: &mut Ui, position_range: RangeInclusive<f32>) -> Response {
+    fn value_ui(&mut self, ui: &mut Ui, position_range: Rangef) -> Response {
         // If [`DragValue`] is controlled from the keyboard and `step` is defined, set speed to `step`
         let change = ui.input(|input| {
             input.num_presses(Key::ArrowUp) as i32 + input.num_presses(Key::ArrowRight) as i32
@@ -740,7 +749,7 @@ impl<'a> Slider<'a> {
             step
         } else {
             self.drag_value_speed
-                .unwrap_or_else(|| self.current_gradient(&position_range))
+                .unwrap_or_else(|| self.current_gradient(position_range))
         };
 
         let mut value = self.get_value();
@@ -767,12 +776,11 @@ impl<'a> Slider<'a> {
     }
 
     /// delta(value) / delta(points)
-    fn current_gradient(&mut self, position_range: &RangeInclusive<f32>) -> f64 {
+    fn current_gradient(&mut self, position_range: Rangef) -> f64 {
         // TODO(emilk): handle clamping
         let value = self.get_value();
-        let value_from_pos =
-            |position: f32| self.value_from_position(position, position_range.clone());
-        let pos_from_value = |value: f64| self.position_from_value(value, position_range.clone());
+        let value_from_pos = |position: f32| self.value_from_position(position, position_range);
+        let pos_from_value = |value: f64| self.position_from_value(value, position_range);
         let left_value = value_from_pos(pos_from_value(value) - 0.5);
         let right_value = value_from_pos(pos_from_value(value) + 0.5);
         right_value - left_value
@@ -892,7 +900,7 @@ fn value_from_normalized(normalized: f64, range: RangeInclusive<f64>, spec: &Sli
             10.0_f64.powf(log)
         } else {
             assert!(min < 0.0 && 0.0 < max);
-            let zero_cutoff = logaritmic_zero_cutoff(min, max);
+            let zero_cutoff = logarithmic_zero_cutoff(min, max);
             if normalized < zero_cutoff {
                 // negative
                 value_from_normalized(
@@ -941,7 +949,7 @@ fn normalized_from_value(value: f64, range: RangeInclusive<f64>, spec: &SliderSp
             remap_clamp(value_log, min_log..=max_log, 0.0..=1.0)
         } else {
             assert!(min < 0.0 && 0.0 < max);
-            let zero_cutoff = logaritmic_zero_cutoff(min, max);
+            let zero_cutoff = logarithmic_zero_cutoff(min, max);
             if value < 0.0 {
                 // negative
                 remap(
@@ -992,7 +1000,7 @@ fn range_log10(min: f64, max: f64, spec: &SliderSpec) -> (f64, f64) {
 
 /// where to put the zero cutoff for logarithmic sliders
 /// that crosses zero ?
-fn logaritmic_zero_cutoff(min: f64, max: f64) -> f64 {
+fn logarithmic_zero_cutoff(min: f64, max: f64) -> f64 {
     assert!(min < 0.0 && 0.0 < max);
 
     let min_magnitude = if min == -INFINITY {

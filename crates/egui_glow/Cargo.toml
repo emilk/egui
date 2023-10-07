@@ -1,10 +1,10 @@
 [package]
 name = "egui_glow"
-version = "0.21.0"
+version = "0.23.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glow library"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 homepage = "https://github.com/emilk/egui/tree/master/crates/egui_glow"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -37,21 +37,21 @@ clipboard = ["egui-winit?/clipboard"]
 links = ["egui-winit?/links"]
 
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
-puffin = ["dep:puffin", "egui-winit?/puffin"]
+puffin = ["dep:puffin", "egui-winit?/puffin", "egui/puffin"]
 
 ## Enable [`winit`](https://docs.rs/winit) integration.
 winit = ["egui-winit"]
 
 
 [dependencies]
-egui = { version = "0.21.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.23.0", path = "../egui", default-features = false, features = [
   "bytemuck",
 ] }
 
 bytemuck = "1.7"
 glow = "0.12"
+log = { version = "0.4", features = ["std"] }
 memoffset = "0.6"
-tracing = { version = "0.1", default-features = false, features = ["std"] }
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
@@ -59,8 +59,8 @@ document-features = { version = "0.2", optional = true }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.21.1", path = "../egui-winit", optional = true, default-features = false }
-puffin = { version = "0.14", optional = true }
+egui-winit = { version = "0.23.0", path = "../egui-winit", optional = true, default-features = false }
+puffin = { version = "0.16", optional = true }
 
 # Web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
