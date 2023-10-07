@@ -867,7 +867,7 @@ impl<'a> TableBody<'a> {
                     widths: self.widths,
                     max_used_widths: self.max_used_widths,
                     col_index: 0,
-                    striped: self.striped && idx % 2 == 0,
+                    striped: self.striped && (idx + self.row_nr) % 2 == 0,
                     height: row_height_sans_spacing,
                 },
             );
@@ -945,7 +945,7 @@ impl<'a> TableBody<'a> {
                         widths: self.widths,
                         max_used_widths: self.max_used_widths,
                         col_index: 0,
-                        striped: self.striped && row_index % 2 == 0,
+                        striped: self.striped && (row_index + self.row_nr) % 2 == 0,
                         height: row_height,
                     },
                 );
@@ -964,7 +964,7 @@ impl<'a> TableBody<'a> {
                     widths: self.widths,
                     max_used_widths: self.max_used_widths,
                     col_index: 0,
-                    striped: self.striped && row_index % 2 == 0,
+                    striped: self.striped && (row_index + self.row_nr) % 2 == 0,
                     height: row_height,
                 },
             );
