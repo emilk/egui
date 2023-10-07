@@ -329,7 +329,7 @@ egui_extras::install_image_loaders(egui_ctx);
 
 ### Contributors 🙏
 * [4JX](https://github.com/4JX)
-* [AlexxxRu](https://github.com/AlexxxRu)
+* [a-liashenko](https://github.com/a-liashenko)
 * [ascclemens](https://github.com/ascclemens)
 * [awaken1ng](https://github.com/awaken1ng)
 * [bigfarts](https://github.com/bigfarts)
@@ -425,7 +425,7 @@ egui_extras::install_image_loaders(egui_ctx);
 * [4JX](https://github.com/4JX)
 * [55nknown](https://github.com/55nknown)
 * [AlanRace](https://github.com/AlanRace)
-* [AlexxxRu](https://github.com/AlexxxRu)
+* [a-liashenko](https://github.com/a-liashenko)
 * [awaken1ng](https://github.com/awaken1ng)
 * [BctfN0HUK7Yg](https://github.com/BctfN0HUK7Yg)
 * [Bromeon](https://github.com/Bromeon)
