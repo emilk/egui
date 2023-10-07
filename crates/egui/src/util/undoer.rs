@@ -57,15 +57,20 @@ pub struct Undoer<State> {
     /// The latest undo point may (often) be the current state.
     undos: VecDeque<State>,
 
+    /// The list of redos is a simple LIFO stack. It is updated with the current state when undo is
+    /// called successfully, and cleared when a new undo point is created.
+    redos: Vec<State>,
+
     #[cfg_attr(feature = "serde", serde(skip))]
     flux: Option<Flux<State>>,
 }
 
 impl<State> std::fmt::Debug for Undoer<State> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self { undos, .. } = self;
+        let Self { undos, redos, .. } = self;
         f.debug_struct("Undoer")
             .field("undo count", &undos.len())
+            .field("redo count", &redos.len())
             .finish()
     }
 }
@@ -96,10 +101,12 @@ where
         self.flux.is_some()
     }
 
+    /// Return the previous undo point, if any, and adds the current state to the redo stack.
     pub fn undo(&mut self, current_state: &State) -> Option<&State> {
         if self.has_undo(current_state) {
             self.flux = None;
 
+            self.redos.push(current_state.clone());
             if self.undos.back() == Some(current_state) {
                 self.undos.pop_back();
             }
@@ -113,10 +120,12 @@ where
 
     /// Add an undo point if, and only if, there has been a change since the latest undo point.
     ///
-    /// * `time`: current time in seconds.
+    /// If an undo point is added, this also clears the redo stack, meaning [`Self::has_redo`] will
+    /// return false and [`Self::redo`] will return `None`.
     pub fn add_undo(&mut self, current_state: &State) {
         if self.undos.back() != Some(current_state) {
             self.undos.push_back(current_state.clone());
+            self.redos.clear();
         }
         while self.undos.len() > self.settings.max_undos {
             self.undos.pop_front();
@@ -129,6 +138,9 @@ where
     ///
     /// * `current_time`: current time in seconds.
     pub fn feed_state(&mut self, current_time: f64, current_state: &State) {
+        if self.redos.last() == Some(current_state) {
+            return;
+        }
         match self.undos.back() {
             None => {
                 // First time feed_state is called.
@@ -168,5 +180,32 @@ where
                 }
             }
         }
+    }
+
+    /// Return true if there is a redo point available in the stack.
+    ///
+    /// A redo point is created for each call to [`Self::undo`] (if it doesn't return `None`), but
+    /// when a new undo point is created, all previous redo points are deleted.
+    pub fn has_redo(&self, current_state: &State) -> bool {
+        match self.redos.len() {
+            0 => false,
+            1 => self.redos.last() != Some(current_state),
+            _ => true,
+        }
+    }
+
+    /// Return the last redo point, if any, and remove it from the stack.
+    ///
+    /// A redo point is created for each call to [`Self::undo`] (if it doesn't return `None`), but
+    /// when a new undo point is created, all previous redo points are deleted.
+    pub fn redo(&mut self, current_state: &State) -> Option<&State> {
+        if self.redos.last() == Some(current_state) {
+            if let Some(state) = self.redos.pop() {
+                if self.undos.back() != Some(&state) {
+                    self.undos.push_back(state);
+                }
+            }
+        }
+        self.redos.last()
     }
 }
