@@ -51,7 +51,7 @@ impl FontId {
     }
 }
 
-#[allow(clippy::derive_hash_xor_eq)]
+#[allow(clippy::derived_hash_with_manual_eq)]
 impl std::hash::Hash for FontId {
     #[inline(always)]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -67,12 +67,13 @@ impl std::hash::Hash for FontId {
 ///
 /// Which style of font: [`Monospace`][`FontFamily::Monospace`], [`Proportional`][`FontFamily::Proportional`],
 /// or by user-chosen name.
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum FontFamily {
     /// A font where some characters are wider than other (e.g. 'w' is wider than 'i').
     ///
     /// Proportional fonts are easier to read and should be the preferred choice in most situations.
+    #[default]
     Proportional,
 
     /// A font where each character is the same width (`w` is the same width as `i`).
@@ -89,13 +90,6 @@ pub enum FontFamily {
     /// FontFamily::Name("serif".into());
     /// ```
     Name(Arc<str>),
-}
-
-impl Default for FontFamily {
-    #[inline]
-    fn default() -> Self {
-        FontFamily::Proportional
-    }
 }
 
 impl std::fmt::Display for FontFamily {
@@ -153,12 +147,14 @@ impl FontData {
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FontTweak {
-    /// Scale the font by this much.
+    /// Scale the font's glyphs by this much.
+    /// this is only a visual effect and does not affect the text layout.
     ///
     /// Default: `1.0` (no scaling).
     pub scale: f32,
 
-    /// Shift font downwards by this fraction of the font size (in points).
+    /// Shift font's glyphs downwards by this fraction of the font size (in points).
+    /// this is only a visual effect and does not affect the text layout.
     ///
     /// A positive value shifts the text downwards.
     /// A negative value shifts it upwards.
@@ -166,18 +162,27 @@ pub struct FontTweak {
     /// Example value: `-0.2`.
     pub y_offset_factor: f32,
 
-    /// Shift font downwards by this amount of logical points.
+    /// Shift font's glyphs downwards by this amount of logical points.
+    /// this is only a visual effect and does not affect the text layout.
     ///
     /// Example value: `2.0`.
     pub y_offset: f32,
+
+    /// When using this font's metrics to layout a row,
+    /// shift the entire row downwards by this fraction of the font size (in points).
+    ///
+    /// A positive value shifts the text downwards.
+    /// A negative value shifts it upwards.
+    pub baseline_offset_factor: f32,
 }
 
 impl Default for FontTweak {
     fn default() -> Self {
         Self {
             scale: 1.0,
-            y_offset_factor: -0.2, // makes the default fonts look more centered in buttons and such
+            y_offset_factor: 0.0,
             y_offset: 0.0,
+            baseline_offset_factor: -0.0333, // makes the default fonts look more centered in buttons and such
         }
     }
 }
@@ -195,7 +200,7 @@ fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontAr
                 .map(ab_glyph::FontArc::from)
         }
     }
-    .unwrap_or_else(|err| panic!("Error parsing {:?} TTF/OTF font file: {}", name, err))
+    .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"))
 }
 
 /// Describes the font data and the sizes to use.
@@ -272,9 +277,8 @@ impl Default for FontDefinitions {
             "NotoEmoji-Regular".to_owned(),
             FontData::from_static(include_bytes!("../../fonts/NotoEmoji-Regular.ttf")).tweak(
                 FontTweak {
-                    scale: 0.81,           // make it smaller
-                    y_offset_factor: -0.2, // move it up
-                    y_offset: 0.0,
+                    scale: 0.81, // make it smaller
+                    ..Default::default()
                 },
             ),
         );
@@ -284,9 +288,12 @@ impl Default for FontDefinitions {
             "emoji-icon-font".to_owned(),
             FontData::from_static(include_bytes!("../../fonts/emoji-icon-font.ttf")).tweak(
                 FontTweak {
-                    scale: 0.88,           // make it smaller
-                    y_offset_factor: 0.07, // move it down slightly
-                    y_offset: 0.0,
+                    scale: 0.88, // make it smaller
+
+                    // probably not correct, but this does make texts look better (#2724 for details)
+                    y_offset_factor: 0.11, // move glyphs down to better align with common fonts
+                    baseline_offset_factor: -0.11, // ...now the entire row is a bit down so shift it back
+                    ..Default::default()
                 },
             ),
         );
@@ -545,7 +552,7 @@ impl FontsAndCache {
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct HashableF32(f32);
 
-#[allow(clippy::derive_hash_xor_eq)]
+#[allow(clippy::derived_hash_with_manual_eq)]
 impl std::hash::Hash for HashableF32 {
     #[inline(always)]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -579,8 +586,7 @@ impl FontsImpl {
     ) -> Self {
         assert!(
             0.0 < pixels_per_point && pixels_per_point < 100.0,
-            "pixels_per_point out of range: {}",
-            pixels_per_point
+            "pixels_per_point out of range: {pixels_per_point}"
         );
 
         let texture_width = max_texture_side.at_most(8 * 1024);
@@ -620,9 +626,8 @@ impl FontsImpl {
             .entry((HashableF32(*size), family.clone()))
             .or_insert_with(|| {
                 let fonts = &self.definitions.families.get(family);
-                let fonts = fonts.unwrap_or_else(|| {
-                    panic!("FontFamily::{:?} is not bound to any fonts", family)
-                });
+                let fonts = fonts
+                    .unwrap_or_else(|| panic!("FontFamily::{family:?} is not bound to any fonts"));
 
                 let fonts: Vec<Arc<FontImpl>> = fonts
                     .iter()
@@ -648,7 +653,7 @@ impl FontsImpl {
         self.font(font_id).has_glyphs(s)
     }
 
-    /// Height of one row of text. In points
+    /// Height of one row of text in points.
     fn row_height(&mut self, font_id: &FontId) -> f32 {
         self.font(font_id).row_height()
     }
@@ -745,35 +750,23 @@ impl FontImplCache {
         let (tweak, ab_glyph_font) = self
             .ab_glyph_fonts
             .get(font_name)
-            .unwrap_or_else(|| panic!("No font data found for {:?}", font_name))
+            .unwrap_or_else(|| panic!("No font data found for {font_name:?}"))
             .clone();
 
         let scale_in_pixels = self.pixels_per_point * scale_in_points;
 
         // Scale the font properly (see https://github.com/emilk/egui/issues/2068).
         let units_per_em = ab_glyph_font.units_per_em().unwrap_or_else(|| {
-            panic!(
-                "The font unit size of {:?} exceeds the expected range (16..=16384)",
-                font_name
-            )
+            panic!("The font unit size of {font_name:?} exceeds the expected range (16..=16384)")
         });
         let font_scaling = ab_glyph_font.height_unscaled() / units_per_em;
         let scale_in_pixels = scale_in_pixels * font_scaling;
 
-        // Tweak the scale as the user desired:
-        let scale_in_pixels = scale_in_pixels * tweak.scale;
-
-        // Round to an even number of physical pixels to get even kerning.
-        // See https://github.com/emilk/egui/issues/382
-        let scale_in_pixels = scale_in_pixels.round() as u32;
-
-        let y_offset_points = {
-            let scale_in_points = scale_in_pixels as f32 / self.pixels_per_point;
-            scale_in_points * tweak.y_offset_factor
-        } + tweak.y_offset;
-
         self.cache
-            .entry((scale_in_pixels, font_name.to_owned()))
+            .entry((
+                (scale_in_pixels * tweak.scale).round() as u32,
+                font_name.to_owned(),
+            ))
             .or_insert_with(|| {
                 Arc::new(FontImpl::new(
                     self.atlas.clone(),
@@ -781,7 +774,7 @@ impl FontImplCache {
                     font_name.to_owned(),
                     ab_glyph_font,
                     scale_in_pixels,
-                    y_offset_points,
+                    tweak,
                 ))
             })
             .clone()

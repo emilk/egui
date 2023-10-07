@@ -217,8 +217,8 @@ impl TextureAtlas {
         if required_height > self.max_height() {
             // This is a bad place to be - we need to start reusing space :/
 
-            #[cfg(feature = "tracing")]
-            tracing::wan!("epaint texture atlas overflowed!");
+            #[cfg(feature = "log")]
+            log::warn!("epaint texture atlas overflowed!");
 
             self.cursor = (0, self.image.height() / 3); // Restart a bit down - the top of the atlas has too many important things in it
             self.overflowed = true; // this will signal the user that we need to recreate the texture atlas next frame.

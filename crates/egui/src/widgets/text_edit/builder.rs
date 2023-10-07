@@ -65,11 +65,12 @@ pub struct TextEdit<'t> {
     interactive: bool,
     desired_width: Option<f32>,
     desired_height_rows: usize,
-    lock_focus: bool,
+    event_filter: EventFilter,
     cursor_at_end: bool,
     min_size: Vec2,
     align: Align2,
     clip_text: bool,
+    char_limit: usize,
 }
 
 impl<'t> WidgetWithState for TextEdit<'t> {
@@ -114,18 +115,23 @@ impl<'t> TextEdit<'t> {
             interactive: true,
             desired_width: None,
             desired_height_rows: 4,
-            lock_focus: false,
+            event_filter: EventFilter {
+                arrows: true, // moving the cursor is really important
+                tab: false,   // tab is used to change focus, not to insert a tab character
+                ..Default::default()
+            },
             cursor_at_end: true,
             min_size: Vec2::ZERO,
             align: Align2::LEFT_TOP,
             clip_text: false,
+            char_limit: usize::MAX,
         }
     }
 
     /// Build a [`TextEdit`] focused on code editing.
     /// By default it comes with:
     /// - monospaced font
-    /// - focus lock
+    /// - focus lock (tab will insert a tab character instead of moving focus)
     pub fn code_editor(self) -> Self {
         self.font(TextStyle::Monospace).lock_focus(true)
     }
@@ -264,8 +270,8 @@ impl<'t> TextEdit<'t> {
     ///
     /// When `true`, the widget will keep the focus and pressing TAB
     /// will insert the `'\t'` character.
-    pub fn lock_focus(mut self, b: bool) -> Self {
-        self.lock_focus = b;
+    pub fn lock_focus(mut self, tab_will_indent: bool) -> Self {
+        self.event_filter.tab = tab_will_indent;
         self
     }
 
@@ -287,6 +293,14 @@ impl<'t> TextEdit<'t> {
         if !self.multiline {
             self.clip_text = b;
         }
+        self
+    }
+
+    /// Sets the limit for the amount of characters can be entered
+    ///
+    /// This only works for singleline [`TextEdit`]
+    pub fn char_limit(mut self, limit: usize) -> Self {
+        self.char_limit = limit;
         self
     }
 
@@ -342,7 +356,9 @@ impl<'t> TextEdit<'t> {
         let margin = self.margin;
         let max_rect = ui.available_rect_before_wrap().shrink2(margin);
         let mut content_ui = ui.child_ui(max_rect, *ui.layout());
+
         let mut output = self.show_content(&mut content_ui);
+
         let id = output.response.id;
         let frame_rect = output.response.rect.expand2(margin);
         ui.allocate_space(frame_rect.size());
@@ -358,31 +374,27 @@ impl<'t> TextEdit<'t> {
             let frame_rect = frame_rect.expand(visuals.expansion);
             let shape = if is_mutable {
                 if output.response.has_focus() {
-                    epaint::RectShape {
-                        rect: frame_rect,
-                        rounding: visuals.rounding,
-                        // fill: ui.visuals().selection.bg_fill,
-                        fill: ui.visuals().extreme_bg_color,
-                        stroke: ui.visuals().selection.stroke,
-                    }
+                    epaint::RectShape::new(
+                        frame_rect,
+                        visuals.rounding,
+                        ui.visuals().extreme_bg_color,
+                        ui.visuals().selection.stroke,
+                    )
                 } else {
-                    epaint::RectShape {
-                        rect: frame_rect,
-                        rounding: visuals.rounding,
-                        fill: ui.visuals().extreme_bg_color,
-                        stroke: visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
-                    }
+                    epaint::RectShape::new(
+                        frame_rect,
+                        visuals.rounding,
+                        ui.visuals().extreme_bg_color,
+                        visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                    )
                 }
             } else {
                 let visuals = &ui.style().visuals.widgets.inactive;
-                epaint::RectShape {
-                    rect: frame_rect,
-                    rounding: visuals.rounding,
-                    // fill: ui.visuals().extreme_bg_color,
-                    // fill: visuals.bg_fill,
-                    fill: Color32::TRANSPARENT,
-                    stroke: visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
-                }
+                epaint::RectShape::stroke(
+                    frame_rect,
+                    visuals.rounding,
+                    visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                )
             };
 
             ui.painter().set(where_to_put_background, shape);
@@ -407,11 +419,12 @@ impl<'t> TextEdit<'t> {
             interactive,
             desired_width,
             desired_height_rows,
-            lock_focus,
+            event_filter,
             cursor_at_end,
             min_size,
             align,
             clip_text,
+            char_limit,
         } = self;
 
         let text_color = text_color
@@ -562,7 +575,7 @@ impl<'t> TextEdit<'t> {
         let mut cursor_range = None;
         let prev_cursor_range = state.cursor_range(&galley);
         if interactive && ui.memory(|mem| mem.has_focus(id)) {
-            ui.memory_mut(|mem| mem.lock_focus(id, lock_focus));
+            ui.memory_mut(|mem| mem.set_focus_lock_filter(id, event_filter));
 
             let default_cursor_range = if cursor_at_end {
                 CursorRange::one(galley.end())
@@ -581,6 +594,8 @@ impl<'t> TextEdit<'t> {
                 multiline,
                 password,
                 default_cursor_range,
+                char_limit,
+                event_filter,
             );
 
             if changed {
@@ -861,7 +876,7 @@ fn ccursor_from_accesskit_text_position(
 /// Check for (keyboard) events to edit the cursor and/or text.
 #[allow(clippy::too_many_arguments)]
 fn events(
-    ui: &mut crate::Ui,
+    ui: &crate::Ui,
     state: &mut TextEditState,
     text: &mut dyn TextBuffer,
     galley: &mut Arc<Galley>,
@@ -871,6 +886,8 @@ fn events(
     multiline: bool,
     password: bool,
     default_cursor_range: CursorRange,
+    char_limit: usize,
+    event_filter: EventFilter,
 ) -> (bool, CursorRange) {
     let mut cursor_range = state.cursor_range(galley).unwrap_or(default_cursor_range);
 
@@ -883,13 +900,13 @@ fn events(
 
     let copy_if_not_password = |ui: &Ui, text: String| {
         if !password {
-            ui.ctx().output_mut(|o| o.copied_text = text);
+            ui.ctx().copy_text(text);
         }
     };
 
     let mut any_change = false;
 
-    let events = ui.input(|i| i.events.clone()); // avoid dead-lock by cloning. TODO(emilk): optimize
+    let events = ui.input(|i| i.filtered_events(&event_filter));
     for event in &events {
         let did_mutate_text = match event {
             Event::Copy => {
@@ -912,7 +929,9 @@ fn events(
             Event::Paste(text_to_insert) => {
                 if !text_to_insert.is_empty() {
                     let mut ccursor = delete_selected(text, &cursor_range);
-                    insert_text(&mut ccursor, text, text_to_insert);
+
+                    insert_text(&mut ccursor, text, text_to_insert, char_limit);
+
                     Some(CCursorRange::one(ccursor))
                 } else {
                     None
@@ -922,7 +941,9 @@ fn events(
                 // Newlines are handled by `Key::Enter`.
                 if !text_to_insert.is_empty() && text_to_insert != "\n" && text_to_insert != "\r" {
                     let mut ccursor = delete_selected(text, &cursor_range);
-                    insert_text(&mut ccursor, text, text_to_insert);
+
+                    insert_text(&mut ccursor, text, text_to_insert, char_limit);
+
                     Some(CCursorRange::one(ccursor))
                 } else {
                     None
@@ -933,19 +954,15 @@ fn events(
                 pressed: true,
                 modifiers,
                 ..
-            } => {
-                if multiline && ui.memory(|mem| mem.has_lock_focus(id)) {
-                    let mut ccursor = delete_selected(text, &cursor_range);
-                    if modifiers.shift {
-                        // TODO(emilk): support removing indentation over a selection?
-                        decrease_identation(&mut ccursor, text);
-                    } else {
-                        insert_text(&mut ccursor, text, "\t");
-                    }
-                    Some(CCursorRange::one(ccursor))
+            } if multiline => {
+                let mut ccursor = delete_selected(text, &cursor_range);
+                if modifiers.shift {
+                    // TODO(emilk): support removing indentation over a selection?
+                    decrease_indentation(&mut ccursor, text);
                 } else {
-                    None
+                    insert_text(&mut ccursor, text, "\t", char_limit);
                 }
+                Some(CCursorRange::one(ccursor))
             }
             Event::Key {
                 key: Key::Enter,
@@ -954,7 +971,7 @@ fn events(
             } => {
                 if multiline {
                     let mut ccursor = delete_selected(text, &cursor_range);
-                    insert_text(&mut ccursor, text, "\n");
+                    insert_text(&mut ccursor, text, "\n", char_limit);
                     // TODO(emilk): if code editor, auto-indent by same leading tabs, + one if the lines end on an opening bracket
                     Some(CCursorRange::one(ccursor))
                 } else {
@@ -1000,7 +1017,7 @@ fn events(
                     let mut ccursor = delete_selected(text, &cursor_range);
                     let start_cursor = ccursor;
                     if !text_mark.is_empty() {
-                        insert_text(&mut ccursor, text, text_mark);
+                        insert_text(&mut ccursor, text, text_mark, char_limit);
                     }
                     Some(CCursorRange::two(start_cursor, ccursor))
                 } else {
@@ -1013,7 +1030,7 @@ fn events(
                     state.has_ime = false;
                     let mut ccursor = delete_selected(text, &cursor_range);
                     if !prediction.is_empty() {
-                        insert_text(&mut ccursor, text, prediction);
+                        insert_text(&mut ccursor, text, prediction, char_limit);
                     }
                     Some(CCursorRange::one(ccursor))
                 } else {
@@ -1072,7 +1089,7 @@ fn events(
 // ----------------------------------------------------------------------------
 
 fn paint_cursor_selection(
-    ui: &mut Ui,
+    ui: &Ui,
     painter: &Painter,
     pos: Pos2,
     galley: &Galley,
@@ -1114,14 +1131,14 @@ fn paint_cursor_selection(
 }
 
 fn paint_cursor_end(
-    ui: &mut Ui,
+    ui: &Ui,
     row_height: f32,
     painter: &Painter,
     pos: Pos2,
     galley: &Galley,
     cursor: &Cursor,
 ) -> Rect {
-    let stroke = ui.visuals().selection.stroke;
+    let stroke = ui.visuals().text_cursor;
 
     let mut cursor_pos = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
     cursor_pos.max.y = cursor_pos.max.y.at_least(cursor_pos.min.y + row_height); // Handle completely empty galleys
@@ -1130,10 +1147,7 @@ fn paint_cursor_end(
     let top = cursor_pos.center_top();
     let bottom = cursor_pos.center_bottom();
 
-    painter.line_segment(
-        [top, bottom],
-        (ui.visuals().text_cursor_width, stroke.color),
-    );
+    painter.line_segment([top, bottom], (stroke.width, stroke.color));
 
     if false {
         // Roof/floor:
@@ -1159,8 +1173,26 @@ fn selected_str<'s>(text: &'s dyn TextBuffer, cursor_range: &CursorRange) -> &'s
     text.char_range(min.ccursor.index..max.ccursor.index)
 }
 
-fn insert_text(ccursor: &mut CCursor, text: &mut dyn TextBuffer, text_to_insert: &str) {
-    ccursor.index += text.insert_text(text_to_insert, ccursor.index);
+fn insert_text(
+    ccursor: &mut CCursor,
+    text: &mut dyn TextBuffer,
+    text_to_insert: &str,
+    char_limit: usize,
+) {
+    if char_limit < usize::MAX {
+        let mut new_string = text_to_insert;
+        // Avoid subtract with overflow panic
+        let cutoff = char_limit.saturating_sub(text.as_str().chars().count());
+
+        new_string = match new_string.char_indices().nth(cutoff) {
+            None => new_string,
+            Some((idx, _)) => &new_string[..idx],
+        };
+
+        ccursor.index += text.insert_text(new_string, ccursor.index);
+    } else {
+        ccursor.index += text.insert_text(text_to_insert, ccursor.index);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -1584,7 +1616,7 @@ fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
     }
 }
 
-fn decrease_identation(ccursor: &mut CCursor, text: &mut dyn TextBuffer) {
+fn decrease_indentation(ccursor: &mut CCursor, text: &mut dyn TextBuffer) {
     let line_start = find_line_start(text.as_str(), *ccursor);
 
     let remove_len = if text.as_str()[line_start.index..].starts_with('\t') {

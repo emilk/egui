@@ -54,6 +54,11 @@ impl State {
     pub fn store(self, ctx: &Context, id: Id) {
         ctx.data_mut(|d| d.insert_persisted(id, self));
     }
+
+    /// Get the current kinetic scrolling velocity.
+    pub fn velocity(&self) -> Vec2 {
+        self.vel
+    }
 }
 
 pub struct ScrollAreaOutput<R> {
@@ -72,6 +77,14 @@ pub struct ScrollAreaOutput<R> {
 
     /// Where on the screen the content is (excludes scroll bars).
     pub inner_rect: Rect,
+}
+
+/// Indicate whether the horizontal and vertical scroll bars must be always visible, hidden or visible when needed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ScrollBarVisibility {
+    AlwaysVisible,
+    VisibleWhenNeeded,
+    AlwaysHidden,
 }
 
 /// Add vertical and/or horizontal scrolling to a contained [`Ui`].
@@ -93,7 +106,7 @@ pub struct ScrollArea {
     auto_shrink: [bool; 2],
     max_size: Vec2,
     min_scrolled_size: Vec2,
-    always_show_scroll: bool,
+    scroll_bar_visibility: ScrollBarVisibility,
     id_source: Option<Id>,
     offset_x: Option<f32>,
     offset_y: Option<f32>,
@@ -131,14 +144,14 @@ impl ScrollArea {
     }
 
     /// Create a scroll area where you decide which axis has scrolling enabled.
-    /// For instance, `ScrollAre::new([true, false])` enable horizontal scrolling.
+    /// For instance, `ScrollArea::new([true, false])` enables horizontal scrolling.
     pub fn new(has_bar: [bool; 2]) -> Self {
         Self {
             has_bar,
             auto_shrink: [true; 2],
             max_size: Vec2::INFINITY,
             min_scrolled_size: Vec2::splat(64.0),
-            always_show_scroll: false,
+            scroll_bar_visibility: ScrollBarVisibility::VisibleWhenNeeded,
             id_source: None,
             offset_x: None,
             offset_y: None,
@@ -190,10 +203,11 @@ impl ScrollArea {
         self
     }
 
-    /// If `false` (default), the scroll bar will be hidden when not needed/
-    /// If `true`, the scroll bar will always be displayed even if not needed.
-    pub fn always_show_scroll(mut self, always_show_scroll: bool) -> Self {
-        self.always_show_scroll = always_show_scroll;
+    /// Set the visibility of both horizontal and vertical scroll bars.
+    ///
+    /// With `ScrollBarVisibility::VisibleWhenNeeded` (default), the scroll bar will be visible only when needed.
+    pub fn scroll_bar_visibility(mut self, scroll_bar_visibility: ScrollBarVisibility) -> Self {
+        self.scroll_bar_visibility = scroll_bar_visibility;
         self
     }
 
@@ -325,16 +339,22 @@ struct Prepared {
     state: State,
     has_bar: [bool; 2],
     auto_shrink: [bool; 2],
+
     /// How much horizontal and vertical space are used up by the
     /// width of the vertical bar, and the height of the horizontal bar?
     current_bar_use: Vec2,
-    always_show_scroll: bool,
+
+    scroll_bar_visibility: ScrollBarVisibility,
+
     /// Where on the screen the content is (excludes scroll bars).
     inner_rect: Rect,
+
     content_ui: Ui,
+
     /// Relative coordinates: the offset and size of the view of the inner UI.
     /// `viewport.min == ZERO` means we scrolled to the top.
     viewport: Rect,
+
     scrolling_enabled: bool,
     stick_to_end: [bool; 2],
 }
@@ -346,7 +366,7 @@ impl ScrollArea {
             auto_shrink,
             max_size,
             min_scrolled_size,
-            always_show_scroll,
+            scroll_bar_visibility,
             id_source,
             offset_x,
             offset_y,
@@ -373,7 +393,7 @@ impl ScrollArea {
 
         let current_hscroll_bar_height = if !has_bar[0] {
             0.0
-        } else if always_show_scroll {
+        } else if scroll_bar_visibility == ScrollBarVisibility::AlwaysVisible {
             max_scroll_bar_width
         } else {
             max_scroll_bar_width * ui.ctx().animate_bool(id.with("h"), state.show_scroll[0])
@@ -381,7 +401,7 @@ impl ScrollArea {
 
         let current_vscroll_bar_width = if !has_bar[1] {
             0.0
-        } else if always_show_scroll {
+        } else if scroll_bar_visibility == ScrollBarVisibility::AlwaysVisible {
             max_scroll_bar_width
         } else {
             max_scroll_bar_width * ui.ctx().animate_bool(id.with("v"), state.show_scroll[1])
@@ -430,7 +450,6 @@ impl ScrollArea {
         {
             // Clip the content, but only when we really need to:
             let clip_rect_margin = ui.visuals().clip_rect_margin;
-            let scroll_bar_inner_margin = ui.spacing().scroll_bar_inner_margin;
             let mut content_clip_rect = ui.clip_rect();
             for d in 0..2 {
                 if has_bar[d] {
@@ -438,19 +457,12 @@ impl ScrollArea {
                         content_clip_rect.min[d] = inner_rect.min[d] - clip_rect_margin;
                         content_clip_rect.max[d] = inner_rect.max[d] + clip_rect_margin;
                     }
-
-                    if state.show_scroll[d] {
-                        // Make sure content doesn't cover scroll bars
-                        let tiny_gap = 1.0;
-                        content_clip_rect.max[1 - d] =
-                            inner_rect.max[1 - d] + scroll_bar_inner_margin - tiny_gap;
-                    }
                 } else {
                     // Nice handling of forced resizing beyond the possible:
                     content_clip_rect.max[d] = ui.clip_rect().max[d] - current_bar_use[d];
                 }
             }
-            // Make sure we din't accidentally expand the clip rect
+            // Make sure we didn't accidentally expand the clip rect
             content_clip_rect = content_clip_rect.intersect(ui.clip_rect());
             content_ui.set_clip_rect(content_clip_rect);
         }
@@ -501,7 +513,7 @@ impl ScrollArea {
             has_bar,
             auto_shrink,
             current_bar_use,
-            always_show_scroll,
+            scroll_bar_visibility,
             inner_rect,
             content_ui,
             viewport,
@@ -612,7 +624,7 @@ impl Prepared {
             has_bar,
             auto_shrink,
             mut current_bar_use,
-            always_show_scroll,
+            scroll_bar_visibility,
             content_ui,
             viewport: _,
             scrolling_enabled,
@@ -631,8 +643,7 @@ impl Prepared {
                     let min = content_ui.min_rect().min[d];
                     let clip_rect = content_ui.clip_rect();
                     let visible_range = min..=min + clip_rect.size()[d];
-                    let start = *scroll.start();
-                    let end = *scroll.end();
+                    let (start, end) = (scroll.min, scroll.max);
                     let clip_start = clip_rect.min[d];
                     let clip_end = clip_rect.max[d];
                     let mut spacing = ui.spacing().item_spacing[d];
@@ -706,10 +717,13 @@ impl Prepared {
             }
         }
 
-        let show_scroll_this_frame = [
-            content_is_too_large[0] || always_show_scroll,
-            content_is_too_large[1] || always_show_scroll,
-        ];
+        let show_scroll_this_frame = match scroll_bar_visibility {
+            ScrollBarVisibility::AlwaysVisible => [true, true],
+            ScrollBarVisibility::VisibleWhenNeeded => {
+                [content_is_too_large[0], content_is_too_large[1]]
+            }
+            ScrollBarVisibility::AlwaysHidden => [false, false],
+        };
 
         let max_scroll_bar_width = max_scroll_bar_width_with_margin(ui);
 

@@ -1,4 +1,6 @@
 #![allow(clippy::many_single_char_names)]
+#![allow(clippy::wrong_self_convention)] // False positives
+
 use std::ops::Range;
 
 use crate::{shape::Shape, Color32, PathShape, Stroke};
@@ -813,7 +815,7 @@ mod tests {
     }
 
     #[test]
-    fn test_quadratic_dfferent_tolerance() {
+    fn test_quadratic_different_tolerance() {
         let curve = QuadraticBezierShape {
             points: [
                 Pos2 { x: 110.0, y: 170.0 },
@@ -1079,7 +1081,7 @@ mod tests {
     }
 
     #[test]
-    fn test_quadrtic_flattening() {
+    fn test_quadratic_flattening() {
         let curve = QuadraticBezierShape {
             points: [pos2(0.0, 0.0), pos2(80.0, 200.0), pos2(100.0, 30.0)],
             closed: false,

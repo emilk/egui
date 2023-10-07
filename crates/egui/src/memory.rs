@@ -1,4 +1,8 @@
-use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
+#![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
+
+use epaint::{emath::Rangef, vec2, Vec2};
+
+use crate::{area, window, EventFilter, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 
 // ----------------------------------------------------------------------------
 
@@ -15,6 +19,7 @@ use crate::{area, window, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
+    /// Global egui options.
     pub options: Options,
 
     /// This map stores some superficial state for all widgets with custom [`Id`]s.
@@ -89,6 +94,44 @@ pub struct Memory {
     everything_is_visible: bool,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum FocusDirection {
+    /// Select the widget closest above the current focused widget.
+    Up,
+
+    /// Select the widget to the right of the current focused widget.
+    Right,
+
+    /// Select the widget below the current focused widget.
+    Down,
+
+    /// Select the widget to the left of the the current focused widget.
+    Left,
+
+    /// Select the previous widget that had focus.
+    Previous,
+
+    /// Select the next widget that wants focus.
+    Next,
+
+    /// Don't change focus.
+    #[default]
+    None,
+}
+
+impl FocusDirection {
+    fn is_cardinal(&self) -> bool {
+        match self {
+            FocusDirection::Up
+            | FocusDirection::Right
+            | FocusDirection::Down
+            | FocusDirection::Left => true,
+
+            FocusDirection::Previous | FocusDirection::Next | FocusDirection::None => false,
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// Some global options that you can read and write.
@@ -121,6 +164,11 @@ pub struct Options {
     /// This can lead to fewer texture operations, but may use up the texture atlas quicker
     /// if you are changing [`Style::text_styles`], of have a lot of text styles.
     pub preload_font_glyphs: bool,
+
+    /// Check reusing of [`Id`]s, and show a visual warning on screen when one is found.
+    ///
+    /// By default this is `true` in debug builds.
+    pub warn_on_id_clash: bool,
 }
 
 impl Default for Options {
@@ -130,6 +178,7 @@ impl Default for Options {
             tessellation_options: Default::default(),
             screen_reader: false,
             preload_font_glyphs: true,
+            warn_on_id_clash: cfg!(debug_assertions),
         }
     }
 }
@@ -173,7 +222,7 @@ pub(crate) struct Interaction {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Focus {
     /// The widget with keyboard focus (i.e. a text input field).
-    pub(crate) id: Option<Id>,
+    focused_widget: Option<FocusWidget>,
 
     /// What had keyboard focus previous frame?
     id_previous_frame: Option<Id>,
@@ -191,14 +240,27 @@ pub(crate) struct Focus {
     /// The last widget interested in focus.
     last_interested: Option<Id>,
 
-    /// If `true`, pressing tab will NOT move focus away from the current widget.
-    is_focus_locked: bool,
+    /// Set when looking for widget with navigational keys like arrows, tab, shift+tab
+    focus_direction: FocusDirection,
 
-    /// Set at the beginning of the frame, set to `false` when "used".
-    pressed_tab: bool,
+    /// A cache of widget ids that are interested in focus with their corresponding rectangles.
+    focus_widgets_cache: IdMap<Rect>,
+}
 
-    /// Set at the beginning of the frame, set to `false` when "used".
-    pressed_shift_tab: bool,
+/// The widget with focus.
+#[derive(Clone, Copy, Debug)]
+struct FocusWidget {
+    pub id: Id,
+    pub filter: EventFilter,
+}
+
+impl FocusWidget {
+    pub fn new(id: Id) -> Self {
+        Self {
+            id,
+            filter: Default::default(),
+        }
+    }
 }
 
 impl Interaction {
@@ -232,49 +294,52 @@ impl Interaction {
 impl Focus {
     /// Which widget currently has keyboard focus?
     pub fn focused(&self) -> Option<Id> {
-        self.id
+        self.focused_widget.as_ref().map(|w| w.id)
     }
 
     fn begin_frame(&mut self, new_input: &crate::data::input::RawInput) {
-        self.id_previous_frame = self.id;
+        self.id_previous_frame = self.focused();
         if let Some(id) = self.id_next_frame.take() {
-            self.id = Some(id);
+            self.focused_widget = Some(FocusWidget::new(id));
         }
+        let event_filter = self.focused_widget.map(|w| w.filter).unwrap_or_default();
 
         #[cfg(feature = "accesskit")]
         {
             self.id_requested_by_accesskit = None;
         }
 
-        self.pressed_tab = false;
-        self.pressed_shift_tab = false;
-        for event in &new_input.events {
-            if matches!(
-                event,
-                crate::Event::Key {
-                    key: crate::Key::Escape,
-                    pressed: true,
-                    modifiers: _,
-                    ..
-                }
-            ) {
-                self.id = None;
-                self.is_focus_locked = false;
-                break;
-            }
+        self.focus_direction = FocusDirection::None;
 
-            if let crate::Event::Key {
-                key: crate::Key::Tab,
-                pressed: true,
-                modifiers,
-                ..
-            } = event
-            {
-                if !self.is_focus_locked {
-                    if modifiers.shift {
-                        self.pressed_shift_tab = true;
-                    } else {
-                        self.pressed_tab = true;
+        for event in &new_input.events {
+            if !event_filter.matches(event) {
+                if let crate::Event::Key {
+                    key,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } = event
+                {
+                    if let Some(cardinality) = match key {
+                        crate::Key::ArrowUp => Some(FocusDirection::Up),
+                        crate::Key::ArrowRight => Some(FocusDirection::Right),
+                        crate::Key::ArrowDown => Some(FocusDirection::Down),
+                        crate::Key::ArrowLeft => Some(FocusDirection::Left),
+
+                        crate::Key::Tab => {
+                            if modifiers.shift {
+                                Some(FocusDirection::Previous)
+                            } else {
+                                Some(FocusDirection::Next)
+                            }
+                        }
+                        crate::Key::Escape => {
+                            self.focused_widget = None;
+                            Some(FocusDirection::None)
+                        }
+                        _ => None,
+                    } {
+                        self.focus_direction = cardinality;
                     }
                 }
             }
@@ -294,13 +359,19 @@ impl Focus {
     }
 
     pub(crate) fn end_frame(&mut self, used_ids: &IdMap<Rect>) {
-        if let Some(id) = self.id {
-            // Allow calling `request_focus` one frame and not using it until next frame
-            let recently_gained_focus = self.id_previous_frame != Some(id);
+        if self.focus_direction.is_cardinal() {
+            if let Some(found_widget) = self.find_widget_in_direction(used_ids) {
+                self.focused_widget = Some(FocusWidget::new(found_widget));
+            }
+        }
 
-            if !recently_gained_focus && !used_ids.contains_key(&id) {
+        if let Some(focused_widget) = self.focused_widget {
+            // Allow calling `request_focus` one frame and not using it until next frame
+            let recently_gained_focus = self.id_previous_frame != Some(focused_widget.id);
+
+            if !recently_gained_focus && !used_ids.contains_key(&focused_widget.id) {
                 // Dead-mans-switch: the widget with focus has disappeared!
-                self.id = None;
+                self.focused_widget = None;
             }
         }
     }
@@ -313,33 +384,123 @@ impl Focus {
         #[cfg(feature = "accesskit")]
         {
             if self.id_requested_by_accesskit == Some(id.accesskit_id()) {
-                self.id = Some(id);
+                self.focused_widget = Some(FocusWidget::new(id));
                 self.id_requested_by_accesskit = None;
                 self.give_to_next = false;
-                self.pressed_tab = false;
-                self.pressed_shift_tab = false;
+                self.reset_focus();
             }
         }
 
+        // The rect is updated at the end of the frame.
+        self.focus_widgets_cache
+            .entry(id)
+            .or_insert(Rect::EVERYTHING);
+
         if self.give_to_next && !self.had_focus_last_frame(id) {
-            self.id = Some(id);
+            self.focused_widget = Some(FocusWidget::new(id));
             self.give_to_next = false;
-        } else if self.id == Some(id) {
-            if self.pressed_tab && !self.is_focus_locked {
-                self.id = None;
+        } else if self.focused() == Some(id) {
+            if self.focus_direction == FocusDirection::Next {
+                self.focused_widget = None;
                 self.give_to_next = true;
-                self.pressed_tab = false;
-            } else if self.pressed_shift_tab && !self.is_focus_locked {
+                self.reset_focus();
+            } else if self.focus_direction == FocusDirection::Previous {
                 self.id_next_frame = self.last_interested; // frame-delay so gained_focus works
-                self.pressed_shift_tab = false;
+                self.reset_focus();
             }
-        } else if self.pressed_tab && self.id.is_none() && !self.give_to_next {
+        } else if self.focus_direction == FocusDirection::Next
+            && self.focused_widget.is_none()
+            && !self.give_to_next
+        {
             // nothing has focus and the user pressed tab - give focus to the first widgets that wants it:
-            self.id = Some(id);
-            self.pressed_tab = false;
+            self.focused_widget = Some(FocusWidget::new(id));
+            self.reset_focus();
         }
 
         self.last_interested = Some(id);
+    }
+
+    fn reset_focus(&mut self) {
+        self.focus_direction = FocusDirection::None;
+    }
+
+    fn find_widget_in_direction(&mut self, new_rects: &IdMap<Rect>) -> Option<Id> {
+        // NOTE: `new_rects` here include some widgets _not_ interested in focus.
+
+        /// * negative if `a` is left of `b`
+        /// * positive if `a` is right of `b`
+        /// * zero if the ranges overlap significantly
+        fn range_diff(a: Rangef, b: Rangef) -> f32 {
+            let has_significant_overlap = a.intersection(b).span() >= 0.5 * b.span().min(a.span());
+            if has_significant_overlap {
+                0.0
+            } else {
+                a.center() - b.center()
+            }
+        }
+
+        let Some(current_focused) = self.focused_widget else {
+            return None;
+        };
+
+        // In what direction we are looking for the next widget.
+        let search_direction = match self.focus_direction {
+            FocusDirection::Up => Vec2::UP,
+            FocusDirection::Right => Vec2::RIGHT,
+            FocusDirection::Down => Vec2::DOWN,
+            FocusDirection::Left => Vec2::LEFT,
+            _ => {
+                return None;
+            }
+        };
+
+        // Update cache with new rects
+        self.focus_widgets_cache.retain(|id, old_rect| {
+            if let Some(new_rect) = new_rects.get(id) {
+                *old_rect = *new_rect;
+                true // Keep the item
+            } else {
+                false // Remove the item
+            }
+        });
+
+        let Some(current_rect) = self.focus_widgets_cache.get(&current_focused.id) else {
+            return None;
+        };
+
+        let mut best_score = std::f32::INFINITY;
+        let mut best_id = None;
+
+        for (candidate_id, candidate_rect) in &self.focus_widgets_cache {
+            if *candidate_id == current_focused.id {
+                continue;
+            }
+
+            // There is a lot of room for improvement here.
+            let to_candidate = vec2(
+                range_diff(candidate_rect.x_range(), current_rect.x_range()),
+                range_diff(candidate_rect.y_range(), current_rect.y_range()),
+            );
+
+            let acos_angle = to_candidate.normalized().dot(search_direction);
+
+            // Only interested in widgets that fall in a 90° cone (±45°)
+            // of the search direction.
+            let is_in_search_cone = 0.5_f32.sqrt() <= acos_angle;
+            if is_in_search_cone {
+                let distance = to_candidate.length();
+
+                // There is a lot of room for improvement here.
+                let score = distance / (acos_angle * acos_angle);
+
+                if score < best_score {
+                    best_score = score;
+                    best_id = Some(*candidate_id);
+                }
+            }
+        }
+
+        best_id
     }
 }
 
@@ -349,6 +510,7 @@ impl Memory {
         prev_input: &crate::input_state::InputState,
         new_input: &crate::data::input::RawInput,
     ) {
+        crate::profile_function!();
         self.interaction.begin_frame(prev_input, new_input);
 
         if !prev_input.pointer.any_down() {
@@ -395,46 +557,58 @@ impl Memory {
     /// from the window and back.
     #[inline(always)]
     pub fn has_focus(&self, id: Id) -> bool {
-        self.interaction.focus.id == Some(id)
+        self.interaction.focus.focused() == Some(id)
     }
 
     /// Which widget has keyboard focus?
     pub fn focus(&self) -> Option<Id> {
-        self.interaction.focus.id
+        self.interaction.focus.focused()
     }
 
-    /// Prevent keyboard focus from moving away from this widget even if users presses the tab key.
+    /// Set an event filter for a widget.
+    ///
+    /// This allows you to control whether the widget will loose focus
+    /// when the user presses tab, arrow keys, or escape.
+    ///
     /// You must first give focus to the widget before calling this.
-    pub fn lock_focus(&mut self, id: Id, lock_focus: bool) {
+    pub fn set_focus_lock_filter(&mut self, id: Id, event_filter: EventFilter) {
         if self.had_focus_last_frame(id) && self.has_focus(id) {
-            self.interaction.focus.is_focus_locked = lock_focus;
+            if let Some(focused) = &mut self.interaction.focus.focused_widget {
+                if focused.id == id {
+                    focused.filter = event_filter;
+                }
+            }
         }
     }
 
-    /// Is the keyboard focus locked on this widget? If so the focus won't move even if the user presses the tab key.
-    pub fn has_lock_focus(&self, id: Id) -> bool {
-        if self.had_focus_last_frame(id) && self.has_focus(id) {
-            self.interaction.focus.is_focus_locked
-        } else {
-            false
-        }
+    /// Set an event filter for a widget.
+    ///
+    /// You must first give focus to the widget before calling this.
+    #[deprecated = "Use set_focus_lock_filter instead"]
+    pub fn lock_focus(&mut self, id: Id, lock_focus: bool) {
+        self.set_focus_lock_filter(
+            id,
+            EventFilter {
+                tab: lock_focus,
+                arrows: lock_focus,
+                escape: false,
+            },
+        );
     }
 
     /// Give keyboard focus to a specific widget.
     /// See also [`crate::Response::request_focus`].
     #[inline(always)]
     pub fn request_focus(&mut self, id: Id) {
-        self.interaction.focus.id = Some(id);
-        self.interaction.focus.is_focus_locked = false;
+        self.interaction.focus.focused_widget = Some(FocusWidget::new(id));
     }
 
     /// Surrender keyboard focus for a specific widget.
     /// See also [`crate::Response::surrender_focus`].
     #[inline(always)]
     pub fn surrender_focus(&mut self, id: Id) {
-        if self.interaction.focus.id == Some(id) {
-            self.interaction.focus.id = None;
-            self.interaction.focus.is_focus_locked = false;
+        if self.interaction.focus.focused() == Some(id) {
+            self.interaction.focus.focused_widget = None;
         }
     }
 
@@ -453,22 +627,31 @@ impl Memory {
     /// Stop editing of active [`TextEdit`](crate::TextEdit) (if any).
     #[inline(always)]
     pub fn stop_text_input(&mut self) {
-        self.interaction.focus.id = None;
+        self.interaction.focus.focused_widget = None;
     }
 
+    /// Is any widget being dragged?
     #[inline(always)]
     pub fn is_anything_being_dragged(&self) -> bool {
         self.interaction.drag_id.is_some()
     }
 
+    /// Is this specific widget being dragged?
     #[inline(always)]
     pub fn is_being_dragged(&self, id: Id) -> bool {
         self.interaction.drag_id == Some(id)
     }
 
+    /// Set which widget is being dragged.
     #[inline(always)]
     pub fn set_dragged_id(&mut self, id: Id) {
         self.interaction.drag_id = Some(id);
+    }
+
+    /// Stop dragging any widget.
+    #[inline(always)]
+    pub fn stop_dragging(&mut self) {
+        self.interaction.drag_id = None;
     }
 
     /// Forget window positions, sizes etc.
@@ -476,28 +659,40 @@ impl Memory {
     pub fn reset_areas(&mut self) {
         self.areas = Default::default();
     }
+
+    /// Obtain the previous rectangle of an area.
+    pub fn area_rect(&self, id: impl Into<Id>) -> Option<Rect> {
+        self.areas.get(id.into()).map(|state| state.rect())
+    }
 }
 
 /// ## Popups
 /// Popups are things like combo-boxes, color pickers, menus etc.
 /// Only one can be be open at a time.
 impl Memory {
+    /// Is the given popup open?
     pub fn is_popup_open(&self, popup_id: Id) -> bool {
         self.popup == Some(popup_id) || self.everything_is_visible()
     }
 
+    /// Is any popup open?
     pub fn any_popup_open(&self) -> bool {
         self.popup.is_some() || self.everything_is_visible()
     }
 
+    /// Open the given popup, and close all other.
     pub fn open_popup(&mut self, popup_id: Id) {
         self.popup = Some(popup_id);
     }
 
+    /// Close the open popup, if any.
     pub fn close_popup(&mut self) {
         self.popup = None;
     }
 
+    /// Toggle the given popup between closed and open.
+    ///
+    /// Note: at most one popup can be open at one time.
     pub fn toggle_popup(&mut self, popup_id: Id) {
         if self.is_popup_open(popup_id) {
             self.close_popup();
@@ -535,8 +730,10 @@ impl Memory {
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct Areas {
     areas: IdMap<area::State>,
+
     /// Back-to-front. Top is last.
     order: Vec<LayerId>,
+
     visible_last_frame: ahash::HashSet<LayerId>,
     visible_current_frame: ahash::HashSet<LayerId>,
 

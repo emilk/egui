@@ -1,11 +1,11 @@
 # Architecture
 This document describes how the crates that make up egui are all connected.
 
-Also see [`CONTRIBUTING.md`](https://github.com/emilk/egui/blob/master/CONTRIBUTING.md) for what to do before opening a PR.
+Also see [`CONTRIBUTING.md`](CONTRIBUTING.md) for what to do before opening a PR.
 
 
 ## Crate overview
-The crates in this repository are: `egui, emath, epaint, egui_extras, egui-winit, egui_glium, egui_glow, egui_demo_lib, egui_demo_app`.
+The crates in this repository are: `egui, emath, epaint, egui_extras, egui_plot, egui-winit, egui_glium, egui_glow, egui_demo_lib, egui_demo_app`.
 
 ### `egui`: The main GUI library.
 Example code: `if ui.button("Click me").clicked() { … }`
@@ -23,6 +23,9 @@ Depends on `emath`.
 
 ### `egui_extras`
 This adds additional features on top of `egui`.
+
+### `egui_plot`
+Plotting for `egui`.
 
 ### `egui-winit`
 This crates provides bindings between [`egui`](https://github.com/emilk/egui) and [winit](https://crates.io/crates/winit).

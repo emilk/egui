@@ -5,6 +5,7 @@
 use eframe::egui;
 
 fn main() -> Result<(), eframe::Error> {
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         // Hide the OS-specific "chrome" around the window:
         decorated: false,
@@ -17,7 +18,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Custom window frame", // unused title
         options,
-        Box::new(|_cc| Box::new(MyApp::default())),
+        Box::new(|_cc| Box::<MyApp>::default()),
     )
 }
 

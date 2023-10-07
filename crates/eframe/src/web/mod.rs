@@ -2,12 +2,25 @@
 
 #![allow(clippy::missing_errors_doc)] // So many `-> Result<_, JsValue>`
 
-pub mod backend;
+mod app_runner;
+mod backend;
 mod events;
 mod input;
-pub mod screen_reader;
-pub mod storage;
+mod panic_handler;
 mod text_agent;
+mod web_logger;
+mod web_runner;
+
+/// Access to the browser screen reader.
+pub mod screen_reader;
+
+/// Access to local browser storage.
+pub mod storage;
+
+pub(crate) use app_runner::AppRunner;
+pub use panic_handler::{PanicHandler, PanicSummary};
+pub use web_logger::WebLogger;
+pub use web_runner::WebRunner;
 
 #[cfg(not(any(feature = "glow", feature = "wgpu")))]
 compile_error!("You must enable either the 'glow' or 'wgpu' feature");
@@ -25,18 +38,10 @@ mod web_painter_wgpu;
 pub(crate) type ActiveWebPainter = web_painter_wgpu::WebPainterWgpu;
 
 pub use backend::*;
-pub use events::*;
-pub use storage::*;
-
-use std::collections::BTreeMap;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
 
 use egui::Vec2;
 use wasm_bindgen::prelude::*;
-use web_sys::EventTarget;
+use web_sys::MediaQueryList;
 
 use input::*;
 
@@ -56,15 +61,9 @@ pub fn now_sec() -> f64 {
         / 1000.0
 }
 
-#[allow(dead_code)]
-pub fn screen_size_in_native_points() -> Option<egui::Vec2> {
-    let window = web_sys::window()?;
-    Some(egui::vec2(
-        window.inner_width().ok()?.as_f64()? as f32,
-        window.inner_height().ok()?.as_f64()? as f32,
-    ))
-}
-
+/// The native GUI scale factor, taking into account the browser zoom.
+///
+/// Corresponds to [`window.devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) in JavaScript.
 pub fn native_pixels_per_point() -> f32 {
     let pixels_per_point = web_sys::window().unwrap().device_pixel_ratio() as f32;
     if pixels_per_point > 0.0 && pixels_per_point.is_finite() {
@@ -74,23 +73,37 @@ pub fn native_pixels_per_point() -> f32 {
     }
 }
 
+/// Ask the browser about the preferred system theme.
+///
+/// `None` means unknown.
 pub fn system_theme() -> Option<Theme> {
-    let dark_mode = web_sys::window()?
-        .match_media("(prefers-color-scheme: dark)")
+    let dark_mode = prefers_color_scheme_dark(&web_sys::window()?)
         .ok()??
         .matches();
-    Some(if dark_mode { Theme::Dark } else { Theme::Light })
+    Some(theme_from_dark_mode(dark_mode))
 }
 
-pub fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
+fn prefers_color_scheme_dark(window: &web_sys::Window) -> Result<Option<MediaQueryList>, JsValue> {
+    window.match_media("(prefers-color-scheme: dark)")
+}
+
+fn theme_from_dark_mode(dark_mode: bool) -> Theme {
+    if dark_mode {
+        Theme::Dark
+    } else {
+        Theme::Light
+    }
+}
+
+fn canvas_element(canvas_id: &str) -> Option<web_sys::HtmlCanvasElement> {
     let document = web_sys::window()?.document()?;
     let canvas = document.get_element_by_id(canvas_id)?;
     canvas.dyn_into::<web_sys::HtmlCanvasElement>().ok()
 }
 
-pub fn canvas_element_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
+fn canvas_element_or_die(canvas_id: &str) -> web_sys::HtmlCanvasElement {
     canvas_element(canvas_id)
-        .unwrap_or_else(|| panic!("Failed to find canvas with id {:?}", canvas_id))
+        .unwrap_or_else(|| panic!("Failed to find canvas with id {canvas_id:?}"))
 }
 
 fn canvas_origin(canvas_id: &str) -> egui::Pos2 {
@@ -100,7 +113,7 @@ fn canvas_origin(canvas_id: &str) -> egui::Pos2 {
     egui::pos2(rect.left() as f32, rect.top() as f32)
 }
 
-pub fn canvas_size_in_points(canvas_id: &str) -> egui::Vec2 {
+fn canvas_size_in_points(canvas_id: &str) -> egui::Vec2 {
     let canvas = canvas_element(canvas_id).unwrap();
     let pixels_per_point = native_pixels_per_point();
     egui::vec2(
@@ -109,12 +122,14 @@ pub fn canvas_size_in_points(canvas_id: &str) -> egui::Vec2 {
     )
 }
 
-pub fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2) -> Option<()> {
+fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2) -> Option<()> {
     let canvas = canvas_element(canvas_id)?;
     let parent = canvas.parent_element()?;
 
-    let width = parent.scroll_width();
-    let height = parent.scroll_height();
+    // Prefer the client width and height so that if the parent
+    // element is resized that the egui canvas resizes appropriately.
+    let width = parent.client_width();
+    let height = parent.client_height();
 
     let canvas_real_size = Vec2 {
         x: width as f32,
@@ -122,7 +137,7 @@ pub fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2
     };
 
     if width <= 0 || height <= 0 {
-        tracing::error!("egui canvas parent size is {}x{}. Try adding `html, body {{ height: 100%; width: 100% }}` to your CSS!", width, height);
+        log::error!("egui canvas parent size is {}x{}. Try adding `html, body {{ height: 100%; width: 100% }}` to your CSS!", width, height);
     }
 
     let pixels_per_point = native_pixels_per_point();
@@ -162,7 +177,8 @@ pub fn resize_canvas_to_screen_size(canvas_id: &str, max_size_points: egui::Vec2
 
 // ----------------------------------------------------------------------------
 
-pub fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
+/// Set the cursor icon.
+fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
     let document = web_sys::window()?.document()?;
     document
         .body()?
@@ -171,15 +187,16 @@ pub fn set_cursor_icon(cursor: egui::CursorIcon) -> Option<()> {
         .ok()
 }
 
+/// Set the clipboard text.
 #[cfg(web_sys_unstable_apis)]
-pub fn set_clipboard_text(s: &str) {
+fn set_clipboard_text(s: &str) {
     if let Some(window) = web_sys::window() {
         if let Some(clipboard) = window.navigator().clipboard() {
             let promise = clipboard.write_text(s);
             let future = wasm_bindgen_futures::JsFuture::from(promise);
             let future = async move {
                 if let Err(err) = future.await {
-                    tracing::error!("Copy/cut action denied: {:?}", err);
+                    log::error!("Copy/cut action failed: {err:?}");
                 }
             };
             wasm_bindgen_futures::spawn_local(future);
@@ -229,6 +246,7 @@ fn cursor_web_name(cursor: egui::CursorIcon) -> &'static str {
     }
 }
 
+/// Open the given url in the browser.
 pub fn open_url(url: &str, new_tab: bool) -> Option<()> {
     let name = if new_tab { "_blank" } else { "_self" };
 
@@ -251,6 +269,7 @@ pub fn location_hash() -> String {
     )
 }
 
+/// Percent-decodes a string.
 pub fn percent_decode(s: &str) -> String {
     percent_encoding::percent_decode_str(s)
         .decode_utf8_lossy()

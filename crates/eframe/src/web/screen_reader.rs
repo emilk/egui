@@ -1,3 +1,4 @@
+/// Screen reader support.
 pub struct ScreenReader {
     #[cfg(feature = "tts")]
     tts: Option<tts::Tts>,
@@ -16,11 +17,11 @@ impl Default for ScreenReader {
     fn default() -> Self {
         let tts = match tts::Tts::default() {
             Ok(screen_reader) => {
-                tracing::debug!("Initialized screen reader.");
+                log::debug!("Initialized screen reader.");
                 Some(screen_reader)
             }
             Err(err) => {
-                tracing::warn!("Failed to load screen reader: {}", err);
+                log::warn!("Failed to load screen reader: {}", err);
                 None
             }
         };
@@ -29,20 +30,22 @@ impl Default for ScreenReader {
 }
 
 impl ScreenReader {
+    /// Speak the given text out loud.
     #[cfg(not(feature = "tts"))]
     #[allow(clippy::unused_self)]
     pub fn speak(&mut self, _text: &str) {}
 
+    /// Speak the given text out loud.
     #[cfg(feature = "tts")]
     pub fn speak(&mut self, text: &str) {
         if text.is_empty() {
             return;
         }
         if let Some(tts) = &mut self.tts {
-            tracing::debug!("Speaking: {:?}", text);
+            log::debug!("Speaking: {:?}", text);
             let interrupt = true;
             if let Err(err) = tts.speak(text, interrupt) {
-                tracing::warn!("Failed to read: {}", err);
+                log::warn!("Failed to read: {}", err);
             }
         }
     }

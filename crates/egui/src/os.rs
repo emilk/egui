@@ -1,3 +1,5 @@
+/// An `enum` of common operating systems.
+#[allow(clippy::upper_case_acronyms)] // `Ios` looks too ugly
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum OperatingSystem {
     /// Unknown OS - could be wasm
@@ -26,6 +28,7 @@ impl Default for OperatingSystem {
 }
 
 impl OperatingSystem {
+    /// Uses the compile-time `target_arch` to identify the OS.
     pub const fn from_target_os() -> Self {
         if cfg!(target_arch = "wasm32") {
             Self::Unknown
@@ -36,7 +39,7 @@ impl OperatingSystem {
         } else if cfg!(target_os = "macos") {
             Self::Mac
         } else if cfg!(target_os = "windows") {
-            Self::Android
+            Self::Windows
         } else if cfg!(target_os = "linux")
             || cfg!(target_os = "dragonfly")
             || cfg!(target_os = "freebsd")
@@ -65,8 +68,8 @@ impl OperatingSystem {
         {
             Self::Nix
         } else {
-            #[cfg(feature = "tracing")]
-            tracing::warn!(
+            #[cfg(feature = "log")]
+            log::warn!(
                 "egui: Failed to guess operating system from User-Agent {:?}. Please file an issue at https://github.com/emilk/egui/issues",
                 user_agent);
 

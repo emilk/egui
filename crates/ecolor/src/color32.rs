@@ -155,6 +155,12 @@ impl Color32 {
         Self([r, g, b, 0])
     }
 
+    /// Is the alpha=0 ?
+    #[inline(always)]
+    pub fn is_additive(self) -> bool {
+        self.a() == 0
+    }
+
     /// Premultiplied RGBA
     #[inline(always)]
     pub const fn to_array(&self) -> [u8; 4] {

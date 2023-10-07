@@ -4,14 +4,12 @@ use eframe::egui;
 use egui::*;
 
 fn main() -> Result<(), eframe::Error> {
-    // Log to stdout (if you run with `RUST_LOG=debug`).
-    tracing_subscriber::fmt::init();
-
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions::default();
     eframe::run_native(
         "Keyboard events",
         options,
-        Box::new(|_cc| Box::new(Content::default())),
+        Box::new(|_cc| Box::<Content>::default()),
     )
 }
 

@@ -16,7 +16,7 @@ pub struct RawInput {
     /// Position and size of the area that egui should use, in points.
     /// Usually you would set this to
     ///
-    /// `Some(Rect::from_pos_size(Default::default(), screen_size_in_points))`.
+    /// `Some(Rect::from_min_size(Default::default(), screen_size_in_points))`.
     ///
     /// but you could also constrain egui to some smaller portion of your window if you like.
     ///
@@ -63,8 +63,10 @@ pub struct RawInput {
     /// drag-and-drop support using `eframe::NativeOptions`.
     pub dropped_files: Vec<DroppedFile>,
 
-    /// The window has the keyboard focus (i.e. is receiving key presses).
-    pub has_focus: bool,
+    /// The native window has the keyboard focus (i.e. is receiving key presses).
+    ///
+    /// False when the user alt-tab away from the application, for instance.
+    pub focused: bool,
 }
 
 impl Default for RawInput {
@@ -79,7 +81,7 @@ impl Default for RawInput {
             events: vec![],
             hovered_files: Default::default(),
             dropped_files: Default::default(),
-            has_focus: true, // integrations opt into global focus tracking
+            focused: true, // integrations opt into global focus tracking
         }
     }
 }
@@ -100,7 +102,7 @@ impl RawInput {
             events: std::mem::take(&mut self.events),
             hovered_files: self.hovered_files.clone(),
             dropped_files: std::mem::take(&mut self.dropped_files),
-            has_focus: self.has_focus,
+            focused: self.focused,
         }
     }
 
@@ -116,7 +118,7 @@ impl RawInput {
             mut events,
             mut hovered_files,
             mut dropped_files,
-            has_focus,
+            focused,
         } = newer;
 
         self.screen_rect = screen_rect.or(self.screen_rect);
@@ -128,7 +130,7 @@ impl RawInput {
         self.events.append(&mut events);
         self.hovered_files.append(&mut hovered_files);
         self.dropped_files.append(&mut dropped_files);
-        self.has_focus = has_focus;
+        self.focused = focused;
     }
 }
 
@@ -152,6 +154,9 @@ pub struct DroppedFile {
 
     /// Name of the file. Set by the `eframe` web backend.
     pub name: String,
+
+    /// With the `eframe` web backend, this is set to the mime-type of the file (if available).
+    pub mime: String,
 
     /// Set by the `eframe` web backend.
     pub last_modified: Option<std::time::SystemTime>,
@@ -272,11 +277,30 @@ pub enum Event {
         /// Position of the touch (or where the touch was last detected)
         pos: Pos2,
 
-        /// Describes how hard the touch device was pressed. May always be `0` if the platform does
+        /// Describes how hard the touch device was pressed. May always be `None` if the platform does
         /// not support pressure sensitivity.
         /// The value is in the range from 0.0 (no pressure) to 1.0 (maximum pressure).
-        force: f32,
+        force: Option<f32>,
     },
+
+    /// A raw mouse wheel event as sent by the backend (minus the z coordinate),
+    /// for implementing alternative custom controls.
+    /// Note that the same event can also trigger [`Self::Zoom`] and [`Self::Scroll`],
+    /// so you probably want to handle only one of them.
+    MouseWheel {
+        /// The unit of scrolling: points, lines, or pages.
+        unit: MouseWheelUnit,
+
+        /// The amount scrolled horizontally and vertically. The amount and direction corresponding
+        /// to one step of the wheel depends on the platform.
+        delta: Vec2,
+
+        /// The state of the modifier keys at the time of the event.
+        modifiers: Modifiers,
+    },
+
+    /// The native window gained or lost focused (e.g. the user clicked alt-tab).
+    WindowFocused(bool),
 
     /// An assistive technology (e.g. screen reader) requested an action.
     #[cfg(feature = "accesskit")]
@@ -431,6 +455,11 @@ impl Modifiers {
         !self.is_none()
     }
 
+    #[inline]
+    pub fn all(&self) -> bool {
+        self.alt && self.ctrl && self.shift && self.command
+    }
+
     /// Is shift the only pressed button?
     #[inline]
     pub fn shift_only(&self) -> bool {
@@ -445,6 +474,16 @@ impl Modifiers {
 
     /// Check for equality but with proper handling of [`Self::command`].
     ///
+    /// # Example:
+    /// ```
+    /// # use egui::Modifiers;
+    /// # let current_modifiers = Modifiers::default();
+    /// if current_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
+    ///     // Alt and Shift are pressed, and nothing else
+    /// }
+    /// ```
+    ///
+    /// ## Behavior:
     /// ```
     /// # use egui::Modifiers;
     /// assert!(Modifiers::CTRL.matches(Modifiers::CTRL));
@@ -489,6 +528,65 @@ impl Modifiers {
 
         true
     }
+
+    /// Whether another set of modifiers is contained in this set of modifiers with proper handling of [`Self::command`].
+    ///
+    /// ```
+    /// # use egui::Modifiers;
+    /// assert!(Modifiers::default().contains(Modifiers::default()));
+    /// assert!(Modifiers::CTRL.contains(Modifiers::default()));
+    /// assert!(Modifiers::CTRL.contains(Modifiers::CTRL));
+    /// assert!(Modifiers::CTRL.contains(Modifiers::COMMAND));
+    /// assert!(Modifiers::MAC_CMD.contains(Modifiers::COMMAND));
+    /// assert!(Modifiers::COMMAND.contains(Modifiers::MAC_CMD));
+    /// assert!(Modifiers::COMMAND.contains(Modifiers::CTRL));
+    /// assert!(!(Modifiers::ALT | Modifiers::CTRL).contains(Modifiers::SHIFT));
+    /// assert!((Modifiers::CTRL | Modifiers::SHIFT).contains(Modifiers::CTRL));
+    /// assert!(!Modifiers::CTRL.contains(Modifiers::CTRL | Modifiers::SHIFT));
+    /// ```
+    pub fn contains(&self, query: Modifiers) -> bool {
+        if query == Modifiers::default() {
+            return true;
+        }
+
+        let Modifiers {
+            alt,
+            ctrl,
+            shift,
+            mac_cmd,
+            command,
+        } = *self;
+
+        if alt && query.alt {
+            return self.contains(Modifiers {
+                alt: false,
+                ..query
+            });
+        }
+        if shift && query.shift {
+            return self.contains(Modifiers {
+                shift: false,
+                ..query
+            });
+        }
+
+        if (ctrl || command) && (query.ctrl || query.command) {
+            return self.contains(Modifiers {
+                command: false,
+                ctrl: false,
+                ..query
+            });
+        }
+        if (mac_cmd || command) && (query.mac_cmd || query.command) {
+            return self.contains(Modifiers {
+                mac_cmd: false,
+                command: false,
+                ..query
+            });
+        }
+
+        false
+    }
 }
 
 impl std::ops::BitOr for Modifiers {
@@ -513,19 +611,21 @@ pub struct ModifierNames<'a> {
     pub ctrl: &'a str,
     pub shift: &'a str,
     pub mac_cmd: &'a str,
+    pub mac_alt: &'a str,
 
     /// What goes between the names
     pub concat: &'a str,
 }
 
 impl ModifierNames<'static> {
-    /// ⌥ ^ ⇧ ⌘ - NOTE: not supported by the default egui font.
+    /// ⌥ ⌃ ⇧ ⌘ - NOTE: not supported by the default egui font.
     pub const SYMBOLS: Self = Self {
         is_short: true,
         alt: "⌥",
-        ctrl: "^",
+        ctrl: "⌃",
         shift: "⇧",
         mac_cmd: "⌘",
+        mac_alt: "⌥",
         concat: "",
     };
 
@@ -536,6 +636,7 @@ impl ModifierNames<'static> {
         ctrl: "Ctrl",
         shift: "Shift",
         mac_cmd: "Cmd",
+        mac_alt: "Option",
         concat: "+",
     };
 }
@@ -556,7 +657,7 @@ impl<'a> ModifierNames<'a> {
         if is_mac {
             append_if(modifiers.ctrl, self.ctrl);
             append_if(modifiers.shift, self.shift);
-            append_if(modifiers.alt, self.alt);
+            append_if(modifiers.alt, self.mac_alt);
             append_if(modifiers.mac_cmd || modifiers.command, self.mac_cmd);
         } else {
             append_if(modifiers.ctrl || modifiers.command, self.ctrl);
@@ -600,27 +701,37 @@ pub enum Key {
 
     /// The virtual keycode for the Minus key.
     Minus,
+
     /// The virtual keycode for the Plus/Equals key.
     PlusEquals,
 
     /// Either from the main row or from the numpad.
     Num0,
+
     /// Either from the main row or from the numpad.
     Num1,
+
     /// Either from the main row or from the numpad.
     Num2,
+
     /// Either from the main row or from the numpad.
     Num3,
+
     /// Either from the main row or from the numpad.
     Num4,
+
     /// Either from the main row or from the numpad.
     Num5,
+
     /// Either from the main row or from the numpad.
     Num6,
+
     /// Either from the main row or from the numpad.
     Num7,
+
     /// Either from the main row or from the numpad.
     Num8,
+
     /// Either from the main row or from the numpad.
     Num9,
 
@@ -685,7 +796,7 @@ impl Key {
             Key::ArrowLeft => "⏴",
             Key::ArrowRight => "⏵",
             Key::ArrowUp => "⏶",
-            Key::Minus => "-",
+            Key::Minus => crate::MINUS_CHAR_STR,
             Key::PlusEquals => "+",
             _ => self.name(),
         }
@@ -813,7 +924,7 @@ fn format_kb_shortcut() {
         cmd_shift_f.format(&ModifierNames::NAMES, true),
         "Shift+Cmd+F"
     );
-    assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, false), "^⇧F");
+    assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, false), "⌃⇧F");
     assert_eq!(cmd_shift_f.format(&ModifierNames::SYMBOLS, true), "⇧⌘F");
 }
 
@@ -831,28 +942,28 @@ impl RawInput {
             events,
             hovered_files,
             dropped_files,
-            has_focus,
+            focused,
         } = self;
 
-        ui.label(format!("screen_rect: {:?} points", screen_rect));
-        ui.label(format!("pixels_per_point: {:?}", pixels_per_point))
+        ui.label(format!("screen_rect: {screen_rect:?} points"));
+        ui.label(format!("pixels_per_point: {pixels_per_point:?}"))
             .on_hover_text(
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
             );
-        ui.label(format!("max_texture_side: {:?}", max_texture_side));
+        ui.label(format!("max_texture_side: {max_texture_side:?}"));
         if let Some(time) = time {
-            ui.label(format!("time: {:.3} s", time));
+            ui.label(format!("time: {time:.3} s"));
         } else {
             ui.label("time: None");
         }
         ui.label(format!("predicted_dt: {:.1} ms", 1e3 * predicted_dt));
-        ui.label(format!("modifiers: {:#?}", modifiers));
+        ui.label(format!("modifiers: {modifiers:#?}"));
         ui.label(format!("hovered_files: {}", hovered_files.len()));
         ui.label(format!("dropped_files: {}", dropped_files.len()));
-        ui.label(format!("has_focus: {}", has_focus));
+        ui.label(format!("focused: {focused}"));
         ui.scope(|ui| {
             ui.set_min_height(150.0);
-            ui.label(format!("events: {:#?}", events))
+            ui.label(format!("events: {events:#?}"))
                 .on_hover_text("key presses etc");
         });
     }
@@ -891,6 +1002,20 @@ pub enum TouchPhase {
     Cancel,
 }
 
+/// The unit associated with the numeric value of a mouse wheel event
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum MouseWheelUnit {
+    /// Number of ui points (logical pixels)
+    Point,
+
+    /// Number of lines
+    Line,
+
+    /// Number of pages
+    Page,
+}
+
 impl From<u64> for TouchId {
     fn from(id: u64) -> Self {
         Self(id)
@@ -906,5 +1031,64 @@ impl From<i32> for TouchId {
 impl From<u32> for TouchId {
     fn from(id: u32) -> Self {
         Self(id as u64)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+// TODO(emilk): generalize this to a proper event filter.
+/// Controls which events that a focused widget will have exclusive access to.
+///
+/// Currently this only controls a few special keyboard events,
+/// but in the future this `struct` should be extended into a full callback thing.
+///
+/// Any events not covered by the filter are given to the widget, but are not exclusive.
+#[derive(Clone, Copy, Debug)]
+pub struct EventFilter {
+    /// If `true`, pressing tab will act on the widget,
+    /// and NOT move focus away from the focused widget.
+    ///
+    /// Default: `false`
+    pub tab: bool,
+
+    /// If `true`, pressing arrows will act on the widget,
+    /// and NOT move focus away from the focused widget.
+    ///
+    /// Default: `false`
+    pub arrows: bool,
+
+    /// If `true`, pressing escape will act on the widget,
+    /// and NOT surrender focus from the focused widget.
+    ///
+    /// Default: `false`
+    pub escape: bool,
+}
+
+#[allow(clippy::derivable_impls)] // let's be explicit
+impl Default for EventFilter {
+    fn default() -> Self {
+        Self {
+            tab: false,
+            arrows: false,
+            escape: false,
+        }
+    }
+}
+
+impl EventFilter {
+    pub fn matches(&self, event: &Event) -> bool {
+        if let Event::Key { key, .. } = event {
+            match key {
+                crate::Key::Tab => self.tab,
+                crate::Key::ArrowUp
+                | crate::Key::ArrowRight
+                | crate::Key::ArrowDown
+                | crate::Key::ArrowLeft => self.arrows,
+                crate::Key::Escape => self.escape,
+                _ => true,
+            }
+        } else {
+            true
+        }
     }
 }

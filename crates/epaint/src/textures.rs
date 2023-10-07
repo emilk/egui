@@ -9,8 +9,10 @@ use crate::{ImageData, ImageDelta, TextureId};
 pub struct TextureManager {
     /// We allocate texture id:s linearly.
     next_id: u64,
+
     /// Information about currently allocated textures.
     metas: ahash::HashMap<TextureId, TextureMeta>,
+
     delta: TexturesDelta,
 }
 
@@ -22,7 +24,7 @@ impl TextureManager {
     /// The returned [`TextureId`] will be [`TextureId::Managed`], with an index
     /// starting from zero and increasing with each call to [`Self::alloc`].
     ///
-    /// The first texture you allocate will be `TextureId::Managed(0) == TexureId::default()` and
+    /// The first texture you allocate will be `TextureId::Managed(0) == TextureId::default()` and
     /// MUST have a white pixel at (0,0) ([`crate::WHITE_UV`]).
     ///
     /// The texture is given a retain-count of `1`, requiring one call to [`Self::free`] to free it.
@@ -213,7 +215,7 @@ impl TexturesDelta {
     }
 
     pub fn append(&mut self, mut newer: TexturesDelta) {
-        self.set.extend(newer.set.into_iter());
+        self.set.extend(newer.set);
         self.free.append(&mut newer.free);
     }
 

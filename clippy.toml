@@ -1,1 +1,72 @@
-doc-valid-idents = ["AccessKit", ".."]
+# There is also a scripts/clippy_wasm/clippy.toml which forbids some mthods that are not available in wasm.
+
+# -----------------------------------------------------------------------------
+# Section identical to scripts/clippy_wasm/clippy.toml:
+
+msrv = "1.70"
+
+allow-unwrap-in-tests = true
+
+# https://doc.rust-lang.org/nightly/clippy/lint_configuration.html#avoid-breaking-exported-api
+# We want suggestions, even if it changes public API.
+avoid-breaking-exported-api = false
+
+max-fn-params-bools = 2 # TODO(emilk): decrease this to 1
+
+# https://rust-lang.github.io/rust-clippy/master/index.html#/large_include_file
+max-include-file-size = 1000000
+
+# https://rust-lang.github.io/rust-clippy/master/index.html#/type_complexity
+type-complexity-threshold = 350
+
+# -----------------------------------------------------------------------------
+
+# https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_macros
+disallowed-macros = [
+    'dbg',
+    'std::unimplemented',
+
+    # TODO(emilk): consider forbidding these to encourage the use of proper log stream, and then explicitly allow legitimate uses
+    # 'std::eprint',
+    # 'std::eprintln',
+    # 'std::print',
+    # 'std::println',
+]
+
+# https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_methods
+disallowed-methods = [
+    "std::env::temp_dir", # Use the tempdir crate instead
+
+    # There are many things that aren't allowed on wasm,
+    # but we cannot disable them all here (because of e.g. https://github.com/rust-lang/rust-clippy/issues/10406)
+    # so we do that in `clipppy_wasm.toml` instead.
+
+    "std::thread::spawn", # Use `std::thread::Builder` and name the thread
+
+    "sha1::Digest::new", # SHA1 is cryptographically broken
+
+    "std::panic::catch_unwind", # We compile with `panic = "abort"`
+]
+
+# https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_names
+disallowed-names = []
+
+# https://rust-lang.github.io/rust-clippy/master/index.html#disallowed_types
+disallowed-types = [
+    # Use the faster & simpler non-poisonable primitives in `parking_lot` instead
+    "std::sync::Mutex",
+    "std::sync::RwLock",
+    "std::sync::Condvar",
+    # "std::sync::Once",  # enabled for now as the `log_once` macro uses it internally
+
+    "ring::digest::SHA1_FOR_LEGACY_USE_ONLY", # SHA1 is cryptographically broken
+]
+
+# -----------------------------------------------------------------------------
+
+# Allow-list of words for markdown in dosctrings https://rust-lang.github.io/rust-clippy/master/index.html#doc_markdown
+doc-valid-idents = [
+    # You must also update the same list in the root `clippy.toml`!
+    "AccessKit",
+    "..",
+]

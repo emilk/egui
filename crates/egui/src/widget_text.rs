@@ -1,5 +1,4 @@
-use std::borrow::Cow;
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use crate::{
     style::WidgetVisuals, text::LayoutJob, Align, Color32, FontFamily, FontSelection, Galley, Pos2,
@@ -25,6 +24,8 @@ use crate::{
 pub struct RichText {
     text: String,
     size: Option<f32>,
+    extra_letter_spacing: f32,
+    line_height: Option<f32>,
     family: Option<FontFamily>,
     text_style: Option<TextStyle>,
     background_color: Color32,
@@ -97,6 +98,32 @@ impl RichText {
     #[inline]
     pub fn size(mut self, size: f32) -> Self {
         self.size = Some(size);
+        self
+    }
+
+    /// Extra spacing between letters, in points.
+    ///
+    /// Default: 0.0.
+    ///
+    /// For even text it is recommended you round this to an even number of _pixels_,
+    /// e.g. using [`crate::Painter::round_to_pixel`].
+    #[inline]
+    pub fn extra_letter_spacing(mut self, extra_letter_spacing: f32) -> Self {
+        self.extra_letter_spacing = extra_letter_spacing;
+        self
+    }
+
+    /// Explicit line height of the text in points.
+    ///
+    /// This is the distance between the bottom row of two subsequent lines of text.
+    ///
+    /// If `None` (the default), the line height is determined by the font.
+    ///
+    /// For even text it is recommended you round this to an even number of _pixels_,
+    /// e.g. using [`crate::Painter::round_to_pixel`].
+    #[inline]
+    pub fn line_height(mut self, line_height: Option<f32>) -> Self {
+        self.line_height = line_height;
         self
     }
 
@@ -242,17 +269,73 @@ impl RichText {
         fonts.row_height(&font_id)
     }
 
+    /// Append to an existing [`LayoutJob`]
+    ///
+    /// Note that the color of the [`RichText`] must be set, or may default to an undesirable color.
+    ///
+    /// ### Example
+    /// ```
+    /// use egui::{Style, RichText, text::LayoutJob, Color32, FontSelection, Align};
+    ///
+    /// let style = Style::default();
+    /// let mut layout_job = LayoutJob::default();
+    /// RichText::new("Normal")
+    ///     .color(style.visuals.text_color())
+    ///     .append_to(
+    ///         &mut layout_job,
+    ///         &style,
+    ///         FontSelection::Default,
+    ///         Align::Center,
+    ///     );
+    /// RichText::new("Large and underlined")
+    ///     .color(style.visuals.text_color())
+    ///     .size(20.0)
+    ///     .underline()
+    ///     .append_to(
+    ///         &mut layout_job,
+    ///         &style,
+    ///         FontSelection::Default,
+    ///         Align::Center,
+    ///     );
+    /// ```
+    pub fn append_to(
+        self,
+        layout_job: &mut LayoutJob,
+        style: &Style,
+        fallback_font: FontSelection,
+        default_valign: Align,
+    ) {
+        let (text, format) = self.into_text_and_format(style, fallback_font, default_valign);
+
+        layout_job.append(&text, 0.0, format);
+    }
+
     fn into_text_job(
         self,
         style: &Style,
         fallback_font: FontSelection,
         default_valign: Align,
     ) -> WidgetTextJob {
+        let job_has_color = self.get_text_color(&style.visuals).is_some();
+        let (text, text_format) = self.into_text_and_format(style, fallback_font, default_valign);
+
+        let job = LayoutJob::single_section(text, text_format);
+        WidgetTextJob { job, job_has_color }
+    }
+
+    fn into_text_and_format(
+        self,
+        style: &Style,
+        fallback_font: FontSelection,
+        default_valign: Align,
+    ) -> (String, crate::text::TextFormat) {
         let text_color = self.get_text_color(&style.visuals);
 
         let Self {
             text,
             size,
+            extra_letter_spacing,
+            line_height,
             family,
             text_style,
             background_color,
@@ -266,7 +349,6 @@ impl RichText {
             raised,
         } = self;
 
-        let job_has_color = text_color.is_some();
         let line_color = text_color.unwrap_or_else(|| style.visuals.text_color());
         let text_color = text_color.unwrap_or(crate::Color32::TEMPORARY_COLOR);
 
@@ -307,18 +389,20 @@ impl RichText {
             default_valign
         };
 
-        let text_format = crate::text::TextFormat {
-            font_id,
-            color: text_color,
-            background: background_color,
-            italics,
-            underline,
-            strikethrough,
-            valign,
-        };
-
-        let job = LayoutJob::single_section(text, text_format);
-        WidgetTextJob { job, job_has_color }
+        (
+            text,
+            crate::text::TextFormat {
+                font_id,
+                extra_letter_spacing,
+                line_height,
+                color: text_color,
+                background: background_color,
+                italics,
+                underline,
+                strikethrough,
+                valign,
+            },
+        )
     }
 
     fn get_text_color(&self, visuals: &Visuals) -> Option<Color32> {
@@ -344,7 +428,7 @@ impl RichText {
 /// Often a [`WidgetText`] is just a simple [`String`],
 /// but it can be a [`RichText`] (text with color, style, etc),
 /// a [`LayoutJob`] (for when you want full control of how the text looks)
-/// or text that has already been layed out in a [`Galley`].
+/// or text that has already been laid out in a [`Galley`].
 #[derive(Clone)]
 pub enum WidgetText {
     RichText(RichText),
@@ -662,7 +746,7 @@ impl WidgetTextJob {
 
 // ----------------------------------------------------------------------------
 
-/// Text that has been layed out and ready to be painted.
+/// Text that has been laid out and ready to be painted.
 #[derive(Clone, PartialEq)]
 pub struct WidgetTextGalley {
     pub galley: Arc<Galley>,
@@ -670,13 +754,13 @@ pub struct WidgetTextGalley {
 }
 
 impl WidgetTextGalley {
-    /// Size of the layed out text.
+    /// Size of the laid out text.
     #[inline]
     pub fn size(&self) -> crate::Vec2 {
         self.galley.size()
     }
 
-    /// Size of the layed out text.
+    /// The full, non-elided text of the input job.
     #[inline]
     pub fn text(&self) -> &str {
         self.galley.text()

@@ -1,12 +1,31 @@
-// #![warn(missing_docs)]
+#![warn(missing_docs)] // Let's keep `Context` well-documented.
+
+use std::borrow::Cow;
 use std::sync::Arc;
 
+use crate::load::Bytes;
+use crate::load::SizedTexture;
 use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
-    input_state::*, layers::GraphicLayers, memory::Options, os::OperatingSystem,
+    input_state::*, layers::GraphicLayers, load::Loaders, memory::Options, os::OperatingSystem,
     output::FullOutput, util::IdTypeMap, TextureHandle, *,
 };
 use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
+
+/// Information given to the backend about when it is time to repaint the ui.
+///
+/// This is given in the callback set by [`Context::set_request_repaint_callback`].
+#[derive(Clone, Copy, Debug)]
+pub struct RequestRepaintInfo {
+    /// Repaint after this duration. If zero, repaint as soon as possible.
+    pub after: std::time::Duration,
+
+    /// The current frame number.
+    ///
+    /// This can be compared to [`Context::frame_nr`] to see if we've already
+    /// triggered the painting of the next frame.
+    pub current_frame_nr: u64,
+}
 
 // ----------------------------------------------------------------------------
 
@@ -29,6 +48,94 @@ impl Default for WrappedTextureManager {
 }
 
 // ----------------------------------------------------------------------------
+
+/// Logic related to repainting the ui.
+struct Repaint {
+    /// The current frame number.
+    ///
+    /// Incremented at the end of each frame.
+    frame_nr: u64,
+
+    /// The duration backend will poll for new events, before forcing another egui update
+    /// even if there's no new events.
+    ///
+    /// Also used to suppress multiple calls to the repaint callback during the same frame.
+    repaint_after: std::time::Duration,
+
+    /// While positive, keep requesting repaints. Decrement at the end of each frame.
+    repaint_requests: u32,
+    request_repaint_callback: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
+
+    requested_repaint_last_frame: bool,
+}
+
+impl Default for Repaint {
+    fn default() -> Self {
+        Self {
+            frame_nr: 0,
+            repaint_after: std::time::Duration::from_millis(100),
+            // Start with painting an extra frame to compensate for some widgets
+            // that take two frames before they "settle":
+            repaint_requests: 1,
+            request_repaint_callback: None,
+            requested_repaint_last_frame: false,
+        }
+    }
+}
+
+impl Repaint {
+    fn request_repaint(&mut self) {
+        self.request_repaint_after(std::time::Duration::ZERO);
+    }
+
+    fn request_repaint_after(&mut self, after: std::time::Duration) {
+        if after == std::time::Duration::ZERO {
+            // Do a few extra frames to let things settle.
+            // This is a bit of a hack, and we don't support it for `repaint_after` callbacks yet.
+            self.repaint_requests = 2;
+        }
+
+        // We only re-call the callback if we get a lower duration,
+        // otherwise it's already been covered by the previous callback.
+        if after < self.repaint_after {
+            self.repaint_after = after;
+
+            if let Some(callback) = &self.request_repaint_callback {
+                let info = RequestRepaintInfo {
+                    after,
+                    current_frame_nr: self.frame_nr,
+                };
+                (callback)(info);
+            }
+        }
+    }
+
+    fn start_frame(&mut self) {
+        // We are repainting; no need to reschedule a repaint unless the user asks for it again.
+        self.repaint_after = std::time::Duration::MAX;
+    }
+
+    // returns how long to wait until repaint
+    fn end_frame(&mut self) -> std::time::Duration {
+        // if repaint_requests is greater than zero. just set the duration to zero for immediate
+        // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
+        let repaint_after = if self.repaint_requests > 0 {
+            self.repaint_requests -= 1;
+            std::time::Duration::ZERO
+        } else {
+            self.repaint_after
+        };
+        self.repaint_after = std::time::Duration::MAX;
+
+        self.requested_repaint_last_frame = repaint_after.is_zero();
+        self.frame_nr += 1;
+
+        repaint_after
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 #[derive(Default)]
 struct ContextImpl {
     /// `None` until the start of the first frame.
@@ -50,18 +157,7 @@ struct ContextImpl {
 
     paint_stats: PaintStats,
 
-    /// the duration backend will poll for new events, before forcing another egui update
-    /// even if there's no new events.
-    repaint_after: std::time::Duration,
-
-    /// While positive, keep requesting repaints. Decrement at the end of each frame.
-    repaint_requests: u32,
-    request_repaint_callback: Option<Box<dyn Fn() + Send + Sync>>,
-
-    /// used to suppress multiple calls to [`Self::request_repaint_callback`] during the same frame.
-    has_requested_repaint_this_frame: bool,
-
-    requested_repaint_last_frame: bool,
+    repaint: Repaint,
 
     /// Written to during the frame.
     layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
@@ -73,11 +169,13 @@ struct ContextImpl {
     is_accesskit_enabled: bool,
     #[cfg(feature = "accesskit")]
     accesskit_node_classes: accesskit::NodeClassSet,
+
+    loaders: Arc<Loaders>,
 }
 
 impl ContextImpl {
     fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
-        self.has_requested_repaint_this_frame = false; // allow new calls during the frame
+        self.repaint.start_frame();
 
         if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point.take() {
             new_raw_input.pixels_per_point = Some(new_pixels_per_point);
@@ -95,7 +193,7 @@ impl ContextImpl {
         self.memory.begin_frame(&self.input, &new_raw_input);
 
         self.input = std::mem::take(&mut self.input)
-            .begin_frame(new_raw_input, self.requested_repaint_last_frame);
+            .begin_frame(new_raw_input, self.repaint.requested_repaint_last_frame);
 
         self.frame_state.begin_frame(&self.input);
 
@@ -115,6 +213,7 @@ impl ContextImpl {
 
         #[cfg(feature = "accesskit")]
         if self.is_accesskit_enabled {
+            crate::profile_scope!("accesskit");
             use crate::frame_state::AccessKitFrameState;
             let id = crate::accesskit_root_id();
             let mut builder = accesskit::NodeBuilder::new(accesskit::Role::Window);
@@ -132,24 +231,32 @@ impl ContextImpl {
 
     /// Load fonts unless already loaded.
     fn update_fonts_mut(&mut self) {
+        crate::profile_function!();
+
         let pixels_per_point = self.input.pixels_per_point();
         let max_texture_side = self.input.max_texture_side;
 
         if let Some(font_definitions) = self.memory.new_font_definitions.take() {
+            crate::profile_scope!("Fonts::new");
             let fonts = Fonts::new(pixels_per_point, max_texture_side, font_definitions);
             self.fonts = Some(fonts);
         }
 
         let fonts = self.fonts.get_or_insert_with(|| {
             let font_definitions = FontDefinitions::default();
+            crate::profile_scope!("Fonts::new");
             Fonts::new(pixels_per_point, max_texture_side, font_definitions)
         });
 
-        fonts.begin_frame(pixels_per_point, max_texture_side);
+        {
+            crate::profile_scope!("Fonts::begin_frame");
+            fonts.begin_frame(pixels_per_point, max_texture_side);
+        }
 
         if self.memory.options.preload_font_glyphs {
+            crate::profile_scope!("preload_font_glyphs");
             // Preload the most common characters for the most common fonts.
-            // This is not very important to do, but may a few GPU operations.
+            // This is not very important to do, but may save a few GPU operations.
             for font_id in self.memory.options.style.text_styles.values() {
                 fonts.lock().fonts.font(font_id).preload_common_characters();
             }
@@ -203,7 +310,7 @@ impl ContextImpl {
 ///
 /// ``` no_run
 /// # fn handle_platform_output(_: egui::PlatformOutput) {}
-/// # fn paint(textures_detla: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
+/// # fn paint(textures_delta: egui::TexturesDelta, _: Vec<egui::ClippedPrimitive>) {}
 /// let mut ctx = egui::Context::default();
 ///
 /// // Game loop:
@@ -239,12 +346,7 @@ impl std::cmp::PartialEq for Context {
 
 impl Default for Context {
     fn default() -> Self {
-        Self(Arc::new(RwLock::new(ContextImpl {
-            // Start with painting an extra frame to compensate for some widgets
-            // that take two frames before they "settle":
-            repaint_requests: 1,
-            ..ContextImpl::default()
-        })))
+        Self(Arc::new(RwLock::new(ContextImpl::default())))
     }
 }
 
@@ -283,6 +385,7 @@ impl Context {
     /// ```
     #[must_use]
     pub fn run(&self, new_input: RawInput, run_ui: impl FnOnce(&Context)) -> FullOutput {
+        crate::profile_function!();
         self.begin_frame(new_input);
         run_ui(self);
         self.end_frame()
@@ -306,6 +409,7 @@ impl Context {
     /// // handle full_output
     /// ```
     pub fn begin_frame(&self, new_input: RawInput) {
+        crate::profile_function!();
         self.write(|ctx| ctx.begin_frame_mut(new_input));
     }
 }
@@ -447,10 +551,6 @@ impl Context {
     ) -> R {
         self.write(move |ctx| writer(&mut ctx.memory.options.tessellation_options))
     }
-}
-
-impl Context {
-    // ---------------------------------------------------------------------
 
     /// If the given [`Id`] has been used previously the same frame at at different position,
     /// then an error will be printed on screen.
@@ -463,67 +563,72 @@ impl Context {
     /// because that's where the warning will be painted. If you don't know what size to pick, just pick [`Vec2::ZERO`].
     pub fn check_for_id_clash(&self, id: Id, new_rect: Rect, what: &str) {
         let prev_rect = self.frame_state_mut(move |state| state.used_ids.insert(id, new_rect));
-        if let Some(prev_rect) = prev_rect {
-            // it is ok to reuse the same ID for e.g. a frame around a widget,
-            // or to check for interaction with the same widget twice:
-            if prev_rect.expand(0.1).contains_rect(new_rect)
-                || new_rect.expand(0.1).contains_rect(prev_rect)
-            {
-                return;
-            }
 
-            let show_error = |widget_rect: Rect, text: String| {
-                let text = format!("🔥 {}", text);
-                let color = self.style().visuals.error_fg_color;
-                let painter = self.debug_painter();
-                painter.rect_stroke(widget_rect, 0.0, (1.0, color));
+        if !self.options(|opt| opt.warn_on_id_clash) {
+            return;
+        }
 
-                let below = widget_rect.bottom() + 32.0 < self.input(|i| i.screen_rect.bottom());
+        let Some(prev_rect) = prev_rect else { return };
 
-                let text_rect = if below {
-                    painter.debug_text(
-                        widget_rect.left_bottom() + vec2(0.0, 2.0),
-                        Align2::LEFT_TOP,
-                        color,
-                        text,
-                    )
-                } else {
-                    painter.debug_text(
-                        widget_rect.left_top() - vec2(0.0, 2.0),
-                        Align2::LEFT_BOTTOM,
-                        color,
-                        text,
-                    )
-                };
+        // it is ok to reuse the same ID for e.g. a frame around a widget,
+        // or to check for interaction with the same widget twice:
+        if prev_rect.expand(0.1).contains_rect(new_rect)
+            || new_rect.expand(0.1).contains_rect(prev_rect)
+        {
+            return;
+        }
 
-                if let Some(pointer_pos) = self.pointer_hover_pos() {
-                    if text_rect.contains(pointer_pos) {
-                        let tooltip_pos = if below {
-                            text_rect.left_bottom() + vec2(2.0, 4.0)
-                        } else {
-                            text_rect.left_top() + vec2(2.0, -4.0)
-                        };
+        let show_error = |widget_rect: Rect, text: String| {
+            let text = format!("🔥 {text}");
+            let color = self.style().visuals.error_fg_color;
+            let painter = self.debug_painter();
+            painter.rect_stroke(widget_rect, 0.0, (1.0, color));
 
-                        painter.error(
-                            tooltip_pos,
-                            format!("Widget is {} this text.\n\n\
+            let below = widget_rect.bottom() + 32.0 < self.input(|i| i.screen_rect.bottom());
+
+            let text_rect = if below {
+                painter.debug_text(
+                    widget_rect.left_bottom() + vec2(0.0, 2.0),
+                    Align2::LEFT_TOP,
+                    color,
+                    text,
+                )
+            } else {
+                painter.debug_text(
+                    widget_rect.left_top() - vec2(0.0, 2.0),
+                    Align2::LEFT_BOTTOM,
+                    color,
+                    text,
+                )
+            };
+
+            if let Some(pointer_pos) = self.pointer_hover_pos() {
+                if text_rect.contains(pointer_pos) {
+                    let tooltip_pos = if below {
+                        text_rect.left_bottom() + vec2(2.0, 4.0)
+                    } else {
+                        text_rect.left_top() + vec2(2.0, -4.0)
+                    };
+
+                    painter.error(
+                        tooltip_pos,
+                        format!("Widget is {} this text.\n\n\
                              ID clashes happens when things like Windows or CollapsingHeaders share names,\n\
                              or when things like Plot and Grid:s aren't given unique id_source:s.\n\n\
                              Sometimes the solution is to use ui.push_id.",
-                             if below { "above" } else { "below" })
-                        );
-                    }
+                         if below { "above" } else { "below" })
+                    );
                 }
-            };
-
-            let id_str = id.short_debug_format();
-
-            if prev_rect.min.distance(new_rect.min) < 4.0 {
-                show_error(new_rect, format!("Double use of {} ID {}", what, id_str));
-            } else {
-                show_error(prev_rect, format!("First use of {} ID {}", what, id_str));
-                show_error(new_rect, format!("Second use of {} ID {}", what, id_str));
             }
+        };
+
+        let id_str = id.short_debug_format();
+
+        if prev_rect.min.distance(new_rect.min) < 4.0 {
+            show_error(new_rect, format!("Double use of {what} ID {id_str}"));
+        } else {
+            show_error(prev_rect, format!("First use of {what} ID {id_str}"));
+            show_error(new_rect, format!("Second use of {what} ID {id_str}"));
         }
     }
 
@@ -557,6 +662,7 @@ impl Context {
         // This solves the problem of overlapping widgets.
         // Whichever widget is added LAST (=on top) gets the input:
         if interact_rect.is_positive() && sense.interactive() {
+            #[cfg(debug_assertions)]
             if self.style().debug.show_interactive_widgets {
                 Self::layer_painter(self, LayerId::debug()).rect(
                     interact_rect,
@@ -565,6 +671,9 @@ impl Context {
                     Stroke::new(1.0, Color32::YELLOW.additive().linear_multiply(0.05)),
                 );
             }
+
+            #[cfg(debug_assertions)]
+            let mut show_blocking_widget = None;
 
             self.write(|ctx| {
                 ctx.layer_rects_this_frame
@@ -584,17 +693,11 @@ impl Context {
                                     // Another interactive widget is covering us at the pointer position,
                                     // so we aren't hovered.
 
+                                    #[cfg(debug_assertions)]
                                     if ctx.memory.options.style.debug.show_blocking_widget {
-                                        Self::layer_painter(self, LayerId::debug()).debug_rect(
-                                            interact_rect,
-                                            Color32::GREEN,
-                                            "Covered",
-                                        );
-                                        Self::layer_painter(self, LayerId::debug()).debug_rect(
-                                            prev_rect,
-                                            Color32::LIGHT_BLUE,
-                                            "On top",
-                                        );
+                                        // Store the rects to use them outside the write() call to
+                                        // avoid deadlock
+                                        show_blocking_widget = Some((interact_rect, prev_rect));
                                     }
 
                                     hovered = false;
@@ -605,6 +708,20 @@ impl Context {
                     }
                 }
             });
+
+            #[cfg(debug_assertions)]
+            if let Some((interact_rect, prev_rect)) = show_blocking_widget {
+                Self::layer_painter(self, LayerId::debug()).debug_rect(
+                    interact_rect,
+                    Color32::GREEN,
+                    "Covered",
+                );
+                Self::layer_painter(self, LayerId::debug()).debug_rect(
+                    prev_rect,
+                    Color32::LIGHT_BLUE,
+                    "On top",
+                );
+            }
         }
 
         self.interact_with_hovered(layer_id, id, rect, sense, enabled, hovered)
@@ -803,6 +920,31 @@ impl Context {
         self.output_mut(|o| o.cursor_icon = cursor_icon);
     }
 
+    /// Open an URL in a browser.
+    ///
+    /// Equivalent to:
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// # let open_url = egui::OpenUrl::same_tab("http://www.example.com");
+    /// ctx.output_mut(|o| o.open_url = Some(open_url));
+    /// ```
+    pub fn open_url(&self, open_url: crate::OpenUrl) {
+        self.output_mut(|o| o.open_url = Some(open_url));
+    }
+
+    /// Copy the given text to the system clipboard.
+    ///
+    /// Empty strings are ignored.
+    ///
+    /// Equivalent to:
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// ctx.output_mut(|o| o.copied_text = "Copy this".to_owned());
+    /// ```
+    pub fn copy_text(&self, text: String) {
+        self.output_mut(|o| o.copied_text = text);
+    }
+
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
     ///
     /// Can be used to get the text for [`Button::shortcut_text`].
@@ -838,6 +980,15 @@ impl Context {
         }
     }
 
+    /// The current frame number.
+    ///
+    /// Starts at zero, and is incremented at the end of [`Self::run`] or by [`Self::end_frame`].
+    ///
+    /// Between calls to [`Self::run`], this is the frame number of the coming frame.
+    pub fn frame_nr(&self) -> u64 {
+        self.read(|ctx| ctx.repaint.frame_nr)
+    }
+
     /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
     ///
     /// If this is called at least once in a frame, then there will be another frame right after this.
@@ -848,19 +999,13 @@ impl Context {
     /// (this will work on `eframe`).
     pub fn request_repaint(&self) {
         // request two frames of repaint, just to cover some corner cases (frame delays):
-        self.write(|ctx| {
-            ctx.repaint_requests = 2;
-            if let Some(callback) = &ctx.request_repaint_callback {
-                if !ctx.has_requested_repaint_this_frame {
-                    (callback)();
-                    ctx.has_requested_repaint_this_frame = true;
-                }
-            }
-        });
+        self.write(|ctx| ctx.repaint.request_repaint());
     }
 
-    /// Request repaint after the specified duration elapses in the case of no new input
-    /// events being received.
+    /// Request repaint after at most the specified duration elapses.
+    ///
+    /// The backend can chose to repaint sooner, for instance if some other code called
+    /// this method with a lower duration, or if new events arrived.
     ///
     /// The function can be multiple times, but only the *smallest* duration will be considered.
     /// So, if the function is called two times with `1 second` and `2 seconds`, egui will repaint
@@ -883,12 +1028,12 @@ impl Context {
     /// Duration begins at the next frame. lets say for example that its a very inefficient app
     /// and takes 500 milliseconds per frame at 2 fps. The widget / user might want a repaint in
     /// next 500 milliseconds. Now, app takes 1000 ms per frame (1 fps) because the backend event
-    /// timeout takes 500 milli seconds AFTER the vsync swap buffer.
+    /// timeout takes 500 milliseconds AFTER the vsync swap buffer.
     /// So, its not that we are requesting repaint within X duration. We are rather timing out
     /// during app idle time where we are not receiving any new input events.
     pub fn request_repaint_after(&self, duration: std::time::Duration) {
         // Maybe we can check if duration is ZERO, and call self.request_repaint()?
-        self.write(|ctx| ctx.repaint_after = ctx.repaint_after.min(duration));
+        self.write(|ctx| ctx.repaint.request_repaint_after(duration));
     }
 
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
@@ -896,9 +1041,12 @@ impl Context {
     /// This lets you wake up a sleeping UI thread.
     ///
     /// Note that only one callback can be set. Any new call overrides the previous callback.
-    pub fn set_request_repaint_callback(&self, callback: impl Fn() + Send + Sync + 'static) {
+    pub fn set_request_repaint_callback(
+        &self,
+        callback: impl Fn(RequestRepaintInfo) + Send + Sync + 'static,
+    ) {
         let callback = Box::new(callback);
-        self.write(|ctx| ctx.request_repaint_callback = Some(callback));
+        self.write(|ctx| ctx.repaint.request_repaint_callback = Some(callback));
     }
 
     /// Tell `egui` which fonts to use.
@@ -927,17 +1075,24 @@ impl Context {
         self.options(|opt| opt.style.clone())
     }
 
-    /// The [`Style`] used by all new windows, panels etc.
-    ///
-    /// You can also use [`Ui::style_mut`] to change the style of a single [`Ui`].
+    /// Mutate the [`Style`] used by all subsequent windows, panels etc.
     ///
     /// Example:
     /// ```
     /// # let mut ctx = egui::Context::default();
-    /// let mut style: egui::Style = (*ctx.style()).clone();
-    /// style.spacing.item_spacing = egui::vec2(10.0, 20.0);
-    /// ctx.set_style(style);
+    /// ctx.style_mut(|style| {
+    ///     style.spacing.item_spacing = egui::vec2(10.0, 20.0);
+    /// });
     /// ```
+    pub fn style_mut(&self, mutate_style: impl FnOnce(&mut Style)) {
+        self.options_mut(|opt| mutate_style(std::sync::Arc::make_mut(&mut opt.style)));
+    }
+
+    /// The [`Style`] used by all new windows, panels etc.
+    ///
+    /// You can also change this using [`Self::style_mut]`
+    ///
+    /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
     pub fn set_style(&self, style: impl Into<Arc<Style>>) {
         self.options_mut(|opt| opt.style = style.into());
     }
@@ -999,9 +1154,16 @@ impl Context {
 
     /// Allocate a texture.
     ///
-    /// In order to display an image you must convert it to a texture using this function.
+    /// This is for advanced users.
+    /// Most users should use [`crate::Ui::image`] or [`Self::try_load_texture`]
+    /// instead.
     ///
-    /// Make sure to only call this once for each image, i.e. NOT in your main GUI code.
+    /// In order to display an image you must convert it to a texture using this function.
+    /// The function will hand over the image data to the egui backend, which will
+    /// upload it to the GPU.
+    ///
+    /// ⚠️ Make sure to only call this ONCE for each image, i.e. NOT in your main GUI code.
+    /// The call is NOT immediate safe.
     ///
     /// The given name can be useful for later debugging, and will be visible if you call [`Self::texture_ui`].
     ///
@@ -1024,12 +1186,12 @@ impl Context {
     ///         });
     ///
     ///         // Show the image:
-    ///         ui.image(texture, texture.size_vec2());
+    ///         ui.image((texture.id(), texture.size_vec2()));
     ///     }
     /// }
     /// ```
     ///
-    /// Se also [`crate::ImageData`], [`crate::Ui::image`] and [`crate::ImageButton`].
+    /// See also [`crate::ImageData`], [`crate::Ui::image`] and [`crate::Image`].
     pub fn load_texture(
         &self,
         name: impl Into<String>,
@@ -1102,6 +1264,7 @@ impl Context {
     /// Call at the end of each frame.
     #[must_use]
     pub fn end_frame(&self) -> FullOutput {
+        crate::profile_function!();
         if self.input(|i| i.wants_repaint()) {
             self.request_repaint();
         }
@@ -1121,13 +1284,14 @@ impl Context {
         });
 
         #[cfg_attr(not(feature = "accesskit"), allow(unused_mut))]
-        let mut platform_output: PlatformOutput = self.output_mut(|o| std::mem::take(o));
+        let mut platform_output: PlatformOutput = self.output_mut(std::mem::take);
 
         #[cfg(feature = "accesskit")]
         {
+            crate::profile_scope!("accesskit");
             let state = self.frame_state_mut(|fs| fs.accesskit_state.take());
             if let Some(state) = state {
-                let has_focus = self.input(|i| i.raw.has_focus);
+                let has_focus = self.input(|i| i.raw.focused);
                 let root_id = crate::accesskit_root_id().accesskit_id();
                 let nodes = self.write(|ctx| {
                     state
@@ -1145,35 +1309,14 @@ impl Context {
                     nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
                     focus: has_focus.then(|| {
-                        let focus_id = self.memory(|mem| mem.interaction.focus.id);
+                        let focus_id = self.memory(|mem| mem.focus());
                         focus_id.map_or(root_id, |id| id.accesskit_id())
                     }),
                 });
             }
         }
 
-        // if repaint_requests is greater than zero. just set the duration to zero for immediate
-        // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
-        let repaint_after = self.write(|ctx| {
-            if ctx.repaint_requests > 0 {
-                ctx.repaint_requests -= 1;
-                std::time::Duration::ZERO
-            } else {
-                ctx.repaint_after
-            }
-        });
-
-        self.write(|ctx| {
-            ctx.requested_repaint_last_frame = repaint_after.is_zero();
-
-            ctx.has_requested_repaint_this_frame = false; // allow new calls between frames
-
-            // make sure we reset the repaint_after duration.
-            // otherwise, if repaint_after is low, then any widget setting repaint_after next frame,
-            // will fail to overwrite the previous lower value. and thus, repaints will never
-            // go back to higher values.
-            ctx.repaint_after = std::time::Duration::MAX;
-        });
+        let repaint_after = self.write(|ctx| ctx.repaint.end_frame());
         let shapes = self.drain_paint_lists();
 
         FullOutput {
@@ -1185,11 +1328,13 @@ impl Context {
     }
 
     fn drain_paint_lists(&self) -> Vec<ClippedShape> {
+        crate::profile_function!();
         self.write(|ctx| ctx.graphics.drain(ctx.memory.areas.order()).collect())
     }
 
     /// Tessellate the given shapes into triangle meshes.
     pub fn tessellate(&self, shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
+        crate::profile_function!();
         // A tempting optimization is to reuse the tessellation from last frame if the
         // shapes are the same, but just comparing the shapes takes about 50% of the time
         // it takes to tessellate them, so it is not a worth optimization.
@@ -1209,13 +1354,16 @@ impl Context {
             };
 
             let paint_stats = PaintStats::from_shapes(&shapes);
-            let clipped_primitives = tessellator::tessellate_shapes(
-                pixels_per_point,
-                tessellation_options,
-                font_tex_size,
-                prepared_discs,
-                shapes,
-            );
+            let clipped_primitives = {
+                crate::profile_scope!("tessellator::tessellate_shapes");
+                tessellator::tessellate_shapes(
+                    pixels_per_point,
+                    tessellation_options,
+                    font_tex_size,
+                    prepared_discs,
+                    shapes,
+                )
+            };
             ctx.paint_stats = paint_stats.with_clipped_primitives(&clipped_primitives);
             clipped_primitives
         })
@@ -1305,6 +1453,14 @@ impl Context {
     pub fn highlight_widget(&self, id: Id) {
         self.frame_state_mut(|fs| fs.highlight_next_frame.insert(id));
     }
+
+    /// Is an egui context menu open?
+    pub fn is_context_menu_open(&self) -> bool {
+        self.data(|d| {
+            d.get_temp::<crate::menu::BarState>(menu::CONTEXT_MENU_ID_STR.into())
+                .map_or(false, |state| state.has_root())
+        })
+    }
 }
 
 // Ergonomic methods to forward some calls often used in 'if let' without holding the borrow
@@ -1377,15 +1533,15 @@ impl Context {
     // ---------------------------------------------------------------------
 
     /// Whether or not to debug widget layout on hover.
+    #[cfg(debug_assertions)]
     pub fn debug_on_hover(&self) -> bool {
         self.options(|opt| opt.style.debug.debug_on_hover)
     }
 
     /// Turn on/off whether or not to debug widget layout on hover.
+    #[cfg(debug_assertions)]
     pub fn set_debug_on_hover(&self, debug_on_hover: bool) {
-        let mut style = self.options(|opt| (*opt.style).clone());
-        style.debug.debug_on_hover = debug_on_hover;
-        self.set_style(style);
+        self.style_mut(|style| style.debug.debug_on_hover = debug_on_hover);
     }
 }
 
@@ -1442,6 +1598,7 @@ impl Context {
 }
 
 impl Context {
+    /// Show a ui for settings (style and tessellation options).
     pub fn settings_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
 
@@ -1464,9 +1621,9 @@ impl Context {
             });
     }
 
+    /// Show the state of egui, including its input and output.
     pub fn inspection_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
-        crate::trace!(ui);
 
         ui.label(format!("Is using pointer: {}", self.is_using_pointer()))
             .on_hover_text(
@@ -1490,14 +1647,14 @@ impl Context {
 
         let pointer_pos = self
             .pointer_hover_pos()
-            .map_or_else(String::new, |pos| format!("{:?}", pos));
-        ui.label(format!("Pointer pos: {}", pointer_pos));
+            .map_or_else(String::new, |pos| format!("{pos:?}"));
+        ui.label(format!("Pointer pos: {pointer_pos}"));
 
         let top_layer = self
             .pointer_hover_pos()
             .and_then(|pos| self.layer_id_at(pos))
             .map_or_else(String::new, |layer| layer.short_debug_format());
-        ui.label(format!("Top layer under mouse: {}", top_layer));
+        ui.label(format!("Top layer under mouse: {top_layer}"));
 
         ui.add_space(16.0);
 
@@ -1574,16 +1731,17 @@ impl Context {
                                 let mut size = vec2(w as f32, h as f32);
                                 size *= (max_preview_size.x / size.x).min(1.0);
                                 size *= (max_preview_size.y / size.y).min(1.0);
-                                ui.image(texture_id, size).on_hover_ui(|ui| {
-                                    // show larger on hover
-                                    let max_size = 0.5 * ui.ctx().screen_rect().size();
-                                    let mut size = vec2(w as f32, h as f32);
-                                    size *= max_size.x / size.x.max(max_size.x);
-                                    size *= max_size.y / size.y.max(max_size.y);
-                                    ui.image(texture_id, size);
-                                });
+                                ui.image(SizedTexture::new(texture_id, size))
+                                    .on_hover_ui(|ui| {
+                                        // show larger on hover
+                                        let max_size = 0.5 * ui.ctx().screen_rect().size();
+                                        let mut size = vec2(w as f32, h as f32);
+                                        size *= max_size.x / size.x.max(max_size.x);
+                                        size *= max_size.y / size.y.max(max_size.y);
+                                        ui.image(SizedTexture::new(texture_id, size));
+                                    });
 
-                                ui.label(format!("{} x {}", w, h));
+                                ui.label(format!("{w} x {h}"));
                                 ui.label(format!("{:.3} MB", meta.bytes_used() as f64 * 1e-6));
                                 ui.label(format!("{:?}", meta.name));
                                 ui.end_row();
@@ -1593,6 +1751,7 @@ impl Context {
         });
     }
 
+    /// Shows the contents of [`Self::memory`].
     pub fn memory_ui(&self, ui: &mut crate::Ui) {
         if ui
             .button("Reset all")
@@ -1604,8 +1763,7 @@ impl Context {
 
         let (num_state, num_serialized) = self.data(|d| (d.len(), d.count_serialized()));
         ui.label(format!(
-            "{} widget states stored (of which {} are serialized).",
-            num_state, num_serialized
+            "{num_state} widget states stored (of which {num_serialized} are serialized)."
         ));
 
         ui.horizontal(|ui| {
@@ -1694,6 +1852,7 @@ impl Context {
 }
 
 impl Context {
+    /// Edit the active [`Style`].
     pub fn style_ui(&self, ui: &mut Ui) {
         let mut style: Style = (*self.style()).clone();
         style.ui(ui);
@@ -1709,6 +1868,8 @@ impl Context {
     /// the function is still called, but with no other effect.
     ///
     /// No locks are held while the given closure is called.
+    #[allow(clippy::unused_self)]
+    #[inline]
     pub fn with_accessibility_parent(&self, _id: Id, f: impl FnOnce()) {
         // TODO(emilk): this isn't thread-safe - another thread can call this function between the push/pop calls
         #[cfg(feature = "accesskit")]
@@ -1782,6 +1943,221 @@ impl Context {
             tree: Some(Tree::new(root_id)),
             focus: None,
         })
+    }
+}
+
+/// ## Image loading
+impl Context {
+    /// Associate some static bytes with a `uri`.
+    ///
+    /// The same `uri` may be passed to [`Ui::image`] later to load the bytes as an image.
+    ///
+    /// By convention, the `uri` should start with `bytes://`.
+    /// Following that convention will lead to better error messages.
+    pub fn include_bytes(&self, uri: impl Into<Cow<'static, str>>, bytes: impl Into<Bytes>) {
+        self.loaders().include.insert(uri, bytes);
+    }
+
+    /// Returns `true` if the chain of bytes, image, or texture loaders
+    /// contains a loader with the given `id`.
+    pub fn is_loader_installed(&self, id: &str) -> bool {
+        let loaders = self.loaders();
+
+        loaders.bytes.lock().iter().any(|l| l.id() == id)
+            || loaders.image.lock().iter().any(|l| l.id() == id)
+            || loaders.texture.lock().iter().any(|l| l.id() == id)
+    }
+
+    /// Add a new bytes loader.
+    ///
+    /// It will be tried first, before any already installed loaders.
+    ///
+    /// See [`load`] for more information.
+    pub fn add_bytes_loader(&self, loader: Arc<dyn load::BytesLoader + Send + Sync + 'static>) {
+        self.loaders().bytes.lock().push(loader);
+    }
+
+    /// Add a new image loader.
+    ///
+    /// It will be tried first, before any already installed loaders.
+    ///
+    /// See [`load`] for more information.
+    pub fn add_image_loader(&self, loader: Arc<dyn load::ImageLoader + Send + Sync + 'static>) {
+        self.loaders().image.lock().push(loader);
+    }
+
+    /// Add a new texture loader.
+    ///
+    /// It will be tried first, before any already installed loaders.
+    ///
+    /// See [`load`] for more information.
+    pub fn add_texture_loader(&self, loader: Arc<dyn load::TextureLoader + Send + Sync + 'static>) {
+        self.loaders().texture.lock().push(loader);
+    }
+
+    /// Release all memory and textures related to the given image URI.
+    ///
+    /// If you attempt to load the image again, it will be reloaded from scratch.
+    pub fn forget_image(&self, uri: &str) {
+        use load::BytesLoader as _;
+
+        crate::profile_function!();
+
+        let loaders = self.loaders();
+
+        loaders.include.forget(uri);
+        for loader in loaders.bytes.lock().iter() {
+            loader.forget(uri);
+        }
+        for loader in loaders.image.lock().iter() {
+            loader.forget(uri);
+        }
+        for loader in loaders.texture.lock().iter() {
+            loader.forget(uri);
+        }
+    }
+
+    /// Release all memory and textures related to images used in [`Ui::image`] or [`Image`].
+    ///
+    /// If you attempt to load any images again, they will be reloaded from scratch.
+    pub fn forget_all_images(&self) {
+        use load::BytesLoader as _;
+
+        crate::profile_function!();
+
+        let loaders = self.loaders();
+
+        loaders.include.forget_all();
+        for loader in loaders.bytes.lock().iter() {
+            loader.forget_all();
+        }
+        for loader in loaders.image.lock().iter() {
+            loader.forget_all();
+        }
+        for loader in loaders.texture.lock().iter() {
+            loader.forget_all();
+        }
+    }
+
+    /// Try loading the bytes from the given uri using any available bytes loaders.
+    ///
+    /// Loaders are expected to cache results, so that this call is immediate-mode safe.
+    ///
+    /// This calls the loaders one by one in the order in which they were registered.
+    /// If a loader returns [`LoadError::NotSupported`][not_supported],
+    /// then the next loader is called. This process repeats until all loaders have
+    /// been exhausted, at which point this returns [`LoadError::NotSupported`][not_supported].
+    ///
+    /// # Errors
+    /// This may fail with:
+    /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
+    /// - [`LoadError::Loading`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    ///
+    /// ⚠ May deadlock if called from within a `BytesLoader`!
+    ///
+    /// [not_supported]: crate::load::LoadError::NotSupported
+    /// [custom]: crate::load::LoadError::Loading
+    pub fn try_load_bytes(&self, uri: &str) -> load::BytesLoadResult {
+        crate::profile_function!();
+
+        let loaders = self.loaders();
+        let bytes_loaders = loaders.bytes.lock();
+
+        // Try most recently added loaders first (hence `.rev()`)
+        for loader in bytes_loaders.iter().rev() {
+            match loader.load(self, uri) {
+                Err(load::LoadError::NotSupported) => continue,
+                result => return result,
+            }
+        }
+
+        Err(load::LoadError::NoMatchingBytesLoader)
+    }
+
+    /// Try loading the image from the given uri using any available image loaders.
+    ///
+    /// Loaders are expected to cache results, so that this call is immediate-mode safe.
+    ///
+    /// This calls the loaders one by one in the order in which they were registered.
+    /// If a loader returns [`LoadError::NotSupported`][not_supported],
+    /// then the next loader is called. This process repeats until all loaders have
+    /// been exhausted, at which point this returns [`LoadError::NotSupported`][not_supported].
+    ///
+    /// # Errors
+    /// This may fail with:
+    /// - [`LoadError::NoImageLoaders`][no_image_loaders] if tbere are no registered image loaders.
+    /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
+    /// - [`LoadError::Loading`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    ///
+    /// ⚠ May deadlock if called from within an `ImageLoader`!
+    ///
+    /// [no_image_loaders]: crate::load::LoadError::NoImageLoaders
+    /// [not_supported]: crate::load::LoadError::NotSupported
+    /// [custom]: crate::load::LoadError::Loading
+    pub fn try_load_image(&self, uri: &str, size_hint: load::SizeHint) -> load::ImageLoadResult {
+        crate::profile_function!();
+
+        let loaders = self.loaders();
+        let image_loaders = loaders.image.lock();
+        if image_loaders.is_empty() {
+            return Err(load::LoadError::NoImageLoaders);
+        }
+
+        // Try most recently added loaders first (hence `.rev()`)
+        for loader in image_loaders.iter().rev() {
+            match loader.load(self, uri, size_hint) {
+                Err(load::LoadError::NotSupported) => continue,
+                result => return result,
+            }
+        }
+
+        Err(load::LoadError::NoMatchingImageLoader)
+    }
+
+    /// Try loading the texture from the given uri using any available texture loaders.
+    ///
+    /// Loaders are expected to cache results, so that this call is immediate-mode safe.
+    ///
+    /// This calls the loaders one by one in the order in which they were registered.
+    /// If a loader returns [`LoadError::NotSupported`][not_supported],
+    /// then the next loader is called. This process repeats until all loaders have
+    /// been exhausted, at which point this returns [`LoadError::NotSupported`][not_supported].
+    ///
+    /// # Errors
+    /// This may fail with:
+    /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
+    /// - [`LoadError::Loading`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    ///
+    /// ⚠ May deadlock if called from within a `TextureLoader`!
+    ///
+    /// [not_supported]: crate::load::LoadError::NotSupported
+    /// [custom]: crate::load::LoadError::Loading
+    pub fn try_load_texture(
+        &self,
+        uri: &str,
+        texture_options: TextureOptions,
+        size_hint: load::SizeHint,
+    ) -> load::TextureLoadResult {
+        crate::profile_function!();
+
+        let loaders = self.loaders();
+        let texture_loaders = loaders.texture.lock();
+
+        // Try most recently added loaders first (hence `.rev()`)
+        for loader in texture_loaders.iter().rev() {
+            match loader.load(self, uri, texture_options, size_hint) {
+                Err(load::LoadError::NotSupported) => continue,
+                result => return result,
+            }
+        }
+
+        Err(load::LoadError::NoMatchingTextureLoader)
+    }
+
+    /// The loaders of bytes, images, and textures.
+    pub fn loaders(&self) -> Arc<Loaders> {
+        crate::profile_function!();
+        self.read(|this| this.loaders.clone())
     }
 }
 
