@@ -903,6 +903,18 @@ fn events(
             ui.ctx().copy_text(text);
         }
     };
+    let redo = |cursor_range: CursorRange, text: &mut dyn TextBuffer, state: &mut TextEditState| {
+        if let Some((redo_ccursor_range, redo_txt)) = state
+            .undoer
+            .lock()
+            .redo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
+        {
+            text.replace(redo_txt.as_str());
+            Some(*redo_ccursor_range)
+        } else {
+            None
+        }
+    };
 
     let mut any_change = false;
 
@@ -985,7 +997,6 @@ fn events(
                 modifiers,
                 ..
             } if modifiers.command && !modifiers.shift => {
-                // TODO(emilk): redo
                 if let Some((undo_ccursor_range, undo_txt)) = state
                     .undoer
                     .lock()
@@ -997,6 +1008,18 @@ fn events(
                     None
                 }
             }
+            Event::Key {
+                key: Key::Z,
+                pressed: true,
+                modifiers,
+                ..
+            } if modifiers.command && modifiers.shift => redo(cursor_range, text, state),
+            Event::Key {
+                key: Key::Y,
+                pressed: true,
+                modifiers,
+                ..
+            } if modifiers.command && !modifiers.shift => redo(cursor_range, text, state),
 
             Event::Key {
                 key,
