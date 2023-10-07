@@ -14,14 +14,15 @@ jobs:
 
       - name: Check spelling of entire workspace
         uses: crate-ci/typos@master
-  spellcheck:
-    name: Spellcheck
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: streetsidesoftware/cspell-action@v2
-        with:
-          files: "**/*.md"
+  # Disabled: too many names of crates and user-names etc
+  # spellcheck:
+  #   name: Spellcheck
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: streetsidesoftware/cspell-action@v2
+  #       with:
+  #         files: "**/*.md"
   linkinator:
     name: linkinator
     runs-on: ubuntu-latest
