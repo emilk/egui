@@ -29,6 +29,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: jprochazk/linkinator-action@main
         with:
+          linksToSkip: "https://crates.io/crates/.*" # Avoid crates.io rate-limiting
           retry: true
           retryErrors: true
           retryErrorsCount: 5
