@@ -390,73 +390,7 @@ fn srgba_edit_ui(ui: &mut Ui, rgba: &mut [u8; 4], alpha: Alpha) -> bool {
 
     edited
 }
-/// Shows 4 `DragValue` widgets to be used to edit the RGBA f32 values.
-/// Alpha's `DragValue` is hidden when `Alpha::Opaque`.
-///
-/// Returns `true` on change.
-fn rgba_edit_ui(ui: &mut Ui, rgba: &mut [f32; 4], alpha: Alpha) -> bool {
-    use core::ops::RangeInclusive;
 
-    let [r, g, b, a] = rgba;
-
-    let mut edited = false;
-    ui.horizontal(|ui| {
-        edited |= DragValue::new(r)
-            .speed(0.003)
-            .prefix("R: ")
-            .clamp_range(RangeInclusive::new(0., 1.))
-            .min_decimals(3)
-            .max_decimals(3)
-            .ui(ui)
-            .changed();
-        edited |= DragValue::new(g)
-            .speed(0.003)
-            .prefix("G: ")
-            .clamp_range(RangeInclusive::new(0., 1.))
-            .min_decimals(3)
-            .max_decimals(3)
-            .ui(ui)
-            .changed();
-        edited |= DragValue::new(b)
-            .speed(0.003)
-            .prefix("B: ")
-            .clamp_range(RangeInclusive::new(0., 1.))
-            .min_decimals(3)
-            .max_decimals(3)
-            .ui(ui)
-            .changed();
-        edited |= alpha != Alpha::Opaque
-            && DragValue::new(a)
-                .speed(0.003)
-                .prefix("A: ")
-                .clamp_range(RangeInclusive::new(0., 1.))
-                .min_decimals(3)
-                .max_decimals(3)
-                .ui(ui)
-                .changed();
-    });
-
-    edited
-}
-
-/// Shows 4 `DragValue` widgets to be used to edit the RGBA u8 values.
-/// Alpha's `DragValue` is hidden when `Alpha::Opaque`.
-///
-/// Returns `true` on change.
-fn srgba_edit_ui(ui: &mut Ui, rgba: &mut [u8; 4], alpha: Alpha) -> bool {
-    let [r, g, b, a] = rgba;
-
-    let mut edited = false;
-    ui.horizontal(|ui| {
-        edited |= DragValue::new(r).speed(0.5).prefix("R: ").ui(ui).changed();
-        edited |= DragValue::new(g).speed(0.5).prefix("G: ").ui(ui).changed();
-        edited |= DragValue::new(b).speed(0.5).prefix("B: ").ui(ui).changed();
-        edited |=
-            alpha != Alpha::Opaque && DragValue::new(a).speed(0.5).prefix("A: ").ui(ui).changed();
-    });
-
-    edited
-}
 /// Shows 4 `DragValue` widgets to be used to edit the RGBA f32 values.
 /// Alpha's `DragValue` is hidden when `Alpha::Opaque`.
 ///
