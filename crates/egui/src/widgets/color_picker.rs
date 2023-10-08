@@ -227,16 +227,30 @@ pub enum Alpha {
     BlendOrAdditive,
 }
 
-fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>, alpha: Alpha) {
+fn color_text_ui(ui: &mut Ui, hsvag: &HsvaGamma, alpha: Alpha) {
     use crate::style::ColorPickerInputType;
-    let color = color.into();
     ui.horizontal(|ui| {
         let [r, g, b, a] = match ui.style().visuals.color_picker_input_values_type {
-            ColorPickerInputType::U8 => color.to_array().map(|c| c.to_string()),
+            ColorPickerInputType::U8 => std::convert::Into::<Hsva>::into(*hsvag)
+                .to_srgba_unmultiplied()
+                .map(|c| c.to_string()),
             ColorPickerInputType::F32 => {
-                let rgba_premultiplied =
-                    (std::convert::Into::<Hsva>::into(color)).to_rgba_premultiplied();
-                rgba_premultiplied.map(|c| c.to_string().char_range(0..5).to_owned())
+                let mut formatted_colors = (std::convert::Into::<Hsva>::into(*hsvag))
+                    .to_rgba_unmultiplied()
+                    .map(|c| {
+                        emath::round_to_decimals(c.into(), 3)
+                            .to_string()
+                            .char_range(0..5)
+                            .to_owned()
+                    });
+                for color in &mut formatted_colors {
+                    if color.contains('.') {
+                        *color = format!("{color:0<5}");
+                    } else if *color == "1" || *color == "0" {
+                        *color = format!("{color}.000");
+                    }
+                }
+                formatted_colors
             }
         };
 
@@ -275,7 +289,7 @@ fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>, alpha: Alpha) {
                 .on_hover_text("Red Green Blue");
         } else {
             ui.label(format!("rgba({r}, {g}, {b}, {a})"))
-                .on_hover_text("Red Green Blue with premultiplied Alpha");
+                .on_hover_text("Red Green Blue Alpha");
         }
     });
 }
@@ -348,7 +362,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
     let current_color_size = vec2(ui.spacing().slider_width, ui.spacing().interact_size.y);
     show_color(ui, *hsvag, current_color_size).on_hover_text("Selected color");
 
-    color_text_ui(ui, *hsvag, alpha);
+    color_text_ui(ui, hsvag, alpha_control);
 
     if alpha == Alpha::BlendOrAdditive {
         // We signal additive blending by storing a negative alpha (a bit ironic).
