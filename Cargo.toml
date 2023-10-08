@@ -38,4 +38,4 @@ opt-level = 2
 [workspace.dependencies]
 thiserror = "1.0.37"
 #wgpu = { git = "https://github.com/gfx-rs/wgpu.git", commit = "f738551" }
-wgpu = { git = "https://github.com/gents83/wgpu.git", commit = "5d08672" }
+wgpu = { git = "https://github.com/gents83/wgpu.git", commit = "b7e518a" }
