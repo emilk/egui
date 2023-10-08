@@ -1910,15 +1910,16 @@ dependencies = [
 
 [[package]]
 name = "gpu-allocator"
-version = "0.22.0"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce95f9e2e11c2c6fadfce42b5af60005db06576f231f5c92550fdded43c423e8"
+checksum = "40fe17c8a05d60c38c0a4e5a3c802f2f1ceb66b76c67d96ffb34bef0475a7fad"
 dependencies = [
  "backtrace",
  "log",
+ "presser",
  "thiserror",
  "winapi",
- "windows 0.44.0",
+ "windows 0.51.1",
 ]
 
 [[package]]
@@ -2264,12 +2265,12 @@ dependencies = [
 
 [[package]]
 name = "khronos-egl"
-version = "4.1.0"
+version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c2352bd1d0bceb871cb9d40f24360c8133c11d7486b68b5381c1dd1a32015e3"
+checksum = "6aae1df220ece3c0ada96b8153459b67eebe9ae9212258bb0134ae60416fdf76"
 dependencies = [
  "libc",
- "libloading 0.7.4",
+ "libloading 0.8.0",
  "pkg-config",
 ]
 
@@ -2426,8 +2427,7 @@ dependencies = [
 [[package]]
 name = "metal"
 version = "0.26.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "623b5e6cefd76e58f774bd3cc0c6f5c7615c58c03a97815245a25c3c9bdee318"
+source = "git+https://github.com/gfx-rs/metal-rs/?rev=d24f1a4#d24f1a4ae92470bf87a0c65ecfe78c9299835505"
 dependencies = [
  "bitflags 2.4.0",
  "block",
@@ -2491,14 +2491,13 @@ dependencies = [
 [[package]]
 name = "naga"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1ceaaa4eedaece7e4ec08c55c640ba03dbb73fb812a6570a59bcf1930d0f70e"
+source = "git+https://github.com/gfx-rs/naga?rev=6668d0694cc51ee66c71c2ca3a1ab1081956299b#6668d0694cc51ee66c71c2ca3a1ab1081956299b"
 dependencies = [
  "bit-set",
  "bitflags 2.4.0",
  "codespan-reporting",
  "hexf-parse",
- "indexmap 1.9.3",
+ "indexmap 2.0.0",
  "log",
  "num-traits",
  "rustc-hash",
@@ -2954,6 +2953,12 @@ name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
+
+[[package]]
+name = "presser"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8cf8e6a8aa66ce33f63993ffc4ea4271eb5b0530a9002db8455ea6050c77bfa"
 
 [[package]]
 name = "prettyplease"
@@ -4277,8 +4282,7 @@ checksum = "14247bb57be4f377dfb94c72830b8ce8fc6beac03cf4bf7b9732eadd414123fc"
 [[package]]
 name = "wgpu"
 version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7472f3b69449a8ae073f6ec41d05b6f846902d92a6c45313c50cb25857b736ce"
+source = "git+https://github.com/gents83/wgpu.git#a7de4da0946376abb91eaec1fe9aed5577e14645"
 dependencies = [
  "arrayvec",
  "cfg-if",
@@ -4301,8 +4305,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecf7454d9386f602f7399225c92dd2fbdcde52c519bc8fb0bd6fbeb388075dc2"
+source = "git+https://github.com/gents83/wgpu.git#a7de4da0946376abb91eaec1fe9aed5577e14645"
 dependencies = [
  "arrayvec",
  "bit-vec",
@@ -4324,8 +4327,7 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6654a13885a17f475e8324efb46dc6986d7aaaa98353330f8de2077b153d0101"
+source = "git+https://github.com/gents83/wgpu.git#a7de4da0946376abb91eaec1fe9aed5577e14645"
 dependencies = [
  "android_system_properties",
  "arrayvec",
@@ -4343,7 +4345,7 @@ dependencies = [
  "js-sys",
  "khronos-egl",
  "libc",
- "libloading 0.8.0",
+ "libloading 0.7.4",
  "log",
  "metal",
  "naga",
@@ -4365,8 +4367,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee64d7398d0c2f9ca48922c902ef69c42d000c759f3db41e355f4a570b052b67"
+source = "git+https://github.com/gents83/wgpu.git#a7de4da0946376abb91eaec1fe9aed5577e14645"
 dependencies = [
  "bitflags 2.4.0",
  "js-sys",
