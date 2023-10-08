@@ -4282,7 +4282,7 @@ checksum = "14247bb57be4f377dfb94c72830b8ce8fc6beac03cf4bf7b9732eadd414123fc"
 [[package]]
 name = "wgpu"
 version = "0.17.0"
-source = "git+https://github.com/gents83/wgpu.git#a7de4da0946376abb91eaec1fe9aed5577e14645"
+source = "git+https://github.com/gents83/wgpu.git#5d086723c0047037ea7c954382497eb7777da3ed"
 dependencies = [
  "arrayvec",
  "cfg-if",
@@ -4305,7 +4305,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "0.17.0"
-source = "git+https://github.com/gents83/wgpu.git#a7de4da0946376abb91eaec1fe9aed5577e14645"
+source = "git+https://github.com/gents83/wgpu.git#5d086723c0047037ea7c954382497eb7777da3ed"
 dependencies = [
  "arrayvec",
  "bit-vec",
@@ -4327,7 +4327,7 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "0.17.0"
-source = "git+https://github.com/gents83/wgpu.git#a7de4da0946376abb91eaec1fe9aed5577e14645"
+source = "git+https://github.com/gents83/wgpu.git#5d086723c0047037ea7c954382497eb7777da3ed"
 dependencies = [
  "android_system_properties",
  "arrayvec",
@@ -4345,7 +4345,7 @@ dependencies = [
  "js-sys",
  "khronos-egl",
  "libc",
- "libloading 0.7.4",
+ "libloading 0.8.0",
  "log",
  "metal",
  "naga",
@@ -4367,7 +4367,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.17.0"
-source = "git+https://github.com/gents83/wgpu.git#a7de4da0946376abb91eaec1fe9aed5577e14645"
+source = "git+https://github.com/gents83/wgpu.git#5d086723c0047037ea7c954382497eb7777da3ed"
 dependencies = [
  "bitflags 2.4.0",
  "js-sys",
