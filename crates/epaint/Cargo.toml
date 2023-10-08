@@ -66,7 +66,7 @@ mint = ["emath/mint"]
 ## Allow serialization using [`serde`](https://docs.rs/serde).
 serde = ["dep:serde", "ahash/serde", "emath/serde", "ecolor/serde"]
 
-## Allow diffing serialization using [`serde`](https://docs.rs/serde).
+## Allow diffing serialization using [`serde-diff`](https://docs.rs/serde-diff).
 serde-diff = [
   "dep:serde",
   "dep:serde-diff",
