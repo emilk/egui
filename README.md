@@ -298,7 +298,7 @@ Yes! You can customize the colors, spacing, fonts and sizes of everything using 
 
 This is not yet as powerful as say CSS, [but this is going to improve soon](https://github.com/emilk/egui/issues/3284).
 
-Here is an example (from https://github.com/AlexxxRu/TinyPomodoro):
+Here is an example (from https://github.com/a-liashenko/TinyPomodoro):
 
 <img src="media/pompodoro-skin.png" width="50%">
 
@@ -332,7 +332,7 @@ If you want to embed 3D into an egui view there are two options.
 
 #### `Shape::Callback`
 Example:
-* <https://github.com/emilk/egui/blob/master/examples/custom_3d_glow.rs>
+* <https://github.com/emilk/egui/blob/master/examples/custom_3d_glow/src/main.rs>
 
 `Shape::Callback` will call your code when egui gets painted, to show anything using whatever the background rendering context is. When using [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe) this will be [`glow`](https://github.com/grovesNL/glow). Other integrations will give you other rendering contexts, if they support `Shape::Callback` at all.
 
