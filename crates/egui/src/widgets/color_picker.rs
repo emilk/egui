@@ -228,17 +228,47 @@ pub enum Alpha {
 }
 
 fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>, alpha: Alpha) {
+    use crate::style::ColorPickerInputType;
     let color = color.into();
     ui.horizontal(|ui| {
-        let [r, g, b, a] = color.to_array();
-
-        if ui.button("📋").on_hover_text("Click to copy").clicked() {
-            if alpha == Alpha::Opaque {
-                ui.ctx().copy_text(format!("{r}, {g}, {b}"));
-            } else {
-                ui.ctx().copy_text(format!("{r}, {g}, {b}, {a}"));
+        let [r, g, b, a] = match ui.style().visuals.color_picker_input_values_type {
+            ColorPickerInputType::U8 => color.to_array().map(|c| c.to_string()),
+            ColorPickerInputType::F32 => {
+                let rgba_premultiplied =
+                    (std::convert::Into::<Hsva>::into(color)).to_rgba_premultiplied();
+                rgba_premultiplied.map(|c| c.to_string().char_range(0..5).to_owned())
             }
-        }
+        };
+
+        ui.horizontal(|ui| {
+            if ui
+                .button(
+                    ui.style()
+                        .visuals
+                        .color_picker_input_values_type
+                        .to_string(),
+                )
+                .clicked()
+            {
+                let mut visuals = ui.style().visuals.clone();
+                match ui.style().visuals.color_picker_input_values_type {
+                    ColorPickerInputType::U8 => {
+                        visuals.color_picker_input_values_type = ColorPickerInputType::F32;
+                    }
+                    ColorPickerInputType::F32 => {
+                        visuals.color_picker_input_values_type = ColorPickerInputType::U8;
+                    }
+                }
+                ui.ctx().set_visuals(visuals);
+            }
+            if ui.button("📋").on_hover_text("Click to copy").clicked() {
+                if alpha == Alpha::Opaque {
+                    ui.ctx().copy_text(format!("{r}, {g}, {b}"));
+                } else {
+                    ui.ctx().copy_text(format!("{r}, {g}, {b}, {a}"));
+                }
+            }
+        });
 
         if alpha == Alpha::Opaque {
             ui.label(format!("rgb({r}, {g}, {b})"))
@@ -251,58 +281,67 @@ fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>, alpha: Alpha) {
 }
 
 fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
+    use crate::style::ColorPickerInputType;
+
     // Send an Opaque Alpha also when Alpha is BlendOrAdditive with negative alpha value (signals Additive blending),
     // so to hide the alpha's DragValue in both cases.
     let alpha_control = if hsvag.a < 0.0 { Alpha::Opaque } else { alpha };
 
-    let mut srgba_unmultiplied = (std::convert::Into::<Hsva>::into(*hsvag)).to_srgba_unmultiplied();
-    // Update hsvag only if the converted srgba is changed, this is because hsvag is made of f32,
-    // and the conversion between u8 and f32 loses a bit of the color precision, causing little flickering on hsvag based ui widgets.
-    if srgba_edit_ui(ui, &mut srgba_unmultiplied, alpha_control) {
-        // Additive blending, signaled by the negative Alpha.
-        if hsvag.a < 0.0 {
-            let stored_a = hsvag.a;
-            // Alpha to 0 instead of negative, so it won't pop back to Normal blending when RGB are modified.
-            srgba_unmultiplied[3] = 0;
-            // This conversion above sets Alpha to 0 in case it was negative, stored_a is used to back-up that value.
-            *hsvag = HsvaGamma::from(Hsva::from_srgba_unmultiplied(srgba_unmultiplied));
-            // stored_a keeps the Alpha value that was set during Normal blending so that in case we alter RGB in Additive blending (negative Alpha)
-            // and then switch back to Normal blending it gets that Alpha value back.
-            hsvag.a = stored_a;
+    match ui.style().visuals.color_picker_input_values_type {
+        ColorPickerInputType::U8 => {
+            let mut srgba_unmultiplied =
+                (std::convert::Into::<Hsva>::into(*hsvag)).to_srgba_unmultiplied();
+            // Update hsvag only if the converted srgba is changed, this is because hsvag is made of f32,
+            // and the conversion between u8 and f32 loses a bit of the color precision, causing little flickering on hsvag based ui widgets.
+            if srgba_edit_ui(ui, &mut srgba_unmultiplied, alpha_control) {
+                // Additive blending, signaled by the negative Alpha.
+                if hsvag.a < 0.0 {
+                    let stored_a = hsvag.a;
+                    // Alpha to 0 instead of negative, so it won't pop back to Normal blending when RGB are modified.
+                    srgba_unmultiplied[3] = 0;
+                    // This conversion above sets Alpha to 0 in case it was negative, stored_a is used to back-up that value.
+                    *hsvag = HsvaGamma::from(Hsva::from_srgba_unmultiplied(srgba_unmultiplied));
+                    // stored_a keeps the Alpha value that was set during Normal blending so that in case we alter RGB in Additive blending (negative Alpha)
+                    // and then switch back to Normal blending it gets that Alpha value back.
+                    hsvag.a = stored_a;
+                }
+                // Normal blending.
+                else {
+                    *hsvag = HsvaGamma::from(Hsva::from_srgba_unmultiplied(srgba_unmultiplied));
+                }
+            }
         }
-        // Normal blending.
-        else {
-            *hsvag = HsvaGamma::from(Hsva::from_srgba_unmultiplied(srgba_unmultiplied));
-        }
-    }
-
-    let mut rgba_unmultiplied = (std::convert::Into::<Hsva>::into(*hsvag)).to_rgba_unmultiplied();
-    // Update hsvag only if the converted srgba is changed, this is because hsvag is made of f32,
-    // and the conversion between u8 and f32 loses a bit of the color precision, causing little flickering on hsvag based ui widgets.
-    if rgba_edit_ui(ui, &mut rgba_unmultiplied, alpha_control) {
-        // Additive blending, signaled by the negative Alpha.
-        if hsvag.a < 0.0 {
-            let stored_a = hsvag.a;
-            // Alpha to 0 instead of negative, so it won't pop back to Normal blending when RGB are modified.
-            rgba_unmultiplied[3] = 0.0;
-            // This conversion above sets Alpha to 0 in case it was negative, stored_a is used to back-up that value.
-            *hsvag = HsvaGamma::from(Hsva::from_rgb([
-                rgba_unmultiplied[0],
-                rgba_unmultiplied[1],
-                rgba_unmultiplied[2],
-            ]));
-            // stored_a keeps the Alpha value that was set during Normal blending so that in case we alter RGB in Additive blending (negative Alpha)
-            // and then switch back to Normal blending it gets that Alpha value back.
-            hsvag.a = stored_a;
-        }
-        // Normal blending.
-        else {
-            *hsvag = HsvaGamma::from(Hsva::from_rgba_unmultiplied(
-                rgba_unmultiplied[0],
-                rgba_unmultiplied[1],
-                rgba_unmultiplied[2],
-                rgba_unmultiplied[3],
-            ));
+        ColorPickerInputType::F32 => {
+            let mut rgba_unmultiplied =
+                (std::convert::Into::<Hsva>::into(*hsvag)).to_rgba_unmultiplied();
+            // Update hsvag only if the converted srgba is changed, this is because hsvag is made of f32,
+            // and the conversion between u8 and f32 loses a bit of the color precision, causing little flickering on hsvag based ui widgets.
+            if rgba_edit_ui(ui, &mut rgba_unmultiplied, alpha_control) {
+                // Additive blending, signaled by the negative Alpha.
+                if hsvag.a < 0.0 {
+                    let stored_a = hsvag.a;
+                    // Alpha to 0 instead of negative, so it won't pop back to Normal blending when RGB are modified.
+                    rgba_unmultiplied[3] = 0.0;
+                    // This conversion above sets Alpha to 0 in case it was negative, stored_a is used to back-up that value.
+                    *hsvag = HsvaGamma::from(Hsva::from_rgb([
+                        rgba_unmultiplied[0],
+                        rgba_unmultiplied[1],
+                        rgba_unmultiplied[2],
+                    ]));
+                    // stored_a keeps the Alpha value that was set during Normal blending so that in case we alter RGB in Additive blending (negative Alpha)
+                    // and then switch back to Normal blending it gets that Alpha value back.
+                    hsvag.a = stored_a;
+                }
+                // Normal blending.
+                else {
+                    *hsvag = HsvaGamma::from(Hsva::from_rgba_unmultiplied(
+                        rgba_unmultiplied[0],
+                        rgba_unmultiplied[1],
+                        rgba_unmultiplied[2],
+                        rgba_unmultiplied[3],
+                    ));
+                }
+            }
         }
     }
 
@@ -329,9 +368,33 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
             }
         });
     }
-    let additive = hsvag.a < 0.0;
 
     let opaque = HsvaGamma { a: 1.0, ..*hsvag };
+
+    let HsvaGamma { h, s, v, a: _ } = hsvag;
+
+    if false {
+        color_slider_1d(ui, s, |s| HsvaGamma { s, ..opaque }.into()).on_hover_text("Saturation");
+    }
+
+    if false {
+        color_slider_1d(ui, v, |v| HsvaGamma { v, ..opaque }.into()).on_hover_text("Value");
+    }
+
+    color_slider_2d(ui, s, v, |s, v| HsvaGamma { s, v, ..opaque }.into());
+
+    color_slider_1d(ui, h, |h| {
+        HsvaGamma {
+            h,
+            s: 1.0,
+            v: 1.0,
+            a: 1.0,
+        }
+        .into()
+    })
+    .on_hover_text("Hue");
+
+    let additive = hsvag.a < 0.0;
 
     if alpha == Alpha::Opaque {
         hsvag.a = 1.0;
@@ -347,29 +410,6 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
             color_slider_1d(ui, a, |a| HsvaGamma { a, ..opaque }.into()).on_hover_text("Alpha");
         }
     }
-
-    let HsvaGamma { h, s, v, a: _ } = hsvag;
-
-    color_slider_1d(ui, h, |h| {
-        HsvaGamma {
-            h,
-            s: 1.0,
-            v: 1.0,
-            a: 1.0,
-        }
-        .into()
-    })
-    .on_hover_text("Hue");
-
-    if false {
-        color_slider_1d(ui, s, |s| HsvaGamma { s, ..opaque }.into()).on_hover_text("Saturation");
-    }
-
-    if false {
-        color_slider_1d(ui, v, |v| HsvaGamma { v, ..opaque }.into()).on_hover_text("Value");
-    }
-
-    color_slider_2d(ui, s, v, |s, v| HsvaGamma { s, v, ..opaque }.into());
 }
 
 /// Shows 4 `DragValue` widgets to be used to edit the RGBA u8 values.
@@ -480,7 +520,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
         ui.memory_mut(|mem| mem.toggle_popup(popup_id));
     }
 
-    const COLOR_SLIDER_WIDTH: f32 = 210.0;
+    const COLOR_SLIDER_WIDTH: f32 = 240.0;
 
     // TODO(emilk): make it easier to show a temporary popup that closes when you click outside it
     if ui.memory(|mem| mem.is_popup_open(popup_id)) {

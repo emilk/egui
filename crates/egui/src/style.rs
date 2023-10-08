@@ -559,6 +559,9 @@ pub struct Visuals {
 
     /// Show a spinner when loading an image.
     pub image_loading_spinners: bool,
+
+    /// Sets the color picker's input values type.
+    pub color_picker_input_values_type: ColorPickerInputType,
 }
 
 impl Visuals {
@@ -867,6 +870,8 @@ impl Visuals {
             interact_cursor: None,
 
             image_loading_spinners: true,
+
+            color_picker_input_values_type: ColorPickerInputType::U8,
         }
     }
 
@@ -1443,6 +1448,8 @@ impl Visuals {
             interact_cursor,
 
             image_loading_spinners,
+
+            color_picker_input_values_type: _,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1517,6 +1524,9 @@ impl Visuals {
                     ui.selectable_value(interact_cursor, Some(icon), format!("{icon:?}"));
                 }
             });
+
+        ui.checkbox(image_loading_spinners, "Image loading spinners")
+            .on_hover_text("Show a spinner when an Image is loading");
 
         ui.checkbox(image_loading_spinners, "Image loading spinners")
             .on_hover_text("Show a spinner when an Image is loading");
@@ -1629,4 +1639,20 @@ fn rounding_ui(ui: &mut Ui, rounding: &mut Rounding) {
             }
         }
     });
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum ColorPickerInputType {
+    U8,
+    F32,
+}
+
+impl std::fmt::Display for ColorPickerInputType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ColorPickerInputType::U8 => write!(f, "U8"),
+            ColorPickerInputType::F32 => write!(f, "F32"),
+        }
+    }
 }
