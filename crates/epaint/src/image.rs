@@ -9,7 +9,10 @@ use crate::{textures::TextureOptions, Color32};
 /// See also: [`ColorImage`], [`FontImage`].
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 pub enum ImageData {
     /// RGBA image.
     Color(ColorImage),
@@ -46,7 +49,10 @@ impl ImageData {
 /// A 2D RGBA color image in RAM.
 #[derive(Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 pub struct ColorImage {
     /// width, height.
     pub size: [usize; 2],
@@ -232,7 +238,10 @@ impl From<ColorImage> for ImageData {
 /// This is roughly interpreted as the opacity of a white image.
 #[derive(Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 pub struct FontImage {
     /// width, height
     pub size: [usize; 2],
@@ -335,7 +344,10 @@ fn fast_round(r: f32) -> u8 {
 /// Either a whole new image, or an update to a rectangular region of it.
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 #[must_use = "The painter must take care of this"]
 pub struct ImageDelta {
     /// What to set the texture to.

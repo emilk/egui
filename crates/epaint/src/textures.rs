@@ -148,7 +148,10 @@ impl TextureMeta {
 /// How the texture texels are filtered.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 pub struct TextureOptions {
     /// How to filter when magnifying (when texels are larger than pixels).
     pub magnification: TextureFilter,
@@ -181,7 +184,10 @@ impl Default for TextureOptions {
 /// How the texture texels are filtered.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 pub enum TextureFilter {
     /// Show the nearest pixel value.
     ///
@@ -200,7 +206,10 @@ pub enum TextureFilter {
 /// These are commands given to the integration painter.
 #[derive(Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 #[must_use = "The painter must take care of this"]
 pub struct TexturesDelta {
     /// New or changed textures. Apply before painting.

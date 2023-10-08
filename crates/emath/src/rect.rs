@@ -17,7 +17,10 @@ use crate::*;
 #[repr(C)]
 #[derive(Clone, Copy, Eq, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Rect {
     /// One of the corners of the rectangle, usually the left top one.

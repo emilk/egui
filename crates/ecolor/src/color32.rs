@@ -10,7 +10,10 @@ use crate::{gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_f32_from_
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Color32(pub(crate) [u8; 4]);
 

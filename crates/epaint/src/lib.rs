@@ -95,7 +95,10 @@ impl Default for TextureId {
 /// Everything is using logical points.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 pub struct ClippedShape(
     /// Clip / scissor rectangle.
     /// Only show the part of the [`Shape`] that falls within this.

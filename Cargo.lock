@@ -3227,6 +3227,8 @@ dependencies = [
 [[package]]
 name = "serde-diff"
 version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b956d904dea556a339d23adeaaf0e672275a030ba78ce0db644781c2756c5ea"
 dependencies = [
  "serde",
  "serde-diff-derive",
@@ -3236,6 +3238,8 @@ dependencies = [
 [[package]]
 name = "serde-diff-derive"
 version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "692563b61324ae1568e2884c7a6385ab4b95f13063fd31a6b702d5cbc5c456df"
 dependencies = [
  "darling 0.10.2",
  "proc-macro2",

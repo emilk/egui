@@ -8,7 +8,10 @@ use emath::*;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg(not(feature = "unity"))]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 #[cfg_attr(feature = "bytemuck", derive(bytemuck::Pod, bytemuck::Zeroable))]
 pub struct Vertex {
     /// Logical pixel coordinates (points).
@@ -46,7 +49,10 @@ pub struct Vertex {
 /// Textured triangles in two dimensions.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 pub struct Mesh {
     /// Draw as triangles (i.e. the length is always multiple of three).
     ///

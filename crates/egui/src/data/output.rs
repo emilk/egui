@@ -7,7 +7,10 @@ use crate::WidgetType;
 /// The backend should use this.
 #[derive(Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 pub struct FullOutput {
     /// Non-rendering related output.
     pub platform_output: PlatformOutput,
@@ -58,7 +61,10 @@ impl FullOutput {
 /// The backend should use this.
 #[derive(Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 pub struct PlatformOutput {
     /// Set the cursor to this icon.
     pub cursor_icon: CursorIcon,
@@ -90,7 +96,7 @@ pub struct PlatformOutput {
     pub text_cursor_pos: Option<crate::Pos2>,
 
     #[cfg(feature = "accesskit")]
-    #[cfg_attr(feature = "serde-diff", serde_diff(opaque))]
+    #[cfg_attr(feature = "serde", serde_diff(opaque))]
     pub accesskit_update: Option<accesskit::TreeUpdate>,
 }
 
@@ -162,7 +168,10 @@ impl PlatformOutput {
 /// What URL to open, and how.
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 pub struct OpenUrl {
     pub url: String,
 
@@ -214,7 +223,10 @@ pub enum UserAttentionType {
 /// Loosely based on <https://developer.mozilla.org/en-US/docs/Web/CSS/cursor>.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 pub enum CursorIcon {
     /// Normal cursor icon, whatever that is.
     Default,
@@ -387,7 +399,10 @@ impl Default for CursorIcon {
 /// In particular, these events may be useful for accessibility, i.e. for screen readers.
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 pub enum OutputEvent {
     /// A widget was clicked.
     Clicked(WidgetInfo),
@@ -437,7 +452,10 @@ impl std::fmt::Debug for OutputEvent {
 /// Describes a widget such as a [`crate::Button`] or a [`crate::TextEdit`].
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[cfg_attr(feature = "serde-diff", derive(serde_diff::SerdeDiff))]
+#[cfg_attr(
+    all(feature = "serde-diff", feature = "serde"),
+    derive(serde_diff::SerdeDiff)
+)]
 pub struct WidgetInfo {
     /// The type of widget this is.
     pub typ: WidgetType,
@@ -461,7 +479,7 @@ pub struct WidgetInfo {
     pub value: Option<f64>,
 
     /// Selected range of characters in [`Self::current_text_value`].
-    #[cfg_attr(feature = "serde-diff", serde_diff(opaque))]
+    #[cfg_attr(feature = "serde", serde_diff(opaque))]
     pub text_selection: Option<std::ops::RangeInclusive<usize>>,
 }
 
