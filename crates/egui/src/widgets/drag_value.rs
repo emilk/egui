@@ -473,13 +473,21 @@ impl<'a> Widget for DragValue<'a> {
 
         let text_style = ui.style().drag_value_text_style.clone();
 
+        // We draw both the TextEdit and the Button in all cases, making one of them invisible as
+        // appropriate, in order to ensure the Ids and focus are maintained when the state changes,
+        // otherwise the widget does not update the value properly when we change focus using tab.
+
         // some clones below are redundant if AccessKit is disabled
         #[allow(clippy::redundant_clone)]
-        let mut response = if is_kb_editing {
-            let mut value_text = ui
-                .memory_mut(|mem| mem.drag_value.edit_string.take())
-                .unwrap_or_else(|| value_text.clone());
-            let response = ui.add(
+        let response_textedit = {
+            let mut value_text = if is_kb_editing || ui.memory(|mem| mem.had_focus_last_frame(id)) {
+                ui.memory_mut(|mem| mem.drag_value.edit_string.take())
+                    .unwrap_or_else(|| value_text.clone())
+            } else {
+                String::new()
+            };
+            let response = ui.add_visible(
+                is_kb_editing,
                 TextEdit::singleline(&mut value_text)
                     .clip_text(false)
                     .horizontal_align(ui.layout().horizontal_align())
@@ -488,7 +496,7 @@ impl<'a> Widget for DragValue<'a> {
                     .min_size(ui.spacing().interact_size)
                     .id(id)
                     .desired_width(ui.spacing().interact_size.x)
-                    .font(text_style),
+                    .font(text_style.clone()),
             );
 
             let update = if update_while_editing {
@@ -508,9 +516,15 @@ impl<'a> Widget for DragValue<'a> {
                     set(&mut get_set_value, parsed_value);
                 }
             }
-            ui.memory_mut(|mem| mem.drag_value.edit_string = Some(value_text));
+            if is_kb_editing {
+                ui.memory_mut(|mem| mem.drag_value.edit_string = Some(value_text));
+            }
             response
-        } else {
+        };
+
+        // some clones below are redundant if AccessKit is disabled
+        #[allow(clippy::redundant_clone)]
+        let response_button = {
             let button = Button::new(
                 RichText::new(format!("{}{}{}", prefix, value_text.clone(), suffix))
                     .text_style(text_style),
@@ -519,7 +533,9 @@ impl<'a> Widget for DragValue<'a> {
             .sense(Sense::click_and_drag())
             .min_size(ui.spacing().interact_size); // TODO(emilk): find some more generic solution to `min_size`
 
-            let response = ui.add(button);
+            let response = ui.put(response_textedit.rect, |ui: &mut Ui| {
+                ui.add_visible(!is_kb_editing, button)
+            });
             let mut response = response.on_hover_cursor(CursorIcon::ResizeHorizontal);
 
             if ui.style().explanation_tooltips {
@@ -579,6 +595,11 @@ impl<'a> Widget for DragValue<'a> {
             }
 
             response
+        };
+        let mut response = if is_kb_editing {
+            response_textedit
+        } else {
+            response_button
         };
 
         response.changed = get(&mut get_set_value) != old_value;
