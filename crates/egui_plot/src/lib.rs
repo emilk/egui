@@ -1405,7 +1405,7 @@ impl PlotUi {
         Vec2::new(delta.x / dp_dv[0] as f32, delta.y / dp_dv[1] as f32)
     }
 
-    /// Read the transform netween plot coordinates and screen coordinates.
+    /// Read the transform between plot coordinates and screen coordinates.
     pub fn transform(&self) -> &PlotTransform {
         &self.last_plot_transform
     }
