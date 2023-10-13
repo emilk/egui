@@ -34,7 +34,7 @@ clipboard = ["egui-winit?/clipboard"]
 
 ## For the `winit` integration:
 ## enable opening links in a browser when an egui hyperlink is clicked.
-links = ["egui-winit?/links"]
+links = ["egui-winit?/links", "webbrowser"]
 
 ## Enable profiling with the [`puffin`](https://docs.rs/puffin) crate.
 puffin = ["dep:puffin", "egui-winit?/puffin", "egui/puffin"]
@@ -42,6 +42,8 @@ puffin = ["dep:puffin", "egui-winit?/puffin", "egui/puffin"]
 ## Enable [`winit`](https://docs.rs/winit) integration.
 winit = ["egui-winit"]
 
+## Enable [`sdl2`](https://docs.rs/sdl2) integration.
+sdl2 = ["dep:sdl2"]
 
 [dependencies]
 egui = { version = "0.23.0", path = "../egui", default-features = false, features = [
@@ -61,6 +63,11 @@ document-features = { version = "0.2", optional = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 egui-winit = { version = "0.23.0", path = "../egui-winit", optional = true, default-features = false }
 puffin = { version = "0.16", optional = true }
+sdl2 = { git = "https://github.com/Rust-SDL2/rust-sdl2.git", features = [
+  "bundled",
+  "static-link",
+], optional = true }
+webbrowser = { version = "0.8.3", optional = true }
 
 # Web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -69,11 +76,21 @@ wasm-bindgen = { version = "0.2" }
 
 
 [dev-dependencies]
-glutin = "0.30"             # examples/pure_glow
-raw-window-handle = "0.5.0"
+# examples/pure_glow_winit
+glutin = "0.30"
 glutin-winit = "0.3.0"
-
+raw-window-handle = "0.5.0"
+# examples/pure_glow_sdl2
+env_logger = "0.10"
+sdl2 = { git = "https://github.com/Rust-SDL2/rust-sdl2.git", features = [
+  "bundled",
+  "static-link",
+] }
 
 [[example]]
-name = "pure_glow"
+name = "pure_glow_winit"
 required-features = ["winit", "egui/default_fonts"]
+
+[[example]]
+name = "pure_glow_sdl2"
+required-features = ["sdl2", "egui/default_fonts"]

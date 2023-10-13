@@ -778,6 +778,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cmake"
+version = "0.1.50"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a31c789563b815f77f4250caee12365734369f942439b7defd71e18a48197130"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "cocoa"
 version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1336,6 +1345,7 @@ dependencies = [
  "document-features",
  "egui",
  "egui-winit",
+ "env_logger",
  "glow",
  "glutin",
  "glutin-winit",
@@ -1343,8 +1353,10 @@ dependencies = [
  "memoffset 0.6.5",
  "puffin",
  "raw-window-handle",
+ "sdl2",
  "wasm-bindgen",
  "web-sys",
+ "webbrowser",
 ]
 
 [[package]]
@@ -3378,6 +3390,28 @@ dependencies = [
  "memmap2",
  "smithay-client-toolkit",
  "tiny-skia",
+]
+
+[[package]]
+name = "sdl2"
+version = "0.35.2"
+source = "git+https://github.com/Rust-SDL2/rust-sdl2.git#bee13b588e7dc6131547ea80bfd03428491ebb5f"
+dependencies = [
+ "bitflags 1.3.2",
+ "lazy_static",
+ "libc",
+ "sdl2-sys",
+]
+
+[[package]]
+name = "sdl2-sys"
+version = "0.35.2"
+source = "git+https://github.com/Rust-SDL2/rust-sdl2.git#bee13b588e7dc6131547ea80bfd03428491ebb5f"
+dependencies = [
+ "cfg-if",
+ "cmake",
+ "libc",
+ "version-compare",
 ]
 
 [[package]]
