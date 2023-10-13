@@ -629,8 +629,8 @@ mod glow_integration {
             Ok(())
         }
 
-        fn window(&self) -> &winit::window::Window {
-            self.window.as_ref().expect("winit window doesn't exist")
+        fn window(&self) -> Option<&winit::window::Window> {
+            self.window.as_ref()
         }
 
         fn resize(&self, physical_size: winit::dpi::PhysicalSize<u32>) {
@@ -749,17 +749,23 @@ mod glow_integration {
                 &self.app_name,
                 &mut self.native_options,
             )?;
+
+            let window = gl_window
+                .window
+                .as_ref()
+                .expect("Window is expected to be valid at this point");
+
             let gl = Arc::new(gl);
 
             let painter =
                 egui_glow::Painter::new(gl.clone(), "", self.native_options.shader_version)
                     .unwrap_or_else(|err| panic!("An OpenGL error occurred: {err}\n"));
 
-            let system_theme = system_theme(gl_window.window(), &self.native_options);
+            let system_theme = system_theme(window, &self.native_options);
             let mut integration = epi_integration::EpiIntegration::new(
                 event_loop,
                 painter.max_texture_side(),
-                gl_window.window(),
+                window,
                 system_theme,
                 &self.app_name,
                 &self.native_options,
@@ -770,13 +776,13 @@ mod glow_integration {
             );
             #[cfg(feature = "accesskit")]
             {
-                integration.init_accesskit(gl_window.window(), self.repaint_proxy.lock().clone());
+                integration.init_accesskit(window, self.repaint_proxy.lock().clone());
             }
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
 
             if self.native_options.mouse_passthrough {
-                gl_window.window().set_cursor_hittest(false).unwrap();
+                window.set_cursor_hittest(false).unwrap();
             }
 
             {
@@ -803,12 +809,12 @@ mod glow_integration {
                 gl: Some(gl.clone()),
                 #[cfg(feature = "wgpu")]
                 wgpu_render_state: None,
-                raw_display_handle: gl_window.window().raw_display_handle(),
-                raw_window_handle: gl_window.window().raw_window_handle(),
+                raw_display_handle: window.raw_display_handle(),
+                raw_window_handle: window.raw_window_handle(),
             });
 
             if app.warm_up_enabled() {
-                integration.warm_up(app.as_mut(), gl_window.window());
+                integration.warm_up(app.as_mut(), window);
             }
 
             self.running = Some(GlowWinitRunning {
@@ -839,7 +845,7 @@ mod glow_integration {
         }
 
         fn window(&self) -> Option<&winit::window::Window> {
-            self.running.as_ref().map(|r| r.gl_window.window())
+            self.running.as_ref().and_then(|r| r.gl_window.window())
         }
 
         fn save_and_destroy(&mut self) {
@@ -874,7 +880,10 @@ mod glow_integration {
                 painter,
             } = running;
 
-            let window = gl_window.window();
+            let window = gl_window
+                .window
+                .as_ref()
+                .expect("Window is expected to be valid at this point");
 
             let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
