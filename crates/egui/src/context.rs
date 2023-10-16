@@ -1291,7 +1291,6 @@ impl Context {
             crate::profile_scope!("accesskit");
             let state = self.frame_state_mut(|fs| fs.accesskit_state.take());
             if let Some(state) = state {
-                let has_focus = self.input(|i| i.raw.focused);
                 let root_id = crate::accesskit_root_id().accesskit_id();
                 let nodes = self.write(|ctx| {
                     state
@@ -1305,13 +1304,13 @@ impl Context {
                         })
                         .collect()
                 });
+                let focus_id = self
+                    .memory(|mem| mem.focus())
+                    .map_or(root_id, |id| id.accesskit_id());
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
                     nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
-                    focus: has_focus.then(|| {
-                        let focus_id = self.memory(|mem| mem.focus());
-                        focus_id.map_or(root_id, |id| id.accesskit_id())
-                    }),
+                    focus: focus_id,
                 });
             }
         }
@@ -1941,7 +1940,7 @@ impl Context {
                 NodeBuilder::new(Role::Window).build(&mut ctx.accesskit_node_classes),
             )],
             tree: Some(Tree::new(root_id)),
-            focus: None,
+            focus: root_id,
         })
     }
 }
