@@ -4,7 +4,7 @@
 //! will get you up and running quickly with its reasonable default implementations of the traits described below.
 //!
 //! 1. Add [`egui_extras`](https://crates.io/crates/egui_extras/) as a dependency with the `all_loaders` feature.
-//! 2. Add a call to [`egui_extras::install_image_loaders`](https://docs.rs/egui_extras/latest/egui_extras/loaders/fn.install.html)
+//! 2. Add a call to [`egui_extras::install_image_loaders`](https://docs.rs/egui_extras/latest/egui_extras/fn.install_image_loaders.html)
 //!    in your app's setup code.
 //! 3. Use [`Ui::image`][`crate::ui::Ui::image`] with some [`ImageSource`][`crate::ImageSource`].
 //!
@@ -55,17 +55,20 @@
 mod bytes_loader;
 mod texture_loader;
 
-use crate::Context;
+use std::borrow::Cow;
+use std::fmt::Debug;
+use std::ops::Deref;
+use std::{error::Error as StdError, fmt::Display, sync::Arc};
+
 use ahash::HashMap;
+
 use epaint::mutex::Mutex;
 use epaint::util::FloatOrd;
 use epaint::util::OrderedFloat;
 use epaint::TextureHandle;
 use epaint::{textures::TextureOptions, ColorImage, TextureId, Vec2};
-use std::borrow::Cow;
-use std::fmt::Debug;
-use std::ops::Deref;
-use std::{error::Error as StdError, fmt::Display, sync::Arc};
+
+use crate::Context;
 
 pub use self::bytes_loader::DefaultBytesLoader;
 pub use self::texture_loader::DefaultTextureLoader;
@@ -76,15 +79,15 @@ pub enum LoadError {
     /// Programmer error: There are no image loaders installed.
     NoImageLoaders,
 
-    /// A specific loader does not support this schema, protocol or image format.
+    /// A specific loader does not support this scheme, protocol or image format.
     NotSupported,
 
     /// Programmer error: Failed to find the bytes for this image because
-    /// there was no [`BytesLoader`] supporting the schema.
+    /// there was no [`BytesLoader`] supporting the scheme.
     NoMatchingBytesLoader,
 
     /// Programmer error: Failed to parse the bytes as an image because
-    /// there was no [`ImageLoader`] supporting the schema.
+    /// there was no [`ImageLoader`] supporting the scheme.
     NoMatchingImageLoader,
 
     /// Programmer error: no matching [`TextureLoader`].
@@ -108,7 +111,7 @@ impl Display for LoadError {
 
             Self::NoMatchingTextureLoader => f.write_str("No matching TextureLoader. Did you remove the default one?"),
 
-            Self::NotSupported => f.write_str("Iagge schema or URI not supported by this loader"),
+            Self::NotSupported => f.write_str("Image scheme or URI not supported by this loader"),
 
             Self::Loading(message) => f.write_str(message),
         }

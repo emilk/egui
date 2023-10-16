@@ -1,6 +1,6 @@
 [package]
 name = "egui_extras"
-version = "0.22.0"
+version = "0.23.0"
 authors = [
   "Dominik Rössler <dominik@freshx.de>",
   "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
@@ -24,7 +24,7 @@ all-features = true
 
 
 [features]
-default = ["dep:mime_guess"]
+default = ["dep:mime_guess2"]
 
 ## Shorthand for enabling the different types of image loaders (`file`, `http`, `image`, `svg`).
 all_loaders = ["file", "http", "image", "svg"]
@@ -33,7 +33,7 @@ all_loaders = ["file", "http", "image", "svg"]
 datepicker = ["chrono"]
 
 ## Add support for loading images from `file://` URIs.
-file = ["dep:mime_guess"]
+file = ["dep:mime_guess2"]
 
 ## Add support for loading images via HTTP.
 http = ["dep:ehttp"]
@@ -42,7 +42,8 @@ http = ["dep:ehttp"]
 ##
 ## You also need to ALSO opt-in to the image formats you want to support, like so:
 ## ```toml
-## image = { version = "0.24", features = ["jpeg", "png"] }
+## image = { version = "0.24", features = ["jpeg", "png"] } # Add the types you want support for
+
 ## ```
 image = ["dep:image"]
 
@@ -59,7 +60,7 @@ syntect = ["dep:syntect"]
 
 
 [dependencies]
-egui = { version = "0.22.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.23.0", path = "../egui", default-features = false, features = [
   "serde",
 ] }
 enum-map = { version = "2", features = ["serde"] }
@@ -82,7 +83,7 @@ document-features = { version = "0.2", optional = true }
 image = { version = "0.24", optional = true, default-features = false }
 
 # file feature
-mime_guess = { version = "2.0.4", optional = true, default-features = false }
+mime_guess2 = { version = "2", optional = true, default-features = false }
 
 puffin = { version = "0.16", optional = true }
 
@@ -96,4 +97,4 @@ tiny-skia = { version = "0.8", optional = true, default-features = false } # mus
 usvg = { version = "0.28", optional = true, default-features = false }
 
 # http feature
-ehttp = { version = "0.3.0", optional = true, default-features = false }
+ehttp = { version = "0.3.1", optional = true, default-features = false }

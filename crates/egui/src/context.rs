@@ -551,10 +551,6 @@ impl Context {
     ) -> R {
         self.write(move |ctx| writer(&mut ctx.memory.options.tessellation_options))
     }
-}
-
-impl Context {
-    // ---------------------------------------------------------------------
 
     /// If the given [`Id`] has been used previously the same frame at at different position,
     /// then an error will be printed on screen.
@@ -666,6 +662,7 @@ impl Context {
         // This solves the problem of overlapping widgets.
         // Whichever widget is added LAST (=on top) gets the input:
         if interact_rect.is_positive() && sense.interactive() {
+            #[cfg(debug_assertions)]
             if self.style().debug.show_interactive_widgets {
                 Self::layer_painter(self, LayerId::debug()).rect(
                     interact_rect,
@@ -674,6 +671,8 @@ impl Context {
                     Stroke::new(1.0, Color32::YELLOW.additive().linear_multiply(0.05)),
                 );
             }
+
+            #[cfg(debug_assertions)]
             let mut show_blocking_widget = None;
 
             self.write(|ctx| {
@@ -694,6 +693,7 @@ impl Context {
                                     // Another interactive widget is covering us at the pointer position,
                                     // so we aren't hovered.
 
+                                    #[cfg(debug_assertions)]
                                     if ctx.memory.options.style.debug.show_blocking_widget {
                                         // Store the rects to use them outside the write() call to
                                         // avoid deadlock
@@ -709,6 +709,7 @@ impl Context {
                 }
             });
 
+            #[cfg(debug_assertions)]
             if let Some((interact_rect, prev_rect)) = show_blocking_widget {
                 Self::layer_painter(self, LayerId::debug()).debug_rect(
                     interact_rect,
@@ -919,6 +920,31 @@ impl Context {
         self.output_mut(|o| o.cursor_icon = cursor_icon);
     }
 
+    /// Open an URL in a browser.
+    ///
+    /// Equivalent to:
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// # let open_url = egui::OpenUrl::same_tab("http://www.example.com");
+    /// ctx.output_mut(|o| o.open_url = Some(open_url));
+    /// ```
+    pub fn open_url(&self, open_url: crate::OpenUrl) {
+        self.output_mut(|o| o.open_url = Some(open_url));
+    }
+
+    /// Copy the given text to the system clipboard.
+    ///
+    /// Empty strings are ignored.
+    ///
+    /// Equivalent to:
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// ctx.output_mut(|o| o.copied_text = "Copy this".to_owned());
+    /// ```
+    pub fn copy_text(&self, text: String) {
+        self.output_mut(|o| o.copied_text = text);
+    }
+
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
     ///
     /// Can be used to get the text for [`Button::shortcut_text`].
@@ -1049,17 +1075,24 @@ impl Context {
         self.options(|opt| opt.style.clone())
     }
 
-    /// The [`Style`] used by all new windows, panels etc.
-    ///
-    /// You can also use [`Ui::style_mut`] to change the style of a single [`Ui`].
+    /// Mutate the [`Style`] used by all subsequent windows, panels etc.
     ///
     /// Example:
     /// ```
     /// # let mut ctx = egui::Context::default();
-    /// let mut style: egui::Style = (*ctx.style()).clone();
-    /// style.spacing.item_spacing = egui::vec2(10.0, 20.0);
-    /// ctx.set_style(style);
+    /// ctx.style_mut(|style| {
+    ///     style.spacing.item_spacing = egui::vec2(10.0, 20.0);
+    /// });
     /// ```
+    pub fn style_mut(&self, mutate_style: impl FnOnce(&mut Style)) {
+        self.options_mut(|opt| mutate_style(std::sync::Arc::make_mut(&mut opt.style)));
+    }
+
+    /// The [`Style`] used by all new windows, panels etc.
+    ///
+    /// You can also change this using [`Self::style_mut]`
+    ///
+    /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
     pub fn set_style(&self, style: impl Into<Arc<Style>>) {
         self.options_mut(|opt| opt.style = style.into());
     }
@@ -1251,7 +1284,7 @@ impl Context {
         });
 
         #[cfg_attr(not(feature = "accesskit"), allow(unused_mut))]
-        let mut platform_output: PlatformOutput = self.output_mut(|o| std::mem::take(o));
+        let mut platform_output: PlatformOutput = self.output_mut(std::mem::take);
 
         #[cfg(feature = "accesskit")]
         {
@@ -1276,7 +1309,7 @@ impl Context {
                     nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
                     focus: has_focus.then(|| {
-                        let focus_id = self.memory(|mem| mem.interaction.focus.id);
+                        let focus_id = self.memory(|mem| mem.focus());
                         focus_id.map_or(root_id, |id| id.accesskit_id())
                     }),
                 });
@@ -1500,15 +1533,15 @@ impl Context {
     // ---------------------------------------------------------------------
 
     /// Whether or not to debug widget layout on hover.
+    #[cfg(debug_assertions)]
     pub fn debug_on_hover(&self) -> bool {
         self.options(|opt| opt.style.debug.debug_on_hover)
     }
 
     /// Turn on/off whether or not to debug widget layout on hover.
+    #[cfg(debug_assertions)]
     pub fn set_debug_on_hover(&self, debug_on_hover: bool) {
-        let mut style = self.options(|opt| (*opt.style).clone());
-        style.debug.debug_on_hover = debug_on_hover;
-        self.set_style(style);
+        self.style_mut(|style| style.debug.debug_on_hover = debug_on_hover);
     }
 }
 
@@ -1591,7 +1624,6 @@ impl Context {
     /// Show the state of egui, including its input and output.
     pub fn inspection_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
-        crate::trace!(ui);
 
         ui.label(format!("Is using pointer: {}", self.is_using_pointer()))
             .on_hover_text(

@@ -187,24 +187,27 @@ impl GridLayout {
     }
 
     pub(crate) fn advance(&mut self, cursor: &mut Rect, _frame_rect: Rect, widget_rect: Rect) {
-        let debug_expand_width = self.style.debug.show_expand_width;
-        let debug_expand_height = self.style.debug.show_expand_height;
-        if debug_expand_width || debug_expand_height {
-            let rect = widget_rect;
-            let too_wide = rect.width() > self.prev_col_width(self.col);
-            let too_high = rect.height() > self.prev_row_height(self.row);
+        #[cfg(debug_assertions)]
+        {
+            let debug_expand_width = self.style.debug.show_expand_width;
+            let debug_expand_height = self.style.debug.show_expand_height;
+            if debug_expand_width || debug_expand_height {
+                let rect = widget_rect;
+                let too_wide = rect.width() > self.prev_col_width(self.col);
+                let too_high = rect.height() > self.prev_row_height(self.row);
 
-            if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
-                let painter = self.ctx.debug_painter();
-                painter.rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE));
+                if (debug_expand_width && too_wide) || (debug_expand_height && too_high) {
+                    let painter = self.ctx.debug_painter();
+                    painter.rect_stroke(rect, 0.0, (1.0, Color32::LIGHT_BLUE));
 
-                let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
-                let paint_line_seg = |a, b| painter.line_segment([a, b], stroke);
+                    let stroke = Stroke::new(2.5, Color32::from_rgb(200, 0, 0));
+                    let paint_line_seg = |a, b| painter.line_segment([a, b], stroke);
 
-                if debug_expand_width && too_wide {
-                    paint_line_seg(rect.left_top(), rect.left_bottom());
-                    paint_line_seg(rect.left_center(), rect.right_center());
-                    paint_line_seg(rect.right_top(), rect.right_bottom());
+                    if debug_expand_width && too_wide {
+                        paint_line_seg(rect.left_top(), rect.left_bottom());
+                        paint_line_seg(rect.left_center(), rect.right_center());
+                        paint_line_seg(rect.right_top(), rect.right_bottom());
+                    }
                 }
             }
         }
@@ -218,7 +221,7 @@ impl GridLayout {
         self.col += 1;
     }
 
-    fn paint_row(&mut self, cursor: &mut Rect, painter: &Painter) {
+    fn paint_row(&mut self, cursor: &Rect, painter: &Painter) {
         // handle row color painting based on color-picker function
         let Some(color_picker) = self.color_picker.as_ref() else {
             return;
@@ -430,9 +433,9 @@ impl Grid {
 
                 // paint first incoming row
                 if is_color {
-                    let mut cursor = ui.cursor();
+                    let cursor = ui.cursor();
                     let painter = ui.painter();
-                    grid.paint_row(&mut cursor, painter);
+                    grid.paint_row(&cursor, painter);
                 }
 
                 ui.set_grid(grid);

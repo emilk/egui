@@ -201,6 +201,9 @@ pub struct Style {
     pub animation_time: f32,
 
     /// Options to help debug why egui behaves strangely.
+    ///
+    /// Only available in debug builds.
+    #[cfg(debug_assertions)]
     pub debug: DebugOptions,
 
     /// Show tooltips explaining [`DragValue`]:s etc when hovered.
@@ -690,11 +693,35 @@ impl WidgetVisuals {
 }
 
 /// Options for help debug egui by adding extra visualization
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg(debug_assertions)]
 pub struct DebugOptions {
-    /// However over widgets to see their rectangles
+    /// Always show callstack to ui on hover.
+    ///
+    /// Useful for figuring out where in the code some UI is being created.
+    ///
+    /// Only works in debug builds.
+    /// Requires the `callstack` feature.
+    /// Does not work on web.
+    #[cfg(debug_assertions)]
     pub debug_on_hover: bool,
+
+    /// Show callstack for the current widget on hover if all modifier keys are pressed down.
+    ///
+    /// Useful for figuring out where in the code some UI is being created.
+    ///
+    /// Only works in debug builds.
+    /// Requires the `callstack` feature.
+    /// Does not work on web.
+    ///
+    /// Default is `true` in debug builds, on native, if the `callstack` feature is enabled.
+    #[cfg(debug_assertions)]
+    pub debug_on_hover_with_all_modifiers: bool,
+
+    /// If we show the hover ui, include where the next widget is placed.
+    #[cfg(debug_assertions)]
+    pub hover_shows_next: bool,
 
     /// Show which widgets make their parent wider
     pub show_expand_width: bool,
@@ -709,6 +736,23 @@ pub struct DebugOptions {
 
     /// Show what widget blocks the interaction of another widget.
     pub show_blocking_widget: bool,
+}
+
+#[cfg(debug_assertions)]
+impl Default for DebugOptions {
+    fn default() -> Self {
+        Self {
+            debug_on_hover: false,
+            debug_on_hover_with_all_modifiers: cfg!(feature = "callstack")
+                && !cfg!(target_arch = "wasm32"),
+            hover_shows_next: false,
+            show_expand_width: false,
+            show_expand_height: false,
+            show_resize: false,
+            show_interactive_widgets: false,
+            show_blocking_widget: false,
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -739,6 +783,7 @@ impl Default for Style {
             interaction: Interaction::default(),
             visuals: Visuals::default(),
             animation_time: 1.0 / 12.0,
+            #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
         }
@@ -993,6 +1038,7 @@ impl Style {
             interaction,
             visuals,
             animation_time,
+            #[cfg(debug_assertions)]
             debug,
             explanation_tooltips,
         } = self;
@@ -1055,6 +1101,8 @@ impl Style {
         ui.collapsing("📏 Spacing", |ui| spacing.ui(ui));
         ui.collapsing("☝ Interaction", |ui| interaction.ui(ui));
         ui.collapsing("🎨 Visuals", |ui| visuals.ui(ui));
+
+        #[cfg(debug_assertions)]
         ui.collapsing("🐛 Debug", |ui| debug.ui(ui));
 
         ui.checkbox(explanation_tooltips, "Explanation tooltips")
@@ -1477,10 +1525,13 @@ impl Visuals {
     }
 }
 
+#[cfg(debug_assertions)]
 impl DebugOptions {
     pub fn ui(&mut self, ui: &mut crate::Ui) {
         let Self {
             debug_on_hover,
+            debug_on_hover_with_all_modifiers,
+            hover_shows_next,
             show_expand_width,
             show_expand_height,
             show_resize,
@@ -1488,7 +1539,16 @@ impl DebugOptions {
             show_blocking_widget,
         } = self;
 
-        ui.checkbox(debug_on_hover, "Show debug info on hover");
+        {
+            ui.checkbox(debug_on_hover, "Show widget info on hover.");
+            ui.checkbox(
+                debug_on_hover_with_all_modifiers,
+                "Show widget info on hover if holding all modifier keys",
+            );
+
+            ui.checkbox(hover_shows_next, "Show next widget placement on hover");
+        }
+
         ui.checkbox(
             show_expand_width,
             "Show which widgets make their parent wider",

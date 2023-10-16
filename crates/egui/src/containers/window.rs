@@ -43,7 +43,7 @@ impl<'open> Window<'open> {
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl Into<WidgetText>) -> Self {
         let title = title.into().fallback_text_style(TextStyle::Heading);
-        let area = Area::new(Id::new(title.text()));
+        let area = Area::new(Id::new(title.text())).constrain(true);
         Self {
             title,
             open: None,
@@ -146,8 +146,28 @@ impl<'open> Window<'open> {
     }
 
     /// Constrains this window to the screen bounds.
+    ///
+    /// To change the area to constrain to, use [`Self::constraint_to`].
+    ///
+    /// Default: `true`.
     pub fn constrain(mut self, constrain: bool) -> Self {
         self.area = self.area.constrain(constrain);
+        self
+    }
+
+    /// Constraint the movement of the window to the given rectangle.
+    ///
+    /// For instance: `.constrain_to(ctx.screen_rect())`.
+    pub fn constraint_to(mut self, constrain_rect: Rect) -> Self {
+        self.area = self.area.constrain_to(constrain_rect);
+        self
+    }
+
+    #[deprecated = "Use `constrain_to` instead"]
+    pub fn drag_bounds(mut self, constrain_rect: Rect) -> Self {
+        #![allow(deprecated)]
+
+        self.area = self.area.drag_bounds(constrain_rect);
         self
     }
 
@@ -274,12 +294,6 @@ impl<'open> Window<'open> {
     /// See [`ScrollArea::drag_to_scroll`] for more.
     pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
         self.scroll = self.scroll.drag_to_scroll(drag_to_scroll);
-        self
-    }
-
-    /// Constrain the area up to which the window can be dragged.
-    pub fn drag_bounds(mut self, bounds: Rect) -> Self {
-        self.area = self.area.drag_bounds(bounds);
         self
     }
 }
@@ -415,7 +429,7 @@ impl<'open> Window<'open> {
                 .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
-            paint_resize_corner(&mut area_content_ui, &possible, outer_rect, frame_stroke);
+            paint_resize_corner(&area_content_ui, &possible, outer_rect, frame_stroke);
 
             // END FRAME --------------------------------
 
@@ -434,7 +448,7 @@ impl<'open> Window<'open> {
 
             if let Some(interaction) = interaction {
                 paint_frame_interaction(
-                    &mut area_content_ui,
+                    &area_content_ui,
                     outer_rect,
                     interaction,
                     ctx.style().visuals.widgets.active,
@@ -442,7 +456,7 @@ impl<'open> Window<'open> {
             } else if let Some(hover_interaction) = hover_interaction {
                 if ctx.input(|i| i.pointer.has_pointer()) {
                     paint_frame_interaction(
-                        &mut area_content_ui,
+                        &area_content_ui,
                         outer_rect,
                         hover_interaction,
                         ctx.style().visuals.widgets.hovered,
@@ -451,13 +465,6 @@ impl<'open> Window<'open> {
             }
             content_inner
         };
-
-        {
-            let pos = ctx
-                .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
-                .left_top();
-            area.state_mut().set_left_top_pos(pos);
-        }
 
         let full_response = area.end(ctx, area_content_ui);
 
@@ -469,12 +476,7 @@ impl<'open> Window<'open> {
     }
 }
 
-fn paint_resize_corner(
-    ui: &mut Ui,
-    possible: &PossibleInteractions,
-    outer_rect: Rect,
-    stroke: Stroke,
-) {
+fn paint_resize_corner(ui: &Ui, possible: &PossibleInteractions, outer_rect: Rect, stroke: Stroke) {
     let corner = if possible.resize_right && possible.resize_bottom {
         Align2::RIGHT_BOTTOM
     } else if possible.resize_left && possible.resize_bottom {
@@ -562,9 +564,11 @@ fn interact(
     resize_id: Id,
 ) -> Option<WindowInteraction> {
     let new_rect = move_and_resize_window(ctx, &window_interaction)?;
-    let new_rect = ctx.round_rect_to_pixels(new_rect);
+    let mut new_rect = ctx.round_rect_to_pixels(new_rect);
 
-    let new_rect = ctx.constrain_window_rect_to_area(new_rect, area.drag_bounds());
+    if area.constrain() {
+        new_rect = ctx.constrain_window_rect_to_area(new_rect, area.constrain_rect());
+    }
 
     // TODO(emilk): add this to a Window state instead as a command "move here next frame"
     area.state_mut().set_left_top_pos(new_rect.left_top());
@@ -749,7 +753,7 @@ fn resize_hover(
 
 /// Fill in parts of the window frame when we resize by dragging that part
 fn paint_frame_interaction(
-    ui: &mut Ui,
+    ui: &Ui,
     rect: Rect,
     interaction: WindowInteraction,
     visuals: style::WidgetVisuals,

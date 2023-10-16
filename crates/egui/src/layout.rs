@@ -801,6 +801,7 @@ impl Layout {
 /// ## Debug stuff
 impl Layout {
     /// Shows where the next widget is going to be placed
+    #[cfg(debug_assertions)]
     pub(crate) fn paint_text_at_cursor(
         &self,
         painter: &crate::Painter,

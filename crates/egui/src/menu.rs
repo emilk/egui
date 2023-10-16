@@ -146,10 +146,9 @@ pub(crate) fn menu_ui<'c, R>(
 
     let area = Area::new(menu_id)
         .order(Order::Foreground)
-        .constrain(true)
         .fixed_pos(pos)
-        .interactable(true)
-        .drag_bounds(ctx.screen_rect());
+        .constrain_to(ctx.screen_rect())
+        .interactable(true);
 
     area.show(ctx, |ui| {
         set_menu_style(ui.style_mut());
@@ -348,8 +347,7 @@ impl MenuRoot {
                 if let Some(root) = root.inner.as_mut() {
                     if root.id == id {
                         // pressed somewhere while this menu is open
-                        let menu_state = root.menu_state.read();
-                        let in_menu = menu_state.area_contains(pos);
+                        let in_menu = root.menu_state.read().area_contains(pos);
                         if !in_menu {
                             return MenuResponse::Close;
                         }
@@ -374,8 +372,7 @@ impl MenuRoot {
                     let mut destroy = false;
                     let mut in_old_menu = false;
                     if let Some(root) = root {
-                        let menu_state = root.menu_state.read();
-                        in_old_menu = menu_state.area_contains(pos);
+                        in_old_menu = root.menu_state.read().area_contains(pos);
                         destroy = root.id == response.id;
                     }
                     if !in_old_menu {
@@ -611,7 +608,7 @@ impl MenuState {
     }
 
     /// Sense button interaction opening and closing submenu.
-    fn submenu_button_interaction(&mut self, ui: &mut Ui, sub_id: Id, button: &Response) {
+    fn submenu_button_interaction(&mut self, ui: &Ui, sub_id: Id, button: &Response) {
         let pointer = ui.input(|i| i.pointer.clone());
         let open = self.is_open(sub_id);
         if self.moving_towards_current_submenu(&pointer) {

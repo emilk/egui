@@ -12,7 +12,7 @@ fn main() -> Result<(), eframe::Error> {
         "Image Viewer",
         options,
         Box::new(|cc| {
-            // The following call is needed to load images when using `ui.image` and `egui::Image`:
+            // This gives us image support:
             egui_extras::install_image_loaders(&cc.egui_ctx);
             Box::<MyApp>::default()
         }),
@@ -29,8 +29,7 @@ impl eframe::App for MyApp {
                 ui.image(egui::include_image!("ferris.svg"));
 
                 ui.add(
-                    egui::Image::new("https://picsum.photos/seed/1.759706314/1024")
-                        .rounding(egui::Rounding::same(10.0)),
+                    egui::Image::new("https://picsum.photos/seed/1.759706314/1024").rounding(10.0),
                 );
             });
         });

@@ -58,8 +58,16 @@ pub(super) trait RectElement {
 
 pub(super) fn highlighted_color(mut stroke: Stroke, fill: Color32) -> (Stroke, Color32) {
     stroke.width *= 2.0;
-    let fill = Rgba::from(fill);
-    let fill_alpha = (2.0 * fill.a()).at_most(1.0);
-    let fill = fill.to_opaque().multiply(fill_alpha);
+
+    let mut fill = Rgba::from(fill);
+    if fill.is_additive() {
+        // Make slightly brighter
+        fill = 1.3 * fill;
+    } else {
+        // Make more opaque:
+        let fill_alpha = (2.0 * fill.a()).at_most(1.0);
+        fill = fill.to_opaque().multiply(fill_alpha);
+    }
+
     (stroke, fill.into())
 }

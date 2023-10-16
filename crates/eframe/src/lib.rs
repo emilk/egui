@@ -280,7 +280,7 @@ pub fn run_simple_native(
         update_fun: U,
     }
 
-    impl<U: FnMut(&egui::Context, &mut Frame)> App for SimpleApp<U> {
+    impl<U: FnMut(&egui::Context, &mut Frame) + 'static> App for SimpleApp<U> {
         fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
             (self.update_fun)(ctx, frame);
         }

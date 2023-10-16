@@ -160,13 +160,11 @@ fn run_and_return(
             // Platform-dependent event handlers to workaround a winit bug
             // See: https://github.com/rust-windowing/winit/issues/987
             // See: https://github.com/rust-windowing/winit/issues/1619
-            #[cfg(target_os = "windows")]
-            winit::event::Event::RedrawEventsCleared => {
+            winit::event::Event::RedrawEventsCleared if cfg!(target_os = "windows") => {
                 next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint()
             }
-            #[cfg(not(target_os = "windows"))]
-            winit::event::Event::RedrawRequested(_) => {
+            winit::event::Event::RedrawRequested(_) if !cfg!(target_os = "windows") => {
                 next_repaint_time = extremely_far_future();
                 winit_app.run_ui_and_paint()
             }
@@ -702,7 +700,7 @@ mod glow_integration {
             event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<&dyn epi::Storage>,
             title: &str,
-            native_options: &NativeOptions,
+            native_options: &mut NativeOptions,
         ) -> Result<(GlutinWindowContext, glow::Context)> {
             crate::profile_function!();
 
@@ -749,7 +747,7 @@ mod glow_integration {
                 event_loop,
                 storage.as_deref(),
                 &self.app_name,
-                &self.native_options,
+                &mut self.native_options,
             )?;
             let gl = Arc::new(gl);
 
@@ -777,7 +775,6 @@ mod glow_integration {
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
 
-            gl_window.window().set_ime_allowed(true);
             if self.native_options.mouse_passthrough {
                 gl_window.window().set_cursor_hittest(false).unwrap();
             }
@@ -971,7 +968,7 @@ mod glow_integration {
             if window.is_minimized() == Some(true) {
                 // On Mac, a minimized Window uses up all CPU:
                 // https://github.com/emilk/egui/issues/325
-                crate::profile_scope!("bg_sleep");
+                crate::profile_scope!("minimized_sleep");
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
@@ -1185,7 +1182,7 @@ mod wgpu_integration {
             event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<&dyn epi::Storage>,
             title: &str,
-            native_options: &NativeOptions,
+            native_options: &mut NativeOptions,
         ) -> std::result::Result<winit::window::Window, winit::error::OsError> {
             crate::profile_function!();
 
@@ -1268,8 +1265,6 @@ mod wgpu_integration {
             }
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
-
-            window.set_ime_allowed(true);
 
             {
                 let event_loop_proxy = self.repaint_proxy.clone();
@@ -1420,7 +1415,7 @@ mod wgpu_integration {
             if window.is_minimized() == Some(true) {
                 // On Mac, a minimized Window uses up all CPU:
                 // https://github.com/emilk/egui/issues/325
-                crate::profile_scope!("bg_sleep");
+                crate::profile_scope!("minimized_sleep");
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
@@ -1442,7 +1437,7 @@ mod wgpu_integration {
                                 event_loop,
                                 running.integration.frame.storage(),
                                 &self.app_name,
-                                &self.native_options,
+                                &mut self.native_options,
                             )?;
                             self.set_window(window)?;
                         }
@@ -1457,7 +1452,7 @@ mod wgpu_integration {
                             event_loop,
                             storage.as_deref(),
                             &self.app_name,
-                            &self.native_options,
+                            &mut self.native_options,
                         )?;
                         self.init_run_state(event_loop, storage, window)?;
                     }

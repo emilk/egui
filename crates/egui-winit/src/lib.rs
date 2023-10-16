@@ -80,6 +80,8 @@ pub struct State {
 
     #[cfg(feature = "accesskit")]
     accesskit: Option<accesskit_winit::Adapter>,
+
+    allow_ime: bool,
 }
 
 impl State {
@@ -107,6 +109,8 @@ impl State {
 
             #[cfg(feature = "accesskit")]
             accesskit: None,
+
+            allow_ime: false,
         }
     }
 
@@ -287,7 +291,7 @@ impl State {
                             .events
                             .push(egui::Event::CompositionEnd(text.clone()));
                     }
-                    winit::event::Ime::Preedit(text, ..) => {
+                    winit::event::Ime::Preedit(text, Some(_)) => {
                         if !self.input_method_editor_started {
                             self.input_method_editor_started = true;
                             self.egui_input.events.push(egui::Event::CompositionStart);
@@ -296,6 +300,7 @@ impl State {
                             .events
                             .push(egui::Event::CompositionUpdate(text.clone()));
                     }
+                    winit::event::Ime::Preedit(_, None) => {}
                 };
 
                 EventResponse {
@@ -661,6 +666,12 @@ impl State {
 
         if !copied_text.is_empty() {
             self.clipboard.set(copied_text);
+        }
+
+        let allow_ime = text_cursor_pos.is_some();
+        if self.allow_ime != allow_ime {
+            self.allow_ime = allow_ime;
+            window.set_ime_allowed(allow_ime);
         }
 
         if let Some(egui::Pos2 { x, y }) = text_cursor_pos {

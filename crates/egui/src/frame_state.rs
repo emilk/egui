@@ -54,6 +54,9 @@ pub(crate) struct FrameState {
 
     /// Highlight these widgets the next frame. Write to this.
     pub(crate) highlight_next_frame: IdSet,
+
+    #[cfg(debug_assertions)]
+    pub(crate) has_debug_viewed_this_frame: bool,
 }
 
 impl Default for FrameState {
@@ -70,6 +73,9 @@ impl Default for FrameState {
             accesskit_state: None,
             highlight_this_frame: Default::default(),
             highlight_next_frame: Default::default(),
+
+            #[cfg(debug_assertions)]
+            has_debug_viewed_this_frame: false,
         }
     }
 }
@@ -89,6 +95,9 @@ impl FrameState {
             accesskit_state,
             highlight_this_frame,
             highlight_next_frame,
+
+            #[cfg(debug_assertions)]
+            has_debug_viewed_this_frame,
         } = self;
 
         used_ids.clear();
@@ -98,6 +107,11 @@ impl FrameState {
         *tooltip_state = None;
         *scroll_delta = input.scroll_delta;
         *scroll_target = [None, None];
+
+        #[cfg(debug_assertions)]
+        {
+            *has_debug_viewed_this_frame = false;
+        }
 
         #[cfg(feature = "accesskit")]
         {

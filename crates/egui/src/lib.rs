@@ -12,6 +12,10 @@
 //! Then you add a [`Window`] or a [`SidePanel`] to get a [`Ui`], which is what you'll be using to add all the buttons and labels that you need.
 //!
 //!
+//! ## Feature flags
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+//!
+//!
 //! # Using egui
 //!
 //! To see what is possible to build with egui you can check out the online demo at <https://www.egui.rs/#demo>.
@@ -163,7 +167,14 @@
 //!
 //! # Understanding immediate mode
 //!
-//! `egui` is an immediate mode GUI library. It is useful to fully grok what "immediate mode" implies.
+//! `egui` is an immediate mode GUI library.
+//!
+//! Immediate mode has its roots in gaming, where everything on the screen is painted at the
+//! display refresh rate, i.e. at 60+ frames per second.
+//! In immediate mode GUIs, the entire interface is laid out and painted at the same high rate.
+//! This makes immediate mode GUIs especially well suited for highly interactive applications.
+//!
+//! It is useful to fully grok what "immediate mode" implies.
 //!
 //! Here is an example to illustrate it:
 //!
@@ -198,7 +209,7 @@
 //! # });
 //! ```
 //!
-//! Here egui will read `value` to display the slider, then look if the mouse is dragging the slider and if so change the `value`.
+//! Here egui will read `value` (an `f32`) to display the slider, then look if the mouse is dragging the slider and if so change the `value`.
 //! Note that `egui` does not store the slider value for you - it only displays the current value, and changes it
 //! by how much the slider has been dragged in the previous few milliseconds.
 //! This means it is responsibility of the egui user to store the state (`value`) so that it persists between frames.
@@ -318,10 +329,6 @@
 //! }); // the temporary settings are reverted here
 //! # });
 //! ```
-//!
-//! ## Feature flags
-#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
-//!
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
@@ -352,6 +359,10 @@ mod ui;
 pub mod util;
 pub mod widget_text;
 pub mod widgets;
+
+#[cfg(feature = "callstack")]
+#[cfg(debug_assertions)]
+mod callstack;
 
 #[cfg(feature = "accesskit")]
 pub use accesskit;
@@ -389,7 +400,9 @@ pub use {
     context::{Context, RequestRepaintInfo},
     data::{
         input::*,
-        output::{self, CursorIcon, FullOutput, PlatformOutput, UserAttentionType, WidgetInfo},
+        output::{
+            self, CursorIcon, FullOutput, OpenUrl, PlatformOutput, UserAttentionType, WidgetInfo,
+        },
     },
     grid::Grid,
     id::{Id, IdMap},
@@ -435,7 +448,8 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 /// ui.image(egui::include_image!("../assets/ferris.png"));
 /// ui.add(
 ///     egui::Image::new(egui::include_image!("../assets/ferris.png"))
-///         .rounding(egui::Rounding::same(6.0))
+///         .max_width(200.0)
+///         .rounding(10.0),
 /// );
 ///
 /// let image_source: egui::ImageSource = egui::include_image!("../assets/ferris.png");
@@ -445,10 +459,10 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 #[macro_export]
 macro_rules! include_image {
     ($path: literal) => {
-        $crate::ImageSource::Bytes(
-            ::std::borrow::Cow::Borrowed(concat!("bytes://", $path)), // uri
-            $crate::load::Bytes::Static(include_bytes!($path)),
-        )
+        $crate::ImageSource::Bytes {
+            uri: ::std::borrow::Cow::Borrowed(concat!("bytes://", $path)),
+            bytes: $crate::load::Bytes::Static(include_bytes!($path)),
+        }
     };
 }
 
@@ -479,32 +493,6 @@ macro_rules! github_link_file {
     ($github_url: expr, $label: expr) => {{
         let url = format!("{}{}", $github_url, file!());
         $crate::Hyperlink::from_label_and_url($label, url)
-    }};
-}
-
-// ----------------------------------------------------------------------------
-
-/// Show debug info on hover when [`Context::set_debug_on_hover`] has been turned on.
-///
-/// ```
-/// # egui::__run_test_ui(|ui| {
-/// // Turn on tracing of widgets
-/// ui.ctx().set_debug_on_hover(true);
-///
-/// /// Show [`std::file`], [`std::line`] and argument on hover
-/// egui::trace!(ui, "MyWindow");
-///
-/// /// Show [`std::file`] and [`std::line`] on hover
-/// egui::trace!(ui);
-/// # });
-/// ```
-#[macro_export]
-macro_rules! trace {
-    ($ui: expr) => {{
-        $ui.trace_location(format!("{}:{}", file!(), line!()))
-    }};
-    ($ui: expr, $label: expr) => {{
-        $ui.trace_location(format!("{} - {}:{}", $label, file!(), line!()))
     }};
 }
 

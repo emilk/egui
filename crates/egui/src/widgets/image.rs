@@ -100,7 +100,10 @@ impl<'a> Image<'a> {
     ///
     /// See [`ImageSource::Bytes`].
     pub fn from_bytes(uri: impl Into<Cow<'static, str>>, bytes: impl Into<Bytes>) -> Self {
-        Self::new(ImageSource::Bytes(uri.into(), bytes.into()))
+        Self::new(ImageSource::Bytes {
+            uri: uri.into(),
+            bytes: bytes.into(),
+        })
     }
 
     /// Texture options used when creating the texture.
@@ -266,7 +269,7 @@ impl<'a> Image<'a> {
         self.size.calc_size(available_size, original_image_size)
     }
 
-    pub fn load_and_calc_size(&self, ui: &mut Ui, available_size: Vec2) -> Option<Vec2> {
+    pub fn load_and_calc_size(&self, ui: &Ui, available_size: Vec2) -> Option<Vec2> {
         let image_size = self.load_for_size(ui.ctx(), available_size).ok()?.size()?;
         Some(self.size.calc_size(available_size, image_size))
     }
@@ -275,7 +278,7 @@ impl<'a> Image<'a> {
     pub fn size(&self) -> Option<Vec2> {
         match &self.source {
             ImageSource::Texture(texture) => Some(texture.size),
-            ImageSource::Uri(_) | ImageSource::Bytes(_, _) => None,
+            ImageSource::Uri(_) | ImageSource::Bytes { .. } => None,
         }
     }
 
@@ -314,7 +317,7 @@ impl<'a> Image<'a> {
     /// # });
     /// ```
     #[inline]
-    pub fn paint_at(&self, ui: &mut Ui, rect: Rect) {
+    pub fn paint_at(&self, ui: &Ui, rect: Rect) {
         paint_texture_load_result(
             ui,
             &self.load_for_size(ui.ctx(), rect.size()),
@@ -478,9 +481,10 @@ impl Default for ImageSize {
 /// This is used by [`Image::new`] and [`Ui::image`].
 #[derive(Clone)]
 pub enum ImageSource<'a> {
-    /// Load the image from a URI.
+    /// Load the image from a URI, e.g. `https://example.com/image.png`.
     ///
-    /// This could be a `file://` url, `http(s)?://` url, or a `bare` identifier.
+    /// This could be a `file://` path, `https://` url, `bytes://` identifier, or some other scheme.
+    ///
     /// How the URI will be turned into a texture for rendering purposes is
     /// up to the registered loaders to handle.
     ///
@@ -495,8 +499,6 @@ pub enum ImageSource<'a> {
 
     /// Load the image from some raw bytes.
     ///
-    /// For better error messages, use the `bytes://` prefix for the URI.
-    ///
     /// The [`Bytes`] may be:
     /// - `'static`, obtained from `include_bytes!` or similar
     /// - Anything that can be converted to `Arc<[u8]>`
@@ -506,13 +508,22 @@ pub enum ImageSource<'a> {
     /// See also [`include_image`] for an easy way to load and display static images.
     ///
     /// See [`crate::load`] for more information.
-    Bytes(Cow<'static, str>, Bytes),
+    Bytes {
+        /// The unique identifier for this image, e.g. `bytes://my_logo.png`.
+        ///
+        /// You should use a proper extension (`.jpg`, `.png`, `.svg`, etc) for the image to load properly.
+        ///
+        /// Use the `bytes://` scheme for the URI for better error messages.
+        uri: Cow<'static, str>,
+
+        bytes: Bytes,
+    },
 }
 
 impl<'a> std::fmt::Debug for ImageSource<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ImageSource::Bytes(uri, _) | ImageSource::Uri(uri) => uri.as_ref().fmt(f),
+            ImageSource::Bytes { uri, .. } | ImageSource::Uri(uri) => uri.as_ref().fmt(f),
             ImageSource::Texture(st) => st.id.fmt(f),
         }
     }
@@ -524,7 +535,7 @@ impl<'a> ImageSource<'a> {
     pub fn texture_size(&self) -> Option<Vec2> {
         match self {
             ImageSource::Texture(texture) => Some(texture.size),
-            ImageSource::Uri(_) | ImageSource::Bytes(_, _) => None,
+            ImageSource::Uri(_) | ImageSource::Bytes { .. } => None,
         }
     }
 
@@ -539,7 +550,7 @@ impl<'a> ImageSource<'a> {
         match self {
             Self::Texture(texture) => Ok(TexturePoll::Ready { texture }),
             Self::Uri(uri) => ctx.try_load_texture(uri.as_ref(), texture_options, size_hint),
-            Self::Bytes(uri, bytes) => {
+            Self::Bytes { uri, bytes } => {
                 ctx.include_bytes(uri.clone(), bytes);
                 ctx.try_load_texture(uri.as_ref(), texture_options, size_hint)
             }
@@ -551,7 +562,7 @@ impl<'a> ImageSource<'a> {
     /// This will return `None` for [`Self::Texture`].
     pub fn uri(&self) -> Option<&str> {
         match self {
-            ImageSource::Bytes(uri, _) | ImageSource::Uri(uri) => Some(uri),
+            ImageSource::Bytes { uri, .. } | ImageSource::Uri(uri) => Some(uri),
             ImageSource::Texture(_) => None,
         }
     }
@@ -644,21 +655,30 @@ impl<'a> From<Cow<'a, str>> for ImageSource<'a> {
 impl<T: Into<Bytes>> From<(&'static str, T)> for ImageSource<'static> {
     #[inline]
     fn from((uri, bytes): (&'static str, T)) -> Self {
-        Self::Bytes(uri.into(), bytes.into())
+        Self::Bytes {
+            uri: uri.into(),
+            bytes: bytes.into(),
+        }
     }
 }
 
 impl<T: Into<Bytes>> From<(Cow<'static, str>, T)> for ImageSource<'static> {
     #[inline]
     fn from((uri, bytes): (Cow<'static, str>, T)) -> Self {
-        Self::Bytes(uri, bytes.into())
+        Self::Bytes {
+            uri,
+            bytes: bytes.into(),
+        }
     }
 }
 
 impl<T: Into<Bytes>> From<(String, T)> for ImageSource<'static> {
     #[inline]
     fn from((uri, bytes): (String, T)) -> Self {
-        Self::Bytes(uri.into(), bytes.into())
+        Self::Bytes {
+            uri: uri.into(),
+            bytes: bytes.into(),
+        }
     }
 }
 

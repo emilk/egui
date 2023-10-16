@@ -95,7 +95,6 @@ warn = [
   "clippy::rest_pat_in_fully_bound_structs",
   "clippy::same_functions_in_if_condition",
   "clippy::semicolon_if_nothing_returned",
-  "clippy::significant_drop_tightening",
   "clippy::single_match_else",
   "clippy::str_to_string",
   "clippy::string_add_assign",
@@ -137,6 +136,8 @@ warn = [
 
 allow = [
   "clippy::manual_range_contains", # this one is just worse imho
+
+  "clippy::significant_drop_tightening", # False positives
 
   # TODO(emilk): enable more of these lints:
   "clippy::let_underscore_untyped",
