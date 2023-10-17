@@ -978,10 +978,14 @@ fn events(
             Event::Key {
                 key: Key::Z,
                 pressed: true,
-                modifiers,
+                modifiers:
+                    Modifiers {
+                        command: true,
+                        shift: false,
+                        ..
+                    },
                 ..
-            } if modifiers.command && !modifiers.shift => {
-                // TODO(emilk): redo
+            } => {
                 if let Some((undo_ccursor_range, undo_txt)) = state
                     .undoer
                     .lock()
@@ -989,6 +993,39 @@ fn events(
                 {
                     text.replace(undo_txt);
                     Some(*undo_ccursor_range)
+                } else {
+                    None
+                }
+            }
+            Event::Key {
+                key: Key::Z,
+                pressed: true,
+                modifiers:
+                    Modifiers {
+                        command: true,
+                        shift: true,
+                        ..
+                    },
+                ..
+            }
+            | Event::Key {
+                key: Key::Y,
+                pressed: true,
+                modifiers:
+                    Modifiers {
+                        command: true,
+                        shift: false,
+                        ..
+                    },
+                ..
+            } => {
+                if let Some((redo_ccursor_range, redo_txt)) = state
+                    .undoer
+                    .lock()
+                    .redo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
+                {
+                    text.replace(redo_txt);
+                    Some(*redo_ccursor_range)
                 } else {
                     None
                 }
