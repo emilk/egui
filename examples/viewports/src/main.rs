@@ -23,7 +23,7 @@ pub struct App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            generic_ui(ui, "Central Pannel");
+            generic_ui(ui, "Central Panel");
             ui.label("Look at the \"Frame: \" will tell you, what viewport is rendering!");
             {
                 let mut force_embedding = ctx.force_embedding();
@@ -336,8 +336,18 @@ fn generic_ui(ui: &mut egui::Ui, container_id: impl Into<Id>) {
         outer_rect.size()
     ));
 
+    let container_id = container_id.into();
     let ctx = ui.ctx().clone();
-    if ctx.viewport_id() == ctx.parent_viewport_id() {
+
+    let mut show_spinner =
+        ui.data_mut(|data| *data.get_temp_mut_or(container_id.with("show_spinner"), false));
+    ui.checkbox(&mut show_spinner, "Show Spinner");
+    if show_spinner {
+        ui.spinner();
+    }
+    ui.data_mut(|data| data.insert_temp(container_id.with("show_spinner"), show_spinner));
+
+    if ctx.viewport_id() != ctx.parent_viewport_id() {
         let parent = ctx.parent_viewport_id();
         if ui.button("Set parent pos 0,0").clicked() {
             ctx.viewport_command_for(
@@ -349,8 +359,6 @@ fn generic_ui(ui: &mut egui::Ui, container_id: impl Into<Id>) {
 
     use std::collections::HashMap;
     use std::sync::OnceLock;
-
-    let container_id = container_id.into();
 
     const COLS: usize = 2;
     static DATA: OnceLock<RwLock<DragAndDrop>> = OnceLock::new();
