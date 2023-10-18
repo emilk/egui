@@ -703,7 +703,9 @@ impl<'a> Slider<'a> {
         let handle_radius = self.handle_radius(rect);
         match self.orientation {
             SliderOrientation::Horizontal => rect.x_range().shrink(handle_radius),
-            SliderOrientation::Vertical => rect.y_range().shrink(handle_radius),
+            SliderOrientation::Vertical => {
+                ((rect.bottom() - handle_radius)..=(rect.top() + handle_radius)).into()
+            }
         }
     }
 
