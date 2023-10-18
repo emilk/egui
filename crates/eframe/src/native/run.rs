@@ -42,7 +42,7 @@ pub enum UserEvent {
     /// A repaint is requested.
     RequestRepaint {
         /// What to repaint.
-        id: ViewportId,
+        viewport_id: ViewportId,
 
         /// When to repaint.
         when: Instant,
@@ -91,7 +91,7 @@ enum EventResult {
 
 trait WinitApp {
     /// The current frame number, as reported by egui.
-    fn frame_nr(&self) -> u64;
+    fn frame_nr(&self, viewport_id: ViewportId) -> u64;
 
     fn is_focused(&self, window_id: winit::window::WindowId) -> bool;
 
@@ -187,16 +187,6 @@ fn run_and_return(
                 return;
             }
 
-            // Platform-dependent event handlers to workaround a winit bug
-            // See: https://github.com/rust-windowing/winit/issues/987
-            // See: https://github.com/rust-windowing/winit/issues/1619
-            // #[cfg(target_os = "windows")]
-            // winit::event::Event::RedrawEventsCleared => {
-            // windows_next_repaint_times.clear();
-            // winit_app.run_ui_and_paint(None)
-            // vec![EventResult::Wait]
-            // }
-            // #[cfg(not(target_os = "windows"))]
             winit::event::Event::RedrawRequested(window_id) => {
                 windows_next_repaint_times.remove(window_id);
                 winit_app.run_ui_and_paint(*window_id)
@@ -205,11 +195,11 @@ fn run_and_return(
             winit::event::Event::UserEvent(UserEvent::RequestRepaint {
                 when,
                 frame_nr,
-                id: window_id,
+                viewport_id,
             }) => {
-                if winit_app.frame_nr() == *frame_nr {
+                if winit_app.frame_nr(*viewport_id) == *frame_nr + 1 {
                     log::trace!("UserEvent::RequestRepaint scheduling repaint at {when:?}");
-                    if let Some(window_id) = winit_app.get_window_winit_id(*window_id) {
+                    if let Some(window_id) = winit_app.get_window_winit_id(*viewport_id) {
                         vec![EventResult::RepaintAt(window_id, *when)]
                     } else {
                         vec![EventResult::Wait]
@@ -287,13 +277,11 @@ fn run_and_return(
         for (window_id, repaint_time) in &windows_next_repaint_times.clone() {
             if *repaint_time <= Instant::now() {
                 if let Some(window) = winit_app.window(*window_id) {
+                    log::trace!("request_redraw");
                     window.read().request_redraw();
-                    windows_next_repaint_times.remove(window_id);
-                    control_flow.set_poll();
-                } else {
-                    windows_next_repaint_times.remove(window_id);
-                    control_flow.set_wait();
                 }
+                windows_next_repaint_times.remove(window_id);
+                control_flow.set_poll();
             } else {
                 next_repaint_time =
                     Some(next_repaint_time.map_or(*repaint_time, |last| last.min(*repaint_time)));
@@ -344,15 +332,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                 vec![EventResult::Exit]
             }
 
-            // Platform-dependent event handlers to workaround a winit bug
-            // See: https://github.com/rust-windowing/winit/issues/987
-            // See: https://github.com/rust-windowing/winit/issues/1619
-            winit::event::Event::RedrawEventsCleared if cfg!(target_os = "windows") => {
-                // windows_next_repaint_times.clear();
-                // winit_app.run_ui_and_paint(None)
-                vec![]
-            }
-            winit::event::Event::RedrawRequested(window_id) if !cfg!(target_os = "windows") => {
+            winit::event::Event::RedrawRequested(window_id) => {
                 windows_next_repaint_times.remove(&window_id);
                 winit_app.run_ui_and_paint(window_id)
             }
@@ -360,10 +340,10 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             winit::event::Event::UserEvent(UserEvent::RequestRepaint {
                 when,
                 frame_nr,
-                id: window_id,
+                viewport_id,
             }) => {
-                if winit_app.frame_nr() == frame_nr {
-                    if let Some(window_id) = winit_app.get_window_winit_id(window_id) {
+                if winit_app.frame_nr(viewport_id) == frame_nr + 1 {
+                    if let Some(window_id) = winit_app.get_window_winit_id(viewport_id) {
                         vec![EventResult::RepaintAt(window_id, when)]
                     } else {
                         vec![EventResult::Wait]
@@ -425,8 +405,8 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                 if let Some(window) = winit_app.window(*window_id) {
                     log::trace!("request_redraw");
                     window.read().request_redraw();
-                    windows_next_repaint_times.remove(window_id);
                 }
+                windows_next_repaint_times.remove(window_id);
                 control_flow.set_poll();
             } else {
                 next_repaint_time =
@@ -1030,7 +1010,7 @@ mod glow_integration {
                         event_loop_proxy
                             .lock()
                             .send_event(UserEvent::RequestRepaint {
-                                id: info.viewport_id,
+                                viewport_id: info.viewport_id,
                                 when,
                                 frame_nr,
                             })
@@ -1303,11 +1283,10 @@ mod glow_integration {
     }
 
     impl WinitApp for GlowWinitApp {
-        fn frame_nr(&self) -> u64 {
-            self.running
-                .read()
-                .as_ref()
-                .map_or(0, |r| r.integration.read().egui_ctx.frame_nr())
+        fn frame_nr(&self, viewport_id: ViewportId) -> u64 {
+            self.running.read().as_ref().map_or(0, |r| {
+                r.integration.read().egui_ctx.frame_nr_for(viewport_id)
+            })
         }
 
         fn is_focused(&self, window_id: winit::window::WindowId) -> bool {
@@ -2073,7 +2052,7 @@ mod wgpu_integration {
                             .send_event(UserEvent::RequestRepaint {
                                 when,
                                 frame_nr,
-                                id: info.viewport_id,
+                                viewport_id: info.viewport_id,
                             })
                             .ok();
                     });
@@ -2249,10 +2228,10 @@ mod wgpu_integration {
     }
 
     impl WinitApp for WgpuWinitApp {
-        fn frame_nr(&self) -> u64 {
-            self.running
-                .as_ref()
-                .map_or(0, |r| r.integration.read().egui_ctx.frame_nr())
+        fn frame_nr(&self, viewport_id: ViewportId) -> u64 {
+            self.running.as_ref().map_or(0, |r| {
+                r.integration.read().egui_ctx.frame_nr_for(viewport_id)
+            })
         }
 
         fn is_focused(&self, window_id: winit::window::WindowId) -> bool {

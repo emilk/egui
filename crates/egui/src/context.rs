@@ -58,7 +58,7 @@ struct Repaint {
     /// The current frame number.
     ///
     /// Incremented at the end of each frame.
-    frame_nr: u64,
+    viewports_frame_nr: HashMap<ViewportId, u64>,
 
     /// The duration backend will poll for new events, before forcing another egui update
     /// even if there's no new events.
@@ -83,7 +83,7 @@ impl Default for Repaint {
         let mut repaint_requests = HashMap::default();
         repaint_requests.insert(ViewportId::MAIN, 1);
         Self {
-            frame_nr: 0,
+            viewports_frame_nr: HashMap::default(),
             repaint_after,
             repaint_requests,
             request_repaint_callback: None,
@@ -118,7 +118,7 @@ impl Repaint {
             if let Some(callback) = &self.request_repaint_callback {
                 let info = RequestRepaintInfo {
                     after,
-                    current_frame_nr: self.frame_nr,
+                    current_frame_nr: *self.viewports_frame_nr.entry(viewport_id).or_default(),
                     viewport_id,
                 };
                 (callback)(info);
@@ -160,9 +160,11 @@ impl Repaint {
         self.repaint_after.insert(viewport_id, repaint_after);
 
         self.requested_repaint_last_frame = repaint_after.is_zero();
-        self.frame_nr += 1;
+        *self.viewports_frame_nr.entry(viewport_id).or_default() += 1;
 
         self.repaint_after.retain(|id, _| viewports.contains(id));
+        self.viewports_frame_nr
+            .retain(|id, _| viewports.contains(id));
         self.repaint_requests
             .retain(|id, repaints| viewports.contains(id) && *repaints != 0);
 
@@ -1150,13 +1152,28 @@ impl Context {
         }
     }
 
-    /// The current frame number.
+    /// The current frame number for the current viewport.
     ///
     /// Starts at zero, and is incremented at the end of [`Self::run`] or by [`Self::end_frame`].
     ///
     /// Between calls to [`Self::run`], this is the frame number of the coming frame.
     pub fn frame_nr(&self) -> u64 {
-        self.read(|ctx| ctx.repaint.frame_nr)
+        self.frame_nr_for(self.viewport_id())
+    }
+
+    /// The current frame number.
+    ///
+    /// Starts at zero, and is incremented at the end of [`Self::run`] or by [`Self::end_frame`].
+    ///
+    /// Between calls to [`Self::run`], this is the frame number of the coming frame.
+    pub fn frame_nr_for(&self, id: ViewportId) -> u64 {
+        self.read(|ctx| {
+            ctx.repaint
+                .viewports_frame_nr
+                .get(&id)
+                .copied()
+                .unwrap_or_default()
+        })
     }
 
     /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
@@ -1648,10 +1665,8 @@ impl Context {
             });
         }
 
-        let repaint_after = self.write(|ctx| {
-            ctx.repaint
-                .end_frame(ctx.viewport_id(), &avalibile_viewports)
-        });
+        let repaint_after =
+            self.write(|ctx| ctx.repaint.end_frame(viewport_id, &avalibile_viewports));
 
         FullOutput {
             platform_output,
