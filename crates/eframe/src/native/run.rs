@@ -1408,7 +1408,7 @@ mod glow_integration {
                             glutin.viewports.get(&viewport.read().pair.parent)
                         {
                             if let Some(window) = parent_viewport.read().window.as_ref() {
-                                return vec![EventResult::RepaintNow(window.read().id())];
+                                return vec![EventResult::RepaintNext(window.read().id())];
                             }
                         }
                         return vec![];
@@ -2341,7 +2341,7 @@ mod wgpu_integration {
                     if viewport_id != ViewportId::MAIN && render.is_none() {
                         if let Some(window) = running.viewports.read().get(&parent_id) {
                             if let Some(w) = window.window.as_ref() {
-                                return vec![EventResult::RepaintNow(w.read().id())];
+                                return vec![EventResult::RepaintNext(w.read().id())];
                             }
                         }
                         return vec![];
