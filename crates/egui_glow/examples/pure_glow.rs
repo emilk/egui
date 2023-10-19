@@ -17,7 +17,7 @@ impl GlutinWindowContext {
     // refactor this function to use `glutin-winit` crate eventually.
     // preferably add android support at the same time.
     #[allow(unsafe_code)]
-    unsafe fn new(event_loop: &winit::event_loop::EventLoopWindowTarget<()>) -> Self {
+    unsafe fn new(event_loop: &winit::event_loop::EventLoopWindowTarget<UserEvent>) -> Self {
         use egui::NumExt;
         use glutin::context::NotCurrentGlContextSurfaceAccessor;
         use glutin::display::GetGlDisplay;
@@ -142,20 +142,37 @@ impl GlutinWindowContext {
     }
 }
 
+#[derive(Debug)]
+pub enum UserEvent {
+    Redraw(std::time::Duration),
+}
+
 fn main() {
     let mut clear_color = [0.1, 0.1, 0.1];
 
-    let event_loop = winit::event_loop::EventLoopBuilder::with_user_event().build();
+    let event_loop = winit::event_loop::EventLoopBuilder::<UserEvent>::with_user_event().build();
     let (gl_window, gl) = create_display(&event_loop);
     let gl = std::sync::Arc::new(gl);
 
     let mut egui_glow = egui_glow::EguiGlow::new(&event_loop, gl.clone(), None);
 
+    let event_loop_proxy = egui::mutex::Mutex::new(event_loop.create_proxy());
+    egui_glow
+        .egui_ctx
+        .set_request_repaint_callback(move |info| {
+            event_loop_proxy
+                .lock()
+                .send_event(UserEvent::Redraw(info.after))
+                .expect("Cannot send event");
+        });
+
+    let mut repaint_after = std::time::Duration::MAX;
+
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
             let mut quit = false;
 
-            let repaint_after = egui_glow.run(gl_window.window(), |egui_ctx| {
+            egui_glow.run(gl_window.window(), |egui_ctx| {
                 egui::SidePanel::left("my_side_panel").show(egui_ctx, |ui| {
                     ui.heading("Hello World!");
                     if ui.button("Quit").clicked() {
@@ -224,6 +241,10 @@ fn main() {
                     gl_window.window().request_redraw();
                 }
             }
+
+            winit::event::Event::UserEvent(UserEvent::Redraw(after)) => {
+                repaint_after = after;
+            }
             winit::event::Event::LoopDestroyed => {
                 egui_glow.destroy();
             }
@@ -239,7 +260,7 @@ fn main() {
 }
 
 fn create_display(
-    event_loop: &winit::event_loop::EventLoopWindowTarget<()>,
+    event_loop: &winit::event_loop::EventLoopWindowTarget<UserEvent>,
 ) -> (GlutinWindowContext, glow::Context) {
     let glutin_window_context = unsafe { GlutinWindowContext::new(event_loop) };
     let gl = unsafe {

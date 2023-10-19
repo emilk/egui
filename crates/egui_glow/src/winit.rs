@@ -43,15 +43,10 @@ impl EguiGlow {
     /// Returns the `Duration` of the timeout after which egui should be repainted even if there's no new events.
     ///
     /// Call [`Self::paint`] later to paint.
-    pub fn run(
-        &mut self,
-        window: &winit::window::Window,
-        run_ui: impl FnMut(&egui::Context),
-    ) -> std::time::Duration {
+    pub fn run(&mut self, window: &winit::window::Window, run_ui: impl FnMut(&egui::Context)) {
         let raw_input = self.egui_winit.take_egui_input(window);
         let egui::FullOutput {
             platform_output,
-            repaint_after,
             textures_delta,
             shapes,
             ..
@@ -62,10 +57,6 @@ impl EguiGlow {
 
         self.shapes = shapes;
         self.textures_delta.append(textures_delta);
-        repaint_after
-            .get(&egui::ViewportId::MAIN)
-            .cloned()
-            .unwrap_or_default()
     }
 
     /// Paint the results of the last call to [`Self::run`].
