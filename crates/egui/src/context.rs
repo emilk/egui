@@ -54,42 +54,18 @@ impl Default for WrappedTextureManager {
 // ----------------------------------------------------------------------------
 
 /// Logic related to repainting the ui.
+#[derive(Default)]
 struct Repaint {
     /// The current frame number.
     ///
     /// Incremented at the end of each frame.
     viewports_frame_nr: HashMap<ViewportId, u64>,
 
-    /// The duration backend will poll for new events, before forcing another egui update
-    /// even if there's no new events.
-    ///
-    /// Also used to suppress multiple calls to the repaint callback during the same frame.
-    pub repaint_after: HashMap<ViewportId, std::time::Duration>,
-
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
-    repaint_requests: HashMap<ViewportId, u32>,
+    repaint_request: HashMap<ViewportId, bool>,
     request_repaint_callback: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
 
-    requested_repaint_last_frame: bool,
-}
-
-impl Default for Repaint {
-    fn default() -> Self {
-        let mut repaint_after = HashMap::default();
-
-        // Start with painting an extra frame to compensate for some widgets
-        // that take two frames before they "settle":
-        repaint_after.insert(ViewportId::MAIN, std::time::Duration::from_millis(100));
-        let mut repaint_requests = HashMap::default();
-        repaint_requests.insert(ViewportId::MAIN, 1);
-        Self {
-            viewports_frame_nr: HashMap::default(),
-            repaint_after,
-            repaint_requests,
-            request_repaint_callback: None,
-            requested_repaint_last_frame: false,
-        }
-    }
+    requested_repaint_last_frame: HashMap<ViewportId, bool>,
 }
 
 impl Repaint {
@@ -99,76 +75,53 @@ impl Repaint {
 
     fn request_repaint_after(&mut self, after: std::time::Duration, viewport_id: ViewportId) {
         if after == std::time::Duration::ZERO {
-            // Do a few extra frames to let things settle.
-            // This is a bit of a hack, and we don't support it for `repaint_after` callbacks yet.
-            self.repaint_requests.insert(viewport_id, 2);
+            // This will only work if the current viewport is drawing
+            self.repaint_request.insert(viewport_id, true);
         }
 
-        // We only re-call the callback if we get a lower duration,
-        // otherwise it's already been covered by the previous callback.
-        if after
-            < self
-                .repaint_after
-                .get(&viewport_id)
-                .copied()
-                .unwrap_or(std::time::Duration::MAX)
-        {
-            self.repaint_after.insert(viewport_id, after);
-
-            if let Some(callback) = &self.request_repaint_callback {
-                let info = RequestRepaintInfo {
-                    after,
-                    current_frame_nr: *self.viewports_frame_nr.entry(viewport_id).or_default(),
-                    viewport_id,
-                };
-                (callback)(info);
-            }
+        // This will work always
+        if let Some(callback) = &self.request_repaint_callback {
+            let info = RequestRepaintInfo {
+                after,
+                current_frame_nr: *self.viewports_frame_nr.entry(viewport_id).or_default(),
+                viewport_id,
+            };
+            (callback)(info);
+        } else {
+            log::warn!("request_repaint_callback is not implemented by egui integration!\nIf is your integration you need to call `Context::set_request_repaint_callback`");
         }
     }
 
     fn start_frame(&mut self, viewport_id: ViewportId) {
-        // We are repainting; no need to reschedule a repaint unless the user asks for it again.
-        self.repaint_after.remove(&viewport_id);
+        let request = self.repaint_request.entry(viewport_id).or_default();
+        self.requested_repaint_last_frame
+            .insert(viewport_id, *request);
+        *request = false;
     }
 
-    // returns how long to wait until repaint
-    fn end_frame(
-        &mut self,
-        viewport_id: ViewportId,
-        viewports: &[ViewportId],
-    ) -> HashMap<ViewportId, std::time::Duration> {
-        // if repaint_requests is greater than zero. just set the duration to zero for immediate
-        // repaint. if there's no repaint requests, then we can use the actual repaint_after instead.
-        let repaint_after = if self
-            .repaint_requests
-            .get(&viewport_id)
-            .copied()
-            .unwrap_or(0)
-            > 0
-        {
-            if let Some(requests) = self.repaint_requests.get_mut(&viewport_id) {
-                *requests -= 1;
-            }
-
-            std::time::Duration::ZERO
-        } else {
-            self.repaint_after
-                .get(&viewport_id)
-                .copied()
-                .unwrap_or(std::time::Duration::MAX)
-        };
-        self.repaint_after.insert(viewport_id, repaint_after);
-
-        self.requested_repaint_last_frame = repaint_after.is_zero();
+    // returns what is needed to be repainted
+    fn end_frame(&mut self, viewport_id: ViewportId, viewports: &[ViewportId]) {
         *self.viewports_frame_nr.entry(viewport_id).or_default() += 1;
 
-        self.repaint_after.retain(|id, _| viewports.contains(id));
+        self.requested_repaint_last_frame
+            .retain(|id, _| viewports.contains(id));
         self.viewports_frame_nr
             .retain(|id, _| viewports.contains(id));
-        self.repaint_requests
-            .retain(|id, repaints| viewports.contains(id) && *repaints != 0);
+        self.repaint_request.retain(|id, _| viewports.contains(id));
+    }
 
-        self.repaint_after.clone()
+    fn requested_repaint_last_frame(&self, viewport_id: &ViewportId) -> bool {
+        self.requested_repaint_last_frame
+            .get(viewport_id)
+            .copied()
+            .unwrap_or_default()
+    }
+
+    fn requested_repaint(&self, viewport_id: &ViewportId) -> bool {
+        self.repaint_request
+            .get(viewport_id)
+            .copied()
+            .unwrap_or_default()
     }
 }
 
@@ -283,11 +236,10 @@ impl ContextImpl {
             pair.this,
         );
 
-        let input = self
-            .input
-            .remove(&pair)
-            .unwrap_or_default()
-            .begin_frame(new_raw_input, self.repaint.requested_repaint_last_frame);
+        let input = self.input.remove(&pair).unwrap_or_default().begin_frame(
+            new_raw_input,
+            self.repaint.requested_repaint_last_frame(&pair),
+        );
         self.input.insert(pair.this, input);
 
         self.frame_state
@@ -1279,6 +1231,26 @@ impl Context {
         self.write(|ctx| ctx.repaint.request_repaint_after(duration, id));
     }
 
+    /// With this you can know if the application stal before
+    pub fn requested_repaint_last_frame(&self) -> bool {
+        self.requested_repaint_last_frame_for(&self.viewport_id())
+    }
+
+    /// With this you can know if the viewport stal before
+    pub fn requested_repaint_last_frame_for(&self, viewport_id: &ViewportId) -> bool {
+        self.read(|ctx| ctx.repaint.requested_repaint_last_frame(viewport_id))
+    }
+
+    /// With this you will know if the application will redraw
+    pub fn requested_repaint(&self) -> bool {
+        self.requested_repaint_for(&self.viewport_id())
+    }
+
+    /// With this you will know if the viewport will redraw
+    pub fn requested_repaint_for(&self, viewport_id: &ViewportId) -> bool {
+        self.read(|ctx| ctx.repaint.requested_repaint(viewport_id))
+    }
+
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
     ///
     /// This lets you wake up a sleeping UI thread.
@@ -1665,12 +1637,10 @@ impl Context {
             });
         }
 
-        let repaint_after =
-            self.write(|ctx| ctx.repaint.end_frame(viewport_id, &avalibile_viewports));
+        self.write(|ctx| ctx.repaint.end_frame(viewport_id, &avalibile_viewports));
 
         FullOutput {
             platform_output,
-            repaint_after,
             textures_delta,
             shapes,
             viewports,

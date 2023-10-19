@@ -1,7 +1,5 @@
 //! All the data egui returns to the backend at the end of each frame.
 
-use ahash::HashMap;
-
 use crate::ViewportId;
 use crate::{ViewportCommand, ViewportOutput, WidgetType};
 
@@ -12,16 +10,6 @@ use crate::{ViewportCommand, ViewportOutput, WidgetType};
 pub struct FullOutput {
     /// Non-rendering related output.
     pub platform_output: PlatformOutput,
-
-    /// If `Duration::is_zero()`, egui is requesting immediate repaint (i.e. on the next frame).
-    ///
-    /// This happens for instance when there is an animation, or if a user has called `Context::request_repaint()`.
-    ///
-    /// If `Duration` is greater than zero, egui wants to be repainted at or before the specified
-    /// duration elapses. when in reactive mode, egui spends forever waiting for input and only then,
-    /// will it repaint itself. this can be used to make sure that backend will only wait for a
-    /// specified amount of time, and repaint egui without any new input.
-    pub repaint_after: HashMap<ViewportId, std::time::Duration>,
 
     /// Texture changes since last frame (including the font texture).
     ///
@@ -44,7 +32,6 @@ impl FullOutput {
     pub fn append(&mut self, newer: Self) {
         let Self {
             platform_output,
-            repaint_after,
             textures_delta,
             shapes,
             mut viewports,
@@ -52,7 +39,6 @@ impl FullOutput {
         } = newer;
 
         self.platform_output.append(platform_output);
-        self.repaint_after = repaint_after; // if the last frame doesn't need a repaint, then we don't need to repaint
         self.textures_delta.append(textures_delta);
         self.shapes = shapes; // Only paint the latest
         self.viewports.append(&mut viewports);
