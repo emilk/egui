@@ -285,6 +285,8 @@ fn run_and_return(
                     if let Some(window) = winit_app.window(*window_id) {
                         log::trace!("request_redraw");
                         window.read().request_redraw();
+                    } else {
+                        windows_next_repaint_times.remove(window_id);
                     }
                     control_flow.set_poll();
                 } else {
@@ -418,6 +420,8 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                     if let Some(window) = winit_app.window(*window_id) {
                         log::trace!("request_redraw");
                         window.read().request_redraw();
+                    } else {
+                        windows_next_repaint_times.remove(window_id);
                     }
                     control_flow.set_poll();
                 } else {
