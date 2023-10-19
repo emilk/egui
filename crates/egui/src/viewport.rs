@@ -147,9 +147,9 @@ impl ViewportBuilder {
 
     /// Sets the initial title of the window in the title bar.
     ///
-    /// The default is `"winit window"`.
+    /// The default is `"Dummy egui viewport"`.
     ///
-    /// See [`Window::set_title`] for details.
+    /// Look at winit for more details
     pub fn with_title(mut self, title: impl Into<String>) -> Self {
         self.title = title.into();
         self
@@ -159,7 +159,7 @@ impl ViewportBuilder {
     ///
     /// The default is `true`.
     ///
-    /// See [`Window::set_decorations`] for details.
+    /// Look at winit for more details
     pub fn with_decorations(mut self, decorations: bool) -> Self {
         self.decorations = Some(decorations);
         self
@@ -169,7 +169,7 @@ impl ViewportBuilder {
     ///
     /// The default is `None`.
     ///
-    /// See [`Window::set_fullscreen`] for details.
+    /// Look at winit for more details
     /// This will use borderless
     pub fn with_fullscreen(mut self, fullscreen: bool) -> Self {
         self.fullscreen = Some(fullscreen);
@@ -180,7 +180,7 @@ impl ViewportBuilder {
     ///
     /// The default is `false`.
     ///
-    /// See [`Window::set_maximized`] for details.
+    /// Look at winit for more details
     pub fn with_maximized(mut self, maximized: bool) -> Self {
         self.maximized = Some(maximized);
         self
@@ -190,7 +190,7 @@ impl ViewportBuilder {
     ///
     /// The default is `true`.
     ///
-    /// See [`Window::set_resizable`] for details.
+    /// Look at winit for more details
     pub fn with_resizable(mut self, resizable: bool) -> Self {
         self.resizable = Some(resizable);
         self
@@ -201,7 +201,7 @@ impl ViewportBuilder {
     /// If this is `true`, writing colors with alpha values different than
     /// `1.0` will produce a transparent window. On some platforms this
     /// is more of a hint for the system and you'd still have the alpha
-    /// buffer. To control it see [`Window::set_transparent`].
+    /// buffer.
     ///
     /// The default is `false`.
     /// If this is not working is because the graphic context dozen't support transparency,
@@ -220,13 +220,12 @@ impl ViewportBuilder {
     /// Whether the window will be initially focused or not.
     ///
     /// The window should be assumed as not focused by default
-    /// following by the [`WindowEvent::Focused`].
     ///
     /// ## Platform-specific:
     ///
     /// **Android / iOS / X11 / Wayland / Orbital:** Unsupported.
     ///
-    /// [`WindowEvent::Focused`]: crate::event::WindowEvent::Focused.
+    /// Look at winit for more details
     pub fn with_active(mut self, active: bool) -> Self {
         self.active = Some(active);
         self
@@ -236,7 +235,7 @@ impl ViewportBuilder {
     ///
     /// The default is to show the window.
     ///
-    /// See [`Window::set_visible`] for details.
+    /// Look at winit for more details
     pub fn with_visible(mut self, visible: bool) -> Self {
         self.visible = Some(visible);
         self
@@ -267,8 +266,8 @@ impl ViewportBuilder {
     ///
     /// If this is not set, some platform-specific dimensions will be used.
     ///
-    /// See [`Window::set_inner_size`] for details.
     /// Should be bigger then 0
+    /// Look at winit for more details
     pub fn with_inner_size(mut self, value: Option<Vec2>) -> Self {
         self.inner_size = Some(value);
         self
@@ -279,8 +278,8 @@ impl ViewportBuilder {
     /// If this is not set, the window will have no minimum dimensions (aside
     /// from reserved).
     ///
-    /// See [`Window::set_min_inner_size`] for details.
     /// Should be bigger then 0
+    /// Look at winit for more details
     pub fn with_min_inner_size(mut self, value: Option<Vec2>) -> Self {
         self.min_inner_size = Some(value);
         self
@@ -291,8 +290,8 @@ impl ViewportBuilder {
     /// If this is not set, the window will have no maximum or will be set to
     /// the primary monitor's dimensions by the platform.
     ///
-    /// See [`Window::set_max_inner_size`] for details.
     /// Should be bigger then 0
+    /// Look at winit for more details
     pub fn with_max_inner_size(mut self, value: Option<Vec2>) -> Self {
         self.max_inner_size = Some(value);
         self

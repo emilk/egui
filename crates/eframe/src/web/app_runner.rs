@@ -174,7 +174,7 @@ impl AppRunner {
     /// Returns how long to wait until the next repaint.
     ///
     /// Call [`Self::paint`] later to paint
-    pub fn logic(&mut self) -> (std::time::Duration, Vec<egui::ClippedPrimitive>) {
+    pub fn logic(&mut self) -> Vec<egui::ClippedPrimitive> {
         let frame_start = now_sec();
 
         super::resize_canvas_to_screen_size(self.canvas_id(), self.web_options.max_size_points);
@@ -188,7 +188,6 @@ impl AppRunner {
             });
         let egui::FullOutput {
             platform_output,
-            repaint_after,
             textures_delta,
             shapes,
             ..
@@ -205,8 +204,7 @@ impl AppRunner {
 
         self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
 
-        let repaint_after = repaint_after[&egui::ViewportId::MAIN];
-        (repaint_after, clipped_primitives)
+        clipped_primitives
     }
 
     /// Paint the results of the last call to [`Self::logic`].

@@ -9,7 +9,6 @@
 #[cfg(not(target_arch = "wasm32"))]
 mod icon_data;
 
-use egui::ViewportBuilder;
 #[cfg(not(target_arch = "wasm32"))]
 pub use icon_data::IconData;
 
@@ -45,7 +44,7 @@ pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)
 /// done by `eframe`.
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
-pub type WindowBuilderHook = Box<dyn FnOnce(ViewportBuilder) -> ViewportBuilder>;
+pub type WindowBuilderHook = Box<dyn FnOnce(egui::ViewportBuilder) -> egui::ViewportBuilder>;
 
 /// This is how your app is created.
 ///
