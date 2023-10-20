@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{num::NonZeroU32, sync::Arc};
 
 use egui::ViewportId;
 use epaint::ahash::HashMap;
@@ -80,8 +80,8 @@ pub struct Painter {
     msaa_samples: u32,
     support_transparent_backbuffer: bool,
     depth_format: Option<wgpu::TextureFormat>,
-    depth_texture_view: Option<wgpu::TextureView>,
-    msaa_texture_view: Option<wgpu::TextureView>,
+    depth_texture_view: HashMap<ViewportId, wgpu::TextureView>,
+    msaa_texture_view: HashMap<ViewportId, wgpu::TextureView>,
     screen_capture_state: Option<CaptureState>,
 
     instance: wgpu::Instance,
@@ -121,13 +121,13 @@ impl Painter {
             msaa_samples,
             support_transparent_backbuffer,
             depth_format,
-            depth_texture_view: None,
+            depth_texture_view: HashMap::default(),
             screen_capture_state: None,
 
             instance,
             render_state: None,
             surfaces: HashMap::default(),
-            msaa_texture_view: None,
+            msaa_texture_view: HashMap::default(),
         }
     }
 
@@ -243,11 +243,10 @@ impl Painter {
                     },
                 );
             }
-            self.resize_and_generate_depth_texture_view_and_msaa_view(
-                viewport_id,
-                size.width,
-                size.height,
-            );
+
+            let Some(width)  = NonZeroU32::new(size.width)  else { eprintln!("The window width was zero, skip generate textures!");  return Ok(()) };
+            let Some(height) = NonZeroU32::new(size.height) else { eprintln!("The window height was zero, skip generate textures!"); return Ok(()) };
+            self.resize_and_generate_depth_texture_view_and_msaa_view(viewport_id, width, height);
         } else {
             log::warn!("All surfaces was deleted!");
             self.surfaces.clear();
@@ -269,51 +268,56 @@ impl Painter {
     fn resize_and_generate_depth_texture_view_and_msaa_view(
         &mut self,
         viewport_id: ViewportId,
-        width_in_pixels: u32,
-        height_in_pixels: u32,
+        width_in_pixels: NonZeroU32,
+        height_in_pixels: NonZeroU32,
     ) {
         crate::profile_function!();
         let render_state = self.render_state.as_ref().unwrap();
         let surface_state = self.surfaces.get_mut(&viewport_id).unwrap();
 
-        surface_state.width = width_in_pixels;
-        surface_state.height = height_in_pixels;
+        surface_state.width = width_in_pixels.get();
+        surface_state.height = height_in_pixels.get();
 
         Self::configure_surface(surface_state, render_state, self.configuration.present_mode);
 
-        self.depth_texture_view = self.depth_format.map(|depth_format| {
-            render_state
-                .device
-                .create_texture(&wgpu::TextureDescriptor {
-                    label: Some("egui_depth_texture"),
-                    size: wgpu::Extent3d {
-                        width: width_in_pixels,
-                        height: height_in_pixels,
-                        depth_or_array_layers: 1,
-                    },
-                    mip_level_count: 1,
-                    sample_count: self.msaa_samples,
-                    dimension: wgpu::TextureDimension::D2,
-                    format: depth_format,
-                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                        | wgpu::TextureUsages::TEXTURE_BINDING,
-                    view_formats: &[depth_format],
-                })
-                .create_view(&wgpu::TextureViewDescriptor::default())
-        });
+        if let Some(depth_format) = self.depth_format {
+            self.depth_texture_view.insert(
+                viewport_id,
+                render_state
+                    .device
+                    .create_texture(&wgpu::TextureDescriptor {
+                        label: Some("egui_depth_texture"),
+                        size: wgpu::Extent3d {
+                            width: width_in_pixels.get(),
+                            height: height_in_pixels.get(),
+                            depth_or_array_layers: 1,
+                        },
+                        mip_level_count: 1,
+                        sample_count: self.msaa_samples,
+                        dimension: wgpu::TextureDimension::D2,
+                        format: depth_format,
+                        usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                            | wgpu::TextureUsages::TEXTURE_BINDING,
+                        view_formats: &[depth_format],
+                    })
+                    .create_view(&wgpu::TextureViewDescriptor::default()),
+            );
+        }
 
-        self.msaa_texture_view = (self.msaa_samples > 1)
+        if let Some(render_state) = (self.msaa_samples > 1)
             .then_some(self.render_state.as_ref())
             .flatten()
-            .map(|render_state| {
-                let texture_format = render_state.target_format;
+        {
+            let texture_format = render_state.target_format;
+            self.msaa_texture_view.insert(
+                viewport_id,
                 render_state
                     .device
                     .create_texture(&wgpu::TextureDescriptor {
                         label: Some("egui_msaa_texture"),
                         size: wgpu::Extent3d {
-                            width: width_in_pixels,
-                            height: height_in_pixels,
+                            width: width_in_pixels.get(),
+                            height: height_in_pixels.get(),
                             depth_or_array_layers: 1,
                         },
                         mip_level_count: 1,
@@ -323,15 +327,16 @@ impl Painter {
                         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                         view_formats: &[texture_format],
                     })
-                    .create_view(&wgpu::TextureViewDescriptor::default())
-            });
+                    .create_view(&wgpu::TextureViewDescriptor::default()),
+            );
+        };
     }
 
     pub fn on_window_resized(
         &mut self,
         viewport_id: ViewportId,
-        width_in_pixels: u32,
-        height_in_pixels: u32,
+        width_in_pixels: NonZeroU32,
+        height_in_pixels: NonZeroU32,
     ) {
         crate::profile_function!();
 
@@ -545,7 +550,7 @@ impl Painter {
             };
 
             let (view, resolve_target) = (self.msaa_samples > 1)
-                .then_some(self.msaa_texture_view.as_ref())
+                .then_some(self.msaa_texture_view.get(&viewport_id))
                 .flatten()
                 .map_or((&frame_view, None), |texture_view| {
                     (texture_view, Some(&frame_view))
@@ -565,7 +570,7 @@ impl Painter {
                         store: true,
                     },
                 })],
-                depth_stencil_attachment: self.depth_texture_view.as_ref().map(|view| {
+                depth_stencil_attachment: self.depth_texture_view.get(&viewport_id).map(|view| {
                     wgpu::RenderPassDepthStencilAttachment {
                         view,
                         depth_ops: Some(wgpu::Operations {
@@ -617,6 +622,10 @@ impl Painter {
 
     pub fn clean_surfaces(&mut self, avalibile_viewports: &[ViewportId]) {
         self.surfaces
+            .retain(|id, _| avalibile_viewports.contains(id));
+        self.depth_texture_view
+            .retain(|id, _| avalibile_viewports.contains(id));
+        self.msaa_texture_view
             .retain(|id, _| avalibile_viewports.contains(id));
     }
 

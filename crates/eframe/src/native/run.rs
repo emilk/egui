@@ -2549,11 +2549,15 @@ mod wgpu_integration {
                                 if let Some(viewport_id) =
                                     running.windows_id.read().get(window_id).copied()
                                 {
-                                    if 0 < physical_size.width && 0 < physical_size.height {
+                                    use std::num::NonZeroU32;
+                                    if let (Some(width), Some(height)) = (
+                                        NonZeroU32::new(physical_size.width),
+                                        NonZeroU32::new(physical_size.height),
+                                    ) {
                                         running.painter.write().on_window_resized(
                                             viewport_id,
-                                            physical_size.width,
-                                            physical_size.height,
+                                            width,
+                                            height,
                                         );
                                     }
                                 }
@@ -2562,14 +2566,17 @@ mod wgpu_integration {
                                 new_inner_size,
                                 ..
                             } => {
-                                if let Some(viewport_id) =
-                                    running.windows_id.read().get(window_id).copied()
-                                {
+                                use std::num::NonZeroU32;
+                                if let (Some(width), Some(height), Some(viewport_id)) = (
+                                    NonZeroU32::new(new_inner_size.width),
+                                    NonZeroU32::new(new_inner_size.height),
+                                    running.windows_id.read().get(window_id).copied(),
+                                ) {
                                     repaint_asap = true;
                                     running.painter.write().on_window_resized(
                                         viewport_id,
-                                        new_inner_size.width,
-                                        new_inner_size.height,
+                                        width,
+                                        height,
                                     );
                                 }
                             }
