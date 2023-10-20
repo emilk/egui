@@ -129,7 +129,7 @@ fn show_async_viewport(
     ctx.create_viewport(
         ViewportBuilder::new(name.clone())
             .with_title(name.as_str())
-            .with_inner_size(Some(egui::vec2(450.0, 320.0))),
+            .with_inner_size(Some(egui::vec2(450.0, 350.0))),
         move |ctx| {
             let mut count = count.write();
             let viewports = viewports.clone();
@@ -199,7 +199,7 @@ fn show_sync_viewport(
     ctx.create_viewport_sync(
         ViewportBuilder::new(name.clone())
             .with_title(name.as_str())
-            .with_inner_size(Some(egui::vec2(450.0, 320.0))),
+            .with_inner_size(Some(egui::vec2(450.0, 350.0))),
         move |ctx| {
             let n = name.clone();
 
@@ -339,18 +339,6 @@ fn generic_ui(ui: &mut egui::Ui, container_id: impl Into<Id>) {
     let container_id = container_id.into();
     let ctx = ui.ctx().clone();
 
-    let mut pixels_per_point = ctx.pixels_per_point();
-    if ui
-        .add(
-            egui::DragValue::new(&mut pixels_per_point)
-                .prefix("Pixels per Point: ")
-                .speed(0.01),
-        )
-        .changed()
-    {
-        ctx.set_pixels_per_point(pixels_per_point);
-    }
-
     let mut show_spinner =
         ui.data_mut(|data| *data.get_temp_mut_or(container_id.with("show_spinner"), false));
     ui.checkbox(&mut show_spinner, "Show Spinner");
@@ -358,6 +346,19 @@ fn generic_ui(ui: &mut egui::Ui, container_id: impl Into<Id>) {
         ui.spinner();
     }
     ui.data_mut(|data| data.insert_temp(container_id.with("show_spinner"), show_spinner));
+
+    let mut pixels_per_point = ctx.pixels_per_point();
+    if ui
+        .add(
+            egui::DragValue::new(&mut pixels_per_point)
+                .prefix("Pixels per Point: ")
+                .speed(0.01)
+                .clamp_range(0.5..=4.0),
+        )
+        .changed()
+    {
+        ctx.set_pixels_per_point(pixels_per_point);
+    }
 
     if ctx.viewport_id() != ctx.parent_viewport_id() {
         let parent = ctx.parent_viewport_id();
@@ -482,7 +483,7 @@ fn main() {
             #[cfg(feature = "wgpu")]
             renderer: eframe::Renderer::Wgpu,
 
-            initial_window_size: Some(egui::Vec2::new(450.0, 300.0)),
+            initial_window_size: Some(egui::Vec2::new(450.0, 320.0)),
             ..NativeOptions::default()
         },
         Box::new(|_| Box::<App>::default()),
