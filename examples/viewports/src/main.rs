@@ -339,6 +339,18 @@ fn generic_ui(ui: &mut egui::Ui, container_id: impl Into<Id>) {
     let container_id = container_id.into();
     let ctx = ui.ctx().clone();
 
+    let mut pixels_per_point = ctx.pixels_per_point();
+    if ui
+        .add(
+            egui::DragValue::new(&mut pixels_per_point)
+                .prefix("Pixels per Point: ")
+                .speed(0.01),
+        )
+        .changed()
+    {
+        ctx.set_pixels_per_point(pixels_per_point);
+    }
+
     let mut show_spinner =
         ui.data_mut(|data| *data.get_temp_mut_or(container_id.with("show_spinner"), false));
     ui.checkbox(&mut show_spinner, "Show Spinner");
