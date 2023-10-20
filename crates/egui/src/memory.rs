@@ -70,10 +70,10 @@ pub struct Memory {
     // ------------------------------------------
     /// new scale that will be applied at the start of the next frame
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) new_pixels_per_point: Option<f32>,
+    pub(crate) override_pixels_per_point: Option<f32>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) new_pixels_per_viewport: HashMap<ViewportId, f32>,
+    pub(crate) pixels_per_point_viewports: HashMap<ViewportId, f32>,
 
     /// new fonts that will be applied at the start of the next frame
     #[cfg_attr(feature = "persistence", serde(skip))]

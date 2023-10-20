@@ -347,18 +347,29 @@ fn generic_ui(ui: &mut egui::Ui, container_id: impl Into<Id>) {
     }
     ui.data_mut(|data| data.insert_temp(container_id.with("show_spinner"), show_spinner));
 
-    let mut pixels_per_point = ctx.pixels_per_point();
-    if ui
-        .add(
-            egui::DragValue::new(&mut pixels_per_point)
-                .prefix("Pixels per Point: ")
-                .speed(0.01)
-                .clamp_range(0.5..=4.0),
-        )
-        .changed()
-    {
+    let tmp_pixels_per_point = ctx.pixels_per_point();
+    let mut pixels_per_point = ui.data_mut(|data| {
+        *data.get_temp_mut_or(container_id.with("pixels_per_point"), tmp_pixels_per_point)
+    });
+    let res = ui.add(
+        egui::DragValue::new(&mut pixels_per_point)
+            .prefix("Pixels per Point: ")
+            .speed(0.1)
+            .clamp_range(0.5..=4.0),
+    );
+    if res.drag_released() {
         ctx.set_pixels_per_point(pixels_per_point);
     }
+    if res.dragged() {
+        ui.data_mut(|data| {
+            data.insert_temp(container_id.with("pixels_per_point"), pixels_per_point);
+        });
+    } else {
+        ui.data_mut(|data| {
+            data.insert_temp(container_id.with("pixels_per_point"), tmp_pixels_per_point);
+        });
+    }
+    egui::gui_zoom::zoom_with_keyboard_shortcuts(&ctx, None);
 
     if ctx.viewport_id() != ctx.parent_viewport_id() {
         let parent = ctx.parent_viewport_id();

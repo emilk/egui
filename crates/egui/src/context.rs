@@ -62,7 +62,7 @@ struct Repaint {
     viewports_frame_nr: HashMap<ViewportId, u64>,
 
     /// While positive, keep requesting repaints. Decrement at the end of each frame.
-    repaint_request: HashMap<ViewportId, bool>,
+    repaint_request: HashMap<ViewportId, u8>,
     request_repaint_callback: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
 
     requested_repaint_last_frame: HashMap<ViewportId, bool>,
@@ -74,12 +74,9 @@ impl Repaint {
     }
 
     fn request_repaint_after(&mut self, after: std::time::Duration, viewport_id: ViewportId) {
-        if after == std::time::Duration::ZERO {
-            // This will only work if the current viewport is drawing
-            self.repaint_request.insert(viewport_id, true);
-        }
+        let requests = self.repaint_request.entry(viewport_id).or_default();
+        *requests = 1.max(*requests);
 
-        // This will work always
         if let Some(callback) = &self.request_repaint_callback {
             let info = RequestRepaintInfo {
                 after,
@@ -92,11 +89,21 @@ impl Repaint {
         }
     }
 
+    fn request_repaint_settle(&mut self, viewport_id: ViewportId) {
+        self.repaint_request.insert(viewport_id, 2);
+        self.request_repaint(viewport_id);
+    }
+
     fn start_frame(&mut self, viewport_id: ViewportId) {
         let request = self.repaint_request.entry(viewport_id).or_default();
         self.requested_repaint_last_frame
-            .insert(viewport_id, *request);
-        *request = false;
+            .insert(viewport_id, *request > 0);
+        if *request > 0 {
+            *request -= 1;
+            if *request > 0 {
+                self.request_repaint(viewport_id);
+            }
+        }
     }
 
     // returns what is needed to be repainted
@@ -122,6 +129,7 @@ impl Repaint {
             .get(viewport_id)
             .copied()
             .unwrap_or_default()
+            > 0
     }
 }
 
@@ -203,16 +211,16 @@ impl ContextImpl {
         self.output.entry(self.viewport_id()).or_default();
         self.repaint.start_frame(self.viewport_id());
 
-        if let Some(new_pixels_per_point) = self.memory.new_pixels_per_point {
+        if let Some(new_pixels_per_point) = self.memory.override_pixels_per_point {
             if self
                 .memory
-                .new_pixels_per_viewport
+                .pixels_per_point_viewports
                 .get(&pair)
                 .map_or(true, |pixels| *pixels != new_pixels_per_point)
             {
                 new_raw_input.pixels_per_point = Some(new_pixels_per_point);
                 self.memory
-                    .new_pixels_per_viewport
+                    .pixels_per_point_viewports
                     .insert(pair.this, new_pixels_per_point);
 
                 let input = self.input.entry(pair.this).or_default();
@@ -222,6 +230,7 @@ impl ContextImpl {
                 rect.min = (ratio * rect.min.to_vec2()).to_pos2();
                 rect.max = (ratio * rect.max.to_vec2()).to_pos2();
                 new_raw_input.screen_rect = Some(rect);
+                self.repaint.request_repaint_settle(pair.this);
             }
         }
 
@@ -1338,8 +1347,13 @@ impl Context {
     /// For instance, when using `eframe` on web, the browsers native zoom level will always be used.
     pub fn set_pixels_per_point(&self, pixels_per_point: f32) {
         if pixels_per_point != self.pixels_per_point() {
-            self.request_repaint();
-            self.memory_mut(|mem| mem.new_pixels_per_point = Some(pixels_per_point));
+            self.write(|ctx| {
+                for viewport in ctx.viewports.values() {
+                    ctx.repaint.request_repaint_settle(viewport.pair.this);
+                }
+                ctx.repaint.request_repaint_settle(ViewportId::MAIN);
+                ctx.memory.override_pixels_per_point = Some(pixels_per_point);
+            });
         }
     }
 
@@ -1632,7 +1646,7 @@ impl Context {
                 ctx.graphics
                     .retain(|id, _| avalibile_viewports.contains(id));
                 ctx.memory
-                    .new_pixels_per_viewport
+                    .pixels_per_point_viewports
                     .retain(|id, _| avalibile_viewports.contains(id));
             });
         }
