@@ -85,7 +85,7 @@ impl Repaint {
             };
             (callback)(info);
         } else {
-            log::warn!("request_repaint_callback is not implemented by egui integration!\nIf is your integration you need to call `Context::set_request_repaint_callback`");
+            eprint!("request_repaint_callback is not implemented by egui integration!\nIf is your integration you need to call `Context::set_request_repaint_callback`");
         }
     }
 
@@ -213,15 +213,12 @@ impl ContextImpl {
 
         if let Some(new_pixels_per_point) = self.memory.override_pixels_per_point {
             if self
-                .memory
-                .pixels_per_point_viewports
+                .input
                 .get(&pair)
-                .map_or(true, |pixels| *pixels != new_pixels_per_point)
+                .map(|input| input.pixels_per_point)
+                .map_or(true, |pixels| pixels != new_pixels_per_point)
             {
                 new_raw_input.pixels_per_point = Some(new_pixels_per_point);
-                self.memory
-                    .pixels_per_point_viewports
-                    .insert(pair.this, new_pixels_per_point);
 
                 let input = self.input.entry(pair.this).or_default();
                 // This is a bit hacky, but is required to avoid jitter:
@@ -230,7 +227,6 @@ impl ContextImpl {
                 rect.min = (ratio * rect.min.to_vec2()).to_pos2();
                 rect.max = (ratio * rect.max.to_vec2()).to_pos2();
                 new_raw_input.screen_rect = Some(rect);
-                self.repaint.request_repaint_settle(pair.this);
             }
         }
 
@@ -409,7 +405,7 @@ impl ContextImpl {
 ///         });
 ///     });
 ///     handle_platform_output(full_output.platform_output);
-///     let clipped_primitives = ctx.tessellate(full_output.shapes); // create triangles to paint
+///     let clipped_primitives = ctx.tessellate(full_output.shapes, egui::ViewportId::MAIN); // create triangles to paint
 ///     paint(full_output.textures_delta, clipped_primitives);
 /// }
 /// ```
@@ -1645,9 +1641,6 @@ impl Context {
                     .retain(|id, _| avalibile_viewports.contains(id));
                 ctx.graphics
                     .retain(|id, _| avalibile_viewports.contains(id));
-                ctx.memory
-                    .pixels_per_point_viewports
-                    .retain(|id, _| avalibile_viewports.contains(id));
             });
         }
 
@@ -1679,7 +1672,11 @@ impl Context {
     }
 
     /// Tessellate the given shapes into triangle meshes.
-    pub fn tessellate(&self, shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
+    pub fn tessellate(
+        &self,
+        shapes: Vec<ClippedShape>,
+        viewport_id: ViewportId,
+    ) -> Vec<ClippedPrimitive> {
         crate::profile_function!();
 
         // A tempting optimization is to reuse the tessellation from last frame if the
@@ -1687,12 +1684,8 @@ impl Context {
         // it takes to tessellate them, so it is not a worth optimization.
 
         // here we expect that we are the only user of context, since frame is ended
+        let pixels_per_point = self.input_for(viewport_id, |i| i.pixels_per_point());
         self.write(|ctx| {
-            let pixels_per_point = ctx
-                .input
-                .entry(ctx.viewport_id())
-                .or_default()
-                .pixels_per_point();
             let tessellation_options = ctx.memory.options.tessellation_options;
             let texture_atlas = ctx
                 .fonts

@@ -992,30 +992,6 @@ mod glow_integration {
                 #[cfg(feature = "wgpu")]
                 None,
             );
-            #[cfg(feature = "accesskit")]
-            {
-                let window = &glutin_ctx.viewports[&ViewportId::MAIN];
-                let window = &mut *window.write();
-                integration.init_accesskit(
-                    window.egui_winit.as_mut().unwrap(),
-                    &window.window.as_ref().unwrap().read(),
-                    self.repaint_proxy.lock().clone(),
-                );
-            }
-            let theme = system_theme.unwrap_or(self.native_options.default_theme);
-            integration.egui_ctx.set_visuals(theme.egui_visuals());
-
-            if self.native_options.mouse_passthrough {
-                glutin_ctx
-                    .window(ViewportId::MAIN)
-                    .read()
-                    .window
-                    .as_ref()
-                    .unwrap()
-                    .read()
-                    .set_cursor_hittest(false)
-                    .unwrap();
-            }
 
             {
                 let event_loop_proxy = self.repaint_proxy.clone();
@@ -1034,6 +1010,32 @@ mod glow_integration {
                             })
                             .ok();
                     });
+            }
+
+            #[cfg(feature = "accesskit")]
+            {
+                let event_loop_proxy = self.repaint_proxy.lock().clone();
+                let window = &glutin_ctx.viewports[&ViewportId::MAIN];
+                let window = &mut *window.write();
+                integration.init_accesskit(
+                    window.egui_winit.as_mut().unwrap(),
+                    &window.window.as_ref().unwrap().read(),
+                    event_loop_proxy,
+                );
+            }
+            let theme = system_theme.unwrap_or(self.native_options.default_theme);
+            integration.egui_ctx.set_visuals(theme.egui_visuals());
+
+            if self.native_options.mouse_passthrough {
+                glutin_ctx
+                    .window(ViewportId::MAIN)
+                    .read()
+                    .window
+                    .as_ref()
+                    .unwrap()
+                    .read()
+                    .set_cursor_hittest(false)
+                    .unwrap();
             }
 
             let app_creator = std::mem::take(&mut self.app_creator)
@@ -1172,7 +1174,7 @@ mod glow_integration {
 
             let screen_size_in_pixels: [u32; 2] = win.inner_size().into();
 
-            let clipped_primitives = egui_ctx.tessellate(output.shapes);
+            let clipped_primitives = egui_ctx.tessellate(output.shapes, pair.this);
 
             glutin.current_gl_context = Some(
                 glutin
@@ -1197,9 +1199,10 @@ mod glow_integration {
 
             egui_glow::painter::clear(gl, screen_size_in_pixels, [0.0, 0.0, 0.0, 0.0]);
 
+            let pixels_per_point = egui_ctx.input_for(pair.this, |i| i.pixels_per_point());
             painter.write().paint_and_update_textures(
                 screen_size_in_pixels,
-                egui_ctx.pixels_per_point(),
+                pixels_per_point,
                 &clipped_primitives,
                 &output.textures_delta,
             );
@@ -1214,7 +1217,7 @@ mod glow_integration {
                         .as_ref()
                         .expect("failed to get current context to swap buffers"),
                 );
-            winit_state.handle_platform_output(&win, egui_ctx, output.platform_output);
+            winit_state.handle_platform_output(&win, pair.this, egui_ctx, output.platform_output);
         }
 
         fn process_viewport_builders(
@@ -1422,7 +1425,6 @@ mod glow_integration {
 
                 let control_flow;
                 {
-                    // let window = gl_window.window(window_index);
                     let win = glutin.read().viewports.get(&viewport_id).cloned();
                     let win = win.unwrap();
 
@@ -1453,6 +1455,7 @@ mod glow_integration {
 
                         integration.write().handle_platform_output(
                             &win.window.as_ref().unwrap().read(),
+                            viewport_id,
                             platform_output,
                             win.egui_winit.as_mut().unwrap(),
                         );
@@ -1460,7 +1463,7 @@ mod glow_integration {
 
                     let clipped_primitives = {
                         crate::profile_scope!("tessellate");
-                        integration.read().egui_ctx.tessellate(shapes)
+                        integration.read().egui_ctx.tessellate(shapes, viewport_id)
                     };
                     {
                         let mut gl_window = glutin.write();
@@ -1485,9 +1488,14 @@ mod glow_integration {
                             .clear_color(&integration.read().egui_ctx.style().visuals),
                     );
 
+                    let pixels_per_point = integration
+                        .read()
+                        .egui_ctx
+                        .input_for(viewport_id, |i| i.pixels_per_point());
+
                     painter.write().paint_and_update_textures(
                         screen_size_in_pixels,
-                        integration.read().egui_ctx.pixels_per_point(),
+                        pixels_per_point,
                         &clipped_primitives,
                         &textures_delta,
                     );
@@ -2020,14 +2028,6 @@ mod wgpu_integration {
                 wgpu_render_state.clone(),
             );
 
-            let mut state = egui_winit::State::new(event_loop);
-            #[cfg(feature = "accesskit")]
-            {
-                integration.init_accesskit(&mut state, &window, self.repaint_proxy.lock().clone());
-            }
-            let theme = system_theme.unwrap_or(self.native_options.default_theme);
-            integration.egui_ctx.set_visuals(theme.egui_visuals());
-
             {
                 let event_loop_proxy = self.repaint_proxy.clone();
 
@@ -2048,6 +2048,15 @@ mod wgpu_integration {
                             .ok();
                     });
             }
+
+            let mut state = egui_winit::State::new(event_loop);
+            #[cfg(feature = "accesskit")]
+            {
+                let event_loop_proxy = self.repaint_proxy.lock().clone();
+                integration.init_accesskit(&mut state, &window, event_loop_proxy);
+            }
+            let theme = system_theme.unwrap_or(self.native_options.default_theme);
+            integration.egui_ctx.set_visuals(theme.egui_visuals());
 
             let app_creator = std::mem::take(&mut self.app_creator)
                 .expect("Single-use AppCreator has unexpectedly already been taken");
@@ -2204,17 +2213,18 @@ mod wgpu_integration {
                 );
             }
 
-            let clipped_primitives = egui_ctx.tessellate(output.shapes);
+            let pixels_per_point = egui_ctx.input_for(pair.this, |i| i.pixels_per_point());
+            let clipped_primitives = egui_ctx.tessellate(output.shapes, pair.this);
             c_painter.write().paint_and_update_textures(
                 pair.this,
-                egui_ctx.pixels_per_point(),
+                pixels_per_point,
                 [0.0, 0.0, 0.0, 0.0],
                 &clipped_primitives,
                 &output.textures_delta,
                 false,
             );
 
-            winit_state.handle_platform_output(&win, egui_ctx, output.platform_output);
+            winit_state.handle_platform_output(&win, pair.this, egui_ctx, output.platform_output);
         }
     }
 
@@ -2341,21 +2351,26 @@ mod wgpu_integration {
 
                     integration.write().handle_platform_output(
                         &window.read(),
+                        viewport_id,
                         platform_output,
                         state.write().as_mut().unwrap(),
                     );
 
                     let clipped_primitives = {
                         crate::profile_scope!("tessellate");
-                        integration.read().egui_ctx.tessellate(shapes)
+                        integration.read().egui_ctx.tessellate(shapes, viewport_id)
                     };
 
                     let integration = &mut *integration.write();
                     let screenshot_requested = &mut integration.frame.output.screenshot_requested;
 
+                    let pixels_per_point = integration
+                        .egui_ctx
+                        .input_for(viewport_id, |i| i.pixels_per_point());
+
                     let screenshot = painter.write().paint_and_update_textures(
                         viewport_id,
-                        integration.egui_ctx.pixels_per_point(),
+                        pixels_per_point,
                         app.clear_color(&integration.egui_ctx.style().visuals),
                         &clipped_primitives,
                         &textures_delta,

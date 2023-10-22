@@ -1,5 +1,5 @@
 use egui::TexturesDelta;
-use egui::ViewportIdPair;
+use egui::{ViewportId, ViewportIdPair};
 use wasm_bindgen::JsValue;
 
 use crate::{epi, App};
@@ -195,7 +195,7 @@ impl AppRunner {
 
         self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
-        let clipped_primitives = self.egui_ctx.tessellate(shapes);
+        let clipped_primitives = self.egui_ctx.tessellate(shapes, ViewportId::MAIN);
 
         {
             let app_output = self.frame.take_app_output();

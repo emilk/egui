@@ -553,10 +553,11 @@ impl EpiIntegration {
     pub fn handle_platform_output(
         &mut self,
         window: &winit::window::Window,
+        viewport_id: ViewportId,
         platform_output: egui::PlatformOutput,
         egui_winit: &mut egui_winit::State,
     ) {
-        egui_winit.handle_platform_output(window, &self.egui_ctx, platform_output);
+        egui_winit.handle_platform_output(window, viewport_id, &self.egui_ctx, platform_output);
     }
 
     // ------------------------------------------------------------------------

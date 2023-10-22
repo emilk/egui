@@ -19,7 +19,7 @@ pub mod easy_mark;
 pub use color_test::ColorTest;
 pub use demo::DemoWindows;
 #[cfg(test)]
-use egui::ViewportIdPair;
+use egui::{ViewportId, ViewportIdPair};
 
 /// View some Rust code with syntax highlighting and selection.
 pub(crate) fn rust_view_ui(ui: &mut egui::Ui, code: &str) {
@@ -79,7 +79,7 @@ fn test_egui_e2e() {
         let full_output = ctx.run(raw_input.clone(), ViewportIdPair::MAIN, |ctx| {
             demo_windows.ui(ctx);
         });
-        let clipped_primitives = ctx.tessellate(full_output.shapes);
+        let clipped_primitives = ctx.tessellate(full_output.shapes, ViewportId::MAIN);
         assert!(!clipped_primitives.is_empty());
     }
 }
@@ -98,7 +98,7 @@ fn test_egui_zero_window_size() {
         let full_output = ctx.run(raw_input.clone(), ViewportIdPair::MAIN, |ctx| {
             demo_windows.ui(ctx);
         });
-        let clipped_primitives = ctx.tessellate(full_output.shapes);
+        let clipped_primitives = ctx.tessellate(full_output.shapes, ViewportId::MAIN);
         assert!(
             clipped_primitives.is_empty(),
             "There should be nothing to show, has at least one primitive with clip_rect: {:?}",

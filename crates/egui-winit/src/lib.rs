@@ -706,6 +706,7 @@ impl State {
     pub fn handle_platform_output(
         &mut self,
         window: &winit::window::Window,
+        viewport_id: ViewportId,
         egui_ctx: &egui::Context,
         platform_output: egui::PlatformOutput,
     ) {
@@ -719,7 +720,7 @@ impl State {
             #[cfg(feature = "accesskit")]
             accesskit_update,
         } = platform_output;
-        self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
+        self.current_pixels_per_point = egui_ctx.input_for(viewport_id, |i| i.pixels_per_point); // someone can have changed it to scale the UI
 
         self.set_cursor_icon(window, cursor_icon);
 
