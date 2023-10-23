@@ -415,6 +415,13 @@ impl Focus {
             // nothing has focus and the user pressed tab - give focus to the first widgets that wants it:
             self.focused_widget = Some(FocusWidget::new(id));
             self.reset_focus();
+        } else if self.focus_direction == FocusDirection::Previous
+            && self.focused_widget.is_none()
+            && !self.give_to_next
+        {
+            // nothing has focus and the user pressed Shift+Tab - give focus to the last widgets that wants it:
+            self.focused_widget = self.last_interested.map(FocusWidget::new);
+            self.reset_focus();
         }
 
         self.last_interested = Some(id);
