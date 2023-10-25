@@ -55,7 +55,7 @@ pub type ViewportRenderSyncCallback =
     dyn for<'a> Fn(&Context, ViewportBuilder, ViewportIdPair, Box<dyn FnOnce(&Context) + 'a>);
 
 /// The filds in this struct should not be change directly, but is not problem tho!
-/// Every thing is wrapped in ``Option<T>`` indicates that nothing changed from the last ``ViewportBuilder``!
+/// Every thing is wrapped in `Option<T>` indicates that nothing changed from the last `ViewportBuilder`!
 #[derive(PartialEq, Eq, Clone)]
 #[allow(clippy::option_option)]
 pub struct ViewportBuilder {
@@ -321,6 +321,7 @@ impl ViewportBuilder {
         self
     }
 
+    /// This will probably not work as expected!
     pub fn with_position(mut self, value: Option<Pos2>) -> Self {
         self.position = Some(value);
         self
@@ -356,6 +357,8 @@ pub enum ViewportCommand {
     Transparent(bool),
     Visible(bool),
     Drag,
+
+    /// Will probably not work as expected!
     OuterPosition(Pos2),
 
     /// Should be bigger then 0
@@ -366,6 +369,8 @@ pub enum ViewportCommand {
 
     /// Should be bigger then 0
     MaxInnerSize(Option<Vec2>),
+
+    /// Should be bigger then 0
     ResizeIncrements(Option<Vec2>),
 
     /// Top, Bottom, Right, Left
@@ -398,6 +403,7 @@ pub enum ViewportCommand {
 
     ContentProtected(bool),
 
+    /// Will probably not work as expected!
     CursorPosition(Pos2),
 
     /// 0 = None, 1 = Confined, 2 = Locked

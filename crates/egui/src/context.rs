@@ -61,7 +61,7 @@ struct Repaint {
     /// Incremented at the end of each frame.
     viewports_frame_nr: HashMap<ViewportId, u64>,
 
-    /// While positive, keep requesting repaints. Decrement at the end of each frame.
+    /// While positive, keep requesting repaints. Decrement at the start of each frame.
     repaint_request: HashMap<ViewportId, u8>,
     request_repaint_callback: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
 
@@ -85,7 +85,10 @@ impl Repaint {
             };
             (callback)(info);
         } else {
-            eprint!("request_repaint_callback is not implemented by egui integration!\nIf is your integration you need to call `Context::set_request_repaint_callback`");
+            eprint!(
+                "request_repaint_callback is not implemented by egui integration!
+                If is your integration you need to call `Context::set_request_repaint_callback`"
+            );
         }
     }
 
@@ -537,13 +540,7 @@ impl Context {
     /// ```
     #[inline]
     pub fn input<R>(&self, reader: impl FnOnce(&InputState) -> R) -> R {
-        self.read(move |ctx| {
-            reader(
-                ctx.input
-                    .get(&ctx.viewport_id())
-                    .unwrap_or(&Default::default()),
-            )
-        })
+        self.input_for(self.viewport_id(), reader)
     }
 
     /// This will create a `InputState::default()` if there is no input state for that viewport
@@ -555,7 +552,7 @@ impl Context {
     /// Read-write access to [`InputState`].
     #[inline]
     pub fn input_mut<R>(&self, writer: impl FnOnce(&mut InputState) -> R) -> R {
-        self.write(move |ctx| writer(ctx.input.entry(ctx.viewport_id()).or_default()))
+        self.input_mut_for(self.viewport_id(), writer)
     }
 
     /// This will create a `InputState::default()` if there is no input state for that viewport
@@ -1144,8 +1141,7 @@ impl Context {
     ///
     /// This will repaint the current viewport
     pub fn request_repaint(&self) {
-        // request two frames of repaint, just to cover some corner cases (frame delays):
-        self.write(|ctx| ctx.repaint.request_repaint(ctx.viewport_id()));
+        self.request_repaint_for(self.viewport_id())
     }
 
     /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
@@ -1181,9 +1177,6 @@ impl Context {
     /// and call this function, to make sure that you are displaying the latest updated time, but
     /// not wasting resources on needless repaints within the same second.
     ///
-    /// NOTE: only works if called before `Context::end_frame()`. to force egui to update,
-    /// use `Context::request_repaint()` instead.
-    ///
     /// ### Quirk:
     /// Duration begins at the next frame. lets say for example that its a very inefficient app
     /// and takes 500 milliseconds per frame at 2 fps. The widget / user might want a repaint in
@@ -1194,11 +1187,7 @@ impl Context {
     ///
     /// This repaints the current viewport
     pub fn request_repaint_after(&self, duration: std::time::Duration) {
-        // Maybe we can check if duration is ZERO, and call self.request_repaint()?
-        self.write(|ctx| {
-            ctx.repaint
-                .request_repaint_after(duration, ctx.viewport_id());
-        });
+        self.request_repaint_after_for(duration, self.viewport_id())
     }
 
     /// Request repaint after at most the specified duration elapses.
@@ -1219,9 +1208,6 @@ impl Context {
     /// just calculate the difference of duration between current time and next second change,
     /// and call this function, to make sure that you are displaying the latest updated time, but
     /// not wasting resources on needless repaints within the same second.
-    ///
-    /// NOTE: only works if called before `Context::end_frame()`. to force egui to update,
-    /// use `Context::request_repaint()` instead.
     ///
     /// ### Quirk:
     /// Duration begins at the next frame. lets say for example that its a very inefficient app
@@ -1256,7 +1242,7 @@ impl Context {
         self.read(|ctx| ctx.repaint.requested_repaint(viewport_id))
     }
 
-    /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`].
+    /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`] or [`Self::request_repaint_after`].
     ///
     /// This lets you wake up a sleeping UI thread.
     ///
@@ -2531,12 +2517,14 @@ impl Context {
 impl Context {
     /// Return the `ViewportId` of the current viewport
     /// In the case of this viewport is the main viewport will be `ViewportId::MAIN`
+    /// Don't use this outside of `Self::run`, or after `Self::end_frame`
     pub fn viewport_id(&self) -> ViewportId {
         self.read(|ctx| ctx.viewport_id())
     }
 
     /// Return the `ViewportId` of his parent
     /// In the case of this viewport is the main viewport will be `ViewportId::MAIN`
+    /// Don't use this outside of `Self::run`, or after `Self::end_frame`
     pub fn parent_viewport_id(&self) -> ViewportId {
         self.read(|ctx| ctx.parent_viewport_id())
     }
@@ -2546,11 +2534,14 @@ impl Context {
         self.read(|ctx| ctx.viewports.get(&id.into()).map(|v| v.pair))
     }
 
-    /// This should only be used by the backend!
+    /// For integrations: Is used to render a sync viewport!
+    ///
+    /// This will only be set for the current thread!
+    /// Can be set only one callback per thread!
     ///
     /// When a viewport sync is created will be rendered by this function
     ///
-    /// Look in `crates/eframe/native/run.rs` and search for ``set_render_sync_callback`` to see for what is used!
+    /// Look in `crates/eframe/native/run.rs` and search for `set_render_sync_callback` to see for what is used!
     #[allow(clippy::unused_self)]
     pub fn set_render_sync_callback(
         &self,
@@ -2568,13 +2559,13 @@ impl Context {
         self.read(|ctx| ctx.is_desktop)
     }
 
-    /// If this is true no other native windows will be created
+    /// If this is true no other native window will be created, when a viewport is created!
     pub fn force_embedding(&self) -> bool {
         self.read(|ctx| ctx.force_embedding)
     }
 
-    /// If this is true no other native windows, will not be created for a ```egui::Window``` or Viewport
-    /// You will always be able to set to false
+    /// If this is true no other native window will be created, when a viewport is created!
+    /// You will always be able to set to true
     pub fn set_force_embedding(&self, value: bool) {
         self.write(|ctx| ctx.force_embedding = value || !ctx.is_desktop);
     }
@@ -2590,14 +2581,14 @@ impl Context {
     }
 
     /// This will be a native window if is possible!
-    /// You will need to wrap your viewport state in an ```Arc<RwLock<T>>``` or ```Arc<Mutex<T>>```!
-    /// When this is called again with the same title in `ViewportBuilder` the render function for that viewport will be updated!
+    /// You will need to wrap your viewport state in an `Arc<RwLock<T>>` or `Arc<Mutex<T>>`!
+    /// When this is called again with the same id in `ViewportBuilder` the render function for that viewport will be updated!
     /// * `render`: will be called when the viewport receives a event or is requested to be rendered
     ///
     /// If this is no more called that viewport will be destroyed!
     ///
-    /// If you use a ```egui::CentralPanel``` you need to check if the viewport is a new window like: ```ctx.get_viewport_id() != ViewportId::MAIN```
-    /// If the viewport id is ```ViewportId::MAIN``` you should create ```egui::Area``` then inside the area ```egui::Frame::popup(ctx.style())```
+    /// If you use a `egui::CentralPanel` you need to check if the viewport is a new window like:
+    /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a `egui::Window`
     pub fn create_viewport(
         &self,
         viewport_builder: ViewportBuilder,
@@ -2633,13 +2624,18 @@ impl Context {
         }
     }
 
-    /// This can only be called in the main thread, you can use ```Context::create_viewport_async```
+    /// This can only be called in the main thread!
     /// When this is called the current viewport will be paused
-    /// This will render in a native window if he can!
+    /// This will render in a native window if is possible!
     /// When this finishes then the last viewport will continue drawing
     /// This is bad for performance but easy to use!
     ///
-    /// For better performance use `Context::create_viewport`
+    /// For better performance use `Self::create_viewport`
+    ///
+    /// If this is no more called that viewport will be destroyed!
+    ///
+    /// If you use a `egui::CentralPanel` you need to check if the viewport is a new window like:
+    /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a `egui::Window`
     pub fn create_viewport_sync<T>(
         &self,
         viewport_builder: ViewportBuilder,
