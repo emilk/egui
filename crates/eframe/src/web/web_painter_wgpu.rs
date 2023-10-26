@@ -77,8 +77,7 @@ impl WebPainterWgpu {
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: options.wgpu_options.supported_backends,
-            dx12_shader_compiler: Default::default(),
-            gles_minor_version: wgpu::Gles3MinorVersion::Automatic,
+            ..Default::default()
         });
 
         let canvas = super::canvas_element_or_die(canvas_id);
