@@ -335,6 +335,23 @@ impl FontDefinitions {
             families,
         }
     }
+
+    /// List of all the builtin font names used by `epaint`.
+    #[cfg(feature = "default_fonts")]
+    pub fn builtin_font_names() -> &'static [&'static str] {
+        &[
+            "Ubuntu-Light",
+            "NotoEmoji-Regular",
+            "emoji-icon-font",
+            "Hack",
+        ]
+    }
+
+    /// List of all the builtin font names used by `epaint`.
+    #[cfg(not(feature = "default_fonts"))]
+    pub fn builtin_font_names() -> &'static [&'static str] {
+        &[]
+    }
 }
 
 // ----------------------------------------------------------------------------
