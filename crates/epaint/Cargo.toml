@@ -100,7 +100,8 @@ log = { version = "0.4", optional = true, features = ["std"] }
 serde = { version = "1", optional = true, features = ["derive", "rc"] }
 
 ## Allow diffing with serialization using [`serde-diff`](https://docs.rs/serde-diff/latest/serde_diff/) .
-serde-diff = { version = "0.4.1", optional = true }
+#serde-diff = { version = "0.4.1", optional = true }
+serde-diff = { git = "https://github.com/linguini11/serde-diff.git", optional = true }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

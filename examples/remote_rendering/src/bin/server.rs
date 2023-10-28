@@ -9,8 +9,10 @@ fn main() {
     let mut context = egui::Context::default();
     let mut previous_full_output = egui::FullOutput::default();
     let mut count = 0;
+    let mut text = "👍🏾".to_string();
+    let mut egui_demo_windows = egui_demo_lib::DemoWindows::default();
 
-    let server = TcpListener::bind("127.0.0.1:3012").unwrap();
+    let server = TcpListener::bind("127.0.0.1:8083").unwrap();
     let stream = server.incoming().next().unwrap().unwrap();
     client = accept(stream).unwrap();
 
@@ -29,6 +31,7 @@ fn main() {
                             current_pixels_per_point = pixels_per_point;
                         }
                         eframe::RemoteRenderingMessageType::RawInput(raw_input) => {
+                            println!("raw input message received");
                             latest_raw_input = raw_input;
                         }
                     }
@@ -43,16 +46,24 @@ fn main() {
             .default_pos(egui::pos2(100.0, 0.0))
             .show(&ctx, |ui| {
                 ui.label(format!("Count: {:?}", count));
+                //ui.add(egui::TextEdit::singleline(&mut text));
             });
+
+        //test
+        //egui_demo_windows.ui(&ctx);
+        //test
 
         ctx.request_repaint();
         let full_output = ctx.end_frame();
         context = ctx;
         count += 1;
         let old_full_output = previous_full_output.clone();
-        let serialized_full_output = serde_json::to_string(&full_output).unwrap();
+        //let serialized_full_output = serde_json::to_string(&full_output).unwrap();
+        let serialized_full_output =
+            serde_json::to_string(&Diff::serializable(&old_full_output, &full_output));
         previous_full_output = full_output.clone();
         if let Ok(diff) = serialized_full_output {
+            //let _ = client.write_message(Message::Text(serialized_full_output));
             let _ = client.write_message(Message::Text(diff));
         }
     }

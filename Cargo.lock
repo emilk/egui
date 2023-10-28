@@ -3006,7 +3006,9 @@ version = "0.1.0"
 dependencies = [
  "eframe",
  "egui",
+ "egui_demo_lib",
  "serde",
+ "serde-diff",
  "serde_derive",
  "serde_json",
  "tungstenite",
@@ -3227,8 +3229,7 @@ dependencies = [
 [[package]]
 name = "serde-diff"
 version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b956d904dea556a339d23adeaaf0e672275a030ba78ce0db644781c2756c5ea"
+source = "git+https://github.com/linguini11/serde-diff.git#e461da41c9339af3ecadf9f4aa61ae91c1f79e97"
 dependencies = [
  "serde",
  "serde-diff-derive",
@@ -3238,8 +3239,7 @@ dependencies = [
 [[package]]
 name = "serde-diff-derive"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "692563b61324ae1568e2884c7a6385ab4b95f13063fd31a6b702d5cbc5c456df"
+source = "git+https://github.com/linguini11/serde-diff.git#e461da41c9339af3ecadf9f4aa61ae91c1f79e97"
 dependencies = [
  "darling 0.10.2",
  "proc-macro2",

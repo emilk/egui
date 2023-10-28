@@ -12,3 +12,5 @@ serde_json = "*"
 serde_derive = "*"
 egui = { path = "../../crates/egui" }
 eframe = { path = "../../crates/eframe" }
+egui_demo_lib = { path = "../../crates/egui_demo_lib" }
+serde-diff = { git = "https://github.com/linguini11/serde-diff.git" }
