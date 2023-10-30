@@ -2,7 +2,7 @@
 
 use epaint::{emath::Rangef, vec2, Vec2};
 
-use crate::{area, window, EventFilter, Id, IdMap, InputState, LayerId, Pos2, Rect, Style};
+use crate::{area, window, EventFilter, Id, IdMap, InputState, LayerId, Order, Pos2, Rect, Style};
 
 // ----------------------------------------------------------------------------
 
@@ -817,6 +817,14 @@ impl Areas {
         if !self.order.iter().any(|x| *x == layer_id) {
             self.order.push(layer_id);
         }
+    }
+
+    pub fn get_top_layer_id(&self, order: Order) -> Option<LayerId> {
+        self.order
+            .iter()
+            .filter(|layer| layer.order == order)
+            .last()
+            .copied()
     }
 
     pub(crate) fn end_frame(&mut self) {

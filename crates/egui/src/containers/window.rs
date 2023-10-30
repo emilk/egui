@@ -350,9 +350,18 @@ impl<'open> Window<'open> {
         let resize = resize.resizable(false); // We move it manually
         let mut resize = resize.id(resize_id);
 
+        let on_top = Some(area_layer_id) == ctx.get_top_layer_id();
         let mut area = area.begin(ctx);
 
         let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;
+
+        // Calculate roughly how much larger the window size is compared to the inner rect
+        let title_bar_height = if with_title_bar {
+            let style = ctx.style();
+            ctx.fonts(|f| title.font_height(f, &style)) + title_content_spacing * 2.0
+        } else {
+            0.0
+        };
 
         // First interact (move etc) to avoid frame delay:
         let last_frame_outer_rect = area.state().rect();
@@ -365,13 +374,6 @@ impl<'open> Window<'open> {
                 last_frame_outer_rect,
             )
             .and_then(|window_interaction| {
-                // Calculate roughly how much larger the window size is compared to the inner rect
-                let title_bar_height = if with_title_bar {
-                    let style = ctx.style();
-                    ctx.fonts(|f| title.font_height(f, &style)) + title_content_spacing
-                } else {
-                    0.0
-                };
                 let margins = frame.outer_margin.sum()
                     + frame.inner_margin.sum()
                     + vec2(0.0, title_bar_height);
@@ -434,6 +436,29 @@ impl<'open> Window<'open> {
             // END FRAME --------------------------------
 
             if let Some(title_bar) = title_bar {
+                if on_top {
+                    let rect = Rect::from_min_size(
+                        outer_rect.min,
+                        Vec2 {
+                            x: outer_rect.size().x,
+                            y: title_bar_height,
+                        },
+                    );
+                    let mut round = area_content_ui.visuals().window_rounding;
+                    if !is_collapsed {
+                        round.se = 0.0;
+                        round.sw = 0.0;
+                    }
+                    let (r, g, b, _) = area_content_ui
+                        .visuals()
+                        .window_selected_header_color()
+                        .to_tuple();
+                    let selected_color = Color32::from_rgba_unmultiplied(r, g, b, 128);
+
+                    area_content_ui
+                        .painter()
+                        .rect_filled(rect, round, selected_color);
+                };
                 title_bar.ui(
                     &mut area_content_ui,
                     outer_rect,

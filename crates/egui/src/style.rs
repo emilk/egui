@@ -511,6 +511,7 @@ pub struct Visuals {
 
     pub window_rounding: Rounding,
     pub window_shadow: Shadow,
+    pub window_selected_header_color: Color32,
     pub window_fill: Color32,
     pub window_stroke: Stroke,
 
@@ -585,6 +586,12 @@ impl Visuals {
     #[inline(always)]
     pub fn window_fill(&self) -> Color32 {
         self.window_fill
+    }
+
+    /// Window selected header color.
+    #[inline(always)]
+    pub fn window_selected_header_color(&self) -> Color32 {
+        self.window_selected_header_color
     }
 
     #[inline(always)]
@@ -845,6 +852,7 @@ impl Visuals {
             window_rounding: Rounding::same(6.0),
             window_shadow: Shadow::big_dark(),
             window_fill: Color32::from_gray(27),
+            window_selected_header_color: Color32::from_gray(64),
             window_stroke: Stroke::new(1.0, Color32::from_gray(60)),
 
             menu_rounding: Rounding::same(6.0),
@@ -885,6 +893,7 @@ impl Visuals {
 
             window_shadow: Shadow::big_light(),
             window_fill: Color32::from_gray(248),
+            window_selected_header_color: Color32::from_gray(230),
             window_stroke: Stroke::new(1.0, Color32::from_gray(190)),
 
             panel_fill: Color32::from_gray(248),
@@ -1421,6 +1430,7 @@ impl Visuals {
             window_rounding,
             window_shadow,
             window_fill,
+            window_selected_header_color,
             window_stroke,
 
             menu_rounding,
@@ -1448,6 +1458,7 @@ impl Visuals {
         ui.collapsing("Background Colors", |ui| {
             ui_color(ui, &mut widgets.inactive.weak_bg_fill, "Buttons");
             ui_color(ui, window_fill, "Windows");
+            ui_color(ui, window_selected_header_color, "Selected window");
             ui_color(ui, panel_fill, "Panels");
             ui_color(ui, faint_bg_color, "Faint accent").on_hover_text(
                 "Used for faint accentuation of interactive things, like striped grids.",
