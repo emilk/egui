@@ -175,16 +175,30 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
     )?;
 
     #[cfg(web_sys_unstable_apis)]
-    runner_ref.add_event_listener(&document, "cut", |_: web_sys::ClipboardEvent, runner| {
-        runner.input.raw.events.push(egui::Event::Cut);
-        runner.needs_repaint.repaint_asap();
-    })?;
+    runner_ref.add_event_listener(
+        &document,
+        "cut",
+        |event: web_sys::ClipboardEvent, runner| {
+            runner.input.raw.events.push(egui::Event::Cut);
+            runner.logic();
+            runner.needs_repaint.repaint_asap();
+            event.stop_propagation();
+            event.prevent_default();
+        },
+    )?;
 
     #[cfg(web_sys_unstable_apis)]
-    runner_ref.add_event_listener(&document, "copy", |_: web_sys::ClipboardEvent, runner| {
-        runner.input.raw.events.push(egui::Event::Copy);
-        runner.needs_repaint.repaint_asap();
-    })?;
+    runner_ref.add_event_listener(
+        &document,
+        "copy",
+        |event: web_sys::ClipboardEvent, runner| {
+            runner.input.raw.events.push(egui::Event::Copy);
+            runner.logic();
+            runner.needs_repaint.repaint_asap();
+            event.stop_propagation();
+            event.prevent_default();
+        },
+    )?;
 
     Ok(())
 }
