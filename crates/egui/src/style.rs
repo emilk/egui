@@ -893,7 +893,7 @@ impl Visuals {
 
             window_shadow: Shadow::big_light(),
             window_fill: Color32::from_gray(248),
-            window_selected_header_color: Color32::from_gray(230),
+            window_selected_header_color: Color32::from_rgb(32, 64, 255),
             window_stroke: Stroke::new(1.0, Color32::from_gray(190)),
 
             panel_fill: Color32::from_gray(248),
