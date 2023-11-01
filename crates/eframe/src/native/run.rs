@@ -1080,9 +1080,9 @@ mod glow_integration {
                         viewport_builder,
                         pair,
                         render,
-                        &c_glutin,
+                        &mut c_glutin.write(),
                         &c_gl,
-                        &c_painter,
+                        &mut c_painter.write(),
                         c_time,
                     );
                 },
@@ -1106,18 +1106,17 @@ mod glow_integration {
             mut viewport_builder: ViewportBuilder,
             pair: ViewportIdPair,
             render: Box<dyn FnOnce(&egui::Context) + '_>,
-            glutin: &RwLock<GlutinWindowContext>,
+            glutin: &mut GlutinWindowContext,
             gl: &glow::Context,
-            painter: &RwLock<egui_glow::Painter>,
+            painter: &mut egui_glow::Painter,
             time: Instant,
         ) {
-            let has_window = glutin.read().viewports.get(&pair).is_some();
+            let has_window = glutin.viewports.get(&pair).is_some();
 
             // This will create a new native window if is needed
             if !has_window {
                 // Inherit parent icon if none
                 {
-                    let glutin = glutin.read();
                     if viewport_builder.icon.is_none() && glutin.builders.get(&pair).is_none() {
                         viewport_builder.icon = glutin
                             .builders
@@ -1127,7 +1126,6 @@ mod glow_integration {
                 }
 
                 {
-                    let mut glutin = glutin.write();
                     glutin
                         .viewports
                         .entry(pair.this)
@@ -1141,7 +1139,7 @@ mod glow_integration {
                     glutin.builders.entry(pair.this).or_insert(viewport_builder);
                 }
 
-                let win = glutin.read().viewports[&pair].clone();
+                let win = glutin.viewports[&pair].clone();
                 let event_loop;
                 #[allow(unsafe_code)]
                 unsafe {
@@ -1150,14 +1148,13 @@ mod glow_integration {
                     });
                 }
                 glutin
-                    .write()
                     .init_window(&win, event_loop)
                     .expect("Cannot init window on egui::Context::create_viewport_sync");
             }
 
             // Rendering the sync viewport
 
-            let window = glutin.read().viewports.get(&pair).cloned();
+            let window = glutin.viewports.get(&pair).cloned();
             let Some(window) = window else { return };
             let output;
 
@@ -1170,7 +1167,6 @@ mod glow_integration {
             output = egui_ctx.run(input, pair, |ctx| {
                 render(ctx);
             });
-            let glutin = &mut *glutin.write();
 
             let screen_size_in_pixels: [u32; 2] = win.inner_size().into();
 
@@ -1200,7 +1196,7 @@ mod glow_integration {
             egui_glow::painter::clear(gl, screen_size_in_pixels, [0.0, 0.0, 0.0, 0.0]);
 
             let pixels_per_point = egui_ctx.input_for(pair.this, |i| i.pixels_per_point());
-            painter.write().paint_and_update_textures(
+            painter.paint_and_update_textures(
                 screen_size_in_pixels,
                 pixels_per_point,
                 &clipped_primitives,
@@ -1934,7 +1930,7 @@ mod wgpu_integration {
                     *id,
                     builder,
                     &mut running.windows_id.write(),
-                    &running.painter,
+                    &mut running.painter.write(),
                     window,
                     state,
                     event_loop,
@@ -1946,7 +1942,7 @@ mod wgpu_integration {
             id: ViewportId,
             builder: &ViewportBuilder,
             windows_id: &mut HashMap<winit::window::WindowId, ViewportId>,
-            painter: &RwLock<egui_wgpu::winit::Painter>,
+            painter: &mut egui_wgpu::winit::Painter,
             window: &mut Option<Rc<RwLock<winit::window::Window>>>,
             state: &RwLock<Option<egui_winit::State>>,
             event_loop: &EventLoopWindowTarget<UserEvent>,
@@ -1954,9 +1950,7 @@ mod wgpu_integration {
             if let Ok(new_window) = create_winit_window_builder(builder).build(event_loop) {
                 windows_id.insert(new_window.id(), id);
 
-                if let Err(err) =
-                    pollster::block_on(painter.write().set_window(id, Some(&new_window)))
-                {
+                if let Err(err) = pollster::block_on(painter.set_window(id, Some(&new_window))) {
                     log::error!("on set_window: viewport_id {id} {err}");
                 }
                 *window = Some(Rc::new(RwLock::new(new_window)));
@@ -2116,7 +2110,7 @@ mod wgpu_integration {
                         &c_viewports,
                         &c_builders,
                         c_time,
-                        &c_painter,
+                        &mut c_painter.write(),
                         &c_windows_id,
                     );
                 },
@@ -2144,7 +2138,7 @@ mod wgpu_integration {
             c_viewports: &Viewports,
             c_builders: &RwLock<HashMap<ViewportId, ViewportBuilder>>,
             c_time: Instant,
-            c_painter: &RwLock<egui_wgpu::winit::Painter>,
+            c_painter: &mut egui_wgpu::winit::Painter,
             c_windows_id: &RwLock<HashMap<winit::window::WindowId, ViewportId>>,
         ) {
             // Creating a new native window if is needed
@@ -2204,9 +2198,7 @@ mod wgpu_integration {
                 render(ctx);
             });
 
-            if let Err(err) =
-                pollster::block_on(c_painter.write().set_window(pair.this, Some(&win)))
-            {
+            if let Err(err) = pollster::block_on(c_painter.set_window(pair.this, Some(&win))) {
                 log::error!(
                     "when rendering viewport_id: {}, set_window Error {err}",
                     pair.this
@@ -2215,7 +2207,7 @@ mod wgpu_integration {
 
             let pixels_per_point = egui_ctx.input_for(pair.this, |i| i.pixels_per_point());
             let clipped_primitives = egui_ctx.tessellate(output.shapes, pair.this);
-            c_painter.write().paint_and_update_textures(
+            c_painter.paint_and_update_textures(
                 pair.this,
                 pixels_per_point,
                 [0.0, 0.0, 0.0, 0.0],
