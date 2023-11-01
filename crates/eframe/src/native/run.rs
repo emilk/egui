@@ -2139,7 +2139,7 @@ mod wgpu_integration {
                         pair,
                         render,
                         &c_viewports,
-                        &c_builders,
+                        &mut c_builders.borrow_mut(),
                         c_time,
                         &mut c_painter.borrow_mut(),
                         &c_windows_id,
@@ -2167,7 +2167,7 @@ mod wgpu_integration {
             pair: ViewportIdPair,
             render: Box<dyn FnOnce(&egui::Context) + '_>,
             c_viewports: &Viewports,
-            c_builders: &RefCell<HashMap<ViewportId, ViewportBuilder>>,
+            builders: &mut HashMap<ViewportId, ViewportBuilder>,
             c_time: Instant,
             c_painter: &mut egui_wgpu::winit::Painter,
             c_windows_id: &RefCell<HashMap<winit::window::WindowId, ViewportId>>,
@@ -2177,7 +2177,6 @@ mod wgpu_integration {
                 let mut _windows = c_viewports.borrow_mut();
 
                 {
-                    let builders = c_builders.borrow();
                     if viewport_builder.icon.is_none() && builders.get(&pair).is_none() {
                         viewport_builder.icon =
                             builders.get(&pair.parent).and_then(|b| b.icon.clone());
@@ -2190,8 +2189,7 @@ mod wgpu_integration {
                     render: None,
                     parent_id: pair.parent,
                 });
-                let _ = c_builders
-                    .borrow_mut()
+                let _ = builders
                     .entry(pair.this)
                     .or_insert(viewport_builder.clone());
 
