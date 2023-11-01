@@ -318,7 +318,7 @@ fn show_as_popup(ctx: &egui::Context, name: &str, content: impl FnOnce(&mut egui
 fn generic_ui(ui: &mut egui::Ui, container_id: impl Into<Id>) {
     let ctx = ui.ctx().clone();
     ui.label(format!(
-        "Frame nr: {} (this increases when this viewport is beeing rendered)",
+        "Frame nr: {} (this increases when this viewport is being rendered)",
         ctx.frame_nr()
     ));
     ui.label(format!("Current Viewport Id: {}", ctx.viewport_id()));
