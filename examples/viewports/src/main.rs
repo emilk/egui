@@ -409,6 +409,7 @@ fn generic_ui(ui: &mut egui::Ui, container_id: impl Into<Id>) {
                 }
             }
         }
+
         fn insert(&mut self, container: Id, col: usize, value: impl Into<String>) {
             assert!(col <= COLS, "The coll should be less then: {COLS}");
 
