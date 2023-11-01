@@ -6,7 +6,7 @@ use crate::{Context, Id};
 
 /// This is used to send a command to a specific viewport
 ///
-/// This is returned by `Context::get_viewport_id` and `Context::get_parent_viewport_id`
+/// This is returned by [`Context::get_viewport_id`] and [`Context::get_parent_viewport_id`].
 #[derive(Default, Debug, Hash, Clone, Copy, PartialEq, Eq)]
 pub struct ViewportId(pub(crate) u64);
 
@@ -21,7 +21,7 @@ impl ViewportId {
     pub const MAIN: Self = Self(0);
 }
 
-/// This will deref to `ViewportIdPair::this`
+/// This will deref to [`Self::this`].
 #[derive(Default, Debug, Hash, Clone, Copy, PartialEq, Eq)]
 pub struct ViewportIdPair {
     pub this: ViewportId,
@@ -54,14 +54,24 @@ pub type ViewportRender = dyn Fn(&Context) + Sync + Send;
 pub type ViewportRenderSyncCallback =
     dyn for<'a> Fn(&Context, ViewportBuilder, ViewportIdPair, Box<dyn FnOnce(&Context) + 'a>);
 
-/// The filds in this struct should not be change directly, but is not problem tho!
+/// Control the building of a new egui viewport (i.e. native window).
+///
+/// The fields are or public, but you use the builder pattern to set them,
+/// and thats' where you'll find the documentation too.
+///
 /// Every thing is wrapped in `Option<T>` indicates that nothing changed from the last `ViewportBuilder`!
 #[derive(PartialEq, Eq, Clone)]
 #[allow(clippy::option_option)]
 pub struct ViewportBuilder {
     pub id: Id,
+
+    /// The title of the vieweport.
+    /// `eframe` will use this as the title of the native window.
     pub title: String,
+
+    /// This is wayland only. See [`Self::with_name`].
     pub name: Option<(String, String)>,
+
     pub position: Option<Option<Pos2>>,
     pub inner_size: Option<Option<Vec2>>,
     pub fullscreen: Option<bool>,

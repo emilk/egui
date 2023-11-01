@@ -1,9 +1,7 @@
-use egui::mutex::RwLock;
 use std::sync::Arc;
 
-use eframe::egui::{self, InnerResponse};
-use eframe::egui::{Id, ViewportBuilder};
-use eframe::NativeOptions;
+use eframe::egui;
+use egui::{mutex::RwLock, Id, InnerResponse, ViewportBuilder};
 
 #[derive(Default)]
 pub struct App {
@@ -24,10 +22,9 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             generic_ui(ui, "Central Panel");
-            ui.label("Look at the \"Frame: \" will tell you, what viewport is rendering!");
             {
                 let mut force_embedding = ctx.force_embedding();
-                ui.checkbox(&mut force_embedding, "Force embedding!");
+                ui.checkbox(&mut force_embedding, "Force embedding of new viewprts");
                 ctx.set_force_embedding(force_embedding);
             }
             ui.checkbox(&mut self.show_async_viewport, "Show Async Viewport");
@@ -320,7 +317,10 @@ fn show_as_popup(ctx: &egui::Context, name: &str, content: impl FnOnce(&mut egui
 
 fn generic_ui(ui: &mut egui::Ui, container_id: impl Into<Id>) {
     let ctx = ui.ctx().clone();
-    ui.label(format!("Frame: {}", ctx.frame_nr()));
+    ui.label(format!(
+        "Frame nr: {} (this increases when this viewport is beeing rendered)",
+        ctx.frame_nr()
+    ));
     ui.label(format!("Current Viewport Id: {}", ctx.viewport_id()));
     ui.label(format!("Current Parent Viewport Id: {}", ctx.viewport_id()));
     let inner_rect = ctx.inner_rect();
@@ -491,12 +491,12 @@ fn main() {
 
     let _ = eframe::run_native(
         "Viewports",
-        NativeOptions {
+        eframe::NativeOptions {
             #[cfg(feature = "wgpu")]
             renderer: eframe::Renderer::Wgpu,
 
             initial_window_size: Some(egui::Vec2::new(450.0, 320.0)),
-            ..NativeOptions::default()
+            ..Default::default()
         },
         Box::new(|_| Box::<App>::default()),
     );
