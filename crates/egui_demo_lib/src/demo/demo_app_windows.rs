@@ -268,6 +268,12 @@ impl DemoWindows {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 file_menu_button(ui);
+                if ui.button("Expand / Collapse event").clicked() {
+                    self.about.toggle_collapse();
+                }
+                if ui.button("Show / hide event").clicked() {
+                    self.about.toggle_hidden();
+                }
             });
         });
 

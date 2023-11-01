@@ -6,7 +6,8 @@ use epaint::Shape;
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct InnerState {
-    open: bool,
+    open: bool,   // Expand / collapse
+    hidden: bool, // Show / Hide
 
     /// Height of the region when open. Used for animations
     #[cfg_attr(feature = "serde", serde(default))]
@@ -25,13 +26,6 @@ pub struct CollapsingState {
 }
 
 impl CollapsingState {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data_mut(|d| {
-            d.get_persisted::<InnerState>(id)
-                .map(|state| Self { id, state })
-        })
-    }
-
     pub fn store(&self, ctx: &Context) {
         ctx.data_mut(|d| d.insert_persisted(self.id, self.state));
     }
@@ -44,11 +38,16 @@ impl CollapsingState {
         self.id
     }
 
-    pub fn load_with_default_open(ctx: &Context, id: Id, default_open: bool) -> Self {
-        Self::load(ctx, id).unwrap_or(CollapsingState {
+    pub fn load(ctx: &Context, id: Id, default_open: bool) -> Self {
+        ctx.data_mut(|d| {
+            d.get_persisted::<InnerState>(id)
+                .map(|state| Self { id, state })
+        })
+        .unwrap_or(CollapsingState {
             id,
             state: InnerState {
                 open: default_open,
+                hidden: false,
                 open_height: None,
             },
         })
@@ -62,9 +61,21 @@ impl CollapsingState {
         self.state.open = open;
     }
 
-    pub fn toggle(&mut self, ui: &Ui) {
+    pub fn toggle_open(&mut self, ui: &Ui) {
         self.state.open = !self.state.open;
         ui.ctx().request_repaint();
+    }
+
+    pub fn is_hidden(&self) -> bool {
+        self.state.hidden
+    }
+
+    pub fn toggle_hidden(&mut self) {
+        self.state.hidden = !self.state.hidden;
+    }
+
+    pub fn set_hidden(&mut self, hidden: bool) {
+        self.state.hidden = hidden;
     }
 
     /// 0 for closed, 1 for open, with tweening
@@ -85,7 +96,7 @@ impl CollapsingState {
         let (_id, rect) = ui.allocate_space(button_size);
         let response = ui.interact(rect, self.id, Sense::click());
         if response.clicked() {
-            self.toggle(ui);
+            self.toggle_open(ui);
         }
         let openness = self.openness(ui.ctx());
         paint_default_icon(ui, openness, &response);
@@ -107,7 +118,7 @@ impl CollapsingState {
         let (_id, rect) = ui.allocate_space(size);
         let response = ui.interact(rect, self.id, Sense::click());
         if response.clicked() {
-            self.toggle(ui);
+            self.toggle_open(ui);
         }
 
         let (mut icon_rect, _) = ui.spacing().icon_rectangles(response.rect);
@@ -535,14 +546,15 @@ impl CollapsingHeader {
             header_response.rect.center().y - text.size().y / 2.0,
         );
 
-        let mut state = CollapsingState::load_with_default_open(ui.ctx(), id, default_open);
+        let mut state = CollapsingState::load(ui.ctx(), id, default_open);
+
         if let Some(open) = open {
             if open != state.is_open() {
-                state.toggle(ui);
+                state.toggle_open(ui);
                 header_response.mark_changed();
             }
         } else if header_response.clicked() {
-            state.toggle(ui);
+            state.toggle_open(ui);
             header_response.mark_changed();
         }
 
