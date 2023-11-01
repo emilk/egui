@@ -103,9 +103,9 @@ trait WinitApp {
         window_id: winit::window::WindowId,
     ) -> Option<Rc<RefCell<winit::window::Window>>>;
 
-    fn get_window_winit_id(&self, id: ViewportId) -> Option<winit::window::WindowId>;
+    fn get_window_id(&self, id: ViewportId) -> Option<winit::window::WindowId>;
 
-    fn get_window_id(&self, id: &winit::window::WindowId) -> Option<ViewportId>;
+    fn get_viewport_id(&self, id: &winit::window::WindowId) -> Option<ViewportId>;
 
     fn save_and_destroy(&mut self);
 
@@ -201,7 +201,7 @@ fn run_and_return(
                 let current_frame_nr = winit_app.frame_nr(*viewport_id);
                 if current_frame_nr == *frame_nr || current_frame_nr == *frame_nr + 1 {
                     log::trace!("UserEvent::RequestRepaint scheduling repaint at {when:?}");
-                    if let Some(window_id) = winit_app.get_window_winit_id(*viewport_id) {
+                    if let Some(window_id) = winit_app.get_window_id(*viewport_id) {
                         EventResult::RepaintAt(window_id, *when)
                     } else {
                         EventResult::Wait
@@ -354,7 +354,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             }) => {
                 let current_frame_nr = winit_app.frame_nr(*viewport_id);
                 if current_frame_nr == *frame_nr || current_frame_nr == *frame_nr + 1 {
-                    if let Some(window_id) = winit_app.get_window_winit_id(*viewport_id) {
+                    if let Some(window_id) = winit_app.get_window_id(*viewport_id) {
                         EventResult::RepaintAt(window_id, *when)
                     } else {
                         EventResult::Wait
@@ -499,7 +499,7 @@ mod glow_integration {
         glutin_ctx: Rc<RefCell<GlutinWindowContext>>,
     }
 
-    struct Window {
+    struct Viewport {
         gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
         window: Option<Rc<RefCell<winit::window::Window>>>,
         pair: ViewportIdPair,
@@ -529,7 +529,7 @@ mod glow_integration {
         current_gl_context: Option<glutin::context::PossiblyCurrentContext>,
         not_current_gl_context: Option<glutin::context::NotCurrentContext>,
 
-        viewports: HashMap<ViewportId, Rc<RefCell<Window>>>,
+        viewports: HashMap<ViewportId, Rc<RefCell<Viewport>>>,
         viewport_maps: HashMap<winit::window::WindowId, ViewportId>,
         window_maps: HashMap<ViewportId, winit::window::WindowId>,
 
@@ -665,7 +665,7 @@ mod glow_integration {
             let mut windows = HashMap::default();
             windows.insert(
                 ViewportId::MAIN,
-                Rc::new(RefCell::new(Window {
+                Rc::new(RefCell::new(Viewport {
                     gl_surface: None,
                     window: window.map(|w| Rc::new(RefCell::new(w))),
                     egui_winit: None,
@@ -710,7 +710,7 @@ mod glow_integration {
                 .viewports
                 .values()
                 .cloned()
-                .collect::<Vec<Rc<RefCell<Window>>>>();
+                .collect::<Vec<Rc<RefCell<Viewport>>>>();
             for window in windows {
                 if window.borrow().gl_surface.is_some() {
                     continue;
@@ -723,7 +723,7 @@ mod glow_integration {
         #[allow(unsafe_code)]
         pub(crate) fn init_window(
             &mut self,
-            win: &Rc<RefCell<Window>>,
+            win: &Rc<RefCell<Viewport>>,
             event_loop: &EventLoopWindowTarget<UserEvent>,
         ) -> Result<()> {
             let builder = &self.builders[&win.borrow().pair.this];
@@ -818,7 +818,7 @@ mod glow_integration {
             Ok(())
         }
 
-        fn window(&self, viewport_id: ViewportId) -> Rc<RefCell<Window>> {
+        fn window(&self, viewport_id: ViewportId) -> Rc<RefCell<Viewport>> {
             self.viewports
                 .get(&viewport_id)
                 .cloned()
@@ -1135,7 +1135,7 @@ mod glow_integration {
                     glutin
                         .viewports
                         .entry(pair.this)
-                        .or_insert(Rc::new(RefCell::new(Window {
+                        .or_insert(Rc::new(RefCell::new(Viewport {
                             gl_surface: None,
                             window: None,
                             pair,
@@ -1279,7 +1279,7 @@ mod glow_integration {
                     let mut glutin = glutin_ctx.borrow_mut();
                     glutin.viewports.insert(
                         pair.this,
-                        Rc::new(RefCell::new(Window {
+                        Rc::new(RefCell::new(Viewport {
                             gl_surface: None,
                             window: None,
                             egui_winit: None,
@@ -1352,14 +1352,14 @@ mod glow_integration {
             })
         }
 
-        fn get_window_winit_id(&self, id: ViewportId) -> Option<winit::window::WindowId> {
+        fn get_window_id(&self, id: ViewportId) -> Option<winit::window::WindowId> {
             self.running
                 .borrow()
                 .as_ref()
                 .and_then(|r| r.glutin_ctx.borrow().window_maps.get(&id).copied())
         }
 
-        fn get_window_id(&self, id: &winit::window::WindowId) -> Option<ViewportId> {
+        fn get_viewport_id(&self, id: &winit::window::WindowId) -> Option<ViewportId> {
             self.running
                 .borrow()
                 .as_ref()
@@ -1393,7 +1393,7 @@ mod glow_integration {
                 return EventResult::Wait;
             }
 
-            if let Some(viewport_id) = self.get_window_id(&window_id) {
+            if let Some(viewport_id) = self.get_viewport_id(&window_id) {
                 #[cfg(feature = "puffin")]
                 puffin::GlobalProfiler::lock().new_frame();
                 crate::profile_scope!("frame");
@@ -1436,10 +1436,10 @@ mod glow_integration {
 
                 let control_flow;
                 {
-                    let win = glutin.borrow().viewports.get(&viewport_id).cloned();
-                    let win = win.unwrap();
+                    let viewport = glutin.borrow().viewports.get(&viewport_id).cloned();
+                    let viewport = viewport.unwrap();
 
-                    let screen_size_in_pixels: [u32; 2] = win
+                    let screen_size_in_pixels: [u32; 2] = viewport
                         .borrow()
                         .window
                         .as_ref()
@@ -1449,7 +1449,10 @@ mod glow_integration {
                         .into();
 
                     {
-                        let win = &mut *win.borrow_mut();
+                        let viewport = &mut *viewport.borrow_mut();
+                        let window = viewport.window.as_ref().unwrap().borrow();
+                        let egui_winit = viewport.egui_winit.as_mut().unwrap();
+
                         egui::FullOutput {
                             platform_output,
                             textures_delta,
@@ -1458,17 +1461,17 @@ mod glow_integration {
                             viewport_commands,
                         } = integration.borrow_mut().update(
                             app.borrow_mut().as_mut(),
-                            &win.window.as_ref().unwrap().borrow(),
-                            win.egui_winit.as_mut().unwrap(),
-                            &win.render.clone(),
-                            win.pair,
+                            &window,
+                            egui_winit,
+                            &viewport.render.clone(),
+                            viewport.pair,
                         );
 
                         integration.borrow_mut().handle_platform_output(
-                            &win.window.as_ref().unwrap().borrow(),
+                            &window,
                             viewport_id,
                             platform_output,
-                            win.egui_winit.as_mut().unwrap(),
+                            egui_winit,
                         );
                     }
 
@@ -1480,15 +1483,15 @@ mod glow_integration {
                             .tessellate(shapes, viewport_id)
                     };
                     {
-                        let mut gl_window = glutin.borrow_mut();
-                        gl_window.current_gl_context = Some(
-                            gl_window
+                        let mut glutin = glutin.borrow_mut();
+                        glutin.current_gl_context = Some(
+                            glutin
                                 .current_gl_context
                                 .take()
                                 .unwrap()
                                 .make_not_current()
                                 .unwrap()
-                                .make_current(win.borrow().gl_surface.as_ref().unwrap())
+                                .make_current(viewport.borrow().gl_surface.as_ref().unwrap())
                                 .unwrap(),
                         );
                     };
@@ -1528,13 +1531,13 @@ mod glow_integration {
 
                         integration.post_rendering(
                             app.borrow_mut().as_mut(),
-                            &win.borrow().window.as_ref().unwrap().borrow(),
+                            &viewport.borrow().window.as_ref().unwrap().borrow(),
                         );
                     }
 
                     {
                         crate::profile_scope!("swap_buffers");
-                        let _ = win
+                        let _ = viewport
                             .borrow()
                             .gl_surface
                             .as_ref()
@@ -1548,7 +1551,7 @@ mod glow_integration {
                             );
                     }
 
-                    integration.post_present(&win.borrow().window.as_ref().unwrap().borrow());
+                    integration.post_present(&viewport.borrow().window.as_ref().unwrap().borrow());
 
                     #[cfg(feature = "__screenshot")]
                     // give it time to settle:
@@ -1583,10 +1586,15 @@ mod glow_integration {
 
                     integration.maybe_autosave(
                         app.borrow_mut().as_mut(),
-                        win.borrow().window.as_ref().map(|w| w.borrow()).as_deref(),
+                        viewport
+                            .borrow()
+                            .window
+                            .as_ref()
+                            .map(|w| w.borrow())
+                            .as_deref(),
                     );
 
-                    if win
+                    if viewport
                         .borrow()
                         .window
                         .as_ref()
@@ -1609,7 +1617,7 @@ mod glow_integration {
                         .borrow()
                         .viewports
                         .get(&viewport_id)
-                        .and_then(|w| w.borrow().window.clone())
+                        .and_then(|viewport| viewport.borrow().window.clone())
                     {
                         egui_winit::process_viewport_commands(
                             vec![command],
@@ -1852,7 +1860,7 @@ mod wgpu_integration {
     use super::*;
 
     #[derive(Clone)]
-    pub struct Window {
+    pub struct Viewport {
         window: Option<Rc<RefCell<winit::window::Window>>>,
         state: Rc<RefCell<Option<egui_winit::State>>>,
         render: Option<Arc<Box<ViewportRender>>>,
@@ -1860,10 +1868,10 @@ mod wgpu_integration {
     }
 
     #[derive(Clone)]
-    pub struct Viewports(Rc<RefCell<HashMap<ViewportId, Window>>>);
+    pub struct Viewports(Rc<RefCell<HashMap<ViewportId, Viewport>>>);
 
     impl std::ops::Deref for Viewports {
-        type Target = Rc<RefCell<HashMap<ViewportId, Window>>>;
+        type Target = Rc<RefCell<HashMap<ViewportId, Viewport>>>;
 
         fn deref(&self) -> &Self::Target {
             &self.0
@@ -1879,7 +1887,7 @@ mod wgpu_integration {
         app: Box<dyn epi::App>,
         viewports: Viewports,
         builders: Rc<RefCell<HashMap<ViewportId, ViewportBuilder>>>,
-        windows_id: Rc<RefCell<HashMap<winit::window::WindowId, ViewportId>>>,
+        viewport_maps: Rc<RefCell<HashMap<winit::window::WindowId, ViewportId>>>,
     }
 
     struct WgpuWinitApp {
@@ -1946,7 +1954,7 @@ mod wgpu_integration {
             let Some(running) = &mut self.running else {return};
             let viewport_builders = running.builders.borrow();
 
-            for (id, Window { window, state, .. }) in running.viewports.borrow_mut().iter_mut() {
+            for (id, Viewport { window, state, .. }) in running.viewports.borrow_mut().iter_mut() {
                 let builder = viewport_builders.get(id).unwrap();
                 if window.is_some() {
                     continue;
@@ -1955,7 +1963,7 @@ mod wgpu_integration {
                 Self::init_window(
                     *id,
                     builder,
-                    &mut running.windows_id.borrow_mut(),
+                    &mut running.viewport_maps.borrow_mut(),
                     &mut running.painter.borrow_mut(),
                     window,
                     &mut state.borrow_mut(),
@@ -1987,7 +1995,7 @@ mod wgpu_integration {
         fn set_window(&mut self, id: ViewportId) -> std::result::Result<(), egui_wgpu::WgpuError> {
             if let Some(running) = &mut self.running {
                 crate::profile_function!();
-                if let Some(Window { window, .. }) = running.viewports.borrow().get(&id) {
+                if let Some(Viewport { window, .. }) = running.viewports.borrow().get(&id) {
                     let window = window.clone();
                     if let Some(win) = &window {
                         return pollster::block_on(
@@ -2108,14 +2116,14 @@ mod wgpu_integration {
                 integration.warm_up(app.as_mut(), &window, &mut state);
             }
 
-            let mut windows_id = HashMap::default();
-            windows_id.insert(window.id(), ViewportId::MAIN);
-            let windows_id = Rc::new(RefCell::new(windows_id));
+            let mut viewport_maps = HashMap::default();
+            viewport_maps.insert(window.id(), ViewportId::MAIN);
+            let viewport_maps = Rc::new(RefCell::new(viewport_maps));
 
             let viewports = Viewports(Rc::new(RefCell::new(HashMap::default())));
             viewports.borrow_mut().insert(
                 ViewportId::MAIN,
-                Window {
+                Viewport {
                     window: Some(Rc::new(RefCell::new(window))),
                     state: Rc::new(RefCell::new(Some(state))),
                     render: None,
@@ -2134,7 +2142,7 @@ mod wgpu_integration {
             let c_builders = builders.clone();
             let c_time = integration.beginning;
             let c_painter = painter.clone();
-            let c_windows_id = windows_id.clone();
+            let c_viewport_maps = viewport_maps.clone();
 
             integration.egui_ctx.set_render_sync_callback(
                 move |egui_ctx, viewport_builder, pair, render| {
@@ -2147,7 +2155,7 @@ mod wgpu_integration {
                         &c_builders,
                         c_time,
                         &c_painter,
-                        &c_windows_id,
+                        &c_viewport_maps,
                     );
                 },
             );
@@ -2157,7 +2165,7 @@ mod wgpu_integration {
                 integration: Rc::new(RefCell::new(integration)),
                 app,
                 viewports,
-                windows_id,
+                viewport_maps,
                 builders,
             });
 
@@ -2171,16 +2179,16 @@ mod wgpu_integration {
             mut viewport_builder: ViewportBuilder,
             pair: ViewportIdPair,
             render: Box<dyn FnOnce(&egui::Context) + '_>,
-            c_viewports: &Viewports,
+            viewports: &Viewports,
             builders: &RefCell<HashMap<ViewportId, ViewportBuilder>>,
-            c_time: Instant,
-            c_painter: &RefCell<egui_wgpu::winit::Painter>,
-            c_windows_id: &RefCell<HashMap<winit::window::WindowId, ViewportId>>,
+            time: Instant,
+            painter: &RefCell<egui_wgpu::winit::Painter>,
+            viewport_maps: &RefCell<HashMap<winit::window::WindowId, ViewportId>>,
         ) {
             // Creating a new native window if is needed
-            if c_viewports.borrow().get(&pair).is_none() {
+            if viewports.borrow().get(&pair).is_none() {
                 let mut builders = builders.borrow_mut();
-                let mut _windows = c_viewports.borrow_mut();
+                let mut viewports = viewports.borrow_mut();
 
                 {
                     if viewport_builder.icon.is_none() && builders.get(&pair).is_none() {
@@ -2189,12 +2197,13 @@ mod wgpu_integration {
                     }
                 }
 
-                let Window { window, state, .. } = _windows.entry(pair.this).or_insert(Window {
-                    window: None,
-                    state: Rc::new(RefCell::new(None)),
-                    render: None,
-                    parent_id: pair.parent,
-                });
+                let Viewport { window, state, .. } =
+                    viewports.entry(pair.this).or_insert(Viewport {
+                        window: None,
+                        state: Rc::new(RefCell::new(None)),
+                        render: None,
+                        parent_id: pair.parent,
+                    });
                 let _ = builders
                     .entry(pair.this)
                     .or_insert(viewport_builder.clone());
@@ -2211,8 +2220,8 @@ mod wgpu_integration {
                 Self::init_window(
                     pair.this,
                     &viewport_builder,
-                    &mut c_windows_id.borrow_mut(),
-                    &mut c_painter.borrow_mut(),
+                    &mut viewport_maps.borrow_mut(),
+                    &mut painter.borrow_mut(),
                     window,
                     &mut state.borrow_mut(),
                     event_loop,
@@ -2221,21 +2230,21 @@ mod wgpu_integration {
 
             // render sync viewport
 
-            let window = c_viewports.borrow().get(&pair).cloned();
+            let window = viewports.borrow().get(&pair).cloned();
             let Some(window) = window else { return };
             let output;
             let Some(winit_state) = &mut *window.state.borrow_mut() else { return };
             let Some(win) = window.window else { return };
             let win = win.borrow();
             let mut input = winit_state.take_egui_input(&win);
-            input.time = Some(c_time.elapsed().as_secs_f64());
+            input.time = Some(time.elapsed().as_secs_f64());
             output = egui_ctx.run(input, pair, |ctx| {
                 render(ctx);
             });
 
-            let mut c_painter = c_painter.borrow_mut();
+            let mut painter = painter.borrow_mut();
 
-            if let Err(err) = pollster::block_on(c_painter.set_window(pair.this, Some(&win))) {
+            if let Err(err) = pollster::block_on(painter.set_window(pair.this, Some(&win))) {
                 log::error!(
                     "when rendering viewport_id: {}, set_window Error {err}",
                     pair.this
@@ -2244,7 +2253,7 @@ mod wgpu_integration {
 
             let pixels_per_point = egui_ctx.input_for(pair.this, |i| i.pixels_per_point());
             let clipped_primitives = egui_ctx.tessellate(output.shapes, pair.this);
-            c_painter.paint_and_update_textures(
+            painter.paint_and_update_textures(
                 pair.this,
                 pixels_per_point,
                 [0.0, 0.0, 0.0, 0.0],
@@ -2266,7 +2275,8 @@ mod wgpu_integration {
 
         fn is_focused(&self, window_id: winit::window::WindowId) -> bool {
             if let Some(focus) = *self.is_focused.borrow() {
-                self.get_window_id(&window_id).map_or(false, |i| i == focus)
+                self.get_viewport_id(&window_id)
+                    .map_or(false, |i| i == focus)
             } else {
                 false
             }
@@ -2283,7 +2293,7 @@ mod wgpu_integration {
             self.running
                 .as_ref()
                 .and_then(|r| {
-                    r.windows_id
+                    r.viewport_maps
                         .borrow()
                         .get(&window_id)
                         .and_then(|id| r.viewports.borrow().get(id).map(|w| w.window.clone()))
@@ -2291,7 +2301,7 @@ mod wgpu_integration {
                 .flatten()
         }
 
-        fn get_window_winit_id(&self, id: ViewportId) -> Option<winit::window::WindowId> {
+        fn get_window_id(&self, id: ViewportId) -> Option<winit::window::WindowId> {
             self.running.as_ref().and_then(|r| {
                 r.viewports
                     .borrow()
@@ -2303,7 +2313,7 @@ mod wgpu_integration {
         fn save_and_destroy(&mut self) {
             if let Some(mut running) = self.running.take() {
                 crate::profile_function!();
-                if let Some(Window { window, .. }) =
+                if let Some(Viewport { window, .. }) =
                     running.viewports.borrow().get(&ViewportId::MAIN)
                 {
                     running.integration.borrow_mut().save(
@@ -2332,27 +2342,27 @@ mod wgpu_integration {
                     app,
                     integration,
                     painter,
-                    viewports: windows,
-                    windows_id,
-                    builders: viewport_builders,
+                    viewports,
+                    viewport_maps,
+                    builders,
                 } = running;
 
                 let egui::FullOutput {
                     platform_output,
                     textures_delta,
                     shapes,
-                    mut viewports,
+                    viewports: mut out_viewports,
                     viewport_commands,
                 };
                 {
-                    let Some((viewport_id, Window{window: Some(window), state, render, parent_id })) = windows_id.borrow()
+                    let Some((viewport_id, Viewport{window: Some(window), state, render, parent_id })) = viewport_maps.borrow()
                         .get(&window_id)
-                        .and_then(|id|(windows.borrow().get(id).map(|w|(*id, w.clone()))))
+                        .and_then(|id|(viewports.borrow().get(id).map(|w|(*id, w.clone()))))
                     else{ return EventResult::Wait };
                     // This is used to not render a viewport if is sync
                     if viewport_id != ViewportId::MAIN && render.is_none() {
-                        if let Some(window) = running.viewports.borrow().get(&parent_id) {
-                            if let Some(window) = window.window.as_ref() {
+                        if let Some(viewport) = running.viewports.borrow().get(&parent_id) {
+                            if let Some(window) = viewport.window.as_ref() {
                                 return EventResult::RepaintNext(window.borrow().id());
                             }
                         }
@@ -2369,7 +2379,7 @@ mod wgpu_integration {
                         platform_output,
                         textures_delta,
                         shapes,
-                        viewports,
+                        viewports: out_viewports,
                         viewport_commands,
                     } = integration.borrow_mut().update(
                         app.as_mut(),
@@ -2418,13 +2428,13 @@ mod wgpu_integration {
 
                 let mut active_viewports_ids = vec![ViewportId::MAIN];
 
-                viewports.retain_mut(
+                out_viewports.retain_mut(
                     |ViewportOutput {
                          pair: ViewportIdPair { this: id, parent },
                          render,
                          ..
                      }| {
-                        if let Some(window) = windows.borrow_mut().get_mut(id) {
+                        if let Some(window) = viewports.borrow_mut().get_mut(id) {
                             window.render = render.clone();
                             window.parent_id = *parent;
                             active_viewports_ids.push(*id);
@@ -2443,30 +2453,30 @@ mod wgpu_integration {
                             parent: parent_id,
                         },
                     render,
-                } in viewports
+                } in out_viewports
                 {
                     if builder.icon.is_none() {
-                        builder.icon = viewport_builders
+                        builder.icon = builders
                             .borrow_mut()
                             .get_mut(&parent_id)
                             .and_then(|w| w.icon.clone());
                     }
 
-                    windows.borrow_mut().insert(
+                    viewports.borrow_mut().insert(
                         id,
-                        Window {
+                        Viewport {
                             window: None,
                             state: Rc::new(RefCell::new(None)),
                             render,
                             parent_id,
                         },
                     );
-                    viewport_builders.borrow_mut().insert(id, builder);
+                    builders.borrow_mut().insert(id, builder);
                     active_viewports_ids.push(id);
                 }
 
                 for (viewport_id, command) in viewport_commands {
-                    if let Some(window) = windows
+                    if let Some(window) = viewports
                         .borrow()
                         .get(&viewport_id)
                         .and_then(|w| w.window.clone())
@@ -2480,16 +2490,16 @@ mod wgpu_integration {
                     }
                 }
 
-                windows
+                viewports
                     .borrow_mut()
                     .retain(|id, _| active_viewports_ids.contains(id));
-                windows_id
+                viewport_maps
                     .borrow_mut()
                     .retain(|_, id| active_viewports_ids.contains(id));
                 painter.borrow_mut().clean_surfaces(&active_viewports_ids);
 
-                let Some((_, Window{window: Some(window), ..})) = windows_id.borrow().get(&window_id)
-                    .and_then(|id|windows.borrow().get(id)
+                let Some((_, Viewport{window: Some(window), ..})) = viewport_maps.borrow().get(&window_id)
+                    .and_then(|id|viewports.borrow().get(id)
                         .map(|w|(*id, w.clone()))
                     ) else{return EventResult::Wait};
                 integration
@@ -2570,7 +2580,7 @@ mod wgpu_integration {
                 }
 
                 winit::event::Event::WindowEvent { event, window_id } => {
-                    let viewport_id = self.get_window_id(window_id);
+                    let viewport_id = self.get_viewport_id(window_id);
                     if let Some(running) = &mut self.running {
                         // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
                         // event handler.
@@ -2599,7 +2609,7 @@ mod wgpu_integration {
                                 // See: https://github.com/rust-windowing/winit/issues/208
                                 // This solves an issue where the app would panic when minimizing on Windows.
                                 if let Some(viewport_id) =
-                                    running.windows_id.borrow().get(window_id).copied()
+                                    running.viewport_maps.borrow().get(window_id).copied()
                                 {
                                     use std::num::NonZeroU32;
                                     if let (Some(width), Some(height)) = (
@@ -2622,7 +2632,7 @@ mod wgpu_integration {
                                 if let (Some(width), Some(height), Some(viewport_id)) = (
                                     NonZeroU32::new(new_inner_size.width),
                                     NonZeroU32::new(new_inner_size.height),
-                                    running.windows_id.borrow().get(window_id).copied(),
+                                    running.viewport_maps.borrow().get(window_id).copied(),
                                 ) {
                                     repaint_asap = true;
                                     running.painter.borrow_mut().on_window_resized(
@@ -2641,7 +2651,7 @@ mod wgpu_integration {
                             _ => {}
                         };
 
-                        let event_response = if let Some((id, Window { state, .. })) = viewport_id
+                        let event_response = if let Some((id, Viewport { state, .. })) = viewport_id
                             .and_then(|id| {
                                 running.viewports.borrow().get(&id).map(|w| (id, w.clone()))
                             }) {
@@ -2683,8 +2693,8 @@ mod wgpu_integration {
                     accesskit_winit::ActionRequestEvent { request, window_id },
                 )) => {
                     if let Some(running) = &mut self.running {
-                        if let Some(Window { state, .. }) = running
-                            .windows_id
+                        if let Some(Viewport { state, .. }) = running
+                            .viewport_maps
                             .borrow()
                             .get(window_id)
                             .and_then(|id| running.viewports.borrow().get(id).cloned())
@@ -2704,10 +2714,10 @@ mod wgpu_integration {
             })
         }
 
-        fn get_window_id(&self, id: &winit::window::WindowId) -> Option<ViewportId> {
+        fn get_viewport_id(&self, id: &winit::window::WindowId) -> Option<ViewportId> {
             self.running
                 .as_ref()
-                .and_then(|r| r.windows_id.borrow().get(id).copied())
+                .and_then(|r| r.viewport_maps.borrow().get(id).copied())
         }
     }
 
