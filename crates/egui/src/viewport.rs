@@ -6,7 +6,7 @@ use crate::{Context, Id};
 
 /// This is used to send a command to a specific viewport
 ///
-/// This is returned by [`Context::get_viewport_id`] and [`Context::get_parent_viewport_id`].
+/// This is returned by [`Context::viewport_id`] and [`Context::parent_viewport_id`].
 #[derive(Default, Debug, Hash, Clone, Copy, PartialEq, Eq)]
 pub struct ViewportId(pub(crate) u64);
 
