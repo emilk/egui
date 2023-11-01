@@ -2,9 +2,6 @@ use std::{sync::Arc, time::Instant};
 
 use winit::event_loop::EventLoopWindowTarget;
 
-#[cfg(target_os = "macos")]
-use winit::platform::macos::WindowBuilderExtMacOS as _;
-
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
 use egui::{
