@@ -1,7 +1,7 @@
 //! Note that this file contains two similar paths - one for [`glow`], one for [`wgpu`].
 //! When making changes to one you often also want to apply it to the other.
 
-use std::{cell::RefCell, sync::Arc, time::Instant};
+use std::{cell::RefCell, rc::Rc, sync::Arc, time::Instant};
 
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 use winit::event_loop::{
@@ -96,12 +96,12 @@ trait WinitApp {
 
     fn is_focused(&self, window_id: winit::window::WindowId) -> bool;
 
-    fn integration(&self) -> Option<Arc<RwLock<EpiIntegration>>>;
+    fn integration(&self) -> Option<Rc<RwLock<EpiIntegration>>>;
 
     fn window(
         &self,
         window_id: winit::window::WindowId,
-    ) -> Option<Arc<RwLock<winit::window::Window>>>;
+    ) -> Option<Rc<RwLock<winit::window::Window>>>;
 
     fn get_window_winit_id(&self, id: ViewportId) -> Option<winit::window::WindowId>;
 
@@ -457,7 +457,6 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 /// Run an egui app
 #[cfg(feature = "glow")]
 mod glow_integration {
-    use std::sync::Arc;
 
     use egui::{
         epaint::ahash::HashMap, mutex::RwLock, NumExt as _, ViewportIdPair, ViewportOutput,
@@ -493,17 +492,17 @@ mod glow_integration {
     /// initialized once the application has an associated `SurfaceView`.
     struct GlowWinitRunning {
         gl: Arc<glow::Context>,
-        painter: Arc<RwLock<egui_glow::Painter>>,
-        integration: Arc<RwLock<epi_integration::EpiIntegration>>,
-        app: Arc<RwLock<Box<dyn epi::App>>>,
+        painter: Rc<RwLock<egui_glow::Painter>>,
+        integration: Rc<RwLock<epi_integration::EpiIntegration>>,
+        app: Rc<RwLock<Box<dyn epi::App>>>,
         // Conceptually this will be split out eventually so that the rest of the state
         // can be persistent.
-        glutin_ctx: Arc<RwLock<GlutinWindowContext>>,
+        glutin_ctx: Rc<RwLock<GlutinWindowContext>>,
     }
 
     struct Window {
         gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
-        window: Option<Arc<RwLock<winit::window::Window>>>,
+        window: Option<Rc<RwLock<winit::window::Window>>>,
         pair: ViewportIdPair,
         render: Option<Arc<Box<ViewportRender>>>,
         egui_winit: Option<egui_winit::State>,
@@ -531,7 +530,7 @@ mod glow_integration {
         current_gl_context: Option<glutin::context::PossiblyCurrentContext>,
         not_current_gl_context: Option<glutin::context::NotCurrentContext>,
 
-        viewports: HashMap<ViewportId, Arc<RwLock<Window>>>,
+        viewports: HashMap<ViewportId, Rc<RwLock<Window>>>,
         viewport_maps: HashMap<winit::window::WindowId, ViewportId>,
         window_maps: HashMap<ViewportId, winit::window::WindowId>,
 
@@ -667,9 +666,9 @@ mod glow_integration {
             let mut windows = HashMap::default();
             windows.insert(
                 ViewportId::MAIN,
-                Arc::new(RwLock::new(Window {
+                Rc::new(RwLock::new(Window {
                     gl_surface: None,
-                    window: window.map(|w| Arc::new(RwLock::new(w))),
+                    window: window.map(|w| Rc::new(RwLock::new(w))),
                     egui_winit: None,
                     render: None,
                     pair: ViewportIdPair::MAIN,
@@ -712,7 +711,7 @@ mod glow_integration {
                 .viewports
                 .values()
                 .cloned()
-                .collect::<Vec<Arc<RwLock<Window>>>>();
+                .collect::<Vec<Rc<RwLock<Window>>>>();
             for window in windows {
                 if window.read().gl_surface.is_some() {
                     continue;
@@ -725,7 +724,7 @@ mod glow_integration {
         #[allow(unsafe_code)]
         pub(crate) fn init_window(
             &mut self,
-            win: &Arc<RwLock<Window>>,
+            win: &Rc<RwLock<Window>>,
             event_loop: &EventLoopWindowTarget<UserEvent>,
         ) -> Result<()> {
             let builder = &self.builders[&win.read().pair.this];
@@ -733,7 +732,7 @@ mod glow_integration {
             // make sure we have a window or create one.
             let window = win.window.take().unwrap_or_else(|| {
                 log::debug!("window doesn't exist yet. creating one now with finalize_window");
-                Arc::new(RwLock::new(
+                Rc::new(RwLock::new(
                     glutin_winit::finalize_window(
                         event_loop,
                         create_winit_window_builder(builder),
@@ -820,7 +819,7 @@ mod glow_integration {
             Ok(())
         }
 
-        fn window(&self, viewport_id: ViewportId) -> Arc<RwLock<Window>> {
+        fn window(&self, viewport_id: ViewportId) -> Rc<RwLock<Window>> {
             self.viewports
                 .get(&viewport_id)
                 .cloned()
@@ -867,13 +866,13 @@ mod glow_integration {
         repaint_proxy: Arc<egui::mutex::Mutex<EventLoopProxy<UserEvent>>>,
         app_name: String,
         native_options: epi::NativeOptions,
-        running: Arc<RwLock<Option<GlowWinitRunning>>>,
+        running: Rc<RwLock<Option<GlowWinitRunning>>>,
 
         // Note that since this `AppCreator` is FnOnce we are currently unable to support
         // re-initializing the `GlowWinitRunning` state on Android if the application
         // suspends and resumes.
         app_creator: Option<epi::AppCreator>,
-        is_focused: Arc<RwLock<Option<ViewportId>>>,
+        is_focused: Rc<RwLock<Option<ViewportId>>>,
     }
 
     impl GlowWinitApp {
@@ -888,9 +887,9 @@ mod glow_integration {
                 repaint_proxy: Arc::new(egui::mutex::Mutex::new(event_loop.create_proxy())),
                 app_name: app_name.to_owned(),
                 native_options,
-                running: Arc::new(RwLock::new(None)),
+                running: Rc::new(RwLock::new(None)),
                 app_creator: Some(app_creator),
-                is_focused: Arc::new(RwLock::new(Some(ViewportId::MAIN))),
+                is_focused: Rc::new(RwLock::new(Some(ViewportId::MAIN))),
             }
         }
 
@@ -1064,8 +1063,8 @@ mod glow_integration {
                 }
             }
 
-            let glutin_ctx = Arc::new(RwLock::new(glutin_ctx));
-            let painter = Arc::new(RwLock::new(painter));
+            let glutin_ctx = Rc::new(RwLock::new(glutin_ctx));
+            let painter = Rc::new(RwLock::new(painter));
 
             // c_* means that will be taken by the next closure
 
@@ -1093,8 +1092,8 @@ mod glow_integration {
                 glutin_ctx,
                 gl,
                 painter,
-                integration: Arc::new(RwLock::new(integration)),
-                app: Arc::new(RwLock::new(app)),
+                integration: Rc::new(RwLock::new(integration)),
+                app: Rc::new(RwLock::new(app)),
             });
 
             Ok(())
@@ -1132,7 +1131,7 @@ mod glow_integration {
                     glutin
                         .viewports
                         .entry(pair.this)
-                        .or_insert(Arc::new(RwLock::new(Window {
+                        .or_insert(Rc::new(RwLock::new(Window {
                             gl_surface: None,
                             window: None,
                             pair,
@@ -1222,7 +1221,7 @@ mod glow_integration {
         }
 
         fn process_viewport_builders(
-            glutin_ctx: &Arc<RwLock<GlutinWindowContext>>,
+            glutin_ctx: &Rc<RwLock<GlutinWindowContext>>,
             mut viewports: Vec<ViewportOutput>,
         ) {
             let mut active_viewports_ids = vec![ViewportId::MAIN];
@@ -1275,7 +1274,7 @@ mod glow_integration {
                     let mut glutin = glutin_ctx.write();
                     glutin.viewports.insert(
                         pair.this,
-                        Arc::new(RwLock::new(Window {
+                        Rc::new(RwLock::new(Window {
                             gl_surface: None,
                             window: None,
                             egui_winit: None,
@@ -1323,14 +1322,14 @@ mod glow_integration {
             false
         }
 
-        fn integration(&self) -> Option<Arc<RwLock<EpiIntegration>>> {
+        fn integration(&self) -> Option<Rc<RwLock<EpiIntegration>>> {
             self.running.read().as_ref().map(|r| r.integration.clone())
         }
 
         fn window(
             &self,
             window_id: winit::window::WindowId,
-        ) -> Option<Arc<RwLock<winit::window::Window>>> {
+        ) -> Option<Rc<RwLock<winit::window::Window>>> {
             self.running.read().as_ref().and_then(|r| {
                 let glutin_ctx = r.glutin_ctx.read();
                 if let Some(viewport_id) = glutin_ctx.viewport_maps.get(&window_id) {
@@ -1824,8 +1823,6 @@ pub use glow_integration::run_glow;
 
 #[cfg(feature = "wgpu")]
 mod wgpu_integration {
-    use std::sync::Arc;
-
     use egui::{ViewportIdPair, ViewportOutput, ViewportRender};
     use egui_winit::create_winit_window_builder;
     use parking_lot::Mutex;
@@ -1834,17 +1831,17 @@ mod wgpu_integration {
 
     #[derive(Clone)]
     pub struct Window {
-        window: Option<Arc<RwLock<winit::window::Window>>>,
-        state: Arc<RwLock<Option<egui_winit::State>>>,
+        window: Option<Rc<RwLock<winit::window::Window>>>,
+        state: Rc<RwLock<Option<egui_winit::State>>>,
         render: Option<Arc<Box<ViewportRender>>>,
         parent_id: ViewportId,
     }
 
     #[derive(Clone)]
-    pub struct Viewports(Arc<RwLock<HashMap<ViewportId, Window>>>);
+    pub struct Viewports(Rc<RwLock<HashMap<ViewportId, Window>>>);
 
     impl std::ops::Deref for Viewports {
-        type Target = Arc<RwLock<HashMap<ViewportId, Window>>>;
+        type Target = Rc<RwLock<HashMap<ViewportId, Window>>>;
 
         fn deref(&self) -> &Self::Target {
             &self.0
@@ -1855,12 +1852,12 @@ mod wgpu_integration {
     /// a Resumed event. On Android this ensures that any graphics state is only
     /// initialized once the application has an associated `SurfaceView`.
     struct WgpuWinitRunning {
-        painter: Arc<RwLock<egui_wgpu::winit::Painter>>,
-        integration: Arc<RwLock<epi_integration::EpiIntegration>>,
+        painter: Rc<RwLock<egui_wgpu::winit::Painter>>,
+        integration: Rc<RwLock<epi_integration::EpiIntegration>>,
         app: Box<dyn epi::App>,
         viewports: Viewports,
-        builders: Arc<RwLock<HashMap<ViewportId, ViewportBuilder>>>,
-        windows_id: Arc<RwLock<HashMap<winit::window::WindowId, ViewportId>>>,
+        builders: Rc<RwLock<HashMap<ViewportId, ViewportBuilder>>>,
+        windows_id: Rc<RwLock<HashMap<winit::window::WindowId, ViewportId>>>,
     }
 
     struct WgpuWinitApp {
@@ -1872,7 +1869,7 @@ mod wgpu_integration {
 
         /// Window surface state that's initialized when the app starts running via a Resumed event
         /// and on Android will also be destroyed if the application is paused.
-        is_focused: Arc<RwLock<Option<ViewportId>>>,
+        is_focused: Rc<RwLock<Option<ViewportId>>>,
     }
 
     impl WgpuWinitApp {
@@ -1895,7 +1892,7 @@ mod wgpu_integration {
                 native_options,
                 running: None,
                 app_creator: Some(app_creator),
-                is_focused: Arc::new(RwLock::new(Some(ViewportId::MAIN))),
+                is_focused: Rc::new(RwLock::new(Some(ViewportId::MAIN))),
             }
         }
 
@@ -1950,7 +1947,7 @@ mod wgpu_integration {
             builder: &ViewportBuilder,
             windows_id: &mut HashMap<winit::window::WindowId, ViewportId>,
             painter: &RwLock<egui_wgpu::winit::Painter>,
-            window: &mut Option<Arc<RwLock<winit::window::Window>>>,
+            window: &mut Option<Rc<RwLock<winit::window::Window>>>,
             state: &RwLock<Option<egui_winit::State>>,
             event_loop: &EventLoopWindowTarget<UserEvent>,
         ) {
@@ -1962,7 +1959,7 @@ mod wgpu_integration {
                 {
                     log::error!("on set_window: viewport_id {id} {err}");
                 }
-                *window = Some(Arc::new(RwLock::new(new_window)));
+                *window = Some(Rc::new(RwLock::new(new_window)));
                 *state.write() = Some(egui_winit::State::new(event_loop));
             }
         }
@@ -2083,23 +2080,23 @@ mod wgpu_integration {
 
             let mut windows_id = HashMap::default();
             windows_id.insert(window.id(), ViewportId::MAIN);
-            let windows_id = Arc::new(RwLock::new(windows_id));
+            let windows_id = Rc::new(RwLock::new(windows_id));
 
-            let viewports = Viewports(Arc::new(RwLock::new(HashMap::default())));
+            let viewports = Viewports(Rc::new(RwLock::new(HashMap::default())));
             viewports.write().insert(
                 ViewportId::MAIN,
                 Window {
-                    window: Some(Arc::new(RwLock::new(window))),
-                    state: Arc::new(RwLock::new(Some(state))),
+                    window: Some(Rc::new(RwLock::new(window))),
+                    state: Rc::new(RwLock::new(Some(state))),
                     render: None,
                     parent_id: ViewportId::MAIN,
                 },
             );
 
-            let builders = Arc::new(RwLock::new(HashMap::default()));
+            let builders = Rc::new(RwLock::new(HashMap::default()));
             builders.write().insert(ViewportId::MAIN, builder);
 
-            let painter = Arc::new(RwLock::new(painter));
+            let painter = Rc::new(RwLock::new(painter));
 
             // c_* means that will be taken by the next closure
 
@@ -2127,7 +2124,7 @@ mod wgpu_integration {
 
             self.running = Some(WgpuWinitRunning {
                 painter,
-                integration: Arc::new(RwLock::new(integration)),
+                integration: Rc::new(RwLock::new(integration)),
                 app,
                 viewports,
                 windows_id,
@@ -2164,7 +2161,7 @@ mod wgpu_integration {
 
                 let Window { window, state, .. } = _windows.entry(pair.this).or_insert(Window {
                     window: None,
-                    state: Arc::new(RwLock::new(None)),
+                    state: Rc::new(RwLock::new(None)),
                     render: None,
                     parent_id: pair.parent,
                 });
@@ -2246,14 +2243,14 @@ mod wgpu_integration {
             }
         }
 
-        fn integration(&self) -> Option<Arc<RwLock<EpiIntegration>>> {
+        fn integration(&self) -> Option<Rc<RwLock<EpiIntegration>>> {
             self.running.as_ref().map(|r| r.integration.clone())
         }
 
         fn window(
             &self,
             window_id: winit::window::WindowId,
-        ) -> Option<Arc<RwLock<winit::window::Window>>> {
+        ) -> Option<Rc<RwLock<winit::window::Window>>> {
             self.running
                 .as_ref()
                 .and_then(|r| {
@@ -2426,7 +2423,7 @@ mod wgpu_integration {
                         id,
                         Window {
                             window: None,
-                            state: Arc::new(RwLock::new(None)),
+                            state: Rc::new(RwLock::new(None)),
                             render,
                             parent_id,
                         },
