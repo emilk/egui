@@ -1,7 +1,7 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
-use std::borrow::Cow;
 use std::sync::Arc;
+use std::{borrow::Cow, cell::RefCell};
 
 use crate::load::Bytes;
 use crate::load::SizedTexture;
@@ -139,7 +139,7 @@ impl Repaint {
 // ----------------------------------------------------------------------------
 
 thread_local! {
-    static EGUI_RENDER_SYNC: RwLock<Option<Box<ViewportRenderSyncCallback>>> = RwLock::new(None);
+    static EGUI_RENDER_SYNC: RefCell<Option<Box<ViewportRenderSyncCallback>>> = Default::default();
 }
 
 // ----------------------------------------------------------------------------
@@ -2550,7 +2550,7 @@ impl Context {
     ) {
         let callback = Box::new(callback);
         EGUI_RENDER_SYNC.with(|render_sync| {
-            *render_sync.write() = Some(callback);
+            render_sync.replace(Some(callback));
         });
     }
 
@@ -2670,7 +2670,7 @@ impl Context {
             {
                 let out = &mut out;
                 EGUI_RENDER_SYNC.with(|render_sync|{
-                    let render_sync = render_sync.read();
+                    let render_sync = render_sync.borrow();
                     let render_sync = render_sync.as_ref().expect("No EGUI_RENDER_SYNC callback on this thread, if you try to use Context::create_viewport_sync you cannot do that in other thread! If that is not the issue your egui intrecration is invalid or do not support sync viewports!");
                     render_sync(
                         self,

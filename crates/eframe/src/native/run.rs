@@ -1,13 +1,14 @@
 //! Note that this file contains two similar paths - one for [`glow`], one for [`wgpu`].
 //! When making changes to one you often also want to apply it to the other.
 
-use std::{sync::Arc, time::Instant};
+use std::{cell::RefCell, sync::Arc, time::Instant};
 
-use egui::{epaint::ahash::HashMap, mutex::RwLock, ViewportBuilder, ViewportId};
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 use winit::event_loop::{
     ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget,
 };
+
+use egui::{epaint::ahash::HashMap, mutex::RwLock, ViewportBuilder, ViewportId};
 
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
@@ -31,7 +32,7 @@ pub const IS_DESKTOP: bool = cfg!(any(
 
 thread_local! {
     /// This makes `Context::create_viewport_sync` to have a native window in the same frame!
-    pub static WINIT_EVENT_LOOP: RwLock<*const EventLoopWindowTarget<UserEvent>> = RwLock::new(std::ptr::null());
+    pub static WINIT_EVENT_LOOP: RefCell<*const EventLoopWindowTarget<UserEvent>> = RefCell::new(std::ptr::null());
 }
 
 // ----------------------------------------------------------------------------
@@ -146,7 +147,6 @@ fn with_event_loop<R>(
     mut native_options: epi::NativeOptions,
     f: impl FnOnce(&mut EventLoop<UserEvent>, NativeOptions) -> R,
 ) -> R {
-    use std::cell::RefCell;
     thread_local!(static EVENT_LOOP: RefCell<Option<EventLoop<UserEvent>>> = RefCell::new(None));
 
     EVENT_LOOP.with(|event_loop| {
@@ -176,7 +176,7 @@ fn run_and_return(
     event_loop.run_return(|event, event_loop, control_flow| {
         crate::profile_scope!("winit_event", short_event_description(&event));
 
-        WINIT_EVENT_LOOP.with(|row_event_loop| *row_event_loop.write() = event_loop);
+        WINIT_EVENT_LOOP.with(|row_event_loop| row_event_loop.replace(event_loop));
 
         let event_result = match &event {
             winit::event::Event::LoopDestroyed => {
@@ -334,7 +334,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
     event_loop.run(move |event, event_loop, control_flow| {
         crate::profile_scope!("winit_event", short_event_description(&event));
 
-        WINIT_EVENT_LOOP.with(|row_event_loop| *row_event_loop.write() = event_loop);
+        WINIT_EVENT_LOOP.with(|row_event_loop| row_event_loop.replace(event_loop));
 
         let event_result = match &event {
             winit::event::Event::LoopDestroyed => {
@@ -1146,8 +1146,9 @@ mod glow_integration {
                 let event_loop;
                 #[allow(unsafe_code)]
                 unsafe {
-                    event_loop =
-                        WINIT_EVENT_LOOP.with(|event_loop| event_loop.read().as_ref().unwrap());
+                    event_loop = WINIT_EVENT_LOOP.with(|event_loop| {
+                        event_loop.borrow().as_ref().expect("No winit event loop")
+                    });
                 }
                 glutin
                     .write()
@@ -1796,23 +1797,16 @@ mod glow_integration {
     ) -> Result<()> {
         #[cfg(not(target_os = "ios"))]
         if native_options.run_and_return {
-            with_event_loop(native_options, |event_loop, native_options| {
+            return with_event_loop(native_options, |event_loop, native_options| {
                 let glow_eframe =
                     GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
                 run_and_return(event_loop, glow_eframe)
-            })
-        } else {
-            let event_loop = create_event_loop(&mut native_options);
-            let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
-            run_and_exit(event_loop, glow_eframe);
+            });
         }
 
-        #[cfg(target_os = "ios")]
-        {
-            let event_loop = create_event_loop(&mut native_options);
-            let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
-            run_and_exit(event_loop, glow_eframe);
-        }
+        let event_loop = create_event_loop(&mut native_options);
+        let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
+        run_and_exit(event_loop, glow_eframe);
     }
 }
 
@@ -2175,8 +2169,9 @@ mod wgpu_integration {
 
                 #[allow(unsafe_code)]
                 unsafe {
-                    event_loop =
-                        WINIT_EVENT_LOOP.with(|event_loop| event_loop.read().as_ref().unwrap());
+                    event_loop = WINIT_EVENT_LOOP.with(|event_loop| {
+                        event_loop.borrow().as_ref().expect("No winit event loop")
+                    });
                 }
 
                 Self::init_window(
@@ -2681,23 +2676,16 @@ mod wgpu_integration {
     ) -> Result<()> {
         #[cfg(not(target_os = "ios"))]
         if native_options.run_and_return {
-            with_event_loop(native_options, |event_loop, native_options| {
+            return with_event_loop(native_options, |event_loop, native_options| {
                 let wgpu_eframe =
                     WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
                 run_and_return(event_loop, wgpu_eframe)
-            })
-        } else {
-            let event_loop = create_event_loop(&mut native_options);
-            let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
-            run_and_exit(event_loop, wgpu_eframe);
+            });
         }
 
-        #[cfg(target_os = "ios")]
-        {
-            let event_loop = create_event_loop(&mut native_options);
-            let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
-            run_and_exit(event_loop, wgpu_eframe);
-        }
+        let event_loop = create_event_loop(&mut native_options);
+        let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
+        run_and_exit(event_loop, wgpu_eframe);
     }
 }
 
