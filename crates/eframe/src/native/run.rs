@@ -1953,7 +1953,7 @@ mod wgpu_integration {
                     &mut running.windows_id.borrow_mut(),
                     &mut running.painter.borrow_mut(),
                     window,
-                    state,
+                    &mut state.borrow_mut(),
                     event_loop,
                 );
             }
@@ -1965,7 +1965,7 @@ mod wgpu_integration {
             windows_id: &mut HashMap<winit::window::WindowId, ViewportId>,
             painter: &mut egui_wgpu::winit::Painter,
             window: &mut Option<Rc<RefCell<winit::window::Window>>>,
-            state: &RefCell<Option<egui_winit::State>>,
+            state: &mut Option<egui_winit::State>,
             event_loop: &EventLoopWindowTarget<UserEvent>,
         ) {
             if let Ok(new_window) = create_winit_window_builder(builder).build(event_loop) {
@@ -1975,7 +1975,7 @@ mod wgpu_integration {
                     log::error!("on set_window: viewport_id {id} {err}");
                 }
                 *window = Some(Rc::new(RefCell::new(new_window)));
-                *state.borrow_mut() = Some(egui_winit::State::new(event_loop));
+                *state = Some(egui_winit::State::new(event_loop));
             }
         }
 
@@ -2210,7 +2210,7 @@ mod wgpu_integration {
                     &mut c_windows_id.borrow_mut(),
                     c_painter,
                     window,
-                    state,
+                    &mut state.borrow_mut(),
                     event_loop,
                 );
             }
