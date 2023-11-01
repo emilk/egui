@@ -2142,7 +2142,7 @@ mod wgpu_integration {
                         &mut c_builders.borrow_mut(),
                         c_time,
                         &mut c_painter.borrow_mut(),
-                        &c_windows_id,
+                        &mut c_windows_id.borrow_mut(),
                     );
                 },
             );
@@ -2170,7 +2170,7 @@ mod wgpu_integration {
             builders: &mut HashMap<ViewportId, ViewportBuilder>,
             c_time: Instant,
             c_painter: &mut egui_wgpu::winit::Painter,
-            c_windows_id: &RefCell<HashMap<winit::window::WindowId, ViewportId>>,
+            c_windows_id: &mut HashMap<winit::window::WindowId, ViewportId>,
         ) {
             // Creating a new native window if is needed
             if c_viewports.borrow().get(&pair).is_none() {
@@ -2205,7 +2205,7 @@ mod wgpu_integration {
                 Self::init_window(
                     pair.this,
                     &viewport_builder,
-                    &mut c_windows_id.borrow_mut(),
+                    c_windows_id,
                     c_painter,
                     window,
                     &mut state.borrow_mut(),
