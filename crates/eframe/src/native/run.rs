@@ -1084,9 +1084,9 @@ mod glow_integration {
                         viewport_builder,
                         pair,
                         render,
-                        &mut c_glutin.borrow_mut(),
+                        &c_glutin,
                         &c_gl,
-                        &mut c_painter.borrow_mut(),
+                        &c_painter,
                         c_time,
                     );
                 },
@@ -1110,15 +1110,17 @@ mod glow_integration {
             mut viewport_builder: ViewportBuilder,
             pair: ViewportIdPair,
             render: Box<dyn FnOnce(&egui::Context) + '_>,
-            glutin: &mut GlutinWindowContext,
+            glutin: &RefCell<GlutinWindowContext>,
             gl: &glow::Context,
-            painter: &mut egui_glow::Painter,
+            painter: &RefCell<egui_glow::Painter>,
             time: Instant,
         ) {
-            let has_window = glutin.viewports.get(&pair).is_some();
+            let has_window = glutin.borrow().viewports.get(&pair).is_some();
 
             // This will create a new native window if is needed
             if !has_window {
+                let mut glutin = glutin.borrow_mut();
+
                 // Inherit parent icon if none
                 {
                     if viewport_builder.icon.is_none() && glutin.builders.get(&pair).is_none() {
@@ -1158,7 +1160,7 @@ mod glow_integration {
 
             // Rendering the sync viewport
 
-            let window = glutin.viewports.get(&pair).cloned();
+            let window = glutin.borrow().viewports.get(&pair).cloned();
             let Some(window) = window else { return };
             let output;
 
@@ -1175,6 +1177,9 @@ mod glow_integration {
             let screen_size_in_pixels: [u32; 2] = win.inner_size().into();
 
             let clipped_primitives = egui_ctx.tessellate(output.shapes, pair.this);
+
+            let mut glutin = glutin.borrow_mut();
+            let mut painter = painter.borrow_mut();
 
             glutin.current_gl_context = Some(
                 glutin
@@ -2139,10 +2144,10 @@ mod wgpu_integration {
                         pair,
                         render,
                         &c_viewports,
-                        &mut c_builders.borrow_mut(),
+                        &c_builders,
                         c_time,
-                        &mut c_painter.borrow_mut(),
-                        &mut c_windows_id.borrow_mut(),
+                        &c_painter,
+                        &c_windows_id,
                     );
                 },
             );
@@ -2167,13 +2172,14 @@ mod wgpu_integration {
             pair: ViewportIdPair,
             render: Box<dyn FnOnce(&egui::Context) + '_>,
             c_viewports: &Viewports,
-            builders: &mut HashMap<ViewportId, ViewportBuilder>,
+            builders: &RefCell<HashMap<ViewportId, ViewportBuilder>>,
             c_time: Instant,
-            c_painter: &mut egui_wgpu::winit::Painter,
-            c_windows_id: &mut HashMap<winit::window::WindowId, ViewportId>,
+            c_painter: &RefCell<egui_wgpu::winit::Painter>,
+            c_windows_id: &RefCell<HashMap<winit::window::WindowId, ViewportId>>,
         ) {
             // Creating a new native window if is needed
             if c_viewports.borrow().get(&pair).is_none() {
+                let mut builders = builders.borrow_mut();
                 let mut _windows = c_viewports.borrow_mut();
 
                 {
@@ -2205,8 +2211,8 @@ mod wgpu_integration {
                 Self::init_window(
                     pair.this,
                     &viewport_builder,
-                    c_windows_id,
-                    c_painter,
+                    &mut c_windows_id.borrow_mut(),
+                    &mut c_painter.borrow_mut(),
                     window,
                     &mut state.borrow_mut(),
                     event_loop,
@@ -2226,6 +2232,8 @@ mod wgpu_integration {
             output = egui_ctx.run(input, pair, |ctx| {
                 render(ctx);
             });
+
+            let mut c_painter = c_painter.borrow_mut();
 
             if let Err(err) = pollster::block_on(c_painter.set_window(pair.this, Some(&win))) {
                 log::error!(
