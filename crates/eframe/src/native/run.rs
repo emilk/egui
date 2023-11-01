@@ -1583,17 +1583,21 @@ mod glow_integration {
 
                 Self::process_viewport_builders(&glutin, viewports);
 
-                egui_winit::process_viewports_commands(
-                    viewport_commands,
-                    *self.is_focused.read(),
-                    |viewport_id| {
-                        glutin
-                            .read()
-                            .viewports
-                            .get(&viewport_id)
-                            .and_then(|w| w.read().window.clone())
-                    },
-                );
+                for (viewport_id, command) in viewport_commands {
+                    if let Some(window) = glutin
+                        .read()
+                        .viewports
+                        .get(&viewport_id)
+                        .and_then(|w| w.read().window.clone())
+                    {
+                        egui_winit::process_viewport_commands(
+                            vec![command],
+                            viewport_id,
+                            *self.is_focused.read(),
+                            &window.read(),
+                        );
+                    }
+                }
 
                 control_flow
             } else {
@@ -2431,16 +2435,20 @@ mod wgpu_integration {
                     active_viewports_ids.push(id);
                 }
 
-                egui_winit::process_viewports_commands(
-                    viewport_commands,
-                    *self.is_focused.read(),
-                    |viewport_id| {
-                        windows
-                            .read()
-                            .get(&viewport_id)
-                            .and_then(|w| w.window.clone())
-                    },
-                );
+                for (viewport_id, command) in viewport_commands {
+                    if let Some(window) = windows
+                        .read()
+                        .get(&viewport_id)
+                        .and_then(|w| w.window.clone())
+                    {
+                        egui_winit::process_viewport_commands(
+                            vec![command],
+                            viewport_id,
+                            *self.is_focused.read(),
+                            &window.read(),
+                        );
+                    }
+                }
 
                 windows
                     .write()

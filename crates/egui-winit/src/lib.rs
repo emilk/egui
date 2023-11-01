@@ -16,7 +16,7 @@ pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{mutex::RwLock, Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId};
+use egui::{Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId};
 pub use winit;
 
 pub mod clipboard;
@@ -1109,18 +1109,6 @@ pub fn process_viewport_commands(
                     log::error!("Setting viewport CursorHitTest: {err}");
                 }
             }
-        }
-    }
-}
-
-pub fn process_viewports_commands(
-    commands: Vec<(ViewportId, ViewportCommand)>,
-    focused: Option<ViewportId>,
-    get_window: impl Fn(ViewportId) -> Option<Arc<RwLock<winit::window::Window>>>,
-) {
-    for (viewport_id, command) in commands {
-        if let Some(window) = get_window(viewport_id) {
-            process_viewport_commands(vec![command], viewport_id, focused, &window.read());
         }
     }
 }
