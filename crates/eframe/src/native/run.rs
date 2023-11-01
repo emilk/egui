@@ -1237,16 +1237,16 @@ mod glow_integration {
                     let last_builder = glutin.builders.entry(*id).or_insert(builder.clone());
                     let (commands, recreate) = changes_between_builders(builder, last_builder);
                     drop(glutin);
-                    if let Some(w) = glutin_ctx.read().viewports.get(id) {
-                        let mut w = w.write();
+                    if let Some(window) = glutin_ctx.read().viewports.get(id) {
+                        let mut window = window.write();
                         if recreate {
-                            w.window = None;
-                            w.gl_surface = None;
-                            w.render = render.clone();
-                            w.pair.parent = *id;
+                            window.window = None;
+                            window.gl_surface = None;
+                            window.render = render.clone();
+                            window.pair.parent = *id;
                         }
-                        if let Some(w) = w.window.clone() {
-                            process_viewport_commands(commands, *id, None, &w);
+                        if let Some(w) = window.window.clone() {
+                            process_viewport_commands(commands, *id, None, &w.read());
                         }
                         active_viewports_ids.push(*id);
                         false
@@ -2317,8 +2317,8 @@ mod wgpu_integration {
                     // This is used to not render a viewport if is sync
                     if viewport_id != ViewportId::MAIN && render.is_none() {
                         if let Some(window) = running.viewports.read().get(&parent_id) {
-                            if let Some(w) = window.window.as_ref() {
-                                return EventResult::RepaintNext(w.read().id());
+                            if let Some(window) = window.window.as_ref() {
+                                return EventResult::RepaintNext(window.read().id());
                             }
                         }
                         return EventResult::Wait;
@@ -2386,9 +2386,9 @@ mod wgpu_integration {
                          render,
                          ..
                      }| {
-                        if let Some(w) = windows.write().get_mut(id) {
-                            w.render = render.clone();
-                            w.parent_id = *parent;
+                        if let Some(window) = windows.write().get_mut(id) {
+                            window.render = render.clone();
+                            window.parent_id = *parent;
                             active_viewports_ids.push(*id);
                             false
                         } else {

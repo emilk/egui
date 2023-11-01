@@ -976,10 +976,9 @@ pub fn process_viewport_commands(
     commands: Vec<ViewportCommand>,
     viewport_id: ViewportId,
     focused: Option<ViewportId>,
-    window: &Arc<RwLock<winit::window::Window>>,
+    window: &winit::window::Window,
 ) {
     use winit::window::ResizeDirection;
-    let win = window.read();
 
     for command in commands {
         match command {
@@ -988,18 +987,18 @@ pub fn process_viewport_commands(
                 if let Some(focus) = focused {
                     if focus == viewport_id {
                         // TODO possible return the error to `egui::Context`
-                        let _ = win.drag_window();
+                        let _ = window.drag_window();
                     }
                 }
             }
             egui::ViewportCommand::InnerSize(size) => {
                 let width = size.x.max(1.0);
                 let height = size.y.max(1.0);
-                win.set_inner_size(LogicalSize::new(width, height));
+                window.set_inner_size(LogicalSize::new(width, height));
             }
             egui::ViewportCommand::Resize(top, bottom, right, left) => {
                 // TODO posibile return the error to `egui::Context`
-                let _ = win.drag_resize_window(match (top, bottom, right, left) {
+                let _ = window.drag_resize_window(match (top, bottom, right, left) {
                     (true, false, false, false) => ResizeDirection::North,
                     (false, true, false, false) => ResizeDirection::South,
                     (false, false, false, true) => ResizeDirection::West,
@@ -1010,27 +1009,27 @@ pub fn process_viewport_commands(
                     _ => ResizeDirection::East,
                 });
             }
-            ViewportCommand::Title(title) => win.set_title(&title),
-            ViewportCommand::Transparent(v) => win.set_transparent(v),
-            ViewportCommand::Visible(v) => win.set_visible(v),
+            ViewportCommand::Title(title) => window.set_title(&title),
+            ViewportCommand::Transparent(v) => window.set_transparent(v),
+            ViewportCommand::Visible(v) => window.set_visible(v),
             ViewportCommand::OuterPosition(pos) => {
-                win.set_outer_position(LogicalPosition::new(pos.x, pos.y));
+                window.set_outer_position(LogicalPosition::new(pos.x, pos.y));
             }
             ViewportCommand::MinInnerSize(s) => {
-                win.set_min_inner_size(s.map(|s| LogicalSize::new(s.x, s.y)));
+                window.set_min_inner_size(s.map(|s| LogicalSize::new(s.x, s.y)));
             }
             ViewportCommand::MaxInnerSize(s) => {
-                win.set_max_inner_size(s.map(|s| LogicalSize::new(s.x, s.y)));
+                window.set_max_inner_size(s.map(|s| LogicalSize::new(s.x, s.y)));
             }
             ViewportCommand::ResizeIncrements(s) => {
-                win.set_resize_increments(s.map(|s| LogicalSize::new(s.x, s.y)));
+                window.set_resize_increments(s.map(|s| LogicalSize::new(s.x, s.y)));
             }
-            ViewportCommand::Resizable(v) => win.set_resizable(v),
+            ViewportCommand::Resizable(v) => window.set_resizable(v),
             ViewportCommand::EnableButtons {
                 close,
                 minimized,
                 maximize,
-            } => win.set_enabled_buttons(
+            } => window.set_enabled_buttons(
                 if close {
                     WindowButtons::CLOSE
                 } else {
@@ -1045,19 +1044,19 @@ pub fn process_viewport_commands(
                     WindowButtons::empty()
                 },
             ),
-            ViewportCommand::Minimized(v) => win.set_minimized(v),
-            ViewportCommand::Maximized(v) => win.set_maximized(v),
+            ViewportCommand::Minimized(v) => window.set_minimized(v),
+            ViewportCommand::Maximized(v) => window.set_maximized(v),
             ViewportCommand::Fullscreen(v) => {
-                win.set_fullscreen(v.then_some(winit::window::Fullscreen::Borderless(None)));
+                window.set_fullscreen(v.then_some(winit::window::Fullscreen::Borderless(None)));
             }
-            ViewportCommand::Decorations(v) => win.set_decorations(v),
-            ViewportCommand::WindowLevel(o) => win.set_window_level(match o {
+            ViewportCommand::Decorations(v) => window.set_decorations(v),
+            ViewportCommand::WindowLevel(o) => window.set_window_level(match o {
                 1 => WindowLevel::AlwaysOnBottom,
                 2 => WindowLevel::AlwaysOnTop,
                 _ => WindowLevel::Normal,
             }),
             ViewportCommand::WindowIcon(icon) => {
-                win.set_window_icon(icon.map(|icon| {
+                window.set_window_icon(icon.map(|icon| {
                     winit::window::Icon::from_rgba(
                         icon.as_raw().to_owned(),
                         icon.width() as u32,
@@ -1067,36 +1066,36 @@ pub fn process_viewport_commands(
                 }));
             }
             ViewportCommand::IMEPosition(pos) => {
-                win.set_ime_position(LogicalPosition::new(pos.x, pos.y));
+                window.set_ime_position(LogicalPosition::new(pos.x, pos.y));
             }
-            ViewportCommand::IMEAllowed(v) => win.set_ime_allowed(v),
-            ViewportCommand::IMEPurpose(o) => win.set_ime_purpose(match o {
+            ViewportCommand::IMEAllowed(v) => window.set_ime_allowed(v),
+            ViewportCommand::IMEPurpose(o) => window.set_ime_purpose(match o {
                 1 => winit::window::ImePurpose::Password,
                 2 => winit::window::ImePurpose::Terminal,
                 _ => winit::window::ImePurpose::Normal,
             }),
-            ViewportCommand::RequestUserAttention(o) => win.request_user_attention(o.map(|o| {
+            ViewportCommand::RequestUserAttention(o) => window.request_user_attention(o.map(|o| {
                 if o == 1 {
                     winit::window::UserAttentionType::Critical
                 } else {
                     winit::window::UserAttentionType::Informational
                 }
             })),
-            ViewportCommand::SetTheme(o) => win.set_theme(o.map(|o| {
+            ViewportCommand::SetTheme(o) => window.set_theme(o.map(|o| {
                 if o == 1 {
                     winit::window::Theme::Dark
                 } else {
                     winit::window::Theme::Light
                 }
             })),
-            ViewportCommand::ContentProtected(v) => win.set_content_protected(v),
+            ViewportCommand::ContentProtected(v) => window.set_content_protected(v),
             ViewportCommand::CursorPosition(pos) => {
-                if let Err(err) = win.set_cursor_position(LogicalPosition::new(pos.x, pos.y)) {
+                if let Err(err) = window.set_cursor_position(LogicalPosition::new(pos.x, pos.y)) {
                     log::error!("{err}");
                 }
             }
             ViewportCommand::CursorGrab(o) => {
-                if let Err(err) = win.set_cursor_grab(match o {
+                if let Err(err) = window.set_cursor_grab(match o {
                     1 => CursorGrabMode::Confined,
                     2 => CursorGrabMode::Locked,
                     _ => CursorGrabMode::None,
@@ -1104,9 +1103,9 @@ pub fn process_viewport_commands(
                     log::error!("{err}");
                 }
             }
-            ViewportCommand::CursorVisible(v) => win.set_cursor_visible(v),
+            ViewportCommand::CursorVisible(v) => window.set_cursor_visible(v),
             ViewportCommand::CursorHitTest(v) => {
-                if let Err(err) = win.set_cursor_hittest(v) {
+                if let Err(err) = window.set_cursor_hittest(v) {
                     log::error!("Setting viewport CursorHitTest: {err}");
                 }
             }
@@ -1121,7 +1120,7 @@ pub fn process_viewports_commands(
 ) {
     for (viewport_id, command) in commands {
         if let Some(window) = get_window(viewport_id) {
-            process_viewport_commands(vec![command], viewport_id, focused, &window);
+            process_viewport_commands(vec![command], viewport_id, focused, &window.read());
         }
     }
 }
