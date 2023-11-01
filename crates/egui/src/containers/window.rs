@@ -429,7 +429,7 @@ impl<'open> Window<'open> {
                 .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
-            paint_resize_corner(&mut area_content_ui, &possible, outer_rect, frame_stroke);
+            paint_resize_corner(&area_content_ui, &possible, outer_rect, frame_stroke);
 
             // END FRAME --------------------------------
 
@@ -448,7 +448,7 @@ impl<'open> Window<'open> {
 
             if let Some(interaction) = interaction {
                 paint_frame_interaction(
-                    &mut area_content_ui,
+                    &area_content_ui,
                     outer_rect,
                     interaction,
                     ctx.style().visuals.widgets.active,
@@ -456,7 +456,7 @@ impl<'open> Window<'open> {
             } else if let Some(hover_interaction) = hover_interaction {
                 if ctx.input(|i| i.pointer.has_pointer()) {
                     paint_frame_interaction(
-                        &mut area_content_ui,
+                        &area_content_ui,
                         outer_rect,
                         hover_interaction,
                         ctx.style().visuals.widgets.hovered,
@@ -476,12 +476,7 @@ impl<'open> Window<'open> {
     }
 }
 
-fn paint_resize_corner(
-    ui: &mut Ui,
-    possible: &PossibleInteractions,
-    outer_rect: Rect,
-    stroke: Stroke,
-) {
+fn paint_resize_corner(ui: &Ui, possible: &PossibleInteractions, outer_rect: Rect, stroke: Stroke) {
     let corner = if possible.resize_right && possible.resize_bottom {
         Align2::RIGHT_BOTTOM
     } else if possible.resize_left && possible.resize_bottom {
@@ -758,7 +753,7 @@ fn resize_hover(
 
 /// Fill in parts of the window frame when we resize by dragging that part
 fn paint_frame_interaction(
-    ui: &mut Ui,
+    ui: &Ui,
     rect: Rect,
     interaction: WindowInteraction,
     visuals: style::WidgetVisuals,

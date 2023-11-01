@@ -332,12 +332,12 @@ impl Resize {
 
 use epaint::Stroke;
 
-pub fn paint_resize_corner(ui: &mut Ui, response: &Response) {
+pub fn paint_resize_corner(ui: &Ui, response: &Response) {
     let stroke = ui.style().interact(response).fg_stroke;
     paint_resize_corner_with_style(ui, &response.rect, stroke, Align2::RIGHT_BOTTOM);
 }
 
-pub fn paint_resize_corner_with_style(ui: &mut Ui, rect: &Rect, stroke: Stroke, corner: Align2) {
+pub fn paint_resize_corner_with_style(ui: &Ui, rect: &Rect, stroke: Stroke, corner: Align2) {
     let painter = ui.painter();
     let cp = painter.round_pos_to_pixels(corner.pos_in_rect(rect));
     let mut w = 2.0;

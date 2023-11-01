@@ -1523,7 +1523,7 @@ impl Context {
         });
 
         #[cfg_attr(not(feature = "accesskit"), allow(unused_mut))]
-        let mut platform_output: PlatformOutput = self.output_mut(|o| std::mem::take(o));
+        let mut platform_output: PlatformOutput = self.output_mut(std::mem::take);
 
         #[cfg(feature = "accesskit")]
         {
