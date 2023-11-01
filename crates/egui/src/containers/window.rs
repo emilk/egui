@@ -56,6 +56,17 @@ impl DisplayEvent {
     }
 }
 
+// Helper function for user space
+pub trait SetEvent {
+    fn set(&mut self, display_event: DisplayEvent);
+}
+
+impl SetEvent for Option<DisplayEvent> {
+    fn set(&mut self, display_event: DisplayEvent) {
+        let _ = self.insert(display_event);
+    }
+}
+
 impl<'open> Window<'open> {
     /// The window title is used as a unique [`Id`] and must be unique, and should not change.
     /// This is true even if you disable the title bar with `.title_bar(false)`.
