@@ -4,9 +4,7 @@ use winit::event_loop::EventLoopWindowTarget;
 
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
-use egui::{
-    mutex::RwLock, NumExt as _, ViewportBuilder, ViewportId, ViewportIdPair, ViewportRender,
-};
+use egui::{NumExt as _, ViewportBuilder, ViewportId, ViewportIdPair, ViewportRender};
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
@@ -563,21 +561,17 @@ impl EpiIntegration {
     pub fn maybe_autosave(
         &mut self,
         app: &mut dyn epi::App,
-        window: Arc<RwLock<winit::window::Window>>,
+        window: Option<&winit::window::Window>,
     ) {
         let now = std::time::Instant::now();
         if now - self.last_auto_save > app.auto_save_interval() {
-            self.save(app, Some(window));
+            self.save(app, window);
             self.last_auto_save = now;
         }
     }
 
     #[allow(clippy::unused_self)]
-    pub fn save(
-        &mut self,
-        _app: &mut dyn epi::App,
-        _window: Option<Arc<RwLock<winit::window::Window>>>,
-    ) {
+    pub fn save(&mut self, _app: &mut dyn epi::App, _window: Option<&winit::window::Window>) {
         #[cfg(feature = "persistence")]
         if let Some(storage) = self.frame.storage_mut() {
             crate::profile_function!();
@@ -588,7 +582,7 @@ impl EpiIntegration {
                     epi::set_value(
                         storage,
                         STORAGE_WINDOW_KEY,
-                        &WindowSettings::from_display(&window.read()),
+                        &WindowSettings::from_display(window),
                     );
                 }
             }

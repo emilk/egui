@@ -1371,7 +1371,9 @@ mod glow_integration {
                         .window(ViewportId::MAIN)
                         .read()
                         .window
-                        .clone(),
+                        .as_ref()
+                        .map(|w| w.read())
+                        .as_deref(),
                 );
                 running.app.write().on_exit(Some(&running.gl));
                 running.painter.write().destroy();
@@ -1566,8 +1568,10 @@ mod glow_integration {
                         EventResult::Wait
                     };
 
-                    integration
-                        .maybe_autosave(app.write().as_mut(), win.read().window.clone().unwrap());
+                    integration.maybe_autosave(
+                        app.write().as_mut(),
+                        win.read().window.as_ref().map(|w| w.read()).as_deref(),
+                    );
 
                     if win.read().window.as_ref().unwrap().read().is_minimized() == Some(true) {
                         // On Mac, a minimized Window uses up all CPU:
@@ -2271,10 +2275,10 @@ mod wgpu_integration {
                 crate::profile_function!();
                 if let Some(Window { window, .. }) = running.viewports.read().get(&ViewportId::MAIN)
                 {
-                    running
-                        .integration
-                        .write()
-                        .save(running.app.as_mut(), window.clone());
+                    running.integration.write().save(
+                        running.app.as_mut(),
+                        window.as_ref().map(|w| w.read()).as_deref(),
+                    );
                 }
 
                 #[cfg(feature = "glow")]
@@ -2452,7 +2456,7 @@ mod wgpu_integration {
                     ) else{return EventResult::Wait};
                 integration
                     .write()
-                    .maybe_autosave(app.as_mut(), window.clone());
+                    .maybe_autosave(app.as_mut(), Some(&*window.read()));
 
                 if window.read().is_minimized() == Some(true) {
                     // On Mac, a minimized Window uses up all CPU:
