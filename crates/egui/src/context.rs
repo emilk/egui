@@ -1141,7 +1141,7 @@ impl Context {
     ///
     /// This will repaint the current viewport
     pub fn request_repaint(&self) {
-        self.request_repaint_for(self.viewport_id())
+        self.request_repaint_for(self.viewport_id());
     }
 
     /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
@@ -1187,7 +1187,7 @@ impl Context {
     ///
     /// This repaints the current viewport
     pub fn request_repaint_after(&self, duration: std::time::Duration) {
-        self.request_repaint_after_for(duration, self.viewport_id())
+        self.request_repaint_after_for(duration, self.viewport_id());
     }
 
     /// Request repaint after at most the specified duration elapses.
