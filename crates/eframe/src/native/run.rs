@@ -1867,14 +1867,20 @@ mod wgpu_integration {
         parent_id: ViewportId,
     }
 
-    #[derive(Clone)]
-    pub struct Viewports(Rc<RefCell<HashMap<ViewportId, Viewport>>>);
+    #[derive(Clone, Default)]
+    pub struct Viewports(HashMap<ViewportId, Viewport>);
 
     impl std::ops::Deref for Viewports {
-        type Target = Rc<RefCell<HashMap<ViewportId, Viewport>>>;
+        type Target = HashMap<ViewportId, Viewport>;
 
         fn deref(&self) -> &Self::Target {
             &self.0
+        }
+    }
+
+    impl std::ops::DerefMut for Viewports {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.0
         }
     }
 
@@ -1885,7 +1891,7 @@ mod wgpu_integration {
         painter: Rc<RefCell<egui_wgpu::winit::Painter>>,
         integration: Rc<RefCell<epi_integration::EpiIntegration>>,
         app: Box<dyn epi::App>,
-        viewports: Viewports,
+        viewports: Rc<RefCell<Viewports>>,
         builders: Rc<RefCell<HashMap<ViewportId, ViewportBuilder>>>,
         viewport_maps: Rc<RefCell<HashMap<winit::window::WindowId, ViewportId>>>,
     }
@@ -2120,7 +2126,7 @@ mod wgpu_integration {
             viewport_maps.insert(window.id(), ViewportId::MAIN);
             let viewport_maps = Rc::new(RefCell::new(viewport_maps));
 
-            let viewports = Viewports(Rc::new(RefCell::new(HashMap::default())));
+            let viewports = Rc::new(RefCell::new(Viewports::default()));
             viewports.borrow_mut().insert(
                 ViewportId::MAIN,
                 Viewport {
@@ -2151,7 +2157,7 @@ mod wgpu_integration {
                         viewport_builder,
                         pair,
                         render,
-                        &c_viewports,
+                        &mut c_viewports.borrow_mut(),
                         &c_builders,
                         c_time,
                         &c_painter,
@@ -2179,16 +2185,15 @@ mod wgpu_integration {
             mut viewport_builder: ViewportBuilder,
             pair: ViewportIdPair,
             render: Box<dyn FnOnce(&egui::Context) + '_>,
-            viewports: &Viewports,
+            viewports: &mut Viewports,
             builders: &RefCell<HashMap<ViewportId, ViewportBuilder>>,
             time: Instant,
             painter: &RefCell<egui_wgpu::winit::Painter>,
             viewport_maps: &RefCell<HashMap<winit::window::WindowId, ViewportId>>,
         ) {
             // Creating a new native window if is needed
-            if viewports.borrow().get(&pair).is_none() {
+            if viewports.get(&pair).is_none() {
                 let mut builders = builders.borrow_mut();
-                let mut viewports = viewports.borrow_mut();
 
                 {
                     if viewport_builder.icon.is_none() && builders.get(&pair).is_none() {
@@ -2230,7 +2235,7 @@ mod wgpu_integration {
 
             // render sync viewport
 
-            let window = viewports.borrow().get(&pair).cloned();
+            let window = viewports.get(&pair).cloned();
             let Some(window) = window else { return };
             let output;
             let Some(winit_state) = &mut *window.state.borrow_mut() else { return };
