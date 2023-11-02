@@ -1070,27 +1070,35 @@ mod glow_integration {
             let glutin_ctx = Rc::new(RefCell::new(glutin_ctx));
             let painter = Rc::new(RefCell::new(painter));
 
-            // c_* means that will be taken by the next closure
+            {
+                // Create weak pointers so that we don't keep
+                // state alive for too long.
+                let glutin = Rc::downgrade(&glutin_ctx);
+                let gl = Arc::downgrade(&gl);
+                let painter = Rc::downgrade(&painter);
+                let beginning = integration.beginning;
 
-            let c_glutin = glutin_ctx.clone();
-            let c_gl = gl.clone();
-            let c_painter = painter.clone();
-            let c_time = integration.beginning;
-
-            integration.egui_ctx.set_render_sync_callback(
-                move |egui_ctx, viewport_builder, pair, render| {
-                    Self::render_sync_viewport(
-                        egui_ctx,
-                        viewport_builder,
-                        pair,
-                        render,
-                        &c_glutin,
-                        &c_gl,
-                        &c_painter,
-                        c_time,
-                    );
-                },
-            );
+                integration.egui_ctx.set_render_sync_callback(
+                    move |egui_ctx, viewport_builder, pair, render| {
+                        if let (Some(glutin), Some(gl), Some(painter)) =
+                            (glutin.upgrade(), gl.upgrade(), painter.upgrade())
+                        {
+                            Self::render_sync_viewport(
+                                egui_ctx,
+                                viewport_builder,
+                                pair,
+                                render,
+                                &glutin,
+                                &gl,
+                                &painter,
+                                beginning,
+                            );
+                        } else {
+                            log::warn!("render_sync_callback called after window closed");
+                        }
+                    },
+                );
+            }
 
             *self.running.borrow_mut() = Some(GlowWinitRunning {
                 glutin_ctx,
@@ -2142,29 +2150,45 @@ mod wgpu_integration {
 
             let painter = Rc::new(RefCell::new(painter));
 
-            // c_* means that will be taken by the next closure
+            {
+                // Create weak pointers so that we don't keep
+                // state alive for too long.
+                let viewports = Rc::downgrade(&viewports);
+                let builders = Rc::downgrade(&builders);
+                let painter = Rc::downgrade(&painter);
+                let viewport_maps = Rc::downgrade(&viewport_maps);
+                let beginning = integration.beginning;
 
-            let c_viewports = viewports.clone();
-            let c_builders = builders.clone();
-            let c_time = integration.beginning;
-            let c_painter = painter.clone();
-            let c_viewport_maps = viewport_maps.clone();
-
-            integration.egui_ctx.set_render_sync_callback(
-                move |egui_ctx, viewport_builder, pair, render| {
-                    Self::render_sync_viewport(
-                        egui_ctx,
-                        viewport_builder,
-                        pair,
-                        render,
-                        &mut c_viewports.borrow_mut(),
-                        &c_builders,
-                        c_time,
-                        &c_painter,
-                        &c_viewport_maps,
-                    );
-                },
-            );
+                integration.egui_ctx.set_render_sync_callback(
+                    move |egui_ctx, viewport_builder, pair, render| {
+                        if let (
+                            Some(viewports),
+                            Some(builders),
+                            Some(painter),
+                            Some(viewport_maps),
+                        ) = (
+                            viewports.upgrade(),
+                            builders.upgrade(),
+                            painter.upgrade(),
+                            viewport_maps.upgrade(),
+                        ) {
+                            Self::render_sync_viewport(
+                                egui_ctx,
+                                viewport_builder,
+                                pair,
+                                render,
+                                &mut viewports.borrow_mut(),
+                                &builders,
+                                beginning,
+                                &painter,
+                                &viewport_maps,
+                            );
+                        } else {
+                            log::warn!("render_sync_callback called after window closed");
+                        }
+                    },
+                );
+            }
 
             self.running = Some(WgpuWinitRunning {
                 painter,
