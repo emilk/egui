@@ -2177,7 +2177,7 @@ mod wgpu_integration {
                                 viewport_builder,
                                 pair,
                                 render,
-                                &mut viewports.borrow_mut(),
+                                &viewports,
                                 &builders,
                                 beginning,
                                 &painter,
@@ -2209,14 +2209,14 @@ mod wgpu_integration {
             mut viewport_builder: ViewportBuilder,
             pair: ViewportIdPair,
             render: Box<dyn FnOnce(&egui::Context) + '_>,
-            viewports: &mut Viewports,
+            viewports: &RefCell<Viewports>,
             builders: &RefCell<HashMap<ViewportId, ViewportBuilder>>,
             time: Instant,
             painter: &RefCell<egui_wgpu::winit::Painter>,
             viewport_maps: &RefCell<HashMap<winit::window::WindowId, ViewportId>>,
         ) {
             // Creating a new native window if is needed
-            if viewports.get(&pair).is_none() {
+            if viewports.borrow().get(&pair).is_none() {
                 let mut builders = builders.borrow_mut();
 
                 {
@@ -2225,6 +2225,8 @@ mod wgpu_integration {
                             builders.get(&pair.parent).and_then(|b| b.icon.clone());
                     }
                 }
+
+                let mut viewports = viewports.borrow_mut();
 
                 let Viewport { window, state, .. } =
                     viewports.entry(pair.this).or_insert(Viewport {
@@ -2259,12 +2261,12 @@ mod wgpu_integration {
 
             // render sync viewport
 
-            let window = viewports.get(&pair).cloned();
-            let Some(window) = window else { return };
+            let viewport = viewports.borrow().get(&pair).cloned();
+            let Some(viewport) = viewport else { return };
             let output;
-            let Some(winit_state) = &mut *window.state.borrow_mut() else { return };
-            let Some(win) = window.window else { return };
-            let win = win.borrow();
+            let Some(winit_state) = &mut *viewport.state.borrow_mut() else { return };
+            let Some(window) = viewport.window else { return };
+            let win = window.borrow();
             let mut input = winit_state.take_egui_input(&win);
             input.time = Some(time.elapsed().as_secs_f64());
             output = egui_ctx.run(input, pair, |ctx| {
