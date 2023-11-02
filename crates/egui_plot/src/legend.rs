@@ -160,10 +160,10 @@ pub(super) struct LegendWidget {
 impl LegendWidget {
     /// Create a new legend from items, the names of items that are hidden and the style of the
     /// text. Returns `None` if the legend has no entries.
-    pub(super) fn try_new(
+    pub(super) fn try_new<'data>(
         rect: Rect,
         config: Legend,
-        items: &[Box<dyn PlotItem>],
+        items: &[Box<dyn PlotItem + 'data>],
         hidden_items: &ahash::HashSet<String>,
     ) -> Option<Self> {
         // Collect the legend entries. If multiple items have the same name, they share a

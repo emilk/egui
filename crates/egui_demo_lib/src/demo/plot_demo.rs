@@ -167,6 +167,15 @@ impl LineDemo {
             line_style,
         } = self;
 
+        let data = [[0.1, 0.7].into(), [0.3, 0.4].into()];
+        let points = PlotPoints::from_borrowed(&data);
+        // let points = PlotPoints::from_iter(data.iter().copied());
+
+        Plot::new("borrowed").view_aspect(2.0).show(ui, |ui| {
+            let line = Line::new(points);
+            ui.line(line);
+        });
+
         ui.horizontal(|ui| {
             ui.group(|ui| {
                 ui.vertical(|ui| {
@@ -224,9 +233,9 @@ impl LineDemo {
         });
     }
 
-    fn circle(&self) -> Line {
+    fn circle(&self) -> Line<'static> {
         let n = 512;
-        let circle_points: PlotPoints = (0..=n)
+        let circle_points: PlotPoints<'static> = (0..=n)
             .map(|i| {
                 let t = remap(i as f64, 0.0..=(n as f64), 0.0..=TAU);
                 let r = self.circle_radius;
@@ -242,7 +251,7 @@ impl LineDemo {
             .name("circle")
     }
 
-    fn sin(&self) -> Line {
+    fn sin(&self) -> Line<'static> {
         let time = self.time;
         Line::new(PlotPoints::from_explicit_callback(
             move |x| 0.5 * (2.0 * x).sin() * time.sin(),
@@ -254,7 +263,7 @@ impl LineDemo {
         .name("wave")
     }
 
-    fn thingy(&self) -> Line {
+    fn thingy(&self) -> Line<'static> {
         let time = self.time;
         Line::new(PlotPoints::from_parametric_callback(
             move |t| ((2.0 * t + time).sin(), (3.0 * t).sin()),
@@ -320,7 +329,7 @@ impl Default for MarkerDemo {
 }
 
 impl MarkerDemo {
-    fn markers(&self) -> Vec<Points> {
+    fn markers(&self) -> Vec<Points<'static>> {
         MarkerShape::all()
             .enumerate()
             .map(|(i, marker)| {
@@ -383,7 +392,7 @@ struct LegendDemo {
 }
 
 impl LegendDemo {
-    fn line_with_slope(slope: f64) -> Line {
+    fn line_with_slope(slope: f64) -> Line<'static> {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| slope * x,
             ..,
@@ -391,7 +400,7 @@ impl LegendDemo {
         ))
     }
 
-    fn sin() -> Line {
+    fn sin() -> Line<'static> {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| x.sin(),
             ..,
@@ -399,7 +408,7 @@ impl LegendDemo {
         ))
     }
 
-    fn cos() -> Line {
+    fn cos() -> Line<'static> {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| x.cos(),
             ..,
@@ -461,7 +470,7 @@ impl CustomAxesDemo {
     const MINS_PER_DAY: f64 = 24.0 * 60.0;
     const MINS_PER_H: f64 = 60.0;
 
-    fn logistic_fn() -> Line {
+    fn logistic_fn() -> Line<'static> {
         fn days(min: f64) -> f64 {
             CustomAxesDemo::MINS_PER_DAY * min
         }
@@ -612,7 +621,7 @@ impl Default for LinkedAxesDemo {
 }
 
 impl LinkedAxesDemo {
-    fn line_with_slope(slope: f64) -> Line {
+    fn line_with_slope(slope: f64) -> Line<'static> {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| slope * x,
             ..,
@@ -620,7 +629,7 @@ impl LinkedAxesDemo {
         ))
     }
 
-    fn sin() -> Line {
+    fn sin() -> Line<'static> {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| x.sin(),
             ..,
@@ -628,7 +637,7 @@ impl LinkedAxesDemo {
         ))
     }
 
-    fn cos() -> Line {
+    fn cos() -> Line<'static> {
         Line::new(PlotPoints::from_explicit_callback(
             move |x| x.cos(),
             ..,
@@ -676,6 +685,7 @@ impl LinkedAxesDemo {
                 .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
                 .show(ui, LinkedAxesDemo::configure_plot);
         });
+
         Plot::new("left-bottom")
             .data_aspect(0.5)
             .width(250.0)
