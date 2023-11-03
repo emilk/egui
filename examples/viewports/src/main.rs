@@ -115,6 +115,20 @@ impl AsyncViewport {
     }
 }
 
+struct SyncViewport<'a> {
+    name: String,
+    init: Box<dyn FnMut(&egui::Context) + 'a>,
+}
+
+impl<'a> SyncViewport<'a> {
+    fn new(name: impl Into<String>, init: impl FnMut(&egui::Context) + 'a) -> Self {
+        Self {
+            name: name.into(),
+            init: Box::new(init),
+        }
+    }
+}
+
 fn show_async_viewport(
     ctx: &egui::Context,
     name: impl Into<String>,
@@ -151,9 +165,6 @@ fn show_async_viewport(
                 }
 
                 ui.add(egui::DragValue::new(&mut *count).prefix("Count: "));
-                if ui.button("Add").clicked() {
-                    *count += 1;
-                }
 
                 for (i, viewport) in viewports.iter().enumerate() {
                     if state.active[i] {
@@ -169,20 +180,6 @@ fn show_async_viewport(
             show_as_popup(ctx, &n, content);
         },
     );
-}
-
-struct SyncViewport<'a> {
-    name: String,
-    init: Box<dyn FnMut(&egui::Context) + 'a>,
-}
-
-impl<'a> SyncViewport<'a> {
-    fn new(name: impl Into<String>, init: impl FnMut(&egui::Context) + 'a) -> Self {
-        Self {
-            name: name.into(),
-            init: Box::new(init),
-        }
-    }
 }
 
 fn show_sync_viewport(
@@ -216,10 +213,8 @@ fn show_sync_viewport(
                     ui.checkbox(&mut state.active[i], &viewport.name);
                 }
 
-                ui.add(egui::DragValue::new(&mut *count).prefix("Count: "));
-                if ui.button("Add").clicked() {
-                    *count += 1;
-                }
+                ui.add(egui::DragValue::new(count).prefix("Count: "));
+
                 for (i, viewport) in viewports.iter_mut().enumerate() {
                     if state.active[i] {
                         (viewport.init)(&ctx);
@@ -316,36 +311,42 @@ fn show_as_popup(ctx: &egui::Context, name: &str, content: impl FnOnce(&mut egui
 }
 
 fn generic_ui(ui: &mut egui::Ui, container_id: impl Into<Id>) {
+    let container_id = container_id.into();
+
     let ctx = ui.ctx().clone();
     ui.label(format!(
         "Frame nr: {} (this increases when this viewport is being rendered)",
         ctx.frame_nr()
     ));
-    ui.label(format!("Current Viewport Id: {}", ctx.viewport_id()));
-    ui.label(format!("Current Parent Viewport Id: {}", ctx.viewport_id()));
+    ui.horizontal(|ui| {
+        let mut show_spinner =
+            ui.data_mut(|data| *data.get_temp_mut_or(container_id.with("show_spinner"), false));
+        ui.checkbox(&mut show_spinner, "Show Spinner (forces repaint)");
+        if show_spinner {
+            ui.spinner();
+        }
+        ui.data_mut(|data| data.insert_temp(container_id.with("show_spinner"), show_spinner));
+    });
+
+    ui.add_space(8.0);
+
+    ui.label(format!("Viewport Id: {}", ctx.viewport_id()));
+    ui.label(format!("Parent Viewport Id: {}", ctx.parent_viewport_id()));
+
+    ui.add_space(8.0);
+
     let inner_rect = ctx.inner_rect();
-    let outer_rect = ctx.outer_rect();
     ui.label(format!(
         "Inner Rect: Pos: {:?}, Size: {:?}",
         inner_rect.min,
         inner_rect.size()
     ));
+    let outer_rect = ctx.outer_rect();
     ui.label(format!(
         "Outer Rect: Pos: {:?}, Size: {:?}",
         outer_rect.min,
         outer_rect.size()
     ));
-
-    let container_id = container_id.into();
-    let ctx = ui.ctx().clone();
-
-    let mut show_spinner =
-        ui.data_mut(|data| *data.get_temp_mut_or(container_id.with("show_spinner"), false));
-    ui.checkbox(&mut show_spinner, "Show Spinner");
-    if show_spinner {
-        ui.spinner();
-    }
-    ui.data_mut(|data| data.insert_temp(container_id.with("show_spinner"), show_spinner));
 
     let tmp_pixels_per_point = ctx.pixels_per_point();
     let mut pixels_per_point = ui.data_mut(|data| {
