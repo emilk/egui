@@ -1177,8 +1177,12 @@ mod glow_integration {
             let Some(window) = window else { return };
 
             let window = &mut *window.borrow_mut();
-            let Some(winit_state) = &mut window.egui_winit else { return };
-            let Some(win) = window.window.clone() else { return };
+            let Some(winit_state) = &mut window.egui_winit else {
+                return;
+            };
+            let Some(win) = window.window.clone() else {
+                return;
+            };
             let win = win.borrow();
             let mut input = winit_state.take_egui_input(&win);
             input.time = Some(beginning.elapsed().as_secs_f64());
@@ -1978,7 +1982,9 @@ mod wgpu_integration {
         }
 
         fn build_windows(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) {
-            let Some(running) = &mut self.running else {return};
+            let Some(running) = &mut self.running else {
+                return;
+            };
             let viewport_builders = running.builders.borrow();
 
             for (id, Viewport { window, state, .. }) in running.viewports.borrow_mut().iter_mut() {
@@ -2275,8 +2281,12 @@ mod wgpu_integration {
             // Render sync viewport:
             let viewport = viewports.borrow().get(&pair).cloned();
             let Some(viewport) = viewport else { return };
-            let Some(winit_state) = &mut *viewport.state.borrow_mut() else { return };
-            let Some(window) = viewport.window else { return };
+            let Some(winit_state) = &mut *viewport.state.borrow_mut() else {
+                return;
+            };
+            let Some(window) = viewport.window else {
+                return;
+            };
             let win = window.borrow();
             let mut input = winit_state.take_egui_input(&win);
             input.time = Some(beginning.elapsed().as_secs_f64());
@@ -2397,10 +2407,21 @@ mod wgpu_integration {
                     viewport_commands,
                 };
                 {
-                    let Some((viewport_id, Viewport{window: Some(window), state, viewport_ui_cb, parent_id })) = viewport_maps.borrow()
+                    let Some((
+                        viewport_id,
+                        Viewport {
+                            window: Some(window),
+                            state,
+                            viewport_ui_cb,
+                            parent_id,
+                        },
+                    )) = viewport_maps
+                        .borrow()
                         .get(&window_id)
-                        .and_then(|id|(viewports.borrow().get(id).map(|w|(*id, w.clone()))))
-                    else{ return EventResult::Wait };
+                        .and_then(|id| (viewports.borrow().get(id).map(|w| (*id, w.clone()))))
+                    else {
+                        return EventResult::Wait;
+                    };
                     // This is used to not render a viewport if is sync
                     if viewport_id != ViewportId::MAIN && viewport_ui_cb.is_none() {
                         if let Some(viewport) = running.viewports.borrow().get(&parent_id) {
@@ -2543,10 +2564,19 @@ mod wgpu_integration {
                     .retain(|_, id| active_viewports_ids.contains(id));
                 painter.borrow_mut().clean_surfaces(&active_viewports_ids);
 
-                let Some((_, Viewport{window: Some(window), ..})) = viewport_maps.borrow().get(&window_id)
-                    .and_then(|id|viewports.borrow().get(id)
-                        .map(|w|(*id, w.clone()))
-                    ) else{return EventResult::Wait};
+                let Some((
+                    _,
+                    Viewport {
+                        window: Some(window),
+                        ..
+                    },
+                )) = viewport_maps
+                    .borrow()
+                    .get(&window_id)
+                    .and_then(|id| viewports.borrow().get(id).map(|w| (*id, w.clone())))
+                else {
+                    return EventResult::Wait;
+                };
                 integration
                     .borrow_mut()
                     .maybe_autosave(app.as_mut(), Some(&*window.borrow()));

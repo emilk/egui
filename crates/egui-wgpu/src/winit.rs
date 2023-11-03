@@ -244,8 +244,14 @@ impl Painter {
                 );
             }
 
-            let Some(width)  = NonZeroU32::new(size.width)  else { eprintln!("The window width was zero, skip generate textures!");  return Ok(()) };
-            let Some(height) = NonZeroU32::new(size.height) else { eprintln!("The window height was zero, skip generate textures!"); return Ok(()) };
+            let Some(width) = NonZeroU32::new(size.width) else {
+                eprintln!("The window width was zero, skip generate textures!");
+                return Ok(());
+            };
+            let Some(height) = NonZeroU32::new(size.height) else {
+                eprintln!("The window height was zero, skip generate textures!");
+                return Ok(());
+            };
             self.resize_and_generate_depth_texture_view_and_msaa_view(viewport_id, width, height);
         } else {
             log::warn!("All surfaces was deleted!");

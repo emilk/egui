@@ -438,7 +438,9 @@ fn generic_ui(ui: &mut egui::Ui, container_id: impl Into<Id>) {
 
         /// Move element ID to Viewport and col
         fn mov(&mut self, to: Id, col: usize) {
-            let Some(id) = self.is_dragged.take() else {return};
+            let Some(id) = self.is_dragged.take() else {
+                return;
+            };
             assert!(col <= COLS, "The col should be less then: {COLS}");
 
             // Should be a better way to do this!
