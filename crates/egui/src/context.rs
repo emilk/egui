@@ -2580,21 +2580,24 @@ impl Context {
         self.write(|ctx| ctx.viewport_commands.push((id, command)));
     }
 
-    /// This will be a native window if is possible!
-    /// You will need to wrap your viewport state in an `Arc<RwLock<T>>` or `Arc<Mutex<T>>`!
-    /// When this is called again with the same id in `ViewportBuilder` the render function for that viewport will be updated!
+    /// This creates a new native window, if possible.
+    ///
+    /// You will need to wrap your viewport state in an `Arc<RwLock<T>>` or `Arc<Mutex<T>>`.
+    /// When this is called again with the same id in `ViewportBuilder` the render function for that viewport will be updated.
     /// * `render`: will be called when the viewport receives a event or is requested to be rendered
     ///
-    /// If this is no more called that viewport will be destroyed!
+    /// If this is no more called that viewport will be destroyed.
     ///
-    /// If you use a `egui::CentralPanel` you need to check if the viewport is a new window like:
+    /// If you use a [`egui::CentralPanel`] you need to check if the viewport is a new window like:
     /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a `egui::Window`
     pub fn create_viewport(
         &self,
         viewport_builder: ViewportBuilder,
         render: impl Fn(&Context) + Send + Sync + 'static,
     ) {
-        if !self.force_embedding() {
+        if self.force_embedding() {
+            render(self);
+        } else {
             self.write(|ctx| {
                 let viewport_id = ctx.viewport_id();
                 if let Some(window) = ctx.viewports.get_mut(&viewport_builder.id) {
@@ -2619,20 +2622,21 @@ impl Context {
                     );
                 }
             });
-        } else {
-            render(self);
         }
     }
 
-    /// This can only be called in the main thread!
+    /// This creates a new native window, if possible.
+    ///
+    /// This can only be called in the main thread.
+    ///
     /// When this is called the current viewport will be paused
-    /// This will render in a native window if is possible!
+    /// This will render in a native window if is possible.
     /// When this finishes then the last viewport will continue drawing
-    /// This is bad for performance but easy to use!
+    /// This is bad for performance but easy to use.
     ///
     /// For better performance use `Self::create_viewport`
     ///
-    /// If this is no more called that viewport will be destroyed!
+    /// If this is no more called that viewport will be destroyed.
     ///
     /// If you use a `egui::CentralPanel` you need to check if the viewport is a new window like:
     /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a `egui::Window`
@@ -2641,7 +2645,9 @@ impl Context {
         viewport_builder: ViewportBuilder,
         func: impl FnOnce(&Context) -> T,
     ) -> T {
-        if !self.force_embedding() {
+        if self.force_embedding() {
+            func(self)
+        } else {
             let mut id_pair = ViewportIdPair::MAIN;
             self.write(|ctx| {
                 id_pair.parent = ctx.viewport_id();
@@ -2682,8 +2688,6 @@ impl Context {
             }
 
             out.expect("egui backend is implemented incorrectly! Context::set_render_sync_callback")
-        } else {
-            func(self)
         }
     }
 }

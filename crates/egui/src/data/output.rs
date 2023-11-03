@@ -623,16 +623,15 @@ impl WidgetInfo {
         }
 
         if typ == &WidgetType::TextEdit {
-            let text;
-            if let Some(text_value) = text_value {
+            let text = if let Some(text_value) = text_value {
                 if text_value.is_empty() {
-                    text = "blank".into();
+                    "blank".into()
                 } else {
-                    text = text_value.to_string();
+                    text_value.to_string()
                 }
             } else {
-                text = "blank".into();
-            }
+                "blank".into()
+            };
             description = format!("{text}: {description}");
         }
 

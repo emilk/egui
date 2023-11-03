@@ -1121,8 +1121,10 @@ mod glow_integration {
             glutin: &RefCell<GlutinWindowContext>,
             gl: &glow::Context,
             painter: &RefCell<egui_glow::Painter>,
-            time: Instant,
+            beginning: Instant,
         ) {
+            crate::profile_function!();
+
             let has_window = glutin.borrow().viewports.get(&pair).is_some();
 
             // This will create a new native window if is needed
@@ -1154,13 +1156,13 @@ mod glow_integration {
                 }
 
                 let win = glutin.viewports[&pair].clone();
-                let event_loop;
+
                 #[allow(unsafe_code)]
-                unsafe {
-                    event_loop = WINIT_EVENT_LOOP.with(|event_loop| {
+                let event_loop = unsafe {
+                    WINIT_EVENT_LOOP.with(|event_loop| {
                         event_loop.borrow().as_ref().expect("No winit event loop")
-                    });
-                }
+                    })
+                };
                 glutin
                     .init_window(&win, event_loop)
                     .expect("Cannot init window on egui::Context::create_viewport_sync");
@@ -1170,15 +1172,14 @@ mod glow_integration {
 
             let window = glutin.borrow().viewports.get(&pair).cloned();
             let Some(window) = window else { return };
-            let output;
 
             let window = &mut *window.borrow_mut();
             let Some(winit_state) = &mut window.egui_winit else { return };
             let Some(win) = window.window.clone() else { return };
             let win = win.borrow();
             let mut input = winit_state.take_egui_input(&win);
-            input.time = Some(time.elapsed().as_secs_f64());
-            output = egui_ctx.run(input, pair, |ctx| {
+            input.time = Some(beginning.elapsed().as_secs_f64());
+            let output = egui_ctx.run(input, pair, |ctx| {
                 render(ctx);
             });
 
@@ -2219,10 +2220,12 @@ mod wgpu_integration {
             render: Box<dyn FnOnce(&egui::Context) + '_>,
             viewports: &RefCell<Viewports>,
             builders: &RefCell<HashMap<ViewportId, ViewportBuilder>>,
-            time: Instant,
+            beginning: Instant,
             painter: &RefCell<egui_wgpu::winit::Painter>,
             viewport_maps: &RefCell<HashMap<winit::window::WindowId, ViewportId>>,
         ) {
+            crate::profile_function!();
+
             // Creating a new native window if is needed
             if viewports.borrow().get(&pair).is_none() {
                 let mut builders = builders.borrow_mut();
@@ -2243,18 +2246,16 @@ mod wgpu_integration {
                         render: None,
                         parent_id: pair.parent,
                     });
-                let _ = builders
+                builders
                     .entry(pair.this)
                     .or_insert(viewport_builder.clone());
 
-                let event_loop;
-
                 #[allow(unsafe_code)]
-                unsafe {
-                    event_loop = WINIT_EVENT_LOOP.with(|event_loop| {
+                let event_loop = unsafe {
+                    WINIT_EVENT_LOOP.with(|event_loop| {
                         event_loop.borrow().as_ref().expect("No winit event loop")
-                    });
-                }
+                    })
+                };
 
                 Self::init_window(
                     pair.this,
@@ -2267,17 +2268,15 @@ mod wgpu_integration {
                 );
             }
 
-            // render sync viewport
-
+            // Render sync viewport:
             let viewport = viewports.borrow().get(&pair).cloned();
             let Some(viewport) = viewport else { return };
-            let output;
             let Some(winit_state) = &mut *viewport.state.borrow_mut() else { return };
             let Some(window) = viewport.window else { return };
             let win = window.borrow();
             let mut input = winit_state.take_egui_input(&win);
-            input.time = Some(time.elapsed().as_secs_f64());
-            output = egui_ctx.run(input, pair, |ctx| {
+            input.time = Some(beginning.elapsed().as_secs_f64());
+            let output = egui_ctx.run(input, pair, |ctx| {
                 render(ctx);
             });
 
