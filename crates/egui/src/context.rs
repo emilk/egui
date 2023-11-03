@@ -2626,6 +2626,10 @@ impl Context {
     /// The given ui function will be called immediately.
     /// This can only be called from the main thread.
     ///
+    /// If [`force_embedding`] is true, or if the current egui
+    /// backend does not support sync viewports, the given callback
+    /// will be called immediately and the function will return.
+    ///
     /// When this is called the current viewport will be paused
     /// This will render in a native window if is possible.
     /// When this finishes then the last viewport will continue drawing
@@ -2643,8 +2647,16 @@ impl Context {
         viewport_ui_cb: impl FnOnce(&Context) -> T,
     ) -> T {
         if self.force_embedding() {
-            viewport_ui_cb(self)
-        } else {
+            return viewport_ui_cb(self);
+        }
+
+        EGUI_RENDER_SYNC.with(|render_sync_viewport_cb| {
+            let render_sync_viewport_cb = render_sync_viewport_cb.borrow();
+            let Some(render_sync_viewport_cb) = render_sync_viewport_cb.as_ref() else {
+                // This egui backend does not support multiple viewports.
+                return viewport_ui_cb(self);
+            };
+
             let id_pair = self.write(|ctx| {
                 let parent = ctx.viewport_id();
 
@@ -2676,22 +2688,19 @@ impl Context {
             let mut out = None;
             {
                 let out = &mut out;
-                EGUI_RENDER_SYNC.with(|render_sync|{
-                    let render_sync = render_sync.borrow();
-                    let render_sync = render_sync.as_ref().expect("No EGUI_RENDER_SYNC callback on this thread, if you try to use Context::create_viewport_sync you cannot do that in other thread! If that is not the issue your egui intrecration is invalid or do not support sync viewports!");
-                    render_sync(
-                        self,
-                        viewport_builder,
-                        id_pair,
-                        Box::new(move |context| *out = Some(viewport_ui_cb(context))),
-                    );
-                });
+
+                render_sync_viewport_cb(
+                    self,
+                    viewport_builder,
+                    id_pair,
+                    Box::new(move |context| *out = Some(viewport_ui_cb(context))),
+                );
             }
 
             out.expect(
                 "egui backend is implemented incorrectly - the user calback was never called",
             )
-        }
+        })
     }
 }
 
