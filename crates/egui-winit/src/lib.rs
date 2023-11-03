@@ -1211,7 +1211,7 @@ pub fn changes_between_builders(
     let mut commands = Vec::new();
 
     // Title is not compared because if has a new title will create a new window
-    // The title of a avalibile window can only be changed with ViewportCommand::Title
+    // The title of a available window can only be changed with ViewportCommand::Title
 
     if let Some(position) = new.position {
         if Some(position) != last.position {

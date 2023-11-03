@@ -1558,16 +1558,16 @@ impl Context {
         let shapes = self.drain_paint_lists();
 
         // If there are no viewport that contains the current viewport that viewport needs to be destroyed!
-        let avalibile_viewports = self.read(|ctx| {
-            let mut avalibile_viewports = vec![ViewportId::MAIN];
+        let available_viewports = self.read(|ctx| {
+            let mut available_viewports = vec![ViewportId::MAIN];
             for Viewport {
                 pair: ViewportIdPair { this, .. },
                 ..
             } in ctx.viewports.values()
             {
-                avalibile_viewports.push(*this);
+                available_viewports.push(*this);
             }
-            avalibile_viewports
+            available_viewports
         });
 
         let viewport_id = self.viewport_id();
@@ -1582,7 +1582,7 @@ impl Context {
                      used,
                      render,
                  }| {
-                    let out = *used;
+                    let retain = *used;
 
                     if viewport_id == pair.parent {
                         *used = false;
@@ -1593,8 +1593,8 @@ impl Context {
                         pair: *pair,
                         render: render.clone(),
                     });
-                    (out || viewport_id != pair.parent)
-                        && avalibile_viewports.contains(&pair.parent)
+                    (retain || viewport_id != pair.parent)
+                        && available_viewports.contains(&pair.parent)
                 },
             );
         });
@@ -1617,20 +1617,20 @@ impl Context {
         } else {
             // ## Context Cleanup
             self.write(|ctx| {
-                ctx.input.retain(|id, _| avalibile_viewports.contains(id));
+                ctx.input.retain(|id, _| available_viewports.contains(id));
                 ctx.layer_rects_prev_viewports
-                    .retain(|id, _| avalibile_viewports.contains(id));
+                    .retain(|id, _| available_viewports.contains(id));
                 ctx.layer_rects_this_viewports
-                    .retain(|id, _| avalibile_viewports.contains(id));
-                ctx.output.retain(|id, _| avalibile_viewports.contains(id));
+                    .retain(|id, _| available_viewports.contains(id));
+                ctx.output.retain(|id, _| available_viewports.contains(id));
                 ctx.frame_state
-                    .retain(|id, _| avalibile_viewports.contains(id));
+                    .retain(|id, _| available_viewports.contains(id));
                 ctx.graphics
-                    .retain(|id, _| avalibile_viewports.contains(id));
+                    .retain(|id, _| available_viewports.contains(id));
             });
         }
 
-        self.write(|ctx| ctx.repaint.end_frame(viewport_id, &avalibile_viewports));
+        self.write(|ctx| ctx.repaint.end_frame(viewport_id, &available_viewports));
 
         FullOutput {
             platform_output,

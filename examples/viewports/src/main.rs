@@ -275,13 +275,13 @@ fn drop_target<R>(
 
     let background_id = ui.painter().add(egui::Shape::Noop);
 
-    let avalibile_rect = ui.available_rect_before_wrap();
-    let inner_rect = avalibile_rect.shrink2(margin);
+    let available_rect = ui.available_rect_before_wrap();
+    let inner_rect = available_rect.shrink2(margin);
     let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
     let ret = body(&mut content_ui);
 
     let outer_rect =
-        egui::Rect::from_min_max(avalibile_rect.min, content_ui.min_rect().max + margin);
+        egui::Rect::from_min_max(available_rect.min, content_ui.min_rect().max + margin);
     let (rect, response) = ui.allocate_at_least(outer_rect.size(), egui::Sense::hover());
 
     let style = if is_being_dragged && response.hovered() {

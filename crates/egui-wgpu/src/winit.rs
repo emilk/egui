@@ -620,13 +620,13 @@ impl Painter {
         screenshot
     }
 
-    pub fn clean_surfaces(&mut self, avalibile_viewports: &[ViewportId]) {
+    pub fn clean_surfaces(&mut self, available_viewports: &[ViewportId]) {
         self.surfaces
-            .retain(|id, _| avalibile_viewports.contains(id));
+            .retain(|id, _| available_viewports.contains(id));
         self.depth_texture_view
-            .retain(|id, _| avalibile_viewports.contains(id));
+            .retain(|id, _| available_viewports.contains(id));
         self.msaa_texture_view
-            .retain(|id, _| avalibile_viewports.contains(id));
+            .retain(|id, _| available_viewports.contains(id));
     }
 
     #[allow(clippy::unused_self)]
