@@ -481,7 +481,7 @@ impl EpiIntegration {
         window: &winit::window::Window,
         egui_winit: &mut egui_winit::State,
         viewport_ui_cb: &Option<Arc<Box<ViewportUiCallback>>>,
-        pair: ViewportIdPair,
+        id_pair: ViewportIdPair,
     ) -> egui::FullOutput {
         let frame_start = std::time::Instant::now();
 
@@ -493,7 +493,7 @@ impl EpiIntegration {
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 
         // Run user code:
-        let full_output = self.egui_ctx.run(raw_input, pair, |egui_ctx| {
+        let full_output = self.egui_ctx.run(raw_input, id_pair, |egui_ctx| {
             crate::profile_scope!("App::update");
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport

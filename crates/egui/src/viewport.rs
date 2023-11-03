@@ -425,7 +425,7 @@ pub(crate) struct Viewport {
     pub(crate) builder: ViewportBuilder,
 
     /// Id of us and our parent.
-    pub(crate) pair: ViewportIdPair,
+    pub(crate) id_pair: ViewportIdPair,
 
     pub(crate) used: bool,
 
@@ -440,7 +440,7 @@ pub struct ViewportOutput {
     pub builder: ViewportBuilder,
 
     /// Id of us and our parent.
-    pub pair: ViewportIdPair,
+    pub id_pair: ViewportIdPair,
 
     /// The user-code that shows the GUI, used for "async" viewports.
     ///
