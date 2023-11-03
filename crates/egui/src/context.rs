@@ -1568,29 +1568,21 @@ impl Context {
 
         let mut viewports = Vec::new();
         self.write(|ctx| {
-            ctx.viewports.retain(
-                |_,
-                 Viewport {
-                     builder,
-                     id_pair,
-                     used,
-                     viewport_ui_cb,
-                 }| {
-                    let retain = *used;
+            ctx.viewports.retain(|_, viewport| {
+                let retain = viewport.used;
 
-                    if viewport_id == id_pair.parent {
-                        *used = false;
-                    }
+                if viewport_id == viewport.id_pair.parent {
+                    viewport.used = false;
+                }
 
-                    viewports.push(ViewportOutput {
-                        builder: builder.clone(),
-                        id_pair: *id_pair,
-                        viewport_ui_cb: viewport_ui_cb.clone(),
-                    });
-                    (retain || viewport_id != id_pair.parent)
-                        && available_viewports.contains(&id_pair.parent)
-                },
-            );
+                viewports.push(ViewportOutput {
+                    builder: viewport.builder.clone(),
+                    id_pair: viewport.id_pair,
+                    viewport_ui_cb: viewport.viewport_ui_cb.clone(),
+                });
+                (retain || viewport_id != viewport.id_pair.parent)
+                    && available_viewports.contains(&viewport.id_pair.parent)
+            });
         });
 
         // This is used to resume the last frame!
@@ -2670,8 +2662,10 @@ impl Context {
                 } else {
                     // New
                     ctx.viewport_id_generator += 1;
-                    let id = ViewportId(ctx.viewport_id_generator);
-                    let id_pair = ViewportIdPair { this: id, parent };
+                    let id_pair = ViewportIdPair {
+                        this: ViewportId(ctx.viewport_id_generator),
+                        parent,
+                    };
                     ctx.viewports.insert(
                         viewport_builder.id,
                         Viewport {

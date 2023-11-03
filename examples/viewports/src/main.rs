@@ -21,7 +21,8 @@ pub struct App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            generic_ui(ui, "Central Panel");
+            ui.heading("Main viewport");
+            generic_ui(ui, "main_viewport");
             {
                 let mut force_embedding = ctx.force_embedding();
                 ui.checkbox(&mut force_embedding, "Force embedding of new viewprts");
@@ -42,19 +43,19 @@ impl eframe::App for App {
                     "Async Viewport",
                     self.async_viewport_state.clone(),
                     vec![
-                        AsyncViewport::new("Async Viewport in Async Viewport", move |ctx| {
+                        AsyncViewport::new("AA: Async Viewport in Async Viewport", move |ctx| {
                             show_async_viewport(
                                 ctx,
-                                "AA Async Viewport in Async Viewport",
+                                "AA: Async Viewport in Async Viewport",
                                 async_state.clone(),
                                 vec![],
                             );
                         }),
-                        AsyncViewport::new("Sync Viewport in Async Viewport", move |ctx| {
+                        AsyncViewport::new("AS: Sync Viewport in Async Viewport", move |ctx| {
                             let mut state = sync_state.write();
                             show_sync_viewport(
                                 ctx,
-                                "AS Sync Viewport in Async Viewport",
+                                "AS: Sync Viewport in Async Viewport",
                                 &mut state,
                                 vec![],
                             );
@@ -72,18 +73,18 @@ impl eframe::App for App {
                     "Sync Viewport",
                     &mut self.sync_viewport_state,
                     vec![
-                        SyncViewport::new("Async Viewport in Sync Viewport", move |ctx| {
+                        SyncViewport::new("SA: Async Viewport in Sync Viewport", move |ctx| {
                             show_async_viewport(
                                 ctx,
-                                "SA Async Viewport in Sync Viewport",
+                                "SA: Async Viewport in Sync Viewport",
                                 async_state.clone(),
                                 vec![],
                             );
                         }),
-                        SyncViewport::new("Sync Viewport in Sync Viewport", move |ctx| {
+                        SyncViewport::new("SS: Sync Viewport in Sync Viewport", move |ctx| {
                             show_sync_viewport(
                                 ctx,
-                                "SS Sync Viewport in Sync Viewport",
+                                "SS: Sync Viewport in Sync Viewport",
                                 sync_state,
                                 vec![],
                             );
