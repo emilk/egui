@@ -836,9 +836,9 @@ mod glow_integration {
             let width = std::num::NonZeroU32::new(physical_size.width.at_least(1)).unwrap();
             let height = std::num::NonZeroU32::new(physical_size.height.at_least(1)).unwrap();
 
-            if let Some(window) = self.viewports.get(&viewport_id) {
-                let window = window.borrow();
-                if let Some(gl_surface) = &window.gl_surface {
+            if let Some(viewport) = self.viewports.get(&viewport_id) {
+                let viewport = viewport.borrow();
+                if let Some(gl_surface) = &viewport.gl_surface {
                     self.current_gl_context = Some(
                         self.current_gl_context
                             .take()
@@ -1128,7 +1128,7 @@ mod glow_integration {
         ) {
             crate::profile_function!();
 
-            let has_window = glutin.borrow().viewports.get(&pair).is_some();
+            let has_window = glutin.borrow().viewports.get(&pair.this).is_some();
 
             // This will create a new native window if is needed
             if !has_window {
@@ -1136,7 +1136,8 @@ mod glow_integration {
 
                 // Inherit parent icon if none
                 {
-                    if viewport_builder.icon.is_none() && glutin.builders.get(&pair).is_none() {
+                    if viewport_builder.icon.is_none() && glutin.builders.get(&pair.this).is_none()
+                    {
                         viewport_builder.icon = glutin
                             .builders
                             .get(&pair.parent)
@@ -1158,7 +1159,7 @@ mod glow_integration {
                     glutin.builders.entry(pair.this).or_insert(viewport_builder);
                 }
 
-                let win = glutin.viewports[&pair].clone();
+                let win = glutin.viewports[&pair.this].clone();
 
                 #[allow(unsafe_code)]
                 let event_loop = unsafe {
@@ -1173,7 +1174,7 @@ mod glow_integration {
 
             // Rendering the sync viewport
 
-            let window = glutin.borrow().viewports.get(&pair).cloned();
+            let window = glutin.borrow().viewports.get(&pair.this).cloned();
             let Some(window) = window else { return };
 
             let window = &mut *window.borrow_mut();
@@ -1214,7 +1215,7 @@ mod glow_integration {
                 .unwrap()
                 .is_current(glutin.current_gl_context.as_ref().unwrap())
             {
-                let builder = &&glutin.builders[&window.pair];
+                let builder = &&glutin.builders[&window.pair.this];
                 log::error!("egui::create_viewport_sync with title: `{}` is not created in main thread, try to use wgpu!", builder.title);
             }
 
@@ -1260,15 +1261,15 @@ mod glow_integration {
                     let last_builder = glutin.builders.entry(*id).or_insert(builder.clone());
                     let (commands, recreate) = changes_between_builders(builder, last_builder);
                     drop(glutin);
-                    if let Some(window) = glutin_ctx.borrow().viewports.get(id) {
-                        let mut window = window.borrow_mut();
+                    if let Some(viewport) = glutin_ctx.borrow().viewports.get(id) {
+                        let mut viewport = viewport.borrow_mut();
                         if recreate {
-                            window.window = None;
-                            window.gl_surface = None;
-                            window.viewport_ui_cb = viewport_ui_cb.clone();
-                            window.pair.parent = *id;
+                            viewport.window = None;
+                            viewport.gl_surface = None;
+                            viewport.viewport_ui_cb = viewport_ui_cb.clone();
+                            viewport.pair.parent = *id;
                         }
-                        if let Some(w) = window.window.clone() {
+                        if let Some(w) = viewport.window.clone() {
                             process_viewport_commands(commands, *id, None, &w.borrow());
                         }
                         active_viewports_ids.push(*id);
@@ -1285,14 +1286,13 @@ mod glow_integration {
                 viewport_ui_cb,
             } in viewports
             {
-                let default_icon = glutin_ctx
-                    .borrow()
-                    .builders
-                    .get(&pair.parent)
-                    .and_then(|b| b.icon.clone());
-
                 if builder.icon.is_none() {
-                    builder.icon = default_icon;
+                    // Inherit from parent as fallback.
+                    builder.icon = glutin_ctx
+                        .borrow()
+                        .builders
+                        .get(&pair.parent)
+                        .and_then(|b| b.icon.clone());
                 }
                 {
                     let mut glutin = glutin_ctx.borrow_mut();
@@ -1887,8 +1887,12 @@ mod wgpu_integration {
     #[derive(Clone)]
     pub struct Viewport {
         window: Option<Rc<RefCell<winit::window::Window>>>,
+
         state: Rc<RefCell<Option<egui_winit::State>>>,
+
+        /// `None` for sync viewports.
         viewport_ui_cb: Option<Arc<Box<ViewportUiCallback>>>,
+
         parent_id: ViewportId,
     }
 
@@ -2237,11 +2241,11 @@ mod wgpu_integration {
             crate::profile_function!();
 
             // Creating a new native window if is needed
-            if viewports.borrow().get(&pair).is_none() {
+            if viewports.borrow().get(&pair.this).is_none() {
                 let mut builders = builders.borrow_mut();
 
                 {
-                    if viewport_builder.icon.is_none() && builders.get(&pair).is_none() {
+                    if viewport_builder.icon.is_none() && builders.get(&pair.this).is_none() {
                         viewport_builder.icon =
                             builders.get(&pair.parent).and_then(|b| b.icon.clone());
                     }
@@ -2279,7 +2283,7 @@ mod wgpu_integration {
             }
 
             // Render sync viewport:
-            let viewport = viewports.borrow().get(&pair).cloned();
+            let viewport = viewports.borrow().get(&pair.this).cloned();
             let Some(viewport) = viewport else { return };
             let Some(winit_state) = &mut *viewport.state.borrow_mut() else {
                 return;

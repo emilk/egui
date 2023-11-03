@@ -137,7 +137,7 @@ fn show_async_viewport(
 ) {
     let name: String = name.into();
 
-    ctx.create_viewport(
+    ctx.create_viewport_async(
         ViewportBuilder::new(name.clone())
             .with_title(name.as_str())
             .with_inner_size(Some(egui::vec2(450.0, 350.0))),

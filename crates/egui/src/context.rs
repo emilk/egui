@@ -27,7 +27,7 @@ pub struct RequestRepaintInfo {
     /// triggered the painting of the next frame.
     pub current_frame_nr: u64,
 
-    /// This is used to specify what viewport that should be redraw
+    /// This is used to specify what viewport that should repaint.
     pub viewport_id: ViewportId,
 }
 
@@ -195,21 +195,22 @@ struct ContextImpl {
 
 impl ContextImpl {
     fn begin_frame_mut(&mut self, mut new_raw_input: RawInput, pair: ViewportIdPair) {
-        // This is used to pause the last frame
-        if !self.viewport_stack.is_empty() {
-            let viewport_id = self.viewport_id();
+        if let Some(pair) = self.viewport_stack.last().copied() {
+            let previous_viewport_id = pair.this;
 
-            self.memory.pause_frame(viewport_id);
+            // Pause the active viewport
+            self.memory.pause_frame(previous_viewport_id);
             self.layer_rects_this_viewports.insert(
-                viewport_id,
+                previous_viewport_id,
                 std::mem::take(&mut self.layer_rects_this_frame),
             );
             self.layer_rects_prev_viewports.insert(
-                viewport_id,
+                previous_viewport_id,
                 std::mem::take(&mut self.layer_rects_prev_frame),
             );
         }
 
+        let viewport_id = pair.this;
         self.viewport_stack.push(pair);
         self.output.entry(self.viewport_id()).or_default();
         self.repaint.start_frame(self.viewport_id());
@@ -217,13 +218,13 @@ impl ContextImpl {
         if let Some(new_pixels_per_point) = self.memory.override_pixels_per_point {
             if self
                 .input
-                .get(&pair)
+                .get(&viewport_id)
                 .map(|input| input.pixels_per_point)
                 .map_or(true, |pixels| pixels != new_pixels_per_point)
             {
                 new_raw_input.pixels_per_point = Some(new_pixels_per_point);
 
-                let input = self.input.entry(pair.this).or_default();
+                let input = self.input.entry(viewport_id).or_default();
                 // This is a bit hacky, but is required to avoid jitter:
                 let ratio = input.pixels_per_point / new_pixels_per_point;
                 let mut rect = input.screen_rect;
@@ -235,30 +236,34 @@ impl ContextImpl {
 
         self.layer_rects_prev_frame = self
             .layer_rects_prev_viewports
-            .remove(&pair)
+            .remove(&viewport_id)
             .unwrap_or_default();
 
         self.memory.begin_frame(
-            self.input.get(&pair).unwrap_or(&Default::default()),
+            self.input.get(&viewport_id).unwrap_or(&Default::default()),
             &new_raw_input,
-            pair.this,
+            viewport_id,
         );
 
-        let input = self.input.remove(&pair).unwrap_or_default().begin_frame(
-            new_raw_input,
-            self.repaint.requested_repaint_last_frame(&pair),
-        );
-        self.input.insert(pair.this, input);
+        let input = self
+            .input
+            .remove(&viewport_id)
+            .unwrap_or_default()
+            .begin_frame(
+                new_raw_input,
+                self.repaint.requested_repaint_last_frame(&viewport_id),
+            );
+        self.input.insert(viewport_id, input);
 
         self.frame_state
-            .entry(pair.this)
+            .entry(viewport_id)
             .or_default()
-            .begin_frame(&self.input[&pair]);
+            .begin_frame(&self.input[&viewport_id]);
 
         self.update_fonts_mut();
 
         // Ensure we register the background area so panels and background ui can catch clicks:
-        let input = &self.input[&pair];
+        let input = &self.input[&viewport_id];
         let screen_rect = input.screen_rect();
         self.memory.areas.set_state(
             LayerId::background(),
@@ -1486,18 +1491,7 @@ impl Context {
                 ctx.viewport_id(),
                 std::mem::take(&mut ctx.layer_rects_this_frame),
             );
-            ctx.viewports
-                .iter()
-                .map(
-                    |(
-                        _,
-                        Viewport {
-                            pair: ViewportIdPair { this, .. },
-                            ..
-                        },
-                    )| *this,
-                )
-                .collect()
+            ctx.viewports.values().map(|vp| vp.pair.this).collect()
         });
         viewports.push(ViewportId::MAIN);
 
@@ -1564,12 +1558,8 @@ impl Context {
         // If there are no viewport that contains the current viewport that viewport needs to be destroyed!
         let available_viewports = self.read(|ctx| {
             let mut available_viewports = vec![ViewportId::MAIN];
-            for Viewport {
-                pair: ViewportIdPair { this, .. },
-                ..
-            } in ctx.viewports.values()
-            {
-                available_viewports.push(*this);
+            for vp in ctx.viewports.values() {
+                available_viewports.push(vp.pair.this);
             }
             available_viewports
         });
@@ -1609,17 +1599,8 @@ impl Context {
             ctx.viewport_stack.is_empty()
         });
 
-        if !is_last {
-            let viewport_id = self.viewport_id();
-            self.write(|ctx| {
-                ctx.layer_rects_prev_frame =
-                    ctx.layer_rects_prev_viewports.remove(&viewport_id).unwrap();
-                ctx.layer_rects_this_frame =
-                    ctx.layer_rects_this_viewports.remove(&viewport_id).unwrap();
-                ctx.memory.resume_frame(viewport_id);
-            });
-        } else {
-            // ## Context Cleanup
+        if is_last {
+            // Context Cleanup
             self.write(|ctx| {
                 ctx.input.retain(|id, _| available_viewports.contains(id));
                 ctx.layer_rects_prev_viewports
@@ -1631,6 +1612,15 @@ impl Context {
                     .retain(|id, _| available_viewports.contains(id));
                 ctx.graphics
                     .retain(|id, _| available_viewports.contains(id));
+            });
+        } else {
+            let viewport_id = self.viewport_id();
+            self.write(|ctx| {
+                ctx.layer_rects_prev_frame =
+                    ctx.layer_rects_prev_viewports.remove(&viewport_id).unwrap();
+                ctx.layer_rects_this_frame =
+                    ctx.layer_rects_this_viewports.remove(&viewport_id).unwrap();
+                ctx.memory.resume_frame(viewport_id);
             });
         }
 
@@ -2574,17 +2564,19 @@ impl Context {
         self.write(|ctx| ctx.force_embedding = value || !ctx.is_desktop);
     }
 
-    /// This will send the `ViewportCommand` to the current viewport
+    /// Send a command to the current viewport.
     pub fn viewport_command(&self, command: ViewportCommand) {
         self.viewport_command_for(self.viewport_id(), command);
     }
 
-    /// With this you can send a command to a viewport
+    /// Send a command to a speicfic viewport.
     pub fn viewport_command_for(&self, id: ViewportId, command: ViewportCommand) {
         self.write(|ctx| ctx.viewport_commands.push((id, command)));
     }
 
     /// This creates a new native window, if possible.
+    ///
+    /// You should call this each frame when the viewport should be visible.
     ///
     /// You will need to wrap your viewport state in an `Arc<RwLock<T>>` or `Arc<Mutex<T>>`.
     /// When this is called again with the same id in `ViewportBuilder` the render function for that viewport will be updated.
@@ -2594,7 +2586,7 @@ impl Context {
     ///
     /// If you use a [`egui::CentralPanel`] you need to check if the viewport is a new window like:
     /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a [`egui::Window`].
-    pub fn create_viewport(
+    pub fn create_viewport_async(
         &self,
         viewport_builder: ViewportBuilder,
         viewport_ui_cb: impl Fn(&Context) + Send + Sync + 'static,
@@ -2610,8 +2602,8 @@ impl Context {
                     window.used = true;
                     window.viewport_ui_cb = Some(Arc::new(Box::new(viewport_ui_cb)));
                 } else {
-                    let id = ViewportId(ctx.viewport_id_generator + 1);
                     ctx.viewport_id_generator += 1;
+                    let id = ViewportId(ctx.viewport_id_generator);
                     ctx.viewports.insert(
                         viewport_builder.id,
                         Viewport {
@@ -2665,8 +2657,8 @@ impl Context {
                     window.pair
                 } else {
                     // New
-                    let id = ViewportId(ctx.viewport_id_generator + 1);
                     ctx.viewport_id_generator += 1;
+                    let id = ViewportId(ctx.viewport_id_generator);
                     let id_pair = ViewportIdPair { this: id, parent };
                     ctx.viewports.insert(
                         viewport_builder.id,
