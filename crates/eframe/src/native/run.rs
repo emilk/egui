@@ -1220,7 +1220,7 @@ mod glow_integration {
                 &output.textures_delta,
             );
             crate::profile_scope!("swap_buffers");
-            let _ = window
+            if let Err(err) = window
                 .gl_surface
                 .as_ref()
                 .expect("failed to get surface to swap buffers")
@@ -1229,7 +1229,10 @@ mod glow_integration {
                         .current_gl_context
                         .as_ref()
                         .expect("failed to get current context to swap buffers"),
-                );
+                )
+            {
+                log::error!("swap_buffers failed: {err}");
+            }
             winit_state.handle_platform_output(&win, pair.this, egui_ctx, output.platform_output);
         }
 
@@ -1545,7 +1548,7 @@ mod glow_integration {
 
                     {
                         crate::profile_scope!("swap_buffers");
-                        let _ = viewport
+                        if let Err(err) = viewport
                             .borrow()
                             .gl_surface
                             .as_ref()
@@ -1556,7 +1559,10 @@ mod glow_integration {
                                     .current_gl_context
                                     .as_ref()
                                     .expect("failed to get current context to swap buffers"),
-                            );
+                            )
+                        {
+                            log::error!("swap_buffers failed: {err}");
+                        }
                     }
 
                     integration.post_present(&viewport.borrow().window.as_ref().unwrap().borrow());
@@ -1693,7 +1699,9 @@ mod glow_integration {
 
                 winit::event::Event::MainEventsCleared => {
                     if let Some(running) = self.running.borrow().as_ref() {
-                        let _ = running.glutin_ctx.borrow_mut().on_resume(event_loop);
+                        if let Err(err) = running.glutin_ctx.borrow_mut().on_resume(event_loop) {
+                            log::warn!("on_resume failed {err}");
+                        }
                     }
                     EventResult::Wait
                 }

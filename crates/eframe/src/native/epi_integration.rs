@@ -261,7 +261,7 @@ pub fn handle_app_output(
     }
 
     if drag_window {
-        let _ = window.drag_window();
+        window.drag_window().ok();
     }
 
     if let Some(always_on_top) = always_on_top {
