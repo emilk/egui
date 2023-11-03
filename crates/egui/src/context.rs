@@ -159,8 +159,8 @@ struct ContextImpl {
     /// State that is collected during a frame and then cleared
     frame_state: HashMap<ViewportId, FrameState>,
 
-    /// Viewport Id, Parent Viewport Id
-    frame_stack: Vec<ViewportIdPair>,
+    /// How deeply nested are we?
+    viewport_stack: Vec<ViewportIdPair>,
 
     // The output of a frame:
     graphics: HashMap<ViewportId, GraphicLayers>,
@@ -173,7 +173,7 @@ struct ContextImpl {
     viewports: HashMap<Id, Viewport>,
     viewport_commands: Vec<(ViewportId, ViewportCommand)>,
 
-    viewport_counter: u64,
+    viewport_id_generator: u64,
     is_desktop: bool,
     force_embedding: bool,
 
@@ -196,7 +196,7 @@ struct ContextImpl {
 impl ContextImpl {
     fn begin_frame_mut(&mut self, mut new_raw_input: RawInput, pair: ViewportIdPair) {
         // This is used to pause the last frame
-        if !self.frame_stack.is_empty() {
+        if !self.viewport_stack.is_empty() {
             let viewport_id = self.viewport_id();
 
             self.memory.pause_frame(viewport_id);
@@ -210,7 +210,7 @@ impl ContextImpl {
             );
         }
 
-        self.frame_stack.push(pair);
+        self.viewport_stack.push(pair);
         self.output.entry(self.viewport_id()).or_default();
         self.repaint.start_frame(self.viewport_id());
 
@@ -349,14 +349,18 @@ impl ContextImpl {
     ///
     /// In the case of this viewport is the main viewport will be `ViewportId::MAIN`
     pub(crate) fn viewport_id(&self) -> ViewportId {
-        self.frame_stack.last().copied().unwrap_or_default().this
+        self.viewport_stack.last().copied().unwrap_or_default().this
     }
 
     /// Return the `ViewportId` of his parent
     ///
     /// In the case of this viewport is the main viewport will be `ViewportId::MAIN`
     pub(crate) fn parent_viewport_id(&self) -> ViewportId {
-        self.frame_stack.last().copied().unwrap_or_default().parent
+        self.viewport_stack
+            .last()
+            .copied()
+            .unwrap_or_default()
+            .parent
     }
 }
 
@@ -1580,7 +1584,7 @@ impl Context {
                      builder,
                      pair,
                      used,
-                     render,
+                     viewport_ui_cb,
                  }| {
                     let retain = *used;
 
@@ -1591,7 +1595,7 @@ impl Context {
                     viewports.push(ViewportOutput {
                         builder: builder.clone(),
                         pair: *pair,
-                        render: render.clone(),
+                        viewport_ui_cb: viewport_ui_cb.clone(),
                     });
                     (retain || viewport_id != pair.parent)
                         && available_viewports.contains(&pair.parent)
@@ -1601,8 +1605,8 @@ impl Context {
 
         // This is used to resume the last frame!
         let is_last = self.write(|ctx| {
-            ctx.frame_stack.pop();
-            ctx.frame_stack.is_empty()
+            ctx.viewport_stack.pop();
+            ctx.viewport_stack.is_empty()
         });
 
         if !is_last {
@@ -2534,14 +2538,14 @@ impl Context {
         self.read(|ctx| ctx.viewports.get(&id.into()).map(|v| v.pair))
     }
 
-    /// For integrations: Is used to render a sync viewport!
+    /// For integrations: Is used to render a sync viewport.
     ///
-    /// This will only be set for the current thread!
-    /// Can be set only one callback per thread!
+    /// This will only be set for the current thread.
+    /// Can be set only one callback per thread.
     ///
     /// When a viewport sync is created will be rendered by this function
     ///
-    /// Look in `crates/eframe/native/run.rs` and search for `set_render_sync_callback` to see for what is used!
+    /// Look in `crates/eframe/native/run.rs` and search for `set_render_sync_callback` to see for what is used.
     #[allow(clippy::unused_self)]
     pub fn set_render_sync_callback(
         &self,
@@ -2584,19 +2588,19 @@ impl Context {
     ///
     /// You will need to wrap your viewport state in an `Arc<RwLock<T>>` or `Arc<Mutex<T>>`.
     /// When this is called again with the same id in `ViewportBuilder` the render function for that viewport will be updated.
-    /// * `render`: will be called when the viewport receives a event or is requested to be rendered
+    /// * `viewport_ui_cb`: will be called when the viewport receives a event or is requested to be rendered
     ///
     /// If this is no more called that viewport will be destroyed.
     ///
     /// If you use a [`egui::CentralPanel`] you need to check if the viewport is a new window like:
-    /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a `egui::Window`
+    /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a [`egui::Window`].
     pub fn create_viewport(
         &self,
         viewport_builder: ViewportBuilder,
-        render: impl Fn(&Context) + Send + Sync + 'static,
+        viewport_ui_cb: impl Fn(&Context) + Send + Sync + 'static,
     ) {
         if self.force_embedding() {
-            render(self);
+            viewport_ui_cb(self);
         } else {
             self.write(|ctx| {
                 let viewport_id = ctx.viewport_id();
@@ -2604,10 +2608,10 @@ impl Context {
                     window.builder = viewport_builder;
                     window.pair.parent = viewport_id;
                     window.used = true;
-                    window.render = Some(Arc::new(Box::new(render)));
+                    window.viewport_ui_cb = Some(Arc::new(Box::new(viewport_ui_cb)));
                 } else {
-                    let id = ViewportId(ctx.viewport_counter + 1);
-                    ctx.viewport_counter += 1;
+                    let id = ViewportId(ctx.viewport_id_generator + 1);
+                    ctx.viewport_id_generator += 1;
                     ctx.viewports.insert(
                         viewport_builder.id,
                         Viewport {
@@ -2617,7 +2621,7 @@ impl Context {
                                 parent: viewport_id,
                             },
                             used: true,
-                            render: Some(Arc::new(Box::new(render))),
+                            viewport_ui_cb: Some(Arc::new(Box::new(viewport_ui_cb))),
                         },
                     );
                 }
@@ -2627,7 +2631,8 @@ impl Context {
 
     /// This creates a new native window, if possible.
     ///
-    /// This can only be called in the main thread.
+    /// The given ui function will be called immediately.
+    /// This can only be called from the main thread.
     ///
     /// When this is called the current viewport will be paused
     /// This will render in a native window if is possible.
@@ -2639,39 +2644,43 @@ impl Context {
     /// If this is no more called that viewport will be destroyed.
     ///
     /// If you use a `egui::CentralPanel` you need to check if the viewport is a new window like:
-    /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a `egui::Window`
+    /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a [`egui::Window`].
     pub fn create_viewport_sync<T>(
         &self,
         viewport_builder: ViewportBuilder,
-        func: impl FnOnce(&Context) -> T,
+        viewport_ui_cb: impl FnOnce(&Context) -> T,
     ) -> T {
         if self.force_embedding() {
-            func(self)
+            viewport_ui_cb(self)
         } else {
-            let mut id_pair = ViewportIdPair::MAIN;
-            self.write(|ctx| {
-                id_pair.parent = ctx.viewport_id();
+            let id_pair = self.write(|ctx| {
+                let parent = ctx.viewport_id();
+
                 if let Some(window) = ctx.viewports.get_mut(&viewport_builder.id) {
+                    // Existing
                     window.builder = viewport_builder.clone();
-                    window.pair.parent = id_pair.parent;
+                    window.pair.parent = parent;
                     window.used = true;
-                    window.render = None;
-                    id_pair = window.pair;
+                    window.viewport_ui_cb = None;
+                    window.pair
                 } else {
-                    let id = ViewportId(ctx.viewport_counter + 1);
-                    ctx.viewport_counter += 1;
-                    id_pair.this = id;
+                    // New
+                    let id = ViewportId(ctx.viewport_id_generator + 1);
+                    ctx.viewport_id_generator += 1;
+                    let id_pair = ViewportIdPair { this: id, parent };
                     ctx.viewports.insert(
                         viewport_builder.id,
                         Viewport {
                             builder: viewport_builder.clone(),
                             pair: id_pair,
                             used: true,
-                            render: None,
+                            viewport_ui_cb: None,
                         },
                     );
+                    id_pair
                 }
             });
+
             let mut out = None;
             {
                 let out = &mut out;
@@ -2682,12 +2691,14 @@ impl Context {
                         self,
                         viewport_builder,
                         id_pair,
-                        Box::new(move |context| *out = Some(func(context))),
+                        Box::new(move |context| *out = Some(viewport_ui_cb(context))),
                     );
                 });
             }
 
-            out.expect("egui backend is implemented incorrectly! Context::set_render_sync_callback")
+            out.expect(
+                "egui backend is implemented incorrectly - the user calback was never called",
+            )
         }
     }
 }

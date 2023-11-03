@@ -34,10 +34,6 @@ impl ViewportIdPair {
         this: ViewportId::MAIN,
         parent: ViewportId::MAIN,
     };
-
-    pub fn new(this: ViewportId, parent: ViewportId) -> Self {
-        Self { this, parent }
-    }
 }
 
 impl std::ops::Deref for ViewportIdPair {
@@ -48,9 +44,10 @@ impl std::ops::Deref for ViewportIdPair {
     }
 }
 
-/// This is used to render an async viewport
-pub type ViewportRender = dyn Fn(&Context) + Sync + Send;
+/// The user-code that shows the ui in the viewport.
+pub type ViewportUiCallback = dyn Fn(&Context) + Sync + Send;
 
+/// Render the given viewport, calling the given ui callback.
 pub type ViewportRenderSyncCallback =
     dyn for<'a> Fn(&Context, ViewportBuilder, ViewportIdPair, Box<dyn FnOnce(&Context) + 'a>);
 
@@ -429,12 +426,16 @@ pub(crate) struct Viewport {
     pub(crate) builder: ViewportBuilder,
     pub(crate) pair: ViewportIdPair,
     pub(crate) used: bool,
-    pub(crate) render: Option<Arc<Box<ViewportRender>>>,
+
+    /// The user-code that shows the GUI.
+    pub(crate) viewport_ui_cb: Option<Arc<Box<ViewportUiCallback>>>,
 }
 
 #[derive(Clone)]
 pub struct ViewportOutput {
     pub builder: ViewportBuilder,
     pub pair: ViewportIdPair,
-    pub render: Option<Arc<Box<ViewportRender>>>,
+
+    /// The user-code that shows the GUI.
+    pub viewport_ui_cb: Option<Arc<Box<ViewportUiCallback>>>,
 }

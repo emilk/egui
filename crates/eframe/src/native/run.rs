@@ -459,7 +459,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 mod glow_integration {
 
     use egui::{
-        epaint::ahash::HashMap, NumExt as _, ViewportIdPair, ViewportOutput, ViewportRender,
+        epaint::ahash::HashMap, NumExt as _, ViewportIdPair, ViewportOutput, ViewportUiCallback,
     };
     use egui_winit::{
         changes_between_builders, create_winit_window_builder, process_viewport_commands,
@@ -503,7 +503,10 @@ mod glow_integration {
         gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
         window: Option<Rc<RefCell<winit::window::Window>>>,
         pair: ViewportIdPair,
-        render: Option<Arc<Box<ViewportRender>>>,
+
+        /// The user-callback that shows the ui.
+        viewport_ui_cb: Option<Arc<Box<ViewportUiCallback>>>,
+
         egui_winit: Option<egui_winit::State>,
     }
 
@@ -669,7 +672,7 @@ mod glow_integration {
                     gl_surface: None,
                     window: window.map(|w| Rc::new(RefCell::new(w))),
                     egui_winit: None,
-                    render: None,
+                    viewport_ui_cb: None,
                     pair: ViewportIdPair::MAIN,
                 })),
             );
@@ -1079,7 +1082,7 @@ mod glow_integration {
                 let beginning = integration.beginning;
 
                 integration.egui_ctx.set_render_sync_callback(
-                    move |egui_ctx, viewport_builder, pair, render| {
+                    move |egui_ctx, viewport_builder, pair, viewport_ui_cb| {
                         if let (Some(glutin), Some(gl), Some(painter)) =
                             (glutin.upgrade(), gl.upgrade(), painter.upgrade())
                         {
@@ -1087,7 +1090,7 @@ mod glow_integration {
                                 egui_ctx,
                                 viewport_builder,
                                 pair,
-                                render,
+                                viewport_ui_cb,
                                 &glutin,
                                 &gl,
                                 &painter,
@@ -1117,7 +1120,7 @@ mod glow_integration {
             egui_ctx: &egui::Context,
             mut viewport_builder: ViewportBuilder,
             pair: ViewportIdPair,
-            render: Box<dyn FnOnce(&egui::Context) + '_>,
+            viewport_ui_cb: Box<dyn FnOnce(&egui::Context) + '_>,
             glutin: &RefCell<GlutinWindowContext>,
             gl: &glow::Context,
             painter: &RefCell<egui_glow::Painter>,
@@ -1149,7 +1152,7 @@ mod glow_integration {
                             gl_surface: None,
                             window: None,
                             pair,
-                            render: None,
+                            viewport_ui_cb: None,
                             egui_winit: None,
                         })));
                     glutin.builders.entry(pair.this).or_insert(viewport_builder);
@@ -1180,7 +1183,7 @@ mod glow_integration {
             let mut input = winit_state.take_egui_input(&win);
             input.time = Some(beginning.elapsed().as_secs_f64());
             let output = egui_ctx.run(input, pair, |ctx| {
-                render(ctx);
+                viewport_ui_cb(ctx);
             });
 
             let screen_size_in_pixels: [u32; 2] = win.inner_size().into();
@@ -1247,7 +1250,7 @@ mod glow_integration {
                 |ViewportOutput {
                      builder,
                      pair: ViewportIdPair { this: id, .. },
-                     render,
+                     viewport_ui_cb,
                  }| {
                     let mut glutin = glutin_ctx.borrow_mut();
                     let last_builder = glutin.builders.entry(*id).or_insert(builder.clone());
@@ -1258,7 +1261,7 @@ mod glow_integration {
                         if recreate {
                             window.window = None;
                             window.gl_surface = None;
-                            window.render = render.clone();
+                            window.viewport_ui_cb = viewport_ui_cb.clone();
                             window.pair.parent = *id;
                         }
                         if let Some(w) = window.window.clone() {
@@ -1275,7 +1278,7 @@ mod glow_integration {
             for ViewportOutput {
                 mut builder,
                 pair,
-                render,
+                viewport_ui_cb,
             } in viewports
             {
                 let default_icon = glutin_ctx
@@ -1295,7 +1298,7 @@ mod glow_integration {
                             gl_surface: None,
                             window: None,
                             egui_winit: None,
-                            render,
+                            viewport_ui_cb,
                             pair,
                         })),
                     );
@@ -1426,7 +1429,8 @@ mod glow_integration {
                 {
                     let glutin = glutin.borrow();
                     let viewport = &glutin.viewports[&viewport_id].clone();
-                    if viewport.borrow().render.is_none() && viewport_id != ViewportId::MAIN {
+                    if viewport.borrow().viewport_ui_cb.is_none() && viewport_id != ViewportId::MAIN
+                    {
                         if let Some(parent_viewport) =
                             glutin.viewports.get(&viewport.borrow().pair.parent)
                         {
@@ -1475,7 +1479,7 @@ mod glow_integration {
                             app.borrow_mut().as_mut(),
                             &window,
                             egui_winit,
-                            &viewport.render.clone(),
+                            &viewport.viewport_ui_cb.clone(),
                             viewport.pair,
                         );
 
@@ -1870,7 +1874,7 @@ pub use glow_integration::run_glow;
 
 #[cfg(feature = "wgpu")]
 mod wgpu_integration {
-    use egui::{ViewportIdPair, ViewportOutput, ViewportRender};
+    use egui::{ViewportIdPair, ViewportOutput, ViewportUiCallback};
     use egui_winit::create_winit_window_builder;
     use parking_lot::Mutex;
 
@@ -1880,7 +1884,7 @@ mod wgpu_integration {
     pub struct Viewport {
         window: Option<Rc<RefCell<winit::window::Window>>>,
         state: Rc<RefCell<Option<egui_winit::State>>>,
-        render: Option<Arc<Box<ViewportRender>>>,
+        viewport_ui_cb: Option<Arc<Box<ViewportUiCallback>>>,
         parent_id: ViewportId,
     }
 
@@ -2149,7 +2153,7 @@ mod wgpu_integration {
                 Viewport {
                     window: Some(Rc::new(RefCell::new(window))),
                     state: Rc::new(RefCell::new(Some(state))),
-                    render: None,
+                    viewport_ui_cb: None,
                     parent_id: ViewportId::MAIN,
                 },
             );
@@ -2169,7 +2173,7 @@ mod wgpu_integration {
                 let beginning = integration.beginning;
 
                 integration.egui_ctx.set_render_sync_callback(
-                    move |egui_ctx, viewport_builder, pair, render| {
+                    move |egui_ctx, viewport_builder, pair, viewport_ui_cb| {
                         if let (
                             Some(viewports),
                             Some(builders),
@@ -2185,7 +2189,7 @@ mod wgpu_integration {
                                 egui_ctx,
                                 viewport_builder,
                                 pair,
-                                render,
+                                viewport_ui_cb,
                                 &viewports,
                                 &builders,
                                 beginning,
@@ -2217,7 +2221,7 @@ mod wgpu_integration {
             egui_ctx: &egui::Context,
             mut viewport_builder: ViewportBuilder,
             pair: ViewportIdPair,
-            render: Box<dyn FnOnce(&egui::Context) + '_>,
+            viewport_ui_cb: Box<dyn FnOnce(&egui::Context) + '_>,
             viewports: &RefCell<Viewports>,
             builders: &RefCell<HashMap<ViewportId, ViewportBuilder>>,
             beginning: Instant,
@@ -2243,7 +2247,7 @@ mod wgpu_integration {
                     viewports.entry(pair.this).or_insert(Viewport {
                         window: None,
                         state: Rc::new(RefCell::new(None)),
-                        render: None,
+                        viewport_ui_cb: None,
                         parent_id: pair.parent,
                     });
                 builders
@@ -2277,7 +2281,7 @@ mod wgpu_integration {
             let mut input = winit_state.take_egui_input(&win);
             input.time = Some(beginning.elapsed().as_secs_f64());
             let output = egui_ctx.run(input, pair, |ctx| {
-                render(ctx);
+                viewport_ui_cb(ctx);
             });
 
             let mut painter = painter.borrow_mut();
@@ -2393,12 +2397,12 @@ mod wgpu_integration {
                     viewport_commands,
                 };
                 {
-                    let Some((viewport_id, Viewport{window: Some(window), state, render, parent_id })) = viewport_maps.borrow()
+                    let Some((viewport_id, Viewport{window: Some(window), state, viewport_ui_cb, parent_id })) = viewport_maps.borrow()
                         .get(&window_id)
                         .and_then(|id|(viewports.borrow().get(id).map(|w|(*id, w.clone()))))
                     else{ return EventResult::Wait };
                     // This is used to not render a viewport if is sync
-                    if viewport_id != ViewportId::MAIN && render.is_none() {
+                    if viewport_id != ViewportId::MAIN && viewport_ui_cb.is_none() {
                         if let Some(viewport) = running.viewports.borrow().get(&parent_id) {
                             if let Some(window) = viewport.window.as_ref() {
                                 return EventResult::RepaintNext(window.borrow().id());
@@ -2423,8 +2427,11 @@ mod wgpu_integration {
                         app.as_mut(),
                         &window.borrow(),
                         state.borrow_mut().as_mut().unwrap(),
-                        &render.clone(),
-                        ViewportIdPair::new(viewport_id, parent_id),
+                        &viewport_ui_cb.clone(),
+                        ViewportIdPair {
+                            this: viewport_id,
+                            parent: parent_id,
+                        },
                     );
 
                     integration.borrow_mut().handle_platform_output(
@@ -2469,11 +2476,11 @@ mod wgpu_integration {
                 out_viewports.retain_mut(
                     |ViewportOutput {
                          pair: ViewportIdPair { this: id, parent },
-                         render,
+                         viewport_ui_cb,
                          ..
                      }| {
                         if let Some(window) = viewports.borrow_mut().get_mut(id) {
-                            window.render = render.clone();
+                            window.viewport_ui_cb = viewport_ui_cb.clone();
                             window.parent_id = *parent;
                             active_viewports_ids.push(*id);
                             false
@@ -2490,7 +2497,7 @@ mod wgpu_integration {
                             this: id,
                             parent: parent_id,
                         },
-                    render,
+                    viewport_ui_cb,
                 } in out_viewports
                 {
                     if builder.icon.is_none() {
@@ -2505,7 +2512,7 @@ mod wgpu_integration {
                         Viewport {
                             window: None,
                             state: Rc::new(RefCell::new(None)),
-                            render,
+                            viewport_ui_cb,
                             parent_id,
                         },
                     );

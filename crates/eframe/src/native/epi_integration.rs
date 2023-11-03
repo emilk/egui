@@ -4,7 +4,7 @@ use winit::event_loop::EventLoopWindowTarget;
 
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
-use egui::{NumExt as _, ViewportBuilder, ViewportId, ViewportIdPair, ViewportRender};
+use egui::{NumExt as _, ViewportBuilder, ViewportId, ViewportIdPair, ViewportUiCallback};
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
@@ -480,7 +480,7 @@ impl EpiIntegration {
         app: &mut dyn epi::App,
         window: &winit::window::Window,
         egui_winit: &mut egui_winit::State,
-        render: &Option<Arc<Box<ViewportRender>>>,
+        viewport_ui_cb: &Option<Arc<Box<ViewportUiCallback>>>,
         pair: ViewportIdPair,
     ) -> egui::FullOutput {
         let frame_start = std::time::Instant::now();
@@ -495,9 +495,11 @@ impl EpiIntegration {
         // Run user code:
         let full_output = self.egui_ctx.run(raw_input, pair, |egui_ctx| {
             crate::profile_scope!("App::update");
-            if let Some(render) = render {
-                render(egui_ctx);
+            if let Some(viewport_ui_cb) = viewport_ui_cb {
+                // Child viewport
+                viewport_ui_cb(egui_ctx);
             } else {
+                // Root viewport
                 app.update(egui_ctx, &mut self.frame);
             }
         });
