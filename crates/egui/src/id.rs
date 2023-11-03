@@ -35,11 +35,11 @@ impl Id {
     ///
     /// The null [`Id`] is still a valid id to use in all circumstances,
     /// though obviously it will lead to a lot of collisions if you do use it!
-    pub fn null() -> Self {
+    pub const fn null() -> Self {
         Self(0)
     }
 
-    pub(crate) fn background() -> Self {
+    pub(crate) const fn background() -> Self {
         Self(1)
     }
 

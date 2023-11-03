@@ -170,10 +170,9 @@ struct ContextImpl {
 
     repaint: Repaint,
 
-    viewports: HashMap<Id, Viewport>,
+    viewports: HashMap<ViewportId, Viewport>,
     viewport_commands: Vec<(ViewportId, ViewportCommand)>,
 
-    viewport_id_generator: u64,
     is_desktop: bool,
     force_embedding: bool,
 
@@ -2515,11 +2514,6 @@ impl Context {
         self.read(|ctx| ctx.parent_viewport_id())
     }
 
-    /// This will return the `ViewportIdPair` of the specified id
-    pub fn viewport_id_pair(&self, id: impl Into<Id>) -> Option<ViewportIdPair> {
-        self.read(|ctx| ctx.viewports.get(&id.into()).map(|v| v.id_pair))
-    }
-
     /// For integrations: Is used to render a sync viewport.
     ///
     /// This will only be set for the current thread.
@@ -2594,16 +2588,14 @@ impl Context {
                     window.used = true;
                     window.viewport_ui_cb = Some(Arc::new(Box::new(viewport_ui_cb)));
                 } else {
-                    ctx.viewport_id_generator += 1;
-                    let id = ViewportId(ctx.viewport_id_generator);
                     ctx.viewports.insert(
                         viewport_builder.id,
                         Viewport {
-                            builder: viewport_builder,
                             id_pair: ViewportIdPair {
-                                this: id,
+                                this: viewport_builder.id,
                                 parent: viewport_id,
                             },
+                            builder: viewport_builder,
                             used: true,
                             viewport_ui_cb: Some(Arc::new(Box::new(viewport_ui_cb))),
                         },
@@ -2661,9 +2653,8 @@ impl Context {
                     window.id_pair
                 } else {
                     // New
-                    ctx.viewport_id_generator += 1;
                     let id_pair = ViewportIdPair {
-                        this: ViewportId(ctx.viewport_id_generator),
+                        this: viewport_builder.id,
                         parent,
                     };
                     ctx.viewports.insert(

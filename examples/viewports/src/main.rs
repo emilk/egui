@@ -331,8 +331,11 @@ fn generic_ui(ui: &mut egui::Ui, container_id: impl Into<Id>) {
 
     ui.add_space(8.0);
 
-    ui.label(format!("Viewport Id: {}", ctx.viewport_id()));
-    ui.label(format!("Parent Viewport Id: {}", ctx.parent_viewport_id()));
+    ui.label(format!("Viewport Id: {:?}", ctx.viewport_id()));
+    ui.label(format!(
+        "Parent Viewport Id: {:?}",
+        ctx.parent_viewport_id()
+    ));
 
     ui.add_space(8.0);
 

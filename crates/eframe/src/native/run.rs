@@ -2031,7 +2031,7 @@ mod wgpu_integration {
                 windows_id.insert(new_window.id(), id);
 
                 if let Err(err) = pollster::block_on(painter.set_window(id, Some(&new_window))) {
-                    log::error!("on set_window: viewport_id {id} {err}");
+                    log::error!("on set_window: viewport_id {id:?} {err}");
                 }
                 *window = Some(Rc::new(RefCell::new(new_window)));
                 *state = Some(egui_winit::State::new(event_loop));
@@ -2311,7 +2311,7 @@ mod wgpu_integration {
 
             if let Err(err) = pollster::block_on(painter.set_window(id_pair.this, Some(&win))) {
                 log::error!(
-                    "when rendering viewport_id: {}, set_window Error {err}",
+                    "when rendering viewport_id={:?}, set_window Error {err}",
                     id_pair.this
                 );
             }
