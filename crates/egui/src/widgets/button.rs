@@ -646,9 +646,8 @@ impl<'a> Widget for ImageButton<'a> {
                 .layout()
                 .align_size_within_rect(image_size, rect.shrink2(padding));
             // let image_rect = image_rect.expand2(expansion); // can make it blurry, so let's not
-            let image_options = ImageOptions {
-                ..self.image.image_options().clone()
-            };
+            let image_options = self.image.image_options().clone();
+
             widgets::image::paint_texture_load_result(ui, &tlr, image_rect, None, &image_options);
 
             // Draw frame outline:
