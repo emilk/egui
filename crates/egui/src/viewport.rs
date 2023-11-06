@@ -102,7 +102,7 @@ pub struct ViewportBuilder {
 
     /// The title of the vieweport.
     /// `eframe` will use this as the title of the native window.
-    pub title: String,
+    pub title: Option<String>,
 
     /// This is wayland only. See [`Self::with_name`].
     pub name: Option<(String, String)>,
@@ -138,7 +138,7 @@ impl ViewportBuilder {
     pub fn new(id: ViewportId) -> Self {
         Self {
             id,
-            title: "egui".into(),
+            title: None,
             name: None,
             position: None,
             inner_size: Some(Some(Vec2::new(300.0, 200.0))),
@@ -172,7 +172,7 @@ impl ViewportBuilder {
     pub fn empty(id: ViewportId) -> Self {
         Self {
             id,
-            title: "egui".into(),
+            title: None,
             name: None,
             position: None,
             inner_size: None,
@@ -199,11 +199,9 @@ impl ViewportBuilder {
 
     /// Sets the initial title of the window in the title bar.
     ///
-    /// The default is `"egui"`.
-    ///
     /// Look at winit for more details
     pub fn with_title(mut self, title: impl Into<String>) -> Self {
-        self.title = title.into();
+        self.title = Some(title.into());
         self
     }
 

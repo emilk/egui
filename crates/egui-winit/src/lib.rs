@@ -1115,7 +1115,12 @@ pub fn process_viewport_commands(
 
 pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::WindowBuilder {
     let mut window_builder = winit::window::WindowBuilder::new()
-        .with_title(builder.title.clone())
+        .with_title(
+            builder
+                .title
+                .clone()
+                .unwrap_or_else(|| "egui window".to_owned()),
+        )
         .with_transparent(builder.transparent.unwrap_or(false))
         .with_decorations(builder.decorations.unwrap_or(true))
         .with_resizable(builder.resizable.unwrap_or(true))
@@ -1210,78 +1215,82 @@ pub fn changes_between_builders(
 ) -> (Vec<ViewportCommand>, bool) {
     let mut commands = Vec::new();
 
-    // Title is not compared because if has a new title will create a new window
-    // The title of a available window can only be changed with ViewportCommand::Title
+    if let Some(new_title) = &new.title {
+        if Some(new_title) != last.title.as_ref() {
+            last.title = Some(new_title.clone());
+            commands.push(ViewportCommand::Title(new_title.clone()));
+        }
+    }
 
-    if let Some(position) = new.position {
-        if Some(position) != last.position {
-            last.position = Some(position);
-            if let Some(position) = position {
+    if let Some(new_position) = new.position {
+        if Some(new_position) != last.position {
+            last.position = Some(new_position);
+            if let Some(position) = new_position {
                 commands.push(ViewportCommand::OuterPosition(position));
             }
         }
     }
 
-    if let Some(inner_size) = new.inner_size {
-        if Some(inner_size) != last.inner_size {
-            last.inner_size = Some(inner_size);
-            if let Some(inner_size) = inner_size {
+    if let Some(new_inner_size) = new.inner_size {
+        if Some(new_inner_size) != last.inner_size {
+            last.inner_size = Some(new_inner_size);
+            if let Some(inner_size) = new_inner_size {
                 commands.push(ViewportCommand::InnerSize(inner_size));
             }
         }
     }
 
-    if let Some(min_inner_size) = new.min_inner_size {
-        if Some(min_inner_size) != last.min_inner_size {
-            last.min_inner_size = Some(min_inner_size);
-            commands.push(ViewportCommand::MinInnerSize(min_inner_size));
+    if let Some(new_min_inner_size) = new.min_inner_size {
+        if Some(new_min_inner_size) != last.min_inner_size {
+            last.min_inner_size = Some(new_min_inner_size);
+            commands.push(ViewportCommand::MinInnerSize(new_min_inner_size));
         }
     }
 
-    if let Some(max_inner_size) = new.max_inner_size {
-        if Some(max_inner_size) != last.max_inner_size {
-            last.max_inner_size = Some(max_inner_size);
-            commands.push(ViewportCommand::MaxInnerSize(max_inner_size));
+    if let Some(new_max_inner_size) = new.max_inner_size {
+        if Some(new_max_inner_size) != last.max_inner_size {
+            last.max_inner_size = Some(new_max_inner_size);
+            commands.push(ViewportCommand::MaxInnerSize(new_max_inner_size));
         }
     }
 
-    if let Some(fullscreen) = new.fullscreen {
-        if Some(fullscreen) != last.fullscreen {
-            last.fullscreen = Some(fullscreen);
-            commands.push(ViewportCommand::Fullscreen(fullscreen));
+    if let Some(new_fullscreen) = new.fullscreen {
+        if Some(new_fullscreen) != last.fullscreen {
+            last.fullscreen = Some(new_fullscreen);
+            commands.push(ViewportCommand::Fullscreen(new_fullscreen));
         }
     }
 
-    if let Some(maximized) = new.maximized {
-        if Some(maximized) != last.maximized {
-            last.maximized = Some(maximized);
-            commands.push(ViewportCommand::Maximized(maximized));
+    if let Some(new_maximized) = new.maximized {
+        if Some(new_maximized) != last.maximized {
+            last.maximized = Some(new_maximized);
+            commands.push(ViewportCommand::Maximized(new_maximized));
         }
     }
 
-    if let Some(resizable) = new.resizable {
-        if Some(resizable) != last.resizable {
-            last.resizable = Some(resizable);
-            commands.push(ViewportCommand::Resizable(resizable));
+    if let Some(new_resizable) = new.resizable {
+        if Some(new_resizable) != last.resizable {
+            last.resizable = Some(new_resizable);
+            commands.push(ViewportCommand::Resizable(new_resizable));
         }
     }
 
-    if let Some(transparent) = new.transparent {
-        if Some(transparent) != last.transparent {
-            last.transparent = Some(transparent);
-            commands.push(ViewportCommand::Transparent(transparent));
+    if let Some(new_transparent) = new.transparent {
+        if Some(new_transparent) != last.transparent {
+            last.transparent = Some(new_transparent);
+            commands.push(ViewportCommand::Transparent(new_transparent));
         }
     }
 
-    if let Some(decorations) = new.decorations {
-        if Some(decorations) != last.decorations {
-            last.decorations = Some(decorations);
-            commands.push(ViewportCommand::Decorations(decorations));
+    if let Some(new_decorations) = new.decorations {
+        if Some(new_decorations) != last.decorations {
+            last.decorations = Some(new_decorations);
+            commands.push(ViewportCommand::Decorations(new_decorations));
         }
     }
 
-    if let Some(icon) = new.icon.clone() {
-        let eq = match &icon {
+    if let Some(new_icon) = new.icon.clone() {
+        let eq = match &new_icon {
             Some(icon) => {
                 if let Some(last_icon) = &last.icon {
                     matches!(last_icon, Some(last_icon) if Arc::ptr_eq(icon, last_icon))
@@ -1294,23 +1303,23 @@ pub fn changes_between_builders(
 
         if !eq {
             commands.push(ViewportCommand::WindowIcon(
-                icon.as_ref().map(|i| i.as_ref().clone()),
+                new_icon.as_ref().map(|i| i.as_ref().clone()),
             ));
-            last.icon = Some(icon);
+            last.icon = Some(new_icon);
         }
     }
 
-    if let Some(visible) = new.visible {
-        if Some(visible) != last.active {
-            last.visible = Some(visible);
-            commands.push(ViewportCommand::Visible(visible));
+    if let Some(new_visible) = new.visible {
+        if Some(new_visible) != last.active {
+            last.visible = Some(new_visible);
+            commands.push(ViewportCommand::Visible(new_visible));
         }
     }
 
-    if let Some(hittest) = new.hittest {
-        if Some(hittest) != last.hittest {
-            last.hittest = Some(hittest);
-            commands.push(ViewportCommand::CursorHitTest(hittest));
+    if let Some(new_hittest) = new.hittest {
+        if Some(new_hittest) != last.hittest {
+            last.hittest = Some(new_hittest);
+            commands.push(ViewportCommand::CursorHitTest(new_hittest));
         }
     }
 
@@ -1318,51 +1327,51 @@ pub fn changes_between_builders(
 
     let mut recreate_window = false;
 
-    if let Some(active) = new.active {
-        if Some(active) != last.active {
-            last.active = Some(active);
+    if let Some(new_active) = new.active {
+        if Some(new_active) != last.active {
+            last.active = Some(new_active);
             recreate_window = true;
         }
     }
 
-    if let Some(close_button) = new.close_button {
-        if Some(close_button) != last.close_button {
-            last.close_button = Some(close_button);
+    if let Some(new_close_button) = new.close_button {
+        if Some(new_close_button) != last.close_button {
+            last.close_button = Some(new_close_button);
             recreate_window = true;
         }
     }
 
-    if let Some(minimize_button) = new.minimize_button {
-        if Some(minimize_button) != last.minimize_button {
-            last.minimize_button = Some(minimize_button);
+    if let Some(new_minimize_button) = new.minimize_button {
+        if Some(new_minimize_button) != last.minimize_button {
+            last.minimize_button = Some(new_minimize_button);
             recreate_window = true;
         }
     }
 
-    if let Some(maximized_button) = new.maximize_button {
-        if Some(maximized_button) != last.maximize_button {
-            last.maximize_button = Some(maximized_button);
+    if let Some(new_maximized_button) = new.maximize_button {
+        if Some(new_maximized_button) != last.maximize_button {
+            last.maximize_button = Some(new_maximized_button);
             recreate_window = true;
         }
     }
 
-    if let Some(title_hidden) = new.title_hidden {
-        if Some(title_hidden) != last.title_hidden {
-            last.title_hidden = Some(title_hidden);
+    if let Some(new_title_hidden) = new.title_hidden {
+        if Some(new_title_hidden) != last.title_hidden {
+            last.title_hidden = Some(new_title_hidden);
             recreate_window = true;
         }
     }
 
-    if let Some(titlebar_transparent) = new.titlebar_transparent {
-        if Some(titlebar_transparent) != last.titlebar_transparent {
-            last.titlebar_transparent = Some(titlebar_transparent);
+    if let Some(new_titlebar_transparent) = new.titlebar_transparent {
+        if Some(new_titlebar_transparent) != last.titlebar_transparent {
+            last.titlebar_transparent = Some(new_titlebar_transparent);
             recreate_window = true;
         }
     }
 
-    if let Some(value) = new.fullsize_content_view {
-        if Some(value) != last.fullsize_content_view {
-            last.fullsize_content_view = Some(value);
+    if let Some(new_fullsize_content_view) = new.fullsize_content_view {
+        if Some(new_fullsize_content_view) != last.fullsize_content_view {
+            last.fullsize_content_view = Some(new_fullsize_content_view);
             recreate_window = true;
         }
     }

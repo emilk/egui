@@ -26,7 +26,6 @@ pub struct ViewportState {
     pub id: ViewportId,
     pub visible: bool,
     pub sync: bool,
-    pub count: usize,
     pub title: String,
     pub children: Vec<Arc<RwLock<ViewportState>>>,
 }
@@ -40,7 +39,6 @@ impl ViewportState {
             id: ViewportId::from_hash_of(title),
             visible: false,
             sync: false,
-            count: 0,
             title: title.into(),
             children,
         }))
@@ -54,7 +52,6 @@ impl ViewportState {
             id: ViewportId::from_hash_of(title),
             visible: false,
             sync: true,
-            count: 0,
             title: title.into(),
             children,
         }))
@@ -132,8 +129,7 @@ fn show_async_viewport(
         move |ctx| {
             let mut vp_state = vp_state.write();
             show_as_popup(ctx, &title, id, move |ui: &mut egui::Ui| {
-                ui.add(egui::DragValue::new(&mut vp_state.count).prefix("Count: "));
-                generic_ui(ui, &vp_state.children);
+                generic_child_ui(ui, &mut vp_state);
             });
         },
     );
@@ -141,15 +137,15 @@ fn show_async_viewport(
 
 fn show_sync_viewport(ctx: &egui::Context, vp_id: ViewportId, vp_state: &mut ViewportState) {
     let id = Id::from(vp_id);
+    let title = vp_state.title.clone();
 
     ctx.create_viewport_sync(
         ViewportBuilder::new(vp_id)
-            .with_title(vp_state.title.clone())
+            .with_title(&title)
             .with_inner_size(Some(egui::vec2(450.0, 400.0))),
         move |ctx| {
-            show_as_popup(ctx, &vp_state.title, id, |ui: &mut egui::Ui| {
-                ui.add(egui::DragValue::new(&mut vp_state.count).prefix("Count: "));
-                generic_ui(ui, &vp_state.children);
+            show_as_popup(ctx, &title, id, |ui: &mut egui::Ui| {
+                generic_child_ui(ui, vp_state);
             });
         },
     );
@@ -162,6 +158,18 @@ fn show_as_popup(ctx: &egui::Context, title: &str, id: Id, content: impl FnOnce(
     } else {
         egui::CentralPanel::default().show(ctx, content);
     }
+}
+
+fn generic_child_ui(ui: &mut egui::Ui, vp_state: &mut ViewportState) {
+    ui.horizontal(|ui| {
+        ui.label("Title:");
+        if ui.text_edit_singleline(&mut vp_state.title).changed() {
+            // Title changes happen at the parent level:
+            ui.ctx().request_repaint_of(ui.ctx().parent_viewport_id());
+        }
+    });
+
+    generic_ui(ui, &vp_state.children);
 }
 
 fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>]) {
