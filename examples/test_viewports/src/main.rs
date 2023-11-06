@@ -3,6 +3,9 @@ use std::sync::Arc;
 use eframe::egui;
 use egui::{mutex::RwLock, Id, InnerResponse, ViewportBuilder, ViewportId};
 
+// Drag-and-drop between windows is not yet implemented, but if you wanna work on it, enable this:
+pub const DRAG_AND_DROP_TEST: bool = false;
+
 fn main() {
     env_logger::init(); // Use `RUST_LOG=debug` to see logs.
 
@@ -109,7 +112,7 @@ impl eframe::App for App {
                 ctx.set_force_embedding(force_embedding);
             }
 
-            generic_ui(ui, Id::new("root_viewport"), &self.top);
+            generic_ui(ui, &self.top);
         });
     }
 }
@@ -130,7 +133,7 @@ fn show_async_viewport(
             let mut vp_state = vp_state.write();
             show_as_popup(ctx, &title, id, move |ui: &mut egui::Ui| {
                 ui.add(egui::DragValue::new(&mut vp_state.count).prefix("Count: "));
-                generic_ui(ui, id, &vp_state.children);
+                generic_ui(ui, &vp_state.children);
             });
         },
     );
@@ -146,80 +149,10 @@ fn show_sync_viewport(ctx: &egui::Context, vp_id: ViewportId, vp_state: &mut Vie
         move |ctx| {
             show_as_popup(ctx, &vp_state.title, id, |ui: &mut egui::Ui| {
                 ui.add(egui::DragValue::new(&mut vp_state.count).prefix("Count: "));
-                generic_ui(ui, id, &vp_state.children);
+                generic_ui(ui, &vp_state.children);
             });
         },
     );
-}
-
-// This is taken from crates/egui_demo_lib/src/debo/drag_and_drop.rs
-fn drag_source<R>(
-    ui: &mut egui::Ui,
-    id: egui::Id,
-    body: impl FnOnce(&mut egui::Ui) -> R,
-) -> InnerResponse<R> {
-    let is_being_dragged = ui.memory(|mem| mem.is_being_dragged(id));
-
-    if !is_being_dragged {
-        let res = ui.scope(body);
-
-        // Check for drags:
-        let response = ui.interact(res.response.rect, id, egui::Sense::drag());
-        if response.hovered() {
-            ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
-        }
-        res
-    } else {
-        ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
-
-        // Paint the body to a new layer:
-        let layer_id = egui::LayerId::new(egui::Order::Tooltip, id);
-        let res = ui.with_layer_id(layer_id, body);
-
-        if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
-            let delta = pointer_pos - res.response.rect.center();
-            ui.ctx().translate_layer(layer_id, delta);
-        }
-
-        res
-    }
-}
-
-// This is taken from crates/egui_demo_lib/src/debo/drag_and_drop.rs
-fn drop_target<R>(
-    ui: &mut egui::Ui,
-    body: impl FnOnce(&mut egui::Ui) -> R,
-) -> egui::InnerResponse<R> {
-    let is_being_dragged = ui.memory(|mem| mem.is_anything_being_dragged());
-
-    let margin = egui::Vec2::splat(ui.visuals().clip_rect_margin); // 3.0
-
-    let background_id = ui.painter().add(egui::Shape::Noop);
-
-    let available_rect = ui.available_rect_before_wrap();
-    let inner_rect = available_rect.shrink2(margin);
-    let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
-    let ret = body(&mut content_ui);
-
-    let outer_rect =
-        egui::Rect::from_min_max(available_rect.min, content_ui.min_rect().max + margin);
-    let (rect, response) = ui.allocate_at_least(outer_rect.size(), egui::Sense::hover());
-
-    let style = if is_being_dragged && response.hovered() {
-        ui.visuals().widgets.active
-    } else {
-        ui.visuals().widgets.inactive
-    };
-
-    let fill = style.bg_fill;
-    let stroke = style.bg_stroke;
-
-    ui.painter().set(
-        background_id,
-        egui::epaint::RectShape::new(rect, style.rounding, fill, stroke),
-    );
-
-    egui::InnerResponse::new(ret, response)
 }
 
 /// This will make the content as a popup if cannot has his own native window
@@ -231,7 +164,9 @@ fn show_as_popup(ctx: &egui::Context, title: &str, id: Id, content: impl FnOnce(
     }
 }
 
-fn generic_ui(ui: &mut egui::Ui, container_id: Id, children: &[Arc<RwLock<ViewportState>>]) {
+fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>]) {
+    let container_id = ui.id();
+
     let ctx = ui.ctx().clone();
     ui.label(format!(
         "Frame nr: {} (this increases when this viewport is being rendered)",
@@ -304,7 +239,9 @@ fn generic_ui(ui: &mut egui::Ui, container_id: Id, children: &[Arc<RwLock<Viewpo
         }
     }
 
-    drag_and_drop_test(ui, container_id);
+    if DRAG_AND_DROP_TEST {
+        drag_and_drop_test(ui);
+    }
 
     if !children.is_empty() {
         ui.separator();
@@ -325,9 +262,14 @@ fn generic_ui(ui: &mut egui::Ui, container_id: Id, children: &[Arc<RwLock<Viewpo
     }
 }
 
-fn drag_and_drop_test(ui: &mut egui::Ui, container_id: Id) {
+// ----------------------------------------------------------------------------
+// Drag-and-drop between windows is not yet implemented, but there is some test code for it here:
+
+fn drag_and_drop_test(ui: &mut egui::Ui) {
     use std::collections::HashMap;
     use std::sync::OnceLock;
+
+    let container_id = ui.id();
 
     const COLS: usize = 2;
     static DATA: OnceLock<RwLock<DragAndDrop>> = OnceLock::new();
@@ -430,4 +372,74 @@ fn drag_and_drop_test(ui: &mut egui::Ui, container_id: Id) {
             }
         }
     });
+}
+
+// This is taken from crates/egui_demo_lib/src/debo/drag_and_drop.rs
+fn drag_source<R>(
+    ui: &mut egui::Ui,
+    id: egui::Id,
+    body: impl FnOnce(&mut egui::Ui) -> R,
+) -> InnerResponse<R> {
+    let is_being_dragged = ui.memory(|mem| mem.is_being_dragged(id));
+
+    if !is_being_dragged {
+        let res = ui.scope(body);
+
+        // Check for drags:
+        let response = ui.interact(res.response.rect, id, egui::Sense::drag());
+        if response.hovered() {
+            ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
+        }
+        res
+    } else {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
+
+        // Paint the body to a new layer:
+        let layer_id = egui::LayerId::new(egui::Order::Tooltip, id);
+        let res = ui.with_layer_id(layer_id, body);
+
+        if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
+            let delta = pointer_pos - res.response.rect.center();
+            ui.ctx().translate_layer(layer_id, delta);
+        }
+
+        res
+    }
+}
+
+// This is taken from crates/egui_demo_lib/src/debo/drag_and_drop.rs
+fn drop_target<R>(
+    ui: &mut egui::Ui,
+    body: impl FnOnce(&mut egui::Ui) -> R,
+) -> egui::InnerResponse<R> {
+    let is_being_dragged = ui.memory(|mem| mem.is_anything_being_dragged());
+
+    let margin = egui::Vec2::splat(ui.visuals().clip_rect_margin); // 3.0
+
+    let background_id = ui.painter().add(egui::Shape::Noop);
+
+    let available_rect = ui.available_rect_before_wrap();
+    let inner_rect = available_rect.shrink2(margin);
+    let mut content_ui = ui.child_ui(inner_rect, *ui.layout());
+    let ret = body(&mut content_ui);
+
+    let outer_rect =
+        egui::Rect::from_min_max(available_rect.min, content_ui.min_rect().max + margin);
+    let (rect, response) = ui.allocate_at_least(outer_rect.size(), egui::Sense::hover());
+
+    let style = if is_being_dragged && response.hovered() {
+        ui.visuals().widgets.active
+    } else {
+        ui.visuals().widgets.inactive
+    };
+
+    let fill = style.bg_fill;
+    let stroke = style.bg_stroke;
+
+    ui.painter().set(
+        background_id,
+        egui::epaint::RectShape::new(rect, style.rounding, fill, stroke),
+    );
+
+    egui::InnerResponse::new(ret, response)
 }

@@ -1,5 +1,5 @@
 [package]
-name = "viewports"
+name = "test_viewports"
 version = "0.1.0"
 authors = ["konkitoman"]
 license = "MIT OR Apache-2.0"
