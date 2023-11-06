@@ -34,6 +34,10 @@ impl std::fmt::Debug for ViewportId {
 impl ViewportId {
     /// This will return the `ViewportId` of the main viewport
     pub const MAIN: Self = Self(Id::null());
+
+    pub fn from_hash_of(source: impl std::hash::Hash) -> Self {
+        Self(Id::new(source))
+    }
 }
 
 /// This will deref to [`Self::this`].
@@ -69,10 +73,12 @@ pub type ViewportRenderSyncCallback =
 
 /// Control the building of a new egui viewport (i.e. native window).
 ///
-/// The fields are or public, but you use the builder pattern to set them,
-/// and thats' where you'll find the documentation too.
+/// The fields are public, but you should use the builder pattern to set them,
+/// and that's where you'll find the documentation too.
 ///
-/// Every thing is wrapped in `Option<T>` indicates that nothing changed from the last `ViewportBuilder`!
+/// Since egui is immediate mode, `ViewportBuilder` is accumulative in nature.
+/// Setting any option to `None` means "keep the current value",
+/// or "Use the default" if it is the first call.
 #[derive(PartialEq, Eq, Clone)]
 #[allow(clippy::option_option)]
 pub struct ViewportBuilder {
@@ -110,9 +116,12 @@ pub struct ViewportBuilder {
 }
 
 impl ViewportBuilder {
-    pub fn new(id: impl Into<Id>) -> Self {
+    /// Default settings for a new child viewport.
+    ///
+    /// The given id must be unique for each viewport.
+    pub fn new(id: ViewportId) -> Self {
         Self {
-            id: ViewportId(id.into()),
+            id,
             title: "egui".into(),
             name: None,
             position: None,
@@ -131,16 +140,22 @@ impl ViewportBuilder {
             min_inner_size: None,
             max_inner_size: None,
             drag_and_drop: Some(true),
-            close_button: Some(true),
+            close_button: Some(false), // We disable the close button by default because we haven't implemented closing of child viewports yet
             minimize_button: Some(true),
             maximize_button: Some(true),
             hittest: Some(true),
         }
     }
 
-    pub fn empty(id: impl Into<Id>) -> Self {
+    /// Empty settings for everything.
+    ///
+    /// If used the first frame, backend-specific defaults will be used.
+    /// When used on subsequent frames, the current settings will be kept.
+    ///
+    /// The given id must be unique for each viewport.
+    pub fn empty(id: ViewportId) -> Self {
         Self {
-            id: ViewportId(id.into()),
+            id,
             title: "egui".into(),
             name: None,
             position: None,

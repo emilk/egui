@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use eframe::egui;
-use egui::{mutex::RwLock, Id, InnerResponse, ViewportBuilder};
+use egui::{mutex::RwLock, Id, InnerResponse, ViewportBuilder, ViewportId};
 
 #[derive(Default)]
 pub struct App {
@@ -139,7 +139,7 @@ fn show_async_viewport(
     let name: String = name.into();
 
     ctx.create_viewport_async(
-        ViewportBuilder::new(name.clone())
+        ViewportBuilder::new(ViewportId::from_hash_of(&name))
             .with_title(name.as_str())
             .with_inner_size(Some(egui::vec2(450.0, 350.0))),
         move |ctx| {
@@ -192,7 +192,7 @@ fn show_sync_viewport(
     let name: String = name.into();
 
     ctx.create_viewport_sync(
-        ViewportBuilder::new(name.clone())
+        ViewportBuilder::new(ViewportId::from_hash_of(&name))
             .with_title(name.as_str())
             .with_inner_size(Some(egui::vec2(450.0, 350.0))),
         move |ctx| {
