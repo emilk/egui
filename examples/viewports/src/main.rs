@@ -3,54 +3,98 @@ use std::sync::Arc;
 use eframe::egui;
 use egui::{mutex::RwLock, Id, InnerResponse, ViewportBuilder, ViewportId};
 
+fn main() {
+    env_logger::init(); // Use `RUST_LOG=debug` to see logs.
+
+    let _ = eframe::run_native(
+        "Viewports",
+        eframe::NativeOptions {
+            #[cfg(feature = "wgpu")]
+            renderer: eframe::Renderer::Wgpu,
+
+            initial_window_size: Some(egui::Vec2::new(450.0, 400.0)),
+            ..Default::default()
+        },
+        Box::new(|_| Box::<App>::default()),
+    );
+}
+
 pub struct ViewportState {
+    pub id: ViewportId,
+    pub visible: bool,
+    pub sync: bool,
     pub count: usize,
     pub title: String,
+    pub children: Vec<Arc<RwLock<ViewportState>>>,
 }
 
 impl ViewportState {
-    pub fn new(title: impl Into<String>) -> Self {
-        Self {
+    pub fn new_async(
+        title: &'static str,
+        children: Vec<Arc<RwLock<ViewportState>>>,
+    ) -> Arc<RwLock<Self>> {
+        Arc::new(RwLock::new(Self {
+            id: ViewportId::from_hash_of(title),
+            visible: false,
+            sync: false,
             count: 0,
             title: title.into(),
+            children,
+        }))
+    }
+
+    pub fn new_sync(
+        title: &'static str,
+        children: Vec<Arc<RwLock<ViewportState>>>,
+    ) -> Arc<RwLock<Self>> {
+        Arc::new(RwLock::new(Self {
+            id: ViewportId::from_hash_of(title),
+            visible: false,
+            sync: true,
+            count: 0,
+            title: title.into(),
+            children,
+        }))
+    }
+
+    pub fn show(slf: Arc<RwLock<ViewportState>>, ctx: &egui::Context) {
+        if !slf.read().visible {
+            return;
+        }
+        let id = slf.read().id;
+        let sync = slf.read().sync;
+
+        if sync {
+            show_sync_viewport(ctx, id, &mut slf.write());
+        } else {
+            show_async_viewport(ctx, id, slf);
         }
     }
 }
 
 pub struct App {
-    show_async_viewport: bool,
-    show_sync_viewport: bool,
-
-    top_async_state: Arc<RwLock<ViewportState>>,
-    top_sync_state: ViewportState,
-
-    async_async_state: Arc<RwLock<ViewportState>>,
-    async_sync_state: Arc<RwLock<ViewportState>>,
-
-    sync_async_state: Arc<RwLock<ViewportState>>,
-    sync_sync_state: ViewportState,
+    top: Vec<Arc<RwLock<ViewportState>>>,
 }
 
 impl Default for App {
     fn default() -> Self {
         Self {
-            show_async_viewport: false,
-            show_sync_viewport: false,
-
-            top_async_state: Arc::new(RwLock::new(ViewportState::new("Top Async Viewport"))),
-            top_sync_state: ViewportState::new("Top Sync Viewport"),
-
-            async_async_state: Arc::new(RwLock::new(ViewportState::new(
-                "AA: Async Viewport in Async Viewport",
-            ))),
-            async_sync_state: Arc::new(RwLock::new(ViewportState::new(
-                "AS: Sync Viewport in Async Viewport",
-            ))),
-
-            sync_async_state: Arc::new(RwLock::new(ViewportState::new(
-                "SA: Async Viewport in Sync Viewport",
-            ))),
-            sync_sync_state: ViewportState::new("SS: Sync Viewport in Sync Viewport"),
+            top: vec![
+                ViewportState::new_async(
+                    "Top Async Viewport",
+                    vec![
+                        ViewportState::new_async("AA: Async Viewport in Async Viewport", vec![]),
+                        ViewportState::new_sync("AS: Sync Viewport in Async Viewport", vec![]),
+                    ],
+                ),
+                ViewportState::new_sync(
+                    "Top Sync Viewport",
+                    vec![
+                        ViewportState::new_async("SA: Async Viewport in Sync Viewport", vec![]),
+                        ViewportState::new_sync("SS: Sync Viewport in Sync Viewport", vec![]),
+                    ],
+                ),
+            ],
         }
     }
 }
@@ -59,111 +103,14 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Root viewport");
-            generic_ui(ui, Id::new("root_viewport"));
             {
                 let mut force_embedding = ctx.force_embedding();
                 ui.checkbox(&mut force_embedding, "Force embedding of new viewprts");
                 ctx.set_force_embedding(force_embedding);
             }
-            ui.checkbox(&mut self.show_async_viewport, "Show Async Viewport");
-            ui.checkbox(&mut self.show_sync_viewport, "Show Sync Viewport");
 
-            let ctx = ui.ctx();
-
-            // Showing Async Viewport
-            if self.show_async_viewport {
-                let async_async_state = self.async_async_state.clone();
-                let async_sync_state = self.async_sync_state.clone();
-
-                show_async_viewport(
-                    ctx,
-                    ViewportId::from_hash_of("async_viewport"),
-                    self.top_async_state.clone(),
-                    vec![
-                        AsyncViewport::new("AA: Async Viewport in Async Viewport", move |ctx| {
-                            show_async_viewport(
-                                ctx,
-                                ViewportId::from_hash_of("AA_vp"),
-                                async_async_state.clone(),
-                                vec![],
-                            );
-                        }),
-                        AsyncViewport::new("AS: Sync Viewport in Async Viewport", move |ctx| {
-                            let mut state = async_sync_state.write();
-                            show_sync_viewport(
-                                ctx,
-                                ViewportId::from_hash_of("AS_vp"),
-                                &mut state,
-                                vec![],
-                            );
-                        }),
-                    ],
-                );
-            }
-
-            // Showing Sync Viewport
-            if self.show_sync_viewport {
-                let sync_async_state = self.sync_async_state.clone();
-                let sync_sync_state = &mut self.sync_sync_state;
-                show_sync_viewport(
-                    ctx,
-                    ViewportId::from_hash_of("sync_viewport"),
-                    &mut self.top_sync_state,
-                    vec![
-                        SyncViewport::new("SA: Async Viewport in Sync Viewport", move |ctx| {
-                            show_async_viewport(
-                                ctx,
-                                ViewportId::from_hash_of("SA_vp"),
-                                sync_async_state.clone(),
-                                vec![],
-                            );
-                        }),
-                        SyncViewport::new("SS: Sync Viewport in Sync Viewport", move |ctx| {
-                            show_sync_viewport(
-                                ctx,
-                                ViewportId::from_hash_of("SS_vp"),
-                                sync_sync_state,
-                                vec![],
-                            );
-                        }),
-                    ],
-                );
-            }
+            generic_ui(ui, Id::new("root_viewport"), &self.top);
         });
-    }
-}
-
-#[derive(Default, Clone)]
-struct State {
-    active: Vec<bool>,
-}
-
-#[derive(Clone)]
-struct AsyncViewport {
-    name: &'static str,
-    init: Arc<Box<dyn Fn(&egui::Context) + Sync + Send>>,
-}
-
-impl AsyncViewport {
-    fn new(name: &'static str, init: impl Fn(&egui::Context) + Sync + Send + 'static) -> Self {
-        Self {
-            name,
-            init: Arc::new(Box::new(init)),
-        }
-    }
-}
-
-struct SyncViewport<'a> {
-    name: &'static str,
-    init: Box<dyn FnMut(&egui::Context) + 'a>,
-}
-
-impl<'a> SyncViewport<'a> {
-    fn new(name: &'static str, init: impl FnMut(&egui::Context) + 'a) -> Self {
-        Self {
-            name,
-            init: Box::new(init),
-        }
     }
 }
 
@@ -171,7 +118,6 @@ fn show_async_viewport(
     ctx: &egui::Context,
     vp_id: ViewportId,
     vp_state: Arc<RwLock<ViewportState>>,
-    viewports: Vec<AsyncViewport>,
 ) {
     let id = Id::from(vp_id);
     let title = vp_state.read().title.clone();
@@ -179,77 +125,29 @@ fn show_async_viewport(
     ctx.create_viewport_async(
         ViewportBuilder::new(vp_id)
             .with_title(&title)
-            .with_inner_size(Some(egui::vec2(450.0, 350.0))),
+            .with_inner_size(Some(egui::vec2(450.0, 400.0))),
         move |ctx| {
             let mut vp_state = vp_state.write();
-            let viewports = viewports.clone();
-
-            let content = move |ui: &mut egui::Ui| {
-                generic_ui(ui, id);
-
-                if !viewports.is_empty() {
-                    let mut state =
-                        ctx.memory_mut(|mem| mem.data.get_temp_mut_or_default::<State>(id).clone());
-
-                    state.active.resize(viewports.len(), false);
-
-                    for (i, viewport) in viewports.iter().enumerate() {
-                        ui.checkbox(&mut state.active[i], viewport.name);
-                        if state.active[i] {
-                            (viewport.init)(ctx);
-                        }
-                    }
-                    ctx.memory_mut(move |mem| {
-                        *mem.data.get_temp_mut_or_default::<State>(id) = state;
-                    });
-                }
-
+            show_as_popup(ctx, &title, id, move |ui: &mut egui::Ui| {
                 ui.add(egui::DragValue::new(&mut vp_state.count).prefix("Count: "));
-            };
-
-            show_as_popup(ctx, &title, id, content);
+                generic_ui(ui, id, &vp_state.children);
+            });
         },
     );
 }
 
-fn show_sync_viewport(
-    ctx: &egui::Context,
-    vp_id: ViewportId,
-    vp_state: &mut ViewportState,
-    mut viewports: Vec<SyncViewport<'_>>,
-) {
+fn show_sync_viewport(ctx: &egui::Context, vp_id: ViewportId, vp_state: &mut ViewportState) {
     let id = Id::from(vp_id);
 
     ctx.create_viewport_sync(
         ViewportBuilder::new(vp_id)
             .with_title(vp_state.title.clone())
-            .with_inner_size(Some(egui::vec2(450.0, 350.0))),
+            .with_inner_size(Some(egui::vec2(450.0, 400.0))),
         move |ctx| {
-            let content = |ui: &mut egui::Ui| {
-                generic_ui(ui, id);
-
-                if !viewports.is_empty() {
-                    let mut state =
-                        ctx.memory_mut(|mem| mem.data.get_temp_mut_or_default::<State>(id).clone());
-
-                    state.active.resize(viewports.len(), false);
-
-                    for (i, viewport) in viewports.iter_mut().enumerate() {
-                        ui.checkbox(&mut state.active[i], viewport.name);
-                        if state.active[i] {
-                            (viewport.init)(ctx);
-                        }
-                    }
-
-                    ctx.memory_mut(move |mem| {
-                        *mem.data.get_temp_mut_or_default::<State>(id) = state;
-                    });
-                }
-
+            show_as_popup(ctx, &vp_state.title, id, |ui: &mut egui::Ui| {
                 ui.add(egui::DragValue::new(&mut vp_state.count).prefix("Count: "));
-            };
-
-            show_as_popup(ctx, &vp_state.title, id, content);
+                generic_ui(ui, id, &vp_state.children);
+            });
         },
     );
 }
@@ -333,7 +231,7 @@ fn show_as_popup(ctx: &egui::Context, title: &str, id: Id, content: impl FnOnce(
     }
 }
 
-fn generic_ui(ui: &mut egui::Ui, container_id: Id) {
+fn generic_ui(ui: &mut egui::Ui, container_id: Id, children: &[Arc<RwLock<ViewportState>>]) {
     let ctx = ui.ctx().clone();
     ui.label(format!(
         "Frame nr: {} (this increases when this viewport is being rendered)",
@@ -406,6 +304,28 @@ fn generic_ui(ui: &mut egui::Ui, container_id: Id) {
         }
     }
 
+    drag_and_drop_test(ui, container_id);
+
+    if !children.is_empty() {
+        ui.separator();
+
+        ui.heading("Children:");
+
+        for child in children {
+            let visible = {
+                let mut child_lock = child.write();
+                let ViewportState { visible, title, .. } = &mut *child_lock;
+                ui.checkbox(visible, title.as_str());
+                *visible
+            };
+            if visible {
+                ViewportState::show(child.clone(), &ctx);
+            }
+        }
+    }
+}
+
+fn drag_and_drop_test(ui: &mut egui::Ui, container_id: Id) {
     use std::collections::HashMap;
     use std::sync::OnceLock;
 
@@ -510,21 +430,4 @@ fn generic_ui(ui: &mut egui::Ui, container_id: Id) {
             }
         }
     });
-    ui.separator();
-}
-
-fn main() {
-    env_logger::init(); // Use `RUST_LOG=debug` to see logs.
-
-    let _ = eframe::run_native(
-        "Viewports",
-        eframe::NativeOptions {
-            #[cfg(feature = "wgpu")]
-            renderer: eframe::Renderer::Wgpu,
-
-            initial_window_size: Some(egui::Vec2::new(450.0, 360.0)),
-            ..Default::default()
-        },
-        Box::new(|_| Box::<App>::default()),
-    );
 }
