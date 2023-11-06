@@ -2570,8 +2570,8 @@ impl Context {
     ///
     /// If this is no more called that viewport will be destroyed.
     ///
-    /// If you use a [`egui::CentralPanel`] you need to check if the viewport is a new window like:
-    /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a [`egui::Window`].
+    /// If you use a [`crate::CentralPanel`] you need to check if the viewport is a new window like:
+    /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a [`crate::Window`].
     pub fn create_viewport_async(
         &self,
         viewport_builder: ViewportBuilder,
@@ -2610,7 +2610,7 @@ impl Context {
     /// The given ui function will be called immediately.
     /// This can only be called from the main thread.
     ///
-    /// If [`force_embedding`] is true, or if the current egui
+    /// If [`Context::force_embedding`] is true, or if the current egui
     /// backend does not support sync viewports, the given callback
     /// will be called immediately and the function will return.
     ///
@@ -2624,7 +2624,7 @@ impl Context {
     /// If this is no more called that viewport will be destroyed.
     ///
     /// If you use a `egui::CentralPanel` you need to check if the viewport is a new window like:
-    /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a [`egui::Window`].
+    /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a [`crate::Window`].
     pub fn create_viewport_sync<T>(
         &self,
         viewport_builder: ViewportBuilder,
