@@ -58,8 +58,8 @@ impl Default for App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Main viewport");
-            generic_ui(ui, Id::new("main_viewport"));
+            ui.heading("Root viewport");
+            generic_ui(ui, Id::new("root_viewport"));
             {
                 let mut force_embedding = ctx.force_embedding();
                 ui.checkbox(&mut force_embedding, "Force embedding of new viewprts");

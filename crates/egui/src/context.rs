@@ -349,16 +349,16 @@ impl ContextImpl {
 }
 
 impl ContextImpl {
-    /// Return the `ViewportId` of the current viewport
+    /// Return the `ViewportId` of the current viewport.
     ///
-    /// In the case of this viewport is the main viewport will be `ViewportId::MAIN`
+    /// For the root viewport this will return [`ViewportId::ROOT`].
     pub(crate) fn viewport_id(&self) -> ViewportId {
         self.viewport_stack.last().copied().unwrap_or_default().this
     }
 
-    /// Return the `ViewportId` of his parent
+    /// Return the `ViewportId` of his parent.
     ///
-    /// In the case of this viewport is the main viewport will be `ViewportId::MAIN`
+    /// For the root viewport this will return [`ViewportId::ROOT`].
     pub(crate) fn parent_viewport_id(&self) -> ViewportId {
         self.viewport_stack
             .last()
@@ -407,7 +407,7 @@ impl ContextImpl {
 /// // Game loop:
 /// loop {
 ///     let raw_input = egui::RawInput::default();
-///     let full_output = ctx.run(raw_input, egui::ViewportIdPair::MAIN, |ctx| {
+///     let full_output = ctx.run(raw_input, egui::ViewportIdPair::ROOT, |ctx| {
 ///         egui::CentralPanel::default().show(&ctx, |ui| {
 ///             ui.label("Hello world!");
 ///             if ui.button("Click me").clicked() {
@@ -416,7 +416,7 @@ impl ContextImpl {
 ///         });
 ///     });
 ///     handle_platform_output(full_output.platform_output);
-///     let clipped_primitives = ctx.tessellate(full_output.shapes, egui::ViewportId::MAIN); // create triangles to paint
+///     let clipped_primitives = ctx.tessellate(full_output.shapes, egui::ViewportId::ROOT); // create triangles to paint
 ///     paint(full_output.textures_delta, clipped_primitives);
 /// }
 /// ```
@@ -473,7 +473,7 @@ impl Context {
     ///
     /// // Each frame:
     /// let input = egui::RawInput::default();
-    /// let full_output = ctx.run(input, egui::ViewportIdPair::MAIN, |ctx| {
+    /// let full_output = ctx.run(input, egui::ViewportIdPair::ROOT, |ctx| {
     ///     egui::CentralPanel::default().show(&ctx, |ui| {
     ///         ui.label("Hello egui!");
     ///     });
@@ -502,7 +502,7 @@ impl Context {
     ///
     /// // Each frame:
     /// let input = egui::RawInput::default();
-    /// ctx.begin_frame(input, egui::ViewportIdPair::MAIN);
+    /// ctx.begin_frame(input, egui::ViewportIdPair::ROOT);
     ///
     /// egui::CentralPanel::default().show(&ctx, |ui| {
     ///     ui.label("Hello egui!");
@@ -1341,7 +1341,7 @@ impl Context {
                 for viewport in ctx.viewports.values() {
                     ctx.repaint.request_repaint_settle(viewport.id_pair.this);
                 }
-                ctx.repaint.request_repaint_settle(ViewportId::MAIN);
+                ctx.repaint.request_repaint_settle(ViewportId::ROOT);
                 ctx.memory.override_pixels_per_point = Some(pixels_per_point);
             });
         }
@@ -1492,7 +1492,7 @@ impl Context {
             );
             ctx.viewports.values().map(|vp| vp.id_pair.this).collect()
         });
-        viewports.push(ViewportId::MAIN);
+        viewports.push(ViewportId::ROOT);
 
         if self.input(|i| i.wants_repaint()) {
             self.request_repaint();
@@ -1556,7 +1556,7 @@ impl Context {
 
         // If there are no viewport that contains the current viewport that viewport needs to be destroyed!
         let available_viewports = self.read(|ctx| {
-            let mut available_viewports = vec![ViewportId::MAIN];
+            let mut available_viewports = vec![ViewportId::ROOT];
             for vp in ctx.viewports.values() {
                 available_viewports.push(vp.id_pair.this);
             }
@@ -2500,16 +2500,20 @@ impl Context {
 
 /// ## Viewports
 impl Context {
-    /// Return the `ViewportId` of the current viewport
-    /// In the case of this viewport is the main viewport will be `ViewportId::MAIN`
-    /// Don't use this outside of `Self::run`, or after `Self::end_frame`
+    /// Return the `ViewportId` of the current viewport.
+    ///
+    /// If this is the root viewport, this will return [`ViewportId::ROOT`].
+    ///
+    /// Don't use this outside of `Self::run`, or after `Self::end_frame`.
     pub fn viewport_id(&self) -> ViewportId {
         self.read(|ctx| ctx.viewport_id())
     }
 
-    /// Return the `ViewportId` of his parent
-    /// In the case of this viewport is the main viewport will be `ViewportId::MAIN`
-    /// Don't use this outside of `Self::run`, or after `Self::end_frame`
+    /// Return the `ViewportId` of his parent.
+    ///
+    /// If this is the root viewport, this will return [`ViewportId::ROOT`].
+    ///
+    /// Don't use this outside of `Self::run`, or after `Self::end_frame`.
     pub fn parent_viewport_id(&self) -> ViewportId {
         self.read(|ctx| ctx.parent_viewport_id())
     }

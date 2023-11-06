@@ -183,7 +183,7 @@ impl AppRunner {
 
         let full_output = self
             .egui_ctx
-            .run(raw_input, ViewportIdPair::MAIN, |egui_ctx| {
+            .run(raw_input, ViewportIdPair::ROOT, |egui_ctx| {
                 self.app.update(egui_ctx, &mut self.frame);
             });
         let egui::FullOutput {
@@ -195,7 +195,7 @@ impl AppRunner {
 
         self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
-        let clipped_primitives = self.egui_ctx.tessellate(shapes, ViewportId::MAIN);
+        let clipped_primitives = self.egui_ctx.tessellate(shapes, ViewportId::ROOT);
 
         {
             let app_output = self.frame.take_app_output();

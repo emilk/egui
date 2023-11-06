@@ -76,10 +76,10 @@ fn test_egui_e2e() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        let full_output = ctx.run(raw_input.clone(), ViewportIdPair::MAIN, |ctx| {
+        let full_output = ctx.run(raw_input.clone(), ViewportIdPair::ROOT, |ctx| {
             demo_windows.ui(ctx);
         });
-        let clipped_primitives = ctx.tessellate(full_output.shapes, ViewportId::MAIN);
+        let clipped_primitives = ctx.tessellate(full_output.shapes, ViewportId::ROOT);
         assert!(!clipped_primitives.is_empty());
     }
 }
@@ -95,10 +95,10 @@ fn test_egui_zero_window_size() {
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
-        let full_output = ctx.run(raw_input.clone(), ViewportIdPair::MAIN, |ctx| {
+        let full_output = ctx.run(raw_input.clone(), ViewportIdPair::ROOT, |ctx| {
             demo_windows.ui(ctx);
         });
-        let clipped_primitives = ctx.tessellate(full_output.shapes, ViewportId::MAIN);
+        let clipped_primitives = ctx.tessellate(full_output.shapes, ViewportId::ROOT);
         assert!(
             clipped_primitives.is_empty(),
             "There should be nothing to show, has at least one primitive with clip_rect: {:?}",

@@ -23,7 +23,7 @@ pub struct ViewportId(pub Id);
 
 impl Default for ViewportId {
     fn default() -> Self {
-        Self::MAIN
+        Self::ROOT
     }
 }
 
@@ -34,8 +34,8 @@ impl std::fmt::Debug for ViewportId {
 }
 
 impl ViewportId {
-    /// This will return the `ViewportId` of the main viewport
-    pub const MAIN: Self = Self(Id::null());
+    /// The `ViewportId` of the root viewport.
+    pub const ROOT: Self = Self(Id::null());
 
     pub fn from_hash_of(source: impl std::hash::Hash) -> Self {
         Self(Id::new(source))
@@ -66,17 +66,17 @@ pub struct ViewportIdPair {
 impl Default for ViewportIdPair {
     fn default() -> Self {
         Self {
-            this: ViewportId::MAIN,
-            parent: ViewportId::MAIN,
+            this: ViewportId::ROOT,
+            parent: ViewportId::ROOT,
         }
     }
 }
 
 impl ViewportIdPair {
-    /// This will return the `ViewportIdPair` of the main viewport
-    pub const MAIN: Self = Self {
-        this: ViewportId::MAIN,
-        parent: ViewportId::MAIN,
+    /// The `ViewportIdPair` of the root viewport, which is its own parent.
+    pub const ROOT: Self = Self {
+        this: ViewportId::ROOT,
+        parent: ViewportId::ROOT,
     };
 }
 

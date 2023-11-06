@@ -441,7 +441,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             // WaitUntil seems to not work on iOS
             #[cfg(target_os = "ios")]
             winit_app
-                .get_window_winit_id(ViewportId::MAIN)
+                .get_window_winit_id(ViewportId::ROOT)
                 .map(|window_id| {
                     winit_app
                         .window(window_id)
@@ -662,24 +662,24 @@ mod glow_integration {
             let mut viewport_maps = HashMap::default();
             let mut window_maps = ViewportMap::default();
             if let Some(window) = &window {
-                viewport_maps.insert(window.id(), ViewportId::MAIN);
-                window_maps.insert(ViewportId::MAIN, window.id());
+                viewport_maps.insert(window.id(), ViewportId::ROOT);
+                window_maps.insert(ViewportId::ROOT, window.id());
             }
 
             let mut windows = ViewportMap::default();
             windows.insert(
-                ViewportId::MAIN,
+                ViewportId::ROOT,
                 Rc::new(RefCell::new(Viewport {
                     gl_surface: None,
                     window: window.map(|w| Rc::new(RefCell::new(w))),
                     egui_winit: None,
                     viewport_ui_cb: None,
-                    id_pair: ViewportIdPair::MAIN,
+                    id_pair: ViewportIdPair::ROOT,
                 })),
             );
 
             let mut builders = ViewportMap::default();
-            builders.insert(ViewportId::MAIN, window_builder);
+            builders.insert(ViewportId::ROOT, window_builder);
 
             // the fun part with opengl gl is that we never know whether there is an error. the context creation might have failed, but
             // it could keep working until we try to make surface current or swap buffers or something else. future glutin improvements might
@@ -892,7 +892,7 @@ mod glow_integration {
                 native_options,
                 running: Rc::new(RefCell::new(None)),
                 app_creator: Some(app_creator),
-                is_focused: Rc::new(RefCell::new(Some(ViewportId::MAIN))),
+                is_focused: Rc::new(RefCell::new(Some(ViewportId::ROOT))),
             }
         }
 
@@ -914,7 +914,7 @@ mod glow_integration {
             };
             glutin_window_context.on_resume(event_loop)?;
 
-            if let Some(window) = &glutin_window_context.viewports.get(&ViewportId::MAIN) {
+            if let Some(window) = &glutin_window_context.viewports.get(&ViewportId::ROOT) {
                 let window = window.borrow();
                 if let Some(window) = &window.window {
                     epi_integration::apply_native_options_to_window(
@@ -960,7 +960,7 @@ mod glow_integration {
                     .unwrap_or_else(|err| panic!("An OpenGL error occurred: {err}\n"));
 
             glutin_ctx.max_texture_side = painter.max_texture_side();
-            glutin_ctx.viewports[&ViewportId::MAIN]
+            glutin_ctx.viewports[&ViewportId::ROOT]
                 .borrow_mut()
                 .egui_winit
                 .as_mut()
@@ -969,7 +969,7 @@ mod glow_integration {
 
             let system_theme = system_theme(
                 &glutin_ctx
-                    .window(ViewportId::MAIN)
+                    .window(ViewportId::ROOT)
                     .borrow()
                     .window
                     .as_ref()
@@ -979,7 +979,7 @@ mod glow_integration {
             );
             let mut integration = epi_integration::EpiIntegration::new(
                 &glutin_ctx
-                    .window(ViewportId::MAIN)
+                    .window(ViewportId::ROOT)
                     .borrow()
                     .window
                     .as_ref()
@@ -1017,7 +1017,7 @@ mod glow_integration {
             #[cfg(feature = "accesskit")]
             {
                 let event_loop_proxy = self.repaint_proxy.lock().clone();
-                let window = &glutin_ctx.viewports[&ViewportId::MAIN];
+                let window = &glutin_ctx.viewports[&ViewportId::ROOT];
                 let window = &mut *window.borrow_mut();
                 integration.init_accesskit(
                     window.egui_winit.as_mut().unwrap(),
@@ -1030,7 +1030,7 @@ mod glow_integration {
 
             if self.native_options.mouse_passthrough {
                 glutin_ctx
-                    .window(ViewportId::MAIN)
+                    .window(ViewportId::ROOT)
                     .borrow()
                     .window
                     .as_ref()
@@ -1044,7 +1044,7 @@ mod glow_integration {
                 .expect("Single-use AppCreator has unexpectedly already been taken");
             let mut app;
             {
-                let window = glutin_ctx.window(ViewportId::MAIN);
+                let window = glutin_ctx.window(ViewportId::ROOT);
                 let window = &mut *window.borrow_mut();
                 app = app_creator(&epi::CreationContext {
                     egui_ctx: integration.egui_ctx.clone(),
@@ -1259,7 +1259,7 @@ mod glow_integration {
             glutin_ctx: &Rc<RefCell<GlutinWindowContext>>,
             mut viewports: Vec<ViewportOutput>,
         ) {
-            let mut active_viewports_ids = vec![ViewportId::MAIN];
+            let mut active_viewports_ids = vec![ViewportId::ROOT];
 
             viewports.retain_mut(
                 |ViewportOutput {
@@ -1405,7 +1405,7 @@ mod glow_integration {
                     running
                         .glutin_ctx
                         .borrow()
-                        .window(ViewportId::MAIN)
+                        .window(ViewportId::ROOT)
                         .borrow()
                         .window
                         .as_ref()
@@ -1443,7 +1443,7 @@ mod glow_integration {
                 {
                     let glutin = glutin.borrow();
                     let viewport = &glutin.viewports[&viewport_id].clone();
-                    if viewport.borrow().viewport_ui_cb.is_none() && viewport_id != ViewportId::MAIN
+                    if viewport.borrow().viewport_ui_cb.is_none() && viewport_id != ViewportId::ROOT
                     {
                         if let Some(parent_viewport) =
                             glutin.viewports.get(&viewport.borrow().id_pair.parent)
@@ -1699,7 +1699,7 @@ mod glow_integration {
                             .glutin_ctx
                             .borrow()
                             .window_maps
-                            .get(&ViewportId::MAIN)
+                            .get(&ViewportId::ROOT)
                             .copied()
                             .unwrap(),
                     )
@@ -1784,7 +1784,7 @@ mod glow_integration {
                                     .borrow()
                                     .viewport_maps
                                     .get(window_id)
-                                    .map_or(false, |id| *id == ViewportId::MAIN)
+                                    .map_or(false, |id| *id == ViewportId::ROOT)
                                     && running.integration.borrow().should_close() =>
                             {
                                 log::debug!("Received WindowEvent::CloseRequested");
@@ -1967,7 +1967,7 @@ mod wgpu_integration {
                 native_options,
                 running: None,
                 app_creator: Some(app_creator),
-                is_focused: Rc::new(RefCell::new(Some(ViewportId::MAIN))),
+                is_focused: Rc::new(RefCell::new(Some(ViewportId::ROOT))),
             }
         }
 
@@ -2065,12 +2065,12 @@ mod wgpu_integration {
         #[cfg(target_os = "android")]
         fn drop_window(&mut self) -> std::result::Result<(), egui_wgpu::WgpuError> {
             if let Some(running) = &mut self.running {
-                running.viewports.borrow_mut().remove(&ViewportId::MAIN);
+                running.viewports.borrow_mut().remove(&ViewportId::ROOT);
                 pollster::block_on(
                     running
                         .painter
                         .borrow_mut()
-                        .set_window(ViewportId::MAIN, None),
+                        .set_window(ViewportId::ROOT, None),
                 )?;
             }
             Ok(())
@@ -2095,7 +2095,7 @@ mod wgpu_integration {
                 ),
                 self.native_options.transparent,
             );
-            pollster::block_on(painter.set_window(ViewportId::MAIN, Some(&window)))?;
+            pollster::block_on(painter.set_window(ViewportId::ROOT, Some(&window)))?;
 
             let wgpu_render_state = painter.render_state();
 
@@ -2164,22 +2164,22 @@ mod wgpu_integration {
             }
 
             let mut viewport_maps = HashMap::default();
-            viewport_maps.insert(window.id(), ViewportId::MAIN);
+            viewport_maps.insert(window.id(), ViewportId::ROOT);
             let viewport_maps = Rc::new(RefCell::new(viewport_maps));
 
             let viewports = Rc::new(RefCell::new(Viewports::default()));
             viewports.borrow_mut().insert(
-                ViewportId::MAIN,
+                ViewportId::ROOT,
                 Viewport {
                     window: Some(Rc::new(RefCell::new(window))),
                     state: Rc::new(RefCell::new(Some(state))),
                     viewport_ui_cb: None,
-                    parent_id: ViewportId::MAIN,
+                    parent_id: ViewportId::ROOT,
                 },
             );
 
             let builders = Rc::new(RefCell::new(ViewportMap::default()));
-            builders.borrow_mut().insert(ViewportId::MAIN, builder);
+            builders.borrow_mut().insert(ViewportId::ROOT, builder);
 
             let painter = Rc::new(RefCell::new(painter));
 
@@ -2385,7 +2385,7 @@ mod wgpu_integration {
             if let Some(mut running) = self.running.take() {
                 crate::profile_function!();
                 if let Some(Viewport { window, .. }) =
-                    running.viewports.borrow().get(&ViewportId::MAIN)
+                    running.viewports.borrow().get(&ViewportId::ROOT)
                 {
                     running.integration.borrow_mut().save(
                         running.app.as_mut(),
@@ -2443,7 +2443,7 @@ mod wgpu_integration {
                         return EventResult::Wait;
                     };
                     // This is used to not render a viewport if is sync
-                    if viewport_id != ViewportId::MAIN && viewport_ui_cb.is_none() {
+                    if viewport_id != ViewportId::ROOT && viewport_ui_cb.is_none() {
                         if let Some(viewport) = running.viewports.borrow().get(&parent_id) {
                             if let Some(window) = viewport.window.as_ref() {
                                 return EventResult::RepaintNext(window.borrow().id());
@@ -2512,7 +2512,7 @@ mod wgpu_integration {
                     integration.post_present(&window.borrow());
                 }
 
-                let mut active_viewports_ids = vec![ViewportId::MAIN];
+                let mut active_viewports_ids = vec![ViewportId::ROOT];
 
                 out_viewports.retain_mut(
                     |ViewportOutput {
@@ -2624,14 +2624,14 @@ mod wgpu_integration {
             Ok(match event {
                 winit::event::Event::Resumed => {
                     if let Some(running) = &self.running {
-                        if running.viewports.borrow().get(&ViewportId::MAIN).is_none() {
+                        if running.viewports.borrow().get(&ViewportId::ROOT).is_none() {
                             let _ = Self::create_window(
                                 event_loop,
                                 running.integration.borrow().frame.storage(),
                                 &self.app_name,
                                 &mut self.native_options,
                             )?;
-                            self.set_window(ViewportId::MAIN)?;
+                            self.set_window(ViewportId::ROOT)?;
                         }
                     } else {
                         let storage = epi_integration::create_storage(
@@ -2654,7 +2654,7 @@ mod wgpu_integration {
                             .unwrap()
                             .viewports
                             .borrow()
-                            .get(&ViewportId::MAIN)
+                            .get(&ViewportId::ROOT)
                             .unwrap()
                             .window
                             .as_ref()

@@ -125,7 +125,7 @@
 //! loop {
 //!     let raw_input: egui::RawInput = gather_input();
 //!
-//!     let full_output = ctx.run(raw_input, egui::ViewportIdPair::MAIN, |ctx| {
+//!     let full_output = ctx.run(raw_input, egui::ViewportIdPair::ROOT, |ctx| {
 //!         egui::CentralPanel::default().show(&ctx, |ui| {
 //!             ui.label("Hello world!");
 //!             if ui.button("Click me").clicked() {
@@ -134,7 +134,7 @@
 //!         });
 //!     });
 //!     handle_platform_output(full_output.platform_output);
-//!     let clipped_primitives = ctx.tessellate(full_output.shapes, egui::ViewportId::MAIN); // create triangles to paint
+//!     let clipped_primitives = ctx.tessellate(full_output.shapes, egui::ViewportId::ROOT); // create triangles to paint
 //!     paint(full_output.textures_delta, clipped_primitives);
 //! }
 //! ```
@@ -606,7 +606,7 @@ pub enum WidgetType {
 pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let _ = ctx.run(Default::default(), ViewportIdPair::MAIN, |ctx| {
+    let _ = ctx.run(Default::default(), ViewportIdPair::ROOT, |ctx| {
         run_ui(ctx);
     });
 }
@@ -615,7 +615,7 @@ pub fn __run_test_ctx(mut run_ui: impl FnMut(&Context)) {
 pub fn __run_test_ui(mut add_contents: impl FnMut(&mut Ui)) {
     let ctx = Context::default();
     ctx.set_fonts(FontDefinitions::empty()); // prevent fonts from being loaded (save CPU time)
-    let _ = ctx.run(Default::default(), ViewportIdPair::MAIN, |ctx| {
+    let _ = ctx.run(Default::default(), ViewportIdPair::ROOT, |ctx| {
         crate::CentralPanel::default().show(ctx, |ui| {
             add_contents(ui);
         });

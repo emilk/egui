@@ -50,11 +50,11 @@ impl EguiGlow {
             textures_delta,
             shapes,
             ..
-        } = self.egui_ctx.run(raw_input, ViewportIdPair::MAIN, run_ui);
+        } = self.egui_ctx.run(raw_input, ViewportIdPair::ROOT, run_ui);
 
         self.egui_winit.handle_platform_output(
             window,
-            ViewportId::MAIN,
+            ViewportId::ROOT,
             &self.egui_ctx,
             platform_output,
         );
@@ -72,7 +72,7 @@ impl EguiGlow {
             self.painter.set_texture(id, &image_delta);
         }
 
-        let clipped_primitives = self.egui_ctx.tessellate(shapes, ViewportId::MAIN);
+        let clipped_primitives = self.egui_ctx.tessellate(shapes, ViewportId::ROOT);
         let dimensions: [u32; 2] = window.inner_size().into();
         self.painter.paint_primitives(
             dimensions,

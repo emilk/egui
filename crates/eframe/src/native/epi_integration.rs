@@ -87,7 +87,7 @@ pub fn window_builder<E>(
         ..
     } = native_options;
 
-    let mut window_builder = egui::ViewportBuilder::new(ViewportId::MAIN)
+    let mut window_builder = egui::ViewportBuilder::new(ViewportId::ROOT)
         .with_title(title)
         .with_close_button(true) // The default for all other viewports is `false`!
         .with_decorations(*decorated)
@@ -425,7 +425,7 @@ impl EpiIntegration {
         let saved_memory: egui::Memory = self.egui_ctx.memory(|mem| mem.clone());
         self.egui_ctx
             .memory_mut(|mem| mem.set_everything_is_visible(true));
-        let full_output = self.update(app, window, egui_winit, &None, ViewportIdPair::MAIN);
+        let full_output = self.update(app, window, egui_winit, &None, ViewportIdPair::ROOT);
         self.pending_full_output.append(full_output); // Handle it next frame
         self.egui_ctx.memory_mut(|mem| *mem = saved_memory); // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
@@ -450,7 +450,7 @@ impl EpiIntegration {
         match event {
             WindowEvent::CloseRequested => {
                 log::debug!("Received WindowEvent::CloseRequested");
-                self.close = app.on_close_event() && viewport_id == ViewportId::MAIN;
+                self.close = app.on_close_event() && viewport_id == ViewportId::ROOT;
                 log::debug!("App::on_close_event returned {}", self.close);
             }
             WindowEvent::Destroyed => {
