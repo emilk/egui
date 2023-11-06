@@ -2683,7 +2683,7 @@ impl Context {
             }
 
             out.expect(
-                "egui backend is implemented incorrectly - the user calback was never called",
+                "egui backend is implemented incorrectly - the user callback was never called",
             )
         })
     }
