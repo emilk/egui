@@ -1,7 +1,6 @@
 use std::{num::NonZeroU32, sync::Arc};
 
-use egui::ViewportId;
-use epaint::ahash::HashMap;
+use egui::{ViewportId, ViewportMap};
 
 use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
 
@@ -80,13 +79,13 @@ pub struct Painter {
     msaa_samples: u32,
     support_transparent_backbuffer: bool,
     depth_format: Option<wgpu::TextureFormat>,
-    depth_texture_view: HashMap<ViewportId, wgpu::TextureView>,
-    msaa_texture_view: HashMap<ViewportId, wgpu::TextureView>,
+    depth_texture_view: ViewportMap<wgpu::TextureView>,
+    msaa_texture_view: ViewportMap<wgpu::TextureView>,
     screen_capture_state: Option<CaptureState>,
 
     instance: wgpu::Instance,
     render_state: Option<RenderState>,
-    surfaces: HashMap<ViewportId, SurfaceState>,
+    surfaces: ViewportMap<SurfaceState>,
 }
 
 unsafe impl Send for Painter {}
@@ -121,13 +120,13 @@ impl Painter {
             msaa_samples,
             support_transparent_backbuffer,
             depth_format,
-            depth_texture_view: HashMap::default(),
+            depth_texture_view: Default::default(),
             screen_capture_state: None,
 
             instance,
             render_state: None,
-            surfaces: HashMap::default(),
-            msaa_texture_view: HashMap::default(),
+            surfaces: Default::default(),
+            msaa_texture_view: Default::default(),
         }
     }
 

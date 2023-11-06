@@ -59,13 +59,13 @@ struct Repaint {
     /// The current frame number.
     ///
     /// Incremented at the end of each frame.
-    viewports_frame_nr: HashMap<ViewportId, u64>,
+    viewports_frame_nr: ViewportMap<u64>,
 
     /// While positive, keep requesting repaints. Decrement at the start of each frame.
-    repaint_request: HashMap<ViewportId, u8>,
+    repaint_request: ViewportMap<u8>,
     request_repaint_callback: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
 
-    requested_repaint_last_frame: HashMap<ViewportId, bool>,
+    requested_repaint_last_frame: ViewportMap<bool>,
 }
 
 impl Repaint {
@@ -154,23 +154,23 @@ struct ContextImpl {
 
     os: OperatingSystem,
 
-    input: HashMap<ViewportId, InputState>,
+    input: ViewportMap<InputState>,
 
     /// State that is collected during a frame and then cleared
-    frame_state: HashMap<ViewportId, FrameState>,
+    frame_state: ViewportMap<FrameState>,
 
     /// How deeply nested are we?
     viewport_stack: Vec<ViewportIdPair>,
 
     // The output of a frame:
-    graphics: HashMap<ViewportId, GraphicLayers>,
-    output: HashMap<ViewportId, PlatformOutput>,
+    graphics: ViewportMap<GraphicLayers>,
+    output: ViewportMap<PlatformOutput>,
 
     paint_stats: PaintStats,
 
     repaint: Repaint,
 
-    viewports: HashMap<ViewportId, Viewport>,
+    viewports: ViewportMap<Viewport>,
     viewport_commands: Vec<(ViewportId, ViewportCommand)>,
 
     is_desktop: bool,
@@ -178,11 +178,11 @@ struct ContextImpl {
 
     /// Written to during the frame.
     layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
-    layer_rects_this_viewports: HashMap<ViewportId, HashMap<LayerId, Vec<(Id, Rect)>>>,
+    layer_rects_this_viewports: ViewportMap<HashMap<LayerId, Vec<(Id, Rect)>>>,
 
     /// Read
     layer_rects_prev_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
-    layer_rects_prev_viewports: HashMap<ViewportId, HashMap<LayerId, Vec<(Id, Rect)>>>,
+    layer_rects_prev_viewports: ViewportMap<HashMap<LayerId, Vec<(Id, Rect)>>>,
 
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,

@@ -1,10 +1,11 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
+use epaint::{emath::Rangef, vec2, Vec2};
+
 use crate::{
     area, window, EventFilter, Id, IdMap, InputState, LayerId, Pos2, Rect, Style, ViewportId,
+    ViewportMap,
 };
-use ahash::HashMap;
-use epaint::{emath::Rangef, vec2, Vec2};
 
 // ----------------------------------------------------------------------------
 
@@ -77,7 +78,7 @@ pub struct Memory {
     pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) interactions: HashMap<ViewportId, Interaction>,
+    pub(crate) interactions: ViewportMap<Interaction>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interaction: Interaction,
@@ -90,7 +91,7 @@ pub struct Memory {
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) window_interactions: HashMap<ViewportId, window::WindowInteraction>,
+    pub(crate) window_interactions: ViewportMap<window::WindowInteraction>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) drag_value: crate::widgets::drag_value::MonoState,
@@ -99,7 +100,7 @@ pub struct Memory {
     pub(crate) areas: Areas,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) viewports_areas: HashMap<ViewportId, Areas>,
+    pub(crate) viewports_areas: ViewportMap<Areas>,
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.

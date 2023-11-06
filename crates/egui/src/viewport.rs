@@ -49,6 +49,11 @@ impl From<ViewportId> for Id {
     }
 }
 
+impl nohash_hasher::IsEnabled for ViewportId {}
+
+/// A fast hash map from [`ViewportId`] to `T`.
+pub type ViewportMap<T> = nohash_hasher::IntMap<ViewportId, T>;
+
 // ----------------------------------------------------------------------------
 
 /// This will deref to [`Self::this`].
