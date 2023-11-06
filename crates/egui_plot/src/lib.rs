@@ -211,6 +211,9 @@ pub struct Plot {
     grid_spacers: [GridSpacer; 2],
     sharp_grid_lines: bool,
     clamp_grid: bool,
+
+    /// Used for overriding the `hidden_items` set in [`LegendWidget`].
+    hidden_items: Option<ahash::HashSet<String>>,
 }
 
 impl Plot {
@@ -253,6 +256,8 @@ impl Plot {
             grid_spacers: [log_grid_spacer(10), log_grid_spacer(10)],
             sharp_grid_lines: true,
             clamp_grid: false,
+
+            hidden_items: None,
         }
     }
 
@@ -693,6 +698,16 @@ impl Plot {
         self
     }
 
+    /// Overrides hidden items in the legend. This allows the legend traces' visibility to be
+    /// controlled from the application code.
+    pub fn override_hidden_items<I>(mut self, hidden_items: I) -> Self
+    where
+        I: IntoIterator<Item = String>,
+    {
+        self.hidden_items = Some(hidden_items.into_iter().collect());
+        self
+    }
+
     /// Interact with and add items to the plot and finally draw it.
     pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> PlotResponse<R> {
         self.show_dyn(ui, Box::new(build_fn))
@@ -737,6 +752,8 @@ impl Plot {
             clamp_grid,
             grid_spacers,
             sharp_grid_lines,
+
+            hidden_items: override_hidden_items,
         } = self;
 
         // Determine position of widget.
@@ -873,6 +890,12 @@ impl Plot {
             last_plot_transform,
             mut last_click_pos_for_zoom,
         } = memory;
+
+        // If `override_hidden_items` is not `None`, replace the `hidden_items` with
+        // `override_hidden_items`.
+        if let Some(override_hidden_items) = override_hidden_items {
+            hidden_items = override_hidden_items;
+        }
 
         // Call the plot build function.
         let mut plot_ui = PlotUi {
