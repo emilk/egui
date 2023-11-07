@@ -945,7 +945,7 @@ impl Context {
                                     // potential start of a drag
                                     memory.interaction.drag_id = Some(id);
                                     memory.interaction.drag_is_window = false;
-                                    memory.window_interaction = None; // HACK: stop moving windows (if any)
+                                    memory.set_window_interaction(None); // HACK: stop moving windows (if any)
                                     response.is_pointer_button_down_on = true;
                                     response.dragged = true;
                                 }

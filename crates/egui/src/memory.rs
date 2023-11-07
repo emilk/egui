@@ -3,8 +3,9 @@
 use epaint::{emath::Rangef, vec2, Vec2};
 
 use crate::{
-    area, window, EventFilter, Id, IdMap, InputState, LayerId, Pos2, Rect, Style, ViewportId,
-    ViewportIdMap,
+    area,
+    window::{self, WindowInteraction},
+    EventFilter, Id, IdMap, InputState, LayerId, Pos2, Rect, Style, ViewportId, ViewportIdMap,
 };
 
 // ----------------------------------------------------------------------------
@@ -88,16 +89,7 @@ pub struct Memory {
     pub(crate) viewport_id: ViewportId,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) window_interaction: Option<window::WindowInteraction>,
-
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) window_interactions: ViewportIdMap<window::WindowInteraction>,
-
-    #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) drag_value: crate::widgets::drag_value::MonoState,
-
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    areas: ViewportIdMap<Areas>,
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.
@@ -106,6 +98,15 @@ pub struct Memory {
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
+
+    // -------------------------------------------------
+
+    // Per-viewport:
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    areas: ViewportIdMap<Areas>,
+
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    window_interactions: ViewportIdMap<window::WindowInteraction>,
 }
 
 impl Default for Memory {
@@ -119,7 +120,6 @@ impl Default for Memory {
             interactions: Default::default(),
             interaction: Default::default(),
             viewport_id: Default::default(),
-            window_interaction: Default::default(),
             window_interactions: Default::default(),
             drag_value: Default::default(),
             areas: Default::default(),
@@ -560,15 +560,10 @@ impl Memory {
 
         if !prev_input.pointer.any_down() {
             self.window_interactions.remove(&viewport_id);
-            self.window_interaction = None;
         }
     }
 
     pub(crate) fn pause_frame(&mut self, viewport_id: ViewportId) {
-        if let Some(window_interaction) = self.window_interaction {
-            self.window_interactions
-                .insert(viewport_id, window_interaction);
-        }
         self.interactions
             .insert(viewport_id, std::mem::take(&mut self.interaction));
     }
@@ -594,7 +589,6 @@ impl Memory {
     pub(crate) fn resume_frame(&mut self, viewport_id: ViewportId) {
         self.interaction = self.interactions.remove(&viewport_id).unwrap_or_default();
         self.viewport_id = viewport_id;
-        self.window_interaction = self.window_interactions.remove(&viewport_id);
     }
 
     /// Access memory of the [`Area`](crate::containers::area::Area)s, such as `Window`s.
@@ -747,6 +741,18 @@ impl Memory {
     /// Obtain the previous rectangle of an area.
     pub fn area_rect(&self, id: impl Into<Id>) -> Option<Rect> {
         self.areas().get(id.into()).map(|state| state.rect())
+    }
+
+    pub(crate) fn window_interaction(&self) -> Option<WindowInteraction> {
+        self.window_interactions.get(&self.viewport_id).copied()
+    }
+
+    pub(crate) fn set_window_interaction(&mut self, wi: Option<WindowInteraction>) {
+        if let Some(wi) = wi {
+            self.window_interactions.insert(self.viewport_id, wi);
+        } else {
+            self.window_interactions.remove(&self.viewport_id);
+        }
     }
 }
 

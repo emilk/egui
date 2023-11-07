@@ -640,7 +640,7 @@ fn window_interaction(
         }
     }
 
-    let mut window_interaction = ctx.memory(|mem| mem.window_interaction);
+    let mut window_interaction = ctx.memory(|mem| mem.window_interaction());
 
     if window_interaction.is_none() {
         if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect) {
@@ -650,7 +650,7 @@ fn window_interaction(
                     mem.interaction.drag_id = Some(id);
                     mem.interaction.drag_is_window = true;
                     window_interaction = Some(hover_window_interaction);
-                    mem.window_interaction = window_interaction;
+                    mem.set_window_interaction(window_interaction);
                 });
             }
         }
