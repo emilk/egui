@@ -79,12 +79,14 @@ pub struct Painter {
     msaa_samples: u32,
     support_transparent_backbuffer: bool,
     depth_format: Option<wgpu::TextureFormat>,
-    depth_texture_view: ViewportIdMap<wgpu::TextureView>,
-    msaa_texture_view: ViewportIdMap<wgpu::TextureView>,
     screen_capture_state: Option<CaptureState>,
 
     instance: wgpu::Instance,
     render_state: Option<RenderState>,
+
+    // Per viewport/window:
+    depth_texture_view: ViewportIdMap<wgpu::TextureView>,
+    msaa_texture_view: ViewportIdMap<wgpu::TextureView>,
     surfaces: ViewportIdMap<SurfaceState>,
 }
 
@@ -120,11 +122,12 @@ impl Painter {
             msaa_samples,
             support_transparent_backbuffer,
             depth_format,
-            depth_texture_view: Default::default(),
             screen_capture_state: None,
 
             instance,
             render_state: None,
+
+            depth_texture_view: Default::default(),
             surfaces: Default::default(),
             msaa_texture_view: Default::default(),
         }
@@ -625,13 +628,12 @@ impl Painter {
         screenshot
     }
 
-    pub fn clean_surfaces(&mut self, available_viewports: &ViewportIdSet) {
-        self.surfaces
-            .retain(|id, _| available_viewports.contains(id));
+    pub fn gc_viewports(&mut self, active_viewports: &ViewportIdSet) {
+        self.surfaces.retain(|id, _| active_viewports.contains(id));
         self.depth_texture_view
-            .retain(|id, _| available_viewports.contains(id));
+            .retain(|id, _| active_viewports.contains(id));
         self.msaa_texture_view
-            .retain(|id, _| available_viewports.contains(id));
+            .retain(|id, _| active_viewports.contains(id));
     }
 
     #[allow(clippy::unused_self)]

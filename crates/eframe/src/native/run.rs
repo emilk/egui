@@ -2607,7 +2607,7 @@ mod wgpu_integration {
                 viewport_maps
                     .borrow_mut()
                     .retain(|_, id| active_viewports_ids.contains(id));
-                painter.borrow_mut().clean_surfaces(&active_viewports_ids);
+                painter.borrow_mut().gc_viewports(&active_viewports_ids);
 
                 let Some(
                     Viewport {
