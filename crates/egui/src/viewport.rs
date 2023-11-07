@@ -641,6 +641,7 @@ pub(crate) struct Viewport {
     /// Id of us and our parent.
     pub(crate) id_pair: ViewportIdPair,
 
+    /// Has this viewport been updated this frame?
     pub(crate) used: bool,
 
     /// The user-code that shows the GUI, used for "async" viewports.

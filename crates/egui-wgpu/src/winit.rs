@@ -1,6 +1,6 @@
 use std::{num::NonZeroU32, sync::Arc};
 
-use egui::{ViewportId, ViewportIdMap};
+use egui::{ViewportId, ViewportIdMap, ViewportIdSet};
 
 use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
 
@@ -625,7 +625,7 @@ impl Painter {
         screenshot
     }
 
-    pub fn clean_surfaces(&mut self, available_viewports: &[ViewportId]) {
+    pub fn clean_surfaces(&mut self, available_viewports: &ViewportIdSet) {
         self.surfaces
             .retain(|id, _| available_viewports.contains(id));
         self.depth_texture_view

@@ -459,8 +459,8 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 mod glow_integration {
 
     use egui::{
-        epaint::ahash::HashMap, NumExt as _, ViewportIdMap, ViewportIdPair, ViewportOutput,
-        ViewportUiCallback,
+        epaint::ahash::HashMap, NumExt as _, ViewportIdMap, ViewportIdPair, ViewportIdSet,
+        ViewportOutput, ViewportUiCallback,
     };
     use egui_winit::{create_winit_window_builder, process_viewport_commands, EventResponse};
     use glutin::{
@@ -1256,7 +1256,8 @@ mod glow_integration {
             glutin_ctx: &Rc<RefCell<GlutinWindowContext>>,
             mut viewports: Vec<ViewportOutput>,
         ) {
-            let mut active_viewports_ids = vec![ViewportId::ROOT];
+            let mut active_viewports_ids = ViewportIdSet::default();
+            active_viewports_ids.insert(ViewportId::ROOT);
 
             viewports.retain_mut(
                 |ViewportOutput {
@@ -1280,7 +1281,7 @@ mod glow_integration {
                         } else if let Some(w) = viewport.window.clone() {
                             process_viewport_commands(commands, *id, None, &w.borrow());
                         }
-                        active_viewports_ids.push(*id);
+                        active_viewports_ids.insert(*id);
                         false
                     } else {
                         true
@@ -1316,7 +1317,7 @@ mod glow_integration {
                     );
                     glutin.builders.insert(id_pair.this, builder);
                 }
-                active_viewports_ids.push(id_pair.this);
+                active_viewports_ids.insert(id_pair.this);
             }
 
             let mut glutin = glutin_ctx.borrow_mut();
@@ -1886,9 +1887,10 @@ pub use glow_integration::run_glow;
 
 #[cfg(feature = "wgpu")]
 mod wgpu_integration {
-    use egui::{ViewportIdMap, ViewportIdPair, ViewportOutput, ViewportUiCallback};
-    use egui_winit::{create_winit_window_builder, process_viewport_commands};
     use parking_lot::Mutex;
+
+    use egui::{ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, ViewportUiCallback};
+    use egui_winit::{create_winit_window_builder, process_viewport_commands};
 
     use super::*;
 
@@ -2510,7 +2512,8 @@ mod wgpu_integration {
                     integration.post_present(&window.borrow());
                 }
 
-                let mut active_viewports_ids = vec![ViewportId::ROOT];
+                let mut active_viewports_ids = ViewportIdSet::default();
+                active_viewports_ids.insert(ViewportId::ROOT);
 
                 out_viewports.retain_mut(
                     |ViewportOutput {
@@ -2521,7 +2524,7 @@ mod wgpu_integration {
                         if let Some(viewport) = viewports.borrow_mut().get_mut(this) {
                             viewport.viewport_ui_cb = viewport_ui_cb.clone();
                             viewport.parent_id = *parent;
-                            active_viewports_ids.push(*this);
+                            active_viewports_ids.insert(*this);
                             false
                         } else {
                             true
@@ -2577,7 +2580,7 @@ mod wgpu_integration {
                         builders.insert(id_pair.this, new_builder);
                     }
 
-                    active_viewports_ids.push(id_pair.this);
+                    active_viewports_ids.insert(id_pair.this);
                 }
 
                 for (viewport_id, command) in viewport_commands {

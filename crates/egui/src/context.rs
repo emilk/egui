@@ -1551,7 +1551,7 @@ impl Context {
                 let was_used = viewport.used;
 
                 if viewport_id == viewport.id_pair.parent {
-                    viewport.used = false;
+                    viewport.used = false; // reset so we can check again next frame
                 }
 
                 viewports.push(ViewportOutput {
@@ -1560,8 +1560,19 @@ impl Context {
                     viewport_ui_cb: viewport.viewport_ui_cb.clone(),
                 });
 
-                (was_used || viewport_id != viewport.id_pair.parent)
-                    && all_viewport_ids.contains(&viewport.id_pair.parent)
+                if !all_viewport_ids.contains(&viewport.id_pair.parent) {
+                    // Parent is gone - remove this viewport.
+                    return false;
+                }
+
+                let is_child = viewport_id == viewport.id_pair.parent;
+                if is_child {
+                    // Keep all children that have been updated this frame
+                    was_used
+                } else {
+                    // Somebody elses child - don't touch
+                    true
+                }
             });
         });
 

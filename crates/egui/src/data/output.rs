@@ -22,8 +22,10 @@ pub struct FullOutput {
     /// You can use [`crate::Context::tessellate`] to turn this into triangles.
     pub shapes: Vec<epaint::ClippedShape>,
 
+    /// All the active viewports, including the root.
     pub viewports: Vec<ViewportOutput>,
 
+    /// Commands sent to different viewports.
     pub viewport_commands: Vec<(ViewportId, ViewportCommand)>,
 }
 
