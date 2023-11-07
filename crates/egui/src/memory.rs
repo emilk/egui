@@ -18,7 +18,7 @@ use crate::{
 /// For this you need to enable the `persistence`.
 ///
 /// If you want to store data for your widgets, you should look at [`Memory::data`]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "persistence", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "persistence", serde(default))]
 pub struct Memory {
@@ -97,10 +97,7 @@ pub struct Memory {
     pub(crate) drag_value: crate::widgets::drag_value::MonoState,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    areas: Areas,
-
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) viewports_areas: ViewportIdMap<Areas>,
+    areas: ViewportIdMap<Areas>,
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.
@@ -109,6 +106,29 @@ pub struct Memory {
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     everything_is_visible: bool,
+}
+
+impl Default for Memory {
+    fn default() -> Self {
+        let mut slf = Self {
+            options: Default::default(),
+            data: Default::default(),
+            caches: Default::default(),
+            override_pixels_per_point: Default::default(),
+            new_font_definitions: Default::default(),
+            interactions: Default::default(),
+            interaction: Default::default(),
+            viewport_id: Default::default(),
+            window_interaction: Default::default(),
+            window_interactions: Default::default(),
+            drag_value: Default::default(),
+            areas: Default::default(),
+            popup: Default::default(),
+            everything_is_visible: Default::default(),
+        };
+        slf.areas.entry(slf.viewport_id).or_default();
+        slf
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -536,10 +556,7 @@ impl Memory {
             .or_default()
             .begin_frame(prev_input, new_input);
         self.interaction = self.interactions.remove(&viewport_id).unwrap();
-        self.areas = self
-            .viewports_areas
-            .remove(&viewport_id)
-            .unwrap_or_default();
+        self.areas.entry(viewport_id).or_default();
 
         if !prev_input.pointer.any_down() {
             self.window_interactions.remove(&viewport_id);
@@ -554,8 +571,6 @@ impl Memory {
         }
         self.interactions
             .insert(viewport_id, std::mem::take(&mut self.interaction));
-        self.viewports_areas
-            .insert(viewport_id, std::mem::take(&mut self.areas));
     }
 
     pub(crate) fn end_frame(
@@ -569,33 +584,29 @@ impl Memory {
         self.interaction.focus.end_frame(used_ids);
         self.interactions
             .insert(self.viewport_id, std::mem::take(&mut self.interaction));
-        self.viewports_areas
-            .insert(self.viewport_id, std::mem::take(&mut self.areas));
         self.drag_value.end_frame(input);
         self.interactions.retain(|id, _| viewports.contains(id));
-        self.viewports_areas.retain(|id, _| viewports.contains(id));
+        self.areas.retain(|id, _| viewports.contains(id));
         self.window_interactions
             .retain(|id, _| viewports.contains(id));
     }
 
     pub(crate) fn resume_frame(&mut self, viewport_id: ViewportId) {
         self.interaction = self.interactions.remove(&viewport_id).unwrap_or_default();
-        self.areas = self
-            .viewports_areas
-            .remove(&viewport_id)
-            .unwrap_or_default();
         self.viewport_id = viewport_id;
         self.window_interaction = self.window_interactions.remove(&viewport_id);
     }
 
     /// Access memory of the [`Area`](crate::containers::area::Area)s, such as `Window`s.
     pub fn areas(&self) -> &Areas {
-        &self.areas
+        self.areas
+            .get(&self.viewport_id)
+            .expect("Memory broken: no area for the current viewport")
     }
 
     /// Access memory of the [`Area`](crate::containers::area::Area)s, such as `Window`s.
     pub fn areas_mut(&mut self) -> &mut Areas {
-        &mut self.areas
+        self.areas.entry(self.viewport_id).or_default()
     }
 
     /// Top-most layer at the given position.
