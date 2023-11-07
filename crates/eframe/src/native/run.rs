@@ -525,7 +525,7 @@ mod glow_integration {
         swap_interval: glutin::surface::SwapInterval,
         gl_config: glutin::config::Config,
 
-        max_texture_side: usize,
+        max_texture_side: Option<usize>,
 
         current_gl_context: Option<glutin::context::PossiblyCurrentContext>,
         not_current_gl_context: Option<glutin::context::NotCurrentContext>,
@@ -538,7 +538,6 @@ mod glow_integration {
     }
 
     impl GlutinWindowContext {
-        /// Also calls `on_resume` on self.
         #[allow(unsafe_code)]
         unsafe fn new(
             window_builder: ViewportBuilder,
@@ -693,8 +692,7 @@ mod glow_integration {
                 viewports,
                 builders,
                 viewport_maps,
-                // This is initialize in init_run_state
-                max_texture_side: 0,
+                max_texture_side: None,
                 window_maps,
             };
 
@@ -794,7 +792,7 @@ mod glow_integration {
                     viewport.egui_winit = Some(egui_winit::State::new(
                         event_loop,
                         Some(window.scale_factor() as f32),
-                        Some(self.max_texture_side),
+                        self.max_texture_side,
                     ));
                 }
 
@@ -912,9 +910,13 @@ mod glow_integration {
 
             let winit_window_builder =
                 epi_integration::window_builder(event_loop, title, native_options, window_settings);
-            let glutin_window_context = unsafe {
+
+            let mut glutin_window_context = unsafe {
                 GlutinWindowContext::new(winit_window_builder, native_options, event_loop)?
             };
+
+            // Creates the window - must come before we create our glow context
+            glutin_window_context.on_resume(event_loop)?;
 
             if let Some(window) = &glutin_window_context.viewports.get(&ViewportId::ROOT) {
                 let window = window.borrow();
@@ -929,15 +931,13 @@ mod glow_integration {
 
             let gl = unsafe {
                 crate::profile_scope!("glow::Context::from_loader_function");
-                glow::Context::from_loader_function(|s| {
+                Arc::new(glow::Context::from_loader_function(|s| {
                     let s = std::ffi::CString::new(s)
                         .expect("failed to construct C string from string for gl proc address");
 
                     glutin_window_context.get_proc_address(&s)
-                })
+                }))
             };
-
-            let gl = Arc::new(gl);
 
             let painter = egui_glow::Painter::new(gl, "", native_options.shader_version)
                 .unwrap_or_else(|err| panic!("An OpenGL error occurred: {err}\n"));
@@ -947,6 +947,7 @@ mod glow_integration {
 
         fn init_run_state(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
             crate::profile_function!();
+
             let storage = epi_integration::create_storage(
                 self.native_options
                     .app_id
@@ -962,13 +963,13 @@ mod glow_integration {
             )?;
             let gl = painter.gl().clone();
 
-            glutin_ctx.max_texture_side = painter.max_texture_side();
-            glutin_ctx.viewports[&ViewportId::ROOT]
-                .borrow_mut()
-                .egui_winit
-                .as_mut()
-                .unwrap()
-                .set_max_texture_side(glutin_ctx.max_texture_side);
+            let max_texture_side = painter.max_texture_side();
+            glutin_ctx.max_texture_side = Some(max_texture_side);
+            for viewport in glutin_ctx.viewports.values() {
+                if let Some(egui_winit) = viewport.borrow_mut().egui_winit.as_mut() {
+                    egui_winit.set_max_texture_side(max_texture_side);
+                }
+            }
 
             let system_theme = system_theme(
                 &glutin_ctx
@@ -1681,10 +1682,10 @@ mod glow_integration {
 
             Ok(match event {
                 winit::event::Event::Resumed => {
-                    // first resume event.
-                    // we can actually move this outside of event loop.
-                    // and just run the on_resume fn of gl_window
                     if self.running.borrow().is_none() {
+                        // first resume event.
+                        // we can actually move this outside of event loop.
+                        // and just run the on_resume fn of gl_window
                         self.init_run_state(event_loop)?;
                     } else {
                         // not the first resume event. create whatever you need.
