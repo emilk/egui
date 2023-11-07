@@ -78,12 +78,6 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) interactions: ViewportIdMap<Interaction>,
-
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) interaction: Interaction,
-
     // Current viewport
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) viewport_id: ViewportId,
@@ -100,10 +94,12 @@ pub struct Memory {
     everything_is_visible: bool,
 
     // -------------------------------------------------
-
     // Per-viewport:
     #[cfg_attr(feature = "persistence", serde(skip))]
     areas: ViewportIdMap<Areas>,
+
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    pub(crate) interactions: ViewportIdMap<Interaction>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     window_interactions: ViewportIdMap<window::WindowInteraction>,
@@ -118,7 +114,6 @@ impl Default for Memory {
             override_pixels_per_point: Default::default(),
             new_font_definitions: Default::default(),
             interactions: Default::default(),
-            interaction: Default::default(),
             viewport_id: Default::default(),
             window_interactions: Default::default(),
             drag_value: Default::default(),
@@ -126,6 +121,7 @@ impl Default for Memory {
             popup: Default::default(),
             everything_is_visible: Default::default(),
         };
+        slf.interactions.entry(slf.viewport_id).or_default();
         slf.areas.entry(slf.viewport_id).or_default();
         slf
     }
@@ -555,17 +551,11 @@ impl Memory {
             .entry(viewport_id)
             .or_default()
             .begin_frame(prev_input, new_input);
-        self.interaction = self.interactions.remove(&viewport_id).unwrap();
         self.areas.entry(viewport_id).or_default();
 
         if !prev_input.pointer.any_down() {
             self.window_interactions.remove(&viewport_id);
         }
-    }
-
-    pub(crate) fn pause_frame(&mut self, viewport_id: ViewportId) {
-        self.interactions
-            .insert(viewport_id, std::mem::take(&mut self.interaction));
     }
 
     pub(crate) fn end_frame(
@@ -576,9 +566,7 @@ impl Memory {
     ) {
         self.caches.update();
         self.areas_mut().end_frame();
-        self.interaction.focus.end_frame(used_ids);
-        self.interactions
-            .insert(self.viewport_id, std::mem::take(&mut self.interaction));
+        self.interaction_mut().focus.end_frame(used_ids);
         self.drag_value.end_frame(input);
         self.interactions.retain(|id, _| viewports.contains(id));
         self.areas.retain(|id, _| viewports.contains(id));
@@ -586,8 +574,7 @@ impl Memory {
             .retain(|id, _| viewports.contains(id));
     }
 
-    pub(crate) fn resume_frame(&mut self, viewport_id: ViewportId) {
-        self.interaction = self.interactions.remove(&viewport_id).unwrap_or_default();
+    pub(crate) fn set_viewport_id(&mut self, viewport_id: ViewportId) {
         self.viewport_id = viewport_id;
     }
 
@@ -614,7 +601,7 @@ impl Memory {
     }
 
     pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
-        self.interaction.focus.id_previous_frame == Some(id)
+        self.interaction().focus.id_previous_frame == Some(id)
     }
 
     /// True if the given widget had keyboard focus last frame, but not this one.
@@ -635,12 +622,12 @@ impl Memory {
     /// from the window and back.
     #[inline(always)]
     pub fn has_focus(&self, id: Id) -> bool {
-        self.interaction.focus.focused() == Some(id)
+        self.interaction().focus.focused() == Some(id)
     }
 
     /// Which widget has keyboard focus?
     pub fn focus(&self) -> Option<Id> {
-        self.interaction.focus.focused()
+        self.interaction().focus.focused()
     }
 
     /// Set an event filter for a widget.
@@ -651,7 +638,7 @@ impl Memory {
     /// You must first give focus to the widget before calling this.
     pub fn set_focus_lock_filter(&mut self, id: Id, event_filter: EventFilter) {
         if self.had_focus_last_frame(id) && self.has_focus(id) {
-            if let Some(focused) = &mut self.interaction.focus.focused_widget {
+            if let Some(focused) = &mut self.interaction_mut().focus.focused_widget {
                 if focused.id == id {
                     focused.filter = event_filter;
                 }
@@ -678,15 +665,16 @@ impl Memory {
     /// See also [`crate::Response::request_focus`].
     #[inline(always)]
     pub fn request_focus(&mut self, id: Id) {
-        self.interaction.focus.focused_widget = Some(FocusWidget::new(id));
+        self.interaction_mut().focus.focused_widget = Some(FocusWidget::new(id));
     }
 
     /// Surrender keyboard focus for a specific widget.
     /// See also [`crate::Response::surrender_focus`].
     #[inline(always)]
     pub fn surrender_focus(&mut self, id: Id) {
-        if self.interaction.focus.focused() == Some(id) {
-            self.interaction.focus.focused_widget = None;
+        let interaction = self.interaction_mut();
+        if interaction.focus.focused() == Some(id) {
+            interaction.focus.focused_widget = None;
         }
     }
 
@@ -699,37 +687,37 @@ impl Memory {
     /// and rendered correctly in a single frame.
     #[inline(always)]
     pub fn interested_in_focus(&mut self, id: Id) {
-        self.interaction.focus.interested_in_focus(id);
+        self.interaction_mut().focus.interested_in_focus(id);
     }
 
     /// Stop editing of active [`TextEdit`](crate::TextEdit) (if any).
     #[inline(always)]
     pub fn stop_text_input(&mut self) {
-        self.interaction.focus.focused_widget = None;
+        self.interaction_mut().focus.focused_widget = None;
     }
 
     /// Is any widget being dragged?
     #[inline(always)]
     pub fn is_anything_being_dragged(&self) -> bool {
-        self.interaction.drag_id.is_some()
+        self.interaction().drag_id.is_some()
     }
 
     /// Is this specific widget being dragged?
     #[inline(always)]
     pub fn is_being_dragged(&self, id: Id) -> bool {
-        self.interaction.drag_id == Some(id)
+        self.interaction().drag_id == Some(id)
     }
 
     /// Set which widget is being dragged.
     #[inline(always)]
     pub fn set_dragged_id(&mut self, id: Id) {
-        self.interaction.drag_id = Some(id);
+        self.interaction_mut().drag_id = Some(id);
     }
 
     /// Stop dragging any widget.
     #[inline(always)]
     pub fn stop_dragging(&mut self) {
-        self.interaction.drag_id = None;
+        self.interaction_mut().drag_id = None;
     }
 
     /// Forget window positions, sizes etc.
@@ -753,6 +741,16 @@ impl Memory {
         } else {
             self.window_interactions.remove(&self.viewport_id);
         }
+    }
+
+    pub(crate) fn interaction(&self) -> &Interaction {
+        self.interactions
+            .get(&self.viewport_id)
+            .expect("Failed to get interaction")
+    }
+
+    pub(crate) fn interaction_mut(&mut self) -> &mut Interaction {
+        self.interactions.entry(self.viewport_id).or_default()
     }
 }
 

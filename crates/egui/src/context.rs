@@ -191,13 +191,6 @@ struct ContextImpl {
 
 impl ContextImpl {
     fn begin_frame_mut(&mut self, mut new_raw_input: RawInput, id_pair: ViewportIdPair) {
-        if let Some(id_pair) = self.viewport_stack.last().copied() {
-            let previous_viewport_id = id_pair.this;
-
-            // Pause the active viewport
-            self.memory.pause_frame(previous_viewport_id);
-        }
-
         let viewport_id = id_pair.this;
         self.viewport_stack.push(id_pair);
         self.output.entry(self.viewport_id()).or_default();
@@ -915,21 +908,25 @@ impl Context {
             }
 
             if sense.click || sense.drag {
-                memory.interaction.click_interest |= hovered && sense.click;
-                memory.interaction.drag_interest |= hovered && sense.drag;
+                let interaction = memory.interaction_mut();
 
-                response.dragged = memory.interaction.drag_id == Some(id);
+                interaction.click_interest |= hovered && sense.click;
+                interaction.drag_interest |= hovered && sense.drag;
+
+                response.dragged = interaction.drag_id == Some(id);
                 response.is_pointer_button_down_on =
-                    memory.interaction.click_id == Some(id) || response.dragged;
+                    interaction.click_id == Some(id) || response.dragged;
 
                 for pointer_event in &input.pointer.pointer_events {
                     match pointer_event {
                         PointerEvent::Moved(_) => {}
                         PointerEvent::Pressed { .. } => {
                             if hovered {
-                                if sense.click && memory.interaction.click_id.is_none() {
+                                let interaction = memory.interaction_mut();
+
+                                if sense.click && interaction.click_id.is_none() {
                                     // potential start of a click
-                                    memory.interaction.click_id = Some(id);
+                                    interaction.click_id = Some(id);
                                     response.is_pointer_button_down_on = true;
                                 }
 
@@ -939,12 +936,11 @@ impl Context {
                                 // This is needed because we do window interaction first (to prevent frame delay),
                                 // and then do content layout.
                                 if sense.drag
-                                    && (memory.interaction.drag_id.is_none()
-                                        || memory.interaction.drag_is_window)
+                                    && (interaction.drag_id.is_none() || interaction.drag_is_window)
                                 {
                                     // potential start of a drag
-                                    memory.interaction.drag_id = Some(id);
-                                    memory.interaction.drag_is_window = false;
+                                    interaction.drag_id = Some(id);
+                                    interaction.drag_is_window = false;
                                     memory.set_window_interaction(None); // HACK: stop moving windows (if any)
                                     response.is_pointer_button_down_on = true;
                                     response.dragged = true;
@@ -1598,7 +1594,7 @@ impl Context {
         } else {
             let viewport_id = self.viewport_id();
             self.write(|ctx| {
-                ctx.memory.resume_frame(viewport_id);
+                ctx.memory.set_viewport_id(viewport_id);
             });
         }
 
@@ -1751,12 +1747,12 @@ impl Context {
     ///
     /// NOTE: this will return `false` if the pointer is just hovering over an egui area.
     pub fn is_using_pointer(&self) -> bool {
-        self.memory(|m| m.interaction.is_using_pointer())
+        self.memory(|m| m.interaction().is_using_pointer())
     }
 
     /// If `true`, egui is currently listening on text input (e.g. typing text in a [`TextEdit`]).
     pub fn wants_keyboard_input(&self) -> bool {
-        self.memory(|m| m.interaction.focus.focused().is_some())
+        self.memory(|m| m.interaction().focus.focused().is_some())
     }
 
     /// Highlight this widget, to make it look like it is hovered, even if it isn't.
@@ -1960,7 +1956,7 @@ impl Context {
         .on_hover_text("Is egui currently listening for text input?");
         ui.label(format!(
             "Keyboard focus widget: {}",
-            self.memory(|m| m.interaction.focus.focused())
+            self.memory(|m| m.interaction().focus.focused())
                 .as_ref()
                 .map(Id::short_debug_format)
                 .unwrap_or_default()
@@ -2167,7 +2163,7 @@ impl Context {
         ui.label("NOTE: the position of this window cannot be reset from within itself.");
 
         ui.collapsing("Interaction", |ui| {
-            let interaction = self.memory(|mem| mem.interaction.clone());
+            let interaction = self.memory(|mem| mem.interaction().clone());
             interaction.ui(ui);
         });
     }

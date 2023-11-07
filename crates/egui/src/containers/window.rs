@@ -633,7 +633,7 @@ fn window_interaction(
     rect: Rect,
 ) -> Option<WindowInteraction> {
     {
-        let drag_id = ctx.memory(|mem| mem.interaction.drag_id);
+        let drag_id = ctx.memory(|mem| mem.interaction().drag_id);
 
         if drag_id.is_some() && drag_id != Some(id) {
             return None;
@@ -647,8 +647,8 @@ fn window_interaction(
             hover_window_interaction.set_cursor(ctx);
             if ctx.input(|i| i.pointer.any_pressed() && i.pointer.primary_down()) {
                 ctx.memory_mut(|mem| {
-                    mem.interaction.drag_id = Some(id);
-                    mem.interaction.drag_is_window = true;
+                    mem.interaction_mut().drag_id = Some(id);
+                    mem.interaction_mut().drag_is_window = true;
                     window_interaction = Some(hover_window_interaction);
                     mem.set_window_interaction(window_interaction);
                 });
@@ -657,7 +657,7 @@ fn window_interaction(
     }
 
     if let Some(window_interaction) = window_interaction {
-        let is_active = ctx.memory_mut(|mem| mem.interaction.drag_id == Some(id));
+        let is_active = ctx.memory_mut(|mem| mem.interaction().drag_id == Some(id));
 
         if is_active && window_interaction.area_layer_id == area_layer_id {
             return Some(window_interaction);
@@ -685,7 +685,7 @@ fn resize_hover(
         }
     }
 
-    if ctx.memory(|mem| mem.interaction.drag_interest) {
+    if ctx.memory(|mem| mem.interaction().drag_interest) {
         // Another widget will become active if we drag here
         return None;
     }
