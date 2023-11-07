@@ -538,8 +538,7 @@ mod glow_integration {
     }
 
     impl GlutinWindowContext {
-        /// There is a lot of complexity with opengl creation, so prefer extensive logging to get all the help we can to debug issues.
-        ///
+        /// Also calls `on_resume` on self.
         #[allow(unsafe_code)]
         unsafe fn new(
             window_builder: ViewportBuilder,
@@ -547,6 +546,9 @@ mod glow_integration {
             event_loop: &EventLoopWindowTarget<UserEvent>,
         ) -> Result<Self> {
             crate::profile_function!();
+
+            // There is a lot of complexity with opengl creation,
+            // so prefer extensive logging to get all the help we can to debug issues.
 
             use glutin::prelude::*;
             // convert native options to glutin options
@@ -663,8 +665,8 @@ mod glow_integration {
                 window_maps.insert(ViewportId::ROOT, window.id());
             }
 
-            let mut windows = ViewportIdMap::default();
-            windows.insert(
+            let mut viewports = ViewportIdMap::default();
+            viewports.insert(
                 ViewportId::ROOT,
                 Rc::new(RefCell::new(Viewport {
                     gl_surface: None,
@@ -682,18 +684,23 @@ mod glow_integration {
             // it could keep working until we try to make surface current or swap buffers or something else. future glutin improvements might
             // help us start from scratch again if we fail context creation and go back to preferEgl or try with different config etc..
             // https://github.com/emilk/egui/pull/2541#issuecomment-1370767582
-            Ok(GlutinWindowContext {
+
+            let mut slf = GlutinWindowContext {
                 swap_interval,
                 gl_config,
                 current_gl_context: None,
                 not_current_gl_context,
-                viewports: windows,
+                viewports,
                 builders,
                 viewport_maps,
                 // This is initialize in init_run_state
                 max_texture_side: 0,
                 window_maps,
-            })
+            };
+
+            slf.on_resume(event_loop)?;
+
+            Ok(slf)
         }
 
         /// This will be run after `new`. on android, it might be called multiple times over the course of the app's lifetime.
@@ -707,30 +714,29 @@ mod glow_integration {
         fn on_resume(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
             crate::profile_function!();
 
-            let windows = self
+            let viewports = self
                 .viewports
                 .values()
                 .cloned()
                 .collect::<Vec<Rc<RefCell<Viewport>>>>();
-            for window in windows {
-                if window.borrow().gl_surface.is_some() {
-                    continue;
+            for viewport in viewports {
+                if viewport.borrow().gl_surface.is_none() {
+                    self.init_viewport(&viewport, event_loop)?;
                 }
-                self.init_window(&window, event_loop)?;
             }
             Ok(())
         }
 
         #[allow(unsafe_code)]
-        pub(crate) fn init_window(
+        pub(crate) fn init_viewport(
             &mut self,
-            win: &Rc<RefCell<Viewport>>,
+            viewport: &Rc<RefCell<Viewport>>,
             event_loop: &EventLoopWindowTarget<UserEvent>,
         ) -> Result<()> {
-            let builder = &self.builders[&win.borrow().id_pair.this];
-            let mut win = win.borrow_mut();
+            let builder = &self.builders[&viewport.borrow().id_pair.this];
+            let mut viewport = viewport.borrow_mut();
             // make sure we have a window or create one.
-            let window = win.window.take().unwrap_or_else(|| {
+            let window = viewport.window.take().unwrap_or_else(|| {
                 log::debug!("window doesn't exist yet. creating one now with finalize_window");
                 Rc::new(RefCell::new(
                     glutin_winit::finalize_window(
@@ -784,22 +790,21 @@ mod glow_integration {
                 // we will reach this point only once in most platforms except android.
                 // create window/surface/make context current once and just use them forever.
 
-                let native_pixels_per_point = window.scale_factor() as f32;
-
-                if win.egui_winit.is_none() {
-                    win.egui_winit = Some(egui_winit::State::new(
+                if viewport.egui_winit.is_none() {
+                    viewport.egui_winit = Some(egui_winit::State::new(
                         event_loop,
-                        Some(native_pixels_per_point),
+                        Some(window.scale_factor() as f32),
                         Some(self.max_texture_side),
                     ));
                 }
 
-                win.gl_surface = Some(gl_surface);
+                viewport.gl_surface = Some(gl_surface);
                 self.current_gl_context = Some(current_gl_context);
-                self.viewport_maps.insert(window.id(), win.id_pair.this);
-                self.window_maps.insert(win.id_pair.this, window.id());
+                self.viewport_maps
+                    .insert(window.id(), viewport.id_pair.this);
+                self.window_maps.insert(viewport.id_pair.this, window.id());
             }
-            win.window = Some(window);
+            viewport.window = Some(window);
             Ok(())
         }
 
@@ -900,17 +905,16 @@ mod glow_integration {
             storage: Option<&dyn epi::Storage>,
             title: &str,
             native_options: &mut NativeOptions,
-        ) -> Result<(GlutinWindowContext, glow::Context)> {
+        ) -> Result<(GlutinWindowContext, egui_glow::Painter)> {
             crate::profile_function!();
 
             let window_settings = epi_integration::load_window_settings(storage);
 
             let winit_window_builder =
                 epi_integration::window_builder(event_loop, title, native_options, window_settings);
-            let mut glutin_window_context = unsafe {
+            let glutin_window_context = unsafe {
                 GlutinWindowContext::new(winit_window_builder, native_options, event_loop)?
             };
-            glutin_window_context.on_resume(event_loop)?;
 
             if let Some(window) = &glutin_window_context.viewports.get(&ViewportId::ROOT) {
                 let window = window.borrow();
@@ -933,7 +937,12 @@ mod glow_integration {
                 })
             };
 
-            Ok((glutin_window_context, gl))
+            let gl = Arc::new(gl);
+
+            let painter = egui_glow::Painter::new(gl, "", native_options.shader_version)
+                .unwrap_or_else(|err| panic!("An OpenGL error occurred: {err}\n"));
+
+            Ok((glutin_window_context, painter))
         }
 
         fn init_run_state(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
@@ -945,17 +954,13 @@ mod glow_integration {
                     .unwrap_or(&self.app_name),
             );
 
-            let (mut glutin_ctx, gl) = Self::create_glutin_windowed_context(
+            let (mut glutin_ctx, painter) = Self::create_glutin_windowed_context(
                 event_loop,
                 storage.as_deref(),
                 &self.app_name,
                 &mut self.native_options,
             )?;
-            let gl = Arc::new(gl);
-
-            let painter =
-                egui_glow::Painter::new(gl.clone(), "", self.native_options.shader_version)
-                    .unwrap_or_else(|err| panic!("An OpenGL error occurred: {err}\n"));
+            let gl = painter.gl().clone();
 
             glutin_ctx.max_texture_side = painter.max_texture_side();
             glutin_ctx.viewports[&ViewportId::ROOT]
@@ -1171,7 +1176,7 @@ mod glow_integration {
                     })
                 };
                 glutin
-                    .init_window(&win, event_loop)
+                    .init_viewport(&win, event_loop)
                     .expect("Cannot init window on egui::Context::show_viewport_immediate");
             }
 
