@@ -45,8 +45,6 @@ impl EguiGlow {
         self.egui_winit.on_event(&self.egui_ctx, event)
     }
 
-    /// Returns the `Duration` of the timeout after which egui should be repainted even if there's no new events.
-    ///
     /// Call [`Self::paint`] later to paint.
     pub fn run(&mut self, window: &winit::window::Window, run_ui: impl FnMut(&egui::Context)) {
         let raw_input = self.egui_winit.take_egui_input(window);

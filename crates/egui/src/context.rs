@@ -139,7 +139,7 @@ impl Repaint {
 // ----------------------------------------------------------------------------
 
 thread_local! {
-    static EGUI_RENDER_SYNC: RefCell<Option<Box<ViewportRenderSyncCallback>>> = Default::default();
+    static IMMEDIATE_VIEWPORT_RENDERER: RefCell<Option<Box<ImmediateViewportRendererCallback>>> = Default::default();
 }
 
 // ----------------------------------------------------------------------------
@@ -170,7 +170,7 @@ struct ContextImpl {
 
     repaint: Repaint,
 
-    viewports: ViewportIdMap<Viewport>,
+    viewports: ViewportIdMap<ViewportState>,
     viewport_commands: Vec<(ViewportId, ViewportCommand)>,
 
     embed_viewports: bool,
@@ -2508,15 +2508,15 @@ impl Context {
     ///
     /// When a viewport sync is created will be rendered by this function
     ///
-    /// Look in `crates/eframe/native/run.rs` and search for `set_render_sync_callback` to see for what is used.
+    /// Look in `crates/eframe/native/run.rs` and search for `set_immediate_viewport_renderer` to see for what is used.
     #[allow(clippy::unused_self)]
-    pub fn set_render_sync_callback(
+    pub fn set_immediate_viewport_renderer(
         &self,
         callback: impl for<'a> Fn(&Context, ViewportBuilder, ViewportIdPair, Box<dyn FnOnce(&Context) + 'a>)
             + 'static,
     ) {
         let callback = Box::new(callback);
-        EGUI_RENDER_SYNC.with(|render_sync| {
+        IMMEDIATE_VIEWPORT_RENDERER.with(|render_sync| {
             render_sync.replace(Some(callback));
         });
     }
@@ -2586,7 +2586,7 @@ impl Context {
                 } else {
                     ctx.viewports.insert(
                         viewport_builder.id,
-                        Viewport {
+                        ViewportState {
                             id_pair: ViewportIdPair {
                                 this: viewport_builder.id,
                                 parent: viewport_id,
@@ -2628,9 +2628,9 @@ impl Context {
             return viewport_ui_cb(self);
         }
 
-        EGUI_RENDER_SYNC.with(|render_sync_viewport_cb| {
-            let render_sync_viewport_cb = render_sync_viewport_cb.borrow();
-            let Some(render_sync_viewport_cb) = render_sync_viewport_cb.as_ref() else {
+        IMMEDIATE_VIEWPORT_RENDERER.with(|immediate_viewport_renderer| {
+            let immediate_viewport_renderer = immediate_viewport_renderer.borrow();
+            let Some(immediate_viewport_renderer) = immediate_viewport_renderer.as_ref() else {
                 // This egui backend does not support multiple viewports.
                 return viewport_ui_cb(self);
             };
@@ -2653,7 +2653,7 @@ impl Context {
                     };
                     ctx.viewports.insert(
                         viewport_builder.id,
-                        Viewport {
+                        ViewportState {
                             builder: viewport_builder.clone(),
                             id_pair,
                             used: true,
@@ -2668,7 +2668,7 @@ impl Context {
             {
                 let out = &mut out;
 
-                render_sync_viewport_cb(
+                immediate_viewport_renderer(
                     self,
                     viewport_builder,
                     id_pair,

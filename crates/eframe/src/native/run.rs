@@ -1086,7 +1086,7 @@ mod glow_integration {
                 let painter = Rc::downgrade(&painter);
                 let beginning = integration.beginning;
 
-                integration.egui_ctx.set_render_sync_callback(
+                integration.egui_ctx.set_immediate_viewport_renderer(
                     move |egui_ctx, viewport_builder, id_pair, viewport_ui_cb| {
                         if let (Some(glutin), Some(gl), Some(painter)) =
                             (glutin.upgrade(), gl.upgrade(), painter.upgrade())
@@ -2210,7 +2210,7 @@ mod wgpu_integration {
                 let viewport_maps = Rc::downgrade(&viewport_maps);
                 let beginning = integration.beginning;
 
-                integration.egui_ctx.set_render_sync_callback(
+                integration.egui_ctx.set_immediate_viewport_renderer(
                     move |egui_ctx, viewport_builder, id_pair, viewport_ui_cb| {
                         if let (
                             Some(viewports),
