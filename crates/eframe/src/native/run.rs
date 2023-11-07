@@ -459,7 +459,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 mod glow_integration {
 
     use egui::{
-        epaint::ahash::HashMap, NumExt as _, ViewportIdPair, ViewportMap, ViewportOutput,
+        epaint::ahash::HashMap, NumExt as _, ViewportIdMap, ViewportIdPair, ViewportOutput,
         ViewportUiCallback,
     };
     use egui_winit::{
@@ -533,11 +533,11 @@ mod glow_integration {
         current_gl_context: Option<glutin::context::PossiblyCurrentContext>,
         not_current_gl_context: Option<glutin::context::NotCurrentContext>,
 
-        viewports: ViewportMap<Rc<RefCell<Viewport>>>,
+        viewports: ViewportIdMap<Rc<RefCell<Viewport>>>,
         viewport_maps: HashMap<winit::window::WindowId, ViewportId>,
-        window_maps: ViewportMap<winit::window::WindowId>,
+        window_maps: ViewportIdMap<winit::window::WindowId>,
 
-        builders: ViewportMap<ViewportBuilder>,
+        builders: ViewportIdMap<ViewportBuilder>,
     }
 
     impl GlutinWindowContext {
@@ -660,13 +660,13 @@ mod glow_integration {
             let not_current_gl_context = Some(gl_context);
 
             let mut viewport_maps = HashMap::default();
-            let mut window_maps = ViewportMap::default();
+            let mut window_maps = ViewportIdMap::default();
             if let Some(window) = &window {
                 viewport_maps.insert(window.id(), ViewportId::ROOT);
                 window_maps.insert(ViewportId::ROOT, window.id());
             }
 
-            let mut windows = ViewportMap::default();
+            let mut windows = ViewportIdMap::default();
             windows.insert(
                 ViewportId::ROOT,
                 Rc::new(RefCell::new(Viewport {
@@ -678,7 +678,7 @@ mod glow_integration {
                 })),
             );
 
-            let mut builders = ViewportMap::default();
+            let mut builders = ViewportIdMap::default();
             builders.insert(ViewportId::ROOT, window_builder);
 
             // the fun part with opengl gl is that we never know whether there is an error. the context creation might have failed, but
@@ -1888,7 +1888,7 @@ pub use glow_integration::run_glow;
 
 #[cfg(feature = "wgpu")]
 mod wgpu_integration {
-    use egui::{ViewportIdPair, ViewportMap, ViewportOutput, ViewportUiCallback};
+    use egui::{ViewportIdMap, ViewportIdPair, ViewportOutput, ViewportUiCallback};
     use egui_winit::create_winit_window_builder;
     use parking_lot::Mutex;
 
@@ -1907,10 +1907,10 @@ mod wgpu_integration {
     }
 
     #[derive(Clone, Default)]
-    pub struct Viewports(ViewportMap<Viewport>);
+    pub struct Viewports(ViewportIdMap<Viewport>);
 
     impl std::ops::Deref for Viewports {
-        type Target = ViewportMap<Viewport>;
+        type Target = ViewportIdMap<Viewport>;
 
         fn deref(&self) -> &Self::Target {
             &self.0
@@ -1931,7 +1931,7 @@ mod wgpu_integration {
         integration: Rc<RefCell<epi_integration::EpiIntegration>>,
         app: Box<dyn epi::App>,
         viewports: Rc<RefCell<Viewports>>,
-        builders: Rc<RefCell<ViewportMap<ViewportBuilder>>>,
+        builders: Rc<RefCell<ViewportIdMap<ViewportBuilder>>>,
         viewport_maps: Rc<RefCell<HashMap<winit::window::WindowId, ViewportId>>>,
     }
 
@@ -2178,7 +2178,7 @@ mod wgpu_integration {
                 },
             );
 
-            let builders = Rc::new(RefCell::new(ViewportMap::default()));
+            let builders = Rc::new(RefCell::new(ViewportIdMap::default()));
             builders.borrow_mut().insert(ViewportId::ROOT, builder);
 
             let painter = Rc::new(RefCell::new(painter));
@@ -2243,7 +2243,7 @@ mod wgpu_integration {
             id_pair: ViewportIdPair,
             viewport_ui_cb: Box<dyn FnOnce(&egui::Context) + '_>,
             viewports: &RefCell<Viewports>,
-            builders: &RefCell<ViewportMap<ViewportBuilder>>,
+            builders: &RefCell<ViewportIdMap<ViewportBuilder>>,
             beginning: Instant,
             painter: &RefCell<egui_wgpu::winit::Painter>,
             viewport_maps: &RefCell<HashMap<winit::window::WindowId, ViewportId>>,

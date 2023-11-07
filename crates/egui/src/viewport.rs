@@ -51,8 +51,11 @@ impl From<ViewportId> for Id {
 
 impl nohash_hasher::IsEnabled for ViewportId {}
 
+/// A fast hash set of [`ViewportId`].
+pub type ViewportIdSet = nohash_hasher::IntSet<ViewportId>;
+
 /// A fast hash map from [`ViewportId`] to `T`.
-pub type ViewportMap<T> = nohash_hasher::IntMap<ViewportId, T>;
+pub type ViewportIdMap<T> = nohash_hasher::IntMap<ViewportId, T>;
 
 // ----------------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 use std::{num::NonZeroU32, sync::Arc};
 
-use egui::{ViewportId, ViewportMap};
+use egui::{ViewportId, ViewportIdMap};
 
 use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
 
@@ -79,13 +79,13 @@ pub struct Painter {
     msaa_samples: u32,
     support_transparent_backbuffer: bool,
     depth_format: Option<wgpu::TextureFormat>,
-    depth_texture_view: ViewportMap<wgpu::TextureView>,
-    msaa_texture_view: ViewportMap<wgpu::TextureView>,
+    depth_texture_view: ViewportIdMap<wgpu::TextureView>,
+    msaa_texture_view: ViewportIdMap<wgpu::TextureView>,
     screen_capture_state: Option<CaptureState>,
 
     instance: wgpu::Instance,
     render_state: Option<RenderState>,
-    surfaces: ViewportMap<SurfaceState>,
+    surfaces: ViewportIdMap<SurfaceState>,
 }
 
 unsafe impl Send for Painter {}

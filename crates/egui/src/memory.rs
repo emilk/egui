@@ -4,7 +4,7 @@ use epaint::{emath::Rangef, vec2, Vec2};
 
 use crate::{
     area, window, EventFilter, Id, IdMap, InputState, LayerId, Pos2, Rect, Style, ViewportId,
-    ViewportMap,
+    ViewportIdMap,
 };
 
 // ----------------------------------------------------------------------------
@@ -78,7 +78,7 @@ pub struct Memory {
     pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) interactions: ViewportMap<Interaction>,
+    pub(crate) interactions: ViewportIdMap<Interaction>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) interaction: Interaction,
@@ -91,7 +91,7 @@ pub struct Memory {
     pub(crate) window_interaction: Option<window::WindowInteraction>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) window_interactions: ViewportMap<window::WindowInteraction>,
+    pub(crate) window_interactions: ViewportIdMap<window::WindowInteraction>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) drag_value: crate::widgets::drag_value::MonoState,
@@ -100,7 +100,7 @@ pub struct Memory {
     pub(crate) areas: Areas,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) viewports_areas: ViewportMap<Areas>,
+    pub(crate) viewports_areas: ViewportIdMap<Areas>,
 
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.

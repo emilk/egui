@@ -59,13 +59,13 @@ struct Repaint {
     /// The current frame number.
     ///
     /// Incremented at the end of each frame.
-    viewports_frame_nr: ViewportMap<u64>,
+    viewports_frame_nr: ViewportIdMap<u64>,
 
     /// While positive, keep requesting repaints. Decrement at the start of each frame.
-    repaint_request: ViewportMap<u8>,
+    repaint_request: ViewportIdMap<u8>,
     request_repaint_callback: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
 
-    requested_repaint_last_frame: ViewportMap<bool>,
+    requested_repaint_last_frame: ViewportIdMap<bool>,
 }
 
 impl Repaint {
@@ -110,7 +110,7 @@ impl Repaint {
     }
 
     // returns what is needed to be repainted
-    fn end_frame(&mut self, viewport_id: ViewportId, viewports: &[ViewportId]) {
+    fn end_frame(&mut self, viewport_id: ViewportId, viewports: &ViewportIdSet) {
         *self.viewports_frame_nr.entry(viewport_id).or_default() += 1;
 
         self.requested_repaint_last_frame
@@ -154,32 +154,32 @@ struct ContextImpl {
 
     os: OperatingSystem,
 
-    input: ViewportMap<InputState>,
+    input: ViewportIdMap<InputState>,
 
     /// State that is collected during a frame and then cleared
-    frame_state: ViewportMap<FrameState>,
+    frame_state: ViewportIdMap<FrameState>,
 
     /// How deeply nested are we?
     viewport_stack: Vec<ViewportIdPair>,
 
     // The output of a frame:
-    graphics: ViewportMap<GraphicLayers>,
-    output: ViewportMap<PlatformOutput>,
+    graphics: ViewportIdMap<GraphicLayers>,
+    output: ViewportIdMap<PlatformOutput>,
 
     paint_stats: PaintStats,
 
     repaint: Repaint,
 
-    viewports: ViewportMap<Viewport>,
+    viewports: ViewportIdMap<Viewport>,
     viewport_commands: Vec<(ViewportId, ViewportCommand)>,
 
     embed_viewports: bool,
 
     /// Written to during the frame.
-    layer_rects_this_frame: ViewportMap<HashMap<LayerId, Vec<(Id, Rect)>>>,
+    layer_rects_this_frame: ViewportIdMap<HashMap<LayerId, Vec<(Id, Rect)>>>,
 
     /// Read
-    layer_rects_prev_frame: ViewportMap<HashMap<LayerId, Vec<(Id, Rect)>>>,
+    layer_rects_prev_frame: ViewportIdMap<HashMap<LayerId, Vec<(Id, Rect)>>>,
 
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
@@ -1534,13 +1534,13 @@ impl Context {
 
         let shapes = self.drain_paint_lists();
 
-        // If there are no viewport that contains the current viewport that viewport needs to be destroyed!
-        let available_viewports = self.read(|ctx| {
-            let mut available_viewports = vec![ViewportId::ROOT];
+        let all_viewport_ids = self.read(|ctx| {
+            let mut all_viewport_ids = ViewportIdSet::default();
+            all_viewport_ids.insert(ViewportId::ROOT);
             for vp in ctx.viewports.values() {
-                available_viewports.push(vp.id_pair.this);
+                all_viewport_ids.insert(vp.id_pair.this);
             }
-            available_viewports
+            all_viewport_ids
         });
 
         let viewport_id = self.viewport_id();
@@ -1559,8 +1559,9 @@ impl Context {
                     id_pair: viewport.id_pair,
                     viewport_ui_cb: viewport.viewport_ui_cb.clone(),
                 });
+
                 (was_used || viewport_id != viewport.id_pair.parent)
-                    && available_viewports.contains(&viewport.id_pair.parent)
+                    && all_viewport_ids.contains(&viewport.id_pair.parent)
             });
         });
 
@@ -1573,16 +1574,15 @@ impl Context {
         if is_last {
             // Context Cleanup
             self.write(|ctx| {
-                ctx.input.retain(|id, _| available_viewports.contains(id));
+                ctx.input.retain(|id, _| all_viewport_ids.contains(id));
                 ctx.layer_rects_prev_frame
-                    .retain(|id, _| available_viewports.contains(id));
+                    .retain(|id, _| all_viewport_ids.contains(id));
                 ctx.layer_rects_this_frame
-                    .retain(|id, _| available_viewports.contains(id));
-                ctx.output.retain(|id, _| available_viewports.contains(id));
+                    .retain(|id, _| all_viewport_ids.contains(id));
+                ctx.output.retain(|id, _| all_viewport_ids.contains(id));
                 ctx.frame_state
-                    .retain(|id, _| available_viewports.contains(id));
-                ctx.graphics
-                    .retain(|id, _| available_viewports.contains(id));
+                    .retain(|id, _| all_viewport_ids.contains(id));
+                ctx.graphics.retain(|id, _| all_viewport_ids.contains(id));
             });
         } else {
             let viewport_id = self.viewport_id();
@@ -1591,7 +1591,7 @@ impl Context {
             });
         }
 
-        self.write(|ctx| ctx.repaint.end_frame(viewport_id, &available_viewports));
+        self.write(|ctx| ctx.repaint.end_frame(viewport_id, &all_viewport_ids));
 
         FullOutput {
             platform_output,
