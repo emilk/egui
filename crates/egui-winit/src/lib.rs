@@ -994,7 +994,12 @@ pub fn process_viewport_commands(
                 let height = size.y.max(1.0);
                 window.set_inner_size(LogicalSize::new(width, height));
             }
-            egui::ViewportCommand::Resize(top, bottom, right, left) => {
+            egui::ViewportCommand::BeginResize {
+                top,
+                bottom,
+                right,
+                left,
+            } => {
                 // TODO posibile return the error to `egui::Context`
                 let _ = window.drag_resize_window(match (top, bottom, right, left) {
                     (true, false, false, false) => ResizeDirection::North,

@@ -569,7 +569,9 @@ impl ViewportBuilder {
     }
 }
 
-/// You can send a `ViewportCommand` to the viewport with `Context::viewport_command`
+/// You can send a [`ViewportCommand`] to the viewport with [`Context::viewport_command`].
+///
+/// All coordinates are in logical points.
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ViewportCommand {
@@ -578,7 +580,7 @@ pub enum ViewportCommand {
     Visible(bool),
     Drag,
 
-    /// Will probably not work as expected!
+    /// Set the outer position of the viewport, i.e. moves the window.
     OuterPosition(Pos2),
 
     /// Should be bigger then 0
@@ -593,8 +595,17 @@ pub enum ViewportCommand {
     /// Should be bigger then 0
     ResizeIncrements(Option<Vec2>),
 
-    /// Top, Bottom, Right, Left
-    Resize(bool, bool, bool, bool),
+    /// Begin resizing the viewport with the left mouse button until the button is released.
+    ///
+    /// There's no guarantee that this will work unless the left mouse button was pressed
+    /// immediately before this function is called.
+    BeginResize {
+        top: bool,
+        bottom: bool,
+        right: bool,
+        left: bool,
+    },
+
     Resizable(bool),
     EnableButtons {
         close: bool,
@@ -618,7 +629,7 @@ pub enum ViewportCommand {
     /// 0 = Informational, 1 = Critical
     RequestUserAttention(Option<u8>),
 
-    /// 0 = Light, 1 = Dark
+    /// 0 = Light, 1 = Dark, `None` = system default.
     SetTheme(Option<u8>),
 
     ContentProtected(bool),
