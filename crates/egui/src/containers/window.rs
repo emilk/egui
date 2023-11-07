@@ -580,7 +580,7 @@ fn interact(
         }
     }
 
-    ctx.memory_mut(|mem| mem.areas.move_to_top(area_layer_id));
+    ctx.memory_mut(|mem| mem.areas_mut().move_to_top(area_layer_id));
     Some(window_interaction)
 }
 

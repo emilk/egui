@@ -251,7 +251,7 @@ impl ContextImpl {
         // Ensure we register the background area so panels and background ui can catch clicks:
         let input = &self.input[&viewport_id];
         let screen_rect = input.screen_rect();
-        self.memory.areas.set_state(
+        self.memory.areas_mut().set_state(
             LayerId::background(),
             containers::area::State {
                 pivot_pos: screen_rect.left_top(),
@@ -1624,7 +1624,7 @@ impl Context {
             ctx.graphics
                 .entry(ctx.viewport_id())
                 .or_default()
-                .drain(ctx.memory.areas.order())
+                .drain(ctx.memory.areas().order())
                 .collect()
         })
     }
@@ -1702,7 +1702,7 @@ impl Context {
     pub fn used_rect(&self) -> Rect {
         self.read(|ctx| {
             let mut used = ctx.frame_state[&ctx.viewport_id()].used_by_panels;
-            for window in ctx.memory.areas.visible_windows() {
+            for window in ctx.memory.areas().visible_windows() {
                 used = used.union(window.rect());
             }
             used
@@ -1830,7 +1830,7 @@ impl Context {
     ///
     /// [`Area`]:s and [`Window`]:s also do this automatically when being clicked on or interacted with.
     pub fn move_to_top(&self, layer_id: LayerId) {
-        self.memory_mut(|mem| mem.areas.move_to_top(layer_id));
+        self.memory_mut(|mem| mem.areas_mut().move_to_top(layer_id));
     }
 
     pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
@@ -2091,20 +2091,20 @@ impl Context {
         ui.horizontal(|ui| {
             ui.label(format!(
                 "{} areas (panels, windows, popups, …)",
-                self.memory(|mem| mem.areas.count())
+                self.memory(|mem| mem.areas().count())
             ));
             if ui.button("Reset").clicked() {
-                self.memory_mut(|mem| mem.areas = Default::default());
+                self.memory_mut(|mem| *mem.areas_mut() = Default::default());
             }
         });
         ui.indent("areas", |ui| {
             ui.label("Visible areas, ordered back to front.");
             ui.label("Hover to highlight");
-            let layers_ids: Vec<LayerId> = self.memory(|mem| mem.areas.order().to_vec());
+            let layers_ids: Vec<LayerId> = self.memory(|mem| mem.areas().order().to_vec());
             for layer_id in layers_ids {
-                let area = self.memory(|mem| mem.areas.get(layer_id.id).copied());
+                let area = self.memory(|mem| mem.areas().get(layer_id.id).copied());
                 if let Some(area) = area {
-                    let is_visible = self.memory(|mem| mem.areas.is_visible(&layer_id));
+                    let is_visible = self.memory(|mem| mem.areas().is_visible(&layer_id));
                     if !is_visible {
                         continue;
                     }

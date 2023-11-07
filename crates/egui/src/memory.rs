@@ -97,7 +97,7 @@ pub struct Memory {
     pub(crate) drag_value: crate::widgets::drag_value::MonoState,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) areas: Areas,
+    areas: Areas,
 
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) viewports_areas: ViewportIdMap<Areas>,
@@ -565,7 +565,7 @@ impl Memory {
         used_ids: &IdMap<Rect>,
     ) {
         self.caches.update();
-        self.areas.end_frame();
+        self.areas_mut().end_frame();
         self.interaction.focus.end_frame(used_ids);
         self.interactions
             .insert(self.viewport_id, std::mem::take(&mut self.interaction));
@@ -588,14 +588,24 @@ impl Memory {
         self.window_interaction = self.window_interactions.remove(&viewport_id);
     }
 
+    /// Access memory of the [`Area`](crate::containers::area::Area)s, such as `Window`s.
+    pub fn areas(&self) -> &Areas {
+        &self.areas
+    }
+
+    /// Access memory of the [`Area`](crate::containers::area::Area)s, such as `Window`s.
+    pub fn areas_mut(&mut self) -> &mut Areas {
+        &mut self.areas
+    }
+
     /// Top-most layer at the given position.
     pub fn layer_id_at(&self, pos: Pos2, resize_interact_radius_side: f32) -> Option<LayerId> {
-        self.areas.layer_id_at(pos, resize_interact_radius_side)
+        self.areas().layer_id_at(pos, resize_interact_radius_side)
     }
 
     /// An iterator over all layers. Back-to-front. Top is last.
     pub fn layer_ids(&self) -> impl ExactSizeIterator<Item = LayerId> + '_ {
-        self.areas.order().iter().copied()
+        self.areas().order().iter().copied()
     }
 
     pub(crate) fn had_focus_last_frame(&self, id: Id) -> bool {
@@ -725,7 +735,7 @@ impl Memory {
 
     /// Obtain the previous rectangle of an area.
     pub fn area_rect(&self, id: impl Into<Id>) -> Option<Rect> {
-        self.areas.get(id.into()).map(|state| state.rect())
+        self.areas().get(id.into()).map(|state| state.rect())
     }
 }
 
