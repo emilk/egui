@@ -50,12 +50,6 @@ pub enum DisplayEvent {
     ToggleHidden,
 }
 
-impl DisplayEvent {
-    pub fn equals(&self, other: DisplayEvent) -> bool {
-        self == &other
-    }
-}
-
 // Helper function for user space
 pub trait SetEvent {
     fn set(&mut self, display_event: DisplayEvent);
