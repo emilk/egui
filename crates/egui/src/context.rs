@@ -1459,7 +1459,7 @@ impl Context {
     pub fn end_frame(&self) -> FullOutput {
         crate::profile_function!();
 
-        let mut viewports: Vec<ViewportId> = self.write(|ctx| {
+        let mut viewports: ViewportIdSet = self.write(|ctx| {
             ctx.layer_rects_prev_frame.insert(
                 ctx.viewport_id(),
                 ctx.layer_rects_this_frame
@@ -1468,7 +1468,7 @@ impl Context {
             );
             ctx.viewports.values().map(|vp| vp.id_pair.this).collect()
         });
-        viewports.push(ViewportId::ROOT);
+        viewports.insert(ViewportId::ROOT);
 
         if self.input(|i| i.wants_repaint()) {
             self.request_repaint();

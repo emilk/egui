@@ -6,6 +6,7 @@ use crate::{
     area,
     window::{self, WindowInteraction},
     EventFilter, Id, IdMap, InputState, LayerId, Pos2, Rect, Style, ViewportId, ViewportIdMap,
+    ViewportIdSet,
 };
 
 // ----------------------------------------------------------------------------
@@ -561,7 +562,7 @@ impl Memory {
     pub(crate) fn end_frame(
         &mut self,
         input: &InputState,
-        viewports: &[ViewportId],
+        viewports: &ViewportIdSet,
         used_ids: &IdMap<Rect>,
     ) {
         self.caches.update();
