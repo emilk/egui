@@ -31,7 +31,7 @@ pub const IS_DESKTOP: bool = cfg!(any(
 // ----------------------------------------------------------------------------
 
 thread_local! {
-    /// This makes `Context::create_viewport_sync` to have a native window in the same frame!
+    /// This makes [`Context::show_viewport_immediate`] to have a native window in the same frame!
     pub static WINIT_EVENT_LOOP: RefCell<*const EventLoopWindowTarget<UserEvent>> = RefCell::new(std::ptr::null());
 }
 
@@ -1171,7 +1171,7 @@ mod glow_integration {
                 };
                 glutin
                     .init_window(&win, event_loop)
-                    .expect("Cannot init window on egui::Context::create_viewport_sync");
+                    .expect("Cannot init window on egui::Context::show_viewport_immediate");
             }
 
             // Rendering the sync viewport
@@ -1218,7 +1218,7 @@ mod glow_integration {
                 .is_current(glutin.current_gl_context.as_ref().unwrap())
             {
                 let builder = &&glutin.builders[&window.id_pair.this];
-                log::error!("egui::create_viewport_sync with title: `{:?}` is not created in main thread, try to use wgpu!", builder.title.clone().unwrap_or_default());
+                log::error!("egui::show_viewport_immediate with title: `{:?}` is not created in main thread, try to use wgpu!", builder.title.clone().unwrap_or_default());
             }
 
             egui_glow::painter::clear(gl, screen_size_in_pixels, [0.0, 0.0, 0.0, 0.0]);

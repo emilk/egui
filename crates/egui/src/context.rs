@@ -2525,7 +2525,7 @@ impl Context {
         });
     }
 
-    /// If `true`, [`Self::create_viewport_async`] and [`Self::create_viewport_sync`] will
+    /// If `true`, [`Self::show_viewport`] and [`Self::show_viewport_immediate`] will
     /// embed the new viewports as [`crate::Window`]s instead of spawning a new native window.
     ///
     /// `eframe` sets this to `false` on supported platforms,
@@ -2534,7 +2534,7 @@ impl Context {
         self.read(|ctx| ctx.embed_viewports)
     }
 
-    /// If `true`, [`Self::create_viewport_async`] and [`Self::create_viewport_sync`] will
+    /// If `true`, [`Self::show_viewport`] and [`Self::show_viewport_immediate`] will
     /// embed the new viewports as [`crate::Window`]s instead of spawning a new native window.
     ///
     /// `eframe` sets this to `false` on supported platforms,
@@ -2555,17 +2555,24 @@ impl Context {
 
     /// This creates a new native window, if possible.
     ///
-    /// You should call this each frame when the viewport should be visible.
+    /// You need to call this each frame when the child viewport should exist.
+    ///
+    /// The given callback will be called whenever the child viewport needs repainting,
+    /// e.g. on an event or when [`Self::request_repaint`] is called.
+    /// This means it may be called multiple times, for instance while the
+    /// parent viewport (the caller) is sleeping but the child viewport is animating.
     ///
     /// You will need to wrap your viewport state in an `Arc<RwLock<T>>` or `Arc<Mutex<T>>`.
     /// When this is called again with the same id in `ViewportBuilder` the render function for that viewport will be updated.
-    /// * `viewport_ui_cb`: will be called when the viewport receives a event or is requested to be rendered
     ///
-    /// If this is no more called that viewport will be destroyed.
+    /// You can also use [`Self::show_viewport_immediate`], which uses a simpler `FnOnce`
+    /// with no need for `Send` or `Sync`. The downside is that it will require
+    /// the parent viewport (the caller) to repaint anytime the child is repainted,
+    /// and vice versa.
     ///
     /// If you use a [`crate::CentralPanel`] you need to check if the viewport is a new window like:
     /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a [`crate::Window`].
-    pub fn create_viewport_async(
+    pub fn show_viewport(
         &self,
         viewport_builder: ViewportBuilder,
         viewport_ui_cb: impl Fn(&Context) + Send + Sync + 'static,
@@ -2600,25 +2607,23 @@ impl Context {
 
     /// This creates a new native window, if possible.
     ///
+    /// You need to call this each frame when the child viewport should exist.
+    ///
     /// The given ui function will be called immediately.
-    /// This can only be called from the main thread.
+    /// This may only be called on the main thread.
     ///
-    /// If [`Context::embed_viewports`] is true, or if the current egui
-    /// backend does not support sync viewports, the given callback
-    /// will be called immediately and the function will return.
+    /// This call will pause the current viewport and render the child viewport in its own window.
+    /// This means that the child viewport will not be repainted when the parent viewport is repainted, and vice versa.
+    /// This can lead to unnecessary repaint.
+    /// To avoid this, use [`Self::show_viewport`] instead.
     ///
-    /// When this is called the current viewport will be paused
-    /// This will render in a native window if is possible.
-    /// When this finishes then the last viewport will continue drawing
-    /// This is bad for performance but easy to use.
-    ///
-    /// For better performance use `Self::create_viewport`
-    ///
-    /// If this is no more called that viewport will be destroyed.
+    /// If [`Context::embed_viewports`] is `true` (e.g. if the current egui
+    /// backend does not support multiple viewports), the given callback
+    /// will be called immediately, embedding the new viewport in the current one.
     ///
     /// If you use a `egui::CentralPanel` you need to check if the viewport is a new window like:
     /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a [`crate::Window`].
-    pub fn create_viewport_sync<T>(
+    pub fn show_viewport_immediate<T>(
         &self,
         viewport_builder: ViewportBuilder,
         viewport_ui_cb: impl FnOnce(&Context) -> T,

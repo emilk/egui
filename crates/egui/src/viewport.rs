@@ -1,9 +1,11 @@
 //! egui supports multiple viewports, corresponding to multiple native windows.
 //!
-//! Viewports come in two flavors: "sync" and "async".
+//! Viewports come in two flavors: "deferred" (the default) and "immediate".
 //!
-//! * Sync viewports are executed immediately.
-//! * Async viewports are executed later.
+//! * Deferred viewports have callbacks that are called multiple
+//!   times as the viewport receives events, or need repaitning.
+//! * Immediate viewports are executed immediately with an [`FnOnce`] callback,
+//!   locking the parent and child viewports together so that they both must update at the same time.
 
 use std::sync::Arc;
 
@@ -83,7 +85,7 @@ impl ViewportIdPair {
     };
 }
 
-/// The user-code that shows the ui in the viewport, used for "async" viewports.
+/// The user-code that shows the ui in the viewport, used for deferred viewports.
 pub type ViewportUiCallback = dyn Fn(&Context) + Sync + Send;
 
 /// Render the given viewport, calling the given ui callback.
@@ -655,9 +657,9 @@ pub(crate) struct Viewport {
     /// Has this viewport been updated this frame?
     pub(crate) used: bool,
 
-    /// The user-code that shows the GUI, used for "async" viewports.
+    /// The user-code that shows the GUI, used for deferred viewports.
     ///
-    /// `None` for "sync" viewports.
+    /// `None` for immediate viewports.
     pub(crate) viewport_ui_cb: Option<Arc<Box<ViewportUiCallback>>>,
 }
 
@@ -668,8 +670,8 @@ pub struct ViewportOutput {
     /// Id of us and our parent.
     pub id_pair: ViewportIdPair,
 
-    /// The user-code that shows the GUI, used for "async" viewports.
+    /// The user-code that shows the GUI, used for deferred viewports.
     ///
-    /// `None` for "sync" viewports.
+    /// `None` for immediate viewports.
     pub viewport_ui_cb: Option<Arc<Box<ViewportUiCallback>>>,
 }

@@ -25,33 +25,33 @@ fn main() {
 pub struct ViewportState {
     pub id: ViewportId,
     pub visible: bool,
-    pub sync: bool,
+    pub immediate: bool,
     pub title: String,
     pub children: Vec<Arc<RwLock<ViewportState>>>,
 }
 
 impl ViewportState {
-    pub fn new_async(
+    pub fn new_deferred(
         title: &'static str,
         children: Vec<Arc<RwLock<ViewportState>>>,
     ) -> Arc<RwLock<Self>> {
         Arc::new(RwLock::new(Self {
             id: ViewportId::from_hash_of(title),
             visible: false,
-            sync: false,
+            immediate: false,
             title: title.into(),
             children,
         }))
     }
 
-    pub fn new_sync(
+    pub fn new_immediate(
         title: &'static str,
         children: Vec<Arc<RwLock<ViewportState>>>,
     ) -> Arc<RwLock<Self>> {
         Arc::new(RwLock::new(Self {
             id: ViewportId::from_hash_of(title),
             visible: false,
-            sync: true,
+            immediate: true,
             title: title.into(),
             children,
         }))
@@ -62,23 +62,23 @@ impl ViewportState {
             return;
         }
         let vp_id = vp_state.read().id;
-        let sync = vp_state.read().sync;
+        let immediate = vp_state.read().immediate;
         let title = vp_state.read().title.clone();
 
         let vp_builder = ViewportBuilder::new(vp_id)
             .with_title(&title)
             .with_inner_size(Some(egui::vec2(450.0, 400.0)));
 
-        if sync {
+        if immediate {
             let mut vp_state = vp_state.write();
-            ctx.create_viewport_sync(vp_builder, move |ctx| {
+            ctx.show_viewport_immediate(vp_builder, move |ctx| {
                 show_as_popup(ctx, &title, vp_id.into(), |ui: &mut egui::Ui| {
                     generic_child_ui(ui, &mut vp_state);
                 });
             });
         } else {
             let count = Arc::new(RwLock::new(0));
-            ctx.create_viewport_async(vp_builder, move |ctx| {
+            ctx.show_viewport(vp_builder, move |ctx| {
                 let mut vp_state = vp_state.write();
                 let count = count.clone();
                 show_as_popup(ctx, &title, vp_id.into(), move |ui: &mut egui::Ui| {
@@ -101,18 +101,30 @@ impl Default for App {
     fn default() -> Self {
         Self {
             top: vec![
-                ViewportState::new_async(
-                    "Top Async Viewport",
+                ViewportState::new_deferred(
+                    "Top Deferred Viewport",
                     vec![
-                        ViewportState::new_async("AA: Async Viewport in Async Viewport", vec![]),
-                        ViewportState::new_sync("AS: Sync Viewport in Async Viewport", vec![]),
+                        ViewportState::new_deferred(
+                            "DD: Deferred Viewport in Deferred Viewport",
+                            vec![],
+                        ),
+                        ViewportState::new_immediate(
+                            "DS: Immediate Viewport in Deferred Viewport",
+                            vec![],
+                        ),
                     ],
                 ),
-                ViewportState::new_sync(
-                    "Top Sync Viewport",
+                ViewportState::new_immediate(
+                    "Top Immediate Viewport",
                     vec![
-                        ViewportState::new_async("SA: Async Viewport in Sync Viewport", vec![]),
-                        ViewportState::new_sync("SS: Sync Viewport in Sync Viewport", vec![]),
+                        ViewportState::new_deferred(
+                            "SD: Deferred Viewport in Immediate Viewport",
+                            vec![],
+                        ),
+                        ViewportState::new_immediate(
+                            "SS: Immediate Viewport in Immediate Viewport",
+                            vec![],
+                        ),
                     ],
                 ),
             ],
