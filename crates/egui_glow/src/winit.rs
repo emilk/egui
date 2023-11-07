@@ -20,6 +20,7 @@ impl EguiGlow {
         event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
         gl: std::sync::Arc<glow::Context>,
         shader_version: Option<ShaderVersion>,
+        native_pixels_per_point: Option<f32>,
     ) -> Self {
         let painter = crate::Painter::new(gl, "", shader_version)
             .map_err(|err| {
@@ -29,7 +30,11 @@ impl EguiGlow {
 
         Self {
             egui_ctx: Default::default(),
-            egui_winit: egui_winit::State::new(event_loop),
+            egui_winit: egui_winit::State::new(
+                event_loop,
+                native_pixels_per_point,
+                Some(painter.max_texture_side()),
+            ),
             painter,
             shapes: Default::default(),
             textures_delta: Default::default(),

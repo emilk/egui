@@ -87,13 +87,17 @@ pub struct State {
 
 impl State {
     /// Construct a new instance
-    pub fn new(display_target: &dyn HasRawDisplayHandle) -> Self {
+    pub fn new(
+        display_target: &dyn HasRawDisplayHandle,
+        native_pixels_per_point: Option<f32>,
+        max_texture_side: Option<usize>,
+    ) -> Self {
         let egui_input = egui::RawInput {
             focused: false, // winit will tell us when we have focus
             ..Default::default()
         };
 
-        Self {
+        let mut slf = Self {
             start_time: web_time::Instant::now(),
             egui_input,
             pointer_pos_in_points: None,
@@ -112,7 +116,14 @@ impl State {
             accesskit: None,
 
             allow_ime: false,
+        };
+        if let Some(native_pixels_per_point) = native_pixels_per_point {
+            slf.set_pixels_per_point(native_pixels_per_point);
         }
+        if let Some(max_texture_side) = max_texture_side {
+            slf.set_max_texture_side(max_texture_side);
+        }
+        slf
     }
 
     #[cfg(feature = "accesskit")]
