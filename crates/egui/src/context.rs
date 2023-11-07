@@ -2526,7 +2526,7 @@ impl Context {
     }
 
     /// If `true`, [`Self::create_viewport_async`] and [`Self::create_viewport_sync`] will
-    /// embed the new viewports as [`egui::Window`]s instead of spawning a new native window.
+    /// embed the new viewports as [`crate::Window`]s instead of spawning a new native window.
     ///
     /// `eframe` sets this to `false` on supported platforms,
     /// but the default value is `true`.
@@ -2535,7 +2535,7 @@ impl Context {
     }
 
     /// If `true`, [`Self::create_viewport_async`] and [`Self::create_viewport_sync`] will
-    /// embed the new viewports as [`egui::Window`]s instead of spawning a new native window.
+    /// embed the new viewports as [`crate::Window`]s instead of spawning a new native window.
     ///
     /// `eframe` sets this to `false` on supported platforms,
     /// but the default value is `true`.
