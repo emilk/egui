@@ -92,6 +92,8 @@ impl State {
         native_pixels_per_point: Option<f32>,
         max_texture_side: Option<usize>,
     ) -> Self {
+        crate::profile_function!();
+
         let egui_input = egui::RawInput {
             focused: false, // winit will tell us when we have focus
             ..Default::default()
@@ -1128,6 +1130,8 @@ pub fn process_viewport_commands(
 }
 
 pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::WindowBuilder {
+    crate::profile_function!();
+
     let mut window_builder = winit::window::WindowBuilder::new()
         .with_title(
             builder

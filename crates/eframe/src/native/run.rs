@@ -731,6 +731,8 @@ mod glow_integration {
             viewport: &Rc<RefCell<Viewport>>,
             event_loop: &EventLoopWindowTarget<UserEvent>,
         ) -> Result<()> {
+            crate::profile_function!();
+
             let builder = &self.builders[&viewport.borrow().id_pair.this];
             let mut viewport = viewport.borrow_mut();
             // make sure we have a window or create one.

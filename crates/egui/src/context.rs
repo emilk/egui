@@ -2575,6 +2575,8 @@ impl Context {
         viewport_builder: ViewportBuilder,
         viewport_ui_cb: impl Fn(&Context) + Send + Sync + 'static,
     ) {
+        crate::profile_function!();
+
         if self.embed_viewports() {
             viewport_ui_cb(self);
         } else {
@@ -2626,6 +2628,8 @@ impl Context {
         viewport_builder: ViewportBuilder,
         viewport_ui_cb: impl FnOnce(&Context) -> T,
     ) -> T {
+        crate::profile_function!();
+
         if self.embed_viewports() {
             return viewport_ui_cb(self);
         }
