@@ -1264,7 +1264,7 @@ mod glow_integration {
             viewports.retain_mut(
                 |ViewportOutput {
                      builder,
-                     id_pair: ViewportIdPair { this: id, .. },
+                     id_pair: ViewportIdPair { this: id, parent },
                      viewport_ui_cb,
                  }| {
                     let mut glutin = glutin_ctx.borrow_mut();
@@ -1273,13 +1273,14 @@ mod glow_integration {
                     drop(glutin);
                     if let Some(viewport) = glutin_ctx.borrow().viewports.get(id) {
                         let mut viewport = viewport.borrow_mut();
+
+                        viewport.id_pair.parent = *parent;
+                        viewport.viewport_ui_cb = viewport_ui_cb.clone(); // always update the latest callback
+
                         if recreate {
                             viewport.window = None;
                             viewport.gl_surface = None;
-                            viewport.id_pair.parent = *id;
-                        }
-                        viewport.viewport_ui_cb = viewport_ui_cb.clone(); // always update the latest callback
-                        if let Some(w) = viewport.window.clone() {
+                        } else if let Some(w) = viewport.window.clone() {
                             process_viewport_commands(commands, *id, None, &w.borrow());
                         }
                         active_viewports_ids.push(*id);
@@ -1889,7 +1890,7 @@ pub use glow_integration::run_glow;
 #[cfg(feature = "wgpu")]
 mod wgpu_integration {
     use egui::{ViewportIdMap, ViewportIdPair, ViewportOutput, ViewportUiCallback};
-    use egui_winit::create_winit_window_builder;
+    use egui_winit::{create_winit_window_builder, process_viewport_commands};
     use parking_lot::Mutex;
 
     use super::*;
@@ -2520,9 +2521,9 @@ mod wgpu_integration {
                          viewport_ui_cb,
                          ..
                      }| {
-                        if let Some(window) = viewports.borrow_mut().get_mut(this) {
-                            window.viewport_ui_cb = viewport_ui_cb.clone();
-                            window.parent_id = *parent;
+                        if let Some(viewport) = viewports.borrow_mut().get_mut(this) {
+                            viewport.viewport_ui_cb = viewport_ui_cb.clone();
+                            viewport.parent_id = *parent;
                             active_viewports_ids.push(*this);
                             false
                         } else {
@@ -2537,23 +2538,49 @@ mod wgpu_integration {
                     viewport_ui_cb,
                 } in out_viewports
                 {
+                    let mut builders = builders.borrow_mut();
+                    let mut viewports = viewports.borrow_mut();
+
                     if builder.icon.is_none() {
                         builder.icon = builders
-                            .borrow_mut()
                             .get_mut(&id_pair.parent)
                             .and_then(|w| w.icon.clone());
                     }
 
-                    viewports.borrow_mut().insert(
-                        id_pair.this,
-                        Viewport {
-                            window: None,
-                            state: Rc::new(RefCell::new(None)),
-                            viewport_ui_cb,
-                            parent_id: id_pair.parent,
-                        },
-                    );
-                    builders.borrow_mut().insert(id_pair.this, builder);
+                    if let Some(last_builder) = builders.get_mut(&id_pair.this) {
+                        let (commands, recreate) =
+                            egui_winit::changes_between_builders(&builder, last_builder);
+
+                        if recreate {
+                            if let Some(viewport) = viewports.get_mut(&id_pair.this) {
+                                viewport.window = None;
+                                viewport.state.replace(None);
+                            }
+                        } else if let Some(Viewport {
+                            window: Some(window),
+                            ..
+                        }) = viewports.get(&id_pair.this)
+                        {
+                            process_viewport_commands(
+                                commands,
+                                id_pair.this,
+                                None,
+                                &window.borrow(),
+                            );
+                        }
+                    } else {
+                        viewports.insert(
+                            id_pair.this,
+                            Viewport {
+                                window: None,
+                                state: Rc::new(RefCell::new(None)),
+                                viewport_ui_cb,
+                                parent_id: id_pair.parent,
+                            },
+                        );
+                        builders.insert(id_pair.this, builder);
+                    }
+
                     active_viewports_ids.push(id_pair.this);
                 }
 
@@ -2573,6 +2600,9 @@ mod wgpu_integration {
                 }
 
                 viewports
+                    .borrow_mut()
+                    .retain(|id, _| active_viewports_ids.contains(id));
+                builders
                     .borrow_mut()
                     .retain(|id, _| active_viewports_ids.contains(id));
                 viewport_maps
