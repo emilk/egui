@@ -104,9 +104,9 @@ impl eframe::App for App {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Root viewport");
             {
-                let mut force_embedding = ctx.force_embedding();
-                ui.checkbox(&mut force_embedding, "Force embedding of new viewprts");
-                ctx.set_force_embedding(force_embedding);
+                let mut embed_viewports = ctx.embed_viewports();
+                ui.checkbox(&mut embed_viewports, "Embed all viewports");
+                ctx.set_embed_viewports(embed_viewports);
             }
 
             generic_ui(ui, &self.top);

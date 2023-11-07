@@ -174,7 +174,7 @@ struct ContextImpl {
     viewport_commands: Vec<(ViewportId, ViewportCommand)>,
 
     is_desktop: bool,
-    force_embedding: bool,
+    embed_viewports: bool,
 
     /// Written to during the frame.
     layer_rects_this_frame: ViewportMap<HashMap<LayerId, Vec<(Id, Rect)>>>,
@@ -428,7 +428,7 @@ impl Default for Context {
         let s = Self(Arc::new(RwLock::new(ContextImpl::default())));
 
         s.write(|ctx| {
-            ctx.force_embedding = true;
+            ctx.embed_viewports = true;
         });
 
         s
@@ -510,7 +510,7 @@ impl Context {
         let context = Context::default();
         context.write(|ctx| {
             ctx.is_desktop = desktop;
-            ctx.force_embedding = !desktop;
+            ctx.embed_viewports = !desktop;
         });
         context
     }
@@ -2531,14 +2531,14 @@ impl Context {
     }
 
     /// If this is true no other native window will be created, when a viewport is created!
-    pub fn force_embedding(&self) -> bool {
-        self.read(|ctx| ctx.force_embedding)
+    pub fn embed_viewports(&self) -> bool {
+        self.read(|ctx| ctx.embed_viewports)
     }
 
     /// If this is true no other native window will be created, when a viewport is created!
     /// You will always be able to set to true
-    pub fn set_force_embedding(&self, value: bool) {
-        self.write(|ctx| ctx.force_embedding = value || !ctx.is_desktop);
+    pub fn set_embed_viewports(&self, value: bool) {
+        self.write(|ctx| ctx.embed_viewports = value || !ctx.is_desktop);
     }
 
     /// Send a command to the current viewport.
@@ -2568,7 +2568,7 @@ impl Context {
         viewport_builder: ViewportBuilder,
         viewport_ui_cb: impl Fn(&Context) + Send + Sync + 'static,
     ) {
-        if self.force_embedding() {
+        if self.embed_viewports() {
             viewport_ui_cb(self);
         } else {
             self.write(|ctx| {
@@ -2601,7 +2601,7 @@ impl Context {
     /// The given ui function will be called immediately.
     /// This can only be called from the main thread.
     ///
-    /// If [`Context::force_embedding`] is true, or if the current egui
+    /// If [`Context::embed_viewports`] is true, or if the current egui
     /// backend does not support sync viewports, the given callback
     /// will be called immediately and the function will return.
     ///
@@ -2621,7 +2621,7 @@ impl Context {
         viewport_builder: ViewportBuilder,
         viewport_ui_cb: impl FnOnce(&Context) -> T,
     ) -> T {
-        if self.force_embedding() {
+        if self.embed_viewports() {
             return viewport_ui_cb(self);
         }
 
