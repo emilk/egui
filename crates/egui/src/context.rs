@@ -177,12 +177,10 @@ struct ContextImpl {
     force_embedding: bool,
 
     /// Written to during the frame.
-    layer_rects_this_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
-    layer_rects_this_viewports: ViewportMap<HashMap<LayerId, Vec<(Id, Rect)>>>,
+    layer_rects_this_frame: ViewportMap<HashMap<LayerId, Vec<(Id, Rect)>>>,
 
     /// Read
-    layer_rects_prev_frame: ahash::HashMap<LayerId, Vec<(Id, Rect)>>,
-    layer_rects_prev_viewports: ViewportMap<HashMap<LayerId, Vec<(Id, Rect)>>>,
+    layer_rects_prev_frame: ViewportMap<HashMap<LayerId, Vec<(Id, Rect)>>>,
 
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
@@ -199,14 +197,6 @@ impl ContextImpl {
 
             // Pause the active viewport
             self.memory.pause_frame(previous_viewport_id);
-            self.layer_rects_this_viewports.insert(
-                previous_viewport_id,
-                std::mem::take(&mut self.layer_rects_this_frame),
-            );
-            self.layer_rects_prev_viewports.insert(
-                previous_viewport_id,
-                std::mem::take(&mut self.layer_rects_prev_frame),
-            );
         }
 
         let viewport_id = id_pair.this;
@@ -233,10 +223,8 @@ impl ContextImpl {
             }
         }
 
-        self.layer_rects_prev_frame = self
-            .layer_rects_prev_viewports
-            .remove(&viewport_id)
-            .unwrap_or_default();
+        self.layer_rects_prev_frame.entry(viewport_id).or_default();
+        self.layer_rects_this_frame.entry(viewport_id).or_default();
 
         self.memory.begin_frame(
             self.input.get(&viewport_id).unwrap_or(&Default::default()),
@@ -808,15 +796,16 @@ impl Context {
             let mut show_blocking_widget = None;
 
             self.write(|ctx| {
-                ctx.layer_rects_this_frame
-                    .entry(layer_id)
-                    .or_default()
-                    .push((id, interact_rect));
+                if let Some(l) = ctx.layer_rects_this_frame.get_mut(&ctx.viewport_id()) {
+                    l.entry(layer_id).or_default().push((id, interact_rect))
+                }
 
                 if hovered {
                     let pointer_pos = &ctx.input[&ctx.viewport_id()].pointer.interact_pos();
                     if let Some(pointer_pos) = pointer_pos {
-                        if let Some(rects) = ctx.layer_rects_prev_frame.get(&layer_id) {
+                        if let Some(rects) =
+                            ctx.layer_rects_prev_frame[&ctx.viewport_id()].get(&layer_id)
+                        {
                             for &(prev_id, prev_rect) in rects.iter().rev() {
                                 if prev_id == id {
                                     break; // there is no other interactive widget covering us at the pointer position.
@@ -1486,9 +1475,11 @@ impl Context {
         crate::profile_function!();
 
         let mut viewports: Vec<ViewportId> = self.write(|ctx| {
-            ctx.layer_rects_prev_viewports.insert(
+            ctx.layer_rects_prev_frame.insert(
                 ctx.viewport_id(),
-                std::mem::take(&mut ctx.layer_rects_this_frame),
+                ctx.layer_rects_this_frame
+                    .remove(&ctx.viewport_id())
+                    .unwrap(),
             );
             ctx.viewports.values().map(|vp| vp.id_pair.this).collect()
         });
@@ -1594,9 +1585,9 @@ impl Context {
             // Context Cleanup
             self.write(|ctx| {
                 ctx.input.retain(|id, _| available_viewports.contains(id));
-                ctx.layer_rects_prev_viewports
+                ctx.layer_rects_prev_frame
                     .retain(|id, _| available_viewports.contains(id));
-                ctx.layer_rects_this_viewports
+                ctx.layer_rects_this_frame
                     .retain(|id, _| available_viewports.contains(id));
                 ctx.output.retain(|id, _| available_viewports.contains(id));
                 ctx.frame_state
@@ -1607,10 +1598,6 @@ impl Context {
         } else {
             let viewport_id = self.viewport_id();
             self.write(|ctx| {
-                ctx.layer_rects_prev_frame =
-                    ctx.layer_rects_prev_viewports.remove(&viewport_id).unwrap();
-                ctx.layer_rects_this_frame =
-                    ctx.layer_rects_this_viewports.remove(&viewport_id).unwrap();
                 ctx.memory.resume_frame(viewport_id);
             });
         }
