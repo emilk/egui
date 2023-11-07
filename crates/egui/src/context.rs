@@ -173,7 +173,6 @@ struct ContextImpl {
     viewports: ViewportMap<Viewport>,
     viewport_commands: Vec<(ViewportId, ViewportCommand)>,
 
-    is_desktop: bool,
     embed_viewports: bool,
 
     /// Written to during the frame.
@@ -503,16 +502,6 @@ impl Context {
         crate::profile_function!();
 
         self.write(|ctx| ctx.begin_frame_mut(new_input, id_pair));
-    }
-
-    /// Create a new Context and specify if is desktop
-    pub fn new(desktop: bool) -> Context {
-        let context = Context::default();
-        context.write(|ctx| {
-            ctx.is_desktop = desktop;
-            ctx.embed_viewports = !desktop;
-        });
-        context
     }
 }
 
@@ -2525,20 +2514,22 @@ impl Context {
         });
     }
 
-    /// This will tell you if is possible to open a native window
-    pub fn is_desktop(&self) -> bool {
-        self.read(|ctx| ctx.is_desktop)
-    }
-
-    /// If this is true no other native window will be created, when a viewport is created!
+    /// If `true`, [`Self::create_viewport_async`] and [`Self::create_viewport_sync`] will
+    /// embed the new viewports as [`egui::Window`]s instead of spawning a new native window.
+    ///
+    /// `eframe` sets this to `false` on supported platforms,
+    /// but the default value is `true`.
     pub fn embed_viewports(&self) -> bool {
         self.read(|ctx| ctx.embed_viewports)
     }
 
-    /// If this is true no other native window will be created, when a viewport is created!
-    /// You will always be able to set to true
+    /// If `true`, [`Self::create_viewport_async`] and [`Self::create_viewport_sync`] will
+    /// embed the new viewports as [`egui::Window`]s instead of spawning a new native window.
+    ///
+    /// `eframe` sets this to `false` on supported platforms,
+    /// but the default value is `true`.
     pub fn set_embed_viewports(&self, value: bool) {
-        self.write(|ctx| ctx.embed_viewports = value || !ctx.is_desktop);
+        self.write(|ctx| ctx.embed_viewports = value);
     }
 
     /// Send a command to the current viewport.
