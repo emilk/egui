@@ -1548,7 +1548,7 @@ impl Context {
         let mut viewports = Vec::new();
         self.write(|ctx| {
             ctx.viewports.retain(|_, viewport| {
-                let retain = viewport.used;
+                let was_used = viewport.used;
 
                 if viewport_id == viewport.id_pair.parent {
                     viewport.used = false;
@@ -1559,7 +1559,7 @@ impl Context {
                     id_pair: viewport.id_pair,
                     viewport_ui_cb: viewport.viewport_ui_cb.clone(),
                 });
-                (retain || viewport_id != viewport.id_pair.parent)
+                (was_used || viewport_id != viewport.id_pair.parent)
                     && available_viewports.contains(&viewport.id_pair.parent)
             });
         });

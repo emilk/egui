@@ -1276,9 +1276,9 @@ mod glow_integration {
                         if recreate {
                             viewport.window = None;
                             viewport.gl_surface = None;
-                            viewport.viewport_ui_cb = viewport_ui_cb.clone();
                             viewport.id_pair.parent = *id;
                         }
+                        viewport.viewport_ui_cb = viewport_ui_cb.clone(); // always update the latest callback
                         if let Some(w) = viewport.window.clone() {
                             process_viewport_commands(commands, *id, None, &w.borrow());
                         }

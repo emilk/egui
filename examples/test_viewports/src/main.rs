@@ -57,17 +57,38 @@ impl ViewportState {
         }))
     }
 
-    pub fn show(slf: Arc<RwLock<ViewportState>>, ctx: &egui::Context) {
-        if !slf.read().visible {
+    pub fn show(vp_state: Arc<RwLock<ViewportState>>, ctx: &egui::Context) {
+        if !vp_state.read().visible {
             return;
         }
-        let id = slf.read().id;
-        let sync = slf.read().sync;
+        let vp_id = vp_state.read().id;
+        let sync = vp_state.read().sync;
+        let title = vp_state.read().title.clone();
+
+        let vp_builder = ViewportBuilder::new(vp_id)
+            .with_title(&title)
+            .with_inner_size(Some(egui::vec2(450.0, 400.0)));
 
         if sync {
-            show_sync_viewport(ctx, id, &mut slf.write());
+            let mut vp_state = vp_state.write();
+            ctx.create_viewport_sync(vp_builder, move |ctx| {
+                show_as_popup(ctx, &title, vp_id.into(), |ui: &mut egui::Ui| {
+                    generic_child_ui(ui, &mut vp_state);
+                });
+            });
         } else {
-            show_async_viewport(ctx, id, slf);
+            let count = Arc::new(RwLock::new(0));
+            ctx.create_viewport_async(vp_builder, move |ctx| {
+                let mut vp_state = vp_state.write();
+                let count = count.clone();
+                show_as_popup(ctx, &title, vp_id.into(), move |ui: &mut egui::Ui| {
+                    let current_count = *count.read();
+                    ui.label(format!("Callback has been reused {current_count} times"));
+                    *count.write() += 1;
+
+                    generic_child_ui(ui, &mut vp_state);
+                });
+            });
         }
     }
 }
@@ -112,43 +133,6 @@ impl eframe::App for App {
             generic_ui(ui, &self.top);
         });
     }
-}
-
-fn show_async_viewport(
-    ctx: &egui::Context,
-    vp_id: ViewportId,
-    vp_state: Arc<RwLock<ViewportState>>,
-) {
-    let id = Id::from(vp_id);
-    let title = vp_state.read().title.clone();
-
-    ctx.create_viewport_async(
-        ViewportBuilder::new(vp_id)
-            .with_title(&title)
-            .with_inner_size(Some(egui::vec2(450.0, 400.0))),
-        move |ctx| {
-            let mut vp_state = vp_state.write();
-            show_as_popup(ctx, &title, id, move |ui: &mut egui::Ui| {
-                generic_child_ui(ui, &mut vp_state);
-            });
-        },
-    );
-}
-
-fn show_sync_viewport(ctx: &egui::Context, vp_id: ViewportId, vp_state: &mut ViewportState) {
-    let id = Id::from(vp_id);
-    let title = vp_state.title.clone();
-
-    ctx.create_viewport_sync(
-        ViewportBuilder::new(vp_id)
-            .with_title(&title)
-            .with_inner_size(Some(egui::vec2(450.0, 400.0))),
-        move |ctx| {
-            show_as_popup(ctx, &title, id, |ui: &mut egui::Ui| {
-                generic_child_ui(ui, vp_state);
-            });
-        },
-    );
 }
 
 /// This will make the content as a popup if cannot has his own native window
