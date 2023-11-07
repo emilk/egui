@@ -797,7 +797,7 @@ impl Context {
 
             self.write(|ctx| {
                 if let Some(l) = ctx.layer_rects_this_frame.get_mut(&ctx.viewport_id()) {
-                    l.entry(layer_id).or_default().push((id, interact_rect))
+                    l.entry(layer_id).or_default().push((id, interact_rect));
                 }
 
                 if hovered {
