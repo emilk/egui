@@ -244,11 +244,11 @@ impl Painter {
             }
 
             let Some(width) = NonZeroU32::new(size.width) else {
-                eprintln!("The window width was zero, skip generate textures!");
+                log::debug!("The window width was zero; skiping generate textures");
                 return Ok(());
             };
             let Some(height) = NonZeroU32::new(size.height) else {
-                eprintln!("The window height was zero, skip generate textures!");
+                log::debug!("The window height was zero; skiping generate textures");
                 return Ok(());
             };
             self.resize_and_generate_depth_texture_view_and_msaa_view(viewport_id, width, height);
@@ -277,11 +277,15 @@ impl Painter {
         height_in_pixels: NonZeroU32,
     ) {
         crate::profile_function!();
+
+        let width = width_in_pixels.get();
+        let height = height_in_pixels.get();
+
         let render_state = self.render_state.as_ref().unwrap();
         let surface_state = self.surfaces.get_mut(&viewport_id).unwrap();
 
-        surface_state.width = width_in_pixels.get();
-        surface_state.height = height_in_pixels.get();
+        surface_state.width = width;
+        surface_state.height = height;
 
         Self::configure_surface(surface_state, render_state, self.configuration.present_mode);
 
@@ -293,8 +297,8 @@ impl Painter {
                     .create_texture(&wgpu::TextureDescriptor {
                         label: Some("egui_depth_texture"),
                         size: wgpu::Extent3d {
-                            width: width_in_pixels.get(),
-                            height: height_in_pixels.get(),
+                            width,
+                            height,
                             depth_or_array_layers: 1,
                         },
                         mip_level_count: 1,
@@ -345,7 +349,7 @@ impl Painter {
     ) {
         crate::profile_function!();
 
-        if self.surfaces.get(&viewport_id).is_some() {
+        if self.surfaces.contains_key(&viewport_id) {
             self.resize_and_generate_depth_texture_view_and_msaa_view(
                 viewport_id,
                 width_in_pixels,
