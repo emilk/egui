@@ -400,6 +400,173 @@ impl ViewportBuilder {
         self.hittest = Some(value);
         self
     }
+
+    pub fn patch(&mut self, new: &ViewportBuilder) -> (Vec<ViewportCommand>, bool) {
+        let mut commands = Vec::new();
+
+        if let Some(new_title) = &new.title {
+            if Some(new_title) != self.title.as_ref() {
+                self.title = Some(new_title.clone());
+                commands.push(ViewportCommand::Title(new_title.clone()));
+            }
+        }
+
+        if let Some(new_position) = new.position {
+            if Some(new_position) != self.position {
+                self.position = Some(new_position);
+                if let Some(position) = new_position {
+                    commands.push(ViewportCommand::OuterPosition(position));
+                }
+            }
+        }
+
+        if let Some(new_inner_size) = new.inner_size {
+            if Some(new_inner_size) != self.inner_size {
+                self.inner_size = Some(new_inner_size);
+                if let Some(inner_size) = new_inner_size {
+                    commands.push(ViewportCommand::InnerSize(inner_size));
+                }
+            }
+        }
+
+        if let Some(new_min_inner_size) = new.min_inner_size {
+            if Some(new_min_inner_size) != self.min_inner_size {
+                self.min_inner_size = Some(new_min_inner_size);
+                commands.push(ViewportCommand::MinInnerSize(new_min_inner_size));
+            }
+        }
+
+        if let Some(new_max_inner_size) = new.max_inner_size {
+            if Some(new_max_inner_size) != self.max_inner_size {
+                self.max_inner_size = Some(new_max_inner_size);
+                commands.push(ViewportCommand::MaxInnerSize(new_max_inner_size));
+            }
+        }
+
+        if let Some(new_fullscreen) = new.fullscreen {
+            if Some(new_fullscreen) != self.fullscreen {
+                self.fullscreen = Some(new_fullscreen);
+                commands.push(ViewportCommand::Fullscreen(new_fullscreen));
+            }
+        }
+
+        if let Some(new_maximized) = new.maximized {
+            if Some(new_maximized) != self.maximized {
+                self.maximized = Some(new_maximized);
+                commands.push(ViewportCommand::Maximized(new_maximized));
+            }
+        }
+
+        if let Some(new_resizable) = new.resizable {
+            if Some(new_resizable) != self.resizable {
+                self.resizable = Some(new_resizable);
+                commands.push(ViewportCommand::Resizable(new_resizable));
+            }
+        }
+
+        if let Some(new_transparent) = new.transparent {
+            if Some(new_transparent) != self.transparent {
+                self.transparent = Some(new_transparent);
+                commands.push(ViewportCommand::Transparent(new_transparent));
+            }
+        }
+
+        if let Some(new_decorations) = new.decorations {
+            if Some(new_decorations) != self.decorations {
+                self.decorations = Some(new_decorations);
+                commands.push(ViewportCommand::Decorations(new_decorations));
+            }
+        }
+
+        if let Some(new_icon) = new.icon.clone() {
+            let eq = match &new_icon {
+                Some(icon) => {
+                    if let Some(self_icon) = &self.icon {
+                        matches!(self_icon, Some(self_icon) if Arc::ptr_eq(icon, self_icon))
+                    } else {
+                        false
+                    }
+                }
+                None => self.icon == Some(None),
+            };
+
+            if !eq {
+                commands.push(ViewportCommand::WindowIcon(
+                    new_icon.as_ref().map(|i| i.as_ref().clone()),
+                ));
+                self.icon = Some(new_icon);
+            }
+        }
+
+        if let Some(new_visible) = new.visible {
+            if Some(new_visible) != self.active {
+                self.visible = Some(new_visible);
+                commands.push(ViewportCommand::Visible(new_visible));
+            }
+        }
+
+        if let Some(new_hittest) = new.hittest {
+            if Some(new_hittest) != self.hittest {
+                self.hittest = Some(new_hittest);
+                commands.push(ViewportCommand::CursorHitTest(new_hittest));
+            }
+        }
+
+        // TODO: Implement compare for windows buttons
+
+        let mut recreate_window = false;
+
+        if let Some(new_active) = new.active {
+            if Some(new_active) != self.active {
+                self.active = Some(new_active);
+                recreate_window = true;
+            }
+        }
+
+        if let Some(new_close_button) = new.close_button {
+            if Some(new_close_button) != self.close_button {
+                self.close_button = Some(new_close_button);
+                recreate_window = true;
+            }
+        }
+
+        if let Some(new_minimize_button) = new.minimize_button {
+            if Some(new_minimize_button) != self.minimize_button {
+                self.minimize_button = Some(new_minimize_button);
+                recreate_window = true;
+            }
+        }
+
+        if let Some(new_maximized_button) = new.maximize_button {
+            if Some(new_maximized_button) != self.maximize_button {
+                self.maximize_button = Some(new_maximized_button);
+                recreate_window = true;
+            }
+        }
+
+        if let Some(new_title_hidden) = new.title_hidden {
+            if Some(new_title_hidden) != self.title_hidden {
+                self.title_hidden = Some(new_title_hidden);
+                recreate_window = true;
+            }
+        }
+
+        if let Some(new_titlebar_transparent) = new.titlebar_transparent {
+            if Some(new_titlebar_transparent) != self.titlebar_transparent {
+                self.titlebar_transparent = Some(new_titlebar_transparent);
+                recreate_window = true;
+            }
+        }
+
+        if let Some(new_fullsize_content_view) = new.fullsize_content_view {
+            if Some(new_fullsize_content_view) != self.fullsize_content_view {
+                self.fullsize_content_view = Some(new_fullsize_content_view);
+                recreate_window = true;
+            }
+        }
+
+        (commands, recreate_window)
+    }
 }
 
 /// You can send a `ViewportCommand` to the viewport with `Context::viewport_command`

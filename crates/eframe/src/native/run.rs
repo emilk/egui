@@ -462,10 +462,7 @@ mod glow_integration {
         epaint::ahash::HashMap, NumExt as _, ViewportIdMap, ViewportIdPair, ViewportOutput,
         ViewportUiCallback,
     };
-    use egui_winit::{
-        changes_between_builders, create_winit_window_builder, process_viewport_commands,
-        EventResponse,
-    };
+    use egui_winit::{create_winit_window_builder, process_viewport_commands, EventResponse};
     use glutin::{
         display::GetGlDisplay,
         prelude::{GlDisplay, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentGlContext},
@@ -1263,13 +1260,13 @@ mod glow_integration {
 
             viewports.retain_mut(
                 |ViewportOutput {
-                     builder,
+                     builder: new_builder,
                      id_pair: ViewportIdPair { this: id, parent },
                      viewport_ui_cb,
                  }| {
                     let mut glutin = glutin_ctx.borrow_mut();
-                    let last_builder = glutin.builders.entry(*id).or_insert(builder.clone());
-                    let (commands, recreate) = changes_between_builders(builder, last_builder);
+                    let builder = glutin.builders.entry(*id).or_insert(new_builder.clone());
+                    let (commands, recreate) = builder.patch(new_builder);
                     drop(glutin);
                     if let Some(viewport) = glutin_ctx.borrow().viewports.get(id) {
                         let mut viewport = viewport.borrow_mut();
@@ -2533,7 +2530,7 @@ mod wgpu_integration {
                 );
 
                 for ViewportOutput {
-                    mut builder,
+                    builder: mut new_builder,
                     id_pair,
                     viewport_ui_cb,
                 } in out_viewports
@@ -2541,15 +2538,14 @@ mod wgpu_integration {
                     let mut builders = builders.borrow_mut();
                     let mut viewports = viewports.borrow_mut();
 
-                    if builder.icon.is_none() {
-                        builder.icon = builders
+                    if new_builder.icon.is_none() {
+                        new_builder.icon = builders
                             .get_mut(&id_pair.parent)
                             .and_then(|w| w.icon.clone());
                     }
 
-                    if let Some(last_builder) = builders.get_mut(&id_pair.this) {
-                        let (commands, recreate) =
-                            egui_winit::changes_between_builders(&builder, last_builder);
+                    if let Some(builder) = builders.get_mut(&id_pair.this) {
+                        let (commands, recreate) = builder.patch(&new_builder);
 
                         if recreate {
                             if let Some(viewport) = viewports.get_mut(&id_pair.this) {
@@ -2578,7 +2574,7 @@ mod wgpu_integration {
                                 parent_id: id_pair.parent,
                             },
                         );
-                        builders.insert(id_pair.this, builder);
+                        builders.insert(id_pair.this, new_builder);
                     }
 
                     active_viewports_ids.push(id_pair.this);
