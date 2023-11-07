@@ -1,7 +1,6 @@
 //! All the data egui returns to the backend at the end of each frame.
 
-use crate::ViewportId;
-use crate::{ViewportCommand, ViewportOutput, WidgetType};
+use crate::{ViewportCommand, ViewportId, ViewportOutput, WidgetType};
 
 /// What egui emits each frame from [`crate::Context::run`].
 ///

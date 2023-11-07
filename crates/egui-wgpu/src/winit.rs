@@ -244,11 +244,11 @@ impl Painter {
             }
 
             let Some(width) = NonZeroU32::new(size.width) else {
-                log::debug!("The window width was zero; skiping generate textures");
+                log::debug!("The window width was zero; skipping generate textures");
                 return Ok(());
             };
             let Some(height) = NonZeroU32::new(size.height) else {
-                log::debug!("The window height was zero; skiping generate textures");
+                log::debug!("The window height was zero; skipping generate textures");
                 return Ok(());
             };
             self.resize_and_generate_depth_texture_view_and_msaa_view(viewport_id, width, height);
@@ -325,8 +325,8 @@ impl Painter {
                     .create_texture(&wgpu::TextureDescriptor {
                         label: Some("egui_msaa_texture"),
                         size: wgpu::Extent3d {
-                            width: width_in_pixels.get(),
-                            height: height_in_pixels.get(),
+                            width,
+                            height,
                             depth_or_array_layers: 1,
                         },
                         mip_level_count: 1,

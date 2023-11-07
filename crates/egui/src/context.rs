@@ -1626,6 +1626,8 @@ impl Context {
     }
 
     /// Tessellate the given shapes into triangle meshes.
+    ///
+    /// The `viewport_id` is used to get the correct `pixels_per_point`.
     pub fn tessellate(
         &self,
         shapes: Vec<ClippedShape>,

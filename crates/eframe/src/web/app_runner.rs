@@ -171,8 +171,6 @@ impl AppRunner {
         self.painter.destroy();
     }
 
-    /// Returns how long to wait until the next repaint.
-    ///
     /// Call [`Self::paint`] later to paint
     pub fn logic(&mut self) -> Vec<egui::ClippedPrimitive> {
         let frame_start = now_sec();
