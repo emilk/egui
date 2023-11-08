@@ -126,6 +126,18 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// Set maximum width of the window.
+    pub fn max_width(mut self, max_width: f32) -> Self {
+        self.resize = self.resize.max_width(max_width);
+        self
+    }
+
+    /// Set maximum height of the window.
+    pub fn max_height(mut self, max_height: f32) -> Self {
+        self.resize = self.resize.max_height(max_height);
+        self
+    }
+
     /// Set current position of the window.
     /// If the window is movable it is up to you to keep track of where it moved to!
     pub fn current_pos(mut self, current_pos: impl Into<Pos2>) -> Self {
