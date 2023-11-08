@@ -2572,7 +2572,7 @@ impl Context {
     /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a [`crate::Window`].
     pub fn show_viewport(
         &self,
-        viewport_builder: ViewportBuilder,
+        viewport_builder: &ViewportBuilder,
         viewport_ui_cb: impl Fn(&Context) + Send + Sync + 'static,
     ) {
         crate::profile_function!();
@@ -2583,7 +2583,7 @@ impl Context {
             self.write(|ctx| {
                 let viewport_id = ctx.viewport_id();
                 if let Some(window) = ctx.viewports.get_mut(&viewport_builder.id) {
-                    window.builder = viewport_builder;
+                    window.builder = viewport_builder.clone();
                     window.id_pair.parent = viewport_id;
                     window.used = true;
                     window.viewport_ui_cb = Some(Arc::new(Box::new(viewport_ui_cb)));
@@ -2595,7 +2595,7 @@ impl Context {
                                 this: viewport_builder.id,
                                 parent: viewport_id,
                             },
-                            builder: viewport_builder,
+                            builder: viewport_builder.clone(),
                             used: true,
                             viewport_ui_cb: Some(Arc::new(Box::new(viewport_ui_cb))),
                         },
@@ -2625,7 +2625,7 @@ impl Context {
     /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a [`crate::Window`].
     pub fn show_viewport_immediate<T>(
         &self,
-        viewport_builder: ViewportBuilder,
+        viewport_builder: &ViewportBuilder,
         viewport_ui_cb: impl FnOnce(&Context) -> T,
     ) -> T {
         crate::profile_function!();
@@ -2676,7 +2676,7 @@ impl Context {
 
                 immediate_viewport_renderer(
                     self,
-                    viewport_builder,
+                    viewport_builder.clone(),
                     id_pair,
                     Box::new(move |context| *out = Some(viewport_ui_cb(context))),
                 );

@@ -48,7 +48,7 @@ impl WindowSettings {
         self.inner_size_points
     }
 
-    pub fn initialize_viewport_builder(&self, mut window: ViewportBuilder) -> ViewportBuilder {
+    pub fn initialize_viewport_builder(&self, viewport_builder: &mut ViewportBuilder) {
         // `WindowBuilder::with_position` expects inner position in Macos, and outer position elsewhere
         // See [`winit::window::WindowBuilder::with_position`] for details.
         let pos_px = if cfg!(target_os = "macos") {
@@ -57,15 +57,13 @@ impl WindowSettings {
             self.outer_position_pixels
         };
         if let Some(pos) = pos_px {
-            window = window.with_position(Some(pos));
+            viewport_builder.with_position(Some(pos));
         }
 
         if let Some(inner_size_points) = self.inner_size_points {
-            window
+            viewport_builder
                 .with_inner_size(Some(inner_size_points))
-                .with_fullscreen(self.fullscreen)
-        } else {
-            window
+                .with_fullscreen(self.fullscreen);
         }
     }
 
