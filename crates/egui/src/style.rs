@@ -359,28 +359,54 @@ pub struct ScrollStyle {
     /// When the user hovers the scroll bars they expand to [`Self::bar_width`].
     pub floating_width: f32,
 
+    /// How much space i allocated for a floating scroll bar?
+    ///
+    /// Normally this is zero, but you could set this to something small
+    /// like 4.0 and set [`Self::dormant_handle_opacity`] and
+    /// [`Self::dormant_background_opacity`] to e.g. 0.5
+    /// so as to always show a thin scroll bar.
+    pub floating_allocated_width: f32,
+
     /// The opaqueness of the background when the user is neither scrolling
     /// nor hovering the scroll area.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
     pub dormant_background_opacity: f32,
 
     /// The opaqueness of the background when the user is hovering
     /// the scroll area, but not the scroll bar.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
     pub active_background_opacity: f32,
 
     /// The opaqueness of the background when the user is hovering
     /// over the scroll bars.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
     pub interact_background_opacity: f32,
 
     /// The opaqueness of the handle when the user is neither scrolling
     /// nor hovering the scroll area.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
     pub dormant_handle_opacity: f32,
 
     /// The opaqueness of the handle when the user is hovering
     /// the scroll area, but not the scroll bar.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
     pub active_handle_opacity: f32,
 
     /// The opaqueness of the handle when the user is hovering
     /// over the scroll bars.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
     pub interact_handle_opacity: f32,
 }
 
@@ -392,7 +418,8 @@ impl Default for ScrollStyle {
             handle_min_length: 12.0,
             bar_inner_margin: 4.0,
             bar_outer_margin: 0.0,
-            floating_width: 3.0,
+            floating_width: 2.0,
+            floating_allocated_width: 0.0,
 
             dormant_background_opacity: 0.0,
             active_background_opacity: 0.4,
@@ -407,8 +434,12 @@ impl Default for ScrollStyle {
 
 impl ScrollStyle {
     /// Width of a solid vertical scrollbar, or height of a horizontal scroll bar, when it is at its widest.
-    pub fn max_width_with_margin(&self) -> f32 {
-        self.bar_inner_margin + self.bar_width + self.bar_outer_margin
+    pub fn allocated_width(&self) -> f32 {
+        if self.floating {
+            self.floating_allocated_width
+        } else {
+            self.bar_inner_margin + self.bar_width + self.bar_outer_margin
+        }
     }
 
     pub fn ui(&mut self, ui: &mut Ui) {
@@ -419,6 +450,7 @@ impl ScrollStyle {
             bar_inner_margin,
             bar_outer_margin,
             floating_width,
+            floating_allocated_width,
 
             dormant_background_opacity,
             active_background_opacity,
@@ -442,6 +474,10 @@ impl ScrollStyle {
             ui.horizontal(|ui| {
                 ui.add(DragValue::new(floating_width).clamp_range(0.0..=32.0));
                 ui.label("Thin bar width");
+            });
+            ui.horizontal(|ui| {
+                ui.add(DragValue::new(floating_allocated_width).clamp_range(0.0..=32.0));
+                ui.label("Allocated width");
             });
         }
 

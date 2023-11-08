@@ -493,14 +493,7 @@ impl ScrollArea {
             ctx.animate_bool(id.with("v"), show_bars[1]),
         );
 
-        let current_bar_use = if ui.spacing().scroll.floating {
-            // Floating scroll bars don't take up space - they float!
-            Vec2::ZERO
-        } else {
-            // Note the swizzling: hscroll uses up vertical space,
-            // and vscroll uses up horizontal space!
-            show_bars_factor.yx() * ui.spacing().scroll.max_width_with_margin()
-        };
+        let current_bar_use = show_bars_factor.yx() * ui.spacing().scroll.allocated_width();
 
         let available_outer = ui.available_rect_before_wrap();
 
@@ -851,9 +844,9 @@ impl Prepared {
             // left/rigth of a vertical scroll (d==1).
             let mut cross = if scroll_style.floating {
                 let max_bar_rect = if d == 0 {
-                    outer_rect.with_min_y(outer_rect.max.y - scroll_style.max_width_with_margin())
+                    outer_rect.with_min_y(outer_rect.max.y - scroll_style.allocated_width())
                 } else {
-                    outer_rect.with_min_x(outer_rect.max.x - scroll_style.max_width_with_margin())
+                    outer_rect.with_min_x(outer_rect.max.x - scroll_style.allocated_width())
                 };
                 let is_hovering_bar_area = is_hovering_outer_rect
                     && ui.rect_contains_pointer(max_bar_rect)
@@ -1018,10 +1011,16 @@ impl Prepared {
                 let handle_opacity = if scroll_style.floating {
                     if response.hovered() || response.dragged() {
                         scroll_style.interact_handle_opacity
-                    } else if is_hovering_outer_rect {
-                        scroll_style.active_handle_opacity
                     } else {
-                        scroll_style.dormant_handle_opacity
+                        let is_hovering_outer_rect_t = ui.ctx().animate_bool(
+                            id.with("is_hovering_outer_rect"),
+                            is_hovering_outer_rect,
+                        );
+                        lerp(
+                            scroll_style.dormant_handle_opacity
+                                ..=scroll_style.active_handle_opacity,
+                            is_hovering_outer_rect_t,
+                        )
                     }
                 } else {
                     1.0
