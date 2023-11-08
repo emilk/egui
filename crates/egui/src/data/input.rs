@@ -140,7 +140,7 @@ impl RawInput {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportInfo {
     pub id_pair: ViewportIdPair,
