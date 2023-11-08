@@ -1,8 +1,3 @@
-//! Coordinate system names:
-//! * content: size of contents (generally large; that's why we want scroll bars)
-//! * outer: size of scroll area including scroll bar(s)
-//! * inner: excluding scroll bar(s). The area we clip the contents to.
-
 #![allow(clippy::needless_range_loop)]
 
 use crate::*;
@@ -19,6 +14,9 @@ pub struct State {
 
     /// The content were to large to fit large frame.
     content_is_too_large: [bool; 2],
+
+    /// Did the user interact (hover or drag) the scroll bars last frame?
+    scroll_bar_interaction: [bool; 2],
 
     /// Momentum, used for kinetic scrolling
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -39,6 +37,7 @@ impl Default for State {
             offset: Vec2::ZERO,
             show_scroll: [false; 2],
             content_is_too_large: [false; 2],
+            scroll_bar_interaction: [false; 2],
             vel: Vec2::ZERO,
             scroll_start_offset_from_top_left: [None; 2],
             scroll_stuck_to_end: [true; 2],
@@ -118,6 +117,35 @@ impl ScrollBarVisibility {
 
 /// Add vertical and/or horizontal scrolling to a contained [`Ui`].
 ///
+/// By default, scroll bars only show up when needed, i.e. when the contents
+/// is larger than the container.
+/// This is controlled by [`Self::scroll_bar_visibility`].
+///
+/// There are two flavors of scroll areas: solid and floating.
+/// Solid scroll bars use up space, reducing the amount of space available
+/// to the contents. Floating scroll bars float on top of the contents, covering it.
+/// You can control with with [`ScrollSpacing::floating`].
+///
+/// ### Floating scroll baers
+/// Floating scroll bars are _dormant_ by default, meaning they are
+/// tranlucent and thin.
+/// Exactly how tranlucent is controlled by [`ScrollSpacing::floating_dormant_opacity`].
+///
+/// When the user hovers the scroll _area_, the scroll bars become opaque, but stay thin.
+/// Their thickness is controlled by [`ScrollSpacing::floating_thickness`].
+///
+/// When the user hovers the scroll _bars_, they become wider so
+/// the user can more easily grab onto them.
+/// How wide is controlled by [`ScrollSpacing::bar_width`].
+///
+/// ### Coordinate system
+/// * content: size of contents (generally large; that's why we want scroll bars)
+/// * outer: size of scroll area including scroll bar(s)
+/// * inner: excluding scroll bar(s). The area we clip the contents to.
+///
+/// If the floating scroll bars settings is turned on then `inner == outer`.
+///
+/// ## Example
 /// ```
 /// # egui::__run_test_ui(|ui| {
 /// egui::ScrollArea::vertical().show(ui, |ui| {
@@ -401,6 +429,8 @@ struct Prepared {
     /// How much horizontal and vertical space are used up by the
     /// width of the vertical bar, and the height of the horizontal bar?
     ///
+    /// This is always zero for floating scroll bars.
+    ///
     /// Note that this is a `yx` swizzling of [`Self::show_bars_factor`]
     /// times the maximum bar with.
     /// That's because horizontal scroll uses up vertical space,
@@ -442,7 +472,7 @@ impl ScrollArea {
 
         let id_source = id_source.unwrap_or_else(|| Id::new("scroll_area"));
         let id = ui.make_persistent_id(id_source);
-        ui.ctx().check_for_id_clash(
+        ctx.check_for_id_clash(
             id,
             Rect::from_min_size(ui.available_rect_before_wrap().min, Vec2::ZERO),
             "ScrollArea",
@@ -452,8 +482,6 @@ impl ScrollArea {
         state.offset.x = offset_x.unwrap_or(state.offset.x);
         state.offset.y = offset_y.unwrap_or(state.offset.y);
 
-        let max_scroll_bar_width = max_scroll_bar_width_with_margin(ui);
-
         let show_bars: [bool; 2] = match scroll_bar_visibility {
             ScrollBarVisibility::AlwaysHidden => [false; 2],
             ScrollBarVisibility::VisibleWhenNeeded => state.show_scroll,
@@ -461,13 +489,18 @@ impl ScrollArea {
         };
 
         let show_bars_factor = Vec2::new(
-            ui.ctx().animate_bool(id.with("h"), show_bars[0]),
-            ui.ctx().animate_bool(id.with("v"), show_bars[1]),
+            ctx.animate_bool(id.with("h"), show_bars[0]),
+            ctx.animate_bool(id.with("v"), show_bars[1]),
         );
 
-        // Note the swizzling: hscroll uses up vertical space,
-        // and vscroll uses up horizontal spae!
-        let current_bar_use = max_scroll_bar_width * show_bars_factor.yx();
+        let current_bar_use = if ui.spacing().scroll.floating {
+            // Floating scroll bars don't take up space - they float!
+            Vec2::ZERO
+        } else {
+            // Note the swizzling: hscroll uses up vertical space,
+            // and vscroll uses up horizontal space!
+            show_bars_factor.yx() * ui.spacing().scroll.max_width_with_margin()
+        };
 
         let available_outer = ui.available_rect_before_wrap();
 
@@ -562,7 +595,7 @@ impl ScrollArea {
                     // Offset has an inverted coordinate system compared to
                     // the velocity, so we subtract it instead of adding it
                     state.offset -= state.vel * dt;
-                    ui.ctx().request_repaint();
+                    ctx.request_repaint();
                 }
             }
         }
@@ -761,7 +794,8 @@ impl Prepared {
         ];
 
         let max_offset = content_size - inner_rect.size();
-        if scrolling_enabled && ui.rect_contains_pointer(outer_rect) {
+        let is_hovering_outer_rect = ui.rect_contains_pointer(outer_rect);
+        if scrolling_enabled && is_hovering_outer_rect {
             for d in 0..2 {
                 if scroll_enabled[d] {
                     let scroll_delta = ui.ctx().frame_state(|fs| fs.scroll_delta);
@@ -795,23 +829,54 @@ impl Prepared {
             show_bars_factor.y = ui.ctx().animate_bool(id.with("v"), true);
         }
 
+        let scroll_style = ui.spacing().scroll;
+
         // Paint the bars:
         for d in 0..2 {
-            let animation_t = show_bars_factor[d];
-
-            if animation_t == 0.0 {
+            let show_factor = show_bars_factor[d];
+            if show_factor == 0.0 {
+                state.scroll_bar_interaction[d] = false;
                 continue;
             }
 
-            // margin on either side of the scroll bar
-            let inner_margin = animation_t * ui.spacing().scroll.bar_inner_margin;
-            let outer_margin = animation_t * ui.spacing().scroll.bar_outer_margin;
-            let mut min_cross = inner_rect.max[1 - d] + inner_margin; // left of vertical scroll (d == 1)
-            let mut max_cross = outer_rect.max[1 - d] - outer_margin; // right of vertical scroll (d == 1)
-            let min_main = inner_rect.min[d]; // top of vertical scroll (d == 1)
-            let max_main = inner_rect.max[d]; // bottom of vertical scroll (d == 1)
+            // left/right of a horizontal scroll (d==1)
+            // top/bottom of vertical scroll (d == 1)
+            let main_range = Rangef::new(inner_rect.min[d], inner_rect.max[d]);
 
-            if ui.clip_rect().max[1 - d] < max_cross + outer_margin {
+            // Margin on either side of the scroll bar:
+            let inner_margin = show_factor * scroll_style.bar_inner_margin;
+            let outer_margin = show_factor * scroll_style.bar_outer_margin;
+
+            // top/bottom of a horizontal scroll (d==0).
+            // left/rigth of a vertical scroll (d==1).
+            let mut cross = if scroll_style.floating {
+                let max_bar_rect = if d == 0 {
+                    outer_rect.with_min_y(outer_rect.max.y - scroll_style.max_width_with_margin())
+                } else {
+                    outer_rect.with_min_x(outer_rect.max.x - scroll_style.max_width_with_margin())
+                };
+                let is_hovering_bar_area = is_hovering_outer_rect
+                    && ui.rect_contains_pointer(max_bar_rect)
+                    || state.scroll_bar_interaction[d];
+                let is_hovering_bar_area_t = ui
+                    .ctx()
+                    .animate_bool(id.with("bar_hover"), is_hovering_bar_area);
+                let width = show_factor
+                    * lerp(
+                        scroll_style.floating_width..=scroll_style.bar_width,
+                        is_hovering_bar_area_t,
+                    );
+
+                let max_cross = outer_rect.max[1 - d] - outer_margin;
+                let min_cross = max_cross - width;
+                Rangef::new(min_cross, max_cross)
+            } else {
+                let min_cross = inner_rect.max[1 - d] + inner_margin;
+                let max_cross = outer_rect.max[1 - d] - outer_margin;
+                Rangef::new(min_cross, max_cross)
+            };
+
+            if ui.clip_rect().max[1 - d] < cross.max + outer_margin {
                 // Move the scrollbar so it is visible. This is needed in some cases.
                 // For instance:
                 // * When we have a vertical-only scroll area in a top level panel,
@@ -821,20 +886,20 @@ impl Prepared {
                 //   is outside the clip rectangle.
                 // Really this should use the tighter clip_rect that ignores clip_rect_margin, but we don't store that.
                 // clip_rect_margin is quite a hack. It would be nice to get rid of it.
-                let width = max_cross - min_cross;
-                max_cross = ui.clip_rect().max[1 - d] - outer_margin;
-                min_cross = max_cross - width;
+                let width = cross.max - cross.min;
+                cross.max = ui.clip_rect().max[1 - d] - outer_margin;
+                cross.min = cross.max - width;
             }
 
             let outer_scroll_rect = if d == 0 {
                 Rect::from_min_max(
-                    pos2(inner_rect.left(), min_cross),
-                    pos2(inner_rect.right(), max_cross),
+                    pos2(inner_rect.left(), cross.min),
+                    pos2(inner_rect.right(), cross.max),
                 )
             } else {
                 Rect::from_min_max(
-                    pos2(min_cross, inner_rect.top()),
-                    pos2(max_cross, inner_rect.bottom()),
+                    pos2(cross.min, inner_rect.top()),
+                    pos2(cross.max, inner_rect.bottom()),
                 )
             };
 
@@ -843,19 +908,18 @@ impl Prepared {
                 state.offset[d] = content_size[d] - inner_rect.size()[d];
             }
 
-            let from_content =
-                |content| remap_clamp(content, 0.0..=content_size[d], min_main..=max_main);
+            let from_content = |content| remap_clamp(content, 0.0..=content_size[d], main_range);
 
             let handle_rect = if d == 0 {
                 Rect::from_min_max(
-                    pos2(from_content(state.offset.x), min_cross),
-                    pos2(from_content(state.offset.x + inner_rect.width()), max_cross),
+                    pos2(from_content(state.offset.x), cross.min),
+                    pos2(from_content(state.offset.x + inner_rect.width()), cross.max),
                 )
             } else {
                 Rect::from_min_max(
-                    pos2(min_cross, from_content(state.offset.y)),
+                    pos2(cross.min, from_content(state.offset.y)),
                     pos2(
-                        max_cross,
+                        cross.max,
                         from_content(state.offset.y + inner_rect.height()),
                     ),
                 )
@@ -869,22 +933,24 @@ impl Prepared {
             };
             let response = ui.interact(outer_scroll_rect, interact_id, sense);
 
+            state.scroll_bar_interaction[d] = response.hovered() || response.dragged();
+
             if let Some(pointer_pos) = response.interact_pointer_pos() {
                 let scroll_start_offset_from_top_left = state.scroll_start_offset_from_top_left[d]
                     .get_or_insert_with(|| {
                         if handle_rect.contains(pointer_pos) {
                             pointer_pos[d] - handle_rect.min[d]
                         } else {
-                            let handle_top_pos_at_bottom = max_main - handle_rect.size()[d];
+                            let handle_top_pos_at_bottom = main_range.max - handle_rect.size()[d];
                             // Calculate the new handle top position, centering the handle on the mouse.
                             let new_handle_top_pos = (pointer_pos[d] - handle_rect.size()[d] / 2.0)
-                                .clamp(min_main, handle_top_pos_at_bottom);
+                                .clamp(main_range.min, handle_top_pos_at_bottom);
                             pointer_pos[d] - new_handle_top_pos
                         }
                     });
 
                 let new_handle_top = pointer_pos[d] - *scroll_start_offset_from_top_left;
-                state.offset[d] = remap(new_handle_top, min_main..=max_main, 0.0..=content_size[d]);
+                state.offset[d] = remap(new_handle_top, main_range, 0.0..=content_size[d]);
 
                 // some manual action taken, scroll not stuck
                 state.scroll_stuck_to_end[d] = false;
@@ -904,19 +970,19 @@ impl Prepared {
                 // Avoid frame-delay by calculating a new handle rect:
                 let mut handle_rect = if d == 0 {
                     Rect::from_min_max(
-                        pos2(from_content(state.offset.x), min_cross),
-                        pos2(from_content(state.offset.x + inner_rect.width()), max_cross),
+                        pos2(from_content(state.offset.x), cross.min),
+                        pos2(from_content(state.offset.x + inner_rect.width()), cross.max),
                     )
                 } else {
                     Rect::from_min_max(
-                        pos2(min_cross, from_content(state.offset.y)),
+                        pos2(cross.min, from_content(state.offset.y)),
                         pos2(
-                            max_cross,
+                            cross.max,
                             from_content(state.offset.y + inner_rect.height()),
                         ),
                     )
                 };
-                let min_handle_size = ui.spacing().scroll.handle_min_length;
+                let min_handle_size = scroll_style.handle_min_length;
                 if handle_rect.size()[d] < min_handle_size {
                     handle_rect = Rect::from_center_size(
                         handle_rect.center(),
@@ -934,16 +1000,44 @@ impl Prepared {
                     &ui.style().visuals.widgets.inactive
                 };
 
+                let handle_opacity = if scroll_style.floating {
+                    if response.hovered() || response.dragged() {
+                        scroll_style.interact_handle_opacity
+                    } else if is_hovering_outer_rect {
+                        scroll_style.active_handle_opacity
+                    } else {
+                        scroll_style.dormant_handle_opacity
+                    }
+                } else {
+                    1.0
+                };
+
+                let background_opacity = if scroll_style.floating {
+                    if response.hovered() || response.dragged() {
+                        scroll_style.interact_background_opacity
+                    } else if is_hovering_outer_rect {
+                        scroll_style.active_background_opacity
+                    } else {
+                        scroll_style.dormant_background_opacity
+                    }
+                } else {
+                    1.0
+                };
+
+                // Background:
                 ui.painter().add(epaint::Shape::rect_filled(
                     outer_scroll_rect,
                     visuals.rounding,
-                    ui.visuals().extreme_bg_color,
+                    ui.visuals()
+                        .extreme_bg_color
+                        .gamma_multiply(background_opacity),
                 ));
 
+                // Handle:
                 ui.painter().add(epaint::Shape::rect_filled(
                     handle_rect,
                     visuals.rounding,
-                    visuals.bg_fill,
+                    visuals.bg_fill.gamma_multiply(handle_opacity),
                 ));
             }
         }
@@ -977,11 +1071,4 @@ impl Prepared {
 
         (content_size, state)
     }
-}
-
-/// Width of a vertical scrollbar, or height of a horizontal scroll bar
-fn max_scroll_bar_width_with_margin(ui: &Ui) -> f32 {
-    ui.spacing().scroll.bar_inner_margin
-        + ui.spacing().scroll.bar_width
-        + ui.spacing().scroll.bar_outer_margin
 }

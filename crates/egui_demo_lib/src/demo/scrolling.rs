@@ -36,6 +36,8 @@ impl super::Demo for Scrolling {
         egui::Window::new(self.name())
             .open(open)
             .resizable(true)
+            .hscroll(false)
+            .vscroll(false)
             .show(ctx, |ui| {
                 use super::View as _;
                 self.ui(ui);
@@ -92,14 +94,27 @@ impl super::View for Scrolling {
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-#[derive(Default, PartialEq)]
+#[derive(PartialEq)]
 struct ScrollAppearance {
+    num_lorem_ipsums: usize,
     visibility: ScrollBarVisibility,
+}
+
+impl Default for ScrollAppearance {
+    fn default() -> Self {
+        Self {
+            num_lorem_ipsums: 10,
+            visibility: ScrollBarVisibility::default(),
+        }
+    }
 }
 
 impl ScrollAppearance {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        let Self { visibility } = self;
+        let Self {
+            num_lorem_ipsums,
+            visibility,
+        } = self;
 
         let mut style: Style = (*ui.ctx().style()).clone();
 
@@ -126,6 +141,10 @@ impl ScrollAppearance {
 
         ui.separator();
 
+        ui.add(egui::Slider::new(num_lorem_ipsums, 1..=100).text("Content length"));
+
+        ui.separator();
+
         ScrollArea::vertical()
             .auto_shrink([false; 2])
             .scroll_bar_visibility(*visibility)
@@ -133,7 +152,7 @@ impl ScrollAppearance {
                 ui.with_layout(
                     egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(true),
                     |ui| {
-                        for _ in 0..2 {
+                        for _ in 0..*num_lorem_ipsums {
                             ui.label(crate::LOREM_IPSUM_LONG);
                         }
                     },
