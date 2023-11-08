@@ -126,6 +126,12 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// Set minimum size of the window, equivalent to calling both `min_width` and `min_height`.
+    pub fn min_size(mut self, min_size: impl Into<Vec2>) -> Self {
+        self.resize = self.resize.min_size(min_size);
+        self
+    }
+
     /// Set maximum width of the window.
     pub fn max_width(mut self, max_width: f32) -> Self {
         self.resize = self.resize.max_width(max_width);
@@ -135,6 +141,12 @@ impl<'open> Window<'open> {
     /// Set maximum height of the window.
     pub fn max_height(mut self, max_height: f32) -> Self {
         self.resize = self.resize.max_height(max_height);
+        self
+    }
+
+    /// Set maximum size of the window, equivalent to calling both `max_width` and `max_height`.
+    pub fn max_size(mut self, max_size: impl Into<Vec2>) -> Self {
+        self.resize = self.resize.max_size(max_size);
         self
     }
 
