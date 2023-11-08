@@ -743,8 +743,8 @@ impl Prepared {
             }
 
             // margin on either side of the scroll bar
-            let inner_margin = animation_t * ui.spacing().scroll_bar_inner_margin;
-            let outer_margin = animation_t * ui.spacing().scroll_bar_outer_margin;
+            let inner_margin = animation_t * ui.spacing().scroll.bar_inner_margin;
+            let outer_margin = animation_t * ui.spacing().scroll.bar_outer_margin;
             let mut min_cross = inner_rect.max[1 - d] + inner_margin; // left of vertical scroll (d == 1)
             let mut max_cross = outer_rect.max[1 - d] - outer_margin; // right of vertical scroll (d == 1)
             let min_main = inner_rect.min[d]; // top of vertical scroll (d == 1)
@@ -855,7 +855,7 @@ impl Prepared {
                         ),
                     )
                 };
-                let min_handle_size = ui.spacing().scroll_handle_min_length;
+                let min_handle_size = ui.spacing().scroll.handle_min_length;
                 if handle_rect.size()[d] < min_handle_size {
                     handle_rect = Rect::from_center_size(
                         handle_rect.center(),
@@ -920,7 +920,7 @@ impl Prepared {
 
 /// Width of a vertical scrollbar, or height of a horizontal scroll bar
 fn max_scroll_bar_width_with_margin(ui: &Ui) -> f32 {
-    ui.spacing().scroll_bar_inner_margin
-        + ui.spacing().scroll_bar_width
-        + ui.spacing().scroll_bar_outer_margin
+    ui.spacing().scroll.bar_inner_margin
+        + ui.spacing().scroll.bar_width
+        + ui.spacing().scroll.bar_outer_margin
 }

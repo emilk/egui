@@ -2,11 +2,13 @@
 
 #![allow(clippy::if_same_then_else)]
 
+use std::collections::BTreeMap;
+
+use epaint::{Rounding, Shadow, Stroke};
+
 use crate::{
     ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Response, RichText, WidgetText,
 };
-use epaint::{Rounding, Shadow, Stroke};
-use std::collections::BTreeMap;
 
 // ----------------------------------------------------------------------------
 
@@ -303,16 +305,8 @@ pub struct Spacing {
     /// Height of a combo-box before showing scroll bars.
     pub combo_height: f32,
 
-    pub scroll_bar_width: f32,
-
-    /// Make sure the scroll handle is at least this big
-    pub scroll_handle_min_length: f32,
-
-    /// Margin between contents and scroll bar.
-    pub scroll_bar_inner_margin: f32,
-
-    /// Margin between scroll bar and the outer container (e.g. right of a vertical scroll bar).
-    pub scroll_bar_outer_margin: f32,
+    /// Controls the spacing of a [`crate::ScrollArea`].
+    pub scroll: ScrollSpacing,
 }
 
 impl Spacing {
@@ -328,6 +322,64 @@ impl Spacing {
             Rect::from_center_size(big_icon_rect.center(), Vec2::splat(self.icon_width_inner));
 
         (small_icon_rect, big_icon_rect)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Controls the spacing of a [`crate::ScrollArea`].
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct ScrollSpacing {
+    pub bar_width: f32,
+
+    /// Make sure the scroll handle is at least this big
+    pub handle_min_length: f32,
+
+    /// Margin between contents and scroll bar.
+    pub bar_inner_margin: f32,
+
+    /// Margin between scroll bar and the outer container (e.g. right of a vertical scroll bar).
+    pub bar_outer_margin: f32,
+}
+
+impl Default for ScrollSpacing {
+    fn default() -> Self {
+        Self {
+            bar_width: 8.0,
+            handle_min_length: 12.0,
+            bar_inner_margin: 4.0,
+            bar_outer_margin: 0.0,
+        }
+    }
+}
+
+impl ScrollSpacing {
+    pub fn ui(&mut self, ui: &mut Ui) {
+        let Self {
+            bar_width,
+            handle_min_length,
+            bar_inner_margin,
+            bar_outer_margin,
+        } = self;
+
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(bar_width).clamp_range(0.0..=32.0));
+            ui.label("Bar width");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(handle_min_length).clamp_range(0.0..=32.0));
+            ui.label("Minimum handle length");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(bar_inner_margin).clamp_range(0.0..=32.0));
+            ui.label("Inner margin");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(bar_outer_margin).clamp_range(0.0..=32.0));
+            ui.label("Outer margin");
+        });
     }
 }
 
@@ -807,10 +859,7 @@ impl Default for Spacing {
             icon_spacing: 4.0,
             tooltip_width: 600.0,
             combo_height: 200.0,
-            scroll_bar_width: 8.0,
-            scroll_handle_min_length: 12.0,
-            scroll_bar_inner_margin: 4.0,
-            scroll_bar_outer_margin: 0.0,
+            scroll: Default::default(),
             indent_ends_with_horizontal_line: false,
         }
     }
@@ -1146,10 +1195,7 @@ impl Spacing {
             tooltip_width,
             indent_ends_with_horizontal_line,
             combo_height,
-            scroll_bar_width,
-            scroll_handle_min_length,
-            scroll_bar_inner_margin,
-            scroll_bar_outer_margin,
+            scroll,
         } = self;
 
         ui.add(slider_vec2(item_spacing, 0.0..=20.0, "Item spacing"));
@@ -1176,21 +1222,9 @@ impl Spacing {
             ui.add(DragValue::new(text_edit_width).clamp_range(0.0..=1000.0));
             ui.label("TextEdit width");
         });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(scroll_bar_width).clamp_range(0.0..=32.0));
-            ui.label("Scroll-bar width");
-        });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(scroll_handle_min_length).clamp_range(0.0..=32.0));
-            ui.label("Scroll-bar handle min length");
-        });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(scroll_bar_inner_margin).clamp_range(0.0..=32.0));
-            ui.label("Scroll-bar inner margin");
-        });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(scroll_bar_outer_margin).clamp_range(0.0..=32.0));
-            ui.label("Scroll-bar outer margin");
+
+        ui.collapsing("Scroll Area", |ui| {
+            scroll.ui(ui);
         });
 
         ui.horizontal(|ui| {
