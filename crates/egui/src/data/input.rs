@@ -1,6 +1,6 @@
 //! The input needed by egui.
 
-use crate::emath::*;
+use crate::{emath::*, ViewportIdPair};
 
 /// What the integrations provides to egui at the start of each frame.
 ///
@@ -13,6 +13,8 @@ use crate::emath::*;
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RawInput {
+    pub viewport: ViewportInfo,
+
     /// Position and size of the area that egui should use, in points.
     /// Usually you would set this to
     ///
@@ -22,14 +24,6 @@ pub struct RawInput {
     ///
     /// `None` will be treated as "same as last frame", with the default being a very big area.
     pub screen_rect: Option<Rect>,
-
-    /// Viewport inner position and size, only the drowable area
-    /// unit = physical pixels
-    pub inner_rect: Option<Rect>,
-
-    /// Viewport outer position and size, drowable area + decorations
-    /// unit = physical pixels
-    pub outer_rect: Option<Rect>,
 
     /// Also known as device pixel ratio, > 1 for high resolution screens.
     /// If text looks blurry you probably forgot to set this.
@@ -81,8 +75,6 @@ impl Default for RawInput {
     fn default() -> Self {
         Self {
             screen_rect: None,
-            inner_rect: None,
-            outer_rect: None,
             pixels_per_point: None,
             max_texture_side: None,
             time: None,
@@ -91,7 +83,8 @@ impl Default for RawInput {
             events: vec![],
             hovered_files: Default::default(),
             dropped_files: Default::default(),
-            focused: true, // integrations opt into global focus tracking
+            focused: true,
+            viewport: ViewportInfo::default(), // integrations opt into global focus tracking
         }
     }
 }
@@ -104,8 +97,6 @@ impl RawInput {
     pub fn take(&mut self) -> RawInput {
         RawInput {
             screen_rect: self.screen_rect.take(),
-            inner_rect: self.inner_rect.take(),
-            outer_rect: self.outer_rect.take(),
             pixels_per_point: self.pixels_per_point.take(),
             max_texture_side: self.max_texture_side.take(),
             time: self.time.take(),
@@ -115,6 +106,7 @@ impl RawInput {
             hovered_files: self.hovered_files.clone(),
             dropped_files: std::mem::take(&mut self.dropped_files),
             focused: self.focused,
+            viewport: self.viewport.take(),
         }
     }
 
@@ -122,8 +114,6 @@ impl RawInput {
     pub fn append(&mut self, newer: Self) {
         let Self {
             screen_rect,
-            inner_rect,
-            outer_rect,
             pixels_per_point,
             max_texture_side,
             time,
@@ -133,13 +123,13 @@ impl RawInput {
             mut hovered_files,
             mut dropped_files,
             focused,
+            viewport,
         } = newer;
 
         self.screen_rect = screen_rect.or(self.screen_rect);
-        self.inner_rect = inner_rect.or(self.inner_rect);
-        self.outer_rect = outer_rect.or(self.outer_rect);
         self.pixels_per_point = pixels_per_point.or(self.pixels_per_point);
         self.max_texture_side = max_texture_side.or(self.max_texture_side);
+        self.viewport = viewport;
         self.time = time; // use latest time
         self.predicted_dt = predicted_dt; // use latest dt
         self.modifiers = modifiers; // use latest
@@ -147,6 +137,26 @@ impl RawInput {
         self.hovered_files.append(&mut hovered_files);
         self.dropped_files.append(&mut dropped_files);
         self.focused = focused;
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct ViewportInfo {
+    pub id_pair: ViewportIdPair,
+
+    /// Viewport inner position and size, only the drowable area
+    /// unit = physical pixels
+    pub inner_rect: Option<Rect>,
+
+    /// Viewport outer position and size, drowable area + decorations
+    /// unit = physical pixels
+    pub outer_rect: Option<Rect>,
+}
+
+impl ViewportInfo {
+    pub fn take(&mut self) -> Self {
+        core::mem::take(self)
     }
 }
 
@@ -958,8 +968,6 @@ impl RawInput {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
             screen_rect,
-            inner_rect,
-            outer_rect,
             pixels_per_point,
             max_texture_side,
             time,
@@ -969,11 +977,11 @@ impl RawInput {
             hovered_files,
             dropped_files,
             focused,
+            viewport,
         } = self;
 
+        viewport.ui(ui);
         ui.label(format!("screen_rect: {screen_rect:?} points"));
-        ui.label(format!("inner_rect: {inner_rect:?} pixels"));
-        ui.label(format!("outer_rect: {outer_rect:?} pixels"));
         ui.label(format!("pixels_per_point: {pixels_per_point:?}"))
             .on_hover_text(
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
@@ -994,6 +1002,14 @@ impl RawInput {
             ui.label(format!("events: {events:#?}"))
                 .on_hover_text("key presses etc");
         });
+    }
+}
+
+impl ViewportInfo {
+    pub fn ui(&self, ui: &mut crate::Ui) {
+        ui.label(format!("id_pair: {:?}", self.id_pair));
+        ui.label(format!("inner_rect: {:?}", self.inner_rect));
+        ui.label(format!("outer_rect: {:?}", self.outer_rect));
     }
 }
 

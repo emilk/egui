@@ -47,13 +47,15 @@ impl EguiGlow {
 
     /// Call [`Self::paint`] later to paint.
     pub fn run(&mut self, window: &winit::window::Window, run_ui: impl FnMut(&egui::Context)) {
-        let raw_input = self.egui_winit.take_egui_input(window);
+        let raw_input = self
+            .egui_winit
+            .take_egui_input(window, ViewportIdPair::ROOT);
         let egui::FullOutput {
             platform_output,
             textures_delta,
             shapes,
             ..
-        } = self.egui_ctx.run(raw_input, ViewportIdPair::ROOT, run_ui);
+        } = self.egui_ctx.run(raw_input, run_ui);
 
         self.egui_winit.handle_platform_output(
             window,

@@ -14,7 +14,7 @@ pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId};
+use egui::{Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdPair};
 pub use winit;
 
 pub mod clipboard;
@@ -177,7 +177,11 @@ impl State {
 
     /// Prepare for a new frame by extracting the accumulated input,
     /// as well as setting [the time](egui::RawInput::time) and [screen rectangle](egui::RawInput::screen_rect).
-    pub fn take_egui_input(&mut self, window: &winit::window::Window) -> egui::RawInput {
+    pub fn take_egui_input(
+        &mut self,
+        window: &winit::window::Window,
+        id_pair: ViewportIdPair,
+    ) -> egui::RawInput {
         let pixels_per_point = self.pixels_per_point();
 
         self.egui_input.time = Some(self.start_time.elapsed().as_secs_f64());
@@ -237,17 +241,20 @@ impl State {
             None
         };
 
-        self.egui_input.inner_rect = if let (Some(pos), Some(size)) = (inner_pos, inner_size) {
-            Some(Rect::from_min_size(pos, size))
-        } else {
-            None
-        };
+        self.egui_input.viewport.id_pair = id_pair;
+        self.egui_input.viewport.inner_rect =
+            if let (Some(pos), Some(size)) = (inner_pos, inner_size) {
+                Some(Rect::from_min_size(pos, size))
+            } else {
+                None
+            };
 
-        self.egui_input.outer_rect = if let (Some(pos), Some(size)) = (outer_pos, outer_size) {
-            Some(Rect::from_min_size(pos, size))
-        } else {
-            None
-        };
+        self.egui_input.viewport.outer_rect =
+            if let (Some(pos), Some(size)) = (outer_pos, outer_size) {
+                Some(Rect::from_min_size(pos, size))
+            } else {
+                None
+            };
 
         self.egui_input.take()
     }

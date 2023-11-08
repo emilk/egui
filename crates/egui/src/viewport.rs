@@ -19,6 +19,7 @@ use crate::{Context, Id};
 ///
 /// This is returned by [`Context::viewport_id`] and [`Context::parent_viewport_id`].
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportId(pub Id);
 
 impl Default for ViewportId {
@@ -63,6 +64,7 @@ pub type ViewportIdMap<T> = nohash_hasher::IntMap<ViewportId, T>;
 
 /// A pair of [`ViewportId`], used to identify a viewport and its parent.
 #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportIdPair {
     pub this: ViewportId,
     pub parent: ViewportId,

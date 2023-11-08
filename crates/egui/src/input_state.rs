@@ -54,14 +54,6 @@ pub struct InputState {
     /// Position and size of the egui area.
     pub screen_rect: Rect,
 
-    /// Viewport inner position and size, only the drowable area
-    /// unit = physical pixels
-    pub inner_rect: Rect,
-
-    /// Viewport outer position and size, drowable area + decorations
-    /// unit = physical pixels
-    pub outer_rect: Rect,
-
     /// Also known as device pixel ratio, > 1 for high resolution screens.
     pub pixels_per_point: f32,
 
@@ -146,8 +138,6 @@ impl Default for InputState {
             modifiers: Default::default(),
             keys_down: Default::default(),
             events: Default::default(),
-            inner_rect: Rect::ZERO,
-            outer_rect: Rect::ZERO,
         }
     }
 }
@@ -172,8 +162,6 @@ impl InputState {
         };
 
         let screen_rect = new.screen_rect.unwrap_or(self.screen_rect);
-        let inner_rect = new.inner_rect.unwrap_or(self.inner_rect);
-        let outer_rect = new.outer_rect.unwrap_or(self.outer_rect);
 
         self.create_touch_states_for_new_devices(&new.events);
         for touch_state in self.touch_states.values_mut() {
@@ -229,8 +217,6 @@ impl InputState {
             scroll_delta,
             zoom_factor_delta,
             screen_rect,
-            inner_rect,
-            outer_rect,
             pixels_per_point: new.pixels_per_point.unwrap_or(self.pixels_per_point),
             max_texture_side: new.max_texture_side.unwrap_or(self.max_texture_side),
             time,
@@ -997,8 +983,6 @@ impl InputState {
             scroll_delta,
             zoom_factor_delta,
             screen_rect,
-            inner_rect,
-            outer_rect,
             pixels_per_point,
             max_texture_side,
             time,
@@ -1034,8 +1018,6 @@ impl InputState {
         ui.label(format!("scroll_delta: {scroll_delta:?} points"));
         ui.label(format!("zoom_factor_delta: {zoom_factor_delta:4.2}x"));
         ui.label(format!("screen_rect: {screen_rect:?} points"));
-        ui.label(format!("inner_rect: {inner_rect:?} pixels"));
-        ui.label(format!("outer_rect: {outer_rect:?} pixels"));
         ui.label(format!(
             "{pixels_per_point} physical pixels for each logical point"
         ));

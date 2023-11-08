@@ -197,18 +197,20 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>]) {
 
     ui.add_space(8.0);
 
-    let inner_rect = ctx.inner_rect();
-    ui.label(format!(
-        "Inner Rect: Pos: {:?}, Size: {:?}",
-        inner_rect.min,
-        inner_rect.size()
-    ));
-    let outer_rect = ctx.outer_rect();
-    ui.label(format!(
-        "Outer Rect: Pos: {:?}, Size: {:?}",
-        outer_rect.min,
-        outer_rect.size()
-    ));
+    if let Some(inner_rect) = ctx.input(|i| i.raw.viewport.inner_rect) {
+        ui.label(format!(
+            "Inner Rect: Pos: {:?}, Size: {:?}",
+            inner_rect.min,
+            inner_rect.size()
+        ));
+    }
+    if let Some(outer_rect) = ctx.input(|i| i.raw.viewport.outer_rect) {
+        ui.label(format!(
+            "Outer Rect: Pos: {:?}, Size: {:?}",
+            outer_rect.min,
+            outer_rect.size()
+        ));
+    }
 
     let tmp_pixels_per_point = ctx.pixels_per_point();
     let mut pixels_per_point = ui.data_mut(|data| {

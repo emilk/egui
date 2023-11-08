@@ -492,11 +492,11 @@ impl EpiIntegration {
 
         self.frame.info.window_info =
             read_window_info(window, self.egui_ctx.pixels_per_point(), &self.window_state);
-        let mut raw_input = egui_winit.take_egui_input(window);
+        let mut raw_input = egui_winit.take_egui_input(window, id_pair);
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 
         // Run user code:
-        let full_output = self.egui_ctx.run(raw_input, id_pair, |egui_ctx| {
+        let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             crate::profile_scope!("App::update");
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport

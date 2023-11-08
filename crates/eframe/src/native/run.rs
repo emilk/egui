@@ -1196,9 +1196,9 @@ mod glow_integration {
                 return;
             };
             let win = win.borrow();
-            let mut input = winit_state.take_egui_input(&win);
+            let mut input = winit_state.take_egui_input(&win, id_pair);
             input.time = Some(beginning.elapsed().as_secs_f64());
-            let output = egui_ctx.run(input, id_pair, |ctx| {
+            let output = egui_ctx.run(input, |ctx| {
                 viewport_ui_cb(ctx);
             });
 
@@ -2323,9 +2323,9 @@ mod wgpu_integration {
                 return;
             };
             let win = window.borrow();
-            let mut input = winit_state.take_egui_input(&win);
+            let mut input = winit_state.take_egui_input(&win, id_pair);
             input.time = Some(beginning.elapsed().as_secs_f64());
-            let output = egui_ctx.run(input, id_pair, |ctx| {
+            let output = egui_ctx.run(input, |ctx| {
                 viewport_ui_cb(ctx);
             });
 

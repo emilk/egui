@@ -190,7 +190,9 @@ struct ContextImpl {
 }
 
 impl ContextImpl {
-    fn begin_frame_mut(&mut self, mut new_raw_input: RawInput, id_pair: ViewportIdPair) {
+    fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
+        let id_pair = new_raw_input.viewport.id_pair;
+
         let viewport_id = id_pair.this;
         self.viewport_stack.push(id_pair);
         self.output.entry(self.viewport_id()).or_default();
@@ -461,15 +463,10 @@ impl Context {
     /// // handle full_output
     /// ```
     #[must_use]
-    pub fn run(
-        &self,
-        new_input: RawInput,
-        id_pair: ViewportIdPair,
-        run_ui: impl FnOnce(&Context),
-    ) -> FullOutput {
+    pub fn run(&self, new_input: RawInput, run_ui: impl FnOnce(&Context)) -> FullOutput {
         crate::profile_function!();
 
-        self.begin_frame(new_input, id_pair);
+        self.begin_frame(new_input);
         run_ui(self);
         self.end_frame()
     }
@@ -491,10 +488,10 @@ impl Context {
     /// let full_output = ctx.end_frame();
     /// // handle full_output
     /// ```
-    pub fn begin_frame(&self, new_input: RawInput, id_pair: ViewportIdPair) {
+    pub fn begin_frame(&self, new_input: RawInput) {
         crate::profile_function!();
 
-        self.write(|ctx| ctx.begin_frame_mut(new_input, id_pair));
+        self.write(|ctx| ctx.begin_frame_mut(new_input));
     }
 }
 
@@ -1674,18 +1671,6 @@ impl Context {
     /// Position and size of the egui area.
     pub fn screen_rect(&self) -> Rect {
         self.input(|i| i.screen_rect())
-    }
-
-    /// Viewport inner position and size, only the drowable area
-    /// unit = physical pixels
-    pub fn inner_rect(&self) -> Rect {
-        self.input(|i| i.inner_rect)
-    }
-
-    /// Viewport outer position and size, drowable area + decorations
-    /// unit = physical pixels
-    pub fn outer_rect(&self) -> Rect {
-        self.input(|i| i.outer_rect)
     }
 
     /// How much space is still available after panels has been added.
