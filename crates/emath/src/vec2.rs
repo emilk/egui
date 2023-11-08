@@ -274,6 +274,16 @@ impl Vec2 {
         self.x.max(self.y)
     }
 
+    /// Swizzle the axes.
+    #[inline]
+    #[must_use]
+    pub fn yx(self) -> Vec2 {
+        Vec2 {
+            x: self.y,
+            y: self.x,
+        }
+    }
+
     #[must_use]
     #[inline]
     pub fn clamp(self, min: Self, max: Self) -> Self {

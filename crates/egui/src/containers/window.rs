@@ -419,7 +419,7 @@ impl<'open> Window<'open> {
                             ui.add_space(title_content_spacing);
                         }
 
-                        if scroll.has_any_bar() {
+                        if scroll.is_any_scroll_enabled() {
                             scroll.show(ui, add_contents).inner
                         } else {
                             add_contents(ui)
