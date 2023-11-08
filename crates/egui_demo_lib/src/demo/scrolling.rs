@@ -1,4 +1,4 @@
-use egui::*;
+use egui::{scroll_area::ScrollBarVisibility, *};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -21,6 +21,7 @@ impl Default for ScrollDemo {
 #[cfg_attr(feature = "serde", serde(default))]
 #[derive(Default, PartialEq)]
 pub struct Scrolling {
+    appearance: ScrollAppearance,
     demo: ScrollDemo,
     scroll_to: ScrollTo,
     scroll_stick_to: ScrollStickTo,
@@ -34,7 +35,7 @@ impl super::Demo for Scrolling {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
-            .resizable(false)
+            .resizable(true)
             .show(ctx, |ui| {
                 use super::View as _;
                 self.ui(ui);
@@ -63,7 +64,7 @@ impl super::View for Scrolling {
         ui.separator();
         match self.demo {
             ScrollDemo::ScrollAppearance => {
-                scroll_bar_appearance(ui);
+                self.appearance.ui(ui);
             }
             ScrollDemo::ScrollTo => {
                 self.scroll_to.ui(ui);
@@ -89,26 +90,56 @@ impl super::View for Scrolling {
     }
 }
 
-fn scroll_bar_appearance(ui: &mut egui::Ui) {
-    ui.label("Settings:");
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+#[derive(Default, PartialEq)]
+struct ScrollAppearance {
+    visibility: ScrollBarVisibility,
+}
 
-    let mut style: Style = (*ui.ctx().style()).clone();
-    style.spacing.scroll.ui(ui);
-    if ui.button("Reset").clicked() {
-        style.spacing.scroll = Default::default();
-    }
-    ui.ctx().set_style(style.clone());
-    ui.set_style(style);
+impl ScrollAppearance {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        let Self { visibility } = self;
 
-    ui.separator();
+        let mut style: Style = (*ui.ctx().style()).clone();
 
-    ScrollArea::vertical()
-        .auto_shrink([false; 2])
-        .show(ui, |ui| {
-            for _ in 0..100 {
-                ui.label(crate::LOREM_IPSUM_LONG);
+        style.spacing.scroll.ui(ui);
+
+        ui.add_space(8.0);
+
+        ui.horizontal(|ui| {
+            ui.label("ScrollBarVisibility:");
+            for option in ScrollBarVisibility::ALL {
+                ui.selectable_value(visibility, option, format!("{option:?}"));
             }
         });
+
+        ui.add_space(8.0);
+
+        if ui.button("Reset").clicked() {
+            style.spacing.scroll = Default::default();
+            *visibility = Default::default();
+        }
+
+        ui.ctx().set_style(style.clone());
+        ui.set_style(style);
+
+        ui.separator();
+
+        ScrollArea::vertical()
+            .auto_shrink([false; 2])
+            .scroll_bar_visibility(*visibility)
+            .show(ui, |ui| {
+                ui.with_layout(
+                    egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(true),
+                    |ui| {
+                        for _ in 0..2 {
+                            ui.label(crate::LOREM_IPSUM_LONG);
+                        }
+                    },
+                );
+            });
+    }
 }
 
 fn huge_content_lines(ui: &mut egui::Ui) {

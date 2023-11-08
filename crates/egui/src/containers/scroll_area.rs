@@ -80,11 +80,40 @@ pub struct ScrollAreaOutput<R> {
 }
 
 /// Indicate whether the horizontal and vertical scroll bars must be always visible, hidden or visible when needed.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ScrollBarVisibility {
-    AlwaysVisible,
-    VisibleWhenNeeded,
+    /// Hide scroll bar even if they are needed.
+    ///
+    /// You can still scroll, with the scroll-wheel
+    /// and by dragging the contents, but there is no
+    /// visual indication of how far you have scrolled.
     AlwaysHidden,
+
+    /// Show scroll bars only when the content size exceeds the container,
+    /// i.e. when there is any need to scroll.
+    ///
+    /// This is the default.
+    VisibleWhenNeeded,
+
+    /// Always show the scroll bar, even if the contents fit in the container
+    /// and there is no need to scroll.
+    AlwaysVisible,
+}
+
+impl Default for ScrollBarVisibility {
+    #[inline]
+    fn default() -> Self {
+        Self::VisibleWhenNeeded
+    }
+}
+
+impl ScrollBarVisibility {
+    pub const ALL: [Self; 3] = [
+        Self::AlwaysHidden,
+        Self::VisibleWhenNeeded,
+        Self::AlwaysVisible,
+    ];
 }
 
 /// Add vertical and/or horizontal scrolling to a contained [`Ui`].
@@ -151,7 +180,7 @@ impl ScrollArea {
             auto_shrink: [true; 2],
             max_size: Vec2::INFINITY,
             min_scrolled_size: Vec2::splat(64.0),
-            scroll_bar_visibility: ScrollBarVisibility::VisibleWhenNeeded,
+            scroll_bar_visibility: Default::default(),
             id_source: None,
             offset_x: None,
             offset_y: None,
