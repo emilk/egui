@@ -120,6 +120,16 @@ impl ColorImage {
         Self { size, pixels }
     }
 
+    /// Alternative method to `from_gray`.
+    /// Create a [`ColorImage`] from iterator over flat opaque gray data.
+    /// 
+    /// Panics if `size[0] * size[1] != gray_iter.len()`.
+    pub fn from_gray_iter<'_>(size: [usize; 2], gray_iter: impl Iterator<Item = &'_ u8> + ExactSizeIterator) -> Self {
+        assert_eq!(size[0] * size[1], gray_iter.len());
+        let pixels = gray_iter.map(|p| Color32::from_gray(*p)).collect();
+        Self { size, pixels }
+    }
+
     /// A view of the underlying data as `&[u8]`
     #[cfg(feature = "bytemuck")]
     pub fn as_raw(&self) -> &[u8] {
