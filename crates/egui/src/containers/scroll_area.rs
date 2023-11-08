@@ -995,9 +995,24 @@ impl Prepared {
                 }
 
                 let visuals = if scrolling_enabled {
-                    ui.style().interact(&response)
+                    // Pick visuals based on interaction with the handle.
+                    // Remember that the response is for the whole scroll bar!
+                    let is_hovering_handle = response.hovered()
+                        && ui.input(|i| {
+                            i.pointer
+                                .latest_pos()
+                                .map_or(false, |p| handle_rect.contains(p))
+                        });
+                    let visuals = ui.visuals();
+                    if response.is_pointer_button_down_on() {
+                        &visuals.widgets.active
+                    } else if is_hovering_handle {
+                        &visuals.widgets.hovered
+                    } else {
+                        &visuals.widgets.inactive
+                    }
                 } else {
-                    &ui.style().visuals.widgets.inactive
+                    &ui.visuals().widgets.inactive
                 };
 
                 let handle_opacity = if scroll_style.floating {
@@ -1024,6 +1039,12 @@ impl Prepared {
                     1.0
                 };
 
+                let handle_color = if scroll_style.floating {
+                    visuals.fg_stroke.color
+                } else {
+                    visuals.bg_fill
+                };
+
                 // Background:
                 ui.painter().add(epaint::Shape::rect_filled(
                     outer_scroll_rect,
@@ -1037,7 +1058,7 @@ impl Prepared {
                 ui.painter().add(epaint::Shape::rect_filled(
                     handle_rect,
                     visuals.rounding,
-                    visuals.bg_fill.gamma_multiply(handle_opacity),
+                    handle_color.gamma_multiply(handle_opacity),
                 ));
             }
         }

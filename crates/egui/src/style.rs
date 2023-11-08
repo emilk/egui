@@ -306,7 +306,7 @@ pub struct Spacing {
     pub combo_height: f32,
 
     /// Controls the spacing of a [`crate::ScrollArea`].
-    pub scroll: ScrollSpacing,
+    pub scroll: ScrollStyle,
 }
 
 impl Spacing {
@@ -331,11 +331,14 @@ impl Spacing {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct ScrollSpacing {
+pub struct ScrollStyle {
     /// If `true`, scroll bars float above the content, partially covering it.
     ///
     /// If `false`, the scroll bars allocate space, shrinking the area
     /// available to the contents.
+    ///
+    /// This also changes the colors of the scroll-handle to make
+    /// it more promiment.
     pub floating: bool,
 
     /// The width of the scroll bars at it largest.
@@ -356,18 +359,6 @@ pub struct ScrollSpacing {
     /// When the user hovers the scroll bars they expand to [`Self::bar_width`].
     pub floating_width: f32,
 
-    /// The opaqueness of the handle when the user is neither scrolling
-    /// nor hovering the scroll area.
-    pub dormant_handle_opacity: f32,
-
-    /// The opaqueness of the handle when the user is hovering
-    /// the scroll area, but not the scroll bar.
-    pub active_handle_opacity: f32,
-
-    /// The opaqueness of the handle when the user is hovering
-    /// over the scroll bars.
-    pub interact_handle_opacity: f32,
-
     /// The opaqueness of the background when the user is neither scrolling
     /// nor hovering the scroll area.
     pub dormant_background_opacity: f32,
@@ -379,9 +370,21 @@ pub struct ScrollSpacing {
     /// The opaqueness of the background when the user is hovering
     /// over the scroll bars.
     pub interact_background_opacity: f32,
+
+    /// The opaqueness of the handle when the user is neither scrolling
+    /// nor hovering the scroll area.
+    pub dormant_handle_opacity: f32,
+
+    /// The opaqueness of the handle when the user is hovering
+    /// the scroll area, but not the scroll bar.
+    pub active_handle_opacity: f32,
+
+    /// The opaqueness of the handle when the user is hovering
+    /// over the scroll bars.
+    pub interact_handle_opacity: f32,
 }
 
-impl Default for ScrollSpacing {
+impl Default for ScrollStyle {
     fn default() -> Self {
         Self {
             floating: false,
@@ -391,18 +394,18 @@ impl Default for ScrollSpacing {
             bar_outer_margin: 0.0,
             floating_width: 3.0,
 
-            dormant_handle_opacity: 0.0,
-            active_handle_opacity: 0.9,
-            interact_handle_opacity: 1.0,
-
             dormant_background_opacity: 0.0,
             active_background_opacity: 0.4,
             interact_background_opacity: 0.7,
+
+            dormant_handle_opacity: 0.0,
+            active_handle_opacity: 0.6,
+            interact_handle_opacity: 1.0,
         }
     }
 }
 
-impl ScrollSpacing {
+impl ScrollStyle {
     /// Width of a solid vertical scrollbar, or height of a horizontal scroll bar, when it is at its widest.
     pub fn max_width_with_margin(&self) -> f32 {
         self.bar_inner_margin + self.bar_width + self.bar_outer_margin
@@ -417,12 +420,12 @@ impl ScrollSpacing {
             bar_outer_margin,
             floating_width,
 
-            dormant_handle_opacity,
-            active_handle_opacity,
-            interact_handle_opacity,
             dormant_background_opacity,
             active_background_opacity,
             interact_background_opacity,
+            dormant_handle_opacity,
+            active_handle_opacity,
+            interact_handle_opacity,
         } = self;
 
         ui.horizontal(|ui| {
