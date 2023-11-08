@@ -152,22 +152,26 @@ pub struct ScrollArea {
 
 impl ScrollArea {
     /// Create a horizontal scroll area.
+    #[inline]
     pub fn horizontal() -> Self {
         Self::new([true, false])
     }
 
     /// Create a vertical scroll area.
+    #[inline]
     pub fn vertical() -> Self {
         Self::new([false, true])
     }
 
     /// Create a bi-directional (horizontal and vertical) scroll area.
+    #[inline]
     pub fn both() -> Self {
         Self::new([true, true])
     }
 
     /// Create a scroll area where both direction of scrolling is disabled.
     /// It's unclear why you would want to do this.
+    #[inline]
     pub fn neither() -> Self {
         Self::new([false, false])
     }
@@ -195,6 +199,7 @@ impl ScrollArea {
     /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding [`Ui`] (default).
     ///
     /// See also [`Self::auto_shrink`].
+    #[inline]
     pub fn max_width(mut self, max_width: f32) -> Self {
         self.max_size.x = max_width;
         self
@@ -205,6 +210,7 @@ impl ScrollArea {
     /// Use `f32::INFINITY` if you want the scroll area to expand to fit the surrounding [`Ui`] (default).
     ///
     /// See also [`Self::auto_shrink`].
+    #[inline]
     pub fn max_height(mut self, max_height: f32) -> Self {
         self.max_size.y = max_height;
         self
@@ -216,6 +222,7 @@ impl ScrollArea {
     /// (and so we don't require scroll bars).
     ///
     /// Default: `64.0`.
+    #[inline]
     pub fn min_scrolled_width(mut self, min_scrolled_width: f32) -> Self {
         self.min_scrolled_size.x = min_scrolled_width;
         self
@@ -227,6 +234,7 @@ impl ScrollArea {
     /// (and so we don't require scroll bars).
     ///
     /// Default: `64.0`.
+    #[inline]
     pub fn min_scrolled_height(mut self, min_scrolled_height: f32) -> Self {
         self.min_scrolled_size.y = min_scrolled_height;
         self
@@ -235,12 +243,14 @@ impl ScrollArea {
     /// Set the visibility of both horizontal and vertical scroll bars.
     ///
     /// With `ScrollBarVisibility::VisibleWhenNeeded` (default), the scroll bar will be visible only when needed.
+    #[inline]
     pub fn scroll_bar_visibility(mut self, scroll_bar_visibility: ScrollBarVisibility) -> Self {
         self.scroll_bar_visibility = scroll_bar_visibility;
         self
     }
 
     /// A source for the unique [`Id`], e.g. `.id_source("second_scroll_area")` or `.id_source(loop_index)`.
+    #[inline]
     pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
         self.id_source = Some(Id::new(id_source));
         self
@@ -253,6 +263,7 @@ impl ScrollArea {
     /// See also: [`Self::vertical_scroll_offset`], [`Self::horizontal_scroll_offset`],
     /// [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
+    #[inline]
     pub fn scroll_offset(mut self, offset: Vec2) -> Self {
         self.offset_x = Some(offset.x);
         self.offset_y = Some(offset.y);
@@ -265,6 +276,7 @@ impl ScrollArea {
     ///
     /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
+    #[inline]
     pub fn vertical_scroll_offset(mut self, offset: f32) -> Self {
         self.offset_y = Some(offset);
         self
@@ -276,24 +288,28 @@ impl ScrollArea {
     ///
     /// See also: [`Self::scroll_offset`], [`Ui::scroll_to_cursor`](crate::ui::Ui::scroll_to_cursor) and
     /// [`Response::scroll_to_me`](crate::Response::scroll_to_me)
+    #[inline]
     pub fn horizontal_scroll_offset(mut self, offset: f32) -> Self {
         self.offset_x = Some(offset);
         self
     }
 
     /// Turn on/off scrolling on the horizontal axis.
+    #[inline]
     pub fn hscroll(mut self, hscroll: bool) -> Self {
         self.has_bar[0] = hscroll;
         self
     }
 
     /// Turn on/off scrolling on the vertical axis.
+    #[inline]
     pub fn vscroll(mut self, vscroll: bool) -> Self {
         self.has_bar[1] = vscroll;
         self
     }
 
     /// Turn on/off scrolling on the horizontal/vertical axes.
+    #[inline]
     pub fn scroll2(mut self, has_bar: [bool; 2]) -> Self {
         self.has_bar = has_bar;
         self
@@ -308,6 +324,7 @@ impl ScrollArea {
     /// is typing text in a [`TextEdit`] widget contained within the scroll area.
     ///
     /// This controls both scrolling directions.
+    #[inline]
     pub fn enable_scrolling(mut self, enable: bool) -> Self {
         self.scrolling_enabled = enable;
         self
@@ -320,6 +337,7 @@ impl ScrollArea {
     /// If `true`, the [`ScrollArea`] will sense drags.
     ///
     /// Default: `true`.
+    #[inline]
     pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
         self.drag_to_scroll = drag_to_scroll;
         self
@@ -331,6 +349,7 @@ impl ScrollArea {
     /// * If `false`, egui will add blank space inside the scroll area.
     ///
     /// Default: `[true; 2]`.
+    #[inline]
     pub fn auto_shrink(mut self, auto_shrink: [bool; 2]) -> Self {
         self.auto_shrink = auto_shrink;
         self
@@ -346,6 +365,7 @@ impl ScrollArea {
     /// it will remain focused on whatever content viewport the user left it on. If the scroll
     /// handle is dragged all the way to the right it will again become stuck and remain there
     /// until manually pulled from the end position.
+    #[inline]
     pub fn stick_to_right(mut self, stick: bool) -> Self {
         self.stick_to_end[0] = stick;
         self
@@ -357,6 +377,7 @@ impl ScrollArea {
     /// it will remain focused on whatever content viewport the user left it on. If the scroll
     /// handle is dragged to the bottom it will again become stuck and remain there until manually
     /// pulled from the end position.
+    #[inline]
     pub fn stick_to_bottom(mut self, stick: bool) -> Self {
         self.stick_to_end[1] = stick;
         self
