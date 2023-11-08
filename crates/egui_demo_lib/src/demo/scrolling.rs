@@ -3,6 +3,7 @@ use egui::*;
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum ScrollDemo {
+    ScrollAppearance,
     ScrollTo,
     ManyLines,
     LargeCanvas,
@@ -12,7 +13,7 @@ enum ScrollDemo {
 
 impl Default for ScrollDemo {
     fn default() -> Self {
-        Self::ScrollTo
+        Self::ScrollAppearance
     }
 }
 
@@ -44,6 +45,7 @@ impl super::Demo for Scrolling {
 impl super::View for Scrolling {
     fn ui(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
+            ui.selectable_value(&mut self.demo, ScrollDemo::ScrollAppearance, "Appearance");
             ui.selectable_value(&mut self.demo, ScrollDemo::ScrollTo, "Scroll to");
             ui.selectable_value(
                 &mut self.demo,
@@ -60,6 +62,9 @@ impl super::View for Scrolling {
         });
         ui.separator();
         match self.demo {
+            ScrollDemo::ScrollAppearance => {
+                scroll_bar_appearance(ui);
+            }
             ScrollDemo::ScrollTo => {
                 self.scroll_to.ui(ui);
             }
@@ -82,6 +87,28 @@ impl super::View for Scrolling {
             }
         }
     }
+}
+
+fn scroll_bar_appearance(ui: &mut egui::Ui) {
+    ui.label("Settings:");
+
+    let mut style: Style = (*ui.ctx().style()).clone();
+    style.spacing.scroll.ui(ui);
+    if ui.button("Reset").clicked() {
+        style.spacing.scroll = Default::default();
+    }
+    ui.ctx().set_style(style.clone());
+    ui.set_style(style);
+
+    ui.separator();
+
+    ScrollArea::vertical()
+        .auto_shrink([false; 2])
+        .show(ui, |ui| {
+            for _ in 0..100 {
+                ui.label(crate::LOREM_IPSUM_LONG);
+            }
+        });
 }
 
 fn huge_content_lines(ui: &mut egui::Ui) {
