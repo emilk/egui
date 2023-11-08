@@ -162,6 +162,9 @@ struct ContextImpl {
     /// How deeply nested are we?
     viewport_stack: Vec<ViewportIdPair>,
 
+    /// What is the last viewport rendered?
+    last: ViewportId,
+
     // The output of a frame:
     graphics: ViewportIdMap<GraphicLayers>,
     output: ViewportIdMap<PlatformOutput>,
@@ -1540,6 +1543,8 @@ impl Context {
 
         let mut viewports = Vec::new();
         self.write(|ctx| {
+            ctx.last = viewport_id;
+
             ctx.viewports.retain(|_, viewport| {
                 let was_used = viewport.used;
 
@@ -1624,8 +1629,16 @@ impl Context {
 
     /// Tessellate the given shapes into triangle meshes.
     ///
+    /// Will use the last viewport id
+    pub fn tessellate(&self, shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
+        let last = self.read(|ctx| ctx.last);
+        self.tessellate_for(shapes, last)
+    }
+
+    /// Tessellate the given shapes into triangle meshes.
+    ///
     /// The `viewport_id` is used to get the correct `pixels_per_point`.
-    pub fn tessellate(
+    pub fn tessellate_for(
         &self,
         shapes: Vec<ClippedShape>,
         viewport_id: ViewportId,

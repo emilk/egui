@@ -1204,7 +1204,7 @@ mod glow_integration {
 
             let screen_size_in_pixels: [u32; 2] = win.inner_size().into();
 
-            let clipped_primitives = egui_ctx.tessellate(output.shapes, id_pair.this);
+            let clipped_primitives = egui_ctx.tessellate(output.shapes);
 
             let mut glutin = glutin.borrow_mut();
             let mut painter = painter.borrow_mut();
@@ -1517,10 +1517,7 @@ mod glow_integration {
 
                 let clipped_primitives = {
                     crate::profile_scope!("tessellate");
-                    integration
-                        .borrow()
-                        .egui_ctx
-                        .tessellate(shapes, viewport_id)
+                    integration.borrow().egui_ctx.tessellate(shapes)
                 };
                 {
                     let mut glutin = glutin.borrow_mut();
@@ -2339,7 +2336,7 @@ mod wgpu_integration {
             }
 
             let pixels_per_point = egui_ctx.input_for(id_pair.this, |i| i.pixels_per_point());
-            let clipped_primitives = egui_ctx.tessellate(output.shapes, id_pair.this);
+            let clipped_primitives = egui_ctx.tessellate(output.shapes);
             painter.paint_and_update_textures(
                 id_pair.this,
                 pixels_per_point,
@@ -2508,10 +2505,7 @@ mod wgpu_integration {
 
                 let clipped_primitives = {
                     crate::profile_scope!("tessellate");
-                    integration
-                        .borrow()
-                        .egui_ctx
-                        .tessellate(shapes, viewport_id)
+                    integration.borrow().egui_ctx.tessellate(shapes)
                 };
 
                 let integration = &mut *integration.borrow_mut();

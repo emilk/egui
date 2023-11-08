@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use egui::{epaint::TextShape, ViewportId};
+use egui::epaint::TextShape;
 use egui_demo_lib::LOREM_IPSUM_LONG;
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -16,7 +16,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let full_output = ctx.run(RawInput::default(), |ctx| {
                     demo_windows.ui(ctx);
                 });
-                ctx.tessellate(full_output.shapes, ViewportId::ROOT)
+                ctx.tessellate(full_output.shapes)
             });
         });
 
@@ -32,7 +32,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             demo_windows.ui(ctx);
         });
         c.bench_function("demo_only_tessellate", |b| {
-            b.iter(|| ctx.tessellate(full_output.shapes.clone(), ViewportId::ROOT));
+            b.iter(|| ctx.tessellate(full_output.shapes.clone()));
         });
     }
 

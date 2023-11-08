@@ -77,7 +77,7 @@ impl EguiGlow {
             self.painter.set_texture(id, &image_delta);
         }
 
-        let clipped_primitives = self.egui_ctx.tessellate(shapes, ViewportId::ROOT);
+        let clipped_primitives = self.egui_ctx.tessellate(shapes);
         let dimensions: [u32; 2] = window.inner_size().into();
         self.painter.paint_primitives(
             dimensions,
