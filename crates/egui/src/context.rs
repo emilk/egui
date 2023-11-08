@@ -226,7 +226,6 @@ impl ContextImpl {
         self.memory.begin_frame(
             self.input.get(&viewport_id).unwrap_or(&Default::default()),
             &new_raw_input,
-            viewport_id,
         );
 
         let input = self

@@ -83,8 +83,8 @@ impl Default for RawInput {
             events: vec![],
             hovered_files: Default::default(),
             dropped_files: Default::default(),
-            focused: true,
-            viewport: ViewportInfo::default(), // integrations opt into global focus tracking
+            focused: true, // integrations opt into global focus tracking
+            viewport: ViewportInfo::default(),
         }
     }
 }
@@ -152,6 +152,9 @@ pub struct ViewportInfo {
     /// Viewport outer position and size, drowable area + decorations
     /// unit = physical pixels
     pub outer_rect: Option<Rect>,
+
+    /// Viewport should close?
+    pub close_requested: bool,
 }
 
 impl ViewportInfo {
@@ -331,14 +334,6 @@ pub enum Event {
     /// An assistive technology (e.g. screen reader) requested an action.
     #[cfg(feature = "accesskit")]
     AccessKitActionRequest(accesskit::ActionRequest),
-
-    WindowEvent(WindowEvent),
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum WindowEvent {
-    CloseRequested,
 }
 
 /// Mouse button (or similar for touch input)

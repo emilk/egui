@@ -162,7 +162,6 @@ impl InputState {
         };
 
         let screen_rect = new.screen_rect.unwrap_or(self.screen_rect);
-
         self.create_touch_states_for_new_devices(&new.events);
         for touch_state in self.touch_states.values_mut() {
             touch_state.begin_frame(time, &new, self.pointer.interact_pos);

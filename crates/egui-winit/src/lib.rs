@@ -450,9 +450,7 @@ impl State {
 
             // Things that may require repaint:
             WindowEvent::CloseRequested => {
-                self.egui_input
-                    .events
-                    .push(egui::Event::WindowEvent(egui::WindowEvent::CloseRequested));
+                self.egui_input.viewport.close_requested = true;
                 EventResponse {
                     consumed: true,
                     repaint: true,

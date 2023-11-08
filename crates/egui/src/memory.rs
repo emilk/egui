@@ -543,19 +543,18 @@ impl Memory {
         &mut self,
         prev_input: &crate::input_state::InputState,
         new_input: &crate::data::input::RawInput,
-        viewport_id: ViewportId,
     ) {
         crate::profile_function!();
 
-        self.viewport_id = viewport_id;
+        self.viewport_id = new_input.viewport.id_pair.this;
         self.interactions
-            .entry(viewport_id)
+            .entry(self.viewport_id)
             .or_default()
             .begin_frame(prev_input, new_input);
-        self.areas.entry(viewport_id).or_default();
+        self.areas.entry(self.viewport_id).or_default();
 
         if !prev_input.pointer.any_down() {
-            self.window_interactions.remove(&viewport_id);
+            self.window_interactions.remove(&self.viewport_id);
         }
     }
 
