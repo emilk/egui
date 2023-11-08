@@ -125,7 +125,7 @@
 //! loop {
 //!     let raw_input: egui::RawInput = gather_input();
 //!
-//!     let full_output = ctx.run(raw_input, egui::ViewportIdPair::ROOT, |ctx| {
+//!     let full_output = ctx.run(raw_input, |ctx| {
 //!         egui::CentralPanel::default().show(&ctx, |ui| {
 //!             ui.label("Hello world!");
 //!             if ui.button("Click me").clicked() {
@@ -134,7 +134,7 @@
 //!         });
 //!     });
 //!     handle_platform_output(full_output.platform_output);
-//!     let clipped_primitives = ctx.tessellate(full_output.shapes, egui::ViewportId::ROOT); // create triangles to paint
+//!     let clipped_primitives = ctx.tessellate(full_output.shapes); // create triangles to paint
 //!     paint(full_output.textures_delta, clipped_primitives);
 //! }
 //! ```

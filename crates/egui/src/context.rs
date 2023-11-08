@@ -392,7 +392,7 @@ impl ContextImpl {
 /// // Game loop:
 /// loop {
 ///     let raw_input = egui::RawInput::default();
-///     let full_output = ctx.run(raw_input, egui::ViewportIdPair::ROOT, |ctx| {
+///     let full_output = ctx.run(raw_input, |ctx| {
 ///         egui::CentralPanel::default().show(&ctx, |ui| {
 ///             ui.label("Hello world!");
 ///             if ui.button("Click me").clicked() {
@@ -401,7 +401,7 @@ impl ContextImpl {
 ///         });
 ///     });
 ///     handle_platform_output(full_output.platform_output);
-///     let clipped_primitives = ctx.tessellate(full_output.shapes, egui::ViewportId::ROOT); // create triangles to paint
+///     let clipped_primitives = ctx.tessellate(full_output.shapes); // create triangles to paint
 ///     paint(full_output.textures_delta, clipped_primitives);
 /// }
 /// ```
@@ -458,7 +458,7 @@ impl Context {
     ///
     /// // Each frame:
     /// let input = egui::RawInput::default();
-    /// let full_output = ctx.run(input, egui::ViewportIdPair::ROOT, |ctx| {
+    /// let full_output = ctx.run(input, |ctx| {
     ///     egui::CentralPanel::default().show(&ctx, |ui| {
     ///         ui.label("Hello egui!");
     ///     });
@@ -482,7 +482,7 @@ impl Context {
     ///
     /// // Each frame:
     /// let input = egui::RawInput::default();
-    /// ctx.begin_frame(input, egui::ViewportIdPair::ROOT);
+    /// ctx.begin_frame(input);
     ///
     /// egui::CentralPanel::default().show(&ctx, |ui| {
     ///     ui.label("Hello egui!");
