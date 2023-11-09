@@ -132,11 +132,6 @@ impl ScrollAppearance {
 
         ui.add_space(8.0);
 
-        if ui.button("Reset").clicked() {
-            style.spacing.scroll = Default::default();
-            *visibility = Default::default();
-        }
-
         ui.ctx().set_style(style.clone());
         ui.set_style(style);
 
