@@ -411,7 +411,7 @@ struct Prepared {
     /// Does this `ScrollArea` have horizontal/vertical scrolling enabled?
     scroll_enabled: [bool; 2],
 
-    /// Smoothly interpolated boolean of wether or not to show the scroll bars.
+    /// Smoothly interpolated boolean of whether or not to show the scroll bars.
     show_bars_factor: Vec2,
 
     /// How much horizontal and vertical space are used up by the
