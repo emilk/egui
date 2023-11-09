@@ -1908,7 +1908,7 @@ mod wgpu_integration {
         parent_id: ViewportId,
     }
 
-    #[derive(Clone, Default)]
+    #[derive(Default)]
     pub struct Viewports(ViewportIdMap<Viewport>);
 
     impl std::ops::Deref for Viewports {
