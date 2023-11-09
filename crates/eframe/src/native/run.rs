@@ -1110,13 +1110,13 @@ mod glow_integration {
                 );
             }
 
-            *self.running.borrow_mut() = Some(GlowWinitRunning {
+            self.running.replace(Some(GlowWinitRunning {
                 glutin_ctx,
                 gl,
                 painter,
                 integration: Rc::new(RefCell::new(integration)),
                 app: Rc::new(RefCell::new(app)),
-            });
+            }));
 
             Ok(())
         }
@@ -1742,16 +1742,18 @@ mod glow_integration {
 
                         match &event {
                             winit::event::WindowEvent::Focused(new_focused) => {
-                                *self.focused_viewport.borrow_mut() = new_focused
-                                    .then(|| {
-                                        running
-                                            .glutin_ctx
-                                            .borrow_mut()
-                                            .viewport_maps
-                                            .get(window_id)
-                                            .copied()
-                                    })
-                                    .flatten();
+                                self.focused_viewport.replace(
+                                    new_focused
+                                        .then(|| {
+                                            running
+                                                .glutin_ctx
+                                                .borrow_mut()
+                                                .viewport_maps
+                                                .get(window_id)
+                                                .copied()
+                                        })
+                                        .flatten(),
+                                );
                             }
                             winit::event::WindowEvent::Resized(physical_size) => {
                                 repaint_asap = true;
@@ -2705,8 +2707,8 @@ mod wgpu_integration {
 
                         match &event {
                             winit::event::WindowEvent::Focused(new_focused) => {
-                                *self.focused_viewport.borrow_mut() =
-                                    new_focused.then(|| viewport_id).flatten();
+                                self.focused_viewport
+                                    .replace(new_focused.then(|| viewport_id).flatten());
                             }
                             winit::event::WindowEvent::Resized(physical_size) => {
                                 repaint_asap = true;
