@@ -163,7 +163,7 @@ struct ContextImpl {
     viewport_stack: Vec<ViewportIdPair>,
 
     /// What is the last viewport rendered?
-    last: ViewportId,
+    last_viewport: ViewportId,
 
     // The output of a frame:
     graphics: ViewportIdMap<GraphicLayers>,
@@ -1542,7 +1542,7 @@ impl Context {
 
         let mut viewports = Vec::new();
         self.write(|ctx| {
-            ctx.last = viewport_id;
+            ctx.last_viewport = viewport_id;
 
             ctx.viewports.retain(|_, viewport| {
                 let was_used = viewport.used;
@@ -1628,19 +1628,23 @@ impl Context {
 
     /// Tessellate the given shapes into triangle meshes.
     ///
-    /// Will use the last viewport id
+    /// Will use the `pixels_per_point` of the last viewport for feathering (anti-aliasing).
     pub fn tessellate(&self, shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
-        let last = self.read(|ctx| ctx.last);
-        self.tessellate_for(shapes, last)
+        let last_viewport = self.read(|ctx| ctx.last_viewport);
+
+        // here we expect that we are the only user of context, since frame is ended
+        let pixels_per_point = self.input_for(last_viewport, |i| i.pixels_per_point());
+
+        self.tessellate_with_pixels_per_point(shapes, pixels_per_point)
     }
 
     /// Tessellate the given shapes into triangle meshes.
     ///
-    /// The `viewport_id` is used to get the correct `pixels_per_point`.
-    pub fn tessellate_for(
+    /// `pixels_per_point` is used for feathering (anti-aliasing).
+    pub fn tessellate_with_pixels_per_point(
         &self,
         shapes: Vec<ClippedShape>,
-        viewport_id: ViewportId,
+        pixels_per_point: f32,
     ) -> Vec<ClippedPrimitive> {
         crate::profile_function!();
 
@@ -1648,8 +1652,6 @@ impl Context {
         // shapes are the same, but just comparing the shapes takes about 50% of the time
         // it takes to tessellate them, so it is not a worth optimization.
 
-        // here we expect that we are the only user of context, since frame is ended
-        let pixels_per_point = self.input_for(viewport_id, |i| i.pixels_per_point());
         self.write(|ctx| {
             let tessellation_options = ctx.memory.options.tessellation_options;
             let texture_atlas = ctx
