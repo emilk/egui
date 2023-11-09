@@ -878,7 +878,7 @@ mod glow_integration {
         // re-initializing the `GlowWinitRunning` state on Android if the application
         // suspends and resumes.
         app_creator: Option<epi::AppCreator>,
-        is_focused: Rc<RefCell<Option<ViewportId>>>,
+        focused_viewport: Rc<RefCell<Option<ViewportId>>>,
     }
 
     impl GlowWinitApp {
@@ -895,7 +895,7 @@ mod glow_integration {
                 native_options,
                 running: Rc::new(RefCell::new(None)),
                 app_creator: Some(app_creator),
-                is_focused: Rc::new(RefCell::new(Some(ViewportId::ROOT))),
+                focused_viewport: Rc::new(RefCell::new(Some(ViewportId::ROOT))),
             }
         }
 
@@ -1353,7 +1353,7 @@ mod glow_integration {
         }
 
         fn is_focused(&self, window_id: winit::window::WindowId) -> bool {
-            if let Some(is_focused) = self.is_focused.borrow().as_ref() {
+            if let Some(is_focused) = self.focused_viewport.borrow().as_ref() {
                 if let Some(running) = self.running.borrow().as_ref() {
                     if let Some(window_id) =
                         running.glutin_ctx.borrow().viewport_maps.get(&window_id)
@@ -1656,7 +1656,7 @@ mod glow_integration {
                     egui_winit::process_viewport_commands(
                         vec![command],
                         viewport_id,
-                        *self.is_focused.borrow(),
+                        *self.focused_viewport.borrow(),
                         &window.borrow(),
                     );
                 }
@@ -1742,7 +1742,7 @@ mod glow_integration {
 
                         match &event {
                             winit::event::WindowEvent::Focused(new_focused) => {
-                                *self.is_focused.borrow_mut() = new_focused
+                                *self.focused_viewport.borrow_mut() = new_focused
                                     .then(|| {
                                         running
                                             .glutin_ctx
@@ -1928,7 +1928,7 @@ mod wgpu_integration {
 
         /// Window surface state that's initialized when the app starts running via a Resumed event
         /// and on Android will also be destroyed if the application is paused.
-        is_focused: Rc<RefCell<Option<ViewportId>>>,
+        focused_viewport: Rc<RefCell<Option<ViewportId>>>,
     }
 
     impl WgpuWinitApp {
@@ -1951,7 +1951,7 @@ mod wgpu_integration {
                 native_options,
                 running: None,
                 app_creator: Some(app_creator),
-                is_focused: Rc::new(RefCell::new(Some(ViewportId::ROOT))),
+                focused_viewport: Rc::new(RefCell::new(Some(ViewportId::ROOT))),
             }
         }
 
@@ -2345,7 +2345,7 @@ mod wgpu_integration {
         }
 
         fn is_focused(&self, window_id: winit::window::WindowId) -> bool {
-            if let Some(focus) = *self.is_focused.borrow() {
+            if let Some(focus) = *self.focused_viewport.borrow() {
                 self.viewport_id_from_window_id(&window_id)
                     .map_or(false, |i| i == focus)
             } else {
@@ -2584,7 +2584,7 @@ mod wgpu_integration {
                     egui_winit::process_viewport_commands(
                         vec![command],
                         viewport_id,
-                        *self.is_focused.borrow(),
+                        *self.focused_viewport.borrow(),
                         &window.borrow(),
                     );
                 }
@@ -2705,7 +2705,7 @@ mod wgpu_integration {
 
                         match &event {
                             winit::event::WindowEvent::Focused(new_focused) => {
-                                *self.is_focused.borrow_mut() =
+                                *self.focused_viewport.borrow_mut() =
                                     new_focused.then(|| viewport_id).flatten();
                             }
                             winit::event::WindowEvent::Resized(physical_size) => {
