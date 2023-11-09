@@ -497,6 +497,12 @@ impl ScrollStyle {
             ui.selectable_value(self, Self::floating(), "Floating");
         });
 
+        ui.collapsing("Details", |ui| {
+            self.details_ui(ui);
+        });
+    }
+
+    pub fn details_ui(&mut self, ui: &mut Ui) {
         let Self {
             floating,
             bar_width,

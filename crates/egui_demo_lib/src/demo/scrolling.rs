@@ -103,7 +103,7 @@ struct ScrollAppearance {
 impl Default for ScrollAppearance {
     fn default() -> Self {
         Self {
-            num_lorem_ipsums: 10,
+            num_lorem_ipsums: 2,
             visibility: ScrollBarVisibility::default(),
         }
     }
@@ -128,6 +128,7 @@ impl ScrollAppearance {
                 ui.selectable_value(visibility, option, format!("{option:?}"));
             }
         });
+        ui.weak("When to show scroll bars; resize the window to see the effect.");
 
         ui.add_space(8.0);
 
@@ -141,7 +142,11 @@ impl ScrollAppearance {
 
         ui.separator();
 
-        ui.add(egui::Slider::new(num_lorem_ipsums, 1..=100).text("Content length"));
+        ui.add(
+            egui::Slider::new(num_lorem_ipsums, 1..=100)
+                .text("Content length")
+                .logarithmic(true),
+        );
 
         ui.separator();
 
