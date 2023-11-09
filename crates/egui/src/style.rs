@@ -367,6 +367,9 @@ pub struct ScrollStyle {
     /// so as to always show a thin scroll bar.
     pub floating_allocated_width: f32,
 
+    /// If true, use colors with more contrast. Good for floating scroll bars.
+    pub foreground_color: bool,
+
     /// The opaqueness of the background when the user is neither scrolling
     /// nor hovering the scroll area.
     ///
@@ -412,14 +415,23 @@ pub struct ScrollStyle {
 
 impl Default for ScrollStyle {
     fn default() -> Self {
+        Self::solid()
+    }
+}
+
+impl ScrollStyle {
+    /// Solid scroll bars that always use up space
+    pub fn solid() -> Self {
         Self {
             floating: false,
-            bar_width: 8.0,
+            bar_width: 6.0,
             handle_min_length: 12.0,
             bar_inner_margin: 4.0,
             bar_outer_margin: 0.0,
             floating_width: 2.0,
             floating_allocated_width: 0.0,
+
+            foreground_color: false,
 
             dormant_background_opacity: 0.0,
             active_background_opacity: 0.4,
@@ -430,9 +442,44 @@ impl Default for ScrollStyle {
             interact_handle_opacity: 1.0,
         }
     }
-}
 
-impl ScrollStyle {
+    /// Thin scroll bars that expand on hover
+    pub fn thin() -> Self {
+        Self {
+            floating: true,
+            bar_width: 12.0,
+            floating_allocated_width: 6.0,
+            foreground_color: false,
+
+            dormant_background_opacity: 1.0,
+            dormant_handle_opacity: 1.0,
+
+            active_background_opacity: 1.0,
+            active_handle_opacity: 1.0,
+
+            // Be tranlucent when expanded so we can see the content
+            interact_background_opacity: 0.6,
+            interact_handle_opacity: 0.6,
+
+            ..Self::solid()
+        }
+    }
+
+    /// No scroll bars until you hover the scroll area,
+    /// at which time they appear faintly, and then expand
+    /// when you hover the scroll bars.
+    pub fn floating() -> Self {
+        Self {
+            floating: true,
+            bar_width: 12.0,
+            foreground_color: true,
+            floating_allocated_width: 0.0,
+            dormant_background_opacity: 0.0,
+            dormant_handle_opacity: 0.0,
+            ..Self::solid()
+        }
+    }
+
     /// Width of a solid vertical scrollbar, or height of a horizontal scroll bar, when it is at its widest.
     pub fn allocated_width(&self) -> f32 {
         if self.floating {
@@ -443,6 +490,13 @@ impl ScrollStyle {
     }
 
     pub fn ui(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Presets:");
+            ui.selectable_value(self, Self::solid(), "Solid");
+            ui.selectable_value(self, Self::thin(), "Thin");
+            ui.selectable_value(self, Self::floating(), "Floating");
+        });
+
         let Self {
             floating,
             bar_width,
@@ -451,6 +505,8 @@ impl ScrollStyle {
             bar_outer_margin,
             floating_width,
             floating_allocated_width,
+
+            foreground_color,
 
             dormant_background_opacity,
             active_background_opacity,
@@ -489,6 +545,13 @@ impl ScrollStyle {
             ui.add(DragValue::new(bar_outer_margin).clamp_range(0.0..=32.0));
             ui.label("Outer margin");
         });
+
+        ui.horizontal(|ui| {
+            ui.label("Color:");
+            ui.selectable_value(foreground_color, false, "Background");
+            ui.selectable_value(foreground_color, true, "Foreground");
+        });
+
         if *floating {
             crate::Grid::new("opacity").show(ui, |ui| {
                 fn opacity_ui(ui: &mut Ui, opacity: &mut f32) {

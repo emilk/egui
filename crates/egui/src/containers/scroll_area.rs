@@ -1038,7 +1038,7 @@ impl Prepared {
                     1.0
                 };
 
-                let handle_color = if scroll_style.floating {
+                let handle_color = if scroll_style.foreground_color {
                     visuals.fg_stroke.color
                 } else {
                     visuals.bg_fill
