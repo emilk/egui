@@ -415,7 +415,7 @@ pub struct ScrollStyle {
 
 impl Default for ScrollStyle {
     fn default() -> Self {
-        Self::solid()
+        Self::floating()
     }
 }
 
