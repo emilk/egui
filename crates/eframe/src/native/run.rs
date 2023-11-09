@@ -1515,10 +1515,7 @@ mod glow_integration {
                     );
                 }
 
-                let clipped_primitives = {
-                    crate::profile_scope!("tessellate");
-                    integration.borrow().egui_ctx.tessellate(shapes)
-                };
+                let clipped_primitives = integration.borrow().egui_ctx.tessellate(shapes);
                 {
                     let mut glutin = glutin.borrow_mut();
                     glutin.current_gl_context = Some(
@@ -2488,10 +2485,7 @@ mod wgpu_integration {
                     state.borrow_mut().as_mut().unwrap(),
                 );
 
-                let clipped_primitives = {
-                    crate::profile_scope!("tessellate");
-                    integration.borrow().egui_ctx.tessellate(shapes)
-                };
+                let clipped_primitives = integration.borrow().egui_ctx.tessellate(shapes);
 
                 let integration = &mut *integration.borrow_mut();
                 let screenshot_requested = &mut integration.frame.output.screenshot_requested;
