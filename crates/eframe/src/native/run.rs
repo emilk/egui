@@ -1908,22 +1908,7 @@ mod wgpu_integration {
         parent_id: ViewportId,
     }
 
-    #[derive(Default)]
-    pub struct Viewports(ViewportIdMap<Viewport>);
-
-    impl std::ops::Deref for Viewports {
-        type Target = ViewportIdMap<Viewport>;
-
-        fn deref(&self) -> &Self::Target {
-            &self.0
-        }
-    }
-
-    impl std::ops::DerefMut for Viewports {
-        fn deref_mut(&mut self) -> &mut Self::Target {
-            &mut self.0
-        }
-    }
+    pub type Viewports = ViewportIdMap<Viewport>;
 
     /// State that is initialized when the application is first starts running via
     /// a Resumed event. On Android this ensures that any graphics state is only
