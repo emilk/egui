@@ -124,19 +124,7 @@ impl ScrollBarVisibility {
 /// There are two flavors of scroll areas: solid and floating.
 /// Solid scroll bars use up space, reducing the amount of space available
 /// to the contents. Floating scroll bars float on top of the contents, covering it.
-/// You can control with with [`ScrollSpacing::floating`].
-///
-/// ### Floating scroll baers
-/// Floating scroll bars are _dormant_ by default, meaning they are
-/// tranlucent and thin.
-/// Exactly how tranlucent is controlled by [`ScrollSpacing::floating_dormant_opacity`].
-///
-/// When the user hovers the scroll _area_, the scroll bars become opaque, but stay thin.
-/// Their thickness is controlled by [`ScrollSpacing::floating_thickness`].
-///
-/// When the user hovers the scroll _bars_, they become wider so
-/// the user can more easily grab onto them.
-/// How wide is controlled by [`ScrollSpacing::bar_width`].
+/// You can change the scroll style by changing the [`crate::style::Spacing::scroll`].
 ///
 /// ### Coordinate system
 /// * content: size of contents (generally large; that's why we want scroll bars)

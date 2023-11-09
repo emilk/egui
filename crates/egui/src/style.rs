@@ -327,7 +327,12 @@ impl Spacing {
 
 // ----------------------------------------------------------------------------
 
-/// Controls the spacing of a [`crate::ScrollArea`].
+/// Controls the spacing and visuals of a [`crate::ScrollArea`].
+///
+/// There are three presets to chose from:
+/// * [`Self::solid`]
+/// * [`Self::thin`]
+/// * [`Self::floating`]
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
