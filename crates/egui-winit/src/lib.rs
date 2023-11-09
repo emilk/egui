@@ -189,7 +189,7 @@ impl State {
         // TODO remove this in winit 0.29
         // This hack make the window outer_position and size to be valid, X11 Only
         // That was happending because winit get the window state before the compositor adds decorations!
-        #[cfg(feature = "x11")]
+        #[cfg(all(feature = "x11", target_os = "linux"))]
         window.set_maximized(window.is_maximized());
 
         // On Windows, a minimized window will have 0 width and height.
