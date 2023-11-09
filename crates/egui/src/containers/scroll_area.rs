@@ -853,7 +853,7 @@ impl Prepared {
                     || state.scroll_bar_interaction[d];
                 let is_hovering_bar_area_t = ui
                     .ctx()
-                    .animate_bool(id.with("bar_hover"), is_hovering_bar_area);
+                    .animate_bool(id.with((d, "bar_hover")), is_hovering_bar_area);
                 let width = show_factor
                     * lerp(
                         scroll_style.floating_width..=scroll_style.bar_width,
@@ -1013,7 +1013,7 @@ impl Prepared {
                         scroll_style.interact_handle_opacity
                     } else {
                         let is_hovering_outer_rect_t = ui.ctx().animate_bool(
-                            id.with("is_hovering_outer_rect"),
+                            id.with((d, "is_hovering_outer_rect")),
                             is_hovering_outer_rect,
                         );
                         lerp(
