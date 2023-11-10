@@ -123,10 +123,7 @@ impl Widget for ProgressBar {
             let rounding = rounding.unwrap_or_else(|| corner_radius.into());
             ui.painter()
                 .rect(outer_rect, rounding, visuals.extreme_bg_color, Stroke::NONE);
-            let min_width = rounding
-                .sw
-                .at_least(rounding.nw)
-                .at_most(2.0 * corner_radius);
+            let min_width = 2.0 * rounding.sw.at_least(rounding.nw).at_most(corner_radius);
             let filled_width = (outer_rect.width() * progress).at_least(min_width);
             let inner_rect =
                 Rect::from_min_size(outer_rect.min, vec2(filled_width, outer_rect.height()));
