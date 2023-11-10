@@ -400,6 +400,9 @@ impl<'open> Window<'open> {
             let mut frame = frame.begin(&mut area_content_ui);
 
             let show_close_button = open.is_some();
+
+            let where_to_put_header_background = &area_content_ui.painter().add(Shape::Noop);
+
             let title_bar = if with_title_bar {
                 let title_bar = show_title_bar(
                     &mut frame.content_ui,
@@ -449,16 +452,16 @@ impl<'open> Window<'open> {
                         round.se = 0.0;
                         round.sw = 0.0;
                     }
-                    let (r, g, b, _) = area_content_ui
+                    let header_color = area_content_ui
                         .visuals()
-                        .widgets.hovered.bg_fill
-                        .to_tuple();
-                    let selected_color = Color32::from_rgba_unmultiplied(r, g, b, 128);
+                        .widgets.hovered.bg_fill;
 
                     area_content_ui
                         .painter()
-                        .rect_filled(rect, round, selected_color);
+                        .set(*where_to_put_header_background,
+                        RectShape::filled(rect, round, header_color));
                 };
+
                 title_bar.ui(
                     &mut area_content_ui,
                     outer_rect,
