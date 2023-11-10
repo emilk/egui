@@ -451,7 +451,7 @@ impl<'open> Window<'open> {
                     }
                     let (r, g, b, _) = area_content_ui
                         .visuals()
-                        .window_selected_header_color()
+                        .widgets.hovered.bg_fill
                         .to_tuple();
                     let selected_color = Color32::from_rgba_unmultiplied(r, g, b, 128);
 
