@@ -96,7 +96,7 @@ trait WinitApp {
 
     fn is_focused(&self, window_id: winit::window::WindowId) -> bool;
 
-    fn integration(&self) -> Option<Rc<RefCell<EpiIntegration>>>;
+    fn integration(&self) -> Option<&EpiIntegration>;
 
     fn window(
         &self,
@@ -490,7 +490,7 @@ mod glow_integration {
     struct GlowWinitRunning {
         gl: Arc<glow::Context>,
         painter: Rc<RefCell<egui_glow::Painter>>,
-        integration: Rc<RefCell<epi_integration::EpiIntegration>>,
+        integration: epi_integration::EpiIntegration,
         app: Rc<RefCell<Box<dyn epi::App>>>,
         // Conceptually this will be split out eventually so that the rest of the state
         // can be persistent.
@@ -1114,7 +1114,7 @@ mod glow_integration {
                 glutin_ctx,
                 gl,
                 painter,
-                integration: Rc::new(RefCell::new(integration)),
+                integration,
                 app: Rc::new(RefCell::new(app)),
             });
 
@@ -1347,9 +1347,9 @@ mod glow_integration {
 
     impl WinitApp for GlowWinitApp {
         fn frame_nr(&self, viewport_id: ViewportId) -> u64 {
-            self.running.as_ref().map_or(0, |r| {
-                r.integration.borrow().egui_ctx.frame_nr_for(viewport_id)
-            })
+            self.running
+                .as_ref()
+                .map_or(0, |r| r.integration.egui_ctx.frame_nr_for(viewport_id))
         }
 
         fn is_focused(&self, window_id: winit::window::WindowId) -> bool {
@@ -1365,8 +1365,8 @@ mod glow_integration {
             false
         }
 
-        fn integration(&self) -> Option<Rc<RefCell<EpiIntegration>>> {
-            self.running.as_ref().map(|r| r.integration.clone())
+        fn integration(&self) -> Option<&EpiIntegration> {
+            self.running.as_ref().map(|r| &r.integration)
         }
 
         fn window(
@@ -1400,10 +1400,10 @@ mod glow_integration {
 
         fn save_and_destroy(&mut self) {
             crate::profile_function!();
-            if let Some(running) = self.running.take() {
+            if let Some(mut running) = self.running.take() {
                 crate::profile_function!();
 
-                running.integration.borrow_mut().save(
+                running.integration.save(
                     running.app.borrow_mut().as_mut(),
                     running
                         .glutin_ctx
@@ -1433,13 +1433,14 @@ mod glow_integration {
             puffin::GlobalProfiler::lock().new_frame();
             crate::profile_scope!("frame");
 
-            let (integration, app, glutin, painter) = {
-                let running = self.running.as_ref().unwrap();
+            let (integration, app, glutin, painter, gl) = {
+                let running = self.running.as_mut().unwrap();
                 (
-                    running.integration.clone(),
+                    &mut running.integration,
                     running.app.clone(),
                     running.glutin_ctx.clone(),
                     running.painter.clone(),
+                    running.gl.clone(),
                 )
             };
 
@@ -1493,7 +1494,7 @@ mod glow_integration {
                         shapes,
                         viewports,
                         viewport_commands,
-                    } = integration.borrow_mut().update(
+                    } = integration.update(
                         app.borrow_mut().as_mut(),
                         &window,
                         egui_winit,
@@ -1501,7 +1502,7 @@ mod glow_integration {
                         viewport.id_pair,
                     );
 
-                    integration.borrow_mut().handle_platform_output(
+                    integration.handle_platform_output(
                         &window,
                         viewport_id,
                         platform_output,
@@ -1509,7 +1510,7 @@ mod glow_integration {
                     );
                 }
 
-                let clipped_primitives = integration.borrow().egui_ctx.tessellate(shapes);
+                let clipped_primitives = integration.egui_ctx.tessellate(shapes);
                 {
                     let mut glutin = glutin.borrow_mut();
                     glutin.current_gl_context = Some(
@@ -1524,17 +1525,14 @@ mod glow_integration {
                     );
                 };
 
-                let gl = self.running.as_ref().unwrap().gl.clone();
-
                 egui_glow::painter::clear(
                     &gl,
                     screen_size_in_pixels,
                     app.borrow()
-                        .clear_color(&integration.borrow().egui_ctx.style().visuals),
+                        .clear_color(&integration.egui_ctx.style().visuals),
                 );
 
                 let pixels_per_point = integration
-                    .borrow()
                     .egui_ctx
                     .input_for(viewport_id, |i| i.pixels_per_point());
 
@@ -1545,7 +1543,6 @@ mod glow_integration {
                     &textures_delta,
                 );
 
-                let mut integration = integration.borrow_mut();
                 {
                     let screenshot_requested = &mut integration.frame.output.screenshot_requested;
 
@@ -1776,7 +1773,7 @@ mod glow_integration {
                                     .viewport_maps
                                     .get(window_id)
                                     .map_or(false, |id| *id == ViewportId::ROOT)
-                                    && running.integration.borrow().should_close() =>
+                                    && running.integration.should_close() =>
                             {
                                 log::debug!("Received WindowEvent::CloseRequested");
                                 return Ok(EventResult::Exit);
@@ -1792,7 +1789,7 @@ mod glow_integration {
                                 {
                                     let viewport = &mut *viewport.borrow_mut();
 
-                                    break 'res running.integration.borrow_mut().on_event(
+                                    break 'res running.integration.on_event(
                                         running.app.borrow_mut().as_mut(),
                                         event,
                                         viewport.egui_winit.as_mut().unwrap(),
@@ -1807,7 +1804,7 @@ mod glow_integration {
                             }
                         };
 
-                        if running.integration.borrow().should_close() {
+                        if running.integration.should_close() {
                             EventResult::Exit
                         } else if event_response.repaint {
                             if repaint_asap {
@@ -1905,7 +1902,7 @@ mod wgpu_integration {
     /// initialized once the application has an associated `SurfaceView`.
     struct WgpuWinitRunning {
         painter: Rc<RefCell<egui_wgpu::winit::Painter>>,
-        integration: Rc<RefCell<epi_integration::EpiIntegration>>,
+        integration: epi_integration::EpiIntegration,
         app: Box<dyn epi::App>,
         viewports: Rc<RefCell<Viewports>>,
         builders: Rc<RefCell<ViewportIdMap<ViewportBuilder>>>,
@@ -2215,7 +2212,7 @@ mod wgpu_integration {
 
             self.running = Some(WgpuWinitRunning {
                 painter,
-                integration: Rc::new(RefCell::new(integration)),
+                integration,
                 app,
                 viewports,
                 viewport_maps,
@@ -2332,9 +2329,9 @@ mod wgpu_integration {
 
     impl WinitApp for WgpuWinitApp {
         fn frame_nr(&self, viewport_id: ViewportId) -> u64 {
-            self.running.as_ref().map_or(0, |r| {
-                r.integration.borrow().egui_ctx.frame_nr_for(viewport_id)
-            })
+            self.running
+                .as_ref()
+                .map_or(0, |r| r.integration.egui_ctx.frame_nr_for(viewport_id))
         }
 
         fn is_focused(&self, window_id: winit::window::WindowId) -> bool {
@@ -2346,8 +2343,8 @@ mod wgpu_integration {
             }
         }
 
-        fn integration(&self) -> Option<Rc<RefCell<EpiIntegration>>> {
-            self.running.as_ref().map(|r| r.integration.clone())
+        fn integration(&self) -> Option<&EpiIntegration> {
+            self.running.as_ref().map(|r| &r.integration)
         }
 
         fn window(
@@ -2380,7 +2377,7 @@ mod wgpu_integration {
                 if let Some(Viewport { window, .. }) =
                     running.viewports.borrow().get(&ViewportId::ROOT)
                 {
-                    running.integration.borrow_mut().save(
+                    running.integration.save(
                         running.app.as_mut(),
                         window.as_ref().map(|w| w.borrow()).as_deref(),
                     );
@@ -2460,7 +2457,7 @@ mod wgpu_integration {
                     shapes,
                     viewports: out_viewports,
                     viewport_commands,
-                } = integration.borrow_mut().update(
+                } = integration.update(
                     app.as_mut(),
                     &window.borrow(),
                     state.borrow_mut().as_mut().unwrap(),
@@ -2471,16 +2468,15 @@ mod wgpu_integration {
                     },
                 );
 
-                integration.borrow_mut().handle_platform_output(
+                integration.handle_platform_output(
                     &window.borrow(),
                     viewport_id,
                     platform_output,
                     state.borrow_mut().as_mut().unwrap(),
                 );
 
-                let clipped_primitives = integration.borrow().egui_ctx.tessellate(shapes);
+                let clipped_primitives = integration.egui_ctx.tessellate(shapes);
 
-                let integration = &mut *integration.borrow_mut();
                 let screenshot_requested = &mut integration.frame.output.screenshot_requested;
 
                 let pixels_per_point = integration
@@ -2604,9 +2600,7 @@ mod wgpu_integration {
             else {
                 return EventResult::Wait;
             };
-            integration
-                .borrow_mut()
-                .maybe_autosave(app.as_mut(), Some(&*window.borrow()));
+            integration.maybe_autosave(app.as_mut(), Some(&*window.borrow()));
 
             if window.borrow().is_minimized() == Some(true) {
                 // On Mac, a minimized Window uses up all CPU:
@@ -2615,7 +2609,7 @@ mod wgpu_integration {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
-            if integration.borrow().should_close() {
+            if integration.should_close() {
                 EventResult::Exit
             } else {
                 EventResult::Wait
@@ -2636,7 +2630,7 @@ mod wgpu_integration {
                         if running.viewports.borrow().get(&ViewportId::ROOT).is_none() {
                             let _ = Self::create_window(
                                 event_loop,
-                                running.integration.borrow().frame.storage(),
+                                running.integration.frame.storage(),
                                 &self.app_name,
                                 &mut self.native_options,
                             )?;
@@ -2740,7 +2734,7 @@ mod wgpu_integration {
                                 }
                             }
                             winit::event::WindowEvent::CloseRequested
-                                if running.integration.borrow().should_close() =>
+                                if running.integration.should_close() =>
                             {
                                 log::debug!("Received WindowEvent::CloseRequested");
                                 return Ok(EventResult::Exit);
@@ -2753,7 +2747,7 @@ mod wgpu_integration {
                                 running.viewports.borrow().get(&id).map(|w| (id, w.clone()))
                             }) {
                             if let Some(state) = &mut *viewport.egui_winit.borrow_mut() {
-                                Some(running.integration.borrow_mut().on_event(
+                                Some(running.integration.on_event(
                                     running.app.as_mut(),
                                     event,
                                     state,
@@ -2766,7 +2760,7 @@ mod wgpu_integration {
                             None
                         };
 
-                        if running.integration.borrow().should_close() {
+                        if running.integration.should_close() {
                             EventResult::Exit
                         } else if let Some(event_response) = event_response {
                             if event_response.repaint {
