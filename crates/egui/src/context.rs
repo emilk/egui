@@ -1529,14 +1529,8 @@ impl Context {
 
         let shapes = self.drain_paint_lists();
 
-        let all_viewport_ids = self.read(|ctx| {
-            let mut all_viewport_ids = ViewportIdSet::default();
-            all_viewport_ids.insert(ViewportId::ROOT);
-            for vp in ctx.viewports.values() {
-                all_viewport_ids.insert(vp.id_pair.this);
-            }
-            all_viewport_ids
-        });
+        let mut all_viewport_ids = ViewportIdSet::default();
+        all_viewport_ids.insert(ViewportId::ROOT);
 
         let viewport_id = self.viewport_id();
 
@@ -1551,25 +1545,32 @@ impl Context {
                     viewport.used = false; // reset so we can check again next frame
                 }
 
-                viewports.push(ViewportOutput {
-                    builder: viewport.builder.clone(),
-                    id_pair: viewport.id_pair,
-                    viewport_ui_cb: viewport.viewport_ui_cb.clone(),
-                });
-
-                if !all_viewport_ids.contains(&viewport.id_pair.parent) {
+                if all_viewport_ids.contains(&viewport.id_pair.parent) {
+                    viewports.push(ViewportOutput {
+                        builder: viewport.builder.clone(),
+                        id_pair: viewport.id_pair,
+                        viewport_ui_cb: viewport.viewport_ui_cb.clone(),
+                    });
+                } else {
                     // Parent is gone - remove this viewport.
                     return false;
                 }
 
                 let is_child = viewport_id == viewport.id_pair.parent;
-                if is_child {
+
+                let result = if is_child {
                     // Keep all children that have been updated this frame
                     was_used
                 } else {
                     // Somebody elses child - don't touch
                     true
+                };
+
+                if result {
+                    all_viewport_ids.insert(viewport.id_pair.this);
                 }
+
+                result
             });
         });
 
