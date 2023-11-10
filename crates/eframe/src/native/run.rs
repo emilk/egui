@@ -491,7 +491,7 @@ mod glow_integration {
         gl: Arc<glow::Context>,
         painter: Rc<RefCell<egui_glow::Painter>>,
         integration: epi_integration::EpiIntegration,
-        app: Rc<RefCell<Box<dyn epi::App>>>,
+        app: Box<dyn epi::App>,
         // Conceptually this will be split out eventually so that the rest of the state
         // can be persistent.
         glutin_ctx: Rc<RefCell<GlutinWindowContext>>,
@@ -1115,7 +1115,7 @@ mod glow_integration {
                 gl,
                 painter,
                 integration,
-                app: Rc::new(RefCell::new(app)),
+                app,
             });
 
             Ok(())
@@ -1404,7 +1404,7 @@ mod glow_integration {
                 crate::profile_function!();
 
                 running.integration.save(
-                    running.app.borrow_mut().as_mut(),
+                    running.app.as_mut(),
                     running
                         .glutin_ctx
                         .borrow()
@@ -1415,7 +1415,7 @@ mod glow_integration {
                         .map(|w| w.borrow())
                         .as_deref(),
                 );
-                running.app.borrow_mut().on_exit(Some(&running.gl));
+                running.app.on_exit(Some(&running.gl));
                 running.painter.borrow_mut().destroy();
             }
         }
@@ -1437,7 +1437,7 @@ mod glow_integration {
                 let running = self.running.as_mut().unwrap();
                 (
                     &mut running.integration,
-                    running.app.clone(),
+                    &mut running.app,
                     running.glutin_ctx.clone(),
                     running.painter.clone(),
                     running.gl.clone(),
@@ -1495,7 +1495,7 @@ mod glow_integration {
                         viewports,
                         viewport_commands,
                     } = integration.update(
-                        app.borrow_mut().as_mut(),
+                        app.as_mut(),
                         &window,
                         egui_winit,
                         &viewport.viewport_ui_cb.clone(),
@@ -1528,8 +1528,7 @@ mod glow_integration {
                 egui_glow::painter::clear(
                     &gl,
                     screen_size_in_pixels,
-                    app.borrow()
-                        .clear_color(&integration.egui_ctx.style().visuals),
+                    app.clear_color(&integration.egui_ctx.style().visuals),
                 );
 
                 let pixels_per_point = integration
@@ -1553,7 +1552,7 @@ mod glow_integration {
                     }
 
                     integration.post_rendering(
-                        app.borrow_mut().as_mut(),
+                        app.as_mut(),
                         &viewport.borrow().window.as_ref().unwrap().borrow(),
                     );
                 }
@@ -1610,7 +1609,7 @@ mod glow_integration {
                 };
 
                 integration.maybe_autosave(
-                    app.borrow_mut().as_mut(),
+                    app.as_mut(),
                     viewport
                         .borrow()
                         .window
@@ -1790,7 +1789,7 @@ mod glow_integration {
                                     let viewport = &mut *viewport.borrow_mut();
 
                                     break 'res running.integration.on_event(
-                                        running.app.borrow_mut().as_mut(),
+                                        running.app.as_mut(),
                                         event,
                                         viewport.egui_winit.as_mut().unwrap(),
                                         viewport.id_pair.this,
