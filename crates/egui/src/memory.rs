@@ -819,7 +819,7 @@ impl Areas {
         }
     }
 
-    pub fn get_top_layer_id(&self, order: Order) -> Option<LayerId> {
+    pub fn top_layer_id(&self, order: Order) -> Option<LayerId> {
         self.order
             .iter()
             .filter(|layer| layer.order == order)
