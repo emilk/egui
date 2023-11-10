@@ -825,10 +825,18 @@ mod glow_integration {
             Ok(())
         }
 
-        fn window(&self, viewport_id: ViewportId) -> Rc<RefCell<Viewport>> {
+        fn viewport(&self, viewport_id: ViewportId) -> Rc<RefCell<Viewport>> {
             self.viewports
                 .get(&viewport_id)
                 .cloned()
+                .expect("viewport doesn't exist")
+        }
+
+        fn window(&self, viewport_id: ViewportId) -> Rc<RefCell<winit::window::Window>> {
+            self.viewport(viewport_id)
+                .borrow()
+                .window
+                .clone()
                 .expect("winit window doesn't exist")
         }
 
@@ -974,23 +982,11 @@ mod glow_integration {
             }
 
             let system_theme = system_theme(
-                &glutin_ctx
-                    .window(ViewportId::ROOT)
-                    .borrow()
-                    .window
-                    .as_ref()
-                    .unwrap()
-                    .borrow(),
+                &glutin_ctx.window(ViewportId::ROOT).borrow(),
                 &self.native_options,
             );
             let mut integration = epi_integration::EpiIntegration::new(
-                &glutin_ctx
-                    .window(ViewportId::ROOT)
-                    .borrow()
-                    .window
-                    .as_ref()
-                    .unwrap()
-                    .borrow(),
+                &glutin_ctx.window(ViewportId::ROOT).borrow(),
                 system_theme,
                 &self.app_name,
                 &self.native_options,
@@ -1038,10 +1034,6 @@ mod glow_integration {
                 glutin_ctx
                     .window(ViewportId::ROOT)
                     .borrow()
-                    .window
-                    .as_ref()
-                    .unwrap()
-                    .borrow()
                     .set_cursor_hittest(false)
                     .unwrap();
             }
@@ -1052,6 +1044,8 @@ mod glow_integration {
             {
                 let window = glutin_ctx.window(ViewportId::ROOT);
                 let window = &mut *window.borrow_mut();
+                let viewport = glutin_ctx.viewport(ViewportId::ROOT);
+                let viewport = &mut *viewport.borrow_mut();
                 app = app_creator(&epi::CreationContext {
                     egui_ctx: integration.egui_ctx.clone(),
                     integration_info: integration.frame.info().clone(),
@@ -1059,20 +1053,15 @@ mod glow_integration {
                     gl: Some(gl.clone()),
                     #[cfg(feature = "wgpu")]
                     wgpu_render_state: None,
-                    raw_display_handle: window
-                        .window
-                        .as_ref()
-                        .unwrap()
-                        .borrow()
-                        .raw_display_handle(),
-                    raw_window_handle: window.window.as_ref().unwrap().borrow().raw_window_handle(),
+                    raw_display_handle: window.raw_display_handle(),
+                    raw_window_handle: window.raw_window_handle(),
                 });
 
                 if app.warm_up_enabled() {
                     integration.warm_up(
                         app.as_mut(),
-                        &window.window.as_ref().unwrap().borrow(),
-                        window.egui_winit.as_mut().unwrap(),
+                        window,
+                        viewport.egui_winit.as_mut().unwrap(),
                     );
                 }
             }
@@ -1185,24 +1174,25 @@ mod glow_integration {
 
             // Rendering the sync viewport
 
-            let window = glutin.borrow().viewports.get(&id_pair.this).cloned();
-            let Some(window) = window else { return };
+            let viewport = glutin.borrow().viewports.get(&id_pair.this).cloned();
+            let Some(viewport) = viewport else { return };
 
-            let window = &mut *window.borrow_mut();
-            let Some(winit_state) = &mut window.egui_winit else {
+            let viewport = &mut *viewport.borrow_mut();
+            let Some(winit_state) = &mut viewport.egui_winit else {
                 return;
             };
-            let Some(win) = window.window.clone() else {
+            let Some(window) = viewport.window.clone() else {
                 return;
             };
-            let win = win.borrow();
-            let mut input = winit_state.take_egui_input(&win, id_pair);
+            let window = window.borrow();
+
+            let mut input = winit_state.take_egui_input(&window, id_pair);
             input.time = Some(beginning.elapsed().as_secs_f64());
             let output = egui_ctx.run(input, |ctx| {
                 viewport_ui_cb(ctx);
             });
 
-            let screen_size_in_pixels: [u32; 2] = win.inner_size().into();
+            let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
             let clipped_primitives = egui_ctx.tessellate(output.shapes);
 
@@ -1216,17 +1206,17 @@ mod glow_integration {
                     .unwrap()
                     .make_not_current()
                     .unwrap()
-                    .make_current(window.gl_surface.as_ref().unwrap())
+                    .make_current(viewport.gl_surface.as_ref().unwrap())
                     .unwrap(),
             );
 
-            if !window
+            if !viewport
                 .gl_surface
                 .as_ref()
                 .unwrap()
                 .is_current(glutin.current_gl_context.as_ref().unwrap())
             {
-                let builder = &&glutin.builders[&window.id_pair.this];
+                let builder = &glutin.builders[&viewport.id_pair.this];
                 log::error!("egui::show_viewport_immediate with title: `{:?}` is not created in main thread, try to use wgpu!", builder.title.clone().unwrap_or_default());
             }
 
@@ -1240,7 +1230,7 @@ mod glow_integration {
                 &output.textures_delta,
             );
             crate::profile_scope!("swap_buffers");
-            if let Err(err) = window
+            if let Err(err) = viewport
                 .gl_surface
                 .as_ref()
                 .expect("failed to get surface to swap buffers")
@@ -1254,7 +1244,7 @@ mod glow_integration {
                 log::error!("swap_buffers failed: {err}");
             }
             winit_state.handle_platform_output(
-                &win,
+                &window,
                 id_pair.this,
                 egui_ctx,
                 output.platform_output,
@@ -1405,15 +1395,13 @@ mod glow_integration {
 
                 running.integration.save(
                     running.app.as_mut(),
-                    running
-                        .glutin_ctx
-                        .borrow()
-                        .window(ViewportId::ROOT)
-                        .borrow()
-                        .window
-                        .as_ref()
-                        .map(|w| w.borrow())
-                        .as_deref(),
+                    Some(
+                        &running
+                            .glutin_ctx
+                            .borrow()
+                            .window(ViewportId::ROOT)
+                            .borrow(),
+                    ),
                 );
                 running.app.on_exit(Some(&running.gl));
                 running.painter.borrow_mut().destroy();
@@ -1471,21 +1459,14 @@ mod glow_integration {
 
             let control_flow;
             {
-                let viewport = glutin.borrow().viewports.get(&viewport_id).cloned();
-                let viewport = viewport.unwrap();
+                let viewport = glutin.borrow().viewport(viewport_id);
+                let window = glutin.borrow().window(viewport_id);
 
-                let screen_size_in_pixels: [u32; 2] = viewport
-                    .borrow()
-                    .window
-                    .as_ref()
-                    .unwrap()
-                    .borrow()
-                    .inner_size()
-                    .into();
+                let screen_size_in_pixels: [u32; 2] = window.borrow().inner_size().into();
 
                 {
                     let viewport = &mut *viewport.borrow_mut();
-                    let window = viewport.window.as_ref().unwrap().borrow();
+                    let window = window.borrow();
                     let egui_winit = viewport.egui_winit.as_mut().unwrap();
 
                     egui::FullOutput {
@@ -1608,25 +1589,9 @@ mod glow_integration {
                     EventResult::Wait
                 };
 
-                integration.maybe_autosave(
-                    app.as_mut(),
-                    viewport
-                        .borrow()
-                        .window
-                        .as_ref()
-                        .map(|w| w.borrow())
-                        .as_deref(),
-                );
+                integration.maybe_autosave(app.as_mut(), Some(&window.borrow()));
 
-                if viewport
-                    .borrow()
-                    .window
-                    .as_ref()
-                    .unwrap()
-                    .borrow()
-                    .is_minimized()
-                    == Some(true)
-                {
+                if window.borrow().is_minimized() == Some(true) {
                     // On Mac, a minimized Window uses up all CPU:
                     // https://github.com/emilk/egui/issues/325
                     crate::profile_scope!("minimized_sleep");
