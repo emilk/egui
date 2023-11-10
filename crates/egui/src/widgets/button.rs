@@ -599,8 +599,7 @@ impl<'a> ImageButton<'a> {
     /// If the underlying image already has rounding, this
     /// will override that value.
     pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
-        let image = self.image.rounding(rounding.into());
-        self.image = image;
+        self.image = self.image.rounding(rounding.into());
         self
     }
 }
