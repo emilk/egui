@@ -479,7 +479,7 @@ impl Response {
 
     /// Highlight this widget, to make it look like it is hovered, even if it isn't.
     ///
-    /// The highlight takes on frame to take effect if you call this after the widget has been fully rendered.
+    /// The highlight takes one frame to take effect if you call this after the widget has been fully rendered.
     ///
     /// See also [`Context::highlight_widget`].
     pub fn highlight(mut self) -> Self {
