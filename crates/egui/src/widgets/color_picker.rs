@@ -227,73 +227,6 @@ pub enum Alpha {
     BlendOrAdditive,
 }
 
-fn color_text_ui(ui: &mut Ui, hsvag: &HsvaGamma, alpha: Alpha) {
-    use crate::style::ColorPickerInputType;
-    ui.horizontal(|ui| {
-        let [r, g, b, a] = match ui.style().visuals.color_picker_input_values_type {
-            ColorPickerInputType::U8 => std::convert::Into::<Hsva>::into(*hsvag)
-                .to_srgba_unmultiplied()
-                .map(|c| c.to_string()),
-            ColorPickerInputType::F32 => {
-                let mut formatted_colors = (std::convert::Into::<Hsva>::into(*hsvag))
-                    .to_rgba_unmultiplied()
-                    .map(|c| {
-                        emath::round_to_decimals(c.into(), 3)
-                            .to_string()
-                            .char_range(0..5)
-                            .to_owned()
-                    });
-                for color in &mut formatted_colors {
-                    if color.contains('.') {
-                        *color = format!("{color:0<5}");
-                    } else if *color == "1" || *color == "0" {
-                        *color = format!("{color}.000");
-                    }
-                }
-                formatted_colors
-            }
-        };
-
-        ui.horizontal(|ui| {
-            if ui
-                .button(
-                    ui.style()
-                        .visuals
-                        .color_picker_input_values_type
-                        .to_string(),
-                )
-                .clicked()
-            {
-                let mut visuals = ui.style().visuals.clone();
-                match ui.style().visuals.color_picker_input_values_type {
-                    ColorPickerInputType::U8 => {
-                        visuals.color_picker_input_values_type = ColorPickerInputType::F32;
-                    }
-                    ColorPickerInputType::F32 => {
-                        visuals.color_picker_input_values_type = ColorPickerInputType::U8;
-                    }
-                }
-                ui.ctx().set_visuals(visuals);
-            }
-            if ui.button("📋").on_hover_text("Click to copy").clicked() {
-                if alpha == Alpha::Opaque {
-                    ui.ctx().copy_text(format!("{r}, {g}, {b}"));
-                } else {
-                    ui.ctx().copy_text(format!("{r}, {g}, {b}, {a}"));
-                }
-            }
-        });
-
-        if alpha == Alpha::Opaque {
-            ui.label(format!("rgb({r}, {g}, {b})"))
-                .on_hover_text("Red Green Blue");
-        } else {
-            ui.label(format!("rgba({r}, {g}, {b}, {a})"))
-                .on_hover_text("Red Green Blue Alpha");
-        }
-    });
-}
-
 fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
     use crate::style::ColorPickerInputType;
 
@@ -303,8 +236,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
 
     match ui.style().visuals.color_picker_input_values_type {
         ColorPickerInputType::U8 => {
-            let mut srgba_unmultiplied =
-                (std::convert::Into::<Hsva>::into(*hsvag)).to_srgba_unmultiplied();
+            let mut srgba_unmultiplied = Hsva::from(*hsvag).to_srgba_unmultiplied();
             // Update hsvag only if the converted srgba is changed, this is because hsvag is made of f32,
             // and the conversion between u8 and f32 loses a bit of the color precision, causing little flickering on hsvag based ui widgets.
             if srgba_edit_ui(ui, &mut srgba_unmultiplied, alpha_control) {
@@ -326,8 +258,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
             }
         }
         ColorPickerInputType::F32 => {
-            let mut rgba_unmultiplied =
-                (std::convert::Into::<Hsva>::into(*hsvag)).to_rgba_unmultiplied();
+            let mut rgba_unmultiplied = Hsva::from(*hsvag).to_rgba_unmultiplied();
             // Update hsvag only if the converted srgba is changed, this is because hsvag is made of f32,
             // and the conversion between u8 and f32 loses a bit of the color precision, causing little flickering on hsvag based ui widgets.
             if rgba_edit_ui(ui, &mut rgba_unmultiplied, alpha_control) {
@@ -362,13 +293,29 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
     let current_color_size = vec2(ui.spacing().slider_width, ui.spacing().interact_size.y);
     show_color(ui, *hsvag, current_color_size).on_hover_text("Selected color");
 
-    color_text_ui(ui, hsvag, alpha_control);
-
     if alpha == Alpha::BlendOrAdditive {
         // We signal additive blending by storing a negative alpha (a bit ironic).
         let a = &mut hsvag.a;
         let mut additive = *a < 0.0;
         ui.horizontal(|ui| {
+            if ui
+                .button(
+                    ui.style()
+                        .visuals
+                        .color_picker_input_values_type
+                        .to_string(),
+                )
+                .clicked()
+            {
+                let color_picker_input_values_type =
+                    match ui.style().visuals.color_picker_input_values_type {
+                        ColorPickerInputType::U8 => ColorPickerInputType::F32,
+                        ColorPickerInputType::F32 => ColorPickerInputType::U8,
+                    };
+                ui.ctx().style_mut(|s| {
+                    s.visuals.color_picker_input_values_type = color_picker_input_values_type;
+                });
+            }
             ui.label("Blending:");
             ui.radio_value(&mut additive, false, "Normal");
             ui.radio_value(&mut additive, true, "Additive");
@@ -435,6 +382,13 @@ fn srgba_edit_ui(ui: &mut Ui, rgba: &mut [u8; 4], alpha: Alpha) -> bool {
 
     let mut edited = false;
     ui.horizontal(|ui| {
+        if ui.button("📋").on_hover_text("Click to copy").clicked() {
+            if alpha == Alpha::Opaque {
+                ui.ctx().copy_text(format!("{r}, {g}, {b}"));
+            } else {
+                ui.ctx().copy_text(format!("{r}, {g}, {b}, {a}"));
+            }
+        }
         edited |= DragValue::new(r).speed(0.5).prefix("R: ").ui(ui).changed();
         edited |= DragValue::new(g).speed(0.5).prefix("G: ").ui(ui).changed();
         edited |= DragValue::new(b).speed(0.5).prefix("B: ").ui(ui).changed();
@@ -456,37 +410,40 @@ fn rgba_edit_ui(ui: &mut Ui, rgba: &mut [f32; 4], alpha: Alpha) -> bool {
 
     let mut edited = false;
     ui.horizontal(|ui| {
+        if ui.button("📋").on_hover_text("Click to copy").clicked() {
+            if alpha == Alpha::Opaque {
+                ui.ctx().copy_text(format!("{r}, {g}, {b}"));
+            } else {
+                ui.ctx().copy_text(format!("{r}, {g}, {b}, {a}"));
+            }
+        }
         edited |= DragValue::new(r)
             .speed(0.003)
-            .prefix("R: ")
+            .prefix("R ")
             .clamp_range(RangeInclusive::new(0., 1.))
-            .min_decimals(3)
-            .max_decimals(3)
+            .custom_formatter(|n, _| format!("{n:.03}"))
             .ui(ui)
             .changed();
         edited |= DragValue::new(g)
             .speed(0.003)
-            .prefix("G: ")
+            .prefix("G ")
             .clamp_range(RangeInclusive::new(0., 1.))
-            .min_decimals(3)
-            .max_decimals(3)
+            .custom_formatter(|n, _| format!("{n:.03}"))
             .ui(ui)
             .changed();
         edited |= DragValue::new(b)
             .speed(0.003)
-            .prefix("B: ")
+            .prefix("B ")
             .clamp_range(RangeInclusive::new(0., 1.))
-            .min_decimals(3)
-            .max_decimals(3)
+            .custom_formatter(|n, _| format!("{n:.03}"))
             .ui(ui)
             .changed();
         edited |= alpha != Alpha::Opaque
             && DragValue::new(a)
                 .speed(0.003)
-                .prefix("A: ")
+                .prefix("A ")
                 .clamp_range(RangeInclusive::new(0., 1.))
-                .min_decimals(3)
-                .max_decimals(3)
+                .custom_formatter(|n, _| format!("{n:.03}"))
                 .ui(ui)
                 .changed();
     });
@@ -534,7 +491,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
         ui.memory_mut(|mem| mem.toggle_popup(popup_id));
     }
 
-    const COLOR_SLIDER_WIDTH: f32 = 240.0;
+    const COLOR_SLIDER_WIDTH: f32 = 260.0;
 
     // TODO(emilk): make it easier to show a temporary popup that closes when you click outside it
     if ui.memory(|mem| mem.is_popup_open(popup_id)) {
