@@ -997,7 +997,9 @@ fn events(
                 pressed: true,
                 modifiers,
                 ..
-            } if (modifiers.matches(Modifiers::COMMAND) && *key == Key::Y) || (modifiers.matches(Modifiers::SHIFT | Modifiers::COMMAND) && *key == Key::Z) => {
+            } if (modifiers.matches(Modifiers::COMMAND) && *key == Key::Y)
+                || (modifiers.matches(Modifiers::SHIFT | Modifiers::COMMAND) && *key == Key::Z) =>
+            {
                 if let Some((redo_ccursor_range, redo_txt)) = state
                     .undoer
                     .lock()
