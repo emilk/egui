@@ -815,6 +815,11 @@ pub struct Visuals {
     /// Enabling this will affect ALL sliders, and can be enabled/disabled per slider with [`Slider::trailing_fill`].
     pub slider_trailing_fill: bool,
 
+    /// Shape of the handle for sliders and similar widgets.
+    ///
+    /// Changing this will affect ALL sliders, and can be enabled/disabled per slider with [`Slider::handle_shape`].
+    pub handle_shape: HandleShape,
+
     /// Should the cursor change when the user hovers over an interactive/clickable item?
     ///
     /// This is consistent with a lot of browser-based applications (vscode, github
@@ -962,9 +967,6 @@ pub struct WidgetVisuals {
 
     /// Make the frame this much larger.
     pub expansion: f32,
-
-    /// Shape of the handle for sliders and similar widgets.
-    pub handle_shape: HandleShape,
 }
 
 impl WidgetVisuals {
@@ -1142,6 +1144,7 @@ impl Visuals {
             striped: false,
 
             slider_trailing_fill: false,
+            handle_shape: HandleShape::Circle,
 
             interact_cursor: None,
 
@@ -1213,7 +1216,6 @@ impl Widgets {
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(140)), // normal text color
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
-                handle_shape: HandleShape::Circle,
             },
             inactive: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(60), // button background
@@ -1222,7 +1224,6 @@ impl Widgets {
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(180)), // button text
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
-                handle_shape: HandleShape::Circle,
             },
             hovered: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(70),
@@ -1231,7 +1232,6 @@ impl Widgets {
                 fg_stroke: Stroke::new(1.5, Color32::from_gray(240)),
                 rounding: Rounding::same(3.0),
                 expansion: 1.0,
-                handle_shape: HandleShape::Circle,
             },
             active: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(55),
@@ -1240,7 +1240,6 @@ impl Widgets {
                 fg_stroke: Stroke::new(2.0, Color32::WHITE),
                 rounding: Rounding::same(2.0),
                 expansion: 1.0,
-                handle_shape: HandleShape::Circle,
             },
             open: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(27),
@@ -1249,7 +1248,6 @@ impl Widgets {
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
-                handle_shape: HandleShape::Circle,
             },
         }
     }
@@ -1263,7 +1261,6 @@ impl Widgets {
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(80)),  // normal text color
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
-                handle_shape: HandleShape::Circle,
             },
             inactive: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(230), // button background
@@ -1272,7 +1269,6 @@ impl Widgets {
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(60)), // button text
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
-                handle_shape: HandleShape::Circle,
             },
             hovered: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(220),
@@ -1281,7 +1277,6 @@ impl Widgets {
                 fg_stroke: Stroke::new(1.5, Color32::BLACK),
                 rounding: Rounding::same(3.0),
                 expansion: 1.0,
-                handle_shape: HandleShape::Circle,
             },
             active: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(165),
@@ -1290,7 +1285,6 @@ impl Widgets {
                 fg_stroke: Stroke::new(2.0, Color32::BLACK),
                 rounding: Rounding::same(2.0),
                 expansion: 1.0,
-                handle_shape: HandleShape::Circle,
             },
             open: WidgetVisuals {
                 weak_bg_fill: Color32::from_gray(220),
@@ -1299,7 +1293,6 @@ impl Widgets {
                 fg_stroke: Stroke::new(1.0, Color32::BLACK),
                 rounding: Rounding::same(2.0),
                 expansion: 0.0,
-                handle_shape: HandleShape::Circle,
             },
         }
     }
@@ -1631,7 +1624,6 @@ impl WidgetVisuals {
             rounding,
             fg_stroke,
             expansion,
-            handle_shape,
         } = self;
         ui_color(ui, weak_bg_fill, "optional background fill")
             .on_hover_text("For buttons, combo-boxes, etc");
@@ -1644,7 +1636,6 @@ impl WidgetVisuals {
         stroke_ui(ui, fg_stroke, "foreground stroke (text)");
         ui.add(Slider::new(expansion, -5.0..=5.0).text("expansion"))
             .on_hover_text("make shapes this much larger");
-        handle_shape_ui(ui, handle_shape);
     }
 }
 
@@ -1716,6 +1707,7 @@ impl Visuals {
             striped,
 
             slider_trailing_fill,
+            handle_shape,
             interact_cursor,
 
             image_loading_spinners,
@@ -1783,6 +1775,8 @@ impl Visuals {
         ui.checkbox(striped, "By default, add stripes to grids and tables?");
 
         ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
+
+        handle_shape_ui(ui, handle_shape);
 
         ComboBox::from_label("Interact Cursor")
             .selected_text(format!("{interact_cursor:?}"))

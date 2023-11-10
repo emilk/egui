@@ -2,7 +2,7 @@
 
 use std::ops::RangeInclusive;
 
-use crate::*;
+use crate::{style::HandleShape, *};
 
 // ----------------------------------------------------------------------------
 
@@ -87,6 +87,7 @@ pub struct Slider<'a> {
     custom_formatter: Option<NumFormatter<'a>>,
     custom_parser: Option<NumParser<'a>>,
     trailing_fill: Option<bool>,
+    handle_shape: Option<HandleShape>,
 }
 
 impl<'a> Slider<'a> {
@@ -133,6 +134,7 @@ impl<'a> Slider<'a> {
             custom_formatter: None,
             custom_parser: None,
             trailing_fill: None,
+            handle_shape: None,
         }
     }
 
@@ -281,6 +283,15 @@ impl<'a> Slider<'a> {
     /// The fill color will be taken from `selection.bg_fill` in your [`Visuals`], the same as a [`ProgressBar`].
     pub fn trailing_fill(mut self, trailing_fill: bool) -> Self {
         self.trailing_fill = Some(trailing_fill);
+        self
+    }
+
+    /// Change the shape of the slider handle
+    ///
+    /// This setting can be enabled globally for all sliders with [`Visuals::handle_shape`].
+    /// Changing it here will override the above setting ONLY for this individual slider.
+    pub fn handle_shape(mut self, handle_shape: HandleShape) -> Self {
+        self.handle_shape = Some(handle_shape);
         self
     }
 
@@ -551,7 +562,10 @@ impl<'a> Slider<'a> {
     /// Just the slider, no text
     fn slider_ui(&mut self, ui: &Ui, response: &Response) {
         let rect = &response.rect;
-        let position_range = self.position_range(rect, &ui.style().interact(response).handle_shape);
+        let handle_shape = self
+            .handle_shape
+            .unwrap_or_else(|| ui.style().visuals.handle_shape);
+        let position_range = self.position_range(rect, &handle_shape);
 
         if let Some(pointer_position_2d) = response.interact_pointer_pos() {
             let position = self.pointer_position(pointer_position_2d);
@@ -678,7 +692,11 @@ impl<'a> Slider<'a> {
             }
 
             let radius = self.handle_radius(rect);
-            match visuals.handle_shape {
+
+            let handle_shape = self
+                .handle_shape
+                .unwrap_or_else(|| ui.style().visuals.handle_shape);
+            match handle_shape {
                 style::HandleShape::Circle => {
                     ui.painter().add(epaint::CircleShape {
                         center,
@@ -848,8 +866,10 @@ impl<'a> Slider<'a> {
         let slider_response = response.clone();
 
         let value_response = if self.show_value {
-            let position_range =
-                self.position_range(&response.rect, &ui.style().interact(&response).handle_shape);
+            let handle_shape = self
+                .handle_shape
+                .unwrap_or_else(|| ui.style().visuals.handle_shape);
+            let position_range = self.position_range(&response.rect, &handle_shape);
             let value_response = self.value_ui(ui, position_range);
             if value_response.gained_focus()
                 || value_response.has_focus()
