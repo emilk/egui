@@ -371,7 +371,7 @@ impl BoxPainting {
                 ui.painter().rect(
                     rect,
                     self.rounding,
-                    Color32::from_gray(64),
+                    ui.visuals().text_color().gamma_multiply(0.5),
                     Stroke::new(self.stroke_width, Color32::WHITE),
                 );
             }

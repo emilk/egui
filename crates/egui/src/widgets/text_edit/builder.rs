@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+#[cfg(feature = "accesskit")]
+use accesskit::Role;
 use epaint::text::{cursor::*, Galley, LayoutJob};
 
 use crate::{output::OutputEvent, *};
@@ -751,7 +753,7 @@ impl<'t> TextEdit<'t> {
 
                 builder.set_default_action_verb(accesskit::DefaultActionVerb::Focus);
                 if self.multiline {
-                    builder.set_multiline();
+                    builder.set_role(Role::MultilineTextInput);
                 }
 
                 parent_id
@@ -759,7 +761,7 @@ impl<'t> TextEdit<'t> {
 
             if let Some(parent_id) = parent_id {
                 // drop ctx lock before further processing
-                use accesskit::{Role, TextDirection};
+                use accesskit::TextDirection;
 
                 ui.ctx().with_accessibility_parent(parent_id, || {
                     for (i, row) in galley.rows.iter().enumerate() {

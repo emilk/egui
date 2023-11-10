@@ -366,9 +366,9 @@ impl<'a> TableBuilder<'a> {
     fn available_width(&self) -> f32 {
         self.ui.available_rect_before_wrap().width()
             - if self.scroll_options.vscroll {
-                self.ui.spacing().scroll_bar_inner_margin
-                    + self.ui.spacing().scroll_bar_width
-                    + self.ui.spacing().scroll_bar_outer_margin
+                self.ui.spacing().scroll.bar_inner_margin
+                    + self.ui.spacing().scroll.bar_width
+                    + self.ui.spacing().scroll.bar_outer_margin
             } else {
                 0.0
             }
