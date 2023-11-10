@@ -388,15 +388,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    #[ignore = "Documentation does not gaurantee panic. \"The exact behavior on locking a mutex in the thread which already holds the lock is left unspecified. However, this function will not return on the second call (it might panic or deadlock, for example).\""]
-    fn lock_reentry_single_thread() {
-        let one = Mutex::new(());
-        let _a = one.lock();
-        let _a2 = one.lock(); // panics
-    }
-
-    #[test]
     fn lock_multiple_threads() {
         use std::sync::Arc;
         let one = Arc::new(Mutex::new(()));
