@@ -693,10 +693,7 @@ impl<'a> Slider<'a> {
                         SliderOrientation::Vertical => Vec2::new(radius / aspect_ratio, radius),
                     };
                     let v = v + Vec2::splat(visuals.expansion);
-                    let rect = Rect {
-                        min: center - v,
-                        max: center + v,
-                    };
+                    let rect = Rect::from_center_size(center, 2.0 * v);
                     ui.painter().add(epaint::RectShape {
                         fill: visuals.bg_fill,
                         stroke: visuals.fg_stroke,
