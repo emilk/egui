@@ -476,7 +476,12 @@ impl<'open> Window<'open> {
     }
 }
 
-fn paint_resize_corner(ui: &Ui, possible: &PossibleInteractions, outer_rect: Rect, stroke: Stroke) {
+fn paint_resize_corner(
+    ui: &Ui,
+    possible: &PossibleInteractions,
+    outer_rect: Rect,
+    stroke: impl Into<Stroke>,
+) {
     let corner = if possible.resize_right && possible.resize_bottom {
         Align2::RIGHT_BOTTOM
     } else if possible.resize_left && possible.resize_bottom {

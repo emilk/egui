@@ -337,10 +337,16 @@ pub fn paint_resize_corner(ui: &Ui, response: &Response) {
     paint_resize_corner_with_style(ui, &response.rect, stroke, Align2::RIGHT_BOTTOM);
 }
 
-pub fn paint_resize_corner_with_style(ui: &Ui, rect: &Rect, stroke: Stroke, corner: Align2) {
+pub fn paint_resize_corner_with_style(
+    ui: &Ui,
+    rect: &Rect,
+    stroke: impl Into<Stroke>,
+    corner: Align2,
+) {
     let painter = ui.painter();
     let cp = painter.round_pos_to_pixels(corner.pos_in_rect(rect));
     let mut w = 2.0;
+    let stroke = stroke.into();
 
     while w <= rect.width() && w <= rect.height() {
         painter.line_segment(
