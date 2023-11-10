@@ -452,14 +452,12 @@ impl<'open> Window<'open> {
                         round.se = 0.0;
                         round.sw = 0.0;
                     }
-                    let header_color = area_content_ui
-                        .visuals()
-                        .widgets.hovered.bg_fill;
+                    let header_color = area_content_ui.visuals().widgets.hovered.bg_fill;
 
-                    area_content_ui
-                        .painter()
-                        .set(*where_to_put_header_background,
-                        RectShape::filled(rect, round, header_color));
+                    area_content_ui.painter().set(
+                        *where_to_put_header_background,
+                        RectShape::filled(rect, round, header_color),
+                    );
                 };
 
                 title_bar.ui(
