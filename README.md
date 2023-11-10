@@ -201,7 +201,6 @@ These are the official egui integrations:
 * [`egui_glow`](https://github.com/emilk/egui/tree/master/crates/egui_glow) for rendering egui with [glow](https://github.com/grovesNL/glow) on native and web, and for making native apps.
 * [`egui-wgpu`](https://github.com/emilk/egui/tree/master/crates/egui-wgpu) for [wgpu](https://crates.io/crates/wgpu) (WebGPU API).
 * [`egui-winit`](https://github.com/emilk/egui/tree/master/crates/egui-winit) for integrating with [winit](https://github.com/rust-windowing/winit).
-* [`egui_glium`](https://github.com/emilk/egui/tree/master/crates/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium) (DEPRECATED - looking for new maintainer).
 
 ### 3rd party integrations
 
@@ -227,6 +226,7 @@ These are the official egui integrations:
 * [`egui_skia`](https://github.com/lucasmerlin/egui_skia) for [skia](https://github.com/rust-skia/rust-skia/tree/master/skia-safe).
 * [`smithay-egui`](https://github.com/Smithay/smithay-egui) for [smithay](https://github.com/Smithay/smithay/).
 * [`tauri-egui`](https://github.com/tauri-apps/tauri-egui) for [tauri](https://github.com/tauri-apps/tauri).
+* [`egui_glium`](https://github.com/fayalalebrun/egui_glium) for compiling native apps with [Glium](https://github.com/glium/glium)
 
 Missing an integration for the thing you're working on? Create one, it's easy!
 
@@ -341,7 +341,6 @@ You can also render your 3D scene to a texture and display it using [`ui.image(â
 
 Examples:
 * Using [`egui-miniquad`]( https://github.com/not-fl3/egui-miniquad): https://github.com/not-fl3/egui-miniquad/blob/master/examples/render_to_egui_image.rs
-* Using [`egui_glium`](https://github.com/emilk/egui/tree/master/crates/egui_glium): <https://github.com/emilk/egui/blob/master/crates/egui_glium/examples/native_texture.rs>.
 
 
 ## Other
