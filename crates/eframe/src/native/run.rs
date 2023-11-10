@@ -872,7 +872,7 @@ mod glow_integration {
         repaint_proxy: Arc<egui::mutex::Mutex<EventLoopProxy<UserEvent>>>,
         app_name: String,
         native_options: epi::NativeOptions,
-        running: Rc<RefCell<Option<GlowWinitRunning>>>,
+        running: Option<GlowWinitRunning>,
 
         // Note that since this `AppCreator` is FnOnce we are currently unable to support
         // re-initializing the `GlowWinitRunning` state on Android if the application
@@ -893,7 +893,7 @@ mod glow_integration {
                 repaint_proxy: Arc::new(egui::mutex::Mutex::new(event_loop.create_proxy())),
                 app_name: app_name.to_owned(),
                 native_options,
-                running: Rc::new(RefCell::new(None)),
+                running: None,
                 app_creator: Some(app_creator),
                 focused_viewport: Rc::new(RefCell::new(Some(ViewportId::ROOT))),
             }
@@ -1110,13 +1110,13 @@ mod glow_integration {
                 );
             }
 
-            self.running.replace(Some(GlowWinitRunning {
+            self.running.replace(GlowWinitRunning {
                 glutin_ctx,
                 gl,
                 painter,
                 integration: Rc::new(RefCell::new(integration)),
                 app: Rc::new(RefCell::new(app)),
-            }));
+            });
 
             Ok(())
         }
@@ -1347,14 +1347,14 @@ mod glow_integration {
 
     impl WinitApp for GlowWinitApp {
         fn frame_nr(&self, viewport_id: ViewportId) -> u64 {
-            self.running.borrow().as_ref().map_or(0, |r| {
+            self.running.as_ref().map_or(0, |r| {
                 r.integration.borrow().egui_ctx.frame_nr_for(viewport_id)
             })
         }
 
         fn is_focused(&self, window_id: winit::window::WindowId) -> bool {
             if let Some(is_focused) = self.focused_viewport.borrow().as_ref() {
-                if let Some(running) = self.running.borrow().as_ref() {
+                if let Some(running) = self.running.as_ref() {
                     if let Some(window_id) =
                         running.glutin_ctx.borrow().viewport_maps.get(&window_id)
                     {
@@ -1366,17 +1366,14 @@ mod glow_integration {
         }
 
         fn integration(&self) -> Option<Rc<RefCell<EpiIntegration>>> {
-            self.running
-                .borrow()
-                .as_ref()
-                .map(|r| r.integration.clone())
+            self.running.as_ref().map(|r| r.integration.clone())
         }
 
         fn window(
             &self,
             window_id: winit::window::WindowId,
         ) -> Option<Rc<RefCell<winit::window::Window>>> {
-            self.running.borrow().as_ref().and_then(|r| {
+            self.running.as_ref().and_then(|r| {
                 let glutin_ctx = r.glutin_ctx.borrow();
                 if let Some(viewport_id) = glutin_ctx.viewport_maps.get(&window_id) {
                     if let Some(viewport) = glutin_ctx.viewports.get(viewport_id) {
@@ -1391,21 +1388,19 @@ mod glow_integration {
 
         fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<winit::window::WindowId> {
             self.running
-                .borrow()
                 .as_ref()
                 .and_then(|r| r.glutin_ctx.borrow().window_maps.get(&id).copied())
         }
 
         fn viewport_id_from_window_id(&self, id: &winit::window::WindowId) -> Option<ViewportId> {
             self.running
-                .borrow()
                 .as_ref()
                 .and_then(|r| r.glutin_ctx.borrow().viewport_maps.get(id).copied())
         }
 
         fn save_and_destroy(&mut self) {
             crate::profile_function!();
-            if let Some(running) = self.running.borrow_mut().take() {
+            if let Some(running) = self.running.take() {
                 crate::profile_function!();
 
                 running.integration.borrow_mut().save(
@@ -1426,7 +1421,7 @@ mod glow_integration {
         }
 
         fn run_ui_and_paint(&mut self, window_id: winit::window::WindowId) -> EventResult {
-            if self.running.borrow().is_none() {
+            if self.running.is_none() {
                 return EventResult::Wait;
             }
 
@@ -1439,8 +1434,7 @@ mod glow_integration {
             crate::profile_scope!("frame");
 
             let (integration, app, glutin, painter) = {
-                let running = self.running.borrow();
-                let running = running.as_ref().unwrap();
+                let running = self.running.as_ref().unwrap();
                 (
                     running.integration.clone(),
                     running.app.clone(),
@@ -1530,7 +1524,7 @@ mod glow_integration {
                     );
                 };
 
-                let gl = self.running.borrow().as_ref().unwrap().gl.clone();
+                let gl = self.running.as_ref().unwrap().gl.clone();
 
                 egui_glow::painter::clear(
                     &gl,
@@ -1674,7 +1668,7 @@ mod glow_integration {
 
             Ok(match event {
                 winit::event::Event::Resumed => {
-                    if self.running.borrow().is_none() {
+                    if self.running.is_none() {
                         // first resume event.
                         // we can actually move this outside of event loop.
                         // and just run the on_resume fn of gl_window
@@ -1682,7 +1676,6 @@ mod glow_integration {
                     } else {
                         // not the first resume event. create whatever you need.
                         self.running
-                            .borrow_mut()
                             .as_mut()
                             .unwrap()
                             .glutin_ctx
@@ -1691,7 +1684,6 @@ mod glow_integration {
                     }
                     EventResult::RepaintNow(
                         self.running
-                            .borrow()
                             .as_ref()
                             .unwrap()
                             .glutin_ctx
@@ -1704,7 +1696,6 @@ mod glow_integration {
                 }
                 winit::event::Event::Suspended => {
                     self.running
-                        .borrow_mut()
                         .as_mut()
                         .unwrap()
                         .glutin_ctx
@@ -1715,7 +1706,7 @@ mod glow_integration {
                 }
 
                 winit::event::Event::MainEventsCleared => {
-                    if let Some(running) = self.running.borrow().as_ref() {
+                    if let Some(running) = self.running.as_ref() {
                         if let Err(err) = running.glutin_ctx.borrow_mut().on_resume(event_loop) {
                             log::warn!("on_resume failed {err}");
                         }
@@ -1724,7 +1715,7 @@ mod glow_integration {
                 }
 
                 winit::event::Event::WindowEvent { event, window_id } => {
-                    if let Some(running) = self.running.borrow_mut().as_mut() {
+                    if let Some(running) = self.running.as_mut() {
                         // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
                         // event handler.
                         //
@@ -1836,7 +1827,7 @@ mod glow_integration {
                 winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
                     accesskit_winit::ActionRequestEvent { request, window_id },
                 )) => {
-                    if let Some(running) = self.running.borrow().as_ref() {
+                    if let Some(running) = self.running.as_ref() {
                         crate::profile_scope!("on_accesskit_action_request");
 
                         let glutin = running.glutin_ctx.borrow();
