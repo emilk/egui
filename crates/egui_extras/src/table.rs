@@ -163,8 +163,8 @@ struct TableScrollOptions {
     stick_to_bottom: bool,
     scroll_to_row: Option<(usize, Option<Align>)>,
     scroll_offset_y: Option<f32>,
-    min_scrolled_height: f32,
-    max_scroll_height: f32,
+    min_scrolled_height: Option<f32>,
+    max_scroll_height: Option<f32>,
     auto_shrink: [bool; 2],
 }
 
@@ -176,8 +176,8 @@ impl Default for TableScrollOptions {
             stick_to_bottom: false,
             scroll_to_row: None,
             scroll_offset_y: None,
-            min_scrolled_height: 200.0,
-            max_scroll_height: 800.0,
+            min_scrolled_height: None,
+            max_scroll_height: None,
             auto_shrink: [true; 2],
         }
     }
@@ -318,7 +318,7 @@ impl<'a> TableBuilder<'a> {
     ///
     /// Default: `200.0`.
     pub fn min_scrolled_height(mut self, min_scrolled_height: f32) -> Self {
-        self.scroll_options.min_scrolled_height = min_scrolled_height;
+        self.scroll_options.min_scrolled_height = Some(min_scrolled_height);
         self
     }
 
@@ -327,7 +327,7 @@ impl<'a> TableBuilder<'a> {
     /// In other words: add scroll-bars when this height is reached.
     /// Default: `800.0`.
     pub fn max_scroll_height(mut self, max_scroll_height: f32) -> Self {
-        self.scroll_options.max_scroll_height = max_scroll_height;
+        self.scroll_options.max_scroll_height = Some(max_scroll_height);
         self
     }
 
@@ -580,9 +580,15 @@ impl<'a> Table<'a> {
             .auto_shrink([true; 2])
             .drag_to_scroll(drag_to_scroll)
             .stick_to_bottom(stick_to_bottom)
-            .min_scrolled_height(min_scrolled_height)
-            .max_height(max_scroll_height)
             .auto_shrink(auto_shrink);
+
+        if let Some(min_scrolled_height) = min_scrolled_height {
+            scroll_area = scroll_area.min_scrolled_height(min_scrolled_height);
+        }
+
+        if let Some(max_scroll_height) = max_scroll_height {
+            scroll_area = scroll_area.max_height(max_scroll_height);
+        }
 
         if let Some(scroll_offset_y) = scroll_offset_y {
             scroll_area = scroll_area.vertical_scroll_offset(scroll_offset_y);
