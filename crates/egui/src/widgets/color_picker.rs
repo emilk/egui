@@ -389,11 +389,11 @@ fn srgba_edit_ui(ui: &mut Ui, rgba: &mut [u8; 4], alpha: Alpha) -> bool {
                 ui.ctx().copy_text(format!("{r}, {g}, {b}, {a}"));
             }
         }
-        edited |= DragValue::new(r).speed(0.5).prefix("R: ").ui(ui).changed();
-        edited |= DragValue::new(g).speed(0.5).prefix("G: ").ui(ui).changed();
-        edited |= DragValue::new(b).speed(0.5).prefix("B: ").ui(ui).changed();
+        edited |= DragValue::new(r).speed(0.5).prefix("R ").ui(ui).changed();
+        edited |= DragValue::new(g).speed(0.5).prefix("G ").ui(ui).changed();
+        edited |= DragValue::new(b).speed(0.5).prefix("B ").ui(ui).changed();
         edited |=
-            alpha != Alpha::Opaque && DragValue::new(a).speed(0.5).prefix("A: ").ui(ui).changed();
+            alpha != Alpha::Opaque && DragValue::new(a).speed(0.5).prefix("A ").ui(ui).changed();
     });
 
     edited
