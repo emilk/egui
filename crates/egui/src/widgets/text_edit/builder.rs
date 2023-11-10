@@ -978,14 +978,9 @@ fn events(
             Event::Key {
                 key: Key::Z,
                 pressed: true,
-                modifiers:
-                    Modifiers {
-                        command: true,
-                        shift: false,
-                        ..
-                    },
+                modifiers,
                 ..
-            } => {
+            } if modifiers.matches(Modifiers::COMMAND) => {
                 if let Some((undo_ccursor_range, undo_txt)) = state
                     .undoer
                     .lock()
@@ -998,27 +993,11 @@ fn events(
                 }
             }
             Event::Key {
-                key: Key::Z,
+                key,
                 pressed: true,
-                modifiers:
-                    Modifiers {
-                        command: true,
-                        shift: true,
-                        ..
-                    },
+                modifiers,
                 ..
-            }
-            | Event::Key {
-                key: Key::Y,
-                pressed: true,
-                modifiers:
-                    Modifiers {
-                        command: true,
-                        shift: false,
-                        ..
-                    },
-                ..
-            } => {
+            } if (modifiers.matches(Modifiers::COMMAND) && *key == Key::Y) || (modifiers.matches(Modifiers::SHIFT | Modifiers::COMMAND) && *key == Key::Z) => {
                 if let Some((redo_ccursor_range, redo_txt)) = state
                     .undoer
                     .lock()
