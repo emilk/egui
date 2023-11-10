@@ -1,4 +1,4 @@
-use egui_extras::RetainedImage;
+use egui::Image;
 use poll_promise::Promise;
 
 struct Resource {
@@ -8,7 +8,7 @@ struct Resource {
     text: Option<String>,
 
     /// If set, the response was an image.
-    image: Option<RetainedImage>,
+    image: Option<Image<'static>>,
 
     /// If set, the response was text with some supported syntax highlighting (e.g. ".rs" or ".md").
     colored_text: Option<ColoredText>,
@@ -17,21 +17,27 @@ struct Resource {
 impl Resource {
     fn from_response(ctx: &egui::Context, response: ehttp::Response) -> Self {
         let content_type = response.content_type().unwrap_or_default();
-        let image = if content_type.starts_with("image/") {
-            RetainedImage::from_image_bytes(&response.url, &response.bytes).ok()
+        if content_type.starts_with("image/") {
+            ctx.include_bytes(response.url.clone(), response.bytes.clone());
+            let image = Image::from_uri(response.url.clone());
+
+            Self {
+                response,
+                text: None,
+                colored_text: None,
+                image: Some(image),
+            }
         } else {
-            None
-        };
+            let text = response.text();
+            let colored_text = text.and_then(|text| syntax_highlighting(ctx, &response, text));
+            let text = text.map(|text| text.to_owned());
 
-        let text = response.text();
-        let colored_text = text.and_then(|text| syntax_highlighting(ctx, &response, text));
-        let text = text.map(|text| text.to_owned());
-
-        Self {
-            response,
-            text,
-            image,
-            colored_text,
+            Self {
+                response,
+                text,
+                colored_text,
+                image: None,
+            }
         }
     }
 }
@@ -63,6 +69,7 @@ impl eframe::App for HttpApp {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
+            let prev_url = self.url.clone();
             let trigger_fetch = ui_url(ui, frame, &mut self.url);
 
             ui.horizontal_wrapped(|ui| {
@@ -77,6 +84,7 @@ impl eframe::App for HttpApp {
                 let (sender, promise) = Promise::new();
                 let request = ehttp::Request::get(&self.url);
                 ehttp::fetch(request, move |response| {
+                    ctx.forget_image(&prev_url);
                     ctx.request_repaint(); // wake up UI thread
                     let resource = response.map(|response| Resource::from_response(&ctx, response));
                     sender.send(resource);
@@ -187,15 +195,13 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
             if let Some(text) = &text {
                 let tooltip = "Click to copy the response body";
                 if ui.button("📋").on_hover_text(tooltip).clicked() {
-                    ui.output_mut(|o| o.copied_text = text.clone());
+                    ui.ctx().copy_text(text.clone());
                 }
                 ui.separator();
             }
 
             if let Some(image) = image {
-                let mut size = image.size_vec2();
-                size *= (ui.available_width() / size.x).min(1.0);
-                image.show_size(ui, size);
+                ui.add(image.clone());
             } else if let Some(colored_text) = colored_text {
                 colored_text.ui(ui);
             } else if let Some(text) = &text {
@@ -217,23 +223,17 @@ fn selectable_text(ui: &mut egui::Ui, mut text: &str) {
 // ----------------------------------------------------------------------------
 // Syntax highlighting:
 
-#[cfg(feature = "syntect")]
 fn syntax_highlighting(
     ctx: &egui::Context,
     response: &ehttp::Response,
     text: &str,
 ) -> Option<ColoredText> {
     let extension_and_rest: Vec<&str> = response.url.rsplitn(2, '.').collect();
-    let extension = extension_and_rest.get(0)?;
-    let theme = crate::syntax_highlighting::CodeTheme::from_style(&ctx.style());
-    Some(ColoredText(crate::syntax_highlighting::highlight(
+    let extension = extension_and_rest.first()?;
+    let theme = egui_extras::syntax_highlighting::CodeTheme::from_style(&ctx.style());
+    Some(ColoredText(egui_extras::syntax_highlighting::highlight(
         ctx, &theme, text, extension,
     )))
-}
-
-#[cfg(not(feature = "syntect"))]
-fn syntax_highlighting(_ctx: &egui::Context, _: &ehttp::Response, _: &str) -> Option<ColoredText> {
-    None
 }
 
 struct ColoredText(egui::text::LayoutJob);

@@ -1,11 +1,7 @@
 [package]
 name = "egui_plot"
-version = "0.22.0"
-authors = [
-  "Dominik Rössler <dominik@freshx.de>",
-  "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
-  "René Rössler <rene@freshx.de>",
-]
+version = "0.23.0"
+authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Immediate mode plotting for the egui GUI library"
 edition = "2021"
 rust-version = "1.70"
@@ -32,7 +28,7 @@ serde = ["dep:serde", "egui/serde"]
 
 
 [dependencies]
-egui = { version = "0.22.0", path = "../egui", default-features = false }
+egui = { version = "0.23.0", path = "../egui", default-features = false }
 
 
 #! ### Optional dependencies

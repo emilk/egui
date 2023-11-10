@@ -5,7 +5,13 @@ use egui::{
 };
 use std::{sync::Arc, task::Poll, thread};
 
-type Entry = Poll<Result<Arc<[u8]>, String>>;
+#[derive(Clone)]
+struct File {
+    bytes: Arc<[u8]>,
+    mime: Option<String>,
+}
+
+type Entry = Poll<Result<File, String>>;
 
 #[derive(Default)]
 pub struct FileLoader {
@@ -13,9 +19,17 @@ pub struct FileLoader {
     cache: Arc<Mutex<HashMap<String, Entry>>>,
 }
 
+impl FileLoader {
+    pub const ID: &str = egui::generate_loader_id!(FileLoader);
+}
+
 const PROTOCOL: &str = "file://";
 
 impl BytesLoader for FileLoader {
+    fn id(&self) -> &str {
+        Self::ID
+    }
+
     fn load(&self, ctx: &egui::Context, uri: &str) -> BytesLoadResult {
         // File loader only supports the `file` protocol.
         let Some(path) = uri.strip_prefix(PROTOCOL) else {
@@ -26,15 +40,16 @@ impl BytesLoader for FileLoader {
         if let Some(entry) = cache.get(path).cloned() {
             // `path` has either begun loading, is loaded, or has failed to load.
             match entry {
-                Poll::Ready(Ok(bytes)) => Ok(BytesPoll::Ready {
+                Poll::Ready(Ok(file)) => Ok(BytesPoll::Ready {
                     size: None,
-                    bytes: Bytes::Shared(bytes),
+                    bytes: Bytes::Shared(file.bytes),
+                    mime: file.mime,
                 }),
-                Poll::Ready(Err(err)) => Err(LoadError::Custom(err)),
+                Poll::Ready(Err(err)) => Err(LoadError::Loading(err)),
                 Poll::Pending => Ok(BytesPoll::Pending { size: None }),
             }
         } else {
-            crate::log_trace!("started loading {uri:?}");
+            log::trace!("started loading {uri:?}");
             // We need to load the file at `path`.
 
             // Set the file to `pending` until we finish loading it.
@@ -48,16 +63,29 @@ impl BytesLoader for FileLoader {
                 .spawn({
                     let ctx = ctx.clone();
                     let cache = self.cache.clone();
-                    let uri = uri.to_owned();
+                    let _uri = uri.to_owned();
                     move || {
                         let result = match std::fs::read(&path) {
-                            Ok(bytes) => Ok(bytes.into()),
+                            Ok(bytes) => {
+                                #[cfg(feature = "mime_guess")]
+                                let mime = mime_guess2::from_path(&path)
+                                    .first_raw()
+                                    .map(|v| v.to_owned());
+
+                                #[cfg(not(feature = "mime_guess"))]
+                                let mime = None;
+
+                                Ok(File {
+                                    bytes: bytes.into(),
+                                    mime,
+                                })
+                            }
                             Err(err) => Err(err.to_string()),
                         };
                         let prev = cache.lock().insert(path, Poll::Ready(result));
                         assert!(matches!(prev, Some(Poll::Pending)));
                         ctx.request_repaint();
-                        crate::log_trace!("finished loading {uri:?}");
+                        log::trace!("finished loading {_uri:?}");
                     }
                 })
                 .expect("failed to spawn thread");
@@ -70,12 +98,18 @@ impl BytesLoader for FileLoader {
         let _ = self.cache.lock().remove(uri);
     }
 
+    fn forget_all(&self) {
+        self.cache.lock().clear();
+    }
+
     fn byte_size(&self) -> usize {
         self.cache
             .lock()
             .values()
             .map(|entry| match entry {
-                Poll::Ready(Ok(bytes)) => bytes.len(),
+                Poll::Ready(Ok(file)) => {
+                    file.bytes.len() + file.mime.as_ref().map_or(0, |m| m.len())
+                }
                 Poll::Ready(Err(err)) => err.len(),
                 _ => 0,
             })

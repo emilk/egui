@@ -5,6 +5,17 @@ This file is updated upon each release.
 Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
 
+## 0.23.0 - 2023-09-27
+* Update MSRV to Rust 1.70.0 [#3310](https://github.com/emilk/egui/pull/3310)
+* Add option to truncate text at wrap width [#3244](https://github.com/emilk/egui/pull/3244) [#3366](https://github.com/emilk/egui/pull/3366)
+* Add control of line height and letter spacing [#3302](https://github.com/emilk/egui/pull/3302)
+* Support images with rounded corners [#3257](https://github.com/emilk/egui/pull/3257)
+* Add `ColorImage::from_gray` [#3166](https://github.com/emilk/egui/pull/3166) (thanks [@thomaseliot](https://github.com/thomaseliot)!)
+* Provide `into_inner()` for `egui::mutex::{Mutex, RwLock}` [#3110](https://github.com/emilk/egui/pull/3110) (thanks [@KmolYuan](https://github.com/KmolYuan)!)
+* Fix problems with tabs in text [#3355](https://github.com/emilk/egui/pull/3355)
+* Refactor: change `ClippedShape` from struct-enum to a normal struct [#3225](https://github.com/emilk/egui/pull/3225)
+* Document when `Galley`s get invalidated [#3024](https://github.com/emilk/egui/pull/3024) (thanks [@e00E](https://github.com/e00E)!)
+
 
 ## 0.22.0 - 2023-05-23
 * Fix compiling `epaint` without `bytemuck` dependency [#2913](https://github.com/emilk/egui/pull/2913) (thanks [@lunixbochs](https://github.com/lunixbochs)!)

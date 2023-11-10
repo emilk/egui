@@ -82,6 +82,8 @@ enum Anchor {
     EasyMarkEditor,
     #[cfg(feature = "http")]
     Http,
+    #[cfg(feature = "image_viewer")]
+    ImageViewer,
     Clock,
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     Custom3d,
@@ -142,6 +144,8 @@ pub struct State {
     easy_mark_editor: EasyMarkApp,
     #[cfg(feature = "http")]
     http: crate::apps::HttpApp,
+    #[cfg(feature = "image_viewer")]
+    image_viewer: crate::apps::ImageViewer,
     clock: FractalClockApp,
     color_test: ColorTestApp,
 
@@ -160,19 +164,22 @@ pub struct WrapApp {
 }
 
 impl WrapApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // This gives us image support:
+        egui_extras::install_image_loaders(&cc.egui_ctx);
+
         #[allow(unused_mut)]
         let mut slf = Self {
             state: State::default(),
 
             #[cfg(any(feature = "glow", feature = "wgpu"))]
-            custom3d: crate::apps::Custom3d::new(_cc),
+            custom3d: crate::apps::Custom3d::new(cc),
 
             dropped_files: Default::default(),
         };
 
         #[cfg(feature = "persistence")]
-        if let Some(storage) = _cc.storage {
+        if let Some(storage) = cc.storage {
             if let Some(state) = eframe::get_value(storage, eframe::APP_KEY) {
                 slf.state = state;
             }
@@ -203,6 +210,12 @@ impl WrapApp {
                 "🕑 Fractal Clock",
                 Anchor::Clock,
                 &mut self.state.clock as &mut dyn eframe::App,
+            ),
+            #[cfg(feature = "image_viewer")]
+            (
+                "🖼 Image Viewer",
+                Anchor::ImageViewer,
+                &mut self.state.image_viewer as &mut dyn eframe::App,
             ),
         ];
 
@@ -251,7 +264,6 @@ impl eframe::App for WrapApp {
 
         let mut cmd = Command::Nothing;
         egui::TopBottomPanel::top("wrap_app_top_bar").show(ctx, |ui| {
-            egui::trace!(ui);
             ui.horizontal_wrapped(|ui| {
                 ui.visuals_mut().button_frame = false;
                 self.bar_contents(ui, frame, &mut cmd);
@@ -384,7 +396,8 @@ impl WrapApp {
             {
                 selected_anchor = anchor;
                 if frame.is_web() {
-                    ui.output_mut(|o| o.open_url(format!("#{anchor}")));
+                    ui.ctx()
+                        .open_url(egui::OpenUrl::same_tab(format!("#{anchor}")));
                 }
             }
         }
@@ -396,7 +409,7 @@ impl WrapApp {
                 if clock_button(ui, crate::seconds_since_midnight()).clicked() {
                     self.state.selected_anchor = Anchor::Clock;
                     if frame.is_web() {
-                        ui.output_mut(|o| o.open_url("#clock"));
+                        ui.ctx().open_url(egui::OpenUrl::same_tab("#clock"));
                     }
                 }
             }

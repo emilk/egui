@@ -137,6 +137,7 @@ impl Painter {
         render_state: &RenderState,
         present_mode: wgpu::PresentMode,
     ) {
+        crate::profile_function!();
         let usage = if surface_state.supports_screenshot {
             wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST
         } else {
@@ -181,6 +182,7 @@ impl Painter {
         &mut self,
         window: Option<&winit::window::Window>,
     ) -> Result<(), crate::WgpuError> {
+        crate::profile_function!();
         match window {
             Some(window) => {
                 let surface = unsafe { self.instance.create_surface(&window)? };
@@ -254,6 +256,7 @@ impl Painter {
         width_in_pixels: u32,
         height_in_pixels: u32,
     ) {
+        crate::profile_function!();
         let render_state = self.render_state.as_ref().unwrap();
         let surface_state = self.surface_state.as_mut().unwrap();
 
@@ -309,6 +312,7 @@ impl Painter {
     }
 
     pub fn on_window_resized(&mut self, width_in_pixels: u32, height_in_pixels: u32) {
+        crate::profile_function!();
         if self.surface_state.is_some() {
             self.resize_and_generate_depth_texture_view_and_msaa_view(
                 width_in_pixels,

@@ -14,6 +14,15 @@ pub struct IconData {
     pub height: u32,
 }
 
+impl std::fmt::Debug for IconData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IconData")
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .finish_non_exhaustive()
+    }
+}
+
 impl IconData {
     /// Convert into [`image::RgbaImage`]
     ///

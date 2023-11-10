@@ -455,6 +455,11 @@ impl Modifiers {
         !self.is_none()
     }
 
+    #[inline]
+    pub fn all(&self) -> bool {
+        self.alt && self.ctrl && self.shift && self.command
+    }
+
     /// Is shift the only pressed button?
     #[inline]
     pub fn shift_only(&self) -> bool {
@@ -1026,5 +1031,64 @@ impl From<i32> for TouchId {
 impl From<u32> for TouchId {
     fn from(id: u32) -> Self {
         Self(id as u64)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+// TODO(emilk): generalize this to a proper event filter.
+/// Controls which events that a focused widget will have exclusive access to.
+///
+/// Currently this only controls a few special keyboard events,
+/// but in the future this `struct` should be extended into a full callback thing.
+///
+/// Any events not covered by the filter are given to the widget, but are not exclusive.
+#[derive(Clone, Copy, Debug)]
+pub struct EventFilter {
+    /// If `true`, pressing tab will act on the widget,
+    /// and NOT move focus away from the focused widget.
+    ///
+    /// Default: `false`
+    pub tab: bool,
+
+    /// If `true`, pressing arrows will act on the widget,
+    /// and NOT move focus away from the focused widget.
+    ///
+    /// Default: `false`
+    pub arrows: bool,
+
+    /// If `true`, pressing escape will act on the widget,
+    /// and NOT surrender focus from the focused widget.
+    ///
+    /// Default: `false`
+    pub escape: bool,
+}
+
+#[allow(clippy::derivable_impls)] // let's be explicit
+impl Default for EventFilter {
+    fn default() -> Self {
+        Self {
+            tab: false,
+            arrows: false,
+            escape: false,
+        }
+    }
+}
+
+impl EventFilter {
+    pub fn matches(&self, event: &Event) -> bool {
+        if let Event::Key { key, .. } = event {
+            match key {
+                crate::Key::Tab => self.tab,
+                crate::Key::ArrowUp
+                | crate::Key::ArrowRight
+                | crate::Key::ArrowDown
+                | crate::Key::ArrowLeft => self.arrows,
+                crate::Key::Escape => self.escape,
+                _ => true,
+            }
+        } else {
+            true
+        }
     }
 }

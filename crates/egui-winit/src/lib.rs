@@ -80,6 +80,8 @@ pub struct State {
 
     #[cfg(feature = "accesskit")]
     accesskit: Option<accesskit_winit::Adapter>,
+
+    allow_ime: bool,
 }
 
 impl State {
@@ -107,6 +109,8 @@ impl State {
 
             #[cfg(feature = "accesskit")]
             accesskit: None,
+
+            allow_ime: false,
         }
     }
 
@@ -190,6 +194,8 @@ impl State {
         egui_ctx: &egui::Context,
         event: &winit::event::WindowEvent<'_>,
     ) -> EventResponse {
+        crate::profile_function!();
+
         use winit::event::WindowEvent;
         match event {
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
@@ -285,7 +291,7 @@ impl State {
                             .events
                             .push(egui::Event::CompositionEnd(text.clone()));
                     }
-                    winit::event::Ime::Preedit(text, ..) => {
+                    winit::event::Ime::Preedit(text, Some(_)) => {
                         if !self.input_method_editor_started {
                             self.input_method_editor_started = true;
                             self.egui_input.events.push(egui::Event::CompositionStart);
@@ -294,6 +300,7 @@ impl State {
                             .events
                             .push(egui::Event::CompositionUpdate(text.clone()));
                     }
+                    winit::event::Ime::Preedit(_, None) => {}
                 };
 
                 EventResponse {
@@ -661,6 +668,12 @@ impl State {
             self.clipboard.set(copied_text);
         }
 
+        let allow_ime = text_cursor_pos.is_some();
+        if self.allow_ime != allow_ime {
+            self.allow_ime = allow_ime;
+            window.set_ime_allowed(allow_ime);
+        }
+
         if let Some(egui::Pos2 { x, y }) = text_cursor_pos {
             window.set_ime_position(winit::dpi::LogicalPosition { x, y });
         }
@@ -894,26 +907,30 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 
 // ---------------------------------------------------------------------------
 
-/// Profiling macro for feature "puffin"
-#[allow(unused_macros)]
-macro_rules! profile_function {
-    ($($arg: tt)*) => {
-        #[cfg(feature = "puffin")]
-        puffin::profile_function!($($arg)*);
-    };
+mod profiling_scopes {
+    #![allow(unused_macros)]
+    #![allow(unused_imports)]
+
+    /// Profiling macro for feature "puffin"
+    macro_rules! profile_function {
+        ($($arg: tt)*) => {
+            #[cfg(feature = "puffin")]
+            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
+            puffin::profile_function!($($arg)*);
+        };
+    }
+    pub(crate) use profile_function;
+
+    /// Profiling macro for feature "puffin"
+    macro_rules! profile_scope {
+        ($($arg: tt)*) => {
+            #[cfg(feature = "puffin")]
+            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
+            puffin::profile_scope!($($arg)*);
+        };
+    }
+    pub(crate) use profile_scope;
 }
 
 #[allow(unused_imports)]
-pub(crate) use profile_function;
-
-/// Profiling macro for feature "puffin"
-#[allow(unused_macros)]
-macro_rules! profile_scope {
-    ($($arg: tt)*) => {
-        #[cfg(feature = "puffin")]
-        puffin::profile_scope!($($arg)*);
-    };
-}
-
-#[allow(unused_imports)]
-pub(crate) use profile_scope;
+pub(crate) use profiling_scopes::*;

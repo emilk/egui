@@ -11,6 +11,7 @@ impl super::Demo for About {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .default_width(320.0)
+            .default_height(480.0)
             .open(open)
             .show(ctx, |ui| {
                 use super::View as _;
@@ -41,11 +42,19 @@ impl super::View for About {
         ui.add_space(12.0); // ui.separator();
         ui.heading("Links");
         links(ui);
+
+        ui.add_space(12.0);
+
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing.x = 0.0;
+            ui.label("egui development is sponsored by ");
+            ui.hyperlink_to("Rerun.io", "https://www.rerun.io/");
+            ui.label(", a startup building an SDK for visualizing streams of multimodal data");
+        });
     }
 }
 
 fn about_immediate_mode(ui: &mut egui::Ui) {
-    use crate::syntax_highlighting::code_view_ui;
     ui.style_mut().spacing.interact_size.y = 0.0; // hack to make `horizontal_wrapped` work better with text.
 
     ui.horizontal_wrapped(|ui| {
@@ -56,7 +65,7 @@ fn about_immediate_mode(ui: &mut egui::Ui) {
         });
 
     ui.add_space(8.0);
-    code_view_ui(
+    crate::rust_view_ui(
         ui,
         r#"
   if ui.button("Save").clicked() {
@@ -66,15 +75,10 @@ fn about_immediate_mode(ui: &mut egui::Ui) {
     );
     ui.add_space(8.0);
 
-    ui.label("Note how there are no callbacks or messages, and no button state to store.");
-
-    ui.label("Immediate mode has its roots in gaming, where everything on the screen is painted at the display refresh rate, i.e. at 60+ frames per second. \
-        In immediate mode GUIs, the entire interface is laid out and painted at the same high rate. \
-        This makes immediate mode GUIs especially well suited for highly interactive applications.");
-
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing.x = 0.0;
-        ui.label("More about immediate mode ");
+        ui.label("There are no callbacks or messages, and no button state to store. ");
+        ui.label("Read more about immediate mode ");
         ui.hyperlink_to("here", "https://github.com/emilk/egui#why-immediate-mode");
         ui.label(".");
     });

@@ -81,13 +81,11 @@ impl super::Demo for CodeExample {
 
 impl super::View for CodeExample {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        use crate::syntax_highlighting::code_view_ui;
-
         ui.vertical_centered(|ui| {
             ui.add(crate::egui_github_link_file!());
         });
 
-        code_view_ui(
+        crate::rust_view_ui(
             ui,
             r"
 pub struct CodeExample {
@@ -117,15 +115,15 @@ impl CodeExample {
                 });
         });
 
-        code_view_ui(ui, "    }\n}");
+        crate::rust_view_ui(ui, "    }\n}");
 
         ui.separator();
 
-        code_view_ui(ui, &format!("{self:#?}"));
+        crate::rust_view_ui(ui, &format!("{self:#?}"));
 
         ui.separator();
 
-        let mut theme = crate::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
+        let mut theme = egui_extras::syntax_highlighting::CodeTheme::from_memory(ui.ctx());
         ui.collapsing("Theme", |ui| {
             theme.ui(ui);
             theme.store_in_memory(ui.ctx());
@@ -135,7 +133,7 @@ impl CodeExample {
 
 fn show_code(ui: &mut egui::Ui, code: &str) {
     let code = remove_leading_indentation(code.trim_start_matches('\n'));
-    crate::syntax_highlighting::code_view_ui(ui, &code);
+    crate::rust_view_ui(ui, &code);
 }
 
 fn remove_leading_indentation(code: &str) -> String {

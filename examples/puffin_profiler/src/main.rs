@@ -28,7 +28,7 @@ impl eframe::App for MyApp {
             ui.horizontal(|ui| {
                 ui.monospace(cmd);
                 if ui.small_button("📋").clicked() {
-                    ui.output_mut(|o| o.copied_text = cmd.into());
+                    ui.ctx().copy_text(cmd.into());
                 }
             });
 
@@ -55,6 +55,12 @@ fn start_puffin_server() {
     match puffin_http::Server::new("0.0.0.0:8585") {
         Ok(puffin_server) => {
             eprintln!("Run:  cargo install puffin_viewer && puffin_viewer --url 127.0.0.1:8585");
+
+            std::process::Command::new("puffin_viewer")
+                .arg("--url")
+                .arg("127.0.0.1:8585")
+                .spawn()
+                .ok();
 
             // We can store the server if we want, but in this case we just want
             // it to keep running. Dropping it closes the server, so let's not drop it!

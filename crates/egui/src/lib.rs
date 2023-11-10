@@ -12,6 +12,10 @@
 //! Then you add a [`Window`] or a [`SidePanel`] to get a [`Ui`], which is what you'll be using to add all the buttons and labels that you need.
 //!
 //!
+//! ## Feature flags
+#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
+//!
+//!
 //! # Using egui
 //!
 //! To see what is possible to build with egui you can check out the online demo at <https://www.egui.rs/#demo>.
@@ -84,7 +88,7 @@
 //! ui.separator();
 //!
 //! # let my_image = egui::TextureId::default();
-//! ui.image(my_image, [640.0, 480.0]);
+//! ui.image((my_image, egui::Vec2::new(640.0, 480.0)));
 //!
 //! ui.collapsing("Click to see what is hidden!", |ui| {
 //!     ui.label("Not much, as it turns out");
@@ -107,9 +111,9 @@
 //!
 //! Most likely you are using an existing `egui` backend/integration such as [`eframe`](https://docs.rs/eframe), [`bevy_egui`](https://docs.rs/bevy_egui),
 //! or [`egui-miniquad`](https://github.com/not-fl3/egui-miniquad),
-//! but if you want to integrate `egui` into a new game engine, this is the section for you.
+//! but if you want to integrate `egui` into a new game engine or graphics backend, this is the section for you.
 //!
-//! To write your own integration for egui you need to do this:
+//! You need to collect [`RawInput`] and handle [`FullOutput`]. The basic structure is this:
 //!
 //! ``` no_run
 //! # fn handle_platform_output(_: egui::PlatformOutput) {}
@@ -135,10 +139,42 @@
 //! }
 //! ```
 //!
+//! For a reference OpenGL renderer, see [the `egui_glow` painter](https://github.com/emilk/egui/blob/master/crates/egui_glow/src/painter.rs).
+//!
+//!
+//! ### Debugging your renderer
+//!
+//! #### Things look jagged
+//!
+//! * Turn off backface culling.
+//!
+//! #### My text is blurry
+//!
+//! * Make sure you set the proper `pixels_per_point` in the input to egui.
+//! * Make sure the texture sampler is not off by half a pixel. Try nearest-neighbor sampler to check.
+//!
+//! #### My windows are too transparent or too dark
+//!
+//! * egui uses premultiplied alpha, so make sure your blending function is `(ONE, ONE_MINUS_SRC_ALPHA)`.
+//! * Make sure your texture sampler is clamped (`GL_CLAMP_TO_EDGE`).
+//! * egui prefers linear color spaces for all blending so:
+//!   * Use an sRGBA-aware texture if available (e.g. `GL_SRGB8_ALPHA8`).
+//!     * Otherwise: remember to decode gamma in the fragment shader.
+//!   * Decode the gamma of the incoming vertex colors in your vertex shader.
+//!   * Turn on sRGBA/linear framebuffer if available (`GL_FRAMEBUFFER_SRGB`).
+//!     * Otherwise: gamma-encode the colors before you write them again.
+//!
 //!
 //! # Understanding immediate mode
 //!
-//! `egui` is an immediate mode GUI library. It is useful to fully grok what "immediate mode" implies.
+//! `egui` is an immediate mode GUI library.
+//!
+//! Immediate mode has its roots in gaming, where everything on the screen is painted at the
+//! display refresh rate, i.e. at 60+ frames per second.
+//! In immediate mode GUIs, the entire interface is laid out and painted at the same high rate.
+//! This makes immediate mode GUIs especially well suited for highly interactive applications.
+//!
+//! It is useful to fully grok what "immediate mode" implies.
 //!
 //! Here is an example to illustrate it:
 //!
@@ -173,7 +209,7 @@
 //! # });
 //! ```
 //!
-//! Here egui will read `value` to display the slider, then look if the mouse is dragging the slider and if so change the `value`.
+//! Here egui will read `value` (an `f32`) to display the slider, then look if the mouse is dragging the slider and if so change the `value`.
 //! Note that `egui` does not store the slider value for you - it only displays the current value, and changes it
 //! by how much the slider has been dragged in the previous few milliseconds.
 //! This means it is responsibility of the egui user to store the state (`value`) so that it persists between frames.
@@ -293,10 +329,6 @@
 //! }); // the temporary settings are reverted here
 //! # });
 //! ```
-//!
-//! ## Feature flags
-#![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
-//!
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
@@ -327,6 +359,10 @@ mod ui;
 pub mod util;
 pub mod widget_text;
 pub mod widgets;
+
+#[cfg(feature = "callstack")]
+#[cfg(debug_assertions)]
+mod callstack;
 
 #[cfg(feature = "accesskit")]
 pub use accesskit;
@@ -364,7 +400,9 @@ pub use {
     context::{Context, RequestRepaintInfo},
     data::{
         input::*,
-        output::{self, CursorIcon, FullOutput, PlatformOutput, UserAttentionType, WidgetInfo},
+        output::{
+            self, CursorIcon, FullOutput, OpenUrl, PlatformOutput, UserAttentionType, WidgetInfo,
+        },
     },
     grid::Grid,
     id::{Id, IdMap},
@@ -399,6 +437,35 @@ pub fn warn_if_debug_build(ui: &mut crate::Ui) {
 
 // ----------------------------------------------------------------------------
 
+/// Include an image in the binary.
+///
+/// This is a wrapper over `include_bytes!`, and behaves in the same way.
+///
+/// It produces an [`ImageSource`] which can be used directly in [`Ui::image`] or [`Image::new`]:
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// ui.image(egui::include_image!("../assets/ferris.png"));
+/// ui.add(
+///     egui::Image::new(egui::include_image!("../assets/ferris.png"))
+///         .max_width(200.0)
+///         .rounding(10.0),
+/// );
+///
+/// let image_source: egui::ImageSource = egui::include_image!("../assets/ferris.png");
+/// assert_eq!(image_source.uri(), Some("bytes://../assets/ferris.png"));
+/// # });
+/// ```
+#[macro_export]
+macro_rules! include_image {
+    ($path: literal) => {
+        $crate::ImageSource::Bytes {
+            uri: ::std::borrow::Cow::Borrowed(concat!("bytes://", $path)),
+            bytes: $crate::load::Bytes::Static(include_bytes!($path)),
+        }
+    };
+}
+
 /// Create a [`Hyperlink`](crate::Hyperlink) to the current [`file!()`] (and line) on Github
 ///
 /// ```
@@ -426,32 +493,6 @@ macro_rules! github_link_file {
     ($github_url: expr, $label: expr) => {{
         let url = format!("{}{}", $github_url, file!());
         $crate::Hyperlink::from_label_and_url($label, url)
-    }};
-}
-
-// ----------------------------------------------------------------------------
-
-/// Show debug info on hover when [`Context::set_debug_on_hover`] has been turned on.
-///
-/// ```
-/// # egui::__run_test_ui(|ui| {
-/// // Turn on tracing of widgets
-/// ui.ctx().set_debug_on_hover(true);
-///
-/// /// Show [`std::file`], [`std::line`] and argument on hover
-/// egui::trace!(ui, "MyWindow");
-///
-/// /// Show [`std::file`] and [`std::line`] on hover
-/// egui::trace!(ui);
-/// # });
-/// ```
-#[macro_export]
-macro_rules! trace {
-    ($ui: expr) => {{
-        $ui.trace_location(format!("{}:{}", file!(), line!()))
-    }};
-    ($ui: expr, $label: expr) => {{
-        $ui.trace_location(format!("{} - {}:{}", $label, file!(), line!()))
     }};
 }
 
@@ -593,8 +634,8 @@ mod profiling_scopes {
     /// Profiling macro for feature "puffin"
     macro_rules! profile_function {
         ($($arg: tt)*) => {
-            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
             #[cfg(feature = "puffin")]
+            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
             puffin::profile_function!($($arg)*);
         };
     }
@@ -603,12 +644,13 @@ mod profiling_scopes {
     /// Profiling macro for feature "puffin"
     macro_rules! profile_scope {
         ($($arg: tt)*) => {
-            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
             #[cfg(feature = "puffin")]
+            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
             puffin::profile_scope!($($arg)*);
         };
     }
     pub(crate) use profile_scope;
 }
 
+#[allow(unused_imports)]
 pub(crate) use profiling_scopes::*;

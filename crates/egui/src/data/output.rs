@@ -84,6 +84,8 @@ pub struct PlatformOutput {
     pub mutable_text_under_cursor: bool,
 
     /// Screen-space position of text edit cursor (used for IME).
+    ///
+    /// Iff `Some`, the user is editing text.
     pub text_cursor_pos: Option<crate::Pos2>,
 
     #[cfg(feature = "accesskit")]
@@ -92,7 +94,9 @@ pub struct PlatformOutput {
 
 impl PlatformOutput {
     /// Open the given url in a web browser.
+    ///
     /// If egui is running in a browser, the same tab will be reused.
+    #[deprecated = "Use Context::open_url instead"]
     pub fn open_url(&mut self, url: impl ToString) {
         self.open_url = Some(OpenUrl::same_tab(url));
     }
@@ -156,6 +160,8 @@ impl PlatformOutput {
 }
 
 /// What URL to open, and how.
+///
+/// Use with [`crate::Context::open_url`].
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct OpenUrl {

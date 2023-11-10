@@ -13,6 +13,10 @@ use crate::*;
 /// of `min` and `max` are swapped. These are usually a sign of an error.
 ///
 /// Normally the unit is points (logical pixels) in screen space coordinates.
+///
+/// `Rect` does NOT implement `Default`, because there is no obvious default value.
+/// [`Rect::ZERO`] may seem reasonable, but when used as a bounding box, [`Rect::NOTHING`]
+/// is a better default - so be explicit instead!
 #[repr(C)]
 #[derive(Clone, Copy, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -144,6 +148,34 @@ impl Rect {
         let mut rect = Self::EVERYTHING;
         rect.set_bottom(bottom_y);
         rect
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn with_min_x(mut self, min_x: f32) -> Self {
+        self.min.x = min_x;
+        self
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn with_min_y(mut self, min_y: f32) -> Self {
+        self.min.y = min_y;
+        self
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn with_max_x(mut self, max_x: f32) -> Self {
+        self.max.x = max_x;
+        self
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn with_max_y(mut self, max_y: f32) -> Self {
+        self.max.y = max_y;
+        self
     }
 
     /// Expand by this much in each direction, keeping the center

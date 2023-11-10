@@ -5,6 +5,13 @@ This file is updated upon each release.
 Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
 
+## 0.23.0 - 2023-09-27
+* Only show on-screen-keyboard and IME when editing text [#3362](https://github.com/emilk/egui/pull/3362) (thanks [@Barugon](https://github.com/Barugon)!)
+* Replace `instant` with `web_time` [#3296](https://github.com/emilk/egui/pull/3296)
+* Allow users to opt-out of default `winit` features [#3228](https://github.com/emilk/egui/pull/3228)
+* Recognize numpad enter/plus/minus [#3285](https://github.com/emilk/egui/pull/3285)
+
+
 ## 0.22.0 - 2023-05-23
 * Only use `wasm-bindgen` feature for `instant` when building for wasm32 [#2808](https://github.com/emilk/egui/pull/2808) (thanks [@gferon](https://github.com/gferon)!)
 * Fix unsafe API of `Clipboard::new` [#2765](https://github.com/emilk/egui/pull/2765) (thanks [@dhardy](https://github.com/dhardy)!)

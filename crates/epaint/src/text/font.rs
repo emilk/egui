@@ -43,12 +43,6 @@ pub struct GlyphInfo {
     /// Unit: points.
     pub advance_width: f32,
 
-    /// `ascent` value from the font metrics.
-    /// this is the distance from the top to the baseline.
-    ///
-    /// Unit: points.
-    pub ascent: f32,
-
     /// Texture coordinates.
     pub uv_rect: UvRect,
 }
@@ -59,7 +53,6 @@ impl Default for GlyphInfo {
         Self {
             id: ab_glyph::GlyphId(0),
             advance_width: 0.0,
-            ascent: 0.0,
             uv_rect: Default::default(),
         }
     }
@@ -79,7 +72,7 @@ pub struct FontImpl {
     height_in_points: f32,
 
     // move each character by this much (hack)
-    y_offset: f32,
+    y_offset_in_points: f32,
 
     ascent: f32,
     pixels_per_point: f32,
@@ -118,22 +111,23 @@ impl FontImpl {
             scale_in_points * tweak.y_offset_factor
         } + tweak.y_offset;
 
-        // center scaled glyphs properly
-        let y_offset_points = y_offset_points + (tweak.scale - 1.0) * 0.5 * (ascent + descent);
+        // Center scaled glyphs properly:
+        let height = ascent + descent;
+        let y_offset_points = y_offset_points - (1.0 - tweak.scale) * 0.5 * height;
 
         // Round to an even number of physical pixels to get even kerning.
         // See https://github.com/emilk/egui/issues/382
         let scale_in_pixels = scale_in_pixels.round() as u32;
 
         // Round to closest pixel:
-        let y_offset = (y_offset_points * pixels_per_point).round() / pixels_per_point;
+        let y_offset_in_points = (y_offset_points * pixels_per_point).round() / pixels_per_point;
 
         Self {
             name,
             ab_glyph_font,
             scale_in_pixels,
             height_in_points: ascent - descent + line_gap,
-            y_offset,
+            y_offset_in_points,
             ascent: ascent + baseline_offset,
             pixels_per_point,
             glyph_info_cache: Default::default(),
@@ -188,7 +182,7 @@ impl FontImpl {
             if let Some(space) = self.glyph_info(' ') {
                 let glyph_info = GlyphInfo {
                     advance_width: crate::text::TAB_SIZE as f32 * space.advance_width,
-                    ..GlyphInfo::default()
+                    ..space
                 };
                 self.glyph_info_cache.write().insert(c, glyph_info);
                 return Some(glyph_info);
@@ -205,7 +199,7 @@ impl FontImpl {
                 let advance_width = f32::min(em / 6.0, space.advance_width * 0.5);
                 let glyph_info = GlyphInfo {
                     advance_width,
-                    ..GlyphInfo::default()
+                    ..space
                 };
                 self.glyph_info_cache.write().insert(c, glyph_info);
                 return Some(glyph_info);
@@ -255,6 +249,14 @@ impl FontImpl {
         self.pixels_per_point
     }
 
+    /// This is the distance from the top to the baseline.
+    ///
+    /// Unit: points.
+    #[inline(always)]
+    pub fn ascent(&self) -> f32 {
+        self.ascent
+    }
+
     fn allocate_glyph(&self, glyph_id: ab_glyph::GlyphId) -> GlyphInfo {
         assert!(glyph_id.0 != 0);
         use ab_glyph::{Font as _, ScaleFont};
@@ -282,7 +284,8 @@ impl FontImpl {
                 });
 
                 let offset_in_pixels = vec2(bb.min.x, bb.min.y);
-                let offset = offset_in_pixels / self.pixels_per_point + self.y_offset * Vec2::Y;
+                let offset =
+                    offset_in_pixels / self.pixels_per_point + self.y_offset_in_points * Vec2::Y;
                 UvRect {
                     offset,
                     size: vec2(glyph_width as f32, glyph_height as f32) / self.pixels_per_point,
@@ -305,7 +308,6 @@ impl FontImpl {
         GlyphInfo {
             id: glyph_id,
             advance_width: advance_width_in_points,
-            ascent: self.ascent,
             uv_rect,
         }
     }
@@ -442,7 +444,7 @@ impl Font {
     }
 
     #[inline]
-    pub(crate) fn glyph_info_and_font_impl(&mut self, c: char) -> (Option<&FontImpl>, GlyphInfo) {
+    pub(crate) fn font_impl_and_glyph_info(&mut self, c: char) -> (Option<&FontImpl>, GlyphInfo) {
         if self.fonts.is_empty() {
             return (None, self.replacement_glyph.1);
         }

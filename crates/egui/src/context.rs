@@ -1,10 +1,13 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
+use std::borrow::Cow;
 use std::sync::Arc;
 
+use crate::load::Bytes;
+use crate::load::SizedTexture;
 use crate::{
     animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
-    input_state::*, layers::GraphicLayers, memory::Options, os::OperatingSystem,
+    input_state::*, layers::GraphicLayers, load::Loaders, memory::Options, os::OperatingSystem,
     output::FullOutput, util::IdTypeMap, TextureHandle, *,
 };
 use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
@@ -167,7 +170,7 @@ struct ContextImpl {
     #[cfg(feature = "accesskit")]
     accesskit_node_classes: accesskit::NodeClassSet,
 
-    loaders: load::Loaders,
+    loaders: Arc<Loaders>,
 }
 
 impl ContextImpl {
@@ -548,10 +551,6 @@ impl Context {
     ) -> R {
         self.write(move |ctx| writer(&mut ctx.memory.options.tessellation_options))
     }
-}
-
-impl Context {
-    // ---------------------------------------------------------------------
 
     /// If the given [`Id`] has been used previously the same frame at at different position,
     /// then an error will be printed on screen.
@@ -663,6 +662,7 @@ impl Context {
         // This solves the problem of overlapping widgets.
         // Whichever widget is added LAST (=on top) gets the input:
         if interact_rect.is_positive() && sense.interactive() {
+            #[cfg(debug_assertions)]
             if self.style().debug.show_interactive_widgets {
                 Self::layer_painter(self, LayerId::debug()).rect(
                     interact_rect,
@@ -671,6 +671,8 @@ impl Context {
                     Stroke::new(1.0, Color32::YELLOW.additive().linear_multiply(0.05)),
                 );
             }
+
+            #[cfg(debug_assertions)]
             let mut show_blocking_widget = None;
 
             self.write(|ctx| {
@@ -691,6 +693,7 @@ impl Context {
                                     // Another interactive widget is covering us at the pointer position,
                                     // so we aren't hovered.
 
+                                    #[cfg(debug_assertions)]
                                     if ctx.memory.options.style.debug.show_blocking_widget {
                                         // Store the rects to use them outside the write() call to
                                         // avoid deadlock
@@ -706,6 +709,7 @@ impl Context {
                 }
             });
 
+            #[cfg(debug_assertions)]
             if let Some((interact_rect, prev_rect)) = show_blocking_widget {
                 Self::layer_painter(self, LayerId::debug()).debug_rect(
                     interact_rect,
@@ -916,6 +920,31 @@ impl Context {
         self.output_mut(|o| o.cursor_icon = cursor_icon);
     }
 
+    /// Open an URL in a browser.
+    ///
+    /// Equivalent to:
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// # let open_url = egui::OpenUrl::same_tab("http://www.example.com");
+    /// ctx.output_mut(|o| o.open_url = Some(open_url));
+    /// ```
+    pub fn open_url(&self, open_url: crate::OpenUrl) {
+        self.output_mut(|o| o.open_url = Some(open_url));
+    }
+
+    /// Copy the given text to the system clipboard.
+    ///
+    /// Empty strings are ignored.
+    ///
+    /// Equivalent to:
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// ctx.output_mut(|o| o.copied_text = "Copy this".to_owned());
+    /// ```
+    pub fn copy_text(&self, text: String) {
+        self.output_mut(|o| o.copied_text = text);
+    }
+
     /// Format the given shortcut in a human-readable way (e.g. `Ctrl+Shift+X`).
     ///
     /// Can be used to get the text for [`Button::shortcut_text`].
@@ -1046,17 +1075,24 @@ impl Context {
         self.options(|opt| opt.style.clone())
     }
 
-    /// The [`Style`] used by all new windows, panels etc.
-    ///
-    /// You can also use [`Ui::style_mut`] to change the style of a single [`Ui`].
+    /// Mutate the [`Style`] used by all subsequent windows, panels etc.
     ///
     /// Example:
     /// ```
     /// # let mut ctx = egui::Context::default();
-    /// let mut style: egui::Style = (*ctx.style()).clone();
-    /// style.spacing.item_spacing = egui::vec2(10.0, 20.0);
-    /// ctx.set_style(style);
+    /// ctx.style_mut(|style| {
+    ///     style.spacing.item_spacing = egui::vec2(10.0, 20.0);
+    /// });
     /// ```
+    pub fn style_mut(&self, mutate_style: impl FnOnce(&mut Style)) {
+        self.options_mut(|opt| mutate_style(std::sync::Arc::make_mut(&mut opt.style)));
+    }
+
+    /// The [`Style`] used by all new windows, panels etc.
+    ///
+    /// You can also change this using [`Self::style_mut]`
+    ///
+    /// You can use [`Ui::style_mut`] to change the style of a single [`Ui`].
     pub fn set_style(&self, style: impl Into<Arc<Style>>) {
         self.options_mut(|opt| opt.style = style.into());
     }
@@ -1118,9 +1154,16 @@ impl Context {
 
     /// Allocate a texture.
     ///
-    /// In order to display an image you must convert it to a texture using this function.
+    /// This is for advanced users.
+    /// Most users should use [`crate::Ui::image`] or [`Self::try_load_texture`]
+    /// instead.
     ///
-    /// Make sure to only call this once for each image, i.e. NOT in your main GUI code.
+    /// In order to display an image you must convert it to a texture using this function.
+    /// The function will hand over the image data to the egui backend, which will
+    /// upload it to the GPU.
+    ///
+    /// ⚠️ Make sure to only call this ONCE for each image, i.e. NOT in your main GUI code.
+    /// The call is NOT immediate safe.
     ///
     /// The given name can be useful for later debugging, and will be visible if you call [`Self::texture_ui`].
     ///
@@ -1143,12 +1186,12 @@ impl Context {
     ///         });
     ///
     ///         // Show the image:
-    ///         ui.image(texture, texture.size_vec2());
+    ///         ui.image((texture.id(), texture.size_vec2()));
     ///     }
     /// }
     /// ```
     ///
-    /// Se also [`crate::ImageData`], [`crate::Ui::image`] and [`crate::ImageButton`].
+    /// See also [`crate::ImageData`], [`crate::Ui::image`] and [`crate::Image`].
     pub fn load_texture(
         &self,
         name: impl Into<String>,
@@ -1241,14 +1284,13 @@ impl Context {
         });
 
         #[cfg_attr(not(feature = "accesskit"), allow(unused_mut))]
-        let mut platform_output: PlatformOutput = self.output_mut(|o| std::mem::take(o));
+        let mut platform_output: PlatformOutput = self.output_mut(std::mem::take);
 
         #[cfg(feature = "accesskit")]
         {
             crate::profile_scope!("accesskit");
             let state = self.frame_state_mut(|fs| fs.accesskit_state.take());
             if let Some(state) = state {
-                let has_focus = self.input(|i| i.raw.focused);
                 let root_id = crate::accesskit_root_id().accesskit_id();
                 let nodes = self.write(|ctx| {
                     state
@@ -1262,13 +1304,13 @@ impl Context {
                         })
                         .collect()
                 });
+                let focus_id = self
+                    .memory(|mem| mem.focus())
+                    .map_or(root_id, |id| id.accesskit_id());
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
                     nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
-                    focus: has_focus.then(|| {
-                        let focus_id = self.memory(|mem| mem.interaction.focus.id);
-                        focus_id.map_or(root_id, |id| id.accesskit_id())
-                    }),
+                    focus: focus_id,
                 });
             }
         }
@@ -1490,15 +1532,15 @@ impl Context {
     // ---------------------------------------------------------------------
 
     /// Whether or not to debug widget layout on hover.
+    #[cfg(debug_assertions)]
     pub fn debug_on_hover(&self) -> bool {
         self.options(|opt| opt.style.debug.debug_on_hover)
     }
 
     /// Turn on/off whether or not to debug widget layout on hover.
+    #[cfg(debug_assertions)]
     pub fn set_debug_on_hover(&self, debug_on_hover: bool) {
-        let mut style = self.options(|opt| (*opt.style).clone());
-        style.debug.debug_on_hover = debug_on_hover;
-        self.set_style(style);
+        self.style_mut(|style| style.debug.debug_on_hover = debug_on_hover);
     }
 }
 
@@ -1581,7 +1623,6 @@ impl Context {
     /// Show the state of egui, including its input and output.
     pub fn inspection_ui(&self, ui: &mut Ui) {
         use crate::containers::*;
-        crate::trace!(ui);
 
         ui.label(format!("Is using pointer: {}", self.is_using_pointer()))
             .on_hover_text(
@@ -1689,14 +1730,15 @@ impl Context {
                                 let mut size = vec2(w as f32, h as f32);
                                 size *= (max_preview_size.x / size.x).min(1.0);
                                 size *= (max_preview_size.y / size.y).min(1.0);
-                                ui.image(texture_id, size).on_hover_ui(|ui| {
-                                    // show larger on hover
-                                    let max_size = 0.5 * ui.ctx().screen_rect().size();
-                                    let mut size = vec2(w as f32, h as f32);
-                                    size *= max_size.x / size.x.max(max_size.x);
-                                    size *= max_size.y / size.y.max(max_size.y);
-                                    ui.image(texture_id, size);
-                                });
+                                ui.image(SizedTexture::new(texture_id, size))
+                                    .on_hover_ui(|ui| {
+                                        // show larger on hover
+                                        let max_size = 0.5 * ui.ctx().screen_rect().size();
+                                        let mut size = vec2(w as f32, h as f32);
+                                        size *= max_size.x / size.x.max(max_size.x);
+                                        size *= max_size.y / size.y.max(max_size.y);
+                                        ui.image(SizedTexture::new(texture_id, size));
+                                    });
 
                                 ui.label(format!("{w} x {h}"));
                                 ui.label(format!("{:.3} MB", meta.bytes_used() as f64 * 1e-6));
@@ -1898,7 +1940,7 @@ impl Context {
                 NodeBuilder::new(Role::Window).build(&mut ctx.accesskit_node_classes),
             )],
             tree: Some(Tree::new(root_id)),
-            focus: None,
+            focus: root_id,
         })
     }
 }
@@ -1907,60 +1949,93 @@ impl Context {
 impl Context {
     /// Associate some static bytes with a `uri`.
     ///
-    /// The same `uri` may be passed to [`Ui::image2`] later to load the bytes as an image.
-    pub fn include_static_bytes(&self, uri: &'static str, bytes: &'static [u8]) {
-        self.read(|ctx| ctx.loaders.include.insert_static(uri, bytes));
-    }
-
-    /// Associate some bytes with a `uri`.
+    /// The same `uri` may be passed to [`Ui::image`] later to load the bytes as an image.
     ///
-    /// The same `uri` may be passed to [`Ui::image2`] later to load the bytes as an image.
-    pub fn include_bytes(&self, uri: &'static str, bytes: impl Into<Arc<[u8]>>) {
-        self.read(|ctx| ctx.loaders.include.insert_shared(uri, bytes));
+    /// By convention, the `uri` should start with `bytes://`.
+    /// Following that convention will lead to better error messages.
+    pub fn include_bytes(&self, uri: impl Into<Cow<'static, str>>, bytes: impl Into<Bytes>) {
+        self.loaders().include.insert(uri, bytes);
     }
 
-    /// Append an entry onto the chain of bytes loaders.
+    /// Returns `true` if the chain of bytes, image, or texture loaders
+    /// contains a loader with the given `id`.
+    pub fn is_loader_installed(&self, id: &str) -> bool {
+        let loaders = self.loaders();
+
+        loaders.bytes.lock().iter().any(|l| l.id() == id)
+            || loaders.image.lock().iter().any(|l| l.id() == id)
+            || loaders.texture.lock().iter().any(|l| l.id() == id)
+    }
+
+    /// Add a new bytes loader.
+    ///
+    /// It will be tried first, before any already installed loaders.
     ///
     /// See [`load`] for more information.
     pub fn add_bytes_loader(&self, loader: Arc<dyn load::BytesLoader + Send + Sync + 'static>) {
-        self.write(|ctx| ctx.loaders.bytes.push(loader));
+        self.loaders().bytes.lock().push(loader);
     }
 
-    /// Append an entry onto the chain of image loaders.
+    /// Add a new image loader.
+    ///
+    /// It will be tried first, before any already installed loaders.
     ///
     /// See [`load`] for more information.
     pub fn add_image_loader(&self, loader: Arc<dyn load::ImageLoader + Send + Sync + 'static>) {
-        self.write(|ctx| ctx.loaders.image.push(loader));
+        self.loaders().image.lock().push(loader);
     }
 
-    /// Append an entry onto the chain of texture loaders.
+    /// Add a new texture loader.
+    ///
+    /// It will be tried first, before any already installed loaders.
     ///
     /// See [`load`] for more information.
     pub fn add_texture_loader(&self, loader: Arc<dyn load::TextureLoader + Send + Sync + 'static>) {
-        self.write(|ctx| ctx.loaders.texture.push(loader));
+        self.loaders().texture.lock().push(loader);
     }
 
     /// Release all memory and textures related to the given image URI.
     ///
     /// If you attempt to load the image again, it will be reloaded from scratch.
     pub fn forget_image(&self, uri: &str) {
-        self.write(|ctx| {
-            use crate::load::BytesLoader as _;
+        use load::BytesLoader as _;
 
-            ctx.loaders.include.forget(uri);
+        crate::profile_function!();
 
-            for loader in &ctx.loaders.bytes {
-                loader.forget(uri);
-            }
+        let loaders = self.loaders();
 
-            for loader in &ctx.loaders.image {
-                loader.forget(uri);
-            }
+        loaders.include.forget(uri);
+        for loader in loaders.bytes.lock().iter() {
+            loader.forget(uri);
+        }
+        for loader in loaders.image.lock().iter() {
+            loader.forget(uri);
+        }
+        for loader in loaders.texture.lock().iter() {
+            loader.forget(uri);
+        }
+    }
 
-            for loader in &ctx.loaders.texture {
-                loader.forget(uri);
-            }
-        });
+    /// Release all memory and textures related to images used in [`Ui::image`] or [`Image`].
+    ///
+    /// If you attempt to load any images again, they will be reloaded from scratch.
+    pub fn forget_all_images(&self) {
+        use load::BytesLoader as _;
+
+        crate::profile_function!();
+
+        let loaders = self.loaders();
+
+        loaders.include.forget_all();
+        for loader in loaders.bytes.lock().iter() {
+            loader.forget_all();
+        }
+        for loader in loaders.image.lock().iter() {
+            loader.forget_all();
+        }
+        for loader in loaders.texture.lock().iter() {
+            loader.forget_all();
+        }
     }
 
     /// Try loading the bytes from the given uri using any available bytes loaders.
@@ -1975,20 +2050,27 @@ impl Context {
     /// # Errors
     /// This may fail with:
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
-    /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    /// - [`LoadError::Loading`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    ///
+    /// ⚠ May deadlock if called from within a `BytesLoader`!
     ///
     /// [not_supported]: crate::load::LoadError::NotSupported
-    /// [custom]: crate::load::LoadError::Custom
+    /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_bytes(&self, uri: &str) -> load::BytesLoadResult {
+        crate::profile_function!();
+
         let loaders = self.loaders();
-        for loader in &loaders.bytes {
+        let bytes_loaders = loaders.bytes.lock();
+
+        // Try most recently added loaders first (hence `.rev()`)
+        for loader in bytes_loaders.iter().rev() {
             match loader.load(self, uri) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,
             }
         }
 
-        Err(load::LoadError::NotSupported)
+        Err(load::LoadError::NoMatchingBytesLoader)
     }
 
     /// Try loading the image from the given uri using any available image loaders.
@@ -2002,21 +2084,33 @@ impl Context {
     ///
     /// # Errors
     /// This may fail with:
+    /// - [`LoadError::NoImageLoaders`][no_image_loaders] if tbere are no registered image loaders.
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
-    /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    /// - [`LoadError::Loading`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
     ///
+    /// ⚠ May deadlock if called from within an `ImageLoader`!
+    ///
+    /// [no_image_loaders]: crate::load::LoadError::NoImageLoaders
     /// [not_supported]: crate::load::LoadError::NotSupported
-    /// [custom]: crate::load::LoadError::Custom
+    /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_image(&self, uri: &str, size_hint: load::SizeHint) -> load::ImageLoadResult {
+        crate::profile_function!();
+
         let loaders = self.loaders();
-        for loader in &loaders.image {
+        let image_loaders = loaders.image.lock();
+        if image_loaders.is_empty() {
+            return Err(load::LoadError::NoImageLoaders);
+        }
+
+        // Try most recently added loaders first (hence `.rev()`)
+        for loader in image_loaders.iter().rev() {
             match loader.load(self, uri, size_hint) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,
             }
         }
 
-        Err(load::LoadError::NotSupported)
+        Err(load::LoadError::NoMatchingImageLoader)
     }
 
     /// Try loading the texture from the given uri using any available texture loaders.
@@ -2031,31 +2125,38 @@ impl Context {
     /// # Errors
     /// This may fail with:
     /// - [`LoadError::NotSupported`][not_supported] if none of the registered loaders support loading the given `uri`.
-    /// - [`LoadError::Custom`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    /// - [`LoadError::Loading`][custom] if one of the loaders _does_ support loading the `uri`, but the loading process failed.
+    ///
+    /// ⚠ May deadlock if called from within a `TextureLoader`!
     ///
     /// [not_supported]: crate::load::LoadError::NotSupported
-    /// [custom]: crate::load::LoadError::Custom
+    /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_texture(
         &self,
         uri: &str,
         texture_options: TextureOptions,
         size_hint: load::SizeHint,
     ) -> load::TextureLoadResult {
-        let loaders = self.loaders();
+        crate::profile_function!();
 
-        for loader in &loaders.texture {
+        let loaders = self.loaders();
+        let texture_loaders = loaders.texture.lock();
+
+        // Try most recently added loaders first (hence `.rev()`)
+        for loader in texture_loaders.iter().rev() {
             match loader.load(self, uri, texture_options, size_hint) {
                 Err(load::LoadError::NotSupported) => continue,
                 result => return result,
             }
         }
 
-        Err(load::LoadError::NotSupported)
+        Err(load::LoadError::NoMatchingTextureLoader)
     }
 
-    fn loaders(&self) -> load::Loaders {
+    /// The loaders of bytes, images, and textures.
+    pub fn loaders(&self) -> Arc<Loaders> {
         crate::profile_function!();
-        self.read(|this| this.loaders.clone()) // TODO(emilk): something less slow
+        self.read(|this| this.loaders.clone())
     }
 }
 

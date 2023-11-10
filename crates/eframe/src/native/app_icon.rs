@@ -191,6 +191,8 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
 #[cfg(target_os = "macos")]
 #[allow(unsafe_code)]
 fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconStatus {
+    crate::profile_function!();
+
     use cocoa::{
         appkit::{NSApp, NSApplication, NSImage, NSMenu, NSWindow},
         base::{id, nil},
@@ -221,12 +223,15 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
                 png_bytes.len() as u64,
             );
             let app_icon = NSImage::initWithData_(NSImage::alloc(nil), data);
+
+            crate::profile_scope!("setApplicationIconImage_");
             app.setApplicationIconImage_(app_icon);
         }
 
         // Change the title in the top bar - for python processes this would be again "python" otherwise.
         let main_menu = app.mainMenu();
         let app_menu: id = msg_send![main_menu.itemAtIndex_(0), submenu];
+        crate::profile_scope!("setTitle_");
         app_menu.setTitle_(NSString::alloc(nil).init_str(title));
 
         // The title in the Dock apparently can't be changed.

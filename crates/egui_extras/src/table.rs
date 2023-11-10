@@ -366,9 +366,9 @@ impl<'a> TableBuilder<'a> {
     fn available_width(&self) -> f32 {
         self.ui.available_rect_before_wrap().width()
             - if self.scroll_options.vscroll {
-                self.ui.spacing().scroll_bar_inner_margin
-                    + self.ui.spacing().scroll_bar_width
-                    + self.ui.spacing().scroll_bar_outer_margin
+                self.ui.spacing().scroll.bar_inner_margin
+                    + self.ui.spacing().scroll.bar_width
+                    + self.ui.spacing().scroll.bar_outer_margin
             } else {
                 0.0
             }
@@ -648,7 +648,9 @@ impl<'a> Table<'a> {
                 // If the last column is 'remainder', then let it fill the remainder!
                 let eps = 0.1; // just to avoid some rounding errors.
                 *column_width = available_width - eps;
-                *column_width = column_width.at_least(max_used_widths[i]);
+                if !column.clip {
+                    *column_width = column_width.at_least(max_used_widths[i]);
+                }
                 *column_width = width_range.clamp(*column_width);
                 break;
             }

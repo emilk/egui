@@ -22,7 +22,7 @@ pub mod text_edit;
 pub use button::*;
 pub use drag_value::DragValue;
 pub use hyperlink::*;
-pub use image::{Image, Image2, ImageSource};
+pub use image::{paint_texture_at, Image, ImageFit, ImageOptions, ImageSize, ImageSource};
 pub use label::*;
 pub use progress_bar::ProgressBar;
 pub use selected_label::SelectableLabel;

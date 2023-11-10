@@ -97,6 +97,16 @@ impl Rangef {
         }
     }
 
+    /// Flip the min and the max
+    #[inline]
+    #[must_use]
+    pub fn flip(self) -> Self {
+        Self {
+            min: self.max,
+            max: self.min,
+        }
+    }
+
     /// The overlap of two ranges, i.e. the range that is contained by both.
     ///
     /// If the ranges do not overlap, returns a range with `span() < 0.0`.

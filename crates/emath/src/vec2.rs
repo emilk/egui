@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 /// A vector has a direction and length.
 /// A [`Vec2`] is often used to represent a size.
@@ -203,7 +203,8 @@ impl Vec2 {
     /// ```
     #[inline(always)]
     pub fn angled(angle: f32) -> Self {
-        vec2(angle.cos(), angle.sin())
+        let (sin, cos) = angle.sin_cos();
+        vec2(cos, sin)
     }
 
     #[must_use]
@@ -272,6 +273,16 @@ impl Vec2 {
     #[must_use]
     pub fn max_elem(self) -> f32 {
         self.x.max(self.y)
+    }
+
+    /// Swizzle the axes.
+    #[inline]
+    #[must_use]
+    pub fn yx(self) -> Vec2 {
+        Vec2 {
+            x: self.y,
+            y: self.x,
+        }
     }
 
     #[must_use]
@@ -397,6 +408,14 @@ impl MulAssign<f32> for Vec2 {
     }
 }
 
+impl DivAssign<f32> for Vec2 {
+    #[inline(always)]
+    fn div_assign(&mut self, rhs: f32) {
+        self.x /= rhs;
+        self.y /= rhs;
+    }
+}
+
 impl Mul<f32> for Vec2 {
     type Output = Vec2;
 
@@ -460,4 +479,20 @@ fn test_vec2() {
     assert_eq!(Vec2::DOWN.angle(), 0.25 * TAU);
     almost_eq!(Vec2::LEFT.angle(), 0.50 * TAU);
     assert_eq!(Vec2::UP.angle(), -0.25 * TAU);
+
+    let mut assignment = vec2(1.0, 2.0);
+    assignment += vec2(3.0, 4.0);
+    assert_eq!(assignment, vec2(4.0, 6.0));
+
+    let mut assignment = vec2(4.0, 6.0);
+    assignment -= vec2(1.0, 2.0);
+    assert_eq!(assignment, vec2(3.0, 4.0));
+
+    let mut assignment = vec2(1.0, 2.0);
+    assignment *= 2.0;
+    assert_eq!(assignment, vec2(2.0, 4.0));
+
+    let mut assignment = vec2(2.0, 4.0);
+    assignment /= 2.0;
+    assert_eq!(assignment, vec2(1.0, 2.0));
 }

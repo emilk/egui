@@ -75,7 +75,7 @@ pub fn read_window_info(
 pub fn window_builder<E>(
     event_loop: &EventLoopWindowTarget<E>,
     title: &str,
-    native_options: &epi::NativeOptions,
+    native_options: &mut epi::NativeOptions,
     window_settings: Option<WindowSettings>,
 ) -> winit::window::WindowBuilder {
     let epi::NativeOptions {
@@ -179,7 +179,10 @@ pub fn window_builder<E>(
         }
     }
 
-    window_builder
+    match std::mem::take(&mut native_options.window_builder) {
+        Some(hook) => hook(window_builder),
+        None => window_builder,
+    }
 }
 
 pub fn apply_native_options_to_window(
@@ -187,6 +190,7 @@ pub fn apply_native_options_to_window(
     native_options: &crate::NativeOptions,
     window_settings: Option<WindowSettings>,
 ) {
+    crate::profile_function!();
     use winit::window::WindowLevel;
     window.set_window_level(if native_options.always_on_top {
         WindowLevel::AlwaysOnTop
@@ -353,6 +357,8 @@ pub struct EpiIntegration {
     can_drag_window: bool,
     window_state: WindowState,
     follow_system_theme: bool,
+    #[cfg(feature = "persistence")]
+    persist_window: bool,
     app_icon_setter: super::app_icon::AppTitleIconSetter,
 }
 
@@ -421,6 +427,8 @@ impl EpiIntegration {
             can_drag_window: false,
             window_state,
             follow_system_theme: native_options.follow_system_theme,
+            #[cfg(feature = "persistence")]
+            persist_window: native_options.persist_window,
             app_icon_setter,
         }
     }
@@ -465,6 +473,8 @@ impl EpiIntegration {
         app: &mut dyn epi::App,
         event: &winit::event::WindowEvent<'_>,
     ) -> EventResponse {
+        crate::profile_function!();
+
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
         match event {
@@ -590,7 +600,7 @@ impl EpiIntegration {
             crate::profile_function!();
 
             if let Some(window) = _window {
-                if _app.persist_native_window() {
+                if self.persist_window {
                     crate::profile_scope!("native_window");
                     epi::set_value(
                         storage,
@@ -622,6 +632,7 @@ const STORAGE_EGUI_MEMORY_KEY: &str = "egui";
 const STORAGE_WINDOW_KEY: &str = "window";
 
 pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<WindowSettings> {
+    crate::profile_function!();
     #[cfg(feature = "persistence")]
     {
         epi::get_value(_storage?, STORAGE_WINDOW_KEY)
@@ -631,6 +642,7 @@ pub fn load_window_settings(_storage: Option<&dyn epi::Storage>) -> Option<Windo
 }
 
 pub fn load_egui_memory(_storage: Option<&dyn epi::Storage>) -> Option<egui::Memory> {
+    crate::profile_function!();
     #[cfg(feature = "persistence")]
     {
         epi::get_value(_storage?, STORAGE_EGUI_MEMORY_KEY)

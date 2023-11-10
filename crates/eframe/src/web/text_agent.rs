@@ -101,14 +101,13 @@ pub fn install_text_agent(runner_ref: &WebRunner) -> Result<(), JsValue> {
 
     // When input lost focus, focus on it again.
     // It is useful when user click somewhere outside canvas.
+    let input_refocus = input.clone();
     runner_ref.add_event_listener(&input, "focusout", move |_event: web_sys::MouseEvent, _| {
         // Delay 10 ms, and focus again.
-        let func = js_sys::Function::new_no_args(&format!(
-            "document.getElementById('{AGENT_ID}').focus()"
-        ));
-        window
-            .set_timeout_with_callback_and_timeout_and_arguments_0(&func, 10)
-            .unwrap();
+        let input_refocus = input_refocus.clone();
+        call_after_delay(std::time::Duration::from_millis(10), move || {
+            input_refocus.focus().ok();
+        });
     })?;
 
     body.append_child(&input)?;

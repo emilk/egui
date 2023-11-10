@@ -9,29 +9,23 @@
 [![Apache](https://img.shields.io/badge/license-Apache-blue.svg)](https://github.com/emilk/egui/blob/master/LICENSE-APACHE)
 [![Discord](https://img.shields.io/discord/900275882684477440?label=egui%20discord)](https://discord.gg/JFcEma9bJq)
 
+
+<div align="center">
+<a href="https://www.rerun.io/"><img src="media/rerun_io_logo.png" width="250"></a>
+
+egui development is sponsored by [Rerun](https://www.rerun.io/), a startup building<br>
+an SDK for visualizing streams of multimodal data.
+</div>
+
+---
+
 👉 [Click to run the web demo](https://www.egui.rs/#demo) 👈
 
-egui (pronounced "e-gooey") is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations) (or will soon).
+egui (pronounced "e-gooey") is a simple, fast, and highly portable immediate mode GUI library for Rust. egui runs on the web, natively, and [in your favorite game engine](#integrations).
 
 egui aims to be the easiest-to-use Rust GUI library, and the simplest way to make a web app in Rust.
 
 egui can be used anywhere you can draw textured triangles, which means you can easily integrate it into your game engine of choice.
-
-Sections:
-
-* [Example](#example)
-* [Quick start](#quick-start)
-* [Demo](#demo)
-* [Goals](#goals)
-* [Who is egui for?](#who-is-egui-for)
-* [State / features](#state)
-* [Integrations](#integrations)
-* [Why immediate mode](#why-immediate-mode)
-* [FAQ](#faq)
-* [Other](#other)
-* [Credits](#credits)
-
-([egui 的中文翻译文档 / chinese translation](https://github.com/Re-Ch-Love/egui-doc-cn/blob/main/README_zh-hans.md))
 
 ## Example
 
@@ -46,9 +40,28 @@ if ui.button("Click each year").clicked() {
     age += 1;
 }
 ui.label(format!("Hello '{name}', age {age}"));
+ui.image(egui::include_image!("ferris.png"));
 ```
 
 <img src="media/demo.gif">
+
+## Sections:
+
+* [Example](#example)
+* [Quick start](#quick-start)
+* [Demo](#demo)
+* [Goals](#goals)
+* [State / features](#state)
+* [Dependencies](#dependencies)
+* [Who is egui for?](#who-is-egui-for)
+* [Integrations](#integrations)
+* [Why immediate mode](#why-immediate-mode)
+* [FAQ](#faq)
+* [Other](#other)
+* [Credits](#credits)
+
+([egui 的中文翻译文档 / chinese translation](https://github.com/Re-Ch-Love/egui-doc-cn/blob/main/README_zh-hans.md))
+
 
 ## Quick start
 
@@ -87,7 +100,7 @@ On Fedora Rawhide you need to run:
 * Extensible: [easy to write your own widgets for egui](https://github.com/emilk/egui/blob/master/crates/egui_demo_lib/src/demo/toggle_switch.rs)
 * Modular: You should be able to use small parts of egui and combine them in new ways
 * Safe: there is no `unsafe` code in egui
-* Minimal dependencies: [`ab_glyph`](https://crates.io/crates/ab_glyph) [`ahash`](https://crates.io/crates/ahash) [`nohash-hasher`](https://crates.io/crates/nohash-hasher) [`parking_lot`](https://crates.io/crates/parking_lot)
+* Minimal dependencies
 
 egui is *not* a framework. egui is a library you call into, not an environment you program for.
 
@@ -98,6 +111,47 @@ egui is *not* a framework. egui is a library you call into, not an environment y
 * Become the most powerful GUI library
 * Native looking interface
 * Advanced and flexible layouts (that's fundamentally incompatible with immediate mode)
+
+## State
+
+egui is in active development. It works well for what it does, but it lacks many features and the interfaces are still in flux. New releases will have breaking changes.
+
+Still, egui can be used to create professional looking applications, like [the Rerun Viewer](https://app.rerun.io/).
+
+### Features
+
+* Widgets: label, text button, hyperlink, checkbox, radio button, slider, draggable value, text editing, combo box, color picker, spinner
+* Images
+* Layouts: horizontal, vertical, columns, automatic wrapping
+* Text editing: multiline, copy/paste, undo, emoji supports
+* Windows: move, resize, name, minimize and close. Automatically sized and positioned.
+* Regions: resizing, vertical scrolling, collapsing headers (sections)
+* Rendering: Anti-aliased rendering of lines, circles, text and convex polygons.
+* Tooltips on hover
+* Accessibility via [AccessKit](https://accesskit.dev/)
+* More
+
+<img src="media/widget_gallery_0.23.gif" width="50%">
+
+Light Theme:
+
+<img src="media/widget_gallery_0.23_light.png" width="50%">
+
+
+## Dependencies
+`egui` has a minimal set of default dependencies:
+
+* [`ab_glyph`](https://crates.io/crates/ab_glyph)
+* [`ahash`](https://crates.io/crates/ahash)
+* [`nohash-hasher`](https://crates.io/crates/nohash-hasher)
+* [`parking_lot`](https://crates.io/crates/parking_lot)
+
+Heavier dependencies are kept out of `egui`, even as opt-in.
+No code that isn't fully Wasm-friendly is part of `egui`.
+
+To load images into `egui` you can use the official [`egui_extras`](https://github.com/emilk/egui/tree/master/crates/egui_extras) crate.
+
+[`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe) on the other hand has a lot of dependencies, including [`winit`](https://crates.io/crates/winit), [`image`](https://crates.io/crates/image), graphics crates, clipboard crates, etc,
 
 ## Who is egui for?
 
@@ -126,27 +180,6 @@ So in summary:
 
 * egui: pure Rust, new, exciting, work in progress
 * Dear ImGui: feature rich, well tested, cumbersome Rust integration
-
-## State
-
-egui is in active development. It works well for what it does, but it lacks many features and the interfaces are still in flux. New releases will have breaking changes.
-
-### Features
-
-* Widgets: label, text button, hyperlink, checkbox, radio button, slider, draggable value, text editing, combo box, color picker
-* Layouts: horizontal, vertical, columns, automatic wrapping
-* Text editing: multiline, copy/paste, undo, emoji supports
-* Windows: move, resize, name, minimize and close. Automatically sized and positioned.
-* Regions: resizing, vertical scrolling, collapsing headers (sections)
-* Rendering: Anti-aliased rendering of lines, circles, text and convex polygons.
-* Tooltips on hover
-* More
-
-<img src="media/widget_gallery.gif" width="50%">
-
-Light Theme:
-
-<img src="media/light_theme.png" width="50%">
 
 ## Integrations
 
@@ -198,55 +231,7 @@ These are the official egui integrations:
 Missing an integration for the thing you're working on? Create one, it's easy!
 
 ### Writing your own egui integration
-
-You need to collect [`egui::RawInput`](https://docs.rs/egui/latest/egui/struct.RawInput.html) and handle [`egui::FullOutput`](https://docs.rs/egui/latest/egui/struct.FullOutput.html). The basic structure is this:
-
-``` rust
-let mut egui_ctx = egui::CtxRef::default();
-
-// Game loop:
-loop {
-    // Gather input (mouse, touches, keyboard, screen size, etc):
-    let raw_input: egui::RawInput = my_integration.gather_input();
-    let full_output = egui_ctx.run(raw_input, |egui_ctx| {
-        my_app.ui(egui_ctx); // add panels, windows and widgets to `egui_ctx` here
-    });
-    let clipped_primitives = egui_ctx.tessellate(full_output.shapes); // creates triangles to paint
-
-    my_integration.paint(&full_output.textures_delta, clipped_primitives);
-
-    let platform_output = full_output.platform_output;
-    my_integration.set_cursor_icon(platform_output.cursor_icon);
-    if !platform_output.copied_text.is_empty() {
-        my_integration.set_clipboard_text(platform_output.copied_text);
-    }
-    // See `egui::FullOutput` and `egui::PlatformOutput` for more
-}
-```
-
-For a reference OpenGL backend, see [the `egui_glium` painter](https://github.com/emilk/egui/blob/master/crates/egui_glium/src/painter.rs) or [the `egui_glow` painter](https://github.com/emilk/egui/blob/master/crates/egui_glow/src/painter.rs).
-
-### Debugging your integration
-
-#### Things look jagged
-
-* Turn off backface culling.
-
-#### My text is blurry
-
-* Make sure you set the proper `pixels_per_point` in the input to egui.
-* Make sure the texture sampler is not off by half a pixel. Try nearest-neighbor sampler to check.
-
-#### My windows are too transparent or too dark
-
-* egui uses premultiplied alpha, so make sure your blending function is `(ONE, ONE_MINUS_SRC_ALPHA)`.
-* Make sure your texture sampler is clamped (`GL_CLAMP_TO_EDGE`).
-* egui prefers linear color spaces for all blending so:
-  * Use an sRGBA-aware texture if available (e.g. `GL_SRGB8_ALPHA8`).
-    * Otherwise: remember to decode gamma in the fragment shader.
-  * Decode the gamma of the incoming vertex colors in your vertex shader.
-  * Turn on sRGBA/linear framebuffer if available (`GL_FRAMEBUFFER_SRGB`).
-    * Otherwise: gamma-encode the colors before you write them again.
+See <https://docs.rs/egui/latest/egui/#integrating-with-egui>.
 
 
 ## Why immediate mode
@@ -288,7 +273,7 @@ For "atomic" widgets (e.g. a button) `egui` knows the size before showing it, so
 #### CPU usage
 Since an immediate mode GUI does a full layout each frame, the layout code needs to be quick. If you have a very complex GUI this can tax the CPU. In particular, having a very large UI in a scroll area (with very long scrollback) can be slow, as the content needs to be laid out each frame.
 
-If you design the GUI with this in mind and refrain from huge scroll areas (or only lay out the part that is in view) then the performance hit is generally pretty small. For most cases you can expect `egui` to take up 1-2 ms per frame, but `egui` still has a lot of room for optimization (it's not something I've focused on yet). You can also set up `egui` to only repaint when there is interaction (e.g. mouse movement).
+If you design the GUI with this in mind and refrain from huge scroll areas (or only lay out the part that is in view) then the performance hit is generally pretty small. For most cases you can expect `egui` to take up 1-2 ms per frame, but `egui` still has a lot of room for optimization (it's not something I've focused on yet). `egui` only repaints when there is interaction (e.g. mouse movement) or an animation, so if your app is idle, no CPU is wasted.
 
 If your GUI is highly interactive, then immediate mode may actually be more performant compared to retained mode. Go to any web page and resize the browser window, and you'll notice that the browser is very slow to do the layout and eats a lot of CPU doing it. Resize a window in `egui` by contrast, and you'll get smooth 60 FPS at no extra CPU cost.
 
@@ -311,7 +296,9 @@ Yes! But you need to install your own font (`.ttf` or `.otf`) using `Context::se
 ### Can I customize the look of egui?
 Yes! You can customize the colors, spacing, fonts and sizes of everything using `Context::set_style`.
 
-Here is an example (from https://github.com/AlexxxRu/TinyPomodoro):
+This is not yet as powerful as say CSS, [but this is going to improve soon](https://github.com/emilk/egui/issues/3284).
+
+Here is an example (from https://github.com/a-liashenko/TinyPomodoro):
 
 <img src="media/pompodoro-skin.png" width="50%">
 
@@ -319,7 +306,7 @@ Here is an example (from https://github.com/AlexxxRu/TinyPomodoro):
 If you call `.await` in your GUI code, the UI will freeze, which is very bad UX. Instead, keep the GUI thread non-blocking and communicate with any concurrent tasks (`async` tasks or other threads) with something like:
 * Channels (e.g. [`std::sync::mpsc::channel`](https://doc.rust-lang.org/std/sync/mpsc/fn.channel.html)). Make sure to use [`try_recv`](https://doc.rust-lang.org/std/sync/mpsc/struct.Receiver.html#method.try_recv) so you don't block the gui thread!
 * `Arc<Mutex<Value>>` (background thread sets a value; GUI thread reads it)
-* [`poll_promise::Promise`](https://docs.rs/poll-promise) (example: [`examples/download_image/`](https://github.com/emilk/egui/blob/master/examples/download_image/))
+* [`poll_promise::Promise`](https://docs.rs/poll-promise)
 * [`eventuals::Eventual`](https://docs.rs/eventuals/latest/eventuals/struct.Eventual.html)
 * [`tokio::sync::watch::channel`](https://docs.rs/tokio/latest/tokio/sync/watch/fn.channel.html)
 
@@ -345,7 +332,7 @@ If you want to embed 3D into an egui view there are two options.
 
 #### `Shape::Callback`
 Example:
-* <https://github.com/emilk/egui/blob/master/examples/custom_3d_glow.rs>
+* <https://github.com/emilk/egui/blob/master/examples/custom_3d_glow/src/main.rs>
 
 `Shape::Callback` will call your code when egui gets painted, to show anything using whatever the background rendering context is. When using [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe) this will be [`glow`](https://github.com/grovesNL/glow). Other integrations will give you other rendering contexts, if they support `Shape::Callback` at all.
 
@@ -399,6 +386,9 @@ Notable contributions by:
 * [@t18b219k](https://github.com/t18b219k): [Port glow painter to web](https://github.com/emilk/egui/pull/868).
 * [@danielkeller](https://github.com/danielkeller): [`Context` refactor](https://github.com/emilk/egui/pull/1050).
 * [@MaximOsipenko](https://github.com/MaximOsipenko): [`Context` lock refactor](https://github.com/emilk/egui/pull/2625).
+* [@mwcampbell](https://github.com/mwcampbell): [AccessKit](https://github.com/AccessKit/accesskit) [integration](https://github.com/emilk/egui/pull/2294).
+* [@hasenbanck](https://github.com/hasenbanck), [@s-nie](https://github.com/s-nie), [@Wumpf](https://github.com/Wumpf): [`egui-wgpu`](https://github.com/emilk/egui/tree/master/crates/egui-wgpu)
+* [@jprochazk](https://github.com/jprochazk): [egui image API](https://github.com/emilk/egui/issues/3291)
 * And [many more](https://github.com/emilk/egui/graphs/contributors?type=a).
 
 egui is licensed under [MIT](LICENSE-MIT) OR [Apache-2.0](LICENSE-APACHE).
@@ -415,8 +405,8 @@ Default fonts:
 ---
 
 <div align="center">
-<img src="media/rerun_io_logo.png" width="50%">
+<a href="https://www.rerun.io/"><img src="media/rerun_io_logo.png" width="440"></a>
 
-egui development is sponsored by [Rerun](https://www.rerun.io/), a startup doing<br>
-visualizations for computer vision and robotics.
+egui development is sponsored by [Rerun](https://www.rerun.io/), a startup building<br>
+an SDK for visualizing streams of multimodal data.
 </div>

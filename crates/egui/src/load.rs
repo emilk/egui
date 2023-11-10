@@ -1,8 +1,12 @@
-//! Types and traits related to image loading.
+//! # Image loading
 //!
-//! If you just want to load some images, see [`egui_extras`](https://crates.io/crates/egui_extras/),
-//! which contains reasonable default implementations of these traits. You can get started quickly
-//! using [`egui_extras::loaders::install`](https://docs.rs/egui_extras/latest/egui_extras/loaders/fn.install.html).
+//! If you just want to display some images, [`egui_extras`](https://crates.io/crates/egui_extras/)
+//! will get you up and running quickly with its reasonable default implementations of the traits described below.
+//!
+//! 1. Add [`egui_extras`](https://crates.io/crates/egui_extras/) as a dependency with the `all_loaders` feature.
+//! 2. Add a call to [`egui_extras::install_image_loaders`](https://docs.rs/egui_extras/latest/egui_extras/fn.install_image_loaders.html)
+//!    in your app's setup code.
+//! 3. Use [`Ui::image`][`crate::ui::Ui::image`] with some [`ImageSource`][`crate::ImageSource`].
 //!
 //! ## Loading process
 //!
@@ -14,13 +18,13 @@
 //! The different kinds of loaders represent different layers in the loading process:
 //!
 //! ```text,ignore
-//! ui.image2("file://image.png")
-//! └► ctx.try_load_texture("file://image.png", ...)
-//! └► TextureLoader::load("file://image.png", ...)
-//!    └► ctx.try_load_image("file://image.png", ...)
-//!    └► ImageLoader::load("file://image.png", ...)
-//!       └► ctx.try_load_bytes("file://image.png", ...)
-//!       └► BytesLoader::load("file://image.png", ...)
+//! ui.image("file://image.png")
+//! └► Context::try_load_texture
+//! └► TextureLoader::load
+//!    └► Context::try_load_image
+//!    └► ImageLoader::load
+//!       └► Context::try_load_bytes
+//!       └► BytesLoader::load
 //! ```
 //!
 //! As each layer attempts to load the URI, it first asks the layer below it
@@ -48,28 +52,68 @@
 //! For example, a loader may determine that it doesn't support loading a specific URI
 //! if the protocol does not match what it expects.
 
-use crate::Context;
-use ahash::HashMap;
-use epaint::mutex::Mutex;
-use epaint::TextureHandle;
-use epaint::{textures::TextureOptions, ColorImage, TextureId, Vec2};
+mod bytes_loader;
+mod texture_loader;
+
+use std::borrow::Cow;
+use std::fmt::Debug;
 use std::ops::Deref;
 use std::{error::Error as StdError, fmt::Display, sync::Arc};
 
+use ahash::HashMap;
+
+use epaint::mutex::Mutex;
+use epaint::util::FloatOrd;
+use epaint::util::OrderedFloat;
+use epaint::TextureHandle;
+use epaint::{textures::TextureOptions, ColorImage, TextureId, Vec2};
+
+use crate::Context;
+
+pub use self::bytes_loader::DefaultBytesLoader;
+pub use self::texture_loader::DefaultTextureLoader;
+
+/// Represents a failed attempt at loading an image.
 #[derive(Clone, Debug)]
 pub enum LoadError {
-    /// This loader does not support this protocol or image format.
+    /// Programmer error: There are no image loaders installed.
+    NoImageLoaders,
+
+    /// A specific loader does not support this scheme, protocol or image format.
     NotSupported,
 
-    /// A custom error message (e.g. "File not found: foo.png").
-    Custom(String),
+    /// Programmer error: Failed to find the bytes for this image because
+    /// there was no [`BytesLoader`] supporting the scheme.
+    NoMatchingBytesLoader,
+
+    /// Programmer error: Failed to parse the bytes as an image because
+    /// there was no [`ImageLoader`] supporting the scheme.
+    NoMatchingImageLoader,
+
+    /// Programmer error: no matching [`TextureLoader`].
+    /// Because of the [`DefaultTextureLoader`], this error should never happen.
+    NoMatchingTextureLoader,
+
+    /// Runtime error: Loading was attempted, but failed (e.g. "File not found").
+    Loading(String),
 }
 
 impl Display for LoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LoadError::NotSupported => f.write_str("not supported"),
-            LoadError::Custom(message) => f.write_str(message),
+            Self::NoImageLoaders => f.write_str(
+                "No image loaders are installed. If you're trying to load some images \
+                for the first time, follow the steps outlined in https://docs.rs/egui/latest/egui/load/index.html"),
+
+            Self::NoMatchingBytesLoader => f.write_str("No matching BytesLoader. Either you need to call Context::include_bytes, or install some more bytes loaders, e.g. using egui_extras."),
+
+            Self::NoMatchingImageLoader => f.write_str("No matching ImageLoader. Either you need to call Context::include_bytes, or install some more bytes loaders, e.g. using egui_extras."),
+
+            Self::NoMatchingTextureLoader => f.write_str("No matching TextureLoader. Did you remove the default one?"),
+
+            Self::NotSupported => f.write_str("Image scheme or URI not supported by this loader"),
+
+            Self::Loading(message) => f.write_str(message),
         }
     }
 }
@@ -85,11 +129,10 @@ pub type Result<T, E = LoadError> = std::result::Result<T, E>;
 /// All variants will preserve the original aspect ratio.
 ///
 /// Similar to `usvg::FitTo`.
-#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SizeHint {
-    /// Keep original size.
-    #[default]
-    Original,
+    /// Scale original size by some factor.
+    Scale(OrderedFloat<f32>),
 
     /// Scale to width.
     Width(u32),
@@ -101,20 +144,34 @@ pub enum SizeHint {
     Size(u32, u32),
 }
 
+impl Default for SizeHint {
+    fn default() -> Self {
+        Self::Scale(1.0.ord())
+    }
+}
+
 impl From<Vec2> for SizeHint {
     fn from(value: Vec2) -> Self {
         Self::Size(value.x.round() as u32, value.y.round() as u32)
     }
 }
 
-// TODO: API for querying bytes caches in each loader
-
-pub type Size = [usize; 2];
-
+/// Represents a byte buffer.
+///
+/// This is essentially `Cow<'static, [u8]>` but with the `Owned` variant being an `Arc`.
 #[derive(Clone)]
 pub enum Bytes {
     Static(&'static [u8]),
     Shared(Arc<[u8]>),
+}
+
+impl Debug for Bytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Static(arg0) => f.debug_tuple("Static").field(&arg0.len()).finish(),
+            Self::Shared(arg0) => f.debug_tuple("Shared").field(&arg0.len()).finish(),
+        }
+    }
 }
 
 impl From<&'static [u8]> for Bytes {
@@ -124,10 +181,24 @@ impl From<&'static [u8]> for Bytes {
     }
 }
 
+impl<const N: usize> From<&'static [u8; N]> for Bytes {
+    #[inline]
+    fn from(value: &'static [u8; N]) -> Self {
+        Bytes::Static(value)
+    }
+}
+
 impl From<Arc<[u8]>> for Bytes {
     #[inline]
     fn from(value: Arc<[u8]>) -> Self {
         Bytes::Shared(value)
+    }
+}
+
+impl From<Vec<u8>> for Bytes {
+    #[inline]
+    fn from(value: Vec<u8>) -> Self {
+        Bytes::Shared(value.into())
     }
 }
 
@@ -150,27 +221,60 @@ impl Deref for Bytes {
     }
 }
 
+/// Represents bytes which are currently being loaded.
+///
+/// This is similar to [`std::task::Poll`], but the `Pending` variant
+/// contains an optional `size`, which may be used during layout to
+/// pre-allocate space the image.
 #[derive(Clone)]
 pub enum BytesPoll {
     /// Bytes are being loaded.
     Pending {
         /// Set if known (e.g. from a HTTP header, or by parsing the image file header).
-        size: Option<Size>,
+        size: Option<Vec2>,
     },
 
     /// Bytes are loaded.
     Ready {
         /// Set if known (e.g. from a HTTP header, or by parsing the image file header).
-        size: Option<Size>,
+        size: Option<Vec2>,
 
         /// File contents, e.g. the contents of a `.png`.
         bytes: Bytes,
+
+        /// Mime type of the content, e.g. `image/png`.
+        ///
+        /// Set if known (e.g. from `Content-Type` HTTP header).
+        mime: Option<String>,
     },
 }
 
+/// Used to get a unique ID when implementing one of the loader traits: [`BytesLoader::id`], [`ImageLoader::id`], and [`TextureLoader::id`].
+///
+/// This just expands to `module_path!()` concatenated with the given type name.
+#[macro_export]
+macro_rules! generate_loader_id {
+    ($ty:ident) => {
+        concat!(module_path!(), "::", stringify!($ty))
+    };
+}
+pub use crate::generate_loader_id;
+
 pub type BytesLoadResult = Result<BytesPoll>;
 
+/// Represents a loader capable of loading raw unstructured bytes from somewhere,
+/// e.g. from disk or network.
+///
+/// It should also provide any subsequent loaders a hint for what the bytes may
+/// represent using [`BytesPoll::Ready::mime`], if it can be inferred.
+///
+/// Implementations are expected to cache at least each `URI`.
 pub trait BytesLoader {
+    /// Unique ID of this loader.
+    ///
+    /// To reduce the chance of collisions, use [`generate_loader_id`] for this.
+    fn id(&self) -> &str;
+
     /// Try loading the bytes from the given uri.
     ///
     /// Implementations should call `ctx.request_repaint` to wake up the ui
@@ -182,7 +286,7 @@ pub trait BytesLoader {
     /// # Errors
     /// This may fail with:
     /// - [`LoadError::NotSupported`] if the loader does not support loading `uri`.
-    /// - [`LoadError::Custom`] if the loading process failed.
+    /// - [`LoadError::Loading`] if the loading process failed.
     fn load(&self, ctx: &Context, uri: &str) -> BytesLoadResult;
 
     /// Forget the given `uri`.
@@ -190,6 +294,12 @@ pub trait BytesLoader {
     /// If `uri` is cached, it should be evicted from cache,
     /// so that it may be fully reloaded.
     fn forget(&self, uri: &str);
+
+    /// Forget all URIs ever given to this loader.
+    ///
+    /// If the loader caches any URIs, the entire cache should be cleared,
+    /// so that all of them may be fully reloaded.
+    fn forget_all(&self);
 
     /// Implementations may use this to perform work at the end of a frame,
     /// such as evicting unused entries from a cache.
@@ -201,12 +311,17 @@ pub trait BytesLoader {
     fn byte_size(&self) -> usize;
 }
 
+/// Represents an image which is currently being loaded.
+///
+/// This is similar to [`std::task::Poll`], but the `Pending` variant
+/// contains an optional `size`, which may be used during layout to
+/// pre-allocate space the image.
 #[derive(Clone)]
 pub enum ImagePoll {
     /// Image is loading.
     Pending {
         /// Set if known (e.g. from a HTTP header, or by parsing the image file header).
-        size: Option<Size>,
+        size: Option<Vec2>,
     },
 
     /// Image is loaded.
@@ -215,7 +330,18 @@ pub enum ImagePoll {
 
 pub type ImageLoadResult = Result<ImagePoll>;
 
+/// An `ImageLoader` decodes raw bytes into a [`ColorImage`].
+///
+/// Implementations are expected to cache at least each `URI`.
 pub trait ImageLoader {
+    /// Unique ID of this loader.
+    ///
+    /// To reduce the chance of collisions, include `module_path!()` as part of this ID.
+    ///
+    /// For example: `concat!(module_path!(), "::MyLoader")`
+    /// for `my_crate::my_loader::MyLoader`.
+    fn id(&self) -> &str;
+
     /// Try loading the image from the given uri.
     ///
     /// Implementations should call `ctx.request_repaint` to wake up the ui
@@ -227,7 +353,7 @@ pub trait ImageLoader {
     /// # Errors
     /// This may fail with:
     /// - [`LoadError::NotSupported`] if the loader does not support loading `uri`.
-    /// - [`LoadError::Custom`] if the loading process failed.
+    /// - [`LoadError::Loading`] if the loading process failed.
     fn load(&self, ctx: &Context, uri: &str, size_hint: SizeHint) -> ImageLoadResult;
 
     /// Forget the given `uri`.
@@ -235,6 +361,12 @@ pub trait ImageLoader {
     /// If `uri` is cached, it should be evicted from cache,
     /// so that it may be fully reloaded.
     fn forget(&self, uri: &str);
+
+    /// Forget all URIs ever given to this loader.
+    ///
+    /// If the loader caches any URIs, the entire cache should be cleared,
+    /// so that all of them may be fully reloaded.
+    fn forget_all(&self);
 
     /// Implementations may use this to perform work at the end of a frame,
     /// such as evicting unused entries from a cache.
@@ -247,36 +379,91 @@ pub trait ImageLoader {
 }
 
 /// A texture with a known size.
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SizedTexture {
     pub id: TextureId,
-    pub size: Size,
+    pub size: Vec2,
 }
 
 impl SizedTexture {
+    /// Create a [`SizedTexture`] from a texture `id` with a specific `size`.
+    pub fn new(id: impl Into<TextureId>, size: impl Into<Vec2>) -> Self {
+        Self {
+            id: id.into(),
+            size: size.into(),
+        }
+    }
+
+    /// Fetch the [id][`SizedTexture::id`] and [size][`SizedTexture::size`] from a [`TextureHandle`].
     pub fn from_handle(handle: &TextureHandle) -> Self {
+        let size = handle.size();
         Self {
             id: handle.id(),
-            size: handle.size(),
+            size: Vec2::new(size[0] as f32, size[1] as f32),
         }
     }
 }
 
-#[derive(Clone)]
+impl From<(TextureId, Vec2)> for SizedTexture {
+    #[inline]
+    fn from((id, size): (TextureId, Vec2)) -> Self {
+        Self { id, size }
+    }
+}
+
+impl<'a> From<&'a TextureHandle> for SizedTexture {
+    fn from(handle: &'a TextureHandle) -> Self {
+        Self::from_handle(handle)
+    }
+}
+
+/// Represents a texture is currently being loaded.
+///
+/// This is similar to [`std::task::Poll`], but the `Pending` variant
+/// contains an optional `size`, which may be used during layout to
+/// pre-allocate space the image.
+#[derive(Clone, Copy)]
 pub enum TexturePoll {
     /// Texture is loading.
     Pending {
         /// Set if known (e.g. from a HTTP header, or by parsing the image file header).
-        size: Option<Size>,
+        size: Option<Vec2>,
     },
 
     /// Texture is loaded.
     Ready { texture: SizedTexture },
 }
 
+impl TexturePoll {
+    pub fn size(self) -> Option<Vec2> {
+        match self {
+            TexturePoll::Pending { size } => size,
+            TexturePoll::Ready { texture } => Some(texture.size),
+        }
+    }
+}
+
 pub type TextureLoadResult = Result<TexturePoll>;
 
+/// A `TextureLoader` uploads a [`ColorImage`] to the GPU, returning a [`SizedTexture`].
+///
+/// `egui` comes with an implementation that uses [`Context::load_texture`],
+/// which just asks the egui backend to upload the image to the GPU.
+///
+/// You can implement this trait if you do your own uploading of images to the GPU.
+/// For instance, you can use this to refer to textures in a game engine that egui
+/// doesn't otherwise know about.
+///
+/// Implementations are expected to cache each combination of `(URI, TextureOptions)`.
 pub trait TextureLoader {
+    /// Unique ID of this loader.
+    ///
+    /// To reduce the chance of collisions, include `module_path!()` as part of this ID.
+    ///
+    /// For example: `concat!(module_path!(), "::MyLoader")`
+    /// for `my_crate::my_loader::MyLoader`.
+    fn id(&self) -> &str;
+
     /// Try loading the texture from the given uri.
     ///
     /// Implementations should call `ctx.request_repaint` to wake up the ui
@@ -288,7 +475,7 @@ pub trait TextureLoader {
     /// # Errors
     /// This may fail with:
     /// - [`LoadError::NotSupported`] if the loader does not support loading `uri`.
-    /// - [`LoadError::Custom`] if the loading process failed.
+    /// - [`LoadError::Loading`] if the loading process failed.
     fn load(
         &self,
         ctx: &Context,
@@ -303,6 +490,12 @@ pub trait TextureLoader {
     /// so that it may be fully reloaded.
     fn forget(&self, uri: &str);
 
+    /// Forget all URIs ever given to this loader.
+    ///
+    /// If the loader caches any URIs, the entire cache should be cleared,
+    /// so that all of them may be fully reloaded.
+    fn forget_all(&self);
+
     /// Implementations may use this to perform work at the end of a frame,
     /// such as evicting unused entries from a cache.
     fn end_frame(&self, frame_index: usize) {
@@ -313,105 +506,27 @@ pub trait TextureLoader {
     fn byte_size(&self) -> usize;
 }
 
-#[derive(Default)]
-pub(crate) struct DefaultBytesLoader {
-    cache: Mutex<HashMap<&'static str, Bytes>>,
-}
-
-impl DefaultBytesLoader {
-    pub(crate) fn insert_static(&self, uri: &'static str, bytes: &'static [u8]) {
-        self.cache
-            .lock()
-            .entry(uri)
-            .or_insert_with(|| Bytes::Static(bytes));
-    }
-
-    pub(crate) fn insert_shared(&self, uri: &'static str, bytes: impl Into<Arc<[u8]>>) {
-        self.cache
-            .lock()
-            .entry(uri)
-            .or_insert_with(|| Bytes::Shared(bytes.into()));
-    }
-}
-
-impl BytesLoader for DefaultBytesLoader {
-    fn load(&self, _: &Context, uri: &str) -> BytesLoadResult {
-        match self.cache.lock().get(uri).cloned() {
-            Some(bytes) => Ok(BytesPoll::Ready { size: None, bytes }),
-            None => Err(LoadError::NotSupported),
-        }
-    }
-
-    fn forget(&self, uri: &str) {
-        let _ = self.cache.lock().remove(uri);
-    }
-
-    fn byte_size(&self) -> usize {
-        self.cache.lock().values().map(|bytes| bytes.len()).sum()
-    }
-}
-
-#[derive(Default)]
-struct DefaultTextureLoader {
-    cache: Mutex<HashMap<(String, TextureOptions), TextureHandle>>,
-}
-
-impl TextureLoader for DefaultTextureLoader {
-    fn load(
-        &self,
-        ctx: &Context,
-        uri: &str,
-        texture_options: TextureOptions,
-        size_hint: SizeHint,
-    ) -> TextureLoadResult {
-        let mut cache = self.cache.lock();
-        if let Some(handle) = cache.get(&(uri.into(), texture_options)) {
-            let texture = SizedTexture::from_handle(handle);
-            Ok(TexturePoll::Ready { texture })
-        } else {
-            match ctx.try_load_image(uri, size_hint)? {
-                ImagePoll::Pending { size } => Ok(TexturePoll::Pending { size }),
-                ImagePoll::Ready { image } => {
-                    let handle = ctx.load_texture(uri, image, texture_options);
-                    let texture = SizedTexture::from_handle(&handle);
-                    cache.insert((uri.into(), texture_options), handle);
-                    Ok(TexturePoll::Ready { texture })
-                }
-            }
-        }
-    }
-
-    fn forget(&self, uri: &str) {
-        self.cache.lock().retain(|(u, _), _| u != uri);
-    }
-
-    fn end_frame(&self, _: usize) {}
-
-    fn byte_size(&self) -> usize {
-        self.cache
-            .lock()
-            .values()
-            .map(|texture| texture.byte_size())
-            .sum()
-    }
-}
+type BytesLoaderImpl = Arc<dyn BytesLoader + Send + Sync + 'static>;
+type ImageLoaderImpl = Arc<dyn ImageLoader + Send + Sync + 'static>;
+type TextureLoaderImpl = Arc<dyn TextureLoader + Send + Sync + 'static>;
 
 #[derive(Clone)]
-pub(crate) struct Loaders {
+/// The loaders of bytes, images, and textures.
+pub struct Loaders {
     pub include: Arc<DefaultBytesLoader>,
-    pub bytes: Vec<Arc<dyn BytesLoader + Send + Sync + 'static>>,
-    pub image: Vec<Arc<dyn ImageLoader + Send + Sync + 'static>>,
-    pub texture: Vec<Arc<dyn TextureLoader + Send + Sync + 'static>>,
+    pub bytes: Mutex<Vec<BytesLoaderImpl>>,
+    pub image: Mutex<Vec<ImageLoaderImpl>>,
+    pub texture: Mutex<Vec<TextureLoaderImpl>>,
 }
 
 impl Default for Loaders {
     fn default() -> Self {
         let include = Arc::new(DefaultBytesLoader::default());
         Self {
-            bytes: vec![include.clone()],
-            image: Vec::new(),
+            bytes: Mutex::new(vec![include.clone()]),
+            image: Mutex::new(Vec::new()),
             // By default we only include `DefaultTextureLoader`.
-            texture: vec![Arc::new(DefaultTextureLoader::default())],
+            texture: Mutex::new(vec![Arc::new(DefaultTextureLoader::default())]),
             include,
         }
     }
