@@ -677,7 +677,7 @@ impl<'a> Slider<'a> {
                 );
             }
 
-            let radius = self.handle_radius(rect, &visuals.handle_shape);
+            let radius = self.handle_radius(rect);
             match visuals.handle_shape {
                 style::HandleShape::Circle => {
                     ui.painter().add(epaint::CircleShape {
@@ -689,8 +689,8 @@ impl<'a> Slider<'a> {
                 }
                 style::HandleShape::Rect { aspect_ratio } => {
                     let v = match self.orientation {
-                        SliderOrientation::Horizontal => Vec2::new(radius, radius / aspect_ratio),
-                        SliderOrientation::Vertical => Vec2::new(radius / aspect_ratio, radius),
+                        SliderOrientation::Horizontal => Vec2::new(radius * aspect_ratio, radius),
+                        SliderOrientation::Vertical => Vec2::new(radius, radius * aspect_ratio),
                     };
                     let v = v + Vec2::splat(visuals.expansion);
                     let rect = Rect::from_center_size(center, 2.0 * v);
@@ -722,7 +722,11 @@ impl<'a> Slider<'a> {
     }
 
     fn position_range(&self, rect: &Rect, handle_shape: &style::HandleShape) -> Rangef {
-        let handle_radius = self.handle_radius(rect, handle_shape);
+        let handle_radius = self.handle_radius(rect);
+        let handle_radius = match handle_shape {
+            style::HandleShape::Circle => handle_radius,
+            style::HandleShape::Rect { aspect_ratio } => handle_radius * aspect_ratio,
+        };
         match self.orientation {
             SliderOrientation::Horizontal => rect.x_range().shrink(handle_radius),
             // The vertical case has to be flipped because the largest slider value maps to the
@@ -744,16 +748,12 @@ impl<'a> Slider<'a> {
         }
     }
 
-    fn handle_radius(&self, rect: &Rect, handle_shape: &style::HandleShape) -> f32 {
+    fn handle_radius(&self, rect: &Rect) -> f32 {
         let limit = match self.orientation {
             SliderOrientation::Horizontal => rect.height(),
             SliderOrientation::Vertical => rect.width(),
         };
-        let aspect_ratio = match handle_shape {
-            style::HandleShape::Circle => 1.0,
-            style::HandleShape::Rect { aspect_ratio } => *aspect_ratio,
-        };
-        limit / (2.5 / aspect_ratio)
+        limit / 2.5
     }
 
     fn rail_radius_limit(&self, rect: &Rect) -> f32 {
