@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+#[cfg(feature = "accesskit")]
+use accesskit::Role;
 use epaint::text::{cursor::*, Galley, LayoutJob};
 
 use crate::{output::OutputEvent, *};
@@ -751,7 +753,7 @@ impl<'t> TextEdit<'t> {
 
                 builder.set_default_action_verb(accesskit::DefaultActionVerb::Focus);
                 if self.multiline {
-                    builder.set_multiline();
+                    builder.set_role(Role::MultilineTextInput);
                 }
 
                 parent_id
@@ -759,7 +761,7 @@ impl<'t> TextEdit<'t> {
 
             if let Some(parent_id) = parent_id {
                 // drop ctx lock before further processing
-                use accesskit::{Role, TextDirection};
+                use accesskit::TextDirection;
 
                 ui.ctx().with_accessibility_parent(parent_id, || {
                     for (i, row) in galley.rows.iter().enumerate() {
@@ -876,7 +878,7 @@ fn ccursor_from_accesskit_text_position(
 /// Check for (keyboard) events to edit the cursor and/or text.
 #[allow(clippy::too_many_arguments)]
 fn events(
-    ui: &mut crate::Ui,
+    ui: &crate::Ui,
     state: &mut TextEditState,
     text: &mut dyn TextBuffer,
     galley: &mut Arc<Galley>,
@@ -1089,7 +1091,7 @@ fn events(
 // ----------------------------------------------------------------------------
 
 fn paint_cursor_selection(
-    ui: &mut Ui,
+    ui: &Ui,
     painter: &Painter,
     pos: Pos2,
     galley: &Galley,
@@ -1131,7 +1133,7 @@ fn paint_cursor_selection(
 }
 
 fn paint_cursor_end(
-    ui: &mut Ui,
+    ui: &Ui,
     row_height: f32,
     painter: &Painter,
     pos: Pos2,

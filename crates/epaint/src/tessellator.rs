@@ -535,6 +535,7 @@ pub mod path {
             add_circle_quadrant(path, pos2(min.x + r.sw, max.y - r.sw), r.sw, 1.0);
             add_circle_quadrant(path, pos2(min.x + r.nw, min.y + r.nw), r.nw, 2.0);
             add_circle_quadrant(path, pos2(max.x - r.ne, min.y + r.ne), r.ne, 3.0);
+            path.dedup(); // We get duplicates for thin rectangles, producing visual artifats
         }
     }
 

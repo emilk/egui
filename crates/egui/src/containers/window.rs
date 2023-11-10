@@ -147,7 +147,7 @@ impl<'open> Window<'open> {
 
     /// Constrains this window to the screen bounds.
     ///
-    /// To change the area to constrain to, use [`Self::constraint_to`].
+    /// To change the area to constrain to, use [`Self::constrain_to`].
     ///
     /// Default: `true`.
     pub fn constrain(mut self, constrain: bool) -> Self {
@@ -155,10 +155,10 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Constraint the movement of the window to the given rectangle.
+    /// Constrain the movement of the window to the given rectangle.
     ///
     /// For instance: `.constrain_to(ctx.screen_rect())`.
-    pub fn constraint_to(mut self, constrain_rect: Rect) -> Self {
+    pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {
         self.area = self.area.constrain_to(constrain_rect);
         self
     }
@@ -419,7 +419,7 @@ impl<'open> Window<'open> {
                             ui.add_space(title_content_spacing);
                         }
 
-                        if scroll.has_any_bar() {
+                        if scroll.is_any_scroll_enabled() {
                             scroll.show(ui, add_contents).inner
                         } else {
                             add_contents(ui)
@@ -429,7 +429,7 @@ impl<'open> Window<'open> {
                 .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
-            paint_resize_corner(&mut area_content_ui, &possible, outer_rect, frame_stroke);
+            paint_resize_corner(&area_content_ui, &possible, outer_rect, frame_stroke);
 
             // END FRAME --------------------------------
 
@@ -448,7 +448,7 @@ impl<'open> Window<'open> {
 
             if let Some(interaction) = interaction {
                 paint_frame_interaction(
-                    &mut area_content_ui,
+                    &area_content_ui,
                     outer_rect,
                     interaction,
                     ctx.style().visuals.widgets.active,
@@ -456,7 +456,7 @@ impl<'open> Window<'open> {
             } else if let Some(hover_interaction) = hover_interaction {
                 if ctx.input(|i| i.pointer.has_pointer()) {
                     paint_frame_interaction(
-                        &mut area_content_ui,
+                        &area_content_ui,
                         outer_rect,
                         hover_interaction,
                         ctx.style().visuals.widgets.hovered,
@@ -477,7 +477,7 @@ impl<'open> Window<'open> {
 }
 
 fn paint_resize_corner(
-    ui: &mut Ui,
+    ui: &Ui,
     possible: &PossibleInteractions,
     outer_rect: Rect,
     stroke: impl Into<Stroke>,
@@ -758,7 +758,7 @@ fn resize_hover(
 
 /// Fill in parts of the window frame when we resize by dragging that part
 fn paint_frame_interaction(
-    ui: &mut Ui,
+    ui: &Ui,
     rect: Rect,
     interaction: WindowInteraction,
     visuals: style::WidgetVisuals,

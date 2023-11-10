@@ -608,7 +608,7 @@ impl MenuState {
     }
 
     /// Sense button interaction opening and closing submenu.
-    fn submenu_button_interaction(&mut self, ui: &mut Ui, sub_id: Id, button: &Response) {
+    fn submenu_button_interaction(&mut self, ui: &Ui, sub_id: Id, button: &Response) {
         let pointer = ui.input(|i| i.pointer.clone());
         let open = self.is_open(sub_id);
         if self.moving_towards_current_submenu(&pointer) {

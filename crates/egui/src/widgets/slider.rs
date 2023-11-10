@@ -508,7 +508,8 @@ impl<'a> Slider<'a> {
             value = emath::round_to_decimals(value, max_decimals);
         }
         if let Some(step) = self.step {
-            value = (value / step).round() * step;
+            let start = *self.range.start();
+            value = start + ((value - start) / step).round() * step;
         }
         set(&mut self.get_set_value, value);
     }
@@ -548,7 +549,7 @@ impl<'a> Slider<'a> {
     }
 
     /// Just the slider, no text
-    fn slider_ui(&mut self, ui: &mut Ui, response: &Response) {
+    fn slider_ui(&mut self, ui: &Ui, response: &Response) {
         let rect = &response.rect;
         let position_range = self.position_range(rect);
 
@@ -703,7 +704,9 @@ impl<'a> Slider<'a> {
         let handle_radius = self.handle_radius(rect);
         match self.orientation {
             SliderOrientation::Horizontal => rect.x_range().shrink(handle_radius),
-            SliderOrientation::Vertical => rect.y_range().shrink(handle_radius),
+            // The vertical case has to be flipped because the largest slider value maps to the
+            // lowest y value (which is at the top)
+            SliderOrientation::Vertical => rect.y_range().shrink(handle_radius).flip(),
         }
     }
 

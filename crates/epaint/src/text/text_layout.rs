@@ -665,7 +665,7 @@ fn tessellate_row(
     point_scale: PointScale,
     job: &LayoutJob,
     format_summary: &FormatSummary,
-    row: &mut Row,
+    row: &Row,
 ) -> RowVisuals {
     if row.glyphs.is_empty() {
         return Default::default();
