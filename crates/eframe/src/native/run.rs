@@ -482,7 +482,6 @@ mod glow_integration {
     // There is work in progress to improve the Glutin API so it has a separate Surface
     // API that would allow us to just destroy a Window/Surface when suspending, see:
     // https://github.com/rust-windowing/glutin/pull/1435
-    //
 
     /// State that is initialized when the application is first starts running via
     /// a Resumed event. On Android this ensures that any graphics state is only
@@ -1858,6 +1857,9 @@ mod wgpu_integration {
 
     pub type Viewports = ViewportIdMap<Viewport>;
 
+    /// Everything needed by the immediate viewport renderer.
+    ///
+    /// Wrapped in an `Rc<RefCell<…>>` so it can be re-entrantly shared via a weak-pointer.
     pub struct SharedState {
         viewports: Viewports,
         builders: ViewportIdMap<ViewportBuilder>,
@@ -1883,7 +1885,7 @@ mod wgpu_integration {
 
         /// Window surface state that's initialized when the app starts running via a Resumed event
         /// and on Android will also be destroyed if the application is paused.
-        focused_viewport: Rc<RefCell<Option<ViewportId>>>,
+        focused_viewport: RefCell<Option<ViewportId>>,
     }
 
     impl WgpuWinitApp {
@@ -1906,7 +1908,7 @@ mod wgpu_integration {
                 native_options,
                 running: None,
                 app_creator: Some(app_creator),
-                focused_viewport: Rc::new(RefCell::new(Some(ViewportId::ROOT))),
+                focused_viewport: RefCell::new(Some(ViewportId::ROOT)),
             }
         }
 
