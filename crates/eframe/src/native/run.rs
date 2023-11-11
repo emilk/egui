@@ -1051,8 +1051,6 @@ mod glow_integration {
             {
                 let window = glutin_ctx.window(ViewportId::ROOT);
                 let window = &mut *window.borrow_mut();
-                let viewport = glutin_ctx.viewport(ViewportId::ROOT);
-                let viewport = &mut *viewport.borrow_mut();
                 app = app_creator(&epi::CreationContext {
                     egui_ctx: integration.egui_ctx.clone(),
                     integration_info: integration.frame.info().clone(),
@@ -1065,6 +1063,8 @@ mod glow_integration {
                 });
 
                 if app.warm_up_enabled() {
+                    let viewport = glutin_ctx.viewport(ViewportId::ROOT);
+                    let viewport = &mut *viewport.borrow_mut();
                     integration.warm_up(
                         app.as_mut(),
                         window,
@@ -1475,6 +1475,10 @@ mod glow_integration {
                     let window = window.borrow();
                     let egui_winit = viewport.egui_winit.as_mut().unwrap();
 
+                    // ------------------------------------------------------------
+                    // The update function, which could call immediate viewports,
+                    // so make sure we don't hold any locks here required by the immediate viewports rendeer.
+
                     egui::FullOutput {
                         platform_output,
                         textures_delta,
@@ -1488,6 +1492,8 @@ mod glow_integration {
                         viewport.viewport_ui_cb.as_deref(),
                         viewport.id_pair,
                     );
+
+                    // ------------------------------------------------------------
 
                     integration.handle_platform_output(
                         &window,
