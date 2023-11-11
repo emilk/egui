@@ -712,15 +712,15 @@ mod glow_integration {
         fn on_resume(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
             crate::profile_function!();
 
-            let viewports = self
+            let viewports: Vec<ViewportId> = self
                 .viewports
-                .values()
-                .cloned()
-                .collect::<Vec<Rc<RefCell<Viewport>>>>();
-            for viewport in viewports {
-                if viewport.borrow().gl_surface.is_none() {
-                    self.init_viewport(&viewport, event_loop)?;
-                }
+                .iter()
+                .filter(|(_, viewport)| viewport.borrow().gl_surface.is_none())
+                .map(|(id, _)| *id)
+                .collect();
+
+            for viewport_id in viewports {
+                self.init_viewport(viewport_id, event_loop)?;
             }
             Ok(())
         }
@@ -728,10 +728,16 @@ mod glow_integration {
         #[allow(unsafe_code)]
         pub(crate) fn init_viewport(
             &mut self,
-            viewport: &Rc<RefCell<Viewport>>,
+            viewport_id: ViewportId,
             event_loop: &EventLoopWindowTarget<UserEvent>,
         ) -> Result<()> {
             crate::profile_function!();
+
+            let viewport = self
+                .viewports
+                .get(&viewport_id)
+                .cloned()
+                .expect("viewport doesn't exist");
 
             let builder = &self.builders[&viewport.borrow().id_pair.this];
             let mut viewport = viewport.borrow_mut();
@@ -1160,8 +1166,6 @@ mod glow_integration {
                         .or_insert(viewport_builder);
                 }
 
-                let viewport = glutin.viewports[&id_pair.this].clone();
-
                 #[allow(unsafe_code)]
                 let event_loop = unsafe {
                     WINIT_EVENT_LOOP.with(|event_loop| {
@@ -1170,7 +1174,7 @@ mod glow_integration {
                 };
 
                 glutin
-                    .init_viewport(&viewport, event_loop)
+                    .init_viewport(id_pair.this, event_loop)
                     .expect("Cannot init window on egui::Context::show_viewport_immediate");
             }
 
