@@ -8,7 +8,7 @@ use epaint::Shape;
 pub(crate) struct InnerState {
     /// Expand / collapse
     open: bool,
-    /// Show / Hide (only on windows)
+    /// Show / Hide (only used on egui::Window components)
     hidden: bool,
 
     /// Height of the region when open. Used for animations
@@ -68,17 +68,17 @@ impl CollapsingState {
         ui.ctx().request_repaint();
     }
 
-    /// Only on windows
+    /// Only used on egui::Window components
     pub fn is_hidden(&self) -> bool {
         self.state.hidden
     }
 
-    /// Only on windows
+    /// Only used on egui::Window components
     pub fn toggle_hidden(&mut self) {
         self.state.hidden = !self.state.hidden;
     }
 
-    /// Only on windows
+    /// Only used on egui::Window components
     pub fn set_hidden(&mut self, hidden: bool) {
         self.state.hidden = hidden;
     }
