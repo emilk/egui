@@ -78,7 +78,7 @@ unity = ["epaint/unity"]
 [dependencies]
 epaint = { version = "0.23.0", path = "../epaint", default-features = false }
 
-ahash = { version = "0.8.1", default-features = false, features = [
+ahash = { version = "0.8.6", default-features = false, features = [
     "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
     "std",
 ] }
