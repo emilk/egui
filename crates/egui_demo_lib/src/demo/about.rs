@@ -1,10 +1,10 @@
-use egui::DisplayEvent;
+use egui::{SetEvent, WindowEvent};
 
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct About {
-    display_event: Option<DisplayEvent>,
+    display_event: Option<WindowEvent>,
 }
 
 impl super::Demo for About {
@@ -27,11 +27,11 @@ impl super::Demo for About {
 
 impl About {
     pub fn toggle_collapse(&mut self) {
-        self.display_event = Some(DisplayEvent::ToggleCollapse);
+        self.display_event.set(WindowEvent::ToggleCollapse);
     }
 
     pub fn toggle_hidden(&mut self) {
-        self.display_event = Some(DisplayEvent::ToggleHidden);
+        self.display_event.set(WindowEvent::ToggleHidden);
     }
 }
 

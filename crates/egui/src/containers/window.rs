@@ -35,13 +35,13 @@ pub struct Window<'open> {
     default_open: bool,
     with_title_bar: bool,
     with_closing_btn: bool,
-    display_event: Option<DisplayEvent>,
+    display_event: Option<WindowEvent>,
     open: Option<&'open mut bool>,
 }
 
 #[derive(PartialEq, Default, Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum DisplayEvent {
+pub enum WindowEvent {
     #[default]
     Expand,
     Collapse,
@@ -52,12 +52,12 @@ pub enum DisplayEvent {
 
 // Helper function for user space
 pub trait SetEvent {
-    fn set(&mut self, display_event: DisplayEvent);
+    fn set(&mut self, display_event: WindowEvent);
 }
 
-impl SetEvent for Option<DisplayEvent> {
-    fn set(&mut self, display_event: DisplayEvent) {
-        let _ = self.insert(display_event);
+impl SetEvent for Option<WindowEvent> {
+    fn set(&mut self, display_event: WindowEvent) {
+        *self = Some(display_event);
     }
 }
 
@@ -239,7 +239,7 @@ impl<'open> Window<'open> {
         self
     }
 
-    pub fn display_event(mut self, new_event: &mut Option<DisplayEvent>) -> Self {
+    pub fn display_event(mut self, new_event: &mut Option<WindowEvent>) -> Self {
         self.display_event = new_event.take();
         self
     }
@@ -385,12 +385,20 @@ impl<'open> Window<'open> {
         }
 
         match display_event {
-            Some(DisplayEvent::Hide) => collapsing.set_hidden(true),
-            Some(DisplayEvent::Expand) => collapsing.set_open(true),
-            Some(DisplayEvent::Collapse) => collapsing.set_open(false),
-            Some(DisplayEvent::ToggleHidden) => collapsing.toggle_hidden(),
-            Some(DisplayEvent::ToggleCollapse) => collapsing.set_open(!collapsing.is_open()),
-            None => collapsing.set_hidden(matches!(open, Some(false))),
+            Some(WindowEvent::Hide) => collapsing.set_hidden(true),
+            Some(WindowEvent::Expand) => collapsing.set_open(true),
+            Some(WindowEvent::Collapse) => collapsing.set_open(false),
+            Some(WindowEvent::ToggleHidden) => collapsing.toggle_hidden(),
+            Some(WindowEvent::ToggleCollapse) => collapsing.set_open(!collapsing.is_open()),
+            None => match &open {
+                Some(false) => {
+                    collapsing.set_hidden(true);
+                }
+                Some(true) => {
+                    collapsing.set_hidden(false);
+                }
+                _ => {}
+            },
         }
 
         let is_open = !collapsing.is_hidden() || ctx.memory(|mem| mem.everything_is_visible());

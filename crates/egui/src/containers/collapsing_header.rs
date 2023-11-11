@@ -6,8 +6,10 @@ use epaint::Shape;
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct InnerState {
-    open: bool,   // Expand / collapse
-    hidden: bool, // Show / Hide
+    /// Expand / collapse
+    open: bool,
+    /// Show / Hide (only on windows)
+    hidden: bool,
 
     /// Height of the region when open. Used for animations
     #[cfg_attr(feature = "serde", serde(default))]
@@ -66,14 +68,17 @@ impl CollapsingState {
         ui.ctx().request_repaint();
     }
 
+    /// Only on windows
     pub fn is_hidden(&self) -> bool {
         self.state.hidden
     }
 
+    /// Only on windows
     pub fn toggle_hidden(&mut self) {
         self.state.hidden = !self.state.hidden;
     }
 
+    /// Only on windows
     pub fn set_hidden(&mut self, hidden: bool) {
         self.state.hidden = hidden;
     }
@@ -345,6 +350,16 @@ pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
     ));
 }
 
+/// A event to expand / collapse the widget automatically
+#[derive(PartialEq, Default, Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum CollapsingHeaderEvent {
+    #[default]
+    Expand,
+    Collapse,
+    ToggleCollapse,
+}
+
 /// A function that paints an icon indicating if the region is open or not
 pub type IconPainter = Box<dyn FnOnce(&mut Ui, f32, &Response)>;
 
@@ -368,6 +383,7 @@ pub struct CollapsingHeader {
     text: WidgetText,
     default_open: bool,
     open: Option<bool>,
+    display_event: Option<CollapsingHeaderEvent>,
     id_source: Id,
     enabled: bool,
     selectable: bool,
@@ -396,6 +412,7 @@ impl CollapsingHeader {
             selected: false,
             show_background: false,
             icon: None,
+            display_event: None,
         }
     }
 
@@ -413,6 +430,11 @@ impl CollapsingHeader {
     /// Calling `.open(None)` has no effect (default).
     pub fn open(mut self, open: Option<bool>) -> Self {
         self.open = open;
+        self
+    }
+
+    pub fn display(mut self, new_event: &mut Option<CollapsingHeaderEvent>) -> Self {
+        self.display_event = new_event.take();
         self
     }
 
@@ -517,8 +539,8 @@ impl CollapsingHeader {
             selectable,
             selected,
             show_background,
+            display_event,
         } = self;
-
         // TODO(emilk): horizontal layout, with icon and text as labels. Insert background behind using Frame.
 
         let id = ui.make_persistent_id(id_source);
@@ -548,7 +570,18 @@ impl CollapsingHeader {
 
         let mut state = CollapsingState::load(ui.ctx(), id, default_open);
 
-        if let Some(open) = open {
+        let request_repaint = display_event.is_some();
+
+        match display_event {
+            Some(CollapsingHeaderEvent::Expand) => state.set_open(true),
+            Some(CollapsingHeaderEvent::Collapse) => state.set_open(false),
+            Some(CollapsingHeaderEvent::ToggleCollapse) => state.set_open(!state.is_open()),
+            None => {}
+        }
+
+        if request_repaint {
+            ui.ctx().request_repaint();
+        } else if let Some(open) = open {
             if open != state.is_open() {
                 state.toggle_open(ui);
                 header_response.mark_changed();

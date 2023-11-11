@@ -21,5 +21,5 @@ pub use {
     popup::*,
     resize::Resize,
     scroll_area::ScrollArea,
-    window::{DisplayEvent, SetEvent, Window},
+    window::{SetEvent, Window, WindowEvent},
 };
