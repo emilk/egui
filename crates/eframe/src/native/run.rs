@@ -2445,7 +2445,7 @@ mod wgpu_integration {
 
                 drop(shared_lock); // Release lock!
 
-                // Runs the update, which could call immedaite viewports,
+                // Runs the update, which could call immediate viewports,
                 // so make sure we hold no locks here!
                 egui::FullOutput {
                     platform_output,
