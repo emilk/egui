@@ -1479,7 +1479,7 @@ mod glow_integration {
                         app.as_mut(),
                         &window,
                         egui_winit,
-                        &viewport.viewport_ui_cb.clone(),
+                        viewport.viewport_ui_cb.as_deref(),
                         viewport.id_pair,
                     );
 
@@ -2425,7 +2425,7 @@ mod wgpu_integration {
                     app.as_mut(),
                     &window.borrow(),
                     state.borrow_mut().as_mut().unwrap(),
-                    &viewport_ui_cb.clone(),
+                    viewport_ui_cb.as_deref(),
                     ViewportIdPair {
                         this: viewport_id,
                         parent: parent_id,
