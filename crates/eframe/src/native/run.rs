@@ -885,7 +885,8 @@ mod glow_integration {
         // re-initializing the `GlowWinitRunning` state on Android if the application
         // suspends and resumes.
         app_creator: Option<epi::AppCreator>,
-        focused_viewport: Rc<RefCell<Option<ViewportId>>>,
+
+        focused_viewport: Option<ViewportId>,
     }
 
     impl GlowWinitApp {
@@ -902,7 +903,7 @@ mod glow_integration {
                 native_options,
                 running: None,
                 app_creator: Some(app_creator),
-                focused_viewport: Rc::new(RefCell::new(Some(ViewportId::ROOT))),
+                focused_viewport: Some(ViewportId::ROOT),
             }
         }
 
@@ -1342,12 +1343,12 @@ mod glow_integration {
         }
 
         fn is_focused(&self, window_id: winit::window::WindowId) -> bool {
-            if let Some(is_focused) = self.focused_viewport.borrow().as_ref() {
+            if let Some(focused_viewport) = self.focused_viewport {
                 if let Some(running) = self.running.as_ref() {
                     if let Some(window_id) =
                         running.glutin_ctx.borrow().viewport_maps.get(&window_id)
                     {
-                        return *is_focused == *window_id;
+                        return focused_viewport == *window_id;
                     }
                 }
             }
@@ -1606,7 +1607,7 @@ mod glow_integration {
                         egui_winit::process_viewport_commands(
                             vec![command],
                             viewport_id,
-                            *self.focused_viewport.borrow(),
+                            self.focused_viewport,
                             &window.borrow(),
                         );
                     }
@@ -1690,18 +1691,16 @@ mod glow_integration {
 
                         match &event {
                             winit::event::WindowEvent::Focused(new_focused) => {
-                                self.focused_viewport.replace(
-                                    new_focused
-                                        .then(|| {
-                                            running
-                                                .glutin_ctx
-                                                .borrow_mut()
-                                                .viewport_maps
-                                                .get(window_id)
-                                                .copied()
-                                        })
-                                        .flatten(),
-                                );
+                                self.focused_viewport = new_focused
+                                    .then(|| {
+                                        running
+                                            .glutin_ctx
+                                            .borrow_mut()
+                                            .viewport_maps
+                                            .get(window_id)
+                                            .copied()
+                                    })
+                                    .flatten();
                             }
                             winit::event::WindowEvent::Resized(physical_size) => {
                                 repaint_asap = true;
