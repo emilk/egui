@@ -1927,8 +1927,7 @@ mod wgpu_integration {
             storage: Option<&dyn epi::Storage>,
             title: &str,
             native_options: &mut NativeOptions,
-        ) -> std::result::Result<(winit::window::Window, ViewportBuilder), winit::error::OsError>
-        {
+        ) -> Result<(winit::window::Window, ViewportBuilder), winit::error::OsError> {
             crate::profile_function!();
 
             let window_settings = epi_integration::load_window_settings(storage);
@@ -2004,7 +2003,7 @@ mod wgpu_integration {
             }
         }
 
-        fn set_window(&mut self, id: ViewportId) -> std::result::Result<(), egui_wgpu::WgpuError> {
+        fn set_window(&mut self, id: ViewportId) -> Result<(), egui_wgpu::WgpuError> {
             if let Some(running) = &mut self.running {
                 crate::profile_function!();
                 let mut shared = running.shared.borrow_mut();
@@ -2023,7 +2022,7 @@ mod wgpu_integration {
         }
 
         #[cfg(target_os = "android")]
-        fn drop_window(&mut self) -> std::result::Result<(), egui_wgpu::WgpuError> {
+        fn drop_window(&mut self) -> Result<(), egui_wgpu::WgpuError> {
             if let Some(running) = &mut self.running {
                 let mut shared = running.shared.borrow_mut();
                 shared.viewports.remove(&ViewportId::ROOT);
@@ -2038,7 +2037,7 @@ mod wgpu_integration {
             storage: Option<Box<dyn epi::Storage>>,
             window: winit::window::Window,
             builder: ViewportBuilder,
-        ) -> std::result::Result<(), egui_wgpu::WgpuError> {
+        ) -> Result<(), egui_wgpu::WgpuError> {
             crate::profile_function!();
 
             #[allow(unsafe_code, unused_mut, unused_unsafe)]
