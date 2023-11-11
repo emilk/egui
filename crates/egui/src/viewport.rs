@@ -662,7 +662,7 @@ pub(crate) struct ViewportState {
     /// The user-code that shows the GUI, used for deferred viewports.
     ///
     /// `None` for immediate viewports.
-    pub(crate) viewport_ui_cb: Option<Arc<Box<ViewportUiCallback>>>,
+    pub(crate) viewport_ui_cb: Option<Arc<ViewportUiCallback>>,
 }
 
 /// Describes a viewport, i.e. a native window.
@@ -676,5 +676,5 @@ pub struct ViewportOutput {
     /// The user-code that shows the GUI, used for deferred viewports.
     ///
     /// `None` for immediate viewports and the ROOT viewport.
-    pub viewport_ui_cb: Option<Arc<Box<ViewportUiCallback>>>,
+    pub viewport_ui_cb: Option<Arc<ViewportUiCallback>>,
 }

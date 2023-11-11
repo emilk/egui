@@ -503,7 +503,7 @@ mod glow_integration {
         id_pair: ViewportIdPair,
 
         /// The user-callback that shows the ui.
-        viewport_ui_cb: Option<Arc<Box<ViewportUiCallback>>>,
+        viewport_ui_cb: Option<Arc<ViewportUiCallback>>,
 
         egui_winit: Option<egui_winit::State>,
     }
@@ -1854,7 +1854,7 @@ mod wgpu_integration {
         egui_winit: Rc<RefCell<Option<egui_winit::State>>>,
 
         /// `None` for sync viewports.
-        viewport_ui_cb: Option<Arc<Box<ViewportUiCallback>>>,
+        viewport_ui_cb: Option<Arc<ViewportUiCallback>>,
 
         parent_id: ViewportId,
     }

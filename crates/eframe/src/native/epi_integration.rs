@@ -483,7 +483,7 @@ impl EpiIntegration {
         app: &mut dyn epi::App,
         window: &winit::window::Window,
         egui_winit: &mut egui_winit::State,
-        viewport_ui_cb: &Option<Arc<Box<ViewportUiCallback>>>,
+        viewport_ui_cb: &Option<Arc<ViewportUiCallback>>,
         id_pair: ViewportIdPair,
     ) -> egui::FullOutput {
         let frame_start = std::time::Instant::now();
