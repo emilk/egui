@@ -496,6 +496,7 @@ impl Plot {
     }
 
     /// Whether or not to show the background [`Rect`].
+    ///
     /// Can be useful to disable if the plot is overlaid over existing content.
     /// Default: `true`.
     pub fn show_background(mut self, show: bool) -> Self {
@@ -505,7 +506,7 @@ impl Plot {
 
     /// Show axis labels and grid tick values on the side of the plot.
     ///
-    /// Default: `[true; 2]`.
+    /// Default: `true`.
     pub fn show_axes(mut self, show: impl Into<Vec2b>) -> Self {
         self.show_axes = show.into();
         self
@@ -513,7 +514,7 @@ impl Plot {
 
     /// Show a grid overlay on the plot.
     ///
-    /// Default: `[true; 2]`.
+    /// Default: `true`.
     pub fn show_grid(mut self, show: impl Into<Vec2b>) -> Self {
         self.show_grid = show.into();
         self

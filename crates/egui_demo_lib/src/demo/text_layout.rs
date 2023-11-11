@@ -124,7 +124,7 @@ impl super::View for TextLayoutDemo {
         };
 
         egui::ScrollArea::vertical()
-            .auto_shrink([false; 2])
+            .auto_shrink(false)
             .show(ui, |ui| {
                 let extra_letter_spacing = points_per_pixel * *extra_letter_spacing_pixels as f32;
                 let line_height = (*line_height_pixels != 0)

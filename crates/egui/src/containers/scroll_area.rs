@@ -10,13 +10,13 @@ pub struct State {
     pub offset: Vec2,
 
     /// Were the scroll bars visible last frame?
-    show_scroll: [bool; 2],
+    show_scroll: Vec2b,
 
     /// The content were to large to fit large frame.
-    content_is_too_large: [bool; 2],
+    content_is_too_large: Vec2b,
 
     /// Did the user interact (hover or drag) the scroll bars last frame?
-    scroll_bar_interaction: [bool; 2],
+    scroll_bar_interaction: Vec2b,
 
     /// Momentum, used for kinetic scrolling
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -28,19 +28,19 @@ pub struct State {
     /// Is the scroll sticky. This is true while scroll handle is in the end position
     /// and remains that way until the user moves the scroll_handle. Once unstuck (false)
     /// it remains false until the scroll touches the end position, which reenables stickiness.
-    scroll_stuck_to_end: [bool; 2],
+    scroll_stuck_to_end: Vec2b,
 }
 
 impl Default for State {
     fn default() -> Self {
         Self {
             offset: Vec2::ZERO,
-            show_scroll: [false; 2],
-            content_is_too_large: [false; 2],
-            scroll_bar_interaction: [false; 2],
+            show_scroll: Vec2b::FALSE,
+            content_is_too_large: Vec2b::FALSE,
+            scroll_bar_interaction: Vec2b::FALSE,
             vel: Vec2::ZERO,
             scroll_start_offset_from_top_left: [None; 2],
-            scroll_stuck_to_end: [true; 2],
+            scroll_stuck_to_end: Vec2b::TRUE,
         }
     }
 }
@@ -147,9 +147,9 @@ impl ScrollBarVisibility {
 #[must_use = "You should call .show()"]
 pub struct ScrollArea {
     /// Do we have horizontal/vertical scrolling enabled?
-    scroll_enabled: [bool; 2],
+    scroll_enabled: Vec2b,
 
-    auto_shrink: [bool; 2],
+    auto_shrink: Vec2b,
     max_size: Vec2,
     min_scrolled_size: Vec2,
     scroll_bar_visibility: ScrollBarVisibility,
@@ -164,7 +164,7 @@ pub struct ScrollArea {
     /// If true for vertical or horizontal the scroll wheel will stick to the
     /// end position until user manually changes position. It will become true
     /// again once scroll handle makes contact with end.
-    stick_to_end: [bool; 2],
+    stick_to_end: Vec2b,
 }
 
 impl ScrollArea {
@@ -195,10 +195,10 @@ impl ScrollArea {
 
     /// Create a scroll area where you decide which axis has scrolling enabled.
     /// For instance, `ScrollArea::new([true, false])` enables horizontal scrolling.
-    pub fn new(scroll_enabled: [bool; 2]) -> Self {
+    pub fn new(scroll_enabled: impl Into<Vec2b>) -> Self {
         Self {
-            scroll_enabled,
-            auto_shrink: [true; 2],
+            scroll_enabled: scroll_enabled.into(),
+            auto_shrink: Vec2b::TRUE,
             max_size: Vec2::INFINITY,
             min_scrolled_size: Vec2::splat(64.0),
             scroll_bar_visibility: Default::default(),
@@ -207,7 +207,7 @@ impl ScrollArea {
             offset_y: None,
             scrolling_enabled: true,
             drag_to_scroll: true,
-            stick_to_end: [false; 2],
+            stick_to_end: Vec2b::FALSE,
         }
     }
 
@@ -327,8 +327,8 @@ impl ScrollArea {
 
     /// Turn on/off scrolling on the horizontal/vertical axes.
     #[inline]
-    pub fn scroll2(mut self, scroll_enabled: [bool; 2]) -> Self {
-        self.scroll_enabled = scroll_enabled;
+    pub fn scroll2(mut self, scroll_enabled: impl Into<Vec2b>) -> Self {
+        self.scroll_enabled = scroll_enabled.into();
         self
     }
 
@@ -365,10 +365,10 @@ impl ScrollArea {
     /// * If `true`, egui will add blank space outside the scroll area.
     /// * If `false`, egui will add blank space inside the scroll area.
     ///
-    /// Default: `[true; 2]`.
+    /// Default: `true`.
     #[inline]
-    pub fn auto_shrink(mut self, auto_shrink: [bool; 2]) -> Self {
-        self.auto_shrink = auto_shrink;
+    pub fn auto_shrink(mut self, auto_shrink: impl Into<Vec2b>) -> Self {
+        self.auto_shrink = auto_shrink.into();
         self
     }
 
@@ -406,10 +406,10 @@ struct Prepared {
     id: Id,
     state: State,
 
-    auto_shrink: [bool; 2],
+    auto_shrink: Vec2b,
 
     /// Does this `ScrollArea` have horizontal/vertical scrolling enabled?
-    scroll_enabled: [bool; 2],
+    scroll_enabled: Vec2b,
 
     /// Smoothly interpolated boolean of whether or not to show the scroll bars.
     show_bars_factor: Vec2,
@@ -437,7 +437,7 @@ struct Prepared {
     viewport: Rect,
 
     scrolling_enabled: bool,
-    stick_to_end: [bool; 2],
+    stick_to_end: Vec2b,
 }
 
 impl ScrollArea {
@@ -470,8 +470,8 @@ impl ScrollArea {
         state.offset.x = offset_x.unwrap_or(state.offset.x);
         state.offset.y = offset_y.unwrap_or(state.offset.y);
 
-        let show_bars: [bool; 2] = match scroll_bar_visibility {
-            ScrollBarVisibility::AlwaysHidden => [false; 2],
+        let show_bars: Vec2b = match scroll_bar_visibility {
+            ScrollBarVisibility::AlwaysHidden => Vec2b::FALSE,
             ScrollBarVisibility::VisibleWhenNeeded => state.show_scroll,
             ScrollBarVisibility::AlwaysVisible => scroll_enabled,
         };
@@ -769,10 +769,10 @@ impl Prepared {
 
         let outer_rect = Rect::from_min_size(inner_rect.min, inner_rect.size() + current_bar_use);
 
-        let content_is_too_large = [
+        let content_is_too_large = Vec2b::new(
             scroll_enabled[0] && inner_rect.width() < content_size.x,
             scroll_enabled[1] && inner_rect.height() < content_size.y,
-        ];
+        );
 
         let max_offset = content_size - inner_rect.size();
         let is_hovering_outer_rect = ui.rect_contains_pointer(outer_rect);
@@ -795,10 +795,8 @@ impl Prepared {
         }
 
         let show_scroll_this_frame = match scroll_bar_visibility {
-            ScrollBarVisibility::AlwaysHidden => [false, false],
-            ScrollBarVisibility::VisibleWhenNeeded => {
-                [content_is_too_large[0], content_is_too_large[1]]
-            }
+            ScrollBarVisibility::AlwaysHidden => Vec2b::FALSE,
+            ScrollBarVisibility::VisibleWhenNeeded => content_is_too_large,
             ScrollBarVisibility::AlwaysVisible => scroll_enabled,
         };
 
@@ -1065,12 +1063,12 @@ impl Prepared {
         // Only has an effect if stick_to_end is enabled but we save in
         // state anyway so that entering sticky mode at an arbitrary time
         // has appropriate effect.
-        state.scroll_stuck_to_end = [
+        state.scroll_stuck_to_end = Vec2b::new(
             (state.offset[0] == available_offset[0])
                 || (self.stick_to_end[0] && available_offset[0] < 0.0),
             (state.offset[1] == available_offset[1])
                 || (self.stick_to_end[1] && available_offset[1] < 0.0),
-        ];
+        );
 
         state.show_scroll = show_scroll_this_frame;
         state.content_is_too_large = content_is_too_large;
