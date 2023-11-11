@@ -1885,7 +1885,7 @@ mod wgpu_integration {
 
         /// Window surface state that's initialized when the app starts running via a Resumed event
         /// and on Android will also be destroyed if the application is paused.
-        focused_viewport: RefCell<Option<ViewportId>>,
+        focused_viewport: Option<ViewportId>,
     }
 
     impl WgpuWinitApp {
@@ -1908,7 +1908,7 @@ mod wgpu_integration {
                 native_options,
                 running: None,
                 app_creator: Some(app_creator),
-                focused_viewport: RefCell::new(Some(ViewportId::ROOT)),
+                focused_viewport: Some(ViewportId::ROOT),
             }
         }
 
@@ -2312,7 +2312,7 @@ mod wgpu_integration {
         }
 
         fn is_focused(&self, window_id: winit::window::WindowId) -> bool {
-            if let Some(focus) = *self.focused_viewport.borrow() {
+            if let Some(focus) = self.focused_viewport {
                 self.viewport_id_from_window_id(&window_id)
                     .map_or(false, |i| i == focus)
             } else {
@@ -2560,7 +2560,7 @@ mod wgpu_integration {
                     egui_winit::process_viewport_commands(
                         vec![command],
                         viewport_id,
-                        *self.focused_viewport.borrow(),
+                        self.focused_viewport,
                         &window.borrow(),
                     );
                 }
@@ -2672,8 +2672,7 @@ mod wgpu_integration {
 
                         match &event {
                             winit::event::WindowEvent::Focused(new_focused) => {
-                                self.focused_viewport
-                                    .replace(new_focused.then(|| viewport_id).flatten());
+                                self.focused_viewport = new_focused.then(|| viewport_id).flatten();
                             }
                             winit::event::WindowEvent::Resized(physical_size) => {
                                 repaint_asap = true;
