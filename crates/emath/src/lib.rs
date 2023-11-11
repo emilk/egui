@@ -36,6 +36,7 @@ mod rect_transform;
 mod rot2;
 pub mod smart_aim;
 mod vec2;
+mod vec2b;
 
 pub use {
     align::{Align, Align2},
@@ -47,6 +48,7 @@ pub use {
     rect_transform::*,
     rot2::*,
     vec2::*,
+    vec2b::*,
 };
 
 // ----------------------------------------------------------------------------

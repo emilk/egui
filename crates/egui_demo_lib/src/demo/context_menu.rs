@@ -1,3 +1,5 @@
+use egui::Vec2b;
+
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum Plot {
@@ -19,7 +21,7 @@ fn sigmoid(x: f64) -> f64 {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ContextMenus {
     plot: Plot,
-    show_axes: [bool; 2],
+    show_axes: Vec2b,
     allow_drag: bool,
     allow_zoom: bool,
     allow_scroll: bool,
@@ -33,7 +35,7 @@ impl Default for ContextMenus {
     fn default() -> Self {
         Self {
             plot: Plot::Sin,
-            show_axes: [true, true],
+            show_axes: Vec2b::TRUE,
             allow_drag: true,
             allow_zoom: true,
             allow_scroll: true,

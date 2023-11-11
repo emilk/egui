@@ -146,7 +146,7 @@ impl ScrollAppearance {
         ui.separator();
 
         ScrollArea::vertical()
-            .auto_shrink([false; 2])
+            .auto_shrink(false)
             .scroll_bar_visibility(*visibility)
             .show(ui, |ui| {
                 ui.with_layout(
@@ -170,7 +170,7 @@ fn huge_content_lines(ui: &mut egui::Ui) {
     let text_style = TextStyle::Body;
     let row_height = ui.text_style_height(&text_style);
     let num_rows = 10_000;
-    ScrollArea::vertical().auto_shrink([false; 2]).show_rows(
+    ScrollArea::vertical().auto_shrink(false).show_rows(
         ui,
         row_height,
         num_rows,
@@ -193,7 +193,7 @@ fn huge_content_painter(ui: &mut egui::Ui) {
     let num_rows = 10_000;
 
     ScrollArea::vertical()
-        .auto_shrink([false; 2])
+        .auto_shrink(false)
         .show_viewport(ui, |ui, viewport| {
             ui.set_height(row_height * num_rows as f32);
 
@@ -292,9 +292,7 @@ impl super::View for ScrollTo {
             scroll_bottom |= ui.button("Scroll to bottom").clicked();
         });
 
-        let mut scroll_area = ScrollArea::vertical()
-            .max_height(200.0)
-            .auto_shrink([false; 2]);
+        let mut scroll_area = ScrollArea::vertical().max_height(200.0).auto_shrink(false);
         if go_to_scroll_offset {
             scroll_area = scroll_area.vertical_scroll_offset(self.offset);
         }

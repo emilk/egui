@@ -77,47 +77,13 @@ impl Default for CoordinatesFormatter {
 
 const MIN_LINE_SPACING_IN_POINTS: f64 = 6.0; // TODO(emilk): large enough for a wide label
 
-/// Two bools, one for each axis (X and Y).
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct AxisBools {
-    pub x: bool,
-    pub y: bool,
-}
-
-impl AxisBools {
-    #[inline]
-    pub fn new(x: bool, y: bool) -> Self {
-        Self { x, y }
-    }
-
-    #[inline]
-    pub fn any(&self) -> bool {
-        self.x || self.y
-    }
-}
-
-impl From<bool> for AxisBools {
-    #[inline]
-    fn from(val: bool) -> Self {
-        AxisBools { x: val, y: val }
-    }
-}
-
-impl From<[bool; 2]> for AxisBools {
-    #[inline]
-    fn from([x, y]: [bool; 2]) -> Self {
-        AxisBools { x, y }
-    }
-}
-
 /// Information about the plot that has to persist between frames.
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone)]
 struct PlotMemory {
     /// Indicates if the user has modified the bounds, for example by moving or zooming,
     /// or if the bounds should be calculated based by included point or auto bounds.
-    bounds_modified: AxisBools,
+    bounds_modified: Vec2b,
 
     hovered_entry: Option<String>,
     hidden_items: ahash::HashSet<String>,
@@ -171,7 +137,7 @@ struct CursorLinkGroups(HashMap<Id, Vec<PlotFrameCursors>>);
 #[derive(Clone)]
 struct LinkedBounds {
     bounds: PlotBounds,
-    bounds_modified: AxisBools,
+    bounds_modified: Vec2b,
 }
 
 #[derive(Default, Clone)]
@@ -211,18 +177,18 @@ pub struct PlotResponse<R> {
 pub struct Plot {
     id_source: Id,
 
-    center_axis: AxisBools,
-    allow_zoom: AxisBools,
-    allow_drag: AxisBools,
+    center_axis: Vec2b,
+    allow_zoom: Vec2b,
+    allow_drag: Vec2b,
     allow_scroll: bool,
     allow_double_click_reset: bool,
     allow_boxed_zoom: bool,
-    auto_bounds: AxisBools,
+    auto_bounds: Vec2b,
     min_auto_bounds: PlotBounds,
     margin_fraction: Vec2,
     boxed_zoom_pointer_button: PointerButton,
-    linked_axes: Option<(Id, AxisBools)>,
-    linked_cursors: Option<(Id, AxisBools)>,
+    linked_axes: Option<(Id, Vec2b)>,
+    linked_cursors: Option<(Id, Vec2b)>,
 
     min_size: Vec2,
     width: Option<f32>,
@@ -240,8 +206,8 @@ pub struct Plot {
     y_axes: Vec<AxisHints>, // default y axes
     legend_config: Option<Legend>,
     show_background: bool,
-    show_axes: AxisBools,
-    show_grid: AxisBools,
+    show_axes: Vec2b,
+    show_grid: Vec2b,
     grid_spacers: [GridSpacer; 2],
     sharp_grid_lines: bool,
     clamp_grid: bool,
@@ -357,7 +323,7 @@ impl Plot {
     /// Note: Allowing zoom in one axis but not the other may lead to unexpected results if used in combination with `data_aspect`.
     pub fn allow_zoom<T>(mut self, on: T) -> Self
     where
-        T: Into<AxisBools>,
+        T: Into<Vec2b>,
     {
         self.allow_zoom = on.into();
         self
@@ -401,7 +367,7 @@ impl Plot {
     /// Whether to allow dragging in the plot to move the bounds. Default: `true`.
     pub fn allow_drag<T>(mut self, on: T) -> Self
     where
-        T: Into<AxisBools>,
+        T: Into<Vec2b>,
     {
         self.allow_drag = on.into();
         self
@@ -530,6 +496,7 @@ impl Plot {
     }
 
     /// Whether or not to show the background [`Rect`].
+    ///
     /// Can be useful to disable if the plot is overlaid over existing content.
     /// Default: `true`.
     pub fn show_background(mut self, show: bool) -> Self {
@@ -539,16 +506,16 @@ impl Plot {
 
     /// Show axis labels and grid tick values on the side of the plot.
     ///
-    /// Default: `[true; 2]`.
-    pub fn show_axes(mut self, show: impl Into<AxisBools>) -> Self {
+    /// Default: `true`.
+    pub fn show_axes(mut self, show: impl Into<Vec2b>) -> Self {
         self.show_axes = show.into();
         self
     }
 
     /// Show a grid overlay on the plot.
     ///
-    /// Default: `[true; 2]`.
-    pub fn show_grid(mut self, show: impl Into<AxisBools>) -> Self {
+    /// Default: `true`.
+    pub fn show_grid(mut self, show: impl Into<Vec2b>) -> Self {
         self.show_grid = show.into();
         self
     }
@@ -558,7 +525,7 @@ impl Plot {
     pub fn link_axis(mut self, group_id: impl Into<Id>, link_x: bool, link_y: bool) -> Self {
         self.linked_axes = Some((
             group_id.into(),
-            AxisBools {
+            Vec2b {
                 x: link_x,
                 y: link_y,
             },
@@ -571,7 +538,7 @@ impl Plot {
     pub fn link_cursor(mut self, group_id: impl Into<Id>, link_x: bool, link_y: bool) -> Self {
         self.linked_cursors = Some((
             group_id.into(),
-            AxisBools {
+            Vec2b {
                 x: link_x,
                 y: link_y,
             },
@@ -1245,7 +1212,7 @@ impl Plot {
 }
 
 fn axis_widgets(
-    show_axes: AxisBools,
+    show_axes: Vec2b,
     plot_rect: Rect,
     [x_axes, y_axes]: [&[AxisHints]; 2],
 ) -> [Vec<AxisWidget>; 2] {
@@ -1616,7 +1583,7 @@ struct PreparedPlot {
     coordinates_formatter: Option<(Corner, CoordinatesFormatter)>,
     // axis_formatters: [AxisFormatter; 2],
     transform: PlotTransform,
-    show_grid: AxisBools,
+    show_grid: Vec2b,
     grid_spacers: [GridSpacer; 2],
     draw_cursor_x: bool,
     draw_cursor_y: bool,

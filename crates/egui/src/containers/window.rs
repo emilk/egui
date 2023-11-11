@@ -272,7 +272,7 @@ impl<'open> Window<'open> {
     }
 
     /// Enable/disable horizontal/vertical scrolling. `false` by default.
-    pub fn scroll2(mut self, scroll: [bool; 2]) -> Self {
+    pub fn scroll2(mut self, scroll: impl Into<Vec2b>) -> Self {
         self.scroll = self.scroll.scroll2(scroll);
         self
     }
