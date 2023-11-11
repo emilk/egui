@@ -2022,17 +2022,12 @@ mod wgpu_integration {
             Ok(())
         }
 
-        #[allow(unsafe_code)]
         #[cfg(target_os = "android")]
         fn drop_window(&mut self) -> std::result::Result<(), egui_wgpu::WgpuError> {
             if let Some(running) = &mut self.running {
-                running.viewports.borrow_mut().remove(&ViewportId::ROOT);
-                pollster::block_on(
-                    running
-                        .painter
-                        .borrow_mut()
-                        .set_window(ViewportId::ROOT, None),
-                )?;
+                let mut shared = running.shared.borrow_mut();
+                shared.viewports.remove(&ViewportId::ROOT);
+                pollster::block_on(shared.painter.set_window(ViewportId::ROOT, None))?;
             }
             Ok(())
         }
