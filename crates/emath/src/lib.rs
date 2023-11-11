@@ -53,21 +53,15 @@ pub use {
 
 /// Helper trait to implement [`lerp`] and [`remap`].
 pub trait One {
-    fn one() -> Self;
+    const ONE: Self;
 }
 
 impl One for f32 {
-    #[inline(always)]
-    fn one() -> Self {
-        1.0
-    }
+    const ONE: Self = 1.0;
 }
 
 impl One for f64 {
-    #[inline(always)]
-    fn one() -> Self {
-        1.0
-    }
+    const ONE: Self = 1.0;
 }
 
 /// Helper trait to implement [`lerp`] and [`remap`].
@@ -105,7 +99,7 @@ where
     R: Copy + Add<R, Output = R>,
 {
     let range = range.into();
-    (T::one() - t) * *range.start() + t * *range.end()
+    (T::ONE - t) * *range.start() + t * *range.end()
 }
 
 /// Where in the range is this value? Returns 0-1 if within the range.
@@ -172,7 +166,7 @@ where
         crate::emath_assert!(from.start() != from.end());
         let t = (x - *from.start()) / (*from.end() - *from.start());
         // Ensure no numerical inaccuracies sneak in:
-        if T::one() <= t {
+        if T::ONE <= t {
             *to.end()
         } else {
             lerp(to, t)
