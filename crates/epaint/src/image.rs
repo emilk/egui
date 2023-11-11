@@ -124,9 +124,9 @@ impl ColorImage {
     /// Create a [`ColorImage`] from iterator over flat opaque gray data.
     /// 
     /// Panics if `size[0] * size[1] != gray_iter.len()`.
-    pub fn from_gray_iter<'_>(size: [usize; 2], gray_iter: impl Iterator<Item = &'_ u8> + ExactSizeIterator) -> Self {
-        assert_eq!(size[0] * size[1], gray_iter.len());
-        let pixels = gray_iter.map(|p| Color32::from_gray(*p)).collect();
+    pub fn from_gray_iter(size: [usize; 2], gray_iter: impl Iterator<Item = u8>) -> Self {
+        let pixels = gray_iter.map(Color32::from_gray).collect();
+        assert_eq!(size[0] * size[1], pixels.len());
         Self { size, pixels }
     }
 
