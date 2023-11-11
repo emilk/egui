@@ -1181,7 +1181,7 @@ mod glow_integration {
             let Some(winit_state) = &mut viewport.egui_winit else {
                 return;
             };
-            let Some(window) = viewport.window.clone() else {
+            let Some(window) = &viewport.window else {
                 return;
             };
             let window = window.borrow();
@@ -1277,7 +1277,7 @@ mod glow_integration {
                         if recreate {
                             viewport.window = None;
                             viewport.gl_surface = None;
-                        } else if let Some(w) = viewport.window.clone() {
+                        } else if let Some(w) = &viewport.window {
                             process_viewport_commands(commands, *id, None, &w.borrow());
                         }
                         active_viewports_ids.insert(*id);
@@ -1602,18 +1602,15 @@ mod glow_integration {
             Self::process_viewport_builders(&glutin, viewports);
 
             for (viewport_id, command) in viewport_commands {
-                if let Some(window) = glutin
-                    .borrow()
-                    .viewports
-                    .get(&viewport_id)
-                    .and_then(|viewport| viewport.borrow().window.clone())
-                {
-                    egui_winit::process_viewport_commands(
-                        vec![command],
-                        viewport_id,
-                        *self.focused_viewport.borrow(),
-                        &window.borrow(),
-                    );
+                if let Some(viewport) = glutin.borrow().viewports.get(&viewport_id) {
+                    if let Some(window) = &viewport.borrow().window {
+                        egui_winit::process_viewport_commands(
+                            vec![command],
+                            viewport_id,
+                            *self.focused_viewport.borrow(),
+                            &window.borrow(),
+                        );
+                    }
                 }
             }
 
