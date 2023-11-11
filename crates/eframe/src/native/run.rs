@@ -1125,7 +1125,7 @@ mod glow_integration {
         ) {
             crate::profile_function!();
 
-            let has_window = glutin.borrow().viewports.get(&id_pair.this).is_some();
+            let has_window = glutin.borrow().viewports.contains_key(&id_pair.this);
 
             // This will create a new native window if is needed
             if !has_window {
@@ -1168,12 +1168,11 @@ mod glow_integration {
                         event_loop.borrow().as_ref().expect("No winit event loop")
                     })
                 };
+
                 glutin
                     .init_viewport(&viewport, event_loop)
                     .expect("Cannot init window on egui::Context::show_viewport_immediate");
             }
-
-            // Rendering the sync viewport
 
             let viewport = glutin.borrow().viewports.get(&id_pair.this).cloned();
             let Some(viewport) = viewport else { return };
@@ -1441,11 +1440,9 @@ mod glow_integration {
             // That means that the viewport cannot be rendered by itself and needs his parent to be rendered
             {
                 let glutin = glutin.borrow();
-                let viewport = &glutin.viewports[&viewport_id].clone();
-                if viewport.borrow().viewport_ui_cb.is_none() && viewport_id != ViewportId::ROOT {
-                    if let Some(parent_viewport) =
-                        glutin.viewports.get(&viewport.borrow().id_pair.parent)
-                    {
+                let viewport = glutin.viewports[&viewport_id].borrow();
+                if viewport.viewport_ui_cb.is_none() && viewport_id != ViewportId::ROOT {
+                    if let Some(parent_viewport) = glutin.viewports.get(&viewport.id_pair.parent) {
                         if let Some(window) = parent_viewport.borrow().window.as_ref() {
                             return EventResult::RepaintNext(window.borrow().id());
                         }
@@ -1749,8 +1746,7 @@ mod glow_integration {
                             let glutin = running.glutin_ctx.borrow();
                             if let Some(viewport_id) = glutin.viewport_maps.get(window_id).copied()
                             {
-                                if let Some(viewport) = glutin.viewports.get(&viewport_id).cloned()
-                                {
+                                if let Some(viewport) = &glutin.viewports.get(&viewport_id) {
                                     let viewport = &mut *viewport.borrow_mut();
 
                                     break 'res running.integration.on_event(
@@ -1793,7 +1789,7 @@ mod glow_integration {
 
                         let glutin = running.glutin_ctx.borrow();
                         if let Some(viewport_id) = glutin.viewport_maps.get(window_id).copied() {
-                            if let Some(viewport) = glutin.viewports.get(&viewport_id).cloned() {
+                            if let Some(viewport) = &glutin.viewports.get(&viewport_id) {
                                 let mut viewport = viewport.borrow_mut();
                                 viewport
                                     .egui_winit
