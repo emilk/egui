@@ -29,8 +29,6 @@ pub struct Frame {
 
     pub fill: Color32,
 
-    pub selected_header_color: Color32,
-
     pub stroke: Stroke,
 }
 
@@ -234,7 +232,6 @@ impl Frame {
             rounding,
             shadow,
             fill,
-            selected_header_color: _,
             stroke,
         } = *self;
 
