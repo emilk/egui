@@ -468,6 +468,7 @@ mod glow_integration {
         prelude::{GlDisplay, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentGlContext},
         surface::GlSurface,
     };
+    use winit::window::WindowId;
 
     use super::*;
 
@@ -530,8 +531,8 @@ mod glow_integration {
         not_current_gl_context: Option<glutin::context::NotCurrentContext>,
 
         viewports: ViewportIdMap<Rc<RefCell<Viewport>>>,
-        viewport_maps: HashMap<winit::window::WindowId, ViewportId>,
-        window_maps: ViewportIdMap<winit::window::WindowId>,
+        viewport_maps: HashMap<WindowId, ViewportId>,
+        window_maps: ViewportIdMap<WindowId>,
 
         builders: ViewportIdMap<ViewportBuilder>,
     }
@@ -1159,7 +1160,7 @@ mod glow_integration {
                         .or_insert(viewport_builder);
                 }
 
-                let win = glutin.viewports[&id_pair.this].clone();
+                let viewport = glutin.viewports[&id_pair.this].clone();
 
                 #[allow(unsafe_code)]
                 let event_loop = unsafe {
@@ -1168,7 +1169,7 @@ mod glow_integration {
                     })
                 };
                 glutin
-                    .init_viewport(&win, event_loop)
+                    .init_viewport(&viewport, event_loop)
                     .expect("Cannot init window on egui::Context::show_viewport_immediate");
             }
 
@@ -1188,9 +1189,16 @@ mod glow_integration {
 
             let mut input = winit_state.take_egui_input(&window, id_pair);
             input.time = Some(beginning.elapsed().as_secs_f64());
+
+            // ---------------------------------------------------
+            // Call the user ui-code, which could re-entrantly call this function again!
+            // No locks may be hold while calling this function.
+
             let output = egui_ctx.run(input, |ctx| {
                 viewport_ui_cb(ctx);
             });
+
+            // ---------------------------------------------------
 
             let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
@@ -1277,8 +1285,8 @@ mod glow_integration {
                         if recreate {
                             viewport.window = None;
                             viewport.gl_surface = None;
-                        } else if let Some(w) = &viewport.window {
-                            process_viewport_commands(commands, *id, None, &w.borrow());
+                        } else if let Some(window) = &viewport.window {
+                            process_viewport_commands(commands, *id, None, &window.borrow());
                         }
                         active_viewports_ids.insert(*id);
                         false
@@ -1342,7 +1350,7 @@ mod glow_integration {
                 .map_or(0, |r| r.integration.egui_ctx.frame_nr_for(viewport_id))
         }
 
-        fn is_focused(&self, window_id: winit::window::WindowId) -> bool {
+        fn is_focused(&self, window_id: WindowId) -> bool {
             if let Some(focused_viewport) = self.focused_viewport {
                 if let Some(running) = self.running.as_ref() {
                     if let Some(window_id) =
@@ -1359,10 +1367,7 @@ mod glow_integration {
             self.running.as_ref().map(|r| &r.integration)
         }
 
-        fn window(
-            &self,
-            window_id: winit::window::WindowId,
-        ) -> Option<Rc<RefCell<winit::window::Window>>> {
+        fn window(&self, window_id: WindowId) -> Option<Rc<RefCell<winit::window::Window>>> {
             self.running.as_ref().and_then(|r| {
                 let glutin_ctx = r.glutin_ctx.borrow();
                 if let Some(viewport_id) = glutin_ctx.viewport_maps.get(&window_id) {
@@ -1376,13 +1381,13 @@ mod glow_integration {
             })
         }
 
-        fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<winit::window::WindowId> {
+        fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId> {
             self.running
                 .as_ref()
                 .and_then(|r| r.glutin_ctx.borrow().window_maps.get(&id).copied())
         }
 
-        fn viewport_id_from_window_id(&self, id: &winit::window::WindowId) -> Option<ViewportId> {
+        fn viewport_id_from_window_id(&self, id: &WindowId) -> Option<ViewportId> {
             self.running
                 .as_ref()
                 .and_then(|r| r.glutin_ctx.borrow().viewport_maps.get(id).copied())
@@ -1408,7 +1413,7 @@ mod glow_integration {
             }
         }
 
-        fn run_ui_and_paint(&mut self, window_id: winit::window::WindowId) -> EventResult {
+        fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
             if self.running.is_none() {
                 return EventResult::Wait;
             }
