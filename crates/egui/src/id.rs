@@ -35,6 +35,9 @@ impl Id {
     ///
     /// The null [`Id`] is still a valid id to use in all circumstances,
     /// though obviously it will lead to a lot of collisions if you do use it!
+    pub const NULL: Self = Self(0);
+
+    #[deprecated = "Use Id::NULL"]
     pub fn null() -> Self {
         Self(0)
     }
