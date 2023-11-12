@@ -25,7 +25,7 @@ struct ValueAnim {
 }
 
 impl AnimationManager {
-    /// See `Context::animate_bool` for documentation
+    /// See [`crate::Context::animate_bool`] for documentation
     pub fn animate_bool(
         &mut self,
         input: &InputState,

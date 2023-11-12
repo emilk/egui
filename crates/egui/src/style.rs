@@ -2,11 +2,13 @@
 
 #![allow(clippy::if_same_then_else)]
 
+use std::collections::BTreeMap;
+
+use epaint::{Rounding, Shadow, Stroke};
+
 use crate::{
     ecolor::*, emath::*, ComboBox, CursorIcon, FontFamily, FontId, Response, RichText, WidgetText,
 };
-use epaint::{Rounding, Shadow, Stroke};
-use std::collections::BTreeMap;
 
 // ----------------------------------------------------------------------------
 
@@ -303,16 +305,8 @@ pub struct Spacing {
     /// Height of a combo-box before showing scroll bars.
     pub combo_height: f32,
 
-    pub scroll_bar_width: f32,
-
-    /// Make sure the scroll handle is at least this big
-    pub scroll_handle_min_length: f32,
-
-    /// Margin between contents and scroll bar.
-    pub scroll_bar_inner_margin: f32,
-
-    /// Margin between scroll bar and the outer container (e.g. right of a vertical scroll bar).
-    pub scroll_bar_outer_margin: f32,
+    /// Controls the spacing of a [`crate::ScrollArea`].
+    pub scroll: ScrollStyle,
 }
 
 impl Spacing {
@@ -328,6 +322,277 @@ impl Spacing {
             Rect::from_center_size(big_icon_rect.center(), Vec2::splat(self.icon_width_inner));
 
         (small_icon_rect, big_icon_rect)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// Controls the spacing and visuals of a [`crate::ScrollArea`].
+///
+/// There are three presets to chose from:
+/// * [`Self::solid`]
+/// * [`Self::thin`]
+/// * [`Self::floating`]
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+pub struct ScrollStyle {
+    /// If `true`, scroll bars float above the content, partially covering it.
+    ///
+    /// If `false`, the scroll bars allocate space, shrinking the area
+    /// available to the contents.
+    ///
+    /// This also changes the colors of the scroll-handle to make
+    /// it more promiment.
+    pub floating: bool,
+
+    /// The width of the scroll bars at it largest.
+    pub bar_width: f32,
+
+    /// Make sure the scroll handle is at least this big
+    pub handle_min_length: f32,
+
+    /// Margin between contents and scroll bar.
+    pub bar_inner_margin: f32,
+
+    /// Margin between scroll bar and the outer container (e.g. right of a vertical scroll bar).
+    /// Only makes sense for non-floating scroll bars.
+    pub bar_outer_margin: f32,
+
+    /// The thin width of floating scroll bars that the user is NOT hovering.
+    ///
+    /// When the user hovers the scroll bars they expand to [`Self::bar_width`].
+    pub floating_width: f32,
+
+    /// How much space i allocated for a floating scroll bar?
+    ///
+    /// Normally this is zero, but you could set this to something small
+    /// like 4.0 and set [`Self::dormant_handle_opacity`] and
+    /// [`Self::dormant_background_opacity`] to e.g. 0.5
+    /// so as to always show a thin scroll bar.
+    pub floating_allocated_width: f32,
+
+    /// If true, use colors with more contrast. Good for floating scroll bars.
+    pub foreground_color: bool,
+
+    /// The opaqueness of the background when the user is neither scrolling
+    /// nor hovering the scroll area.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
+    pub dormant_background_opacity: f32,
+
+    /// The opaqueness of the background when the user is hovering
+    /// the scroll area, but not the scroll bar.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
+    pub active_background_opacity: f32,
+
+    /// The opaqueness of the background when the user is hovering
+    /// over the scroll bars.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
+    pub interact_background_opacity: f32,
+
+    /// The opaqueness of the handle when the user is neither scrolling
+    /// nor hovering the scroll area.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
+    pub dormant_handle_opacity: f32,
+
+    /// The opaqueness of the handle when the user is hovering
+    /// the scroll area, but not the scroll bar.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
+    pub active_handle_opacity: f32,
+
+    /// The opaqueness of the handle when the user is hovering
+    /// over the scroll bars.
+    ///
+    /// This is only for floating scroll bars.
+    /// Solid scroll bars are always opaque.
+    pub interact_handle_opacity: f32,
+}
+
+impl Default for ScrollStyle {
+    fn default() -> Self {
+        Self::floating()
+    }
+}
+
+impl ScrollStyle {
+    /// Solid scroll bars that always use up space
+    pub fn solid() -> Self {
+        Self {
+            floating: false,
+            bar_width: 6.0,
+            handle_min_length: 12.0,
+            bar_inner_margin: 4.0,
+            bar_outer_margin: 0.0,
+            floating_width: 2.0,
+            floating_allocated_width: 0.0,
+
+            foreground_color: false,
+
+            dormant_background_opacity: 0.0,
+            active_background_opacity: 0.4,
+            interact_background_opacity: 0.7,
+
+            dormant_handle_opacity: 0.0,
+            active_handle_opacity: 0.6,
+            interact_handle_opacity: 1.0,
+        }
+    }
+
+    /// Thin scroll bars that expand on hover
+    pub fn thin() -> Self {
+        Self {
+            floating: true,
+            bar_width: 12.0,
+            floating_allocated_width: 6.0,
+            foreground_color: false,
+
+            dormant_background_opacity: 1.0,
+            dormant_handle_opacity: 1.0,
+
+            active_background_opacity: 1.0,
+            active_handle_opacity: 1.0,
+
+            // Be tranlucent when expanded so we can see the content
+            interact_background_opacity: 0.6,
+            interact_handle_opacity: 0.6,
+
+            ..Self::solid()
+        }
+    }
+
+    /// No scroll bars until you hover the scroll area,
+    /// at which time they appear faintly, and then expand
+    /// when you hover the scroll bars.
+    pub fn floating() -> Self {
+        Self {
+            floating: true,
+            bar_width: 12.0,
+            foreground_color: true,
+            floating_allocated_width: 0.0,
+            dormant_background_opacity: 0.0,
+            dormant_handle_opacity: 0.0,
+            ..Self::solid()
+        }
+    }
+
+    /// Width of a solid vertical scrollbar, or height of a horizontal scroll bar, when it is at its widest.
+    pub fn allocated_width(&self) -> f32 {
+        if self.floating {
+            self.floating_allocated_width
+        } else {
+            self.bar_inner_margin + self.bar_width + self.bar_outer_margin
+        }
+    }
+
+    pub fn ui(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Presets:");
+            ui.selectable_value(self, Self::solid(), "Solid");
+            ui.selectable_value(self, Self::thin(), "Thin");
+            ui.selectable_value(self, Self::floating(), "Floating");
+        });
+
+        ui.collapsing("Details", |ui| {
+            self.details_ui(ui);
+        });
+    }
+
+    pub fn details_ui(&mut self, ui: &mut Ui) {
+        let Self {
+            floating,
+            bar_width,
+            handle_min_length,
+            bar_inner_margin,
+            bar_outer_margin,
+            floating_width,
+            floating_allocated_width,
+
+            foreground_color,
+
+            dormant_background_opacity,
+            active_background_opacity,
+            interact_background_opacity,
+            dormant_handle_opacity,
+            active_handle_opacity,
+            interact_handle_opacity,
+        } = self;
+
+        ui.horizontal(|ui| {
+            ui.label("Type:");
+            ui.selectable_value(floating, false, "Solid");
+            ui.selectable_value(floating, true, "Floating");
+        });
+
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(bar_width).clamp_range(0.0..=32.0));
+            ui.label("Full bar width");
+        });
+        if *floating {
+            ui.horizontal(|ui| {
+                ui.add(DragValue::new(floating_width).clamp_range(0.0..=32.0));
+                ui.label("Thin bar width");
+            });
+            ui.horizontal(|ui| {
+                ui.add(DragValue::new(floating_allocated_width).clamp_range(0.0..=32.0));
+                ui.label("Allocated width");
+            });
+        }
+
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(handle_min_length).clamp_range(0.0..=32.0));
+            ui.label("Minimum handle length");
+        });
+        ui.horizontal(|ui| {
+            ui.add(DragValue::new(bar_outer_margin).clamp_range(0.0..=32.0));
+            ui.label("Outer margin");
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Color:");
+            ui.selectable_value(foreground_color, false, "Background");
+            ui.selectable_value(foreground_color, true, "Foreground");
+        });
+
+        if *floating {
+            crate::Grid::new("opacity").show(ui, |ui| {
+                fn opacity_ui(ui: &mut Ui, opacity: &mut f32) {
+                    ui.add(DragValue::new(opacity).speed(0.01).clamp_range(0.0..=1.0));
+                }
+
+                ui.label("Opacity");
+                ui.label("Dormant");
+                ui.label("Active");
+                ui.label("Interacting");
+                ui.end_row();
+
+                ui.label("Background:");
+                opacity_ui(ui, dormant_background_opacity);
+                opacity_ui(ui, active_background_opacity);
+                opacity_ui(ui, interact_background_opacity);
+                ui.end_row();
+
+                ui.label("Handle:");
+                opacity_ui(ui, dormant_handle_opacity);
+                opacity_ui(ui, active_handle_opacity);
+                opacity_ui(ui, interact_handle_opacity);
+                ui.end_row();
+            });
+        } else {
+            ui.horizontal(|ui| {
+                ui.add(DragValue::new(bar_inner_margin).clamp_range(0.0..=32.0));
+                ui.label("Inner margin");
+            });
+        }
     }
 }
 
@@ -807,10 +1072,7 @@ impl Default for Spacing {
             icon_spacing: 4.0,
             tooltip_width: 600.0,
             combo_height: 200.0,
-            scroll_bar_width: 8.0,
-            scroll_handle_min_length: 12.0,
-            scroll_bar_inner_margin: 4.0,
-            scroll_bar_outer_margin: 0.0,
+            scroll: Default::default(),
             indent_ends_with_horizontal_line: false,
         }
     }
@@ -1146,10 +1408,7 @@ impl Spacing {
             tooltip_width,
             indent_ends_with_horizontal_line,
             combo_height,
-            scroll_bar_width,
-            scroll_handle_min_length,
-            scroll_bar_inner_margin,
-            scroll_bar_outer_margin,
+            scroll,
         } = self;
 
         ui.add(slider_vec2(item_spacing, 0.0..=20.0, "Item spacing"));
@@ -1176,21 +1435,9 @@ impl Spacing {
             ui.add(DragValue::new(text_edit_width).clamp_range(0.0..=1000.0));
             ui.label("TextEdit width");
         });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(scroll_bar_width).clamp_range(0.0..=32.0));
-            ui.label("Scroll-bar width");
-        });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(scroll_handle_min_length).clamp_range(0.0..=32.0));
-            ui.label("Scroll-bar handle min length");
-        });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(scroll_bar_inner_margin).clamp_range(0.0..=32.0));
-            ui.label("Scroll-bar inner margin");
-        });
-        ui.horizontal(|ui| {
-            ui.add(DragValue::new(scroll_bar_outer_margin).clamp_range(0.0..=32.0));
-            ui.label("Scroll-bar outer margin");
+
+        ui.collapsing("Scroll Area", |ui| {
+            scroll.ui(ui);
         });
 
         ui.horizontal(|ui| {

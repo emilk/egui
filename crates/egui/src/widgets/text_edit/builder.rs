@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+#[cfg(feature = "accesskit")]
+use accesskit::Role;
 use epaint::text::{cursor::*, Galley, LayoutJob};
 
 use crate::{output::OutputEvent, *};
@@ -751,7 +753,7 @@ impl<'t> TextEdit<'t> {
 
                 builder.set_default_action_verb(accesskit::DefaultActionVerb::Focus);
                 if self.multiline {
-                    builder.set_multiline();
+                    builder.set_role(Role::MultilineTextInput);
                 }
 
                 parent_id
@@ -759,7 +761,7 @@ impl<'t> TextEdit<'t> {
 
             if let Some(parent_id) = parent_id {
                 // drop ctx lock before further processing
-                use accesskit::{Role, TextDirection};
+                use accesskit::TextDirection;
 
                 ui.ctx().with_accessibility_parent(parent_id, || {
                     for (i, row) in galley.rows.iter().enumerate() {
@@ -984,8 +986,7 @@ fn events(
                 pressed: true,
                 modifiers,
                 ..
-            } if modifiers.command && !modifiers.shift => {
-                // TODO(emilk): redo
+            } if modifiers.matches(Modifiers::COMMAND) => {
                 if let Some((undo_ccursor_range, undo_txt)) = state
                     .undoer
                     .lock()
@@ -993,6 +994,25 @@ fn events(
                 {
                     text.replace(undo_txt);
                     Some(*undo_ccursor_range)
+                } else {
+                    None
+                }
+            }
+            Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                ..
+            } if (modifiers.matches(Modifiers::COMMAND) && *key == Key::Y)
+                || (modifiers.matches(Modifiers::SHIFT | Modifiers::COMMAND) && *key == Key::Z) =>
+            {
+                if let Some((redo_ccursor_range, redo_txt)) = state
+                    .undoer
+                    .lock()
+                    .redo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
+                {
+                    text.replace(redo_txt);
+                    Some(*redo_ccursor_range)
                 } else {
                     None
                 }

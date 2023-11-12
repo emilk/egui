@@ -68,7 +68,7 @@ impl eframe::App for ColorTestApp {
                 );
                 ui.separator();
             }
-            egui::ScrollArea::both().auto_shrink([false; 2]).show(ui, |ui| {
+            egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
                 self.color_test.ui(ui);
             });
         });

@@ -25,7 +25,7 @@ struct MyApp {}
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            egui::ScrollArea::new([true, true]).show(ui, |ui| {
+            egui::ScrollArea::both().show(ui, |ui| {
                 ui.image(egui::include_image!("ferris.svg"));
 
                 ui.add(

@@ -35,7 +35,10 @@ impl Id {
     ///
     /// The null [`Id`] is still a valid id to use in all circumstances,
     /// though obviously it will lead to a lot of collisions if you do use it!
-    pub const fn null() -> Self {
+    pub const NULL: Self = Self(0);
+
+    #[deprecated = "Use Id::NULL"]
+    pub fn null() -> Self {
         Self(0)
     }
 
@@ -72,7 +75,7 @@ impl Id {
 
     #[cfg(feature = "accesskit")]
     pub(crate) fn accesskit_id(&self) -> accesskit::NodeId {
-        std::num::NonZeroU64::new(self.0).unwrap().into()
+        self.0.into()
     }
 }
 

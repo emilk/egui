@@ -3,7 +3,7 @@
 //! | fixed size | all available space/minimum | 30% of available width | fixed size |
 //! Takes all available height, so if you want something below the table, put it in a strip.
 
-use egui::{Align, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2};
+use egui::{Align, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b};
 
 use crate::{
     layout::{CellDirection, CellSize},
@@ -165,7 +165,7 @@ struct TableScrollOptions {
     scroll_offset_y: Option<f32>,
     min_scrolled_height: f32,
     max_scroll_height: f32,
-    auto_shrink: [bool; 2],
+    auto_shrink: Vec2b,
 }
 
 impl Default for TableScrollOptions {
@@ -178,7 +178,7 @@ impl Default for TableScrollOptions {
             scroll_offset_y: None,
             min_scrolled_height: 200.0,
             max_scroll_height: 800.0,
-            auto_shrink: [true; 2],
+            auto_shrink: Vec2b::TRUE,
         }
     }
 }
@@ -335,11 +335,11 @@ impl<'a> TableBuilder<'a> {
     /// * If true, add blank space outside the table, keeping the table small.
     /// * If false, add blank space inside the table, expanding the table to fit the containing ui.
     ///
-    /// Default: `[true; 2]`.
+    /// Default: `true`.
     ///
     /// See [`ScrollArea::auto_shrink`] for more.
-    pub fn auto_shrink(mut self, auto_shrink: [bool; 2]) -> Self {
-        self.scroll_options.auto_shrink = auto_shrink;
+    pub fn auto_shrink(mut self, auto_shrink: impl Into<Vec2b>) -> Self {
+        self.scroll_options.auto_shrink = auto_shrink.into();
         self
     }
 
@@ -366,9 +366,9 @@ impl<'a> TableBuilder<'a> {
     fn available_width(&self) -> f32 {
         self.ui.available_rect_before_wrap().width()
             - if self.scroll_options.vscroll {
-                self.ui.spacing().scroll_bar_inner_margin
-                    + self.ui.spacing().scroll_bar_width
-                    + self.ui.spacing().scroll_bar_outer_margin
+                self.ui.spacing().scroll.bar_inner_margin
+                    + self.ui.spacing().scroll.bar_width
+                    + self.ui.spacing().scroll.bar_outer_margin
             } else {
                 0.0
             }
@@ -577,7 +577,7 @@ impl<'a> Table<'a> {
         let avail_rect = ui.available_rect_before_wrap();
 
         let mut scroll_area = ScrollArea::new([false, vscroll])
-            .auto_shrink([true; 2])
+            .auto_shrink(true)
             .drag_to_scroll(drag_to_scroll)
             .stick_to_bottom(stick_to_bottom)
             .min_scrolled_height(min_scrolled_height)
@@ -867,7 +867,7 @@ impl<'a> TableBody<'a> {
                     widths: self.widths,
                     max_used_widths: self.max_used_widths,
                     col_index: 0,
-                    striped: self.striped && idx % 2 == 0,
+                    striped: self.striped && (idx + self.row_nr) % 2 == 0,
                     height: row_height_sans_spacing,
                 },
             );
@@ -945,7 +945,7 @@ impl<'a> TableBody<'a> {
                         widths: self.widths,
                         max_used_widths: self.max_used_widths,
                         col_index: 0,
-                        striped: self.striped && row_index % 2 == 0,
+                        striped: self.striped && (row_index + self.row_nr) % 2 == 0,
                         height: row_height,
                     },
                 );
@@ -964,7 +964,7 @@ impl<'a> TableBody<'a> {
                     widths: self.widths,
                     max_used_widths: self.max_used_widths,
                     col_index: 0,
-                    striped: self.striped && row_index % 2 == 0,
+                    striped: self.striped && (row_index + self.row_nr) % 2 == 0,
                     height: row_height,
                 },
             );

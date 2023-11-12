@@ -155,7 +155,7 @@ impl Area {
         self
     }
 
-    /// Constraint the movement of the window to the given rectangle.
+    /// Constrain the movement of the window to the given rectangle.
     ///
     /// For instance: `.constrain_to(ctx.screen_rect())`.
     pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {

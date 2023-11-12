@@ -147,7 +147,7 @@ impl<'open> Window<'open> {
 
     /// Constrains this window to the screen bounds.
     ///
-    /// To change the area to constrain to, use [`Self::constraint_to`].
+    /// To change the area to constrain to, use [`Self::constrain_to`].
     ///
     /// Default: `true`.
     pub fn constrain(mut self, constrain: bool) -> Self {
@@ -155,10 +155,10 @@ impl<'open> Window<'open> {
         self
     }
 
-    /// Constraint the movement of the window to the given rectangle.
+    /// Constrain the movement of the window to the given rectangle.
     ///
     /// For instance: `.constrain_to(ctx.screen_rect())`.
-    pub fn constraint_to(mut self, constrain_rect: Rect) -> Self {
+    pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {
         self.area = self.area.constrain_to(constrain_rect);
         self
     }
@@ -272,7 +272,7 @@ impl<'open> Window<'open> {
     }
 
     /// Enable/disable horizontal/vertical scrolling. `false` by default.
-    pub fn scroll2(mut self, scroll: [bool; 2]) -> Self {
+    pub fn scroll2(mut self, scroll: impl Into<Vec2b>) -> Self {
         self.scroll = self.scroll.scroll2(scroll);
         self
     }
@@ -419,7 +419,7 @@ impl<'open> Window<'open> {
                             ui.add_space(title_content_spacing);
                         }
 
-                        if scroll.has_any_bar() {
+                        if scroll.is_any_scroll_enabled() {
                             scroll.show(ui, add_contents).inner
                         } else {
                             add_contents(ui)
@@ -476,7 +476,12 @@ impl<'open> Window<'open> {
     }
 }
 
-fn paint_resize_corner(ui: &Ui, possible: &PossibleInteractions, outer_rect: Rect, stroke: Stroke) {
+fn paint_resize_corner(
+    ui: &Ui,
+    possible: &PossibleInteractions,
+    outer_rect: Rect,
+    stroke: impl Into<Stroke>,
+) {
     let corner = if possible.resize_right && possible.resize_bottom {
         Align2::RIGHT_BOTTOM
     } else if possible.resize_left && possible.resize_bottom {

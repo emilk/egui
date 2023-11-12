@@ -37,7 +37,7 @@ impl std::fmt::Debug for ViewportId {
 
 impl ViewportId {
     /// The `ViewportId` of the root viewport.
-    pub const ROOT: Self = Self(Id::null());
+    pub const ROOT: Self = Self(Id::NULL);
 
     #[inline]
     pub fn from_hash_of(source: impl std::hash::Hash) -> Self {

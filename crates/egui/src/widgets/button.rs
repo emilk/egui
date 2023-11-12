@@ -594,6 +594,14 @@ impl<'a> ImageButton<'a> {
         self.sense = sense;
         self
     }
+
+    /// Set rounding for the `ImageButton`.
+    /// If the underlying image already has rounding, this
+    /// will override that value.
+    pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
+        self.image = self.image.rounding(rounding.into());
+        self
+    }
 }
 
 impl<'a> Widget for ImageButton<'a> {
@@ -621,7 +629,7 @@ impl<'a> Widget for ImageButton<'a> {
                 let selection = ui.visuals().selection;
                 (
                     Vec2::ZERO,
-                    Rounding::ZERO,
+                    self.image.image_options().rounding,
                     selection.bg_fill,
                     selection.stroke,
                 )
@@ -630,7 +638,7 @@ impl<'a> Widget for ImageButton<'a> {
                 let expansion = Vec2::splat(visuals.expansion);
                 (
                     expansion,
-                    visuals.rounding,
+                    self.image.image_options().rounding,
                     visuals.weak_bg_fill,
                     visuals.bg_stroke,
                 )
@@ -646,10 +654,8 @@ impl<'a> Widget for ImageButton<'a> {
                 .layout()
                 .align_size_within_rect(image_size, rect.shrink2(padding));
             // let image_rect = image_rect.expand2(expansion); // can make it blurry, so let's not
-            let image_options = ImageOptions {
-                rounding, // apply rounding to the image
-                ..self.image.image_options().clone()
-            };
+            let image_options = self.image.image_options().clone();
+
             widgets::image::paint_texture_load_result(ui, &tlr, image_rect, None, &image_options);
 
             // Draw frame outline:
