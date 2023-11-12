@@ -668,13 +668,19 @@ pub(crate) struct ViewportState {
 /// Describes a viewport, i.e. a native window.
 #[derive(Clone)]
 pub struct ViewportOutput {
-    pub builder: ViewportBuilder,
-
     /// Id of us and our parent.
     pub id_pair: ViewportIdPair,
+
+    pub builder: ViewportBuilder,
 
     /// The user-code that shows the GUI, used for deferred viewports.
     ///
     /// `None` for immediate viewports and the ROOT viewport.
     pub viewport_ui_cb: Option<Arc<ViewportUiCallback>>,
+}
+
+impl ViewportOutput {
+    pub fn id(&self) -> ViewportId {
+        self.id_pair.this
+    }
 }
