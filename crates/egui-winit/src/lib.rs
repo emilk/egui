@@ -726,6 +726,8 @@ impl State {
         egui_ctx: &egui::Context,
         platform_output: egui::PlatformOutput,
     ) {
+        crate::profile_function!();
+
         let egui::PlatformOutput {
             cursor_icon,
             open_url,

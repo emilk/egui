@@ -161,6 +161,19 @@ impl ViewportInfo {
     pub fn take(&mut self) -> Self {
         core::mem::take(self)
     }
+
+    pub fn ui(&self, ui: &mut crate::Ui) {
+        let Self {
+            id_pair,
+            inner_rect,
+            outer_rect,
+            close_requested,
+        } = self;
+        ui.label(format!("id_pair: {id_pair:?}"));
+        ui.label(format!("inner_rect: {inner_rect:?}"));
+        ui.label(format!("outer_rect: {outer_rect:?}"));
+        ui.label(format!("close_requested: {close_requested:?}"));
+    }
 }
 
 /// A file about to be dropped into egui.
@@ -997,14 +1010,6 @@ impl RawInput {
             ui.label(format!("events: {events:#?}"))
                 .on_hover_text("key presses etc");
         });
-    }
-}
-
-impl ViewportInfo {
-    pub fn ui(&self, ui: &mut crate::Ui) {
-        ui.label(format!("id_pair: {:?}", self.id_pair));
-        ui.label(format!("inner_rect: {:?}", self.inner_rect));
-        ui.label(format!("outer_rect: {:?}", self.outer_rect));
     }
 }
 

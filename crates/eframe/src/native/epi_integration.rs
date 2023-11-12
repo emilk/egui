@@ -216,6 +216,8 @@ pub fn handle_app_output(
     app_output: epi::backend::AppOutput,
     window_state: &mut WindowState,
 ) {
+    crate::profile_function!();
+
     let epi::backend::AppOutput {
         close: _,
         window_size,
@@ -478,6 +480,8 @@ impl EpiIntegration {
         egui_winit.on_event(&self.egui_ctx, event)
     }
 
+    /// If `viewport_ui_cb` is None, we are in the root viewport
+    /// and will cal [`App::update`].
     pub fn update(
         &mut self,
         app: &mut dyn epi::App,
@@ -497,12 +501,15 @@ impl EpiIntegration {
 
         // Run user code:
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
-            crate::profile_scope!("App::update");
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
+                crate::profile_scope!("callback");
+                debug_assert!(id_pair.this != ViewportId::ROOT);
                 viewport_ui_cb(egui_ctx);
             } else {
                 // Root viewport
+                crate::profile_scope!("App::update");
+                debug_assert_eq!(id_pair, ViewportIdPair::ROOT);
                 app.update(egui_ctx, &mut self.frame);
             }
         });
