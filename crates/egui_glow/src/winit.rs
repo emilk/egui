@@ -50,12 +50,23 @@ impl EguiGlow {
         let raw_input = self
             .egui_winit
             .take_egui_input(window, ViewportIdPair::ROOT);
+
         let egui::FullOutput {
             platform_output,
             textures_delta,
             shapes,
-            ..
+            viewports,
+            viewport_commands,
         } = self.egui_ctx.run(raw_input, run_ui);
+
+        if viewports.len() > 1 {
+            log::warn!("Multiple viewports not yet supported by EguiGlow");
+        }
+        egui_winit::process_viewport_commands(
+            viewport_commands.into_iter().map(|(_id, command)| command),
+            window,
+            true,
+        );
 
         self.egui_winit.handle_platform_output(
             window,

@@ -989,7 +989,7 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 // ---------------------------------------------------------------------------
 
 pub fn process_viewport_commands(
-    commands: Vec<ViewportCommand>,
+    commands: impl IntoIterator<Item = ViewportCommand>,
     window: &winit::window::Window,
     is_viewport_focused: bool,
 ) {
