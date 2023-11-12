@@ -997,7 +997,7 @@ pub fn process_viewport_commands(
 
     for command in commands {
         match command {
-            egui::ViewportCommand::Drag => {
+            egui::ViewportCommand::StartDrag => {
                 // if this is not checked on x11 the input will be permanently taken until the app is killed!
                 if is_viewport_focused {
                     // TODO possible return the error to `egui::Context`
@@ -1068,10 +1068,10 @@ pub fn process_viewport_commands(
                 window.set_fullscreen(v.then_some(winit::window::Fullscreen::Borderless(None)));
             }
             ViewportCommand::Decorations(v) => window.set_decorations(v),
-            ViewportCommand::WindowLevel(o) => window.set_window_level(match o {
-                1 => WindowLevel::AlwaysOnBottom,
-                2 => WindowLevel::AlwaysOnTop,
-                _ => WindowLevel::Normal,
+            ViewportCommand::WindowLevel(l) => window.set_window_level(match l {
+                egui::viewport::WindowLevel::AlwaysOnBottom => WindowLevel::AlwaysOnBottom,
+                egui::viewport::WindowLevel::AlwaysOnTop => WindowLevel::AlwaysOnTop,
+                egui::viewport::WindowLevel::Normal => WindowLevel::Normal,
             }),
             ViewportCommand::WindowIcon(icon) => {
                 window.set_window_icon(icon.map(|icon| {
@@ -1087,25 +1087,26 @@ pub fn process_viewport_commands(
                 window.set_ime_position(LogicalPosition::new(pos.x, pos.y));
             }
             ViewportCommand::IMEAllowed(v) => window.set_ime_allowed(v),
-            ViewportCommand::IMEPurpose(o) => window.set_ime_purpose(match o {
-                1 => winit::window::ImePurpose::Password,
-                2 => winit::window::ImePurpose::Terminal,
-                _ => winit::window::ImePurpose::Normal,
+            ViewportCommand::IMEPurpose(p) => window.set_ime_purpose(match p {
+                egui::viewport::IMEPurpose::Password => winit::window::ImePurpose::Password,
+                egui::viewport::IMEPurpose::Terminal => winit::window::ImePurpose::Terminal,
+                egui::viewport::IMEPurpose::Normal => winit::window::ImePurpose::Normal,
             }),
-            ViewportCommand::RequestUserAttention(o) => window.request_user_attention(o.map(|o| {
-                if o == 1 {
-                    winit::window::UserAttentionType::Critical
-                } else {
-                    winit::window::UserAttentionType::Informational
-                }
-            })),
-            ViewportCommand::SetTheme(o) => window.set_theme(o.map(|o| {
-                if o == 1 {
-                    winit::window::Theme::Dark
-                } else {
-                    winit::window::Theme::Light
-                }
-            })),
+            ViewportCommand::RequestUserAttention(a) => {
+                window.request_user_attention(a.map(|a| match a {
+                    egui::viewport::UserAttentionType::Critical => {
+                        winit::window::UserAttentionType::Critical
+                    }
+                    egui::viewport::UserAttentionType::Informational => {
+                        winit::window::UserAttentionType::Informational
+                    }
+                }));
+            }
+            ViewportCommand::SetTheme(t) => window.set_theme(match t {
+                egui::SystemTheme::Light => Some(winit::window::Theme::Light),
+                egui::SystemTheme::Dark => Some(winit::window::Theme::Dark),
+                egui::SystemTheme::SystemDefault => None,
+            }),
             ViewportCommand::ContentProtected(v) => window.set_content_protected(v),
             ViewportCommand::CursorPosition(pos) => {
                 if let Err(err) = window.set_cursor_position(LogicalPosition::new(pos.x, pos.y)) {
@@ -1114,9 +1115,9 @@ pub fn process_viewport_commands(
             }
             ViewportCommand::CursorGrab(o) => {
                 if let Err(err) = window.set_cursor_grab(match o {
-                    1 => CursorGrabMode::Confined,
-                    2 => CursorGrabMode::Locked,
-                    _ => CursorGrabMode::None,
+                    egui::viewport::CursorGrab::None => CursorGrabMode::None,
+                    egui::viewport::CursorGrab::Confined => CursorGrabMode::Confined,
+                    egui::viewport::CursorGrab::Locked => CursorGrabMode::Locked,
                 }) {
                     log::error!("{err}");
                 }

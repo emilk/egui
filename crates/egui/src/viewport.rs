@@ -573,16 +573,65 @@ impl ViewportBuilder {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum WindowLevel {
+    Normal,
+    AlwaysOnBottom,
+    AlwaysOnTop,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum IMEPurpose {
+    Normal,
+    Password,
+    Terminal,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum SystemTheme {
+    Light,
+    Dark,
+    SystemDefault,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum CursorGrab {
+    None,
+    Confined,
+    Locked,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum UserAttentionType {
+    Informational,
+    Critical,
+}
+
 /// You can send a [`ViewportCommand`] to the viewport with [`Context::viewport_command`].
 ///
 /// All coordinates are in logical points.
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ViewportCommand {
+    /// Set the title
     Title(String),
+
+    /// Turn the window transparent or not.
     Transparent(bool),
+
+    /// Set the visibility of the window.
     Visible(bool),
-    Drag,
+
+    /// Moves the window with the left mouse button until the button is released.
+    ///
+    /// There's no guarantee that this will work unless the left mouse button was pressed
+    /// immediately before this function is called.
+    StartDrag,
 
     /// Set the outer position of the viewport, i.e. moves the window.
     OuterPosition(Pos2),
@@ -610,7 +659,10 @@ pub enum ViewportCommand {
         left: bool,
     },
 
+    /// Can the window be resized?
     Resizable(bool),
+
+    /// Set which window buttons are enabled
     EnableButtons {
         close: bool,
         minimized: bool,
@@ -619,30 +671,28 @@ pub enum ViewportCommand {
     Minimized(bool),
     Maximized(bool),
     Fullscreen(bool),
+
+    /// Show window decorations, i.e. the chrome around the content
+    /// with the title bar, close buttons, resize handles, etc.
     Decorations(bool),
 
-    /// 0 = Normal, 1 = AlwaysOnBottom, 2 = AlwaysOnTop
-    WindowLevel(u8),
+    WindowLevel(WindowLevel),
     WindowIcon(Option<ColorImage>),
+
     IMEPosition(Pos2),
     IMEAllowed(bool),
+    IMEPurpose(IMEPurpose),
 
-    /// 0 = Normal, 1 = Password, 2 = Terminal
-    IMEPurpose(u8),
+    RequestUserAttention(Option<UserAttentionType>),
 
-    /// 0 = Informational, 1 = Critical
-    RequestUserAttention(Option<u8>),
-
-    /// 0 = Light, 1 = Dark, `None` = system default.
-    SetTheme(Option<u8>),
+    SetTheme(SystemTheme),
 
     ContentProtected(bool),
 
     /// Will probably not work as expected!
     CursorPosition(Pos2),
 
-    /// 0 = None, 1 = Confined, 2 = Locked
-    CursorGrab(u8),
+    CursorGrab(CursorGrab),
 
     CursorVisible(bool),
 
