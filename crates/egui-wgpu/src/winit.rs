@@ -482,8 +482,7 @@ impl Painter {
 
         let output_frame = match output_frame {
             Ok(frame) => frame,
-            #[allow(clippy::single_match_else)]
-            Err(e) => match (*self.configuration.on_surface_error)(e) {
+            Err(err) => match (*self.configuration.on_surface_error)(err) {
                 SurfaceErrorAction::RecreateSurface => {
                     Self::configure_surface(
                         surface_state,

@@ -2512,7 +2512,6 @@ impl Context {
     /// Look in `crates/eframe/native/run.rs` and search for `set_immediate_viewport_renderer` to see for what is used.
     #[allow(clippy::unused_self)]
     pub fn set_immediate_viewport_renderer(
-        &self,
         callback: impl for<'a> Fn(&Context, ViewportBuilder, ViewportIdPair, Box<dyn FnOnce(&Context) + 'a>)
             + 'static,
     ) {

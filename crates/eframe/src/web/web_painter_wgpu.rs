@@ -208,8 +208,7 @@ impl WebPainter for WebPainterWgpu {
 
             let frame = match self.surface.get_current_texture() {
                 Ok(frame) => frame,
-                #[allow(clippy::single_match_else)]
-                Err(e) => match (*self.on_surface_error)(e) {
+                Err(err) => match (*self.on_surface_error)(err) {
                     SurfaceErrorAction::RecreateSurface => {
                         self.surface
                             .configure(&render_state.device, &self.surface_configuration);

@@ -196,7 +196,7 @@ fn set_clipboard_text(s: &str) {
             let future = wasm_bindgen_futures::JsFuture::from(promise);
             let future = async move {
                 if let Err(err) = future.await {
-                    log::error!("Copy/cut action failed: {err:?}");
+                    log::error!("Copy/cut action failed: {err}");
                 }
             };
             wasm_bindgen_futures::spawn_local(future);

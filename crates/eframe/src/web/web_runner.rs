@@ -96,7 +96,7 @@ impl WebRunner {
             log::debug!("Unsubscribing from {} events", events_to_unsubscribe.len());
             for x in events_to_unsubscribe {
                 if let Err(err) = x.unsubscribe() {
-                    log::warn!("Failed to unsubscribe from event: {err:?}");
+                    log::warn!("Failed to unsubscribe from event: {err}");
                 }
             }
         }

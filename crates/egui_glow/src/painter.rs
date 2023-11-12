@@ -314,6 +314,7 @@ impl Painter {
         textures_delta: &egui::TexturesDelta,
     ) {
         crate::profile_function!();
+
         for (id, image_delta) in &textures_delta.set {
             self.set_texture(*id, image_delta);
         }

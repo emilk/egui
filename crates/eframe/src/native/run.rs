@@ -221,7 +221,7 @@ fn run_and_return(
             event => match winit_app.on_event(event_loop, event) {
                 Ok(event_result) => event_result,
                 Err(err) => {
-                    log::error!("Exiting because of error: {err:?} on event {event:?}");
+                    log::error!("Exiting because of error: {err} on event {event:?}");
                     returned_result = Err(err);
                     EventResult::Exit
                 }
@@ -497,6 +497,18 @@ mod glow_integration {
         egui_winit: Option<egui_winit::State>,
     }
 
+    impl Viewport {
+        pub fn new(id_pair: ViewportIdPair) -> Self {
+            Self {
+                gl_surface: None,
+                window: None,
+                id_pair,
+                viewport_ui_cb: None,
+                egui_winit: None,
+            }
+        }
+    }
+
     /// This struct will contain both persistent and temporary glutin state.
     ///
     /// Platform Quirks:
@@ -745,24 +757,21 @@ mod glow_integration {
             {
                 let window = window.borrow();
                 // surface attributes
-                let (width, height): (u32, u32) = window.inner_size().into();
-                let width = std::num::NonZeroU32::new(width.at_least(1)).unwrap();
-                let height = std::num::NonZeroU32::new(height.at_least(1)).unwrap();
+                let (width_px, height_px): (u32, u32) = window.inner_size().into();
+                let width_px = std::num::NonZeroU32::new(width_px.at_least(1)).unwrap();
+                let height_px = std::num::NonZeroU32::new(height_px.at_least(1)).unwrap();
                 let surface_attributes = glutin::surface::SurfaceAttributesBuilder::<
                     glutin::surface::WindowSurface,
                 >::new()
-                .build(window.raw_window_handle(), width, height);
-                log::debug!(
-                    "creating surface with attributes: {:?}",
-                    &surface_attributes
-                );
+                .build(window.raw_window_handle(), width_px, height_px);
+                log::debug!("creating surface with attributes: {surface_attributes:?}");
                 // create surface
                 let gl_surface = unsafe {
                     self.gl_config
                         .display()
                         .create_window_surface(&self.gl_config, &surface_attributes)?
                 };
-                log::debug!("surface created successfully: {gl_surface:?}.making context current");
+                log::debug!("surface created successfully: {gl_surface:?}. making context current");
                 // make surface and context current.
                 let not_current_gl_context =
                     if let Some(not_current_context) = self.not_current_gl_context.take() {
@@ -777,21 +786,21 @@ mod glow_integration {
                 let current_gl_context = not_current_gl_context.make_current(&gl_surface)?;
                 // try setting swap interval. but its not absolutely necessary, so don't panic on failure.
                 log::debug!("made context current. setting swap interval for surface");
-                if let Err(e) =
+                if let Err(err) =
                     gl_surface.set_swap_interval(&current_gl_context, self.swap_interval)
                 {
-                    log::error!("failed to set swap interval due to error: {e:?}");
+                    log::error!("failed to set swap interval due to error: {err}");
                 }
                 // we will reach this point only once in most platforms except android.
                 // create window/surface/make context current once and just use them forever.
 
-                if viewport.egui_winit.is_none() {
-                    viewport.egui_winit = Some(egui_winit::State::new(
+                viewport.egui_winit.get_or_insert_with(|| {
+                    egui_winit::State::new(
                         event_loop,
                         Some(window.scale_factor() as f32),
                         self.max_texture_side,
-                    ));
-                }
+                    )
+                });
 
                 viewport.gl_surface = Some(gl_surface);
                 self.current_gl_context = Some(current_gl_context);
@@ -806,10 +815,10 @@ mod glow_integration {
         /// only applies for android. but we basically drop surface + window and make context not current
         fn on_suspend(&mut self) -> Result<()> {
             log::debug!("received suspend event. dropping window and surface");
-            for window in self.viewports.values() {
-                let mut window = window.borrow_mut();
-                window.gl_surface.take();
-                window.window.take();
+            for viewport in self.viewports.values() {
+                let mut viewport = viewport.borrow_mut();
+                viewport.gl_surface.take();
+                viewport.window.take();
             }
             if let Some(current) = self.current_gl_context.take() {
                 log::debug!("context is current, so making it non-current");
@@ -840,8 +849,8 @@ mod glow_integration {
             viewport_id: ViewportId,
             physical_size: winit::dpi::PhysicalSize<u32>,
         ) {
-            let width = std::num::NonZeroU32::new(physical_size.width.at_least(1)).unwrap();
-            let height = std::num::NonZeroU32::new(physical_size.height.at_least(1)).unwrap();
+            let width_px = std::num::NonZeroU32::new(physical_size.width.at_least(1)).unwrap();
+            let height_px = std::num::NonZeroU32::new(physical_size.height.at_least(1)).unwrap();
 
             if let Some(viewport) = self.viewports.get(&viewport_id) {
                 let viewport = viewport.borrow();
@@ -859,8 +868,8 @@ mod glow_integration {
                         self.current_gl_context
                             .as_ref()
                             .expect("failed to get current context to resize surface"),
-                        width,
-                        height,
+                        width_px,
+                        height_px,
                     );
                 }
             }
@@ -924,9 +933,9 @@ mod glow_integration {
             // Creates the window - must come before we create our glow context
             glutin_window_context.on_resume(event_loop)?;
 
-            if let Some(window) = &glutin_window_context.viewports.get(&ViewportId::ROOT) {
-                let window = window.borrow();
-                if let Some(window) = &window.window {
+            if let Some(viewport) = glutin_window_context.viewports.get(&ViewportId::ROOT) {
+                let viewport = viewport.borrow();
+                if let Some(window) = &viewport.window {
                     epi_integration::apply_native_options_to_window(
                         &window.borrow(),
                         native_options,
@@ -1015,32 +1024,36 @@ mod glow_integration {
             #[cfg(feature = "accesskit")]
             {
                 let event_loop_proxy = self.repaint_proxy.lock().clone();
-                let window = &glutin_ctx.viewports[&ViewportId::ROOT];
-                let window = &mut *window.borrow_mut();
-                integration.init_accesskit(
-                    window.egui_winit.as_mut().unwrap(),
-                    &window.window.as_ref().unwrap().borrow(),
-                    event_loop_proxy,
-                );
+                let viewport = &glutin_ctx.viewports[&ViewportId::ROOT];
+                if let Viewport {
+                    window: Some(window),
+                    egui_winit: Some(egui_winit),
+                    ..
+                } = &mut *viewport.borrow_mut()
+                {
+                    integration.init_accesskit(egui_winit, &window.borrow(), event_loop_proxy);
+                }
             }
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
 
             if self.native_options.mouse_passthrough {
-                glutin_ctx
+                if let Err(err) = glutin_ctx
                     .window(ViewportId::ROOT)
                     .borrow()
                     .set_cursor_hittest(false)
-                    .unwrap();
+                {
+                    log::warn!("set_cursor_hittest(false) failed: {err}");
+                }
             }
 
             let app_creator = std::mem::take(&mut self.app_creator)
                 .expect("Single-use AppCreator has unexpectedly already been taken");
-            let mut app;
-            {
+
+            let app = {
                 let window = glutin_ctx.window(ViewportId::ROOT);
                 let window = &mut *window.borrow_mut();
-                app = app_creator(&epi::CreationContext {
+                let mut app = app_creator(&epi::CreationContext {
                     egui_ctx: integration.egui_ctx.clone(),
                     integration_info: integration.frame.info().clone(),
                     storage: integration.frame.storage(),
@@ -1060,7 +1073,9 @@ mod glow_integration {
                         viewport.egui_winit.as_mut().unwrap(),
                     );
                 }
-            }
+
+                app
+            };
 
             let glutin_ctx = Rc::new(RefCell::new(glutin_ctx));
             let painter = Rc::new(RefCell::new(painter));
@@ -1075,7 +1090,7 @@ mod glow_integration {
 
                 let event_loop: *const EventLoopWindowTarget<UserEvent> = event_loop;
 
-                integration.egui_ctx.set_immediate_viewport_renderer(
+                egui::Context::set_immediate_viewport_renderer(
                     move |egui_ctx, viewport_builder, id_pair, viewport_ui_cb| {
                         if let (Some(glutin), Some(gl), Some(painter)) =
                             (glutin.upgrade(), gl.upgrade(), painter.upgrade())
@@ -1114,6 +1129,8 @@ mod glow_integration {
             Ok(())
         }
 
+        /// This is called (via a callback) by user code to render immediate viewports,
+        /// i.e. viewport that are directly nested inside a parent viewport.
         #[inline(always)]
         #[allow(clippy::too_many_arguments)]
         fn render_immediate_viewport(
@@ -1129,44 +1146,32 @@ mod glow_integration {
         ) {
             crate::profile_function!();
 
-            let has_window = glutin.borrow().viewports.contains_key(&id_pair.this);
+            if !glutin.borrow().viewports.contains_key(&id_pair.this) {
+                // A new viewport - create a window for it!
 
-            // This will create a new native window if is needed
-            if !has_window {
                 let mut glutin = glutin.borrow_mut();
 
                 // Inherit parent icon if none
-                {
-                    if viewport_builder.icon.is_none()
-                        && glutin.builders.get(&id_pair.this).is_none()
-                    {
-                        viewport_builder.icon = glutin
-                            .builders
-                            .get(&id_pair.parent)
-                            .and_then(|b| b.icon.clone());
-                    }
-                }
-
-                {
-                    glutin
-                        .viewports
-                        .entry(id_pair.this)
-                        .or_insert(Rc::new(RefCell::new(Viewport {
-                            gl_surface: None,
-                            window: None,
-                            id_pair,
-                            viewport_ui_cb: None,
-                            egui_winit: None,
-                        })));
-                    glutin
+                if viewport_builder.icon.is_none() && glutin.builders.get(&id_pair.this).is_none() {
+                    viewport_builder.icon = glutin
                         .builders
-                        .entry(id_pair.this)
-                        .or_insert(viewport_builder);
+                        .get(&id_pair.parent)
+                        .and_then(|b| b.icon.clone());
                 }
 
                 glutin
-                    .init_viewport(id_pair.this, event_loop)
-                    .expect("Cannot init window on egui::Context::show_viewport_immediate");
+                    .viewports
+                    .entry(id_pair.this)
+                    .or_insert(Rc::new(RefCell::new(Viewport::new(id_pair))));
+
+                glutin
+                    .builders
+                    .entry(id_pair.this)
+                    .or_insert(viewport_builder);
+
+                glutin.init_viewport(id_pair.this, event_loop).expect(
+                    "Failed to initialize window in egui::Context::show_viewport_immediate",
+                );
             }
 
             let viewport = glutin.borrow().viewports.get(&id_pair.this).cloned();
@@ -1231,20 +1236,24 @@ mod glow_integration {
                 &clipped_primitives,
                 &output.textures_delta,
             );
-            crate::profile_scope!("swap_buffers");
-            if let Err(err) = viewport
-                .gl_surface
-                .as_ref()
-                .expect("failed to get surface to swap buffers")
-                .swap_buffers(
-                    glutin
-                        .current_gl_context
-                        .as_ref()
-                        .expect("failed to get current context to swap buffers"),
-                )
+
             {
-                log::error!("swap_buffers failed: {err}");
+                crate::profile_scope!("swap_buffers");
+                if let Err(err) = viewport
+                    .gl_surface
+                    .as_ref()
+                    .expect("failed to get surface to swap buffers")
+                    .swap_buffers(
+                        glutin
+                            .current_gl_context
+                            .as_ref()
+                            .expect("failed to get current context to swap buffers"),
+                    )
+                {
+                    log::error!("swap_buffers failed: {err}");
+                }
             }
+
             winit_state.handle_platform_output(
                 &window,
                 id_pair.this,
@@ -1269,8 +1278,7 @@ mod glow_integration {
                     let mut glutin = glutin_ctx.borrow_mut();
                     let builder = glutin.builders.entry(*id).or_insert(new_builder.clone());
                     let (commands, recreate) = builder.patch(new_builder);
-                    drop(glutin);
-                    if let Some(viewport) = glutin_ctx.borrow().viewports.get(id) {
+                    if let Some(viewport) = glutin.viewports.get(id) {
                         let mut viewport = viewport.borrow_mut();
 
                         viewport.id_pair.parent = *parent;
@@ -1614,7 +1622,7 @@ mod glow_integration {
                     if let Some(window) = &viewport.borrow().window {
                         let is_viewport_focused = self.focused_viewport == Some(viewport_id);
                         egui_winit::process_viewport_commands(
-                            vec![command],
+                            std::iter::once(command),
                             &window.borrow(),
                             is_viewport_focused,
                         );
@@ -2150,7 +2158,7 @@ mod wgpu_integration {
 
                 let event_loop: *const EventLoopWindowTarget<UserEvent> = event_loop;
 
-                integration.egui_ctx.set_immediate_viewport_renderer(
+                egui::Context::set_immediate_viewport_renderer(
                     move |egui_ctx, viewport_builder, id_pair, viewport_ui_cb| {
                         if let Some(shared) = shared.upgrade() {
                             // SAFETY: the event loop lives longer than
@@ -2562,7 +2570,7 @@ mod wgpu_integration {
                 if let Some(window) = viewports.get(&viewport_id).and_then(|w| w.window.clone()) {
                     let is_viewport_focused = self.focused_viewport == Some(viewport_id);
                     egui_winit::process_viewport_commands(
-                        vec![command],
+                        std::iter::once(command),
                         &window.borrow(),
                         is_viewport_focused,
                     );
