@@ -182,6 +182,8 @@ impl State {
         window: &winit::window::Window,
         id_pair: ViewportIdPair,
     ) -> egui::RawInput {
+        crate::profile_function!();
+
         let pixels_per_point = self.pixels_per_point();
 
         self.egui_input.time = Some(self.start_time.elapsed().as_secs_f64());

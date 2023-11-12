@@ -429,7 +429,9 @@ impl EpiIntegration {
         let saved_memory: egui::Memory = self.egui_ctx.memory(|mem| mem.clone());
         self.egui_ctx
             .memory_mut(|mem| mem.set_everything_is_visible(true));
-        let full_output = self.update(app, window, egui_winit, None, ViewportIdPair::ROOT);
+
+        let raw_input = egui_winit.take_egui_input(window, ViewportIdPair::ROOT);
+        let full_output = self.update(app, window, None, raw_input);
         self.pending_full_output.append(full_output); // Handle it next frame
         self.egui_ctx.memory_mut(|mem| *mem = saved_memory); // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
@@ -486,9 +488,8 @@ impl EpiIntegration {
         &mut self,
         app: &mut dyn epi::App,
         window: &winit::window::Window,
-        egui_winit: &mut egui_winit::State,
         viewport_ui_cb: Option<&ViewportUiCallback>,
-        id_pair: ViewportIdPair,
+        mut raw_input: egui::RawInput,
     ) -> egui::FullOutput {
         let frame_start = std::time::Instant::now();
 
@@ -496,20 +497,17 @@ impl EpiIntegration {
 
         self.frame.info.window_info =
             read_window_info(window, self.egui_ctx.pixels_per_point(), &self.window_state);
-        let mut raw_input = egui_winit.take_egui_input(window, id_pair);
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 
-        // Run user code:
+        // Run user code - this can create immediate viewports, so hold no locks over this!
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
                 crate::profile_scope!("callback");
-                debug_assert!(id_pair.this != ViewportId::ROOT);
                 viewport_ui_cb(egui_ctx);
             } else {
                 // Root viewport
                 crate::profile_scope!("App::update");
-                debug_assert_eq!(id_pair, ViewportIdPair::ROOT);
                 app.update(egui_ctx, &mut self.frame);
             }
         });

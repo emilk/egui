@@ -1478,6 +1478,7 @@ mod glow_integration {
                     let viewport = &mut *viewport.borrow_mut();
                     let window = window.borrow();
                     let egui_winit = viewport.egui_winit.as_mut().unwrap();
+                    let raw_input = egui_winit.take_egui_input(&window, viewport.id_pair);
 
                     // ------------------------------------------------------------
                     // The update function, which could call immediate viewports,
@@ -1492,9 +1493,8 @@ mod glow_integration {
                     } = integration.update(
                         app.as_mut(),
                         &window,
-                        egui_winit,
                         viewport.viewport_ui_cb.as_deref(),
-                        viewport.id_pair,
+                        raw_input,
                     );
 
                     // ------------------------------------------------------------
@@ -2426,6 +2426,16 @@ mod wgpu_integration {
 
                 drop(shared_lock); // Release lock!
 
+                let raw_input = egui_winit.borrow_mut().as_mut().unwrap().take_egui_input(
+                    &window.borrow(),
+                    ViewportIdPair {
+                        this: viewport_id,
+                        parent: parent_id,
+                    },
+                );
+
+                // ------------------------------------------------------------
+
                 // Runs the update, which could call immediate viewports,
                 // so make sure we hold no locks here!
                 egui::FullOutput {
@@ -2437,13 +2447,11 @@ mod wgpu_integration {
                 } = integration.update(
                     app.as_mut(),
                     &window.borrow(),
-                    egui_winit.borrow_mut().as_mut().unwrap(),
                     viewport_ui_cb.as_deref(),
-                    ViewportIdPair {
-                        this: viewport_id,
-                        parent: parent_id,
-                    },
+                    raw_input,
                 );
+
+                // ------------------------------------------------------------
 
                 integration.handle_platform_output(
                     &window.borrow(),
