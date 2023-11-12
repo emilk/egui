@@ -1930,9 +1930,11 @@ mod wgpu_integration {
             if let Some(running) = &mut self.running {
                 crate::profile_function!();
                 let mut shared = running.shared.borrow_mut();
-                if let Some(Viewport { window, .. }) = shared.viewports.get(&id) {
-                    let window = window.clone();
-                    return pollster::block_on(shared.painter.set_window(id, window.as_deref()));
+                let SharedState {
+                    viewports, painter, ..
+                } = &mut *shared;
+                if let Some(Viewport { window, .. }) = viewports.get(&id) {
+                    return pollster::block_on(painter.set_window(id, window.as_deref()));
                 }
             }
             Ok(())
@@ -2516,11 +2518,11 @@ mod wgpu_integration {
             }
 
             for (viewport_id, command) in viewport_commands {
-                if let Some(window) = viewports.get(&viewport_id).and_then(|w| w.window.clone()) {
+                if let Some(window) = viewports.get(&viewport_id).and_then(|w| w.window.as_ref()) {
                     let is_viewport_focused = self.focused_viewport == Some(viewport_id);
                     egui_winit::process_viewport_commands(
                         std::iter::once(command),
-                        &window,
+                        window,
                         is_viewport_focused,
                     );
                 }
