@@ -147,11 +147,11 @@ pub struct ViewportInfo {
 
     /// Viewport inner position and size, only the drowable area
     /// unit = physical pixels
-    pub inner_rect: Option<Rect>,
+    pub inner_rect_px: Option<Rect>,
 
     /// Viewport outer position and size, drowable area + decorations
     /// unit = physical pixels
-    pub outer_rect: Option<Rect>,
+    pub outer_rect_px: Option<Rect>,
 
     /// Viewport should close?
     pub close_requested: bool,
@@ -165,13 +165,13 @@ impl ViewportInfo {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
             id_pair,
-            inner_rect,
-            outer_rect,
+            inner_rect_px,
+            outer_rect_px,
             close_requested,
         } = self;
         ui.label(format!("id_pair: {id_pair:?}"));
-        ui.label(format!("inner_rect: {inner_rect:?}"));
-        ui.label(format!("outer_rect: {outer_rect:?}"));
+        ui.label(format!("inner_rect_px: {inner_rect_px:?}"));
+        ui.label(format!("outer_rect_px: {outer_rect_px:?}"));
         ui.label(format!("close_requested: {close_requested:?}"));
     }
 }

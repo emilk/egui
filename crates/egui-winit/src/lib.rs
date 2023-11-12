@@ -209,7 +209,7 @@ impl State {
             None
         };
 
-        let inner_pos = if getting_info {
+        let inner_pos_px = if getting_info {
             window
                 .inner_position()
                 .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
@@ -218,7 +218,7 @@ impl State {
             None
         };
 
-        let outer_pos = if getting_info {
+        let outer_pos_px = if getting_info {
             window
                 .outer_position()
                 .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
@@ -227,14 +227,14 @@ impl State {
             None
         };
 
-        let inner_size = if getting_info {
+        let inner_size_px = if getting_info {
             let size = window.inner_size();
             Some(Vec2::new(size.width as f32, size.height as f32))
         } else {
             None
         };
 
-        let outer_size = if getting_info {
+        let outer_size_px = if getting_info {
             let size = window.outer_size();
             Some(Vec2::new(size.width as f32, size.height as f32))
         } else {
@@ -242,15 +242,15 @@ impl State {
         };
 
         self.egui_input.viewport.id_pair = id_pair;
-        self.egui_input.viewport.inner_rect =
-            if let (Some(pos), Some(size)) = (inner_pos, inner_size) {
+        self.egui_input.viewport.inner_rect_px =
+            if let (Some(pos), Some(size)) = (inner_pos_px, inner_size_px) {
                 Some(Rect::from_min_size(pos, size))
             } else {
                 None
             };
 
-        self.egui_input.viewport.outer_rect =
-            if let (Some(pos), Some(size)) = (outer_pos, outer_size) {
+        self.egui_input.viewport.outer_rect_px =
+            if let (Some(pos), Some(size)) = (outer_pos_px, outer_size_px) {
                 Some(Rect::from_min_size(pos, size))
             } else {
                 None
