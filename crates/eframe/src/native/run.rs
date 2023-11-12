@@ -1289,7 +1289,12 @@ mod glow_integration {
                             viewport.window = None;
                             viewport.gl_surface = None;
                         } else if let Some(window) = &viewport.window {
-                            process_viewport_commands(commands, *id, None, &window.borrow());
+                            let is_viewport_focused = false; // TODO
+                            process_viewport_commands(
+                                commands,
+                                &window.borrow(),
+                                is_viewport_focused,
+                            );
                         }
                         active_viewports_ids.insert(*id);
                         false
@@ -1616,11 +1621,11 @@ mod glow_integration {
             for (viewport_id, command) in viewport_commands {
                 if let Some(viewport) = glutin.borrow().viewports.get(&viewport_id) {
                     if let Some(window) = &viewport.borrow().window {
+                        let is_viewport_focused = self.focused_viewport == Some(viewport_id);
                         egui_winit::process_viewport_commands(
                             vec![command],
-                            viewport_id,
-                            self.focused_viewport,
                             &window.borrow(),
+                            is_viewport_focused,
                         );
                     }
                 }
@@ -2541,7 +2546,8 @@ mod wgpu_integration {
                         ..
                     }) = viewports.get(&id_pair.this)
                     {
-                        process_viewport_commands(commands, id_pair.this, None, &window.borrow());
+                        let is_viewport_focused = false; // TODO
+                        process_viewport_commands(commands, &window.borrow(), is_viewport_focused);
                     }
                 } else {
                     viewports.insert(
@@ -2561,11 +2567,11 @@ mod wgpu_integration {
 
             for (viewport_id, command) in viewport_commands {
                 if let Some(window) = viewports.get(&viewport_id).and_then(|w| w.window.clone()) {
+                    let is_viewport_focused = self.focused_viewport == Some(viewport_id);
                     egui_winit::process_viewport_commands(
                         vec![command],
-                        viewport_id,
-                        self.focused_viewport,
                         &window.borrow(),
+                        is_viewport_focused,
                     );
                 }
             }

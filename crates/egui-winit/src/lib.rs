@@ -990,9 +990,8 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 
 pub fn process_viewport_commands(
     commands: Vec<ViewportCommand>,
-    viewport_id: ViewportId,
-    focused: Option<ViewportId>,
     window: &winit::window::Window,
+    is_viewport_focused: bool,
 ) {
     use winit::window::ResizeDirection;
 
@@ -1000,11 +999,9 @@ pub fn process_viewport_commands(
         match command {
             egui::ViewportCommand::Drag => {
                 // if this is not checked on x11 the input will be permanently taken until the app is killed!
-                if let Some(focus) = focused {
-                    if focus == viewport_id {
-                        // TODO possible return the error to `egui::Context`
-                        let _ = window.drag_window();
-                    }
+                if is_viewport_focused {
+                    // TODO possible return the error to `egui::Context`
+                    let _ = window.drag_window();
                 }
             }
             egui::ViewportCommand::InnerSize(size) => {
