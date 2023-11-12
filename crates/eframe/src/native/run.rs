@@ -878,6 +878,20 @@ mod glow_integration {
         fn get_proc_address(&self, addr: &std::ffi::CStr) -> *const std::ffi::c_void {
             self.gl_config.display().get_proc_address(addr)
         }
+
+        pub fn make_viewport_current(&mut self, viewport: &Viewport) {
+            if let Some(gl_surface) = &viewport.gl_surface {
+                self.current_gl_context = Some(
+                    self.current_gl_context
+                        .take()
+                        .unwrap()
+                        .make_not_current()
+                        .unwrap()
+                        .make_current(gl_surface)
+                        .unwrap(),
+                );
+            }
+        }
     }
 
     struct GlowWinitApp {
@@ -1508,19 +1522,10 @@ mod glow_integration {
                 }
 
                 let clipped_primitives = integration.egui_ctx.tessellate(shapes);
-                {
-                    let mut glutin = glutin.borrow_mut();
-                    glutin.current_gl_context = Some(
-                        glutin
-                            .current_gl_context
-                            .take()
-                            .unwrap()
-                            .make_not_current()
-                            .unwrap()
-                            .make_current(viewport.borrow().gl_surface.as_ref().unwrap())
-                            .unwrap(),
-                    );
-                };
+
+                glutin
+                    .borrow_mut()
+                    .make_viewport_current(&viewport.borrow());
 
                 egui_glow::painter::clear(
                     &gl,
