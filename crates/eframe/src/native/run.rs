@@ -2186,9 +2186,7 @@ mod wgpu_integration {
                 }
 
                 let Viewport {
-                    window,
-                    egui_winit: state,
-                    ..
+                    window, egui_winit, ..
                 } = viewports.entry(id_pair.this).or_insert(Viewport {
                     window: None,
                     egui_winit: Rc::new(RefCell::new(None)),
@@ -2205,7 +2203,7 @@ mod wgpu_integration {
                     viewport_maps,
                     painter,
                     window,
-                    &mut state.borrow_mut(),
+                    &mut egui_winit.borrow_mut(),
                     event_loop,
                 );
             }
@@ -2696,11 +2694,11 @@ mod wgpu_integration {
                                     .get(&id)
                                     .map(|w| (id, w.clone()))
                             }) {
-                            if let Some(state) = &mut *viewport.egui_winit.borrow_mut() {
+                            if let Some(egui_winit) = &mut *viewport.egui_winit.borrow_mut() {
                                 Some(running.integration.on_event(
                                     running.app.as_mut(),
                                     event,
-                                    state,
+                                    egui_winit,
                                     id,
                                 ))
                             } else {
@@ -2740,8 +2738,8 @@ mod wgpu_integration {
                             .get(window_id)
                             .and_then(|id| shared.viewports.get(id).cloned())
                         {
-                            if let Some(state) = &mut *viewport.egui_winit.borrow_mut() {
-                                state.on_accesskit_action_request(request.clone());
+                            if let Some(egui_winit) = &mut *viewport.egui_winit.borrow_mut() {
+                                egui_winit.on_accesskit_action_request(request.clone());
                             }
                         }
                         // As a form of user input, accessibility actions should
