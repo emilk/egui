@@ -1259,19 +1259,25 @@ mod glow_integration {
                 .expect("Failed to initialize window in egui::Context::show_viewport_immediate");
         }
 
-        let viewport = glutin.borrow().viewports.get(&id_pair.this).cloned();
-        let Some(viewport) = viewport else { return };
+        let input = {
+            let glutin = glutin.borrow_mut();
 
-        let viewport = &mut *viewport.borrow_mut();
-        let Some(winit_state) = &mut viewport.egui_winit else {
-            return;
-        };
-        let Some(window) = &viewport.window else {
-            return;
-        };
+            let Some(viewport) = glutin.viewports.get(&id_pair.this) else {
+                return;
+            };
 
-        let mut input = winit_state.take_egui_input(window, id_pair);
-        input.time = Some(beginning.elapsed().as_secs_f64());
+            let viewport = &mut *viewport.borrow_mut();
+            let Some(winit_state) = &mut viewport.egui_winit else {
+                return;
+            };
+            let Some(window) = &viewport.window else {
+                return;
+            };
+
+            let mut input = winit_state.take_egui_input(window, id_pair);
+            input.time = Some(beginning.elapsed().as_secs_f64());
+            input
+        };
 
         // ---------------------------------------------------
         // Call the user ui-code, which could re-entrantly call this function again!
@@ -1283,16 +1289,35 @@ mod glow_integration {
 
         // ---------------------------------------------------
 
+        let mut glutin = glutin.borrow_mut();
+
+        let GlutinWindowContext {
+            current_gl_context,
+            builders,
+            viewports,
+            ..
+        } = &mut *glutin;
+
+        let Some(viewport) = viewports.get(&id_pair.this) else {
+            return;
+        };
+
+        let viewport = &mut *viewport.borrow_mut();
+        let Some(winit_state) = &mut viewport.egui_winit else {
+            return;
+        };
+        let Some(window) = &viewport.window else {
+            return;
+        };
+
         let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
         let clipped_primitives = egui_ctx.tessellate(output.shapes);
 
-        let mut glutin = glutin.borrow_mut();
         let mut painter = painter.borrow_mut();
 
-        glutin.current_gl_context = Some(
-            glutin
-                .current_gl_context
+        *current_gl_context = Some(
+            current_gl_context
                 .take()
                 .unwrap()
                 .make_not_current()
@@ -1301,13 +1326,15 @@ mod glow_integration {
                 .unwrap(),
         );
 
+        let current_gl_context = current_gl_context.as_ref().unwrap();
+
         if !viewport
             .gl_surface
             .as_ref()
             .unwrap()
-            .is_current(glutin.current_gl_context.as_ref().unwrap())
+            .is_current(current_gl_context)
         {
-            let builder = &glutin.builders[&viewport.id_pair.this];
+            let builder = &builders[&viewport.id_pair.this];
             log::error!("egui::show_viewport_immediate with title: `{:?}` is not created in main thread, try to use wgpu!", builder.title.clone().unwrap_or_default());
         }
 
@@ -1327,12 +1354,7 @@ mod glow_integration {
                 .gl_surface
                 .as_ref()
                 .expect("failed to get surface to swap buffers")
-                .swap_buffers(
-                    glutin
-                        .current_gl_context
-                        .as_ref()
-                        .expect("failed to get current context to swap buffers"),
-                )
+                .swap_buffers(current_gl_context)
             {
                 log::error!("swap_buffers failed: {err}");
             }
@@ -2209,16 +2231,17 @@ mod wgpu_integration {
             }
 
             // Render sync viewport:
-            let viewport = viewports.get(&id_pair.this).cloned();
-            let Some(viewport) = viewport else { return };
+            let Some(viewport) = viewports.get(&id_pair.this) else {
+                return;
+            };
             let Some(winit_state) = &mut *viewport.egui_winit.borrow_mut() else {
                 return;
             };
-            let Some(window) = viewport.window else {
+            let Some(window) = &viewport.window else {
                 return;
             };
 
-            let mut input = winit_state.take_egui_input(&window, id_pair);
+            let mut input = winit_state.take_egui_input(window, id_pair);
             input.time = Some(beginning.elapsed().as_secs_f64());
             input
         };
@@ -2237,16 +2260,17 @@ mod wgpu_integration {
             viewports, painter, ..
         } = &mut *shared;
 
-        let viewport = viewports.get(&id_pair.this).cloned();
-        let Some(viewport) = viewport else { return };
+        let Some(viewport) = viewports.get(&id_pair.this) else {
+            return;
+        };
         let Some(winit_state) = &mut *viewport.egui_winit.borrow_mut() else {
             return;
         };
-        let Some(window) = viewport.window else {
+        let Some(window) = &viewport.window else {
             return;
         };
 
-        if let Err(err) = pollster::block_on(painter.set_window(id_pair.this, Some(&window))) {
+        if let Err(err) = pollster::block_on(painter.set_window(id_pair.this, Some(window))) {
             log::error!(
                 "when rendering viewport_id={:?}, set_window Error {err}",
                 id_pair.this
@@ -2264,7 +2288,7 @@ mod wgpu_integration {
             false,
         );
 
-        winit_state.handle_platform_output(&window, id_pair.this, egui_ctx, output.platform_output);
+        winit_state.handle_platform_output(window, id_pair.this, egui_ctx, output.platform_output);
     }
 
     impl WinitApp for WgpuWinitApp {
@@ -2536,11 +2560,11 @@ mod wgpu_integration {
                 ..
             }) = viewport_maps
                 .get(&window_id)
-                .and_then(|id| viewports.get(id).cloned())
+                .and_then(|id| viewports.get(id))
             else {
                 return EventResult::Wait;
             };
-            integration.maybe_autosave(app.as_mut(), Some(&*window));
+            integration.maybe_autosave(app.as_mut(), Some(window));
 
             if window.is_minimized() == Some(true) {
                 // On Mac, a minimized Window uses up all CPU:
@@ -2736,7 +2760,7 @@ mod wgpu_integration {
                         if let Some(viewport) = shared
                             .viewport_maps
                             .get(window_id)
-                            .and_then(|id| shared.viewports.get(id).cloned())
+                            .and_then(|id| shared.viewports.get(id))
                         {
                             if let Some(egui_winit) = &mut *viewport.egui_winit.borrow_mut() {
                                 egui_winit.on_accesskit_action_request(request.clone());
