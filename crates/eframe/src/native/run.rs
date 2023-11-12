@@ -892,6 +892,82 @@ mod glow_integration {
                 );
             }
         }
+
+        fn process_viewport_builders(&mut self, mut viewports: Vec<ViewportOutput>) {
+            let mut active_viewports_ids = ViewportIdSet::default();
+            active_viewports_ids.insert(ViewportId::ROOT);
+
+            viewports.retain_mut(
+                |ViewportOutput {
+                     builder: new_builder,
+                     id_pair: ViewportIdPair { this: id, parent },
+                     viewport_ui_cb,
+                 }| {
+                    let builder = self.builders.entry(*id).or_insert(new_builder.clone());
+                    let (commands, recreate) = builder.patch(new_builder);
+                    if let Some(viewport) = self.viewports.get(id) {
+                        let mut viewport = viewport.borrow_mut();
+
+                        viewport.id_pair.parent = *parent;
+                        viewport.viewport_ui_cb = viewport_ui_cb.clone(); // always update the latest callback
+
+                        if recreate {
+                            viewport.window = None;
+                            viewport.gl_surface = None;
+                        } else if let Some(window) = &viewport.window {
+                            let is_viewport_focused = false; // TODO
+                            process_viewport_commands(
+                                commands,
+                                &window.borrow(),
+                                is_viewport_focused,
+                            );
+                        }
+                        active_viewports_ids.insert(*id);
+                        false
+                    } else {
+                        true
+                    }
+                },
+            );
+
+            for ViewportOutput {
+                mut builder,
+                id_pair,
+                viewport_ui_cb,
+            } in viewports
+            {
+                if builder.icon.is_none() {
+                    // Inherit from parent as fallback.
+                    builder.icon = self
+                        .builders
+                        .get(&id_pair.parent)
+                        .and_then(|b| b.icon.clone());
+                }
+                {
+                    self.viewports.insert(
+                        id_pair.this,
+                        Rc::new(RefCell::new(Viewport {
+                            gl_surface: None,
+                            window: None,
+                            egui_winit: None,
+                            viewport_ui_cb,
+                            id_pair,
+                        })),
+                    );
+                    self.builders.insert(id_pair.this, builder);
+                }
+                active_viewports_ids.insert(id_pair.this);
+            }
+
+            self.viewports
+                .retain(|id, _| active_viewports_ids.contains(id));
+            self.builders
+                .retain(|id, _| active_viewports_ids.contains(id));
+            self.viewport_maps
+                .retain(|_, id| active_viewports_ids.contains(id));
+            self.window_maps
+                .retain(|id, _| active_viewports_ids.contains(id));
+        }
     }
 
     struct GlowWinitApp {
@@ -1275,93 +1351,6 @@ mod glow_integration {
                 output.platform_output,
             );
         }
-
-        fn process_viewport_builders(
-            glutin_ctx: &Rc<RefCell<GlutinWindowContext>>,
-            mut viewports: Vec<ViewportOutput>,
-        ) {
-            let mut active_viewports_ids = ViewportIdSet::default();
-            active_viewports_ids.insert(ViewportId::ROOT);
-
-            viewports.retain_mut(
-                |ViewportOutput {
-                     builder: new_builder,
-                     id_pair: ViewportIdPair { this: id, parent },
-                     viewport_ui_cb,
-                 }| {
-                    let mut glutin = glutin_ctx.borrow_mut();
-                    let builder = glutin.builders.entry(*id).or_insert(new_builder.clone());
-                    let (commands, recreate) = builder.patch(new_builder);
-                    if let Some(viewport) = glutin.viewports.get(id) {
-                        let mut viewport = viewport.borrow_mut();
-
-                        viewport.id_pair.parent = *parent;
-                        viewport.viewport_ui_cb = viewport_ui_cb.clone(); // always update the latest callback
-
-                        if recreate {
-                            viewport.window = None;
-                            viewport.gl_surface = None;
-                        } else if let Some(window) = &viewport.window {
-                            let is_viewport_focused = false; // TODO
-                            process_viewport_commands(
-                                commands,
-                                &window.borrow(),
-                                is_viewport_focused,
-                            );
-                        }
-                        active_viewports_ids.insert(*id);
-                        false
-                    } else {
-                        true
-                    }
-                },
-            );
-
-            for ViewportOutput {
-                mut builder,
-                id_pair,
-                viewport_ui_cb,
-            } in viewports
-            {
-                if builder.icon.is_none() {
-                    // Inherit from parent as fallback.
-                    builder.icon = glutin_ctx
-                        .borrow()
-                        .builders
-                        .get(&id_pair.parent)
-                        .and_then(|b| b.icon.clone());
-                }
-                {
-                    let mut glutin = glutin_ctx.borrow_mut();
-                    glutin.viewports.insert(
-                        id_pair.this,
-                        Rc::new(RefCell::new(Viewport {
-                            gl_surface: None,
-                            window: None,
-                            egui_winit: None,
-                            viewport_ui_cb,
-                            id_pair,
-                        })),
-                    );
-                    glutin.builders.insert(id_pair.this, builder);
-                }
-                active_viewports_ids.insert(id_pair.this);
-            }
-
-            let mut glutin = glutin_ctx.borrow_mut();
-            glutin
-                .viewports
-                .retain(|id, _| active_viewports_ids.contains(id));
-            glutin
-                .builders
-                .retain(|id, _| active_viewports_ids.contains(id));
-            glutin
-                .viewport_maps
-                .retain(|_, id| active_viewports_ids.contains(id));
-            glutin
-                .window_maps
-                .retain(|id, _| active_viewports_ids.contains(id));
-        }
     }
 
     impl WinitApp for GlowWinitApp {
@@ -1620,7 +1609,7 @@ mod glow_integration {
                 }
             }
 
-            Self::process_viewport_builders(&glutin, viewports);
+            glutin.borrow_mut().process_viewport_builders(viewports);
 
             for (viewport_id, command) in viewport_commands {
                 if let Some(viewport) = glutin.borrow().viewports.get(&viewport_id) {
