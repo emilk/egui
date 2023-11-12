@@ -9,7 +9,7 @@ use egui::{NumExt as _, ViewportBuilder, ViewportId, ViewportIdPair, ViewportUiC
 use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
 
-use crate::{epi, Theme, WindowInfo};
+use crate::{backend::AppOutput, epi, Theme, WindowInfo};
 
 #[derive(Default)]
 pub struct WindowState {
@@ -431,7 +431,9 @@ impl EpiIntegration {
             .memory_mut(|mem| mem.set_everything_is_visible(true));
 
         let raw_input = egui_winit.take_egui_input(window, ViewportIdPair::ROOT);
-        let full_output = self.update(app, window, None, raw_input);
+        self.pre_update(window);
+        let (full_output, app_output) = self.update(app, None, raw_input);
+        self.handle_app_output(window, app_output);
         self.pending_full_output.append(full_output); // Handle it next frame
         self.egui_ctx.memory_mut(|mem| *mem = saved_memory); // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
@@ -482,21 +484,23 @@ impl EpiIntegration {
         egui_winit.on_event(&self.egui_ctx, event)
     }
 
+    pub fn pre_update(&mut self, window: &winit::window::Window) {
+        self.frame.info.window_info =
+            read_window_info(window, self.egui_ctx.pixels_per_point(), &self.window_state);
+    }
+
     /// If `viewport_ui_cb` is None, we are in the root viewport
     /// and will cal [`App::update`].
     pub fn update(
         &mut self,
         app: &mut dyn epi::App,
-        window: &winit::window::Window,
         viewport_ui_cb: Option<&ViewportUiCallback>,
         mut raw_input: egui::RawInput,
-    ) -> egui::FullOutput {
+    ) -> (egui::FullOutput, AppOutput) {
         let frame_start = std::time::Instant::now();
 
         self.app_icon_setter.update();
 
-        self.frame.info.window_info =
-            read_window_info(window, self.egui_ctx.pixels_per_point(), &self.window_state);
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 
         // Run user code - this can create immediate viewports, so hold no locks over this!
@@ -515,7 +519,7 @@ impl EpiIntegration {
         self.pending_full_output.append(full_output);
         let full_output = std::mem::take(&mut self.pending_full_output);
 
-        {
+        let app_output = {
             let mut app_output = self.frame.take_app_output();
             app_output.drag_window &= self.can_drag_window; // Necessary on Windows; see https://github.com/emilk/egui/pull/1108
             self.can_drag_window = false;
@@ -528,18 +532,22 @@ impl EpiIntegration {
             if self.frame.output.attention.is_some() {
                 self.frame.output.attention = None;
             }
-            handle_app_output(
-                window,
-                self.egui_ctx.pixels_per_point(),
-                app_output,
-                &mut self.window_state,
-            );
-        }
+            app_output
+        };
 
         let frame_time = frame_start.elapsed().as_secs_f64() as f32;
         self.frame.info.cpu_usage = Some(frame_time);
 
-        full_output
+        (full_output, app_output)
+    }
+
+    pub fn handle_app_output(&mut self, window: &winit::window::Window, app_output: AppOutput) {
+        handle_app_output(
+            window,
+            self.egui_ctx.pixels_per_point(),
+            app_output,
+            &mut self.window_state,
+        );
     }
 
     pub fn post_rendering(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {

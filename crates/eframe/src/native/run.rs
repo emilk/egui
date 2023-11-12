@@ -1483,9 +1483,18 @@ mod glow_integration {
                     let egui_winit = viewport.egui_winit.as_mut().unwrap();
                     let raw_input = egui_winit.take_egui_input(&window, viewport.id_pair);
 
+                    integration.pre_update(&window);
+
                     // ------------------------------------------------------------
                     // The update function, which could call immediate viewports,
                     // so make sure we don't hold any locks here required by the immediate viewports rendeer.
+
+                    let (full_output, app_output) = integration.update(
+                        app.as_mut(),
+                        viewport.viewport_ui_cb.as_deref(),
+                        raw_input,
+                    );
+                    integration.handle_app_output(&window, app_output);
 
                     egui::FullOutput {
                         platform_output,
@@ -1493,12 +1502,7 @@ mod glow_integration {
                         shapes,
                         viewports,
                         viewport_commands,
-                    } = integration.update(
-                        app.as_mut(),
-                        &window,
-                        viewport.viewport_ui_cb.as_deref(),
-                        raw_input,
-                    );
+                    } = full_output;
 
                     // ------------------------------------------------------------
 
@@ -1844,7 +1848,10 @@ pub use glow_integration::run_glow;
 mod wgpu_integration {
     use parking_lot::Mutex;
 
-    use egui::{ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput, ViewportUiCallback};
+    use egui::{
+        FullOutput, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
+        ViewportUiCallback,
+    };
     use egui_winit::{create_winit_window_builder, process_viewport_commands};
 
     use super::*;
@@ -2423,19 +2430,26 @@ mod wgpu_integration {
                     },
                 );
 
+                integration.pre_update(&window);
+
                 // ------------------------------------------------------------
 
                 // Runs the update, which could call immediate viewports,
                 // so make sure we hold no locks here!
-                egui::FullOutput {
+                let (full_output, app_output) =
+                    integration.update(app.as_mut(), viewport_ui_cb.as_deref(), raw_input);
+
+                // ------------------------------------------------------------
+
+                integration.handle_app_output(&window, app_output);
+
+                FullOutput {
                     platform_output,
                     textures_delta,
                     shapes,
                     viewports: out_viewports,
                     viewport_commands,
-                } = integration.update(app.as_mut(), &window, viewport_ui_cb.as_deref(), raw_input);
-
-                // ------------------------------------------------------------
+                } = full_output;
 
                 integration.handle_platform_output(
                     &window,
