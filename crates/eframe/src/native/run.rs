@@ -4,8 +4,9 @@
 use std::{cell::RefCell, rc::Rc, sync::Arc, time::Instant};
 
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
-use winit::event_loop::{
-    ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget,
+use winit::{
+    event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy, EventLoopWindowTarget},
+    window::{Window, WindowId},
 };
 
 use egui::{epaint::ahash::HashMap, ViewportBuilder, ViewportId};
@@ -71,14 +72,14 @@ enum EventResult {
     ///
     /// `RepaintNow` creates a new frame synchronously, and should therefore
     /// only be used for extremely urgent repaints.
-    RepaintNow(winit::window::WindowId),
+    RepaintNow(WindowId),
 
     /// Queues a repaint for once the event loop handles its next redraw. Exists
     /// so that multiple input events can be handled in one frame. Does not
     /// cause any delay like `RepaintNow`.
-    RepaintNext(winit::window::WindowId),
+    RepaintNext(WindowId),
 
-    RepaintAt(winit::window::WindowId, Instant),
+    RepaintAt(WindowId, Instant),
 
     Exit,
 }
@@ -87,19 +88,19 @@ trait WinitApp {
     /// The current frame number, as reported by egui.
     fn frame_nr(&self, viewport_id: ViewportId) -> u64;
 
-    fn is_focused(&self, window_id: winit::window::WindowId) -> bool;
+    fn is_focused(&self, window_id: WindowId) -> bool;
 
     fn integration(&self) -> Option<&EpiIntegration>;
 
-    fn window(&self, window_id: winit::window::WindowId) -> Option<Rc<winit::window::Window>>;
+    fn window(&self, window_id: WindowId) -> Option<Rc<Window>>;
 
-    fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<winit::window::WindowId>;
+    fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId>;
 
-    fn viewport_id_from_window_id(&self, id: &winit::window::WindowId) -> Option<ViewportId>;
+    fn viewport_id_from_window_id(&self, id: &WindowId) -> Option<ViewportId>;
 
     fn save_and_destroy(&mut self);
 
-    fn run_ui_and_paint(&mut self, window_id: winit::window::WindowId) -> EventResult;
+    fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult;
 
     fn on_event(
         &mut self,
@@ -443,18 +444,17 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 /// Run an egui app
 #[cfg(feature = "glow")]
 mod glow_integration {
+    use glutin::{
+        display::GetGlDisplay,
+        prelude::{GlDisplay, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentGlContext},
+        surface::GlSurface,
+    };
 
     use egui::{
         epaint::ahash::HashMap, NumExt as _, ViewportIdMap, ViewportIdPair, ViewportIdSet,
         ViewportOutput, ViewportUiCallback,
     };
     use egui_winit::{create_winit_window_builder, process_viewport_commands, EventResponse};
-    use glutin::{
-        display::GetGlDisplay,
-        prelude::{GlDisplay, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentGlContext},
-        surface::GlSurface,
-    };
-    use winit::window::WindowId;
 
     use super::*;
 
@@ -485,7 +485,7 @@ mod glow_integration {
 
     struct Viewport {
         gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
-        window: Option<Rc<winit::window::Window>>,
+        window: Option<Rc<Window>>,
         id_pair: ViewportIdPair,
 
         /// The user-callback that shows the ui.
@@ -832,7 +832,7 @@ mod glow_integration {
                 .expect("viewport doesn't exist")
         }
 
-        fn window(&self, viewport_id: ViewportId) -> Rc<winit::window::Window> {
+        fn window(&self, viewport_id: ViewportId) -> Rc<Window> {
             self.viewport(viewport_id)
                 .borrow()
                 .window
@@ -1264,11 +1264,11 @@ mod glow_integration {
 
         let viewport = &mut *viewport.borrow_mut();
         let Some(winit_state) = &mut viewport.egui_winit else {
-                return;
-            };
+            return;
+        };
         let Some(window) = &viewport.window else {
-                return;
-            };
+            return;
+        };
 
         let mut input = winit_state.take_egui_input(window, id_pair);
         input.time = Some(beginning.elapsed().as_secs_f64());
@@ -1365,7 +1365,7 @@ mod glow_integration {
             self.running.as_ref().map(|r| &r.integration)
         }
 
-        fn window(&self, window_id: WindowId) -> Option<Rc<winit::window::Window>> {
+        fn window(&self, window_id: WindowId) -> Option<Rc<Window>> {
             let running = self.running.as_ref()?;
             let glutin_ctx = running.glutin_ctx.borrow();
             let viewport_id = *glutin_ctx.viewport_maps.get(&window_id)?;
@@ -1829,7 +1829,7 @@ mod wgpu_integration {
 
     #[derive(Clone)]
     pub struct Viewport {
-        window: Option<Rc<winit::window::Window>>,
+        window: Option<Rc<Window>>,
 
         egui_winit: Rc<RefCell<Option<egui_winit::State>>>,
 
@@ -1848,7 +1848,7 @@ mod wgpu_integration {
         viewports: Viewports,
         builders: ViewportIdMap<ViewportBuilder>,
         painter: egui_wgpu::winit::Painter,
-        viewport_maps: HashMap<winit::window::WindowId, ViewportId>,
+        viewport_maps: HashMap<WindowId, ViewportId>,
     }
 
     /// State that is initialized when the application is first starts running via
@@ -1954,7 +1954,7 @@ mod wgpu_integration {
             &mut self,
             event_loop: &EventLoopWindowTarget<UserEvent>,
             storage: Option<Box<dyn epi::Storage>>,
-            window: winit::window::Window,
+            window: Window,
             builder: ViewportBuilder,
         ) -> Result<(), egui_wgpu::WgpuError> {
             crate::profile_function!();
@@ -2112,7 +2112,7 @@ mod wgpu_integration {
         storage: Option<&dyn epi::Storage>,
         title: &str,
         native_options: &mut NativeOptions,
-    ) -> Result<(winit::window::Window, ViewportBuilder), winit::error::OsError> {
+    ) -> Result<(Window, ViewportBuilder), winit::error::OsError> {
         crate::profile_function!();
 
         let window_settings = epi_integration::load_window_settings(storage);
@@ -2129,9 +2129,9 @@ mod wgpu_integration {
     fn init_window(
         id: ViewportId,
         builder: &ViewportBuilder,
-        windows_id: &mut HashMap<winit::window::WindowId, ViewportId>,
+        windows_id: &mut HashMap<WindowId, ViewportId>,
         painter: &mut egui_wgpu::winit::Painter,
-        window: &mut Option<Rc<winit::window::Window>>,
+        window: &mut Option<Rc<Window>>,
         egui_winit: &mut Option<egui_winit::State>,
         event_loop: &EventLoopWindowTarget<UserEvent>,
     ) {
@@ -2214,11 +2214,11 @@ mod wgpu_integration {
             let viewport = viewports.get(&id_pair.this).cloned();
             let Some(viewport) = viewport else { return };
             let Some(winit_state) = &mut *viewport.egui_winit.borrow_mut() else {
-                    return;
-                };
+                return;
+            };
             let Some(window) = viewport.window else {
-                    return;
-                };
+                return;
+            };
 
             let mut input = winit_state.take_egui_input(&window, id_pair);
             input.time = Some(beginning.elapsed().as_secs_f64());
@@ -2242,11 +2242,11 @@ mod wgpu_integration {
         let viewport = viewports.get(&id_pair.this).cloned();
         let Some(viewport) = viewport else { return };
         let Some(winit_state) = &mut *viewport.egui_winit.borrow_mut() else {
-                return;
-            };
+            return;
+        };
         let Some(window) = viewport.window else {
-                return;
-            };
+            return;
+        };
 
         if let Err(err) = pollster::block_on(painter.set_window(id_pair.this, Some(&window))) {
             log::error!(
@@ -2276,7 +2276,7 @@ mod wgpu_integration {
                 .map_or(0, |r| r.integration.egui_ctx.frame_nr_for(viewport_id))
         }
 
-        fn is_focused(&self, window_id: winit::window::WindowId) -> bool {
+        fn is_focused(&self, window_id: WindowId) -> bool {
             if let Some(focus) = self.focused_viewport {
                 self.viewport_id_from_window_id(&window_id)
                     .map_or(false, |i| i == focus)
@@ -2289,7 +2289,7 @@ mod wgpu_integration {
             self.running.as_ref().map(|r| &r.integration)
         }
 
-        fn window(&self, window_id: winit::window::WindowId) -> Option<Rc<winit::window::Window>> {
+        fn window(&self, window_id: WindowId) -> Option<Rc<Window>> {
             self.running
                 .as_ref()
                 .and_then(|r| {
@@ -2302,7 +2302,7 @@ mod wgpu_integration {
                 .flatten()
         }
 
-        fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<winit::window::WindowId> {
+        fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId> {
             self.running.as_ref().and_then(|r| {
                 r.shared
                     .borrow()
@@ -2333,7 +2333,7 @@ mod wgpu_integration {
             }
         }
 
-        fn run_ui_and_paint(&mut self, window_id: winit::window::WindowId) -> EventResult {
+        fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
             let Some(running) = &mut self.running else {
                 return EventResult::Wait;
             };
@@ -2755,7 +2755,7 @@ mod wgpu_integration {
             })
         }
 
-        fn viewport_id_from_window_id(&self, id: &winit::window::WindowId) -> Option<ViewportId> {
+        fn viewport_id_from_window_id(&self, id: &WindowId) -> Option<ViewportId> {
             self.running
                 .as_ref()
                 .and_then(|r| r.shared.borrow().viewport_maps.get(id).copied())
@@ -2787,7 +2787,7 @@ pub use wgpu_integration::run_wgpu;
 
 // ----------------------------------------------------------------------------
 
-fn system_theme(window: &winit::window::Window, options: &NativeOptions) -> Option<crate::Theme> {
+fn system_theme(window: &Window, options: &NativeOptions) -> Option<crate::Theme> {
     if options.follow_system_theme {
         window
             .theme()
