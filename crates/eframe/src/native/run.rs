@@ -30,13 +30,6 @@ pub const IS_DESKTOP: bool = cfg!(any(
 
 // ----------------------------------------------------------------------------
 
-thread_local! {
-    /// This makes [`Context::show_viewport_immediate`] to have a native window in the same frame!
-    pub static WINIT_EVENT_LOOP: RefCell<*const EventLoopWindowTarget<UserEvent>> = RefCell::new(std::ptr::null());
-}
-
-// ----------------------------------------------------------------------------
-
 /// The custom even `eframe` uses with the [`winit`] event loop.
 #[derive(Debug)]
 pub enum UserEvent {
@@ -175,8 +168,6 @@ fn run_and_return(
 
     event_loop.run_return(|event, event_loop, control_flow| {
         crate::profile_scope!("winit_event", short_event_description(&event));
-
-        WINIT_EVENT_LOOP.with(|row_event_loop| row_event_loop.replace(event_loop));
 
         let event_result = match &event {
             winit::event::Event::LoopDestroyed => {
@@ -333,8 +324,6 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 
     event_loop.run(move |event, event_loop, control_flow| {
         crate::profile_scope!("winit_event", short_event_description(&event));
-
-        WINIT_EVENT_LOOP.with(|row_event_loop| row_event_loop.replace(event_loop));
 
         let event_result = match &event {
             winit::event::Event::LoopDestroyed => {
@@ -1084,12 +1073,20 @@ mod glow_integration {
                 let painter = Rc::downgrade(&painter);
                 let beginning = integration.beginning;
 
+                let event_loop: *const EventLoopWindowTarget<UserEvent> = event_loop;
+
                 integration.egui_ctx.set_immediate_viewport_renderer(
                     move |egui_ctx, viewport_builder, id_pair, viewport_ui_cb| {
                         if let (Some(glutin), Some(gl), Some(painter)) =
                             (glutin.upgrade(), gl.upgrade(), painter.upgrade())
                         {
+                            // SAFETY: the event loop lives longer than
+                            // the Rc:s we just upgraded above.
+                            #[allow(unsafe_code)]
+                            let event_loop = unsafe { event_loop.as_ref().unwrap() };
+
                             Self::render_immediate_viewport(
+                                event_loop,
                                 egui_ctx,
                                 viewport_builder,
                                 id_pair,
@@ -1120,6 +1117,7 @@ mod glow_integration {
         #[inline(always)]
         #[allow(clippy::too_many_arguments)]
         fn render_immediate_viewport(
+            event_loop: &EventLoopWindowTarget<UserEvent>,
             egui_ctx: &egui::Context,
             mut viewport_builder: ViewportBuilder,
             id_pair: ViewportIdPair,
@@ -1165,13 +1163,6 @@ mod glow_integration {
                         .entry(id_pair.this)
                         .or_insert(viewport_builder);
                 }
-
-                #[allow(unsafe_code)]
-                let event_loop = unsafe {
-                    WINIT_EVENT_LOOP.with(|event_loop| {
-                        event_loop.borrow().as_ref().expect("No winit event loop")
-                    })
-                };
 
                 glutin
                     .init_viewport(id_pair.this, event_loop)
@@ -2157,10 +2148,18 @@ mod wgpu_integration {
                 let shared = Rc::downgrade(&shared);
                 let beginning = integration.beginning;
 
+                let event_loop: *const EventLoopWindowTarget<UserEvent> = event_loop;
+
                 integration.egui_ctx.set_immediate_viewport_renderer(
                     move |egui_ctx, viewport_builder, id_pair, viewport_ui_cb| {
                         if let Some(shared) = shared.upgrade() {
+                            // SAFETY: the event loop lives longer than
+                            // the Rc:s we just upgraded above.
+                            #[allow(unsafe_code)]
+                            let event_loop = unsafe { event_loop.as_ref().unwrap() };
+
                             Self::render_immediate_viewport(
+                                event_loop,
                                 egui_ctx,
                                 viewport_builder,
                                 id_pair,
@@ -2187,6 +2186,7 @@ mod wgpu_integration {
         #[inline(always)]
         #[allow(clippy::too_many_arguments)]
         fn render_immediate_viewport(
+            event_loop: &EventLoopWindowTarget<UserEvent>,
             egui_ctx: &egui::Context,
             mut viewport_builder: ViewportBuilder,
             id_pair: ViewportIdPair,
@@ -2228,13 +2228,6 @@ mod wgpu_integration {
                     builders
                         .entry(id_pair.this)
                         .or_insert(viewport_builder.clone());
-
-                    #[allow(unsafe_code)]
-                    let event_loop = unsafe {
-                        WINIT_EVENT_LOOP.with(|event_loop| {
-                            event_loop.borrow().as_ref().expect("No winit event loop")
-                        })
-                    };
 
                     Self::init_window(
                         id_pair.this,
