@@ -92,6 +92,13 @@ impl ViewportState {
             });
         }
     }
+
+    pub fn set_visible_recursive(&mut self, visible: bool) {
+        self.visible = visible;
+        for child in &self.children {
+            child.write().set_visible_recursive(true);
+        }
+    }
 }
 
 pub struct App {
@@ -140,6 +147,11 @@ impl eframe::App for App {
             {
                 let mut embed_viewports = ctx.embed_viewports();
                 ui.checkbox(&mut embed_viewports, "Embed all viewports");
+                if ui.button("Open all viewports").clicked() {
+                    for viewport in &self.top {
+                        viewport.write().set_visible_recursive(true);
+                    }
+                }
                 ctx.set_embed_viewports(embed_viewports);
             }
 
