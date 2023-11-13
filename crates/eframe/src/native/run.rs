@@ -1863,7 +1863,6 @@ mod wgpu_integration {
 
     use super::*;
 
-    #[derive(Clone)]
     pub struct Viewport {
         window: Option<Rc<Window>>,
 
@@ -2387,11 +2386,18 @@ mod wgpu_integration {
             let (viewport_ui_cb, raw_input) = {
                 let mut shared_lock = shared.borrow_mut();
 
-                let Some(viewport_id) = shared_lock.viewport_maps.get(&window_id).copied() else {
+                let SharedState {
+                    viewports,
+                    painter,
+                    viewport_maps,
+                    ..
+                } = &mut *shared_lock;
+
+                let Some(viewport_id) = viewport_maps.get(&window_id).copied() else {
                     return EventResult::Wait;
                 };
 
-                let Some(viewport) = shared_lock.viewports.get(&viewport_id).cloned() else {
+                let Some(viewport) = viewports.get(&viewport_id) else {
                     return EventResult::Wait;
                 };
 
@@ -2408,7 +2414,7 @@ mod wgpu_integration {
 
                 // This is used to not render a viewport if is sync
                 if viewport_id != ViewportId::ROOT && viewport_ui_cb.is_none() {
-                    if let Some(viewport) = shared_lock.viewports.get(&parent_id) {
+                    if let Some(viewport) = viewports.get(parent_id) {
                         if let Some(window) = viewport.window.as_ref() {
                             return EventResult::RepaintNext(window.id());
                         }
@@ -2416,20 +2422,17 @@ mod wgpu_integration {
                     return EventResult::Wait;
                 }
 
-                let _ =
-                    pollster::block_on(shared_lock.painter.set_window(viewport_id, Some(&window)));
-
-                drop(shared_lock); // Release lock!
+                let _ = pollster::block_on(painter.set_window(viewport_id, Some(window)));
 
                 let raw_input = egui_winit.borrow_mut().as_mut().unwrap().take_egui_input(
-                    &window,
+                    window,
                     ViewportIdPair {
                         this: viewport_id,
-                        parent: parent_id,
+                        parent: *parent_id,
                     },
                 );
 
-                integration.pre_update(&window);
+                integration.pre_update(window);
 
                 (viewport_ui_cb.clone(), raw_input)
             };
@@ -2449,7 +2452,7 @@ mod wgpu_integration {
                 return EventResult::Wait;
             };
 
-            let Some(viewport) = shared_lock.viewports.get(&viewport_id).cloned() else {
+            let Some(viewport) = shared_lock.viewports.get(&viewport_id) else {
                 return EventResult::Wait;
             };
 
@@ -2461,7 +2464,7 @@ mod wgpu_integration {
                 return EventResult::Wait;
             };
 
-            integration.post_update(app.as_mut(), &window);
+            integration.post_update(app.as_mut(), window);
 
             let FullOutput {
                 platform_output,
@@ -2472,7 +2475,7 @@ mod wgpu_integration {
             } = full_output;
 
             integration.handle_platform_output(
-                &window,
+                window,
                 viewport_id,
                 platform_output,
                 egui_winit.borrow_mut().as_mut().unwrap(),
@@ -2497,8 +2500,8 @@ mod wgpu_integration {
             *screenshot_requested = false;
             integration.frame.screenshot.set(screenshot);
 
-            integration.post_rendering(app.as_mut(), &window);
-            integration.post_present(&window);
+            integration.post_rendering(app.as_mut(), window);
+            integration.post_present(window);
 
             let SharedState {
                 viewports,
@@ -2741,15 +2744,11 @@ mod wgpu_integration {
                             _ => {}
                         };
 
-                        let event_response = if let Some((id, viewport)) =
-                            viewport_id.and_then(|id| {
-                                running
-                                    .shared
-                                    .borrow()
-                                    .viewports
-                                    .get(&id)
-                                    .map(|w| (id, w.clone()))
-                            }) {
+                        let shared = running.shared.borrow();
+
+                        let event_response = if let Some((id, viewport)) = viewport_id
+                            .and_then(|id| shared.viewports.get(&id).map(|viewport| (id, viewport)))
+                        {
                             if let Some(egui_winit) = &mut *viewport.egui_winit.borrow_mut() {
                                 Some(running.integration.on_event(
                                     running.app.as_mut(),
