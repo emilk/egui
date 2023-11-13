@@ -644,23 +644,7 @@ mod glow_integration {
             #[cfg(feature = "__screenshot")]
             if integration.egui_ctx.frame_nr() == 2 {
                 if let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO") {
-                    assert!(
-                        path.ends_with(".png"),
-                        "Expected EFRAME_SCREENSHOT_TO to end with '.png', got {path:?}"
-                    );
-                    let screenshot = painter.borrow().read_screen_rgba(screen_size_in_pixels);
-                    image::save_buffer(
-                        &path,
-                        screenshot.as_raw(),
-                        screenshot.width() as u32,
-                        screenshot.height() as u32,
-                        image::ColorType::Rgba8,
-                    )
-                    .unwrap_or_else(|err| {
-                        panic!("Failed to save screenshot to {path:?}: {err}");
-                    });
-                    eprintln!("Screenshot saved to {path:?}.");
-                    std::process::exit(0);
+                    save_screeshot_and_exit(&path, painter, screen_size_in_pixels);
                 }
             }
 
@@ -694,6 +678,32 @@ mod glow_integration {
                 EventResult::Wait
             }
         }
+    }
+
+    fn save_screeshot_and_exit(
+        path: &str,
+        painter: &mut Rc<RefCell<egui_glow::Painter>>,
+        screen_size_in_pixels: [u32; 2],
+    ) {
+        assert!(
+            path.ends_with(".png"),
+            "Expected EFRAME_SCREENSHOT_TO to end with '.png', got {path:?}"
+        );
+        let screenshot = painter.borrow().read_screen_rgba(screen_size_in_pixels);
+        image::save_buffer(
+            path,
+            screenshot.as_raw(),
+            screenshot.width() as u32,
+            screenshot.height() as u32,
+            image::ColorType::Rgba8,
+        )
+        .unwrap_or_else(|err| {
+            panic!("Failed to save screenshot to {path:?}: {err}");
+        });
+        eprintln!("Screenshot saved to {path:?}.");
+
+        #[allow(clippy::exit)]
+        std::process::exit(0);
     }
 
     struct Viewport {
