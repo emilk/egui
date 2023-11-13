@@ -261,34 +261,39 @@ fn run_and_return(
             }
         }
 
-        // This is for not duplicating redraw requests
+        let mut next_repaint_time = windows_next_repaint_times.values().min().cloned();
 
+        // This is for not duplicating redraw requests
         use winit::event::Event;
         if matches!(
             event,
             Event::RedrawEventsCleared | Event::RedrawRequested(_) | Event::Resumed
         ) {
-            for (window_id, repaint_time) in &windows_next_repaint_times.clone() {
-                if *repaint_time <= Instant::now() {
-                    if let Some(window) = winit_app.window(*window_id) {
-                        log::trace!("request_redraw");
-                        window.request_redraw();
-                    } else {
-                        windows_next_repaint_times.remove(window_id);
-                    }
-                    control_flow.set_poll();
-                }
-            }
-        }
+            windows_next_repaint_times.retain(|window_id, repaint_time| {
+                if *repaint_time > Instant::now() {
+                    return true;
+                };
 
-        let next_repaint_time = windows_next_repaint_times.values().min();
+                next_repaint_time = None;
+                control_flow.set_poll();
+
+                if let Some(window) = winit_app.window(*window_id) {
+                    log::trace!("request_redraw for {window_id:?}");
+                    window.request_redraw();
+
+                    true
+                } else {
+                    false
+                }
+            })
+        }
 
         if let Some(next_repaint_time) = next_repaint_time {
             let time_until_next = next_repaint_time.saturating_duration_since(Instant::now());
             if time_until_next < std::time::Duration::from_secs(10_000) {
                 log::trace!("WaitUntil {time_until_next:?}");
             }
-            control_flow.set_wait_until(*next_repaint_time);
+            control_flow.set_wait_until(next_repaint_time);
         };
     });
 
@@ -391,27 +396,32 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             }
         }
 
-        // This is for not duplicating redraw requests
+        let mut next_repaint_time = windows_next_repaint_times.values().min().cloned();
 
+        // This is for not duplicating redraw requests
         use winit::event::Event;
         if matches!(
             event,
             Event::RedrawEventsCleared | Event::RedrawRequested(_) | Event::Resumed
         ) {
-            for (window_id, repaint_time) in &windows_next_repaint_times.clone() {
-                if *repaint_time <= Instant::now() {
-                    if let Some(window) = winit_app.window(*window_id) {
-                        log::trace!("request_redraw");
-                        window.request_redraw();
-                    } else {
-                        windows_next_repaint_times.remove(window_id);
-                    }
-                    control_flow.set_poll();
+            windows_next_repaint_times.retain(|window_id, repaint_time| {
+                if *repaint_time > Instant::now() {
+                    return true;
                 }
-            }
-        }
 
-        let next_repaint_time = windows_next_repaint_times.values().min();
+                next_repaint_time = None;
+                control_flow.set_poll();
+
+                if let Some(window) = winit_app.window(*window_id) {
+                    log::trace!("request_redraw for {window_id:?}");
+                    window.request_redraw();
+
+                    true
+                } else {
+                    false
+                }
+            })
+        }
 
         if let Some(next_repaint_time) = next_repaint_time {
             let time_until_next = next_repaint_time.saturating_duration_since(Instant::now());
@@ -429,7 +439,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                         .map(|window| window.request_redraw())
                 });
 
-            control_flow.set_wait_until(*next_repaint_time);
+            control_flow.set_wait_until(next_repaint_time);
         };
     })
 }
