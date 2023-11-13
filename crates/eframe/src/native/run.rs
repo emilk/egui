@@ -532,7 +532,7 @@ mod glow_integration {
         current_gl_context: Option<glutin::context::PossiblyCurrentContext>,
         not_current_gl_context: Option<glutin::context::NotCurrentContext>,
 
-        viewports: ViewportIdMap<Rc<RefCell<Viewport>>>,
+        viewports: ViewportIdMap<Viewport>,
         viewport_maps: HashMap<WindowId, ViewportId>,
         window_maps: ViewportIdMap<WindowId>,
 
@@ -669,13 +669,13 @@ mod glow_integration {
             let mut viewports = ViewportIdMap::default();
             viewports.insert(
                 ViewportId::ROOT,
-                Rc::new(RefCell::new(Viewport {
+                Viewport {
                     gl_surface: None,
                     window: window.map(Rc::new),
                     egui_winit: None,
                     viewport_ui_cb: None,
                     id_pair: ViewportIdPair::ROOT,
-                })),
+                },
             );
 
             let mut builders = ViewportIdMap::default();
@@ -717,7 +717,7 @@ mod glow_integration {
             let viewports: Vec<ViewportId> = self
                 .viewports
                 .iter()
-                .filter(|(_, viewport)| viewport.borrow().gl_surface.is_none())
+                .filter(|(_, viewport)| viewport.gl_surface.is_none())
                 .map(|(id, _)| *id)
                 .collect();
 
@@ -737,12 +737,10 @@ mod glow_integration {
 
             let viewport = self
                 .viewports
-                .get(&viewport_id)
-                .cloned()
+                .get_mut(&viewport_id)
                 .expect("viewport doesn't exist");
 
-            let builder = &self.builders[&viewport.borrow().id_pair.this];
-            let mut viewport = viewport.borrow_mut();
+            let builder = &self.builders[&viewport.id_pair.this];
             // make sure we have a window or create one.
             let window = viewport.window.take().unwrap_or_else(|| {
                 log::debug!("window doesn't exist yet. creating one now with finalize_window");
@@ -815,10 +813,9 @@ mod glow_integration {
         /// only applies for android. but we basically drop surface + window and make context not current
         fn on_suspend(&mut self) -> Result<()> {
             log::debug!("received suspend event. dropping window and surface");
-            for viewport in self.viewports.values() {
-                let mut viewport = viewport.borrow_mut();
-                viewport.gl_surface.take();
-                viewport.window.take();
+            for viewport in self.viewports.values_mut() {
+                viewport.gl_surface = None;
+                viewport.window = None;
             }
             if let Some(current) = self.current_gl_context.take() {
                 log::debug!("context is current, so making it non-current");
@@ -829,16 +826,20 @@ mod glow_integration {
             Ok(())
         }
 
-        fn viewport(&self, viewport_id: ViewportId) -> Rc<RefCell<Viewport>> {
+        fn viewport(&self, viewport_id: ViewportId) -> &Viewport {
             self.viewports
                 .get(&viewport_id)
-                .cloned()
+                .expect("viewport doesn't exist")
+        }
+
+        fn viewport_mut(&mut self, viewport_id: ViewportId) -> &mut Viewport {
+            self.viewports
+                .get_mut(&viewport_id)
                 .expect("viewport doesn't exist")
         }
 
         fn window(&self, viewport_id: ViewportId) -> Rc<Window> {
             self.viewport(viewport_id)
-                .borrow()
                 .window
                 .clone()
                 .expect("winit window doesn't exist")
@@ -853,7 +854,6 @@ mod glow_integration {
             let height_px = std::num::NonZeroU32::new(physical_size.height.at_least(1)).unwrap();
 
             if let Some(viewport) = self.viewports.get(&viewport_id) {
-                let viewport = viewport.borrow();
                 if let Some(gl_surface) = &viewport.gl_surface {
                     self.current_gl_context = Some(
                         self.current_gl_context
@@ -879,20 +879,6 @@ mod glow_integration {
             self.gl_config.display().get_proc_address(addr)
         }
 
-        pub fn make_viewport_current(&mut self, viewport: &Viewport) {
-            if let Some(gl_surface) = &viewport.gl_surface {
-                self.current_gl_context = Some(
-                    self.current_gl_context
-                        .take()
-                        .unwrap()
-                        .make_not_current()
-                        .unwrap()
-                        .make_current(gl_surface)
-                        .unwrap(),
-                );
-            }
-        }
-
         fn process_viewport_builders(&mut self, mut viewports: Vec<ViewportOutput>) {
             let mut active_viewports_ids = ViewportIdSet::default();
             active_viewports_ids.insert(ViewportId::ROOT);
@@ -909,9 +895,7 @@ mod glow_integration {
                         .entry(id_pair.this)
                         .or_insert(new_builder.clone());
                     let (commands, recreate) = builder.patch(new_builder);
-                    if let Some(viewport) = self.viewports.get(&id_pair.this) {
-                        let mut viewport = viewport.borrow_mut();
-
+                    if let Some(viewport) = self.viewports.get_mut(&id_pair.this) {
                         viewport.id_pair.parent = id_pair.parent;
                         viewport.viewport_ui_cb = viewport_ui_cb.clone(); // always update the latest callback
 
@@ -947,13 +931,13 @@ mod glow_integration {
                 {
                     self.viewports.insert(
                         id_pair.this,
-                        Rc::new(RefCell::new(Viewport {
+                        Viewport {
                             gl_surface: None,
                             window: None,
                             egui_winit: None,
                             viewport_ui_cb,
                             id_pair,
-                        })),
+                        },
                     );
                     self.builders.insert(id_pair.this, builder);
                 }
@@ -1026,7 +1010,6 @@ mod glow_integration {
             glutin_window_context.on_resume(event_loop)?;
 
             if let Some(viewport) = glutin_window_context.viewports.get(&ViewportId::ROOT) {
-                let viewport = viewport.borrow();
                 if let Some(window) = &viewport.window {
                     epi_integration::apply_native_options_to_window(
                         window,
@@ -1072,8 +1055,8 @@ mod glow_integration {
 
             let max_texture_side = painter.max_texture_side();
             glutin_ctx.max_texture_side = Some(max_texture_side);
-            for viewport in glutin_ctx.viewports.values() {
-                if let Some(egui_winit) = viewport.borrow_mut().egui_winit.as_mut() {
+            for viewport in glutin_ctx.viewports.values_mut() {
+                if let Some(egui_winit) = viewport.egui_winit.as_mut() {
                     egui_winit.set_max_texture_side(max_texture_side);
                 }
             }
@@ -1114,12 +1097,12 @@ mod glow_integration {
             #[cfg(feature = "accesskit")]
             {
                 let event_loop_proxy = self.repaint_proxy.lock().clone();
-                let viewport = &glutin_ctx.viewports[&ViewportId::ROOT];
+                let viewport = glutin_ctx.viewports.get_mut(&ViewportId::ROOT).unwrap();
                 if let Viewport {
                     window: Some(window),
                     egui_winit: Some(egui_winit),
                     ..
-                } = &mut *viewport.borrow_mut()
+                } = viewport
                 {
                     integration.init_accesskit(egui_winit, window, event_loop_proxy);
                 }
@@ -1153,8 +1136,7 @@ mod glow_integration {
                 });
 
                 if app.warm_up_enabled() {
-                    let viewport = glutin_ctx.viewport(ViewportId::ROOT);
-                    let viewport = &mut *viewport.borrow_mut();
+                    let viewport = glutin_ctx.viewport_mut(ViewportId::ROOT);
                     integration.warm_up(
                         app.as_mut(),
                         &window,
@@ -1251,7 +1233,7 @@ mod glow_integration {
             glutin
                 .viewports
                 .entry(id_pair.this)
-                .or_insert(Rc::new(RefCell::new(Viewport::new(id_pair))));
+                .or_insert(Viewport::new(id_pair));
 
             glutin
                 .builders
@@ -1264,13 +1246,12 @@ mod glow_integration {
         }
 
         let input = {
-            let glutin = glutin.borrow_mut();
+            let mut glutin = glutin.borrow_mut();
 
-            let Some(viewport) = glutin.viewports.get(&id_pair.this) else {
+            let Some(viewport) = glutin.viewports.get_mut(&id_pair.this) else {
                 return;
             };
 
-            let viewport = &mut *viewport.borrow_mut();
             let Some(winit_state) = &mut viewport.egui_winit else {
                 return;
             };
@@ -1302,11 +1283,10 @@ mod glow_integration {
             ..
         } = &mut *glutin;
 
-        let Some(viewport) = viewports.get(&id_pair.this) else {
+        let Some(viewport) = viewports.get_mut(&id_pair.this) else {
             return;
         };
 
-        let viewport = &mut *viewport.borrow_mut();
         let Some(winit_state) = &mut viewport.egui_winit else {
             return;
         };
@@ -1396,7 +1376,7 @@ mod glow_integration {
             let glutin_ctx = running.glutin_ctx.borrow();
             let viewport_id = *glutin_ctx.viewport_maps.get(&window_id)?;
             if let Some(viewport) = glutin_ctx.viewports.get(&viewport_id) {
-                viewport.borrow().window.clone()
+                viewport.window.clone()
             } else {
                 None
             }
@@ -1455,10 +1435,10 @@ mod glow_integration {
             // That means that the viewport cannot be rendered by itself and needs his parent to be rendered
             {
                 let glutin = glutin.borrow();
-                let viewport = glutin.viewports[&viewport_id].borrow();
+                let viewport = &glutin.viewports[&viewport_id];
                 if viewport.viewport_ui_cb.is_none() && viewport_id != ViewportId::ROOT {
                     if let Some(parent_viewport) = glutin.viewports.get(&viewport.id_pair.parent) {
-                        if let Some(window) = parent_viewport.borrow().window.as_ref() {
+                        if let Some(window) = parent_viewport.window.as_ref() {
                             return EventResult::RepaintNext(window.id());
                         }
                     }
@@ -1470,24 +1450,21 @@ mod glow_integration {
                 platform_output,
                 textures_delta,
                 shapes,
-                viewports,
+                viewports: viewports_out,
                 viewport_commands,
             };
 
             let control_flow;
             {
-                let viewport = glutin.borrow().viewport(viewport_id);
-                let window = glutin.borrow().window(viewport_id);
-
-                let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
-
                 let (raw_input, viewport_ui_cb) = {
-                    let viewport = &mut *viewport.borrow_mut();
+                    let mut glutin = glutin.borrow_mut();
+                    let viewport = glutin.viewports.get_mut(&viewport_id).unwrap();
+                    let window = viewport.window.as_ref().unwrap();
 
                     let egui_winit = viewport.egui_winit.as_mut().unwrap();
-                    let raw_input = egui_winit.take_egui_input(&window, viewport.id_pair);
+                    let raw_input = egui_winit.take_egui_input(window, viewport.id_pair);
 
-                    integration.pre_update(&window);
+                    integration.pre_update(window);
 
                     (raw_input, viewport.viewport_ui_cb.clone())
                 };
@@ -1503,29 +1480,44 @@ mod glow_integration {
                     platform_output,
                     textures_delta,
                     shapes,
-                    viewports,
+                    viewports: viewports_out,
                     viewport_commands,
                 } = full_output;
 
                 // ------------------------------------------------------------
 
-                {
-                    let viewport = &mut *viewport.borrow_mut();
-                    let egui_winit = viewport.egui_winit.as_mut().unwrap();
-                    integration.post_update(app.as_mut(), &window);
-                    integration.handle_platform_output(
-                        &window,
-                        viewport_id,
-                        platform_output,
-                        egui_winit,
-                    );
-                }
+                let mut glutin = glutin.borrow_mut();
+                let GlutinWindowContext {
+                    viewports,
+                    current_gl_context,
+                    ..
+                } = &mut *glutin;
+                let viewport = viewports.get_mut(&viewport_id).unwrap();
+                let window = viewport.window.as_ref().unwrap();
+
+                integration.post_update(app.as_mut(), window);
+                integration.handle_platform_output(
+                    window,
+                    viewport_id,
+                    platform_output,
+                    viewport.egui_winit.as_mut().unwrap(),
+                );
 
                 let clipped_primitives = integration.egui_ctx.tessellate(shapes);
 
-                glutin
-                    .borrow_mut()
-                    .make_viewport_current(&viewport.borrow());
+                if let Some(gl_surface) = &viewport.gl_surface {
+                    *current_gl_context = Some(
+                        current_gl_context
+                            .take()
+                            .unwrap()
+                            .make_not_current()
+                            .unwrap()
+                            .make_current(gl_surface)
+                            .unwrap(),
+                    );
+                }
+
+                let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
                 egui_glow::painter::clear(
                     &gl,
@@ -1553,21 +1545,17 @@ mod glow_integration {
                         integration.frame.screenshot.set(Some(screenshot));
                     }
 
-                    integration
-                        .post_rendering(app.as_mut(), viewport.borrow().window.as_ref().unwrap());
+                    integration.post_rendering(app.as_mut(), viewport.window.as_ref().unwrap());
                 }
 
                 {
                     crate::profile_scope!("swap_buffers");
                     if let Err(err) = viewport
-                        .borrow()
                         .gl_surface
                         .as_ref()
                         .expect("failed to get surface to swap buffers")
                         .swap_buffers(
-                            glutin
-                                .borrow()
-                                .current_gl_context
+                            current_gl_context
                                 .as_ref()
                                 .expect("failed to get current context to swap buffers"),
                         )
@@ -1576,7 +1564,7 @@ mod glow_integration {
                     }
                 }
 
-                integration.post_present(viewport.borrow().window.as_ref().unwrap());
+                integration.post_present(viewport.window.as_ref().unwrap());
 
                 // give it time to settle:
                 #[cfg(feature = "__screenshot")]
@@ -1608,7 +1596,7 @@ mod glow_integration {
                     EventResult::Wait
                 };
 
-                integration.maybe_autosave(app.as_mut(), Some(&window));
+                integration.maybe_autosave(app.as_mut(), Some(window));
 
                 if window.is_minimized() == Some(true) {
                     // On Mac, a minimized Window uses up all CPU:
@@ -1618,11 +1606,11 @@ mod glow_integration {
                 }
             }
 
-            glutin.borrow_mut().process_viewport_builders(viewports);
+            glutin.borrow_mut().process_viewport_builders(viewports_out);
 
             for (viewport_id, command) in viewport_commands {
                 if let Some(viewport) = glutin.borrow().viewports.get(&viewport_id) {
-                    if let Some(window) = &viewport.borrow().window {
+                    if let Some(window) = &viewport.window {
                         let is_viewport_focused = self.focused_viewport == Some(viewport_id);
                         egui_winit::process_viewport_commands(
                             std::iter::once(command),
@@ -1760,12 +1748,10 @@ mod glow_integration {
                         }
 
                         let event_response = 'res: {
-                            let glutin = running.glutin_ctx.borrow();
+                            let mut glutin = running.glutin_ctx.borrow_mut();
                             if let Some(viewport_id) = glutin.viewport_maps.get(window_id).copied()
                             {
-                                if let Some(viewport) = &glutin.viewports.get(&viewport_id) {
-                                    let viewport = &mut *viewport.borrow_mut();
-
+                                if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
                                     break 'res running.integration.on_event(
                                         running.app.as_mut(),
                                         event,
@@ -1804,10 +1790,9 @@ mod glow_integration {
                     if let Some(running) = self.running.as_ref() {
                         crate::profile_scope!("on_accesskit_action_request");
 
-                        let glutin = running.glutin_ctx.borrow();
+                        let mut glutin = running.glutin_ctx.borrow_mut();
                         if let Some(viewport_id) = glutin.viewport_maps.get(window_id).copied() {
-                            if let Some(viewport) = &glutin.viewports.get(&viewport_id) {
-                                let mut viewport = viewport.borrow_mut();
+                            if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
                                 viewport
                                     .egui_winit
                                     .as_mut()
