@@ -488,7 +488,11 @@ mod glow_integration {
     }
 
     impl GlowWinitRunning {
-        fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
+        fn run_ui_and_paint(
+            &mut self,
+            window_id: WindowId,
+            focused_viewport: Option<ViewportId>,
+        ) -> EventResult {
             let Some(viewport_id) = self
                 .glutin_ctx
                 .borrow()
@@ -693,7 +697,7 @@ mod glow_integration {
             for (viewport_id, command) in viewport_commands {
                 if let Some(viewport) = glutin.borrow().viewports.get(&viewport_id) {
                     if let Some(window) = &viewport.window {
-                        let is_viewport_focused = self.focused_viewport == Some(viewport_id);
+                        let is_viewport_focused = focused_viewport == Some(viewport_id);
                         egui_winit::process_viewport_commands(
                             std::iter::once(command),
                             window,
@@ -1629,7 +1633,7 @@ mod glow_integration {
 
         fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
             if let Some(running) = &mut self.running {
-                running.run_ui_and_paint(window_id)
+                running.run_ui_and_paint(window_id, self.focused_viewport)
             } else {
                 EventResult::Wait
             }
