@@ -249,6 +249,7 @@ impl AxisWidget {
                 galley: galley.galley,
                 underline: Stroke::NONE,
                 override_text_color: Some(text_color),
+                gamma_multiply: None,
                 angle,
             };
             ui.painter().add(shape);

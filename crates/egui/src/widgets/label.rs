@@ -223,6 +223,7 @@ impl Widget for Label {
                 pos,
                 galley: text_galley.galley,
                 override_text_color,
+                gamma_multiply: None,
                 underline,
                 angle: 0.0,
             });

@@ -55,6 +55,7 @@ impl Widget for Link {
                 pos,
                 galley: text_galley.galley,
                 override_text_color: Some(color),
+                gamma_multiply: None,
                 underline,
                 angle: 0.0,
             });

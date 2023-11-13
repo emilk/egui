@@ -229,6 +229,16 @@ impl Shape {
         .into()
     }
 
+    #[inline]
+    /// The text color in the [`Galley`] will be gamma multiplied by the given factor.
+    pub fn galley_with_gamma(pos: Pos2, galley: Arc<Galley>, gamma_multiply: f32) -> Self {
+        TextShape {
+            gamma_multiply: Some(gamma_multiply),
+            ..TextShape::new(pos, galley)
+        }
+        .into()
+    }
+
     pub fn mesh(mesh: Mesh) -> Self {
         crate::epaint_assert!(mesh.is_valid());
         Self::Mesh(mesh)
@@ -685,6 +695,10 @@ pub struct TextShape {
     /// This will NOT replace background color nor strikethrough/underline color.
     pub override_text_color: Option<Color32>,
 
+    /// If set, the text color will be gamma multiplied by the given factor
+    /// This will NOT replace background color nor strikethrough/underline color.
+    pub gamma_multiply: Option<f32>,
+
     /// Rotate text by this many radians clockwise.
     /// The pivot is `pos` (the upper left corner of the text).
     pub angle: f32,
@@ -698,6 +712,7 @@ impl TextShape {
             galley,
             underline: Stroke::NONE,
             override_text_color: None,
+            gamma_multiply: None,
             angle: 0.0,
         }
     }

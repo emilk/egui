@@ -1473,6 +1473,7 @@ impl Tessellator {
             galley,
             underline,
             override_text_color,
+            gamma_multiply,
             angle,
         } = text_shape;
 
@@ -1541,6 +1542,12 @@ impl Tessellator {
                         if let Some(override_text_color) = override_text_color {
                             if row.visuals.glyph_vertex_range.contains(&i) {
                                 color = *override_text_color;
+                            }
+                        }
+
+                        if let Some(gamma_multiply) = gamma_multiply {
+                            if row.visuals.glyph_vertex_range.contains(&i) {
+                                color = color.gamma_multiply(*gamma_multiply);
                             }
                         }
 

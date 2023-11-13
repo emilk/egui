@@ -443,6 +443,18 @@ impl Painter {
             self.add(Shape::galley_with_color(pos, galley, text_color));
         }
     }
+
+    /// Paint text that has already been laid out in a [`Galley`].
+    ///
+    /// You can create the [`Galley`] with [`Self::layout`].
+    ///
+    /// The text color in the [`Galley`] will be gamma multiplied by the given factor.
+    #[inline(always)]
+    pub fn galley_with_gamma(&self, pos: Pos2, galley: Arc<Galley>, gamma_multiply: f32) {
+        if !galley.is_empty() && gamma_multiply != 0.0 {
+            self.add(Shape::galley_with_gamma(pos, galley, gamma_multiply));
+        }
+    }
 }
 
 fn tint_shape_towards(shape: &mut Shape, target: Color32) {
