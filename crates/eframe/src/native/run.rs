@@ -1892,6 +1892,8 @@ mod wgpu_integration {
     struct WgpuWinitRunning {
         integration: epi_integration::EpiIntegration,
         app: Box<dyn epi::App>,
+
+        /// Wrapped in an `Rc<RefCell<…>>` so it can be re-entrantly shared via a weak-pointer.
         shared: Rc<RefCell<SharedState>>,
     }
 
