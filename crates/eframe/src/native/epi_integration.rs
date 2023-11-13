@@ -5,11 +5,9 @@ use winit::event_loop::EventLoopWindowTarget;
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
 use egui::{NumExt as _, ViewportBuilder, ViewportId, ViewportIdPair, ViewportUiCallback};
-#[cfg(feature = "accesskit")]
-use egui_winit::accesskit_winit;
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
 
-use crate::{backend::AppOutput, epi, Theme, WindowInfo};
+use crate::{epi, Theme, WindowInfo};
 
 #[derive(Default)]
 pub struct WindowState {
@@ -317,8 +315,9 @@ pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
 /// Everything needed to make a winit-based integration for [`epi`].
 pub struct EpiIntegration {
     pub frame: epi::Frame,
-    last_auto_save: std::time::Instant,
+    last_auto_save: Instant,
     pub beginning: Instant,
+    pub frame_start: Instant,
     pub egui_ctx: egui::Context,
     pending_full_output: egui::FullOutput,
 
@@ -386,7 +385,7 @@ impl EpiIntegration {
 
         Self {
             frame,
-            last_auto_save: std::time::Instant::now(),
+            last_auto_save: Instant::now(),
             egui_ctx,
             pending_full_output: Default::default(),
             close: false,
@@ -397,11 +396,12 @@ impl EpiIntegration {
             persist_window: native_options.persist_window,
             app_icon_setter,
             beginning: Instant::now(),
+            frame_start: Instant::now(),
         }
     }
 
     #[cfg(feature = "accesskit")]
-    pub fn init_accesskit<E: From<accesskit_winit::ActionRequestEvent> + Send>(
+    pub fn init_accesskit<E: From<egui_winit::accesskit_winit::ActionRequestEvent> + Send>(
         &mut self,
         egui_winit: &mut egui_winit::State,
         window: &winit::window::Window,
@@ -432,8 +432,8 @@ impl EpiIntegration {
 
         let raw_input = egui_winit.take_egui_input(window, ViewportIdPair::ROOT);
         self.pre_update(window);
-        let (full_output, app_output) = self.update(app, None, raw_input);
-        self.handle_app_output(window, app_output);
+        let full_output = self.update(app, None, raw_input);
+        self.post_update(app, window);
         self.pending_full_output.append(full_output); // Handle it next frame
         self.egui_ctx.memory_mut(|mem| *mem = saved_memory); // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
@@ -485,29 +485,29 @@ impl EpiIntegration {
     }
 
     pub fn pre_update(&mut self, window: &winit::window::Window) {
+        self.frame_start = Instant::now();
+
+        self.app_icon_setter.update();
+
         self.frame.info.window_info =
             read_window_info(window, self.egui_ctx.pixels_per_point(), &self.window_state);
     }
 
-    /// If `viewport_ui_cb` is None, we are in the root viewport
-    /// and will cal [`App::update`].
+    /// Run user code - this can create immediate viewports, so hold no locks over this!
+    ///
+    /// If `viewport_ui_cb` is None, we are in the root viewport and will call [`App::update`].
     pub fn update(
         &mut self,
         app: &mut dyn epi::App,
         viewport_ui_cb: Option<&ViewportUiCallback>,
         mut raw_input: egui::RawInput,
-    ) -> (egui::FullOutput, AppOutput) {
-        let frame_start = std::time::Instant::now();
-
-        self.app_icon_setter.update();
-
+    ) -> egui::FullOutput {
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 
-        // Run user code - this can create immediate viewports, so hold no locks over this!
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
-                crate::profile_scope!("callback");
+                crate::profile_scope!("viewport_callback");
                 viewport_ui_cb(egui_ctx);
             } else {
                 // Root viewport
@@ -517,8 +517,10 @@ impl EpiIntegration {
         });
 
         self.pending_full_output.append(full_output);
-        let full_output = std::mem::take(&mut self.pending_full_output);
+        std::mem::take(&mut self.pending_full_output)
+    }
 
+    pub fn post_update(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
         let app_output = {
             let mut app_output = self.frame.take_app_output();
             app_output.drag_window &= self.can_drag_window; // Necessary on Windows; see https://github.com/emilk/egui/pull/1108
@@ -535,19 +537,15 @@ impl EpiIntegration {
             app_output
         };
 
-        let frame_time = frame_start.elapsed().as_secs_f64() as f32;
-        self.frame.info.cpu_usage = Some(frame_time);
-
-        (full_output, app_output)
-    }
-
-    pub fn handle_app_output(&mut self, window: &winit::window::Window, app_output: AppOutput) {
         handle_app_output(
             window,
             self.egui_ctx.pixels_per_point(),
             app_output,
             &mut self.window_state,
         );
+
+        let frame_time = self.frame_start.elapsed().as_secs_f64() as f32;
+        self.frame.info.cpu_usage = Some(frame_time);
     }
 
     pub fn post_rendering(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
@@ -581,7 +579,7 @@ impl EpiIntegration {
         app: &mut dyn epi::App,
         window: Option<&winit::window::Window>,
     ) {
-        let now = std::time::Instant::now();
+        let now = Instant::now();
         if now - self.last_auto_save > app.auto_save_interval() {
             self.save(app, window);
             self.last_auto_save = now;

@@ -1481,7 +1481,7 @@ mod glow_integration {
 
                 let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
-                {
+                let (raw_input, viewport_ui_cb) = {
                     let viewport = &mut *viewport.borrow_mut();
 
                     let egui_winit = viewport.egui_winit.as_mut().unwrap();
@@ -1489,27 +1489,30 @@ mod glow_integration {
 
                     integration.pre_update(&window);
 
-                    // ------------------------------------------------------------
-                    // The update function, which could call immediate viewports,
-                    // so make sure we don't hold any locks here required by the immediate viewports rendeer.
+                    (raw_input, viewport.viewport_ui_cb.clone())
+                };
 
-                    let (full_output, app_output) = integration.update(
-                        app.as_mut(),
-                        viewport.viewport_ui_cb.as_deref(),
-                        raw_input,
-                    );
-                    integration.handle_app_output(&window, app_output);
+                // ------------------------------------------------------------
+                // The update function, which could call immediate viewports,
+                // so make sure we don't hold any locks here required by the immediate viewports rendeer.
 
-                    egui::FullOutput {
-                        platform_output,
-                        textures_delta,
-                        shapes,
-                        viewports,
-                        viewport_commands,
-                    } = full_output;
+                let full_output =
+                    integration.update(app.as_mut(), viewport_ui_cb.as_deref(), raw_input);
 
-                    // ------------------------------------------------------------
+                egui::FullOutput {
+                    platform_output,
+                    textures_delta,
+                    shapes,
+                    viewports,
+                    viewport_commands,
+                } = full_output;
 
+                // ------------------------------------------------------------
+
+                {
+                    let viewport = &mut *viewport.borrow_mut();
+                    let egui_winit = viewport.egui_winit.as_mut().unwrap();
+                    integration.post_update(app.as_mut(), &window);
                     integration.handle_platform_output(
                         &window,
                         viewport_id,
@@ -1575,8 +1578,8 @@ mod glow_integration {
 
                 integration.post_present(viewport.borrow().window.as_ref().unwrap());
 
-                #[cfg(feature = "__screenshot")]
                 // give it time to settle:
+                #[cfg(feature = "__screenshot")]
                 if integration.egui_ctx.frame_nr() == 2 {
                     if let Ok(path) = std::env::var("EFRAME_SCREENSHOT_TO") {
                         assert!(
@@ -2381,15 +2384,7 @@ mod wgpu_integration {
                 shared,
             } = running;
 
-            let egui::FullOutput {
-                platform_output,
-                textures_delta,
-                shapes,
-                viewports: mut out_viewports,
-                viewport_commands,
-            };
-
-            {
+            let (viewport_ui_cb, raw_input) = {
                 let mut shared_lock = shared.borrow_mut();
 
                 let Some(viewport_id) = shared_lock.viewport_maps.get(&window_id).copied() else {
@@ -2436,62 +2431,81 @@ mod wgpu_integration {
 
                 integration.pre_update(&window);
 
-                // ------------------------------------------------------------
+                (viewport_ui_cb.clone(), raw_input)
+            };
 
-                // Runs the update, which could call immediate viewports,
-                // so make sure we hold no locks here!
-                let (full_output, app_output) =
-                    integration.update(app.as_mut(), viewport_ui_cb.as_deref(), raw_input);
+            // ------------------------------------------------------------
 
-                // ------------------------------------------------------------
+            // Runs the update, which could call immediate viewports,
+            // so make sure we hold no locks here!
+            let full_output =
+                integration.update(app.as_mut(), viewport_ui_cb.as_deref(), raw_input);
 
-                integration.handle_app_output(&window, app_output);
+            // ------------------------------------------------------------
 
-                FullOutput {
-                    platform_output,
-                    textures_delta,
-                    shapes,
-                    viewports: out_viewports,
-                    viewport_commands,
-                } = full_output;
+            let mut shared_lock = shared.borrow_mut();
 
-                integration.handle_platform_output(
-                    &window,
-                    viewport_id,
-                    platform_output,
-                    egui_winit.borrow_mut().as_mut().unwrap(),
-                );
+            let Some(viewport_id) = shared_lock.viewport_maps.get(&window_id).copied() else {
+                return EventResult::Wait;
+            };
 
-                let clipped_primitives = integration.egui_ctx.tessellate(shapes);
+            let Some(viewport) = shared_lock.viewports.get(&viewport_id).cloned() else {
+                return EventResult::Wait;
+            };
 
-                let screenshot_requested = &mut integration.frame.output.screenshot_requested;
+            let Viewport {
+                window, egui_winit, ..
+            } = viewport;
 
-                let pixels_per_point = integration
-                    .egui_ctx
-                    .input_for(viewport_id, |i| i.pixels_per_point());
+            let Some(window) = window else {
+                return EventResult::Wait;
+            };
 
-                let screenshot = shared.borrow_mut().painter.paint_and_update_textures(
-                    viewport_id,
-                    pixels_per_point,
-                    app.clear_color(&integration.egui_ctx.style().visuals),
-                    &clipped_primitives,
-                    &textures_delta,
-                    *screenshot_requested,
-                );
-                *screenshot_requested = false;
-                integration.frame.screenshot.set(screenshot);
+            integration.post_update(app.as_mut(), &window);
 
-                integration.post_rendering(app.as_mut(), &window);
-                integration.post_present(&window);
-            }
+            let FullOutput {
+                platform_output,
+                textures_delta,
+                shapes,
+                viewports: mut out_viewports,
+                viewport_commands,
+            } = full_output;
 
-            let mut shared = shared.borrow_mut();
+            integration.handle_platform_output(
+                &window,
+                viewport_id,
+                platform_output,
+                egui_winit.borrow_mut().as_mut().unwrap(),
+            );
+
+            let clipped_primitives = integration.egui_ctx.tessellate(shapes);
+
+            let screenshot_requested = &mut integration.frame.output.screenshot_requested;
+
+            let pixels_per_point = integration
+                .egui_ctx
+                .input_for(viewport_id, |i| i.pixels_per_point());
+
+            let screenshot = shared.borrow_mut().painter.paint_and_update_textures(
+                viewport_id,
+                pixels_per_point,
+                app.clear_color(&integration.egui_ctx.style().visuals),
+                &clipped_primitives,
+                &textures_delta,
+                *screenshot_requested,
+            );
+            *screenshot_requested = false;
+            integration.frame.screenshot.set(screenshot);
+
+            integration.post_rendering(app.as_mut(), &window);
+            integration.post_present(&window);
+
             let SharedState {
                 viewports,
                 builders,
                 painter,
                 viewport_maps,
-            } = &mut *shared;
+            } = &mut *shared_lock;
 
             let mut active_viewports_ids = ViewportIdSet::default();
             active_viewports_ids.insert(ViewportId::ROOT);
