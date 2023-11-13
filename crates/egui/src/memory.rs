@@ -550,8 +550,15 @@ impl Memory {
         &mut self,
         prev_input: &crate::input_state::InputState,
         new_input: &crate::data::input::RawInput,
+        viewports: &ViewportIdSet,
     ) {
         crate::profile_function!();
+
+        // Cleanup
+        self.interactions.retain(|id, _| viewports.contains(id));
+        self.areas.retain(|id, _| viewports.contains(id));
+        self.window_interactions
+            .retain(|id, _| viewports.contains(id));
 
         self.viewport_id = new_input.viewport.id_pair.this;
         self.interactions
@@ -565,20 +572,11 @@ impl Memory {
         }
     }
 
-    pub(crate) fn end_frame(
-        &mut self,
-        input: &InputState,
-        viewports: &ViewportIdSet,
-        used_ids: &IdMap<Rect>,
-    ) {
+    pub(crate) fn end_frame(&mut self, input: &InputState, used_ids: &IdMap<Rect>) {
         self.caches.update();
         self.areas_mut().end_frame();
         self.interaction_mut().focus.end_frame(used_ids);
         self.drag_value.end_frame(input);
-        self.interactions.retain(|id, _| viewports.contains(id));
-        self.areas.retain(|id, _| viewports.contains(id));
-        self.window_interactions
-            .retain(|id, _| viewports.contains(id));
     }
 
     pub(crate) fn set_viewport_id(&mut self, viewport_id: ViewportId) {

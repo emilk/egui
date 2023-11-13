@@ -226,6 +226,7 @@ impl ContextImpl {
         self.memory.begin_frame(
             self.input.get(&viewport_id).unwrap_or(&Default::default()),
             &new_raw_input,
+            &ViewportIdSet::from_iter(self.viewports.keys().cloned().chain([ViewportId::ROOT])),
         );
 
         let input = self
@@ -1476,7 +1477,6 @@ impl Context {
         let textures_delta = self.write(|ctx| {
             ctx.memory.end_frame(
                 &ctx.input[&ctx.viewport_id()],
-                &viewports,
                 &ctx.frame_state
                     .entry(ctx.viewport_id())
                     .or_default()
