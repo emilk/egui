@@ -1866,7 +1866,7 @@ mod wgpu_integration {
     pub struct Viewport {
         window: Option<Rc<Window>>,
 
-        egui_winit: Rc<RefCell<Option<egui_winit::State>>>,
+        egui_winit: Option<egui_winit::State>,
 
         /// `None` for sync viewports.
         viewport_ui_cb: Option<Arc<ViewportUiCallback>>,
@@ -1955,7 +1955,7 @@ mod wgpu_integration {
                     viewport_maps,
                     painter,
                     &mut viewport.window,
-                    &mut viewport.egui_winit.borrow_mut(),
+                    &mut viewport.egui_winit,
                     event_loop,
                 );
             }
@@ -2085,7 +2085,7 @@ mod wgpu_integration {
                 ViewportId::ROOT,
                 Viewport {
                     window: Some(Rc::new(window)),
-                    egui_winit: Rc::new(RefCell::new(Some(egui_winit))),
+                    egui_winit: Some(egui_winit),
                     viewport_ui_cb: None,
                     parent_id: ViewportId::ROOT,
                 },
@@ -2224,7 +2224,7 @@ mod wgpu_integration {
                     window, egui_winit, ..
                 } = viewports.entry(id_pair.this).or_insert(Viewport {
                     window: None,
-                    egui_winit: Rc::new(RefCell::new(None)),
+                    egui_winit: None,
                     viewport_ui_cb: None,
                     parent_id: id_pair.parent,
                 });
@@ -2238,16 +2238,16 @@ mod wgpu_integration {
                     viewport_maps,
                     painter,
                     window,
-                    &mut egui_winit.borrow_mut(),
+                    egui_winit,
                     event_loop,
                 );
             }
 
             // Render sync viewport:
-            let Some(viewport) = viewports.get(&id_pair.this) else {
+            let Some(viewport) = viewports.get_mut(&id_pair.this) else {
                 return;
             };
-            let Some(winit_state) = &mut *viewport.egui_winit.borrow_mut() else {
+            let Some(winit_state) = &mut viewport.egui_winit else {
                 return;
             };
             let Some(window) = &viewport.window else {
@@ -2273,10 +2273,10 @@ mod wgpu_integration {
             viewports, painter, ..
         } = &mut *shared;
 
-        let Some(viewport) = viewports.get(&id_pair.this) else {
+        let Some(viewport) = viewports.get_mut(&id_pair.this) else {
             return;
         };
-        let Some(winit_state) = &mut *viewport.egui_winit.borrow_mut() else {
+        let Some(winit_state) = &mut viewport.egui_winit else {
             return;
         };
         let Some(window) = &viewport.window else {
@@ -2401,6 +2401,20 @@ mod wgpu_integration {
                     return EventResult::Wait;
                 };
 
+                // This is used to not render a viewport if is sync
+                if viewport_id != ViewportId::ROOT && viewport.viewport_ui_cb.is_none() {
+                    if let Some(viewport) = viewports.get(&viewport.parent_id) {
+                        if let Some(window) = viewport.window.as_ref() {
+                            return EventResult::RepaintNext(window.id());
+                        }
+                    }
+                    return EventResult::Wait;
+                }
+
+                let Some(viewport) = viewports.get_mut(&viewport_id) else {
+                    return EventResult::Wait;
+                };
+
                 let Viewport {
                     window,
                     egui_winit,
@@ -2412,19 +2426,9 @@ mod wgpu_integration {
                     return EventResult::Wait;
                 };
 
-                // This is used to not render a viewport if is sync
-                if viewport_id != ViewportId::ROOT && viewport_ui_cb.is_none() {
-                    if let Some(viewport) = viewports.get(parent_id) {
-                        if let Some(window) = viewport.window.as_ref() {
-                            return EventResult::RepaintNext(window.id());
-                        }
-                    }
-                    return EventResult::Wait;
-                }
-
                 let _ = pollster::block_on(painter.set_window(viewport_id, Some(window)));
 
-                let raw_input = egui_winit.borrow_mut().as_mut().unwrap().take_egui_input(
+                let raw_input = egui_winit.as_mut().unwrap().take_egui_input(
                     window,
                     ViewportIdPair {
                         this: viewport_id,
@@ -2452,7 +2456,7 @@ mod wgpu_integration {
                 return EventResult::Wait;
             };
 
-            let Some(viewport) = shared_lock.viewports.get(&viewport_id) else {
+            let Some(viewport) = shared_lock.viewports.get_mut(&viewport_id) else {
                 return EventResult::Wait;
             };
 
@@ -2478,7 +2482,7 @@ mod wgpu_integration {
                 window,
                 viewport_id,
                 platform_output,
-                egui_winit.borrow_mut().as_mut().unwrap(),
+                egui_winit.as_mut().unwrap(),
             );
 
             let clipped_primitives = integration.egui_ctx.tessellate(shapes);
@@ -2548,7 +2552,7 @@ mod wgpu_integration {
                     if recreate {
                         if let Some(viewport) = viewports.get_mut(&id_pair.this) {
                             viewport.window = None;
-                            viewport.egui_winit.replace(None);
+                            viewport.egui_winit = None;
                         }
                     } else if let Some(Viewport {
                         window: Some(window),
@@ -2563,7 +2567,7 @@ mod wgpu_integration {
                         id_pair.this,
                         Viewport {
                             window: None,
-                            egui_winit: Rc::new(RefCell::new(None)),
+                            egui_winit: None,
                             viewport_ui_cb,
                             parent_id: id_pair.parent,
                         },
@@ -2744,12 +2748,13 @@ mod wgpu_integration {
                             _ => {}
                         };
 
-                        let shared = running.shared.borrow();
+                        let mut shared = running.shared.borrow_mut();
 
-                        let event_response = if let Some((id, viewport)) = viewport_id
-                            .and_then(|id| shared.viewports.get(&id).map(|viewport| (id, viewport)))
-                        {
-                            if let Some(egui_winit) = &mut *viewport.egui_winit.borrow_mut() {
+                        let event_response = if let Some((id, viewport)) =
+                            viewport_id.and_then(|id| {
+                                shared.viewports.get_mut(&id).map(|viewport| (id, viewport))
+                            }) {
+                            if let Some(egui_winit) = &mut viewport.egui_winit {
                                 Some(running.integration.on_event(
                                     running.app.as_mut(),
                                     event,
@@ -2787,13 +2792,17 @@ mod wgpu_integration {
                     accesskit_winit::ActionRequestEvent { request, window_id },
                 )) => {
                     if let Some(running) = &mut self.running {
-                        let shared = running.shared.borrow();
-                        if let Some(viewport) = shared
-                            .viewport_maps
+                        let mut shared_lock = running.shared.borrow_mut();
+                        let SharedState {
+                            viewport_maps,
+                            viewports,
+                            ..
+                        } = &mut *shared_lock;
+                        if let Some(viewport) = viewport_maps
                             .get(window_id)
-                            .and_then(|id| shared.viewports.get(id))
+                            .and_then(|id| viewports.get_mut(id))
                         {
-                            if let Some(egui_winit) = &mut *viewport.egui_winit.borrow_mut() {
+                            if let Some(egui_winit) = &mut viewport.egui_winit {
                                 egui_winit.on_accesskit_action_request(request.clone());
                             }
                         }
