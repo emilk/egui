@@ -507,13 +507,14 @@ mod glow_integration {
             crate::profile_scope!("frame");
 
             {
-                // This will only happen if the viewport is sync
-                // That means that the viewport cannot be rendered by itself and needs his parent to be rendered
                 let glutin = self.glutin.borrow();
                 let viewport = &glutin.viewports[&viewport_id];
-                if viewport.viewport_ui_cb.is_none() && viewport_id != ViewportId::ROOT {
+                let is_immediate = viewport.viewport_ui_cb.is_none();
+                if is_immediate && viewport_id != ViewportId::ROOT {
                     if let Some(parent_viewport) = glutin.viewports.get(&viewport.id_pair.parent) {
                         if let Some(window) = parent_viewport.window.as_ref() {
+                            // This will only happen if this is an immediate viewport.
+                            // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
                             return EventResult::RepaintNext(window.id());
                         }
                     }
@@ -701,6 +702,7 @@ mod glow_integration {
         id_pair: ViewportIdPair,
 
         /// The user-callback that shows the ui.
+        /// None for immediate viewports.
         viewport_ui_cb: Option<Arc<ViewportUiCallback>>,
 
         egui_winit: Option<egui_winit::State>,

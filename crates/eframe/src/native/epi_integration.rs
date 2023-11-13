@@ -495,7 +495,7 @@ impl EpiIntegration {
 
     /// Run user code - this can create immediate viewports, so hold no locks over this!
     ///
-    /// If `viewport_ui_cb` is None, we are in the root viewport and will call [`App::update`].
+    /// If `viewport_ui_cb` is None, we are in the root viewport and will call [`crate::App::update`].
     pub fn update(
         &mut self,
         app: &mut dyn epi::App,
