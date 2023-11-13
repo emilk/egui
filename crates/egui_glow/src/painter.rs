@@ -305,6 +305,10 @@ impl Painter {
         (width_in_pixels, height_in_pixels)
     }
 
+    pub fn clear(&self, screen_size_in_pixels: [u32; 2], clear_color: [f32; 4]) {
+        clear(&self.gl, screen_size_in_pixels, clear_color);
+    }
+
     /// You are expected to have cleared the color buffer before calling this.
     pub fn paint_and_update_textures(
         &mut self,

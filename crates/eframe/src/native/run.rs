@@ -478,13 +478,12 @@ mod glow_integration {
     /// a Resumed event. On Android this ensures that any graphics state is only
     /// initialized once the application has an associated `SurfaceView`.
     struct GlowWinitRunning {
-        gl: Arc<glow::Context>,
-        painter: Rc<RefCell<egui_glow::Painter>>,
         integration: epi_integration::EpiIntegration,
         app: Box<dyn epi::App>,
-        // Conceptually this will be split out eventually so that the rest of the state
-        // can be persistent.
+
+        // These needs to be shared with the immediate viewport renderer, hence the Rc/Arc/RefCells:
         glutin: Rc<RefCell<GlutinWindowContext>>,
+        painter: Rc<RefCell<egui_glow::Painter>>,
     }
 
     impl GlowWinitRunning {
@@ -550,7 +549,6 @@ mod glow_integration {
                 app,
                 glutin,
                 painter,
-                gl,
                 ..
             } = self;
 
@@ -595,8 +593,7 @@ mod glow_integration {
 
             let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
-            egui_glow::painter::clear(
-                gl,
+            painter.borrow().clear(
                 screen_size_in_pixels,
                 app.clear_color(&integration.egui_ctx.style().visuals),
             );
@@ -1256,7 +1253,7 @@ mod glow_integration {
                     .unwrap_or(&self.app_name),
             );
 
-            let (mut glutin_ctx, painter) = Self::create_glutin_windowed_context(
+            let (mut glutin, painter) = Self::create_glutin_windowed_context(
                 event_loop,
                 storage.as_deref(),
                 &self.app_name,
@@ -1265,17 +1262,16 @@ mod glow_integration {
             let gl = painter.gl().clone();
 
             let max_texture_side = painter.max_texture_side();
-            glutin_ctx.max_texture_side = Some(max_texture_side);
-            for viewport in glutin_ctx.viewports.values_mut() {
+            glutin.max_texture_side = Some(max_texture_side);
+            for viewport in glutin.viewports.values_mut() {
                 if let Some(egui_winit) = viewport.egui_winit.as_mut() {
                     egui_winit.set_max_texture_side(max_texture_side);
                 }
             }
 
-            let system_theme =
-                system_theme(&glutin_ctx.window(ViewportId::ROOT), &self.native_options);
+            let system_theme = system_theme(&glutin.window(ViewportId::ROOT), &self.native_options);
             let mut integration = epi_integration::EpiIntegration::new(
-                &glutin_ctx.window(ViewportId::ROOT),
+                &glutin.window(ViewportId::ROOT),
                 system_theme,
                 &self.app_name,
                 &self.native_options,
@@ -1308,7 +1304,7 @@ mod glow_integration {
             #[cfg(feature = "accesskit")]
             {
                 let event_loop_proxy = self.repaint_proxy.lock().clone();
-                let viewport = glutin_ctx.viewports.get_mut(&ViewportId::ROOT).unwrap();
+                let viewport = glutin.viewports.get_mut(&ViewportId::ROOT).unwrap();
                 if let Viewport {
                     window: Some(window),
                     egui_winit: Some(egui_winit),
@@ -1322,10 +1318,7 @@ mod glow_integration {
             integration.egui_ctx.set_visuals(theme.egui_visuals());
 
             if self.native_options.mouse_passthrough {
-                if let Err(err) = glutin_ctx
-                    .window(ViewportId::ROOT)
-                    .set_cursor_hittest(false)
-                {
+                if let Err(err) = glutin.window(ViewportId::ROOT).set_cursor_hittest(false) {
                     log::warn!("set_cursor_hittest(false) failed: {err}");
                 }
             }
@@ -1334,12 +1327,12 @@ mod glow_integration {
                 .expect("Single-use AppCreator has unexpectedly already been taken");
 
             let app = {
-                let window = glutin_ctx.window(ViewportId::ROOT);
+                let window = glutin.window(ViewportId::ROOT);
                 let mut app = app_creator(&epi::CreationContext {
                     egui_ctx: integration.egui_ctx.clone(),
                     integration_info: integration.frame.info().clone(),
                     storage: integration.frame.storage(),
-                    gl: Some(gl.clone()),
+                    gl: Some(gl),
                     #[cfg(feature = "wgpu")]
                     wgpu_render_state: None,
                     raw_display_handle: window.raw_display_handle(),
@@ -1347,7 +1340,7 @@ mod glow_integration {
                 });
 
                 if app.warm_up_enabled() {
-                    let viewport = glutin_ctx.viewport_mut(ViewportId::ROOT);
+                    let viewport = glutin.viewport_mut(ViewportId::ROOT);
                     integration.warm_up(
                         app.as_mut(),
                         &window,
@@ -1358,14 +1351,13 @@ mod glow_integration {
                 app
             };
 
-            let glutin_ctx = Rc::new(RefCell::new(glutin_ctx));
+            let glutin = Rc::new(RefCell::new(glutin));
             let painter = Rc::new(RefCell::new(painter));
 
             {
                 // Create weak pointers so that we don't keep
                 // state alive for too long.
-                let glutin = Rc::downgrade(&glutin_ctx);
-                let gl = Arc::downgrade(&gl);
+                let glutin = Rc::downgrade(&glutin);
                 let painter = Rc::downgrade(&painter);
                 let beginning = integration.beginning;
 
@@ -1373,8 +1365,7 @@ mod glow_integration {
 
                 egui::Context::set_immediate_viewport_renderer(
                     move |egui_ctx, viewport_builder, id_pair, viewport_ui_cb| {
-                        if let (Some(glutin), Some(gl), Some(painter)) =
-                            (glutin.upgrade(), gl.upgrade(), painter.upgrade())
+                        if let (Some(glutin), Some(painter)) = (glutin.upgrade(), painter.upgrade())
                         {
                             // SAFETY: the event loop lives longer than
                             // the Rc:s we just upgraded above.
@@ -1388,7 +1379,6 @@ mod glow_integration {
                                 id_pair,
                                 viewport_ui_cb,
                                 &glutin,
-                                &gl,
                                 &painter,
                                 beginning,
                             );
@@ -1400,8 +1390,7 @@ mod glow_integration {
             }
 
             self.running.replace(GlowWinitRunning {
-                glutin: glutin_ctx,
-                gl,
+                glutin,
                 painter,
                 integration,
                 app,
@@ -1422,7 +1411,6 @@ mod glow_integration {
         id_pair: ViewportIdPair,
         viewport_ui_cb: Box<dyn FnOnce(&egui::Context) + '_>,
         glutin: &RefCell<GlutinWindowContext>,
-        gl: &glow::Context,
         painter: &RefCell<egui_glow::Painter>,
         beginning: Instant,
     ) {
@@ -1533,6 +1521,7 @@ mod glow_integration {
             log::error!("egui::show_viewport_immediate with title: `{:?}` is not created in main thread, try to use wgpu!", builder.title.clone().unwrap_or_default());
         }
 
+        let gl = &painter.gl().clone();
         egui_glow::painter::clear(gl, screen_size_in_pixels, [0.0, 0.0, 0.0, 0.0]);
 
         let pixels_per_point = egui_ctx.input_for(id_pair.this, |i| i.pixels_per_point());
@@ -1582,9 +1571,9 @@ mod glow_integration {
 
         fn window(&self, window_id: WindowId) -> Option<Rc<Window>> {
             let running = self.running.as_ref()?;
-            let glutin_ctx = running.glutin.borrow();
-            let viewport_id = *glutin_ctx.viewport_maps.get(&window_id)?;
-            if let Some(viewport) = glutin_ctx.viewports.get(&viewport_id) {
+            let glutin = running.glutin.borrow();
+            let viewport_id = *glutin.viewport_maps.get(&window_id)?;
+            if let Some(viewport) = glutin.viewports.get(&viewport_id) {
                 viewport.window.clone()
             } else {
                 None
@@ -1611,7 +1600,7 @@ mod glow_integration {
                     running.app.as_mut(),
                     Some(&running.glutin.borrow().window(ViewportId::ROOT)),
                 );
-                running.app.on_exit(Some(&running.gl));
+                running.app.on_exit(Some(running.painter.borrow().gl()));
                 running.painter.borrow_mut().destroy();
             }
         }
