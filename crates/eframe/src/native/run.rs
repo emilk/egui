@@ -795,10 +795,7 @@ mod glow_integration {
                 config_template_builder
             };
 
-            log::debug!(
-                "trying to create glutin Display with config: {:?}",
-                &config_template_builder
-            );
+            log::debug!("trying to create glutin Display with config: {config_template_builder:?}");
 
             // Create GL display. This may probably create a window too on most platforms. Definitely on `MS windows`. Never on Android.
             let display_builder = glutin_winit::DisplayBuilder::new()
@@ -818,8 +815,7 @@ mod glow_integration {
                             "failed to find a matching configuration for creating glutin config",
                         );
                             log::debug!(
-                                "using the first config from config picker closure. config: {:?}",
-                                &config
+                                "using the first config from config picker closure. config: {config:?}"
                             );
                             config
                         },
@@ -836,10 +832,7 @@ mod glow_integration {
                 gl_display.supported_features()
             );
             let raw_window_handle = window.as_ref().map(|w| w.raw_window_handle());
-            log::debug!(
-                "creating gl context using raw window handle: {:?}",
-                raw_window_handle
-            );
+            log::debug!("creating gl context using raw window handle: {raw_window_handle:?}");
 
             // create gl context. if core context cannot be created, try gl es context as fallback.
             let context_attributes =
@@ -2303,7 +2296,7 @@ mod wgpu_integration {
                     shared
                         .viewport_maps
                         .get(&window_id)
-                        .and_then(|id| shared.viewports.get(id).map(|w| w.window.clone()))
+                        .and_then(|id| shared.viewports.get(id).map(|v| v.window.clone()))
                 })
                 .flatten()
         }
@@ -2314,7 +2307,7 @@ mod wgpu_integration {
                     .borrow()
                     .viewports
                     .get(&id)
-                    .and_then(|w| w.window.as_ref().map(|w| w.id()))
+                    .and_then(|v| v.window.as_ref().map(|w| w.id()))
             })
         }
 
@@ -2514,7 +2507,7 @@ mod wgpu_integration {
                 if new_builder.icon.is_none() {
                     new_builder.icon = builders
                         .get_mut(&id_pair.parent)
-                        .and_then(|w| w.icon.clone());
+                        .and_then(|vb| vb.icon.clone());
                 }
 
                 if let Some(builder) = builders.get_mut(&id_pair.this) {
@@ -2550,7 +2543,7 @@ mod wgpu_integration {
             }
 
             for (viewport_id, command) in viewport_commands {
-                if let Some(window) = viewports.get(&viewport_id).and_then(|w| w.window.as_ref()) {
+                if let Some(window) = viewports.get(&viewport_id).and_then(|v| v.window.as_ref()) {
                     let is_viewport_focused = self.focused_viewport == Some(viewport_id);
                     egui_winit::process_viewport_commands(
                         std::iter::once(command),
