@@ -1872,6 +1872,18 @@ mod wgpu_integration {
     }
 
     impl WgpuWinitRunning {
+        fn set_window(&self, id: ViewportId) -> Result<(), egui_wgpu::WgpuError> {
+            crate::profile_function!();
+            let mut shared = self.shared.borrow_mut();
+            let SharedState {
+                viewports, painter, ..
+            } = &mut *shared;
+            if let Some(Viewport { window, .. }) = viewports.get(&id) {
+                return pollster::block_on(painter.set_window(id, window.as_deref()));
+            }
+            Ok(())
+        }
+
         fn on_window_event(
             &mut self,
             window_id: WindowId,
@@ -2032,20 +2044,6 @@ mod wgpu_integration {
             }
         }
 
-        fn set_window(&mut self, id: ViewportId) -> Result<(), egui_wgpu::WgpuError> {
-            if let Some(running) = &mut self.running {
-                crate::profile_function!();
-                let mut shared = running.shared.borrow_mut();
-                let SharedState {
-                    viewports, painter, ..
-                } = &mut *shared;
-                if let Some(Viewport { window, .. }) = viewports.get(&id) {
-                    return pollster::block_on(painter.set_window(id, window.as_deref()));
-                }
-            }
-            Ok(())
-        }
-
         #[cfg(target_os = "android")]
         fn drop_window(&mut self) -> Result<(), egui_wgpu::WgpuError> {
             if let Some(running) = &mut self.running {
@@ -2062,7 +2060,7 @@ mod wgpu_integration {
             storage: Option<Box<dyn epi::Storage>>,
             window: Window,
             builder: ViewportBuilder,
-        ) -> Result<(), egui_wgpu::WgpuError> {
+        ) -> Result<&mut WgpuWinitRunning, egui_wgpu::WgpuError> {
             crate::profile_function!();
 
             #[allow(unsafe_code, unused_mut, unused_unsafe)]
@@ -2203,13 +2201,11 @@ mod wgpu_integration {
                 );
             }
 
-            self.running = Some(WgpuWinitRunning {
+            Ok(self.running.insert(WgpuWinitRunning {
                 integration,
                 app,
                 shared,
-            });
-
-            Ok(())
+            }))
         }
     }
 
@@ -2703,7 +2699,7 @@ mod wgpu_integration {
 
             Ok(match event {
                 winit::event::Event::Resumed => {
-                    if let Some(running) = &self.running {
+                    let running = if let Some(running) = &self.running {
                         if !running
                             .shared
                             .borrow()
@@ -2716,8 +2712,9 @@ mod wgpu_integration {
                                 &self.app_name,
                                 &mut self.native_options,
                             )?;
-                            self.set_window(ViewportId::ROOT)?;
+                            running.set_window(ViewportId::ROOT)?;
                         }
+                        running
                     } else {
                         let storage = epi_integration::create_storage(
                             self.native_options
@@ -2731,9 +2728,8 @@ mod wgpu_integration {
                             &self.app_name,
                             &mut self.native_options,
                         )?;
-                        self.init_run_state(event_loop, storage, window, builder)?;
-                    }
-                    let running = self.running.as_ref().unwrap(); // Can't fail - we just initialized it
+                        self.init_run_state(event_loop, storage, window, builder)?
+                    };
                     EventResult::RepaintNow(
                         running.shared.borrow().viewports[&ViewportId::ROOT]
                             .window
