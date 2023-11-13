@@ -1878,7 +1878,14 @@ mod wgpu_integration {
             event: &winit::event::WindowEvent<'_>,
             focused_viewport: &mut Option<ViewportId>,
         ) -> EventResult {
-            let viewport_id = self.shared.borrow().viewport_maps.get(&window_id).copied();
+            let Self {
+                integration,
+                app,
+                shared,
+            } = self;
+            let mut shared = shared.borrow_mut();
+
+            let viewport_id = shared.viewport_maps.get(&window_id).copied();
 
             // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
             // event handler.
@@ -1911,11 +1918,7 @@ mod wgpu_integration {
                             NonZeroU32::new(physical_size.width),
                             NonZeroU32::new(physical_size.height),
                         ) {
-                            self.shared.borrow_mut().painter.on_window_resized(
-                                viewport_id,
-                                width,
-                                height,
-                            );
+                            shared.painter.on_window_resized(viewport_id, width, height);
                         }
                     }
                 }
@@ -1924,41 +1927,28 @@ mod wgpu_integration {
                     if let (Some(width), Some(height), Some(viewport_id)) = (
                         NonZeroU32::new(new_inner_size.width),
                         NonZeroU32::new(new_inner_size.height),
-                        self.shared.borrow().viewport_maps.get(&window_id).copied(),
+                        shared.viewport_maps.get(&window_id).copied(),
                     ) {
                         repaint_asap = true;
-                        self.shared.borrow_mut().painter.on_window_resized(
-                            viewport_id,
-                            width,
-                            height,
-                        );
+                        shared.painter.on_window_resized(viewport_id, width, height);
                     }
                 }
-                winit::event::WindowEvent::CloseRequested if self.integration.should_close() => {
+                winit::event::WindowEvent::CloseRequested if integration.should_close() => {
                     log::debug!("Received WindowEvent::CloseRequested");
                     return EventResult::Exit;
                 }
                 _ => {}
             };
 
-            let mut shared = self.shared.borrow_mut();
+            let event_response = viewport_id.and_then(|viewport_id| {
+                shared.viewports.get_mut(&viewport_id).and_then(|viewport| {
+                    viewport.egui_winit.as_mut().map(|egui_winit| {
+                        integration.on_event(app.as_mut(), event, egui_winit, viewport_id)
+                    })
+                })
+            });
 
-            let event_response = if let Some((id, viewport)) = viewport_id
-                .and_then(|id| shared.viewports.get_mut(&id).map(|viewport| (id, viewport)))
-            {
-                if let Some(egui_winit) = &mut viewport.egui_winit {
-                    Some(
-                        self.integration
-                            .on_event(self.app.as_mut(), event, egui_winit, id),
-                    )
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-
-            if self.integration.should_close() {
+            if integration.should_close() {
                 EventResult::Exit
             } else if let Some(event_response) = event_response {
                 if event_response.repaint {
