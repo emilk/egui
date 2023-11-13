@@ -160,7 +160,6 @@ fn run_and_return(
     log::debug!("Entering the winit event loop (run_return)…");
 
     let mut windows_next_repaint_times = HashMap::default();
-    let mut next_repaint_time = Option::<Instant>::None;
 
     let mut returned_result = Ok(());
 
@@ -278,20 +277,18 @@ fn run_and_return(
                         windows_next_repaint_times.remove(window_id);
                     }
                     control_flow.set_poll();
-                } else {
-                    next_repaint_time = Some(
-                        next_repaint_time.map_or(*repaint_time, |last| last.min(*repaint_time)),
-                    );
                 }
             }
         }
+
+        let next_repaint_time = windows_next_repaint_times.values().min();
 
         if let Some(next_repaint_time) = next_repaint_time {
             let time_until_next = next_repaint_time.saturating_duration_since(Instant::now());
             if time_until_next < std::time::Duration::from_secs(10_000) {
                 log::trace!("WaitUntil {time_until_next:?}");
             }
-            control_flow.set_wait_until(next_repaint_time);
+            control_flow.set_wait_until(*next_repaint_time);
         };
     });
 
@@ -318,7 +315,6 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
     log::debug!("Entering the winit event loop (run)…");
 
     let mut windows_next_repaint_times = HashMap::default();
-    let mut next_repaint_time = Option::<Instant>::None;
 
     event_loop.run(move |event, event_loop, control_flow| {
         crate::profile_scope!("winit_event", short_event_description(&event));
@@ -411,13 +407,11 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                         windows_next_repaint_times.remove(window_id);
                     }
                     control_flow.set_poll();
-                } else {
-                    next_repaint_time = Some(
-                        next_repaint_time.map_or(*repaint_time, |last| last.min(*repaint_time)),
-                    );
                 }
             }
         }
+
+        let next_repaint_time = windows_next_repaint_times.values().min();
 
         if let Some(next_repaint_time) = next_repaint_time {
             let time_until_next = next_repaint_time.saturating_duration_since(Instant::now());
@@ -435,7 +429,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                         .map(|window| window.request_redraw())
                 });
 
-            control_flow.set_wait_until(next_repaint_time);
+            control_flow.set_wait_until(*next_repaint_time);
         };
     })
 }
