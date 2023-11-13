@@ -1633,19 +1633,14 @@ mod glow_integration {
 
             Ok(match event {
                 winit::event::Event::Resumed => {
-                    if self.running.is_none() {
+                    if let Some(running) = &mut self.running {
+                        // not the first resume event. create whatever you need.
+                        running.glutin_ctx.borrow_mut().on_resume(event_loop)?;
+                    } else {
                         // first resume event.
                         // we can actually move this outside of event loop.
                         // and just run the on_resume fn of gl_window
                         self.init_run_state(event_loop)?;
-                    } else {
-                        // not the first resume event. create whatever you need.
-                        self.running
-                            .as_mut()
-                            .unwrap()
-                            .glutin_ctx
-                            .borrow_mut()
-                            .on_resume(event_loop)?;
                     }
                     EventResult::RepaintNow(
                         self.running
