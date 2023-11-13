@@ -484,7 +484,7 @@ mod glow_integration {
         app: Box<dyn epi::App>,
         // Conceptually this will be split out eventually so that the rest of the state
         // can be persistent.
-        glutin_ctx: Rc<RefCell<GlutinWindowContext>>,
+        glutin: Rc<RefCell<GlutinWindowContext>>,
     }
 
     impl GlowWinitRunning {
@@ -494,7 +494,7 @@ mod glow_integration {
             focused_viewport: Option<ViewportId>,
         ) -> EventResult {
             let Some(viewport_id) = self
-                .glutin_ctx
+                .glutin
                 .borrow()
                 .viewport_maps
                 .get(&window_id)
@@ -507,20 +507,10 @@ mod glow_integration {
             puffin::GlobalProfiler::lock().new_frame();
             crate::profile_scope!("frame");
 
-            let (integration, app, glutin, painter, gl) = {
-                (
-                    &mut self.integration,
-                    &mut self.app,
-                    self.glutin_ctx.clone(),
-                    self.painter.clone(),
-                    self.gl.clone(),
-                )
-            };
-
             {
                 // This will only happen if the viewport is sync
                 // That means that the viewport cannot be rendered by itself and needs his parent to be rendered
-                let glutin = glutin.borrow();
+                let glutin = self.glutin.borrow();
                 let viewport = &glutin.viewports[&viewport_id];
                 if viewport.viewport_ui_cb.is_none() && viewport_id != ViewportId::ROOT {
                     if let Some(parent_viewport) = glutin.viewports.get(&viewport.id_pair.parent) {
@@ -533,14 +523,14 @@ mod glow_integration {
             }
 
             let (raw_input, viewport_ui_cb) = {
-                let mut glutin = glutin.borrow_mut();
+                let mut glutin = self.glutin.borrow_mut();
                 let viewport = glutin.viewports.get_mut(&viewport_id).unwrap();
                 let window = viewport.window.as_ref().unwrap();
 
                 let egui_winit = viewport.egui_winit.as_mut().unwrap();
                 let raw_input = egui_winit.take_egui_input(window, viewport.id_pair);
 
-                integration.pre_update(window);
+                self.integration.pre_update(window);
 
                 (raw_input, viewport.viewport_ui_cb.clone())
             };
@@ -550,9 +540,19 @@ mod glow_integration {
             // so make sure we don't hold any locks here required by the immediate viewports rendeer.
 
             let full_output =
-                integration.update(app.as_mut(), viewport_ui_cb.as_deref(), raw_input);
+                self.integration
+                    .update(self.app.as_mut(), viewport_ui_cb.as_deref(), raw_input);
 
             // ------------------------------------------------------------
+
+            let Self {
+                integration,
+                app,
+                glutin,
+                painter,
+                gl,
+                ..
+            } = self;
 
             let egui::FullOutput {
                 platform_output,
@@ -596,7 +596,7 @@ mod glow_integration {
             let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
             egui_glow::painter::clear(
-                &gl,
+                gl,
                 screen_size_in_pixels,
                 app.clear_color(&integration.egui_ctx.style().visuals),
             );
@@ -1400,7 +1400,7 @@ mod glow_integration {
             }
 
             self.running.replace(GlowWinitRunning {
-                glutin_ctx,
+                glutin: glutin_ctx,
                 gl,
                 painter,
                 integration,
@@ -1568,9 +1568,7 @@ mod glow_integration {
         fn is_focused(&self, window_id: WindowId) -> bool {
             if let Some(focused_viewport) = self.focused_viewport {
                 if let Some(running) = self.running.as_ref() {
-                    if let Some(window_id) =
-                        running.glutin_ctx.borrow().viewport_maps.get(&window_id)
-                    {
+                    if let Some(window_id) = running.glutin.borrow().viewport_maps.get(&window_id) {
                         return focused_viewport == *window_id;
                     }
                 }
@@ -1584,7 +1582,7 @@ mod glow_integration {
 
         fn window(&self, window_id: WindowId) -> Option<Rc<Window>> {
             let running = self.running.as_ref()?;
-            let glutin_ctx = running.glutin_ctx.borrow();
+            let glutin_ctx = running.glutin.borrow();
             let viewport_id = *glutin_ctx.viewport_maps.get(&window_id)?;
             if let Some(viewport) = glutin_ctx.viewports.get(&viewport_id) {
                 viewport.window.clone()
@@ -1596,13 +1594,13 @@ mod glow_integration {
         fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId> {
             self.running
                 .as_ref()
-                .and_then(|r| r.glutin_ctx.borrow().window_maps.get(&id).copied())
+                .and_then(|r| r.glutin.borrow().window_maps.get(&id).copied())
         }
 
         fn viewport_id_from_window_id(&self, id: &WindowId) -> Option<ViewportId> {
             self.running
                 .as_ref()
-                .and_then(|r| r.glutin_ctx.borrow().viewport_maps.get(id).copied())
+                .and_then(|r| r.glutin.borrow().viewport_maps.get(id).copied())
         }
 
         fn save_and_destroy(&mut self) {
@@ -1611,7 +1609,7 @@ mod glow_integration {
 
                 running.integration.save(
                     running.app.as_mut(),
-                    Some(&running.glutin_ctx.borrow().window(ViewportId::ROOT)),
+                    Some(&running.glutin.borrow().window(ViewportId::ROOT)),
                 );
                 running.app.on_exit(Some(&running.gl));
                 running.painter.borrow_mut().destroy();
@@ -1637,7 +1635,7 @@ mod glow_integration {
                 winit::event::Event::Resumed => {
                     if let Some(running) = &mut self.running {
                         // not the first resume event. create whatever you need.
-                        running.glutin_ctx.borrow_mut().on_resume(event_loop)?;
+                        running.glutin.borrow_mut().on_resume(event_loop)?;
                     } else {
                         // first resume event.
                         // we can actually move this outside of event loop.
@@ -1648,7 +1646,7 @@ mod glow_integration {
                         self.running
                             .as_ref()
                             .unwrap()
-                            .glutin_ctx
+                            .glutin
                             .borrow()
                             .window_maps
                             .get(&ViewportId::ROOT)
@@ -1660,7 +1658,7 @@ mod glow_integration {
                     self.running
                         .as_mut()
                         .unwrap()
-                        .glutin_ctx
+                        .glutin
                         .borrow_mut()
                         .on_suspend()?;
 
@@ -1669,7 +1667,7 @@ mod glow_integration {
 
                 winit::event::Event::MainEventsCleared => {
                     if let Some(running) = self.running.as_ref() {
-                        if let Err(err) = running.glutin_ctx.borrow_mut().on_resume(event_loop) {
+                        if let Err(err) = running.glutin.borrow_mut().on_resume(event_loop) {
                             log::warn!("on_resume failed {err}");
                         }
                     }
@@ -1698,7 +1696,7 @@ mod glow_integration {
                                 self.focused_viewport = new_focused
                                     .then(|| {
                                         running
-                                            .glutin_ctx
+                                            .glutin
                                             .borrow_mut()
                                             .viewport_maps
                                             .get(window_id)
@@ -1712,7 +1710,7 @@ mod glow_integration {
                                 // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                                 // See: https://github.com/rust-windowing/winit/issues/208
                                 // This solves an issue where the app would panic when minimizing on Windows.
-                                let glutin = &mut *running.glutin_ctx.borrow_mut();
+                                let glutin = &mut *running.glutin.borrow_mut();
                                 if 0 < physical_size.width && 0 < physical_size.height {
                                     if let Some(id) = glutin.viewport_maps.get(window_id) {
                                         glutin.resize(*id, *physical_size);
@@ -1723,7 +1721,7 @@ mod glow_integration {
                                 new_inner_size,
                                 ..
                             } => {
-                                let glutin = &mut *running.glutin_ctx.borrow_mut();
+                                let glutin = &mut *running.glutin.borrow_mut();
                                 repaint_asap = true;
                                 if let Some(id) = glutin.viewport_maps.get(window_id) {
                                     glutin.resize(*id, **new_inner_size);
@@ -1731,7 +1729,7 @@ mod glow_integration {
                             }
                             winit::event::WindowEvent::CloseRequested
                                 if running
-                                    .glutin_ctx
+                                    .glutin
                                     .borrow()
                                     .viewport_maps
                                     .get(window_id)
@@ -1745,7 +1743,7 @@ mod glow_integration {
                         }
 
                         let event_response = 'res: {
-                            let mut glutin = running.glutin_ctx.borrow_mut();
+                            let mut glutin = running.glutin.borrow_mut();
                             if let Some(viewport_id) = glutin.viewport_maps.get(window_id).copied()
                             {
                                 if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
@@ -1787,7 +1785,7 @@ mod glow_integration {
                     if let Some(running) = self.running.as_ref() {
                         crate::profile_scope!("on_accesskit_action_request");
 
-                        let mut glutin = running.glutin_ctx.borrow_mut();
+                        let mut glutin = running.glutin.borrow_mut();
                         if let Some(viewport_id) = glutin.viewport_maps.get(window_id).copied() {
                             if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
                                 viewport
