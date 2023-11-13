@@ -261,7 +261,7 @@ fn run_and_return(
             }
         }
 
-        let mut next_repaint_time = windows_next_repaint_times.values().min().cloned();
+        let mut next_repaint_time = windows_next_repaint_times.values().min().copied();
 
         // This is for not duplicating redraw requests
         use winit::event::Event;
@@ -270,7 +270,7 @@ fn run_and_return(
             Event::RedrawEventsCleared | Event::RedrawRequested(_) | Event::Resumed
         ) {
             windows_next_repaint_times.retain(|window_id, repaint_time| {
-                if *repaint_time > Instant::now() {
+                if Instant::now() < *repaint_time {
                     return true;
                 };
 
@@ -285,7 +285,7 @@ fn run_and_return(
                 } else {
                     false
                 }
-            })
+            });
         }
 
         if let Some(next_repaint_time) = next_repaint_time {
@@ -396,7 +396,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             }
         }
 
-        let mut next_repaint_time = windows_next_repaint_times.values().min().cloned();
+        let mut next_repaint_time = windows_next_repaint_times.values().min().copied();
 
         // This is for not duplicating redraw requests
         use winit::event::Event;
@@ -405,7 +405,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             Event::RedrawEventsCleared | Event::RedrawRequested(_) | Event::Resumed
         ) {
             windows_next_repaint_times.retain(|window_id, repaint_time| {
-                if *repaint_time > Instant::now() {
+                if Instant::now() < *repaint_time {
                     return true;
                 }
 
@@ -420,7 +420,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                 } else {
                     false
                 }
-            })
+            });
         }
 
         if let Some(next_repaint_time) = next_repaint_time {

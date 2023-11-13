@@ -226,7 +226,12 @@ impl ContextImpl {
         self.memory.begin_frame(
             self.input.get(&viewport_id).unwrap_or(&Default::default()),
             &new_raw_input,
-            &ViewportIdSet::from_iter(self.viewports.keys().cloned().chain([ViewportId::ROOT])),
+            &self
+                .viewports
+                .keys()
+                .copied()
+                .chain([ViewportId::ROOT])
+                .collect(),
         );
 
         let input = self
