@@ -2248,6 +2248,8 @@ impl Context {
     /// to get a full tree update after running [`Context::enable_accesskit`].
     #[cfg(feature = "accesskit")]
     pub fn accesskit_placeholder_tree_update(&self) -> accesskit::TreeUpdate {
+        crate::profile_function!();
+
         use accesskit::{NodeBuilder, Role, Tree, TreeUpdate};
 
         let root_id = crate::accesskit_root_id().accesskit_id();

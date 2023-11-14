@@ -407,6 +407,8 @@ impl EpiIntegration {
         window: &winit::window::Window,
         event_loop_proxy: winit::event_loop::EventLoopProxy<E>,
     ) {
+        crate::profile_function!();
+
         let egui_ctx = self.egui_ctx.clone();
         egui_winit.init_accesskit(window, event_loop_proxy, move || {
             // This function is called when an accessibility client
@@ -549,14 +551,15 @@ impl EpiIntegration {
     }
 
     pub fn post_rendering(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
+        crate::profile_function!();
         let inner_size = window.inner_size();
         let window_size_px = [inner_size.width, inner_size.height];
-
         app.post_rendering(window_size_px, &self.frame);
     }
 
     pub fn post_present(&mut self, window: &winit::window::Window) {
         if let Some(visible) = self.frame.output.visible.take() {
+            crate::profile_scope!("window.set_visible");
             window.set_visible(visible);
         }
     }

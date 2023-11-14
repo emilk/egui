@@ -135,6 +135,7 @@ impl State {
         event_loop_proxy: winit::event_loop::EventLoopProxy<T>,
         initial_tree_update_factory: impl 'static + FnOnce() -> accesskit::TreeUpdate + Send,
     ) {
+        crate::profile_function!();
         self.accesskit = Some(accesskit_winit::Adapter::new(
             window,
             initial_tree_update_factory,
@@ -997,6 +998,8 @@ pub fn process_viewport_commands(
     window: &winit::window::Window,
     is_viewport_focused: bool,
 ) {
+    crate::profile_function!();
+
     use winit::window::ResizeDirection;
 
     for command in commands {

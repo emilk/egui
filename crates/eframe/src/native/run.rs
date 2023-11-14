@@ -566,6 +566,7 @@ mod glow_integration {
                 current_gl_context,
                 ..
             } = &mut *glutin;
+
             let viewport = viewports.get_mut(&viewport_id).unwrap();
             let window = viewport.window.as_ref().unwrap();
             let gl_surface = viewport.gl_surface.as_ref().unwrap();
@@ -699,6 +700,7 @@ mod glow_integration {
                         })
                         .flatten();
                 }
+
                 winit::event::WindowEvent::Resized(physical_size) => {
                     repaint_asap = true;
 
@@ -712,6 +714,7 @@ mod glow_integration {
                         }
                     }
                 }
+
                 winit::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                     let glutin = &mut *self.glutin.borrow_mut();
                     repaint_asap = true;
@@ -719,17 +722,18 @@ mod glow_integration {
                         glutin.resize(*id, **new_inner_size);
                     }
                 }
-                winit::event::WindowEvent::CloseRequested
-                    if self
+
+                winit::event::WindowEvent::CloseRequested => {
+                    let is_root = self
                         .glutin
                         .borrow()
                         .viewport_from_window
                         .get(&window_id)
-                        .map_or(false, |id| *id == ViewportId::ROOT)
-                        && self.integration.should_close() =>
-                {
-                    log::debug!("Received WindowEvent::CloseRequested");
-                    return EventResult::Exit;
+                        .map_or(false, |id| *id == ViewportId::ROOT);
+                    if is_root && self.integration.should_close() {
+                        log::debug!("Received WindowEvent::CloseRequested");
+                        return EventResult::Exit;
+                    }
                 }
                 _ => {}
             }
@@ -830,7 +834,7 @@ mod glow_integration {
 
         viewports: ViewportIdMap<Viewport>,
         viewport_from_window: HashMap<WindowId, ViewportId>,
-        window_maps: ViewportIdMap<WindowId>,
+        window_from_viewport: ViewportIdMap<WindowId>,
     }
 
     impl GlutinWindowContext {
@@ -937,8 +941,8 @@ mod glow_integration {
             let gl_context = match gl_context_result {
                 Ok(it) => it,
                 Err(err) => {
-                    log::warn!("failed to create context using default context attributes {context_attributes:?} due to error: {err}");
-                    log::debug!("retrying with fallback context attributes: {fallback_context_attributes:?}");
+                    log::warn!("Failed to create context using default context attributes {context_attributes:?} due to error: {err}");
+                    log::debug!("Retrying with fallback context attributes: {fallback_context_attributes:?}");
                     gl_config
                         .display()
                         .create_context(&gl_config, &fallback_context_attributes)?
@@ -947,10 +951,10 @@ mod glow_integration {
             let not_current_gl_context = Some(gl_context);
 
             let mut viewport_from_window = HashMap::default();
-            let mut window_maps = ViewportIdMap::default();
+            let mut window_from_viewport = ViewportIdMap::default();
             if let Some(window) = &window {
                 viewport_from_window.insert(window.id(), ViewportId::ROOT);
-                window_maps.insert(ViewportId::ROOT, window.id());
+                window_from_viewport.insert(ViewportId::ROOT, window.id());
             }
 
             let mut viewports = ViewportIdMap::default();
@@ -979,7 +983,7 @@ mod glow_integration {
                 viewports,
                 viewport_from_window,
                 max_texture_side: None,
-                window_maps,
+                window_from_viewport,
             };
 
             slf.on_resume(event_loop)?;
@@ -1024,9 +1028,8 @@ mod glow_integration {
                 .get_mut(&viewport_id)
                 .expect("viewport doesn't exist");
 
-            // make sure we have a window or create one.
-            let window = viewport.window.take().unwrap_or_else(|| {
-                log::debug!("window doesn't exist yet. creating one now with finalize_window");
+            let window = viewport.window.get_or_insert_with(|| {
+                log::trace!("Window doesn't exist yet. Creating one now with finalize_window");
                 Rc::new(
                     glutin_winit::finalize_window(
                         event_loop,
@@ -1036,6 +1039,7 @@ mod glow_integration {
                     .expect("failed to finalize glutin window"),
                 )
             });
+
             {
                 // surface attributes
                 let (width_px, height_px): (u32, u32) = window.inner_size().into();
@@ -1045,15 +1049,16 @@ mod glow_integration {
                     glutin::surface::WindowSurface,
                 >::new()
                 .build(window.raw_window_handle(), width_px, height_px);
-                log::debug!("creating surface with attributes: {surface_attributes:?}");
-                // create surface
+
+                log::trace!("creating surface with attributes: {surface_attributes:?}");
                 let gl_surface = unsafe {
                     self.gl_config
                         .display()
                         .create_window_surface(&self.gl_config, &surface_attributes)?
                 };
-                log::debug!("surface created successfully: {gl_surface:?}. making context current");
-                // make surface and context current.
+
+                log::trace!("surface created successfully: {gl_surface:?}. making context current");
+
                 let not_current_gl_context =
                     if let Some(not_current_context) = self.not_current_gl_context.take() {
                         not_current_context
@@ -1065,13 +1070,15 @@ mod glow_integration {
                             .unwrap()
                     };
                 let current_gl_context = not_current_gl_context.make_current(&gl_surface)?;
+
                 // try setting swap interval. but its not absolutely necessary, so don't panic on failure.
-                log::debug!("made context current. setting swap interval for surface");
+                log::trace!("made context current. setting swap interval for surface");
                 if let Err(err) =
                     gl_surface.set_swap_interval(&current_gl_context, self.swap_interval)
                 {
-                    log::error!("failed to set swap interval due to error: {err}");
+                    log::warn!("Failed to set swap interval due to error: {err}");
                 }
+
                 // we will reach this point only once in most platforms except android.
                 // create window/surface/make context current once and just use them forever.
 
@@ -1087,9 +1094,10 @@ mod glow_integration {
                 self.current_gl_context = Some(current_gl_context);
                 self.viewport_from_window
                     .insert(window.id(), viewport.ids.this);
-                self.window_maps.insert(viewport.ids.this, window.id());
+                self.window_from_viewport
+                    .insert(viewport.ids.this, window.id());
             }
-            viewport.window = Some(window);
+
             Ok(())
         }
 
@@ -1167,6 +1175,8 @@ mod glow_integration {
             viewport_output: Vec<ViewportOutput>,
             focused_viewport: Option<ViewportId>,
         ) {
+            crate::profile_function!();
+
             let mut active_viewports_ids = ViewportIdSet::default();
             active_viewports_ids.insert(ViewportId::ROOT);
 
@@ -1192,7 +1202,7 @@ mod glow_integration {
                 .retain(|id, _| active_viewports_ids.contains(id));
             self.viewport_from_window
                 .retain(|_, id| active_viewports_ids.contains(id));
-            self.window_maps
+            self.window_from_viewport
                 .retain(|id, _| active_viewports_ids.contains(id));
         }
     }
@@ -1204,6 +1214,8 @@ mod glow_integration {
         viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
         focused_viewport: Option<ViewportId>,
     ) -> &mut Viewport {
+        crate::profile_function!();
+
         if builder.icon.is_none() {
             // Inherit icon from parent
             builder.icon = viewports
@@ -1232,7 +1244,7 @@ mod glow_integration {
                 viewport.ids.parent = ids.parent;
                 viewport.viewport_ui_cb = viewport_ui_cb;
 
-                let (commands, recreate) = viewport.builder.patch(&builder);
+                let (delta_commands, recreate) = viewport.builder.patch(&builder);
 
                 if recreate {
                     log::debug!(
@@ -1244,7 +1256,7 @@ mod glow_integration {
                     viewport.egui_winit = None;
                 } else if let Some(window) = &viewport.window {
                     let is_viewport_focused = focused_viewport == Some(ids.this);
-                    process_viewport_commands(commands, window, is_viewport_focused);
+                    process_viewport_commands(delta_commands, window, is_viewport_focused);
                 }
 
                 entry.into_mut()
@@ -1331,7 +1343,10 @@ mod glow_integration {
             Ok((glutin_window_context, painter))
         }
 
-        fn init_run_state(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) -> Result<()> {
+        fn init_run_state(
+            &mut self,
+            event_loop: &EventLoopWindowTarget<UserEvent>,
+        ) -> Result<&mut GlowWinitRunning> {
             crate::profile_function!();
 
             let storage = epi_integration::create_storage(
@@ -1358,6 +1373,7 @@ mod glow_integration {
             }
 
             let system_theme = system_theme(&glutin.window(ViewportId::ROOT), &self.native_options);
+
             let mut integration = epi_integration::EpiIntegration::new(
                 &glutin.window(ViewportId::ROOT),
                 system_theme,
@@ -1402,6 +1418,7 @@ mod glow_integration {
                     integration.init_accesskit(egui_winit, window, event_loop_proxy);
                 }
             }
+
             let theme = system_theme.unwrap_or(self.native_options.default_theme);
             integration.egui_ctx.set_visuals(theme.egui_visuals());
 
@@ -1475,14 +1492,12 @@ mod glow_integration {
                 );
             }
 
-            self.running.replace(GlowWinitRunning {
+            Ok(self.running.insert(GlowWinitRunning {
                 glutin,
                 painter,
                 integration,
                 app,
-            });
-
-            Ok(())
+            }))
         }
     }
 
@@ -1561,7 +1576,7 @@ mod glow_integration {
         let Some(winit_state) = &mut viewport.egui_winit else {
             return;
         };
-        let Some(window) = &viewport.window else {
+        let (Some(window), Some(gl_surface)) = (&viewport.window, &viewport.gl_surface) else {
             return;
         };
 
@@ -1578,18 +1593,13 @@ mod glow_integration {
                 .unwrap()
                 .make_not_current()
                 .unwrap()
-                .make_current(viewport.gl_surface.as_ref().unwrap())
+                .make_current(gl_surface)
                 .unwrap(),
         );
 
         let current_gl_context = current_gl_context.as_ref().unwrap();
 
-        if !viewport
-            .gl_surface
-            .as_ref()
-            .unwrap()
-            .is_current(current_gl_context)
-        {
+        if !gl_surface.is_current(current_gl_context) {
             log::error!("egui::show_viewport_immediate: viewport {:?}  ({:?}) is not created in main thread, try to use wgpu!", viewport.ids.this, viewport.builder.title);
         }
 
@@ -1605,12 +1615,7 @@ mod glow_integration {
 
         {
             crate::profile_scope!("swap_buffers");
-            if let Err(err) = viewport
-                .gl_surface
-                .as_ref()
-                .expect("failed to get surface to swap buffers")
-                .swap_buffers(current_gl_context)
-            {
+            if let Err(err) = gl_surface.swap_buffers(current_gl_context) {
                 log::error!("swap_buffers failed: {err}");
             }
         }
@@ -1627,7 +1632,7 @@ mod glow_integration {
 
         fn is_focused(&self, window_id: WindowId) -> bool {
             if let Some(focused_viewport) = self.focused_viewport {
-                if let Some(running) = self.running.as_ref() {
+                if let Some(running) = &self.running {
                     if let Some(window_id) =
                         running.glutin.borrow().viewport_from_window.get(&window_id)
                     {
@@ -1656,7 +1661,7 @@ mod glow_integration {
         fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId> {
             self.running
                 .as_ref()
-                .and_then(|r| r.glutin.borrow().window_maps.get(&id).copied())
+                .and_then(|r| r.glutin.borrow().window_from_viewport.get(&id).copied())
         }
 
         fn save_and_destroy(&mut self) {
@@ -1689,40 +1694,34 @@ mod glow_integration {
 
             Ok(match event {
                 winit::event::Event::Resumed => {
-                    if let Some(running) = &mut self.running {
+                    let running = if let Some(running) = &mut self.running {
                         // not the first resume event. create whatever you need.
                         running.glutin.borrow_mut().on_resume(event_loop)?;
+                        running
                     } else {
                         // first resume event.
                         // we can actually move this outside of event loop.
                         // and just run the on_resume fn of gl_window
-                        self.init_run_state(event_loop)?;
-                    }
-                    EventResult::RepaintNow(
-                        self.running
-                            .as_ref()
-                            .unwrap()
-                            .glutin
-                            .borrow()
-                            .window_maps
-                            .get(&ViewportId::ROOT)
-                            .copied()
-                            .unwrap(),
-                    )
-                }
-                winit::event::Event::Suspended => {
-                    self.running
-                        .as_mut()
-                        .unwrap()
+                        self.init_run_state(event_loop)?
+                    };
+                    let window_id = running
                         .glutin
-                        .borrow_mut()
-                        .on_suspend()?;
+                        .borrow()
+                        .window_from_viewport
+                        .get(&ViewportId::ROOT)
+                        .copied();
+                    EventResult::RepaintNow(window_id.unwrap())
+                }
 
+                winit::event::Event::Suspended => {
+                    if let Some(running) = &mut self.running {
+                        running.glutin.borrow_mut().on_suspend()?;
+                    }
                     EventResult::Wait
                 }
 
                 winit::event::Event::MainEventsCleared => {
-                    if let Some(running) = self.running.as_ref() {
+                    if let Some(running) = &self.running {
                         if let Err(err) = running.glutin.borrow_mut().on_resume(event_loop) {
                             log::warn!("on_resume failed {err}");
                         }
@@ -1731,7 +1730,7 @@ mod glow_integration {
                 }
 
                 winit::event::Event::WindowEvent { event, window_id } => {
-                    if let Some(running) = self.running.as_mut() {
+                    if let Some(running) = &mut self.running {
                         running.on_window_event(*window_id, event, &mut self.focused_viewport)
                     } else {
                         EventResult::Wait
@@ -1742,7 +1741,7 @@ mod glow_integration {
                 winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
                     accesskit_winit::ActionRequestEvent { request, window_id },
                 )) => {
-                    if let Some(running) = self.running.as_ref() {
+                    if let Some(running) = &self.running {
                         let mut glutin = running.glutin.borrow_mut();
                         if let Some(viewport_id) =
                             glutin.viewport_from_window.get(window_id).copied()
@@ -2717,7 +2716,7 @@ mod wgpu_integration {
                 viewport.ids.parent = ids.parent;
                 viewport.viewport_ui_cb = viewport_ui_cb;
 
-                let (commands, recreate) = viewport.builder.patch(&builder);
+                let (delta_commands, recreate) = viewport.builder.patch(&builder);
 
                 if recreate {
                     log::debug!(
@@ -2729,7 +2728,7 @@ mod wgpu_integration {
                     viewport.egui_winit = None;
                 } else if let Some(window) = &viewport.window {
                     let is_viewport_focused = focused_viewport == Some(ids.this);
-                    process_viewport_commands(commands, window, is_viewport_focused);
+                    process_viewport_commands(delta_commands, window, is_viewport_focused);
                 }
 
                 entry.into_mut()
