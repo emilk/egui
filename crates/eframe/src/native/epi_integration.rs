@@ -85,10 +85,9 @@ pub fn window_builder<E>(
         ..
     } = native_options;
 
-    let mut viewport_builder = egui::ViewportBuilder::new(ViewportId::ROOT);
+    let mut viewport_builder = egui::ViewportBuilder::ROOT;
     viewport_builder
         .with_title(title)
-        .with_close_button(true) // The default for all other viewports is `false`!
         .with_decorations(*decorated)
         .with_fullscreen(*fullscreen)
         .with_maximized(*maximized)

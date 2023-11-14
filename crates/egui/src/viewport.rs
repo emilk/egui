@@ -99,11 +99,9 @@ pub type ImmediateViewportRendererCallback = dyn for<'a> Fn(&Context, ImmediateV
 /// Since egui is immediate mode, `ViewportBuilder` is accumulative in nature.
 /// Setting any option to `None` means "keep the current value",
 /// or "Use the default" if it is the first call.
-#[derive(PartialEq, Eq, Clone)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[allow(clippy::option_option)]
 pub struct ViewportBuilder {
-    pub id: ViewportId,
-
     /// The title of the vieweport.
     /// `eframe` will use this as the title of the native window.
     pub title: Option<String>,
@@ -136,36 +134,37 @@ pub struct ViewportBuilder {
 }
 
 impl ViewportBuilder {
+    /// Default settings for the root viewport.
+    pub const ROOT: Self = Self {
+        title: None,
+        name: None,
+        position: None,
+        inner_size: Some(Some(Vec2::new(300.0, 200.0))),
+        fullscreen: None,
+        maximized: None,
+        resizable: Some(true),
+        transparent: Some(true),
+        decorations: Some(true),
+        icon: None,
+        active: Some(true),
+        visible: Some(true),
+        title_hidden: None,
+        titlebar_transparent: None,
+        fullsize_content_view: None,
+        min_inner_size: None,
+        max_inner_size: None,
+        drag_and_drop: Some(true),
+        close_button: Some(false), // We disable the close button by default because we haven't implemented closing of child viewports yet
+        minimize_button: Some(true),
+        maximize_button: Some(true),
+        hittest: Some(true),
+    };
+
     /// Default settings for a new child viewport.
-    ///
-    /// The given id must be unique for each viewport.
-    pub fn new(id: ViewportId) -> Self {
-        Self {
-            id,
-            title: None,
-            name: None,
-            position: None,
-            inner_size: Some(Some(Vec2::new(300.0, 200.0))),
-            fullscreen: None,
-            maximized: None,
-            resizable: Some(true),
-            transparent: Some(true),
-            decorations: Some(true),
-            icon: None,
-            active: Some(true),
-            visible: Some(true),
-            title_hidden: None,
-            titlebar_transparent: None,
-            fullsize_content_view: None,
-            min_inner_size: None,
-            max_inner_size: None,
-            drag_and_drop: Some(true),
-            close_button: Some(false), // We disable the close button by default because we haven't implemented closing of child viewports yet
-            minimize_button: Some(true),
-            maximize_button: Some(true),
-            hittest: Some(true),
-        }
-    }
+    pub const CHILD: Self = Self {
+        close_button: Some(false), // We disable the close button by default because we haven't implemented closing of child viewports yet
+        ..Self::ROOT
+    };
 
     /// Empty settings for everything.
     ///
@@ -173,33 +172,30 @@ impl ViewportBuilder {
     /// When used on subsequent frames, the current settings will be kept.
     ///
     /// The given id must be unique for each viewport.
-    pub fn empty(id: ViewportId) -> Self {
-        Self {
-            id,
-            title: None,
-            name: None,
-            position: None,
-            inner_size: None,
-            fullscreen: None,
-            maximized: None,
-            resizable: None,
-            transparent: None,
-            decorations: None,
-            icon: None,
-            active: None,
-            visible: None,
-            title_hidden: None,
-            titlebar_transparent: None,
-            fullsize_content_view: None,
-            min_inner_size: None,
-            max_inner_size: None,
-            drag_and_drop: None,
-            close_button: None,
-            minimize_button: None,
-            maximize_button: None,
-            hittest: None,
-        }
-    }
+    pub const EMPTY: Self = Self {
+        title: None,
+        name: None,
+        position: None,
+        inner_size: None,
+        fullscreen: None,
+        maximized: None,
+        resizable: None,
+        transparent: None,
+        decorations: None,
+        icon: None,
+        active: None,
+        visible: None,
+        title_hidden: None,
+        titlebar_transparent: None,
+        fullsize_content_view: None,
+        min_inner_size: None,
+        max_inner_size: None,
+        drag_and_drop: None,
+        close_button: None,
+        minimize_button: None,
+        maximize_button: None,
+        hittest: None,
+    };
 
     /// Sets the initial title of the window in the title bar.
     ///

@@ -2554,6 +2554,8 @@ impl Context {
 
     /// This creates a new native window, if possible.
     ///
+    /// The given id must be unique for each viewport.
+    ///
     /// You need to call this each frame when the child viewport should exist.
     ///
     /// The given callback will be called whenever the child viewport needs repainting,
@@ -2573,7 +2575,8 @@ impl Context {
     /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a [`crate::Window`].
     pub fn show_viewport(
         &self,
-        viewport_builder: &ViewportBuilder,
+        new_viewport_id: ViewportId,
+        viewport_builder: ViewportBuilder,
         viewport_ui_cb: impl Fn(&Context) + Send + Sync + 'static,
     ) {
         crate::profile_function!();
@@ -2582,21 +2585,21 @@ impl Context {
             viewport_ui_cb(self);
         } else {
             self.write(|ctx| {
-                let viewport_id = ctx.viewport_id();
-                if let Some(window) = ctx.viewports.get_mut(&viewport_builder.id) {
-                    window.builder = viewport_builder.clone();
-                    window.ids.parent = viewport_id;
+                let parent_viewport_id = ctx.viewport_id();
+                if let Some(window) = ctx.viewports.get_mut(&new_viewport_id) {
+                    window.builder = viewport_builder;
+                    window.ids.parent = parent_viewport_id;
                     window.used = true;
                     window.viewport_ui_cb = Some(Arc::new(Box::new(viewport_ui_cb)));
                 } else {
                     ctx.viewports.insert(
-                        viewport_builder.id,
+                        new_viewport_id,
                         ViewportState {
                             ids: ViewportIdPair {
-                                this: viewport_builder.id,
-                                parent: viewport_id,
+                                this: new_viewport_id,
+                                parent: parent_viewport_id,
                             },
-                            builder: viewport_builder.clone(),
+                            builder: viewport_builder,
                             used: true,
                             viewport_ui_cb: Some(Arc::new(Box::new(viewport_ui_cb))),
                         },
@@ -2607,6 +2610,8 @@ impl Context {
     }
 
     /// This creates a new native window, if possible.
+    ///
+    /// The given id must be unique for each viewport.
     ///
     /// You need to call this each frame when the child viewport should exist.
     ///
@@ -2626,6 +2631,7 @@ impl Context {
     /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a [`crate::Window`].
     pub fn show_viewport_immediate<T>(
         &self,
+        new_viewport_id: ViewportId,
         builder: ViewportBuilder,
         viewport_ui_cb: impl FnOnce(&Context) -> T,
     ) -> T {
@@ -2643,23 +2649,23 @@ impl Context {
             };
 
             let ids = self.write(|ctx| {
-                let parent = ctx.viewport_id();
+                let parent_viewport_id = ctx.viewport_id();
 
-                if let Some(window) = ctx.viewports.get_mut(&builder.id) {
+                if let Some(window) = ctx.viewports.get_mut(&new_viewport_id) {
                     // Existing
                     window.builder = builder.clone();
-                    window.ids.parent = parent;
+                    window.ids.parent = parent_viewport_id;
                     window.used = true;
                     window.viewport_ui_cb = None;
                     window.ids
                 } else {
                     // New
                     let ids = ViewportIdPair {
-                        this: builder.id,
-                        parent,
+                        this: new_viewport_id,
+                        parent: parent_viewport_id,
                     };
                     ctx.viewports.insert(
-                        builder.id,
+                        new_viewport_id,
                         ViewportState {
                             builder: builder.clone(),
                             ids,
