@@ -85,7 +85,7 @@ impl Repaint {
             };
             (callback)(info);
         } else {
-            eprint!(
+            eprintln!(
                 "request_repaint_callback is not implemented by egui integration!
                 If is your integration you need to call `Context::set_request_repaint_callback`"
             );
