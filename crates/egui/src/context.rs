@@ -2517,8 +2517,7 @@ impl Context {
     /// Look in `crates/eframe/native/run.rs` and search for `set_immediate_viewport_renderer` to see for what is used.
     #[allow(clippy::unused_self)]
     pub fn set_immediate_viewport_renderer(
-        callback: impl for<'a> Fn(&Context, ViewportBuilder, ViewportIdPair, Box<dyn FnOnce(&Context) + 'a>)
-            + 'static,
+        callback: impl for<'a> Fn(&Context, ImmediateViewport<'a>) + 'static,
     ) {
         let callback = Box::new(callback);
         IMMEDIATE_VIEWPORT_RENDERER.with(|render_sync| {
@@ -2628,7 +2627,7 @@ impl Context {
     /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a [`crate::Window`].
     pub fn show_viewport_immediate<T>(
         &self,
-        viewport_builder: &ViewportBuilder,
+        builder: ViewportBuilder,
         viewport_ui_cb: impl FnOnce(&Context) -> T,
     ) -> T {
         crate::profile_function!();
@@ -2647,9 +2646,9 @@ impl Context {
             let ids = self.write(|ctx| {
                 let parent = ctx.viewport_id();
 
-                if let Some(window) = ctx.viewports.get_mut(&viewport_builder.id) {
+                if let Some(window) = ctx.viewports.get_mut(&builder.id) {
                     // Existing
-                    window.builder = viewport_builder.clone();
+                    window.builder = builder.clone();
                     window.ids.parent = parent;
                     window.used = true;
                     window.viewport_ui_cb = None;
@@ -2657,13 +2656,13 @@ impl Context {
                 } else {
                     // New
                     let ids = ViewportIdPair {
-                        this: viewport_builder.id,
+                        this: builder.id,
                         parent,
                     };
                     ctx.viewports.insert(
-                        viewport_builder.id,
+                        builder.id,
                         ViewportState {
-                            builder: viewport_builder.clone(),
+                            builder: builder.clone(),
                             ids,
                             used: true,
                             viewport_ui_cb: None,
@@ -2677,12 +2676,13 @@ impl Context {
             {
                 let out = &mut out;
 
-                immediate_viewport_renderer(
-                    self,
-                    viewport_builder.clone(),
+                let viewport = ImmediateViewport {
                     ids,
-                    Box::new(move |context| *out = Some(viewport_ui_cb(context))),
-                );
+                    builder,
+                    viewport_ui_cb: Box::new(move |context| *out = Some(viewport_ui_cb(context))),
+                };
+
+                immediate_viewport_renderer(self, viewport);
             }
 
             out.expect(

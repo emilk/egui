@@ -89,8 +89,7 @@ impl ViewportIdPair {
 pub type ViewportUiCallback = dyn Fn(&Context) + Sync + Send;
 
 /// Render the given viewport, calling the given ui callback.
-pub type ImmediateViewportRendererCallback =
-    dyn for<'a> Fn(&Context, ViewportBuilder, ViewportIdPair, Box<dyn FnOnce(&Context) + 'a>);
+pub type ImmediateViewportRendererCallback = dyn for<'a> Fn(&Context, ImmediateViewport<'a>);
 
 /// Control the building of a new egui viewport (i.e. native window).
 ///
@@ -733,4 +732,15 @@ impl ViewportOutput {
     pub fn id(&self) -> ViewportId {
         self.ids.this
     }
+}
+
+/// Viewport for immediate rendering.
+pub struct ImmediateViewport<'a> {
+    /// Id of us and our parent.
+    pub ids: ViewportIdPair,
+
+    pub builder: ViewportBuilder,
+
+    /// The user-code that shows the GUI.
+    pub viewport_ui_cb: Box<dyn FnOnce(&Context) + 'a>,
 }

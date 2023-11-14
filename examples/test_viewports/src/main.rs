@@ -72,7 +72,7 @@ impl ViewportState {
 
         if immediate {
             let mut vp_state = vp_state.write();
-            ctx.show_viewport_immediate(&vp_builder, move |ctx| {
+            ctx.show_viewport_immediate(vp_builder, move |ctx| {
                 show_as_popup(ctx, &title, vp_id.into(), |ui: &mut egui::Ui| {
                     generic_child_ui(ui, &mut vp_state);
                 });

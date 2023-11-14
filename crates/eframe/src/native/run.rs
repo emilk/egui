@@ -455,8 +455,8 @@ mod glow_integration {
     };
 
     use egui::{
-        epaint::ahash::HashMap, NumExt as _, ViewportIdMap, ViewportIdPair, ViewportIdSet,
-        ViewportOutput, ViewportUiCallback,
+        epaint::ahash::HashMap, ImmediateViewport, NumExt as _, ViewportIdMap, ViewportIdPair,
+        ViewportIdSet, ViewportOutput, ViewportUiCallback,
     };
     use egui_winit::{create_winit_window_builder, process_viewport_commands, EventResponse};
 
@@ -1362,7 +1362,7 @@ mod glow_integration {
                 let event_loop: *const EventLoopWindowTarget<UserEvent> = event_loop;
 
                 egui::Context::set_immediate_viewport_renderer(
-                    move |egui_ctx, viewport_builder, ids, viewport_ui_cb| {
+                    move |egui_ctx, immediate_viewport| {
                         if let (Some(glutin), Some(painter)) = (glutin.upgrade(), painter.upgrade())
                         {
                             // SAFETY: the event loop lives longer than
@@ -1373,12 +1373,10 @@ mod glow_integration {
                             render_immediate_viewport(
                                 event_loop,
                                 egui_ctx,
-                                viewport_builder,
-                                ids,
-                                viewport_ui_cb,
                                 &glutin,
                                 &painter,
                                 beginning,
+                                immediate_viewport,
                             );
                         } else {
                             log::warn!("render_sync_callback called after window closed");
@@ -1400,19 +1398,21 @@ mod glow_integration {
 
     /// This is called (via a callback) by user code to render immediate viewports,
     /// i.e. viewport that are directly nested inside a parent viewport.
-    #[inline(always)]
-    #[allow(clippy::too_many_arguments)]
     fn render_immediate_viewport(
         event_loop: &EventLoopWindowTarget<UserEvent>,
         egui_ctx: &egui::Context,
-        mut viewport_builder: ViewportBuilder,
-        ids: ViewportIdPair,
-        viewport_ui_cb: Box<dyn FnOnce(&egui::Context) + '_>,
         glutin: &RefCell<GlutinWindowContext>,
         painter: &RefCell<egui_glow::Painter>,
         beginning: Instant,
+        immediate_viewport: ImmediateViewport<'_>,
     ) {
         crate::profile_function!();
+
+        let ImmediateViewport {
+            ids,
+            mut builder,
+            viewport_ui_cb,
+        } = immediate_viewport;
 
         if !glutin.borrow().viewports.contains_key(&ids.this) {
             // A new viewport - create a window for it!
@@ -1420,8 +1420,8 @@ mod glow_integration {
             let mut glutin = glutin.borrow_mut();
 
             // Inherit parent icon if none
-            if viewport_builder.icon.is_none() && glutin.builders.get(&ids.this).is_none() {
-                viewport_builder.icon = glutin
+            if builder.icon.is_none() && glutin.builders.get(&ids.this).is_none() {
+                builder.icon = glutin
                     .builders
                     .get(&ids.parent)
                     .and_then(|b| b.icon.clone());
@@ -1432,7 +1432,7 @@ mod glow_integration {
                 .entry(ids.this)
                 .or_insert(Viewport::new(ids));
 
-            glutin.builders.entry(ids.this).or_insert(viewport_builder);
+            glutin.builders.entry(ids.this).or_insert(builder);
 
             glutin
                 .init_viewport(ids.this, event_loop)
@@ -1820,8 +1820,8 @@ mod wgpu_integration {
     use parking_lot::Mutex;
 
     use egui::{
-        FullOutput, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
-        ViewportUiCallback,
+        FullOutput, ImmediateViewport, ViewportIdMap, ViewportIdPair, ViewportIdSet,
+        ViewportOutput, ViewportUiCallback,
     };
     use egui_winit::{create_winit_window_builder, process_viewport_commands};
 
@@ -2075,7 +2075,7 @@ mod wgpu_integration {
                 let event_loop: *const EventLoopWindowTarget<UserEvent> = event_loop;
 
                 egui::Context::set_immediate_viewport_renderer(
-                    move |egui_ctx, viewport_builder, ids, viewport_ui_cb| {
+                    move |egui_ctx, immediate_viewport| {
                         if let Some(shared) = shared.upgrade() {
                             // SAFETY: the event loop lives longer than
                             // the Rc:s we just upgraded above.
@@ -2085,11 +2085,9 @@ mod wgpu_integration {
                             render_immediate_viewport(
                                 event_loop,
                                 egui_ctx,
-                                viewport_builder,
-                                ids,
-                                viewport_ui_cb,
                                 beginning,
                                 &shared,
+                                immediate_viewport,
                             );
                         } else {
                             log::warn!("render_sync_callback called after window closed");
@@ -2125,18 +2123,20 @@ mod wgpu_integration {
         Ok((window, window_builder))
     }
 
-    #[inline(always)]
-    #[allow(clippy::too_many_arguments)]
     fn render_immediate_viewport(
         event_loop: &EventLoopWindowTarget<UserEvent>,
         egui_ctx: &egui::Context,
-        mut viewport_builder: ViewportBuilder,
-        ids: ViewportIdPair,
-        viewport_ui_cb: Box<dyn FnOnce(&egui::Context) + '_>,
         beginning: Instant,
         shared: &RefCell<SharedState>,
+        immediate_viewport: ImmediateViewport<'_>,
     ) {
         crate::profile_function!();
+
+        let ImmediateViewport {
+            ids,
+            mut builder,
+            viewport_ui_cb,
+        } = immediate_viewport;
 
         let input = {
             let mut shared = shared.borrow_mut();
@@ -2148,15 +2148,15 @@ mod wgpu_integration {
 
             // Creating a new native window if is needed
             if !viewports.contains_key(&ids.this) {
-                if viewport_builder.icon.is_none() {
-                    viewport_builder.icon = viewports
+                if builder.icon.is_none() {
+                    builder.icon = viewports
                         .get(&ids.parent)
                         .and_then(|vp| vp.builder.icon.clone());
                 }
 
                 let viewport = viewports.entry(ids.this).or_insert(Viewport {
                     ids,
-                    builder: viewport_builder,
+                    builder,
                     viewport_ui_cb: None,
                     window: None,
                     egui_winit: None,
@@ -2586,16 +2586,16 @@ mod wgpu_integration {
 
             // Add new viewports, and update existing ones:
             for ViewportOutput {
-                builder: mut new_builder,
                 ids,
+                mut builder,
                 viewport_ui_cb,
             } in out_viewports
             {
                 active_viewports_ids.insert(ids.this);
 
-                if new_builder.icon.is_none() {
+                if builder.icon.is_none() {
                     // Inherit icon from parent
-                    new_builder.icon = viewports
+                    builder.icon = viewports
                         .get_mut(&ids.parent)
                         .and_then(|vp| vp.builder.icon.clone());
                 }
@@ -2605,7 +2605,7 @@ mod wgpu_integration {
                         // New viewport:
                         entry.insert(Viewport {
                             ids,
-                            builder: new_builder,
+                            builder,
                             viewport_ui_cb,
                             window: None,
                             egui_winit: None,
@@ -2619,7 +2619,7 @@ mod wgpu_integration {
                         viewport.ids.parent = ids.parent;
                         viewport.viewport_ui_cb = viewport_ui_cb;
 
-                        let (commands, recreate) = viewport.builder.patch(&new_builder);
+                        let (commands, recreate) = viewport.builder.patch(&builder);
 
                         if recreate {
                             if let Some(viewport) = viewports.get_mut(&ids.this) {
