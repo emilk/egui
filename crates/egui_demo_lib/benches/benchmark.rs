@@ -9,6 +9,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     {
         let ctx = egui::Context::default();
         let mut demo_windows = egui_demo_lib::DemoWindows::default();
+        let pixels_per_point = 1.0;
 
         // The most end-to-end benchmark.
         c.bench_function("demo_with_tessellate__realistic", |b| {
@@ -16,7 +17,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let full_output = ctx.run(RawInput::default(), |ctx| {
                     demo_windows.ui(ctx);
                 });
-                ctx.tessellate(full_output.shapes)
+                ctx.tessellate(full_output.shapes, pixels_per_point)
             });
         });
 
@@ -32,7 +33,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             demo_windows.ui(ctx);
         });
         c.bench_function("demo_only_tessellate", |b| {
-            b.iter(|| ctx.tessellate(full_output.shapes.clone()));
+            b.iter(|| ctx.tessellate(full_output.shapes.clone(), pixels_per_point));
         });
     }
 

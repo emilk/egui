@@ -1633,20 +1633,10 @@ impl Context {
 
     /// Tessellate the given shapes into triangle meshes.
     ///
-    /// Will use the `pixels_per_point` of the last viewport for feathering (anti-aliasing).
-    pub fn tessellate(&self, shapes: Vec<ClippedShape>) -> Vec<ClippedPrimitive> {
-        let last_viewport = self.read(|ctx| ctx.last_viewport);
-
-        // here we expect that we are the only user of context, since frame is ended
-        let pixels_per_point = self.input_for(last_viewport, |i| i.pixels_per_point());
-
-        self.tessellate_with_pixels_per_point(shapes, pixels_per_point)
-    }
-
-    /// Tessellate the given shapes into triangle meshes.
-    ///
     /// `pixels_per_point` is used for feathering (anti-aliasing).
-    pub fn tessellate_with_pixels_per_point(
+    /// You can use [`Self::pixels_per_point`] for this,
+    /// or whatever is appropiate for your viewport.
+    pub fn tessellate(
         &self,
         shapes: Vec<ClippedShape>,
         pixels_per_point: f32,

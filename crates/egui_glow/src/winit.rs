@@ -88,13 +88,11 @@ impl EguiGlow {
             self.painter.set_texture(id, &image_delta);
         }
 
-        let clipped_primitives = self.egui_ctx.tessellate(shapes);
+        let pixels_per_point = self.egui_ctx.pixels_per_point();
+        let clipped_primitives = self.egui_ctx.tessellate(shapes, pixels_per_point);
         let dimensions: [u32; 2] = window.inner_size().into();
-        self.painter.paint_primitives(
-            dimensions,
-            self.egui_ctx.pixels_per_point(),
-            &clipped_primitives,
-        );
+        self.painter
+            .paint_primitives(dimensions, pixels_per_point, &clipped_primitives);
 
         for id in textures_delta.free.drain(..) {
             self.painter.free_texture(id);
