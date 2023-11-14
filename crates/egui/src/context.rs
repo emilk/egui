@@ -1585,8 +1585,8 @@ impl Context {
         });
 
         if is_last {
-            // Context Cleanup
             self.write(|ctx| {
+                // Remove dead viewports:
                 ctx.input.retain(|id, _| all_viewport_ids.contains(id));
                 ctx.layer_rects_prev_frame
                     .retain(|id, _| all_viewport_ids.contains(id));
