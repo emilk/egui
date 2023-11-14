@@ -195,7 +195,9 @@ impl AppRunner {
 
         self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
-        let clipped_primitives = self.egui_ctx.tessellate(shapes);
+        let clipped_primitives = self
+            .egui_ctx
+            .tessellate(shapes, self.egui_ctx.pixels_per_point());
 
         {
             let app_output = self.frame.take_app_output();
