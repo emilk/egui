@@ -665,6 +665,106 @@ mod glow_integration {
                 EventResult::Wait
             }
         }
+
+        fn on_window_event(
+            &mut self,
+            window_id: WindowId,
+            event: &winit::event::WindowEvent<'_>,
+            focused_viewport: &mut Option<ViewportId>,
+        ) -> EventResult {
+            // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
+            // event handler.
+            //
+            // If this is not done, the compositor will assume that the window does not want to redraw,
+            // and continue ahead.
+            //
+            // In eframe's case, that causes the window to rapidly flicker, as it struggles to deliver
+            // new frames to the compositor in time.
+            //
+            // The flickering is technically glutin or glow's fault, but we should be responding properly
+            // to resizes anyway, as doing so avoids dropping frames.
+            //
+            // See: https://github.com/emilk/egui/issues/903
+            let mut repaint_asap = false;
+
+            match &event {
+                winit::event::WindowEvent::Focused(new_focused) => {
+                    *focused_viewport = new_focused
+                        .then(|| {
+                            self.glutin
+                                .borrow_mut()
+                                .viewport_from_window
+                                .get(&window_id)
+                                .copied()
+                        })
+                        .flatten();
+                }
+                winit::event::WindowEvent::Resized(physical_size) => {
+                    repaint_asap = true;
+
+                    // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
+                    // See: https://github.com/rust-windowing/winit/issues/208
+                    // This solves an issue where the app would panic when minimizing on Windows.
+                    let glutin = &mut *self.glutin.borrow_mut();
+                    if 0 < physical_size.width && 0 < physical_size.height {
+                        if let Some(id) = glutin.viewport_from_window.get(&window_id) {
+                            glutin.resize(*id, *physical_size);
+                        }
+                    }
+                }
+                winit::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                    let glutin = &mut *self.glutin.borrow_mut();
+                    repaint_asap = true;
+                    if let Some(id) = glutin.viewport_from_window.get(&window_id) {
+                        glutin.resize(*id, **new_inner_size);
+                    }
+                }
+                winit::event::WindowEvent::CloseRequested
+                    if self
+                        .glutin
+                        .borrow()
+                        .viewport_from_window
+                        .get(&window_id)
+                        .map_or(false, |id| *id == ViewportId::ROOT)
+                        && self.integration.should_close() =>
+                {
+                    log::debug!("Received WindowEvent::CloseRequested");
+                    return EventResult::Exit;
+                }
+                _ => {}
+            }
+
+            let event_response = 'res: {
+                let mut glutin = self.glutin.borrow_mut();
+                if let Some(viewport_id) = glutin.viewport_from_window.get(&window_id).copied() {
+                    if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
+                        break 'res self.integration.on_event(
+                            self.app.as_mut(),
+                            event,
+                            viewport.egui_winit.as_mut().unwrap(),
+                            viewport.ids.this,
+                        );
+                    }
+                }
+
+                EventResponse {
+                    consumed: false,
+                    repaint: false,
+                }
+            };
+
+            if self.integration.should_close() {
+                EventResult::Exit
+            } else if event_response.repaint {
+                if repaint_asap {
+                    EventResult::RepaintNow(window_id)
+                } else {
+                    EventResult::RepaintNext(window_id)
+                }
+            } else {
+                EventResult::Wait
+            }
+        }
     }
 
     fn save_screeshot_and_exit(
@@ -1632,104 +1732,7 @@ mod glow_integration {
 
                 winit::event::Event::WindowEvent { event, window_id } => {
                     if let Some(running) = self.running.as_mut() {
-                        // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
-                        // event handler.
-                        //
-                        // If this is not done, the compositor will assume that the window does not want to redraw,
-                        // and continue ahead.
-                        //
-                        // In eframe's case, that causes the window to rapidly flicker, as it struggles to deliver
-                        // new frames to the compositor in time.
-                        //
-                        // The flickering is technically glutin or glow's fault, but we should be responding properly
-                        // to resizes anyway, as doing so avoids dropping frames.
-                        //
-                        // See: https://github.com/emilk/egui/issues/903
-                        let mut repaint_asap = false;
-
-                        match &event {
-                            winit::event::WindowEvent::Focused(new_focused) => {
-                                self.focused_viewport = new_focused
-                                    .then(|| {
-                                        running
-                                            .glutin
-                                            .borrow_mut()
-                                            .viewport_from_window
-                                            .get(window_id)
-                                            .copied()
-                                    })
-                                    .flatten();
-                            }
-                            winit::event::WindowEvent::Resized(physical_size) => {
-                                repaint_asap = true;
-
-                                // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
-                                // See: https://github.com/rust-windowing/winit/issues/208
-                                // This solves an issue where the app would panic when minimizing on Windows.
-                                let glutin = &mut *running.glutin.borrow_mut();
-                                if 0 < physical_size.width && 0 < physical_size.height {
-                                    if let Some(id) = glutin.viewport_from_window.get(window_id) {
-                                        glutin.resize(*id, *physical_size);
-                                    }
-                                }
-                            }
-                            winit::event::WindowEvent::ScaleFactorChanged {
-                                new_inner_size,
-                                ..
-                            } => {
-                                let glutin = &mut *running.glutin.borrow_mut();
-                                repaint_asap = true;
-                                if let Some(id) = glutin.viewport_from_window.get(window_id) {
-                                    glutin.resize(*id, **new_inner_size);
-                                }
-                            }
-                            winit::event::WindowEvent::CloseRequested
-                                if running
-                                    .glutin
-                                    .borrow()
-                                    .viewport_from_window
-                                    .get(window_id)
-                                    .map_or(false, |id| *id == ViewportId::ROOT)
-                                    && running.integration.should_close() =>
-                            {
-                                log::debug!("Received WindowEvent::CloseRequested");
-                                return Ok(EventResult::Exit);
-                            }
-                            _ => {}
-                        }
-
-                        let event_response = 'res: {
-                            let mut glutin = running.glutin.borrow_mut();
-                            if let Some(viewport_id) =
-                                glutin.viewport_from_window.get(window_id).copied()
-                            {
-                                if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
-                                    break 'res running.integration.on_event(
-                                        running.app.as_mut(),
-                                        event,
-                                        viewport.egui_winit.as_mut().unwrap(),
-                                        viewport.ids.this,
-                                    );
-                                }
-                            }
-
-                            EventResponse {
-                                consumed: false,
-                                repaint: false,
-                            }
-                        };
-
-                        if running.integration.should_close() {
-                            EventResult::Exit
-                        } else if event_response.repaint {
-                            if repaint_asap {
-                                EventResult::RepaintNow(*window_id)
-                            } else {
-                                EventResult::RepaintNext(*window_id)
-                            }
-                        } else {
-                            EventResult::Wait
-                        }
+                        running.on_window_event(*window_id, event, &mut self.focused_viewport)
                     } else {
                         EventResult::Wait
                     }
@@ -1740,18 +1743,15 @@ mod glow_integration {
                     accesskit_winit::ActionRequestEvent { request, window_id },
                 )) => {
                     if let Some(running) = self.running.as_ref() {
-                        crate::profile_scope!("on_accesskit_action_request");
-
                         let mut glutin = running.glutin.borrow_mut();
                         if let Some(viewport_id) =
                             glutin.viewport_from_window.get(window_id).copied()
                         {
                             if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
-                                viewport
-                                    .egui_winit
-                                    .as_mut()
-                                    .unwrap()
-                                    .on_accesskit_action_request(request.clone());
+                                if let Some(egui_winit) = &mut viewport.egui_winit {
+                                    crate::profile_scope!("on_accesskit_action_request");
+                                    egui_winit.on_accesskit_action_request(request.clone());
+                                }
                             }
                         }
                         // As a form of user input, accessibility actions should
