@@ -2146,29 +2146,25 @@ mod wgpu_integration {
                 viewport_maps,
             } = &mut *shared;
 
-            // Creating a new native window if is needed
-            if !viewports.contains_key(&ids.this) {
-                if builder.icon.is_none() {
-                    builder.icon = viewports
-                        .get(&ids.parent)
-                        .and_then(|vp| vp.builder.icon.clone());
-                }
+            if builder.icon.is_none() {
+                // Inherit icon from parent
+                builder.icon = viewports
+                    .get(&ids.parent)
+                    .and_then(|vp| vp.builder.icon.clone());
+            }
 
-                let viewport = viewports.entry(ids.this).or_insert(Viewport {
-                    ids,
-                    builder,
-                    viewport_ui_cb: None,
-                    window: None,
-                    egui_winit: None,
-                });
+            let viewport = viewports.entry(ids.this).or_insert(Viewport {
+                ids,
+                builder,
+                viewport_ui_cb: None,
+                window: None,
+                egui_winit: None,
+            });
 
+            if viewport.window.is_none() {
                 viewport.init_window(viewport_maps, painter, event_loop);
             }
 
-            // Render sync viewport:
-            let Some(viewport) = viewports.get_mut(&ids.this) else {
-                return;
-            };
             let Some(winit_state) = &mut viewport.egui_winit else {
                 return;
             };
@@ -2756,6 +2752,7 @@ mod wgpu_integration {
         match viewports.entry(ids.this) {
             std::collections::hash_map::Entry::Vacant(entry) => {
                 // New viewport:
+                log::debug!("Creating new viewport {:?} ({:?})", ids.this, builder.title);
                 entry.insert(Viewport {
                     ids,
                     builder,
@@ -2775,6 +2772,11 @@ mod wgpu_integration {
                 let (commands, recreate) = viewport.builder.patch(&builder);
 
                 if recreate {
+                    log::debug!(
+                        "Recreating window for viewport {:?} ({:?})",
+                        ids.this,
+                        builder.title
+                    );
                     viewport.window = None;
                     viewport.egui_winit = None;
                 } else if let Some(window) = &viewport.window {
