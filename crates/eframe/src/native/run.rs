@@ -2415,6 +2415,7 @@ mod wgpu_integration {
             shared.painter.destroy();
         }
 
+        /// This is called both for the root viewport, and all deferred viewports
         fn run_ui_and_paint(
             &mut self,
             window_id: WindowId,
@@ -2422,6 +2423,7 @@ mod wgpu_integration {
         ) -> EventResult {
             #[cfg(feature = "puffin")]
             puffin::GlobalProfiler::lock().new_frame();
+
             crate::profile_scope!("frame");
 
             let WgpuWinitRunning {
@@ -2587,53 +2589,19 @@ mod wgpu_integration {
             // Add new viewports, and update existing ones:
             for ViewportOutput {
                 ids,
-                mut builder,
+                builder,
                 viewport_ui_cb,
             } in out_viewports
             {
                 active_viewports_ids.insert(ids.this);
 
-                if builder.icon.is_none() {
-                    // Inherit icon from parent
-                    builder.icon = viewports
-                        .get_mut(&ids.parent)
-                        .and_then(|vp| vp.builder.icon.clone());
-                }
-
-                match viewports.entry(ids.this) {
-                    std::collections::hash_map::Entry::Vacant(entry) => {
-                        // New viewport:
-                        entry.insert(Viewport {
-                            ids,
-                            builder,
-                            viewport_ui_cb,
-                            window: None,
-                            egui_winit: None,
-                        });
-                    }
-
-                    std::collections::hash_map::Entry::Occupied(mut entry) => {
-                        // Patch an existing viewport:
-                        let viewport = entry.get_mut();
-
-                        viewport.ids.parent = ids.parent;
-                        viewport.viewport_ui_cb = viewport_ui_cb;
-
-                        let (commands, recreate) = viewport.builder.patch(&builder);
-
-                        if recreate {
-                            if let Some(viewport) = viewports.get_mut(&ids.this) {
-                                viewport.window = None;
-                                viewport.egui_winit = None;
-                            }
-                        } else if let Some(viewport) = viewports.get(&ids.this) {
-                            if let Some(window) = &viewport.window {
-                                let is_viewport_focused = focused_viewport == Some(viewport_id);
-                                process_viewport_commands(commands, window, is_viewport_focused);
-                            }
-                        }
-                    }
-                }
+                initialize_or_update_viewport(
+                    viewports,
+                    ids,
+                    builder,
+                    viewport_ui_cb,
+                    focused_viewport,
+                );
             }
 
             for (viewport_id, command) in viewport_commands {
@@ -2767,6 +2735,54 @@ mod wgpu_integration {
                 }
             } else {
                 EventResult::Wait
+            }
+        }
+    }
+
+    fn initialize_or_update_viewport(
+        viewports: &mut Viewports,
+        ids: ViewportIdPair,
+        mut builder: ViewportBuilder,
+        viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
+        focused_viewport: Option<ViewportId>,
+    ) -> &mut Viewport {
+        if builder.icon.is_none() {
+            // Inherit icon from parent
+            builder.icon = viewports
+                .get_mut(&ids.parent)
+                .and_then(|vp| vp.builder.icon.clone());
+        }
+
+        match viewports.entry(ids.this) {
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                // New viewport:
+                entry.insert(Viewport {
+                    ids,
+                    builder,
+                    viewport_ui_cb,
+                    window: None,
+                    egui_winit: None,
+                })
+            }
+
+            std::collections::hash_map::Entry::Occupied(mut entry) => {
+                // Patch an existing viewport:
+                let viewport = entry.get_mut();
+
+                viewport.ids.parent = ids.parent;
+                viewport.viewport_ui_cb = viewport_ui_cb;
+
+                let (commands, recreate) = viewport.builder.patch(&builder);
+
+                if recreate {
+                    viewport.window = None;
+                    viewport.egui_winit = None;
+                } else if let Some(window) = &viewport.window {
+                    let is_viewport_focused = focused_viewport == Some(ids.this);
+                    process_viewport_commands(commands, window, is_viewport_focused);
+                }
+
+                entry.into_mut()
             }
         }
     }
