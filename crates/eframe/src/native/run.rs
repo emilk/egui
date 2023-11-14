@@ -2134,7 +2134,7 @@ mod wgpu_integration {
 
         let ImmediateViewport {
             ids,
-            mut builder,
+            builder,
             viewport_ui_cb,
         } = immediate_viewport;
 
@@ -2145,21 +2145,7 @@ mod wgpu_integration {
                 painter,
                 viewport_maps,
             } = &mut *shared;
-
-            if builder.icon.is_none() {
-                // Inherit icon from parent
-                builder.icon = viewports
-                    .get(&ids.parent)
-                    .and_then(|vp| vp.builder.icon.clone());
-            }
-
-            let viewport = viewports.entry(ids.this).or_insert(Viewport {
-                ids,
-                builder,
-                viewport_ui_cb: None,
-                window: None,
-                egui_winit: None,
-            });
+            let viewport = initialize_or_update_viewport(viewports, ids, builder, None, None);
 
             if viewport.window.is_none() {
                 viewport.init_window(viewport_maps, painter, event_loop);
@@ -2623,6 +2609,7 @@ mod wgpu_integration {
                 .get(&window_id)
                 .and_then(|id| viewports.get(id))
                 .and_then(|vp| vp.window.as_ref());
+
             integration.maybe_autosave(app.as_mut(), window.map(|w| w.as_ref()));
 
             if let Some(window) = window {
