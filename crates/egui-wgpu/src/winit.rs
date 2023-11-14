@@ -615,7 +615,7 @@ impl Painter {
             crate::profile_scope!("Queue::submit");
             render_state
                 .queue
-                .submit(user_cmd_bufs.into_iter().chain(std::iter::once(encoded)));
+                .submit(user_cmd_bufs.into_iter().chain([encoded]));
         };
 
         let screenshot = if capture {

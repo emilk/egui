@@ -657,7 +657,7 @@ mod glow_integration {
                     if let Some(window) = &viewport.window {
                         let is_viewport_focused = focused_viewport == Some(viewport_id);
                         egui_winit::process_viewport_commands(
-                            std::iter::once(command),
+                            [command],
                             window,
                             is_viewport_focused,
                         );
@@ -2561,11 +2561,7 @@ mod wgpu_integration {
                     .and_then(|vp| vp.window.as_ref())
                 {
                     let is_viewport_focused = focused_viewport == Some(viewport_id);
-                    egui_winit::process_viewport_commands(
-                        std::iter::once(command),
-                        window,
-                        is_viewport_focused,
-                    );
+                    egui_winit::process_viewport_commands([command], window, is_viewport_focused);
                 }
             }
 

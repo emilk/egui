@@ -270,11 +270,9 @@ impl WebPainter for WebPainterWgpu {
         }
 
         // Submit the commands: both the main buffer and user-defined ones.
-        render_state.queue.submit(
-            user_cmd_bufs
-                .into_iter()
-                .chain(std::iter::once(encoder.finish())),
-        );
+        render_state
+            .queue
+            .submit(user_cmd_bufs.into_iter().chain([encoder.finish()]));
 
         if let Some(frame) = frame {
             frame.present();
