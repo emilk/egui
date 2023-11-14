@@ -1,34 +1,40 @@
 #![warn(missing_docs)] // Let's keep `Context` well-documented.
 
-use std::sync::Arc;
-use std::{borrow::Cow, cell::RefCell};
+use std::{borrow::Cow, cell::RefCell, sync::Arc, time::Duration};
 
-use crate::load::Bytes;
-use crate::load::SizedTexture;
-use crate::{
-    animation_manager::AnimationManager, data::output::PlatformOutput, frame_state::FrameState,
-    input_state::*, layers::GraphicLayers, load::Loaders, memory::Options, os::OperatingSystem,
-    output::FullOutput, util::IdTypeMap, TextureHandle, ViewportCommand, *,
-};
 use ahash::HashMap;
 use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
+
+use crate::{
+    animation_manager::AnimationManager,
+    data::output::PlatformOutput,
+    frame_state::FrameState,
+    input_state::*,
+    layers::GraphicLayers,
+    load::{Bytes, Loaders, SizedTexture},
+    memory::Options,
+    os::OperatingSystem,
+    output::FullOutput,
+    util::IdTypeMap,
+    TextureHandle, ViewportCommand, *,
+};
 
 /// Information given to the backend about when it is time to repaint the ui.
 ///
 /// This is given in the callback set by [`Context::set_request_repaint_callback`].
 #[derive(Clone, Copy, Debug)]
 pub struct RequestRepaintInfo {
+    /// This is used to specify what viewport that should repaint.
+    pub viewport_id: ViewportId,
+
     /// Repaint after this duration. If zero, repaint as soon as possible.
-    pub after: std::time::Duration,
+    pub after: Duration,
 
     /// The current frame number.
     ///
     /// This can be compared to [`Context::frame_nr`] to see if we've already
     /// triggered the painting of the next frame.
     pub current_frame_nr: u64,
-
-    /// This is used to specify what viewport that should repaint.
-    pub viewport_id: ViewportId,
 }
 
 // ----------------------------------------------------------------------------
@@ -56,33 +62,43 @@ impl Default for WrappedTextureManager {
 /// Logic related to repainting the ui.
 #[derive(Default)]
 struct Repaint {
-    /// The current frame number.
-    ///
-    /// Incremented at the end of each frame.
-    viewports_frame_nr: ViewportIdMap<u64>,
+    request_repaint_callback: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
+    viewports: ViewportIdMap<ViewportRepaintInfo>,
+}
+
+#[derive(Default)]
+struct ViewportRepaintInfo {
+    frame_nr: u64,
 
     /// While positive, keep requesting repaints. Decrement at the start of each frame.
-    repaint_request: ViewportIdMap<u8>,
-    request_repaint_callback: Option<Box<dyn Fn(RequestRepaintInfo) + Send + Sync>>,
+    outstanding_repaints: u8,
 
-    requested_repaint_last_frame: ViewportIdMap<bool>,
+    requested_repaint_last_frame: bool,
 }
 
 impl Repaint {
     fn request_repaint(&mut self, viewport_id: ViewportId) {
-        self.request_repaint_after(std::time::Duration::ZERO, viewport_id);
+        self.request_repaint_after(Duration::ZERO, viewport_id);
     }
 
-    fn request_repaint_after(&mut self, after: std::time::Duration, viewport_id: ViewportId) {
-        let requests = self.repaint_request.entry(viewport_id).or_default();
-        *requests = 1.max(*requests);
+    fn request_repaint_after(&mut self, after: Duration, viewport_id: ViewportId) {
+        let mut viewport = self.viewports.entry(viewport_id).or_default();
 
+        // Each request results in two repaints, just to give some things time to settle.
+        // This solves some corner-cases of missing repaints on frame-delayed responses.
+        viewport.outstanding_repaints = 1;
+
+        let current_frame_nr = viewport.frame_nr;
+
+        self.call_callback(RequestRepaintInfo {
+            viewport_id,
+            after,
+            current_frame_nr,
+        });
+    }
+
+    fn call_callback(&mut self, info: RequestRepaintInfo) {
         if let Some(callback) = &self.request_repaint_callback {
-            let info = RequestRepaintInfo {
-                after,
-                current_frame_nr: *self.viewports_frame_nr.entry(viewport_id).or_default(),
-                viewport_id,
-            };
             (callback)(info);
         } else {
             eprintln!(
@@ -92,47 +108,40 @@ impl Repaint {
         }
     }
 
-    fn request_repaint_settle(&mut self, viewport_id: ViewportId) {
-        self.repaint_request.insert(viewport_id, 2);
-        self.request_repaint(viewport_id);
-    }
-
     fn start_frame(&mut self, viewport_id: ViewportId) {
-        let request = self.repaint_request.entry(viewport_id).or_default();
-        self.requested_repaint_last_frame
-            .insert(viewport_id, *request > 0);
-        if *request > 0 {
-            *request -= 1;
-            if *request > 0 {
-                self.request_repaint(viewport_id);
-            }
+        let mut viewport = self.viewports.entry(viewport_id).or_default();
+
+        if 0 < viewport.outstanding_repaints {
+            viewport.outstanding_repaints -= 1;
+
+            let current_frame_nr = viewport.frame_nr;
+
+            self.call_callback(RequestRepaintInfo {
+                viewport_id,
+                after: Duration::ZERO,
+                current_frame_nr,
+            });
         }
     }
 
     // returns what is needed to be repainted
-    fn end_frame(&mut self, viewport_id: ViewportId, viewports: &ViewportIdSet) {
-        *self.viewports_frame_nr.entry(viewport_id).or_default() += 1;
+    fn end_frame(&mut self, viewport_id: ViewportId, all_viewports: &ViewportIdSet) {
+        let mut viewport = self.viewports.entry(viewport_id).or_default();
+        viewport.frame_nr += 1;
 
-        self.requested_repaint_last_frame
-            .retain(|id, _| viewports.contains(id));
-        self.viewports_frame_nr
-            .retain(|id, _| viewports.contains(id));
-        self.repaint_request.retain(|id, _| viewports.contains(id));
+        self.viewports.retain(|id, _| all_viewports.contains(id));
     }
 
     fn requested_repaint_last_frame(&self, viewport_id: &ViewportId) -> bool {
-        self.requested_repaint_last_frame
+        self.viewports
             .get(viewport_id)
-            .copied()
-            .unwrap_or_default()
+            .map_or(false, |v| v.requested_repaint_last_frame)
     }
 
     fn requested_repaint(&self, viewport_id: &ViewportId) -> bool {
-        self.repaint_request
+        self.viewports
             .get(viewport_id)
-            .copied()
-            .unwrap_or_default()
-            > 0
+            .map_or(false, |v| 0 < v.outstanding_repaints)
     }
 }
 
@@ -1108,13 +1117,7 @@ impl Context {
     ///
     /// Between calls to [`Self::run`], this is the frame number of the coming frame.
     pub fn frame_nr_for(&self, id: ViewportId) -> u64 {
-        self.read(|ctx| {
-            ctx.repaint
-                .viewports_frame_nr
-                .get(&id)
-                .copied()
-                .unwrap_or_default()
-        })
+        self.read(|ctx| ctx.repaint.viewports.get(&id).map_or(0, |v| v.frame_nr))
     }
 
     /// Call this if there is need to repaint the UI, i.e. if you are showing an animation.
@@ -1173,7 +1176,7 @@ impl Context {
     /// during app idle time where we are not receiving any new input events.
     ///
     /// This repaints the current viewport
-    pub fn request_repaint_after(&self, duration: std::time::Duration) {
+    pub fn request_repaint_after(&self, duration: Duration) {
         self.request_repaint_after_for(duration, self.viewport_id());
     }
 
@@ -1205,26 +1208,30 @@ impl Context {
     /// during app idle time where we are not receiving any new input events.
     ///
     /// This repaints the specified viewport
-    pub fn request_repaint_after_for(&self, duration: std::time::Duration, id: ViewportId) {
+    pub fn request_repaint_after_for(&self, duration: Duration, id: ViewportId) {
         self.write(|ctx| ctx.repaint.request_repaint_after(duration, id));
     }
 
-    /// With this you can know if the application stal before
+    /// Was a repaint requested last frame for the current viewport?
+    #[must_use]
     pub fn requested_repaint_last_frame(&self) -> bool {
         self.requested_repaint_last_frame_for(&self.viewport_id())
     }
 
-    /// With this you can know if the viewport stal before
+    /// Was a repaint requested last frame for the given viewport?
+    #[must_use]
     pub fn requested_repaint_last_frame_for(&self, viewport_id: &ViewportId) -> bool {
         self.read(|ctx| ctx.repaint.requested_repaint_last_frame(viewport_id))
     }
 
-    /// With this you will know if the application will redraw
+    /// Has a repaint been requested for the current viewport?
+    #[must_use]
     pub fn requested_repaint(&self) -> bool {
         self.requested_repaint_for(&self.viewport_id())
     }
 
-    /// With this you will know if the viewport will redraw
+    /// Has a repaint been requested for the given viewport?
+    #[must_use]
     pub fn requested_repaint_for(&self, viewport_id: &ViewportId) -> bool {
         self.read(|ctx| ctx.repaint.requested_repaint(viewport_id))
     }
@@ -1318,9 +1325,9 @@ impl Context {
         if pixels_per_point != self.pixels_per_point() {
             self.write(|ctx| {
                 for viewport in ctx.viewports.values() {
-                    ctx.repaint.request_repaint_settle(viewport.ids.this);
+                    ctx.repaint.request_repaint(viewport.ids.this);
                 }
-                ctx.repaint.request_repaint_settle(ViewportId::ROOT);
+                ctx.repaint.request_repaint(ViewportId::ROOT);
                 ctx.memory.override_pixels_per_point = Some(pixels_per_point);
             });
         }
