@@ -65,21 +65,20 @@ impl ViewportState {
         let immediate = vp_state.read().immediate;
         let title = vp_state.read().title.clone();
 
-        let mut vp_builder = ViewportBuilder::ROOT;
-        vp_builder
+        let viewport = ViewportBuilder::ROOT
             .with_title(&title)
             .with_inner_size(Some(egui::vec2(450.0, 400.0)));
 
         if immediate {
             let mut vp_state = vp_state.write();
-            ctx.show_viewport_immediate(vp_id, vp_builder, move |ctx| {
+            ctx.show_viewport_immediate(vp_id, viewport, move |ctx| {
                 show_as_popup(ctx, &title, vp_id.into(), |ui: &mut egui::Ui| {
                     generic_child_ui(ui, &mut vp_state);
                 });
             });
         } else {
             let count = Arc::new(RwLock::new(0));
-            ctx.show_viewport(vp_id, vp_builder, move |ctx| {
+            ctx.show_viewport(vp_id, viewport, move |ctx| {
                 let mut vp_state = vp_state.write();
                 let count = count.clone();
                 show_as_popup(ctx, &title, vp_id.into(), move |ui: &mut egui::Ui| {

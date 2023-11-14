@@ -200,7 +200,8 @@ impl ViewportBuilder {
     /// Sets the initial title of the window in the title bar.
     ///
     /// Look at winit for more details
-    pub fn with_title(&mut self, title: impl Into<String>) -> &mut Self {
+    #[inline]
+    pub fn with_title(mut self, title: impl Into<String>) -> Self {
         self.title = Some(title.into());
         self
     }
@@ -210,7 +211,8 @@ impl ViewportBuilder {
     /// The default is `true`.
     ///
     /// Look at winit for more details
-    pub fn with_decorations(&mut self, decorations: bool) -> &mut Self {
+    #[inline]
+    pub fn with_decorations(mut self, decorations: bool) -> Self {
         self.decorations = Some(decorations);
         self
     }
@@ -221,7 +223,8 @@ impl ViewportBuilder {
     ///
     /// Look at winit for more details
     /// This will use borderless
-    pub fn with_fullscreen(&mut self, fullscreen: bool) -> &mut Self {
+    #[inline]
+    pub fn with_fullscreen(mut self, fullscreen: bool) -> Self {
         self.fullscreen = Some(fullscreen);
         self
     }
@@ -231,7 +234,8 @@ impl ViewportBuilder {
     /// The default is `false`.
     ///
     /// Look at winit for more details
-    pub fn with_maximized(&mut self, maximized: bool) -> &mut Self {
+    #[inline]
+    pub fn with_maximized(mut self, maximized: bool) -> Self {
         self.maximized = Some(maximized);
         self
     }
@@ -241,7 +245,8 @@ impl ViewportBuilder {
     /// The default is `true`.
     ///
     /// Look at winit for more details
-    pub fn with_resizable(&mut self, resizable: bool) -> &mut Self {
+    #[inline]
+    pub fn with_resizable(mut self, resizable: bool) -> Self {
         self.resizable = Some(resizable);
         self
     }
@@ -256,13 +261,15 @@ impl ViewportBuilder {
     /// The default is `false`.
     /// If this is not working is because the graphic context dozen't support transparency,
     /// you will need to set the transparency in the eframe!
-    pub fn with_transparent(&mut self, transparent: bool) -> &mut Self {
+    #[inline]
+    pub fn with_transparent(mut self, transparent: bool) -> Self {
         self.transparent = Some(transparent);
         self
     }
 
     /// The icon needs to be wrapped in Arc because will be cloned every frame
-    pub fn with_window_icon(&mut self, icon: Option<Arc<ColorImage>>) -> &mut Self {
+    #[inline]
+    pub fn with_window_icon(mut self, icon: Option<Arc<ColorImage>>) -> Self {
         self.icon = Some(icon);
         self
     }
@@ -276,7 +283,8 @@ impl ViewportBuilder {
     /// **Android / iOS / X11 / Wayland / Orbital:** Unsupported.
     ///
     /// Look at winit for more details
-    pub fn with_active(&mut self, active: bool) -> &mut Self {
+    #[inline]
+    pub fn with_active(mut self, active: bool) -> Self {
         self.active = Some(active);
         self
     }
@@ -286,28 +294,32 @@ impl ViewportBuilder {
     /// The default is to show the window.
     ///
     /// Look at winit for more details
-    pub fn with_visible(&mut self, visible: bool) -> &mut Self {
+    #[inline]
+    pub fn with_visible(mut self, visible: bool) -> Self {
         self.visible = Some(visible);
         self
     }
 
     /// Mac Os only
     /// Hides the window title.
-    pub fn with_title_hidden(&mut self, title_hidden: bool) -> &mut Self {
+    #[inline]
+    pub fn with_title_hidden(mut self, title_hidden: bool) -> Self {
         self.title_hidden = Some(title_hidden);
         self
     }
 
     /// Mac Os only
     /// Makes the titlebar transparent and allows the content to appear behind it.
-    pub fn with_titlebar_transparent(&mut self, value: bool) -> &mut Self {
+    #[inline]
+    pub fn with_titlebar_transparent(mut self, value: bool) -> Self {
         self.titlebar_transparent = Some(value);
         self
     }
 
     /// Mac Os only
     /// Makes the window content appear behind the titlebar.
-    pub fn with_fullsize_content_view(&mut self, value: bool) -> &mut Self {
+    #[inline]
+    pub fn with_fullsize_content_view(mut self, value: bool) -> Self {
         self.fullsize_content_view = Some(value);
         self
     }
@@ -318,7 +330,8 @@ impl ViewportBuilder {
     ///
     /// Should be bigger then 0
     /// Look at winit for more details
-    pub fn with_inner_size(&mut self, value: Option<Vec2>) -> &mut Self {
+    #[inline]
+    pub fn with_inner_size(mut self, value: Option<Vec2>) -> Self {
         self.inner_size = Some(value);
         self
     }
@@ -330,7 +343,8 @@ impl ViewportBuilder {
     ///
     /// Should be bigger then 0
     /// Look at winit for more details
-    pub fn with_min_inner_size(&mut self, value: Option<Vec2>) -> &mut Self {
+    #[inline]
+    pub fn with_min_inner_size(mut self, value: Option<Vec2>) -> Self {
         self.min_inner_size = Some(value);
         self
     }
@@ -342,37 +356,43 @@ impl ViewportBuilder {
     ///
     /// Should be bigger then 0
     /// Look at winit for more details
-    pub fn with_max_inner_size(&mut self, value: Option<Vec2>) -> &mut Self {
+    #[inline]
+    pub fn with_max_inner_size(mut self, value: Option<Vec2>) -> Self {
         self.max_inner_size = Some(value);
         self
     }
 
     /// X11 not working!
-    pub fn with_close_button(&mut self, value: bool) -> &mut Self {
+    #[inline]
+    pub fn with_close_button(mut self, value: bool) -> Self {
         self.close_button = Some(value);
         self
     }
 
     /// X11 not working!
-    pub fn with_minimize_button(&mut self, value: bool) -> &mut Self {
+    #[inline]
+    pub fn with_minimize_button(mut self, value: bool) -> Self {
         self.minimize_button = Some(value);
         self
     }
 
     /// X11 not working!
-    pub fn with_maximize_button(&mut self, value: bool) -> &mut Self {
+    #[inline]
+    pub fn with_maximize_button(mut self, value: bool) -> Self {
         self.maximize_button = Some(value);
         self
     }
 
     /// This currently only work on windows to be disabled!
-    pub fn with_drag_and_drop(&mut self, value: bool) -> &mut Self {
+    #[inline]
+    pub fn with_drag_and_drop(mut self, value: bool) -> Self {
         self.drag_and_drop = Some(value);
         self
     }
 
     /// This will probably not work as expected!
-    pub fn with_position(&mut self, value: Option<Pos2>) -> &mut Self {
+    #[inline]
+    pub fn with_position(mut self, value: Option<Pos2>) -> Self {
         self.position = Some(value);
         self
     }
@@ -385,7 +405,8 @@ impl ViewportBuilder {
     ///
     /// For details about application ID conventions, see the
     /// [Desktop Entry Spec](https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#desktop-file-id)
-    pub fn with_name(&mut self, id: impl Into<String>, instance: impl Into<String>) -> &mut Self {
+    #[inline]
+    pub fn with_name(mut self, id: impl Into<String>, instance: impl Into<String>) -> Self {
         self.name = Some((id.into(), instance.into()));
         self
     }
@@ -393,7 +414,8 @@ impl ViewportBuilder {
     /// Is not implemented for winit
     /// You should use `ViewportCommand::CursorHitTest` if you want to set this!
     #[deprecated]
-    pub fn with_hittest(&mut self, value: bool) -> &mut Self {
+    #[inline]
+    pub fn with_hittest(mut self, value: bool) -> Self {
         self.hittest = Some(value);
         self
     }

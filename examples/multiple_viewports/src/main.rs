@@ -28,13 +28,10 @@ impl eframe::App for MyApp {
             ui.checkbox(&mut self.show_child_viewport, "Show secondary viewport");
         });
 
-        let mut viewport = egui::ViewportBuilder::CHILD;
-        viewport.with_title("Secondary Viewport");
-
         if self.show_child_viewport {
             ctx.show_viewport(
                 egui::ViewportId::from_hash_of("secondary_viewport"),
-                viewport,
+                egui::ViewportBuilder::CHILD.with_title("Secondary Viewport"),
                 |ctx| {
                     egui::CentralPanel::default().show(ctx, |ui| {
                         ui.label("Hello from secondary viewport");

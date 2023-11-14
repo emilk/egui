@@ -85,8 +85,7 @@ pub fn window_builder<E>(
         ..
     } = native_options;
 
-    let mut viewport_builder = egui::ViewportBuilder::ROOT;
-    viewport_builder
+    let mut viewport_builder = egui::ViewportBuilder::ROOT
         .with_title(title)
         .with_decorations(*decorated)
         .with_fullscreen(*fullscreen)
@@ -106,7 +105,7 @@ pub fn window_builder<E>(
 
     #[cfg(target_os = "macos")]
     if *fullsize_content {
-        viewport_builder
+        viewport_builder = viewport_builder
             .with_title_hidden(true)
             .with_titlebar_transparent(true)
             .with_fullsize_content_view(true);
@@ -114,20 +113,20 @@ pub fn window_builder<E>(
 
     #[cfg(all(feature = "wayland", target_os = "linux"))]
     {
-        match &native_options.app_id {
+        viewport_builder = match &native_options.app_id {
             Some(app_id) => viewport_builder.with_name(app_id, ""),
             None => viewport_builder.with_name(title, ""),
         };
     }
 
     if let Some(min_size) = *min_window_size {
-        viewport_builder.with_min_inner_size(Some(min_size));
+        viewport_builder = viewport_builder.with_min_inner_size(Some(min_size));
     }
     if let Some(max_size) = *max_window_size {
-        viewport_builder.with_max_inner_size(Some(max_size));
+        viewport_builder = viewport_builder.with_max_inner_size(Some(max_size));
     }
 
-    viewport_builder.with_drag_and_drop(*drag_and_drop_support);
+    viewport_builder = viewport_builder.with_drag_and_drop(*drag_and_drop_support);
 
     // Always use the default window size / position on iOS. Trying to restore the previous position
     // causes the window to be shown too small.
@@ -138,17 +137,17 @@ pub fn window_builder<E>(
         window_settings.clamp_size_to_sane_values(largest_monitor_point_size(event_loop));
         window_settings.clamp_position_to_monitors(event_loop);
 
-        window_settings.initialize_viewport_builder(&mut viewport_builder);
+        viewport_builder = window_settings.initialize_viewport_builder(viewport_builder);
         window_settings.inner_size_points()
     } else {
         if let Some(pos) = *initial_window_pos {
-            viewport_builder.with_position(Some(pos));
+            viewport_builder = viewport_builder.with_position(Some(pos));
         }
 
         if let Some(initial_window_size) = *initial_window_size {
             let initial_window_size =
                 initial_window_size.at_most(largest_monitor_point_size(event_loop));
-            viewport_builder.with_inner_size(Some(initial_window_size));
+            viewport_builder = viewport_builder.with_inner_size(Some(initial_window_size));
         }
 
         *initial_window_size
@@ -162,7 +161,7 @@ pub fn window_builder<E>(
             if monitor_size.width > 0.0 && monitor_size.height > 0.0 {
                 let x = (monitor_size.width - inner_size.x) / 2.0;
                 let y = (monitor_size.height - inner_size.y) / 2.0;
-                viewport_builder.with_position(Some(egui::Pos2::new(x, y)));
+                viewport_builder = viewport_builder.with_position(Some(egui::Pos2::new(x, y)));
             }
         }
     }
