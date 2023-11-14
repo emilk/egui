@@ -494,7 +494,12 @@ mod glow_integration {
             window_id: WindowId,
             focused_viewport: Option<ViewportId>,
         ) -> EventResult {
-            let Some(viewport_id) = self.glutin.borrow().viewport_from_window.get(&window_id).copied()
+            let Some(viewport_id) = self
+                .glutin
+                .borrow()
+                .viewport_from_window
+                .get(&window_id)
+                .copied()
             else {
                 return EventResult::Wait;
             };
@@ -2133,7 +2138,8 @@ mod wgpu_integration {
                 viewport.init_window(viewport_from_window, painter, event_loop);
             }
 
-            let (Some(window), Some(winit_state)) = (&viewport.window, &mut viewport.egui_winit) else {
+            let (Some(window), Some(winit_state)) = (&viewport.window, &mut viewport.egui_winit)
+            else {
                 return;
             };
 
@@ -2385,7 +2391,12 @@ mod wgpu_integration {
             window_id: WindowId,
             focused_viewport: Option<ViewportId>,
         ) -> EventResult {
-            let Some(viewport_id) = self.shared.borrow().viewport_from_window.get(&window_id).copied()
+            let Some(viewport_id) = self
+                .shared
+                .borrow()
+                .viewport_from_window
+                .get(&window_id)
+                .copied()
             else {
                 return EventResult::Wait;
             };
