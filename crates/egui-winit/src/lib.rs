@@ -180,7 +180,7 @@ impl State {
     pub fn take_egui_input(
         &mut self,
         window: &winit::window::Window,
-        id_pair: ViewportIdPair,
+        ids: ViewportIdPair,
     ) -> egui::RawInput {
         crate::profile_function!();
 
@@ -243,7 +243,7 @@ impl State {
             None
         };
 
-        self.egui_input.viewport.id_pair = id_pair;
+        self.egui_input.viewport.ids = ids;
         self.egui_input.viewport.inner_rect_px =
             if let (Some(pos), Some(size)) = (inner_pos_px, inner_size_px) {
                 Some(Rect::from_min_size(pos, size))

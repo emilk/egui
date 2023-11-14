@@ -194,10 +194,10 @@ struct ContextImpl {
 
 impl ContextImpl {
     fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
-        let id_pair = new_raw_input.viewport.id_pair;
+        let ids = new_raw_input.viewport.ids;
 
-        let viewport_id = id_pair.this;
-        self.viewport_stack.push(id_pair);
+        let viewport_id = ids.this;
+        self.viewport_stack.push(ids);
         self.output.entry(self.viewport_id()).or_default();
         self.repaint.start_frame(self.viewport_id());
 
@@ -1318,7 +1318,7 @@ impl Context {
         if pixels_per_point != self.pixels_per_point() {
             self.write(|ctx| {
                 for viewport in ctx.viewports.values() {
-                    ctx.repaint.request_repaint_settle(viewport.id_pair.this);
+                    ctx.repaint.request_repaint_settle(viewport.ids.this);
                 }
                 ctx.repaint.request_repaint_settle(ViewportId::ROOT);
                 ctx.memory.override_pixels_per_point = Some(pixels_per_point);
@@ -1471,7 +1471,7 @@ impl Context {
                     .remove(&ctx.viewport_id())
                     .unwrap(),
             );
-            ctx.viewports.values().map(|vp| vp.id_pair.this).collect()
+            ctx.viewports.values().map(|vp| vp.ids.this).collect()
         });
         viewports.insert(ViewportId::ROOT);
 
@@ -1545,14 +1545,14 @@ impl Context {
             ctx.viewports.retain(|_, viewport| {
                 let was_used = viewport.used;
 
-                if viewport_id == viewport.id_pair.parent {
+                if viewport_id == viewport.ids.parent {
                     viewport.used = false; // reset so we can check again next frame
                 }
 
-                if all_viewport_ids.contains(&viewport.id_pair.parent) {
+                if all_viewport_ids.contains(&viewport.ids.parent) {
                     viewports.push(ViewportOutput {
                         builder: viewport.builder.clone(),
-                        id_pair: viewport.id_pair,
+                        ids: viewport.ids,
                         viewport_ui_cb: viewport.viewport_ui_cb.clone(),
                     });
                 } else {
@@ -1560,7 +1560,7 @@ impl Context {
                     return false;
                 }
 
-                let is_child = viewport_id == viewport.id_pair.parent;
+                let is_child = viewport_id == viewport.ids.parent;
 
                 let result = if is_child {
                     // Keep all children that have been updated this frame
@@ -1571,7 +1571,7 @@ impl Context {
                 };
 
                 if result {
-                    all_viewport_ids.insert(viewport.id_pair.this);
+                    all_viewport_ids.insert(viewport.ids.this);
                 }
 
                 result
@@ -2587,14 +2587,14 @@ impl Context {
                 let viewport_id = ctx.viewport_id();
                 if let Some(window) = ctx.viewports.get_mut(&viewport_builder.id) {
                     window.builder = viewport_builder.clone();
-                    window.id_pair.parent = viewport_id;
+                    window.ids.parent = viewport_id;
                     window.used = true;
                     window.viewport_ui_cb = Some(Arc::new(Box::new(viewport_ui_cb)));
                 } else {
                     ctx.viewports.insert(
                         viewport_builder.id,
                         ViewportState {
-                            id_pair: ViewportIdPair {
+                            ids: ViewportIdPair {
                                 this: viewport_builder.id,
                                 parent: viewport_id,
                             },
@@ -2644,19 +2644,19 @@ impl Context {
                 return viewport_ui_cb(self);
             };
 
-            let id_pair = self.write(|ctx| {
+            let ids = self.write(|ctx| {
                 let parent = ctx.viewport_id();
 
                 if let Some(window) = ctx.viewports.get_mut(&viewport_builder.id) {
                     // Existing
                     window.builder = viewport_builder.clone();
-                    window.id_pair.parent = parent;
+                    window.ids.parent = parent;
                     window.used = true;
                     window.viewport_ui_cb = None;
-                    window.id_pair
+                    window.ids
                 } else {
                     // New
-                    let id_pair = ViewportIdPair {
+                    let ids = ViewportIdPair {
                         this: viewport_builder.id,
                         parent,
                     };
@@ -2664,12 +2664,12 @@ impl Context {
                         viewport_builder.id,
                         ViewportState {
                             builder: viewport_builder.clone(),
-                            id_pair,
+                            ids,
                             used: true,
                             viewport_ui_cb: None,
                         },
                     );
-                    id_pair
+                    ids
                 }
             });
 
@@ -2680,7 +2680,7 @@ impl Context {
                 immediate_viewport_renderer(
                     self,
                     viewport_builder.clone(),
-                    id_pair,
+                    ids,
                     Box::new(move |context| *out = Some(viewport_ui_cb(context))),
                 );
             }

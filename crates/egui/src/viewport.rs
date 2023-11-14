@@ -704,7 +704,7 @@ pub(crate) struct ViewportState {
     pub(crate) builder: ViewportBuilder,
 
     /// Id of us and our parent.
-    pub(crate) id_pair: ViewportIdPair,
+    pub(crate) ids: ViewportIdPair,
 
     /// Has this viewport been updated this frame?
     pub(crate) used: bool,
@@ -719,7 +719,7 @@ pub(crate) struct ViewportState {
 #[derive(Clone)]
 pub struct ViewportOutput {
     /// Id of us and our parent.
-    pub id_pair: ViewportIdPair,
+    pub ids: ViewportIdPair,
 
     pub builder: ViewportBuilder,
 
@@ -731,6 +731,6 @@ pub struct ViewportOutput {
 
 impl ViewportOutput {
     pub fn id(&self) -> ViewportId {
-        self.id_pair.this
+        self.ids.this
     }
 }

@@ -560,7 +560,7 @@ impl Memory {
         self.window_interactions
             .retain(|id, _| viewports.contains(id));
 
-        self.viewport_id = new_input.viewport.id_pair.this;
+        self.viewport_id = new_input.viewport.ids.this;
         self.interactions
             .entry(self.viewport_id)
             .or_default()

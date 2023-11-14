@@ -143,7 +143,7 @@ impl RawInput {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportInfo {
-    pub id_pair: ViewportIdPair,
+    pub ids: ViewportIdPair,
 
     /// Viewport inner position and size, only the drowable area
     /// unit = physical pixels
@@ -164,12 +164,12 @@ impl ViewportInfo {
 
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
-            id_pair,
+            ids,
             inner_rect_px,
             outer_rect_px,
             close_requested,
         } = self;
-        ui.label(format!("id_pair: {id_pair:?}"));
+        ui.label(format!("ids: {ids:?}"));
         ui.label(format!("inner_rect_px: {inner_rect_px:?}"));
         ui.label(format!("outer_rect_px: {outer_rect_px:?}"));
         ui.label(format!("close_requested: {close_requested:?}"));
