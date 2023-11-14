@@ -1021,17 +1021,18 @@ mod glow_integration {
                 .get_mut(&viewport_id)
                 .expect("viewport doesn't exist");
 
-            let window = viewport.window.get_or_insert_with(|| {
+            let window = if let Some(window) = &mut viewport.window {
+                window
+            } else {
                 log::trace!("Window doesn't exist yet. Creating one now with finalize_window");
-                Rc::new(
-                    glutin_winit::finalize_window(
+                viewport
+                    .window
+                    .insert(Rc::new(glutin_winit::finalize_window(
                         event_loop,
                         create_winit_window_builder(&viewport.builder),
                         &self.gl_config,
-                    )
-                    .expect("failed to finalize glutin window"),
-                )
-            });
+                    )?))
+            };
 
             {
                 // surface attributes
@@ -1330,8 +1331,7 @@ mod glow_integration {
                 }))
             };
 
-            let painter = egui_glow::Painter::new(gl, "", native_options.shader_version)
-                .unwrap_or_else(|err| panic!("An OpenGL error occurred: {err}\n"));
+            let painter = egui_glow::Painter::new(gl, "", native_options.shader_version)?;
 
             Ok((glutin_window_context, painter))
         }
@@ -1821,22 +1821,27 @@ mod wgpu_integration {
 
             let viewport_id = self.ids.this;
 
-            if let Ok(new_window) = create_winit_window_builder(&self.builder).build(event_loop) {
-                windows_id.insert(new_window.id(), viewport_id);
+            match create_winit_window_builder(&self.builder).build(event_loop) {
+                Ok(new_window) => {
+                    windows_id.insert(new_window.id(), viewport_id);
 
-                if let Err(err) =
-                    pollster::block_on(painter.set_window(viewport_id, Some(&new_window)))
-                {
-                    log::error!("on set_window: viewport_id {viewport_id:?} {err}");
+                    if let Err(err) =
+                        pollster::block_on(painter.set_window(viewport_id, Some(&new_window)))
+                    {
+                        log::error!("on set_window: viewport_id {viewport_id:?} {err}");
+                    }
+
+                    self.egui_winit = Some(egui_winit::State::new(
+                        event_loop,
+                        Some(new_window.scale_factor() as f32),
+                        painter.max_texture_side(),
+                    ));
+
+                    self.window = Some(Rc::new(new_window));
                 }
-
-                self.egui_winit = Some(egui_winit::State::new(
-                    event_loop,
-                    Some(new_window.scale_factor() as f32),
-                    painter.max_texture_side(),
-                ));
-
-                self.window = Some(Rc::new(new_window));
+                Err(err) => {
+                    log::error!("Failed to create window: {err}");
+                }
             }
         }
     }

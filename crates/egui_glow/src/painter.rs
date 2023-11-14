@@ -34,6 +34,24 @@ impl TextureFilterExt for egui::TextureFilter {
     }
 }
 
+#[derive(Debug)]
+pub struct PainterError(String);
+
+impl std::error::Error for PainterError {}
+
+impl std::fmt::Display for PainterError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "OpenGL: {}", self.0)
+    }
+}
+
+impl From<String> for PainterError {
+    #[inline]
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
 /// An OpenGL painter using [`glow`].
 ///
 /// This is responsible for painting egui and managing egui textures.
@@ -103,7 +121,7 @@ impl Painter {
         gl: Arc<glow::Context>,
         shader_prefix: &str,
         shader_version: Option<ShaderVersion>,
-    ) -> Result<Painter, String> {
+    ) -> Result<Painter, PainterError> {
         crate::profile_function!();
         crate::check_for_gl_error_even_in_release!(&gl, "before Painter::new");
 
@@ -121,7 +139,7 @@ impl Painter {
         if gl.version().major < 2 {
             // this checks on desktop that we are not using opengl 1.1 microsoft sw rendering context.
             // ShaderVersion::get fn will segfault due to SHADING_LANGUAGE_VERSION (added in gl2.0)
-            return Err("egui_glow requires opengl 2.0+. ".to_owned());
+            return Err(PainterError("egui_glow requires opengl 2.0+. ".to_owned()));
         }
 
         let max_texture_side = unsafe { gl.get_parameter_i32(glow::MAX_TEXTURE_SIZE) } as usize;
