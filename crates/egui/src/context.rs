@@ -1635,7 +1635,7 @@ impl Context {
     ///
     /// `pixels_per_point` is used for feathering (anti-aliasing).
     /// You can use [`Self::pixels_per_point`] for this,
-    /// or whatever is appropiate for your viewport.
+    /// or whatever is appropriate for your viewport.
     pub fn tessellate(
         &self,
         shapes: Vec<ClippedShape>,
