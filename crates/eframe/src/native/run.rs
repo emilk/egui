@@ -161,6 +161,7 @@ fn run_and_return(
 
     log::debug!("Entering the winit event loop (run_return)…");
 
+    // When to repaint what window
     let mut windows_next_repaint_times = HashMap::default();
 
     let mut returned_result = Ok(());
@@ -209,18 +210,10 @@ fn run_and_return(
                 EventResult::Wait
             }
 
-            winit::event::Event::WindowEvent { window_id, .. }
-                if winit_app.window(*window_id).is_none() =>
-            {
-                // This can happen if we close a window, and then reopen a new one,
-                // or if we have multiple windows open.
-                EventResult::RepaintNext(*window_id)
-            }
-
             event => match winit_app.on_event(event_loop, event) {
                 Ok(event_result) => event_result,
                 Err(err) => {
-                    log::error!("Exiting because of error: {err} on event {event:?}");
+                    log::error!("Exiting because of error: {err} during event {event:?}");
                     returned_result = Err(err);
                     EventResult::Exit
                 }
@@ -232,7 +225,7 @@ fn run_and_return(
                 control_flow.set_wait();
             }
             EventResult::RepaintNow(window_id) => {
-                log::trace!("Repaint caused by winit::Event: {:?}", event_result);
+                log::trace!("Repaint caused by {}", short_event_description(&event));
                 if cfg!(target_os = "windows") {
                     // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                     windows_next_repaint_times.remove(&window_id);
@@ -244,7 +237,7 @@ fn run_and_return(
                 }
             }
             EventResult::RepaintNext(window_id) => {
-                log::trace!("Repaint caused by winit::Event: {:?}", event_result);
+                log::trace!("Repaint caused by {}", short_event_description(&event));
                 windows_next_repaint_times.insert(window_id, Instant::now());
             }
             EventResult::RepaintAt(window_id, repaint_time) => {
@@ -282,7 +275,6 @@ fn run_and_return(
                 if let Some(window) = winit_app.window(*window_id) {
                     log::trace!("request_redraw for {window_id:?}");
                     window.request_redraw();
-
                     true
                 } else {
                     false
@@ -321,6 +313,7 @@ fn run_and_return(
 fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp + 'static) -> ! {
     log::debug!("Entering the winit event loop (run)…");
 
+    // When to repaint what window
     let mut windows_next_repaint_times = HashMap::default();
 
     event_loop.run(move |event, event_loop, control_flow| {
@@ -350,25 +343,32 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                         EventResult::Wait
                     }
                 } else {
+                    log::trace!("Got outdated UserEvent::RequestRepaint");
                     EventResult::Wait // old request - we've already repainted
                 }
             }
 
             winit::event::Event::NewEvents(winit::event::StartCause::ResumeTimeReached {
                 ..
-            }) => EventResult::Wait, // We just woke up to check next_repaint_time
+            }) => {
+                log::trace!("Woke up to check next_repaint_time");
+                EventResult::Wait
+            }
 
             event => match winit_app.on_event(event_loop, event) {
                 Ok(event_result) => event_result,
                 Err(err) => {
-                    panic!("eframe encountered a fatal error: {err}");
+                    panic!("eframe encountered a fatal error: {err} during event {event:?}");
                 }
             },
         };
 
         match event_result {
-            EventResult::Wait => {}
+            EventResult::Wait => {
+                control_flow.set_wait();
+            }
             EventResult::RepaintNow(window_id) => {
+                log::trace!("Repaint caused by {}", short_event_description(&event));
                 if cfg!(target_os = "windows") {
                     // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                     windows_next_repaint_times.remove(&window_id);
@@ -380,6 +380,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                 }
             }
             EventResult::RepaintNext(window_id) => {
+                log::trace!("Repaint caused by {}", short_event_description(&event));
                 windows_next_repaint_times.insert(window_id, Instant::now());
             }
             EventResult::RepaintAt(window_id, repaint_time) => {
@@ -417,7 +418,6 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                 if let Some(window) = winit_app.window(*window_id) {
                     log::trace!("request_redraw for {window_id:?}");
                     window.request_redraw();
-
                     true
                 } else {
                     false
@@ -673,6 +673,13 @@ mod glow_integration {
             event: &winit::event::WindowEvent<'_>,
             focused_viewport: &mut Option<ViewportId>,
         ) -> EventResult {
+            let viewport_id = self
+                .glutin
+                .borrow()
+                .viewport_from_window
+                .get(&window_id)
+                .copied();
+
             // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
             // event handler.
             //
@@ -688,48 +695,34 @@ mod glow_integration {
             // See: https://github.com/emilk/egui/issues/903
             let mut repaint_asap = false;
 
-            match &event {
+            match event {
                 winit::event::WindowEvent::Focused(new_focused) => {
-                    *focused_viewport = new_focused
-                        .then(|| {
-                            self.glutin
-                                .borrow_mut()
-                                .viewport_from_window
-                                .get(&window_id)
-                                .copied()
-                        })
-                        .flatten();
+                    *focused_viewport = new_focused.then(|| viewport_id).flatten();
                 }
 
                 winit::event::WindowEvent::Resized(physical_size) => {
-                    repaint_asap = true;
-
                     // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                     // See: https://github.com/rust-windowing/winit/issues/208
                     // This solves an issue where the app would panic when minimizing on Windows.
-                    let glutin = &mut *self.glutin.borrow_mut();
                     if 0 < physical_size.width && 0 < physical_size.height {
-                        if let Some(id) = glutin.viewport_from_window.get(&window_id) {
-                            glutin.resize(*id, *physical_size);
+                        if let Some(viewport_id) = viewport_id {
+                            repaint_asap = true;
+                            self.glutin.borrow_mut().resize(viewport_id, *physical_size);
                         }
                     }
                 }
 
                 winit::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                    let glutin = &mut *self.glutin.borrow_mut();
-                    repaint_asap = true;
-                    if let Some(id) = glutin.viewport_from_window.get(&window_id) {
-                        glutin.resize(*id, **new_inner_size);
+                    if let Some(viewport_id) = viewport_id {
+                        repaint_asap = true;
+                        self.glutin
+                            .borrow_mut()
+                            .resize(viewport_id, **new_inner_size);
                     }
                 }
 
                 winit::event::WindowEvent::CloseRequested => {
-                    let is_root = self
-                        .glutin
-                        .borrow()
-                        .viewport_from_window
-                        .get(&window_id)
-                        .map_or(false, |id| *id == ViewportId::ROOT);
+                    let is_root = viewport_id == Some(ViewportId::ROOT);
                     if is_root && self.integration.should_close() {
                         log::debug!("Received WindowEvent::CloseRequested");
                         return EventResult::Exit;
@@ -739,8 +732,8 @@ mod glow_integration {
             }
 
             let event_response = 'res: {
-                let mut glutin = self.glutin.borrow_mut();
-                if let Some(viewport_id) = glutin.viewport_from_window.get(&window_id).copied() {
+                if let Some(viewport_id) = viewport_id {
+                    let mut glutin = self.glutin.borrow_mut();
                     if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
                         break 'res self.integration.on_event(
                             self.app.as_mut(),
@@ -2618,13 +2611,11 @@ mod wgpu_integration {
             // See: https://github.com/emilk/egui/issues/903
             let mut repaint_asap = false;
 
-            match &event {
+            match event {
                 winit::event::WindowEvent::Focused(new_focused) => {
                     *focused_viewport = new_focused.then(|| viewport_id).flatten();
                 }
                 winit::event::WindowEvent::Resized(physical_size) => {
-                    repaint_asap = true;
-
                     // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                     // See: https://github.com/rust-windowing/winit/issues/208
                     // This solves an issue where the app would panic when minimizing on Windows.
@@ -2634,6 +2625,7 @@ mod wgpu_integration {
                             NonZeroU32::new(physical_size.width),
                             NonZeroU32::new(physical_size.height),
                         ) {
+                            repaint_asap = true;
                             shared.painter.on_window_resized(viewport_id, width, height);
                         }
                     }
