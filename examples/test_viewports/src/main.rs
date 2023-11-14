@@ -165,7 +165,7 @@ fn show_as_popup(ctx: &egui::Context, title: &str, id: Id, content: impl FnOnce(
     if ctx.viewport_id() == ctx.parent_viewport_id() {
         egui::Window::new(title).id(id).show(ctx, content);
     } else {
-        egui::CentralPanel::default().show(ctx, content);
+        egui::CentralPanel::default().show(ctx, |ui| ui.push_id(id, content));
     }
 }
 
