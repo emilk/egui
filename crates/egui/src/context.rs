@@ -39,6 +39,12 @@ pub struct RequestRepaintInfo {
 
 // ----------------------------------------------------------------------------
 
+thread_local! {
+    static IMMEDIATE_VIEWPORT_RENDERER: RefCell<Option<Box<ImmediateViewportRendererCallback>>> = Default::default();
+}
+
+// ----------------------------------------------------------------------------
+
 struct WrappedTextureManager(Arc<RwLock<epaint::TextureManager>>);
 
 impl Default for WrappedTextureManager {
@@ -147,8 +153,34 @@ impl Repaint {
 
 // ----------------------------------------------------------------------------
 
-thread_local! {
-    static IMMEDIATE_VIEWPORT_RENDERER: RefCell<Option<Box<ImmediateViewportRendererCallback>>> = Default::default();
+/// State stored per viewport
+#[derive(Default)]
+struct ViewportState {
+    /// The latest delta
+    builder: ViewportBuilder,
+
+    /// The user-code that shows the GUI, used for deferred viewports.
+    ///
+    /// `None` for immediate viewports.
+    viewport_ui_cb: Option<Arc<ViewportUiCallback>>,
+
+    input: InputState,
+
+    /// State that is collected during a frame and then cleared
+    frame_state: FrameState,
+
+    /// Has this viewport been updated this frame?
+    used: bool,
+
+    /// Written to during the frame.
+    layer_rects_this_frame: HashMap<LayerId, Vec<(Id, Rect)>>,
+
+    /// Read
+    layer_rects_prev_frame: HashMap<LayerId, Vec<(Id, Rect)>>,
+
+    // The output of a frame:
+    graphics: GraphicLayers,
+    output: PlatformOutput,
 }
 
 // ----------------------------------------------------------------------------
@@ -163,35 +195,21 @@ struct ContextImpl {
 
     os: OperatingSystem,
 
-    input: ViewportIdMap<InputState>,
-
-    /// State that is collected during a frame and then cleared
-    frame_state: ViewportIdMap<FrameState>,
-
     /// How deeply nested are we?
     viewport_stack: Vec<ViewportIdPair>,
 
     /// What is the last viewport rendered?
     last_viewport: ViewportId,
 
-    // The output of a frame:
-    graphics: ViewportIdMap<GraphicLayers>,
-    output: ViewportIdMap<PlatformOutput>,
-
     paint_stats: PaintStats,
 
     repaint: Repaint,
 
+    viewport_parents: ViewportIdMap<ViewportId>,
     viewports: ViewportIdMap<ViewportState>,
     viewport_commands: Vec<(ViewportId, ViewportCommand)>,
 
     embed_viewports: bool,
-
-    /// Written to during the frame.
-    layer_rects_this_frame: ViewportIdMap<HashMap<LayerId, Vec<(Id, Rect)>>>,
-
-    /// Read
-    layer_rects_prev_frame: ViewportIdMap<HashMap<LayerId, Vec<(Id, Rect)>>>,
 
     #[cfg(feature = "accesskit")]
     is_accesskit_enabled: bool,
@@ -204,22 +222,18 @@ struct ContextImpl {
 impl ContextImpl {
     fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
         let ids = new_raw_input.viewport.ids;
-
         let viewport_id = ids.this;
         self.viewport_stack.push(ids);
-        self.output.entry(self.viewport_id()).or_default();
-        self.repaint.start_frame(self.viewport_id());
+        self.viewports.entry(viewport_id).or_default();
+
+        self.repaint.start_frame(viewport_id);
 
         if let Some(new_pixels_per_point) = self.memory.override_pixels_per_point {
-            if self
-                .input
-                .get(&viewport_id)
-                .map(|input| input.pixels_per_point)
-                .map_or(true, |pixels| pixels != new_pixels_per_point)
-            {
+            let viewport = self.viewport();
+            if viewport.input.pixels_per_point != new_pixels_per_point {
                 new_raw_input.pixels_per_point = Some(new_pixels_per_point);
 
-                let input = self.input.entry(viewport_id).or_default();
+                let input = &viewport.input;
                 // This is a bit hacky, but is required to avoid jitter:
                 let ratio = input.pixels_per_point / new_pixels_per_point;
                 let mut rect = input.screen_rect;
@@ -229,40 +243,34 @@ impl ContextImpl {
             }
         }
 
-        self.layer_rects_prev_frame.entry(viewport_id).or_default();
-        self.layer_rects_this_frame.entry(viewport_id).or_default();
+        {
+            let viewport = self.viewport();
+            viewport.layer_rects_prev_frame = std::mem::take(&mut viewport.layer_rects_this_frame);
+        }
 
-        self.memory.begin_frame(
-            self.input.get(&viewport_id).unwrap_or(&Default::default()),
-            &new_raw_input,
-            &self
-                .viewports
-                .keys()
-                .copied()
-                .chain([ViewportId::ROOT])
-                .collect(),
+        let all_viewport_ids = self
+            .viewports
+            .keys()
+            .copied()
+            .chain([ViewportId::ROOT])
+            .collect();
+
+        let viewport = self.viewports.entry(self.viewport_id()).or_default();
+
+        self.memory
+            .begin_frame(&viewport.input, &new_raw_input, &all_viewport_ids);
+
+        viewport.input = std::mem::take(&mut viewport.input).begin_frame(
+            new_raw_input,
+            self.repaint.requested_repaint_last_frame(&viewport_id),
         );
 
-        let input = self
-            .input
-            .remove(&viewport_id)
-            .unwrap_or_default()
-            .begin_frame(
-                new_raw_input,
-                self.repaint.requested_repaint_last_frame(&viewport_id),
-            );
-        self.input.insert(viewport_id, input);
+        viewport.frame_state.begin_frame(&viewport.input);
 
-        self.frame_state
-            .entry(viewport_id)
-            .or_default()
-            .begin_frame(&self.input[&viewport_id]);
-
-        self.update_fonts_mut();
+        let pixels_per_point = viewport.input.pixels_per_point();
 
         // Ensure we register the background area so panels and background ui can catch clicks:
-        let input = &self.input[&viewport_id];
-        let screen_rect = input.screen_rect();
+        let screen_rect = viewport.input.screen_rect();
         self.memory.areas_mut().set_state(
             LayerId::background(),
             containers::area::State {
@@ -279,24 +287,23 @@ impl ContextImpl {
             use crate::frame_state::AccessKitFrameState;
             let id = crate::accesskit_root_id();
             let mut builder = accesskit::NodeBuilder::new(accesskit::Role::Window);
-            builder.set_transform(accesskit::Affine::scale(input.pixels_per_point().into()));
+            builder.set_transform(accesskit::Affine::scale(pixels_per_point.into()));
             let mut node_builders = IdMap::default();
             node_builders.insert(id, builder);
-            self.frame_state
-                .entry(self.viewport_id())
-                .or_default()
-                .accesskit_state = Some(AccessKitFrameState {
+            viewport.frame_state.accesskit_state = Some(AccessKitFrameState {
                 node_builders,
                 parent_stack: vec![id],
             });
         }
+
+        self.update_fonts_mut();
     }
 
     /// Load fonts unless already loaded.
     fn update_fonts_mut(&mut self) {
         crate::profile_function!();
 
-        let input = self.input.entry(self.viewport_id()).or_default();
+        let input = &self.viewport().input;
         let pixels_per_point = input.pixels_per_point();
         let max_texture_side = input.max_texture_side;
 
@@ -330,9 +337,8 @@ impl ContextImpl {
     #[cfg(feature = "accesskit")]
     fn accesskit_node_builder(&mut self, id: Id) -> &mut accesskit::NodeBuilder {
         let state = self
+            .viewport()
             .frame_state
-            .entry(self.viewport_id())
-            .or_default()
             .accesskit_state
             .as_mut()
             .unwrap();
@@ -345,9 +351,7 @@ impl ContextImpl {
         }
         builders.get_mut(&id).unwrap()
     }
-}
 
-impl ContextImpl {
     /// Return the `ViewportId` of the current viewport.
     ///
     /// For the root viewport this will return [`ViewportId::ROOT`].
@@ -364,6 +368,16 @@ impl ContextImpl {
             .copied()
             .unwrap_or_default()
             .parent
+    }
+
+    /// The current active viewport
+    fn viewport(&mut self) -> &mut ViewportState {
+        self.viewports.entry(self.viewport_id()).or_default()
+    }
+
+    /// The current active viewport
+    fn viewport_for(&mut self, viewport_id: ViewportId) -> &mut ViewportState {
+        self.viewports.entry(viewport_id).or_default()
     }
 }
 
@@ -538,7 +552,7 @@ impl Context {
     /// This will create a `InputState::default()` if there is no input state for that viewport
     #[inline]
     pub fn input_for<R>(&self, id: ViewportId, reader: impl FnOnce(&InputState) -> R) -> R {
-        self.read(move |ctx| reader(ctx.input.get(&id).unwrap_or(&Default::default())))
+        self.write(move |ctx| reader(&ctx.viewport_for(id).input))
     }
 
     /// Read-write access to [`InputState`].
@@ -550,7 +564,7 @@ impl Context {
     /// This will create a `InputState::default()` if there is no input state for that viewport
     #[inline]
     pub fn input_mut_for<R>(&self, id: ViewportId, writer: impl FnOnce(&mut InputState) -> R) -> R {
-        self.write(move |ctx| writer(ctx.input.entry(id).or_default()))
+        self.write(move |ctx| writer(&mut ctx.viewport_for(id).input))
     }
 
     /// Read-only access to [`Memory`].
@@ -580,7 +594,7 @@ impl Context {
     /// Read-write access to [`GraphicLayers`], where painted [`crate::Shape`]s are written to.
     #[inline]
     pub(crate) fn graphics_mut<R>(&self, writer: impl FnOnce(&mut GraphicLayers) -> R) -> R {
-        self.write(move |ctx| writer(ctx.graphics.entry(ctx.viewport_id()).or_default()))
+        self.write(move |ctx| writer(&mut ctx.viewport().graphics))
     }
 
     /// Read-only access to [`PlatformOutput`].
@@ -593,31 +607,25 @@ impl Context {
     /// ```
     #[inline]
     pub fn output<R>(&self, reader: impl FnOnce(&PlatformOutput) -> R) -> R {
-        self.read(move |ctx| {
-            reader(
-                ctx.output
-                    .get(&ctx.viewport_id())
-                    .unwrap_or(&Default::default()),
-            )
-        })
+        self.write(move |ctx| reader(&ctx.viewport().output))
     }
 
     /// Read-write access to [`PlatformOutput`].
     #[inline]
     pub fn output_mut<R>(&self, writer: impl FnOnce(&mut PlatformOutput) -> R) -> R {
-        self.write(move |ctx| writer(ctx.output.entry(ctx.viewport_id()).or_default()))
+        self.write(move |ctx| writer(&mut ctx.viewport().output))
     }
 
     /// Read-only access to [`FrameState`].
     #[inline]
     pub(crate) fn frame_state<R>(&self, reader: impl FnOnce(&FrameState) -> R) -> R {
-        self.read(move |ctx| reader(&ctx.frame_state[&ctx.viewport_id()]))
+        self.write(move |ctx| reader(&ctx.viewport().frame_state))
     }
 
     /// Read-write access to [`FrameState`].
     #[inline]
     pub(crate) fn frame_state_mut<R>(&self, writer: impl FnOnce(&mut FrameState) -> R) -> R {
-        self.write(move |ctx| writer(ctx.frame_state.entry(ctx.viewport_id()).or_default()))
+        self.write(move |ctx| writer(&mut ctx.viewport().frame_state))
     }
 
     /// Read-only access to [`Fonts`].
@@ -792,21 +800,23 @@ impl Context {
             let mut show_blocking_widget = None;
 
             self.write(|ctx| {
-                if let Some(l) = ctx.layer_rects_this_frame.get_mut(&ctx.viewport_id()) {
-                    l.entry(layer_id).or_default().push((id, interact_rect));
-                }
+                let viewport = ctx.viewport();
+
+                viewport
+                    .layer_rects_this_frame
+                    .entry(layer_id)
+                    .or_default()
+                    .push((id, interact_rect));
 
                 if hovered {
-                    let pointer_pos = &ctx.input[&ctx.viewport_id()].pointer.interact_pos();
+                    let pointer_pos = viewport.input.pointer.interact_pos();
                     if let Some(pointer_pos) = pointer_pos {
-                        if let Some(rects) =
-                            ctx.layer_rects_prev_frame[&ctx.viewport_id()].get(&layer_id)
-                        {
+                        if let Some(rects) = viewport.layer_rects_this_frame.get(&layer_id) {
                             for &(prev_id, prev_rect) in rects.iter().rev() {
                                 if prev_id == id {
                                     break; // there is no other interactive widget covering us at the pointer position.
                                 }
-                                if prev_rect.contains(*pointer_pos) {
+                                if prev_rect.contains(pointer_pos) {
                                     // Another interactive widget is covering us at the pointer position,
                                     // so we aren't hovered.
 
@@ -895,14 +905,12 @@ impl Context {
 
         let clicked_elsewhere = response.clicked_elsewhere();
         self.write(|ctx| {
-            let viewport_id = ctx.viewport_id();
+            let input = &ctx.viewports.entry(ctx.viewport_id()).or_default().input;
             let memory = &mut ctx.memory;
 
             if sense.focusable {
                 memory.interested_in_focus(id);
             }
-
-            let input = ctx.input.get_mut(&viewport_id).unwrap();
 
             if sense.click
                 && memory.has_focus(response.id)
@@ -1324,8 +1332,8 @@ impl Context {
     pub fn set_pixels_per_point(&self, pixels_per_point: f32) {
         if pixels_per_point != self.pixels_per_point() {
             self.write(|ctx| {
-                for viewport in ctx.viewports.values() {
-                    ctx.repaint.request_repaint(viewport.ids.this);
+                for &id in ctx.viewports.keys() {
+                    ctx.repaint.request_repaint(id);
                 }
                 ctx.repaint.request_repaint(ViewportId::ROOT);
                 ctx.memory.override_pixels_per_point = Some(pixels_per_point);
@@ -1471,29 +1479,14 @@ impl Context {
     pub fn end_frame(&self) -> FullOutput {
         crate::profile_function!();
 
-        let mut viewports: ViewportIdSet = self.write(|ctx| {
-            ctx.layer_rects_prev_frame.insert(
-                ctx.viewport_id(),
-                ctx.layer_rects_this_frame
-                    .remove(&ctx.viewport_id())
-                    .unwrap(),
-            );
-            ctx.viewports.values().map(|vp| vp.ids.this).collect()
-        });
-        viewports.insert(ViewportId::ROOT);
-
         if self.input(|i| i.wants_repaint()) {
             self.request_repaint();
         }
 
         let textures_delta = self.write(|ctx| {
-            ctx.memory.end_frame(
-                &ctx.input[&ctx.viewport_id()],
-                &ctx.frame_state
-                    .entry(ctx.viewport_id())
-                    .or_default()
-                    .used_ids,
-            );
+            let viewport = ctx.viewports.entry(ctx.viewport_id()).or_default();
+            ctx.memory
+                .end_frame(&viewport.input, &viewport.frame_state.used_ids);
 
             let font_image_delta = ctx.fonts.as_ref().unwrap().font_image_delta();
             if let Some(font_image_delta) = font_image_delta {
@@ -1540,48 +1533,58 @@ impl Context {
 
         let shapes = self.drain_paint_lists();
 
-        let mut all_viewport_ids = ViewportIdSet::default();
-        all_viewport_ids.insert(ViewportId::ROOT);
+        let all_viewport_ids: ViewportIdSet = self.read(|ctx| {
+            ctx.viewports
+                .keys()
+                .copied()
+                .chain([ViewportId::ROOT])
+                .collect()
+        });
 
-        let viewport_id = self.viewport_id();
+        let current_viewport_id = self.viewport_id();
 
-        let mut viewports = Vec::new();
+        let mut out_viewports = Vec::new();
+
         self.write(|ctx| {
-            ctx.last_viewport = viewport_id;
+            ctx.last_viewport = current_viewport_id;
 
-            ctx.viewports.retain(|_, viewport| {
-                let was_used = viewport.used;
+            ctx.viewports.retain(|&id, viewport| {
+                let parent = *ctx.viewport_parents.entry(id).or_default();
 
-                if viewport_id == viewport.ids.parent {
-                    viewport.used = false; // reset so we can check again next frame
-                }
+                if !all_viewport_ids.contains(&parent) {
+                    #[cfg(feature = "log")]
+                    log::debug!(
+                        "Removing viewport {:?} ({:?}): the parent is gone",
+                        id,
+                        viewport.builder.title
+                    );
 
-                if all_viewport_ids.contains(&viewport.ids.parent) {
-                    viewports.push(ViewportOutput {
-                        builder: viewport.builder.clone(),
-                        ids: viewport.ids,
-                        viewport_ui_cb: viewport.viewport_ui_cb.clone(),
-                    });
-                } else {
-                    // Parent is gone - remove this viewport.
                     return false;
                 }
 
-                let is_child = viewport_id == viewport.ids.parent;
+                let is_out_child = parent == current_viewport_id && id != ViewportId::ROOT;
+                if is_out_child {
+                    if !viewport.used {
+                        #[cfg(feature = "log")]
+                        log::debug!(
+                            "Removing viewport {:?} ({:?}): it was never used this frame",
+                            id,
+                            viewport.builder.title
+                        );
 
-                let result = if is_child {
-                    // Keep all children that have been updated this frame
-                    was_used
-                } else {
-                    // Somebody elses child - don't touch
-                    true
-                };
+                        return false; // Only keep children that have been updated this frame
+                    }
 
-                if result {
-                    all_viewport_ids.insert(viewport.ids.this);
+                    viewport.used = false; // reset so we can check again next frame
                 }
 
-                result
+                out_viewports.push(ViewportOutput {
+                    builder: viewport.builder.clone(),
+                    ids: ViewportIdPair { this: id, parent },
+                    viewport_ui_cb: viewport.viewport_ui_cb.clone(),
+                });
+
+                true
             });
         });
 
@@ -1594,15 +1597,9 @@ impl Context {
         if is_last {
             self.write(|ctx| {
                 // Remove dead viewports:
-                ctx.input.retain(|id, _| all_viewport_ids.contains(id));
-                ctx.layer_rects_prev_frame
+                ctx.viewports.retain(|id, _| all_viewport_ids.contains(id));
+                ctx.viewport_parents
                     .retain(|id, _| all_viewport_ids.contains(id));
-                ctx.layer_rects_this_frame
-                    .retain(|id, _| all_viewport_ids.contains(id));
-                ctx.output.retain(|id, _| all_viewport_ids.contains(id));
-                ctx.frame_state
-                    .retain(|id, _| all_viewport_ids.contains(id));
-                ctx.graphics.retain(|id, _| all_viewport_ids.contains(id));
             });
         } else {
             let viewport_id = self.viewport_id();
@@ -1611,13 +1608,16 @@ impl Context {
             });
         }
 
-        self.write(|ctx| ctx.repaint.end_frame(viewport_id, &all_viewport_ids));
+        self.write(|ctx| {
+            ctx.repaint
+                .end_frame(current_viewport_id, &all_viewport_ids);
+        });
 
         FullOutput {
             platform_output,
             textures_delta,
             shapes,
-            viewports,
+            viewports: out_viewports,
             // We should not process viewport commands when we are a sync viewport, because that will cause a deadlock for egui backend
             viewport_commands: if is_last {
                 self.write(|ctx| std::mem::take(&mut ctx.viewport_commands))
@@ -1630,11 +1630,8 @@ impl Context {
     fn drain_paint_lists(&self) -> Vec<ClippedShape> {
         crate::profile_function!();
         self.write(|ctx| {
-            ctx.graphics
-                .entry(ctx.viewport_id())
-                .or_default()
-                .drain(ctx.memory.areas().order())
-                .collect()
+            let viewport = ctx.viewports.entry(ctx.viewport_id()).or_default();
+            viewport.graphics.drain(ctx.memory.areas().order())
         })
     }
 
@@ -1699,8 +1696,8 @@ impl Context {
 
     /// How much space is used by panels and windows.
     pub fn used_rect(&self) -> Rect {
-        self.read(|ctx| {
-            let mut used = ctx.frame_state[&ctx.viewport_id()].used_by_panels;
+        self.write(|ctx| {
+            let mut used = ctx.viewport().frame_state.used_by_panels;
             for window in ctx.memory.areas().visible_windows() {
                 used = used.union(window.rect());
             }
@@ -1878,7 +1875,7 @@ impl Context {
     pub fn animate_bool_with_time(&self, id: Id, target_value: bool, animation_time: f32) -> f32 {
         let animated_value = self.write(|ctx| {
             ctx.animation_manager.animate_bool(
-                &ctx.input[&ctx.viewport_id()],
+                &ctx.viewports.entry(ctx.viewport_id()).or_default().input,
                 animation_time,
                 id,
                 target_value,
@@ -1898,7 +1895,7 @@ impl Context {
     pub fn animate_value_with_time(&self, id: Id, target_value: f32, animation_time: f32) -> f32 {
         let animated_value = self.write(|ctx| {
             ctx.animation_manager.animate_value(
-                &ctx.input[&ctx.viewport_id()],
+                &ctx.viewports.entry(ctx.viewport_id()).or_default().input,
                 animation_time,
                 id,
                 target_value,
@@ -2226,9 +2223,8 @@ impl Context {
         writer: impl FnOnce(&mut accesskit::NodeBuilder) -> R,
     ) -> Option<R> {
         self.write(|ctx| {
-            ctx.frame_state
-                .entry(ctx.viewport_id())
-                .or_default()
+            ctx.viewport()
+                .frame_state
                 .accesskit_state
                 .is_some()
                 .then(|| ctx.accesskit_node_builder(id))
@@ -2585,26 +2581,13 @@ impl Context {
             viewport_ui_cb(self);
         } else {
             self.write(|ctx| {
-                let parent_viewport_id = ctx.viewport_id();
-                if let Some(window) = ctx.viewports.get_mut(&new_viewport_id) {
-                    window.builder = viewport_builder;
-                    window.ids.parent = parent_viewport_id;
-                    window.used = true;
-                    window.viewport_ui_cb = Some(Arc::new(Box::new(viewport_ui_cb)));
-                } else {
-                    ctx.viewports.insert(
-                        new_viewport_id,
-                        ViewportState {
-                            ids: ViewportIdPair {
-                                this: new_viewport_id,
-                                parent: parent_viewport_id,
-                            },
-                            builder: viewport_builder,
-                            used: true,
-                            viewport_ui_cb: Some(Arc::new(Box::new(viewport_ui_cb))),
-                        },
-                    );
-                }
+                ctx.viewport_parents
+                    .insert(new_viewport_id, ctx.viewport_id());
+
+                let mut viewport = ctx.viewports.entry(new_viewport_id).or_default();
+                viewport.builder = viewport_builder;
+                viewport.used = true;
+                viewport.viewport_ui_cb = Some(Arc::new(Box::new(viewport_ui_cb)));
             });
         }
     }
@@ -2651,29 +2634,17 @@ impl Context {
             let ids = self.write(|ctx| {
                 let parent_viewport_id = ctx.viewport_id();
 
-                if let Some(window) = ctx.viewports.get_mut(&new_viewport_id) {
-                    // Existing
-                    window.builder = builder.clone();
-                    window.ids.parent = parent_viewport_id;
-                    window.used = true;
-                    window.viewport_ui_cb = None;
-                    window.ids
-                } else {
-                    // New
-                    let ids = ViewportIdPair {
-                        this: new_viewport_id,
-                        parent: parent_viewport_id,
-                    };
-                    ctx.viewports.insert(
-                        new_viewport_id,
-                        ViewportState {
-                            builder: builder.clone(),
-                            ids,
-                            used: true,
-                            viewport_ui_cb: None,
-                        },
-                    );
-                    ids
+                ctx.viewport_parents
+                    .insert(new_viewport_id, parent_viewport_id);
+
+                let mut viewport = ctx.viewports.entry(new_viewport_id).or_default();
+                viewport.builder = builder.clone();
+                viewport.used = true;
+                viewport.viewport_ui_cb = None; // it is immediate
+
+                ViewportIdPair {
+                    this: new_viewport_id,
+                    parent: parent_viewport_id,
                 }
             });
 

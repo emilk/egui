@@ -13,6 +13,7 @@ use crate::{emath::*, ViewportIdPair};
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RawInput {
+    /// Information about the viwport the input is part of.
     pub viewport: ViewportInfo,
 
     /// Position and size of the area that egui should use, in points.
@@ -140,9 +141,12 @@ impl RawInput {
     }
 }
 
+/// Information about the current viewport,
+/// given as input each frame.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportInfo {
+    /// Id of us and our parent.
     pub ids: ViewportIdPair,
 
     /// Viewport inner position and size, only the drowable area

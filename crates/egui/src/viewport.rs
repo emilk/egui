@@ -716,22 +716,6 @@ pub enum ViewportCommand {
     CursorHitTest(bool),
 }
 
-#[derive(Clone)]
-pub(crate) struct ViewportState {
-    pub(crate) builder: ViewportBuilder,
-
-    /// Id of us and our parent.
-    pub(crate) ids: ViewportIdPair,
-
-    /// Has this viewport been updated this frame?
-    pub(crate) used: bool,
-
-    /// The user-code that shows the GUI, used for deferred viewports.
-    ///
-    /// `None` for immediate viewports.
-    pub(crate) viewport_ui_cb: Option<Arc<ViewportUiCallback>>,
-}
-
 /// Describes a viewport, i.e. a native window.
 #[derive(Clone)]
 pub struct ViewportOutput {
