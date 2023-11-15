@@ -94,7 +94,7 @@ impl AppRunner {
         {
             let needs_repaint = needs_repaint.clone();
             egui_ctx.set_request_repaint_callback(move |info| {
-                needs_repaint.repaint_after(info.after.as_secs_f64());
+                needs_repaint.repaint_after(info.delay.as_secs_f64());
             });
         }
 

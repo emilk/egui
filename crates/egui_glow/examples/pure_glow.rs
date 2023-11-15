@@ -166,7 +166,7 @@ fn main() {
                 .expect("Cannot send event");
         });
 
-    let mut repaint_after = std::time::Duration::MAX;
+    let mut repaint_delay = std::time::Duration::MAX;
 
     event_loop.run(move |event, _, control_flow| {
         let mut redraw = || {
@@ -184,13 +184,13 @@ fn main() {
 
             *control_flow = if quit {
                 winit::event_loop::ControlFlow::Exit
-            } else if repaint_after.is_zero() {
+            } else if repaint_delay.is_zero() {
                 gl_window.window().request_redraw();
                 winit::event_loop::ControlFlow::Poll
-            } else if let Some(repaint_after_instant) =
-                std::time::Instant::now().checked_add(repaint_after)
+            } else if let Some(repaint_delay_instant) =
+                std::time::Instant::now().checked_add(repaint_delay)
             {
-                winit::event_loop::ControlFlow::WaitUntil(repaint_after_instant)
+                winit::event_loop::ControlFlow::WaitUntil(repaint_delay_instant)
             } else {
                 winit::event_loop::ControlFlow::Wait
             };
@@ -242,8 +242,8 @@ fn main() {
                 }
             }
 
-            winit::event::Event::UserEvent(UserEvent::Redraw(after)) => {
-                repaint_after = after;
+            winit::event::Event::UserEvent(UserEvent::Redraw(delay)) => {
+                repaint_delay = delay;
             }
             winit::event::Event::LoopDestroyed => {
                 egui_glow.destroy();
