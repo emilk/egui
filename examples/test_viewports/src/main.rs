@@ -65,7 +65,7 @@ impl ViewportState {
         let immediate = vp_state.read().immediate;
         let title = vp_state.read().title.clone();
 
-        let viewport = ViewportBuilder::ROOT
+        let viewport = ViewportBuilder::DEFAULTS
             .with_title(&title)
             .with_inner_size(Some(egui::vec2(450.0, 400.0)));
 

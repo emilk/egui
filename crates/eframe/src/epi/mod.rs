@@ -123,6 +123,7 @@ pub trait App {
     ///
     /// This is called for the root viewport ([`egui::ViewportId::ROOT`]).
     /// Use [`egui::Context::show_viewport`] to spawn additional viewports (windows).
+    /// (A "viewport" in egui means an native OS window).
     fn update(&mut self, ctx: &egui::Context, frame: &mut Frame);
 
     /// Get a handle to the app.

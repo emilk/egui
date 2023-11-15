@@ -201,18 +201,16 @@ impl State {
         let screen_size_in_pixels = screen_size_in_pixels(window);
         let screen_size_in_points = screen_size_in_pixels / pixels_per_point;
 
-        let getting_info = !window.is_minimized().unwrap_or_else(|| {
-            eprintln!("Cannot determine the Viewport/native window minimized state");
-            true
-        });
+        self.egui_input.screen_rect = (screen_size_in_points.x > 0.0
+            && screen_size_in_points.y > 0.0)
+            .then(|| Rect::from_min_size(Pos2::ZERO, screen_size_in_points));
 
-        self.egui_input.screen_rect = if getting_info {
-            Some(egui::Rect::from_min_size(Pos2::ZERO, screen_size_in_points))
-        } else {
-            None
+        let has_a_position = match window.is_minimized() {
+            None | Some(true) => false,
+            Some(false) => true,
         };
 
-        let inner_pos_px = if getting_info {
+        let inner_pos_px = if has_a_position {
             window
                 .inner_position()
                 .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
@@ -221,7 +219,7 @@ impl State {
             None
         };
 
-        let outer_pos_px = if getting_info {
+        let outer_pos_px = if has_a_position {
             window
                 .outer_position()
                 .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
@@ -230,14 +228,14 @@ impl State {
             None
         };
 
-        let inner_size_px = if getting_info {
+        let inner_size_px = if has_a_position {
             let size = window.inner_size();
             Some(Vec2::new(size.width as f32, size.height as f32))
         } else {
             None
         };
 
-        let outer_size_px = if getting_info {
+        let outer_size_px = if has_a_position {
             let size = window.outer_size();
             Some(Vec2::new(size.width as f32, size.height as f32))
         } else {

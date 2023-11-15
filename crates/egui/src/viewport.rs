@@ -135,7 +135,7 @@ pub struct ViewportBuilder {
 
 impl ViewportBuilder {
     /// Default settings for the root viewport.
-    pub const ROOT: Self = Self {
+    pub const DEFAULTS: Self = Self {
         title: None,
         name: None,
         position: None,
@@ -154,16 +154,10 @@ impl ViewportBuilder {
         min_inner_size: None,
         max_inner_size: None,
         drag_and_drop: Some(true),
-        close_button: Some(false), // We disable the close button by default because we haven't implemented closing of child viewports yet
+        close_button: Some(true),
         minimize_button: Some(true),
         maximize_button: Some(true),
         hittest: Some(true),
-    };
-
-    /// Default settings for a new child viewport.
-    pub const CHILD: Self = Self {
-        close_button: Some(false), // We disable the close button by default because we haven't implemented closing of child viewports yet
-        ..Self::ROOT
     };
 
     /// Empty settings for everything.

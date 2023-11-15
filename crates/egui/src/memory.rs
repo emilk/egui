@@ -79,7 +79,7 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
 
-    // Current viewport
+    // Current active viewport
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) viewport_id: ViewportId,
 
@@ -96,7 +96,6 @@ pub struct Memory {
 
     // -------------------------------------------------
     // Per-viewport:
-    #[cfg_attr(feature = "persistence", serde(skip))]
     areas: ViewportIdMap<Areas>,
 
     #[cfg_attr(feature = "persistence", serde(skip))]

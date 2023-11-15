@@ -75,6 +75,7 @@ pub struct RawInput {
 impl Default for RawInput {
     fn default() -> Self {
         Self {
+            viewport: ViewportInfo::default(),
             screen_rect: None,
             pixels_per_point: None,
             max_texture_side: None,
@@ -85,7 +86,6 @@ impl Default for RawInput {
             hovered_files: Default::default(),
             dropped_files: Default::default(),
             focused: true, // integrations opt into global focus tracking
-            viewport: ViewportInfo::default(),
         }
     }
 }
@@ -97,6 +97,7 @@ impl RawInput {
     /// * [`Self::dropped_files`] is moved.
     pub fn take(&mut self) -> RawInput {
         RawInput {
+            viewport: self.viewport.take(),
             screen_rect: self.screen_rect.take(),
             pixels_per_point: self.pixels_per_point.take(),
             max_texture_side: self.max_texture_side.take(),
@@ -107,13 +108,13 @@ impl RawInput {
             hovered_files: self.hovered_files.clone(),
             dropped_files: std::mem::take(&mut self.dropped_files),
             focused: self.focused,
-            viewport: self.viewport.take(),
         }
     }
 
     /// Add on new input.
     pub fn append(&mut self, newer: Self) {
         let Self {
+            viewport,
             screen_rect,
             pixels_per_point,
             max_texture_side,
@@ -124,13 +125,12 @@ impl RawInput {
             mut hovered_files,
             mut dropped_files,
             focused,
-            viewport,
         } = newer;
 
+        self.viewport = viewport;
         self.screen_rect = screen_rect.or(self.screen_rect);
         self.pixels_per_point = pixels_per_point.or(self.pixels_per_point);
         self.max_texture_side = max_texture_side.or(self.max_texture_side);
-        self.viewport = viewport;
         self.time = time; // use latest time
         self.predicted_dt = predicted_dt; // use latest dt
         self.modifiers = modifiers; // use latest

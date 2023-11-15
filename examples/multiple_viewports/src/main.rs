@@ -1,5 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+
 use eframe::egui;
 
 fn main() -> Result<(), eframe::Error> {
@@ -9,7 +14,7 @@ fn main() -> Result<(), eframe::Error> {
         ..Default::default()
     };
     eframe::run_native(
-        "Confirm exit",
+        "Multiple viewports",
         options,
         Box::new(|_cc| Box::<MyApp>::default()),
     )
@@ -17,7 +22,15 @@ fn main() -> Result<(), eframe::Error> {
 
 #[derive(Default)]
 struct MyApp {
-    show_child_viewport: bool,
+    /// Immediate viewports are show immediately, so passing state to/from them is easy.
+    /// The downside is that their painting is linked with the parent viewport:
+    /// if either needs repainting, they are both repainted.
+    show_immediate_viewport: bool,
+
+    /// Deferred viewports run independant of the parent viewport, which can save
+    /// CPU if only some of the viewports require repainting.
+    /// However, this requires passing state with `Arc` and locks.
+    show_deferred_viewport: Arc<AtomicBool>,
 }
 
 impl eframe::App for MyApp {
@@ -25,17 +38,48 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.label("Hello from the root viewport");
 
-            ui.checkbox(&mut self.show_child_viewport, "Show secondary viewport");
+            ui.checkbox(
+                &mut self.show_immediate_viewport,
+                "Show immediate child viewport",
+            );
+
+            let mut show_deferred_viewport = self.show_deferred_viewport.load(Ordering::Relaxed);
+            ui.checkbox(&mut show_deferred_viewport, "Show deferred child viewport");
+            self.show_deferred_viewport
+                .store(show_deferred_viewport, Ordering::Relaxed);
         });
 
-        if self.show_child_viewport {
-            ctx.show_viewport(
-                egui::ViewportId::from_hash_of("secondary_viewport"),
-                egui::ViewportBuilder::CHILD.with_title("Secondary Viewport"),
+        if self.show_immediate_viewport {
+            ctx.show_viewport_immediate(
+                egui::ViewportId::from_hash_of("immediate_viewport"),
+                egui::ViewportBuilder::DEFAULTS.with_title("Immediate Viewport"),
                 |ctx| {
                     egui::CentralPanel::default().show(ctx, |ui| {
-                        ui.label("Hello from secondary viewport");
+                        ui.label("Hello from immediate viewport");
                     });
+                    if ctx.input(|i| i.raw.viewport.close_requested) {
+                        // Tell parent viewport that we should not show next frame:
+                        self.show_immediate_viewport = false;
+                        ctx.request_repaint(); // make sure there is a next frame
+                    }
+                },
+            );
+        }
+
+        if self.show_deferred_viewport.load(Ordering::Relaxed) {
+            let show_deferred_viewport = self.show_deferred_viewport.clone();
+            ctx.show_viewport_immediate(
+                egui::ViewportId::from_hash_of("deferred_viewport"),
+                egui::ViewportBuilder::DEFAULTS.with_title("Deferred Viewport"),
+                |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        ui.label("Hello from deferred viewport");
+                    });
+                    if ctx.input(|i| i.raw.viewport.close_requested) {
+                        // Tell parent to close use
+                        show_deferred_viewport.store(false, Ordering::Relaxed);
+                        ctx.request_repaint(); // make sure there is a next frame
+                    }
                 },
             );
         }
