@@ -812,6 +812,11 @@ impl Prepared {
 
         // Paint the bars:
         for d in 0..2 {
+            // maybe force increase in offset to keep scroll stuck to end position
+            if stick_to_end[d] && state.scroll_stuck_to_end[d] {
+                state.offset[d] = content_size[d] - inner_rect.size()[d];
+            }
+
             let show_factor = show_bars_factor[d];
             if show_factor == 0.0 {
                 state.scroll_bar_interaction[d] = false;
@@ -881,11 +886,6 @@ impl Prepared {
                     pos2(cross.max, inner_rect.bottom()),
                 )
             };
-
-            // maybe force increase in offset to keep scroll stuck to end position
-            if stick_to_end[d] && state.scroll_stuck_to_end[d] {
-                state.offset[d] = content_size[d] - inner_rect.size()[d];
-            }
 
             let from_content = |content| remap_clamp(content, 0.0..=content_size[d], main_range);
 
