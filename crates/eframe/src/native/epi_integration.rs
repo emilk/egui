@@ -85,7 +85,7 @@ pub fn window_builder<E>(
         ..
     } = native_options;
 
-    let mut viewport_builder = egui::ViewportBuilder::DEFAULTS
+    let mut viewport_builder = egui::ViewportBuilder::default()
         .with_title(title)
         .with_decorations(*decorated)
         .with_fullscreen(*fullscreen)

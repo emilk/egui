@@ -157,7 +157,8 @@ pub struct ViewportInfo {
     /// unit = physical pixels
     pub outer_rect_px: Option<Rect>,
 
-    /// Viewport should close?
+    /// The user requested the viewport should close,
+    /// e.g. by pressing the close button in the window decoration.
     pub close_requested: bool,
 }
 

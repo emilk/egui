@@ -1005,8 +1005,9 @@ pub fn process_viewport_commands(
             egui::ViewportCommand::StartDrag => {
                 // if this is not checked on x11 the input will be permanently taken until the app is killed!
                 if is_viewport_focused {
-                    // TODO possible return the error to `egui::Context`
-                    let _ = window.drag_window();
+                    if let Err(err) = window.drag_window() {
+                        log::warn!("{command:?}: {err}");
+                    }
                 }
             }
             egui::ViewportCommand::InnerSize(size) => {
@@ -1014,23 +1015,18 @@ pub fn process_viewport_commands(
                 let height = size.y.max(1.0);
                 window.set_inner_size(LogicalSize::new(width, height));
             }
-            egui::ViewportCommand::BeginResize {
-                top,
-                bottom,
-                right,
-                left,
-            } => {
-                // TODO posibile return the error to `egui::Context`
-                let _ = window.drag_resize_window(match (top, bottom, right, left) {
-                    (true, false, false, false) => ResizeDirection::North,
-                    (false, true, false, false) => ResizeDirection::South,
-                    (false, false, false, true) => ResizeDirection::West,
-                    (true, false, true, false) => ResizeDirection::NorthEast,
-                    (false, true, true, false) => ResizeDirection::SouthEast,
-                    (true, false, false, true) => ResizeDirection::NorthWest,
-                    (false, true, false, true) => ResizeDirection::SouthWest,
-                    _ => ResizeDirection::East,
-                });
+            egui::ViewportCommand::BeginResize(direction) => {
+                if let Err(err) = window.drag_resize_window(match direction {
+                    egui::viewport::ResizeDirection::North => ResizeDirection::North,
+                    egui::viewport::ResizeDirection::South => ResizeDirection::South,
+                    egui::viewport::ResizeDirection::West => ResizeDirection::West,
+                    egui::viewport::ResizeDirection::NorthEast => ResizeDirection::NorthEast,
+                    egui::viewport::ResizeDirection::SouthEast => ResizeDirection::SouthEast,
+                    egui::viewport::ResizeDirection::NorthWest => ResizeDirection::NorthWest,
+                    egui::viewport::ResizeDirection::SouthWest => ResizeDirection::SouthWest,
+                }) {
+                    log::warn!("{command:?}: {err}");
+                }
             }
             ViewportCommand::Title(title) => window.set_title(&title),
             ViewportCommand::Transparent(v) => window.set_transparent(v),
@@ -1115,7 +1111,7 @@ pub fn process_viewport_commands(
             ViewportCommand::ContentProtected(v) => window.set_content_protected(v),
             ViewportCommand::CursorPosition(pos) => {
                 if let Err(err) = window.set_cursor_position(LogicalPosition::new(pos.x, pos.y)) {
-                    log::error!("{err}");
+                    log::warn!("{command:?}: {err}");
                 }
             }
             ViewportCommand::CursorGrab(o) => {
@@ -1124,13 +1120,13 @@ pub fn process_viewport_commands(
                     egui::viewport::CursorGrab::Confined => CursorGrabMode::Confined,
                     egui::viewport::CursorGrab::Locked => CursorGrabMode::Locked,
                 }) {
-                    log::error!("{err}");
+                    log::warn!("{command:?}: {err}");
                 }
             }
             ViewportCommand::CursorVisible(v) => window.set_cursor_visible(v),
             ViewportCommand::CursorHitTest(v) => {
                 if let Err(err) = window.set_cursor_hittest(v) {
-                    log::error!("Setting viewport CursorHitTest: {err}");
+                    log::warn!("{command:?}: {err}");
                 }
             }
         }
@@ -1157,21 +1153,20 @@ pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::
                 .fullscreen
                 .and_then(|e| e.then_some(winit::window::Fullscreen::Borderless(None))),
         )
-        .with_enabled_buttons(
-            builder
-                .minimize_button
-                .and_then(|v| v.then_some(WindowButtons::MINIMIZE))
-                .unwrap_or(WindowButtons::empty())
-                | builder
-                    .maximize_button
-                    .and_then(|v| v.then_some(WindowButtons::MAXIMIZE))
-                    .unwrap_or(WindowButtons::empty())
-                | builder
-                    .close_button
-                    .and_then(|v| v.then_some(WindowButtons::CLOSE))
-                    .unwrap_or(WindowButtons::empty()),
-        )
-        .with_active(builder.active.map_or(false, |e| e));
+        .with_enabled_buttons({
+            let mut buttons = WindowButtons::empty();
+            if builder.minimize_button.unwrap_or(true) {
+                buttons |= WindowButtons::MINIMIZE;
+            }
+            if builder.maximize_button.unwrap_or(true) {
+                buttons |= WindowButtons::MAXIMIZE;
+            }
+            if builder.close_button.unwrap_or(true) {
+                buttons |= WindowButtons::CLOSE;
+            }
+            buttons
+        })
+        .with_active(builder.active.unwrap_or(true));
 
     if let Some(Some(inner_size)) = builder.inner_size {
         window_builder = window_builder
@@ -1222,7 +1217,7 @@ pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::
 
     #[cfg(target_os = "macos")]
     {
-        use winit::platform::macos::WindowBuilderExtMacOS;
+        use winit::platform::macos::WindowBuilderExtMacOS as _;
         window_builder = window_builder
             .with_title_hidden(builder.title_hidden.unwrap_or(false))
             .with_titlebar_transparent(builder.titlebar_transparent.unwrap_or(false))

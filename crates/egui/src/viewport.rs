@@ -99,6 +99,9 @@ pub type ImmediateViewportRendererCallback = dyn for<'a> Fn(&Context, ImmediateV
 /// Since egui is immediate mode, `ViewportBuilder` is accumulative in nature.
 /// Setting any option to `None` means "keep the current value",
 /// or "Use the default" if it is the first call.
+///
+/// The default values are implementation defined, so you may want to explicitly
+/// configure the size of the window, and what buttons are shown.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[allow(clippy::option_option)]
 pub struct ViewportBuilder {
@@ -134,63 +137,6 @@ pub struct ViewportBuilder {
 }
 
 impl ViewportBuilder {
-    /// Default settings for the root viewport.
-    pub const DEFAULTS: Self = Self {
-        title: None,
-        name: None,
-        position: None,
-        inner_size: Some(Some(Vec2::new(300.0, 200.0))),
-        fullscreen: None,
-        maximized: None,
-        resizable: Some(true),
-        transparent: Some(true),
-        decorations: Some(true),
-        icon: None,
-        active: Some(true),
-        visible: Some(true),
-        title_hidden: None,
-        titlebar_transparent: None,
-        fullsize_content_view: None,
-        min_inner_size: None,
-        max_inner_size: None,
-        drag_and_drop: Some(true),
-        close_button: Some(true),
-        minimize_button: Some(true),
-        maximize_button: Some(true),
-        hittest: Some(true),
-    };
-
-    /// Empty settings for everything.
-    ///
-    /// If used the first frame, backend-specific defaults will be used.
-    /// When used on subsequent frames, the current settings will be kept.
-    ///
-    /// The given id must be unique for each viewport.
-    pub const EMPTY: Self = Self {
-        title: None,
-        name: None,
-        position: None,
-        inner_size: None,
-        fullscreen: None,
-        maximized: None,
-        resizable: None,
-        transparent: None,
-        decorations: None,
-        icon: None,
-        active: None,
-        visible: None,
-        title_hidden: None,
-        titlebar_transparent: None,
-        fullsize_content_view: None,
-        min_inner_size: None,
-        max_inner_size: None,
-        drag_and_drop: None,
-        close_button: None,
-        minimize_button: None,
-        maximize_button: None,
-        hittest: None,
-    };
-
     /// Sets the initial title of the window in the title bar.
     ///
     /// Look at winit for more details
@@ -294,24 +240,27 @@ impl ViewportBuilder {
         self
     }
 
-    /// Mac Os only
     /// Hides the window title.
+    ///
+    /// Mac Os only.
     #[inline]
     pub fn with_title_hidden(mut self, title_hidden: bool) -> Self {
         self.title_hidden = Some(title_hidden);
         self
     }
 
-    /// Mac Os only
     /// Makes the titlebar transparent and allows the content to appear behind it.
+    ///
+    /// Mac Os only.
     #[inline]
     pub fn with_titlebar_transparent(mut self, value: bool) -> Self {
         self.titlebar_transparent = Some(value);
         self
     }
 
-    /// Mac Os only
     /// Makes the window content appear behind the titlebar.
+    ///
+    /// Mac Os only.
     #[inline]
     pub fn with_fullsize_content_view(mut self, value: bool) -> Self {
         self.fullsize_content_view = Some(value);
@@ -584,7 +533,7 @@ impl ViewportBuilder {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WindowLevel {
     Normal,
@@ -592,7 +541,7 @@ pub enum WindowLevel {
     AlwaysOnTop,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum IMEPurpose {
     Normal,
@@ -600,7 +549,7 @@ pub enum IMEPurpose {
     Terminal,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum SystemTheme {
     Light,
@@ -608,7 +557,7 @@ pub enum SystemTheme {
     SystemDefault,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum CursorGrab {
     None,
@@ -616,17 +565,29 @@ pub enum CursorGrab {
     Locked,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum UserAttentionType {
     Informational,
     Critical,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum ResizeDirection {
+    North,
+    South,
+    West,
+    NorthEast,
+    SouthEast,
+    NorthWest,
+    SouthWest,
+}
+
 /// You can send a [`ViewportCommand`] to the viewport with [`Context::viewport_command`].
 ///
 /// All coordinates are in logical points.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ViewportCommand {
     /// Set the title
@@ -663,12 +624,7 @@ pub enum ViewportCommand {
     ///
     /// There's no guarantee that this will work unless the left mouse button was pressed
     /// immediately before this function is called.
-    BeginResize {
-        top: bool,
-        bottom: bool,
-        right: bool,
-        left: bool,
-    },
+    BeginResize(ResizeDirection),
 
     /// Can the window be resized?
     Resizable(bool),
