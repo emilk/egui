@@ -1,8 +1,10 @@
-use crate::shader_version::ShaderVersion;
-use egui::{ViewportId, ViewportIdPair};
 pub use egui_winit;
-use egui_winit::winit;
 pub use egui_winit::EventResponse;
+
+use egui::{ViewportId, ViewportIdPair, ViewportOutput};
+use egui_winit::winit;
+
+use crate::shader_version::ShaderVersion;
 
 /// Use [`egui`] from a [`glow`] app based on [`winit`].
 pub struct EguiGlow {
@@ -62,18 +64,15 @@ impl EguiGlow {
             textures_delta,
             shapes,
             pixels_per_point,
-            viewports,
-            viewport_commands,
+            viewport_output,
         } = self.egui_ctx.run(raw_input, run_ui);
 
-        if viewports.len() > 1 {
+        if viewport_output.len() > 1 {
             log::warn!("Multiple viewports not yet supported by EguiGlow");
         }
-        egui_winit::process_viewport_commands(
-            viewport_commands.into_iter().map(|(_id, command)| command),
-            window,
-            true,
-        );
+        for (_, ViewportOutput { commands, .. }) in viewport_output {
+            egui_winit::process_viewport_commands(commands, window, true);
+        }
 
         self.egui_winit.handle_platform_output(
             window,

@@ -27,7 +27,7 @@ pub struct FullOutput {
     pub pixels_per_point: f32,
 
     /// All the active viewports, including the root.
-    pub viewports: ViewportIdMap<ViewportOutput>,
+    pub viewport_output: ViewportIdMap<ViewportOutput>,
 }
 
 impl FullOutput {
@@ -38,7 +38,7 @@ impl FullOutput {
             textures_delta,
             shapes,
             pixels_per_point,
-            viewports,
+            viewport_output: viewports,
         } = newer;
 
         self.platform_output.append(platform_output);
@@ -47,7 +47,7 @@ impl FullOutput {
         self.pixels_per_point = pixels_per_point; // Use latest
 
         for (id, new_viewport) in viewports {
-            match self.viewports.entry(id) {
+            match self.viewport_output.entry(id) {
                 std::collections::hash_map::Entry::Vacant(entry) => {
                     entry.insert(new_viewport);
                 }

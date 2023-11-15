@@ -1570,7 +1570,7 @@ impl ContextImpl {
         // just the top _immediate_ viewport.
         let is_last = self.viewport_stack.is_empty();
 
-        let out_viewports = self
+        let viewport_output = self
             .viewports
             .iter_mut()
             .map(|(&id, viewport)| {
@@ -1608,7 +1608,7 @@ impl ContextImpl {
             textures_delta,
             shapes,
             pixels_per_point,
-            viewports: out_viewports,
+            viewport_output,
         }
     }
 }

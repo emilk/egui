@@ -563,7 +563,7 @@ mod glow_integration {
                 textures_delta,
                 shapes,
                 pixels_per_point,
-                viewports: viewports_out,
+                viewport_output,
             } = full_output;
 
             let GlutinWindowContext {
@@ -646,7 +646,7 @@ mod glow_integration {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
 
-            glutin.process_viewport_updates(viewports_out, focused_viewport);
+            glutin.handle_viewport_output(viewport_output, focused_viewport);
 
             if integration.should_close() {
                 EventResult::Exit
@@ -1153,15 +1153,14 @@ mod glow_integration {
             self.gl_config.display().get_proc_address(addr)
         }
 
-        fn process_viewport_updates(
+        fn handle_viewport_output(
             &mut self,
             viewport_output: ViewportIdMap<ViewportOutput>,
             focused_viewport: Option<ViewportId>,
         ) {
             crate::profile_function!();
 
-            let mut active_viewports_ids = ViewportIdSet::default();
-            active_viewports_ids.insert(ViewportId::ROOT);
+            let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
             for (
                 viewport_id,
@@ -1173,8 +1172,6 @@ mod glow_integration {
                 },
             ) in viewport_output
             {
-                active_viewports_ids.insert(viewport_id);
-
                 initialize_or_update_viewport(
                     &mut self.viewports,
                     ids,
@@ -1552,7 +1549,13 @@ mod glow_integration {
         // Call the user ui-code, which could re-entrantly call this function again!
         // No locks may be hold while calling this function.
 
-        let output = egui_ctx.run(input, |ctx| {
+        let egui::FullOutput {
+            platform_output,
+            textures_delta,
+            shapes,
+            pixels_per_point,
+            viewport_output,
+        } = egui_ctx.run(input, |ctx| {
             viewport_ui_cb(ctx);
         });
 
@@ -1579,8 +1582,7 @@ mod glow_integration {
 
         let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
-        let pixels_per_point = egui_ctx.input_for(ids.this, |i| i.pixels_per_point());
-        let clipped_primitives = egui_ctx.tessellate(output.shapes, output.pixels_per_point);
+        let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
 
         let mut painter = painter.borrow_mut();
 
@@ -1607,7 +1609,7 @@ mod glow_integration {
             screen_size_in_pixels,
             pixels_per_point,
             &clipped_primitives,
-            &output.textures_delta,
+            &textures_delta,
         );
 
         {
@@ -1617,7 +1619,10 @@ mod glow_integration {
             }
         }
 
-        winit_state.handle_platform_output(window, ids.this, egui_ctx, output.platform_output);
+        winit_state.handle_platform_output(window, ids.this, egui_ctx, platform_output);
+
+        let focused_viewport = None; // TODO
+        glutin.handle_viewport_output(viewport_output, focused_viewport);
     }
 
     impl WinitApp for GlowWinitApp {
@@ -2151,7 +2156,13 @@ mod wgpu_integration {
 
         // Run the user code, which could re-entrantly call this function again (!).
         // Make sure no locks are held during this call.
-        let output = egui_ctx.run(input, |ctx| {
+        let egui::FullOutput {
+            platform_output,
+            textures_delta,
+            shapes,
+            pixels_per_point,
+            viewport_output,
+        } = egui_ctx.run(input, |ctx| {
             viewport_ui_cb(ctx);
         });
 
@@ -2179,18 +2190,20 @@ mod wgpu_integration {
             );
         }
 
-        let pixels_per_point = egui_ctx.input_for(ids.this, |i| i.pixels_per_point());
-        let clipped_primitives = egui_ctx.tessellate(output.shapes, output.pixels_per_point);
+        let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
         painter.paint_and_update_textures(
             ids.this,
             pixels_per_point,
             [0.0, 0.0, 0.0, 0.0],
             &clipped_primitives,
-            &output.textures_delta,
+            &textures_delta,
             false,
         );
 
-        winit_state.handle_platform_output(window, ids.this, egui_ctx, output.platform_output);
+        winit_state.handle_platform_output(window, ids.this, egui_ctx, platform_output);
+
+        let focused_viewport = None; // TODO
+        handle_viewport_output(viewport_output, viewports, focused_viewport);
     }
 
     impl WinitApp for WgpuWinitApp {
@@ -2501,7 +2514,7 @@ mod wgpu_integration {
                 textures_delta,
                 shapes,
                 pixels_per_point,
-                viewports: out_viewports,
+                viewport_output,
             } = full_output;
 
             integration.handle_platform_output(window, viewport_id, platform_output, egui_winit);
@@ -2525,38 +2538,9 @@ mod wgpu_integration {
             integration.post_rendering(app.as_mut(), window);
             integration.post_present(window);
 
-            let mut active_viewports_ids = ViewportIdSet::default();
-            active_viewports_ids.insert(ViewportId::ROOT);
+            let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
-            // Add new viewports, and update existing ones:
-            for (
-                viewport_id,
-                ViewportOutput {
-                    ids,
-                    builder,
-                    viewport_ui_cb,
-                    commands,
-                },
-            ) in out_viewports
-            {
-                active_viewports_ids.insert(viewport_id);
-
-                initialize_or_update_viewport(
-                    viewports,
-                    ids,
-                    builder,
-                    viewport_ui_cb,
-                    focused_viewport,
-                );
-
-                if let Some(window) = viewports
-                    .get(&viewport_id)
-                    .and_then(|vp| vp.window.as_ref())
-                {
-                    let is_viewport_focused = focused_viewport == Some(viewport_id);
-                    egui_winit::process_viewport_commands(commands, window, is_viewport_focused);
-                }
-            }
+            handle_viewport_output(viewport_output, viewports, focused_viewport);
 
             // Prune dead viewports:
             viewports.retain(|id, _| active_viewports_ids.contains(id));
@@ -2675,6 +2659,40 @@ mod wgpu_integration {
                 }
             } else {
                 EventResult::Wait
+            }
+        }
+    }
+
+    /// Add new viewports, and update existing ones:
+    fn handle_viewport_output(
+        viewport_output: ViewportIdMap<ViewportOutput>,
+        viewports: &mut ViewportIdMap<Viewport>,
+        focused_viewport: Option<ViewportId>,
+    ) {
+        for (
+            viewport_id,
+            ViewportOutput {
+                ids,
+                builder,
+                viewport_ui_cb,
+                commands,
+            },
+        ) in viewport_output
+        {
+            initialize_or_update_viewport(
+                viewports,
+                ids,
+                builder,
+                viewport_ui_cb,
+                focused_viewport,
+            );
+
+            if let Some(window) = viewports
+                .get(&viewport_id)
+                .and_then(|vp| vp.window.as_ref())
+            {
+                let is_viewport_focused = focused_viewport == Some(viewport_id);
+                egui_winit::process_viewport_commands(commands, window, is_viewport_focused);
             }
         }
     }
