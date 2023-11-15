@@ -52,7 +52,9 @@ impl eframe::App for MyApp {
         if self.show_immediate_viewport {
             ctx.show_viewport_immediate(
                 egui::ViewportId::from_hash_of("immediate_viewport"),
-                egui::ViewportBuilder::default().with_title("Immediate Viewport"),
+                egui::ViewportBuilder::default()
+                    .with_title("Immediate Viewport")
+                    .with_inner_size([200.0, 100.0]),
                 |ctx| {
                     egui::CentralPanel::default().show(ctx, |ui| {
                         ui.label("Hello from immediate viewport");
@@ -70,7 +72,9 @@ impl eframe::App for MyApp {
             let show_deferred_viewport = self.show_deferred_viewport.clone();
             ctx.show_viewport_immediate(
                 egui::ViewportId::from_hash_of("deferred_viewport"),
-                egui::ViewportBuilder::default().with_title("Deferred Viewport"),
+                egui::ViewportBuilder::default()
+                    .with_title("Deferred Viewport")
+                    .with_inner_size([200.0, 100.0]),
                 |ctx| {
                     egui::CentralPanel::default().show(ctx, |ui| {
                         ui.label("Hello from deferred viewport");

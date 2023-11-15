@@ -112,21 +112,22 @@ pub struct ViewportBuilder {
     /// This is wayland only. See [`Self::with_name`].
     pub name: Option<(String, String)>,
 
-    pub position: Option<Option<Pos2>>,
-    pub inner_size: Option<Option<Vec2>>,
+    pub position: Option<Pos2>,
+    pub inner_size: Option<Vec2>,
+    pub min_inner_size: Option<Vec2>,
+    pub max_inner_size: Option<Vec2>,
+
     pub fullscreen: Option<bool>,
     pub maximized: Option<bool>,
     pub resizable: Option<bool>,
     pub transparent: Option<bool>,
     pub decorations: Option<bool>,
-    pub icon: Option<Option<Arc<ColorImage>>>,
+    pub icon: Option<Arc<ColorImage>>,
     pub active: Option<bool>,
     pub visible: Option<bool>,
     pub title_hidden: Option<bool>,
     pub titlebar_transparent: Option<bool>,
     pub fullsize_content_view: Option<bool>,
-    pub min_inner_size: Option<Option<Vec2>>,
-    pub max_inner_size: Option<Option<Vec2>>,
     pub drag_and_drop: Option<bool>,
 
     pub close_button: Option<bool>,
@@ -209,8 +210,8 @@ impl ViewportBuilder {
 
     /// The icon needs to be wrapped in Arc because will be cloned every frame
     #[inline]
-    pub fn with_window_icon(mut self, icon: Option<Arc<ColorImage>>) -> Self {
-        self.icon = Some(icon);
+    pub fn with_window_icon(mut self, icon: impl Into<Arc<ColorImage>>) -> Self {
+        self.icon = Some(icon.into());
         self
     }
 
@@ -274,8 +275,8 @@ impl ViewportBuilder {
     /// Should be bigger then 0
     /// Look at winit for more details
     #[inline]
-    pub fn with_inner_size(mut self, value: Option<Vec2>) -> Self {
-        self.inner_size = Some(value);
+    pub fn with_inner_size(mut self, size: impl Into<Vec2>) -> Self {
+        self.inner_size = Some(size.into());
         self
     }
 
@@ -287,8 +288,8 @@ impl ViewportBuilder {
     /// Should be bigger then 0
     /// Look at winit for more details
     #[inline]
-    pub fn with_min_inner_size(mut self, value: Option<Vec2>) -> Self {
-        self.min_inner_size = Some(value);
+    pub fn with_min_inner_size(mut self, size: impl Into<Vec2>) -> Self {
+        self.min_inner_size = Some(size.into());
         self
     }
 
@@ -300,8 +301,8 @@ impl ViewportBuilder {
     /// Should be bigger then 0
     /// Look at winit for more details
     #[inline]
-    pub fn with_max_inner_size(mut self, value: Option<Vec2>) -> Self {
-        self.max_inner_size = Some(value);
+    pub fn with_max_inner_size(mut self, size: impl Into<Vec2>) -> Self {
+        self.max_inner_size = Some(size.into());
         self
     }
 
@@ -335,8 +336,8 @@ impl ViewportBuilder {
 
     /// This will probably not work as expected!
     #[inline]
-    pub fn with_position(mut self, value: Option<Pos2>) -> Self {
-        self.position = Some(value);
+    pub fn with_position(mut self, pos: impl Into<Pos2>) -> Self {
+        self.position = Some(pos.into());
         self
     }
 
@@ -378,18 +379,14 @@ impl ViewportBuilder {
         if let Some(new_position) = new.position {
             if Some(new_position) != self.position {
                 self.position = Some(new_position);
-                if let Some(position) = new_position {
-                    commands.push(ViewportCommand::OuterPosition(position));
-                }
+                commands.push(ViewportCommand::OuterPosition(new_position));
             }
         }
 
         if let Some(new_inner_size) = new.inner_size {
             if Some(new_inner_size) != self.inner_size {
                 self.inner_size = Some(new_inner_size);
-                if let Some(inner_size) = new_inner_size {
-                    commands.push(ViewportCommand::InnerSize(inner_size));
-                }
+                commands.push(ViewportCommand::InnerSize(new_inner_size));
             }
         }
 
@@ -442,23 +439,15 @@ impl ViewportBuilder {
             }
         }
 
-        if let Some(new_icon) = new.icon.clone() {
-            let eq = match &new_icon {
-                Some(icon) => {
-                    if let Some(self_icon) = &self.icon {
-                        matches!(self_icon, Some(self_icon) if Arc::ptr_eq(icon, self_icon))
-                    } else {
-                        false
-                    }
-                }
-                None => self.icon == Some(None),
+        if let Some(new_icon) = &new.icon {
+            let is_new = match &self.icon {
+                Some(existing) => !Arc::ptr_eq(new_icon, existing),
+                None => true,
             };
 
-            if !eq {
-                commands.push(ViewportCommand::WindowIcon(
-                    new_icon.as_ref().map(|i| i.as_ref().clone()),
-                ));
-                self.icon = Some(new_icon);
+            if is_new {
+                commands.push(ViewportCommand::WindowIcon(Some(new_icon.clone())));
+                self.icon = Some(new_icon.clone());
             }
         }
 
@@ -587,6 +576,8 @@ pub enum ResizeDirection {
 /// You can send a [`ViewportCommand`] to the viewport with [`Context::viewport_command`].
 ///
 /// All coordinates are in logical points.
+///
+/// This is essentially a way to diff [`ViewportBuilder`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ViewportCommand {
@@ -612,10 +603,10 @@ pub enum ViewportCommand {
     InnerSize(Vec2),
 
     /// Should be bigger then 0
-    MinInnerSize(Option<Vec2>),
+    MinInnerSize(Vec2),
 
     /// Should be bigger then 0
-    MaxInnerSize(Option<Vec2>),
+    MaxInnerSize(Vec2),
 
     /// Should be bigger then 0
     ResizeIncrements(Option<Vec2>),
@@ -644,7 +635,7 @@ pub enum ViewportCommand {
     Decorations(bool),
 
     WindowLevel(WindowLevel),
-    WindowIcon(Option<ColorImage>),
+    WindowIcon(Option<Arc<ColorImage>>),
 
     IMEPosition(Pos2),
     IMEAllowed(bool),

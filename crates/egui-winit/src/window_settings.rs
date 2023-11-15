@@ -60,12 +60,12 @@ impl WindowSettings {
             self.outer_position_pixels
         };
         if let Some(pos) = pos_px {
-            viewport_builder = viewport_builder.with_position(Some(pos));
+            viewport_builder = viewport_builder.with_position(pos);
         }
 
         if let Some(inner_size_points) = self.inner_size_points {
             viewport_builder = viewport_builder
-                .with_inner_size(Some(inner_size_points))
+                .with_inner_size(inner_size_points)
                 .with_fullscreen(self.fullscreen);
         }
 

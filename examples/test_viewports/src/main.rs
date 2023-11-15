@@ -67,7 +67,7 @@ impl ViewportState {
 
         let viewport = ViewportBuilder::default()
             .with_title(&title)
-            .with_inner_size(Some(egui::vec2(450.0, 400.0)));
+            .with_inner_size([450.0, 400.0]);
 
         if immediate {
             let mut vp_state = vp_state.write();

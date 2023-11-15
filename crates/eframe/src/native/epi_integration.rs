@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Instant};
+use std::time::Instant;
 
 use winit::event_loop::EventLoopWindowTarget;
 
@@ -92,16 +92,18 @@ pub fn window_builder<E>(
         .with_maximized(*maximized)
         .with_resizable(*resizable)
         .with_transparent(*transparent)
-        .with_window_icon(icon_data.clone().map(|d| {
-            Arc::new(egui::ColorImage::from_rgba_premultiplied(
-                [d.width as usize, d.height as usize],
-                &d.rgba,
-            ))
-        }))
         .with_active(*active)
         // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
         // We must also keep the window hidden until AccessKit is initialized.
         .with_visible(false);
+
+    if let Some(icon_data) = icon_data {
+        viewport_builder =
+            viewport_builder.with_window_icon(egui::ColorImage::from_rgba_premultiplied(
+                [icon_data.width as usize, icon_data.height as usize],
+                &icon_data.rgba,
+            ));
+    }
 
     #[cfg(target_os = "macos")]
     if *fullsize_content {
@@ -120,10 +122,10 @@ pub fn window_builder<E>(
     }
 
     if let Some(min_size) = *min_window_size {
-        viewport_builder = viewport_builder.with_min_inner_size(Some(min_size));
+        viewport_builder = viewport_builder.with_min_inner_size(min_size);
     }
     if let Some(max_size) = *max_window_size {
-        viewport_builder = viewport_builder.with_max_inner_size(Some(max_size));
+        viewport_builder = viewport_builder.with_max_inner_size(max_size);
     }
 
     viewport_builder = viewport_builder.with_drag_and_drop(*drag_and_drop_support);
@@ -141,13 +143,13 @@ pub fn window_builder<E>(
         window_settings.inner_size_points()
     } else {
         if let Some(pos) = *initial_window_pos {
-            viewport_builder = viewport_builder.with_position(Some(pos));
+            viewport_builder = viewport_builder.with_position(pos);
         }
 
         if let Some(initial_window_size) = *initial_window_size {
             let initial_window_size =
                 initial_window_size.at_most(largest_monitor_point_size(event_loop));
-            viewport_builder = viewport_builder.with_inner_size(Some(initial_window_size));
+            viewport_builder = viewport_builder.with_inner_size(initial_window_size);
         }
 
         *initial_window_size
@@ -161,7 +163,7 @@ pub fn window_builder<E>(
             if monitor_size.width > 0.0 && monitor_size.height > 0.0 {
                 let x = (monitor_size.width - inner_size.x) / 2.0;
                 let y = (monitor_size.height - inner_size.y) / 2.0;
-                viewport_builder = viewport_builder.with_position(Some(egui::Pos2::new(x, y)));
+                viewport_builder = viewport_builder.with_position([x, y]);
             }
         }
     }

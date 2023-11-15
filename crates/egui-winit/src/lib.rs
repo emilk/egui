@@ -1035,10 +1035,14 @@ pub fn process_viewport_commands(
                 window.set_outer_position(LogicalPosition::new(pos.x, pos.y));
             }
             ViewportCommand::MinInnerSize(s) => {
-                window.set_min_inner_size(s.map(|s| LogicalSize::new(s.x, s.y)));
+                window.set_min_inner_size(
+                    (s.is_finite() && s != Vec2::ZERO).then_some(LogicalSize::new(s.x, s.y)),
+                );
             }
             ViewportCommand::MaxInnerSize(s) => {
-                window.set_max_inner_size(s.map(|s| LogicalSize::new(s.x, s.y)));
+                window.set_max_inner_size(
+                    (s.is_finite() && s != Vec2::INFINITY).then_some(LogicalSize::new(s.x, s.y)),
+                );
             }
             ViewportCommand::ResizeIncrements(s) => {
                 window.set_resize_increments(s.map(|s| LogicalSize::new(s.x, s.y)));
@@ -1168,31 +1172,31 @@ pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::
         })
         .with_active(builder.active.unwrap_or(true));
 
-    if let Some(Some(inner_size)) = builder.inner_size {
+    if let Some(inner_size) = builder.inner_size {
         window_builder = window_builder
             .with_inner_size(winit::dpi::LogicalSize::new(inner_size.x, inner_size.y));
     }
 
-    if let Some(Some(min_inner_size)) = builder.min_inner_size {
+    if let Some(min_inner_size) = builder.min_inner_size {
         window_builder = window_builder.with_min_inner_size(winit::dpi::LogicalSize::new(
             min_inner_size.x,
             min_inner_size.y,
         ));
     }
 
-    if let Some(Some(max_inner_size)) = builder.max_inner_size {
+    if let Some(max_inner_size) = builder.max_inner_size {
         window_builder = window_builder.with_max_inner_size(winit::dpi::LogicalSize::new(
             max_inner_size.x,
             max_inner_size.y,
         ));
     }
 
-    if let Some(Some(position)) = builder.position {
+    if let Some(position) = builder.position {
         window_builder =
             window_builder.with_position(winit::dpi::LogicalPosition::new(position.x, position.y));
     }
 
-    if let Some(Some(icon)) = builder.icon.clone() {
+    if let Some(icon) = builder.icon.clone() {
         window_builder = window_builder.with_window_icon(Some(
             winit::window::Icon::from_rgba(
                 icon.as_raw().to_owned(),
