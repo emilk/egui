@@ -1169,6 +1169,7 @@ mod glow_integration {
                     builder,
                     viewport_ui_cb,
                     commands,
+                    repaint_delay: _, // ignored - we listend to the repaint callback instead
                 },
             ) in viewport_output
             {
@@ -1386,7 +1387,7 @@ mod glow_integration {
                     .egui_ctx
                     .set_request_repaint_callback(move |info| {
                         log::trace!("request_repaint_callback: {info:?}");
-                        let when = Instant::now() + info.after;
+                        let when = Instant::now() + info.delay;
                         let frame_nr = info.current_frame_nr;
                         event_loop_proxy
                             .lock()
@@ -1989,7 +1990,7 @@ mod wgpu_integration {
                     .egui_ctx
                     .set_request_repaint_callback(move |info| {
                         log::trace!("request_repaint_callback: {info:?}");
-                        let when = Instant::now() + info.after;
+                        let when = Instant::now() + info.delay;
                         let frame_nr = info.current_frame_nr;
 
                         event_loop_proxy
@@ -2676,6 +2677,7 @@ mod wgpu_integration {
                 builder,
                 viewport_ui_cb,
                 commands,
+                repaint_delay: _, // ignored - we listend to the repaint callback instead
             },
         ) in viewport_output
         {

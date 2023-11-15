@@ -28,7 +28,7 @@ pub struct RequestRepaintInfo {
     pub viewport_id: ViewportId,
 
     /// Repaint after this duration. If zero, repaint as soon as possible.
-    pub after: Duration,
+    pub delay: Duration,
 
     /// The current frame number.
     ///
@@ -71,30 +71,26 @@ impl ContextImpl {
         self.request_repaint_after(Duration::ZERO, viewport_id);
     }
 
-    fn request_repaint_after(&mut self, after: Duration, viewport_id: ViewportId) {
+    fn request_repaint_after(&mut self, delay: Duration, viewport_id: ViewportId) {
         let mut viewport = self.viewports.entry(viewport_id).or_default();
 
         // Each request results in two repaints, just to give some things time to settle.
         // This solves some corner-cases of missing repaints on frame-delayed responses.
         viewport.repaint.outstanding = 1;
 
-        let current_frame_nr = viewport.repaint.frame_nr;
-
-        self.call_repaint_callback(RequestRepaintInfo {
-            viewport_id,
-            after,
-            current_frame_nr,
-        });
-    }
-
-    fn call_repaint_callback(&mut self, info: RequestRepaintInfo) {
         if let Some(callback) = &self.request_repaint_callback {
-            (callback)(info);
-        } else {
-            eprintln!(
-                "request_repaint_callback is not implemented by egui integration!
-                If is your integration you need to call `Context::set_request_repaint_callback`"
-            );
+            // We save some CPU time by only calling the callback if we need to.
+            // If the new delay is greater or equal to the previous lowest,
+            // it means we have already called the callback, and don't need to do it again.
+            if delay < viewport.repaint.repaint_delay {
+                viewport.repaint.repaint_delay = delay;
+
+                (callback)(RequestRepaintInfo {
+                    viewport_id,
+                    delay,
+                    current_frame_nr: viewport.repaint.frame_nr,
+                });
+            }
         }
     }
 
@@ -106,10 +102,10 @@ impl ContextImpl {
     }
 
     #[must_use]
-    fn requested_repaint(&self, viewport_id: &ViewportId) -> bool {
-        self.viewports
-            .get(viewport_id)
-            .map_or(false, |v| 0 < v.repaint.outstanding)
+    fn has_requested_repaint(&self, viewport_id: &ViewportId) -> bool {
+        self.viewports.get(viewport_id).map_or(false, |v| {
+            0 < v.repaint.outstanding || v.repaint.repaint_delay < Duration::MAX
+        })
     }
 }
 
@@ -152,16 +148,39 @@ struct ViewportState {
 }
 
 /// Per-viewport state related to repaint scheduling.
-#[derive(Default)]
 struct ViewportRepaintInfo {
     /// Monotonically increasing counter.
     frame_nr: u64,
+
+    /// The duration which the backend will poll for new events
+    /// before forcing another egui update, even if there's no new events.
+    ///
+    /// Also used to suppress multiple calls to the repaint callback during the same frame.
+    ///
+    /// This is also returned in [`crate::ViewportOutput`].
+    repaint_delay: Duration,
 
     /// While positive, keep requesting repaints. Decrement at the start of each frame.
     outstanding: u8,
 
     /// Did we?
     requested_last_frame: bool,
+}
+
+impl Default for ViewportRepaintInfo {
+    fn default() -> Self {
+        Self {
+            frame_nr: 0,
+
+            // We haven't scheduled a repaint yet.
+            repaint_delay: Duration::MAX,
+
+            // Let's run a couple of frames at the start, because why not.
+            outstanding: 1,
+
+            requested_last_frame: false,
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -206,14 +225,19 @@ impl ContextImpl {
         self.viewport_stack.push(ids);
         let viewport = self.viewports.entry(viewport_id).or_default();
 
-        if 0 < viewport.repaint.outstanding {
+        if viewport.repaint.outstanding == 0 {
+            // We are repainting now, so we can wait a while for the next repaint.
+            viewport.repaint.repaint_delay = Duration::MAX;
+        } else {
+            viewport.repaint.repaint_delay = Duration::ZERO;
             viewport.repaint.outstanding -= 1;
-            let current_frame_nr = viewport.repaint.frame_nr;
-            self.call_repaint_callback(RequestRepaintInfo {
-                viewport_id,
-                after: Duration::ZERO,
-                current_frame_nr,
-            });
+            if let Some(callback) = &self.request_repaint_callback {
+                (callback)(RequestRepaintInfo {
+                    viewport_id,
+                    delay: Duration::ZERO,
+                    current_frame_nr: viewport.repaint.frame_nr,
+                });
+            }
         }
 
         if let Some(new_pixels_per_point) = self.memory.override_pixels_per_point {
@@ -1222,14 +1246,14 @@ impl Context {
 
     /// Has a repaint been requested for the current viewport?
     #[must_use]
-    pub fn requested_repaint(&self) -> bool {
-        self.requested_repaint_for(&self.viewport_id())
+    pub fn has_requested_repaint(&self) -> bool {
+        self.has_requested_repaint_for(&self.viewport_id())
     }
 
     /// Has a repaint been requested for the given viewport?
     #[must_use]
-    pub fn requested_repaint_for(&self, viewport_id: &ViewportId) -> bool {
-        self.read(|ctx| ctx.requested_repaint(viewport_id))
+    pub fn has_requested_repaint_for(&self, viewport_id: &ViewportId) -> bool {
+        self.read(|ctx| ctx.has_requested_repaint(viewport_id))
     }
 
     /// For integrations: this callback will be called when an egui user calls [`Self::request_repaint`] or [`Self::request_repaint_after`].
@@ -1590,6 +1614,7 @@ impl ContextImpl {
                         builder: viewport.builder.clone(),
                         viewport_ui_cb: viewport.viewport_ui_cb.clone(),
                         commands,
+                        repaint_delay: viewport.repaint.repaint_delay,
                     },
                 )
             })

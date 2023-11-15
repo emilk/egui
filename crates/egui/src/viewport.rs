@@ -677,6 +677,14 @@ pub struct ViewportOutput {
 
     /// Commands to change the viewport, e.g. window title and size.
     pub commands: Vec<ViewportCommand>,
+
+    /// Schedulare a repaint of this viewport after this delay.
+    ///
+    /// It is preferably to instead install a [`Context::set_request_repaint_callback`],
+    /// but if you haven't, you can use this instead.
+    ///
+    /// If the duration is zero, schedule a repaint immediately.
+    pub repaint_delay: std::time::Duration,
 }
 
 impl ViewportOutput {
@@ -691,12 +699,14 @@ impl ViewportOutput {
             builder,
             viewport_ui_cb,
             mut commands,
+            repaint_delay,
         } = newer;
 
         self.ids = ids;
         self.builder.patch(&builder);
         self.viewport_ui_cb = viewport_ui_cb;
         self.commands.append(&mut commands);
+        self.repaint_delay = self.repaint_delay.min(repaint_delay);
     }
 }
 
