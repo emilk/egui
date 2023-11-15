@@ -162,7 +162,7 @@ fn main() {
         .set_request_repaint_callback(move |info| {
             event_loop_proxy
                 .lock()
-                .send_event(UserEvent::Redraw(info.after))
+                .send_event(UserEvent::Redraw(info.delay))
                 .expect("Cannot send event");
         });
 
