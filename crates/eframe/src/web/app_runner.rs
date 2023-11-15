@@ -185,6 +185,7 @@ impl AppRunner {
             platform_output,
             textures_delta,
             shapes,
+            pixels_per_point,
             viewports,
             viewport_commands: _, // TODO(emilk): handle some of the commands, like setting the title and icon
         } = full_output;
@@ -195,9 +196,7 @@ impl AppRunner {
 
         self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
-        let clipped_primitives = self
-            .egui_ctx
-            .tessellate(shapes, self.egui_ctx.pixels_per_point());
+        let clipped_primitives = self.egui_ctx.tessellate(shapes, pixels_per_point);
 
         {
             let app_output = self.frame.take_app_output();

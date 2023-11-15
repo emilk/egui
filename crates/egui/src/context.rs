@@ -267,8 +267,6 @@ impl ContextImpl {
 
         viewport.frame_state.begin_frame(&viewport.input);
 
-        let pixels_per_point = viewport.input.pixels_per_point();
-
         // Ensure we register the background area so panels and background ui can catch clicks:
         let screen_rect = viewport.input.screen_rect();
         self.memory.areas_mut().set_state(
@@ -287,6 +285,7 @@ impl ContextImpl {
             use crate::frame_state::AccessKitFrameState;
             let id = crate::accesskit_root_id();
             let mut builder = accesskit::NodeBuilder::new(accesskit::Role::Window);
+            let pixels_per_point = viewport.input.pixels_per_point();
             builder.set_transform(accesskit::Affine::scale(pixels_per_point.into()));
             let mut node_builders = IdMap::default();
             node_builders.insert(id, builder);
