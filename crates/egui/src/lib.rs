@@ -134,7 +134,7 @@
 //!         });
 //!     });
 //!     handle_platform_output(full_output.platform_output);
-//!     let clipped_primitives = ctx.tessellate(full_output.shapes); // create triangles to paint
+//!     let clipped_primitives = ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
 //!     paint(full_output.textures_delta, clipped_primitives);
 //! }
 //! ```

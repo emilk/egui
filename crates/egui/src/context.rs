@@ -429,7 +429,7 @@ impl ContextImpl {
 ///         });
 ///     });
 ///     handle_platform_output(full_output.platform_output);
-///     let clipped_primitives = ctx.tessellate(full_output.shapes); // create triangles to paint
+///     let clipped_primitives = ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
 ///     paint(full_output.textures_delta, clipped_primitives);
 /// }
 /// ```
@@ -1486,6 +1486,7 @@ impl ContextImpl {
     fn end_frame(&mut self) -> FullOutput {
         let ended_viewport_id = self.viewport_id();
         let viewport = self.viewports.entry(ended_viewport_id).or_default();
+        let pixels_per_point = viewport.input.pixels_per_point;
 
         if viewport.input.wants_repaint() {
             self.repaint.requested_repaint(&ended_viewport_id);
@@ -1607,6 +1608,7 @@ impl ContextImpl {
             platform_output,
             textures_delta,
             shapes,
+            pixels_per_point,
             viewports: out_viewports,
             // We should not process viewport commands when we are a sync viewport, because that will cause a deadlock for egui backend
             viewport_commands: if is_last {

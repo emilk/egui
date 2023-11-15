@@ -10,7 +10,9 @@ pub struct EguiGlow {
     pub egui_winit: egui_winit::State,
     pub painter: crate::Painter,
 
+    // output from the last update:
     shapes: Vec<egui::epaint::ClippedShape>,
+    pixels_per_point: f32,
     textures_delta: egui::TexturesDelta,
 }
 
@@ -28,15 +30,19 @@ impl EguiGlow {
             })
             .unwrap();
 
+        let egui_winit = egui_winit::State::new(
+            event_loop,
+            native_pixels_per_point,
+            Some(painter.max_texture_side()),
+        );
+        let pixels_per_point = egui_winit.pixels_per_point();
+
         Self {
             egui_ctx: Default::default(),
-            egui_winit: egui_winit::State::new(
-                event_loop,
-                native_pixels_per_point,
-                Some(painter.max_texture_side()),
-            ),
+            egui_winit,
             painter,
             shapes: Default::default(),
+            pixels_per_point,
             textures_delta: Default::default(),
         }
     }
@@ -55,6 +61,7 @@ impl EguiGlow {
             platform_output,
             textures_delta,
             shapes,
+            pixels_per_point,
             viewports,
             viewport_commands,
         } = self.egui_ctx.run(raw_input, run_ui);
@@ -76,6 +83,7 @@ impl EguiGlow {
         );
 
         self.shapes = shapes;
+        self.pixels_per_point = pixels_per_point;
         self.textures_delta.append(textures_delta);
     }
 
@@ -88,7 +96,7 @@ impl EguiGlow {
             self.painter.set_texture(id, &image_delta);
         }
 
-        let pixels_per_point = self.egui_ctx.pixels_per_point();
+        let pixels_per_point = self.pixels_per_point;
         let clipped_primitives = self.egui_ctx.tessellate(shapes, pixels_per_point);
         let dimensions: [u32; 2] = window.inner_size().into();
         self.painter

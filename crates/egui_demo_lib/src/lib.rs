@@ -71,14 +71,13 @@ fn test_egui_e2e() {
     let mut demo_windows = crate::DemoWindows::default();
     let ctx = egui::Context::default();
     let raw_input = egui::RawInput::default();
-    let pixels_per_point = 1.0;
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
         let full_output = ctx.run(raw_input.clone(), |ctx| {
             demo_windows.ui(ctx);
         });
-        let clipped_primitives = ctx.tessellate(full_output.shapes, pixels_per_point);
+        let clipped_primitives = ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
         assert!(!clipped_primitives.is_empty());
     }
 }
@@ -91,14 +90,13 @@ fn test_egui_zero_window_size() {
         screen_rect: Some(egui::Rect::from_min_max(egui::Pos2::ZERO, egui::Pos2::ZERO)),
         ..Default::default()
     };
-    let pixels_per_point = 1.0;
 
     const NUM_FRAMES: usize = 5;
     for _ in 0..NUM_FRAMES {
         let full_output = ctx.run(raw_input.clone(), |ctx| {
             demo_windows.ui(ctx);
         });
-        let clipped_primitives = ctx.tessellate(full_output.shapes, pixels_per_point);
+        let clipped_primitives = ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
         assert!(
             clipped_primitives.is_empty(),
             "There should be nothing to show, has at least one primitive with clip_rect: {:?}",

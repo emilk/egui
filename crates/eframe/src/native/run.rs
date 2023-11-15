@@ -562,6 +562,7 @@ mod glow_integration {
                 platform_output,
                 textures_delta,
                 shapes,
+                pixels_per_point,
                 viewports: viewports_out,
                 viewport_commands,
             } = full_output;
@@ -579,10 +580,6 @@ mod glow_integration {
 
             integration.post_update(app.as_mut(), window);
             integration.handle_platform_output(window, viewport_id, platform_output, egui_winit);
-
-            let pixels_per_point = integration
-                .egui_ctx
-                .input_for(viewport_id, |i| i.pixels_per_point());
 
             let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
@@ -1581,7 +1578,7 @@ mod glow_integration {
         let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
         let pixels_per_point = egui_ctx.input_for(ids.this, |i| i.pixels_per_point());
-        let clipped_primitives = egui_ctx.tessellate(output.shapes, pixels_per_point);
+        let clipped_primitives = egui_ctx.tessellate(output.shapes, output.pixels_per_point);
 
         let mut painter = painter.borrow_mut();
 
@@ -2181,7 +2178,7 @@ mod wgpu_integration {
         }
 
         let pixels_per_point = egui_ctx.input_for(ids.this, |i| i.pixels_per_point());
-        let clipped_primitives = egui_ctx.tessellate(output.shapes, pixels_per_point);
+        let clipped_primitives = egui_ctx.tessellate(output.shapes, output.pixels_per_point);
         painter.paint_and_update_textures(
             ids.this,
             pixels_per_point,
@@ -2504,6 +2501,7 @@ mod wgpu_integration {
                 platform_output,
                 textures_delta,
                 shapes,
+                pixels_per_point,
                 viewports: out_viewports,
                 viewport_commands,
             } = full_output;
@@ -2511,10 +2509,6 @@ mod wgpu_integration {
             integration.handle_platform_output(window, viewport_id, platform_output, egui_winit);
 
             {
-                let pixels_per_point = integration
-                    .egui_ctx
-                    .input_for(viewport_id, |i| i.pixels_per_point());
-
                 let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
                 let screenshot_requested = &mut integration.frame.output.screenshot_requested;

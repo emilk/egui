@@ -21,6 +21,11 @@ pub struct FullOutput {
     /// You can use [`crate::Context::tessellate`] to turn this into triangles.
     pub shapes: Vec<epaint::ClippedShape>,
 
+    /// The number of physical pixels per logical ui point, for the viewport that was updated.
+    ///
+    /// You can pass this to [`Context::tesselate`] together with [`Self::shapes`].
+    pub pixels_per_point: f32,
+
     /// All the active viewports, excluding the root.
     pub viewports: Vec<ViewportOutput>,
 
@@ -35,6 +40,7 @@ impl FullOutput {
             platform_output,
             textures_delta,
             shapes,
+            pixels_per_point,
             mut viewports,
             mut viewport_commands,
         } = newer;
@@ -42,6 +48,7 @@ impl FullOutput {
         self.platform_output.append(platform_output);
         self.textures_delta.append(textures_delta);
         self.shapes = shapes; // Only paint the latest
+        self.pixels_per_point = pixels_per_point; // Use latest
         self.viewports.append(&mut viewports);
         self.viewport_commands.append(&mut viewport_commands);
     }
