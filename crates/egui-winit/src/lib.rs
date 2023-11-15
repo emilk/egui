@@ -52,7 +52,9 @@ pub struct EventResponse {
 
 // ----------------------------------------------------------------------------
 
-/// Handles the integration between egui and winit.
+/// Handles the integration between egui and a winit Window.
+///
+/// Instantiate one of these per viewport/window.
 pub struct State {
     start_time: web_time::Instant,
     egui_input: egui::RawInput,
@@ -733,12 +735,13 @@ impl State {
             cursor_icon,
             open_url,
             copied_text,
-            events: _,                    // handled above
+            events: _,                    // handled elsewhere
             mutable_text_under_cursor: _, // only used in eframe web
             text_cursor_pos,
             #[cfg(feature = "accesskit")]
             accesskit_update,
         } = platform_output;
+
         self.current_pixels_per_point = egui_ctx.input_for(viewport_id, |i| i.pixels_per_point); // someone can have changed it to scale the UI
 
         self.set_cursor_icon(window, cursor_icon);

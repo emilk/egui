@@ -143,8 +143,10 @@ struct ViewportState {
     /// State related to repaint scheduling.
     repaint: ViewportRepaintInfo,
 
+    // ----------------------
     // The output of a frame:
     graphics: GraphicLayers,
+    // Most of the things in `PlatformOutput` are not actually viewport dependent.
     output: PlatformOutput,
     commands: Vec<ViewportCommand>,
 }

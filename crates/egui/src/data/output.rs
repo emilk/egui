@@ -98,6 +98,9 @@ pub struct PlatformOutput {
     /// Iff `Some`, the user is editing text.
     pub text_cursor_pos: Option<crate::Pos2>,
 
+    /// The difference in the widget tree since last frame.
+    ///
+    /// NOTE: this needs to be per-viewport.
     #[cfg(feature = "accesskit")]
     pub accesskit_update: Option<accesskit::TreeUpdate>,
 }
