@@ -29,6 +29,9 @@ default = ["dep:mime_guess2"]
 ## Shorthand for enabling the different types of image loaders (`file`, `http`, `image`, `svg`).
 all_loaders = ["file", "http", "image", "svg"]
 
+## Shorthand for enabling the different types of image loaders (`file`, `image`, `reqwest`, `svg`). Read `reqwest` feature description!
+all_loaders_reqwest = ["file", "image", "reqwest", "svg"]
+
 ## Enable [`DatePickerButton`] widget.
 datepicker = ["chrono"]
 
@@ -37,6 +40,16 @@ file = ["dep:mime_guess2"]
 
 ## Add support for loading images via HTTP.
 http = ["dep:ehttp"]
+
+## Add support for loading images via HTTP using reqwest.
+##
+## ⚠ It shall be treated as mutually exclusive with `http`!
+##
+## Use this feature over `http` if you use `reqwest`+`tokio` in the rest of your project.
+##
+## Images using this loader shall be only created in thread that is in `tokio` runtime context
+## (, as GUI thread is rather not async this means ie. calling `let _rt_guard = RUNTIME.enter();` before running eframe app)
+reqwest = ["dep:reqwest", "dep:tokio"]
 
 ## Add support for loading images with the [`image`](https://docs.rs/image) crate.
 ##
@@ -98,3 +111,7 @@ usvg = { version = "0.28", optional = true, default-features = false }
 
 # http feature
 ehttp = { version = "0.3.1", optional = true, default-features = false }
+
+# reqwest feature
+reqwest={ version = "0.11", optional = true, default-features = false }
+tokio={ version = "1.34", optional = true, features = ["rt"]}

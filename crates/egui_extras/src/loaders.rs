@@ -8,13 +8,14 @@
 ///
 /// - `file` feature: `file://` loader on non-Wasm targets
 /// - `http` feature: `http(s)://` loader
+/// - `reqwest` feature: `http(s)://` loader (same as `http`, but internally uses `reqwest` crate over `ehttp`)
 /// - `image` feature: Loader of png, jpeg etc using the [`image`] crate
 /// - `svg` feature: `.svg` loader
 ///
 /// Calling this multiple times on the same [`egui::Context`] is safe.
 /// It will never install duplicate loaders.
 ///
-/// - If you just want to be able to load `file://` and `http://` URIs, enable the `all_loaders` feature.
+/// - If you just want to be able to load `file://` and `http://` URIs, enable the `all_loaders` feature (or `all_loaders_reqwest` if you prefer `reqwest` over `ehttp`).
 /// - The supported set of image formats is configured by adding the [`image`](https://crates.io/crates/image)
 /// crate as your direct dependency, and enabling features on it:
 ///
@@ -62,12 +63,19 @@ pub fn install_image_loaders(ctx: &egui::Context) {
         log::trace!("installed FileLoader");
     }
 
-    #[cfg(feature = "http")]
+    #[cfg(all(feature = "http", not(feature = "reqwest")))]
     if !ctx.is_loader_installed(self::ehttp_loader::EhttpLoader::ID) {
         ctx.add_bytes_loader(std::sync::Arc::new(
             self::ehttp_loader::EhttpLoader::default(),
         ));
         log::trace!("installed EhttpLoader");
+    }
+    #[cfg(feature = "reqwest")]
+    if !ctx.is_loader_installed(self::reqwest_loader::ReqwestLoader::ID) {
+        ctx.add_bytes_loader(std::sync::Arc::new(
+            self::reqwest_loader::ReqwestLoader::default(),
+        ));
+        log::trace!("installed ReqwestLoader");
     }
 
     #[cfg(feature = "image")]
@@ -87,6 +95,7 @@ pub fn install_image_loaders(ctx: &egui::Context) {
     #[cfg(all(
         any(target_arch = "wasm32", not(feature = "file")),
         not(feature = "http"),
+        not(feature = "reqwest"),
         not(feature = "image"),
         not(feature = "svg")
     ))]
@@ -100,6 +109,9 @@ mod file_loader;
 
 #[cfg(feature = "http")]
 mod ehttp_loader;
+
+#[cfg(feature = "reqwest")]
+mod reqwest_loader;
 
 #[cfg(feature = "image")]
 mod image_loader;
