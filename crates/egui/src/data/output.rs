@@ -1,6 +1,6 @@
 //! All the data egui returns to the backend at the end of each frame.
 
-use crate::{ViewportCommand, ViewportId, ViewportOutput, WidgetType};
+use crate::{ViewportIdMap, ViewportOutput, WidgetType};
 
 /// What egui emits each frame from [`crate::Context::run`].
 ///
@@ -26,11 +26,8 @@ pub struct FullOutput {
     /// You can pass this to [`crate::Context::tessellate`] together with [`Self::shapes`].
     pub pixels_per_point: f32,
 
-    /// All the active viewports, excluding the root.
-    pub viewports: Vec<ViewportOutput>,
-
-    /// Commands sent to different viewports.
-    pub viewport_commands: Vec<(ViewportId, ViewportCommand)>,
+    /// All the active viewports, including the root.
+    pub viewports: ViewportIdMap<ViewportOutput>,
 }
 
 impl FullOutput {
@@ -41,16 +38,24 @@ impl FullOutput {
             textures_delta,
             shapes,
             pixels_per_point,
-            mut viewports,
-            mut viewport_commands,
+            viewports,
         } = newer;
 
         self.platform_output.append(platform_output);
         self.textures_delta.append(textures_delta);
         self.shapes = shapes; // Only paint the latest
         self.pixels_per_point = pixels_per_point; // Use latest
-        self.viewports.append(&mut viewports);
-        self.viewport_commands.append(&mut viewport_commands);
+
+        for (id, new_viewport) in viewports {
+            match self.viewports.entry(id) {
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                    entry.insert(new_viewport);
+                }
+                std::collections::hash_map::Entry::Occupied(mut entry) => {
+                    entry.get_mut().append(new_viewport);
+                }
+            }
+        }
     }
 }
 

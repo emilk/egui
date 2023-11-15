@@ -146,6 +146,7 @@ struct ViewportState {
     // The output of a frame:
     graphics: GraphicLayers,
     output: PlatformOutput,
+    commands: Vec<ViewportCommand>,
 }
 
 /// Per-viewport state related to repaint scheduling.
@@ -185,7 +186,6 @@ struct ContextImpl {
 
     viewport_parents: ViewportIdMap<ViewportId>,
     viewports: ViewportIdMap<ViewportState>,
-    viewport_commands: Vec<(ViewportId, ViewportCommand)>,
 
     embed_viewports: bool,
 
@@ -1563,23 +1563,35 @@ impl ContextImpl {
             true
         });
 
-        let out_viewports = self
-            .viewports
-            .iter()
-            .map(|(&id, viewport)| {
-                let parent = *self.viewport_parents.entry(id).or_default();
-                ViewportOutput {
-                    ids: ViewportIdPair { this: id, parent },
-                    builder: viewport.builder.clone(),
-                    viewport_ui_cb: viewport.viewport_ui_cb.clone(),
-                }
-            })
-            .collect();
-
         // This is used to resume the last frame!
         self.viewport_stack.pop();
 
+        // The last viewport is not necessarily the root viewport,
+        // just the top _immediate_ viewport.
         let is_last = self.viewport_stack.is_empty();
+
+        let out_viewports = self
+            .viewports
+            .iter_mut()
+            .map(|(&id, viewport)| {
+                let parent = *self.viewport_parents.entry(id).or_default();
+                let commands = if is_last {
+                    std::mem::take(&mut viewport.commands)
+                } else {
+                    vec![]
+                };
+
+                (
+                    id,
+                    ViewportOutput {
+                        ids: ViewportIdPair::from_self_and_parent(id, parent),
+                        builder: viewport.builder.clone(),
+                        viewport_ui_cb: viewport.viewport_ui_cb.clone(),
+                        commands,
+                    },
+                )
+            })
+            .collect();
 
         if is_last {
             // Remove dead viewports:
@@ -1597,12 +1609,6 @@ impl ContextImpl {
             shapes,
             pixels_per_point,
             viewports: out_viewports,
-            // We should not process viewport commands when we are a sync viewport, because that will cause a deadlock for egui backend
-            viewport_commands: if is_last {
-                std::mem::take(&mut self.viewport_commands)
-            } else {
-                Vec::new()
-            },
         }
     }
 }
@@ -2518,7 +2524,7 @@ impl Context {
 
     /// Send a command to a speicfic viewport.
     pub fn viewport_command_for(&self, id: ViewportId, command: ViewportCommand) {
-        self.write(|ctx| ctx.viewport_commands.push((id, command)));
+        self.write(|ctx| ctx.viewport_for(id).commands.push(command));
     }
 
     /// This creates a new native window, if possible.
@@ -2615,10 +2621,7 @@ impl Context {
                 viewport.used = true;
                 viewport.viewport_ui_cb = None; // it is immediate
 
-                ViewportIdPair {
-                    this: new_viewport_id,
-                    parent: parent_viewport_id,
-                }
+                ViewportIdPair::from_self_and_parent(new_viewport_id, parent_viewport_id)
             });
 
             let mut out = None;

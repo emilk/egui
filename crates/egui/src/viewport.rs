@@ -83,6 +83,11 @@ impl ViewportIdPair {
         this: ViewportId::ROOT,
         parent: ViewportId::ROOT,
     };
+
+    #[inline]
+    pub fn from_self_and_parent(this: ViewportId, parent: ViewportId) -> Self {
+        Self { this, parent }
+    }
 }
 
 /// The user-code that shows the ui in the viewport, used for deferred viewports.
@@ -669,11 +674,29 @@ pub struct ViewportOutput {
     ///
     /// `None` for immediate viewports and the ROOT viewport.
     pub viewport_ui_cb: Option<Arc<ViewportUiCallback>>,
+
+    /// Commands to change the viewport, e.g. window title and size.
+    pub commands: Vec<ViewportCommand>,
 }
 
 impl ViewportOutput {
     pub fn id(&self) -> ViewportId {
         self.ids.this
+    }
+
+    /// Add on new output.
+    pub fn append(&mut self, newer: Self) {
+        let Self {
+            ids,
+            builder,
+            viewport_ui_cb,
+            mut commands,
+        } = newer;
+
+        self.ids = ids;
+        self.builder.patch(&builder);
+        self.viewport_ui_cb = viewport_ui_cb;
+        self.commands.append(&mut commands);
     }
 }
 

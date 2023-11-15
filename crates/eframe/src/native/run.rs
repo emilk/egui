@@ -564,7 +564,6 @@ mod glow_integration {
                 shapes,
                 pixels_per_point,
                 viewports: viewports_out,
-                viewport_commands,
             } = full_output;
 
             let GlutinWindowContext {
@@ -648,19 +647,6 @@ mod glow_integration {
             }
 
             glutin.process_viewport_updates(viewports_out, focused_viewport);
-
-            for (viewport_id, command) in viewport_commands {
-                if let Some(viewport) = glutin.viewports.get(&viewport_id) {
-                    if let Some(window) = &viewport.window {
-                        let is_viewport_focused = focused_viewport == Some(viewport_id);
-                        egui_winit::process_viewport_commands(
-                            [command],
-                            window,
-                            is_viewport_focused,
-                        );
-                    }
-                }
-            }
 
             if integration.should_close() {
                 EventResult::Exit
@@ -1169,7 +1155,7 @@ mod glow_integration {
 
         fn process_viewport_updates(
             &mut self,
-            viewport_output: Vec<ViewportOutput>,
+            viewport_output: ViewportIdMap<ViewportOutput>,
             focused_viewport: Option<ViewportId>,
         ) {
             crate::profile_function!();
@@ -1177,13 +1163,17 @@ mod glow_integration {
             let mut active_viewports_ids = ViewportIdSet::default();
             active_viewports_ids.insert(ViewportId::ROOT);
 
-            for ViewportOutput {
-                ids,
-                builder,
-                viewport_ui_cb,
-            } in viewport_output
+            for (
+                viewport_id,
+                ViewportOutput {
+                    ids,
+                    builder,
+                    viewport_ui_cb,
+                    commands,
+                },
+            ) in viewport_output
             {
-                active_viewports_ids.insert(ids.this);
+                active_viewports_ids.insert(viewport_id);
 
                 initialize_or_update_viewport(
                     &mut self.viewports,
@@ -1192,6 +1182,17 @@ mod glow_integration {
                     viewport_ui_cb,
                     focused_viewport,
                 );
+
+                if let Some(viewport) = self.viewports.get(&viewport_id) {
+                    if let Some(window) = &viewport.window {
+                        let is_viewport_focused = focused_viewport == Some(viewport_id);
+                        egui_winit::process_viewport_commands(
+                            commands,
+                            window,
+                            is_viewport_focused,
+                        );
+                    }
+                }
             }
 
             // GC old viewports
@@ -2455,10 +2456,7 @@ mod wgpu_integration {
 
                 let raw_input = egui_winit.as_mut().unwrap().take_egui_input(
                     window,
-                    ViewportIdPair {
-                        this: viewport_id,
-                        parent: ids.parent,
-                    },
+                    ViewportIdPair::from_self_and_parent(viewport_id, ids.parent),
                 );
 
                 integration.pre_update(window);
@@ -2504,7 +2502,6 @@ mod wgpu_integration {
                 shapes,
                 pixels_per_point,
                 viewports: out_viewports,
-                viewport_commands,
             } = full_output;
 
             integration.handle_platform_output(window, viewport_id, platform_output, egui_winit);
@@ -2532,13 +2529,17 @@ mod wgpu_integration {
             active_viewports_ids.insert(ViewportId::ROOT);
 
             // Add new viewports, and update existing ones:
-            for ViewportOutput {
-                ids,
-                builder,
-                viewport_ui_cb,
-            } in out_viewports
+            for (
+                viewport_id,
+                ViewportOutput {
+                    ids,
+                    builder,
+                    viewport_ui_cb,
+                    commands,
+                },
+            ) in out_viewports
             {
-                active_viewports_ids.insert(ids.this);
+                active_viewports_ids.insert(viewport_id);
 
                 initialize_or_update_viewport(
                     viewports,
@@ -2547,16 +2548,13 @@ mod wgpu_integration {
                     viewport_ui_cb,
                     focused_viewport,
                 );
-            }
 
-            // Handle viewport commands:
-            for (viewport_id, command) in viewport_commands {
                 if let Some(window) = viewports
                     .get(&viewport_id)
                     .and_then(|vp| vp.window.as_ref())
                 {
                     let is_viewport_focused = focused_viewport == Some(viewport_id);
-                    egui_winit::process_viewport_commands([command], window, is_viewport_focused);
+                    egui_winit::process_viewport_commands(commands, window, is_viewport_focused);
                 }
             }
 
