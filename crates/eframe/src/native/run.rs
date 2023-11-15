@@ -766,6 +766,7 @@ mod glow_integration {
         }
     }
 
+    #[cfg(feature = "__screenshot")]
     fn save_screeshot_and_exit(
         path: &str,
         painter: &egui_glow::Painter,
