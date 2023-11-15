@@ -1478,51 +1478,54 @@ impl Context {
     #[must_use]
     pub fn end_frame(&self) -> FullOutput {
         crate::profile_function!();
+        self.write(|ctx| ctx.end_frame())
+    }
+}
 
-        if self.input(|i| i.wants_repaint()) {
-            self.request_repaint();
+impl ContextImpl {
+    fn end_frame(&mut self) -> FullOutput {
+        let ended_viewport_id = self.viewport_id();
+        let viewport = self.viewports.entry(ended_viewport_id).or_default();
+
+        if viewport.input.wants_repaint() {
+            self.repaint.requested_repaint(&ended_viewport_id);
         }
 
-        let textures_delta = self.write(|ctx| {
-            let viewport = ctx.viewports.entry(ctx.viewport_id()).or_default();
-            ctx.memory
-                .end_frame(&viewport.input, &viewport.frame_state.used_ids);
+        self.memory
+            .end_frame(&viewport.input, &viewport.frame_state.used_ids);
 
-            let font_image_delta = ctx.fonts.as_ref().unwrap().font_image_delta();
-            if let Some(font_image_delta) = font_image_delta {
-                ctx.tex_manager
-                    .0
-                    .write()
-                    .set(TextureId::default(), font_image_delta);
-            }
+        let font_image_delta = self.fonts.as_ref().unwrap().font_image_delta();
+        if let Some(font_image_delta) = font_image_delta {
+            self.tex_manager
+                .0
+                .write()
+                .set(TextureId::default(), font_image_delta);
+        }
 
-            ctx.tex_manager.0.write().take_delta()
-        });
+        let textures_delta = self.tex_manager.0.write().take_delta();
 
         #[cfg_attr(not(feature = "accesskit"), allow(unused_mut))]
-        let mut platform_output: PlatformOutput = self.output_mut(std::mem::take);
+        let mut platform_output: PlatformOutput = std::mem::take(&mut viewport.output);
 
         #[cfg(feature = "accesskit")]
         {
             crate::profile_scope!("accesskit");
-            let state = self.frame_state_mut(|fs| fs.accesskit_state.take());
+            let state = viewport.frame_state.accesskit_state.take();
             if let Some(state) = state {
                 let root_id = crate::accesskit_root_id().accesskit_id();
-                let nodes = self.write(|ctx| {
+                let nodes = {
                     state
                         .node_builders
                         .into_iter()
                         .map(|(id, builder)| {
                             (
                                 id.accesskit_id(),
-                                builder.build(&mut ctx.accesskit_node_classes),
+                                builder.build(&mut self.accesskit_node_classes),
                             )
                         })
                         .collect()
-                });
-                let focus_id = self
-                    .memory(|mem| mem.focus())
-                    .map_or(root_id, |id| id.accesskit_id());
+                };
+                let focus_id = self.memory.focus().map_or(root_id, |id| id.accesskit_id());
                 platform_output.accesskit_update = Some(accesskit::TreeUpdate {
                     nodes,
                     tree: Some(accesskit::Tree::new(root_id)),
@@ -1531,87 +1534,74 @@ impl Context {
             }
         }
 
-        let shapes = self.drain_paint_lists();
+        let shapes = viewport.graphics.drain(self.memory.areas().order());
 
-        let all_viewport_ids: ViewportIdSet = self.read(|ctx| {
-            ctx.viewports
-                .keys()
-                .copied()
-                .chain([ViewportId::ROOT])
-                .collect()
-        });
-
-        let current_viewport_id = self.viewport_id();
+        let all_viewport_ids: ViewportIdSet = self
+            .viewports
+            .keys()
+            .copied()
+            .chain([ViewportId::ROOT])
+            .collect();
 
         let mut out_viewports = Vec::new();
 
-        self.write(|ctx| {
-            ctx.last_viewport = current_viewport_id;
+        self.last_viewport = ended_viewport_id;
 
-            ctx.viewports.retain(|&id, viewport| {
-                let parent = *ctx.viewport_parents.entry(id).or_default();
+        self.viewports.retain(|&id, viewport| {
+            let parent = *self.viewport_parents.entry(id).or_default();
 
-                if !all_viewport_ids.contains(&parent) {
+            if !all_viewport_ids.contains(&parent) {
+                #[cfg(feature = "log")]
+                log::debug!(
+                    "Removing viewport {:?} ({:?}): the parent is gone",
+                    id,
+                    viewport.builder.title
+                );
+
+                return false;
+            }
+
+            let is_out_child = parent == ended_viewport_id && id != ViewportId::ROOT;
+            if is_out_child {
+                if !viewport.used {
                     #[cfg(feature = "log")]
                     log::debug!(
-                        "Removing viewport {:?} ({:?}): the parent is gone",
+                        "Removing viewport {:?} ({:?}): it was never used this frame",
                         id,
                         viewport.builder.title
                     );
 
-                    return false;
+                    return false; // Only keep children that have been updated this frame
                 }
 
-                let is_out_child = parent == current_viewport_id && id != ViewportId::ROOT;
-                if is_out_child {
-                    if !viewport.used {
-                        #[cfg(feature = "log")]
-                        log::debug!(
-                            "Removing viewport {:?} ({:?}): it was never used this frame",
-                            id,
-                            viewport.builder.title
-                        );
+                viewport.used = false; // reset so we can check again next frame
+            }
 
-                        return false; // Only keep children that have been updated this frame
-                    }
-
-                    viewport.used = false; // reset so we can check again next frame
-                }
-
-                out_viewports.push(ViewportOutput {
-                    builder: viewport.builder.clone(),
-                    ids: ViewportIdPair { this: id, parent },
-                    viewport_ui_cb: viewport.viewport_ui_cb.clone(),
-                });
-
-                true
+            out_viewports.push(ViewportOutput {
+                builder: viewport.builder.clone(),
+                ids: ViewportIdPair { this: id, parent },
+                viewport_ui_cb: viewport.viewport_ui_cb.clone(),
             });
+
+            true
         });
 
         // This is used to resume the last frame!
-        let is_last = self.write(|ctx| {
-            ctx.viewport_stack.pop();
-            ctx.viewport_stack.is_empty()
-        });
+        self.viewport_stack.pop();
+
+        let is_last = self.viewport_stack.is_empty();
 
         if is_last {
-            self.write(|ctx| {
-                // Remove dead viewports:
-                ctx.viewports.retain(|id, _| all_viewport_ids.contains(id));
-                ctx.viewport_parents
-                    .retain(|id, _| all_viewport_ids.contains(id));
-            });
+            // Remove dead viewports:
+            self.viewports.retain(|id, _| all_viewport_ids.contains(id));
+            self.viewport_parents
+                .retain(|id, _| all_viewport_ids.contains(id));
         } else {
             let viewport_id = self.viewport_id();
-            self.write(|ctx| {
-                ctx.memory.set_viewport_id(viewport_id);
-            });
+            self.memory.set_viewport_id(viewport_id);
         }
 
-        self.write(|ctx| {
-            ctx.repaint
-                .end_frame(current_viewport_id, &all_viewport_ids);
-        });
+        self.repaint.end_frame(ended_viewport_id, &all_viewport_ids);
 
         FullOutput {
             platform_output,
@@ -1620,21 +1610,15 @@ impl Context {
             viewports: out_viewports,
             // We should not process viewport commands when we are a sync viewport, because that will cause a deadlock for egui backend
             viewport_commands: if is_last {
-                self.write(|ctx| std::mem::take(&mut ctx.viewport_commands))
+                std::mem::take(&mut self.viewport_commands)
             } else {
                 Vec::new()
             },
         }
     }
+}
 
-    fn drain_paint_lists(&self) -> Vec<ClippedShape> {
-        crate::profile_function!();
-        self.write(|ctx| {
-            let viewport = ctx.viewports.entry(ctx.viewport_id()).or_default();
-            viewport.graphics.drain(ctx.memory.areas().order())
-        })
-    }
-
+impl Context {
     /// Tessellate the given shapes into triangle meshes.
     ///
     /// `pixels_per_point` is used for feathering (anti-aliasing).
