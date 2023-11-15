@@ -186,13 +186,13 @@ impl AppRunner {
             textures_delta,
             shapes,
             pixels_per_point,
-            viewports,
-            viewport_commands: _, // TODO(emilk): handle some of the commands, like setting the title and icon
+            viewport_output,
         } = full_output;
 
-        if viewports.len() > 1 {
+        if viewport_output.len() > 1 {
             log::warn!("Multiple viewports not yet supported on the web");
         }
+        // TODO(emilk): handle some of the command in `viewport_output`, like setting the title and icon?
 
         self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
