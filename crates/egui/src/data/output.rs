@@ -23,7 +23,7 @@ pub struct FullOutput {
 
     /// The number of physical pixels per logical ui point, for the viewport that was updated.
     ///
-    /// You can pass this to [`Context::tesselate`] together with [`Self::shapes`].
+    /// You can pass this to [`crate::Context::tessellate`] together with [`Self::shapes`].
     pub pixels_per_point: f32,
 
     /// All the active viewports, excluding the root.
