@@ -823,7 +823,7 @@ impl Context {
                 if hovered {
                     let pointer_pos = viewport.input.pointer.interact_pos();
                     if let Some(pointer_pos) = pointer_pos {
-                        if let Some(rects) = viewport.layer_rects_this_frame.get(&layer_id) {
+                        if let Some(rects) = viewport.layer_rects_prev_frame.get(&layer_id) {
                             for &(prev_id, prev_rect) in rects.iter().rev() {
                                 if prev_id == id {
                                     break; // there is no other interactive widget covering us at the pointer position.
