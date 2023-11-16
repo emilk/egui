@@ -1169,7 +1169,7 @@ mod glow_integration {
                     builder,
                     viewport_ui_cb,
                     commands,
-                    repaint_delay: _, // ignored - we listend to the repaint callback instead
+                    repaint_delay: _, // ignored - we listened to the repaint callback instead
                 },
             ) in viewport_output
             {
@@ -2679,7 +2679,7 @@ mod wgpu_integration {
                 builder,
                 viewport_ui_cb,
                 commands,
-                repaint_delay: _, // ignored - we listend to the repaint callback instead
+                repaint_delay: _, // ignored - we listened to the repaint callback instead
             },
         ) in viewport_output
         {

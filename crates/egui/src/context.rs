@@ -2509,13 +2509,13 @@ impl Context {
     /// For integrations: Set this to render a sync viewport.
     ///
     /// This will only be set the callback for the current thread,
-    /// which mosty likely should be the main thread.
+    /// which most likely should be the main thread.
     ///
     /// When an immediate viewport is created with [`Self::show_viewport_immediate`] it will be rendered by this function.
     ///
     /// When called, the integration need to:
     /// * Check if there already is a window for this viewport id, and if not open one
-    /// * Set the window attributes (postion, size, …) based on [`ImmediateViewport::builder`].
+    /// * Set the window attributes (position, size, …) based on [`ImmediateViewport::builder`].
     /// * Call [`Context::run`] with [`ImmediateViewport::viewport_ui_cb`].
     /// * Handle the output from [`Context::run`], including rendering
     #[allow(clippy::unused_self)]

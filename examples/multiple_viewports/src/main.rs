@@ -27,7 +27,7 @@ struct MyApp {
     /// if either needs repainting, they are both repainted.
     show_immediate_viewport: bool,
 
-    /// Deferred viewports run independant of the parent viewport, which can save
+    /// Deferred viewports run independent of the parent viewport, which can save
     /// CPU if only some of the viewports require repainting.
     /// However, this requires passing state with `Arc` and locks.
     show_deferred_viewport: Arc<AtomicBool>,
