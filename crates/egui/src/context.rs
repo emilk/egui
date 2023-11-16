@@ -241,7 +241,6 @@ impl ContextImpl {
         }
 
         if let Some(new_pixels_per_point) = self.memory.override_pixels_per_point {
-            let viewport = self.viewport();
             if viewport.input.pixels_per_point != new_pixels_per_point {
                 new_raw_input.pixels_per_point = Some(new_pixels_per_point);
 
@@ -255,12 +254,9 @@ impl ContextImpl {
             }
         }
 
-        {
-            let viewport = self.viewport();
-            viewport.layer_rects_prev_frame = std::mem::take(&mut viewport.layer_rects_this_frame);
-        }
+        viewport.layer_rects_prev_frame = std::mem::take(&mut viewport.layer_rects_this_frame);
 
-        let all_viewport_ids = self.all_viewport_ids();
+        let all_viewport_ids: ViewportIdSet = self.all_viewport_ids();
 
         let viewport = self.viewports.entry(self.viewport_id()).or_default();
 
@@ -387,7 +383,6 @@ impl ContextImpl {
         self.viewports.entry(self.viewport_id()).or_default()
     }
 
-    /// The current active viewport
     fn viewport_for(&mut self, viewport_id: ViewportId) -> &mut ViewportState {
         self.viewports.entry(viewport_id).or_default()
     }
@@ -1344,10 +1339,10 @@ impl Context {
     pub fn set_pixels_per_point(&self, pixels_per_point: f32) {
         if pixels_per_point != self.pixels_per_point() {
             self.write(|ctx| {
+                ctx.memory.override_pixels_per_point = Some(pixels_per_point);
                 for id in ctx.all_viewport_ids() {
                     ctx.request_repaint(id);
                 }
-                ctx.memory.override_pixels_per_point = Some(pixels_per_point);
             });
         }
     }
@@ -1589,7 +1584,7 @@ impl ContextImpl {
             true
         });
 
-        // This is used to resume the last frame!
+        // If we are an immediate viewport, this will resume the previous viewport.
         self.viewport_stack.pop();
 
         // The last viewport is not necessarily the root viewport,
@@ -1602,6 +1597,9 @@ impl ContextImpl {
             .map(|(&id, viewport)| {
                 let parent = *self.viewport_parents.entry(id).or_default();
                 let commands = if is_last {
+                    // Let the primary immediate viewport handle the commands of its children too.
+                    // This can make things easier for the backend, as otherwise we may get commands
+                    // that affect a viewport while its egui logic is running.
                     std::mem::take(&mut viewport.commands)
                 } else {
                     vec![]
@@ -1644,7 +1642,7 @@ impl Context {
     /// Tessellate the given shapes into triangle meshes.
     ///
     /// `pixels_per_point` is used for feathering (anti-aliasing).
-    /// You can use [`Self::pixels_per_point`] for this,
+    /// For this you can use [`FullOutput::pixels_per_point`], [`Self::pixels_per_point`],
     /// or whatever is appropriate for your viewport.
     pub fn tessellate(
         &self,
@@ -2508,14 +2506,18 @@ impl Context {
         self.read(|ctx| ctx.parent_viewport_id())
     }
 
-    /// For integrations: Is used to render a sync viewport.
+    /// For integrations: Set this to render a sync viewport.
     ///
-    /// This will only be set for the current thread.
-    /// Can be set only one callback per thread.
+    /// This will only be set the callback for the current thread,
+    /// which mosty likely should be the main thread.
     ///
-    /// When a viewport sync is created will be rendered by this function
+    /// When an immediate viewport is created with [`Self::show_viewport_immediate`] it will be rendered by this function.
     ///
-    /// Look in `crates/eframe/native/run.rs` and search for `set_immediate_viewport_renderer` to see for what is used.
+    /// When called, the integration need to:
+    /// * Check if there already is a window for this viewport id, and if not open one
+    /// * Set the window attributes (postion, size, …) based on [`ImmediateViewport::builder`].
+    /// * Call [`Context::run`] with [`ImmediateViewport::viewport_ui_cb`].
+    /// * Handle the output from [`Context::run`], including rendering
     #[allow(clippy::unused_self)]
     pub fn set_immediate_viewport_renderer(
         callback: impl for<'a> Fn(&Context, ImmediateViewport<'a>) + 'static,
@@ -2527,29 +2529,31 @@ impl Context {
     }
 
     /// If `true`, [`Self::show_viewport`] and [`Self::show_viewport_immediate`] will
-    /// embed the new viewports as [`crate::Window`]s instead of spawning a new native window.
+    /// embed the new viewports inside the existing one, instead of spawning a new native window.
     ///
-    /// `eframe` sets this to `false` on supported platforms,
-    /// but the default value is `true`.
+    /// `eframe` sets this to `false` on supported platforms, but the default value is `true`.
     pub fn embed_viewports(&self) -> bool {
         self.read(|ctx| ctx.embed_viewports)
     }
 
     /// If `true`, [`Self::show_viewport`] and [`Self::show_viewport_immediate`] will
-    /// embed the new viewports as [`crate::Window`]s instead of spawning a new native window.
+    /// embed the new viewports inside the existing one, instead of spawning a new native window.
     ///
-    /// `eframe` sets this to `false` on supported platforms,
-    /// but the default value is `true`.
+    /// `eframe` sets this to `false` on supported platforms, but the default value is `true`.
     pub fn set_embed_viewports(&self, value: bool) {
         self.write(|ctx| ctx.embed_viewports = value);
     }
 
     /// Send a command to the current viewport.
+    ///
+    /// This lets you affect the current viewport, e.g. resizing the window.
     pub fn viewport_command(&self, command: ViewportCommand) {
         self.viewport_command_for(self.viewport_id(), command);
     }
 
     /// Send a command to a speicfic viewport.
+    ///
+    /// This lets you affect another viewport, e.g. resizing its window.
     pub fn viewport_command_for(&self, id: ViewportId, command: ViewportCommand) {
         self.write(|ctx| ctx.viewport_for(id).commands.push(command));
     }
