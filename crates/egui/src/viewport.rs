@@ -1,11 +1,57 @@
 //! egui supports multiple viewports, corresponding to multiple native windows.
 //!
-//! Viewports come in two flavors: "deferred" (the default) and "immediate".
+//! Not all egui backends support multiple viewports, but `eframe` native does
+//! (but not on web).
 //!
-//! * Deferred viewports have callbacks that are called multiple
-//!   times as the viewport receives events, or need repaitning.
-//! * Immediate viewports are executed immediately with an [`FnOnce`] callback,
-//!   locking the parent and child viewports together so that they both must update at the same time.
+//! You can spawn a new viewport using [`Context::show_viewport`] and [`Context::show_viewport_immediate`].
+//! These needs to be called every frame the viewport should be visible.
+//!
+//! This is implemented by the native `eframe` backend, but not the web one.
+//!
+//! ## Viewport classes
+//! The viewports form a tree of parent-child relationships.
+//!
+//! There are different classes of viewports.
+//!
+//! ### Root viewport
+//! The root viewport is the original viewport, and cannot be closed without closing the application.
+//!
+//! ### Deferred viewports
+//! These are created with [`Context::show_viewport`].
+//! Deferred viewports take a closure that is called by the integration at a later time, perhaps multiple times.
+//! Deferred viewports are repainted independenantly of the parent viewport.
+//! This means communication with them need to done via channels, or `Arc/Mutex`.
+//!
+//! This is the most performant type of child viewport, though a bit more cumbersome to work with compared to immediate viewports.
+//!
+//! ### Immediate viewports
+//! These are created with [`Context::show_viewport_immediate`].
+//! Immediate viewports take a `FnOnce` closure, similar to other egui functions, and is called immediately.
+//! This makes communication with them much simpler than with deferred viewports, but this simplicity comes at a cost: whenever the parent viewports needs to be repainted, so will the child viewport, and vice versa.
+//! This means that if you have `N` viewports you are potentially doing `N` times as much CPU work. However, if all your viewports are showing animations, and thus are repainting constantly anyway, this doesn't matter.
+//!
+//! In short: immediate viewports are simpler to use, but can waste a lot of CPU time.
+//!
+//! ### Embedded viewports
+//! These are not real, independenant viewports, but is a fallback mode for when the integration does not support real viewports. In your callback is called with [`ViewportClass::Embedded`] it means you need to create an [`crate::Window`] to wrap your ui in, which will then be embedded in the parent viewport, unable to escape it.
+//!
+//!
+//! ## Using the viewports
+//! Only one viewport is active at any one time, identified with [`Context::viewport_id`].
+//! You can send commands to other viewports using [`Context::send_viewport_command_to`].
+//!
+//! There is an example in <https://github.com/emilk/egui/tree/master/examples/multiple_viewports/src/main.rs>.
+//!
+//! ## For integrations
+//! * There is a [`crate::RawInput::viewport`] with information about the current viewport.
+//! * The repaint callback set by [`Context::set_request_repaint_callback`] points to which viewport should be repainted.
+//! * [`crate::FullOutput::viewport_output`] is a list of viewports which should result in their own independent windows.
+//! * To support immediate viewports you need to call [`Context::set_immediate_viewport_renderer`].
+//! * If you support viewports, you need to call [`Context::set_embed_viewports`] with `false`, or all new viewports will be embedded (the default behavior).
+//!
+//! ## Future work
+//! There are several more things related to viewports that we want to add.
+//! Read more at <https://github.com/emilk/egui/issues/3556>.
 
 use std::sync::Arc;
 
@@ -609,7 +655,7 @@ pub enum ResizeDirection {
     SouthWest,
 }
 
-/// You can send a [`ViewportCommand`] to the viewport with [`Context::viewport_command`].
+/// You can send a [`ViewportCommand`] to the viewport with [`Context::send_viewport_command`].
 ///
 /// All coordinates are in logical points.
 ///

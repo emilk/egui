@@ -2555,14 +2555,14 @@ impl Context {
     /// Send a command to the current viewport.
     ///
     /// This lets you affect the current viewport, e.g. resizing the window.
-    pub fn viewport_command(&self, command: ViewportCommand) {
-        self.viewport_command_for(self.viewport_id(), command);
+    pub fn send_viewport_command(&self, command: ViewportCommand) {
+        self.send_viewport_command_to(self.viewport_id(), command);
     }
 
     /// Send a command to a speicfic viewport.
     ///
     /// This lets you affect another viewport, e.g. resizing its window.
-    pub fn viewport_command_for(&self, id: ViewportId, command: ViewportCommand) {
+    pub fn send_viewport_command_to(&self, id: ViewportId, command: ViewportCommand) {
         self.write(|ctx| ctx.viewport_for(id).commands.push(command));
     }
 
@@ -2589,7 +2589,9 @@ impl Context {
     /// backend does not support multiple viewports), the given callback
     /// will be called immediately, embedding the new viewport in the current one.
     /// You can check this with the [`ViewportClass`] given in the callback.
-    /// If you find [`ViewportClass::embedded`], you need to create a new [`crate::Window`] for you content.
+    /// If you find [`ViewportClass::Embedded`], you need to create a new [`crate::Window`] for you content.
+    ///
+    /// See [`crate::viewport`] for more information about viewports.
     pub fn show_viewport(
         &self,
         new_viewport_id: ViewportId,
@@ -2636,7 +2638,9 @@ impl Context {
     /// backend does not support multiple viewports), the given callback
     /// will be called immediately, embedding the new viewport in the current one.
     /// You can check this with the [`ViewportClass`] given in the callback.
-    /// If you find [`ViewportClass::embedded`], you need to create a new [`crate::Window`] for you content.
+    /// If you find [`ViewportClass::Embedded`], you need to create a new [`crate::Window`] for you content.
+    ///
+    /// See [`crate::viewport`] for more information about viewports.
     pub fn show_viewport_immediate<T>(
         &self,
         new_viewport_id: ViewportId,

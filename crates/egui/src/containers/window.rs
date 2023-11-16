@@ -24,6 +24,9 @@ use super::*;
 /// ```
 ///
 /// The previous rectangle used by this window can be obtained through [`crate::Memory::area_rect()`].
+///
+/// Note that this is NOT a native OS window.
+/// To create a new native OS window, use [`crate::Context::show_viewport`].
 #[must_use = "You should call .show()"]
 pub struct Window<'open> {
     title: WidgetText,

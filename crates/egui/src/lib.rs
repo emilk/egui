@@ -96,6 +96,10 @@
 //! # });
 //! ```
 //!
+//! ## Viewports
+//! Some egui backends support multiple _viewports_, which is what egui calls the native OS windows it resides in.
+//! See [`crate::viewport`] for more information.
+//!
 //! ## Coordinate system
 //! The left-top corner of the screen is `(0.0, 0.0)`,
 //! with X increasing to the right and Y increasing downwards.
