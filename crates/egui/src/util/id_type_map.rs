@@ -119,7 +119,7 @@ impl std::fmt::Debug for Element {
         match &self {
             Self::Value { value, .. } => f
                 .debug_struct("Element::Value")
-                .field("type_id", &value.type_id())
+                .field("type_id", &(**value).type_id())
                 .finish_non_exhaustive(),
             Self::Serialized(SerializedElement {
                 type_id,

@@ -45,7 +45,7 @@ pub struct EhttpLoader {
 }
 
 impl EhttpLoader {
-    pub const ID: &str = egui::generate_loader_id!(EhttpLoader);
+    pub const ID: &'static str = egui::generate_loader_id!(EhttpLoader);
 }
 
 const PROTOCOLS: &[&str] = &["http://", "https://"];

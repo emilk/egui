@@ -35,19 +35,16 @@ impl<T: Float> PartialEq<Self> for OrderedFloat<T> {
 impl<T: Float> PartialOrd<Self> for OrderedFloat<T> {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match self.0.partial_cmp(&other.0) {
-            Some(ord) => Some(ord),
-            None => Some(self.0.is_nan().cmp(&other.0.is_nan())),
-        }
+        Some(self.cmp(other))
     }
 }
 
 impl<T: Float> Ord for OrderedFloat<T> {
     #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
-        match self.partial_cmp(other) {
+        match self.0.partial_cmp(&other.0) {
             Some(ord) => ord,
-            None => unreachable!(),
+            None => self.0.is_nan().cmp(&other.0.is_nan()),
         }
     }
 }

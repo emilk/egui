@@ -802,12 +802,9 @@ impl<'t> TextEdit<'t> {
                             let glyph_count = row.glyphs.len();
                             let mut value = String::new();
                             value.reserve(glyph_count);
-                            let mut character_lengths = Vec::<u8>::new();
-                            character_lengths.reserve(glyph_count);
-                            let mut character_positions = Vec::<f32>::new();
-                            character_positions.reserve(glyph_count);
-                            let mut character_widths = Vec::<f32>::new();
-                            character_widths.reserve(glyph_count);
+                            let mut character_lengths = Vec::<u8>::with_capacity(glyph_count);
+                            let mut character_positions = Vec::<f32>::with_capacity(glyph_count);
+                            let mut character_widths = Vec::<f32>::with_capacity(glyph_count);
                             let mut word_lengths = Vec::<u8>::new();
                             let mut was_at_word_end = false;
                             let mut last_word_start = 0usize;
