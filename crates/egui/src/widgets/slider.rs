@@ -290,6 +290,7 @@ impl<'a> Slider<'a> {
     ///
     /// This setting can be enabled globally for all sliders with [`Visuals::handle_shape`].
     /// Changing it here will override the above setting ONLY for this individual slider.
+    #[inline]
     pub fn handle_shape(mut self, handle_shape: HandleShape) -> Self {
         self.handle_shape = Some(handle_shape);
         self
