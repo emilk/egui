@@ -1274,6 +1274,7 @@ version = "0.23.0"
 dependencies = [
  "bytemuck",
  "document-features",
+ "egui",
  "epaint",
  "log",
  "puffin",
@@ -2555,6 +2556,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "multiple_viewports"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "env_logger",
+]
+
+[[package]]
 name = "naga"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3793,6 +3802,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6093bad37da69aab9d123a8091e4be0aa4a03e4d601ec641c327398315f62b64"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "test_viewports"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "env_logger",
 ]
 
 [[package]]

@@ -42,7 +42,7 @@ impl Id {
         Self(0)
     }
 
-    pub(crate) fn background() -> Self {
+    pub(crate) const fn background() -> Self {
         Self(1)
     }
 

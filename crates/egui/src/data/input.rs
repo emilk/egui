@@ -1,6 +1,6 @@
 //! The input needed by egui.
 
-use crate::emath::*;
+use crate::{emath::*, ViewportIdPair};
 
 /// What the integrations provides to egui at the start of each frame.
 ///
@@ -13,6 +13,9 @@ use crate::emath::*;
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RawInput {
+    /// Information about the viwport the input is part of.
+    pub viewport: ViewportInfo,
+
     /// Position and size of the area that egui should use, in points.
     /// Usually you would set this to
     ///
@@ -72,6 +75,7 @@ pub struct RawInput {
 impl Default for RawInput {
     fn default() -> Self {
         Self {
+            viewport: ViewportInfo::default(),
             screen_rect: None,
             pixels_per_point: None,
             max_texture_side: None,
@@ -93,6 +97,7 @@ impl RawInput {
     /// * [`Self::dropped_files`] is moved.
     pub fn take(&mut self) -> RawInput {
         RawInput {
+            viewport: self.viewport.take(),
             screen_rect: self.screen_rect.take(),
             pixels_per_point: self.pixels_per_point.take(),
             max_texture_side: self.max_texture_side.take(),
@@ -109,6 +114,7 @@ impl RawInput {
     /// Add on new input.
     pub fn append(&mut self, newer: Self) {
         let Self {
+            viewport,
             screen_rect,
             pixels_per_point,
             max_texture_side,
@@ -121,6 +127,7 @@ impl RawInput {
             focused,
         } = newer;
 
+        self.viewport = viewport;
         self.screen_rect = screen_rect.or(self.screen_rect);
         self.pixels_per_point = pixels_per_point.or(self.pixels_per_point);
         self.max_texture_side = max_texture_side.or(self.max_texture_side);
@@ -131,6 +138,46 @@ impl RawInput {
         self.hovered_files.append(&mut hovered_files);
         self.dropped_files.append(&mut dropped_files);
         self.focused = focused;
+    }
+}
+
+/// Information about the current viewport,
+/// given as input each frame.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct ViewportInfo {
+    /// Id of us and our parent.
+    pub ids: ViewportIdPair,
+
+    /// Viewport inner position and size, only the drowable area
+    /// unit = physical pixels
+    pub inner_rect_px: Option<Rect>,
+
+    /// Viewport outer position and size, drowable area + decorations
+    /// unit = physical pixels
+    pub outer_rect_px: Option<Rect>,
+
+    /// The user requested the viewport should close,
+    /// e.g. by pressing the close button in the window decoration.
+    pub close_requested: bool,
+}
+
+impl ViewportInfo {
+    pub fn take(&mut self) -> Self {
+        core::mem::take(self)
+    }
+
+    pub fn ui(&self, ui: &mut crate::Ui) {
+        let Self {
+            ids,
+            inner_rect_px,
+            outer_rect_px,
+            close_requested,
+        } = self;
+        ui.label(format!("ids: {ids:?}"));
+        ui.label(format!("inner_rect_px: {inner_rect_px:?}"));
+        ui.label(format!("outer_rect_px: {outer_rect_px:?}"));
+        ui.label(format!("close_requested: {close_requested:?}"));
     }
 }
 
@@ -943,8 +990,10 @@ impl RawInput {
             hovered_files,
             dropped_files,
             focused,
+            viewport,
         } = self;
 
+        viewport.ui(ui);
         ui.label(format!("screen_rect: {screen_rect:?} points"));
         ui.label(format!("pixels_per_point: {pixels_per_point:?}"))
             .on_hover_text(

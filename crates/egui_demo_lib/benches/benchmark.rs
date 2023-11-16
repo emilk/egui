@@ -16,7 +16,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let full_output = ctx.run(RawInput::default(), |ctx| {
                     demo_windows.ui(ctx);
                 });
-                ctx.tessellate(full_output.shapes)
+                ctx.tessellate(full_output.shapes, full_output.pixels_per_point)
             });
         });
 
@@ -32,7 +32,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             demo_windows.ui(ctx);
         });
         c.bench_function("demo_only_tessellate", |b| {
-            b.iter(|| ctx.tessellate(full_output.shapes.clone()));
+            b.iter(|| ctx.tessellate(full_output.shapes.clone(), full_output.pixels_per_point));
         });
     }
 

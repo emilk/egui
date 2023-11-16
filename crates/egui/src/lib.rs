@@ -96,6 +96,10 @@
 //! # });
 //! ```
 //!
+//! ## Viewports
+//! Some egui backends support multiple _viewports_, which is what egui calls the native OS windows it resides in.
+//! See [`crate::viewport`] for more information.
+//!
 //! ## Coordinate system
 //! The left-top corner of the screen is `(0.0, 0.0)`,
 //! with X increasing to the right and Y increasing downwards.
@@ -134,7 +138,7 @@
 //!         });
 //!     });
 //!     handle_platform_output(full_output.platform_output);
-//!     let clipped_primitives = ctx.tessellate(full_output.shapes); // create triangles to paint
+//!     let clipped_primitives = ctx.tessellate(full_output.shapes, full_output.pixels_per_point);
 //!     paint(full_output.textures_delta, clipped_primitives);
 //! }
 //! ```
@@ -357,6 +361,7 @@ mod sense;
 pub mod style;
 mod ui;
 pub mod util;
+pub mod viewport;
 pub mod widget_text;
 pub mod widgets;
 
@@ -417,6 +422,7 @@ pub use {
     style::{FontSelection, Margin, Style, TextStyle, Visuals},
     text::{Galley, TextFormat},
     ui::Ui,
+    viewport::*,
     widget_text::{RichText, WidgetText},
     widgets::*,
 };

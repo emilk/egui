@@ -259,7 +259,7 @@ impl Area {
 
         let layer_id = LayerId::new(order, id);
 
-        let state = ctx.memory(|mem| mem.areas.get(id).copied());
+        let state = ctx.memory(|mem| mem.areas().get(id).copied());
         let is_new = state.is_none();
         if is_new {
             ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place
@@ -307,9 +307,9 @@ impl Area {
 
             if (move_response.dragged() || move_response.clicked())
                 || pointer_pressed_on_area(ctx, layer_id)
-                || !ctx.memory(|m| m.areas.visible_last_frame(&layer_id))
+                || !ctx.memory(|m| m.areas().visible_last_frame(&layer_id))
             {
-                ctx.memory_mut(|m| m.areas.move_to_top(layer_id));
+                ctx.memory_mut(|m| m.areas_mut().move_to_top(layer_id));
                 ctx.request_repaint();
             }
 
@@ -353,7 +353,7 @@ impl Area {
         }
 
         let layer_id = LayerId::new(self.order, self.id);
-        let area_rect = ctx.memory(|mem| mem.areas.get(self.id).map(|area| area.rect()));
+        let area_rect = ctx.memory(|mem| mem.areas().get(self.id).map(|area| area.rect()));
         if let Some(area_rect) = area_rect {
             let clip_rect = ctx.available_rect();
             let painter = Painter::new(ctx.clone(), layer_id, clip_rect);
@@ -441,7 +441,7 @@ impl Prepared {
 
         state.size = content_ui.min_size();
 
-        ctx.memory_mut(|m| m.areas.set_state(layer_id, state));
+        ctx.memory_mut(|m| m.areas_mut().set_state(layer_id, state));
 
         move_response
     }
@@ -458,7 +458,7 @@ fn pointer_pressed_on_area(ctx: &Context, layer_id: LayerId) -> bool {
 
 fn automatic_area_position(ctx: &Context) -> Pos2 {
     let mut existing: Vec<Rect> = ctx.memory(|mem| {
-        mem.areas
+        mem.areas()
             .visible_windows()
             .into_iter()
             .map(State::rect)

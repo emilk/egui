@@ -24,6 +24,9 @@ use super::*;
 /// ```
 ///
 /// The previous rectangle used by this window can be obtained through [`crate::Memory::area_rect()`].
+///
+/// Note that this is NOT a native OS window.
+/// To create a new native OS window, use [`crate::Context::show_viewport`].
 #[must_use = "You should call .show()"]
 pub struct Window<'open> {
     title: WidgetText,
@@ -585,7 +588,7 @@ fn interact(
         }
     }
 
-    ctx.memory_mut(|mem| mem.areas.move_to_top(area_layer_id));
+    ctx.memory_mut(|mem| mem.areas_mut().move_to_top(area_layer_id));
     Some(window_interaction)
 }
 
@@ -638,31 +641,31 @@ fn window_interaction(
     rect: Rect,
 ) -> Option<WindowInteraction> {
     {
-        let drag_id = ctx.memory(|mem| mem.interaction.drag_id);
+        let drag_id = ctx.memory(|mem| mem.interaction().drag_id);
 
         if drag_id.is_some() && drag_id != Some(id) {
             return None;
         }
     }
 
-    let mut window_interaction = ctx.memory(|mem| mem.window_interaction);
+    let mut window_interaction = ctx.memory(|mem| mem.window_interaction());
 
     if window_interaction.is_none() {
         if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect) {
             hover_window_interaction.set_cursor(ctx);
             if ctx.input(|i| i.pointer.any_pressed() && i.pointer.primary_down()) {
                 ctx.memory_mut(|mem| {
-                    mem.interaction.drag_id = Some(id);
-                    mem.interaction.drag_is_window = true;
+                    mem.interaction_mut().drag_id = Some(id);
+                    mem.interaction_mut().drag_is_window = true;
                     window_interaction = Some(hover_window_interaction);
-                    mem.window_interaction = window_interaction;
+                    mem.set_window_interaction(window_interaction);
                 });
             }
         }
     }
 
     if let Some(window_interaction) = window_interaction {
-        let is_active = ctx.memory_mut(|mem| mem.interaction.drag_id == Some(id));
+        let is_active = ctx.memory_mut(|mem| mem.interaction().drag_id == Some(id));
 
         if is_active && window_interaction.area_layer_id == area_layer_id {
             return Some(window_interaction);
@@ -690,7 +693,7 @@ fn resize_hover(
         }
     }
 
-    if ctx.memory(|mem| mem.interaction.drag_interest) {
+    if ctx.memory(|mem| mem.interaction().drag_interest) {
         // Another widget will become active if we drag here
         return None;
     }

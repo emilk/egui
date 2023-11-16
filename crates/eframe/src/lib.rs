@@ -313,6 +313,11 @@ pub enum Error {
     #[error("Found no glutin configs matching the template: {0:?}. Error: {1:?}")]
     NoGlutinConfigs(glutin::config::ConfigTemplate, Box<dyn std::error::Error>),
 
+    /// An error from [`glutin`] when using [`glow`].
+    #[cfg(feature = "glow")]
+    #[error("egui_glow: {0}")]
+    OpenGL(#[from] egui_glow::PainterError),
+
     /// An error from [`wgpu`].
     #[cfg(feature = "wgpu")]
     #[error("WGPU error: {0}")]
@@ -320,7 +325,7 @@ pub enum Error {
 }
 
 /// Short for `Result<T, eframe::Error>`.
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 // ---------------------------------------------------------------------------
 

@@ -49,10 +49,10 @@ puffin = ["dep:puffin", "egui/puffin"]
 serde = ["egui/serde", "dep:serde"]
 
 ## Enables Wayland support.
-wayland = ["winit/wayland"]
+wayland = ["winit/wayland", "bytemuck"]
 
 ## Enables compiling for x11.
-x11 = ["winit/x11"]
+x11 = ["winit/x11", "bytemuck"]
 
 [dependencies]
 egui = { version = "0.23.0", path = "../egui", default-features = false, features = [

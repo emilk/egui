@@ -94,7 +94,7 @@ impl AppRunner {
         {
             let needs_repaint = needs_repaint.clone();
             egui_ctx.set_request_repaint_callback(move |info| {
-                needs_repaint.repaint_after(info.after.as_secs_f64());
+                needs_repaint.repaint_after(info.delay.as_secs_f64());
             });
         }
 
@@ -170,10 +170,8 @@ impl AppRunner {
         self.painter.destroy();
     }
 
-    /// Returns how long to wait until the next repaint.
-    ///
     /// Call [`Self::paint`] later to paint
-    pub fn logic(&mut self) -> (std::time::Duration, Vec<egui::ClippedPrimitive>) {
+    pub fn logic(&mut self) -> Vec<egui::ClippedPrimitive> {
         let frame_start = now_sec();
 
         super::resize_canvas_to_screen_size(self.canvas_id(), self.web_options.max_size_points);
@@ -185,14 +183,20 @@ impl AppRunner {
         });
         let egui::FullOutput {
             platform_output,
-            repaint_after,
             textures_delta,
             shapes,
+            pixels_per_point,
+            viewport_output,
         } = full_output;
+
+        if viewport_output.len() > 1 {
+            log::warn!("Multiple viewports not yet supported on the web");
+        }
+        // TODO(emilk): handle some of the command in `viewport_output`, like setting the title and icon?
 
         self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
-        let clipped_primitives = self.egui_ctx.tessellate(shapes);
+        let clipped_primitives = self.egui_ctx.tessellate(shapes, pixels_per_point);
 
         {
             let app_output = self.frame.take_app_output();
@@ -201,7 +205,7 @@ impl AppRunner {
 
         self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
 
-        (repaint_after, clipped_primitives)
+        clipped_primitives
     }
 
     /// Paint the results of the last call to [`Self::logic`].

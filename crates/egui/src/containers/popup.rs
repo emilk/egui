@@ -280,7 +280,7 @@ pub fn was_tooltip_open_last_frame(ctx: &Context, tooltip_id: Id) -> bool {
                 if *individual_id == tooltip_id {
                     let area_id = common_id.with(count);
                     let layer_id = LayerId::new(Order::Tooltip, area_id);
-                    if ctx.memory(|mem| mem.areas.visible_last_frame(&layer_id)) {
+                    if ctx.memory(|mem| mem.areas().visible_last_frame(&layer_id)) {
                         return true;
                     }
                 }

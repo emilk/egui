@@ -44,7 +44,7 @@ pub type EventLoopBuilderHook = Box<dyn FnOnce(&mut EventLoopBuilder<UserEvent>)
 /// done by `eframe`.
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
-pub type WindowBuilderHook = Box<dyn FnOnce(WindowBuilder) -> WindowBuilder>;
+pub type WindowBuilderHook = Box<dyn FnOnce(egui::ViewportBuilder) -> egui::ViewportBuilder>;
 
 /// This is how your app is created.
 ///
@@ -120,6 +120,10 @@ pub trait App {
     /// The [`egui::Context`] can be cloned and saved if you like.
     ///
     /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
+    ///
+    /// This is called for the root viewport ([`egui::ViewportId::ROOT`]).
+    /// Use [`egui::Context::show_viewport`] to spawn additional viewports (windows).
+    /// (A "viewport" in egui means an native OS window).
     fn update(&mut self, ctx: &egui::Context, frame: &mut Frame);
 
     /// Get a handle to the app.

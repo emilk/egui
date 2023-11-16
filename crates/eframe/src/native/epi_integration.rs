@@ -1,15 +1,10 @@
-use winit::event_loop::EventLoopWindowTarget;
+use std::time::Instant;
 
-#[cfg(target_os = "macos")]
-use winit::platform::macos::WindowBuilderExtMacOS as _;
+use winit::event_loop::EventLoopWindowTarget;
 
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
-#[cfg(feature = "accesskit")]
-use egui::accesskit;
-use egui::NumExt as _;
-#[cfg(feature = "accesskit")]
-use egui_winit::accesskit_winit;
+use egui::{DeferredViewportUiCallback, NumExt as _, ViewportBuilder, ViewportId, ViewportIdPair};
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
 
 use crate::{epi, Theme, WindowInfo};
@@ -20,13 +15,6 @@ pub struct WindowState {
     // because that deadlocks on mac.
     pub minimized: bool,
     pub maximized: bool,
-}
-
-pub fn points_to_size(points: egui::Vec2) -> winit::dpi::LogicalSize<f64> {
-    winit::dpi::LogicalSize {
-        width: points.x as f64,
-        height: points.y as f64,
-    }
 }
 
 pub fn read_window_info(
@@ -77,7 +65,7 @@ pub fn window_builder<E>(
     title: &str,
     native_options: &mut epi::NativeOptions,
     window_settings: Option<WindowSettings>,
-) -> winit::window::WindowBuilder {
+) -> ViewportBuilder {
     let epi::NativeOptions {
         maximized,
         decorated,
@@ -97,24 +85,29 @@ pub fn window_builder<E>(
         ..
     } = native_options;
 
-    let window_icon = icon_data.clone().and_then(load_icon);
-
-    let mut window_builder = winit::window::WindowBuilder::new()
+    let mut viewport_builder = egui::ViewportBuilder::default()
         .with_title(title)
         .with_decorations(*decorated)
-        .with_fullscreen(fullscreen.then(|| winit::window::Fullscreen::Borderless(None)))
+        .with_fullscreen(*fullscreen)
         .with_maximized(*maximized)
         .with_resizable(*resizable)
         .with_transparent(*transparent)
-        .with_window_icon(window_icon)
         .with_active(*active)
         // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
         // We must also keep the window hidden until AccessKit is initialized.
         .with_visible(false);
 
+    if let Some(icon_data) = icon_data {
+        viewport_builder =
+            viewport_builder.with_window_icon(egui::ColorImage::from_rgba_premultiplied(
+                [icon_data.width as usize, icon_data.height as usize],
+                &icon_data.rgba,
+            ));
+    }
+
     #[cfg(target_os = "macos")]
     if *fullsize_content {
-        window_builder = window_builder
+        viewport_builder = viewport_builder
             .with_title_hidden(true)
             .with_titlebar_transparent(true)
             .with_fullsize_content_view(true);
@@ -122,21 +115,20 @@ pub fn window_builder<E>(
 
     #[cfg(all(feature = "wayland", target_os = "linux"))]
     {
-        use winit::platform::wayland::WindowBuilderExtWayland as _;
-        match &native_options.app_id {
-            Some(app_id) => window_builder = window_builder.with_name(app_id, ""),
-            None => window_builder = window_builder.with_name(title, ""),
-        }
+        viewport_builder = match &native_options.app_id {
+            Some(app_id) => viewport_builder.with_name(app_id, ""),
+            None => viewport_builder.with_name(title, ""),
+        };
     }
 
     if let Some(min_size) = *min_window_size {
-        window_builder = window_builder.with_min_inner_size(points_to_size(min_size));
+        viewport_builder = viewport_builder.with_min_inner_size(min_size);
     }
     if let Some(max_size) = *max_window_size {
-        window_builder = window_builder.with_max_inner_size(points_to_size(max_size));
+        viewport_builder = viewport_builder.with_max_inner_size(max_size);
     }
 
-    window_builder = window_builder_drag_and_drop(window_builder, *drag_and_drop_support);
+    viewport_builder = viewport_builder.with_drag_and_drop(*drag_and_drop_support);
 
     // Always use the default window size / position on iOS. Trying to restore the previous position
     // causes the window to be shown too small.
@@ -147,20 +139,17 @@ pub fn window_builder<E>(
         window_settings.clamp_size_to_sane_values(largest_monitor_point_size(event_loop));
         window_settings.clamp_position_to_monitors(event_loop);
 
-        window_builder = window_settings.initialize_window_builder(window_builder);
+        viewport_builder = window_settings.initialize_viewport_builder(viewport_builder);
         window_settings.inner_size_points()
     } else {
         if let Some(pos) = *initial_window_pos {
-            window_builder = window_builder.with_position(winit::dpi::LogicalPosition {
-                x: pos.x as f64,
-                y: pos.y as f64,
-            });
+            viewport_builder = viewport_builder.with_position(pos);
         }
 
         if let Some(initial_window_size) = *initial_window_size {
             let initial_window_size =
                 initial_window_size.at_most(largest_monitor_point_size(event_loop));
-            window_builder = window_builder.with_inner_size(points_to_size(initial_window_size));
+            viewport_builder = viewport_builder.with_inner_size(initial_window_size);
         }
 
         *initial_window_size
@@ -169,19 +158,19 @@ pub fn window_builder<E>(
     #[cfg(not(target_os = "ios"))]
     if *centered {
         if let Some(monitor) = event_loop.available_monitors().next() {
-            let monitor_size = monitor.size().to_logical::<f64>(monitor.scale_factor());
+            let monitor_size = monitor.size().to_logical::<f32>(monitor.scale_factor());
             let inner_size = inner_size_points.unwrap_or(egui::Vec2 { x: 800.0, y: 600.0 });
             if monitor_size.width > 0.0 && monitor_size.height > 0.0 {
-                let x = (monitor_size.width - inner_size.x as f64) / 2.0;
-                let y = (monitor_size.height - inner_size.y as f64) / 2.0;
-                window_builder = window_builder.with_position(winit::dpi::LogicalPosition { x, y });
+                let x = (monitor_size.width - inner_size.x) / 2.0;
+                let y = (monitor_size.height - inner_size.y) / 2.0;
+                viewport_builder = viewport_builder.with_position([x, y]);
             }
         }
     }
 
     match std::mem::take(&mut native_options.window_builder) {
-        Some(hook) => hook(window_builder),
-        None => window_builder,
+        Some(hook) => hook(viewport_builder),
+        None => viewport_builder,
     }
 }
 
@@ -219,34 +208,14 @@ fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui:
     }
 }
 
-fn load_icon(icon_data: epi::IconData) -> Option<winit::window::Icon> {
-    winit::window::Icon::from_rgba(icon_data.rgba, icon_data.width, icon_data.height).ok()
-}
-
-#[cfg(target_os = "windows")]
-fn window_builder_drag_and_drop(
-    window_builder: winit::window::WindowBuilder,
-    enable: bool,
-) -> winit::window::WindowBuilder {
-    use winit::platform::windows::WindowBuilderExtWindows as _;
-    window_builder.with_drag_and_drop(enable)
-}
-
-#[cfg(not(target_os = "windows"))]
-fn window_builder_drag_and_drop(
-    window_builder: winit::window::WindowBuilder,
-    _enable: bool,
-) -> winit::window::WindowBuilder {
-    // drag and drop can only be disabled on windows
-    window_builder
-}
-
 pub fn handle_app_output(
     window: &winit::window::Window,
     current_pixels_per_point: f32,
     app_output: epi::backend::AppOutput,
     window_state: &mut WindowState,
 ) {
+    crate::profile_function!();
+
     let epi::backend::AppOutput {
         close: _,
         window_size,
@@ -294,7 +263,7 @@ pub fn handle_app_output(
     }
 
     if drag_window {
-        let _ = window.drag_window();
+        window.drag_window().ok();
     }
 
     if let Some(always_on_top) = always_on_top {
@@ -346,10 +315,11 @@ pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
 /// Everything needed to make a winit-based integration for [`epi`].
 pub struct EpiIntegration {
     pub frame: epi::Frame,
-    last_auto_save: std::time::Instant,
+    last_auto_save: Instant,
+    pub beginning: Instant,
+    pub frame_start: Instant,
     pub egui_ctx: egui::Context,
     pending_full_output: egui::FullOutput,
-    egui_winit: egui_winit::State,
 
     /// When set, it is time to close the native window.
     close: bool,
@@ -364,18 +334,18 @@ pub struct EpiIntegration {
 
 impl EpiIntegration {
     #[allow(clippy::too_many_arguments)]
-    pub fn new<E>(
-        event_loop: &EventLoopWindowTarget<E>,
-        max_texture_side: usize,
+    pub fn new(
         window: &winit::window::Window,
         system_theme: Option<Theme>,
         app_name: &str,
         native_options: &crate::NativeOptions,
         storage: Option<Box<dyn epi::Storage>>,
+        is_desktop: bool,
         #[cfg(feature = "glow")] gl: Option<std::sync::Arc<glow::Context>>,
         #[cfg(feature = "wgpu")] wgpu_render_state: Option<egui_wgpu::RenderState>,
     ) -> Self {
         let egui_ctx = egui::Context::default();
+        egui_ctx.set_embed_viewports(!is_desktop);
 
         let memory = load_egui_memory(storage.as_deref()).unwrap_or_default();
         egui_ctx.memory_mut(|mem| *mem = memory);
@@ -408,10 +378,6 @@ impl EpiIntegration {
             raw_window_handle: window.raw_window_handle(),
         };
 
-        let mut egui_winit = egui_winit::State::new(event_loop);
-        egui_winit.set_max_texture_side(max_texture_side);
-        egui_winit.set_pixels_per_point(native_pixels_per_point);
-
         let app_icon_setter = super::app_icon::AppTitleIconSetter::new(
             app_name.to_owned(),
             native_options.icon_data.clone(),
@@ -419,9 +385,8 @@ impl EpiIntegration {
 
         Self {
             frame,
-            last_auto_save: std::time::Instant::now(),
+            last_auto_save: Instant::now(),
             egui_ctx,
-            egui_winit,
             pending_full_output: Default::default(),
             close: false,
             can_drag_window: false,
@@ -430,34 +395,47 @@ impl EpiIntegration {
             #[cfg(feature = "persistence")]
             persist_window: native_options.persist_window,
             app_icon_setter,
+            beginning: Instant::now(),
+            frame_start: Instant::now(),
         }
     }
 
     #[cfg(feature = "accesskit")]
-    pub fn init_accesskit<E: From<accesskit_winit::ActionRequestEvent> + Send>(
+    pub fn init_accesskit<E: From<egui_winit::accesskit_winit::ActionRequestEvent> + Send>(
         &mut self,
+        egui_winit: &mut egui_winit::State,
         window: &winit::window::Window,
         event_loop_proxy: winit::event_loop::EventLoopProxy<E>,
     ) {
+        crate::profile_function!();
+
         let egui_ctx = self.egui_ctx.clone();
-        self.egui_winit
-            .init_accesskit(window, event_loop_proxy, move || {
-                // This function is called when an accessibility client
-                // (e.g. screen reader) makes its first request. If we got here,
-                // we know that an accessibility tree is actually wanted.
-                egui_ctx.enable_accesskit();
-                // Enqueue a repaint so we'll receive a full tree update soon.
-                egui_ctx.request_repaint();
-                egui_ctx.accesskit_placeholder_tree_update()
-            });
+        egui_winit.init_accesskit(window, event_loop_proxy, move || {
+            // This function is called when an accessibility client
+            // (e.g. screen reader) makes its first request. If we got here,
+            // we know that an accessibility tree is actually wanted.
+            egui_ctx.enable_accesskit();
+            // Enqueue a repaint so we'll receive a full tree update soon.
+            egui_ctx.request_repaint();
+            egui_ctx.accesskit_placeholder_tree_update()
+        });
     }
 
-    pub fn warm_up(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
+    pub fn warm_up(
+        &mut self,
+        app: &mut dyn epi::App,
+        window: &winit::window::Window,
+        egui_winit: &mut egui_winit::State,
+    ) {
         crate::profile_function!();
         let saved_memory: egui::Memory = self.egui_ctx.memory(|mem| mem.clone());
         self.egui_ctx
             .memory_mut(|mem| mem.set_everything_is_visible(true));
-        let full_output = self.update(app, window);
+
+        let raw_input = egui_winit.take_egui_input(window, ViewportIdPair::ROOT);
+        self.pre_update(window);
+        let full_output = self.update(app, None, raw_input);
+        self.post_update(app, window);
         self.pending_full_output.append(full_output); // Handle it next frame
         self.egui_ctx.memory_mut(|mem| *mem = saved_memory); // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
@@ -472,6 +450,8 @@ impl EpiIntegration {
         &mut self,
         app: &mut dyn epi::App,
         event: &winit::event::WindowEvent<'_>,
+        egui_winit: &mut egui_winit::State,
+        viewport_id: ViewportId,
     ) -> EventResponse {
         crate::profile_function!();
 
@@ -480,7 +460,7 @@ impl EpiIntegration {
         match event {
             WindowEvent::CloseRequested => {
                 log::debug!("Received WindowEvent::CloseRequested");
-                self.close = app.on_close_event();
+                self.close = app.on_close_event() && viewport_id == ViewportId::ROOT;
                 log::debug!("App::on_close_event returned {}", self.close);
             }
             WindowEvent::Destroyed => {
@@ -503,37 +483,47 @@ impl EpiIntegration {
             _ => {}
         }
 
-        self.egui_winit.on_event(&self.egui_ctx, event)
+        egui_winit.on_event(&self.egui_ctx, event)
     }
 
-    #[cfg(feature = "accesskit")]
-    pub fn on_accesskit_action_request(&mut self, request: accesskit::ActionRequest) {
-        self.egui_winit.on_accesskit_action_request(request);
-    }
-
-    pub fn update(
-        &mut self,
-        app: &mut dyn epi::App,
-        window: &winit::window::Window,
-    ) -> egui::FullOutput {
-        let frame_start = std::time::Instant::now();
+    pub fn pre_update(&mut self, window: &winit::window::Window) {
+        self.frame_start = Instant::now();
 
         self.app_icon_setter.update();
 
         self.frame.info.window_info =
             read_window_info(window, self.egui_ctx.pixels_per_point(), &self.window_state);
-        let raw_input = self.egui_winit.take_egui_input(window);
+    }
 
-        // Run user code:
+    /// Run user code - this can create immediate viewports, so hold no locks over this!
+    ///
+    /// If `viewport_ui_cb` is None, we are in the root viewport and will call [`crate::App::update`].
+    pub fn update(
+        &mut self,
+        app: &mut dyn epi::App,
+        viewport_ui_cb: Option<&DeferredViewportUiCallback>,
+        mut raw_input: egui::RawInput,
+    ) -> egui::FullOutput {
+        raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
+
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
-            crate::profile_scope!("App::update");
-            app.update(egui_ctx, &mut self.frame);
+            if let Some(viewport_ui_cb) = viewport_ui_cb {
+                // Child viewport
+                crate::profile_scope!("viewport_callback");
+                viewport_ui_cb(egui_ctx);
+            } else {
+                // Root viewport
+                crate::profile_scope!("App::update");
+                app.update(egui_ctx, &mut self.frame);
+            }
         });
 
         self.pending_full_output.append(full_output);
-        let full_output = std::mem::take(&mut self.pending_full_output);
+        std::mem::take(&mut self.pending_full_output)
+    }
 
-        {
+    pub fn post_update(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
+        let app_output = {
             let mut app_output = self.frame.take_app_output();
             app_output.drag_window &= self.can_drag_window; // Necessary on Windows; see https://github.com/emilk/egui/pull/1108
             self.can_drag_window = false;
@@ -546,29 +536,30 @@ impl EpiIntegration {
             if self.frame.output.attention.is_some() {
                 self.frame.output.attention = None;
             }
-            handle_app_output(
-                window,
-                self.egui_ctx.pixels_per_point(),
-                app_output,
-                &mut self.window_state,
-            );
-        }
+            app_output
+        };
 
-        let frame_time = frame_start.elapsed().as_secs_f64() as f32;
+        handle_app_output(
+            window,
+            self.egui_ctx.pixels_per_point(),
+            app_output,
+            &mut self.window_state,
+        );
+
+        let frame_time = self.frame_start.elapsed().as_secs_f64() as f32;
         self.frame.info.cpu_usage = Some(frame_time);
-
-        full_output
     }
 
     pub fn post_rendering(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
+        crate::profile_function!();
         let inner_size = window.inner_size();
         let window_size_px = [inner_size.width, inner_size.height];
-
         app.post_rendering(window_size_px, &self.frame);
     }
 
     pub fn post_present(&mut self, window: &winit::window::Window) {
         if let Some(visible) = self.frame.output.visible.take() {
+            crate::profile_scope!("window.set_visible");
             window.set_visible(visible);
         }
     }
@@ -576,19 +567,24 @@ impl EpiIntegration {
     pub fn handle_platform_output(
         &mut self,
         window: &winit::window::Window,
+        viewport_id: ViewportId,
         platform_output: egui::PlatformOutput,
+        egui_winit: &mut egui_winit::State,
     ) {
-        self.egui_winit
-            .handle_platform_output(window, &self.egui_ctx, platform_output);
+        egui_winit.handle_platform_output(window, viewport_id, &self.egui_ctx, platform_output);
     }
 
     // ------------------------------------------------------------------------
     // Persistence stuff:
 
-    pub fn maybe_autosave(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
-        let now = std::time::Instant::now();
+    pub fn maybe_autosave(
+        &mut self,
+        app: &mut dyn epi::App,
+        window: Option<&winit::window::Window>,
+    ) {
+        let now = Instant::now();
         if now - self.last_auto_save > app.auto_save_interval() {
-            self.save(app, Some(window));
+            self.save(app, window);
             self.last_auto_save = now;
         }
     }
