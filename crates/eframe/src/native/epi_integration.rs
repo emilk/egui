@@ -4,7 +4,7 @@ use winit::event_loop::EventLoopWindowTarget;
 
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
-use egui::{NumExt as _, ViewportBuilder, ViewportId, ViewportIdPair, ViewportUiCallback};
+use egui::{DeferredViewportUiCallback, NumExt as _, ViewportBuilder, ViewportId, ViewportIdPair};
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
 
 use crate::{epi, Theme, WindowInfo};
@@ -501,7 +501,7 @@ impl EpiIntegration {
     pub fn update(
         &mut self,
         app: &mut dyn epi::App,
-        viewport_ui_cb: Option<&ViewportUiCallback>,
+        viewport_ui_cb: Option<&DeferredViewportUiCallback>,
         mut raw_input: egui::RawInput,
     ) -> egui::FullOutput {
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());

@@ -71,23 +71,29 @@ impl ViewportState {
 
         if immediate {
             let mut vp_state = vp_state.write();
-            ctx.show_viewport_immediate(vp_id, viewport, move |ctx| {
-                show_as_popup(ctx, &title, vp_id.into(), |ui: &mut egui::Ui| {
+            ctx.show_viewport_immediate(vp_id, viewport, move |ctx, class| {
+                show_as_popup(ctx, class, &title, vp_id.into(), |ui: &mut egui::Ui| {
                     generic_child_ui(ui, &mut vp_state);
                 });
             });
         } else {
             let count = Arc::new(RwLock::new(0));
-            ctx.show_viewport(vp_id, viewport, move |ctx| {
+            ctx.show_viewport(vp_id, viewport, move |ctx, class| {
                 let mut vp_state = vp_state.write();
                 let count = count.clone();
-                show_as_popup(ctx, &title, vp_id.into(), move |ui: &mut egui::Ui| {
-                    let current_count = *count.read();
-                    ui.label(format!("Callback has been reused {current_count} times"));
-                    *count.write() += 1;
+                show_as_popup(
+                    ctx,
+                    class,
+                    &title,
+                    vp_id.into(),
+                    move |ui: &mut egui::Ui| {
+                        let current_count = *count.read();
+                        ui.label(format!("Callback has been reused {current_count} times"));
+                        *count.write() += 1;
 
-                    generic_child_ui(ui, &mut vp_state);
-                });
+                        generic_child_ui(ui, &mut vp_state);
+                    },
+                );
             });
         }
     }
@@ -160,8 +166,15 @@ impl eframe::App for App {
 }
 
 /// This will make the content as a popup if cannot has his own native window
-fn show_as_popup(ctx: &egui::Context, title: &str, id: Id, content: impl FnOnce(&mut egui::Ui)) {
-    if ctx.viewport_id() == ctx.parent_viewport_id() {
+fn show_as_popup(
+    ctx: &egui::Context,
+    class: egui::ViewportClass,
+    title: &str,
+    id: Id,
+    content: impl FnOnce(&mut egui::Ui),
+) {
+    if class == egui::ViewportClass::Embedded {
+        // Not a real viewport
         egui::Window::new(title).id(id).show(ctx, content);
     } else {
         egui::CentralPanel::default().show(ctx, |ui| ui.push_id(id, content));

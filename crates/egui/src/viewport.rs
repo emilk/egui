@@ -15,6 +15,37 @@ use crate::{Context, Id};
 
 // ----------------------------------------------------------------------------
 
+/// The different types of viewports supported by egui.
+#[derive(Clone, Copy, Default, Hash, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum ViewportClass {
+    /// The root viewport; i.e. the original window.
+    #[default]
+    Root,
+
+    /// A viewport run independently from the parent viewport.
+    ///
+    /// This is the preferred type of viewport from a performance perspective.
+    ///
+    /// Create these with [`crate::Context::show_viewport`].
+    Deferred,
+
+    /// A viewport run inside the parent viewport.
+    ///
+    /// This is the easier type of viewport to use, but it is less performant
+    /// at it requires both parent and child to repaint if any one of them needs repainting,
+    /// which efficvely produce double work for two viewports, and triple work for three viewports, etc.
+    ///
+    /// Create these with [`crate::Context::show_viewport_immediate`].
+    Immediate,
+
+    /// The fallback, when the egui integration doesn't support viewports,
+    /// or [`crate::Context::embed_viewports`] is set to `true`.
+    Embedded,
+}
+
+// ----------------------------------------------------------------------------
+
 /// A unique identifier of a viewport.
 ///
 /// This is returned by [`Context::viewport_id`] and [`Context::parent_viewport_id`].
@@ -91,7 +122,7 @@ impl ViewportIdPair {
 }
 
 /// The user-code that shows the ui in the viewport, used for deferred viewports.
-pub type ViewportUiCallback = dyn Fn(&Context) + Sync + Send;
+pub type DeferredViewportUiCallback = dyn Fn(&Context) + Sync + Send;
 
 /// Render the given viewport, calling the given ui callback.
 pub type ImmediateViewportRendererCallback = dyn for<'a> Fn(&Context, ImmediateViewport<'a>);
@@ -668,13 +699,19 @@ pub struct ViewportOutput {
     /// Id of our parent viewport.
     pub parent: ViewportId,
 
+    /// What type of viewport are we?
+    ///
+    /// This will never be [`ViewportClass::Embedded`],
+    /// since those don't result in real viewports.
+    pub class: ViewportClass,
+
     /// The window attrbiutes such as title, position, size, etc.
     pub builder: ViewportBuilder,
 
     /// The user-code that shows the GUI, used for deferred viewports.
     ///
     /// `None` for immediate viewports and the ROOT viewport.
-    pub viewport_ui_cb: Option<Arc<ViewportUiCallback>>,
+    pub viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
 
     /// Commands to change the viewport, e.g. window title and size.
     pub commands: Vec<ViewportCommand>,
@@ -693,6 +730,7 @@ impl ViewportOutput {
     pub fn append(&mut self, newer: Self) {
         let Self {
             parent,
+            class,
             builder,
             viewport_ui_cb,
             mut commands,
@@ -700,6 +738,7 @@ impl ViewportOutput {
         } = newer;
 
         self.parent = parent;
+        self.class = class;
         self.builder.patch(&builder);
         self.viewport_ui_cb = viewport_ui_cb;
         self.commands.append(&mut commands);

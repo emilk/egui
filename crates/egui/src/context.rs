@@ -16,6 +16,7 @@ use crate::{
     os::OperatingSystem,
     output::FullOutput,
     util::IdTypeMap,
+    viewport::ViewportClass,
     TextureHandle, ViewportCommand, *,
 };
 
@@ -114,13 +115,19 @@ impl ContextImpl {
 /// State stored per viewport
 #[derive(Default)]
 struct ViewportState {
+    /// The type of viewport.
+    ///
+    /// This will never be [`ViewportClass::Embedded`],
+    /// since those don't result in real viewports.
+    class: ViewportClass,
+
     /// The latest delta
     builder: ViewportBuilder,
 
     /// The user-code that shows the GUI, used for deferred viewports.
     ///
     /// `None` for immediate viewports.
-    viewport_ui_cb: Option<Arc<ViewportUiCallback>>,
+    viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
 
     input: InputState,
 
@@ -1609,6 +1616,7 @@ impl ContextImpl {
                     id,
                     ViewportOutput {
                         parent,
+                        class: viewport.class,
                         builder: viewport.builder.clone(),
                         viewport_ui_cb: viewport.viewport_ui_cb.clone(),
                         commands,
@@ -2577,32 +2585,43 @@ impl Context {
     /// the parent viewport (the caller) to repaint anytime the child is repainted,
     /// and vice versa.
     ///
-    /// If you use a [`crate::CentralPanel`] you need to check if the viewport is a new window like:
-    /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a [`crate::Window`].
+    /// If [`Context::embed_viewports`] is `true` (e.g. if the current egui
+    /// backend does not support multiple viewports), the given callback
+    /// will be called immediately, embedding the new viewport in the current one.
+    /// You can check this with the [`ViewportClass`] given in the callback.
+    /// If you find [`ViewportClass::embedded`], you need to create a new [`crate::Window`] for you content.
     pub fn show_viewport(
         &self,
         new_viewport_id: ViewportId,
         viewport_builder: ViewportBuilder,
-        viewport_ui_cb: impl Fn(&Context) + Send + Sync + 'static,
+        viewport_ui_cb: impl Fn(&Context, ViewportClass) + Send + Sync + 'static,
     ) {
         crate::profile_function!();
 
         if self.embed_viewports() {
-            viewport_ui_cb(self);
+            viewport_ui_cb(self, ViewportClass::Embedded);
         } else {
             self.write(|ctx| {
                 ctx.viewport_parents
                     .insert(new_viewport_id, ctx.viewport_id());
 
                 let mut viewport = ctx.viewports.entry(new_viewport_id).or_default();
+                viewport.class = ViewportClass::Deferred;
                 viewport.builder = viewport_builder;
                 viewport.used = true;
-                viewport.viewport_ui_cb = Some(Arc::new(Box::new(viewport_ui_cb)));
+                viewport.viewport_ui_cb = Some(Arc::new(move |ctx| {
+                    (viewport_ui_cb)(ctx, ViewportClass::Deferred);
+                }));
             });
         }
     }
 
     /// This creates a new native window, if possible.
+    ///
+    /// This is the easier type of viewport to use, but it is less performant
+    /// at it requires both parent and child to repaint if any one of them needs repainting,
+    /// which efficvely produce double work for two viewports, and triple work for three viewports, etc.
+    /// To avoid this, use [`Self::show_viewport`] instead.
     ///
     /// The given id must be unique for each viewport.
     ///
@@ -2610,35 +2629,31 @@ impl Context {
     ///
     /// The given ui function will be called immediately.
     /// This may only be called on the main thread.
-    ///
     /// This call will pause the current viewport and render the child viewport in its own window.
     /// This means that the child viewport will not be repainted when the parent viewport is repainted, and vice versa.
-    /// This can lead to unnecessary repaint.
-    /// To avoid this, use [`Self::show_viewport`] instead.
     ///
     /// If [`Context::embed_viewports`] is `true` (e.g. if the current egui
     /// backend does not support multiple viewports), the given callback
     /// will be called immediately, embedding the new viewport in the current one.
-    ///
-    /// If you use a `egui::CentralPanel` you need to check if the viewport is a new window like:
-    /// `ctx.viewport_id() != ctx.parent_viewport_id` if false you should create a [`crate::Window`].
+    /// You can check this with the [`ViewportClass`] given in the callback.
+    /// If you find [`ViewportClass::embedded`], you need to create a new [`crate::Window`] for you content.
     pub fn show_viewport_immediate<T>(
         &self,
         new_viewport_id: ViewportId,
         builder: ViewportBuilder,
-        viewport_ui_cb: impl FnOnce(&Context) -> T,
+        viewport_ui_cb: impl FnOnce(&Context, ViewportClass) -> T,
     ) -> T {
         crate::profile_function!();
 
         if self.embed_viewports() {
-            return viewport_ui_cb(self);
+            return viewport_ui_cb(self, ViewportClass::Embedded);
         }
 
         IMMEDIATE_VIEWPORT_RENDERER.with(|immediate_viewport_renderer| {
             let immediate_viewport_renderer = immediate_viewport_renderer.borrow();
             let Some(immediate_viewport_renderer) = immediate_viewport_renderer.as_ref() else {
                 // This egui backend does not support multiple viewports.
-                return viewport_ui_cb(self);
+                return viewport_ui_cb(self, ViewportClass::Embedded);
             };
 
             let ids = self.write(|ctx| {
@@ -2662,7 +2677,9 @@ impl Context {
                 let viewport = ImmediateViewport {
                     ids,
                     builder,
-                    viewport_ui_cb: Box::new(move |context| *out = Some(viewport_ui_cb(context))),
+                    viewport_ui_cb: Box::new(move |context| {
+                        *out = Some(viewport_ui_cb(context, ViewportClass::Immediate));
+                    }),
                 };
 
                 immediate_viewport_renderer(self, viewport);

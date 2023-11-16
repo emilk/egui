@@ -457,8 +457,8 @@ mod glow_integration {
     };
 
     use egui::{
-        epaint::ahash::HashMap, ImmediateViewport, NumExt as _, ViewportIdMap, ViewportIdPair,
-        ViewportIdSet, ViewportOutput, ViewportUiCallback,
+        epaint::ahash::HashMap, DeferredViewportUiCallback, ImmediateViewport, NumExt as _,
+        ViewportClass, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
     };
     use egui_winit::{create_winit_window_builder, process_viewport_commands, EventResponse};
 
@@ -781,11 +781,12 @@ mod glow_integration {
 
     struct Viewport {
         ids: ViewportIdPair,
+        class: ViewportClass,
         builder: ViewportBuilder,
 
         /// The user-callback that shows the ui.
         /// None for immediate viewports.
-        viewport_ui_cb: Option<Arc<ViewportUiCallback>>,
+        viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
 
         gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
         window: Option<Rc<Window>>,
@@ -944,6 +945,7 @@ mod glow_integration {
                 ViewportId::ROOT,
                 Viewport {
                     ids: ViewportIdPair::ROOT,
+                    class: ViewportClass::Root,
                     builder: viewport_builder,
                     viewport_ui_cb: None,
                     gl_surface: None,
@@ -1166,6 +1168,7 @@ mod glow_integration {
                 viewport_id,
                 ViewportOutput {
                     parent,
+                    class,
                     builder,
                     viewport_ui_cb,
                     commands,
@@ -1178,6 +1181,7 @@ mod glow_integration {
                 initialize_or_update_viewport(
                     &mut self.viewports,
                     ids,
+                    class,
                     builder,
                     viewport_ui_cb,
                     focused_viewport,
@@ -1208,6 +1212,7 @@ mod glow_integration {
     fn initialize_or_update_viewport(
         viewports: &mut ViewportIdMap<Viewport>,
         ids: ViewportIdPair,
+        class: ViewportClass,
         mut builder: ViewportBuilder,
         viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
         focused_viewport: Option<ViewportId>,
@@ -1227,6 +1232,7 @@ mod glow_integration {
                 log::debug!("Creating new viewport {:?} ({:?})", ids.this, builder.title);
                 entry.insert(Viewport {
                     ids,
+                    class,
                     builder,
                     viewport_ui_cb,
                     window: None,
@@ -1240,6 +1246,7 @@ mod glow_integration {
                 let viewport = entry.get_mut();
 
                 viewport.ids.parent = ids.parent;
+                viewport.class = class;
                 viewport.viewport_ui_cb = viewport_ui_cb;
 
                 let (delta_commands, recreate) = viewport.builder.patch(&builder);
@@ -1519,8 +1526,14 @@ mod glow_integration {
         {
             let mut glutin = glutin.borrow_mut();
 
-            let viewport =
-                initialize_or_update_viewport(&mut glutin.viewports, ids, builder, None, None);
+            let viewport = initialize_or_update_viewport(
+                &mut glutin.viewports,
+                ids,
+                ViewportClass::Immediate,
+                builder,
+                None,
+                None,
+            );
 
             if viewport.gl_surface.is_none() {
                 glutin.init_viewport(ids.this, event_loop).expect(
@@ -1799,8 +1812,8 @@ mod wgpu_integration {
     use parking_lot::Mutex;
 
     use egui::{
-        FullOutput, ImmediateViewport, ViewportIdMap, ViewportIdPair, ViewportIdSet,
-        ViewportOutput, ViewportUiCallback,
+        DeferredViewportUiCallback, FullOutput, ImmediateViewport, ViewportClass, ViewportIdMap,
+        ViewportIdPair, ViewportIdSet, ViewportOutput,
     };
     use egui_winit::{create_winit_window_builder, process_viewport_commands};
 
@@ -1809,10 +1822,12 @@ mod wgpu_integration {
     pub struct Viewport {
         ids: ViewportIdPair,
 
+        class: ViewportClass,
+
         builder: ViewportBuilder,
 
         /// `None` for sync viewports.
-        viewport_ui_cb: Option<Arc<ViewportUiCallback>>,
+        viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
 
         /// Window surface state that's initialized when the app starts running via a Resumed event
         /// and on Android will also be destroyed if the application is paused.
@@ -2049,6 +2064,7 @@ mod wgpu_integration {
                 ViewportId::ROOT,
                 Viewport {
                     ids: ViewportIdPair::ROOT,
+                    class: ViewportClass::Root,
                     builder,
                     viewport_ui_cb: None,
                     window: Some(Rc::new(window)),
@@ -2139,7 +2155,14 @@ mod wgpu_integration {
                 painter,
                 viewport_from_window,
             } = &mut *shared.borrow_mut();
-            let viewport = initialize_or_update_viewport(viewports, ids, builder, None, None);
+            let viewport = initialize_or_update_viewport(
+                viewports,
+                ids,
+                ViewportClass::Immediate,
+                builder,
+                None,
+                None,
+            );
 
             if viewport.window.is_none() {
                 viewport.init_window(viewport_from_window, painter, event_loop);
@@ -2676,6 +2699,7 @@ mod wgpu_integration {
             viewport_id,
             ViewportOutput {
                 parent,
+                class,
                 builder,
                 viewport_ui_cb,
                 commands,
@@ -2688,6 +2712,7 @@ mod wgpu_integration {
             initialize_or_update_viewport(
                 viewports,
                 ids,
+                class,
                 builder,
                 viewport_ui_cb,
                 focused_viewport,
@@ -2706,6 +2731,7 @@ mod wgpu_integration {
     fn initialize_or_update_viewport(
         viewports: &mut Viewports,
         ids: ViewportIdPair,
+        class: ViewportClass,
         mut builder: ViewportBuilder,
         viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
         focused_viewport: Option<ViewportId>,
@@ -2723,6 +2749,7 @@ mod wgpu_integration {
                 log::debug!("Creating new viewport {:?} ({:?})", ids.this, builder.title);
                 entry.insert(Viewport {
                     ids,
+                    class,
                     builder,
                     viewport_ui_cb,
                     window: None,
@@ -2734,6 +2761,7 @@ mod wgpu_integration {
                 // Patch an existing viewport:
                 let viewport = entry.get_mut();
 
+                viewport.class = class;
                 viewport.ids.parent = ids.parent;
                 viewport.viewport_ui_cb = viewport_ui_cb;
 
