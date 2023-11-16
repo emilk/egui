@@ -156,22 +156,8 @@ impl super::View for Sliders {
 
         ui.separator();
 
-        ui.label("Handle shape");
-        ui.horizontal(|ui| {
-            ui.radio_value(handle_shape, HandleShape::Circle, "Circle");
-            if ui
-                .radio(
-                    matches!(handle_shape, HandleShape::Rect { aspect_ratio: _ }),
-                    "Rectangle",
-                )
-                .clicked()
-            {
-                *handle_shape = HandleShape::Rect { aspect_ratio: 0.5 };
-            }
-            if let HandleShape::Rect { aspect_ratio } = handle_shape {
-                ui.add(Slider::new(aspect_ratio, 0.1..=3.0).text("Aspect ratio"));
-            }
-        });
+        handle_shape.ui(ui);
+
         ui.separator();
 
         ui.checkbox(use_steps, "Use steps");

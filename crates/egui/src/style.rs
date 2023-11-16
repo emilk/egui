@@ -1776,7 +1776,7 @@ impl Visuals {
 
         ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
 
-        handle_shape_ui(ui, handle_shape);
+        handle_shape.ui(ui);
 
         ComboBox::from_label("Interact Cursor")
             .selected_text(format!("{interact_cursor:?}"))
@@ -1901,21 +1901,20 @@ fn rounding_ui(ui: &mut Ui, rounding: &mut Rounding) {
     });
 }
 
-fn handle_shape_ui(ui: &mut Ui, handle_shape: &mut HandleShape) {
-    ui.label("Widget handle shape");
-    ui.horizontal(|ui| {
-        ui.radio_value(handle_shape, HandleShape::Circle, "Circle");
-        if ui
-            .radio(
-                matches!(handle_shape, HandleShape::Rect { .. }),
-                "Rectangle",
-            )
-            .clicked()
-        {
-            *handle_shape = HandleShape::Rect { aspect_ratio: 0.5 };
-        }
-        if let HandleShape::Rect { aspect_ratio } = handle_shape {
-            ui.add(Slider::new(aspect_ratio, 0.1..=3.0).text("Aspect ratio"));
-        }
-    });
+impl HandleShape {
+    pub fn ui(&mut self, ui: &mut Ui) {
+        ui.label("Widget handle shape");
+        ui.horizontal(|ui| {
+            ui.radio_value(self, HandleShape::Circle, "Circle");
+            if ui
+                .radio(matches!(self, HandleShape::Rect { .. }), "Rectangle")
+                .clicked()
+            {
+                *self = HandleShape::Rect { aspect_ratio: 0.5 };
+            }
+            if let HandleShape::Rect { aspect_ratio } = self {
+                ui.add(Slider::new(aspect_ratio, 0.1..=3.0).text("Aspect ratio"));
+            }
+        });
+    }
 }
