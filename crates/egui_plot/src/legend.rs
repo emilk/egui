@@ -73,6 +73,7 @@ impl Legend {
 
     /// Specifies hidden items in the legend configuration to override the existing ones. This
     /// allows the legend traces' visibility to be controlled from the application code.
+    #[inline]
     pub fn hidden_items<I>(mut self, hidden_items: I) -> Self
     where
         I: IntoIterator<Item = String>,
