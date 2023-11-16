@@ -4,15 +4,16 @@ on:
   # We only run this on merges to master
   push:
     branches: ["master"]
-
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+# to only run when you do a new github release, comment out above part and uncomment the below trigger.
+# on:
+#   release:
+#     types: ["published"]
 
-# Grant GITHUB_TOKEN the permissions required to make a Pages deployment
+
 permissions:
-  contents: read
-  pages:    write # to deploy to Pages
-  id-token: write # to verify the deployment originates from an appropriate source
+  contents: write # for committing to gh-pages branch
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
@@ -32,10 +33,6 @@ jobs:
   # Single deploy job since we're just deploying
   deploy:
     name: Deploy web demo
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     runs-on: ubuntu-latest
     steps:
@@ -60,14 +57,10 @@ jobs:
       - run: |
           scripts/build_demo_web.sh --release
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v3
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          path: "docs"
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v2
+          folder: docs
+          # this option will not maintain any history of your previous pages deployment
+          # set to false if you want all page build to be committed to your gh-pages branch history
+          single-commit: true
