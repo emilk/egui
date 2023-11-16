@@ -123,6 +123,18 @@ impl Resize {
         self
     }
 
+    /// Won't expand to larger than this
+    pub fn max_width(mut self, max_width: f32) -> Self {
+        self.max_size.x = max_width;
+        self
+    }
+
+    /// Won't expand to larger than this
+    pub fn max_height(mut self, max_height: f32) -> Self {
+        self.max_size.y = max_height;
+        self
+    }
+
     /// Can you resize it with the mouse?
     ///
     /// Note that a window can still auto-resize.
