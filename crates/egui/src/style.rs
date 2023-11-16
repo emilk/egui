@@ -1907,7 +1907,7 @@ fn handle_shape_ui(ui: &mut Ui, handle_shape: &mut HandleShape) {
         ui.radio_value(handle_shape, HandleShape::Circle, "Circle");
         if ui
             .radio(
-                matches!(handle_shape, HandleShape::Rect { aspect_ratio: _ }),
+                matches!(handle_shape, HandleShape::Rect { .. }),
                 "Rectangle",
             )
             .clicked()
