@@ -86,6 +86,7 @@ impl ProgressBar {
     /// If [`Self::rounding`] and [`Self::animate`] are used simultaneously, the animation is not
     /// rendered, since it requires a perfect circle to render correctly. However, the UI is still
     /// redrawn.
+    #[inline]
     pub fn rounding(mut self, rounding: impl Into<Rounding>) -> Self {
         self.rounding = Some(rounding.into());
         self
