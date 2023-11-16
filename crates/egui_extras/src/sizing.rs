@@ -47,6 +47,7 @@ impl Size {
     }
 
     /// Won't shrink below this size (in points).
+    #[inline]
     pub fn at_least(mut self, minimum: f32) -> Self {
         match &mut self {
             Self::Absolute { range, .. }
@@ -59,6 +60,7 @@ impl Size {
     }
 
     /// Won't grow above this size (in points).
+    #[inline]
     pub fn at_most(mut self, maximum: f32) -> Self {
         match &mut self {
             Self::Absolute { range, .. }

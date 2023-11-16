@@ -390,6 +390,7 @@ impl CollapsingHeader {
 
     /// By default, the [`CollapsingHeader`] is collapsed.
     /// Call `.default_open(true)` to change this.
+    #[inline]
     pub fn default_open(mut self, open: bool) -> Self {
         self.default_open = open;
         self
@@ -400,6 +401,7 @@ impl CollapsingHeader {
     /// Calling `.open(Some(false))` will make the collapsing header close this frame (or stay closed).
     ///
     /// Calling `.open(None)` has no effect (default).
+    #[inline]
     pub fn open(mut self, open: Option<bool>) -> Self {
         self.open = open;
         self
@@ -407,6 +409,7 @@ impl CollapsingHeader {
 
     /// Explicitly set the source of the [`Id`] of this widget, instead of using title label.
     /// This is useful if the title label is dynamic or not unique.
+    #[inline]
     pub fn id_source(mut self, id_source: impl Hash) -> Self {
         self.id_source = Id::new(id_source);
         self
@@ -415,6 +418,7 @@ impl CollapsingHeader {
     /// If you set this to `false`, the [`CollapsingHeader`] will be grayed out and un-clickable.
     ///
     /// This is a convenience for [`Ui::set_enabled`].
+    #[inline]
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self
@@ -422,6 +426,7 @@ impl CollapsingHeader {
 
     /// Can the [`CollapsingHeader`] be selected by clicking it? Default: `false`.
     #[deprecated = "Use the more powerful egui::collapsing_header::CollapsingState::show_header"] // Deprecated in 2022-04-28, before egui 0.18
+    #[inline]
     pub fn selectable(mut self, selectable: bool) -> Self {
         self.selectable = selectable;
         self
@@ -443,6 +448,7 @@ impl CollapsingHeader {
     /// # });
     /// ```
     #[deprecated = "Use the more powerful egui::collapsing_header::CollapsingState::show_header"] // Deprecated in 2022-04-28, before egui 0.18
+    #[inline]
     pub fn selected(mut self, selected: bool) -> Self {
         self.selected = selected;
         self
@@ -456,6 +462,7 @@ impl CollapsingHeader {
     /// ui.visuals_mut().collapsing_header_frame = true;
     /// # });
     /// ```
+    #[inline]
     pub fn show_background(mut self, show_background: bool) -> Self {
         self.show_background = show_background;
         self
@@ -478,6 +485,7 @@ impl CollapsingHeader {
     ///   .show(ui, |ui| { ui.label("Hi!"); });
     /// # });
     /// ```
+    #[inline]
     pub fn icon(mut self, icon_fn: impl FnOnce(&mut Ui, f32, &Response) + 'static) -> Self {
         self.icon = Some(Box::new(icon_fn));
         self

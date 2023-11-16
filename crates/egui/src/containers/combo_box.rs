@@ -78,12 +78,14 @@ impl ComboBox {
     }
 
     /// Set the outer width of the button and menu.
+    #[inline]
     pub fn width(mut self, width: f32) -> Self {
         self.width = Some(width);
         self
     }
 
     /// What we show as the currently selected value
+    #[inline]
     pub fn selected_text(mut self, selected_text: impl Into<WidgetText>) -> Self {
         self.selected_text = selected_text.into();
         self
@@ -129,6 +131,7 @@ impl ComboBox {
     }
 
     /// Controls whether text wrap is used for the selected text
+    #[inline]
     pub fn wrap(mut self, wrap: bool) -> Self {
         self.wrap_enabled = wrap;
         self

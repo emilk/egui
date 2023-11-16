@@ -112,6 +112,7 @@ impl RetainedImage {
     /// let image = RetainedImage::from_color_image("my_image", color_image)
     ///     .with_options(TextureOptions::NEAREST);
     /// ```
+    #[inline]
     pub fn with_options(mut self, options: TextureOptions) -> Self {
         self.options = options;
 

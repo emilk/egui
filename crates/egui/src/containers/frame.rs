@@ -164,6 +164,7 @@ impl Frame {
         self
     }
 
+    #[inline]
     pub fn multiply_with_opacity(mut self, opacity: f32) -> Self {
         self.fill = self.fill.linear_multiply(opacity);
         self.stroke.color = self.stroke.color.linear_multiply(opacity);

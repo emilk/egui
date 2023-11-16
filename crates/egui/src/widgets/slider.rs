@@ -138,41 +138,48 @@ impl<'a> Slider<'a> {
 
     /// Control whether or not the slider shows the current value.
     /// Default: `true`.
+    #[inline]
     pub fn show_value(mut self, show_value: bool) -> Self {
         self.show_value = show_value;
         self
     }
 
     /// Show a prefix before the number, e.g. "x: "
+    #[inline]
     pub fn prefix(mut self, prefix: impl ToString) -> Self {
         self.prefix = prefix.to_string();
         self
     }
 
     /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
+    #[inline]
     pub fn suffix(mut self, suffix: impl ToString) -> Self {
         self.suffix = suffix.to_string();
         self
     }
 
     /// Show a text next to the slider (e.g. explaining what the slider controls).
+    #[inline]
     pub fn text(mut self, text: impl Into<WidgetText>) -> Self {
         self.text = text.into();
         self
     }
 
+    #[inline]
     pub fn text_color(mut self, text_color: Color32) -> Self {
         self.text = self.text.color(text_color);
         self
     }
 
     /// Vertical or horizontal slider? The default is horizontal.
+    #[inline]
     pub fn orientation(mut self, orientation: SliderOrientation) -> Self {
         self.orientation = orientation;
         self
     }
 
     /// Make this a vertical slider.
+    #[inline]
     pub fn vertical(mut self) -> Self {
         self.orientation = SliderOrientation::Vertical;
         self
@@ -182,6 +189,7 @@ impl<'a> Slider<'a> {
     /// This is great for when the slider spans a huge range,
     /// e.g. from one to a million.
     /// The default is OFF.
+    #[inline]
     pub fn logarithmic(mut self, logarithmic: bool) -> Self {
         self.spec.logarithmic = logarithmic;
         self
@@ -190,6 +198,7 @@ impl<'a> Slider<'a> {
     /// For logarithmic sliders that includes zero:
     /// what is the smallest positive value you want to be able to select?
     /// The default is `1` for integer sliders and `1e-6` for real sliders.
+    #[inline]
     pub fn smallest_positive(mut self, smallest_positive: f64) -> Self {
         self.spec.smallest_positive = smallest_positive;
         self
@@ -198,6 +207,7 @@ impl<'a> Slider<'a> {
     /// For logarithmic sliders, the largest positive value we are interested in
     /// before the slider switches to `INFINITY`, if that is the higher end.
     /// Default: INFINITY.
+    #[inline]
     pub fn largest_finite(mut self, largest_finite: f64) -> Self {
         self.spec.largest_finite = largest_finite;
         self
@@ -205,6 +215,7 @@ impl<'a> Slider<'a> {
 
     /// If set to `true`, all incoming and outgoing values will be clamped to the slider range.
     /// Default: `true`.
+    #[inline]
     pub fn clamp_to_range(mut self, clamp_to_range: bool) -> Self {
         self.clamp_to_range = clamp_to_range;
         self
@@ -212,6 +223,7 @@ impl<'a> Slider<'a> {
 
     /// Turn smart aim on/off. Default is ON.
     /// There is almost no point in turning this off.
+    #[inline]
     pub fn smart_aim(mut self, smart_aim: bool) -> Self {
         self.smart_aim = smart_aim;
         self
@@ -223,6 +235,7 @@ impl<'a> Slider<'a> {
     /// and `clamp_to_range` is enabled, you would not have the ability to change the value.
     ///
     /// Default: `0.0` (disabled).
+    #[inline]
     pub fn step_by(mut self, step: f64) -> Self {
         self.step = if step != 0.0 { Some(step) } else { None };
         self
@@ -236,6 +249,7 @@ impl<'a> Slider<'a> {
     /// By default this is the same speed as when dragging the slider,
     /// but you can change it here to for instance have a much finer control
     /// by dragging the slider value rather than the slider itself.
+    #[inline]
     pub fn drag_value_speed(mut self, drag_value_speed: f64) -> Self {
         self.drag_value_speed = Some(drag_value_speed);
         self
@@ -246,6 +260,7 @@ impl<'a> Slider<'a> {
     ///
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    #[inline]
     pub fn min_decimals(mut self, min_decimals: usize) -> Self {
         self.min_decimals = min_decimals;
         self
@@ -257,6 +272,7 @@ impl<'a> Slider<'a> {
     /// Values will also be rounded to this number of decimals.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    #[inline]
     pub fn max_decimals(mut self, max_decimals: usize) -> Self {
         self.max_decimals = Some(max_decimals);
         self
@@ -267,6 +283,7 @@ impl<'a> Slider<'a> {
     /// Values will also be rounded to this number of decimals.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    #[inline]
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
         self.min_decimals = num_decimals;
         self.max_decimals = Some(num_decimals);
@@ -279,6 +296,7 @@ impl<'a> Slider<'a> {
     /// Toggling it here will override the above setting ONLY for this individual slider.
     ///
     /// The fill color will be taken from `selection.bg_fill` in your [`Visuals`], the same as a [`ProgressBar`].
+    #[inline]
     pub fn trailing_fill(mut self, trailing_fill: bool) -> Self {
         self.trailing_fill = Some(trailing_fill);
         self
@@ -362,6 +380,7 @@ impl<'a> Slider<'a> {
     ///     }));
     /// # });
     /// ```
+    #[inline]
     pub fn custom_parser(mut self, parser: impl 'a + Fn(&str) -> Option<f64>) -> Self {
         self.custom_parser = Some(Box::new(parser));
         self
