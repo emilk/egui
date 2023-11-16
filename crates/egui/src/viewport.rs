@@ -665,9 +665,10 @@ pub enum ViewportCommand {
 /// Describes a viewport, i.e. a native window.
 #[derive(Clone)]
 pub struct ViewportOutput {
-    /// Id of us and our parent.
-    pub ids: ViewportIdPair,
+    /// Id of our parent viewport.
+    pub parent: ViewportId,
 
+    /// The window attrbiutes such as title, position, size, etc.
     pub builder: ViewportBuilder,
 
     /// The user-code that shows the GUI, used for deferred viewports.
@@ -688,21 +689,17 @@ pub struct ViewportOutput {
 }
 
 impl ViewportOutput {
-    pub fn id(&self) -> ViewportId {
-        self.ids.this
-    }
-
     /// Add on new output.
     pub fn append(&mut self, newer: Self) {
         let Self {
-            ids,
+            parent,
             builder,
             viewport_ui_cb,
             mut commands,
             repaint_delay,
         } = newer;
 
-        self.ids = ids;
+        self.parent = parent;
         self.builder.patch(&builder);
         self.viewport_ui_cb = viewport_ui_cb;
         self.commands.append(&mut commands);

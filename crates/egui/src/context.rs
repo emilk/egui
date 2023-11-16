@@ -1608,7 +1608,7 @@ impl ContextImpl {
                 (
                     id,
                     ViewportOutput {
-                        ids: ViewportIdPair::from_self_and_parent(id, parent),
+                        parent,
                         builder: viewport.builder.clone(),
                         viewport_ui_cb: viewport.viewport_ui_cb.clone(),
                         commands,

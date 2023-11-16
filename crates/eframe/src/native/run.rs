@@ -1165,7 +1165,7 @@ mod glow_integration {
             for (
                 viewport_id,
                 ViewportOutput {
-                    ids,
+                    parent,
                     builder,
                     viewport_ui_cb,
                     commands,
@@ -1173,6 +1173,8 @@ mod glow_integration {
                 },
             ) in viewport_output
             {
+                let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
+
                 initialize_or_update_viewport(
                     &mut self.viewports,
                     ids,
@@ -2673,7 +2675,7 @@ mod wgpu_integration {
         for (
             viewport_id,
             ViewportOutput {
-                ids,
+                parent,
                 builder,
                 viewport_ui_cb,
                 commands,
@@ -2681,6 +2683,8 @@ mod wgpu_integration {
             },
         ) in viewport_output
         {
+            let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
+
             initialize_or_update_viewport(
                 viewports,
                 ids,
