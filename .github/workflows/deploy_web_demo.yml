@@ -44,8 +44,6 @@ jobs:
         with:
           prefix-key: "web-demo-"
 
-      - uses: jetli/wasm-bindgen-action@v0.2.0
-
       - run: |
           scripts/build_demo_web.sh --release
 
