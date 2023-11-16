@@ -134,30 +134,35 @@ impl HLine {
     }
 
     /// Highlight this line in the plot by scaling up the line.
+    #[inline]
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
         self
     }
 
     /// Add a stroke.
+    #[inline]
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = stroke.into();
         self
     }
 
     /// Stroke width. A high value means the plot thickens.
+    #[inline]
     pub fn width(mut self, width: impl Into<f32>) -> Self {
         self.stroke.width = width.into();
         self
     }
 
     /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
+    #[inline]
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.stroke.color = color.into();
         self
     }
 
     /// Set the line's style. Default is `LineStyle::Solid`.
+    #[inline]
     pub fn style(mut self, style: LineStyle) -> Self {
         self.style = style;
         self
@@ -170,6 +175,7 @@ impl HLine {
     /// Multiple plot items may share the same name, in which case they will also share an entry in
     /// the legend.
     #[allow(clippy::needless_pass_by_value)]
+    #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
         self
@@ -250,30 +256,35 @@ impl VLine {
     }
 
     /// Highlight this line in the plot by scaling up the line.
+    #[inline]
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
         self
     }
 
     /// Add a stroke.
+    #[inline]
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = stroke.into();
         self
     }
 
     /// Stroke width. A high value means the plot thickens.
+    #[inline]
     pub fn width(mut self, width: impl Into<f32>) -> Self {
         self.stroke.width = width.into();
         self
     }
 
     /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
+    #[inline]
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.stroke.color = color.into();
         self
     }
 
     /// Set the line's style. Default is `LineStyle::Solid`.
+    #[inline]
     pub fn style(mut self, style: LineStyle) -> Self {
         self.style = style;
         self
@@ -286,6 +297,7 @@ impl VLine {
     /// Multiple plot items may share the same name, in which case they will also share an entry in
     /// the legend.
     #[allow(clippy::needless_pass_by_value)]
+    #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
         self
@@ -367,36 +379,42 @@ impl Line {
     }
 
     /// Highlight this line in the plot by scaling up the line.
+    #[inline]
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
         self
     }
 
     /// Add a stroke.
+    #[inline]
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = stroke.into();
         self
     }
 
     /// Stroke width. A high value means the plot thickens.
+    #[inline]
     pub fn width(mut self, width: impl Into<f32>) -> Self {
         self.stroke.width = width.into();
         self
     }
 
     /// Stroke color. Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
+    #[inline]
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.stroke.color = color.into();
         self
     }
 
     /// Fill the area between this line and a given horizontal reference line.
+    #[inline]
     pub fn fill(mut self, y_reference: impl Into<f32>) -> Self {
         self.fill = Some(y_reference.into());
         self
     }
 
     /// Set the line's style. Default is `LineStyle::Solid`.
+    #[inline]
     pub fn style(mut self, style: LineStyle) -> Self {
         self.style = style;
         self
@@ -409,6 +427,7 @@ impl Line {
     /// Multiple plot items may share the same name, in which case they will also share an entry in
     /// the legend.
     #[allow(clippy::needless_pass_by_value)]
+    #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
         self
@@ -535,18 +554,21 @@ impl Polygon {
 
     /// Highlight this polygon in the plot by scaling up the stroke and reducing the fill
     /// transparency.
+    #[inline]
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
         self
     }
 
     /// Add a custom stroke.
+    #[inline]
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = stroke.into();
         self
     }
 
     /// Set the stroke width.
+    #[inline]
     pub fn width(mut self, width: impl Into<f32>) -> Self {
         self.stroke.width = width.into();
         self
@@ -554,23 +576,27 @@ impl Polygon {
 
     #[deprecated = "Use `fill_color`."]
     #[allow(unused, clippy::needless_pass_by_value)]
+    #[inline]
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self
     }
 
     #[deprecated = "Use `fill_color`."]
     #[allow(unused, clippy::needless_pass_by_value)]
+    #[inline]
     pub fn fill_alpha(mut self, _alpha: impl Into<f32>) -> Self {
         self
     }
 
     /// Fill color. Defaults to the stroke color with added transparency.
+    #[inline]
     pub fn fill_color(mut self, color: impl Into<Color32>) -> Self {
         self.fill_color = Some(color.into());
         self
     }
 
     /// Set the outline's style. Default is `LineStyle::Solid`.
+    #[inline]
     pub fn style(mut self, style: LineStyle) -> Self {
         self.style = style;
         self
@@ -583,6 +609,7 @@ impl Polygon {
     /// Multiple plot items may share the same name, in which case they will also share an entry in
     /// the legend.
     #[allow(clippy::needless_pass_by_value)]
+    #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
         self
@@ -667,18 +694,21 @@ impl Text {
     }
 
     /// Highlight this text in the plot by drawing a rectangle around it.
+    #[inline]
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
         self
     }
 
     /// Text color.
+    #[inline]
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.color = color.into();
         self
     }
 
     /// Anchor position of the text. Default is `Align2::CENTER_CENTER`.
+    #[inline]
     pub fn anchor(mut self, anchor: Align2) -> Self {
         self.anchor = anchor;
         self
@@ -691,6 +721,7 @@ impl Text {
     /// Multiple plot items may share the same name, in which case they will also share an entry in
     /// the legend.
     #[allow(clippy::needless_pass_by_value)]
+    #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
         self
@@ -796,36 +827,42 @@ impl Points {
     }
 
     /// Set the shape of the markers.
+    #[inline]
     pub fn shape(mut self, shape: MarkerShape) -> Self {
         self.shape = shape;
         self
     }
 
     /// Highlight these points in the plot by scaling up their markers.
+    #[inline]
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
         self
     }
 
     /// Set the marker's color.
+    #[inline]
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.color = color.into();
         self
     }
 
     /// Whether to fill the marker.
+    #[inline]
     pub fn filled(mut self, filled: bool) -> Self {
         self.filled = filled;
         self
     }
 
     /// Whether to add stems between the markers and a horizontal reference line.
+    #[inline]
     pub fn stems(mut self, y_reference: impl Into<f32>) -> Self {
         self.stems = Some(y_reference.into());
         self
     }
 
     /// Set the maximum extent of the marker around its position.
+    #[inline]
     pub fn radius(mut self, radius: impl Into<f32>) -> Self {
         self.radius = radius.into();
         self
@@ -838,6 +875,7 @@ impl Points {
     /// Multiple plot items may share the same name, in which case they will also share an entry in
     /// the legend.
     #[allow(clippy::needless_pass_by_value)]
+    #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
         self
@@ -1025,18 +1063,21 @@ impl Arrows {
     }
 
     /// Highlight these arrows in the plot.
+    #[inline]
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
         self
     }
 
     /// Set the length of the arrow tips
+    #[inline]
     pub fn tip_length(mut self, tip_length: f32) -> Self {
         self.tip_length = Some(tip_length);
         self
     }
 
     /// Set the arrows' color.
+    #[inline]
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.color = color.into();
         self
@@ -1049,6 +1090,7 @@ impl Arrows {
     /// Multiple plot items may share the same name, in which case they will also share an entry in
     /// the legend.
     #[allow(clippy::needless_pass_by_value)]
+    #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
         self
@@ -1165,24 +1207,28 @@ impl PlotImage {
     }
 
     /// Highlight this image in the plot.
+    #[inline]
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
         self
     }
 
     /// Select UV range. Default is (0,0) in top-left, (1,1) bottom right.
+    #[inline]
     pub fn uv(mut self, uv: impl Into<Rect>) -> Self {
         self.uv = uv.into();
         self
     }
 
     /// A solid color to put behind the image. Useful for transparent images.
+    #[inline]
     pub fn bg_fill(mut self, bg_fill: impl Into<Color32>) -> Self {
         self.bg_fill = bg_fill.into();
         self
     }
 
     /// Multiply image color with this. Default is WHITE (no tint).
+    #[inline]
     pub fn tint(mut self, tint: impl Into<Color32>) -> Self {
         self.tint = tint.into();
         self
@@ -1195,12 +1241,14 @@ impl PlotImage {
     /// Multiple plot items may share the same name, in which case they will also share an entry in
     /// the legend.
     #[allow(clippy::needless_pass_by_value)]
+    #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
         self
     }
 
     /// Rotate the image counter-clockwise around its center by an angle in radians.
+    #[inline]
     pub fn rotate(mut self, angle: f64) -> Self {
         self.rotation = angle;
         self
@@ -1334,6 +1382,7 @@ impl BarChart {
     /// This is the color that shows up in the legend.
     /// It can be overridden at the bar level (see [[`Bar`]]).
     /// Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
+    #[inline]
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         let plot_color = color.into();
         self.default_color = plot_color;
@@ -1351,6 +1400,7 @@ impl BarChart {
     /// This name will show up in the plot legend, if legends are turned on. Multiple charts may
     /// share the same name, in which case they will also share an entry in the legend.
     #[allow(clippy::needless_pass_by_value)]
+    #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
         self
@@ -1358,6 +1408,7 @@ impl BarChart {
 
     /// Set all elements to be in a vertical orientation.
     /// Argument axis will be X and bar values will be on the Y axis.
+    #[inline]
     pub fn vertical(mut self) -> Self {
         for b in &mut self.bars {
             b.orientation = Orientation::Vertical;
@@ -1367,6 +1418,7 @@ impl BarChart {
 
     /// Set all elements to be in a horizontal orientation.
     /// Argument axis will be Y and bar values will be on the X axis.
+    #[inline]
     pub fn horizontal(mut self) -> Self {
         for b in &mut self.bars {
             b.orientation = Orientation::Horizontal;
@@ -1375,6 +1427,7 @@ impl BarChart {
     }
 
     /// Set the width (thickness) of all its elements.
+    #[inline]
     pub fn width(mut self, width: f64) -> Self {
         for b in &mut self.bars {
             b.bar_width = width;
@@ -1383,6 +1436,7 @@ impl BarChart {
     }
 
     /// Highlight all plot elements.
+    #[inline]
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
         self
@@ -1390,6 +1444,7 @@ impl BarChart {
 
     /// Add a custom way to format an element.
     /// Can be used to display a set number of decimals or custom labels.
+    #[inline]
     pub fn element_formatter(mut self, formatter: Box<dyn Fn(&Bar, &BarChart) -> String>) -> Self {
         self.element_formatter = Some(formatter);
         self
@@ -1398,6 +1453,7 @@ impl BarChart {
     /// Stacks the bars on top of another chart.
     /// Positive values are stacked on top of other positive values.
     /// Negative values are stacked below other negative values.
+    #[inline]
     pub fn stack_on(mut self, others: &[&BarChart]) -> Self {
         for (index, bar) in self.bars.iter_mut().enumerate() {
             let new_base_offset = if bar.value.is_sign_positive() {
@@ -1506,6 +1562,7 @@ impl BoxPlot {
     /// This is the color that shows up in the legend.
     /// It can be overridden at the element level (see [`BoxElem`]).
     /// Default is `Color32::TRANSPARENT` which means a color will be auto-assigned.
+    #[inline]
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         let plot_color = color.into();
         self.default_color = plot_color;
@@ -1525,6 +1582,7 @@ impl BoxPlot {
     /// This name will show up in the plot legend, if legends are turned on. Multiple series may
     /// share the same name, in which case they will also share an entry in the legend.
     #[allow(clippy::needless_pass_by_value)]
+    #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
         self
@@ -1532,6 +1590,7 @@ impl BoxPlot {
 
     /// Set all elements to be in a vertical orientation.
     /// Argument axis will be X and values will be on the Y axis.
+    #[inline]
     pub fn vertical(mut self) -> Self {
         for box_elem in &mut self.boxes {
             box_elem.orientation = Orientation::Vertical;
@@ -1541,6 +1600,7 @@ impl BoxPlot {
 
     /// Set all elements to be in a horizontal orientation.
     /// Argument axis will be Y and values will be on the X axis.
+    #[inline]
     pub fn horizontal(mut self) -> Self {
         for box_elem in &mut self.boxes {
             box_elem.orientation = Orientation::Horizontal;
@@ -1549,6 +1609,7 @@ impl BoxPlot {
     }
 
     /// Highlight all plot elements.
+    #[inline]
     pub fn highlight(mut self, highlight: bool) -> Self {
         self.highlight = highlight;
         self

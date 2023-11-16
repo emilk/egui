@@ -64,6 +64,7 @@ impl<'open> Window<'open> {
     }
 
     /// Assign a unique id to the Window. Required if the title changes, or is shared with another window.
+    #[inline]
     pub fn id(mut self, id: Id) -> Self {
         self.area = self.area.id(id);
         self
@@ -74,24 +75,28 @@ impl<'open> Window<'open> {
     /// * If `*open == false`, the window will not be visible.
     /// * If `*open == true`, the window will have a close button.
     /// * If the close button is pressed, `*open` will be set to `false`.
+    #[inline]
     pub fn open(mut self, open: &'open mut bool) -> Self {
         self.open = Some(open);
         self
     }
 
     /// If `false` the window will be grayed out and non-interactive.
+    #[inline]
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.area = self.area.enabled(enabled);
         self
     }
 
     /// If `false` the window will be non-interactive.
+    #[inline]
     pub fn interactable(mut self, interactable: bool) -> Self {
         self.area = self.area.interactable(interactable);
         self
     }
 
     /// If `false` the window will be immovable.
+    #[inline]
     pub fn movable(mut self, movable: bool) -> Self {
         self.area = self.area.movable(movable);
         self
@@ -99,6 +104,7 @@ impl<'open> Window<'open> {
 
     /// Usage: `Window::new(…).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
     // TODO(emilk): I'm not sure this is a good interface for this.
+    #[inline]
     pub fn mutate(mut self, mutate: impl Fn(&mut Self)) -> Self {
         mutate(&mut self);
         self
@@ -106,48 +112,56 @@ impl<'open> Window<'open> {
 
     /// Usage: `Window::new(…).resize(|r| r.auto_expand_width(true))`
     // TODO(emilk): I'm not sure this is a good interface for this.
+    #[inline]
     pub fn resize(mut self, mutate: impl Fn(Resize) -> Resize) -> Self {
         self.resize = mutate(self.resize);
         self
     }
 
     /// Change the background color, margins, etc.
+    #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
     }
 
     /// Set minimum width of the window.
+    #[inline]
     pub fn min_width(mut self, min_width: f32) -> Self {
         self.resize = self.resize.min_width(min_width);
         self
     }
 
     /// Set minimum height of the window.
+    #[inline]
     pub fn min_height(mut self, min_height: f32) -> Self {
         self.resize = self.resize.min_height(min_height);
         self
     }
 
     /// Set minimum size of the window, equivalent to calling both `min_width` and `min_height`.
+    #[inline]
     pub fn min_size(mut self, min_size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.min_size(min_size);
         self
     }
 
     /// Set maximum width of the window.
+    #[inline]
     pub fn max_width(mut self, max_width: f32) -> Self {
         self.resize = self.resize.max_width(max_width);
         self
     }
 
     /// Set maximum height of the window.
+    #[inline]
     pub fn max_height(mut self, max_height: f32) -> Self {
         self.resize = self.resize.max_height(max_height);
         self
     }
 
     /// Set maximum size of the window, equivalent to calling both `max_width` and `max_height`.
+    #[inline]
     pub fn max_size(mut self, max_size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.max_size(max_size);
         self
@@ -155,18 +169,21 @@ impl<'open> Window<'open> {
 
     /// Set current position of the window.
     /// If the window is movable it is up to you to keep track of where it moved to!
+    #[inline]
     pub fn current_pos(mut self, current_pos: impl Into<Pos2>) -> Self {
         self.area = self.area.current_pos(current_pos);
         self
     }
 
     /// Set initial position of the window.
+    #[inline]
     pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
         self.area = self.area.default_pos(default_pos);
         self
     }
 
     /// Sets the window position and prevents it from being dragged around.
+    #[inline]
     pub fn fixed_pos(mut self, pos: impl Into<Pos2>) -> Self {
         self.area = self.area.fixed_pos(pos);
         self
@@ -177,6 +194,7 @@ impl<'open> Window<'open> {
     /// To change the area to constrain to, use [`Self::constrain_to`].
     ///
     /// Default: `true`.
+    #[inline]
     pub fn constrain(mut self, constrain: bool) -> Self {
         self.area = self.area.constrain(constrain);
         self
@@ -185,12 +203,14 @@ impl<'open> Window<'open> {
     /// Constrain the movement of the window to the given rectangle.
     ///
     /// For instance: `.constrain_to(ctx.screen_rect())`.
+    #[inline]
     pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {
         self.area = self.area.constrain_to(constrain_rect);
         self
     }
 
     #[deprecated = "Use `constrain_to` instead"]
+    #[inline]
     pub fn drag_bounds(mut self, constrain_rect: Rect) -> Self {
         #![allow(deprecated)]
 
@@ -205,6 +225,7 @@ impl<'open> Window<'open> {
     /// corner of the window.
     ///
     /// Default: [`Align2::LEFT_TOP`].
+    #[inline]
     pub fn pivot(mut self, pivot: Align2) -> Self {
         self.area = self.area.pivot(pivot);
         self
@@ -221,36 +242,42 @@ impl<'open> Window<'open> {
     /// Anchoring also makes the window immovable.
     ///
     /// It is an error to set both an anchor and a position.
+    #[inline]
     pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
         self.area = self.area.anchor(align, offset);
         self
     }
 
     /// Set initial collapsed state of the window
+    #[inline]
     pub fn default_open(mut self, default_open: bool) -> Self {
         self.default_open = default_open;
         self
     }
 
     /// Set initial size of the window.
+    #[inline]
     pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.default_size(default_size);
         self
     }
 
     /// Set initial width of the window.
+    #[inline]
     pub fn default_width(mut self, default_width: f32) -> Self {
         self.resize = self.resize.default_width(default_width);
         self
     }
 
     /// Set initial height of the window.
+    #[inline]
     pub fn default_height(mut self, default_height: f32) -> Self {
         self.resize = self.resize.default_height(default_height);
         self
     }
 
     /// Sets the window size and prevents it from being resized by dragging its edges.
+    #[inline]
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.fixed_size(size);
         self
@@ -271,12 +298,14 @@ impl<'open> Window<'open> {
     /// Note that even if you set this to `false` the window may still auto-resize.
     ///
     /// Default is `true`.
+    #[inline]
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resize = self.resize.resizable(resizable);
         self
     }
 
     /// Can the window be collapsed by clicking on its title?
+    #[inline]
     pub fn collapsible(mut self, collapsible: bool) -> Self {
         self.collapsible = collapsible;
         self
@@ -284,6 +313,7 @@ impl<'open> Window<'open> {
 
     /// Show title bar on top of the window?
     /// If `false`, the window will not be collapsible nor have a close-button.
+    #[inline]
     pub fn title_bar(mut self, title_bar: bool) -> Self {
         self.with_title_bar = title_bar;
         self
@@ -292,6 +322,7 @@ impl<'open> Window<'open> {
     /// Not resizable, just takes the size of its contents.
     /// Also disabled scrolling.
     /// Text will not wrap, but will instead make your window width expand.
+    #[inline]
     pub fn auto_sized(mut self) -> Self {
         self.resize = self.resize.auto_sized();
         self.scroll = ScrollArea::neither();
@@ -299,18 +330,21 @@ impl<'open> Window<'open> {
     }
 
     /// Enable/disable horizontal/vertical scrolling. `false` by default.
+    #[inline]
     pub fn scroll2(mut self, scroll: impl Into<Vec2b>) -> Self {
         self.scroll = self.scroll.scroll2(scroll);
         self
     }
 
     /// Enable/disable horizontal scrolling. `false` by default.
+    #[inline]
     pub fn hscroll(mut self, hscroll: bool) -> Self {
         self.scroll = self.scroll.hscroll(hscroll);
         self
     }
 
     /// Enable/disable vertical scrolling. `false` by default.
+    #[inline]
     pub fn vscroll(mut self, vscroll: bool) -> Self {
         self.scroll = self.scroll.vscroll(vscroll);
         self
@@ -319,6 +353,7 @@ impl<'open> Window<'open> {
     /// Enable/disable scrolling on the window by dragging with the pointer. `true` by default.
     ///
     /// See [`ScrollArea::drag_to_scroll`] for more.
+    #[inline]
     pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
         self.scroll = self.scroll.drag_to_scroll(drag_to_scroll);
         self

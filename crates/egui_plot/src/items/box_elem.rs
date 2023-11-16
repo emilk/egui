@@ -94,42 +94,49 @@ impl BoxElem {
 
     /// Name of this box element.
     #[allow(clippy::needless_pass_by_value)]
+    #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
         self
     }
 
     /// Add a custom stroke.
+    #[inline]
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = stroke.into();
         self
     }
 
     /// Add a custom fill color.
+    #[inline]
     pub fn fill(mut self, color: impl Into<Color32>) -> Self {
         self.fill = color.into();
         self
     }
 
     /// Set the box width.
+    #[inline]
     pub fn box_width(mut self, width: f64) -> Self {
         self.box_width = width;
         self
     }
 
     /// Set the whisker width.
+    #[inline]
     pub fn whisker_width(mut self, width: f64) -> Self {
         self.whisker_width = width;
         self
     }
 
     /// Set orientation of the element as vertical. Argument axis is X.
+    #[inline]
     pub fn vertical(mut self) -> Self {
         self.orientation = Orientation::Vertical;
         self
     }
 
     /// Set orientation of the element as horizontal. Argument axis is Y.
+    #[inline]
     pub fn horizontal(mut self) -> Self {
         self.orientation = Orientation::Horizontal;
         self

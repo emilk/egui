@@ -260,6 +260,7 @@ impl Plot {
     /// For instance, it can be useful to set this to `1.0` for when the two axes show the same
     /// unit.
     /// By default the plot window's aspect ratio is used.
+    #[inline]
     pub fn data_aspect(mut self, data_aspect: f32) -> Self {
         self.data_aspect = Some(data_aspect);
         self
@@ -267,6 +268,7 @@ impl Plot {
 
     /// width / height ratio of the plot region.
     /// By default no fixed aspect ratio is set (and width/height will fill the ui it is in).
+    #[inline]
     pub fn view_aspect(mut self, view_aspect: f32) -> Self {
         self.view_aspect = Some(view_aspect);
         self
@@ -274,6 +276,7 @@ impl Plot {
 
     /// Width of plot. By default a plot will fill the ui it is in.
     /// If you set [`Self::view_aspect`], the width can be calculated from the height.
+    #[inline]
     pub fn width(mut self, width: f32) -> Self {
         self.min_size.x = width;
         self.width = Some(width);
@@ -282,6 +285,7 @@ impl Plot {
 
     /// Height of plot. By default a plot will fill the ui it is in.
     /// If you set [`Self::view_aspect`], the height can be calculated from the width.
+    #[inline]
     pub fn height(mut self, height: f32) -> Self {
         self.min_size.y = height;
         self.height = Some(height);
@@ -289,30 +293,35 @@ impl Plot {
     }
 
     /// Minimum size of the plot view.
+    #[inline]
     pub fn min_size(mut self, min_size: Vec2) -> Self {
         self.min_size = min_size;
         self
     }
 
     /// Show the x-value (e.g. when hovering). Default: `true`.
+    #[inline]
     pub fn show_x(mut self, show_x: bool) -> Self {
         self.show_x = show_x;
         self
     }
 
     /// Show the y-value (e.g. when hovering). Default: `true`.
+    #[inline]
     pub fn show_y(mut self, show_y: bool) -> Self {
         self.show_y = show_y;
         self
     }
 
     /// Always keep the X-axis centered. Default: `false`.
+    #[inline]
     pub fn center_x_axis(mut self, on: bool) -> Self {
         self.center_axis.x = on;
         self
     }
 
     /// Always keep the Y-axis centered. Default: `false`.
+    #[inline]
     pub fn center_y_axis(mut self, on: bool) -> Self {
         self.center_axis.y = on;
         self
@@ -321,6 +330,7 @@ impl Plot {
     /// Whether to allow zooming in the plot. Default: `true`.
     ///
     /// Note: Allowing zoom in one axis but not the other may lead to unexpected results if used in combination with `data_aspect`.
+    #[inline]
     pub fn allow_zoom<T>(mut self, on: T) -> Self
     where
         T: Into<Vec2b>,
@@ -330,6 +340,7 @@ impl Plot {
     }
 
     /// Whether to allow scrolling in the plot. Default: `true`.
+    #[inline]
     pub fn allow_scroll(mut self, on: bool) -> Self {
         self.allow_scroll = on;
         self
@@ -337,6 +348,7 @@ impl Plot {
 
     /// Whether to allow double clicking to reset the view.
     /// Default: `true`.
+    #[inline]
     pub fn allow_double_click_reset(mut self, on: bool) -> Self {
         self.allow_double_click_reset = on;
         self
@@ -345,6 +357,7 @@ impl Plot {
     /// Set the side margin as a fraction of the plot size. Only used for auto bounds.
     ///
     /// For instance, a value of `0.1` will add 10% space on both sides.
+    #[inline]
     pub fn set_margin_fraction(mut self, margin_fraction: Vec2) -> Self {
         self.margin_fraction = margin_fraction;
         self
@@ -353,18 +366,21 @@ impl Plot {
     /// Whether to allow zooming in the plot by dragging out a box with the secondary mouse button.
     ///
     /// Default: `true`.
+    #[inline]
     pub fn allow_boxed_zoom(mut self, on: bool) -> Self {
         self.allow_boxed_zoom = on;
         self
     }
 
     /// Config the button pointer to use for boxed zooming. Default: [`Secondary`](PointerButton::Secondary)
+    #[inline]
     pub fn boxed_zoom_pointer_button(mut self, boxed_zoom_pointer_button: PointerButton) -> Self {
         self.boxed_zoom_pointer_button = boxed_zoom_pointer_button;
         self
     }
 
     /// Whether to allow dragging in the plot to move the bounds. Default: `true`.
+    #[inline]
     pub fn allow_drag<T>(mut self, on: T) -> Self
     where
         T: Into<Vec2b>,
@@ -442,6 +458,7 @@ impl Plot {
     /// ```
     ///
     /// There are helpers for common cases, see [`log_grid_spacer`] and [`uniform_grid_spacer`].
+    #[inline]
     pub fn x_grid_spacer(mut self, spacer: impl Fn(GridInput) -> Vec<GridMark> + 'static) -> Self {
         self.grid_spacers[0] = Box::new(spacer);
         self
@@ -450,6 +467,7 @@ impl Plot {
     /// Default is a log-10 grid, i.e. every plot unit is divided into 10 other units.
     ///
     /// See [`Self::x_grid_spacer`] for explanation.
+    #[inline]
     pub fn y_grid_spacer(mut self, spacer: impl Fn(GridInput) -> Vec<GridMark> + 'static) -> Self {
         self.grid_spacers[1] = Box::new(spacer);
         self
@@ -458,6 +476,7 @@ impl Plot {
     /// Clamp the grid to only be visible at the range of data where we have values.
     ///
     /// Default: `false`.
+    #[inline]
     pub fn clamp_grid(mut self, clamp_grid: bool) -> Self {
         self.clamp_grid = clamp_grid;
         self
@@ -465,6 +484,7 @@ impl Plot {
 
     /// Expand bounds to include the given x value.
     /// For instance, to always show the y axis, call `plot.include_x(0.0)`.
+    #[inline]
     pub fn include_x(mut self, x: impl Into<f64>) -> Self {
         self.min_auto_bounds.extend_with_x(x.into());
         self
@@ -472,24 +492,28 @@ impl Plot {
 
     /// Expand bounds to include the given y value.
     /// For instance, to always show the x axis, call `plot.include_y(0.0)`.
+    #[inline]
     pub fn include_y(mut self, y: impl Into<f64>) -> Self {
         self.min_auto_bounds.extend_with_y(y.into());
         self
     }
 
     /// Expand bounds to fit all items across the x axis, including values given by `include_x`.
+    #[inline]
     pub fn auto_bounds_x(mut self) -> Self {
         self.auto_bounds.x = true;
         self
     }
 
     /// Expand bounds to fit all items across the y axis, including values given by `include_y`.
+    #[inline]
     pub fn auto_bounds_y(mut self) -> Self {
         self.auto_bounds.y = true;
         self
     }
 
     /// Show a legend including all named items.
+    #[inline]
     pub fn legend(mut self, legend: Legend) -> Self {
         self.legend_config = Some(legend);
         self
@@ -499,6 +523,7 @@ impl Plot {
     ///
     /// Can be useful to disable if the plot is overlaid over existing content.
     /// Default: `true`.
+    #[inline]
     pub fn show_background(mut self, show: bool) -> Self {
         self.show_background = show;
         self
@@ -507,6 +532,7 @@ impl Plot {
     /// Show axis labels and grid tick values on the side of the plot.
     ///
     /// Default: `true`.
+    #[inline]
     pub fn show_axes(mut self, show: impl Into<Vec2b>) -> Self {
         self.show_axes = show.into();
         self
@@ -515,6 +541,7 @@ impl Plot {
     /// Show a grid overlay on the plot.
     ///
     /// Default: `true`.
+    #[inline]
     pub fn show_grid(mut self, show: impl Into<Vec2b>) -> Self {
         self.show_grid = show.into();
         self
@@ -522,6 +549,7 @@ impl Plot {
 
     /// Add this plot to an axis link group so that this plot will share the bounds with other plots in the
     /// same group. A plot cannot belong to more than one axis group.
+    #[inline]
     pub fn link_axis(mut self, group_id: impl Into<Id>, link_x: bool, link_y: bool) -> Self {
         self.linked_axes = Some((
             group_id.into(),
@@ -535,6 +563,7 @@ impl Plot {
 
     /// Add this plot to a cursor link group so that this plot will share the cursor position with other plots
     /// in the same group. A plot cannot belong to more than one cursor group.
+    #[inline]
     pub fn link_cursor(mut self, group_id: impl Into<Id>, link_x: bool, link_y: bool) -> Self {
         self.linked_cursors = Some((
             group_id.into(),
@@ -548,12 +577,14 @@ impl Plot {
 
     /// Round grid positions to full pixels to avoid aliasing. Improves plot appearance but might have an
     /// undesired effect when shifting the plot bounds. Enabled by default.
+    #[inline]
     pub fn sharp_grid_lines(mut self, enabled: bool) -> Self {
         self.sharp_grid_lines = enabled;
         self
     }
 
     /// Resets the plot.
+    #[inline]
     pub fn reset(mut self) -> Self {
         self.reset = true;
         self
@@ -562,6 +593,7 @@ impl Plot {
     /// Set the x axis label of the main X-axis.
     ///
     /// Default: no label.
+    #[inline]
     pub fn x_axis_label(mut self, label: impl Into<WidgetText>) -> Self {
         if let Some(main) = self.x_axes.first_mut() {
             main.label = label.into();
@@ -572,6 +604,7 @@ impl Plot {
     /// Set the y axis label of the main Y-axis.
     ///
     /// Default: no label.
+    #[inline]
     pub fn y_axis_label(mut self, label: impl Into<WidgetText>) -> Self {
         if let Some(main) = self.y_axes.first_mut() {
             main.label = label.into();
@@ -580,6 +613,7 @@ impl Plot {
     }
 
     /// Set the position of the main X-axis.
+    #[inline]
     pub fn x_axis_position(mut self, placement: axis::VPlacement) -> Self {
         if let Some(main) = self.x_axes.first_mut() {
             main.placement = placement.into();
@@ -588,6 +622,7 @@ impl Plot {
     }
 
     /// Set the position of the main Y-axis.
+    #[inline]
     pub fn y_axis_position(mut self, placement: axis::HPlacement) -> Self {
         if let Some(main) = self.y_axes.first_mut() {
             main.placement = placement.into();
@@ -632,6 +667,7 @@ impl Plot {
     /// The default is 5 digits.
     ///
     /// > Todo: This is experimental. Changing the font size might break this.
+    #[inline]
     pub fn y_axis_width(mut self, digits: usize) -> Self {
         if let Some(main) = self.y_axes.first_mut() {
             main.digits = digits;
@@ -642,6 +678,7 @@ impl Plot {
     /// Set custom configuration for X-axis
     ///
     /// More than one axis may be specified. The first specified axis is considered the main axis.
+    #[inline]
     pub fn custom_x_axes(mut self, hints: Vec<AxisHints>) -> Self {
         self.x_axes = hints;
         self
@@ -650,6 +687,7 @@ impl Plot {
     /// Set custom configuration for left Y-axis
     ///
     /// More than one axis may be specified. The first specified axis is considered the main axis.
+    #[inline]
     pub fn custom_y_axes(mut self, hints: Vec<AxisHints>) -> Self {
         self.y_axes = hints;
         self
