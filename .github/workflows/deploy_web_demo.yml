@@ -11,10 +11,11 @@ on: [push, pull_request]
 #   # Allows you to run this workflow manually from the Actions tab
 #   workflow_dispatch:
 
+# Grant GITHUB_TOKEN the permissions required to make a Pages deployment
 permissions:
   contents: read
-  pages: write
-  id-token: write
+  pages:    write # to deploy to Pages
+  id-token: write # to verify the deployment originates from an appropriate source
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
@@ -22,12 +23,23 @@ concurrency:
   group: "pages"
   cancel-in-progress: false
 
+env:
+  # web_sys_unstable_apis is required to enable the web_sys clipboard API which eframe web uses,
+  # as well as by the wasm32-backend of the wgpu crate.
+  # https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html
+  # https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html
+  RUSTFLAGS: --cfg=web_sys_unstable_apis -D warnings
+  RUSTDOCFLAGS: -D warnings
+
 jobs:
   # Single deploy job since we're just deploying
   deploy:
+    name: Deploy web demo
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -43,6 +55,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: "web-demo-"
+
+      - name: "Install wasmopt / binaryen"
+        run: |
+          sudo apt-get update && sudo apt-get install binaryen
 
       - run: |
           scripts/build_demo_web.sh --release
