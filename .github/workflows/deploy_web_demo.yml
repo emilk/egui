@@ -1,15 +1,12 @@
 name: Deploy web demo
 
-on: [push, pull_request]
+on:
+  # We only run this on merges to master
+  push:
+    branches: ["master"]
 
-# TODO: run only on master
-# on:
-#   # Runs on pushes targeting the default branch
-#   push:
-#     branches: ["master"]
-
-#   # Allows you to run this workflow manually from the Actions tab
-#   workflow_dispatch:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
 
 # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
 permissions:
