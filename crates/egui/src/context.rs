@@ -73,7 +73,7 @@ impl ContextImpl {
     }
 
     fn request_repaint_after(&mut self, delay: Duration, viewport_id: ViewportId) {
-        let mut viewport = self.viewports.entry(viewport_id).or_default();
+        let viewport = self.viewports.entry(viewport_id).or_default();
 
         // Each request results in two repaints, just to give some things time to settle.
         // This solves some corner-cases of missing repaints on frame-delayed responses.
@@ -2607,7 +2607,7 @@ impl Context {
                 ctx.viewport_parents
                     .insert(new_viewport_id, ctx.viewport_id());
 
-                let mut viewport = ctx.viewports.entry(new_viewport_id).or_default();
+                let viewport = ctx.viewports.entry(new_viewport_id).or_default();
                 viewport.class = ViewportClass::Deferred;
                 viewport.builder = viewport_builder;
                 viewport.used = true;
@@ -2666,7 +2666,7 @@ impl Context {
                 ctx.viewport_parents
                     .insert(new_viewport_id, parent_viewport_id);
 
-                let mut viewport = ctx.viewports.entry(new_viewport_id).or_default();
+                let viewport = ctx.viewports.entry(new_viewport_id).or_default();
                 viewport.builder = builder.clone();
                 viewport.used = true;
                 viewport.viewport_ui_cb = None; // it is immediate
