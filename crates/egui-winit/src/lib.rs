@@ -15,7 +15,8 @@ pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
 use egui::{
-    Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdPair, ViewportInfo,
+    Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdPair, ViewportIdSet,
+    ViewportInfo,
 };
 pub use winit;
 
@@ -186,6 +187,7 @@ impl State {
         &mut self,
         window: &winit::window::Window,
         ids: ViewportIdPair,
+        all_viewports: &ViewportIdSet,
     ) -> egui::RawInput {
         crate::profile_function!();
 
@@ -209,9 +211,18 @@ impl State {
             && screen_size_in_points.y > 0.0)
             .then(|| Rect::from_min_size(Pos2::ZERO, screen_size_in_points));
 
-        // TODO: one `ViewportInfo` per viewport
-        self.egui_input.viewport.ids = ids;
-        update_viewport_info(&mut self.egui_input.viewport, window, pixels_per_point);
+        // Prune dead viewports:
+        self.egui_input
+            .viewports
+            .retain(|id, _| all_viewports.contains(id));
+
+        // Update info about our current viewport:
+        let viewport_info = self.egui_input.viewports.entry(ids.this).or_default();
+        viewport_info.parent = Some(ids.parent);
+        update_viewport_info(viewport_info, window, pixels_per_point);
+
+        // Tell egui which viewport is now active:
+        self.egui_input.viewport_ids = ids;
 
         self.egui_input.take()
     }
@@ -223,6 +234,7 @@ impl State {
         &mut self,
         egui_ctx: &egui::Context,
         event: &winit::event::WindowEvent<'_>,
+        viewport_id: ViewportId,
     ) -> EventResponse {
         crate::profile_function!();
 
@@ -407,7 +419,9 @@ impl State {
 
             // Things that may require repaint:
             WindowEvent::CloseRequested => {
-                self.egui_input.viewport.close_requested = true;
+                if let Some(viewport_info) = self.egui_input.viewports.get_mut(&viewport_id) {
+                    viewport_info.close_requested = true;
+                }
                 EventResponse {
                     consumed: true,
                     repaint: true,
@@ -821,6 +835,7 @@ fn update_viewport_info(
         None
     };
 
+    viewport_info.title = Some(window.title());
     viewport_info.pixels_per_point = pixels_per_point;
     viewport_info.monitor_size = monitor_size;
     viewport_info.inner_rect = inner_rect;
@@ -1028,7 +1043,6 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 // ---------------------------------------------------------------------------
 
 pub fn process_viewport_commands(
-    viewport_info: &mut ViewportInfo,
     commands: impl IntoIterator<Item = ViewportCommand>,
     window: &winit::window::Window,
     is_viewport_focused: bool,
@@ -1067,7 +1081,6 @@ pub fn process_viewport_commands(
             }
             ViewportCommand::Title(title) => {
                 window.set_title(&title);
-                viewport_info.title = Some(title.clone());
             }
             ViewportCommand::Transparent(v) => window.set_transparent(v),
             ViewportCommand::Visible(v) => window.set_visible(v),

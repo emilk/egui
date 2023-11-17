@@ -434,7 +434,8 @@ impl EpiIntegration {
         self.egui_ctx
             .memory_mut(|mem| mem.set_everything_is_visible(true));
 
-        let raw_input = egui_winit.take_egui_input(window, ViewportIdPair::ROOT);
+        let all_viewports = std::iter::once(ViewportId::ROOT).collect();
+        let raw_input = egui_winit.take_egui_input(window, ViewportIdPair::ROOT, &all_viewports);
         self.pre_update(window);
         let full_output = self.update(app, None, raw_input);
         self.post_update(app, window);
@@ -485,7 +486,7 @@ impl EpiIntegration {
             _ => {}
         }
 
-        egui_winit.on_event(&self.egui_ctx, event)
+        egui_winit.on_event(&self.egui_ctx, event, viewport_id)
     }
 
     pub fn pre_update(&mut self, window: &winit::window::Window) {

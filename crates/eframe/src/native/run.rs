@@ -458,7 +458,7 @@ mod glow_integration {
 
     use egui::{
         epaint::ahash::HashMap, DeferredViewportUiCallback, ImmediateViewport, NumExt as _,
-        ViewportClass, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput,
+        ViewportClass, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
     };
     use egui_winit::{create_winit_window_builder, process_viewport_commands, EventResponse};
 
@@ -528,11 +528,12 @@ mod glow_integration {
 
             let (raw_input, viewport_ui_cb) = {
                 let mut glutin = self.glutin.borrow_mut();
+                let all_viewports = glutin.viewports.keys().copied().collect();
                 let viewport = glutin.viewports.get_mut(&viewport_id).unwrap();
                 let window = viewport.window.as_ref().unwrap();
 
                 let egui_winit = viewport.egui_winit.as_mut().unwrap();
-                let raw_input = egui_winit.take_egui_input(window, viewport.ids);
+                let raw_input = egui_winit.take_egui_input(window, viewport.ids, &all_viewports);
 
                 self.integration.pre_update(window);
 
@@ -785,8 +786,6 @@ mod glow_integration {
         ids: ViewportIdPair,
         class: ViewportClass,
         builder: ViewportBuilder,
-        /// Up-to-date info about the viewport.
-        info: ViewportInfo,
 
         /// The user-callback that shows the ui.
         /// None for immediate viewports.
@@ -949,7 +948,6 @@ mod glow_integration {
                 ViewportId::ROOT,
                 Viewport {
                     ids: ViewportIdPair::ROOT,
-                    info: ViewportInfo::from_builder(ViewportIdPair::ROOT, &viewport_builder),
                     class: ViewportClass::Root,
                     builder: viewport_builder,
                     viewport_ui_cb: None,
@@ -1196,7 +1194,6 @@ mod glow_integration {
                     if let Some(window) = &viewport.window {
                         let is_viewport_focused = focused_viewport == Some(viewport_id);
                         egui_winit::process_viewport_commands(
-                            &mut viewport.info,
                             commands,
                             window,
                             is_viewport_focused,
@@ -1239,7 +1236,6 @@ mod glow_integration {
                 entry.insert(Viewport {
                     ids,
                     class,
-                    info: ViewportInfo::from_builder(ids, &builder),
                     builder,
                     viewport_ui_cb,
                     window: None,
@@ -1268,12 +1264,7 @@ mod glow_integration {
                     viewport.egui_winit = None;
                 } else if let Some(window) = &viewport.window {
                     let is_viewport_focused = focused_viewport == Some(ids.this);
-                    process_viewport_commands(
-                        &mut viewport.info,
-                        delta_commands,
-                        window,
-                        is_viewport_focused,
-                    );
+                    process_viewport_commands(delta_commands, window, is_viewport_focused);
                 }
 
                 entry.into_mut()
@@ -1557,6 +1548,8 @@ mod glow_integration {
         let input = {
             let mut glutin = glutin.borrow_mut();
 
+            let all_viewports = glutin.viewports.keys().copied().collect();
+
             let Some(viewport) = glutin.viewports.get_mut(&ids.this) else {
                 return;
             };
@@ -1568,7 +1561,7 @@ mod glow_integration {
                 return;
             };
 
-            let mut input = winit_state.take_egui_input(window, ids);
+            let mut input = winit_state.take_egui_input(window, ids, &all_viewports);
             input.time = Some(beginning.elapsed().as_secs_f64());
             input
         };
@@ -1825,7 +1818,7 @@ mod wgpu_integration {
 
     use egui::{
         DeferredViewportUiCallback, FullOutput, ImmediateViewport, ViewportClass, ViewportIdMap,
-        ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput,
+        ViewportIdPair, ViewportIdSet, ViewportOutput,
     };
     use egui_winit::{create_winit_window_builder, process_viewport_commands};
 
@@ -1839,8 +1832,6 @@ mod wgpu_integration {
         class: ViewportClass,
 
         builder: ViewportBuilder,
-
-        info: ViewportInfo,
 
         /// `None` for sync viewports.
         viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
@@ -2081,7 +2072,6 @@ mod wgpu_integration {
                 Viewport {
                     ids: ViewportIdPair::ROOT,
                     class: ViewportClass::Root,
-                    info: ViewportInfo::from_builder(ViewportIdPair::ROOT, &builder),
                     builder,
                     viewport_ui_cb: None,
                     window: Some(Rc::new(window)),
@@ -2172,6 +2162,9 @@ mod wgpu_integration {
                 painter,
                 viewport_from_window,
             } = &mut *shared.borrow_mut();
+
+            let all_viewports = viewports.keys().copied().collect();
+
             let viewport = initialize_or_update_viewport(
                 viewports,
                 ids,
@@ -2190,7 +2183,7 @@ mod wgpu_integration {
                 return;
             };
 
-            let mut input = winit_state.take_egui_input(window, ids);
+            let mut input = winit_state.take_egui_input(window, ids, &all_viewports);
             input.time = Some(beginning.elapsed().as_secs_f64());
             input
         };
@@ -2489,6 +2482,8 @@ mod wgpu_integration {
                     return EventResult::Wait;
                 }
 
+                let all_viewports = viewports.keys().copied().collect();
+
                 let Some(viewport) = viewports.get_mut(&viewport_id) else {
                     return EventResult::Wait;
                 };
@@ -2513,6 +2508,7 @@ mod wgpu_integration {
                 let raw_input = egui_winit.as_mut().unwrap().take_egui_input(
                     window,
                     ViewportIdPair::from_self_and_parent(viewport_id, ids.parent),
+                    &all_viewports,
                 );
 
                 integration.pre_update(window);
@@ -2738,12 +2734,7 @@ mod wgpu_integration {
             if let Some(viewport) = viewports.get_mut(&viewport_id) {
                 if let Some(window) = viewport.window.as_ref() {
                     let is_viewport_focused = focused_viewport == Some(viewport_id);
-                    egui_winit::process_viewport_commands(
-                        &mut viewport.info,
-                        commands,
-                        window,
-                        is_viewport_focused,
-                    );
+                    egui_winit::process_viewport_commands(commands, window, is_viewport_focused);
                 }
             }
         }
@@ -2771,7 +2762,6 @@ mod wgpu_integration {
                 entry.insert(Viewport {
                     ids,
                     class,
-                    info: ViewportInfo::from_builder(ids, &builder),
                     builder,
                     viewport_ui_cb,
                     window: None,
@@ -2799,12 +2789,7 @@ mod wgpu_integration {
                     viewport.egui_winit = None;
                 } else if let Some(window) = &viewport.window {
                     let is_viewport_focused = focused_viewport == Some(ids.this);
-                    process_viewport_commands(
-                        &mut viewport.info,
-                        delta_commands,
-                        window,
-                        is_viewport_focused,
-                    );
+                    process_viewport_commands(delta_commands, window, is_viewport_focused);
                 }
 
                 entry.into_mut()

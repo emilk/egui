@@ -227,7 +227,7 @@ struct ContextImpl {
 
 impl ContextImpl {
     fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
-        let ids = new_raw_input.viewport.ids;
+        let ids = new_raw_input.viewport_ids;
         let viewport_id = ids.this;
         self.viewport_stack.push(ids);
         let viewport = self.viewports.entry(viewport_id).or_default();
@@ -2572,6 +2572,9 @@ impl Context {
     ///
     /// You need to call this each frame when the child viewport should exist.
     ///
+    /// You can check if the user wants to close the viewport by checking the
+    /// [`crate::ViewportInfo::close_requested`] flags found in [`crate::InputState::viewports`].
+    ///
     /// The given callback will be called whenever the child viewport needs repainting,
     /// e.g. on an event or when [`Self::request_repaint`] is called.
     /// This means it may be called multiple times, for instance while the
@@ -2628,6 +2631,9 @@ impl Context {
     /// The given id must be unique for each viewport.
     ///
     /// You need to call this each frame when the child viewport should exist.
+    ///
+    /// You can check if the user wants to close the viewport by checking the
+    /// [`crate::ViewportInfo::close_requested`] flags found in [`crate::InputState::viewports`].
     ///
     /// The given ui function will be called immediately.
     /// This may only be called on the main thread.

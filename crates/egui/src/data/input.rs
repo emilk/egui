@@ -1,6 +1,6 @@
 //! The input needed by egui.
 
-use crate::{emath::*, ViewportBuilder, ViewportIdPair};
+use crate::{emath::*, ViewportIdMap, ViewportIdPair};
 
 /// What the integrations provides to egui at the start of each frame.
 ///
@@ -13,8 +13,11 @@ use crate::{emath::*, ViewportBuilder, ViewportIdPair};
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RawInput {
-    /// Information about the viwport the input is part of.
-    pub viewport: ViewportInfo,
+    /// The id of the active viewport, and out parent.
+    pub viewport_ids: ViewportIdPair,
+
+    /// Information about all egui viewports.
+    pub viewports: ViewportIdMap<ViewportInfo>,
 
     /// Position and size of the area that egui should use, in points.
     /// Usually you would set this to
@@ -75,7 +78,8 @@ pub struct RawInput {
 impl Default for RawInput {
     fn default() -> Self {
         Self {
-            viewport: ViewportInfo::default(),
+            viewport_ids: Default::default(),
+            viewports: Default::default(),
             screen_rect: None,
             pixels_per_point: None,
             max_texture_side: None,
@@ -97,7 +101,8 @@ impl RawInput {
     /// * [`Self::dropped_files`] is moved.
     pub fn take(&mut self) -> RawInput {
         RawInput {
-            viewport: self.viewport.take(),
+            viewport_ids: self.viewport_ids,
+            viewports: self.viewports.clone(),
             screen_rect: self.screen_rect.take(),
             pixels_per_point: self.pixels_per_point.take(),
             max_texture_side: self.max_texture_side.take(),
@@ -114,7 +119,8 @@ impl RawInput {
     /// Add on new input.
     pub fn append(&mut self, newer: Self) {
         let Self {
-            viewport,
+            viewport_ids,
+            viewports,
             screen_rect,
             pixels_per_point,
             max_texture_side,
@@ -127,7 +133,8 @@ impl RawInput {
             focused,
         } = newer;
 
-        self.viewport = viewport;
+        self.viewport_ids = viewport_ids;
+        self.viewports = viewports;
         self.screen_rect = screen_rect.or(self.screen_rect);
         self.pixels_per_point = pixels_per_point.or(self.pixels_per_point);
         self.max_texture_side = max_texture_side.or(self.max_texture_side);
@@ -148,8 +155,8 @@ impl RawInput {
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportInfo {
-    /// Id of us and our parent.
-    pub ids: ViewportIdPair,
+    /// Parent viewport, if known.
+    pub parent: Option<crate::ViewportId>,
 
     /// Name of the viewport, if known.
     pub title: Option<String>,
@@ -184,15 +191,6 @@ pub struct ViewportInfo {
 }
 
 impl ViewportInfo {
-    pub fn from_builder(ids: ViewportIdPair, builder: &ViewportBuilder) -> Self {
-        Self {
-            ids,
-            title: builder.title.clone(),
-            fullscreen: builder.fullscreen,
-            ..Default::default()
-        }
-    }
-
     pub fn take(&mut self) -> Self {
         core::mem::take(self)
     }
@@ -1001,6 +999,8 @@ fn format_kb_shortcut() {
 impl RawInput {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
+            viewport_ids,
+            viewports,
             screen_rect,
             pixels_per_point,
             max_texture_side,
@@ -1011,10 +1011,18 @@ impl RawInput {
             hovered_files,
             dropped_files,
             focused,
-            viewport,
         } = self;
 
-        viewport.ui(ui);
+        ui.label(format!(
+            "Active viwport: {:?}, parent: {:?}",
+            viewport_ids.this, viewport_ids.parent,
+        ));
+        for (id, viewport) in viewports {
+            ui.group(|ui| {
+                ui.label(format!("Viewport {id:?}"));
+                viewport.ui(ui);
+            });
+        }
         ui.label(format!("screen_rect: {screen_rect:?} points"));
         ui.label(format!("pixels_per_point: {pixels_per_point:?}"))
             .on_hover_text(
