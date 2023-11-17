@@ -313,6 +313,8 @@ pub fn create_storage(_app_name: &str) -> Option<Box<dyn epi::Storage>> {
 // ----------------------------------------------------------------------------
 
 /// Everything needed to make a winit-based integration for [`epi`].
+///
+/// Only one instance per app (not one per viewport).
 pub struct EpiIntegration {
     pub frame: epi::Frame,
     last_auto_save: Instant,

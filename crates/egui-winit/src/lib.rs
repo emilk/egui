@@ -209,13 +209,9 @@ impl State {
             && screen_size_in_points.y > 0.0)
             .then(|| Rect::from_min_size(Pos2::ZERO, screen_size_in_points));
 
-        let viewport_info = viewport_info(
-            window,
-            ids,
-            pixels_per_point,
-            self.egui_input.viewport.close_requested,
-        );
-        self.egui_input.viewport = viewport_info;
+        // TODO: one `ViewportInfo` per viewport
+        self.egui_input.viewport.ids = ids;
+        update_viewport_info(&mut self.egui_input.viewport, window, pixels_per_point);
 
         self.egui_input.take()
     }
@@ -754,12 +750,13 @@ impl State {
     }
 }
 
-fn viewport_info(
+fn update_viewport_info(
+    viewport_info: &mut ViewportInfo,
     window: &winit::window::Window,
-    ids: ViewportIdPair,
     pixels_per_point: f32,
-    close_requested: bool,
-) -> ViewportInfo {
+) {
+    crate::profile_function!();
+
     let has_a_position = match window.is_minimized() {
         None | Some(true) => false,
         Some(false) => true,
@@ -812,13 +809,24 @@ fn viewport_info(
     let inner_rect = inner_rect_px.map(|r| r / pixels_per_point);
     let outer_rect = outer_rect_px.map(|r| r / pixels_per_point);
 
-    ViewportInfo {
-        ids,
-        pixels_per_point,
-        inner_rect,
-        outer_rect,
-        close_requested,
-    }
+    let monitor = window.current_monitor().is_some();
+    let monitor_size = if monitor {
+        let size = window
+            .current_monitor()
+            .unwrap()
+            .size()
+            .to_logical::<f32>(pixels_per_point.into());
+        Some(egui::vec2(size.width, size.height))
+    } else {
+        None
+    };
+
+    viewport_info.pixels_per_point = pixels_per_point;
+    viewport_info.monitor_size = monitor_size;
+    viewport_info.inner_rect = inner_rect;
+    viewport_info.outer_rect = outer_rect;
+    viewport_info.fullscreen = Some(window.fullscreen().is_some());
+    viewport_info.focused = Some(window.has_focus());
 }
 
 fn open_url_in_browser(_url: &str) {
@@ -1020,6 +1028,7 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 // ---------------------------------------------------------------------------
 
 pub fn process_viewport_commands(
+    viewport_info: &mut ViewportInfo,
     commands: impl IntoIterator<Item = ViewportCommand>,
     window: &winit::window::Window,
     is_viewport_focused: bool,
@@ -1056,7 +1065,10 @@ pub fn process_viewport_commands(
                     log::warn!("{command:?}: {err}");
                 }
             }
-            ViewportCommand::Title(title) => window.set_title(&title),
+            ViewportCommand::Title(title) => {
+                window.set_title(&title);
+                viewport_info.title = Some(title.clone());
+            }
             ViewportCommand::Transparent(v) => window.set_transparent(v),
             ViewportCommand::Visible(v) => window.set_visible(v),
             ViewportCommand::OuterPosition(pos) => {

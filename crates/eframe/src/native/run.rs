@@ -458,9 +458,11 @@ mod glow_integration {
 
     use egui::{
         epaint::ahash::HashMap, DeferredViewportUiCallback, ImmediateViewport, NumExt as _,
-        ViewportClass, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
+        ViewportClass, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput,
     };
     use egui_winit::{create_winit_window_builder, process_viewport_commands, EventResponse};
+
+    use crate::native::epi_integration::EpiIntegration;
 
     use super::*;
 
@@ -480,7 +482,7 @@ mod glow_integration {
     /// a Resumed event. On Android this ensures that any graphics state is only
     /// initialized once the application has an associated `SurfaceView`.
     struct GlowWinitRunning {
-        integration: epi_integration::EpiIntegration,
+        integration: EpiIntegration,
         app: Box<dyn epi::App>,
 
         // These needs to be shared with the immediate viewport renderer, hence the Rc/Arc/RefCells:
@@ -783,6 +785,8 @@ mod glow_integration {
         ids: ViewportIdPair,
         class: ViewportClass,
         builder: ViewportBuilder,
+        /// Up-to-date info about the viewport.
+        info: ViewportInfo,
 
         /// The user-callback that shows the ui.
         /// None for immediate viewports.
@@ -945,6 +949,7 @@ mod glow_integration {
                 ViewportId::ROOT,
                 Viewport {
                     ids: ViewportIdPair::ROOT,
+                    info: ViewportInfo::from_builder(ViewportIdPair::ROOT, &viewport_builder),
                     class: ViewportClass::Root,
                     builder: viewport_builder,
                     viewport_ui_cb: None,
@@ -1187,10 +1192,11 @@ mod glow_integration {
                     focused_viewport,
                 );
 
-                if let Some(viewport) = self.viewports.get(&viewport_id) {
+                if let Some(viewport) = self.viewports.get_mut(&viewport_id) {
                     if let Some(window) = &viewport.window {
                         let is_viewport_focused = focused_viewport == Some(viewport_id);
                         egui_winit::process_viewport_commands(
+                            &mut viewport.info,
                             commands,
                             window,
                             is_viewport_focused,
@@ -1233,6 +1239,7 @@ mod glow_integration {
                 entry.insert(Viewport {
                     ids,
                     class,
+                    info: ViewportInfo::from_builder(ids, &builder),
                     builder,
                     viewport_ui_cb,
                     window: None,
@@ -1261,7 +1268,12 @@ mod glow_integration {
                     viewport.egui_winit = None;
                 } else if let Some(window) = &viewport.window {
                     let is_viewport_focused = focused_viewport == Some(ids.this);
-                    process_viewport_commands(delta_commands, window, is_viewport_focused);
+                    process_viewport_commands(
+                        &mut viewport.info,
+                        delta_commands,
+                        window,
+                        is_viewport_focused,
+                    );
                 }
 
                 entry.into_mut()
@@ -1378,7 +1390,7 @@ mod glow_integration {
 
             let system_theme = system_theme(&glutin.window(ViewportId::ROOT), &self.native_options);
 
-            let mut integration = epi_integration::EpiIntegration::new(
+            let mut integration = EpiIntegration::new(
                 &glutin.window(ViewportId::ROOT),
                 system_theme,
                 &self.app_name,
@@ -1813,9 +1825,11 @@ mod wgpu_integration {
 
     use egui::{
         DeferredViewportUiCallback, FullOutput, ImmediateViewport, ViewportClass, ViewportIdMap,
-        ViewportIdPair, ViewportIdSet, ViewportOutput,
+        ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput,
     };
     use egui_winit::{create_winit_window_builder, process_viewport_commands};
+
+    use crate::native::epi_integration::EpiIntegration;
 
     use super::*;
 
@@ -1825,6 +1839,8 @@ mod wgpu_integration {
         class: ViewportClass,
 
         builder: ViewportBuilder,
+
+        info: ViewportInfo,
 
         /// `None` for sync viewports.
         viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
@@ -1888,7 +1904,7 @@ mod wgpu_integration {
     /// a Resumed event. On Android this ensures that any graphics state is only
     /// initialized once the application has an associated `SurfaceView`.
     struct WgpuWinitRunning {
-        integration: epi_integration::EpiIntegration,
+        integration: EpiIntegration,
 
         /// The users application.
         app: Box<dyn epi::App>,
@@ -1988,7 +2004,7 @@ mod wgpu_integration {
             let wgpu_render_state = painter.render_state();
 
             let system_theme = system_theme(&window, &self.native_options);
-            let mut integration = epi_integration::EpiIntegration::new(
+            let mut integration = EpiIntegration::new(
                 &window,
                 system_theme,
                 &self.app_name,
@@ -2065,6 +2081,7 @@ mod wgpu_integration {
                 Viewport {
                     ids: ViewportIdPair::ROOT,
                     class: ViewportClass::Root,
+                    info: ViewportInfo::from_builder(ViewportIdPair::ROOT, &builder),
                     builder,
                     viewport_ui_cb: None,
                     window: Some(Rc::new(window)),
@@ -2718,12 +2735,16 @@ mod wgpu_integration {
                 focused_viewport,
             );
 
-            if let Some(window) = viewports
-                .get(&viewport_id)
-                .and_then(|vp| vp.window.as_ref())
-            {
-                let is_viewport_focused = focused_viewport == Some(viewport_id);
-                egui_winit::process_viewport_commands(commands, window, is_viewport_focused);
+            if let Some(viewport) = viewports.get_mut(&viewport_id) {
+                if let Some(window) = viewport.window.as_ref() {
+                    let is_viewport_focused = focused_viewport == Some(viewport_id);
+                    egui_winit::process_viewport_commands(
+                        &mut viewport.info,
+                        commands,
+                        window,
+                        is_viewport_focused,
+                    );
+                }
             }
         }
     }
@@ -2750,6 +2771,7 @@ mod wgpu_integration {
                 entry.insert(Viewport {
                     ids,
                     class,
+                    info: ViewportInfo::from_builder(ids, &builder),
                     builder,
                     viewport_ui_cb,
                     window: None,
@@ -2777,7 +2799,12 @@ mod wgpu_integration {
                     viewport.egui_winit = None;
                 } else if let Some(window) = &viewport.window {
                     let is_viewport_focused = focused_viewport == Some(ids.this);
-                    process_viewport_commands(delta_commands, window, is_viewport_focused);
+                    process_viewport_commands(
+                        &mut viewport.info,
+                        delta_commands,
+                        window,
+                        is_viewport_focused,
+                    );
                 }
 
                 entry.into_mut()

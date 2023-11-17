@@ -1,6 +1,6 @@
 //! The input needed by egui.
 
-use crate::{emath::*, ViewportIdPair};
+use crate::{emath::*, ViewportBuilder, ViewportIdPair};
 
 /// What the integrations provides to egui at the start of each frame.
 ///
@@ -143,14 +143,26 @@ impl RawInput {
 
 /// Information about the current viewport,
 /// given as input each frame.
+///
+/// `None` means "unknown".
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportInfo {
     /// Id of us and our parent.
     pub ids: ViewportIdPair,
 
+    /// Name of the viewport, if known.
+    pub title: Option<String>,
+
+    /// The user requested the viewport should close,
+    /// e.g. by pressing the close button in the window decoration.
+    pub close_requested: bool,
+
     /// Number of physical pixels per ui point.
     pub pixels_per_point: f32,
+
+    /// Current monitor size in egui points.
+    pub monitor_size: Option<Vec2>,
 
     /// The inner rectangle of the native window, in monitor space and ui points scale.
     ///
@@ -162,29 +174,31 @@ pub struct ViewportInfo {
     /// This is the content rectangle plus decoration chrome.
     pub outer_rect: Option<Rect>,
 
-    /// The user requested the viewport should close,
-    /// e.g. by pressing the close button in the window decoration.
-    pub close_requested: bool,
+    /// Are we in fullscreen mode?
+    pub fullscreen: Option<bool>,
+
+    /// Is the window focused and able to receive input?
+    ///
+    /// This should be the same as [`InputState::focused`].
+    pub focused: Option<bool>,
 }
 
 impl ViewportInfo {
+    pub fn from_builder(ids: ViewportIdPair, builder: &ViewportBuilder) -> Self {
+        Self {
+            ids,
+            title: builder.title.clone(),
+            fullscreen: builder.fullscreen,
+            ..Default::default()
+        }
+    }
+
     pub fn take(&mut self) -> Self {
         core::mem::take(self)
     }
 
     pub fn ui(&self, ui: &mut crate::Ui) {
-        let Self {
-            ids,
-            pixels_per_point,
-            inner_rect,
-            outer_rect,
-            close_requested,
-        } = self;
-        ui.label(format!("ids: {ids:?}"));
-        ui.label(format!("pixels_per_point: {pixels_per_point:?}"));
-        ui.label(format!("inner_rect: {inner_rect:?}"));
-        ui.label(format!("outer_rect: {outer_rect:?}"));
-        ui.label(format!("close_requested: {close_requested:?}"));
+        ui.label(format!("{self:#?}"));
     }
 }
 
