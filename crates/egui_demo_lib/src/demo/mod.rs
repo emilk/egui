@@ -11,6 +11,7 @@ pub mod context_menu;
 pub mod dancing_strings;
 pub mod demo_app_windows;
 pub mod drag_and_drop;
+pub mod extra_viewport;
 pub mod font_book;
 pub mod highlighting;
 pub mod layout_test;
@@ -46,6 +47,11 @@ pub trait View {
 
 /// Something to view
 pub trait Demo {
+    /// Is the demo enabled for this integraton?
+    fn is_enabled(&self, _ctx: &egui::Context) -> bool {
+        true
+    }
+
     /// `&'static` so we can also use it as a key to store open/close state.
     fn name(&self) -> &'static str;
 
