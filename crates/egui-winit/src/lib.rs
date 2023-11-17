@@ -14,7 +14,9 @@ pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdPair};
+use egui::{
+    Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdPair, ViewportInfo,
+};
 pub use winit;
 
 pub mod clipboard;
@@ -207,57 +209,13 @@ impl State {
             && screen_size_in_points.y > 0.0)
             .then(|| Rect::from_min_size(Pos2::ZERO, screen_size_in_points));
 
-        let has_a_position = match window.is_minimized() {
-            None | Some(true) => false,
-            Some(false) => true,
-        };
-
-        let inner_pos_px = if has_a_position {
-            window
-                .inner_position()
-                .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
-                .ok()
-        } else {
-            None
-        };
-
-        let outer_pos_px = if has_a_position {
-            window
-                .outer_position()
-                .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
-                .ok()
-        } else {
-            None
-        };
-
-        let inner_size_px = if has_a_position {
-            let size = window.inner_size();
-            Some(Vec2::new(size.width as f32, size.height as f32))
-        } else {
-            None
-        };
-
-        let outer_size_px = if has_a_position {
-            let size = window.outer_size();
-            Some(Vec2::new(size.width as f32, size.height as f32))
-        } else {
-            None
-        };
-
-        self.egui_input.viewport.ids = ids;
-        self.egui_input.viewport.inner_rect_px =
-            if let (Some(pos), Some(size)) = (inner_pos_px, inner_size_px) {
-                Some(Rect::from_min_size(pos, size))
-            } else {
-                None
-            };
-
-        self.egui_input.viewport.outer_rect_px =
-            if let (Some(pos), Some(size)) = (outer_pos_px, outer_size_px) {
-                Some(Rect::from_min_size(pos, size))
-            } else {
-                None
-            };
+        let viewport_info = viewport_info(
+            window,
+            ids,
+            pixels_per_point,
+            self.egui_input.viewport.close_requested,
+        );
+        self.egui_input.viewport = viewport_info;
 
         self.egui_input.take()
     }
@@ -793,6 +751,73 @@ impl State {
             // Remember to set the cursor again once the cursor returns to the screen:
             self.current_cursor_icon = None;
         }
+    }
+}
+
+fn viewport_info(
+    window: &winit::window::Window,
+    ids: ViewportIdPair,
+    pixels_per_point: f32,
+    close_requested: bool,
+) -> ViewportInfo {
+    let has_a_position = match window.is_minimized() {
+        None | Some(true) => false,
+        Some(false) => true,
+    };
+
+    let inner_pos_px = if has_a_position {
+        window
+            .inner_position()
+            .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
+            .ok()
+    } else {
+        None
+    };
+
+    let outer_pos_px = if has_a_position {
+        window
+            .outer_position()
+            .map(|pos| Pos2::new(pos.x as f32, pos.y as f32))
+            .ok()
+    } else {
+        None
+    };
+
+    let inner_size_px = if has_a_position {
+        let size = window.inner_size();
+        Some(Vec2::new(size.width as f32, size.height as f32))
+    } else {
+        None
+    };
+
+    let outer_size_px = if has_a_position {
+        let size = window.outer_size();
+        Some(Vec2::new(size.width as f32, size.height as f32))
+    } else {
+        None
+    };
+
+    let inner_rect_px = if let (Some(pos), Some(size)) = (inner_pos_px, inner_size_px) {
+        Some(Rect::from_min_size(pos, size))
+    } else {
+        None
+    };
+
+    let outer_rect_px = if let (Some(pos), Some(size)) = (outer_pos_px, outer_size_px) {
+        Some(Rect::from_min_size(pos, size))
+    } else {
+        None
+    };
+
+    let inner_rect = inner_rect_px.map(|r| r / pixels_per_point);
+    let outer_rect = outer_rect_px.map(|r| r / pixels_per_point);
+
+    ViewportInfo {
+        ids,
+        pixels_per_point,
+        inner_rect,
+        outer_rect,
+        close_requested,
     }
 }
 

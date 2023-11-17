@@ -143,19 +143,24 @@ impl RawInput {
 
 /// Information about the current viewport,
 /// given as input each frame.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportInfo {
     /// Id of us and our parent.
     pub ids: ViewportIdPair,
 
-    /// Viewport inner position and size, only the drowable area
-    /// unit = physical pixels
-    pub inner_rect_px: Option<Rect>,
+    /// Number of physical pixels per ui point.
+    pub pixels_per_point: f32,
 
-    /// Viewport outer position and size, drowable area + decorations
-    /// unit = physical pixels
-    pub outer_rect_px: Option<Rect>,
+    /// The inner rectangle of the native window, in monitor space and ui points scale.
+    ///
+    /// This is the content rectangle of the viewport.
+    pub inner_rect: Option<Rect>,
+
+    /// The outer rectangle of the native window, in monitor space and ui points scale.
+    ///
+    /// This is the content rectangle plus decoration chrome.
+    pub outer_rect: Option<Rect>,
 
     /// The user requested the viewport should close,
     /// e.g. by pressing the close button in the window decoration.
@@ -170,13 +175,15 @@ impl ViewportInfo {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
             ids,
-            inner_rect_px,
-            outer_rect_px,
+            pixels_per_point,
+            inner_rect,
+            outer_rect,
             close_requested,
         } = self;
         ui.label(format!("ids: {ids:?}"));
-        ui.label(format!("inner_rect_px: {inner_rect_px:?}"));
-        ui.label(format!("outer_rect_px: {outer_rect_px:?}"));
+        ui.label(format!("pixels_per_point: {pixels_per_point:?}"));
+        ui.label(format!("inner_rect: {inner_rect:?}"));
+        ui.label(format!("outer_rect: {outer_rect:?}"));
         ui.label(format!("close_requested: {close_requested:?}"));
     }
 }

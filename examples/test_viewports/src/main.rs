@@ -221,14 +221,14 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>]) {
 
     ui.add_space(8.0);
 
-    if let Some(inner_rect) = ctx.input(|i| i.raw.viewport.inner_rect_px) {
+    if let Some(inner_rect) = ctx.input(|i| i.raw.viewport.inner_rect) {
         ui.label(format!(
             "Inner Rect: Pos: {:?}, Size: {:?}",
             inner_rect.min,
             inner_rect.size()
         ));
     }
-    if let Some(outer_rect) = ctx.input(|i| i.raw.viewport.outer_rect_px) {
+    if let Some(outer_rect) = ctx.input(|i| i.raw.viewport.outer_rect) {
         ui.label(format!(
             "Outer Rect: Pos: {:?}, Size: {:?}",
             outer_rect.min,
