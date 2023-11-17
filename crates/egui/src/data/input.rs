@@ -196,7 +196,65 @@ impl ViewportInfo {
     }
 
     pub fn ui(&self, ui: &mut crate::Ui) {
-        ui.label(format!("{self:#?}"));
+        let Self {
+            parent,
+            title,
+            close_requested,
+            pixels_per_point,
+            monitor_size,
+            inner_rect,
+            outer_rect,
+            fullscreen,
+            focused,
+        } = self;
+
+        crate::Grid::new("viewport_info").show(ui, |ui| {
+            ui.label("Parent:");
+            ui.label(opt_as_str(parent));
+            ui.end_row();
+
+            ui.label("Title:");
+            ui.label(opt_as_str(title));
+            ui.end_row();
+
+            ui.label("Close requested:");
+            ui.label(close_requested.to_string());
+            ui.end_row();
+
+            ui.label("Pixels per point:");
+            ui.label(pixels_per_point.to_string());
+            ui.end_row();
+
+            ui.label("Monitor size:");
+            ui.label(opt_as_str(monitor_size));
+            ui.end_row();
+
+            ui.label("Inner rect:");
+            ui.label(opt_rect_as_string(inner_rect));
+            ui.end_row();
+
+            ui.label("Outer rect:");
+            ui.label(opt_rect_as_string(outer_rect));
+            ui.end_row();
+
+            ui.label("Fullscreen:");
+            ui.label(opt_as_str(fullscreen));
+            ui.end_row();
+
+            ui.label("Focused:");
+            ui.label(opt_as_str(focused));
+            ui.end_row();
+
+            fn opt_rect_as_string(v: &Option<Rect>) -> String {
+                v.as_ref().map_or(String::new(), |r| {
+                    format!("Pos: {:?}, size: {:?}", r.min, r.size())
+                })
+            }
+
+            fn opt_as_str<T: std::fmt::Debug>(v: &Option<T>) -> String {
+                v.as_ref().map_or(String::new(), |v| format!("{v:?}"))
+            }
+        });
     }
 }
 
