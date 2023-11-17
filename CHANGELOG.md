@@ -51,7 +51,7 @@ egui_extras::install_image_loaders(egui_ctx);
 * Support images with rounded corners [#3257](https://github.com/emilk/egui/pull/3257)
 * Change focused widget with arrow keys [#3272](https://github.com/emilk/egui/pull/3272) (thanks [@TimonPost](https://github.com/TimonPost)!)
 * Add opt-in `puffin` feature to egui [#3298](https://github.com/emilk/egui/pull/3298)
-* Add debug-option to show a callstack to the widget under the mouse [#3391](https://github.com/emilk/egui/pull/3391)
+* Add debug-option to show a callstack to the widget under the mouse and removed the `trace!` macro as this is more useful [#3391](https://github.com/emilk/egui/pull/3391)
 * Add `Context::open_url` and `Context::copy_text` [#3380](https://github.com/emilk/egui/pull/3380)
 * Add  `Area::constrain_to` and `Window::constrain_to` [#3396](https://github.com/emilk/egui/pull/3396)
 * Add `Memory::area_rect` [#3161](https://github.com/emilk/egui/pull/3161) (thanks [@tosti007](https://github.com/tosti007)!)
