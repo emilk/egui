@@ -221,14 +221,14 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>]) {
 
     ui.add_space(8.0);
 
-    if let Some(inner_rect) = ctx.input(|i| i.raw.viewport.inner_rect_px) {
+    if let Some(inner_rect) = ctx.input(|i| i.viewport().inner_rect) {
         ui.label(format!(
             "Inner Rect: Pos: {:?}, Size: {:?}",
             inner_rect.min,
             inner_rect.size()
         ));
     }
-    if let Some(outer_rect) = ctx.input(|i| i.raw.viewport.outer_rect_px) {
+    if let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect) {
         ui.label(format!(
             "Outer Rect: Pos: {:?}, Size: {:?}",
             outer_rect.min,
@@ -258,12 +258,12 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>]) {
             data.insert_temp(container_id.with("pixels_per_point"), tmp_pixels_per_point);
         });
     }
-    egui::gui_zoom::zoom_with_keyboard_shortcuts(&ctx, None);
+    egui::gui_zoom::zoom_with_keyboard_shortcuts(&ctx);
 
     if ctx.viewport_id() != ctx.parent_viewport_id() {
         let parent = ctx.parent_viewport_id();
         if ui.button("Set parent pos 0,0").clicked() {
-            ctx.send_viewport_command_to(
+            ctx.send_viewport_cmd_to(
                 parent,
                 egui::ViewportCommand::OuterPosition(egui::pos2(0.0, 0.0)),
             );

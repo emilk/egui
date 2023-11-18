@@ -49,7 +49,6 @@ impl AppRunner {
             },
             system_theme,
             cpu_usage: None,
-            native_pixels_per_point: Some(super::native_pixels_per_point()),
         };
         let storage = LocalStorage::default();
 
@@ -78,7 +77,6 @@ impl AppRunner {
 
         let frame = epi::Frame {
             info,
-            output: Default::default(),
             storage: Some(Box::new(storage)),
 
             #[cfg(feature = "glow")]
@@ -114,6 +112,7 @@ impl AppRunner {
         };
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
+        runner.input.raw.native_pixels_per_point = Some(super::native_pixels_per_point());
 
         Ok(runner)
     }
@@ -192,16 +191,18 @@ impl AppRunner {
         if viewport_output.len() > 1 {
             log::warn!("Multiple viewports not yet supported on the web");
         }
-        // TODO(emilk): handle some of the command in `viewport_output`, like setting the title and icon?
+        for viewport_output in viewport_output.values() {
+            for command in &viewport_output.commands {
+                // TODO(emilk): handle some of the commands
+                log::warn!(
+                    "Unhandled egui viewport command: {command:?} - not implemented in web backend"
+                );
+            }
+        }
 
         self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
         let clipped_primitives = self.egui_ctx.tessellate(shapes, pixels_per_point);
-
-        {
-            let app_output = self.frame.take_app_output();
-            let epi::backend::AppOutput {} = app_output;
-        }
 
         self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
 

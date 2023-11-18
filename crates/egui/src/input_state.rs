@@ -231,6 +231,11 @@ impl InputState {
         }
     }
 
+    /// Info about the active viewport
+    pub fn viewport(&self) -> &ViewportInfo {
+        self.raw.viewports.get(&self.raw.viewport_ids.this).expect("Failed to find current viewport in egui RawInput. This is the fault of the egui backend")
+    }
+
     #[inline(always)]
     pub fn screen_rect(&self) -> Rect {
         self.screen_rect

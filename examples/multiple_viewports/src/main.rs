@@ -65,7 +65,7 @@ impl eframe::App for MyApp {
                         ui.label("Hello from immediate viewport");
                     });
 
-                    if ctx.input(|i| i.raw.viewport.close_requested) {
+                    if ctx.input(|i| i.viewport().close_requested) {
                         // Tell parent viewport that we should not show next frame:
                         self.show_immediate_viewport = false;
                         ctx.request_repaint(); // make sure there is a next frame
@@ -90,7 +90,7 @@ impl eframe::App for MyApp {
                     egui::CentralPanel::default().show(ctx, |ui| {
                         ui.label("Hello from deferred viewport");
                     });
-                    if ctx.input(|i| i.raw.viewport.close_requested) {
+                    if ctx.input(|i| i.viewport().close_requested) {
                         // Tell parent to close us.
                         show_deferred_viewport.store(false, Ordering::Relaxed);
                         ctx.request_repaint(); // make sure there is a next frame

@@ -16,17 +16,22 @@ cargo install cargo-cranky # Uses lints defined in Cranky.toml. See https://gith
 export RUSTFLAGS="--cfg=web_sys_unstable_apis -D warnings"
 export RUSTDOCFLAGS="-D warnings" # https://github.com/emilk/egui/pull/1454
 
+# Fast checks first:
+typos
+./scripts/lint.py
+cargo fmt --all -- --check
+cargo doc --lib --no-deps --all-features
+cargo doc --document-private-items --no-deps --all-features
+
+cargo cranky --all-targets --all-features -- -D warnings
+./scripts/clippy_wasm.sh
+
 cargo check --all-targets
 cargo check --all-targets --all-features
 cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown
 cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
-cargo cranky --all-targets --all-features -- -D warnings
 cargo test --all-targets --all-features
 cargo test --doc # slow - checks all doc-tests
-cargo fmt --all -- --check
-
-cargo doc --lib --no-deps --all-features
-cargo doc --document-private-items --no-deps --all-features
 
 (cd crates/eframe && cargo check --no-default-features --features "glow")
 (cd crates/eframe && cargo check --no-default-features --features "wgpu")
@@ -52,8 +57,6 @@ cargo doc --document-private-items --no-deps --all-features
 (cd crates/epaint && cargo check --all-features)
 
 ./scripts/wasm_bindgen_check.sh
-
-cargo cranky --target wasm32-unknown-unknown --all-features -p egui_demo_app --lib -- -D warnings
 
 ./scripts/cargo_deny.sh
 

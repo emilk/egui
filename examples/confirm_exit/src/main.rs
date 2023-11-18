@@ -27,7 +27,7 @@ impl eframe::App for MyApp {
         self.allowed_to_close
     }
 
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Try to close the window");
         });
@@ -45,7 +45,7 @@ impl eframe::App for MyApp {
 
                         if ui.button("Yes!").clicked() {
                             self.allowed_to_close = true;
-                            frame.close();
+                            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                         }
                     });
                 });

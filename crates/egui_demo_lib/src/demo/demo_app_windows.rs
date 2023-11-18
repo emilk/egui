@@ -27,6 +27,7 @@ impl Default for Demos {
             Box::<super::context_menu::ContextMenus>::default(),
             Box::<super::dancing_strings::DancingStrings>::default(),
             Box::<super::drag_and_drop::DragAndDropDemo>::default(),
+            Box::<super::extra_viewport::ExtraViewport>::default(),
             Box::<super::font_book::FontBook>::default(),
             Box::<super::MiscDemoWindow>::default(),
             Box::<super::multi_touch::MultiTouch>::default(),
@@ -61,9 +62,11 @@ impl Demos {
     pub fn checkboxes(&mut self, ui: &mut Ui) {
         let Self { demos, open } = self;
         for demo in demos {
-            let mut is_open = open.contains(demo.name());
-            ui.toggle_value(&mut is_open, demo.name());
-            set_open(open, demo.name(), is_open);
+            if demo.is_enabled(ui.ctx()) {
+                let mut is_open = open.contains(demo.name());
+                ui.toggle_value(&mut is_open, demo.name());
+                set_open(open, demo.name(), is_open);
+            }
         }
     }
 

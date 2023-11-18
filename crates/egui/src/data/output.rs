@@ -210,6 +210,7 @@ impl OpenUrl {
 ///
 /// [user_attention_type]: https://docs.rs/winit/latest/winit/window/enum.UserAttentionType.html
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum UserAttentionType {
     /// Request an elevated amount of animations and flair for the window and the task bar or dock icon.
     Critical,

@@ -622,3 +622,39 @@ impl From<[Pos2; 2]> for Rect {
         Self { min, max }
     }
 }
+
+impl Mul<f32> for Rect {
+    type Output = Rect;
+
+    #[inline]
+    fn mul(self, factor: f32) -> Rect {
+        Rect {
+            min: self.min * factor,
+            max: self.max * factor,
+        }
+    }
+}
+
+impl Mul<Rect> for f32 {
+    type Output = Rect;
+
+    #[inline]
+    fn mul(self, vec: Rect) -> Rect {
+        Rect {
+            min: self * vec.min,
+            max: self * vec.max,
+        }
+    }
+}
+
+impl Div<f32> for Rect {
+    type Output = Rect;
+
+    #[inline]
+    fn div(self, factor: f32) -> Rect {
+        Rect {
+            min: self.min / factor,
+            max: self.max / factor,
+        }
+    }
+}

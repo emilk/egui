@@ -227,7 +227,7 @@ struct ContextImpl {
 
 impl ContextImpl {
     fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
-        let ids = new_raw_input.viewport.ids;
+        let ids = new_raw_input.viewport_ids;
         let viewport_id = ids.this;
         self.viewport_stack.push(ids);
         let viewport = self.viewports.entry(viewport_id).or_default();
@@ -2555,15 +2555,16 @@ impl Context {
     /// Send a command to the current viewport.
     ///
     /// This lets you affect the current viewport, e.g. resizing the window.
-    pub fn send_viewport_command(&self, command: ViewportCommand) {
-        self.send_viewport_command_to(self.viewport_id(), command);
+    pub fn send_viewport_cmd(&self, command: ViewportCommand) {
+        self.send_viewport_cmd_to(self.viewport_id(), command);
     }
 
     /// Send a command to a speicfic viewport.
     ///
     /// This lets you affect another viewport, e.g. resizing its window.
-    pub fn send_viewport_command_to(&self, id: ViewportId, command: ViewportCommand) {
+    pub fn send_viewport_cmd_to(&self, id: ViewportId, command: ViewportCommand) {
         self.write(|ctx| ctx.viewport_for(id).commands.push(command));
+        self.request_repaint_of(id);
     }
 
     /// This creates a new native window, if possible.
@@ -2571,6 +2572,9 @@ impl Context {
     /// The given id must be unique for each viewport.
     ///
     /// You need to call this each frame when the child viewport should exist.
+    ///
+    /// You can check if the user wants to close the viewport by checking the
+    /// [`crate::ViewportInfo::close_requested`] flags found in [`crate::InputState::viewport`].
     ///
     /// The given callback will be called whenever the child viewport needs repainting,
     /// e.g. on an event or when [`Self::request_repaint`] is called.
@@ -2628,6 +2632,9 @@ impl Context {
     /// The given id must be unique for each viewport.
     ///
     /// You need to call this each frame when the child viewport should exist.
+    ///
+    /// You can check if the user wants to close the viewport by checking the
+    /// [`crate::ViewportInfo::close_requested`] flags found in [`crate::InputState::viewport`].
     ///
     /// The given ui function will be called immediately.
     /// This may only be called on the main thread.

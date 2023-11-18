@@ -259,7 +259,8 @@ impl eframe::App for WrapApp {
 
         #[cfg(not(target_arch = "wasm32"))]
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F11)) {
-            frame.set_fullscreen(!frame.info().window_info.fullscreen);
+            let fullscreen = ctx.input(|i| i.viewport().fullscreen.unwrap_or(false));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(!fullscreen));
         }
 
         let mut cmd = Command::Nothing;
@@ -284,7 +285,7 @@ impl eframe::App for WrapApp {
 
         // On web, the browser controls `pixels_per_point`.
         if !frame.is_web() {
-            egui::gui_zoom::zoom_with_keyboard_shortcuts(ctx, frame.info().native_pixels_per_point);
+            egui::gui_zoom::zoom_with_keyboard_shortcuts(ctx);
         }
 
         self.run_cmd(ctx, cmd);

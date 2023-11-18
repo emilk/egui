@@ -12,6 +12,8 @@ pub struct EguiGlow {
     pub egui_winit: egui_winit::State,
     pub painter: crate::Painter,
 
+    viewport_info: egui::ViewportInfo,
+
     // output from the last update:
     shapes: Vec<egui::epaint::ClippedShape>,
     pixels_per_point: f32,
@@ -43,6 +45,7 @@ impl EguiGlow {
             egui_ctx: Default::default(),
             egui_winit,
             painter,
+            viewport_info: Default::default(),
             shapes: Default::default(),
             pixels_per_point,
             textures_delta: Default::default(),
@@ -50,7 +53,8 @@ impl EguiGlow {
     }
 
     pub fn on_event(&mut self, event: &winit::event::WindowEvent<'_>) -> EventResponse {
-        self.egui_winit.on_event(&self.egui_ctx, event)
+        self.egui_winit
+            .on_event(&self.egui_ctx, event, ViewportId::ROOT)
     }
 
     /// Call [`Self::paint`] later to paint.
@@ -71,7 +75,17 @@ impl EguiGlow {
             log::warn!("Multiple viewports not yet supported by EguiGlow");
         }
         for (_, ViewportOutput { commands, .. }) in viewport_output {
-            egui_winit::process_viewport_commands(commands, window, true);
+            let mut screenshot_requested = false;
+            egui_winit::process_viewport_commands(
+                &mut self.viewport_info,
+                commands,
+                window,
+                true,
+                &mut screenshot_requested,
+            );
+            if screenshot_requested {
+                log::warn!("Screenshot not yet supported by EguiGlow");
+            }
         }
 
         self.egui_winit.handle_platform_output(

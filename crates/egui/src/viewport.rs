@@ -38,12 +38,26 @@
 //!
 //! ## Using the viewports
 //! Only one viewport is active at any one time, identified with [`Context::viewport_id`].
-//! You can send commands to other viewports using [`Context::send_viewport_command_to`].
+//! You can modify the current (change the title, resize the window, etc) by sending
+//! a [`ViewportCommand`] to it using [`Context::send_viewport_cmd`].
+//! You can interact with other viewports using [`Context::send_viewport_cmd_to`].
 //!
 //! There is an example in <https://github.com/emilk/egui/tree/master/examples/multiple_viewports/src/main.rs>.
 //!
+//! You can find all available viewports in [`crate::RawInput::viewports`] and the active viewport in
+//! [`crate::InputState::viewport`]:
+//!
+//! ```no_run
+//! # let ctx = &egui::Context::default();
+//! ctx.input(|i| {
+//!     dbg!(&i.viewport()); // Current viewport
+//!     dbg!(&i.raw.viewports); // All viewports
+//! });
+//! ```
+//!
 //! ## For integrations
-//! * There is a [`crate::RawInput::viewport`] with information about the current viewport.
+//! * There is a [`crate::InputState::viewport`] with information about the current viewport.
+//! * There is a [`crate::RawInput::viewports`] with information about all viewports.
 //! * The repaint callback set by [`Context::set_request_repaint_callback`] points to which viewport should be repainted.
 //! * [`crate::FullOutput::viewport_output`] is a list of viewports which should result in their own independent windows.
 //! * To support immediate viewports you need to call [`Context::set_immediate_viewport_renderer`].
@@ -638,13 +652,6 @@ pub enum CursorGrab {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum UserAttentionType {
-    Informational,
-    Critical,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ResizeDirection {
     North,
     South,
@@ -655,7 +662,7 @@ pub enum ResizeDirection {
     SouthWest,
 }
 
-/// You can send a [`ViewportCommand`] to the viewport with [`Context::send_viewport_command`].
+/// You can send a [`ViewportCommand`] to the viewport with [`Context::send_viewport_cmd`].
 ///
 /// All coordinates are in logical points.
 ///
@@ -663,7 +670,13 @@ pub enum ResizeDirection {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ViewportCommand {
-    /// Set the title
+    /// Request this viewport to be closed.
+    ///
+    /// For the root viewport, this usually results in the application shutting down.
+    /// For other viewports, the [`crate::ViewportInfo::close_requested`] flag will be set.
+    Close,
+
+    /// Set the window title.
     Title(String),
 
     /// Turn the window transparent or not.
@@ -709,21 +722,45 @@ pub enum ViewportCommand {
         maximize: bool,
     },
     Minimized(bool),
+
+    /// Maximize or unmaximize window.
     Maximized(bool),
+
+    /// Turn borderless fullscreen on/off.
     Fullscreen(bool),
 
     /// Show window decorations, i.e. the chrome around the content
     /// with the title bar, close buttons, resize handles, etc.
     Decorations(bool),
 
+    /// Set window to be always-on-top, always-on-bottom, or neither.
     WindowLevel(WindowLevel),
+
+    /// The the window icon.
     WindowIcon(Option<Arc<ColorImage>>),
 
     IMEPosition(Pos2),
     IMEAllowed(bool),
     IMEPurpose(IMEPurpose),
 
-    RequestUserAttention(Option<UserAttentionType>),
+    /// Bring the window into focus (native only).
+    ///
+    /// This command puts the window on top of other applications and takes input focus away from them,
+    /// which, if unexpected, will disturb the user.
+    ///
+    /// Has no effect on Wayland, or if the window is minimized or invisible.
+    Focus,
+
+    /// If the window is unfocused, attract the user's attention (native only).
+    ///
+    /// Typically, this means that the window will flash on the taskbar, or bounce, until it is interacted with.
+    ///
+    /// When the window comes into focus, or if `None` is passed, the attention request will be automatically reset.
+    ///
+    /// See [winit's documentation][user_attention_details] for platform-specific effect details.
+    ///
+    /// [user_attention_details]: https://docs.rs/winit/latest/winit/window/enum.UserAttentionType.html
+    RequestUserAttention(crate::UserAttentionType),
 
     SetTheme(SystemTheme),
 
@@ -737,6 +774,29 @@ pub enum ViewportCommand {
     CursorVisible(bool),
 
     CursorHitTest(bool),
+
+    /// Take a screenshot.
+    ///
+    /// The results are returned in `crate::Event::Screenshot`.
+    Screenshot,
+}
+
+impl ViewportCommand {
+    /// Construct a command to center the viewport on the monitor, if possible.
+    pub fn center_on_screen(ctx: &crate::Context) -> Option<Self> {
+        ctx.input(|i| {
+            let outer_rect = i.viewport().outer_rect?;
+            let size = outer_rect.size();
+            let monitor_size = i.viewport().monitor_size?;
+            if 1.0 < monitor_size.x && 1.0 < monitor_size.y {
+                let x = (monitor_size.x - size.x) / 2.0;
+                let y = (monitor_size.y - size.y) / 2.0;
+                Some(Self::OuterPosition([x, y].into()))
+            } else {
+                None
+            }
+        })
+    }
 }
 
 /// Describes a viewport, i.e. a native window.

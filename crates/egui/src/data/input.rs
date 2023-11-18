@@ -1,6 +1,8 @@
 //! The input needed by egui.
 
-use crate::{emath::*, ViewportIdPair};
+use epaint::ColorImage;
+
+use crate::{emath::*, ViewportIdMap, ViewportIdPair};
 
 /// What the integrations provides to egui at the start of each frame.
 ///
@@ -13,8 +15,11 @@ use crate::{emath::*, ViewportIdPair};
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RawInput {
-    /// Information about the viwport the input is part of.
-    pub viewport: ViewportInfo,
+    /// The id of the active viewport, and out parent.
+    pub viewport_ids: ViewportIdPair,
+
+    /// Information about all egui viewports.
+    pub viewports: ViewportIdMap<ViewportInfo>,
 
     /// Position and size of the area that egui should use, in points.
     /// Usually you would set this to
@@ -27,9 +32,18 @@ pub struct RawInput {
     pub screen_rect: Option<Rect>,
 
     /// Also known as device pixel ratio, > 1 for high resolution screens.
+    ///
     /// If text looks blurry you probably forgot to set this.
     /// Set this the first frame, whenever it changes, or just on every frame.
     pub pixels_per_point: Option<f32>,
+
+    /// The OS native pixels-per-point.
+    ///
+    /// This should always be set, if known.
+    ///
+    /// On web this takes browser scaling into account,
+    /// and orresponds to [`window.devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) in JavaScript.
+    pub native_pixels_per_point: Option<f32>,
 
     /// Maximum size of one side of the font texture.
     ///
@@ -75,9 +89,11 @@ pub struct RawInput {
 impl Default for RawInput {
     fn default() -> Self {
         Self {
-            viewport: ViewportInfo::default(),
+            viewport_ids: Default::default(),
+            viewports: Default::default(),
             screen_rect: None,
             pixels_per_point: None,
+            native_pixels_per_point: None,
             max_texture_side: None,
             time: None,
             predicted_dt: 1.0 / 60.0,
@@ -97,9 +113,11 @@ impl RawInput {
     /// * [`Self::dropped_files`] is moved.
     pub fn take(&mut self) -> RawInput {
         RawInput {
-            viewport: self.viewport.take(),
+            viewport_ids: self.viewport_ids,
+            viewports: self.viewports.clone(),
             screen_rect: self.screen_rect.take(),
-            pixels_per_point: self.pixels_per_point.take(),
+            pixels_per_point: self.pixels_per_point.take(), // take the diff
+            native_pixels_per_point: self.native_pixels_per_point, // copy
             max_texture_side: self.max_texture_side.take(),
             time: self.time.take(),
             predicted_dt: self.predicted_dt,
@@ -114,9 +132,11 @@ impl RawInput {
     /// Add on new input.
     pub fn append(&mut self, newer: Self) {
         let Self {
-            viewport,
+            viewport_ids,
+            viewports,
             screen_rect,
             pixels_per_point,
+            native_pixels_per_point,
             max_texture_side,
             time,
             predicted_dt,
@@ -127,9 +147,11 @@ impl RawInput {
             focused,
         } = newer;
 
-        self.viewport = viewport;
+        self.viewport_ids = viewport_ids;
+        self.viewports = viewports;
         self.screen_rect = screen_rect.or(self.screen_rect);
         self.pixels_per_point = pixels_per_point.or(self.pixels_per_point);
+        self.native_pixels_per_point = native_pixels_per_point.or(self.native_pixels_per_point);
         self.max_texture_side = max_texture_side.or(self.max_texture_side);
         self.time = time; // use latest time
         self.predicted_dt = predicted_dt; // use latest dt
@@ -143,23 +165,50 @@ impl RawInput {
 
 /// Information about the current viewport,
 /// given as input each frame.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+///
+/// `None` means "unknown".
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportInfo {
-    /// Id of us and our parent.
-    pub ids: ViewportIdPair,
+    /// Parent viewport, if known.
+    pub parent: Option<crate::ViewportId>,
 
-    /// Viewport inner position and size, only the drowable area
-    /// unit = physical pixels
-    pub inner_rect_px: Option<Rect>,
-
-    /// Viewport outer position and size, drowable area + decorations
-    /// unit = physical pixels
-    pub outer_rect_px: Option<Rect>,
+    /// Name of the viewport, if known.
+    pub title: Option<String>,
 
     /// The user requested the viewport should close,
     /// e.g. by pressing the close button in the window decoration.
     pub close_requested: bool,
+
+    /// Number of physical pixels per ui point.
+    pub pixels_per_point: f32,
+
+    /// Current monitor size in egui points.
+    pub monitor_size: Option<Vec2>,
+
+    /// The inner rectangle of the native window, in monitor space and ui points scale.
+    ///
+    /// This is the content rectangle of the viewport.
+    pub inner_rect: Option<Rect>,
+
+    /// The outer rectangle of the native window, in monitor space and ui points scale.
+    ///
+    /// This is the content rectangle plus decoration chrome.
+    pub outer_rect: Option<Rect>,
+
+    /// Are we minimized?
+    pub minimized: Option<bool>,
+
+    /// Are we maximized?
+    pub maximized: Option<bool>,
+
+    /// Are we in fullscreen mode?
+    pub fullscreen: Option<bool>,
+
+    /// Is the window focused and able to receive input?
+    ///
+    /// This should be the same as [`RawInput::focused`].
+    pub focused: Option<bool>,
 }
 
 impl ViewportInfo {
@@ -169,15 +218,74 @@ impl ViewportInfo {
 
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
-            ids,
-            inner_rect_px,
-            outer_rect_px,
+            parent,
+            title,
             close_requested,
+            pixels_per_point,
+            monitor_size,
+            inner_rect,
+            outer_rect,
+            minimized,
+            maximized,
+            fullscreen,
+            focused,
         } = self;
-        ui.label(format!("ids: {ids:?}"));
-        ui.label(format!("inner_rect_px: {inner_rect_px:?}"));
-        ui.label(format!("outer_rect_px: {outer_rect_px:?}"));
-        ui.label(format!("close_requested: {close_requested:?}"));
+
+        crate::Grid::new("viewport_info").show(ui, |ui| {
+            ui.label("Parent:");
+            ui.label(opt_as_str(parent));
+            ui.end_row();
+
+            ui.label("Title:");
+            ui.label(opt_as_str(title));
+            ui.end_row();
+
+            ui.label("Close requested:");
+            ui.label(close_requested.to_string());
+            ui.end_row();
+
+            ui.label("Pixels per point:");
+            ui.label(pixels_per_point.to_string());
+            ui.end_row();
+
+            ui.label("Monitor size:");
+            ui.label(opt_as_str(monitor_size));
+            ui.end_row();
+
+            ui.label("Inner rect:");
+            ui.label(opt_rect_as_string(inner_rect));
+            ui.end_row();
+
+            ui.label("Outer rect:");
+            ui.label(opt_rect_as_string(outer_rect));
+            ui.end_row();
+
+            ui.label("Minimized:");
+            ui.label(opt_as_str(minimized));
+            ui.end_row();
+
+            ui.label("Maximized:");
+            ui.label(opt_as_str(maximized));
+            ui.end_row();
+
+            ui.label("Fullscreen:");
+            ui.label(opt_as_str(fullscreen));
+            ui.end_row();
+
+            ui.label("Focused:");
+            ui.label(opt_as_str(focused));
+            ui.end_row();
+
+            fn opt_rect_as_string(v: &Option<Rect>) -> String {
+                v.as_ref().map_or(String::new(), |r| {
+                    format!("Pos: {:?}, size: {:?}", r.min, r.size())
+                })
+            }
+
+            fn opt_as_str<T: std::fmt::Debug>(v: &Option<T>) -> String {
+                v.as_ref().map_or(String::new(), |v| format!("{v:?}"))
+            }
+        });
     }
 }
 
@@ -352,6 +460,12 @@ pub enum Event {
     /// An assistive technology (e.g. screen reader) requested an action.
     #[cfg(feature = "accesskit")]
     AccessKitActionRequest(accesskit::ActionRequest),
+
+    /// The reply of a screenshot requested with [`crate::ViewportCommand::Screenshot`].
+    Screenshot {
+        viewport_id: crate::ViewportId,
+        image: std::sync::Arc<ColorImage>,
+    },
 }
 
 /// Mouse button (or similar for touch input)
@@ -980,8 +1094,11 @@ fn format_kb_shortcut() {
 impl RawInput {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
+            viewport_ids,
+            viewports,
             screen_rect,
             pixels_per_point,
+            native_pixels_per_point,
             max_texture_side,
             time,
             predicted_dt,
@@ -990,15 +1107,31 @@ impl RawInput {
             hovered_files,
             dropped_files,
             focused,
-            viewport,
         } = self;
 
-        viewport.ui(ui);
+        ui.label(format!(
+            "Active viwport: {:?}, parent: {:?}",
+            viewport_ids.this, viewport_ids.parent,
+        ));
+        for (id, viewport) in viewports {
+            ui.group(|ui| {
+                ui.label(format!("Viewport {id:?}"));
+                ui.push_id(id, |ui| {
+                    viewport.ui(ui);
+                });
+            });
+        }
         ui.label(format!("screen_rect: {screen_rect:?} points"));
         ui.label(format!("pixels_per_point: {pixels_per_point:?}"))
             .on_hover_text(
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
             );
+        ui.label(format!(
+            "native_pixels_per_point: {native_pixels_per_point:?}"
+        ))
+        .on_hover_text(
+            "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
+        );
         ui.label(format!("max_texture_side: {max_texture_side:?}"));
         if let Some(time) = time {
             ui.label(format!("time: {time:.3} s"));
