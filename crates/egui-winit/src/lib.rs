@@ -15,8 +15,7 @@ pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
 use egui::{
-    Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
-    ViewportInfo,
+    Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdPair, ViewportInfo,
 };
 pub use winit;
 
@@ -195,12 +194,7 @@ impl State {
     /// You need to set [`egui::RawInput::viewports`] yourself though.
     /// Use [`Self::update_viewport_info`] to update the info for each
     /// viewport.
-    pub fn take_egui_input(
-        &mut self,
-        window: &Window,
-        ids: ViewportIdPair,
-        viewport_infos: ViewportIdMap<ViewportInfo>,
-    ) -> egui::RawInput {
+    pub fn take_egui_input(&mut self, window: &Window, ids: ViewportIdPair) -> egui::RawInput {
         crate::profile_function!();
 
         let pixels_per_point = self.pixels_per_point();
@@ -225,7 +219,6 @@ impl State {
 
         // Tell egui which viewport is now active:
         self.egui_input.viewport_ids = ids;
-        self.egui_input.viewports = viewport_infos;
         self.egui_input.take()
     }
 

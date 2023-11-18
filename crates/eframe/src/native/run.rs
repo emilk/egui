@@ -530,20 +530,22 @@ mod glow_integration {
                 let mut glutin = self.glutin.borrow_mut();
                 let viewport = glutin.viewports.get_mut(&viewport_id).unwrap();
                 viewport.update_viewport_info();
-                let viewport_infos = glutin
+                let window = viewport.window.as_ref().unwrap();
+
+                let egui_winit = viewport.egui_winit.as_mut().unwrap();
+                let mut raw_input = egui_winit.take_egui_input(window, viewport.ids);
+                let viewport_ui_cb = viewport.viewport_ui_cb.clone();
+
+                self.integration.pre_update(window);
+
+                raw_input.time = Some(self.integration.beginning.elapsed().as_secs_f64());
+                raw_input.viewports = glutin
                     .viewports
                     .iter()
                     .map(|(id, viewport)| (*id, viewport.info.clone()))
                     .collect();
-                let viewport = glutin.viewports.get_mut(&viewport_id).unwrap();
-                let window = viewport.window.as_ref().unwrap();
 
-                let egui_winit = viewport.egui_winit.as_mut().unwrap();
-                let raw_input = egui_winit.take_egui_input(window, viewport.ids, viewport_infos);
-
-                self.integration.pre_update(window);
-
-                (raw_input, viewport.viewport_ui_cb.clone())
+                (raw_input, viewport_ui_cb)
             };
 
             // ------------------------------------------------------------
@@ -1574,17 +1576,6 @@ mod glow_integration {
                 return;
             };
             viewport.update_viewport_info();
-
-            let viewport_infos = glutin
-                .viewports
-                .iter()
-                .map(|(id, viewport)| (*id, viewport.info.clone()))
-                .collect();
-
-            let Some(viewport) = glutin.viewports.get_mut(&ids.this) else {
-                return;
-            };
-
             let Some(winit_state) = &mut viewport.egui_winit else {
                 return;
             };
@@ -1592,9 +1583,14 @@ mod glow_integration {
                 return;
             };
 
-            let mut input = winit_state.take_egui_input(window, ids, viewport_infos);
-            input.time = Some(beginning.elapsed().as_secs_f64());
-            input
+            let mut raw_input = winit_state.take_egui_input(window, ids);
+            raw_input.viewports = glutin
+                .viewports
+                .iter()
+                .map(|(id, viewport)| (*id, viewport.info.clone()))
+                .collect();
+            raw_input.time = Some(beginning.elapsed().as_secs_f64());
+            raw_input
         };
 
         // ---------------------------------------------------
@@ -2205,15 +2201,6 @@ mod wgpu_integration {
                 viewport_from_window,
             } = &mut *shared.borrow_mut();
 
-            if let Some(viewport) = viewports.get_mut(&ids.this) {
-                viewport.update_viewport_info();
-            }
-
-            let viewport_infos = viewports
-                .iter()
-                .map(|(id, viewport)| (*id, viewport.info.clone()))
-                .collect();
-
             let viewport = initialize_or_update_viewport(
                 viewports,
                 ids,
@@ -2222,17 +2209,21 @@ mod wgpu_integration {
                 None,
                 None,
             );
-
             if viewport.window.is_none() {
                 viewport.init_window(viewport_from_window, painter, event_loop);
             }
+            viewport.update_viewport_info();
 
             let (Some(window), Some(winit_state)) = (&viewport.window, &mut viewport.egui_winit)
             else {
                 return;
             };
 
-            let mut input = winit_state.take_egui_input(window, ids, viewport_infos);
+            let mut input = winit_state.take_egui_input(window, ids);
+            input.viewports = viewports
+                .iter()
+                .map(|(id, viewport)| (*id, viewport.info.clone()))
+                .collect();
             input.time = Some(beginning.elapsed().as_secs_f64());
             input
         };
@@ -2516,15 +2507,6 @@ mod wgpu_integration {
                     viewports, painter, ..
                 } = &mut *shared_lock;
 
-                if let Some(viewport) = viewports.get_mut(&viewport_id) {
-                    viewport.update_viewport_info();
-                }
-
-                let viewport_infos = viewports
-                    .iter()
-                    .map(|(id, viewport)| (*id, viewport.info.clone()))
-                    .collect();
-
                 let Some(viewport) = viewports.get(&viewport_id) else {
                     return EventResult::Wait;
                 };
@@ -2543,6 +2525,7 @@ mod wgpu_integration {
                 let Some(viewport) = viewports.get_mut(&viewport_id) else {
                     return EventResult::Wait;
                 };
+                viewport.update_viewport_info();
 
                 let Viewport {
                     ids,
@@ -2551,6 +2534,7 @@ mod wgpu_integration {
                     egui_winit,
                     ..
                 } = viewport;
+                let viewport_ui_cb = viewport_ui_cb.clone();
 
                 let Some(window) = window else {
                     return EventResult::Wait;
@@ -2561,15 +2545,20 @@ mod wgpu_integration {
                     log::warn!("Failed to set window: {err}");
                 }
 
-                let raw_input = egui_winit.as_mut().unwrap().take_egui_input(
+                let mut raw_input = egui_winit.as_mut().unwrap().take_egui_input(
                     window,
                     ViewportIdPair::from_self_and_parent(viewport_id, ids.parent),
-                    viewport_infos,
                 );
 
                 integration.pre_update(window);
 
-                (viewport_ui_cb.clone(), raw_input)
+                raw_input.time = Some(integration.beginning.elapsed().as_secs_f64());
+                raw_input.viewports = viewports
+                    .iter()
+                    .map(|(id, viewport)| (*id, viewport.info.clone()))
+                    .collect();
+
+                (viewport_ui_cb, raw_input)
             };
 
             // ------------------------------------------------------------
