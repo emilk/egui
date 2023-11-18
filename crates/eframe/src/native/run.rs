@@ -2358,20 +2358,6 @@ mod wgpu_integration {
             Ok(match event {
                 winit::event::Event::Resumed => {
                     let running = if let Some(running) = &self.running {
-                        if !running
-                            .shared
-                            .borrow()
-                            .viewports
-                            .contains_key(&ViewportId::ROOT)
-                        {
-                            create_window(
-                                event_loop,
-                                running.integration.frame.storage(),
-                                &self.app_name,
-                                &mut self.native_options,
-                            )?;
-                            running.set_window(ViewportId::ROOT)?;
-                        }
                         running
                     } else {
                         let storage = epi_integration::create_storage(
@@ -2444,18 +2430,6 @@ mod wgpu_integration {
     }
 
     impl WgpuWinitRunning {
-        fn set_window(&self, id: ViewportId) -> Result<(), egui_wgpu::WgpuError> {
-            crate::profile_function!();
-            let mut shared = self.shared.borrow_mut();
-            let SharedState {
-                viewports, painter, ..
-            } = &mut *shared;
-            if let Some(Viewport { window, .. }) = viewports.get(&id) {
-                return pollster::block_on(painter.set_window(id, window.as_deref()));
-            }
-            Ok(())
-        }
-
         fn save_and_destroy(&mut self) {
             crate::profile_function!();
 
