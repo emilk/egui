@@ -1228,15 +1228,15 @@ pub fn create_winit_window_builder(
         icon,
         active,
         visible,
-        title_hidden,
-        titlebar_transparent,
-        fullsize_content_view,
         close_button,
         minimize_button,
         maximize_button,
         window_level,
 
         // only handled on some platforms:
+        title_hidden: _title_hidden,
+        titlebar_transparent: _titlebar_transparent,
+        fullsize_content_view: _fullsize_content_view,
         app_id: _app_id,
         drag_and_drop: _drag_and_drop,
 
@@ -1320,9 +1320,9 @@ pub fn create_winit_window_builder(
     {
         use winit::platform::macos::WindowBuilderExtMacOS as _;
         window_builder = window_builder
-            .with_title_hidden(title_hidden.unwrap_or(false))
-            .with_titlebar_transparent(titlebar_transparent.unwrap_or(false))
-            .with_fullsize_content_view(fullsize_content_view.unwrap_or(false));
+            .with_title_hidden(_title_hidden.unwrap_or(false))
+            .with_titlebar_transparent(_titlebar_transparent.unwrap_or(false))
+            .with_fullsize_content_view(_fullsize_content_view.unwrap_or(false));
     }
 
     window_builder
