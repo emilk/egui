@@ -727,7 +727,9 @@ impl Memory {
     /// Forget window positions, sizes etc.
     /// Can be used to auto-layout windows.
     pub fn reset_areas(&mut self) {
-        self.areas = Default::default();
+        for area in self.areas.values_mut() {
+            *area = Default::default();
+        }
     }
 
     /// Obtain the previous rectangle of an area.
