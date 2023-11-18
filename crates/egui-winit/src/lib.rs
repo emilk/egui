@@ -1201,8 +1201,8 @@ pub fn process_viewport_commands(
                 }
             }
             ViewportCommand::CursorVisible(v) => window.set_cursor_visible(v),
-            ViewportCommand::CursorHitTest(v) => {
-                if let Err(err) = window.set_cursor_hittest(v) {
+            ViewportCommand::MousePassthrough(passthrough) => {
+                if let Err(err) = window.set_cursor_hittest(!passthrough) {
                     log::warn!("{command:?}: {err}");
                 }
             }
@@ -1243,7 +1243,7 @@ pub fn create_winit_window_builder(
         name: _name,
         drag_and_drop: _drag_and_drop,
 
-        hittest: _, // handled in `apply_viewport_builder_to_new_window`
+        mouse_passthrough: _, // handled in `apply_viewport_builder_to_new_window`
     } = viewport_builder;
 
     let mut window_builder = winit::window::WindowBuilder::new()
@@ -1332,8 +1332,8 @@ pub fn create_winit_window_builder(
 
 /// Applies what `create_winit_window_builder` couldn't
 pub fn apply_viewport_builder_to_new_window(window: &Window, builder: &ViewportBuilder) {
-    if let Some(hittest) = builder.hittest {
-        if let Err(err) = window.set_cursor_hittest(hittest) {
+    if let Some(mouse_passthrough) = builder.mouse_passthrough {
+        if let Err(err) = window.set_cursor_hittest(!mouse_passthrough) {
             log::warn!("set_cursor_hittest failed: {err}");
         }
     }

@@ -230,7 +230,7 @@ pub struct ViewportBuilder {
     pub minimize_button: Option<bool>,
     pub maximize_button: Option<bool>,
 
-    pub hittest: Option<bool>,
+    pub mouse_passthrough: Option<bool>,
 }
 
 impl ViewportBuilder {
@@ -451,8 +451,12 @@ impl ViewportBuilder {
         self
     }
 
-    pub fn with_hittest(mut self, value: bool) -> Self {
-        self.hittest = Some(value);
+    /// On desktop: mouse clicks pass through the window, used for non-interactable overlays.
+    ///
+    /// Generally you would use this in conjunction with [`Self::with_transparent`]
+    /// and [`Self::with_always_on_top`].
+    pub fn with_mouse_passthrough(mut self, value: bool) -> Self {
+        self.mouse_passthrough = Some(value);
         self
     }
 
@@ -550,10 +554,10 @@ impl ViewportBuilder {
             }
         }
 
-        if let Some(new_hittest) = new.hittest {
-            if Some(new_hittest) != self.hittest {
-                self.hittest = Some(new_hittest);
-                commands.push(ViewportCommand::CursorHitTest(new_hittest));
+        if let Some(new_mouse_passthrough) = new.mouse_passthrough {
+            if Some(new_mouse_passthrough) != self.mouse_passthrough {
+                self.mouse_passthrough = Some(new_mouse_passthrough);
+                commands.push(ViewportCommand::MousePassthrough(new_mouse_passthrough));
             }
         }
 
@@ -769,7 +773,8 @@ pub enum ViewportCommand {
 
     CursorVisible(bool),
 
-    CursorHitTest(bool),
+    /// Enable mouse pass-through: mouse clicks pass through the window, used for non-interactable overlays.
+    MousePassthrough(bool),
 
     /// Take a screenshot.
     ///
