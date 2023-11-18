@@ -13,7 +13,7 @@ mod icon_data;
 pub use icon_data::IconDataExt;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use egui::IconData;
+pub use egui::*;
 
 #[cfg(target_arch = "wasm32")]
 use std::any::Any;
