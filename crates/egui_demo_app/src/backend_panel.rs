@@ -117,7 +117,7 @@ impl BackendPanel {
         {
             ui.separator();
             if ui.button("Quit").clicked() {
-                frame.close();
+                ui.ctx().send_viewport_command(egui::ViewportCommand::Close);
             }
         }
 

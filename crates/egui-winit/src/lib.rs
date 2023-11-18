@@ -1045,7 +1045,10 @@ pub fn process_viewport_commands(
 
     for command in commands {
         match command {
-            egui::ViewportCommand::StartDrag => {
+            ViewportCommand::Close => {
+                info.close_requested = true;
+            }
+            ViewportCommand::StartDrag => {
                 // if this is not checked on x11 the input will be permanently taken until the app is killed!
                 if is_viewport_focused {
                     if let Err(err) = window.drag_window() {
@@ -1053,12 +1056,12 @@ pub fn process_viewport_commands(
                     }
                 }
             }
-            egui::ViewportCommand::InnerSize(size) => {
+            ViewportCommand::InnerSize(size) => {
                 let width = size.x.max(1.0);
                 let height = size.y.max(1.0);
                 window.set_inner_size(LogicalSize::new(width, height));
             }
-            egui::ViewportCommand::BeginResize(direction) => {
+            ViewportCommand::BeginResize(direction) => {
                 if let Err(err) = window.drag_resize_window(match direction {
                     egui::viewport::ResizeDirection::North => ResizeDirection::North,
                     egui::viewport::ResizeDirection::South => ResizeDirection::South,

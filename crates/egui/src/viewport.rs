@@ -663,6 +663,12 @@ pub enum ResizeDirection {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ViewportCommand {
+    /// Request this viewport to be closed.
+    ///
+    /// For the root viewport, this usually results in the application shutting down.
+    /// For other viewports, the [`ViewportInfo::close_requested`] flag will be set.
+    Close,
+
     /// Set the title
     Title(String),
 

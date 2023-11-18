@@ -520,6 +520,11 @@ impl EpiIntegration {
                 viewport_ui_cb(egui_ctx);
             } else {
                 // Root viewport
+                if egui_ctx.input(|i| i.viewport().close_requested) {
+                    self.close = app.on_close_event();
+                    log::debug!("App::on_close_event returned {}", self.close);
+                }
+
                 crate::profile_scope!("App::update");
                 app.update(egui_ctx, &mut self.frame);
             }
