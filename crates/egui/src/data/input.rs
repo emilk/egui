@@ -181,6 +181,12 @@ pub struct ViewportInfo {
     /// This is the content rectangle plus decoration chrome.
     pub outer_rect: Option<Rect>,
 
+    /// Are we minimized?
+    pub minimized: Option<bool>,
+
+    /// Are we maximized?
+    pub maximized: Option<bool>,
+
     /// Are we in fullscreen mode?
     pub fullscreen: Option<bool>,
 
@@ -204,6 +210,8 @@ impl ViewportInfo {
             monitor_size,
             inner_rect,
             outer_rect,
+            minimized,
+            maximized,
             fullscreen,
             focused,
         } = self;
@@ -235,6 +243,14 @@ impl ViewportInfo {
 
             ui.label("Outer rect:");
             ui.label(opt_rect_as_string(outer_rect));
+            ui.end_row();
+
+            ui.label("Minimized:");
+            ui.label(opt_as_str(minimized));
+            ui.end_row();
+
+            ui.label("Maximized:");
+            ui.label(opt_as_str(maximized));
             ui.end_row();
 
             ui.label("Fullscreen:");

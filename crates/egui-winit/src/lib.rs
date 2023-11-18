@@ -1034,6 +1034,7 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 // ---------------------------------------------------------------------------
 
 pub fn process_viewport_commands(
+    info: &mut ViewportInfo,
     commands: impl IntoIterator<Item = ViewportCommand>,
     window: &Window,
     is_viewport_focused: bool,
@@ -1111,8 +1112,14 @@ pub fn process_viewport_commands(
                     WindowButtons::empty()
                 },
             ),
-            ViewportCommand::Minimized(v) => window.set_minimized(v),
-            ViewportCommand::Maximized(v) => window.set_maximized(v),
+            ViewportCommand::Minimized(v) => {
+                window.set_minimized(v);
+                info.minimized = Some(v);
+            }
+            ViewportCommand::Maximized(v) => {
+                window.set_maximized(v);
+                info.maximized = Some(v);
+            }
             ViewportCommand::Fullscreen(v) => {
                 window.set_fullscreen(v.then_some(winit::window::Fullscreen::Borderless(None)));
             }

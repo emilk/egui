@@ -960,9 +960,12 @@ mod glow_integration {
 
             let mut viewport_from_window = HashMap::default();
             let mut window_from_viewport = ViewportIdMap::default();
+            let mut info = ViewportInfo::default();
             if let Some(window) = &window {
                 viewport_from_window.insert(window.id(), ViewportId::ROOT);
                 window_from_viewport.insert(ViewportId::ROOT, window.id());
+                info.minimized = window.is_minimized();
+                info.maximized = Some(window.is_maximized());
             }
 
             let mut viewports = ViewportIdMap::default();
@@ -972,7 +975,7 @@ mod glow_integration {
                     ids: ViewportIdPair::ROOT,
                     class: ViewportClass::Root,
                     builder: viewport_builder,
-                    info: Default::default(),
+                    info,
                     viewport_ui_cb: None,
                     gl_surface: None,
                     window: window.map(Rc::new),
@@ -1042,13 +1045,14 @@ mod glow_integration {
                 window
             } else {
                 log::trace!("Window doesn't exist yet. Creating one now with finalize_window");
-                viewport
-                    .window
-                    .insert(Rc::new(glutin_winit::finalize_window(
-                        event_loop,
-                        create_winit_window_builder(&viewport.builder),
-                        &self.gl_config,
-                    )?))
+                let window = glutin_winit::finalize_window(
+                    event_loop,
+                    create_winit_window_builder(&viewport.builder),
+                    &self.gl_config,
+                )?;
+                viewport.info.minimized = window.is_minimized();
+                viewport.info.maximized = Some(window.is_maximized());
+                viewport.window.insert(Rc::new(window))
             };
 
             {
@@ -1217,6 +1221,7 @@ mod glow_integration {
                     if let Some(window) = &viewport.window {
                         let is_viewport_focused = focused_viewport == Some(viewport_id);
                         egui_winit::process_viewport_commands(
+                            &mut viewport.info,
                             commands,
                             window,
                             is_viewport_focused,
@@ -1288,7 +1293,12 @@ mod glow_integration {
                     viewport.egui_winit = None;
                 } else if let Some(window) = &viewport.window {
                     let is_viewport_focused = focused_viewport == Some(ids.this);
-                    process_viewport_commands(delta_commands, window, is_viewport_focused);
+                    process_viewport_commands(
+                        &mut viewport.info,
+                        delta_commands,
+                        window,
+                        is_viewport_focused,
+                    );
                 }
 
                 entry.into_mut()
@@ -1882,22 +1892,25 @@ mod wgpu_integration {
             let viewport_id = self.ids.this;
 
             match create_winit_window_builder(&self.builder).build(event_loop) {
-                Ok(new_window) => {
-                    windows_id.insert(new_window.id(), viewport_id);
+                Ok(window) => {
+                    windows_id.insert(window.id(), viewport_id);
 
                     if let Err(err) =
-                        pollster::block_on(painter.set_window(viewport_id, Some(&new_window)))
+                        pollster::block_on(painter.set_window(viewport_id, Some(&window)))
                     {
                         log::error!("on set_window: viewport_id {viewport_id:?} {err}");
                     }
 
                     self.egui_winit = Some(egui_winit::State::new(
                         event_loop,
-                        Some(new_window.scale_factor() as f32),
+                        Some(window.scale_factor() as f32),
                         painter.max_texture_side(),
                     ));
 
-                    self.window = Some(Rc::new(new_window));
+                    self.info.minimized = window.is_minimized();
+                    self.info.maximized = Some(window.is_maximized());
+
+                    self.window = Some(Rc::new(window));
                 }
                 Err(err) => {
                     log::error!("Failed to create window: {err}");
@@ -2110,7 +2123,11 @@ mod wgpu_integration {
                     ids: ViewportIdPair::ROOT,
                     class: ViewportClass::Root,
                     builder,
-                    info: Default::default(),
+                    info: ViewportInfo {
+                        minimized: window.is_minimized(),
+                        maximized: Some(window.is_maximized()),
+                        ..Default::default()
+                    },
                     viewport_ui_cb: None,
                     window: Some(Rc::new(window)),
                     egui_winit: Some(egui_winit),
@@ -2753,7 +2770,12 @@ mod wgpu_integration {
             if let Some(viewport) = viewports.get_mut(&viewport_id) {
                 if let Some(window) = viewport.window.as_ref() {
                     let is_viewport_focused = focused_viewport == Some(viewport_id);
-                    egui_winit::process_viewport_commands(commands, window, is_viewport_focused);
+                    egui_winit::process_viewport_commands(
+                        &mut viewport.info,
+                        commands,
+                        window,
+                        is_viewport_focused,
+                    );
                 }
             }
         }
@@ -2809,7 +2831,12 @@ mod wgpu_integration {
                     viewport.egui_winit = None;
                 } else if let Some(window) = &viewport.window {
                     let is_viewport_focused = focused_viewport == Some(ids.this);
-                    process_viewport_commands(delta_commands, window, is_viewport_focused);
+                    process_viewport_commands(
+                        &mut viewport.info,
+                        delta_commands,
+                        window,
+                        is_viewport_focused,
+                    );
                 }
 
                 entry.into_mut()
