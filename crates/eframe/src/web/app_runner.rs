@@ -78,7 +78,6 @@ impl AppRunner {
 
         let frame = epi::Frame {
             info,
-            output: Default::default(),
             storage: Some(Box::new(storage)),
 
             #[cfg(feature = "glow")]
@@ -197,11 +196,6 @@ impl AppRunner {
         self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
         let clipped_primitives = self.egui_ctx.tessellate(shapes, pixels_per_point);
-
-        {
-            let app_output = self.frame.take_app_output();
-            let epi::backend::AppOutput {} = app_output;
-        }
 
         self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
 
