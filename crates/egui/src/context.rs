@@ -2555,14 +2555,14 @@ impl Context {
     /// Send a command to the current viewport.
     ///
     /// This lets you affect the current viewport, e.g. resizing the window.
-    pub fn send_viewport_command(&self, command: ViewportCommand) {
-        self.send_viewport_command_to(self.viewport_id(), command);
+    pub fn send_viewport_cmd(&self, command: ViewportCommand) {
+        self.send_viewport_cmd_to(self.viewport_id(), command);
     }
 
     /// Send a command to a speicfic viewport.
     ///
     /// This lets you affect another viewport, e.g. resizing its window.
-    pub fn send_viewport_command_to(&self, id: ViewportId, command: ViewportCommand) {
+    pub fn send_viewport_cmd_to(&self, id: ViewportId, command: ViewportCommand) {
         self.write(|ctx| ctx.viewport_for(id).commands.push(command));
         self.request_repaint_of(id);
     }

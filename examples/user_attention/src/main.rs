@@ -56,9 +56,7 @@ impl eframe::App for Application {
         if let Some(request_at) = self.request_at {
             if request_at < SystemTime::now() {
                 self.request_at = None;
-                ctx.send_viewport_command(egui::ViewportCommand::RequestUserAttention(
-                    self.attention,
-                ));
+                ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(self.attention));
                 if self.auto_reset {
                     self.auto_reset = false;
                     self.reset_at = Some(SystemTime::now() + Self::attention_reset_timeout());
@@ -69,7 +67,7 @@ impl eframe::App for Application {
         if let Some(reset_at) = self.reset_at {
             if reset_at < SystemTime::now() {
                 self.reset_at = None;
-                ctx.send_viewport_command(egui::ViewportCommand::RequestUserAttention(
+                ctx.send_viewport_cmd(egui::ViewportCommand::RequestUserAttention(
                     UserAttentionType::Reset,
                 ));
             }

@@ -38,7 +38,7 @@
 //!
 //! ## Using the viewports
 //! Only one viewport is active at any one time, identified with [`Context::viewport_id`].
-//! You can send commands to other viewports using [`Context::send_viewport_command_to`].
+//! You can send commands to other viewports using [`Context::send_viewport_cmd_to`].
 //!
 //! There is an example in <https://github.com/emilk/egui/tree/master/examples/multiple_viewports/src/main.rs>.
 //!
@@ -648,7 +648,7 @@ pub enum ResizeDirection {
     SouthWest,
 }
 
-/// You can send a [`ViewportCommand`] to the viewport with [`Context::send_viewport_command`].
+/// You can send a [`ViewportCommand`] to the viewport with [`Context::send_viewport_cmd`].
 ///
 /// All coordinates are in logical points.
 ///

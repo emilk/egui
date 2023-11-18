@@ -45,7 +45,7 @@ impl eframe::App for MyApp {
 
                         if ui.button("Yes!").clicked() {
                             self.allowed_to_close = true;
-                            ui.ctx().send_viewport_command(egui::ViewportCommand::Close);
+                            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                         }
                     });
                 });

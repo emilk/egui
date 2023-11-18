@@ -117,7 +117,7 @@ impl BackendPanel {
         {
             ui.separator();
             if ui.button("Quit").clicked() {
-                ui.ctx().send_viewport_command(egui::ViewportCommand::Close);
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
         }
 
@@ -165,7 +165,7 @@ impl BackendPanel {
                         .changed()
                     {
                         ui.ctx()
-                            .send_viewport_command(egui::ViewportCommand::Fullscreen(fullscreen));
+                            .send_viewport_cmd(egui::ViewportCommand::Fullscreen(fullscreen));
                     }
                 }
 
@@ -178,9 +178,9 @@ impl BackendPanel {
                     let size = egui::vec2(375.0, 667.0); //  iPhone SE 2nd gen
 
                     ui.ctx()
-                        .send_viewport_command(egui::ViewportCommand::InnerSize(size));
+                        .send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
                     ui.ctx()
-                        .send_viewport_command(egui::ViewportCommand::Fullscreen(false));
+                        .send_viewport_cmd(egui::ViewportCommand::Fullscreen(false));
                     ui.close_menu();
                 }
             });
@@ -191,8 +191,7 @@ impl BackendPanel {
                     .button("Drag me to drag window")
                     .is_pointer_button_down_on()
             {
-                ui.ctx()
-                    .send_viewport_command(egui::ViewportCommand::StartDrag);
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
             }
         }
     }

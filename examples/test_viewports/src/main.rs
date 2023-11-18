@@ -263,7 +263,7 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>]) {
     if ctx.viewport_id() != ctx.parent_viewport_id() {
         let parent = ctx.parent_viewport_id();
         if ui.button("Set parent pos 0,0").clicked() {
-            ctx.send_viewport_command_to(
+            ctx.send_viewport_cmd_to(
                 parent,
                 egui::ViewportCommand::OuterPosition(egui::pos2(0.0, 0.0)),
             );
