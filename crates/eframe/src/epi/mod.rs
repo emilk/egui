@@ -9,16 +9,14 @@
 #[cfg(not(target_arch = "wasm32"))]
 mod icon_data;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub use icon_data::IconDataExt;
-
-use egui::ViewportBuilder;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use egui::IconData;
 
 #[cfg(target_arch = "wasm32")]
 use std::any::Any;
-use std::sync::Arc;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
@@ -260,7 +258,7 @@ pub enum HardwareAcceleration {
 /// Set the window title and size using [`Self::viewport`].
 ///
 /// ### Application id
-/// [`ViewportBuilder::with_app_id`] is used for determining the folder to persist the app to.
+/// [`egui::ViewportBuilder::with_app_id`] is used for determining the folder to persist the app to.
 ///
 /// On native the path is picked using [`crate::storage_dir`].
 ///
@@ -271,7 +269,7 @@ pub struct NativeOptions {
     /// Controls the native window of the root viewport.
     ///
     /// This is where you set things like window title and size.
-    pub viewport: ViewportBuilder,
+    pub viewport: egui::ViewportBuilder,
 
     /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
     ///
@@ -402,8 +400,8 @@ impl Clone for NativeOptions {
 impl Default for NativeOptions {
     fn default() -> Self {
         Self {
-            viewport: ViewportBuilder {
-                icon: Some(Arc::new(
+            viewport: egui::ViewportBuilder {
+                icon: Some(std::sync::Arc::new(
                     icon_data::icon_from_png_bytes(&include_bytes!("../../data/icon.png")[..])
                         .unwrap(),
                 )),
