@@ -28,7 +28,7 @@ impl eframe::App for MyApp {
         let mut plot_rect = None;
         egui::CentralPanel::default().show(ctx, |ui| {
             if ui.button("Save Plot").clicked() {
-                frame.request_screenshot();
+                ctx.send_viewport_command(egui::ViewportCommand::Screenshot);
             }
 
             let my_plot = Plot::new("My Plot").legend(Legend::default());

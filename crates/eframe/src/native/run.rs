@@ -618,9 +618,8 @@ mod glow_integration {
             );
 
             {
-                let screenshot_requested = &mut integration.frame.output.screenshot_requested;
-                if *screenshot_requested {
-                    *screenshot_requested = false;
+                let screenshot_requested = std::mem::take(&mut viewport.screenshot_requested);
+                if screenshot_requested {
                     let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
                     integration.frame.screenshot.set(Some(screenshot));
                 }
@@ -794,6 +793,7 @@ mod glow_integration {
         class: ViewportClass,
         builder: ViewportBuilder,
         info: ViewportInfo,
+        screenshot_requested: bool,
 
         /// The user-callback that shows the ui.
         /// None for immediate viewports.
@@ -975,6 +975,7 @@ mod glow_integration {
                     class: ViewportClass::Root,
                     builder: viewport_builder,
                     info,
+                    screenshot_requested: false,
                     viewport_ui_cb: None,
                     gl_surface: None,
                     window: window.map(Rc::new),
@@ -1223,6 +1224,7 @@ mod glow_integration {
                         commands,
                         window,
                         is_viewport_focused,
+                        &mut viewport.screenshot_requested,
                     );
                 }
             }
@@ -1263,6 +1265,7 @@ mod glow_integration {
                     class,
                     builder,
                     info: Default::default(),
+                    screenshot_requested: false,
                     viewport_ui_cb,
                     window: None,
                     egui_winit: None,
@@ -1295,6 +1298,7 @@ mod glow_integration {
                         delta_commands,
                         window,
                         is_viewport_focused,
+                        &mut viewport.screenshot_requested,
                     );
                 }
 
@@ -1865,6 +1869,7 @@ mod wgpu_integration {
         class: ViewportClass,
         builder: ViewportBuilder,
         info: ViewportInfo,
+        screenshot_requested: bool,
 
         /// `None` for sync viewports.
         viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
@@ -2125,6 +2130,7 @@ mod wgpu_integration {
                         maximized: Some(window.is_maximized()),
                         ..Default::default()
                     },
+                    screenshot_requested: false,
                     viewport_ui_cb: None,
                     window: Some(Rc::new(window)),
                     egui_winit: Some(egui_winit),
@@ -2594,16 +2600,15 @@ mod wgpu_integration {
             {
                 let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
-                let screenshot_requested = &mut integration.frame.output.screenshot_requested;
+                let screenshot_requested = std::mem::take(&mut viewport.screenshot_requested);
                 let screenshot = painter.paint_and_update_textures(
                     viewport_id,
                     pixels_per_point,
                     app.clear_color(&integration.egui_ctx.style().visuals),
                     &clipped_primitives,
                     &textures_delta,
-                    *screenshot_requested,
+                    screenshot_requested,
                 );
-                *screenshot_requested = false;
                 integration.frame.screenshot.set(screenshot);
             }
 
@@ -2774,6 +2779,7 @@ mod wgpu_integration {
                     commands,
                     window,
                     is_viewport_focused,
+                    &mut viewport.screenshot_requested,
                 );
             }
         }
@@ -2803,6 +2809,7 @@ mod wgpu_integration {
                     class,
                     builder,
                     info: Default::default(),
+                    screenshot_requested: false,
                     viewport_ui_cb,
                     window: None,
                     egui_winit: None,
@@ -2834,6 +2841,7 @@ mod wgpu_integration {
                         delta_commands,
                         window,
                         is_viewport_focused,
+                        &mut viewport.screenshot_requested,
                     );
                 }
 

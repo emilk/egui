@@ -1038,6 +1038,7 @@ pub fn process_viewport_commands(
     commands: impl IntoIterator<Item = ViewportCommand>,
     window: &Window,
     is_viewport_focused: bool,
+    screenshot_requested: &mut bool,
 ) {
     crate::profile_function!();
 
@@ -1196,6 +1197,9 @@ pub fn process_viewport_commands(
                 if let Err(err) = window.set_cursor_hittest(v) {
                     log::warn!("{command:?}: {err}");
                 }
+            }
+            ViewportCommand::Screenshot => {
+                *screenshot_requested = true;
             }
         }
     }

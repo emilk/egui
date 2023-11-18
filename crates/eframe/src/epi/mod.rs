@@ -732,9 +732,6 @@ pub struct Frame {
     /// Information about the integration.
     pub(crate) info: IntegrationInfo,
 
-    /// Where the app can issue commands back to the integration.
-    pub(crate) output: backend::AppOutput,
-
     /// A place where you can store custom data in a way that persists when you restart the app.
     pub(crate) storage: Option<Box<dyn Storage>>,
 
@@ -799,19 +796,6 @@ impl Frame {
         self.storage.as_deref()
     }
 
-    /// Request the current frame's pixel data. Needs to be retrieved by calling [`Frame::screenshot`]
-    /// during [`App::post_rendering`].
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn request_screenshot(&mut self) {
-        self.output.screenshot_requested = true;
-    }
-
-    /// Cancel a request made with [`Frame::request_screenshot`].
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn cancel_screenshot_request(&mut self) {
-        self.output.screenshot_requested = false;
-    }
-
     /// During [`App::post_rendering`], use this to retrieve the pixel data that was requested during
     /// [`App::update`] via [`Frame::request_screenshot`].
     ///
@@ -831,7 +815,7 @@ impl Frame {
     /// impl eframe::App for MyApp {
     ///     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
     ///         // In real code the app would render something here
-    ///         frame.request_screenshot();
+    ///         ctx.send_viewport_command(egui::ViewportCommand::Screenshot);
     ///         // Things that are added to the frame after the call to
     ///         // request_screenshot() will still be included.
     ///     }
@@ -890,12 +874,6 @@ impl Frame {
     #[cfg(feature = "wgpu")]
     pub fn wgpu_render_state(&self) -> Option<&egui_wgpu::RenderState> {
         self.wgpu_render_state.as_ref()
-    }
-
-    /// for integrations only: call once per frame
-    #[cfg(any(feature = "glow", feature = "wgpu"))]
-    pub(crate) fn take_app_output(&mut self) -> backend::AppOutput {
-        std::mem::take(&mut self.output)
     }
 }
 
@@ -1045,16 +1023,3 @@ pub fn set_value<T: serde::Serialize>(storage: &mut dyn Storage, key: &str, valu
 
 /// [`Storage`] key used for app
 pub const APP_KEY: &str = "app";
-
-// ----------------------------------------------------------------------------
-
-/// You only need to look here if you are writing a backend for `epi`.
-pub(crate) mod backend {
-    /// Action that can be taken by the user app.
-    #[derive(Clone, Debug, Default)]
-    #[must_use]
-    pub struct AppOutput {
-        #[cfg(not(target_arch = "wasm32"))]
-        pub screenshot_requested: bool,
-    }
-}

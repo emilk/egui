@@ -760,6 +760,11 @@ pub enum ViewportCommand {
     CursorVisible(bool),
 
     CursorHitTest(bool),
+
+    /// Take a screenshot.
+    ///
+    /// In `eframe`, the results are returned in `eframe::Frame::screenshot`.
+    Screenshot,
 }
 
 impl ViewportCommand {

@@ -10,7 +10,7 @@ use egui::{
 };
 use egui_winit::{EventResponse, WindowSettings};
 
-use crate::{backend::AppOutput, epi, Theme};
+use crate::{epi, Theme};
 
 pub fn window_builder<E>(
     event_loop: &EventLoopWindowTarget<E>,
@@ -221,7 +221,6 @@ impl EpiIntegration {
                 cpu_usage: None,
                 native_pixels_per_point: Some(native_pixels_per_point),
             },
-            output: epi::backend::AppOutput::default(),
             storage,
             #[cfg(feature = "glow")]
             gl,
@@ -380,11 +379,6 @@ impl EpiIntegration {
     }
 
     pub fn post_update(&mut self) {
-        let AppOutput {
-            screenshot_requested,
-        } = self.frame.take_app_output();
-        self.frame.output.screenshot_requested = screenshot_requested;
-
         let frame_time = self.frame_start.elapsed().as_secs_f64() as f32;
         self.frame.info.cpu_usage = Some(frame_time);
     }

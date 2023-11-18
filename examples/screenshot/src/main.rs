@@ -24,7 +24,7 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(screenshot) = self.screenshot.take() {
                 self.texture = Some(ui.ctx().load_texture(
@@ -42,7 +42,7 @@ impl eframe::App for MyApp {
 
                 if ui.button("save to 'top_left.png'").clicked() {
                     self.save_to_file = true;
-                    frame.request_screenshot();
+                    ctx.send_viewport_command(egui::ViewportCommand::Screenshot);
                 }
 
                 ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
@@ -55,9 +55,9 @@ impl eframe::App for MyApp {
                         } else {
                             ctx.set_visuals(egui::Visuals::light());
                         };
-                        frame.request_screenshot();
+                        ctx.send_viewport_command(egui::ViewportCommand::Screenshot);
                     } else if ui.button("take screenshot!").clicked() {
-                        frame.request_screenshot();
+                        ctx.send_viewport_command(egui::ViewportCommand::Screenshot);
                     }
                 });
             });
