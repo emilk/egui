@@ -9,8 +9,10 @@
 #[cfg(not(target_arch = "wasm32"))]
 mod icon_data;
 
+pub use icon_data::IconDataExt;
+
 #[cfg(not(target_arch = "wasm32"))]
-pub use icon_data::IconData;
+pub use egui::IconData;
 
 #[cfg(target_arch = "wasm32")]
 use std::any::Any;
@@ -501,7 +503,7 @@ impl Default for NativeOptions {
 
             // We set a default "egui" or "eframe" icon, which is usually more distinctive than the default OS icon.
             icon_data: Some(
-                IconData::try_from_png_bytes(&include_bytes!("../../data/icon.png")[..]).unwrap(),
+                icon_data::icon_from_png_bytes(&include_bytes!("../../data/icon.png")[..]).unwrap(),
             ),
 
             drag_and_drop_support: true,

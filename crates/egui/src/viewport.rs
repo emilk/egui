@@ -69,7 +69,7 @@
 
 use std::sync::Arc;
 
-use epaint::{ColorImage, Pos2, Vec2};
+use epaint::{Pos2, Vec2};
 
 use crate::{Context, Id};
 
@@ -153,6 +153,34 @@ pub type ViewportIdMap<T> = nohash_hasher::IntMap<ViewportId, T>;
 
 // ----------------------------------------------------------------------------
 
+/// Image data for an application icon.
+///
+/// Use a square image, e.g. 256x256 pixels.
+/// You can use a transparent background.
+#[derive(Clone, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct IconData {
+    /// RGBA pixels, with separate/unmultiplied alpha.
+    pub rgba: Vec<u8>,
+
+    /// Image width. This should be a multiple of 4.
+    pub width: u32,
+
+    /// Image height. This should be a multiple of 4.
+    pub height: u32,
+}
+
+impl std::fmt::Debug for IconData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IconData")
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .finish_non_exhaustive()
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// A pair of [`ViewportId`], used to identify a viewport and its parent.
 #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -218,7 +246,7 @@ pub struct ViewportBuilder {
     pub resizable: Option<bool>,
     pub transparent: Option<bool>,
     pub decorations: Option<bool>,
-    pub icon: Option<Arc<ColorImage>>,
+    pub icon: Option<Arc<IconData>>,
     pub active: Option<bool>,
     pub visible: Option<bool>,
     pub title_hidden: Option<bool>,
@@ -308,7 +336,7 @@ impl ViewportBuilder {
 
     /// The icon needs to be wrapped in Arc because will be cloned every frame
     #[inline]
-    pub fn with_window_icon(mut self, icon: impl Into<Arc<ColorImage>>) -> Self {
+    pub fn with_window_icon(mut self, icon: impl Into<Arc<IconData>>) -> Self {
         self.icon = Some(icon.into());
         self
     }
@@ -757,7 +785,7 @@ pub enum ViewportCommand {
     WindowLevel(WindowLevel),
 
     /// The the window icon.
-    WindowIcon(Option<Arc<ColorImage>>),
+    WindowIcon(Option<Arc<IconData>>),
 
     IMEPosition(Pos2),
     IMEAllowed(bool),

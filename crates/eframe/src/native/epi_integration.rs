@@ -50,11 +50,7 @@ pub fn viewport_builder<E>(
         .with_visible(false);
 
     if let Some(icon_data) = icon_data {
-        viewport_builder =
-            viewport_builder.with_window_icon(egui::ColorImage::from_rgba_premultiplied(
-                [icon_data.width as usize, icon_data.height as usize],
-                &icon_data.rgba,
-            ));
+        viewport_builder = viewport_builder.with_window_icon(icon_data.clone());
     }
 
     #[cfg(target_os = "macos")]

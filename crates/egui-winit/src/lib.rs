@@ -1147,12 +1147,8 @@ pub fn process_viewport_commands(
             }),
             ViewportCommand::WindowIcon(icon) => {
                 window.set_window_icon(icon.map(|icon| {
-                    winit::window::Icon::from_rgba(
-                        icon.as_raw().to_owned(),
-                        icon.width() as u32,
-                        icon.height() as u32,
-                    )
-                    .expect("Invalid ICON data!")
+                    winit::window::Icon::from_rgba(icon.rgba.clone(), icon.width, icon.height)
+                        .expect("Invalid ICON data!")
                 }));
             }
             ViewportCommand::IMEPosition(pos) => {
@@ -1303,12 +1299,8 @@ pub fn create_winit_window_builder(
 
     if let Some(icon) = icon {
         window_builder = window_builder.with_window_icon(Some(
-            winit::window::Icon::from_rgba(
-                icon.as_raw().to_owned(),
-                icon.width() as u32,
-                icon.height() as u32,
-            )
-            .expect("Invalid Icon Data!"),
+            winit::window::Icon::from_rgba(icon.rgba.clone(), icon.width, icon.height)
+                .expect("Invalid Icon Data!"),
         ));
     }
 
