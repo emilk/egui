@@ -1208,7 +1208,7 @@ mod glow_integration {
             {
                 let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
-                initialize_or_update_viewport(
+                let viewport = initialize_or_update_viewport(
                     &mut self.viewports,
                     ids,
                     class,
@@ -1217,16 +1217,14 @@ mod glow_integration {
                     focused_viewport,
                 );
 
-                if let Some(viewport) = self.viewports.get_mut(&viewport_id) {
-                    if let Some(window) = &viewport.window {
-                        let is_viewport_focused = focused_viewport == Some(viewport_id);
-                        egui_winit::process_viewport_commands(
-                            &mut viewport.info,
-                            commands,
-                            window,
-                            is_viewport_focused,
-                        );
-                    }
+                if let Some(window) = &viewport.window {
+                    let is_viewport_focused = focused_viewport == Some(viewport_id);
+                    egui_winit::process_viewport_commands(
+                        &mut viewport.info,
+                        commands,
+                        window,
+                        is_viewport_focused,
+                    );
                 }
             }
 
@@ -2758,7 +2756,7 @@ mod wgpu_integration {
         {
             let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
-            initialize_or_update_viewport(
+            let viewport = initialize_or_update_viewport(
                 viewports,
                 ids,
                 class,
@@ -2767,16 +2765,14 @@ mod wgpu_integration {
                 focused_viewport,
             );
 
-            if let Some(viewport) = viewports.get_mut(&viewport_id) {
-                if let Some(window) = viewport.window.as_ref() {
-                    let is_viewport_focused = focused_viewport == Some(viewport_id);
-                    egui_winit::process_viewport_commands(
-                        &mut viewport.info,
-                        commands,
-                        window,
-                        is_viewport_focused,
-                    );
-                }
+            if let Some(window) = viewport.window.as_ref() {
+                let is_viewport_focused = focused_viewport == Some(viewport_id);
+                egui_winit::process_viewport_commands(
+                    &mut viewport.info,
+                    commands,
+                    window,
+                    is_viewport_focused,
+                );
             }
         }
     }
