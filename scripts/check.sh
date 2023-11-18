@@ -23,11 +23,13 @@ cargo fmt --all -- --check
 cargo doc --lib --no-deps --all-features
 cargo doc --document-private-items --no-deps --all-features
 
+cargo cranky --all-targets --all-features -- -D warnings
+./scripts/clippy_wasm.sh
+
 cargo check --all-targets
 cargo check --all-targets --all-features
 cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown
 cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
-cargo cranky --all-targets --all-features -- -D warnings
 cargo test --all-targets --all-features
 cargo test --doc # slow - checks all doc-tests
 

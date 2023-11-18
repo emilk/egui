@@ -49,7 +49,6 @@ impl AppRunner {
             },
             system_theme,
             cpu_usage: None,
-            native_pixels_per_point: Some(super::native_pixels_per_point()),
         };
         let storage = LocalStorage::default();
 
@@ -113,7 +112,7 @@ impl AppRunner {
         };
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
-        runner.input.native_pixels_per_point = Some(super::native_pixels_per_point());
+        runner.input.raw.native_pixels_per_point = Some(super::native_pixels_per_point());
 
         Ok(runner)
     }
