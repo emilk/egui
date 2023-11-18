@@ -38,9 +38,22 @@
 //!
 //! ## Using the viewports
 //! Only one viewport is active at any one time, identified with [`Context::viewport_id`].
-//! You can send commands to other viewports using [`Context::send_viewport_cmd_to`].
+//! You can modify the current (change the title, resize the window, etc) by sending
+//! a [`ViewportCommand`] to it using [`Context::send_viewport_cmd`].
+//! You can interact with other viewports using [`Context::send_viewport_cmd_to`].
 //!
 //! There is an example in <https://github.com/emilk/egui/tree/master/examples/multiple_viewports/src/main.rs>.
+//!
+//! You can find all available viewports in [`crate::RawInput::viewports`] and the active viewport in
+//! [`crate::InputState::viewport`]:
+//!
+//! ```no_run
+//! # let ctx = &egui::Context::default();
+//! ctx.input(|i| {
+//!     dbg!(&i.viewport()); // Current viewport
+//!     dbg!(&i.raw.viewports); // All viewports
+//! });
+//! ```
 //!
 //! ## For integrations
 //! * There is a [`crate::InputState::viewport`] with information about the current viewport.
