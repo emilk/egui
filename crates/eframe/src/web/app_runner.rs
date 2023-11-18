@@ -191,7 +191,14 @@ impl AppRunner {
         if viewport_output.len() > 1 {
             log::warn!("Multiple viewports not yet supported on the web");
         }
-        // TODO(emilk): handle some of the command in `viewport_output`, like setting the title and icon?
+        for viewport_output in viewport_output.values() {
+            for command in &viewport_output.commands {
+                // TODO(emilk): handle some of the commands
+                log::warn!(
+                    "Unhandled egui viewport command: {command:?} - not implemented in web backend"
+                );
+            }
+        }
 
         self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
