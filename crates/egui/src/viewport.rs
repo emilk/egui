@@ -259,8 +259,8 @@ pub struct ViewportBuilder {
     /// `eframe` will use this as the title of the native window.
     pub title: Option<String>,
 
-    /// This is wayland only. See [`Self::with_name`].
-    pub name: Option<(String, String)>,
+    /// This is wayland only. See [`Self::with_app_id`].
+    pub app_id: Option<String>,
 
     pub position: Option<Pos2>,
     pub inner_size: Option<Vec2>,
@@ -508,17 +508,31 @@ impl ViewportBuilder {
         self
     }
 
-    /// This is wayland only!
-    /// Build window with the given name.
+    /// ### On Wayland
+    /// On Wayland this sets the Application ID for the window.
     ///
-    /// The `general` name sets an application ID, which should match the `.desktop`
-    /// file distributed with your program. The `instance` is a `no-op`.
+    /// The application ID is used in several places of the compositor, e.g. for
+    /// grouping windows of the same application. It is also important for
+    /// connecting the configuration of a `.desktop` file with the window, by
+    /// using the application ID as file name. This allows e.g. a proper icon
+    /// handling under Wayland.
+    ///
+    /// See [Waylands XDG shell documentation][xdg-shell] for more information
+    /// on this Wayland-specific option.
+    ///
+    /// The `app_id` should match the `.desktop` file distributed with your program.
     ///
     /// For details about application ID conventions, see the
     /// [Desktop Entry Spec](https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#desktop-file-id)
+    ///
+    /// [xdg-shell]: https://wayland.app/protocols/xdg-shell#xdg_toplevel:request:set_app_id
+    ///
+    /// ### eframe
+    /// On eframe, the `app_id` of the root window is also used to determine
+    /// the storage location of persistance files.
     #[inline]
-    pub fn with_name(mut self, id: impl Into<String>, instance: impl Into<String>) -> Self {
-        self.name = Some((id.into(), instance.into()));
+    pub fn with_app_id(mut self, app_id: impl Into<String>) -> Self {
+        self.app_id = Some(app_id.into());
         self
     }
 

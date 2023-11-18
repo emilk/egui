@@ -1401,6 +1401,7 @@ mod glow_integration {
 
             let storage = epi_integration::create_storage(
                 self.native_options
+                    .viewport
                     .app_id
                     .as_ref()
                     .unwrap_or(&self.app_name),
@@ -2399,6 +2400,7 @@ mod wgpu_integration {
                     } else {
                         let storage = epi_integration::create_storage(
                             self.native_options
+                                .viewport
                                 .app_id
                                 .as_ref()
                                 .unwrap_or(&self.app_name),

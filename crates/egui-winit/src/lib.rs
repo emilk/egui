@@ -1237,7 +1237,7 @@ pub fn create_winit_window_builder(
         window_level,
 
         // only handled on some platforms:
-        name: _name,
+        app_id: _app_id,
         drag_and_drop: _drag_and_drop,
 
         mouse_passthrough: _, // handled in `apply_viewport_builder_to_new_window`
@@ -1307,7 +1307,7 @@ pub fn create_winit_window_builder(
     #[cfg(all(feature = "wayland", target_os = "linux"))]
     if let Some(name) = _name {
         use winit::platform::wayland::WindowBuilderExtWayland as _;
-        window_builder = window_builder.with_name(name.0, name.1);
+        window_builder = window_builder.with_name(name.0, "");
     }
 
     #[cfg(target_os = "windows")]
