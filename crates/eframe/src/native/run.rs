@@ -458,7 +458,7 @@ mod glow_integration {
 
     use egui::{
         epaint::ahash::HashMap, DeferredViewportUiCallback, ImmediateViewport, NumExt as _,
-        ViewportClass, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportOutput,
+        ViewportClass, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput,
     };
     use egui_winit::{create_winit_window_builder, process_viewport_commands, EventResponse};
 
@@ -528,12 +528,18 @@ mod glow_integration {
 
             let (raw_input, viewport_ui_cb) = {
                 let mut glutin = self.glutin.borrow_mut();
-                let all_viewports = glutin.viewports.keys().copied().collect();
+                let viewport = glutin.viewports.get_mut(&viewport_id).unwrap();
+                viewport.update_viewport_info();
+                let viewport_infos = glutin
+                    .viewports
+                    .iter()
+                    .map(|(id, viewport)| (*id, viewport.info.clone()))
+                    .collect();
                 let viewport = glutin.viewports.get_mut(&viewport_id).unwrap();
                 let window = viewport.window.as_ref().unwrap();
 
                 let egui_winit = viewport.egui_winit.as_mut().unwrap();
-                let raw_input = egui_winit.take_egui_input(window, viewport.ids, &all_viewports);
+                let raw_input = egui_winit.take_egui_input(window, viewport.ids, viewport_infos);
 
                 self.integration.pre_update(window);
 
@@ -786,6 +792,7 @@ mod glow_integration {
         ids: ViewportIdPair,
         class: ViewportClass,
         builder: ViewportBuilder,
+        info: ViewportInfo,
 
         /// The user-callback that shows the ui.
         /// None for immediate viewports.
@@ -794,6 +801,19 @@ mod glow_integration {
         gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
         window: Option<Rc<Window>>,
         egui_winit: Option<egui_winit::State>,
+    }
+
+    impl Viewport {
+        /// Update the stored `ViewportInfo`.
+        pub fn update_viewport_info(&mut self) {
+            let Some(window) = &self.window else {
+                return;
+            };
+            let Some(egui_winit) = &self.egui_winit else {
+                return;
+            };
+            egui_winit.update_viewport_info(&mut self.info, window);
+        }
     }
 
     /// This struct will contain both persistent and temporary glutin state.
@@ -950,6 +970,7 @@ mod glow_integration {
                     ids: ViewportIdPair::ROOT,
                     class: ViewportClass::Root,
                     builder: viewport_builder,
+                    info: Default::default(),
                     viewport_ui_cb: None,
                     gl_surface: None,
                     window: window.map(Rc::new),
@@ -1237,6 +1258,7 @@ mod glow_integration {
                     ids,
                     class,
                     builder,
+                    info: Default::default(),
                     viewport_ui_cb,
                     window: None,
                     egui_winit: None,
@@ -1548,7 +1570,16 @@ mod glow_integration {
         let input = {
             let mut glutin = glutin.borrow_mut();
 
-            let all_viewports = glutin.viewports.keys().copied().collect();
+            let Some(viewport) = glutin.viewports.get_mut(&ids.this) else {
+                return;
+            };
+            viewport.update_viewport_info();
+
+            let viewport_infos = glutin
+                .viewports
+                .iter()
+                .map(|(id, viewport)| (*id, viewport.info.clone()))
+                .collect();
 
             let Some(viewport) = glutin.viewports.get_mut(&ids.this) else {
                 return;
@@ -1561,7 +1592,7 @@ mod glow_integration {
                 return;
             };
 
-            let mut input = winit_state.take_egui_input(window, ids, &all_viewports);
+            let mut input = winit_state.take_egui_input(window, ids, viewport_infos);
             input.time = Some(beginning.elapsed().as_secs_f64());
             input
         };
@@ -1818,7 +1849,7 @@ mod wgpu_integration {
 
     use egui::{
         DeferredViewportUiCallback, FullOutput, ImmediateViewport, ViewportClass, ViewportIdMap,
-        ViewportIdPair, ViewportIdSet, ViewportOutput,
+        ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput,
     };
     use egui_winit::{create_winit_window_builder, process_viewport_commands};
 
@@ -1828,10 +1859,9 @@ mod wgpu_integration {
 
     pub struct Viewport {
         ids: ViewportIdPair,
-
         class: ViewportClass,
-
         builder: ViewportBuilder,
+        info: ViewportInfo,
 
         /// `None` for sync viewports.
         viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
@@ -1877,6 +1907,17 @@ mod wgpu_integration {
                     log::error!("Failed to create window: {err}");
                 }
             }
+        }
+
+        /// Update the stored `ViewportInfo`.
+        pub fn update_viewport_info(&mut self) {
+            let Some(window) = &self.window else {
+                return;
+            };
+            let Some(egui_winit) = &self.egui_winit else {
+                return;
+            };
+            egui_winit.update_viewport_info(&mut self.info, window);
         }
     }
 
@@ -2073,6 +2114,7 @@ mod wgpu_integration {
                     ids: ViewportIdPair::ROOT,
                     class: ViewportClass::Root,
                     builder,
+                    info: Default::default(),
                     viewport_ui_cb: None,
                     window: Some(Rc::new(window)),
                     egui_winit: Some(egui_winit),
@@ -2163,7 +2205,14 @@ mod wgpu_integration {
                 viewport_from_window,
             } = &mut *shared.borrow_mut();
 
-            let all_viewports = viewports.keys().copied().collect();
+            if let Some(viewport) = viewports.get_mut(&ids.this) {
+                viewport.update_viewport_info();
+            }
+
+            let viewport_infos = viewports
+                .iter()
+                .map(|(id, viewport)| (*id, viewport.info.clone()))
+                .collect();
 
             let viewport = initialize_or_update_viewport(
                 viewports,
@@ -2183,7 +2232,7 @@ mod wgpu_integration {
                 return;
             };
 
-            let mut input = winit_state.take_egui_input(window, ids, &all_viewports);
+            let mut input = winit_state.take_egui_input(window, ids, viewport_infos);
             input.time = Some(beginning.elapsed().as_secs_f64());
             input
         };
@@ -2467,6 +2516,15 @@ mod wgpu_integration {
                     viewports, painter, ..
                 } = &mut *shared_lock;
 
+                if let Some(viewport) = viewports.get_mut(&viewport_id) {
+                    viewport.update_viewport_info();
+                }
+
+                let viewport_infos = viewports
+                    .iter()
+                    .map(|(id, viewport)| (*id, viewport.info.clone()))
+                    .collect();
+
                 let Some(viewport) = viewports.get(&viewport_id) else {
                     return EventResult::Wait;
                 };
@@ -2481,8 +2539,6 @@ mod wgpu_integration {
                     }
                     return EventResult::Wait;
                 }
-
-                let all_viewports = viewports.keys().copied().collect();
 
                 let Some(viewport) = viewports.get_mut(&viewport_id) else {
                     return EventResult::Wait;
@@ -2508,7 +2564,7 @@ mod wgpu_integration {
                 let raw_input = egui_winit.as_mut().unwrap().take_egui_input(
                     window,
                     ViewportIdPair::from_self_and_parent(viewport_id, ids.parent),
-                    &all_viewports,
+                    viewport_infos,
                 );
 
                 integration.pre_update(window);
@@ -2763,6 +2819,7 @@ mod wgpu_integration {
                     ids,
                     class,
                     builder,
+                    info: Default::default(),
                     viewport_ui_cb,
                     window: None,
                     egui_winit: None,

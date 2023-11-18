@@ -59,7 +59,9 @@ fn viewport_contet(ui: &mut egui::Ui, ctx: &egui::Context, open: &mut bool) {
         for (id, viewport) in viewports {
             ui.group(|ui| {
                 ui.label(format!("viewport {id:?}"));
-                viewport.ui(ui);
+                ui.push_id(id, |ui| {
+                    viewport.ui(ui);
+                });
             });
         }
     });

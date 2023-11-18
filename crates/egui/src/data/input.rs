@@ -1078,7 +1078,9 @@ impl RawInput {
         for (id, viewport) in viewports {
             ui.group(|ui| {
                 ui.label(format!("Viewport {id:?}"));
-                viewport.ui(ui);
+                ui.push_id(id, |ui| {
+                    viewport.ui(ui);
+                });
             });
         }
         ui.label(format!("screen_rect: {screen_rect:?} points"));

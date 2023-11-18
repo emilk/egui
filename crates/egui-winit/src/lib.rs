@@ -15,7 +15,7 @@ pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
 use egui::{
-    Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdPair, ViewportIdSet,
+    Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdMap, ViewportIdPair,
     ViewportInfo,
 };
 pub use winit;
@@ -27,11 +27,11 @@ pub use window_settings::WindowSettings;
 
 use raw_window_handle::HasRawDisplayHandle;
 
-pub fn native_pixels_per_point(window: &winit::window::Window) -> f32 {
+pub fn native_pixels_per_point(window: &Window) -> f32 {
     window.scale_factor() as f32
 }
 
-pub fn screen_size_in_pixels(window: &winit::window::Window) -> egui::Vec2 {
+pub fn screen_size_in_pixels(window: &Window) -> egui::Vec2 {
     let size = window.inner_size();
     egui::vec2(size.width as f32, size.height as f32)
 }
@@ -136,7 +136,7 @@ impl State {
     #[cfg(feature = "accesskit")]
     pub fn init_accesskit<T: From<accesskit_winit::ActionRequestEvent> + Send>(
         &mut self,
-        window: &winit::window::Window,
+        window: &Window,
         event_loop_proxy: winit::event_loop::EventLoopProxy<T>,
         initial_tree_update_factory: impl 'static + FnOnce() -> accesskit::TreeUpdate + Send,
     ) {
@@ -181,13 +181,25 @@ impl State {
         &self.egui_input
     }
 
+    /// Update the given viewport info with the current state of the window.
+    ///
+    /// Call before [`Self::update_viewport_info`]
+    pub fn update_viewport_info(&self, info: &mut ViewportInfo, window: &Window) {
+        update_viewport_info(info, window, self.pixels_per_point());
+    }
+
     /// Prepare for a new frame by extracting the accumulated input,
+    ///
     /// as well as setting [the time](egui::RawInput::time) and [screen rectangle](egui::RawInput::screen_rect).
+    ///
+    /// You need to set [`egui::RawInput::viewports`] yourself though.
+    /// Use [`Self::update_viewport_info`] to update the info for each
+    /// viewport.
     pub fn take_egui_input(
         &mut self,
-        window: &winit::window::Window,
+        window: &Window,
         ids: ViewportIdPair,
-        all_viewports: &ViewportIdSet,
+        viewport_infos: ViewportIdMap<ViewportInfo>,
     ) -> egui::RawInput {
         crate::profile_function!();
 
@@ -211,19 +223,9 @@ impl State {
             && screen_size_in_points.y > 0.0)
             .then(|| Rect::from_min_size(Pos2::ZERO, screen_size_in_points));
 
-        // Prune dead viewports:
-        self.egui_input
-            .viewports
-            .retain(|id, _| all_viewports.contains(id));
-
-        // Update info about our current viewport:
-        let viewport_info = self.egui_input.viewports.entry(ids.this).or_default();
-        viewport_info.parent = Some(ids.parent);
-        update_viewport_info(viewport_info, window, pixels_per_point);
-
         // Tell egui which viewport is now active:
         self.egui_input.viewport_ids = ids;
-
+        self.egui_input.viewports = viewport_infos;
         self.egui_input.take()
     }
 
@@ -692,7 +694,7 @@ impl State {
     /// *
     pub fn handle_platform_output(
         &mut self,
-        window: &winit::window::Window,
+        window: &Window,
         viewport_id: ViewportId,
         egui_ctx: &egui::Context,
         platform_output: egui::PlatformOutput,
@@ -740,7 +742,7 @@ impl State {
         }
     }
 
-    fn set_cursor_icon(&mut self, window: &winit::window::Window, cursor_icon: egui::CursorIcon) {
+    fn set_cursor_icon(&mut self, window: &Window, cursor_icon: egui::CursorIcon) {
         if self.current_cursor_icon == Some(cursor_icon) {
             // Prevent flickering near frame boundary when Windows OS tries to control cursor icon for window resizing.
             // On other platforms: just early-out to save CPU.
@@ -764,11 +766,7 @@ impl State {
     }
 }
 
-fn update_viewport_info(
-    viewport_info: &mut ViewportInfo,
-    window: &winit::window::Window,
-    pixels_per_point: f32,
-) {
+fn update_viewport_info(viewport_info: &mut ViewportInfo, window: &Window, pixels_per_point: f32) {
     crate::profile_function!();
 
     let has_a_position = match window.is_minimized() {
@@ -1044,7 +1042,7 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 
 pub fn process_viewport_commands(
     commands: impl IntoIterator<Item = ViewportCommand>,
-    window: &winit::window::Window,
+    window: &Window,
     is_viewport_focused: bool,
 ) {
     crate::profile_function!();
@@ -1318,5 +1316,5 @@ mod profiling_scopes {
 pub(crate) use profiling_scopes::*;
 use winit::{
     dpi::{LogicalPosition, LogicalSize},
-    window::{CursorGrabMode, WindowButtons, WindowLevel},
+    window::{CursorGrabMode, Window, WindowButtons, WindowLevel},
 };

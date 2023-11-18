@@ -4,7 +4,10 @@ use winit::event_loop::EventLoopWindowTarget;
 
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
-use egui::{DeferredViewportUiCallback, NumExt as _, ViewportBuilder, ViewportId, ViewportIdPair};
+use egui::{
+    DeferredViewportUiCallback, NumExt as _, ViewportBuilder, ViewportId, ViewportIdPair,
+    ViewportInfo,
+};
 use egui_winit::{native_pixels_per_point, EventResponse, WindowSettings};
 
 use crate::{epi, Theme, WindowInfo};
@@ -434,8 +437,8 @@ impl EpiIntegration {
         self.egui_ctx
             .memory_mut(|mem| mem.set_everything_is_visible(true));
 
-        let all_viewports = std::iter::once(ViewportId::ROOT).collect();
-        let raw_input = egui_winit.take_egui_input(window, ViewportIdPair::ROOT, &all_viewports);
+        let viewports = std::iter::once((ViewportId::ROOT, ViewportInfo::default())).collect();
+        let raw_input = egui_winit.take_egui_input(window, ViewportIdPair::ROOT, viewports);
         self.pre_update(window);
         let full_output = self.update(app, None, raw_input);
         self.post_update(app, window);
