@@ -1,5 +1,7 @@
 //! The input needed by egui.
 
+use epaint::ColorImage;
+
 use crate::{emath::*, ViewportIdMap, ViewportIdPair};
 
 /// What the integrations provides to egui at the start of each frame.
@@ -445,6 +447,12 @@ pub enum Event {
     /// An assistive technology (e.g. screen reader) requested an action.
     #[cfg(feature = "accesskit")]
     AccessKitActionRequest(accesskit::ActionRequest),
+
+    /// The reply of a screenshot requested with [`crate::ViewportCommand::Screenshot`].
+    Screenshot {
+        viewport_id: crate::ViewportId,
+        image: std::sync::Arc<ColorImage>,
+    },
 }
 
 /// Mouse button (or similar for touch input)

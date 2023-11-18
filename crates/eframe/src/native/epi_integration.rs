@@ -226,7 +226,6 @@ impl EpiIntegration {
             gl,
             #[cfg(feature = "wgpu")]
             wgpu_render_state,
-            screenshot: std::cell::Cell::new(None),
             raw_display_handle: window.raw_display_handle(),
             raw_window_handle: window.raw_window_handle(),
         };

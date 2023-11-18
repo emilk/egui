@@ -621,7 +621,13 @@ mod glow_integration {
                 let screenshot_requested = std::mem::take(&mut viewport.screenshot_requested);
                 if screenshot_requested {
                     let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
-                    integration.frame.screenshot.set(Some(screenshot));
+                    egui_winit
+                        .egui_input_mut()
+                        .events
+                        .push(egui::Event::Screenshot {
+                            viewport_id,
+                            image: screenshot.into(),
+                        });
                 }
                 integration.post_rendering(app.as_mut(), window);
             }
@@ -2609,7 +2615,15 @@ mod wgpu_integration {
                     &textures_delta,
                     screenshot_requested,
                 );
-                integration.frame.screenshot.set(screenshot);
+                if let Some(screenshot) = screenshot {
+                    egui_winit
+                        .egui_input_mut()
+                        .events
+                        .push(egui::Event::Screenshot {
+                            viewport_id,
+                            image: screenshot.into(),
+                        });
+                }
             }
 
             integration.post_rendering(app.as_mut(), window);

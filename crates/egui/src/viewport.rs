@@ -763,7 +763,7 @@ pub enum ViewportCommand {
 
     /// Take a screenshot.
     ///
-    /// In `eframe`, the results are returned in `eframe::Frame::screenshot`.
+    /// The results are returned in `crate::Event::Screenshot`.
     Screenshot,
 }
 

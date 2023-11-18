@@ -1,7 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+use std::sync::Arc;
+
 use eframe::egui;
-use eframe::egui::ColorImage;
+use egui::ColorImage;
 use egui_plot::{Legend, Line, Plot, PlotPoints};
 
 fn main() -> Result<(), eframe::Error> {
@@ -19,9 +21,7 @@ fn main() -> Result<(), eframe::Error> {
 }
 
 #[derive(Default)]
-struct MyApp {
-    screenshot: Option<ColorImage>,
-}
+struct MyApp {}
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
@@ -42,7 +42,17 @@ impl eframe::App for MyApp {
             plot_rect = Some(inner.response.rect);
         });
 
-        if let (Some(screenshot), Some(plot_location)) = (self.screenshot.take(), plot_rect) {
+        // Check for returned screenshot:
+        let screenshot = ctx.input(|i| {
+            for event in &i.raw.events {
+                if let egui::Event::Screenshot { image, .. } = event {
+                    return Some(image.clone());
+                }
+            }
+            None
+        });
+
+        if let (Some(screenshot), Some(plot_location)) = (screenshot, plot_rect) {
             if let Some(mut path) = rfd::FileDialog::new().save_file() {
                 path.set_extension("png");
 
@@ -60,14 +70,8 @@ impl eframe::App for MyApp {
                     image::ColorType::Rgba8,
                 )
                 .unwrap();
+                eprintln!("Image saved to {path:?}.");
             }
-        }
-    }
-
-    fn post_rendering(&mut self, _screen_size_px: [u32; 2], frame: &eframe::Frame) {
-        // this is inspired by the Egui screenshot example
-        if let Some(screenshot) = frame.screenshot() {
-            self.screenshot = Some(screenshot);
         }
     }
 }
