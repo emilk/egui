@@ -250,7 +250,7 @@ pub enum HardwareAcceleration {
 
 /// Options controlling the behavior of a native window.
 ///
-/// Only a single native window is currently supported.
+/// Addintional windows can be opened using (egui viewports)[`egui::viewport`].
 #[cfg(not(target_arch = "wasm32"))]
 pub struct NativeOptions {
     /// Sets whether or not the window will always be on top of other windows at initialization.
