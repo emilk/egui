@@ -2,7 +2,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::egui;
+use eframe::egui::{self, ViewportCommand};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -112,9 +112,11 @@ fn title_bar_ui(
 
     // Interact with the title bar (drag to move window):
     if title_bar_response.double_clicked() {
-        frame.set_maximized(!frame.info().window_info.maximized);
+        let is_maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
+        ui.ctx()
+            .send_viewport_command(ViewportCommand::Maximized(!is_maximized));
     } else if title_bar_response.is_pointer_button_down_on() {
-        frame.drag_window();
+        ui.ctx().send_viewport_command(ViewportCommand::StartDrag);
     }
 
     ui.allocate_ui_at_rect(title_bar_rect, |ui| {
@@ -140,19 +142,22 @@ fn close_maximize_minimize(ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         frame.close();
     }
 
-    if frame.info().window_info.maximized {
+    let is_maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
+    if is_maximized {
         let maximized_response = ui
             .add(Button::new(RichText::new("🗗").size(button_height)))
             .on_hover_text("Restore window");
         if maximized_response.clicked() {
-            frame.set_maximized(false);
+            ui.ctx()
+                .send_viewport_command(ViewportCommand::Maximized(false));
         }
     } else {
         let maximized_response = ui
             .add(Button::new(RichText::new("🗗").size(button_height)))
             .on_hover_text("Maximize window");
         if maximized_response.clicked() {
-            frame.set_maximized(true);
+            ui.ctx()
+                .send_viewport_command(ViewportCommand::Maximized(true));
         }
     }
 
@@ -160,6 +165,7 @@ fn close_maximize_minimize(ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         .add(Button::new(RichText::new("🗕").size(button_height)))
         .on_hover_text("Minimize the window");
     if minimized_response.clicked() {
-        frame.set_minimized(true);
+        ui.ctx()
+            .send_viewport_command(ViewportCommand::Minimized(true));
     }
 }
