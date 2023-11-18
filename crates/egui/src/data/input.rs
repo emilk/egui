@@ -194,7 +194,7 @@ pub struct ViewportInfo {
 
     /// Is the window focused and able to receive input?
     ///
-    /// This should be the same as [`InputState::focused`].
+    /// This should be the same as [`RawInput::focused`].
     pub focused: Option<bool>,
 }
 

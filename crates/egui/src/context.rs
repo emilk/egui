@@ -2574,7 +2574,7 @@ impl Context {
     /// You need to call this each frame when the child viewport should exist.
     ///
     /// You can check if the user wants to close the viewport by checking the
-    /// [`crate::ViewportInfo::close_requested`] flags found in [`crate::InputState::viewports`].
+    /// [`crate::ViewportInfo::close_requested`] flags found in [`crate::InputState::viewport`].
     ///
     /// The given callback will be called whenever the child viewport needs repainting,
     /// e.g. on an event or when [`Self::request_repaint`] is called.
@@ -2634,7 +2634,7 @@ impl Context {
     /// You need to call this each frame when the child viewport should exist.
     ///
     /// You can check if the user wants to close the viewport by checking the
-    /// [`crate::ViewportInfo::close_requested`] flags found in [`crate::InputState::viewports`].
+    /// [`crate::ViewportInfo::close_requested`] flags found in [`crate::InputState::viewport`].
     ///
     /// The given ui function will be called immediately.
     /// This may only be called on the main thread.

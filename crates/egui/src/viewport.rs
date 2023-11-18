@@ -43,7 +43,8 @@
 //! There is an example in <https://github.com/emilk/egui/tree/master/examples/multiple_viewports/src/main.rs>.
 //!
 //! ## For integrations
-//! * There is a [`crate::RawInput::viewport`] with information about the current viewport.
+//! * There is a [`crate::InputState::viewport`] with information about the current viewport.
+//! * There is a [`crate::RawInput::viewports`] with information about all viewports.
 //! * The repaint callback set by [`Context::set_request_repaint_callback`] points to which viewport should be repainted.
 //! * [`crate::FullOutput::viewport_output`] is a list of viewports which should result in their own independent windows.
 //! * To support immediate viewports you need to call [`Context::set_immediate_viewport_renderer`].
@@ -659,7 +660,7 @@ pub enum ViewportCommand {
     /// Request this viewport to be closed.
     ///
     /// For the root viewport, this usually results in the application shutting down.
-    /// For other viewports, the [`ViewportInfo::close_requested`] flag will be set.
+    /// For other viewports, the [`crate::ViewportInfo::close_requested`] flag will be set.
     Close,
 
     /// Set the window title.
