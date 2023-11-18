@@ -1238,6 +1238,7 @@ pub fn create_winit_window_builder(
         close_button,
         minimize_button,
         maximize_button,
+        window_level,
 
         // only handled on some platforms:
         name: _name,
@@ -1253,6 +1254,11 @@ pub fn create_winit_window_builder(
         .with_resizable(resizable.unwrap_or(true))
         .with_visible(visible.unwrap_or(true))
         .with_maximized(maximized.unwrap_or(false))
+        .with_window_level(match window_level {
+            egui::viewport::WindowLevel::AlwaysOnBottom => WindowLevel::AlwaysOnBottom,
+            egui::viewport::WindowLevel::AlwaysOnTop => WindowLevel::AlwaysOnTop,
+            egui::viewport::WindowLevel::Normal => WindowLevel::Normal,
+        })
         .with_fullscreen(
             fullscreen.and_then(|e| e.then_some(winit::window::Fullscreen::Borderless(None))),
         )

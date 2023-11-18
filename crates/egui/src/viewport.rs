@@ -230,6 +230,8 @@ pub struct ViewportBuilder {
     pub minimize_button: Option<bool>,
     pub maximize_button: Option<bool>,
 
+    pub window_level: WindowLevel,
+
     pub mouse_passthrough: Option<bool>,
 }
 
@@ -451,10 +453,24 @@ impl ViewportBuilder {
         self
     }
 
+    /// Control if window i always-on-top, always-on-bottom, or neither.
+    #[inline]
+    pub fn with_window_level(mut self, level: WindowLevel) -> Self {
+        self.window_level = level;
+        self
+    }
+
+    /// This window is always on top
+    #[inline]
+    pub fn with_always_on_top(self) -> Self {
+        self.with_window_level(WindowLevel::AlwaysOnTop)
+    }
+
     /// On desktop: mouse clicks pass through the window, used for non-interactable overlays.
     ///
     /// Generally you would use this in conjunction with [`Self::with_transparent`]
     /// and [`Self::with_always_on_top`].
+    #[inline]
     pub fn with_mouse_passthrough(mut self, value: bool) -> Self {
         self.mouse_passthrough = Some(value);
         self
@@ -618,33 +634,37 @@ impl ViewportBuilder {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WindowLevel {
+    #[default]
     Normal,
     AlwaysOnBottom,
     AlwaysOnTop,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum IMEPurpose {
+    #[default]
     Normal,
     Password,
     Terminal,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum SystemTheme {
+    #[default]
+    SystemDefault,
     Light,
     Dark,
-    SystemDefault,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum CursorGrab {
+    #[default]
     None,
     Confined,
     Locked,
