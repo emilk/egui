@@ -213,13 +213,10 @@ impl EpiIntegration {
         let memory = load_egui_memory(storage.as_deref()).unwrap_or_default();
         egui_ctx.memory_mut(|mem| *mem = memory);
 
-        let native_pixels_per_point = window.scale_factor() as f32;
-
         let frame = epi::Frame {
             info: epi::IntegrationInfo {
                 system_theme,
                 cpu_usage: None,
-                native_pixels_per_point: Some(native_pixels_per_point),
             },
             storage,
             #[cfg(feature = "glow")]
@@ -327,7 +324,7 @@ impl EpiIntegration {
                 ..
             } => self.can_drag_window = true,
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                self.frame.info.native_pixels_per_point = Some(*scale_factor as _);
+                egui_winit.egui_input_mut().native_pixels_per_point = Some(*scale_factor as _);
             }
             WindowEvent::ThemeChanged(winit_theme) if self.follow_system_theme => {
                 let theme = theme_from_winit_theme(*winit_theme);

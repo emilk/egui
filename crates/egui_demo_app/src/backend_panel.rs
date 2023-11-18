@@ -151,7 +151,7 @@ impl BackendPanel {
         // On web, the browser controls `pixels_per_point`.
         let integration_controls_pixels_per_point = frame.is_web();
         if !integration_controls_pixels_per_point {
-            self.pixels_per_point_ui(ui, frame.info());
+            self.pixels_per_point_ui(ui);
         }
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -196,7 +196,7 @@ impl BackendPanel {
         }
     }
 
-    fn pixels_per_point_ui(&mut self, ui: &mut egui::Ui, info: &eframe::IntegrationInfo) {
+    fn pixels_per_point_ui(&mut self, ui: &mut egui::Ui) {
         let pixels_per_point = self
             .pixels_per_point
             .get_or_insert_with(|| ui.ctx().pixels_per_point());
@@ -224,7 +224,7 @@ impl BackendPanel {
                 reset = true;
             }
 
-            if let Some(native_pixels_per_point) = info.native_pixels_per_point {
+            if let Some(native_pixels_per_point) = ui.input(|i| i.raw.native_pixels_per_point) {
                 let enabled = ui.ctx().pixels_per_point() != native_pixels_per_point;
                 if ui
                     .add_enabled(enabled, egui::Button::new("Reset"))

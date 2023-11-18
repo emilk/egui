@@ -258,7 +258,7 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>]) {
             data.insert_temp(container_id.with("pixels_per_point"), tmp_pixels_per_point);
         });
     }
-    egui::gui_zoom::zoom_with_keyboard_shortcuts(&ctx, None);
+    egui::gui_zoom::zoom_with_keyboard_shortcuts(&ctx);
 
     if ctx.viewport_id() != ctx.parent_viewport_id() {
         let parent = ctx.parent_viewport_id();

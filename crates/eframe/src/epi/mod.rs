@@ -900,9 +900,6 @@ pub struct IntegrationInfo {
     /// Seconds of cpu usage (in seconds) of UI code on the previous frame.
     /// `None` if this is the first frame.
     pub cpu_usage: Option<f32>,
-
-    /// The OS native pixels-per-point
-    pub native_pixels_per_point: Option<f32>,
 }
 
 // ----------------------------------------------------------------------------

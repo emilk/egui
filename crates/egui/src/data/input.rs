@@ -32,9 +32,18 @@ pub struct RawInput {
     pub screen_rect: Option<Rect>,
 
     /// Also known as device pixel ratio, > 1 for high resolution screens.
+    ///
     /// If text looks blurry you probably forgot to set this.
     /// Set this the first frame, whenever it changes, or just on every frame.
     pub pixels_per_point: Option<f32>,
+
+    /// The OS native pixels-per-point.
+    ///
+    /// This should always be set, if known.
+    ///
+    /// On web this takes browser scaling into account,
+    /// and orresponds to [`window.devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) in JavaScript.
+    pub native_pixels_per_point: Option<f32>,
 
     /// Maximum size of one side of the font texture.
     ///
@@ -84,6 +93,7 @@ impl Default for RawInput {
             viewports: Default::default(),
             screen_rect: None,
             pixels_per_point: None,
+            native_pixels_per_point: None,
             max_texture_side: None,
             time: None,
             predicted_dt: 1.0 / 60.0,
@@ -106,7 +116,8 @@ impl RawInput {
             viewport_ids: self.viewport_ids,
             viewports: self.viewports.clone(),
             screen_rect: self.screen_rect.take(),
-            pixels_per_point: self.pixels_per_point.take(),
+            pixels_per_point: self.pixels_per_point.take(), // take the diff
+            native_pixels_per_point: self.native_pixels_per_point, // copy
             max_texture_side: self.max_texture_side.take(),
             time: self.time.take(),
             predicted_dt: self.predicted_dt,
@@ -125,6 +136,7 @@ impl RawInput {
             viewports,
             screen_rect,
             pixels_per_point,
+            native_pixels_per_point,
             max_texture_side,
             time,
             predicted_dt,
@@ -139,6 +151,7 @@ impl RawInput {
         self.viewports = viewports;
         self.screen_rect = screen_rect.or(self.screen_rect);
         self.pixels_per_point = pixels_per_point.or(self.pixels_per_point);
+        self.native_pixels_per_point = native_pixels_per_point.or(self.native_pixels_per_point);
         self.max_texture_side = max_texture_side.or(self.max_texture_side);
         self.time = time; // use latest time
         self.predicted_dt = predicted_dt; // use latest dt
@@ -1085,6 +1098,7 @@ impl RawInput {
             viewports,
             screen_rect,
             pixels_per_point,
+            native_pixels_per_point,
             max_texture_side,
             time,
             predicted_dt,
@@ -1112,6 +1126,12 @@ impl RawInput {
             .on_hover_text(
                 "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
             );
+        ui.label(format!(
+            "native_pixels_per_point: {native_pixels_per_point:?}"
+        ))
+        .on_hover_text(
+            "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
+        );
         ui.label(format!("max_texture_side: {max_texture_side:?}"));
         if let Some(time) = time {
             ui.label(format!("time: {time:.3} s"));

@@ -113,6 +113,7 @@ impl AppRunner {
         };
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
+        runner.input.native_pixels_per_point = Some(super::native_pixels_per_point());
 
         Ok(runner)
     }

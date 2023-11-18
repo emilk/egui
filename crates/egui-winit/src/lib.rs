@@ -226,6 +226,7 @@ impl State {
 
         // Tell egui which viewport is now active:
         self.egui_input.viewport_ids = ids;
+        self.egui_input.native_pixels_per_point = Some(native_pixels_per_point(window));
         self.egui_input.take()
     }
 

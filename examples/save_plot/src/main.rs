@@ -21,7 +21,7 @@ fn main() -> Result<(), eframe::Error> {
 struct MyApp {}
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let mut plot_rect = None;
         egui::CentralPanel::default().show(ctx, |ui| {
             if ui.button("Save Plot").clicked() {
@@ -56,8 +56,8 @@ impl eframe::App for MyApp {
                 // for a full size application, we should put this in a different thread,
                 // so that the GUI doesn't lag during saving
 
-                let pixels_per_point = frame.info().native_pixels_per_point;
-                let plot = screenshot.region(&plot_location, pixels_per_point);
+                let pixels_per_point = ctx.pixels_per_point();
+                let plot = screenshot.region(&plot_location, Some(pixels_per_point));
                 // save the plot to png
                 image::save_buffer(
                     &path,
