@@ -230,11 +230,6 @@ pub trait App {
     fn warm_up_enabled(&self) -> bool {
         false
     }
-
-    /// Called each time after the rendering the UI.
-    ///
-    /// Can be used to access pixel data with [`Frame::screenshot`]
-    fn post_rendering(&mut self, _window_size_px: [u32; 2], _frame: &Frame) {}
 }
 
 /// Selects the level of hardware graphics acceleration.

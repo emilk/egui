@@ -382,12 +382,8 @@ impl EpiIntegration {
         self.frame.info.cpu_usage = Some(frame_time);
     }
 
-    pub fn post_rendering(&mut self, app: &mut dyn epi::App, window: &winit::window::Window) {
+    pub fn post_rendering(&mut self, window: &winit::window::Window) {
         crate::profile_function!();
-        let inner_size = window.inner_size();
-        let window_size_px = [inner_size.width, inner_size.height];
-        app.post_rendering(window_size_px, &self.frame);
-
         if std::mem::take(&mut self.is_first_frame) {
             // We keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
             window.set_visible(true);

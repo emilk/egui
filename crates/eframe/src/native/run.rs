@@ -629,7 +629,7 @@ mod glow_integration {
                             image: screenshot.into(),
                         });
                 }
-                integration.post_rendering(app.as_mut(), window);
+                integration.post_rendering(window);
             }
 
             {
@@ -2626,7 +2626,7 @@ mod wgpu_integration {
                 }
             }
 
-            integration.post_rendering(app.as_mut(), window);
+            integration.post_rendering(window);
 
             let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
