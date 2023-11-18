@@ -12,10 +12,11 @@ fn main() {
     let _ = eframe::run_native(
         "Viewports",
         eframe::NativeOptions {
+            viewport: egui::ViewportBuilder::default().with_inner_size([450.0, 400.0]),
+
             #[cfg(feature = "wgpu")]
             renderer: eframe::Renderer::Wgpu,
 
-            initial_window_size: Some(egui::Vec2::new(450.0, 400.0)),
             ..Default::default()
         },
         Box::new(|_| Box::<App>::default()),

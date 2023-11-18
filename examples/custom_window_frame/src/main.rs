@@ -7,12 +7,12 @@ use eframe::egui::{self, ViewportCommand};
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
-        // Hide the OS-specific "chrome" around the window:
-        decorated: false,
-        // To have rounded corners we need transparency:
-        transparent: true,
-        min_window_size: Some(egui::vec2(400.0, 100.0)),
-        initial_window_size: Some(egui::vec2(400.0, 240.0)),
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([400.0, 100.0])
+            .with_min_inner_size([400.0, 100.0])
+            .with_decorations(false) // Hide the OS-specific "chrome" around the window
+            .with_transparent(true), // To have rounded corners we need transparency
+
         ..Default::default()
     };
     eframe::run_native(

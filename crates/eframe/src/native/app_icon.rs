@@ -2,16 +2,18 @@
 //!
 //! TODO(emilk): port this to [`winit`].
 
+use std::sync::Arc;
+
 use crate::IconData;
 
 pub struct AppTitleIconSetter {
     title: String,
-    icon_data: Option<IconData>,
+    icon_data: Option<Arc<IconData>>,
     status: AppIconStatus,
 }
 
 impl AppTitleIconSetter {
-    pub fn new(title: String, icon_data: Option<IconData>) -> Self {
+    pub fn new(title: String, icon_data: Option<Arc<IconData>>) -> Self {
         Self {
             title,
             icon_data,
@@ -22,7 +24,7 @@ impl AppTitleIconSetter {
     /// Call once per frame; we will set the icon when we can.
     pub fn update(&mut self) {
         if self.status == AppIconStatus::NotSetTryAgain {
-            self.status = set_title_and_icon(&self.title, self.icon_data.as_ref());
+            self.status = set_title_and_icon(&self.title, self.icon_data.as_deref());
         }
     }
 }

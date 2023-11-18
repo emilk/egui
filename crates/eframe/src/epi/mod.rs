@@ -11,11 +11,14 @@ mod icon_data;
 
 pub use icon_data::IconDataExt;
 
+use egui::ViewportBuilder;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub use egui::IconData;
 
 #[cfg(target_arch = "wasm32")]
 use std::any::Any;
+use std::sync::Arc;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(any(feature = "glow", feature = "wgpu"))]
@@ -255,71 +258,10 @@ pub enum HardwareAcceleration {
 /// Addintional windows can be opened using (egui viewports)[`egui::viewport`].
 #[cfg(not(target_arch = "wasm32"))]
 pub struct NativeOptions {
-    /// Sets whether or not the window will always be on top of other windows at initialization.
-    pub always_on_top: bool,
-
-    /// Show window in maximized mode
-    pub maximized: bool,
-
-    /// On desktop: add window decorations (i.e. a frame around your app)?
-    /// If false it will be difficult to move and resize the app.
-    pub decorated: bool,
-
-    /// Start in (borderless) fullscreen?
+    /// Controls the native window of the root viewport.
     ///
-    /// Default: `false`.
-    pub fullscreen: bool,
-
-    /// On Mac: the window doesn't have a titlebar, but floating window buttons.
-    ///
-    /// See [winit's documentation][with_fullsize_content_view] for information on Mac-specific options.
-    ///
-    /// [with_fullsize_content_view]: https://docs.rs/winit/latest/x86_64-apple-darwin/winit/platform/macos/trait.WindowBuilderExtMacOS.html#tymethod.with_fullsize_content_view
-    #[cfg(target_os = "macos")]
-    pub fullsize_content: bool,
-
-    /// On Windows: enable drag and drop support. Drag and drop can
-    /// not be disabled on other platforms.
-    ///
-    /// See [winit's documentation][drag_and_drop] for information on why you
-    /// might want to disable this on windows.
-    ///
-    /// [drag_and_drop]: https://docs.rs/winit/latest/x86_64-pc-windows-msvc/winit/platform/windows/trait.WindowBuilderExtWindows.html#tymethod.with_drag_and_drop
-    pub drag_and_drop_support: bool,
-
-    /// The application icon, e.g. in the Windows task bar or the alt-tab menu.
-    ///
-    /// The default icon is a white `e` on a black background (for "egui" or "eframe").
-    /// If you prefer the OS default, set this to `None`.
-    pub icon_data: Option<IconData>,
-
-    /// The initial (inner) position of the native window in points (logical pixels).
-    pub initial_window_pos: Option<egui::Pos2>,
-
-    /// The initial inner size of the native window in points (logical pixels).
-    pub initial_window_size: Option<egui::Vec2>,
-
-    /// The minimum inner window size in points (logical pixels).
-    pub min_window_size: Option<egui::Vec2>,
-
-    /// The maximum inner window size in points (logical pixels).
-    pub max_window_size: Option<egui::Vec2>,
-
-    /// Should the app window be resizable?
-    pub resizable: bool,
-
-    /// On desktop: make the window transparent.
-    ///
-    /// You control the transparency with [`App::clear_color()`].
-    /// You should avoid having a [`egui::CentralPanel`], or make sure its frame is also transparent.
-    pub transparent: bool,
-
-    /// On desktop: mouse clicks pass through the window, used for non-interactable overlays
-    /// Generally you would use this in conjunction with always_on_top
-    pub mouse_passthrough: bool,
-
-    /// Whether grant focus when window initially opened. True by default.
-    pub active: bool,
+    /// This is where you set things like window title and size.
+    pub viewport: ViewportBuilder,
 
     /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
     ///
@@ -471,7 +413,7 @@ pub struct NativeOptions {
 impl Clone for NativeOptions {
     fn clone(&self) -> Self {
         Self {
-            icon_data: self.icon_data.clone(),
+            viewport: self.viewport.clone(),
 
             #[cfg(any(feature = "glow", feature = "wgpu"))]
             event_loop_builder: None, // Skip any builder callbacks if cloning
@@ -493,29 +435,13 @@ impl Clone for NativeOptions {
 impl Default for NativeOptions {
     fn default() -> Self {
         Self {
-            always_on_top: false,
-            maximized: false,
-            decorated: true,
-            fullscreen: false,
-
-            #[cfg(target_os = "macos")]
-            fullsize_content: false,
-
-            // We set a default "egui" or "eframe" icon, which is usually more distinctive than the default OS icon.
-            icon_data: Some(
-                icon_data::icon_from_png_bytes(&include_bytes!("../../data/icon.png")[..]).unwrap(),
-            ),
-
-            drag_and_drop_support: true,
-            initial_window_pos: None,
-            initial_window_size: None,
-            min_window_size: None,
-            max_window_size: None,
-            resizable: true,
-            transparent: false,
-            mouse_passthrough: false,
-
-            active: true,
+            viewport: ViewportBuilder {
+                icon: Some(Arc::new(
+                    icon_data::icon_from_png_bytes(&include_bytes!("../../data/icon.png")[..])
+                        .unwrap(),
+                )),
+                ..Default::default()
+            },
 
             vsync: true,
             multisampling: 0,

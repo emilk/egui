@@ -18,9 +18,9 @@ fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
     let options = eframe::NativeOptions {
-        drag_and_drop_support: true,
-
-        initial_window_size: Some([1280.0, 1024.0].into()),
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([1280.0, 1024.0])
+            .with_drag_and_drop(true),
 
         #[cfg(feature = "wgpu")]
         renderer: eframe::Renderer::Wgpu,

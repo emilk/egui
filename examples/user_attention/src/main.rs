@@ -6,7 +6,7 @@ use std::time::{Duration, SystemTime};
 fn main() -> eframe::Result<()> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let native_options = NativeOptions {
-        initial_window_size: Some(egui::vec2(400., 200.)),
+        viewport: egui::ViewportBuilder::default().with_inner_size([400., 200.]),
         ..Default::default()
     };
     eframe::run_native(

@@ -241,6 +241,8 @@ pub type ImmediateViewportRendererCallback = dyn for<'a> Fn(&Context, ImmediateV
 
 /// Control the building of a new egui viewport (i.e. native window).
 ///
+/// See [`crate::viewport`] for how to build new viewports (native windows).
+///
 /// The fields are public, but you should use the builder pattern to set them,
 /// and that's where you'll find the documentation too.
 ///
@@ -344,6 +346,10 @@ impl ViewportBuilder {
 
     /// Sets whether the background of the window should be transparent.
     ///
+    /// You should avoid having a [`egui::CentralPanel`], or make sure its frame is also transparent.
+    ///
+    /// In `eframe` you control the transparency with `eframe::App::clear_color()`.
+    ///
     /// If this is `true`, writing colors with alpha values different than
     /// `1.0` will produce a transparent window. On some platforms this
     /// is more of a hint for the system and you'd still have the alpha
@@ -358,7 +364,10 @@ impl ViewportBuilder {
         self
     }
 
-    /// The icon needs to be wrapped in Arc because will be cloned every frame
+    /// The application icon, e.g. in the Windows task bar or the alt-tab menu.
+    ///
+    /// The default icon is a white `e` on a black background (for "egui" or "eframe").
+    /// If you prefer the OS default, set this to `None`.
     #[inline]
     pub fn with_window_icon(mut self, icon: impl Into<Arc<IconData>>) -> Self {
         self.icon = Some(icon.into());
@@ -409,9 +418,11 @@ impl ViewportBuilder {
         self
     }
 
-    /// Makes the window content appear behind the titlebar.
+    /// On Mac: the window doesn't have a titlebar, but floating window buttons.
     ///
-    /// Mac Os only.
+    /// See [winit's documentation][with_fullsize_content_view] for information on Mac-specific options.
+    ///
+    /// [with_fullsize_content_view]: https://docs.rs/winit/latest/x86_64-apple-darwin/winit/platform/macos/trait.WindowBuilderExtMacOS.html#tymethod.with_fullsize_content_view
     #[inline]
     pub fn with_fullsize_content_view(mut self, value: bool) -> Self {
         self.fullsize_content_view = Some(value);
@@ -456,28 +467,34 @@ impl ViewportBuilder {
         self
     }
 
-    /// X11 not working!
+    /// Does not work on X11.
     #[inline]
     pub fn with_close_button(mut self, value: bool) -> Self {
         self.close_button = Some(value);
         self
     }
 
-    /// X11 not working!
+    /// Does not work on X11.
     #[inline]
     pub fn with_minimize_button(mut self, value: bool) -> Self {
         self.minimize_button = Some(value);
         self
     }
 
-    /// X11 not working!
+    /// Does not work on X11.
     #[inline]
     pub fn with_maximize_button(mut self, value: bool) -> Self {
         self.maximize_button = Some(value);
         self
     }
 
-    /// This currently only work on windows to be disabled!
+    /// On Windows: enable drag and drop support. Drag and drop can
+    /// not be disabled on other platforms.
+    ///
+    /// See [winit's documentation][drag_and_drop] for information on why you
+    /// might want to disable this on windows.
+    ///
+    /// [drag_and_drop]: https://docs.rs/winit/latest/x86_64-pc-windows-msvc/winit/platform/windows/trait.WindowBuilderExtWindows.html#tymethod.with_drag_and_drop
     #[inline]
     pub fn with_drag_and_drop(mut self, value: bool) -> Self {
         self.drag_and_drop = Some(value);
@@ -735,6 +752,8 @@ pub enum ResizeDirection {
 }
 
 /// You can send a [`ViewportCommand`] to the viewport with [`Context::send_viewport_cmd`].
+///
+/// See [`crate::viewport`] for how to build new viewports (native windows).
 ///
 /// All coordinates are in logical points.
 ///
