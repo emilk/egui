@@ -158,13 +158,14 @@ impl BackendPanel {
         {
             ui.horizontal(|ui| {
                 {
-                    let mut fullscreen = frame.info().window_info.fullscreen;
+                    let mut fullscreen = ui.input(|i| i.viewport().fullscreen.unwrap_or(false));
                     if ui
                         .checkbox(&mut fullscreen, "🗖 Fullscreen (F11)")
                         .on_hover_text("Fullscreen the window")
                         .changed()
                     {
-                        frame.set_fullscreen(fullscreen);
+                        ui.ctx()
+                            .send_viewport_command(egui::ViewportCommand::Fullscreen(fullscreen));
                     }
                 }
 
@@ -173,25 +174,26 @@ impl BackendPanel {
                     .on_hover_text("Resize the window to be small like a phone.")
                     .clicked()
                 {
-                    // frame.set_window_size(egui::vec2(375.0, 812.0)); // iPhone 12 mini
-                    frame.set_window_size(egui::vec2(375.0, 667.0)); //  iPhone SE 2nd gen
-                    frame.set_fullscreen(false);
+                    // let size = egui::vec2(375.0, 812.0); // iPhone 12 mini
+                    let size = egui::vec2(375.0, 667.0); //  iPhone SE 2nd gen
+
+                    ui.ctx()
+                        .send_viewport_command(egui::ViewportCommand::InnerSize(size));
+                    ui.ctx()
+                        .send_viewport_command(egui::ViewportCommand::Fullscreen(false));
                     ui.close_menu();
                 }
             });
 
-            if !frame.info().window_info.fullscreen
+            let fullscreen = ui.input(|i| i.viewport().fullscreen.unwrap_or(false));
+            if !fullscreen
                 && ui
                     .button("Drag me to drag window")
                     .is_pointer_button_down_on()
             {
-                frame.drag_window();
+                ui.ctx()
+                    .send_viewport_command(egui::ViewportCommand::StartDrag);
             }
-
-            ui.button("Native window info (hover me)")
-                .on_hover_ui(|ui| {
-                    window_info_ui(ui, &frame.info().window_info);
-                });
         }
     }
 
@@ -283,55 +285,6 @@ impl BackendPanel {
             }
         }
     }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn window_info_ui(ui: &mut egui::Ui, window_info: &eframe::WindowInfo) {
-    let eframe::WindowInfo {
-        position,
-        fullscreen,
-        minimized,
-        maximized,
-        focused,
-        size,
-        monitor_size,
-    } = window_info;
-
-    egui::Grid::new("window_info_grid")
-        .num_columns(2)
-        .show(ui, |ui| {
-            if let Some(egui::Pos2 { x, y }) = position {
-                ui.label("Position:");
-                ui.monospace(format!("{x:.0}, {y:.0}"));
-                ui.end_row();
-            }
-
-            ui.label("Fullscreen:");
-            ui.label(fullscreen.to_string());
-            ui.end_row();
-
-            ui.label("Minimized:");
-            ui.label(minimized.to_string());
-            ui.end_row();
-
-            ui.label("Maximized:");
-            ui.label(maximized.to_string());
-            ui.end_row();
-
-            ui.label("Focused:");
-            ui.label(focused.to_string());
-            ui.end_row();
-
-            ui.label("Window size:");
-            ui.monospace(format!("{x:.0} x {y:.0}", x = size.x, y = size.y));
-            ui.end_row();
-
-            if let Some(egui::Vec2 { x, y }) = monitor_size {
-                ui.label("Monitor size:");
-                ui.monospace(format!("{x:.0} x {y:.0}"));
-                ui.end_row();
-            }
-        });
 }
 
 // ----------------------------------------------------------------------------

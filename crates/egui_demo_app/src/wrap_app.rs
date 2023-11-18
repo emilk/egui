@@ -259,7 +259,8 @@ impl eframe::App for WrapApp {
 
         #[cfg(not(target_arch = "wasm32"))]
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F11)) {
-            frame.set_fullscreen(!frame.info().window_info.fullscreen);
+            let fullscreen = ctx.input(|i| i.viewport().fullscreen.unwrap_or(false));
+            ctx.send_viewport_command(egui::ViewportCommand::Fullscreen(!fullscreen));
         }
 
         let mut cmd = Command::Nothing;
