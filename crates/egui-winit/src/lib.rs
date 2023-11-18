@@ -1156,14 +1156,15 @@ pub fn process_viewport_commands(
                 egui::viewport::IMEPurpose::Normal => winit::window::ImePurpose::Normal,
             }),
             ViewportCommand::RequestUserAttention(a) => {
-                window.request_user_attention(a.map(|a| match a {
-                    egui::viewport::UserAttentionType::Critical => {
-                        winit::window::UserAttentionType::Critical
+                window.request_user_attention(match a {
+                    egui::UserAttentionType::Reset => None,
+                    egui::UserAttentionType::Critical => {
+                        Some(winit::window::UserAttentionType::Critical)
                     }
-                    egui::viewport::UserAttentionType::Informational => {
-                        winit::window::UserAttentionType::Informational
+                    egui::UserAttentionType::Informational => {
+                        Some(winit::window::UserAttentionType::Informational)
                     }
-                }));
+                });
             }
             ViewportCommand::SetTheme(t) => window.set_theme(match t {
                 egui::SystemTheme::Light => Some(winit::window::Theme::Light),

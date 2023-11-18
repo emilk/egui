@@ -638,13 +638,6 @@ pub enum CursorGrab {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum UserAttentionType {
-    Informational,
-    Critical,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ResizeDirection {
     North,
     South,
@@ -729,7 +722,8 @@ pub enum ViewportCommand {
     IMEAllowed(bool),
     IMEPurpose(IMEPurpose),
 
-    RequestUserAttention(Option<UserAttentionType>),
+    /// Bring attention to the window.
+    RequestUserAttention(crate::UserAttentionType),
 
     SetTheme(SystemTheme),
 
