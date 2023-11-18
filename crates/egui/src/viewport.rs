@@ -729,6 +729,14 @@ pub enum ViewportCommand {
     IMEAllowed(bool),
     IMEPurpose(IMEPurpose),
 
+    /// Bring the window into focus (native only).
+    ///
+    /// This command puts the window on top of other applications and takes input focus away from them,
+    /// which, if unexpected, will disturb the user.
+    ///
+    /// Has no effect on Wayland, or if the window is minimized or invisible.
+    Focus,
+
     /// If the window is unfocused, attract the user's attention (native only).
     ///
     /// Typically, this means that the window will flash on the taskbar, or bounce, until it is interacted with.

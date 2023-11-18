@@ -1155,6 +1155,11 @@ pub fn process_viewport_commands(
                 egui::viewport::IMEPurpose::Terminal => winit::window::ImePurpose::Terminal,
                 egui::viewport::IMEPurpose::Normal => winit::window::ImePurpose::Normal,
             }),
+            ViewportCommand::Focus => {
+                if !window.has_focus() {
+                    window.focus_window();
+                }
+            }
             ViewportCommand::RequestUserAttention(a) => {
                 window.request_user_attention(match a {
                     egui::UserAttentionType::Reset => None,

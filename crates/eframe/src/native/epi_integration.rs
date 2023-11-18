@@ -10,7 +10,7 @@ use egui::{
 };
 use egui_winit::{EventResponse, WindowSettings};
 
-use crate::{epi, Theme};
+use crate::{backend::AppOutput, epi, Theme};
 
 pub fn window_builder<E>(
     event_loop: &EventLoopWindowTarget<E>,
@@ -160,19 +160,6 @@ fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui:
     }
 }
 
-pub fn handle_app_output(window: &winit::window::Window, app_output: &epi::backend::AppOutput) {
-    crate::profile_function!();
-
-    let epi::backend::AppOutput {
-        screenshot_requested: _, // handled by the rendering backend,
-        focus,
-    } = app_output;
-
-    if *focus == Some(true) && !window.has_focus() {
-        window.focus_window();
-    }
-}
-
 // ----------------------------------------------------------------------------
 
 /// For loading/saving app state and/or egui memory to disk.
@@ -302,7 +289,7 @@ impl EpiIntegration {
             std::iter::once((ViewportId::ROOT, ViewportInfo::default())).collect();
         self.pre_update();
         let full_output = self.update(app, None, raw_input);
-        self.post_update(window);
+        self.post_update();
         self.pending_full_output.append(full_output); // Handle it next frame
         self.egui_ctx.memory_mut(|mem| *mem = saved_memory); // We don't want to remember that windows were huge.
         self.egui_ctx.clear_animations();
@@ -390,14 +377,11 @@ impl EpiIntegration {
         std::mem::take(&mut self.pending_full_output)
     }
 
-    pub fn post_update(&mut self, window: &winit::window::Window) {
-        let app_output = {
-            let app_output = self.frame.take_app_output();
-            self.frame.output.screenshot_requested = app_output.screenshot_requested;
-            app_output
-        };
-
-        handle_app_output(window, &app_output);
+    pub fn post_update(&mut self) {
+        let AppOutput {
+            screenshot_requested,
+        } = self.frame.take_app_output();
+        self.frame.output.screenshot_requested = screenshot_requested;
 
         let frame_time = self.frame_start.elapsed().as_secs_f64() as f32;
         self.frame.info.cpu_usage = Some(frame_time);

@@ -892,15 +892,6 @@ impl Frame {
         self.wgpu_render_state.as_ref()
     }
 
-    /// Bring the window into focus (native only). Has no effect on Wayland, or if the window is minimized or invisible.
-    ///
-    /// This method puts the window on top of other applications and takes input focus away from them,
-    /// which, if unexpected, will disturb the user.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn focus(&mut self) {
-        self.output.focus = Some(true);
-    }
-
     /// for integrations only: call once per frame
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     pub(crate) fn take_app_output(&mut self) -> backend::AppOutput {
@@ -1063,10 +1054,6 @@ pub(crate) mod backend {
     #[derive(Clone, Debug, Default)]
     #[must_use]
     pub struct AppOutput {
-        /// Set to some bool to focus window.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub focus: Option<bool>,
-
         #[cfg(not(target_arch = "wasm32"))]
         pub screenshot_requested: bool,
     }

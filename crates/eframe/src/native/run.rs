@@ -588,7 +588,7 @@ mod glow_integration {
             let gl_surface = viewport.gl_surface.as_ref().unwrap();
             let egui_winit = viewport.egui_winit.as_mut().unwrap();
 
-            integration.post_update(window);
+            integration.post_update();
             integration.handle_platform_output(window, viewport_id, platform_output, egui_winit);
 
             let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
@@ -2579,7 +2579,7 @@ mod wgpu_integration {
                 return EventResult::Wait;
             };
 
-            integration.post_update(window);
+            integration.post_update();
 
             let FullOutput {
                 platform_output,
