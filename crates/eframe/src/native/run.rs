@@ -536,7 +536,7 @@ mod glow_integration {
                 let mut raw_input = egui_winit.take_egui_input(window, viewport.ids);
                 let viewport_ui_cb = viewport.viewport_ui_cb.clone();
 
-                self.integration.pre_update(window);
+                self.integration.pre_update();
 
                 raw_input.time = Some(self.integration.beginning.elapsed().as_secs_f64());
                 raw_input.viewports = glutin
@@ -588,7 +588,7 @@ mod glow_integration {
             let gl_surface = viewport.gl_surface.as_ref().unwrap();
             let egui_winit = viewport.egui_winit.as_mut().unwrap();
 
-            integration.post_update(app.as_mut(), window);
+            integration.post_update(window);
             integration.handle_platform_output(window, viewport_id, platform_output, egui_winit);
 
             let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
@@ -637,8 +637,6 @@ mod glow_integration {
                     log::error!("swap_buffers failed: {err}");
                 }
             }
-
-            integration.post_present(window);
 
             // give it time to settle:
             #[cfg(feature = "__screenshot")]
@@ -727,6 +725,7 @@ mod glow_integration {
                         return EventResult::Exit;
                     }
                 }
+
                 _ => {}
             }
 
@@ -2539,7 +2538,7 @@ mod wgpu_integration {
                     ViewportIdPair::from_self_and_parent(viewport_id, ids.parent),
                 );
 
-                integration.pre_update(window);
+                integration.pre_update();
 
                 raw_input.time = Some(integration.beginning.elapsed().as_secs_f64());
                 raw_input.viewports = viewports
@@ -2580,7 +2579,7 @@ mod wgpu_integration {
                 return EventResult::Wait;
             };
 
-            integration.post_update(app.as_mut(), window);
+            integration.post_update(window);
 
             let FullOutput {
                 platform_output,
@@ -2609,7 +2608,6 @@ mod wgpu_integration {
             }
 
             integration.post_rendering(app.as_mut(), window);
-            integration.post_present(window);
 
             let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
@@ -2677,6 +2675,7 @@ mod wgpu_integration {
                 winit::event::WindowEvent::Focused(new_focused) => {
                     *focused_viewport = new_focused.then(|| viewport_id).flatten();
                 }
+
                 winit::event::WindowEvent::Resized(physical_size) => {
                     // Resize with 0 width and height is used by winit to signal a minimize event on Windows.
                     // See: https://github.com/rust-windowing/winit/issues/208
@@ -2692,6 +2691,7 @@ mod wgpu_integration {
                         }
                     }
                 }
+
                 winit::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                     use std::num::NonZeroU32;
                     if let (Some(width), Some(height), Some(viewport_id)) = (
@@ -2703,10 +2703,12 @@ mod wgpu_integration {
                         shared.painter.on_window_resized(viewport_id, width, height);
                     }
                 }
+
                 winit::event::WindowEvent::CloseRequested if integration.should_close() => {
                     log::debug!("Received WindowEvent::CloseRequested");
                     return EventResult::Exit;
                 }
+
                 _ => {}
             };
 

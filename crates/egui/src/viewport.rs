@@ -662,7 +662,7 @@ pub enum ViewportCommand {
     /// For other viewports, the [`ViewportInfo::close_requested`] flag will be set.
     Close,
 
-    /// Set the title
+    /// Set the window title.
     Title(String),
 
     /// Turn the window transparent or not.
@@ -708,21 +708,36 @@ pub enum ViewportCommand {
         maximize: bool,
     },
     Minimized(bool),
+
+    /// Maximize or unmaximize window.
     Maximized(bool),
+
+    /// Turn borderless fullscreen on/off.
     Fullscreen(bool),
 
     /// Show window decorations, i.e. the chrome around the content
     /// with the title bar, close buttons, resize handles, etc.
     Decorations(bool),
 
+    /// Set window to be always-on-top, always-on-bottom, or neither.
     WindowLevel(WindowLevel),
+
+    /// The the window icon.
     WindowIcon(Option<Arc<ColorImage>>),
 
     IMEPosition(Pos2),
     IMEAllowed(bool),
     IMEPurpose(IMEPurpose),
 
-    /// Bring attention to the window.
+    /// If the window is unfocused, attract the user's attention (native only).
+    ///
+    /// Typically, this means that the window will flash on the taskbar, or bounce, until it is interacted with.
+    ///
+    /// When the window comes into focus, or if `None` is passed, the attention request will be automatically reset.
+    ///
+    /// See [winit's documentation][user_attention_details] for platform-specific effect details.
+    ///
+    /// [user_attention_details]: https://docs.rs/winit/latest/winit/window/enum.UserAttentionType.html
     RequestUserAttention(crate::UserAttentionType),
 
     SetTheme(SystemTheme),
@@ -737,6 +752,24 @@ pub enum ViewportCommand {
     CursorVisible(bool),
 
     CursorHitTest(bool),
+}
+
+impl ViewportCommand {
+    /// Construct a command to center the viewport on the monitor, if possible.
+    pub fn center_on_screen(ctx: &crate::Context) -> Option<Self> {
+        ctx.input(|i| {
+            let outer_rect = i.viewport().outer_rect?;
+            let size = outer_rect.size();
+            let monitor_size = i.viewport().monitor_size?;
+            if 1.0 < monitor_size.x && 1.0 < monitor_size.y {
+                let x = (monitor_size.x - size.x) / 2.0;
+                let y = (monitor_size.y - size.y) / 2.0;
+                Some(Self::OuterPosition([x, y].into()))
+            } else {
+                None
+            }
+        })
+    }
 }
 
 /// Describes a viewport, i.e. a native window.

@@ -892,26 +892,6 @@ impl Frame {
         self.wgpu_render_state.as_ref()
     }
 
-    /// Tell `eframe` to close the desktop window.
-    ///
-    /// The window will not close immediately, but at the end of the this frame.
-    ///
-    /// Calling this will likely result in the app quitting, unless
-    /// you have more code after the call to [`crate::run_native`].
-    #[cfg(not(target_arch = "wasm32"))]
-    #[doc(alias = "exit")]
-    #[doc(alias = "quit")]
-    pub fn close(&mut self) {
-        log::debug!("eframe::Frame::close called");
-        self.output.close = true;
-    }
-
-    /// Minimize or unminimize window. (native only)
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_minimized(&mut self, minimized: bool) {
-        self.output.minimized = Some(minimized);
-    }
-
     /// Bring the window into focus (native only). Has no effect on Wayland, or if the window is minimized or invisible.
     ///
     /// This method puts the window on top of other applications and takes input focus away from them,
@@ -919,106 +899,6 @@ impl Frame {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn focus(&mut self) {
         self.output.focus = Some(true);
-    }
-
-    /// If the window is unfocused, attract the user's attention (native only).
-    ///
-    /// Typically, this means that the window will flash on the taskbar, or bounce, until it is interacted with.
-    ///
-    /// When the window comes into focus, or if `None` is passed, the attention request will be automatically reset.
-    ///
-    /// See [winit's documentation][user_attention_details] for platform-specific effect details.
-    ///
-    /// [user_attention_details]: https://docs.rs/winit/latest/winit/window/enum.UserAttentionType.html
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn request_user_attention(&mut self, kind: egui::UserAttentionType) {
-        self.output.attention = Some(kind);
-    }
-
-    /// Maximize or unmaximize window. (native only)
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_maximized(&mut self, maximized: bool) {
-        self.output.maximized = Some(maximized);
-    }
-
-    /// Tell `eframe` to close the desktop window.
-    #[cfg(not(target_arch = "wasm32"))]
-    #[deprecated = "Renamed `close`"]
-    pub fn quit(&mut self) {
-        self.close();
-    }
-
-    /// Set the desired inner size of the window (in egui points).
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_window_size(&mut self, size: egui::Vec2) {
-        self.output.window_size = Some(size);
-        self.info.window_info.size = size; // so that subsequent calls see the updated value
-    }
-
-    /// Set the desired title of the window.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_window_title(&mut self, title: &str) {
-        self.output.window_title = Some(title.to_owned());
-    }
-
-    /// Set whether to show window decorations (i.e. a frame around you app).
-    ///
-    /// If false it will be difficult to move and resize the app.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_decorations(&mut self, decorated: bool) {
-        self.output.decorated = Some(decorated);
-    }
-
-    /// Turn borderless fullscreen on/off (native only).
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_fullscreen(&mut self, fullscreen: bool) {
-        self.output.fullscreen = Some(fullscreen);
-        self.info.window_info.fullscreen = fullscreen; // so that subsequent calls see the updated value
-    }
-
-    /// set the position of the outer window.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_window_pos(&mut self, pos: egui::Pos2) {
-        self.output.window_pos = Some(pos);
-        self.info.window_info.position = Some(pos); // so that subsequent calls see the updated value
-    }
-
-    /// When called, the native window will follow the
-    /// movement of the cursor while the primary mouse button is down.
-    ///
-    /// Does not work on the web.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn drag_window(&mut self) {
-        self.output.drag_window = true;
-    }
-
-    /// Set the visibility of the window.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_visible(&mut self, visible: bool) {
-        self.output.visible = Some(visible);
-    }
-
-    /// On desktop: Set the window always on top.
-    ///
-    /// (Wayland desktop currently not supported)
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_always_on_top(&mut self, always_on_top: bool) {
-        self.output.always_on_top = Some(always_on_top);
-    }
-
-    /// On desktop: Set the window to be centered.
-    ///
-    /// (Wayland desktop currently not supported)
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn set_centered(&mut self) {
-        if let Some(monitor_size) = self.info.window_info.monitor_size {
-            let inner_size = self.info.window_info.size;
-            if monitor_size.x > 1.0 && monitor_size.y > 1.0 {
-                let x = (monitor_size.x - inner_size.x) / 2.0;
-                let y = (monitor_size.y - inner_size.y) / 2.0;
-                self.set_window_pos(egui::Pos2 { x, y });
-            }
-        }
     }
 
     /// for integrations only: call once per frame
@@ -1038,39 +918,6 @@ pub struct WebInfo {
     /// Information about the URL.
     pub location: Location,
 }
-
-/// Information about the application's main window, if available.
-#[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone, Debug)]
-pub struct WindowInfo {
-    /// Coordinates of the window's outer top left corner, relative to the top left corner of the first display.
-    ///
-    /// Unit: egui points (logical pixels).
-    ///
-    /// `None` = unknown.
-    pub position: Option<egui::Pos2>,
-
-    /// Are we in fullscreen mode?
-    pub fullscreen: bool,
-
-    /// Are we minimized?
-    pub minimized: bool,
-
-    /// Are we maximized?
-    pub maximized: bool,
-
-    /// Is the window focused and able to receive input?
-    ///
-    /// This should be the same as [`egui::InputState::focused`].
-    pub focused: bool,
-
-    /// Window inner size in egui points (logical pixels).
-    pub size: egui::Vec2,
-
-    /// Current monitor size in egui points (logical pixels)
-    pub monitor_size: Option<egui::Vec2>,
-}
-
 /// Information about the URL.
 ///
 /// Everything has been percent decoded (`%20` -> ` ` etc).
@@ -1144,10 +991,6 @@ pub struct IntegrationInfo {
 
     /// The OS native pixels-per-point
     pub native_pixels_per_point: Option<f32>,
-
-    /// The position and size of the native window.
-    #[cfg(not(target_arch = "wasm32"))]
-    pub window_info: WindowInfo,
 }
 
 // ----------------------------------------------------------------------------
@@ -1220,57 +1063,9 @@ pub(crate) mod backend {
     #[derive(Clone, Debug, Default)]
     #[must_use]
     pub struct AppOutput {
-        /// Set to `true` to close the native window (which often quits the app).
-        #[cfg(not(target_arch = "wasm32"))]
-        pub close: bool,
-
-        /// Set to some size to resize the outer window (e.g. glium window) to this size.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub window_size: Option<egui::Vec2>,
-
-        /// Set to some string to rename the outer window (e.g. glium window) to this title.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub window_title: Option<String>,
-
-        /// Set to some bool to change window decorations.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub decorated: Option<bool>,
-
-        /// Set to some bool to change window fullscreen.
-        #[cfg(not(target_arch = "wasm32"))] // TODO: implement fullscreen on web
-        pub fullscreen: Option<bool>,
-
-        /// Set to true to drag window while primary mouse button is down.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub drag_window: bool,
-
-        /// Set to some position to move the outer window (e.g. glium window) to this position
-        #[cfg(not(target_arch = "wasm32"))]
-        pub window_pos: Option<egui::Pos2>,
-
-        /// Set to some bool to change window visibility.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub visible: Option<bool>,
-
-        /// Set to some bool to tell the window always on top.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub always_on_top: Option<bool>,
-
-        /// Set to some bool to minimize or unminimize window.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub minimized: Option<bool>,
-
-        /// Set to some bool to maximize or unmaximize window.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub maximized: Option<bool>,
-
         /// Set to some bool to focus window.
         #[cfg(not(target_arch = "wasm32"))]
         pub focus: Option<bool>,
-
-        /// Set to request a user's attention to the native window.
-        #[cfg(not(target_arch = "wasm32"))]
-        pub attention: Option<egui::UserAttentionType>,
 
         #[cfg(not(target_arch = "wasm32"))]
         pub screenshot_requested: bool,
