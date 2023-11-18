@@ -180,6 +180,7 @@ pub struct EpiIntegration {
     pub frame: epi::Frame,
     last_auto_save: Instant,
     pub beginning: Instant,
+    is_first_frame: bool,
     pub frame_start: Instant,
     pub egui_ctx: egui::Context,
     pending_full_output: egui::FullOutput,
@@ -248,6 +249,7 @@ impl EpiIntegration {
             persist_window: native_options.persist_window,
             app_icon_setter,
             beginning: Instant::now(),
+            is_first_frame: true,
             frame_start: Instant::now(),
         }
     }
@@ -392,6 +394,11 @@ impl EpiIntegration {
         let inner_size = window.inner_size();
         let window_size_px = [inner_size.width, inner_size.height];
         app.post_rendering(window_size_px, &self.frame);
+
+        if std::mem::take(&mut self.is_first_frame) {
+            // We keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
+            window.set_visible(true);
+        }
     }
 
     pub fn handle_platform_output(
