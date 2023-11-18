@@ -1049,7 +1049,11 @@ pub fn process_viewport_commands(
                 info.close_requested = true;
             }
             ViewportCommand::StartDrag => {
-                // if this is not checked on x11 the input will be permanently taken until the app is killed!
+                // If `is_viewport_focused` is not checked on x11 the input will be permanently taken until the app is killed!
+
+                // TODO: check that the left mouse-button was pressed down recently,
+                // or we will have bugs on Windows.
+                // See https://github.com/emilk/egui/pull/1108
                 if is_viewport_focused {
                     if let Err(err) = window.drag_window() {
                         log::warn!("{command:?}: {err}");
