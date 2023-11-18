@@ -1305,9 +1305,9 @@ pub fn create_winit_window_builder(
     }
 
     #[cfg(all(feature = "wayland", target_os = "linux"))]
-    if let Some(name) = _name {
+    if let Some(app_id) = _app_id {
         use winit::platform::wayland::WindowBuilderExtWayland as _;
-        window_builder = window_builder.with_name(name.0, "");
+        window_builder = window_builder.with_name(app_id, "");
     }
 
     #[cfg(target_os = "windows")]
