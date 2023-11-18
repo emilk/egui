@@ -460,7 +460,10 @@ mod glow_integration {
         epaint::ahash::HashMap, DeferredViewportUiCallback, ImmediateViewport, NumExt as _,
         ViewportClass, ViewportIdMap, ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput,
     };
-    use egui_winit::{create_winit_window_builder, process_viewport_commands, EventResponse};
+    use egui_winit::{
+        apply_viewport_builder_to_new_window, create_winit_window_builder,
+        process_viewport_commands, EventResponse,
+    };
 
     use crate::native::epi_integration::EpiIntegration;
 
@@ -904,7 +907,7 @@ mod glow_integration {
             let display_builder = glutin_winit::DisplayBuilder::new()
                 // we might want to expose this option to users in the future. maybe using an env var or using native_options.
                 .with_preference(glutin_winit::ApiPrefence::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
-                .with_window_builder(Some(create_winit_window_builder(&viewport_builder)));
+                .with_window_builder(Some(create_winit_window_builder(viewport_builder.clone())));
 
             let (window, gl_config) = {
                 crate::profile_scope!("DisplayBuilder::build");
@@ -927,6 +930,9 @@ mod glow_integration {
                         crate::Error::NoGlutinConfigs(config_template_builder.build(), e)
                     })?
             };
+            if let Some(window) = &window {
+                apply_viewport_builder_to_new_window(window, &viewport_builder);
+            }
 
             let gl_display = gl_config.display();
             log::debug!(
@@ -1053,9 +1059,10 @@ mod glow_integration {
                 log::trace!("Window doesn't exist yet. Creating one now with finalize_window");
                 let window = glutin_winit::finalize_window(
                     event_loop,
-                    create_winit_window_builder(&viewport.builder),
+                    create_winit_window_builder(viewport.builder.clone()),
                     &self.gl_config,
                 )?;
+                apply_viewport_builder_to_new_window(&window, &viewport.builder);
                 viewport.info.minimized = window.is_minimized();
                 viewport.info.maximized = Some(window.is_maximized());
                 viewport.window.insert(Rc::new(window))
@@ -1356,8 +1363,12 @@ mod glow_integration {
 
             let window_settings = epi_integration::load_window_settings(storage);
 
-            let winit_window_builder =
-                epi_integration::window_builder(event_loop, title, native_options, window_settings);
+            let winit_window_builder = epi_integration::viewport_builder(
+                event_loop,
+                title,
+                native_options,
+                window_settings,
+            );
 
             let mut glutin_window_context = unsafe {
                 GlutinWindowContext::new(winit_window_builder, native_options, event_loop)?
@@ -1864,7 +1875,10 @@ mod wgpu_integration {
         DeferredViewportUiCallback, FullOutput, ImmediateViewport, ViewportClass, ViewportIdMap,
         ViewportIdPair, ViewportIdSet, ViewportInfo, ViewportOutput,
     };
-    use egui_winit::{create_winit_window_builder, process_viewport_commands};
+    use egui_winit::{
+        apply_viewport_builder_to_new_window, create_winit_window_builder,
+        process_viewport_commands,
+    };
 
     use crate::native::epi_integration::EpiIntegration;
 
@@ -1899,8 +1913,10 @@ mod wgpu_integration {
 
             let viewport_id = self.ids.this;
 
-            match create_winit_window_builder(&self.builder).build(event_loop) {
+            match create_winit_window_builder(self.builder.clone()).build(event_loop) {
                 Ok(window) => {
+                    apply_viewport_builder_to_new_window(&window, &self.builder);
+
                     windows_id.insert(window.id(), viewport_id);
 
                     if let Err(err) =
@@ -2195,14 +2211,15 @@ mod wgpu_integration {
         crate::profile_function!();
 
         let window_settings = epi_integration::load_window_settings(storage);
-        let window_builder =
-            epi_integration::window_builder(event_loop, title, native_options, window_settings);
+        let viewport_builder =
+            epi_integration::viewport_builder(event_loop, title, native_options, window_settings);
         let window = {
             crate::profile_scope!("WindowBuilder::build");
-            create_winit_window_builder(&window_builder).build(event_loop)?
+            create_winit_window_builder(viewport_builder.clone()).build(event_loop)?
         };
+        apply_viewport_builder_to_new_window(&window, &viewport_builder);
         epi_integration::apply_native_options_to_window(&window, native_options, window_settings);
-        Ok((window, window_builder))
+        Ok((window, viewport_builder))
     }
 
     fn render_immediate_viewport(

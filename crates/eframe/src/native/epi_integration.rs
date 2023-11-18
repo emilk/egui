@@ -12,7 +12,7 @@ use egui_winit::{EventResponse, WindowSettings};
 
 use crate::{epi, Theme};
 
-pub fn window_builder<E>(
+pub fn viewport_builder<E>(
     event_loop: &EventLoopWindowTarget<E>,
     title: &str,
     native_options: &mut epi::NativeOptions,

@@ -451,10 +451,6 @@ impl ViewportBuilder {
         self
     }
 
-    /// Is not implemented for winit
-    /// You should use `ViewportCommand::CursorHitTest` if you want to set this!
-    #[deprecated]
-    #[inline]
     pub fn with_hittest(mut self, value: bool) -> Self {
         self.hittest = Some(value);
         self

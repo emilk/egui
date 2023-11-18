@@ -1213,66 +1213,89 @@ pub fn process_viewport_commands(
     }
 }
 
-pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::WindowBuilder {
+pub fn create_winit_window_builder(
+    viewport_builder: ViewportBuilder,
+) -> winit::window::WindowBuilder {
     crate::profile_function!();
 
+    let ViewportBuilder {
+        title,
+        position,
+        inner_size,
+        min_inner_size,
+        max_inner_size,
+        fullscreen,
+        maximized,
+        resizable,
+        transparent,
+        decorations,
+        icon,
+        active,
+        visible,
+        title_hidden,
+        titlebar_transparent,
+        fullsize_content_view,
+        close_button,
+        minimize_button,
+        maximize_button,
+
+        // only handled on some platforms:
+        name: _name,
+        drag_and_drop: _drag_and_drop,
+
+        hittest: _, // handled in `apply_viewport_builder_to_new_window`
+    } = viewport_builder;
+
     let mut window_builder = winit::window::WindowBuilder::new()
-        .with_title(
-            builder
-                .title
-                .clone()
-                .unwrap_or_else(|| "egui window".to_owned()),
-        )
-        .with_transparent(builder.transparent.unwrap_or(false))
-        .with_decorations(builder.decorations.unwrap_or(true))
-        .with_resizable(builder.resizable.unwrap_or(true))
-        .with_visible(builder.visible.unwrap_or(true))
-        .with_maximized(builder.maximized.unwrap_or(false))
+        .with_title(title.unwrap_or_else(|| "egui window".to_owned()))
+        .with_transparent(transparent.unwrap_or(false))
+        .with_decorations(decorations.unwrap_or(true))
+        .with_resizable(resizable.unwrap_or(true))
+        .with_visible(visible.unwrap_or(true))
+        .with_maximized(maximized.unwrap_or(false))
         .with_fullscreen(
-            builder
-                .fullscreen
-                .and_then(|e| e.then_some(winit::window::Fullscreen::Borderless(None))),
+            fullscreen.and_then(|e| e.then_some(winit::window::Fullscreen::Borderless(None))),
         )
         .with_enabled_buttons({
             let mut buttons = WindowButtons::empty();
-            if builder.minimize_button.unwrap_or(true) {
+            if minimize_button.unwrap_or(true) {
                 buttons |= WindowButtons::MINIMIZE;
             }
-            if builder.maximize_button.unwrap_or(true) {
+            if maximize_button.unwrap_or(true) {
                 buttons |= WindowButtons::MAXIMIZE;
             }
-            if builder.close_button.unwrap_or(true) {
+            if close_button.unwrap_or(true) {
                 buttons |= WindowButtons::CLOSE;
             }
             buttons
         })
-        .with_active(builder.active.unwrap_or(true));
+        .with_active(active.unwrap_or(true));
 
-    if let Some(inner_size) = builder.inner_size {
+    if let Some(inner_size) = inner_size {
         window_builder = window_builder
             .with_inner_size(winit::dpi::LogicalSize::new(inner_size.x, inner_size.y));
     }
 
-    if let Some(min_inner_size) = builder.min_inner_size {
+    if let Some(min_inner_size) = min_inner_size {
         window_builder = window_builder.with_min_inner_size(winit::dpi::LogicalSize::new(
             min_inner_size.x,
             min_inner_size.y,
         ));
     }
 
-    if let Some(max_inner_size) = builder.max_inner_size {
+    if let Some(max_inner_size) = max_inner_size {
         window_builder = window_builder.with_max_inner_size(winit::dpi::LogicalSize::new(
             max_inner_size.x,
             max_inner_size.y,
         ));
     }
 
-    if let Some(position) = builder.position {
+    if let Some(position) = position {
         window_builder =
             window_builder.with_position(winit::dpi::LogicalPosition::new(position.x, position.y));
     }
 
-    if let Some(icon) = builder.icon.clone() {
+    if let Some(icon) = icon {
         window_builder = window_builder.with_window_icon(Some(
             winit::window::Icon::from_rgba(
                 icon.as_raw().to_owned(),
@@ -1284,13 +1307,13 @@ pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::
     }
 
     #[cfg(all(feature = "wayland", target_os = "linux"))]
-    if let Some(name) = builder.name.clone() {
+    if let Some(name) = _name {
         use winit::platform::wayland::WindowBuilderExtWayland as _;
         window_builder = window_builder.with_name(name.0, name.1);
     }
 
     #[cfg(target_os = "windows")]
-    if let Some(enable) = builder.drag_and_drop {
+    if let Some(enable) = _drag_and_drop {
         use winit::platform::windows::WindowBuilderExtWindows as _;
         window_builder = window_builder.with_drag_and_drop(enable);
     }
@@ -1299,15 +1322,21 @@ pub fn create_winit_window_builder(builder: &ViewportBuilder) -> winit::window::
     {
         use winit::platform::macos::WindowBuilderExtMacOS as _;
         window_builder = window_builder
-            .with_title_hidden(builder.title_hidden.unwrap_or(false))
-            .with_titlebar_transparent(builder.titlebar_transparent.unwrap_or(false))
-            .with_fullsize_content_view(builder.fullsize_content_view.unwrap_or(false));
+            .with_title_hidden(title_hidden.unwrap_or(false))
+            .with_titlebar_transparent(titlebar_transparent.unwrap_or(false))
+            .with_fullsize_content_view(fullsize_content_view.unwrap_or(false));
     }
 
-    // TODO: implement `ViewportBuilder::hittest`
-    // Is not implemented because winit in his current state will not allow to set cursor_hittest on a `WindowBuilder`
-
     window_builder
+}
+
+/// Applies what `create_winit_window_builder` couldn't
+pub fn apply_viewport_builder_to_new_window(window: &Window, builder: &ViewportBuilder) {
+    if let Some(hittest) = builder.hittest {
+        if let Err(err) = window.set_cursor_hittest(hittest) {
+            log::warn!("set_cursor_hittest failed: {err}");
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
