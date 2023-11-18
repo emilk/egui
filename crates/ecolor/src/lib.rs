@@ -28,6 +28,9 @@ mod hex_color_macro;
 mod rgba;
 pub use rgba::*;
 
+mod hex_color_runtime;
+pub use hex_color_runtime::*;
+
 // ----------------------------------------------------------------------------
 // Color conversion:
 
