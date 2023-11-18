@@ -179,6 +179,30 @@ impl std::fmt::Debug for IconData {
     }
 }
 
+impl From<IconData> for epaint::ColorImage {
+    fn from(icon: IconData) -> Self {
+        crate::profile_function!();
+        let IconData {
+            rgba,
+            width,
+            height,
+        } = icon;
+        epaint::ColorImage::from_rgba_premultiplied([width as usize, height as usize], &rgba)
+    }
+}
+
+impl From<&IconData> for epaint::ColorImage {
+    fn from(icon: &IconData) -> Self {
+        crate::profile_function!();
+        let IconData {
+            rgba,
+            width,
+            height,
+        } = icon;
+        epaint::ColorImage::from_rgba_premultiplied([*width as usize, *height as usize], rgba)
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// A pair of [`ViewportId`], used to identify a viewport and its parent.
