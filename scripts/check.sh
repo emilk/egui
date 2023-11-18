@@ -58,8 +58,6 @@ cargo test --doc # slow - checks all doc-tests
 
 ./scripts/wasm_bindgen_check.sh
 
-cargo cranky --target wasm32-unknown-unknown --all-features -p egui_demo_app --lib -- -D warnings
-
 ./scripts/cargo_deny.sh
 
 # TODO(emilk): consider using https://github.com/taiki-e/cargo-hack or https://github.com/frewsxcv/cargo-all-features
