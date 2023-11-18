@@ -346,7 +346,7 @@ impl ViewportBuilder {
 
     /// Sets whether the background of the window should be transparent.
     ///
-    /// You should avoid having a [`egui::CentralPanel`], or make sure its frame is also transparent.
+    /// You should avoid having a [`crate::CentralPanel`], or make sure its frame is also transparent.
     ///
     /// In `eframe` you control the transparency with `eframe::App::clear_color()`.
     ///
@@ -529,7 +529,7 @@ impl ViewportBuilder {
     ///
     /// ### eframe
     /// On eframe, the `app_id` of the root window is also used to determine
-    /// the storage location of persistance files.
+    /// the storage location of persistence files.
     #[inline]
     pub fn with_app_id(mut self, app_id: impl Into<String>) -> Self {
         self.app_id = Some(app_id.into());
