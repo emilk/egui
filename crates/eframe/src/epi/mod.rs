@@ -829,6 +829,7 @@ pub struct WebInfo {
     /// Information about the URL.
     pub location: Location,
 }
+
 /// Information about the URL.
 ///
 /// Everything has been percent decoded (`%20` -> ` ` etc).

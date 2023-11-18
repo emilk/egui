@@ -18,6 +18,7 @@ export RUSTDOCFLAGS="-D warnings" # https://github.com/emilk/egui/pull/1454
 
 # Fast checks first:
 typos
+./scripts/lint.py
 cargo fmt --all -- --check
 cargo doc --lib --no-deps --all-features
 cargo doc --document-private-items --no-deps --all-features
