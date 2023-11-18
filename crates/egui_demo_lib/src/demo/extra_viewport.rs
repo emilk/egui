@@ -34,7 +34,7 @@ impl super::Demo for ExtraViewport {
                 } else {
                     egui::CentralPanel::default().show(ctx, |ui| {
                         ui.push_id(id, |ui| {
-                            viewport_contet(ui, ctx, open);
+                            viewport_content(ui, ctx, open);
                         })
                     });
                 }
@@ -43,7 +43,7 @@ impl super::Demo for ExtraViewport {
     }
 }
 
-fn viewport_contet(ui: &mut egui::Ui, ctx: &egui::Context, open: &mut bool) {
+fn viewport_content(ui: &mut egui::Ui, ctx: &egui::Context, open: &mut bool) {
     ui.label("egui and eframe supports having multiple native windows like this, which egui calls 'viewports'.");
 
     ui.label(format!(
