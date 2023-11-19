@@ -6,12 +6,6 @@
 
 #![warn(missing_docs)] // Let's keep `epi` well-documented.
 
-#[cfg(not(target_arch = "wasm32"))]
-mod icon_data;
-
-#[cfg(not(target_arch = "wasm32"))]
-pub use icon_data::IconDataExt;
-
 #[cfg(target_arch = "wasm32")]
 use std::any::Any;
 
@@ -399,7 +393,7 @@ impl Default for NativeOptions {
         Self {
             viewport: egui::ViewportBuilder {
                 icon: Some(std::sync::Arc::new(
-                    icon_data::icon_from_png_bytes(&include_bytes!("../../data/icon.png")[..])
+                    crate::icon_data::from_png_bytes(&include_bytes!("../data/icon.png")[..])
                         .unwrap(),
                 )),
                 ..Default::default()

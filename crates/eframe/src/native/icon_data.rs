@@ -15,17 +15,17 @@ pub trait IconDataExt {
     fn to_png_bytes(&self) -> Result<Vec<u8>, String>;
 }
 
-/// Convert into [`image::RgbaImage`]
+/// Load the contents of .png file.
 ///
 /// # Errors
 /// If this is not a valid png.
-pub fn icon_from_png_bytes(png_bytes: &[u8]) -> Result<IconData, image::ImageError> {
+pub fn from_png_bytes(png_bytes: &[u8]) -> Result<IconData, image::ImageError> {
     crate::profile_function!();
     let image = image::load_from_memory(png_bytes)?;
-    Ok(icon_from_image(image))
+    Ok(from_image(image))
 }
 
-fn icon_from_image(image: image::DynamicImage) -> IconData {
+fn from_image(image: image::DynamicImage) -> IconData {
     let image = image.into_rgba8();
     IconData {
         width: image.width(),

@@ -203,7 +203,7 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
     use objc::{msg_send, sel, sel_impl};
 
     let png_bytes = if let Some(icon_data) = icon_data {
-        use crate::IconDataExt as _;
+        use crate::icon_data::IconDataExt as _;
         match icon_data.to_png_bytes() {
             Ok(png_bytes) => Some(png_bytes),
             Err(err) => {

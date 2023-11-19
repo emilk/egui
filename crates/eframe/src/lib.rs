@@ -166,6 +166,10 @@ mod native;
 #[cfg(feature = "persistence")]
 pub use native::file_storage::storage_dir;
 
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
+pub use native::icon_data;
+
 /// This is how you start a native (desktop) app.
 ///
 /// The first argument is name of your app, which is a an identifier
