@@ -469,14 +469,14 @@ impl WinitApp for GlowWinitApp {
 impl GlowWinitRunning {
     fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
         let Some(viewport_id) = self
-                .glutin
-                .borrow()
-                .viewport_from_window
-                .get(&window_id)
-                .copied()
-            else {
-                return EventResult::Wait;
-            };
+            .glutin
+            .borrow()
+            .viewport_from_window
+            .get(&window_id)
+            .copied()
+        else {
+            return EventResult::Wait;
+        };
 
         #[cfg(feature = "puffin")]
         puffin::GlobalProfiler::lock().new_frame();
@@ -1129,11 +1129,11 @@ impl Viewport {
     /// Update the stored `ViewportInfo`.
     fn update_viewport_info(&mut self) {
         let Some(window) = &self.window else {
-                return;
-            };
+            return;
+        };
         let Some(egui_winit) = &self.egui_winit else {
-                return;
-            };
+            return;
+        };
         egui_winit.update_viewport_info(&mut self.info, window);
     }
 }
@@ -1247,15 +1247,15 @@ fn render_immediate_viewport(
         let mut glutin = glutin.borrow_mut();
 
         let Some(viewport) = glutin.viewports.get_mut(&ids.this) else {
-                return;
-            };
+            return;
+        };
         viewport.update_viewport_info();
         let Some(winit_state) = &mut viewport.egui_winit else {
-                return;
-            };
+            return;
+        };
         let Some(window) = &viewport.window else {
-                return;
-            };
+            return;
+        };
 
         let mut raw_input = winit_state.take_egui_input(window, ids);
         raw_input.viewports = glutin
@@ -1292,15 +1292,15 @@ fn render_immediate_viewport(
     } = &mut *glutin;
 
     let Some(viewport) = viewports.get_mut(&ids.this) else {
-            return;
-        };
+        return;
+    };
 
     let Some(winit_state) = &mut viewport.egui_winit else {
-            return;
-        };
+        return;
+    };
     let (Some(window), Some(gl_surface)) = (&viewport.window, &viewport.gl_surface) else {
-            return;
-        };
+        return;
+    };
 
     let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
