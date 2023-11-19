@@ -219,6 +219,10 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
     // SAFETY: Accessing raw data from icon in a read-only manner. Icon data is static!
     unsafe {
         let app = NSApp();
+        if app.is_null() {
+            log::debug!("NSApp is null");
+            return AppIconStatus::NotSetIgnored;
+        }
 
         if let Some(png_bytes) = png_bytes {
             let data = NSData::dataWithBytes_length_(
@@ -226,17 +230,27 @@ fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconS
                 png_bytes.as_ptr().cast::<std::ffi::c_void>(),
                 png_bytes.len() as u64,
             );
+
+            log::trace!("NSImage::initWithData…");
             let app_icon = NSImage::initWithData_(NSImage::alloc(nil), data);
 
             crate::profile_scope!("setApplicationIconImage_");
+            log::trace!("setApplicationIconImage…");
             app.setApplicationIconImage_(app_icon);
         }
 
         // Change the title in the top bar - for python processes this would be again "python" otherwise.
         let main_menu = app.mainMenu();
-        let app_menu: id = msg_send![main_menu.itemAtIndex_(0), submenu];
-        crate::profile_scope!("setTitle_");
-        app_menu.setTitle_(NSString::alloc(nil).init_str(title));
+        if !main_menu.is_null() {
+            let item = main_menu.itemAtIndex_(0);
+            if !item.is_null() {
+                let app_menu: id = msg_send![item, submenu];
+                if !app_menu.is_null() {
+                    crate::profile_scope!("setTitle_");
+                    app_menu.setTitle_(NSString::alloc(nil).init_str(title));
+                }
+            }
+        }
 
         // The title in the Dock apparently can't be changed.
         // At least these people didn't figure it out either:
