@@ -11,7 +11,7 @@ fn main() -> Result<(), eframe::Error> {
 
     let options = eframe::NativeOptions {
         run_and_return: true,
-        initial_window_size: Some(egui::vec2(320.0, 240.0)),
+        viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]),
         ..Default::default()
     };
 
@@ -46,7 +46,7 @@ struct MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             let label_text = if self.has_next {
                 "When this window is closed the next will be opened after a short delay"
@@ -56,7 +56,7 @@ impl eframe::App for MyApp {
             ui.label(label_text);
             if ui.button("Close").clicked() {
                 eprintln!("Pressed Close button");
-                frame.close();
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
         });
     }

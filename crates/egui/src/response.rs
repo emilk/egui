@@ -78,7 +78,7 @@ pub struct Response {
     #[doc(hidden)]
     pub interact_pointer_pos: Option<Pos2>,
 
-    /// What the underlying data changed?
+    /// Was the underlying data changed?
     ///
     /// e.g. the slider was dragged, text was entered in a [`TextEdit`](crate::TextEdit) etc.
     /// Always `false` for something like a [`Button`](crate::Button).
@@ -339,7 +339,7 @@ impl Response {
         self.is_pointer_button_down_on
     }
 
-    /// What the underlying data changed?
+    /// Was the underlying data changed?
     ///
     /// e.g. the slider was dragged, text was entered in a [`TextEdit`](crate::TextEdit) etc.
     /// Always `false` for something like a [`Button`](crate::Button).
@@ -479,9 +479,10 @@ impl Response {
 
     /// Highlight this widget, to make it look like it is hovered, even if it isn't.
     ///
-    /// The highlight takes on frame to take effect if you call this after the widget has been fully rendered.
+    /// The highlight takes one frame to take effect if you call this after the widget has been fully rendered.
     ///
     /// See also [`Context::highlight_widget`].
+    #[inline]
     pub fn highlight(mut self) -> Self {
         self.ctx.highlight_widget(self.id);
         self.highlighted = true;
@@ -620,20 +621,20 @@ impl Response {
         info: crate::WidgetInfo,
     ) {
         use crate::WidgetType;
-        use accesskit::{CheckedState, Role};
+        use accesskit::{Checked, Role};
 
         self.fill_accesskit_node_common(builder);
         builder.set_role(match info.typ {
             WidgetType::Label => Role::StaticText,
             WidgetType::Link => Role::Link,
-            WidgetType::TextEdit => Role::TextField,
+            WidgetType::TextEdit => Role::TextInput,
             WidgetType::Button | WidgetType::ImageButton | WidgetType::CollapsingHeader => {
                 Role::Button
             }
             WidgetType::Checkbox => Role::CheckBox,
             WidgetType::RadioButton => Role::RadioButton,
             WidgetType::SelectableLabel => Role::ToggleButton,
-            WidgetType::ComboBox => Role::PopupButton,
+            WidgetType::ComboBox => Role::ComboBox,
             WidgetType::Slider => Role::Slider,
             WidgetType::DragValue => Role::SpinButton,
             WidgetType::ColorButton => Role::ColorWell,
@@ -649,10 +650,10 @@ impl Response {
             builder.set_numeric_value(value);
         }
         if let Some(selected) = info.selected {
-            builder.set_checked_state(if selected {
-                CheckedState::True
+            builder.set_checked(if selected {
+                Checked::True
             } else {
-                CheckedState::False
+                Checked::False
             });
         }
     }

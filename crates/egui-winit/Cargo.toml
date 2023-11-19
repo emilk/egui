@@ -49,10 +49,10 @@ puffin = ["dep:puffin", "egui/puffin"]
 serde = ["egui/serde", "dep:serde"]
 
 ## Enables Wayland support.
-wayland = ["winit/wayland"]
+wayland = ["winit/wayland", "bytemuck"]
 
 ## Enables compiling for x11.
-x11 = ["winit/x11"]
+x11 = ["winit/x11", "bytemuck"]
 
 [dependencies]
 egui = { version = "0.23.0", path = "../egui", default-features = false, features = [
@@ -66,7 +66,7 @@ winit = { version = "0.28", default-features = false }
 #! ### Optional dependencies
 
 # feature accesskit
-accesskit_winit = { version = "0.14.0", optional = true }
+accesskit_winit = { version = "0.15.0", optional = true }
 
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }

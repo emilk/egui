@@ -1,3 +1,5 @@
+use egui::ViewportBuilder;
+
 /// Can be used to store native window settings (position and size).
 #[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -46,10 +48,10 @@ impl WindowSettings {
         self.inner_size_points
     }
 
-    pub fn initialize_window_builder(
+    pub fn initialize_viewport_builder(
         &self,
-        mut window: winit::window::WindowBuilder,
-    ) -> winit::window::WindowBuilder {
+        mut viewport_builder: ViewportBuilder,
+    ) -> ViewportBuilder {
         // `WindowBuilder::with_position` expects inner position in Macos, and outer position elsewhere
         // See [`winit::window::WindowBuilder::with_position`] for details.
         let pos_px = if cfg!(target_os = "macos") {
@@ -57,26 +59,17 @@ impl WindowSettings {
         } else {
             self.outer_position_pixels
         };
-        if let Some(pos_px) = pos_px {
-            window = window.with_position(winit::dpi::PhysicalPosition {
-                x: pos_px.x as f64,
-                y: pos_px.y as f64,
-            });
+        if let Some(pos) = pos_px {
+            viewport_builder = viewport_builder.with_position(pos);
         }
 
         if let Some(inner_size_points) = self.inner_size_points {
-            window
-                .with_inner_size(winit::dpi::LogicalSize {
-                    width: inner_size_points.x as f64,
-                    height: inner_size_points.y as f64,
-                })
-                .with_fullscreen(
-                    self.fullscreen
-                        .then_some(winit::window::Fullscreen::Borderless(None)),
-                )
-        } else {
-            window
+            viewport_builder = viewport_builder
+                .with_inner_size(inner_size_points)
+                .with_fullscreen(self.fullscreen);
         }
+
+        viewport_builder
     }
 
     pub fn initialize_window(&self, window: &winit::window::Window) {

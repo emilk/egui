@@ -61,24 +61,28 @@ impl<'a> StripBuilder<'a> {
     }
 
     /// Should we clip the contents of each cell? Default: `false`.
+    #[inline]
     pub fn clip(mut self, clip: bool) -> Self {
         self.clip = clip;
         self
     }
 
     /// What layout should we use for the individual cells?
+    #[inline]
     pub fn cell_layout(mut self, cell_layout: egui::Layout) -> Self {
         self.cell_layout = cell_layout;
         self
     }
 
     /// Allocate space for one column/row.
+    #[inline]
     pub fn size(mut self, size: Size) -> Self {
         self.sizing.add(size);
         self
     }
 
     /// Allocate space for several columns/rows at once.
+    #[inline]
     pub fn sizes(mut self, size: Size, count: usize) -> Self {
         for _ in 0..count {
             self.sizing.add(size);

@@ -58,7 +58,7 @@ mod texture_loader;
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::ops::Deref;
-use std::{error::Error as StdError, fmt::Display, sync::Arc};
+use std::{fmt::Display, sync::Arc};
 
 use ahash::HashMap;
 
@@ -118,7 +118,7 @@ impl Display for LoadError {
     }
 }
 
-impl StdError for LoadError {}
+impl std::error::Error for LoadError {}
 
 pub type Result<T, E = LoadError> = std::result::Result<T, E>;
 

@@ -37,4 +37,6 @@ opt-level = 2
 
 [workspace.dependencies]
 thiserror = "1.0.37"
-wgpu = "0.17.0"
+wgpu = "0.18.0"
+# Use this to build wgpu with WebGL support on the Web *instead* of using WebGPU.
+#wgpu = { version = "0.18.0", features = ["webgl"] }

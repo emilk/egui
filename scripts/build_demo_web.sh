@@ -68,7 +68,7 @@ else
   FEATURES="${FEATURES},glow"
 fi
 
-FINAL_WASM_PATH=docs/${OUT_FILE_NAME}_bg.wasm
+FINAL_WASM_PATH=web_demo/${OUT_FILE_NAME}_bg.wasm
 
 # Clear output from old stuff:
 rm -f "${FINAL_WASM_PATH}"
@@ -91,7 +91,7 @@ TARGET="target"
 echo "Generating JS bindings for wasm…"
 TARGET_NAME="${CRATE_NAME}.wasm"
 WASM_PATH="${TARGET}/wasm32-unknown-unknown/$BUILD/$TARGET_NAME"
-wasm-bindgen "${WASM_PATH}" --out-dir docs --out-name ${OUT_FILE_NAME} --no-modules --no-typescript
+wasm-bindgen "${WASM_PATH}" --out-dir web_demo --out-name ${OUT_FILE_NAME} --no-modules --no-typescript
 
 # if this fails with "error: cannot import from modules (`env`) with `--no-modules`", you can use:
 # wasm2wat target/wasm32-unknown-unknown/release/egui_demo_app.wasm | rg env

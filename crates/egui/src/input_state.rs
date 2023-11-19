@@ -150,6 +150,7 @@ impl InputState {
         requested_repaint_last_frame: bool,
     ) -> InputState {
         crate::profile_function!();
+
         let time = new.time.unwrap_or(self.time + new.predicted_dt as f64);
         let unstable_dt = (time - self.time) as f32;
 
@@ -228,6 +229,11 @@ impl InputState {
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
         }
+    }
+
+    /// Info about the active viewport
+    pub fn viewport(&self) -> &ViewportInfo {
+        self.raw.viewports.get(&self.raw.viewport_ids.this).expect("Failed to find current viewport in egui RawInput. This is the fault of the egui backend")
     }
 
     #[inline(always)]

@@ -47,6 +47,9 @@ skip = [
     { name = "windows_x86_64_msvc" }, # old version via glutin
     { name = "windows-sys" },         # old version via glutin
     { name = "windows" },             # old version via accesskit
+    { name = "spin" },                # old version via ring through rusttls and other libraries, newer for wgpu.
+    { name = "glow" },                # TODO(@wumpf): Old version use for glow backend right now, newer for wgpu. Updating this trickles out to updating winit.
+    { name = "glutin_wgl_sys" },      # TODO(@wumpf): As above
 ]
 skip-tree = [
     { name = "criterion" },     # dev-dependency

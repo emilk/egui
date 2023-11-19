@@ -101,24 +101,28 @@ impl<'a> DragValue<'a> {
     }
 
     /// How much the value changes when dragged one point (logical pixel).
+    #[inline]
     pub fn speed(mut self, speed: impl Into<f64>) -> Self {
         self.speed = speed.into();
         self
     }
 
     /// Clamp incoming and outgoing values to this range.
+    #[inline]
     pub fn clamp_range<Num: emath::Numeric>(mut self, clamp_range: RangeInclusive<Num>) -> Self {
         self.clamp_range = clamp_range.start().to_f64()..=clamp_range.end().to_f64();
         self
     }
 
     /// Show a prefix before the number, e.g. "x: "
+    #[inline]
     pub fn prefix(mut self, prefix: impl ToString) -> Self {
         self.prefix = prefix.to_string();
         self
     }
 
     /// Add a suffix to the number, this can be e.g. a unit ("°" or " m")
+    #[inline]
     pub fn suffix(mut self, suffix: impl ToString) -> Self {
         self.suffix = suffix.to_string();
         self
@@ -128,6 +132,7 @@ impl<'a> DragValue<'a> {
     /// Set a minimum number of decimals to display.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    #[inline]
     pub fn min_decimals(mut self, min_decimals: usize) -> Self {
         self.min_decimals = min_decimals;
         self
@@ -138,11 +143,13 @@ impl<'a> DragValue<'a> {
     /// Values will also be rounded to this number of decimals.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    #[inline]
     pub fn max_decimals(mut self, max_decimals: usize) -> Self {
         self.max_decimals = Some(max_decimals);
         self
     }
 
+    #[inline]
     pub fn max_decimals_opt(mut self, max_decimals: Option<usize>) -> Self {
         self.max_decimals = max_decimals;
         self
@@ -152,6 +159,7 @@ impl<'a> DragValue<'a> {
     /// Values will also be rounded to this number of decimals.
     /// Normally you don't need to pick a precision, as the slider will intelligently pick a precision for you.
     /// Regardless of precision the slider will use "smart aim" to help the user select nice, round values.
+    #[inline]
     pub fn fixed_decimals(mut self, num_decimals: usize) -> Self {
         self.min_decimals = num_decimals;
         self.max_decimals = Some(num_decimals);
@@ -238,6 +246,7 @@ impl<'a> DragValue<'a> {
     ///     }));
     /// # });
     /// ```
+    #[inline]
     pub fn custom_parser(mut self, parser: impl 'a + Fn(&str) -> Option<f64>) -> Self {
         self.custom_parser = Some(Box::new(parser));
         self
@@ -360,6 +369,7 @@ impl<'a> DragValue<'a> {
     ///
     /// Default: `true`.
     /// If `false`, the value will only be updated when user presses enter or deselects the value.
+    #[inline]
     pub fn update_while_editing(mut self, update: bool) -> Self {
         self.update_while_editing = update;
         self

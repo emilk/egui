@@ -15,19 +15,15 @@ pub mod kb_shortcuts {
 /// Let the user scale the GUI (change `Context::pixels_per_point`) by pressing
 /// Cmd+Plus, Cmd+Minus or Cmd+0, just like in a browser.
 ///
-/// When using [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe), you want to call this as:
-/// ```ignore
-/// // On web, the browser controls the gui zoom.
-/// if !frame.is_web() {
-///     egui::gui_zoom::zoom_with_keyboard_shortcuts(
-///         ctx,
-///         frame.info().native_pixels_per_point,
-///     );
-/// }
 /// ```
-pub fn zoom_with_keyboard_shortcuts(ctx: &Context, native_pixels_per_point: Option<f32>) {
+/// # let ctx = &egui::Context::default();
+/// // On web, the browser controls the gui zoom.
+/// #[cfg(not(target_arch = "wasm32"))]
+/// egui::gui_zoom::zoom_with_keyboard_shortcuts(ctx);
+/// ```
+pub fn zoom_with_keyboard_shortcuts(ctx: &Context) {
     if ctx.input_mut(|i| i.consume_shortcut(&kb_shortcuts::ZOOM_RESET)) {
-        if let Some(native_pixels_per_point) = native_pixels_per_point {
+        if let Some(native_pixels_per_point) = ctx.input(|i| i.raw.native_pixels_per_point) {
             ctx.set_pixels_per_point(native_pixels_per_point);
         }
     } else {

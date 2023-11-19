@@ -96,7 +96,7 @@ jobs:
           toolchain: 1.70.0
           targets: wasm32-unknown-unknown
 
-      - run: sudo apt-get update && sudo apt-get install libgtk-3-dev
+      - run: sudo apt-get update && sudo apt-get install libgtk-3-dev libatk1.0-dev
 
       - name: Set up cargo cache
         uses: Swatinem/rust-cache@v2

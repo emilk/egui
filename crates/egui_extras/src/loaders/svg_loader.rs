@@ -14,7 +14,7 @@ pub struct SvgLoader {
 }
 
 impl SvgLoader {
-    pub const ID: &str = egui::generate_loader_id!(SvgLoader);
+    pub const ID: &'static str = egui::generate_loader_id!(SvgLoader);
 }
 
 fn is_supported(uri: &str) -> bool {

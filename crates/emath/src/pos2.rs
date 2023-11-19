@@ -280,6 +280,42 @@ impl Sub<Vec2> for Pos2 {
     }
 }
 
+impl Mul<f32> for Pos2 {
+    type Output = Pos2;
+
+    #[inline(always)]
+    fn mul(self, factor: f32) -> Pos2 {
+        Pos2 {
+            x: self.x * factor,
+            y: self.y * factor,
+        }
+    }
+}
+
+impl Mul<Pos2> for f32 {
+    type Output = Pos2;
+
+    #[inline(always)]
+    fn mul(self, vec: Pos2) -> Pos2 {
+        Pos2 {
+            x: self * vec.x,
+            y: self * vec.y,
+        }
+    }
+}
+
+impl Div<f32> for Pos2 {
+    type Output = Pos2;
+
+    #[inline(always)]
+    fn div(self, factor: f32) -> Pos2 {
+        Pos2 {
+            x: self.x / factor,
+            y: self.y / factor,
+        }
+    }
+}
+
 impl std::fmt::Debug for Pos2 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[{:.1} {:.1}]", self.x, self.y)
