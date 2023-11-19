@@ -167,8 +167,7 @@ mod native;
 pub use native::file_storage::storage_dir;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
-pub use native::icon_data;
+pub mod icon_data;
 
 /// This is how you start a native (desktop) app.
 ///

@@ -1,6 +1,5 @@
 mod app_icon;
 mod epi_integration;
-pub mod icon_data;
 pub mod run;
 
 /// File storage which can be used by native backends.
