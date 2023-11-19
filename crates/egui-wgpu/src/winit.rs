@@ -143,6 +143,7 @@ impl Painter {
         present_mode: wgpu::PresentMode,
     ) {
         crate::profile_function!();
+
         let usage = if surface_state.supports_screenshot {
             wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST
         } else {
@@ -188,12 +189,16 @@ impl Painter {
         viewport_id: ViewportId,
         window: Option<&winit::window::Window>,
     ) -> Result<(), crate::WgpuError> {
-        crate::profile_function!();
+        crate::profile_scope!("Painter::set_window"); // profle_function gives bad names for async functions
 
         if let Some(window) = window {
             let size = window.inner_size();
             if self.surfaces.get(&viewport_id).is_none() {
-                let surface = unsafe { self.instance.create_surface(&window)? };
+
+                let surface = unsafe {
+                    crate::profile_scope!("create_surface");
+                    self.instance.create_surface(&window)?
+                };
 
                 let render_state = if let Some(render_state) = &self.render_state {
                     render_state

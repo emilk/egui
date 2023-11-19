@@ -52,6 +52,8 @@ impl WindowSettings {
         &self,
         mut viewport_builder: ViewportBuilder,
     ) -> ViewportBuilder {
+        crate::profile_function!();
+
         // `WindowBuilder::with_position` expects inner position in Macos, and outer position elsewhere
         // See [`winit::window::WindowBuilder::with_position`] for details.
         let pos_px = if cfg!(target_os = "macos") {
@@ -127,6 +129,8 @@ fn clamp_pos_to_monitors<E>(
     window_size_pts: egui::Vec2,
     position_px: &mut egui::Pos2,
 ) {
+    crate::profile_function!();
+
     let monitors = event_loop.available_monitors();
 
     // default to primary monitor, in case the correct monitor was disconnected.

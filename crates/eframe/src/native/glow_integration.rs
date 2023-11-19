@@ -20,12 +20,12 @@ use egui::{
 use egui_winit::accesskit_winit;
 use egui_winit::{
     apply_viewport_builder_to_new_window, create_winit_window_builder, process_viewport_commands,
-    EventResponse,
+    short_window_event_description, EventResponse,
 };
 
 use crate::{
-    native::epi_integration::EpiIntegration, App, AppCreator, CreationContext, NativeOptions,
-    Result, Storage,
+    native::{epi_integration::EpiIntegration, winit_integration::short_event_description},
+    App, AppCreator, CreationContext, NativeOptions, Result, Storage,
 };
 
 use super::{
@@ -393,7 +393,7 @@ impl WinitApp for GlowWinitApp {
         event_loop: &EventLoopWindowTarget<UserEvent>,
         event: &winit::event::Event<'_, UserEvent>,
     ) -> Result<EventResult> {
-        crate::profile_function!();
+        crate::profile_function!(short_event_description(event));
 
         Ok(match event {
             winit::event::Event::Resumed => {
@@ -646,6 +646,8 @@ impl GlowWinitRunning {
         window_id: WindowId,
         event: &winit::event::WindowEvent<'_>,
     ) -> EventResult {
+        crate::profile_function!(short_window_event_description(event));
+
         let viewport_id = self
             .glutin
             .borrow()

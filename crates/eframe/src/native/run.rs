@@ -11,7 +11,11 @@ use winit::event_loop::{EventLoop, EventLoopBuilder};
 
 use egui::epaint::ahash::HashMap;
 
-use crate::{epi, native::winit_integration::EventResult, Result};
+use crate::{
+    epi,
+    native::winit_integration::{short_event_description, EventResult},
+    Result,
+};
 
 use super::winit_integration::{UserEvent, WinitApp};
 
@@ -396,70 +400,4 @@ pub fn run_wgpu(
     let event_loop = create_event_loop(&mut native_options);
     let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
     run_and_exit(event_loop, wgpu_eframe);
-}
-
-// ----------------------------------------------------------------------------
-
-// For the puffin profiler!
-#[allow(dead_code)] // Only used for profiling
-fn short_event_description(event: &winit::event::Event<'_, UserEvent>) -> &'static str {
-    use winit::event::{DeviceEvent, Event, StartCause, WindowEvent};
-
-    match event {
-        Event::Suspended => "Event::Suspended",
-        Event::Resumed => "Event::Resumed",
-        Event::MainEventsCleared => "Event::MainEventsCleared",
-        Event::RedrawRequested(_) => "Event::RedrawRequested",
-        Event::RedrawEventsCleared => "Event::RedrawEventsCleared",
-        Event::LoopDestroyed => "Event::LoopDestroyed",
-        Event::UserEvent(user_event) => match user_event {
-            UserEvent::RequestRepaint { .. } => "UserEvent::RequestRepaint",
-            #[cfg(feature = "accesskit")]
-            UserEvent::AccessKitActionRequest(_) => "UserEvent::AccessKitActionRequest",
-        },
-        Event::DeviceEvent { event, .. } => match event {
-            DeviceEvent::Added { .. } => "DeviceEvent::Added",
-            DeviceEvent::Removed { .. } => "DeviceEvent::Removed",
-            DeviceEvent::MouseMotion { .. } => "DeviceEvent::MouseMotion",
-            DeviceEvent::MouseWheel { .. } => "DeviceEvent::MouseWheel",
-            DeviceEvent::Motion { .. } => "DeviceEvent::Motion",
-            DeviceEvent::Button { .. } => "DeviceEvent::Button",
-            DeviceEvent::Key { .. } => "DeviceEvent::Key",
-            DeviceEvent::Text { .. } => "DeviceEvent::Text",
-        },
-        Event::NewEvents(start_cause) => match start_cause {
-            StartCause::ResumeTimeReached { .. } => "NewEvents::ResumeTimeReached",
-            StartCause::WaitCancelled { .. } => "NewEvents::WaitCancelled",
-            StartCause::Poll => "NewEvents::Poll",
-            StartCause::Init => "NewEvents::Init",
-        },
-        Event::WindowEvent { event, .. } => match event {
-            WindowEvent::Resized { .. } => "WindowEvent::Resized",
-            WindowEvent::Moved { .. } => "WindowEvent::Moved",
-            WindowEvent::CloseRequested { .. } => "WindowEvent::CloseRequested",
-            WindowEvent::Destroyed { .. } => "WindowEvent::Destroyed",
-            WindowEvent::DroppedFile { .. } => "WindowEvent::DroppedFile",
-            WindowEvent::HoveredFile { .. } => "WindowEvent::HoveredFile",
-            WindowEvent::HoveredFileCancelled { .. } => "WindowEvent::HoveredFileCancelled",
-            WindowEvent::ReceivedCharacter { .. } => "WindowEvent::ReceivedCharacter",
-            WindowEvent::Focused { .. } => "WindowEvent::Focused",
-            WindowEvent::KeyboardInput { .. } => "WindowEvent::KeyboardInput",
-            WindowEvent::ModifiersChanged { .. } => "WindowEvent::ModifiersChanged",
-            WindowEvent::Ime { .. } => "WindowEvent::Ime",
-            WindowEvent::CursorMoved { .. } => "WindowEvent::CursorMoved",
-            WindowEvent::CursorEntered { .. } => "WindowEvent::CursorEntered",
-            WindowEvent::CursorLeft { .. } => "WindowEvent::CursorLeft",
-            WindowEvent::MouseWheel { .. } => "WindowEvent::MouseWheel",
-            WindowEvent::MouseInput { .. } => "WindowEvent::MouseInput",
-            WindowEvent::TouchpadMagnify { .. } => "WindowEvent::TouchpadMagnify",
-            WindowEvent::SmartMagnify { .. } => "WindowEvent::SmartMagnify",
-            WindowEvent::TouchpadRotate { .. } => "WindowEvent::TouchpadRotate",
-            WindowEvent::TouchpadPressure { .. } => "WindowEvent::TouchpadPressure",
-            WindowEvent::AxisMotion { .. } => "WindowEvent::AxisMotion",
-            WindowEvent::Touch { .. } => "WindowEvent::Touch",
-            WindowEvent::ScaleFactorChanged { .. } => "WindowEvent::ScaleFactorChanged",
-            WindowEvent::ThemeChanged { .. } => "WindowEvent::ThemeChanged",
-            WindowEvent::Occluded { .. } => "WindowEvent::Occluded",
-        },
-    }
 }

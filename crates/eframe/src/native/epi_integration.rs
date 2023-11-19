@@ -7,7 +7,7 @@ use winit::event_loop::EventLoopWindowTarget;
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
 use egui::{DeferredViewportUiCallback, NumExt as _, ViewportBuilder, ViewportId};
-use egui_winit::{EventResponse, WindowSettings};
+use egui_winit::{short_window_event_description, EventResponse, WindowSettings};
 
 use crate::{epi, Theme};
 
@@ -47,6 +47,7 @@ pub fn viewport_builder<E>(
 
     #[cfg(not(target_os = "ios"))]
     if native_options.centered {
+        crate::profile_scope!("center");
         if let Some(monitor) = event_loop.available_monitors().next() {
             let monitor_size = monitor.size().to_logical::<f32>(monitor.scale_factor());
             let inner_size = inner_size_points.unwrap_or(egui::Vec2 { x: 800.0, y: 600.0 });
@@ -76,9 +77,16 @@ pub fn apply_window_settings(
 }
 
 fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui::Vec2 {
+    crate::profile_function!();
+
     let mut max_size = egui::Vec2::ZERO;
 
-    for monitor in event_loop.available_monitors() {
+    let available_monitors = {
+        crate::profile_scope!("available_monitors");
+        event_loop.available_monitors()
+    };
+
+    for monitor in available_monitors {
         let size = monitor.size().to_logical::<f32>(monitor.scale_factor());
         let size = egui::vec2(size.width, size.height);
         max_size = max_size.max(size);
@@ -217,7 +225,7 @@ impl EpiIntegration {
         egui_winit: &mut egui_winit::State,
         viewport_id: ViewportId,
     ) -> EventResponse {
-        crate::profile_function!();
+        crate::profile_function!(short_window_event_description(event));
 
         use winit::event::{ElementState, MouseButton, WindowEvent};
 

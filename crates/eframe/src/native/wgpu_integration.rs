@@ -16,10 +16,14 @@ use egui::{
 use egui_winit::accesskit_winit;
 use egui_winit::{
     apply_viewport_builder_to_new_window, create_winit_window_builder, process_viewport_commands,
+    short_window_event_description,
 };
 
 use crate::{
-    native::{epi_integration::EpiIntegration, winit_integration::EventResult},
+    native::{
+        epi_integration::EpiIntegration,
+        winit_integration::{short_event_description, EventResult},
+    },
     App, AppCreator, CreationContext, NativeOptions, Result, Storage, UserEvent,
 };
 
@@ -357,7 +361,7 @@ impl WinitApp for WgpuWinitApp {
         event_loop: &EventLoopWindowTarget<UserEvent>,
         event: &winit::event::Event<'_, UserEvent>,
     ) -> Result<EventResult> {
-        crate::profile_function!();
+        crate::profile_function!(short_event_description(event));
 
         self.build_windows(event_loop);
 
@@ -637,6 +641,8 @@ impl WgpuWinitRunning {
         window_id: WindowId,
         event: &winit::event::WindowEvent<'_>,
     ) -> EventResult {
+        crate::profile_function!(short_window_event_description(event));
+
         let Self {
             integration,
             app,

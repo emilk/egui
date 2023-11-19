@@ -2391,7 +2391,7 @@ impl Context {
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_bytes(&self, uri: &str) -> load::BytesLoadResult {
-        crate::profile_function!();
+        crate::profile_function!(uri);
 
         let loaders = self.loaders();
         let bytes_loaders = loaders.bytes.lock();
@@ -2428,7 +2428,7 @@ impl Context {
     /// [not_supported]: crate::load::LoadError::NotSupported
     /// [custom]: crate::load::LoadError::Loading
     pub fn try_load_image(&self, uri: &str, size_hint: load::SizeHint) -> load::ImageLoadResult {
-        crate::profile_function!();
+        crate::profile_function!(uri);
 
         let loaders = self.loaders();
         let image_loaders = loaders.image.lock();
@@ -2471,7 +2471,7 @@ impl Context {
         texture_options: TextureOptions,
         size_hint: load::SizeHint,
     ) -> load::TextureLoadResult {
-        crate::profile_function!();
+        crate::profile_function!(uri);
 
         let loaders = self.loaders();
         let texture_loaders = loaders.texture.lock();

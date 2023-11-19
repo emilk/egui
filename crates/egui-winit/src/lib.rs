@@ -239,7 +239,7 @@ impl State {
         event: &winit::event::WindowEvent<'_>,
         viewport_id: ViewportId,
     ) -> EventResponse {
-        crate::profile_function!();
+        crate::profile_function!(short_window_event_description(event));
 
         use winit::event::WindowEvent;
         match event {
@@ -1334,6 +1334,76 @@ pub fn apply_viewport_builder_to_new_window(window: &Window, builder: &ViewportB
         if let Err(err) = window.set_cursor_hittest(!mouse_passthrough) {
             log::warn!("set_cursor_hittest failed: {err}");
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+/// Short and fast description of an event.
+/// Useful for logging and profiling.
+pub fn short_generic_event_description<T>(event: &winit::event::Event<'_, T>) -> &'static str {
+    use winit::event::{DeviceEvent, Event, StartCause};
+
+    match event {
+        Event::Suspended => "Event::Suspended",
+        Event::Resumed => "Event::Resumed",
+        Event::MainEventsCleared => "Event::MainEventsCleared",
+        Event::RedrawRequested(_) => "Event::RedrawRequested",
+        Event::RedrawEventsCleared => "Event::RedrawEventsCleared",
+        Event::LoopDestroyed => "Event::LoopDestroyed",
+        Event::UserEvent(_) => "UserEvent",
+        Event::DeviceEvent { event, .. } => match event {
+            DeviceEvent::Added { .. } => "DeviceEvent::Added",
+            DeviceEvent::Removed { .. } => "DeviceEvent::Removed",
+            DeviceEvent::MouseMotion { .. } => "DeviceEvent::MouseMotion",
+            DeviceEvent::MouseWheel { .. } => "DeviceEvent::MouseWheel",
+            DeviceEvent::Motion { .. } => "DeviceEvent::Motion",
+            DeviceEvent::Button { .. } => "DeviceEvent::Button",
+            DeviceEvent::Key { .. } => "DeviceEvent::Key",
+            DeviceEvent::Text { .. } => "DeviceEvent::Text",
+        },
+        Event::NewEvents(start_cause) => match start_cause {
+            StartCause::ResumeTimeReached { .. } => "NewEvents::ResumeTimeReached",
+            StartCause::WaitCancelled { .. } => "NewEvents::WaitCancelled",
+            StartCause::Poll => "NewEvents::Poll",
+            StartCause::Init => "NewEvents::Init",
+        },
+        Event::WindowEvent { event, .. } => short_window_event_description(event),
+    }
+}
+
+/// Short and fast description of an event.
+/// Useful for logging and profiling.
+pub fn short_window_event_description(event: &winit::event::WindowEvent<'_>) -> &'static str {
+    use winit::event::WindowEvent;
+
+    match event {
+        WindowEvent::Resized { .. } => "WindowEvent::Resized",
+        WindowEvent::Moved { .. } => "WindowEvent::Moved",
+        WindowEvent::CloseRequested { .. } => "WindowEvent::CloseRequested",
+        WindowEvent::Destroyed { .. } => "WindowEvent::Destroyed",
+        WindowEvent::DroppedFile { .. } => "WindowEvent::DroppedFile",
+        WindowEvent::HoveredFile { .. } => "WindowEvent::HoveredFile",
+        WindowEvent::HoveredFileCancelled { .. } => "WindowEvent::HoveredFileCancelled",
+        WindowEvent::ReceivedCharacter { .. } => "WindowEvent::ReceivedCharacter",
+        WindowEvent::Focused { .. } => "WindowEvent::Focused",
+        WindowEvent::KeyboardInput { .. } => "WindowEvent::KeyboardInput",
+        WindowEvent::ModifiersChanged { .. } => "WindowEvent::ModifiersChanged",
+        WindowEvent::Ime { .. } => "WindowEvent::Ime",
+        WindowEvent::CursorMoved { .. } => "WindowEvent::CursorMoved",
+        WindowEvent::CursorEntered { .. } => "WindowEvent::CursorEntered",
+        WindowEvent::CursorLeft { .. } => "WindowEvent::CursorLeft",
+        WindowEvent::MouseWheel { .. } => "WindowEvent::MouseWheel",
+        WindowEvent::MouseInput { .. } => "WindowEvent::MouseInput",
+        WindowEvent::TouchpadMagnify { .. } => "WindowEvent::TouchpadMagnify",
+        WindowEvent::SmartMagnify { .. } => "WindowEvent::SmartMagnify",
+        WindowEvent::TouchpadRotate { .. } => "WindowEvent::TouchpadRotate",
+        WindowEvent::TouchpadPressure { .. } => "WindowEvent::TouchpadPressure",
+        WindowEvent::AxisMotion { .. } => "WindowEvent::AxisMotion",
+        WindowEvent::Touch { .. } => "WindowEvent::Touch",
+        WindowEvent::ScaleFactorChanged { .. } => "WindowEvent::ScaleFactorChanged",
+        WindowEvent::ThemeChanged { .. } => "WindowEvent::ThemeChanged",
+        WindowEvent::Occluded { .. } => "WindowEvent::Occluded",
     }
 }
 
