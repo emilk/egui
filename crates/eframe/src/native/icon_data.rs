@@ -1,3 +1,5 @@
+//! Helpers for loading [`egui::IconData`].
+
 use egui::IconData;
 
 /// Helpers for working with [`IconData`].
