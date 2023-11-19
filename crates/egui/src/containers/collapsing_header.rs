@@ -56,6 +56,11 @@ impl CollapsingState {
         })
     }
 
+    #[deprecated = "use load instead"]
+    pub fn load_with_default_open(ctx: &Context, id: Id, default_open: bool) -> Self {
+        Self::load(ctx, id, default_open)
+    }
+
     pub fn is_open(&self) -> bool {
         self.state.open
     }
@@ -149,7 +154,7 @@ impl CollapsingState {
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// let id = ui.make_persistent_id("my_collapsing_header");
-    /// egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
+    /// egui::collapsing_header::CollapsingState::load(ui.ctx(), id, false)
     ///     .show_header(ui, |ui| {
     ///         ui.label("Header"); // you can put checkboxes or whatever here
     ///     })
@@ -256,7 +261,7 @@ impl CollapsingState {
     ///     ui.painter().circle_filled(response.rect.center(), radius, stroke.color);
     /// }
     ///
-    /// let mut state = egui::collapsing_header::CollapsingState::load_with_default_open(
+    /// let mut state = egui::collapsing_header::CollapsingState::load(
     ///     ui.ctx(),
     ///     ui.make_persistent_id("my_collapsing_state"),
     ///     false,
