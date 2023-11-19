@@ -2536,7 +2536,7 @@ impl Context {
         });
     }
 
-    /// If `true`, [`Self::show_viewport`] and [`Self::show_viewport_immediate`] will
+    /// If `true`, [`Self::show_viewport_deferred`] and [`Self::show_viewport_immediate`] will
     /// embed the new viewports inside the existing one, instead of spawning a new native window.
     ///
     /// `eframe` sets this to `false` on supported platforms, but the default value is `true`.
@@ -2544,7 +2544,7 @@ impl Context {
         self.read(|ctx| ctx.embed_viewports)
     }
 
-    /// If `true`, [`Self::show_viewport`] and [`Self::show_viewport_immediate`] will
+    /// If `true`, [`Self::show_viewport_deferred`] and [`Self::show_viewport_immediate`] will
     /// embed the new viewports inside the existing one, instead of spawning a new native window.
     ///
     /// `eframe` sets this to `false` on supported platforms, but the default value is `true`.
@@ -2567,7 +2567,7 @@ impl Context {
         self.request_repaint_of(id);
     }
 
-    /// This creates a new native window, if possible.
+    /// Show a deferred viewport, creating a new native window, if possible.
     ///
     /// The given id must be unique for each viewport.
     ///
@@ -2596,7 +2596,7 @@ impl Context {
     /// If you find [`ViewportClass::Embedded`], you need to create a new [`crate::Window`] for you content.
     ///
     /// See [`crate::viewport`] for more information about viewports.
-    pub fn show_viewport(
+    pub fn show_viewport_deferred(
         &self,
         new_viewport_id: ViewportId,
         viewport_builder: ViewportBuilder,
@@ -2622,12 +2622,12 @@ impl Context {
         }
     }
 
-    /// This creates a new native window, if possible.
+    /// Show an immediate viewport, creating a new native window, if possible.
     ///
     /// This is the easier type of viewport to use, but it is less performant
     /// at it requires both parent and child to repaint if any one of them needs repainting,
     /// which efficvely produce double work for two viewports, and triple work for three viewports, etc.
-    /// To avoid this, use [`Self::show_viewport`] instead.
+    /// To avoid this, use [`Self::show_viewport_deferred`] instead.
     ///
     /// The given id must be unique for each viewport.
     ///

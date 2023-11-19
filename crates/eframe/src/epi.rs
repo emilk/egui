@@ -116,7 +116,7 @@ pub trait App {
     /// To force a repaint, call [`egui::Context::request_repaint`] at any time (e.g. from another thread).
     ///
     /// This is called for the root viewport ([`egui::ViewportId::ROOT`]).
-    /// Use [`egui::Context::show_viewport`] to spawn additional viewports (windows).
+    /// Use [`egui::Context::show_viewport_deferred`] to spawn additional viewports (windows).
     /// (A "viewport" in egui means an native OS window).
     fn update(&mut self, ctx: &egui::Context, frame: &mut Frame);
 

@@ -79,7 +79,7 @@ impl ViewportState {
             });
         } else {
             let count = Arc::new(RwLock::new(0));
-            ctx.show_viewport(vp_id, viewport, move |ctx, class| {
+            ctx.show_viewport_deferred(vp_id, viewport, move |ctx, class| {
                 let mut vp_state = vp_state.write();
                 let count = count.clone();
                 show_as_popup(

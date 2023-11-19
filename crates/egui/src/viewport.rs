@@ -3,7 +3,7 @@
 //! Not all egui backends support multiple viewports, but `eframe` native does
 //! (but not on web).
 //!
-//! You can spawn a new viewport using [`Context::show_viewport`] and [`Context::show_viewport_immediate`].
+//! You can spawn a new viewport using [`Context::show_viewport_deferred`] and [`Context::show_viewport_immediate`].
 //! These needs to be called every frame the viewport should be visible.
 //!
 //! This is implemented by the native `eframe` backend, but not the web one.
@@ -17,7 +17,7 @@
 //! The root viewport is the original viewport, and cannot be closed without closing the application.
 //!
 //! ### Deferred viewports
-//! These are created with [`Context::show_viewport`].
+//! These are created with [`Context::show_viewport_deferred`].
 //! Deferred viewports take a closure that is called by the integration at a later time, perhaps multiple times.
 //! Deferred viewports are repainted independenantly of the parent viewport.
 //! This means communication with them need to done via channels, or `Arc/Mutex`.
@@ -87,7 +87,7 @@ pub enum ViewportClass {
     ///
     /// This is the preferred type of viewport from a performance perspective.
     ///
-    /// Create these with [`crate::Context::show_viewport`].
+    /// Create these with [`crate::Context::show_viewport_deferred`].
     Deferred,
 
     /// A viewport run inside the parent viewport.
