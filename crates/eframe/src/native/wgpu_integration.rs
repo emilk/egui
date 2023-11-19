@@ -19,10 +19,7 @@ use egui_winit::{
 };
 
 use crate::{
-    native::{
-        epi_integration::EpiIntegration,
-        winit_integration::{short_event_description, EventResult},
-    },
+    native::{epi_integration::EpiIntegration, winit_integration::EventResult},
     App, AppCreator, CreationContext, NativeOptions, Result, Storage, UserEvent,
 };
 
@@ -360,7 +357,7 @@ impl WinitApp for WgpuWinitApp {
         event_loop: &EventLoopWindowTarget<UserEvent>,
         event: &winit::event::Event<'_, UserEvent>,
     ) -> Result<EventResult> {
-        crate::profile_function!(short_event_description(event));
+        crate::profile_function!(winit_integration::short_event_description(event));
 
         self.build_windows(event_loop);
 
