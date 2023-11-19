@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use crate::IconData;
+use egui::IconData;
 
 pub struct AppTitleIconSetter {
     title: String,
