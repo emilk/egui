@@ -8,6 +8,7 @@ use epaint::Shape;
 pub(crate) struct InnerState {
     /// Expand / collapse
     open: bool,
+
     /// Show / Hide (only used on egui::Window components)
     hidden: bool,
 
@@ -68,17 +69,17 @@ impl CollapsingState {
         ui.ctx().request_repaint();
     }
 
-    /// Only used on egui::Window components
+    /// Only used on `egui::Window` components
     pub fn is_hidden(&self) -> bool {
         self.state.hidden
     }
 
-    /// Only used on egui::Window components
+    /// Only used on `egui::Window` components
     pub fn toggle_hidden(&mut self) {
         self.state.hidden = !self.state.hidden;
     }
 
-    /// Only used on egui::Window components
+    /// Only used on `egui::Window` components
     pub fn set_hidden(&mut self, hidden: bool) {
         self.state.hidden = hidden;
     }
@@ -351,7 +352,7 @@ pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
 }
 
 /// A event to expand / collapse the widget automatically
-#[derive(PartialEq, Default, Clone, Copy, Debug)]
+#[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum CollapsingHeaderEvent {
     #[default]
@@ -435,6 +436,7 @@ impl CollapsingHeader {
         self
     }
 
+    #[inline]
     pub fn display(mut self, new_event: &mut Option<CollapsingHeaderEvent>) -> Self {
         self.display_event = new_event.take();
         self

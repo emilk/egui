@@ -42,7 +42,7 @@ pub struct Window<'open> {
     open: Option<&'open mut bool>,
 }
 
-#[derive(PartialEq, Default, Clone, Copy, Debug)]
+#[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WindowEvent {
     #[default]
@@ -102,12 +102,14 @@ impl<'open> Window<'open> {
     /// * If `*open == false`, the window will not be visible.
     /// * If `*open == true`, the window will have a close button.
     /// * If the close button is pressed, `*open` will be set to `false`.
+    #[inline]
     pub fn open(mut self, open: &'open mut bool) -> Self {
         self.open = Some(open);
         self.with_closing_btn = true;
         self
     }
 
+    #[inline]
     pub fn closing_button(mut self, closing_button: bool) -> Self {
         self.with_closing_btn = closing_button;
         self
@@ -287,6 +289,7 @@ impl<'open> Window<'open> {
         self
     }
 
+    #[inline]
     pub fn display_event(mut self, new_event: &mut Option<WindowEvent>) -> Self {
         self.display_event = new_event.take();
         self
