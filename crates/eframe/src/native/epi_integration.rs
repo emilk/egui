@@ -1,3 +1,5 @@
+//! Common tools used by [`super::glow_integration`] and [`super::wgpu_integration`].
+
 use std::time::Instant;
 
 use winit::event_loop::EventLoopWindowTarget;
