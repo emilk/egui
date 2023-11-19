@@ -4,10 +4,7 @@ use winit::event_loop::EventLoopWindowTarget;
 
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
-use egui::{
-    DeferredViewportUiCallback, NumExt as _, ViewportBuilder, ViewportId, ViewportIdPair,
-    ViewportInfo,
-};
+use egui::{DeferredViewportUiCallback, NumExt as _, ViewportBuilder, ViewportId};
 use egui_winit::{EventResponse, WindowSettings};
 
 use crate::{epi, Theme};
@@ -204,28 +201,6 @@ impl EpiIntegration {
             egui_ctx.request_repaint();
             egui_ctx.accesskit_placeholder_tree_update()
         });
-    }
-
-    pub fn warm_up(
-        &mut self,
-        app: &mut dyn epi::App,
-        window: &winit::window::Window,
-        egui_winit: &mut egui_winit::State,
-    ) {
-        crate::profile_function!();
-        let saved_memory: egui::Memory = self.egui_ctx.memory(|mem| mem.clone());
-        self.egui_ctx
-            .memory_mut(|mem| mem.set_everything_is_visible(true));
-
-        let mut raw_input = egui_winit.take_egui_input(window, ViewportIdPair::ROOT);
-        raw_input.viewports =
-            std::iter::once((ViewportId::ROOT, ViewportInfo::default())).collect();
-        self.pre_update();
-        let full_output = self.update(app, None, raw_input);
-        self.post_update();
-        self.pending_full_output.append(full_output); // Handle it next frame
-        self.egui_ctx.memory_mut(|mem| *mem = saved_memory); // We don't want to remember that windows were huge.
-        self.egui_ctx.clear_animations();
     }
 
     /// If `true`, it is time to close the native window.

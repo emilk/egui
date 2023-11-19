@@ -1151,12 +1151,6 @@ mod glow_integration {
                 .expect("viewport doesn't exist")
         }
 
-        fn viewport_mut(&mut self, viewport_id: ViewportId) -> &mut Viewport {
-            self.viewports
-                .get_mut(&viewport_id)
-                .expect("viewport doesn't exist")
-        }
-
         fn window(&self, viewport_id: ViewportId) -> Rc<Window> {
             self.viewport(viewport_id)
                 .window
@@ -1488,7 +1482,7 @@ mod glow_integration {
 
             let app = {
                 let window = glutin.window(ViewportId::ROOT);
-                let mut app = app_creator(&epi::CreationContext {
+                let cc = epi::CreationContext {
                     egui_ctx: integration.egui_ctx.clone(),
                     integration_info: integration.frame.info().clone(),
                     storage: integration.frame.storage(),
@@ -1497,18 +1491,9 @@ mod glow_integration {
                     wgpu_render_state: None,
                     raw_display_handle: window.raw_display_handle(),
                     raw_window_handle: window.raw_window_handle(),
-                });
-
-                if app.warm_up_enabled() {
-                    let viewport = glutin.viewport_mut(ViewportId::ROOT);
-                    integration.warm_up(
-                        app.as_mut(),
-                        &window,
-                        viewport.egui_winit.as_mut().unwrap(),
-                    );
-                }
-
-                app
+                };
+                crate::profile_scope!("app_creator");
+                app_creator(&cc)
             };
 
             let glutin = Rc::new(RefCell::new(glutin));
@@ -2124,14 +2109,10 @@ mod wgpu_integration {
                 raw_display_handle: window.raw_display_handle(),
                 raw_window_handle: window.raw_window_handle(),
             };
-            let mut app = {
+            let app = {
                 crate::profile_scope!("user_app_creator");
                 app_creator(&cc)
             };
-
-            if app.warm_up_enabled() {
-                integration.warm_up(app.as_mut(), &window, &mut egui_winit);
-            }
 
             let mut viewport_from_window = HashMap::default();
             viewport_from_window.insert(window.id(), ViewportId::ROOT);

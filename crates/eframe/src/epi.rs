@@ -212,18 +212,6 @@ pub trait App {
     fn persist_egui_memory(&self) -> bool {
         true
     }
-
-    /// If `true` a warm-up call to [`Self::update`] will be issued where
-    /// `ctx.memory(|mem| mem.everything_is_visible())` will be set to `true`.
-    ///
-    /// This can help pre-caching resources loaded by different parts of the UI, preventing stutter later on.
-    ///
-    /// In this warm-up call, all painted shapes will be ignored.
-    ///
-    /// The default is `false`, and it is unlikely you will want to change this.
-    fn warm_up_enabled(&self) -> bool {
-        false
-    }
 }
 
 /// Selects the level of hardware graphics acceleration.
