@@ -6,8 +6,6 @@ use std::sync::Arc;
 
 use egui::IconData;
 
-use crate::icon_data::IconDataExt as _;
-
 pub struct AppTitleIconSetter {
     title: String,
     icon_data: Option<Arc<IconData>>,
@@ -75,6 +73,7 @@ fn set_title_and_icon(_title: &str, _icon_data: Option<&IconData>) -> AppIconSta
 #[cfg(target_os = "windows")]
 #[allow(unsafe_code)]
 fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
+    use crate::icon_data::IconDataExt as _;
     use winapi::um::winuser;
 
     // We would get fairly far already with winit's `set_window_icon` (which is exposed to eframe) actually!
@@ -195,6 +194,7 @@ fn set_app_icon_windows(icon_data: &IconData) -> AppIconStatus {
 #[cfg(target_os = "macos")]
 #[allow(unsafe_code)]
 fn set_title_and_icon_mac(title: &str, icon_data: Option<&IconData>) -> AppIconStatus {
+    use crate::icon_data::IconDataExt as _;
     crate::profile_function!();
 
     use cocoa::{
