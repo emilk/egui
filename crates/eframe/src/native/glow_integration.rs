@@ -468,6 +468,8 @@ impl WinitApp for GlowWinitApp {
 
 impl GlowWinitRunning {
     fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
+        crate::profile_function!();
+
         let Some(viewport_id) = self
             .glutin
             .borrow()
@@ -480,7 +482,6 @@ impl GlowWinitRunning {
 
         #[cfg(feature = "puffin")]
         puffin::GlobalProfiler::lock().new_frame();
-        crate::profile_scope!("frame");
 
         {
             let glutin = self.glutin.borrow();
@@ -565,15 +566,22 @@ impl GlowWinitRunning {
 
         let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
-        *current_gl_context = Some(
-            current_gl_context
-                .take()
-                .unwrap()
-                .make_not_current()
-                .unwrap()
-                .make_current(gl_surface)
-                .unwrap(),
-        );
+        {
+            // TODO: only do this if we actually have multiple viewports
+            crate::profile_scope!("change_gl_context");
+
+            let not_current = {
+                crate::profile_scope!("make_not_current");
+                current_gl_context
+                    .take()
+                    .unwrap()
+                    .make_not_current()
+                    .unwrap()
+            };
+
+            crate::profile_scope!("make_current");
+            *current_gl_context = Some(not_current.make_current(gl_surface).unwrap());
+        }
 
         let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 

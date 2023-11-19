@@ -822,16 +822,14 @@ fn update_viewport_info(viewport_info: &mut ViewportInfo, window: &Window, pixel
     let inner_rect = inner_rect_px.map(|r| r / pixels_per_point);
     let outer_rect = outer_rect_px.map(|r| r / pixels_per_point);
 
-    let monitor = window.current_monitor().is_some();
-    let monitor_size = if monitor {
-        let size = window
-            .current_monitor()
-            .unwrap()
-            .size()
-            .to_logical::<f32>(pixels_per_point.into());
-        Some(egui::vec2(size.width, size.height))
-    } else {
-        None
+    let monitor_size = {
+        crate::profile_scope!("monitor_size");
+        if let Some(monitor) = window.current_monitor() {
+            let size = monitor.size().to_logical::<f32>(pixels_per_point.into());
+            Some(egui::vec2(size.width, size.height))
+        } else {
+            None
+        }
     };
 
     viewport_info.title = Some(window.title());

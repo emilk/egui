@@ -456,6 +456,8 @@ impl WgpuWinitRunning {
 
     /// This is called both for the root viewport, and all deferred viewports
     fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
+        crate::profile_function!();
+
         let Some(viewport_id) = self
             .shared
             .borrow()
@@ -469,8 +471,6 @@ impl WgpuWinitRunning {
         #[cfg(feature = "puffin")]
         puffin::GlobalProfiler::lock().new_frame();
 
-        crate::profile_scope!("frame");
-
         let WgpuWinitRunning {
             app,
             integration,
@@ -478,25 +478,28 @@ impl WgpuWinitRunning {
         } = self;
 
         let (viewport_ui_cb, raw_input) = {
+            crate::profile_scope!("Prepare");
             let mut shared_lock = shared.borrow_mut();
 
             let SharedState {
                 viewports, painter, ..
             } = &mut *shared_lock;
 
-            let Some(viewport) = viewports.get(&viewport_id) else {
-                return EventResult::Wait;
-            };
+            if viewport_id != ViewportId::ROOT {
+                let Some(viewport) = viewports.get(&viewport_id) else {
+                    return EventResult::Wait;
+                };
 
-            if viewport_id != ViewportId::ROOT && viewport.viewport_ui_cb.is_none() {
-                // This will only happen if this is an immediate viewport.
-                // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
-                if let Some(viewport) = viewports.get(&viewport.ids.parent) {
-                    if let Some(window) = viewport.window.as_ref() {
-                        return EventResult::RepaintNext(window.id());
+                if viewport.viewport_ui_cb.is_none() {
+                    // This will only happen if this is an immediate viewport.
+                    // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
+                    if let Some(viewport) = viewports.get(&viewport.ids.parent) {
+                        if let Some(window) = viewport.window.as_ref() {
+                            return EventResult::RepaintNext(window.id());
+                        }
                     }
+                    return EventResult::Wait;
                 }
-                return EventResult::Wait;
             }
 
             let Some(viewport) = viewports.get_mut(&viewport_id) else {
@@ -511,14 +514,19 @@ impl WgpuWinitRunning {
                 egui_winit,
                 ..
             } = viewport;
+
             let viewport_ui_cb = viewport_ui_cb.clone();
 
             let Some(window) = window else {
                 return EventResult::Wait;
             };
 
-            if let Err(err) = pollster::block_on(painter.set_window(viewport_id, Some(window))) {
-                log::warn!("Failed to set window: {err}");
+            {
+                crate::profile_scope!("set_window");
+                if let Err(err) = pollster::block_on(painter.set_window(viewport_id, Some(window)))
+                {
+                    log::warn!("Failed to set window: {err}");
+                }
             }
 
             let mut raw_input = egui_winit.as_mut().unwrap().take_egui_input(
@@ -775,6 +783,7 @@ impl Viewport {
 
     /// Update the stored `ViewportInfo`.
     pub fn update_viewport_info(&mut self) {
+        crate::profile_function!();
         let Some(window) = &self.window else {
             return;
         };
