@@ -153,17 +153,6 @@ impl AppRunner {
         self.painter.canvas_id()
     }
 
-    pub fn warm_up(&mut self) {
-        if self.app.warm_up_enabled() {
-            let saved_memory: egui::Memory = self.egui_ctx.memory(|m| m.clone());
-            self.egui_ctx
-                .memory_mut(|m| m.set_everything_is_visible(true));
-            self.logic();
-            self.egui_ctx.memory_mut(|m| *m = saved_memory); // We don't want to remember that windows were huge.
-            self.egui_ctx.clear_animations();
-        }
-    }
-
     pub fn destroy(mut self) {
         log::debug!("Destroying AppRunner");
         self.painter.destroy();
