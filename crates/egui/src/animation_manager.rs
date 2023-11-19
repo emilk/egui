@@ -1,6 +1,7 @@
-use epaint::emath::NumExt;
-
-use crate::{emath::remap_clamp, Id, IdMap, InputState};
+use crate::{
+    emath::{remap_clamp, NumExt},
+    Id, IdMap, InputState,
+};
 
 #[derive(Clone, Default)]
 pub(crate) struct AnimationManager {
