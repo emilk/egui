@@ -189,7 +189,10 @@ impl Renderer {
             label: Some("egui"),
             source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("egui.wgsl"))),
         };
-        let module = device.create_shader_module(shader);
+        let module = {
+            crate::profile_scope!("create_shader_module");
+            device.create_shader_module(shader)
+        };
 
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("egui_uniform_buffer"),
@@ -200,7 +203,8 @@ impl Renderer {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let uniform_bind_group_layout =
+        let uniform_bind_group_layout = {
+            crate::profile_scope!("create_bind_group_layout");
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("egui_uniform_bind_group_layout"),
                 entries: &[wgpu::BindGroupLayoutEntry {
@@ -213,22 +217,27 @@ impl Renderer {
                     },
                     count: None,
                 }],
-            });
+            })
+        };
 
-        let uniform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("egui_uniform_bind_group"),
-            layout: &uniform_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                    buffer: &uniform_buffer,
-                    offset: 0,
-                    size: None,
-                }),
-            }],
-        });
+        let uniform_bind_group = {
+            crate::profile_scope!("create_bind_group");
+            device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("egui_uniform_bind_group"),
+                layout: &uniform_bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &uniform_buffer,
+                        offset: 0,
+                        size: None,
+                    }),
+                }],
+            })
+        };
 
-        let texture_bind_group_layout =
+        let texture_bind_group_layout = {
+            crate::profile_scope!("create_bind_group_layout");
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("egui_texture_bind_group_layout"),
                 entries: &[
@@ -249,7 +258,8 @@ impl Renderer {
                         count: None,
                     },
                 ],
-            });
+            })
+        };
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("egui_pipeline_layout"),
@@ -265,64 +275,68 @@ impl Renderer {
             bias: wgpu::DepthBiasState::default(),
         });
 
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("egui_pipeline"),
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                entry_point: "vs_main",
-                module: &module,
-                buffers: &[wgpu::VertexBufferLayout {
-                    array_stride: 5 * 4,
-                    step_mode: wgpu::VertexStepMode::Vertex,
-                    // 0: vec2 position
-                    // 1: vec2 texture coordinates
-                    // 2: uint color
-                    attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2, 2 => Uint32],
-                }],
-            },
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                unclipped_depth: false,
-                conservative: false,
-                cull_mode: None,
-                front_face: wgpu::FrontFace::default(),
-                polygon_mode: wgpu::PolygonMode::default(),
-                strip_index_format: None,
-            },
-            depth_stencil,
-            multisample: wgpu::MultisampleState {
-                alpha_to_coverage_enabled: false,
-                count: msaa_samples,
-                mask: !0,
-            },
-
-            fragment: Some(wgpu::FragmentState {
-                module: &module,
-                entry_point: if output_color_format.is_srgb() {
-                    log::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_color_format);
-                    "fs_main_linear_framebuffer"
-                } else {
-                    "fs_main_gamma_framebuffer" // this is what we prefer
+        let pipeline = {
+            crate::profile_scope!("create_render_pipeline");
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("egui_pipeline"),
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    entry_point: "vs_main",
+                    module: &module,
+                    buffers: &[wgpu::VertexBufferLayout {
+                        array_stride: 5 * 4,
+                        step_mode: wgpu::VertexStepMode::Vertex,
+                        // 0: vec2 position
+                        // 1: vec2 texture coordinates
+                        // 2: uint color
+                        attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2, 2 => Uint32],
+                    }],
                 },
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: output_color_format,
-                    blend: Some(wgpu::BlendState {
-                        color: wgpu::BlendComponent {
-                            src_factor: wgpu::BlendFactor::One,
-                            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                            operation: wgpu::BlendOperation::Add,
-                        },
-                        alpha: wgpu::BlendComponent {
-                            src_factor: wgpu::BlendFactor::OneMinusDstAlpha,
-                            dst_factor: wgpu::BlendFactor::One,
-                            operation: wgpu::BlendOperation::Add,
-                        },
-                    }),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            multiview: None,
-        });
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    unclipped_depth: false,
+                    conservative: false,
+                    cull_mode: None,
+                    front_face: wgpu::FrontFace::default(),
+                    polygon_mode: wgpu::PolygonMode::default(),
+                    strip_index_format: None,
+                },
+                depth_stencil,
+                multisample: wgpu::MultisampleState {
+                    alpha_to_coverage_enabled: false,
+                    count: msaa_samples,
+                    mask: !0,
+                },
+
+                fragment: Some(wgpu::FragmentState {
+                    module: &module,
+                    entry_point: if output_color_format.is_srgb() {
+                        log::warn!("Detected a linear (sRGBA aware) framebuffer {:?}. egui prefers Rgba8Unorm or Bgra8Unorm", output_color_format);
+                        "fs_main_linear_framebuffer"
+                    } else {
+                        "fs_main_gamma_framebuffer" // this is what we prefer
+                    },
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: output_color_format,
+                        blend: Some(wgpu::BlendState {
+                            color: wgpu::BlendComponent {
+                                src_factor: wgpu::BlendFactor::One,
+                                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                                operation: wgpu::BlendOperation::Add,
+                            },
+                            alpha: wgpu::BlendComponent {
+                                src_factor: wgpu::BlendFactor::OneMinusDstAlpha,
+                                dst_factor: wgpu::BlendFactor::One,
+                                operation: wgpu::BlendOperation::Add,
+                            },
+                        }),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                multiview: None,
+            }
+        )
+        };
 
         const VERTEX_BUFFER_START_CAPACITY: wgpu::BufferAddress =
             (std::mem::size_of::<Vertex>() * 1024) as _;

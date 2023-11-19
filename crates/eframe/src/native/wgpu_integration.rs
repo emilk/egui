@@ -111,8 +111,8 @@ impl WgpuWinitApp {
 
     fn build_windows(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) {
         let Some(running) = &mut self.running else {
-                return;
-            };
+            return;
+        };
         let mut shared = running.shared.borrow_mut();
         let SharedState {
             viewports,
@@ -357,7 +357,7 @@ impl WinitApp for WgpuWinitApp {
         event_loop: &EventLoopWindowTarget<UserEvent>,
         event: &winit::event::Event<'_, UserEvent>,
     ) -> Result<EventResult> {
-        crate::profile_function!();
+        crate::profile_function!(winit_integration::short_event_description(event));
 
         self.build_windows(event_loop);
 
@@ -452,20 +452,20 @@ impl WgpuWinitRunning {
 
     /// This is called both for the root viewport, and all deferred viewports
     fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
+        crate::profile_function!();
+
         let Some(viewport_id) = self
-                .shared
-                .borrow()
-                .viewport_from_window
-                .get(&window_id)
-                .copied()
-            else {
-                return EventResult::Wait;
-            };
+            .shared
+            .borrow()
+            .viewport_from_window
+            .get(&window_id)
+            .copied()
+        else {
+            return EventResult::Wait;
+        };
 
         #[cfg(feature = "puffin")]
         puffin::GlobalProfiler::lock().new_frame();
-
-        crate::profile_scope!("frame");
 
         let WgpuWinitRunning {
             app,
@@ -474,30 +474,33 @@ impl WgpuWinitRunning {
         } = self;
 
         let (viewport_ui_cb, raw_input) = {
+            crate::profile_scope!("Prepare");
             let mut shared_lock = shared.borrow_mut();
 
             let SharedState {
                 viewports, painter, ..
             } = &mut *shared_lock;
 
-            let Some(viewport) = viewports.get(&viewport_id) else {
+            if viewport_id != ViewportId::ROOT {
+                let Some(viewport) = viewports.get(&viewport_id) else {
                     return EventResult::Wait;
                 };
 
-            if viewport_id != ViewportId::ROOT && viewport.viewport_ui_cb.is_none() {
-                // This will only happen if this is an immediate viewport.
-                // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
-                if let Some(viewport) = viewports.get(&viewport.ids.parent) {
-                    if let Some(window) = viewport.window.as_ref() {
-                        return EventResult::RepaintNext(window.id());
+                if viewport.viewport_ui_cb.is_none() {
+                    // This will only happen if this is an immediate viewport.
+                    // That means that the viewport cannot be rendered by itself and needs his parent to be rendered.
+                    if let Some(viewport) = viewports.get(&viewport.ids.parent) {
+                        if let Some(window) = viewport.window.as_ref() {
+                            return EventResult::RepaintNext(window.id());
+                        }
                     }
+                    return EventResult::Wait;
                 }
-                return EventResult::Wait;
             }
 
             let Some(viewport) = viewports.get_mut(&viewport_id) else {
-                    return EventResult::Wait;
-                };
+                return EventResult::Wait;
+            };
             viewport.update_viewport_info();
 
             let Viewport {
@@ -507,14 +510,19 @@ impl WgpuWinitRunning {
                 egui_winit,
                 ..
             } = viewport;
+
             let viewport_ui_cb = viewport_ui_cb.clone();
 
             let Some(window) = window else {
-                    return EventResult::Wait;
-                };
+                return EventResult::Wait;
+            };
 
-            if let Err(err) = pollster::block_on(painter.set_window(viewport_id, Some(window))) {
-                log::warn!("Failed to set window: {err}");
+            {
+                crate::profile_scope!("set_window");
+                if let Err(err) = pollster::block_on(painter.set_window(viewport_id, Some(window)))
+                {
+                    log::warn!("Failed to set window: {err}");
+                }
             }
 
             let mut raw_input = egui_winit.as_mut().unwrap().take_egui_input(
@@ -551,17 +559,17 @@ impl WgpuWinitRunning {
         } = &mut *shared;
 
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
-                return EventResult::Wait;
-            };
+            return EventResult::Wait;
+        };
 
         let Viewport {
-                window: Some(window),
-                egui_winit: Some(egui_winit),
-                ..
-            } = viewport
-            else {
-                return EventResult::Wait;
-            };
+            window: Some(window),
+            egui_winit: Some(egui_winit),
+            ..
+        } = viewport
+        else {
+            return EventResult::Wait;
+        };
 
         integration.post_update();
 
@@ -637,6 +645,8 @@ impl WgpuWinitRunning {
         window_id: WindowId,
         event: &winit::event::WindowEvent<'_>,
     ) -> EventResult {
+        crate::profile_function!(egui_winit::short_window_event_description(event));
+
         let Self {
             integration,
             app,
@@ -705,7 +715,7 @@ impl WgpuWinitRunning {
         let event_response = viewport_id.and_then(|viewport_id| {
             shared.viewports.get_mut(&viewport_id).and_then(|viewport| {
                 viewport.egui_winit.as_mut().map(|egui_winit| {
-                    integration.on_event(app.as_mut(), event, egui_winit, viewport_id)
+                    integration.on_window_event(app.as_mut(), event, egui_winit, viewport_id)
                 })
             })
         });
@@ -769,12 +779,13 @@ impl Viewport {
 
     /// Update the stored `ViewportInfo`.
     pub fn update_viewport_info(&mut self) {
+        crate::profile_function!();
         let Some(window) = &self.window else {
-                return;
-            };
+            return;
+        };
         let Some(egui_winit) = &self.egui_winit else {
-                return;
-            };
+            return;
+        };
         egui_winit.update_viewport_info(&mut self.info, window);
     }
 }
@@ -834,10 +845,9 @@ fn render_immediate_viewport(
         }
         viewport.update_viewport_info();
 
-        let (Some(window), Some(winit_state)) = (&viewport.window, &mut viewport.egui_winit)
-            else {
-                return;
-            };
+        let (Some(window), Some(winit_state)) = (&viewport.window, &mut viewport.egui_winit) else {
+            return;
+        };
 
         let mut input = winit_state.take_egui_input(window, ids);
         input.viewports = viewports
@@ -873,14 +883,14 @@ fn render_immediate_viewport(
     } = &mut *shared;
 
     let Some(viewport) = viewports.get_mut(&ids.this) else {
-            return;
-        };
+        return;
+    };
     let Some(winit_state) = &mut viewport.egui_winit else {
-            return;
-        };
+        return;
+    };
     let Some(window) = &viewport.window else {
-            return;
-        };
+        return;
+    };
 
     if let Err(err) = pollster::block_on(painter.set_window(ids.this, Some(window))) {
         log::error!(

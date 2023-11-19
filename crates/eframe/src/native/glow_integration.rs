@@ -393,7 +393,7 @@ impl WinitApp for GlowWinitApp {
         event_loop: &EventLoopWindowTarget<UserEvent>,
         event: &winit::event::Event<'_, UserEvent>,
     ) -> Result<EventResult> {
-        crate::profile_function!();
+        crate::profile_function!(winit_integration::short_event_description(event));
 
         Ok(match event {
             winit::event::Event::Resumed => {
@@ -468,19 +468,20 @@ impl WinitApp for GlowWinitApp {
 
 impl GlowWinitRunning {
     fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
+        crate::profile_function!();
+
         let Some(viewport_id) = self
-                .glutin
-                .borrow()
-                .viewport_from_window
-                .get(&window_id)
-                .copied()
-            else {
-                return EventResult::Wait;
-            };
+            .glutin
+            .borrow()
+            .viewport_from_window
+            .get(&window_id)
+            .copied()
+        else {
+            return EventResult::Wait;
+        };
 
         #[cfg(feature = "puffin")]
         puffin::GlobalProfiler::lock().new_frame();
-        crate::profile_scope!("frame");
 
         {
             let glutin = self.glutin.borrow();
@@ -565,15 +566,22 @@ impl GlowWinitRunning {
 
         let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
-        *current_gl_context = Some(
-            current_gl_context
-                .take()
-                .unwrap()
-                .make_not_current()
-                .unwrap()
-                .make_current(gl_surface)
-                .unwrap(),
-        );
+        {
+            // TODO: only do this if we actually have multiple viewports
+            crate::profile_scope!("change_gl_context");
+
+            let not_current = {
+                crate::profile_scope!("make_not_current");
+                current_gl_context
+                    .take()
+                    .unwrap()
+                    .make_not_current()
+                    .unwrap()
+            };
+
+            crate::profile_scope!("make_current");
+            *current_gl_context = Some(not_current.make_current(gl_surface).unwrap());
+        }
 
         let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
@@ -646,6 +654,8 @@ impl GlowWinitRunning {
         window_id: WindowId,
         event: &winit::event::WindowEvent<'_>,
     ) -> EventResult {
+        crate::profile_function!(egui_winit::short_window_event_description(event));
+
         let viewport_id = self
             .glutin
             .borrow()
@@ -710,7 +720,7 @@ impl GlowWinitRunning {
             if let Some(viewport_id) = viewport_id {
                 let mut glutin = self.glutin.borrow_mut();
                 if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
-                    break 'res self.integration.on_event(
+                    break 'res self.integration.on_window_event(
                         self.app.as_mut(),
                         event,
                         viewport.egui_winit.as_mut().unwrap(),
@@ -1127,11 +1137,11 @@ impl Viewport {
     /// Update the stored `ViewportInfo`.
     fn update_viewport_info(&mut self) {
         let Some(window) = &self.window else {
-                return;
-            };
+            return;
+        };
         let Some(egui_winit) = &self.egui_winit else {
-                return;
-            };
+            return;
+        };
         egui_winit.update_viewport_info(&mut self.info, window);
     }
 }
@@ -1245,15 +1255,15 @@ fn render_immediate_viewport(
         let mut glutin = glutin.borrow_mut();
 
         let Some(viewport) = glutin.viewports.get_mut(&ids.this) else {
-                return;
-            };
+            return;
+        };
         viewport.update_viewport_info();
         let Some(winit_state) = &mut viewport.egui_winit else {
-                return;
-            };
+            return;
+        };
         let Some(window) = &viewport.window else {
-                return;
-            };
+            return;
+        };
 
         let mut raw_input = winit_state.take_egui_input(window, ids);
         raw_input.viewports = glutin
@@ -1290,15 +1300,15 @@ fn render_immediate_viewport(
     } = &mut *glutin;
 
     let Some(viewport) = viewports.get_mut(&ids.this) else {
-            return;
-        };
+        return;
+    };
 
     let Some(winit_state) = &mut viewport.egui_winit else {
-            return;
-        };
+        return;
+    };
     let (Some(window), Some(gl_surface)) = (&viewport.window, &viewport.gl_surface) else {
-            return;
-        };
+        return;
+    };
 
     let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 

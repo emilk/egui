@@ -143,6 +143,7 @@ impl Painter {
         present_mode: wgpu::PresentMode,
     ) {
         crate::profile_function!();
+
         let usage = if surface_state.supports_screenshot {
             wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST
         } else {
@@ -188,12 +189,15 @@ impl Painter {
         viewport_id: ViewportId,
         window: Option<&winit::window::Window>,
     ) -> Result<(), crate::WgpuError> {
-        crate::profile_function!();
+        crate::profile_scope!("Painter::set_window"); // profle_function gives bad names for async functions
 
         if let Some(window) = window {
             let size = window.inner_size();
             if self.surfaces.get(&viewport_id).is_none() {
-                let surface = unsafe { self.instance.create_surface(&window)? };
+                let surface = unsafe {
+                    crate::profile_scope!("create_surface");
+                    self.instance.create_surface(&window)?
+                };
 
                 let render_state = if let Some(render_state) = &self.render_state {
                     render_state
@@ -241,19 +245,24 @@ impl Painter {
                         supports_screenshot,
                     },
                 );
-            }
 
-            let Some(width) = NonZeroU32::new(size.width) else {
-                log::debug!("The window width was zero; skipping generate textures");
-                return Ok(());
-            };
-            let Some(height) = NonZeroU32::new(size.height) else {
-                log::debug!("The window height was zero; skipping generate textures");
-                return Ok(());
-            };
-            self.resize_and_generate_depth_texture_view_and_msaa_view(viewport_id, width, height);
+                let Some(width) = NonZeroU32::new(size.width) else {
+                    log::debug!("The window width was zero; skipping generate textures");
+                    return Ok(());
+                };
+                let Some(height) = NonZeroU32::new(size.height) else {
+                    log::debug!("The window height was zero; skipping generate textures");
+                    return Ok(());
+                };
+
+                self.resize_and_generate_depth_texture_view_and_msaa_view(
+                    viewport_id,
+                    width,
+                    height,
+                );
+            }
         } else {
-            log::warn!("All surfaces was deleted!");
+            log::warn!("No window - clearing all surfaces");
             self.surfaces.clear();
         }
         Ok(())
