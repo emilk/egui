@@ -85,7 +85,7 @@ image = { version = "0.24", optional = true, default-features = false }
 # file feature
 mime_guess2 = { version = "2", optional = true, default-features = false }
 
-puffin = { version = "0.16", optional = true }
+puffin = { workspace = true, optional = true }
 
 syntect = { version = "5", optional = true, default-features = false, features = [
   "default-fancy",
