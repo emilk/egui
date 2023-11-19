@@ -7,7 +7,7 @@ use winit::event_loop::EventLoopWindowTarget;
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 
 use egui::{DeferredViewportUiCallback, NumExt as _, ViewportBuilder, ViewportId};
-use egui_winit::{short_window_event_description, EventResponse, WindowSettings};
+use egui_winit::{EventResponse, WindowSettings};
 
 use crate::{epi, Theme};
 
@@ -225,7 +225,7 @@ impl EpiIntegration {
         egui_winit: &mut egui_winit::State,
         viewport_id: ViewportId,
     ) -> EventResponse {
-        crate::profile_function!(short_window_event_description(event));
+        crate::profile_function!(egui_winit::short_window_event_description(event));
 
         use winit::event::{ElementState, MouseButton, WindowEvent};
 

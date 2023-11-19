@@ -20,7 +20,7 @@ use egui::{
 use egui_winit::accesskit_winit;
 use egui_winit::{
     apply_viewport_builder_to_new_window, create_winit_window_builder, process_viewport_commands,
-    short_window_event_description, EventResponse,
+    EventResponse,
 };
 
 use crate::{
@@ -654,7 +654,7 @@ impl GlowWinitRunning {
         window_id: WindowId,
         event: &winit::event::WindowEvent<'_>,
     ) -> EventResult {
-        crate::profile_function!(short_window_event_description(event));
+        crate::profile_function!(egui_winit::short_window_event_description(event));
 
         let viewport_id = self
             .glutin
