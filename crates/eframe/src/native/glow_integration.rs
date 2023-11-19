@@ -24,8 +24,8 @@ use egui_winit::{
 };
 
 use crate::{
-    native::{epi_integration::EpiIntegration, winit_integration::short_event_description},
-    App, AppCreator, CreationContext, NativeOptions, Result, Storage,
+    native::epi_integration::EpiIntegration, App, AppCreator, CreationContext, NativeOptions,
+    Result, Storage,
 };
 
 use super::{
@@ -393,7 +393,7 @@ impl WinitApp for GlowWinitApp {
         event_loop: &EventLoopWindowTarget<UserEvent>,
         event: &winit::event::Event<'_, UserEvent>,
     ) -> Result<EventResult> {
-        crate::profile_function!(short_event_description(event));
+        crate::profile_function!(winit_integration::short_event_description(event));
 
         Ok(match event {
             winit::event::Event::Resumed => {
