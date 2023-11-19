@@ -58,8 +58,6 @@ pub struct GlowWinitApp {
     // re-initializing the `GlowWinitRunning` state on Android if the application
     // suspends and resumes.
     app_creator: Option<AppCreator>,
-
-    focused_viewport: Option<ViewportId>,
 }
 
 /// State that is initialized when the application is first starts running via
@@ -99,6 +97,8 @@ struct GlutinWindowContext {
     viewports: ViewportIdMap<Viewport>,
     viewport_from_window: HashMap<WindowId, ViewportId>,
     window_from_viewport: ViewportIdMap<WindowId>,
+
+    focused_viewport: Option<ViewportId>,
 }
 
 struct Viewport {
@@ -133,7 +133,6 @@ impl GlowWinitApp {
             native_options,
             running: None,
             app_creator: Some(app_creator),
-            focused_viewport: Some(ViewportId::ROOT),
         }
     }
 
@@ -337,15 +336,13 @@ impl WinitApp for GlowWinitApp {
     }
 
     fn is_focused(&self, window_id: WindowId) -> bool {
-        if let Some(focused_viewport) = self.focused_viewport {
-            if let Some(running) = &self.running {
-                if let Some(window_id) =
-                    running.glutin.borrow().viewport_from_window.get(&window_id)
-                {
-                    return focused_viewport == *window_id;
-                }
+        if let Some(running) = &self.running {
+            let glutin = running.glutin.borrow();
+            if let Some(window_id) = glutin.viewport_from_window.get(&window_id) {
+                return glutin.focused_viewport == Some(*window_id);
             }
         }
+
         false
     }
 
@@ -385,7 +382,7 @@ impl WinitApp for GlowWinitApp {
 
     fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
         if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(window_id, self.focused_viewport)
+            running.run_ui_and_paint(window_id)
         } else {
             EventResult::Wait
         }
@@ -437,7 +434,7 @@ impl WinitApp for GlowWinitApp {
 
             winit::event::Event::WindowEvent { event, window_id } => {
                 if let Some(running) = &mut self.running {
-                    running.on_window_event(*window_id, event, &mut self.focused_viewport)
+                    running.on_window_event(*window_id, event)
                 } else {
                     EventResult::Wait
                 }
@@ -470,11 +467,7 @@ impl WinitApp for GlowWinitApp {
 }
 
 impl GlowWinitRunning {
-    fn run_ui_and_paint(
-        &mut self,
-        window_id: WindowId,
-        focused_viewport: Option<ViewportId>,
-    ) -> EventResult {
+    fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
         let Some(viewport_id) = self
                 .glutin
                 .borrow()
@@ -639,7 +632,7 @@ impl GlowWinitRunning {
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
 
-        glutin.handle_viewport_output(viewport_output, focused_viewport);
+        glutin.handle_viewport_output(viewport_output);
 
         if integration.should_close() {
             EventResult::Exit
@@ -652,7 +645,6 @@ impl GlowWinitRunning {
         &mut self,
         window_id: WindowId,
         event: &winit::event::WindowEvent<'_>,
-        focused_viewport: &mut Option<ViewportId>,
     ) -> EventResult {
         let viewport_id = self
             .glutin
@@ -678,7 +670,8 @@ impl GlowWinitRunning {
 
         match event {
             winit::event::WindowEvent::Focused(new_focused) => {
-                *focused_viewport = new_focused.then(|| viewport_id).flatten();
+                self.glutin.borrow_mut().focused_viewport =
+                    new_focused.then(|| viewport_id).flatten();
             }
 
             winit::event::WindowEvent::Resized(physical_size) => {
@@ -902,6 +895,7 @@ impl GlutinWindowContext {
             viewport_from_window,
             max_texture_side: None,
             window_from_viewport,
+            focused_viewport: Some(ViewportId::ROOT),
         };
 
         slf.on_resume(event_loop)?;
@@ -1079,11 +1073,7 @@ impl GlutinWindowContext {
         self.gl_config.display().get_proc_address(addr)
     }
 
-    fn handle_viewport_output(
-        &mut self,
-        viewport_output: ViewportIdMap<ViewportOutput>,
-        focused_viewport: Option<ViewportId>,
-    ) {
+    fn handle_viewport_output(&mut self, viewport_output: ViewportIdMap<ViewportOutput>) {
         crate::profile_function!();
 
         let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
@@ -1108,11 +1098,11 @@ impl GlutinWindowContext {
                 class,
                 builder,
                 viewport_ui_cb,
-                focused_viewport,
+                self.focused_viewport,
             );
 
             if let Some(window) = &viewport.window {
-                let is_viewport_focused = focused_viewport == Some(viewport_id);
+                let is_viewport_focused = self.focused_viewport == Some(viewport_id);
                 egui_winit::process_viewport_commands(
                     &mut viewport.info,
                     commands,
@@ -1351,8 +1341,7 @@ fn render_immediate_viewport(
 
     winit_state.handle_platform_output(window, ids.this, egui_ctx, platform_output);
 
-    let focused_viewport = None; // TODO
-    glutin.handle_viewport_output(viewport_output, focused_viewport);
+    glutin.handle_viewport_output(viewport_output);
 }
 
 #[cfg(feature = "__screenshot")]

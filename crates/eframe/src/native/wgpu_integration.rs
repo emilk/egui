@@ -38,8 +38,6 @@ pub struct WgpuWinitApp {
 
     /// Set when we are actually up and running.
     running: Option<WgpuWinitRunning>,
-
-    focused_viewport: Option<ViewportId>,
 }
 
 /// State that is initialized when the application is first starts running via
@@ -62,6 +60,7 @@ pub struct SharedState {
     viewports: Viewports,
     painter: egui_wgpu::winit::Painter,
     viewport_from_window: HashMap<WindowId, ViewportId>,
+    focused_viewport: Option<ViewportId>,
 }
 
 pub type Viewports = ViewportIdMap<Viewport>;
@@ -107,7 +106,6 @@ impl WgpuWinitApp {
             native_options,
             running: None,
             app_creator: Some(app_creator),
-            focused_viewport: Some(ViewportId::ROOT),
         }
     }
 
@@ -120,6 +118,7 @@ impl WgpuWinitApp {
             viewports,
             painter,
             viewport_from_window,
+            ..
         } = &mut *shared;
 
         for viewport in viewports.values_mut() {
@@ -253,6 +252,7 @@ impl WgpuWinitApp {
             viewport_from_window,
             viewports,
             painter,
+            focused_viewport: Some(ViewportId::ROOT),
         }));
 
         {
@@ -298,15 +298,13 @@ impl WinitApp for WgpuWinitApp {
     }
 
     fn is_focused(&self, window_id: WindowId) -> bool {
-        let viewport_id = self.running.as_ref().and_then(|r| {
-            r.shared
-                .borrow()
-                .viewport_from_window
-                .get(&window_id)
-                .copied()
-        });
-
-        self.focused_viewport.is_some() && self.focused_viewport == viewport_id
+        if let Some(running) = &self.running {
+            let shared = running.shared.borrow();
+            let viewport_id = shared.viewport_from_window.get(&window_id).copied();
+            shared.focused_viewport.is_some() && shared.focused_viewport == viewport_id
+        } else {
+            false
+        }
     }
 
     fn integration(&self) -> Option<&EpiIntegration> {
@@ -348,7 +346,7 @@ impl WinitApp for WgpuWinitApp {
 
     fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
         if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(window_id, self.focused_viewport)
+            running.run_ui_and_paint(window_id)
         } else {
             EventResult::Wait
         }
@@ -397,7 +395,7 @@ impl WinitApp for WgpuWinitApp {
 
             winit::event::Event::WindowEvent { event, window_id } => {
                 if let Some(running) = &mut self.running {
-                    running.on_window_event(*window_id, event, &mut self.focused_viewport)
+                    running.on_window_event(*window_id, event)
                 } else {
                     EventResult::Wait
                 }
@@ -453,11 +451,7 @@ impl WgpuWinitRunning {
     }
 
     /// This is called both for the root viewport, and all deferred viewports
-    fn run_ui_and_paint(
-        &mut self,
-        window_id: WindowId,
-        focused_viewport: Option<ViewportId>,
-    ) -> EventResult {
+    fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
         let Some(viewport_id) = self
                 .shared
                 .borrow()
@@ -553,6 +547,7 @@ impl WgpuWinitRunning {
             viewports,
             painter,
             viewport_from_window,
+            focused_viewport,
         } = &mut *shared;
 
         let Some(viewport) = viewports.get_mut(&viewport_id) else {
@@ -607,7 +602,7 @@ impl WgpuWinitRunning {
 
         let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
-        handle_viewport_output(viewport_output, viewports, focused_viewport);
+        handle_viewport_output(viewport_output, viewports, *focused_viewport);
 
         // Prune dead viewports:
         viewports.retain(|id, _| active_viewports_ids.contains(id));
@@ -641,7 +636,6 @@ impl WgpuWinitRunning {
         &mut self,
         window_id: WindowId,
         event: &winit::event::WindowEvent<'_>,
-        focused_viewport: &mut Option<ViewportId>,
     ) -> EventResult {
         let Self {
             integration,
@@ -669,7 +663,7 @@ impl WgpuWinitRunning {
 
         match event {
             winit::event::WindowEvent::Focused(new_focused) => {
-                *focused_viewport = new_focused.then(|| viewport_id).flatten();
+                shared.focused_viewport = new_focused.then(|| viewport_id).flatten();
             }
 
             winit::event::WindowEvent::Resized(physical_size) => {
@@ -824,6 +818,7 @@ fn render_immediate_viewport(
             viewports,
             painter,
             viewport_from_window,
+            ..
         } = &mut *shared.borrow_mut();
 
         let viewport = initialize_or_update_viewport(
@@ -871,7 +866,10 @@ fn render_immediate_viewport(
 
     let mut shared = shared.borrow_mut();
     let SharedState {
-        viewports, painter, ..
+        viewports,
+        painter,
+        focused_viewport,
+        ..
     } = &mut *shared;
 
     let Some(viewport) = viewports.get_mut(&ids.this) else {
@@ -903,8 +901,7 @@ fn render_immediate_viewport(
 
     winit_state.handle_platform_output(window, ids.this, egui_ctx, platform_output);
 
-    let focused_viewport = None; // TODO
-    handle_viewport_output(viewport_output, viewports, focused_viewport);
+    handle_viewport_output(viewport_output, viewports, *focused_viewport);
 }
 
 /// Add new viewports, and update existing ones:
