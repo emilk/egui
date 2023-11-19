@@ -45,6 +45,23 @@ use super::{
 // API that would allow us to just destroy a Window/Surface when suspending, see:
 // https://github.com/rust-windowing/glutin/pull/1435
 
+// ----------------------------------------------------------------------------
+// Types:
+
+pub struct GlowWinitApp {
+    repaint_proxy: Arc<egui::mutex::Mutex<EventLoopProxy<UserEvent>>>,
+    app_name: String,
+    native_options: NativeOptions,
+    running: Option<GlowWinitRunning>,
+
+    // Note that since this `AppCreator` is FnOnce we are currently unable to support
+    // re-initializing the `GlowWinitRunning` state on Android if the application
+    // suspends and resumes.
+    app_creator: Option<AppCreator>,
+
+    focused_viewport: Option<ViewportId>,
+}
+
 /// State that is initialized when the application is first starts running via
 /// a Resumed event. On Android this ensures that any graphics state is only
 /// initialized once the application has an associated `SurfaceView`.
@@ -55,6 +72,401 @@ struct GlowWinitRunning {
     // These needs to be shared with the immediate viewport renderer, hence the Rc/Arc/RefCells:
     glutin: Rc<RefCell<GlutinWindowContext>>,
     painter: Rc<RefCell<egui_glow::Painter>>,
+}
+
+/// This struct will contain both persistent and temporary glutin state.
+///
+/// Platform Quirks:
+/// * Microsoft Windows: requires that we create a window before opengl context.
+/// * Android: window and surface should be destroyed when we receive a suspend event. recreate on resume event.
+///
+/// winit guarantees that we will get a Resumed event on startup on all platforms.
+/// * Before Resumed event: `gl_config`, `gl_context` can be created at any time. on windows, a window must be created to get `gl_context`.
+/// * Resumed: `gl_surface` will be created here. `window` will be re-created here for android.
+/// * Suspended: on android, we drop window + surface.  on other platforms, we don't get Suspended event.
+///
+/// The setup is divided between the `new` fn and `on_resume` fn. we can just assume that `on_resume` is a continuation of
+/// `new` fn on all platforms. only on android, do we get multiple resumed events because app can be suspended.
+struct GlutinWindowContext {
+    swap_interval: glutin::surface::SwapInterval,
+    gl_config: glutin::config::Config,
+
+    max_texture_side: Option<usize>,
+
+    current_gl_context: Option<glutin::context::PossiblyCurrentContext>,
+    not_current_gl_context: Option<glutin::context::NotCurrentContext>,
+
+    viewports: ViewportIdMap<Viewport>,
+    viewport_from_window: HashMap<WindowId, ViewportId>,
+    window_from_viewport: ViewportIdMap<WindowId>,
+}
+
+struct Viewport {
+    ids: ViewportIdPair,
+    class: ViewportClass,
+    builder: ViewportBuilder,
+    info: ViewportInfo,
+    screenshot_requested: bool,
+
+    /// The user-callback that shows the ui.
+    /// None for immediate viewports.
+    viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
+
+    gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
+    window: Option<Rc<Window>>,
+    egui_winit: Option<egui_winit::State>,
+}
+
+// ----------------------------------------------------------------------------
+
+impl GlowWinitApp {
+    pub fn new(
+        event_loop: &EventLoop<UserEvent>,
+        app_name: &str,
+        native_options: NativeOptions,
+        app_creator: AppCreator,
+    ) -> Self {
+        crate::profile_function!();
+        Self {
+            repaint_proxy: Arc::new(egui::mutex::Mutex::new(event_loop.create_proxy())),
+            app_name: app_name.to_owned(),
+            native_options,
+            running: None,
+            app_creator: Some(app_creator),
+            focused_viewport: Some(ViewportId::ROOT),
+        }
+    }
+
+    #[allow(unsafe_code)]
+    fn create_glutin_windowed_context(
+        event_loop: &EventLoopWindowTarget<UserEvent>,
+        storage: Option<&dyn Storage>,
+        native_options: &mut NativeOptions,
+    ) -> Result<(GlutinWindowContext, egui_glow::Painter)> {
+        crate::profile_function!();
+
+        let window_settings = epi_integration::load_window_settings(storage);
+
+        let winit_window_builder =
+            epi_integration::viewport_builder(event_loop, native_options, window_settings);
+
+        let mut glutin_window_context =
+            unsafe { GlutinWindowContext::new(winit_window_builder, native_options, event_loop)? };
+
+        // Creates the window - must come before we create our glow context
+        glutin_window_context.on_resume(event_loop)?;
+
+        if let Some(viewport) = glutin_window_context.viewports.get(&ViewportId::ROOT) {
+            if let Some(window) = &viewport.window {
+                epi_integration::apply_window_settings(window, window_settings);
+            }
+        }
+
+        let gl = unsafe {
+            crate::profile_scope!("glow::Context::from_loader_function");
+            Arc::new(glow::Context::from_loader_function(|s| {
+                let s = std::ffi::CString::new(s)
+                    .expect("failed to construct C string from string for gl proc address");
+
+                glutin_window_context.get_proc_address(&s)
+            }))
+        };
+
+        let painter = egui_glow::Painter::new(gl, "", native_options.shader_version)?;
+
+        Ok((glutin_window_context, painter))
+    }
+
+    fn init_run_state(
+        &mut self,
+        event_loop: &EventLoopWindowTarget<UserEvent>,
+    ) -> Result<&mut GlowWinitRunning> {
+        crate::profile_function!();
+
+        let storage = epi_integration::create_storage(
+            self.native_options
+                .viewport
+                .app_id
+                .as_ref()
+                .unwrap_or(&self.app_name),
+        );
+
+        let (mut glutin, painter) = Self::create_glutin_windowed_context(
+            event_loop,
+            storage.as_deref(),
+            &mut self.native_options,
+        )?;
+        let gl = painter.gl().clone();
+
+        let max_texture_side = painter.max_texture_side();
+        glutin.max_texture_side = Some(max_texture_side);
+        for viewport in glutin.viewports.values_mut() {
+            if let Some(egui_winit) = viewport.egui_winit.as_mut() {
+                egui_winit.set_max_texture_side(max_texture_side);
+            }
+        }
+
+        let system_theme =
+            winit_integration::system_theme(&glutin.window(ViewportId::ROOT), &self.native_options);
+
+        let mut integration = EpiIntegration::new(
+            &glutin.window(ViewportId::ROOT),
+            system_theme,
+            &self.app_name,
+            &self.native_options,
+            storage,
+            winit_integration::IS_DESKTOP,
+            Some(gl.clone()),
+            #[cfg(feature = "wgpu")]
+            None,
+        );
+
+        {
+            let event_loop_proxy = self.repaint_proxy.clone();
+            integration
+                .egui_ctx
+                .set_request_repaint_callback(move |info| {
+                    log::trace!("request_repaint_callback: {info:?}");
+                    let when = Instant::now() + info.delay;
+                    let frame_nr = info.current_frame_nr;
+                    event_loop_proxy
+                        .lock()
+                        .send_event(UserEvent::RequestRepaint {
+                            viewport_id: info.viewport_id,
+                            when,
+                            frame_nr,
+                        })
+                        .ok();
+                });
+        }
+
+        #[cfg(feature = "accesskit")]
+        {
+            let event_loop_proxy = self.repaint_proxy.lock().clone();
+            let viewport = glutin.viewports.get_mut(&ViewportId::ROOT).unwrap();
+            if let Viewport {
+                window: Some(window),
+                egui_winit: Some(egui_winit),
+                ..
+            } = viewport
+            {
+                integration.init_accesskit(egui_winit, window, event_loop_proxy);
+            }
+        }
+
+        let theme = system_theme.unwrap_or(self.native_options.default_theme);
+        integration.egui_ctx.set_visuals(theme.egui_visuals());
+
+        if self
+            .native_options
+            .viewport
+            .mouse_passthrough
+            .unwrap_or(false)
+        {
+            if let Err(err) = glutin.window(ViewportId::ROOT).set_cursor_hittest(false) {
+                log::warn!("set_cursor_hittest(false) failed: {err}");
+            }
+        }
+
+        let app_creator = std::mem::take(&mut self.app_creator)
+            .expect("Single-use AppCreator has unexpectedly already been taken");
+
+        let app = {
+            let window = glutin.window(ViewportId::ROOT);
+            let cc = CreationContext {
+                egui_ctx: integration.egui_ctx.clone(),
+                integration_info: integration.frame.info().clone(),
+                storage: integration.frame.storage(),
+                gl: Some(gl),
+                #[cfg(feature = "wgpu")]
+                wgpu_render_state: None,
+                raw_display_handle: window.raw_display_handle(),
+                raw_window_handle: window.raw_window_handle(),
+            };
+            crate::profile_scope!("app_creator");
+            app_creator(&cc)
+        };
+
+        let glutin = Rc::new(RefCell::new(glutin));
+        let painter = Rc::new(RefCell::new(painter));
+
+        {
+            // Create weak pointers so that we don't keep
+            // state alive for too long.
+            let glutin = Rc::downgrade(&glutin);
+            let painter = Rc::downgrade(&painter);
+            let beginning = integration.beginning;
+
+            let event_loop: *const EventLoopWindowTarget<UserEvent> = event_loop;
+
+            egui::Context::set_immediate_viewport_renderer(move |egui_ctx, immediate_viewport| {
+                if let (Some(glutin), Some(painter)) = (glutin.upgrade(), painter.upgrade()) {
+                    // SAFETY: the event loop lives longer than
+                    // the Rc:s we just upgraded above.
+                    #[allow(unsafe_code)]
+                    let event_loop = unsafe { event_loop.as_ref().unwrap() };
+
+                    render_immediate_viewport(
+                        event_loop,
+                        egui_ctx,
+                        &glutin,
+                        &painter,
+                        beginning,
+                        immediate_viewport,
+                    );
+                } else {
+                    log::warn!("render_sync_callback called after window closed");
+                }
+            });
+        }
+
+        Ok(self.running.insert(GlowWinitRunning {
+            glutin,
+            painter,
+            integration,
+            app,
+        }))
+    }
+}
+
+impl WinitApp for GlowWinitApp {
+    fn frame_nr(&self, viewport_id: ViewportId) -> u64 {
+        self.running
+            .as_ref()
+            .map_or(0, |r| r.integration.egui_ctx.frame_nr_for(viewport_id))
+    }
+
+    fn is_focused(&self, window_id: WindowId) -> bool {
+        if let Some(focused_viewport) = self.focused_viewport {
+            if let Some(running) = &self.running {
+                if let Some(window_id) =
+                    running.glutin.borrow().viewport_from_window.get(&window_id)
+                {
+                    return focused_viewport == *window_id;
+                }
+            }
+        }
+        false
+    }
+
+    fn integration(&self) -> Option<&EpiIntegration> {
+        self.running.as_ref().map(|r| &r.integration)
+    }
+
+    fn window(&self, window_id: WindowId) -> Option<Rc<Window>> {
+        let running = self.running.as_ref()?;
+        let glutin = running.glutin.borrow();
+        let viewport_id = *glutin.viewport_from_window.get(&window_id)?;
+        if let Some(viewport) = glutin.viewports.get(&viewport_id) {
+            viewport.window.clone()
+        } else {
+            None
+        }
+    }
+
+    fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId> {
+        self.running
+            .as_ref()
+            .and_then(|r| r.glutin.borrow().window_from_viewport.get(&id).copied())
+    }
+
+    fn save_and_destroy(&mut self) {
+        if let Some(mut running) = self.running.take() {
+            crate::profile_function!();
+
+            running.integration.save(
+                running.app.as_mut(),
+                Some(&running.glutin.borrow().window(ViewportId::ROOT)),
+            );
+            running.app.on_exit(Some(running.painter.borrow().gl()));
+            running.painter.borrow_mut().destroy();
+        }
+    }
+
+    fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
+        if let Some(running) = &mut self.running {
+            running.run_ui_and_paint(window_id, self.focused_viewport)
+        } else {
+            EventResult::Wait
+        }
+    }
+
+    fn on_event(
+        &mut self,
+        event_loop: &EventLoopWindowTarget<UserEvent>,
+        event: &winit::event::Event<'_, UserEvent>,
+    ) -> Result<EventResult> {
+        crate::profile_function!();
+
+        Ok(match event {
+            winit::event::Event::Resumed => {
+                let running = if let Some(running) = &mut self.running {
+                    // not the first resume event. create whatever you need.
+                    running.glutin.borrow_mut().on_resume(event_loop)?;
+                    running
+                } else {
+                    // first resume event.
+                    // we can actually move this outside of event loop.
+                    // and just run the on_resume fn of gl_window
+                    self.init_run_state(event_loop)?
+                };
+                let window_id = running
+                    .glutin
+                    .borrow()
+                    .window_from_viewport
+                    .get(&ViewportId::ROOT)
+                    .copied();
+                EventResult::RepaintNow(window_id.unwrap())
+            }
+
+            winit::event::Event::Suspended => {
+                if let Some(running) = &mut self.running {
+                    running.glutin.borrow_mut().on_suspend()?;
+                }
+                EventResult::Wait
+            }
+
+            winit::event::Event::MainEventsCleared => {
+                if let Some(running) = &self.running {
+                    if let Err(err) = running.glutin.borrow_mut().on_resume(event_loop) {
+                        log::warn!("on_resume failed {err}");
+                    }
+                }
+                EventResult::Wait
+            }
+
+            winit::event::Event::WindowEvent { event, window_id } => {
+                if let Some(running) = &mut self.running {
+                    running.on_window_event(*window_id, event, &mut self.focused_viewport)
+                } else {
+                    EventResult::Wait
+                }
+            }
+
+            #[cfg(feature = "accesskit")]
+            winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
+                accesskit_winit::ActionRequestEvent { request, window_id },
+            )) => {
+                if let Some(running) = &self.running {
+                    let mut glutin = running.glutin.borrow_mut();
+                    if let Some(viewport_id) = glutin.viewport_from_window.get(window_id).copied() {
+                        if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
+                            if let Some(egui_winit) = &mut viewport.egui_winit {
+                                crate::profile_scope!("on_accesskit_action_request");
+                                egui_winit.on_accesskit_action_request(request.clone());
+                            }
+                        }
+                    }
+                    // As a form of user input, accessibility actions should
+                    // lead to a repaint.
+                    EventResult::RepaintNext(*window_id)
+                } else {
+                    EventResult::Wait
+                }
+            }
+            _ => EventResult::Wait,
+        })
+    }
 }
 
 impl GlowWinitRunning {
@@ -332,89 +744,6 @@ impl GlowWinitRunning {
             EventResult::Wait
         }
     }
-}
-
-#[cfg(feature = "__screenshot")]
-fn save_screeshot_and_exit(
-    path: &str,
-    painter: &egui_glow::Painter,
-    screen_size_in_pixels: [u32; 2],
-) {
-    assert!(
-        path.ends_with(".png"),
-        "Expected EFRAME_SCREENSHOT_TO to end with '.png', got {path:?}"
-    );
-    let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
-    image::save_buffer(
-        path,
-        screenshot.as_raw(),
-        screenshot.width() as u32,
-        screenshot.height() as u32,
-        image::ColorType::Rgba8,
-    )
-    .unwrap_or_else(|err| {
-        panic!("Failed to save screenshot to {path:?}: {err}");
-    });
-    eprintln!("Screenshot saved to {path:?}.");
-
-    #[allow(clippy::exit)]
-    std::process::exit(0);
-}
-
-struct Viewport {
-    ids: ViewportIdPair,
-    class: ViewportClass,
-    builder: ViewportBuilder,
-    info: ViewportInfo,
-    screenshot_requested: bool,
-
-    /// The user-callback that shows the ui.
-    /// None for immediate viewports.
-    viewport_ui_cb: Option<Arc<DeferredViewportUiCallback>>,
-
-    gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
-    window: Option<Rc<Window>>,
-    egui_winit: Option<egui_winit::State>,
-}
-
-impl Viewport {
-    /// Update the stored `ViewportInfo`.
-    fn update_viewport_info(&mut self) {
-        let Some(window) = &self.window else {
-                return;
-            };
-        let Some(egui_winit) = &self.egui_winit else {
-                return;
-            };
-        egui_winit.update_viewport_info(&mut self.info, window);
-    }
-}
-
-/// This struct will contain both persistent and temporary glutin state.
-///
-/// Platform Quirks:
-/// * Microsoft Windows: requires that we create a window before opengl context.
-/// * Android: window and surface should be destroyed when we receive a suspend event. recreate on resume event.
-///
-/// winit guarantees that we will get a Resumed event on startup on all platforms.
-/// * Before Resumed event: `gl_config`, `gl_context` can be created at any time. on windows, a window must be created to get `gl_context`.
-/// * Resumed: `gl_surface` will be created here. `window` will be re-created here for android.
-/// * Suspended: on android, we drop window + surface.  on other platforms, we don't get Suspended event.
-///
-/// The setup is divided between the `new` fn and `on_resume` fn. we can just assume that `on_resume` is a continuation of
-/// `new` fn on all platforms. only on android, do we get multiple resumed events because app can be suspended.
-struct GlutinWindowContext {
-    swap_interval: glutin::surface::SwapInterval,
-    gl_config: glutin::config::Config,
-
-    max_texture_side: Option<usize>,
-
-    current_gl_context: Option<glutin::context::PossiblyCurrentContext>,
-    not_current_gl_context: Option<glutin::context::NotCurrentContext>,
-
-    viewports: ViewportIdMap<Viewport>,
-    viewport_from_window: HashMap<WindowId, ViewportId>,
-    window_from_viewport: ViewportIdMap<WindowId>,
 }
 
 impl GlutinWindowContext {
@@ -804,6 +1133,19 @@ impl GlutinWindowContext {
     }
 }
 
+impl Viewport {
+    /// Update the stored `ViewportInfo`.
+    fn update_viewport_info(&mut self) {
+        let Some(window) = &self.window else {
+                return;
+            };
+        let Some(egui_winit) = &self.egui_winit else {
+                return;
+            };
+        egui_winit.update_viewport_info(&mut self.info, window);
+    }
+}
+
 fn initialize_or_update_viewport(
     viewports: &mut ViewportIdMap<Viewport>,
     ids: ViewportIdPair,
@@ -869,230 +1211,6 @@ fn initialize_or_update_viewport(
 
             entry.into_mut()
         }
-    }
-}
-
-pub struct GlowWinitApp {
-    repaint_proxy: Arc<egui::mutex::Mutex<EventLoopProxy<UserEvent>>>,
-    app_name: String,
-    native_options: NativeOptions,
-    running: Option<GlowWinitRunning>,
-
-    // Note that since this `AppCreator` is FnOnce we are currently unable to support
-    // re-initializing the `GlowWinitRunning` state on Android if the application
-    // suspends and resumes.
-    app_creator: Option<AppCreator>,
-
-    focused_viewport: Option<ViewportId>,
-}
-
-impl GlowWinitApp {
-    pub fn new(
-        event_loop: &EventLoop<UserEvent>,
-        app_name: &str,
-        native_options: NativeOptions,
-        app_creator: AppCreator,
-    ) -> Self {
-        crate::profile_function!();
-        Self {
-            repaint_proxy: Arc::new(egui::mutex::Mutex::new(event_loop.create_proxy())),
-            app_name: app_name.to_owned(),
-            native_options,
-            running: None,
-            app_creator: Some(app_creator),
-            focused_viewport: Some(ViewportId::ROOT),
-        }
-    }
-
-    #[allow(unsafe_code)]
-    fn create_glutin_windowed_context(
-        event_loop: &EventLoopWindowTarget<UserEvent>,
-        storage: Option<&dyn Storage>,
-        native_options: &mut NativeOptions,
-    ) -> Result<(GlutinWindowContext, egui_glow::Painter)> {
-        crate::profile_function!();
-
-        let window_settings = epi_integration::load_window_settings(storage);
-
-        let winit_window_builder =
-            epi_integration::viewport_builder(event_loop, native_options, window_settings);
-
-        let mut glutin_window_context =
-            unsafe { GlutinWindowContext::new(winit_window_builder, native_options, event_loop)? };
-
-        // Creates the window - must come before we create our glow context
-        glutin_window_context.on_resume(event_loop)?;
-
-        if let Some(viewport) = glutin_window_context.viewports.get(&ViewportId::ROOT) {
-            if let Some(window) = &viewport.window {
-                epi_integration::apply_window_settings(window, window_settings);
-            }
-        }
-
-        let gl = unsafe {
-            crate::profile_scope!("glow::Context::from_loader_function");
-            Arc::new(glow::Context::from_loader_function(|s| {
-                let s = std::ffi::CString::new(s)
-                    .expect("failed to construct C string from string for gl proc address");
-
-                glutin_window_context.get_proc_address(&s)
-            }))
-        };
-
-        let painter = egui_glow::Painter::new(gl, "", native_options.shader_version)?;
-
-        Ok((glutin_window_context, painter))
-    }
-
-    fn init_run_state(
-        &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
-    ) -> Result<&mut GlowWinitRunning> {
-        crate::profile_function!();
-
-        let storage = epi_integration::create_storage(
-            self.native_options
-                .viewport
-                .app_id
-                .as_ref()
-                .unwrap_or(&self.app_name),
-        );
-
-        let (mut glutin, painter) = Self::create_glutin_windowed_context(
-            event_loop,
-            storage.as_deref(),
-            &mut self.native_options,
-        )?;
-        let gl = painter.gl().clone();
-
-        let max_texture_side = painter.max_texture_side();
-        glutin.max_texture_side = Some(max_texture_side);
-        for viewport in glutin.viewports.values_mut() {
-            if let Some(egui_winit) = viewport.egui_winit.as_mut() {
-                egui_winit.set_max_texture_side(max_texture_side);
-            }
-        }
-
-        let system_theme =
-            winit_integration::system_theme(&glutin.window(ViewportId::ROOT), &self.native_options);
-
-        let mut integration = EpiIntegration::new(
-            &glutin.window(ViewportId::ROOT),
-            system_theme,
-            &self.app_name,
-            &self.native_options,
-            storage,
-            winit_integration::IS_DESKTOP,
-            Some(gl.clone()),
-            #[cfg(feature = "wgpu")]
-            None,
-        );
-
-        {
-            let event_loop_proxy = self.repaint_proxy.clone();
-            integration
-                .egui_ctx
-                .set_request_repaint_callback(move |info| {
-                    log::trace!("request_repaint_callback: {info:?}");
-                    let when = Instant::now() + info.delay;
-                    let frame_nr = info.current_frame_nr;
-                    event_loop_proxy
-                        .lock()
-                        .send_event(UserEvent::RequestRepaint {
-                            viewport_id: info.viewport_id,
-                            when,
-                            frame_nr,
-                        })
-                        .ok();
-                });
-        }
-
-        #[cfg(feature = "accesskit")]
-        {
-            let event_loop_proxy = self.repaint_proxy.lock().clone();
-            let viewport = glutin.viewports.get_mut(&ViewportId::ROOT).unwrap();
-            if let Viewport {
-                window: Some(window),
-                egui_winit: Some(egui_winit),
-                ..
-            } = viewport
-            {
-                integration.init_accesskit(egui_winit, window, event_loop_proxy);
-            }
-        }
-
-        let theme = system_theme.unwrap_or(self.native_options.default_theme);
-        integration.egui_ctx.set_visuals(theme.egui_visuals());
-
-        if self
-            .native_options
-            .viewport
-            .mouse_passthrough
-            .unwrap_or(false)
-        {
-            if let Err(err) = glutin.window(ViewportId::ROOT).set_cursor_hittest(false) {
-                log::warn!("set_cursor_hittest(false) failed: {err}");
-            }
-        }
-
-        let app_creator = std::mem::take(&mut self.app_creator)
-            .expect("Single-use AppCreator has unexpectedly already been taken");
-
-        let app = {
-            let window = glutin.window(ViewportId::ROOT);
-            let cc = CreationContext {
-                egui_ctx: integration.egui_ctx.clone(),
-                integration_info: integration.frame.info().clone(),
-                storage: integration.frame.storage(),
-                gl: Some(gl),
-                #[cfg(feature = "wgpu")]
-                wgpu_render_state: None,
-                raw_display_handle: window.raw_display_handle(),
-                raw_window_handle: window.raw_window_handle(),
-            };
-            crate::profile_scope!("app_creator");
-            app_creator(&cc)
-        };
-
-        let glutin = Rc::new(RefCell::new(glutin));
-        let painter = Rc::new(RefCell::new(painter));
-
-        {
-            // Create weak pointers so that we don't keep
-            // state alive for too long.
-            let glutin = Rc::downgrade(&glutin);
-            let painter = Rc::downgrade(&painter);
-            let beginning = integration.beginning;
-
-            let event_loop: *const EventLoopWindowTarget<UserEvent> = event_loop;
-
-            egui::Context::set_immediate_viewport_renderer(move |egui_ctx, immediate_viewport| {
-                if let (Some(glutin), Some(painter)) = (glutin.upgrade(), painter.upgrade()) {
-                    // SAFETY: the event loop lives longer than
-                    // the Rc:s we just upgraded above.
-                    #[allow(unsafe_code)]
-                    let event_loop = unsafe { event_loop.as_ref().unwrap() };
-
-                    render_immediate_viewport(
-                        event_loop,
-                        egui_ctx,
-                        &glutin,
-                        &painter,
-                        beginning,
-                        immediate_viewport,
-                    );
-                } else {
-                    log::warn!("render_sync_callback called after window closed");
-                }
-            });
-        }
-
-        Ok(self.running.insert(GlowWinitRunning {
-            glutin,
-            painter,
-            integration,
-            app,
-        }))
     }
 }
 
@@ -1237,142 +1355,29 @@ fn render_immediate_viewport(
     glutin.handle_viewport_output(viewport_output, focused_viewport);
 }
 
-impl WinitApp for GlowWinitApp {
-    fn frame_nr(&self, viewport_id: ViewportId) -> u64 {
-        self.running
-            .as_ref()
-            .map_or(0, |r| r.integration.egui_ctx.frame_nr_for(viewport_id))
-    }
+#[cfg(feature = "__screenshot")]
+fn save_screeshot_and_exit(
+    path: &str,
+    painter: &egui_glow::Painter,
+    screen_size_in_pixels: [u32; 2],
+) {
+    assert!(
+        path.ends_with(".png"),
+        "Expected EFRAME_SCREENSHOT_TO to end with '.png', got {path:?}"
+    );
+    let screenshot = painter.read_screen_rgba(screen_size_in_pixels);
+    image::save_buffer(
+        path,
+        screenshot.as_raw(),
+        screenshot.width() as u32,
+        screenshot.height() as u32,
+        image::ColorType::Rgba8,
+    )
+    .unwrap_or_else(|err| {
+        panic!("Failed to save screenshot to {path:?}: {err}");
+    });
+    eprintln!("Screenshot saved to {path:?}.");
 
-    fn is_focused(&self, window_id: WindowId) -> bool {
-        if let Some(focused_viewport) = self.focused_viewport {
-            if let Some(running) = &self.running {
-                if let Some(window_id) =
-                    running.glutin.borrow().viewport_from_window.get(&window_id)
-                {
-                    return focused_viewport == *window_id;
-                }
-            }
-        }
-        false
-    }
-
-    fn integration(&self) -> Option<&EpiIntegration> {
-        self.running.as_ref().map(|r| &r.integration)
-    }
-
-    fn window(&self, window_id: WindowId) -> Option<Rc<Window>> {
-        let running = self.running.as_ref()?;
-        let glutin = running.glutin.borrow();
-        let viewport_id = *glutin.viewport_from_window.get(&window_id)?;
-        if let Some(viewport) = glutin.viewports.get(&viewport_id) {
-            viewport.window.clone()
-        } else {
-            None
-        }
-    }
-
-    fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId> {
-        self.running
-            .as_ref()
-            .and_then(|r| r.glutin.borrow().window_from_viewport.get(&id).copied())
-    }
-
-    fn save_and_destroy(&mut self) {
-        if let Some(mut running) = self.running.take() {
-            crate::profile_function!();
-
-            running.integration.save(
-                running.app.as_mut(),
-                Some(&running.glutin.borrow().window(ViewportId::ROOT)),
-            );
-            running.app.on_exit(Some(running.painter.borrow().gl()));
-            running.painter.borrow_mut().destroy();
-        }
-    }
-
-    fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
-        if let Some(running) = &mut self.running {
-            running.run_ui_and_paint(window_id, self.focused_viewport)
-        } else {
-            EventResult::Wait
-        }
-    }
-
-    fn on_event(
-        &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
-        event: &winit::event::Event<'_, UserEvent>,
-    ) -> Result<EventResult> {
-        crate::profile_function!();
-
-        Ok(match event {
-            winit::event::Event::Resumed => {
-                let running = if let Some(running) = &mut self.running {
-                    // not the first resume event. create whatever you need.
-                    running.glutin.borrow_mut().on_resume(event_loop)?;
-                    running
-                } else {
-                    // first resume event.
-                    // we can actually move this outside of event loop.
-                    // and just run the on_resume fn of gl_window
-                    self.init_run_state(event_loop)?
-                };
-                let window_id = running
-                    .glutin
-                    .borrow()
-                    .window_from_viewport
-                    .get(&ViewportId::ROOT)
-                    .copied();
-                EventResult::RepaintNow(window_id.unwrap())
-            }
-
-            winit::event::Event::Suspended => {
-                if let Some(running) = &mut self.running {
-                    running.glutin.borrow_mut().on_suspend()?;
-                }
-                EventResult::Wait
-            }
-
-            winit::event::Event::MainEventsCleared => {
-                if let Some(running) = &self.running {
-                    if let Err(err) = running.glutin.borrow_mut().on_resume(event_loop) {
-                        log::warn!("on_resume failed {err}");
-                    }
-                }
-                EventResult::Wait
-            }
-
-            winit::event::Event::WindowEvent { event, window_id } => {
-                if let Some(running) = &mut self.running {
-                    running.on_window_event(*window_id, event, &mut self.focused_viewport)
-                } else {
-                    EventResult::Wait
-                }
-            }
-
-            #[cfg(feature = "accesskit")]
-            winit::event::Event::UserEvent(UserEvent::AccessKitActionRequest(
-                accesskit_winit::ActionRequestEvent { request, window_id },
-            )) => {
-                if let Some(running) = &self.running {
-                    let mut glutin = running.glutin.borrow_mut();
-                    if let Some(viewport_id) = glutin.viewport_from_window.get(window_id).copied() {
-                        if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
-                            if let Some(egui_winit) = &mut viewport.egui_winit {
-                                crate::profile_scope!("on_accesskit_action_request");
-                                egui_winit.on_accesskit_action_request(request.clone());
-                            }
-                        }
-                    }
-                    // As a form of user input, accessibility actions should
-                    // lead to a repaint.
-                    EventResult::RepaintNext(*window_id)
-                } else {
-                    EventResult::Wait
-                }
-            }
-            _ => EventResult::Wait,
-        })
-    }
+    #[allow(clippy::exit)]
+    std::process::exit(0);
 }
