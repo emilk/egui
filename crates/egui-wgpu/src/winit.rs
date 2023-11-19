@@ -194,7 +194,6 @@ impl Painter {
         if let Some(window) = window {
             let size = window.inner_size();
             if self.surfaces.get(&viewport_id).is_none() {
-
                 let surface = unsafe {
                     crate::profile_scope!("create_surface");
                     self.instance.create_surface(&window)?
