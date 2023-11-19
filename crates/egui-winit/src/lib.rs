@@ -174,14 +174,14 @@ impl State {
     }
 
     /// The current input state.
-    /// This is changed by [`Self::on_event`] and cleared by [`Self::take_egui_input`].
+    /// This is changed by [`Self::on_window_event`] and cleared by [`Self::take_egui_input`].
     #[inline]
     pub fn egui_input(&self) -> &egui::RawInput {
         &self.egui_input
     }
 
     /// The current input state.
-    /// This is changed by [`Self::on_event`] and cleared by [`Self::take_egui_input`].
+    /// This is changed by [`Self::on_window_event`] and cleared by [`Self::take_egui_input`].
     #[inline]
     pub fn egui_input_mut(&mut self) -> &mut egui::RawInput {
         &mut self.egui_input
