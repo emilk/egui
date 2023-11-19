@@ -140,7 +140,7 @@ pollster = { version = "0.3", optional = true } # needed for wgpu
 # this can be done at the same time we expose x11/wayland features of winit crate.
 glutin = { version = "0.30", optional = true }
 glutin-winit = { version = "0.3.0", optional = true }
-puffin = { version = "0.16", optional = true }
+puffin = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true }
 
 # mac:

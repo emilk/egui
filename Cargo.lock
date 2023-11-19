@@ -2444,9 +2444,9 @@ checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 
 [[package]]
 name = "lz4_flex"
-version = "0.10.0"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b8c72594ac26bfd34f2d99dfced2edfaddfe8a476e3ff2ca0eb293d925c4f83"
+checksum = "3ea9b256699eda7b0387ffbc776dd625e28bde3918446381781245b7a50349d8"
 
 [[package]]
 name = "malloc_buf"
@@ -3082,15 +3082,14 @@ checksum = "f89dff0959d98c9758c88826cc002e2c3d0b9dfac4139711d1f30de442f1139b"
 
 [[package]]
 name = "puffin"
-version = "0.16.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76425abd4e1a0ad4bd6995dd974b52f414fca9974171df8e3708b3e660d05a21"
+checksum = "39009d69b9d547c3ffa974a20648fa02f447c05bd0a664012b1ba5a5b06fb14e"
 dependencies = [
  "anyhow",
  "bincode",
  "byteorder",
  "cfg-if",
- "instant",
  "lz4_flex",
  "once_cell",
  "parking_lot",
@@ -3099,9 +3098,9 @@ dependencies = [
 
 [[package]]
 name = "puffin_http"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13bffc600c35913d282ae1e96a6ffcdf36dc7a7cdb9310e0ba15914d258c8193"
+checksum = "540d042ff82a4f4543fb2e44cf0221ba8b7d6fb7b16979840449a5ddc087486f"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
