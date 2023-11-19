@@ -69,7 +69,7 @@
 
 use std::sync::Arc;
 
-use epaint::{ColorImage, Pos2, Vec2};
+use epaint::{Pos2, Vec2};
 
 use crate::{Context, Id};
 
@@ -153,6 +153,58 @@ pub type ViewportIdMap<T> = nohash_hasher::IntMap<ViewportId, T>;
 
 // ----------------------------------------------------------------------------
 
+/// Image data for an application icon.
+///
+/// Use a square image, e.g. 256x256 pixels.
+/// You can use a transparent background.
+#[derive(Clone, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct IconData {
+    /// RGBA pixels, with separate/unmultiplied alpha.
+    pub rgba: Vec<u8>,
+
+    /// Image width. This should be a multiple of 4.
+    pub width: u32,
+
+    /// Image height. This should be a multiple of 4.
+    pub height: u32,
+}
+
+impl std::fmt::Debug for IconData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IconData")
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .finish_non_exhaustive()
+    }
+}
+
+impl From<IconData> for epaint::ColorImage {
+    fn from(icon: IconData) -> Self {
+        crate::profile_function!();
+        let IconData {
+            rgba,
+            width,
+            height,
+        } = icon;
+        epaint::ColorImage::from_rgba_premultiplied([width as usize, height as usize], &rgba)
+    }
+}
+
+impl From<&IconData> for epaint::ColorImage {
+    fn from(icon: &IconData) -> Self {
+        crate::profile_function!();
+        let IconData {
+            rgba,
+            width,
+            height,
+        } = icon;
+        epaint::ColorImage::from_rgba_premultiplied([*width as usize, *height as usize], rgba)
+    }
+}
+
+// ----------------------------------------------------------------------------
+
 /// A pair of [`ViewportId`], used to identify a viewport and its parent.
 #[derive(Debug, Hash, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -189,6 +241,8 @@ pub type ImmediateViewportRendererCallback = dyn for<'a> Fn(&Context, ImmediateV
 
 /// Control the building of a new egui viewport (i.e. native window).
 ///
+/// See [`crate::viewport`] for how to build new viewports (native windows).
+///
 /// The fields are public, but you should use the builder pattern to set them,
 /// and that's where you'll find the documentation too.
 ///
@@ -205,8 +259,8 @@ pub struct ViewportBuilder {
     /// `eframe` will use this as the title of the native window.
     pub title: Option<String>,
 
-    /// This is wayland only. See [`Self::with_name`].
-    pub name: Option<(String, String)>,
+    /// This is wayland only. See [`Self::with_app_id`].
+    pub app_id: Option<String>,
 
     pub position: Option<Pos2>,
     pub inner_size: Option<Vec2>,
@@ -218,7 +272,7 @@ pub struct ViewportBuilder {
     pub resizable: Option<bool>,
     pub transparent: Option<bool>,
     pub decorations: Option<bool>,
-    pub icon: Option<Arc<ColorImage>>,
+    pub icon: Option<Arc<IconData>>,
     pub active: Option<bool>,
     pub visible: Option<bool>,
     pub title_hidden: Option<bool>,
@@ -230,7 +284,9 @@ pub struct ViewportBuilder {
     pub minimize_button: Option<bool>,
     pub maximize_button: Option<bool>,
 
-    pub hittest: Option<bool>,
+    pub window_level: WindowLevel,
+
+    pub mouse_passthrough: Option<bool>,
 }
 
 impl ViewportBuilder {
@@ -290,6 +346,10 @@ impl ViewportBuilder {
 
     /// Sets whether the background of the window should be transparent.
     ///
+    /// You should avoid having a [`crate::CentralPanel`], or make sure its frame is also transparent.
+    ///
+    /// In `eframe` you control the transparency with `eframe::App::clear_color()`.
+    ///
     /// If this is `true`, writing colors with alpha values different than
     /// `1.0` will produce a transparent window. On some platforms this
     /// is more of a hint for the system and you'd still have the alpha
@@ -304,9 +364,12 @@ impl ViewportBuilder {
         self
     }
 
-    /// The icon needs to be wrapped in Arc because will be cloned every frame
+    /// The application icon, e.g. in the Windows task bar or the alt-tab menu.
+    ///
+    /// The default icon is a white `e` on a black background (for "egui" or "eframe").
+    /// If you prefer the OS default, set this to `None`.
     #[inline]
-    pub fn with_window_icon(mut self, icon: impl Into<Arc<ColorImage>>) -> Self {
+    pub fn with_window_icon(mut self, icon: impl Into<Arc<IconData>>) -> Self {
         self.icon = Some(icon.into());
         self
     }
@@ -355,9 +418,11 @@ impl ViewportBuilder {
         self
     }
 
-    /// Makes the window content appear behind the titlebar.
+    /// On Mac: the window doesn't have a titlebar, but floating window buttons.
     ///
-    /// Mac Os only.
+    /// See [winit's documentation][with_fullsize_content_view] for information on Mac-specific options.
+    ///
+    /// [with_fullsize_content_view]: https://docs.rs/winit/latest/x86_64-apple-darwin/winit/platform/macos/trait.WindowBuilderExtMacOS.html#tymethod.with_fullsize_content_view
     #[inline]
     pub fn with_fullsize_content_view(mut self, value: bool) -> Self {
         self.fullsize_content_view = Some(value);
@@ -402,28 +467,34 @@ impl ViewportBuilder {
         self
     }
 
-    /// X11 not working!
+    /// Does not work on X11.
     #[inline]
     pub fn with_close_button(mut self, value: bool) -> Self {
         self.close_button = Some(value);
         self
     }
 
-    /// X11 not working!
+    /// Does not work on X11.
     #[inline]
     pub fn with_minimize_button(mut self, value: bool) -> Self {
         self.minimize_button = Some(value);
         self
     }
 
-    /// X11 not working!
+    /// Does not work on X11.
     #[inline]
     pub fn with_maximize_button(mut self, value: bool) -> Self {
         self.maximize_button = Some(value);
         self
     }
 
-    /// This currently only work on windows to be disabled!
+    /// On Windows: enable drag and drop support. Drag and drop can
+    /// not be disabled on other platforms.
+    ///
+    /// See [winit's documentation][drag_and_drop] for information on why you
+    /// might want to disable this on windows.
+    ///
+    /// [drag_and_drop]: https://docs.rs/winit/latest/x86_64-pc-windows-msvc/winit/platform/windows/trait.WindowBuilderExtWindows.html#tymethod.with_drag_and_drop
     #[inline]
     pub fn with_drag_and_drop(mut self, value: bool) -> Self {
         self.drag_and_drop = Some(value);
@@ -437,26 +508,54 @@ impl ViewportBuilder {
         self
     }
 
-    /// This is wayland only!
-    /// Build window with the given name.
+    /// ### On Wayland
+    /// On Wayland this sets the Application ID for the window.
     ///
-    /// The `general` name sets an application ID, which should match the `.desktop`
-    /// file distributed with your program. The `instance` is a `no-op`.
+    /// The application ID is used in several places of the compositor, e.g. for
+    /// grouping windows of the same application. It is also important for
+    /// connecting the configuration of a `.desktop` file with the window, by
+    /// using the application ID as file name. This allows e.g. a proper icon
+    /// handling under Wayland.
+    ///
+    /// See [Waylands XDG shell documentation][xdg-shell] for more information
+    /// on this Wayland-specific option.
+    ///
+    /// The `app_id` should match the `.desktop` file distributed with your program.
     ///
     /// For details about application ID conventions, see the
     /// [Desktop Entry Spec](https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#desktop-file-id)
+    ///
+    /// [xdg-shell]: https://wayland.app/protocols/xdg-shell#xdg_toplevel:request:set_app_id
+    ///
+    /// ### eframe
+    /// On eframe, the `app_id` of the root window is also used to determine
+    /// the storage location of persistence files.
     #[inline]
-    pub fn with_name(mut self, id: impl Into<String>, instance: impl Into<String>) -> Self {
-        self.name = Some((id.into(), instance.into()));
+    pub fn with_app_id(mut self, app_id: impl Into<String>) -> Self {
+        self.app_id = Some(app_id.into());
         self
     }
 
-    /// Is not implemented for winit
-    /// You should use `ViewportCommand::CursorHitTest` if you want to set this!
-    #[deprecated]
+    /// Control if window i always-on-top, always-on-bottom, or neither.
     #[inline]
-    pub fn with_hittest(mut self, value: bool) -> Self {
-        self.hittest = Some(value);
+    pub fn with_window_level(mut self, level: WindowLevel) -> Self {
+        self.window_level = level;
+        self
+    }
+
+    /// This window is always on top
+    #[inline]
+    pub fn with_always_on_top(self) -> Self {
+        self.with_window_level(WindowLevel::AlwaysOnTop)
+    }
+
+    /// On desktop: mouse clicks pass through the window, used for non-interactable overlays.
+    ///
+    /// Generally you would use this in conjunction with [`Self::with_transparent`]
+    /// and [`Self::with_always_on_top`].
+    #[inline]
+    pub fn with_mouse_passthrough(mut self, value: bool) -> Self {
+        self.mouse_passthrough = Some(value);
         self
     }
 
@@ -554,10 +653,10 @@ impl ViewportBuilder {
             }
         }
 
-        if let Some(new_hittest) = new.hittest {
-            if Some(new_hittest) != self.hittest {
-                self.hittest = Some(new_hittest);
-                commands.push(ViewportCommand::CursorHitTest(new_hittest));
+        if let Some(new_mouse_passthrough) = new.mouse_passthrough {
+            if Some(new_mouse_passthrough) != self.mouse_passthrough {
+                self.mouse_passthrough = Some(new_mouse_passthrough);
+                commands.push(ViewportCommand::MousePassthrough(new_mouse_passthrough));
             }
         }
 
@@ -618,33 +717,37 @@ impl ViewportBuilder {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum WindowLevel {
+    #[default]
     Normal,
     AlwaysOnBottom,
     AlwaysOnTop,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum IMEPurpose {
+    #[default]
     Normal,
     Password,
     Terminal,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum SystemTheme {
+    #[default]
+    SystemDefault,
     Light,
     Dark,
-    SystemDefault,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum CursorGrab {
+    #[default]
     None,
     Confined,
     Locked,
@@ -663,6 +766,8 @@ pub enum ResizeDirection {
 }
 
 /// You can send a [`ViewportCommand`] to the viewport with [`Context::send_viewport_cmd`].
+///
+/// See [`crate::viewport`] for how to build new viewports (native windows).
 ///
 /// All coordinates are in logical points.
 ///
@@ -737,7 +842,7 @@ pub enum ViewportCommand {
     WindowLevel(WindowLevel),
 
     /// The the window icon.
-    WindowIcon(Option<Arc<ColorImage>>),
+    WindowIcon(Option<Arc<IconData>>),
 
     IMEPosition(Pos2),
     IMEAllowed(bool),
@@ -773,7 +878,8 @@ pub enum ViewportCommand {
 
     CursorVisible(bool),
 
-    CursorHitTest(bool),
+    /// Enable mouse pass-through: mouse clicks pass through the window, used for non-interactable overlays.
+    MousePassthrough(bool),
 
     /// Take a screenshot.
     ///

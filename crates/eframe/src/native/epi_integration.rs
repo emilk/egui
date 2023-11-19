@@ -12,75 +12,14 @@ use egui_winit::{EventResponse, WindowSettings};
 
 use crate::{epi, Theme};
 
-pub fn window_builder<E>(
+pub fn viewport_builder<E>(
     event_loop: &EventLoopWindowTarget<E>,
-    title: &str,
     native_options: &mut epi::NativeOptions,
     window_settings: Option<WindowSettings>,
 ) -> ViewportBuilder {
-    let epi::NativeOptions {
-        maximized,
-        decorated,
-        fullscreen,
-        #[cfg(target_os = "macos")]
-        fullsize_content,
-        drag_and_drop_support,
-        icon_data,
-        initial_window_pos,
-        initial_window_size,
-        min_window_size,
-        max_window_size,
-        resizable,
-        transparent,
-        centered,
-        active,
-        ..
-    } = native_options;
+    crate::profile_function!();
 
-    let mut viewport_builder = egui::ViewportBuilder::default()
-        .with_title(title)
-        .with_decorations(*decorated)
-        .with_fullscreen(*fullscreen)
-        .with_maximized(*maximized)
-        .with_resizable(*resizable)
-        .with_transparent(*transparent)
-        .with_active(*active)
-        // Keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
-        // We must also keep the window hidden until AccessKit is initialized.
-        .with_visible(false);
-
-    if let Some(icon_data) = icon_data {
-        viewport_builder =
-            viewport_builder.with_window_icon(egui::ColorImage::from_rgba_premultiplied(
-                [icon_data.width as usize, icon_data.height as usize],
-                &icon_data.rgba,
-            ));
-    }
-
-    #[cfg(target_os = "macos")]
-    if *fullsize_content {
-        viewport_builder = viewport_builder
-            .with_title_hidden(true)
-            .with_titlebar_transparent(true)
-            .with_fullsize_content_view(true);
-    }
-
-    #[cfg(all(feature = "wayland", target_os = "linux"))]
-    {
-        viewport_builder = match &native_options.app_id {
-            Some(app_id) => viewport_builder.with_name(app_id, ""),
-            None => viewport_builder.with_name(title, ""),
-        };
-    }
-
-    if let Some(min_size) = *min_window_size {
-        viewport_builder = viewport_builder.with_min_inner_size(min_size);
-    }
-    if let Some(max_size) = *max_window_size {
-        viewport_builder = viewport_builder.with_max_inner_size(max_size);
-    }
-
-    viewport_builder = viewport_builder.with_drag_and_drop(*drag_and_drop_support);
+    let mut viewport_builder = native_options.viewport.clone();
 
     // Always use the default window size / position on iOS. Trying to restore the previous position
     // causes the window to be shown too small.
@@ -94,21 +33,21 @@ pub fn window_builder<E>(
         viewport_builder = window_settings.initialize_viewport_builder(viewport_builder);
         window_settings.inner_size_points()
     } else {
-        if let Some(pos) = *initial_window_pos {
+        if let Some(pos) = viewport_builder.position {
             viewport_builder = viewport_builder.with_position(pos);
         }
 
-        if let Some(initial_window_size) = *initial_window_size {
+        if let Some(initial_window_size) = viewport_builder.inner_size {
             let initial_window_size =
                 initial_window_size.at_most(largest_monitor_point_size(event_loop));
             viewport_builder = viewport_builder.with_inner_size(initial_window_size);
         }
 
-        *initial_window_size
+        viewport_builder.inner_size
     };
 
     #[cfg(not(target_os = "ios"))]
-    if *centered {
+    if native_options.centered {
         if let Some(monitor) = event_loop.available_monitors().next() {
             let monitor_size = monitor.size().to_logical::<f32>(monitor.scale_factor());
             let inner_size = inner_size_points.unwrap_or(egui::Vec2 { x: 800.0, y: 600.0 });
@@ -126,18 +65,11 @@ pub fn window_builder<E>(
     }
 }
 
-pub fn apply_native_options_to_window(
+pub fn apply_window_settings(
     window: &winit::window::Window,
-    native_options: &crate::NativeOptions,
     window_settings: Option<WindowSettings>,
 ) {
     crate::profile_function!();
-    use winit::window::WindowLevel;
-    window.set_window_level(if native_options.always_on_top {
-        WindowLevel::AlwaysOnTop
-    } else {
-        WindowLevel::Normal
-    });
 
     if let Some(window_settings) = window_settings {
         window_settings.initialize_window(window);
@@ -228,8 +160,12 @@ impl EpiIntegration {
         };
 
         let app_icon_setter = super::app_icon::AppTitleIconSetter::new(
-            app_name.to_owned(),
-            native_options.icon_data.clone(),
+            native_options
+                .viewport
+                .title
+                .clone()
+                .unwrap_or_else(|| app_name.to_owned()),
+            native_options.viewport.icon.clone(),
         );
 
         Self {

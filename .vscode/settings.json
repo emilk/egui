@@ -20,14 +20,16 @@
         "--workspace",
         "--message-format=json",
         "--all-targets",
+        "--all-features",
     ],
     "rust-analyzer.cargo.buildScripts.overrideCommand": [
         "cargo",
-        "check",
+        "cranky",
         "--quiet",
         "--target-dir=target_ra",
         "--workspace",
         "--message-format=json",
         "--all-targets",
+        "--all-features",
     ],
 }
