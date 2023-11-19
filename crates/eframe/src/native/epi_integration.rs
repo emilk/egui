@@ -21,14 +21,6 @@ pub fn viewport_builder<E>(
 
     let mut viewport_builder = native_options.viewport.clone();
 
-    #[cfg(all(feature = "wayland", target_os = "linux"))]
-    {
-        viewport_builder = match &native_options.app_id {
-            Some(app_id) => viewport_builder.with_name(app_id, ""),
-            None => viewport_builder.with_name(title, ""),
-        };
-    }
-
     // Always use the default window size / position on iOS. Trying to restore the previous position
     // causes the window to be shown too small.
     #[cfg(not(target_os = "ios"))]
