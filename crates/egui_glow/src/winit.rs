@@ -52,9 +52,9 @@ impl EguiGlow {
         }
     }
 
-    pub fn on_event(&mut self, event: &winit::event::WindowEvent<'_>) -> EventResponse {
+    pub fn on_window_event(&mut self, event: &winit::event::WindowEvent<'_>) -> EventResponse {
         self.egui_winit
-            .on_event(&self.egui_ctx, event, ViewportId::ROOT)
+            .on_window_event(&self.egui_ctx, event, ViewportId::ROOT)
     }
 
     /// Call [`Self::paint`] later to paint.

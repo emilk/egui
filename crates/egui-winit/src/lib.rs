@@ -233,7 +233,7 @@ impl State {
     /// Call this when there is a new event.
     ///
     /// The result can be found in [`Self::egui_input`] and be extracted with [`Self::take_egui_input`].
-    pub fn on_event(
+    pub fn on_window_event(
         &mut self,
         egui_ctx: &egui::Context,
         event: &winit::event::WindowEvent<'_>,

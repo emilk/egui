@@ -710,7 +710,7 @@ impl GlowWinitRunning {
             if let Some(viewport_id) = viewport_id {
                 let mut glutin = self.glutin.borrow_mut();
                 if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
-                    break 'res self.integration.on_event(
+                    break 'res self.integration.on_window_event(
                         self.app.as_mut(),
                         event,
                         viewport.egui_winit.as_mut().unwrap(),

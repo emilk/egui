@@ -705,7 +705,7 @@ impl WgpuWinitRunning {
         let event_response = viewport_id.and_then(|viewport_id| {
             shared.viewports.get_mut(&viewport_id).and_then(|viewport| {
                 viewport.egui_winit.as_mut().map(|egui_winit| {
-                    integration.on_event(app.as_mut(), event, egui_winit, viewport_id)
+                    integration.on_window_event(app.as_mut(), event, egui_winit, viewport_id)
                 })
             })
         });

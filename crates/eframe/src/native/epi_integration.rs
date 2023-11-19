@@ -210,7 +210,7 @@ impl EpiIntegration {
         self.close
     }
 
-    pub fn on_event(
+    pub fn on_window_event(
         &mut self,
         app: &mut dyn epi::App,
         event: &winit::event::WindowEvent<'_>,
@@ -247,7 +247,7 @@ impl EpiIntegration {
             _ => {}
         }
 
-        egui_winit.on_event(&self.egui_ctx, event, viewport_id)
+        egui_winit.on_window_event(&self.egui_ctx, event, viewport_id)
     }
 
     pub fn pre_update(&mut self) {
