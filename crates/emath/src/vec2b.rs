@@ -58,3 +58,15 @@ impl std::ops::IndexMut<usize> for Vec2b {
         }
     }
 }
+
+impl std::ops::Not for Vec2b {
+    type Output = Self;
+
+    #[inline]
+    fn not(self) -> Self::Output {
+        Self {
+            x: !self.x,
+            y: !self.y,
+        }
+    }
+}
