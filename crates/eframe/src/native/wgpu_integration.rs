@@ -162,7 +162,7 @@ impl WgpuWinitApp {
         let wgpu_render_state = painter.render_state();
 
         let system_theme = winit_integration::system_theme(&window, &self.native_options);
-        let mut integration = EpiIntegration::new(
+        let integration = EpiIntegration::new(
             &window,
             system_theme,
             &self.app_name,

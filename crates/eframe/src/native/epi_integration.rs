@@ -194,7 +194,7 @@ impl EpiIntegration {
 
     #[cfg(feature = "accesskit")]
     pub fn init_accesskit<E: From<egui_winit::accesskit_winit::ActionRequestEvent> + Send>(
-        &mut self,
+        &self,
         egui_winit: &mut egui_winit::State,
         window: &winit::window::Window,
         event_loop_proxy: winit::event_loop::EventLoopProxy<E>,

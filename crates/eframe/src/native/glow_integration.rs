@@ -208,7 +208,7 @@ impl GlowWinitApp {
         let system_theme =
             winit_integration::system_theme(&glutin.window(ViewportId::ROOT), &self.native_options);
 
-        let mut integration = EpiIntegration::new(
+        let integration = EpiIntegration::new(
             &glutin.window(ViewportId::ROOT),
             system_theme,
             &self.app_name,
