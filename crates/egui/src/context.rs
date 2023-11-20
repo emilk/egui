@@ -2563,8 +2563,13 @@ impl Context {
     ///
     /// This lets you affect another viewport, e.g. resizing its window.
     pub fn send_viewport_cmd_to(&self, id: ViewportId, command: ViewportCommand) {
-        self.write(|ctx| ctx.viewport_for(id).commands.push(command));
         self.request_repaint_of(id);
+
+        if command.requires_parent_repaint() {
+            self.request_repaint_of(self.parent_viewport_id());
+        }
+
+        self.write(|ctx| ctx.viewport_for(id).commands.push(command));
     }
 
     /// Show a deferred viewport, creating a new native window, if possible.

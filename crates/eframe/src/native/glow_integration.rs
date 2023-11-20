@@ -208,7 +208,7 @@ impl GlowWinitApp {
         let system_theme =
             winit_integration::system_theme(&glutin.window(ViewportId::ROOT), &self.native_options);
 
-        let mut integration = EpiIntegration::new(
+        let integration = EpiIntegration::new(
             &glutin.window(ViewportId::ROOT),
             system_theme,
             &self.app_name,
@@ -656,12 +656,8 @@ impl GlowWinitRunning {
     ) -> EventResult {
         crate::profile_function!(egui_winit::short_window_event_description(event));
 
-        let viewport_id = self
-            .glutin
-            .borrow()
-            .viewport_from_window
-            .get(&window_id)
-            .copied();
+        let mut glutin = self.glutin.borrow_mut();
+        let viewport_id = glutin.viewport_from_window.get(&window_id).copied();
 
         // On Windows, if a window is resized by the user, it should repaint synchronously, inside the
         // event handler.
@@ -680,8 +676,7 @@ impl GlowWinitRunning {
 
         match event {
             winit::event::WindowEvent::Focused(new_focused) => {
-                self.glutin.borrow_mut().focused_viewport =
-                    new_focused.then(|| viewport_id).flatten();
+                glutin.focused_viewport = new_focused.then(|| viewport_id).flatten();
             }
 
             winit::event::WindowEvent::Resized(physical_size) => {
@@ -691,7 +686,7 @@ impl GlowWinitRunning {
                 if 0 < physical_size.width && 0 < physical_size.height {
                     if let Some(viewport_id) = viewport_id {
                         repaint_asap = true;
-                        self.glutin.borrow_mut().resize(viewport_id, *physical_size);
+                        glutin.resize(viewport_id, *physical_size);
                     }
                 }
             }
@@ -699,45 +694,59 @@ impl GlowWinitRunning {
             winit::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                 if let Some(viewport_id) = viewport_id {
                     repaint_asap = true;
-                    self.glutin
-                        .borrow_mut()
-                        .resize(viewport_id, **new_inner_size);
+                    glutin.resize(viewport_id, **new_inner_size);
                 }
             }
 
             winit::event::WindowEvent::CloseRequested => {
-                let is_root = viewport_id == Some(ViewportId::ROOT);
-                if is_root && self.integration.should_close() {
-                    log::debug!("Received WindowEvent::CloseRequested");
+                if viewport_id == Some(ViewportId::ROOT) && self.integration.should_close() {
+                    log::debug!(
+                        "Received WindowEvent::CloseRequested for main viewport - shutting down."
+                    );
                     return EventResult::Exit;
+                }
+
+                log::debug!("Received WindowEvent::CloseRequested for viewport {viewport_id:?}");
+
+                if let Some(viewport_id) = viewport_id {
+                    if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
+                        // Tell viewport it should close:
+                        viewport.info.events.push(egui::ViewportEvent::Close);
+
+                        // We may need to repaint both us and our parent to close the window,
+                        // and perhaps twice (once to notice the close-event, once again to enforce it).
+                        // `request_repaint_of` does a double-repaint though:
+                        self.integration.egui_ctx.request_repaint_of(viewport_id);
+                        self.integration
+                            .egui_ctx
+                            .request_repaint_of(viewport.ids.parent);
+                    }
                 }
             }
 
             _ => {}
         }
 
-        let event_response = 'res: {
-            if let Some(viewport_id) = viewport_id {
-                let mut glutin = self.glutin.borrow_mut();
-                if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
-                    break 'res self.integration.on_window_event(
-                        self.app.as_mut(),
-                        event,
-                        viewport.egui_winit.as_mut().unwrap(),
-                        viewport.ids.this,
-                    );
-                }
-            }
-
-            EventResponse {
-                consumed: false,
-                repaint: false,
-            }
-        };
-
         if self.integration.should_close() {
-            EventResult::Exit
-        } else if event_response.repaint {
+            return EventResult::Exit;
+        }
+
+        let mut event_response = EventResponse {
+            consumed: false,
+            repaint: false,
+        };
+        if let Some(viewport_id) = viewport_id {
+            if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
+                event_response = self.integration.on_window_event(
+                    self.app.as_mut(),
+                    event,
+                    viewport.egui_winit.as_mut().unwrap(),
+                    viewport.ids.this,
+                );
+            }
+        }
+
+        if event_response.repaint {
             if repaint_asap {
                 EventResult::RepaintNow(window_id)
             } else {

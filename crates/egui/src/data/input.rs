@@ -163,6 +163,18 @@ impl RawInput {
     }
 }
 
+/// An input event from the backend into egui, about a specific [viewport](crate::viewport).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum ViewportEvent {
+    /// The user clicked the close-button on the window, or similar.
+    ///
+    /// It is up to the user to react to this by _not_ showing the viewport in the next frame in the parent viewport.
+    ///
+    /// This even will wake up both the child and parent viewport.
+    Close,
+}
+
 /// Information about the current viewport,
 /// given as input each frame.
 ///
@@ -176,9 +188,7 @@ pub struct ViewportInfo {
     /// Name of the viewport, if known.
     pub title: Option<String>,
 
-    /// The user requested the viewport should close,
-    /// e.g. by pressing the close button in the window decoration.
-    pub close_requested: bool,
+    pub events: Vec<ViewportEvent>,
 
     /// Number of physical pixels per ui point.
     pub pixels_per_point: f32,
@@ -212,15 +222,17 @@ pub struct ViewportInfo {
 }
 
 impl ViewportInfo {
-    pub fn take(&mut self) -> Self {
-        core::mem::take(self)
+    pub fn close_requested(&self) -> bool {
+        self.events
+            .iter()
+            .any(|&event| event == ViewportEvent::Close)
     }
 
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
             parent,
             title,
-            close_requested,
+            events,
             pixels_per_point,
             monitor_size,
             inner_rect,
@@ -240,8 +252,8 @@ impl ViewportInfo {
             ui.label(opt_as_str(title));
             ui.end_row();
 
-            ui.label("Close requested:");
-            ui.label(close_requested.to_string());
+            ui.label("Events:");
+            ui.label(format!("{events:?}"));
             ui.end_row();
 
             ui.label("Pixels per point:");

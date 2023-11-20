@@ -194,7 +194,7 @@ impl EpiIntegration {
 
     #[cfg(feature = "accesskit")]
     pub fn init_accesskit<E: From<egui_winit::accesskit_winit::ActionRequestEvent> + Send>(
-        &mut self,
+        &self,
         egui_winit: &mut egui_winit::State,
         window: &winit::window::Window,
         event_loop_proxy: winit::event_loop::EventLoopProxy<E>,
@@ -231,9 +231,10 @@ impl EpiIntegration {
 
         match event {
             WindowEvent::CloseRequested => {
-                log::debug!("Received WindowEvent::CloseRequested");
-                self.close = app.on_close_event() && viewport_id == ViewportId::ROOT;
-                log::debug!("App::on_close_event returned {}", self.close);
+                if viewport_id == ViewportId::ROOT {
+                    self.close = app.on_close_event();
+                    log::debug!("App::on_close_event returned {}", self.close);
+                }
             }
             WindowEvent::Destroyed => {
                 log::debug!("Received WindowEvent::Destroyed");
@@ -255,7 +256,7 @@ impl EpiIntegration {
             _ => {}
         }
 
-        egui_winit.on_window_event(&self.egui_ctx, event, viewport_id)
+        egui_winit.on_window_event(&self.egui_ctx, event)
     }
 
     pub fn pre_update(&mut self) {
@@ -281,7 +282,7 @@ impl EpiIntegration {
                 viewport_ui_cb(egui_ctx);
             } else {
                 // Root viewport
-                if egui_ctx.input(|i| i.viewport().close_requested) {
+                if egui_ctx.input(|i| i.viewport().close_requested()) {
                     self.close = app.on_close_event();
                     log::debug!("App::on_close_event returned {}", self.close);
                 }

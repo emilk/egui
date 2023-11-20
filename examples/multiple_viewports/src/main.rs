@@ -65,10 +65,9 @@ impl eframe::App for MyApp {
                         ui.label("Hello from immediate viewport");
                     });
 
-                    if ctx.input(|i| i.viewport().close_requested) {
+                    if ctx.input(|i| i.viewport().close_requested()) {
                         // Tell parent viewport that we should not show next frame:
                         self.show_immediate_viewport = false;
-                        ctx.request_repaint(); // make sure there is a next frame
                     }
                 },
             );
@@ -76,12 +75,12 @@ impl eframe::App for MyApp {
 
         if self.show_deferred_viewport.load(Ordering::Relaxed) {
             let show_deferred_viewport = self.show_deferred_viewport.clone();
-            ctx.show_viewport_immediate(
+            ctx.show_viewport_deferred(
                 egui::ViewportId::from_hash_of("deferred_viewport"),
                 egui::ViewportBuilder::default()
                     .with_title("Deferred Viewport")
                     .with_inner_size([200.0, 100.0]),
-                |ctx, class| {
+                move |ctx, class| {
                     assert!(
                         class == egui::ViewportClass::Deferred,
                         "This egui backend doesn't support multiple viewports"
@@ -90,10 +89,9 @@ impl eframe::App for MyApp {
                     egui::CentralPanel::default().show(ctx, |ui| {
                         ui.label("Hello from deferred viewport");
                     });
-                    if ctx.input(|i| i.viewport().close_requested) {
+                    if ctx.input(|i| i.viewport().close_requested()) {
                         // Tell parent to close us.
                         show_deferred_viewport.store(false, Ordering::Relaxed);
-                        ctx.request_repaint(); // make sure there is a next frame
                     }
                 },
             );
