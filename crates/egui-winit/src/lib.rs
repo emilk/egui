@@ -1143,7 +1143,7 @@ pub fn process_viewport_commands(
                 egui::viewport::WindowLevel::AlwaysOnTop => WindowLevel::AlwaysOnTop,
                 egui::viewport::WindowLevel::Normal => WindowLevel::Normal,
             }),
-            ViewportCommand::WindowIcon(icon) => {
+            ViewportCommand::Icon(icon) => {
                 window.set_window_icon(icon.map(|icon| {
                     winit::window::Icon::from_rgba(icon.rgba.clone(), icon.width, icon.height)
                         .expect("Invalid ICON data!")

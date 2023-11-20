@@ -369,7 +369,7 @@ impl ViewportBuilder {
     /// The default icon is a white `e` on a black background (for "egui" or "eframe").
     /// If you prefer the OS default, set this to `None`.
     #[inline]
-    pub fn with_window_icon(mut self, icon: impl Into<Arc<IconData>>) -> Self {
+    pub fn with_icon(mut self, icon: impl Into<Arc<IconData>>) -> Self {
         self.icon = Some(icon.into());
         self
     }
@@ -641,7 +641,7 @@ impl ViewportBuilder {
             };
 
             if is_new {
-                commands.push(ViewportCommand::WindowIcon(Some(new_icon.clone())));
+                commands.push(ViewportCommand::Icon(Some(new_icon.clone())));
                 self.icon = Some(new_icon.clone());
             }
         }
@@ -842,7 +842,7 @@ pub enum ViewportCommand {
     WindowLevel(WindowLevel),
 
     /// The the window icon.
-    WindowIcon(Option<Arc<IconData>>),
+    Icon(Option<Arc<IconData>>),
 
     IMEPosition(Pos2),
     IMEAllowed(bool),
