@@ -990,9 +990,7 @@ impl Plot {
                     bounds.translate(delta);
                     auto_bounds = false.into();
                 }
-                BoundsModification::AutoBounds(new_auto_bounds) => {
-                    auto_bounds = new_auto_bounds
-                }
+                BoundsModification::AutoBounds(new_auto_bounds) => auto_bounds = new_auto_bounds,
             }
         }
 
@@ -1380,7 +1378,9 @@ impl PlotUi {
 
     /// Whether the plot axes were in auto-bounds mode in the last frame. If called on the first
     /// frame, this is the [`Plot`]'s default auto-bounds mode.
-    pub fn auto_bounds(&self) -> Vec2b { self.last_auto_bounds }
+    pub fn auto_bounds(&self) -> Vec2b {
+        self.last_auto_bounds
+    }
 
     /// Set the auto-bounds mode for the plot axes.
     pub fn set_auto_bounds(&mut self, auto_bounds: Vec2b) {
