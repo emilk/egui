@@ -231,9 +231,11 @@ impl EpiIntegration {
 
         match event {
             WindowEvent::CloseRequested => {
-                log::debug!("Received WindowEvent::CloseRequested");
-                self.close = app.on_close_event() && viewport_id == ViewportId::ROOT;
-                log::debug!("App::on_close_event returned {}", self.close);
+                log::debug!("Received WindowEvent::CloseRequested for viewport {viewport_id:?}");
+                if viewport_id == ViewportId::ROOT {
+                    self.close = app.on_close_event();
+                    log::debug!("App::on_close_event returned {}", self.close);
+                }
             }
             WindowEvent::Destroyed => {
                 log::debug!("Received WindowEvent::Destroyed");

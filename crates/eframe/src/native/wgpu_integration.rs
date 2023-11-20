@@ -704,9 +704,22 @@ impl WgpuWinitRunning {
                 }
             }
 
-            winit::event::WindowEvent::CloseRequested if integration.should_close() => {
-                log::debug!("Received WindowEvent::CloseRequested");
-                return EventResult::Exit;
+            winit::event::WindowEvent::CloseRequested => {
+                log::debug!("Received WindowEvent::CloseRequested for viewport {viewport_id:?}");
+
+                if let Some(viewport_id) = viewport_id {
+                    if let Some(viewport) = shared.viewports.get_mut(&viewport_id) {
+                        viewport.info.close_requested = true;
+                    }
+                }
+
+                let is_root = viewport_id == Some(ViewportId::ROOT);
+                if is_root && integration.should_close() {
+                    log::debug!(
+                        "Received WindowEvent::CloseRequested for main viewport - shutting down."
+                    );
+                    return EventResult::Exit;
+                }
             }
 
             _ => {}
