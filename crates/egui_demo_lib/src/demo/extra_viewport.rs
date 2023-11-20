@@ -33,9 +33,7 @@ impl super::Demo for ExtraViewport {
                         });
                 } else {
                     egui::CentralPanel::default().show(ctx, |ui| {
-                        ui.push_id(id, |ui| {
-                            viewport_content(ui, ctx, open);
-                        })
+                        viewport_content(ui, ctx, open);
                     });
                 }
             },

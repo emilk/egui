@@ -178,7 +178,7 @@ fn show_as_popup(
         // Not a real viewport
         egui::Window::new(title).id(id).show(ctx, content);
     } else {
-        egui::CentralPanel::default().show(ctx, |ui| ui.push_id(id, content));
+        egui::CentralPanel::default().show(ctx, content);
     }
 }
 
