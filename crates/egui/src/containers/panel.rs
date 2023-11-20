@@ -605,7 +605,7 @@ impl TopBottomPanel {
         self
     }
 
-    /// The initial height of the [`SidePanel`].
+    /// The initial height of the [`TopBottomPanel`].
     /// Defaults to [`style::Spacing::interact_size`].y.
     #[inline]
     pub fn default_height(mut self, default_height: f32) -> Self {
