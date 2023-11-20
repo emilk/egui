@@ -697,7 +697,7 @@ impl WgpuWinitRunning {
                 if let (Some(width), Some(height), Some(viewport_id)) = (
                     NonZeroU32::new(new_inner_size.width),
                     NonZeroU32::new(new_inner_size.height),
-                    shared.viewport_from_window.get(&window_id).copied(),
+                    viewport_id,
                 ) {
                     repaint_asap = true;
                     shared.painter.on_window_resized(viewport_id, width, height);
@@ -705,45 +705,49 @@ impl WgpuWinitRunning {
             }
 
             winit::event::WindowEvent::CloseRequested => {
-                log::debug!("Received WindowEvent::CloseRequested for viewport {viewport_id:?}");
-
-                if let Some(viewport_id) = viewport_id {
-                    if let Some(viewport) = shared.viewports.get_mut(&viewport_id) {
-                        viewport.info.close_requested = true;
-                    }
-                }
-
-                let is_root = viewport_id == Some(ViewportId::ROOT);
-                if is_root && integration.should_close() {
+                if viewport_id == Some(ViewportId::ROOT) && integration.should_close() {
                     log::debug!(
                         "Received WindowEvent::CloseRequested for main viewport - shutting down."
                     );
                     return EventResult::Exit;
+                }
+
+                log::debug!("Received WindowEvent::CloseRequested for viewport {viewport_id:?}");
+
+                if let Some(viewport_id) = viewport_id {
+                    if let Some(viewport) = shared.viewports.get_mut(&viewport_id) {
+                        // Tell viewport it should close:
+                        viewport.info.events.push(egui::ViewportEvent::Close);
+
+                        // We may need to repaint both us and our parent to close the window,
+                        // and perhaps twice (once to notice the close-event, once again to enforce it).
+                        // `request_repaint_of` does a double-repaint though:
+                        integration.egui_ctx.request_repaint_of(viewport_id);
+                        integration.egui_ctx.request_repaint_of(viewport.ids.parent);
+                    }
                 }
             }
 
             _ => {}
         };
 
-        let event_response = viewport_id.and_then(|viewport_id| {
-            shared.viewports.get_mut(&viewport_id).and_then(|viewport| {
-                viewport.egui_winit.as_mut().map(|egui_winit| {
-                    integration.on_window_event(app.as_mut(), event, egui_winit, viewport_id)
+        let event_response = viewport_id
+            .and_then(|viewport_id| {
+                shared.viewports.get_mut(&viewport_id).and_then(|viewport| {
+                    viewport.egui_winit.as_mut().map(|egui_winit| {
+                        integration.on_window_event(app.as_mut(), event, egui_winit, viewport_id)
+                    })
                 })
             })
-        });
+            .unwrap_or_default();
 
         if integration.should_close() {
             EventResult::Exit
-        } else if let Some(event_response) = event_response {
-            if event_response.repaint {
-                if repaint_asap {
-                    EventResult::RepaintNow(window_id)
-                } else {
-                    EventResult::RepaintNext(window_id)
-                }
+        } else if event_response.repaint {
+            if repaint_asap {
+                EventResult::RepaintNow(window_id)
             } else {
-                EventResult::Wait
+                EventResult::RepaintNext(window_id)
             }
         } else {
             EventResult::Wait

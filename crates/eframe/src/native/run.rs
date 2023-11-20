@@ -147,7 +147,6 @@ fn run_and_return(
                 }
             }
             EventResult::RepaintNext(window_id) => {
-                log::trace!("Repaint caused by {}", short_event_description(&event));
                 windows_next_repaint_times.insert(window_id, Instant::now());
             }
             EventResult::RepaintAt(window_id, repaint_time) => {

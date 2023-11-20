@@ -38,6 +38,7 @@ pub fn screen_size_in_pixels(window: &Window) -> egui::Vec2 {
 // ----------------------------------------------------------------------------
 
 #[must_use]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct EventResponse {
     /// If true, egui consumed this event, i.e. wants exclusive use of this event
     /// (e.g. a mouse click on an egui window, or entering text into a text field).
@@ -237,7 +238,6 @@ impl State {
         &mut self,
         egui_ctx: &egui::Context,
         event: &winit::event::WindowEvent<'_>,
-        viewport_id: ViewportId,
     ) -> EventResponse {
         crate::profile_function!(short_window_event_description(event));
 
@@ -421,15 +421,11 @@ impl State {
             }
 
             // Things that may require repaint:
-            WindowEvent::CloseRequested => {
-                if let Some(viewport_info) = self.egui_input.viewports.get_mut(&viewport_id) {
-                    viewport_info.close_requested = true;
-                }
-                EventResponse {
-                    consumed: true,
-                    repaint: true,
-                }
-            }
+            WindowEvent::CloseRequested => EventResponse {
+                consumed: true,
+                repaint: true,
+            },
+
             WindowEvent::CursorEntered { .. }
             | WindowEvent::Destroyed
             | WindowEvent::Occluded(_)
@@ -1053,7 +1049,7 @@ pub fn process_viewport_commands(
     for command in commands {
         match command {
             ViewportCommand::Close => {
-                info.close_requested = true;
+                info.events.push(egui::ViewportEvent::Close);
             }
             ViewportCommand::StartDrag => {
                 // If `is_viewport_focused` is not checked on x11 the input will be permanently taken until the app is killed!

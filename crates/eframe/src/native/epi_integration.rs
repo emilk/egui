@@ -231,7 +231,6 @@ impl EpiIntegration {
 
         match event {
             WindowEvent::CloseRequested => {
-                log::debug!("Received WindowEvent::CloseRequested for viewport {viewport_id:?}");
                 if viewport_id == ViewportId::ROOT {
                     self.close = app.on_close_event();
                     log::debug!("App::on_close_event returned {}", self.close);
@@ -257,7 +256,7 @@ impl EpiIntegration {
             _ => {}
         }
 
-        egui_winit.on_window_event(&self.egui_ctx, event, viewport_id)
+        egui_winit.on_window_event(&self.egui_ctx, event)
     }
 
     pub fn pre_update(&mut self) {
@@ -283,7 +282,7 @@ impl EpiIntegration {
                 viewport_ui_cb(egui_ctx);
             } else {
                 // Root viewport
-                if egui_ctx.input(|i| i.viewport().close_requested) {
+                if egui_ctx.input(|i| i.viewport().close_requested()) {
                     self.close = app.on_close_event();
                     log::debug!("App::on_close_event returned {}", self.close);
                 }

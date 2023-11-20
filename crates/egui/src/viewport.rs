@@ -765,7 +765,9 @@ pub enum ResizeDirection {
     SouthWest,
 }
 
-/// You can send a [`ViewportCommand`] to the viewport with [`Context::send_viewport_cmd`].
+/// An output [viewport](crate::viewport)-command from egui to the backend, e.g. to change the window title or size.
+///
+///  You can send a [`ViewportCommand`] to the viewport with [`Context::send_viewport_cmd`].
 ///
 /// See [`crate::viewport`] for how to build new viewports (native windows).
 ///
@@ -902,6 +904,11 @@ impl ViewportCommand {
                 None
             }
         })
+    }
+
+    /// This command requires the parent viewport to repaint.
+    pub fn requires_parent_repaint(&self) -> bool {
+        self == &Self::Close
     }
 }
 
