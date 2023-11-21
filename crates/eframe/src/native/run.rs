@@ -39,7 +39,7 @@ fn create_event_loop(native_options: &mut epi::NativeOptions) -> EventLoop<UserE
     let mut builder = create_event_loop_builder(native_options);
 
     crate::profile_scope!("EventLoopBuilder::build");
-    builder.build()
+    builder.build().unwrap()
 }
 
 /// Access a thread-local event loop.
@@ -67,7 +67,7 @@ fn run_and_return(
     event_loop: &mut EventLoop<UserEvent>,
     mut winit_app: impl WinitApp,
 ) -> Result<()> {
-    use winit::{event_loop::ControlFlow, platform::run_return::EventLoopExtRunReturn as _};
+    use winit::{event_loop::ControlFlow, platform::run_on_demand::EventLoopExtRunOnDemand};
 
     log::debug!("Entering the winit event loop (run_return)…");
 
@@ -76,20 +76,22 @@ fn run_and_return(
 
     let mut returned_result = Ok(());
 
-    event_loop.run_return(|event, event_loop, control_flow| {
+    let _ = event_loop.run_on_demand(|event, event_loop_window_target| {
         crate::profile_scope!("winit_event", short_event_description(&event));
 
         let event_result = match &event {
-            winit::event::Event::LoopDestroyed => {
-                // On Mac, Cmd-Q we get here and then `run_return` doesn't return (despite its name),
+            winit::event::Event::LoopExiting => {
+                // On Mac, Cmd-Q we get here and then `run_on_demand` doesn't return (despite its name),
                 // so we need to save state now:
-                log::debug!("Received Event::LoopDestroyed - saving app state…");
+                log::debug!("Received Event::LoopExiting - saving app state…");
                 winit_app.save_and_destroy();
-                *control_flow = ControlFlow::Exit;
                 return;
             }
 
-            winit::event::Event::RedrawRequested(window_id) => {
+            winit::event::Event::WindowEvent {
+                event: winit::event::WindowEvent::RedrawRequested,
+                window_id,
+            } => {
                 windows_next_repaint_times.remove(window_id);
                 winit_app.run_ui_and_paint(*window_id)
             }
@@ -120,7 +122,7 @@ fn run_and_return(
                 EventResult::Wait
             }
 
-            event => match winit_app.on_event(event_loop, event) {
+            event => match winit_app.on_event(event_loop_window_target, event) {
                 Ok(event_result) => event_result,
                 Err(err) => {
                     log::error!("Exiting because of error: {err} during event {event:?}");
@@ -132,7 +134,7 @@ fn run_and_return(
 
         match event_result {
             EventResult::Wait => {
-                control_flow.set_wait();
+                event_loop_window_target.set_control_flow(ControlFlow::Wait);
             }
             EventResult::RepaintNow(window_id) => {
                 log::trace!("Repaint caused by {}", short_event_description(&event));
@@ -160,7 +162,7 @@ fn run_and_return(
             EventResult::Exit => {
                 log::debug!("Asking to exit event loop…");
                 winit_app.save_and_destroy();
-                *control_flow = ControlFlow::Exit;
+                event_loop_window_target.exit();
                 return;
             }
         }
@@ -171,7 +173,10 @@ fn run_and_return(
         use winit::event::Event;
         if matches!(
             event,
-            Event::RedrawEventsCleared | Event::RedrawRequested(_) | Event::Resumed
+            Event::WindowEvent {
+                event: winit::event::WindowEvent::RedrawRequested,
+                ..
+            } | Event::Resumed
         ) {
             windows_next_repaint_times.retain(|window_id, repaint_time| {
                 if Instant::now() < *repaint_time {
@@ -179,7 +184,7 @@ fn run_and_return(
                 };
 
                 next_repaint_time = None;
-                control_flow.set_poll();
+                event_loop_window_target.set_control_flow(ControlFlow::Poll);
 
                 if let Some(window) = winit_app.window(*window_id) {
                     log::trace!("request_redraw for {window_id:?}");
@@ -196,7 +201,7 @@ fn run_and_return(
             if time_until_next < std::time::Duration::from_secs(10_000) {
                 log::trace!("WaitUntil {time_until_next:?}");
             }
-            control_flow.set_wait_until(next_repaint_time);
+            event_loop_window_target.set_control_flow(ControlFlow::WaitUntil(next_repaint_time));
         };
     });
 
@@ -220,21 +225,25 @@ fn run_and_return(
 }
 
 fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp + 'static) -> ! {
+    use winit::event_loop::ControlFlow;
     log::debug!("Entering the winit event loop (run)…");
 
     // When to repaint what window
     let mut windows_next_repaint_times = HashMap::default();
 
-    event_loop.run(move |event, event_loop, control_flow| {
+    let result = event_loop.run(move |event, event_loop_window_target| {
         crate::profile_scope!("winit_event", short_event_description(&event));
 
         let event_result = match &event {
-            winit::event::Event::LoopDestroyed => {
-                log::debug!("Received Event::LoopDestroyed");
+            winit::event::Event::LoopExiting => {
+                log::debug!("Received Event::LoopExiting");
                 EventResult::Exit
             }
 
-            winit::event::Event::RedrawRequested(window_id) => {
+            winit::event::Event::WindowEvent {
+                event: winit::event::WindowEvent::RedrawRequested,
+                window_id,
+            } => {
                 windows_next_repaint_times.remove(window_id);
                 winit_app.run_ui_and_paint(*window_id)
             }
@@ -264,7 +273,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                 EventResult::Wait
             }
 
-            event => match winit_app.on_event(event_loop, event) {
+            event => match winit_app.on_event(event_loop_window_target, event) {
                 Ok(event_result) => event_result,
                 Err(err) => {
                     panic!("eframe encountered a fatal error: {err} during event {event:?}");
@@ -274,7 +283,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 
         match event_result {
             EventResult::Wait => {
-                control_flow.set_wait();
+                event_loop_window_target.set_control_flow(ControlFlow::Wait);
             }
             EventResult::RepaintNow(window_id) => {
                 log::trace!("Repaint caused by {}", short_event_description(&event));
@@ -314,7 +323,10 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
         use winit::event::Event;
         if matches!(
             event,
-            Event::RedrawEventsCleared | Event::RedrawRequested(_) | Event::Resumed
+            Event::WindowEvent {
+                event: winit::event::WindowEvent::RedrawRequested,
+                ..
+            } | Event::Resumed
         ) {
             windows_next_repaint_times.retain(|window_id, repaint_time| {
                 if Instant::now() < *repaint_time {
@@ -322,7 +334,7 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                 }
 
                 next_repaint_time = None;
-                control_flow.set_poll();
+                event_loop_window_target.set_control_flow(ControlFlow::Poll);
 
                 if let Some(window) = winit_app.window(*window_id) {
                     log::trace!("request_redraw for {window_id:?}");
@@ -350,9 +362,16 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                         .map(|window| window.request_redraw())
                 });
 
-            control_flow.set_wait_until(next_repaint_time);
+            event_loop_window_target.set_control_flow(ControlFlow::WaitUntil(next_repaint_time));
         };
-    })
+    });
+
+    std::process::exit(if let Err(e) = result {
+        log::warn!("Error from event loop: {e}");
+        1
+    } else {
+        0
+    });
 }
 
 // ----------------------------------------------------------------------------

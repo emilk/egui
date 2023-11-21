@@ -221,7 +221,7 @@ impl EpiIntegration {
     pub fn on_window_event(
         &mut self,
         app: &mut dyn epi::App,
-        event: &winit::event::WindowEvent<'_>,
+        event: &winit::event::WindowEvent,
         egui_winit: &mut egui_winit::State,
         viewport_id: ViewportId,
     ) -> EventResponse {
