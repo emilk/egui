@@ -163,7 +163,7 @@ impl GlowWinitApp {
 
         let gl = unsafe {
             crate::profile_scope!("glow::Context::from_loader_function");
-            Arc::new(glow::Context::from_loader_function(|s| {
+            Rc::new(glow::Context::from_loader_function(|s| {
                 let s = std::ffi::CString::new(s)
                     .expect("failed to construct C string from string for gl proc address");
 

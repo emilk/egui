@@ -24,7 +24,7 @@ impl EguiGlow {
     /// For automatic shader version detection set `shader_version` to `None`.
     pub fn new<E>(
         event_loop: &winit::event_loop::EventLoopWindowTarget<E>,
-        gl: std::sync::Arc<glow::Context>,
+        gl: std::rc::Rc<glow::Context>,
         shader_version: Option<ShaderVersion>,
         native_pixels_per_point: Option<f32>,
     ) -> Self {
