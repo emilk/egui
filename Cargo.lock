@@ -1371,7 +1371,7 @@ dependencies = [
  "glutin",
  "glutin-winit",
  "log",
- "memoffset 0.6.5",
+ "memoffset 0.7.1",
  "puffin",
  "raw-window-handle",
  "wasm-bindgen",
