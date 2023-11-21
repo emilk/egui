@@ -152,7 +152,7 @@ fn main() {
 
     let event_loop = winit::event_loop::EventLoopBuilder::<UserEvent>::with_user_event().build();
     let (gl_window, gl) = create_display(&event_loop);
-    let gl = std::sync::Arc::new(gl);
+    let gl = std::rc::Rc::new(gl);
 
     let mut egui_glow = egui_glow::EguiGlow::new(&event_loop, gl.clone(), None, None);
 
