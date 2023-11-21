@@ -835,6 +835,8 @@ fn update_viewport_info(viewport_info: &mut ViewportInfo, window: &Window, pixel
     viewport_info.outer_rect = outer_rect;
     viewport_info.fullscreen = Some(window.fullscreen().is_some());
     viewport_info.focused = Some(window.has_focus());
+    viewport_info.minimized = window.is_minimized().or(viewport_info.minimized);
+    viewport_info.maximized = Some(window.is_maximized());
 }
 
 fn open_url_in_browser(_url: &str) {
