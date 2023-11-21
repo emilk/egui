@@ -1399,7 +1399,7 @@ impl Style {
 fn text_styles_ui(ui: &mut Ui, text_styles: &mut BTreeMap<TextStyle, FontId>) -> Response {
     ui.vertical(|ui| {
         crate::Grid::new("text_styles").show(ui, |ui| {
-            for (text_style, font_id) in text_styles.iter_mut() {
+            for (text_style, font_id) in &mut *text_styles {
                 ui.label(RichText::new(text_style.to_string()).font(font_id.clone()));
                 crate::introspection::font_id_ui(ui, font_id);
                 ui.end_row();

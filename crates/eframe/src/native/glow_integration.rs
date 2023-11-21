@@ -853,7 +853,7 @@ impl GlutinWindowContext {
             .with_context_api(glutin::context::ContextApi::Gles(None))
             .build(raw_window_handle);
 
-        let gl_context_result = {
+        let gl_context_result = unsafe {
             crate::profile_scope!("create_context");
             gl_config
                 .display()
@@ -867,9 +867,11 @@ impl GlutinWindowContext {
                 log::debug!(
                     "Retrying with fallback context attributes: {fallback_context_attributes:?}"
                 );
-                gl_config
-                    .display()
-                    .create_context(&gl_config, &fallback_context_attributes)?
+                unsafe {
+                    gl_config
+                        .display()
+                        .create_context(&gl_config, &fallback_context_attributes)?
+                }
             }
         };
         let not_current_gl_context = Some(gl_context);
