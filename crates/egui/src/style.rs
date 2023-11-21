@@ -815,6 +815,11 @@ pub struct Visuals {
     /// Enabling this will affect ALL sliders, and can be enabled/disabled per slider with [`Slider::trailing_fill`].
     pub slider_trailing_fill: bool,
 
+    /// Shape of the handle for sliders and similar widgets.
+    ///
+    /// Changing this will affect ALL sliders, and can be enabled/disabled per slider with [`Slider::handle_shape`].
+    pub handle_shape: HandleShape,
+
     /// Should the cursor change when the user hovers over an interactive/clickable item?
     ///
     /// This is consistent with a lot of browser-based applications (vscode, github
@@ -878,6 +883,20 @@ impl Visuals {
 pub struct Selection {
     pub bg_fill: Color32,
     pub stroke: Stroke,
+}
+
+/// Shape of the handle for sliders and similar widgets.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum HandleShape {
+    /// Circular handle
+    Circle,
+
+    /// Rectangular handle
+    Rect {
+        /// Aspect ratio of the rectangle. Set to < 1.0 to make it narrower.
+        aspect_ratio: f32,
+    },
 }
 
 /// The visuals of widgets for different states of interaction.
@@ -1125,6 +1144,7 @@ impl Visuals {
             striped: false,
 
             slider_trailing_fill: false,
+            handle_shape: HandleShape::Circle,
 
             interact_cursor: None,
 
@@ -1687,6 +1707,7 @@ impl Visuals {
             striped,
 
             slider_trailing_fill,
+            handle_shape,
             interact_cursor,
 
             image_loading_spinners,
@@ -1754,6 +1775,8 @@ impl Visuals {
         ui.checkbox(striped, "By default, add stripes to grids and tables?");
 
         ui.checkbox(slider_trailing_fill, "Add trailing color to sliders");
+
+        handle_shape.ui(ui);
 
         ComboBox::from_label("Interact Cursor")
             .selected_text(format!("{interact_cursor:?}"))
@@ -1876,4 +1899,22 @@ fn rounding_ui(ui: &mut Ui, rounding: &mut Rounding) {
             }
         }
     });
+}
+
+impl HandleShape {
+    pub fn ui(&mut self, ui: &mut Ui) {
+        ui.label("Widget handle shape");
+        ui.horizontal(|ui| {
+            ui.radio_value(self, HandleShape::Circle, "Circle");
+            if ui
+                .radio(matches!(self, HandleShape::Rect { .. }), "Rectangle")
+                .clicked()
+            {
+                *self = HandleShape::Rect { aspect_ratio: 0.5 };
+            }
+            if let HandleShape::Rect { aspect_ratio } = self {
+                ui.add(Slider::new(aspect_ratio, 0.1..=3.0).text("Aspect ratio"));
+            }
+        });
+    }
 }
