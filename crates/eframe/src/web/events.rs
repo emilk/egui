@@ -177,7 +177,9 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
         "cut",
         |event: web_sys::ClipboardEvent, runner| {
             runner.input.raw.events.push(egui::Event::Cut);
-            runner.logic();
+            // In Safari we are only allowed to write to the clipboard during the
+            // event callback, which is why we run the app logic here and now:
+            runner.logic(); // we ignore the returned triangles, but schedule a repaint right after
             runner.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
@@ -190,7 +192,9 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
         "copy",
         |event: web_sys::ClipboardEvent, runner| {
             runner.input.raw.events.push(egui::Event::Copy);
-            runner.logic();
+            // In Safari we are only allowed to write to the clipboard during the
+            // event callback, which is why we run the app logic here and now:
+            runner.logic(); // we ignore the returned triangles, but schedule a repaint right after
             runner.needs_repaint.repaint_asap();
             event.stop_propagation();
             event.prevent_default();
