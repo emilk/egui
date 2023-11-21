@@ -1054,7 +1054,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e16e44ab292b1dddfdaf7be62cfd8877df52f2f3fde5858d95bab606be259f20"
 dependencies = [
  "bitflags 2.4.0",
- "libloading 0.7.4",
+ "libloading 0.8.0",
  "winapi",
 ]
 
@@ -1159,7 +1159,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330c60081dcc4c72131f8eb70510f1ac07223e5d4163db481a04a0befcffa412"
 dependencies = [
- "libloading 0.7.4",
+ "libloading 0.8.0",
 ]
 
 [[package]]
@@ -3082,9 +3082,9 @@ checksum = "f89dff0959d98c9758c88826cc002e2c3d0b9dfac4139711d1f30de442f1139b"
 
 [[package]]
 name = "puffin"
-version = "0.17.0"
+version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39009d69b9d547c3ffa974a20648fa02f447c05bd0a664012b1ba5a5b06fb14e"
+checksum = "0e0b84517b2fb755da3a634bc030fcbc7b6337a786aa25a7fb350cdd51ab5e15"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3098,9 +3098,9 @@ dependencies = [
 
 [[package]]
 name = "puffin_http"
-version = "0.14.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "540d042ff82a4f4543fb2e44cf0221ba8b7d6fb7b16979840449a5ddc087486f"
+checksum = "fcf8e52cf00569807b02e8089a85e859c00476182730cda9718c94b12cdc31b8"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
@@ -4451,7 +4451,7 @@ dependencies = [
  "js-sys",
  "khronos-egl",
  "libc",
- "libloading 0.7.4",
+ "libloading 0.8.0",
  "log",
  "metal",
  "naga",
