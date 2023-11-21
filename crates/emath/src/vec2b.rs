@@ -1,5 +1,5 @@
 /// Two bools, one for each axis (X and Y).
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Vec2b {
     pub x: bool,
@@ -55,6 +55,18 @@ impl std::ops::IndexMut<usize> for Vec2b {
             0 => &mut self.x,
             1 => &mut self.y,
             _ => panic!("Vec2b index out of bounds: {index}"),
+        }
+    }
+}
+
+impl std::ops::Not for Vec2b {
+    type Output = Self;
+
+    #[inline]
+    fn not(self) -> Self::Output {
+        Self {
+            x: !self.x,
+            y: !self.y,
         }
     }
 }
