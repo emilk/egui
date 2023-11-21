@@ -7,11 +7,7 @@ use epaint::{ahash::HashMap, emath::NumExt, PaintCallbackInfo, Primitive, Vertex
 use wgpu;
 use wgpu::util::DeviceExt as _;
 
-// Only implements Send + Sync on wasm32 in order to allow storing wgpu resources on the type map.
-#[cfg(not(target_arch = "wasm32"))]
 pub type CallbackResources = type_map::concurrent::TypeMap;
-#[cfg(target_arch = "wasm32")]
-pub type CallbackResources = type_map::TypeMap;
 
 pub struct Callback(Box<dyn CallbackTrait>);
 
@@ -987,9 +983,6 @@ impl ScissorRect {
     }
 }
 
-// Wgpu objects contain references to the JS heap on the web, therefore they are not Send/Sync.
-// It follows that egui_wgpu::Renderer can not be Send/Sync either when building with wasm.
-#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn renderer_impl_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
