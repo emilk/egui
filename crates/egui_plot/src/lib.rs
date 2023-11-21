@@ -854,7 +854,7 @@ impl Plot {
             PlotMemory::load(ui.ctx(), plot_id)
         }
         .unwrap_or_else(|| PlotMemory {
-            auto_bounds: true.into(),
+            auto_bounds: default_auto_bounds,
             hovered_entry: None,
             hidden_items: Default::default(),
             last_plot_transform: PlotTransform::new(
@@ -879,6 +879,7 @@ impl Plot {
             items: Vec::new(),
             next_auto_color_idx: 0,
             last_plot_transform,
+            last_auto_bounds: auto_bounds,
             response,
             bounds_modifications: Vec::new(),
             ctx: ui.ctx().clone(),
@@ -989,6 +990,7 @@ impl Plot {
                     bounds.translate(delta);
                     auto_bounds = false.into();
                 }
+                BoundsModification::AutoBounds(new_auto_bounds) => auto_bounds = new_auto_bounds,
             }
         }
 
@@ -1327,6 +1329,7 @@ fn axis_widgets(
 enum BoundsModification {
     Set(PlotBounds),
     Translate(Vec2),
+    AutoBounds(Vec2b),
 }
 
 /// Provides methods to interact with a plot while building it. It is the single argument of the closure
@@ -1335,6 +1338,7 @@ pub struct PlotUi {
     items: Vec<Box<dyn PlotItem>>,
     next_auto_color_idx: usize,
     last_plot_transform: PlotTransform,
+    last_auto_bounds: Vec2b,
     response: Response,
     bounds_modifications: Vec<BoundsModification>,
     ctx: Context,
@@ -1370,6 +1374,18 @@ impl PlotUi {
     pub fn translate_bounds(&mut self, delta_pos: Vec2) {
         self.bounds_modifications
             .push(BoundsModification::Translate(delta_pos));
+    }
+
+    /// Whether the plot axes were in auto-bounds mode in the last frame. If called on the first
+    /// frame, this is the [`Plot`]'s default auto-bounds mode.
+    pub fn auto_bounds(&self) -> Vec2b {
+        self.last_auto_bounds
+    }
+
+    /// Set the auto-bounds mode for the plot axes.
+    pub fn set_auto_bounds(&mut self, auto_bounds: Vec2b) {
+        self.bounds_modifications
+            .push(BoundsModification::AutoBounds(auto_bounds));
     }
 
     /// Can be used to check if the plot was hovered or clicked.
