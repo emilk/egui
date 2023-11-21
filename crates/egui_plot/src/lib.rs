@@ -1845,7 +1845,7 @@ impl PreparedPlot {
             return Vec::new();
         }
 
-        let interact_radius_sq: f32 = (16.0f32).powi(2);
+        let interact_radius_sq = (16.0_f32).powi(2);
 
         let candidates = items.iter().filter_map(|item| {
             let item = &**item;

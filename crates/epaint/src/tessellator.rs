@@ -702,7 +702,7 @@ fn fill_closed_path(feathering: f32, path: &mut [PathPoint], color: Color32, out
         if cw_signed_area(path) < 0.0 {
             // Wrong winding order - fix:
             path.reverse();
-            for point in path.iter_mut() {
+            for point in &mut *path {
                 point.normal = -point.normal;
             }
         }
@@ -772,7 +772,7 @@ fn fill_closed_path_with_uv(
         if cw_signed_area(path) < 0.0 {
             // Wrong winding order - fix:
             path.reverse();
-            for point in path.iter_mut() {
+            for point in &mut *path {
                 point.normal = -point.normal;
             }
         }

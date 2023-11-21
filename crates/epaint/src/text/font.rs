@@ -273,15 +273,18 @@ impl FontImpl {
             if glyph_width == 0 || glyph_height == 0 {
                 UvRect::default()
             } else {
-                let atlas = &mut self.atlas.lock();
-                let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
-                glyph.draw(|x, y, v| {
-                    if v > 0.0 {
-                        let px = glyph_pos.0 + x as usize;
-                        let py = glyph_pos.1 + y as usize;
-                        image[(px, py)] = v;
-                    }
-                });
+                let glyph_pos = {
+                    let atlas = &mut self.atlas.lock();
+                    let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
+                    glyph.draw(|x, y, v| {
+                        if 0.0 < v {
+                            let px = glyph_pos.0 + x as usize;
+                            let py = glyph_pos.1 + y as usize;
+                            image[(px, py)] = v;
+                        }
+                    });
+                    glyph_pos
+                };
 
                 let offset_in_pixels = vec2(bb.min.x, bb.min.y);
                 let offset =

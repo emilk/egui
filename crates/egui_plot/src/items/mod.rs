@@ -1855,7 +1855,7 @@ where
         .into_iter()
         .enumerate()
         .map(|(index, bar)| {
-            let bar_rect: Rect = transform.rect_from_values(&bar.bounds_min(), &bar.bounds_max());
+            let bar_rect = transform.rect_from_values(&bar.bounds_min(), &bar.bounds_max());
             let dist_sq = bar_rect.distance_sq_to_pos(point);
 
             ClosestElem { index, dist_sq }
