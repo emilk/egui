@@ -20,7 +20,7 @@
 //!
 
 #![allow(clippy::float_cmp)]
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 
 use std::ops::{Add, Div, Mul, RangeInclusive, Sub};
 

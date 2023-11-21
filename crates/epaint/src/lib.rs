@@ -22,7 +22,7 @@
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 
 mod bezier;
 pub mod image;
