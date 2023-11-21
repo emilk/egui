@@ -824,12 +824,23 @@ pub struct ViewportInPixels {
 
 impl PaintCallbackInfo {
     fn pixels_from_points(&self, rect: &Rect) -> ViewportInPixels {
+        // Fractional pixel values for viewports are generally valid, but may cause sampling issues
+        // and rounding errors might cause us to get out of bounds.
+        let left_px = (rect.min.x * self.pixels_per_point).round();
+        let top_px = (rect.min.y * self.pixels_per_point).round();
+        let width_px = (rect.width() * self.pixels_per_point)
+            .round()
+            .at_most(self.screen_size_px[0] as f32 - left_px);
+        let height_px = (rect.height() * self.pixels_per_point)
+            .round()
+            .at_most(self.screen_size_px[1] as f32 - top_px);
+
         ViewportInPixels {
-            left_px: rect.min.x * self.pixels_per_point,
-            top_px: rect.min.y * self.pixels_per_point,
-            from_bottom_px: self.screen_size_px[1] as f32 - rect.max.y * self.pixels_per_point,
-            width_px: rect.width() * self.pixels_per_point,
-            height_px: rect.height() * self.pixels_per_point,
+            left_px,
+            top_px,
+            from_bottom_px: self.screen_size_px[1] as f32 - height_px - top_px,
+            width_px,
+            height_px,
         }
     }
 
