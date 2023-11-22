@@ -12,16 +12,12 @@ pub mod kb_shortcuts {
     pub const ZOOM_RESET: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::Num0);
 }
 
-/// Let the user scale the GUI (change `Context::zoom_factor`) by pressing
+/// Let the user scale the GUI (change [`Context::zoom_factor`]) by pressing
 /// Cmd+Plus, Cmd+Minus or Cmd+0, just like in a browser.
 ///
-/// ```
-/// # let ctx = &egui::Context::default();
-/// // On web, the browser controls the gui zoom.
-/// #[cfg(not(target_arch = "wasm32"))]
-/// egui::gui_zoom::zoom_with_keyboard_shortcuts(ctx);
-/// ```
-pub fn zoom_with_keyboard_shortcuts(ctx: &Context) {
+/// By default, `egui::Context` calls this function at the end of each frame,
+/// controllable by [`egui::Options::listen_for_zoomn_shortcuts`].
+pub(crate) fn zoom_with_keyboard_shortcuts(ctx: &Context) {
     if ctx.input_mut(|i| i.consume_shortcut(&kb_shortcuts::ZOOM_RESET)) {
         ctx.set_zoom_factor(1.0);
     } else {

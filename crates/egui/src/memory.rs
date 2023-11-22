@@ -180,6 +180,12 @@ pub struct Options {
     /// Make larger to make everything larger.
     pub zoom_factor: f32,
 
+    /// If `true`, egui will change the scale of the ui ([`Context::zoom_factor`]) when the user
+    /// presses Cmd+Plus, Cmd+Minus or Cmd+0, just like in a browser.
+    ///
+    /// This is `true` by default.
+    pub listen_for_zoomn_shortcuts: bool,
+
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,
 
@@ -213,6 +219,7 @@ impl Default for Options {
         Self {
             style: Default::default(),
             zoom_factor: 1.0,
+            listen_for_zoomn_shortcuts: true,
             tessellation_options: Default::default(),
             screen_reader: false,
             preload_font_glyphs: true,
