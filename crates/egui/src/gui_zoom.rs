@@ -15,8 +15,8 @@ pub mod kb_shortcuts {
 /// Let the user scale the GUI (change [`Context::zoom_factor`]) by pressing
 /// Cmd+Plus, Cmd+Minus or Cmd+0, just like in a browser.
 ///
-/// By default, `egui::Context` calls this function at the end of each frame,
-/// controllable by [`egui::Options::zoom_with_keyboard`].
+/// By default, [`crate::Context`] calls this function at the end of each frame,
+/// controllable by [`crate::Options::zoom_with_keyboard`].
 pub(crate) fn zoom_with_keyboard(ctx: &Context) {
     if ctx.input_mut(|i| i.consume_shortcut(&kb_shortcuts::ZOOM_RESET)) {
         ctx.set_zoom_factor(1.0);
