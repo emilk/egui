@@ -475,10 +475,10 @@ impl Renderer {
                             let viewport_px = info.viewport_in_pixels();
 
                             render_pass.set_viewport(
-                                viewport_px.left_px,
-                                viewport_px.top_px,
-                                viewport_px.width_px,
-                                viewport_px.height_px,
+                                viewport_px.left_px as f32,
+                                viewport_px.top_px as f32,
+                                viewport_px.width_px as f32,
+                                viewport_px.height_px as f32,
                                 0.0,
                                 1.0,
                             );
