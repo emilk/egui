@@ -309,15 +309,6 @@ impl EpiIntegration {
         }
     }
 
-    pub fn handle_platform_output(
-        &mut self,
-        window: &winit::window::Window,
-        platform_output: egui::PlatformOutput,
-        egui_winit: &mut egui_winit::State,
-    ) {
-        egui_winit.handle_platform_output(window, &self.egui_ctx, platform_output);
-    }
-
     // ------------------------------------------------------------------------
     // Persistence stuff:
 
