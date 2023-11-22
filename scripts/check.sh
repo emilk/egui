@@ -20,41 +20,41 @@ export RUSTDOCFLAGS="-D warnings" # https://github.com/emilk/egui/pull/1454
 typos
 ./scripts/lint.py
 cargo fmt --all -- --check
-cargo doc --lib --no-deps --all-features
-cargo doc --document-private-items --no-deps --all-features
+cargo doc --quiet --lib --no-deps --all-features
+cargo doc --quiet --document-private-items --no-deps --all-features
 
-cargo cranky --all-targets --all-features -- -D warnings
+cargo cranky --quiet --all-targets --all-features -- -D warnings
 ./scripts/clippy_wasm.sh
 
-cargo check --all-targets
-cargo check --all-targets --all-features
-cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown
-cargo check -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
-cargo test --all-targets --all-features
-cargo test --doc # slow - checks all doc-tests
+cargo check --quiet  --all-targets
+cargo check --quiet  --all-targets --all-features
+cargo check --quiet  -p egui_demo_app --lib --target wasm32-unknown-unknown
+cargo check --quiet  -p egui_demo_app --lib --target wasm32-unknown-unknown --all-features
+cargo test  --quiet --all-targets --all-features
+cargo test  --quiet --doc # slow - checks all doc-tests
 
-(cd crates/eframe && cargo check --no-default-features --features "glow")
-(cd crates/eframe && cargo check --no-default-features --features "wgpu")
-(cd crates/egui && cargo check --no-default-features --features "serde")
-(cd crates/egui_demo_app && cargo check --no-default-features --features "glow")
-(cd crates/egui_demo_app && cargo check --no-default-features --features "wgpu")
-(cd crates/egui_demo_lib && cargo check --no-default-features)
-(cd crates/egui_extras && cargo check --no-default-features)
-(cd crates/egui_glow && cargo check --no-default-features)
-(cd crates/egui-winit && cargo check --no-default-features --features "wayland")
-(cd crates/egui-winit && cargo check --no-default-features --features "x11")
-(cd crates/emath && cargo check --no-default-features)
-(cd crates/epaint && cargo check --no-default-features --release)
-(cd crates/epaint && cargo check --no-default-features)
+(cd crates/eframe && cargo check --quiet --no-default-features --features "glow")
+(cd crates/eframe && cargo check --quiet --no-default-features --features "wgpu")
+(cd crates/egui && cargo check --quiet --no-default-features --features "serde")
+(cd crates/egui_demo_app && cargo check --quiet --no-default-features --features "glow")
+(cd crates/egui_demo_app && cargo check --quiet --no-default-features --features "wgpu")
+(cd crates/egui_demo_lib && cargo check --quiet --no-default-features)
+(cd crates/egui_extras && cargo check --quiet --no-default-features)
+(cd crates/egui_glow && cargo check --quiet --no-default-features)
+(cd crates/egui-winit && cargo check --quiet --no-default-features --features "wayland")
+(cd crates/egui-winit && cargo check --quiet --no-default-features --features "x11")
+(cd crates/emath && cargo check --quiet --no-default-features)
+(cd crates/epaint && cargo check --quiet --no-default-features --release)
+(cd crates/epaint && cargo check --quiet --no-default-features)
 
-(cd crates/eframe && cargo check --all-features)
-(cd crates/egui && cargo check --all-features)
-(cd crates/egui_demo_app && cargo check --all-features)
-(cd crates/egui_extras && cargo check --all-features)
-(cd crates/egui_glow && cargo check --all-features)
-(cd crates/egui-winit && cargo check --all-features)
-(cd crates/emath && cargo check --all-features)
-(cd crates/epaint && cargo check --all-features)
+(cd crates/eframe && cargo check --quiet --all-features)
+(cd crates/egui && cargo check --quiet --all-features)
+(cd crates/egui_demo_app && cargo check --quiet --all-features)
+(cd crates/egui_extras && cargo check --quiet --all-features)
+(cd crates/egui_glow && cargo check --quiet --all-features)
+(cd crates/egui-winit && cargo check --quiet --all-features)
+(cd crates/emath && cargo check --quiet --all-features)
+(cd crates/epaint && cargo check --quiet --all-features)
 
 ./scripts/wasm_bindgen_check.sh
 
