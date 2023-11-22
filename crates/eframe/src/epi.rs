@@ -248,6 +248,9 @@ pub struct NativeOptions {
     /// Controls the native window of the root viewport.
     ///
     /// This is where you set things like window title and size.
+    ///
+    /// If you don't set an icon, a default egui icon will be used.
+    /// To avoid this, set the icon to [`egui::IconData::default`].
     pub viewport: egui::ViewportBuilder,
 
     /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
@@ -379,13 +382,7 @@ impl Clone for NativeOptions {
 impl Default for NativeOptions {
     fn default() -> Self {
         Self {
-            viewport: egui::ViewportBuilder {
-                icon: Some(std::sync::Arc::new(
-                    crate::icon_data::from_png_bytes(&include_bytes!("../data/icon.png")[..])
-                        .unwrap(),
-                )),
-                ..Default::default()
-            },
+            viewport: Default::default(),
 
             vsync: true,
             multisampling: 0,
