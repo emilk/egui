@@ -112,7 +112,13 @@ impl AppRunner {
         };
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
-        runner.input.raw.native_pixels_per_point = Some(super::native_pixels_per_point());
+        runner
+            .input
+            .raw
+            .viewports
+            .entry(egui::ViewportId::ROOT)
+            .or_default()
+            .native_pixels_per_point = Some(super::native_pixels_per_point());
 
         Ok(runner)
     }
