@@ -227,8 +227,13 @@ struct ContextImpl {
 
 impl ContextImpl {
     fn begin_frame_mut(&mut self, mut new_raw_input: RawInput) {
-        let ids = new_raw_input.viewport_ids;
-        let viewport_id = ids.this;
+        let viewport_id = new_raw_input.viewport_id;
+        let parent_id = new_raw_input
+            .viewports
+            .get(&viewport_id)
+            .and_then(|v| v.parent)
+            .unwrap_or_default();
+        let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent_id);
         self.viewport_stack.push(ids);
         let viewport = self.viewports.entry(viewport_id).or_default();
 

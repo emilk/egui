@@ -14,9 +14,7 @@ pub use accesskit_winit;
 pub use egui;
 #[cfg(feature = "accesskit")]
 use egui::accesskit;
-use egui::{
-    Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportIdPair, ViewportInfo,
-};
+use egui::{Pos2, Rect, Vec2, ViewportBuilder, ViewportCommand, ViewportId, ViewportInfo};
 pub use winit;
 
 pub mod clipboard;
@@ -59,6 +57,7 @@ pub struct EventResponse {
 ///
 /// Instantiate one of these per viewport/window.
 pub struct State {
+    viewport_id: ViewportId,
     start_time: web_time::Instant,
     egui_input: egui::RawInput,
     pointer_pos_in_points: Option<egui::Pos2>,
@@ -93,6 +92,7 @@ pub struct State {
 impl State {
     /// Construct a new instance
     pub fn new(
+        viewport_id: ViewportId,
         display_target: &dyn HasRawDisplayHandle,
         native_pixels_per_point: Option<f32>,
         max_texture_side: Option<usize>,
@@ -105,6 +105,7 @@ impl State {
         };
 
         let mut slf = Self {
+            viewport_id,
             start_time: web_time::Instant::now(),
             egui_input,
             pointer_pos_in_points: None,
@@ -202,7 +203,7 @@ impl State {
     /// You need to set [`egui::RawInput::viewports`] yourself though.
     /// Use [`Self::update_viewport_info`] to update the info for each
     /// viewport.
-    pub fn take_egui_input(&mut self, window: &Window, ids: ViewportIdPair) -> egui::RawInput {
+    pub fn take_egui_input(&mut self, window: &Window) -> egui::RawInput {
         crate::profile_function!();
 
         let pixels_per_point = self.pixels_per_point();
@@ -226,7 +227,7 @@ impl State {
             .then(|| Rect::from_min_size(Pos2::ZERO, screen_size_in_points));
 
         // Tell egui which viewport is now active:
-        self.egui_input.viewport_ids = ids;
+        self.egui_input.viewport_id = self.viewport_id;
         self.egui_input.native_pixels_per_point = Some(native_pixels_per_point(window));
         self.egui_input.take()
     }
@@ -692,7 +693,6 @@ impl State {
     pub fn handle_platform_output(
         &mut self,
         window: &Window,
-        viewport_id: ViewportId,
         egui_ctx: &egui::Context,
         platform_output: egui::PlatformOutput,
     ) {
@@ -709,7 +709,8 @@ impl State {
             accesskit_update,
         } = platform_output;
 
-        self.current_pixels_per_point = egui_ctx.input_for(viewport_id, |i| i.pixels_per_point); // someone can have changed it to scale the UI
+        self.current_pixels_per_point =
+            egui_ctx.input_for(self.viewport_id, |i| i.pixels_per_point); // someone can have changed it to scale the UI
 
         self.set_cursor_icon(window, cursor_icon);
 

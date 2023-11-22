@@ -2,7 +2,7 @@
 
 use epaint::ColorImage;
 
-use crate::{emath::*, ViewportIdMap, ViewportIdPair};
+use crate::{emath::*, ViewportId, ViewportIdMap};
 
 /// What the integrations provides to egui at the start of each frame.
 ///
@@ -15,8 +15,8 @@ use crate::{emath::*, ViewportIdMap, ViewportIdPair};
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RawInput {
-    /// The id of the active viewport, and out parent.
-    pub viewport_ids: ViewportIdPair,
+    /// The id of the active viewport.
+    pub viewport_id: ViewportId,
 
     /// Information about all egui viewports.
     pub viewports: ViewportIdMap<ViewportInfo>,
@@ -89,7 +89,7 @@ pub struct RawInput {
 impl Default for RawInput {
     fn default() -> Self {
         Self {
-            viewport_ids: Default::default(),
+            viewport_id: Default::default(),
             viewports: Default::default(),
             screen_rect: None,
             pixels_per_point: None,
@@ -107,13 +107,19 @@ impl Default for RawInput {
 }
 
 impl RawInput {
+    /// Info about the active viewport
+    #[inline]
+    pub fn viewport(&self) -> &ViewportInfo {
+        self.viewports.get(&self.viewport_id).expect("Failed to find current viewport in egui RawInput. This is the fault of the egui backend")
+    }
+
     /// Helper: move volatile (deltas and events), clone the rest.
     ///
     /// * [`Self::hovered_files`] is cloned.
     /// * [`Self::dropped_files`] is moved.
     pub fn take(&mut self) -> RawInput {
         RawInput {
-            viewport_ids: self.viewport_ids,
+            viewport_id: self.viewport_id,
             viewports: self.viewports.clone(),
             screen_rect: self.screen_rect.take(),
             pixels_per_point: self.pixels_per_point.take(), // take the diff
@@ -132,7 +138,7 @@ impl RawInput {
     /// Add on new input.
     pub fn append(&mut self, newer: Self) {
         let Self {
-            viewport_ids,
+            viewport_id: viewport_ids,
             viewports,
             screen_rect,
             pixels_per_point,
@@ -147,7 +153,7 @@ impl RawInput {
             focused,
         } = newer;
 
-        self.viewport_ids = viewport_ids;
+        self.viewport_id = viewport_ids;
         self.viewports = viewports;
         self.screen_rect = screen_rect.or(self.screen_rect);
         self.pixels_per_point = pixels_per_point.or(self.pixels_per_point);
@@ -1106,7 +1112,7 @@ fn format_kb_shortcut() {
 impl RawInput {
     pub fn ui(&self, ui: &mut crate::Ui) {
         let Self {
-            viewport_ids,
+            viewport_id,
             viewports,
             screen_rect,
             pixels_per_point,
@@ -1121,10 +1127,7 @@ impl RawInput {
             focused,
         } = self;
 
-        ui.label(format!(
-            "Active viwport: {:?}, parent: {:?}",
-            viewport_ids.this, viewport_ids.parent,
-        ));
+        ui.label(format!("Active viwport: {viewport_id:?}"));
         for (id, viewport) in viewports {
             ui.group(|ui| {
                 ui.label(format!("Viewport {id:?}"));

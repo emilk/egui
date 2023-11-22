@@ -506,7 +506,7 @@ impl GlowWinitRunning {
             let window = viewport.window.as_ref().unwrap();
 
             let egui_winit = viewport.egui_winit.as_mut().unwrap();
-            let mut raw_input = egui_winit.take_egui_input(window, viewport.ids);
+            let mut raw_input = egui_winit.take_egui_input(window);
             let viewport_ui_cb = viewport.viewport_ui_cb.clone();
 
             self.integration.pre_update();
@@ -562,7 +562,7 @@ impl GlowWinitRunning {
         let egui_winit = viewport.egui_winit.as_mut().unwrap();
 
         integration.post_update();
-        integration.handle_platform_output(window, viewport_id, platform_output, egui_winit);
+        egui_winit.handle_platform_output(window, &integration.egui_ctx, platform_output);
 
         let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
@@ -1018,6 +1018,7 @@ impl GlutinWindowContext {
 
             viewport.egui_winit.get_or_insert_with(|| {
                 egui_winit::State::new(
+                    viewport_id,
                     event_loop,
                     Some(window.scale_factor() as f32),
                     self.max_texture_side,
@@ -1276,7 +1277,7 @@ fn render_immediate_viewport(
             return;
         };
 
-        let mut raw_input = winit_state.take_egui_input(window, ids);
+        let mut raw_input = winit_state.take_egui_input(window);
         raw_input.viewports = glutin
             .viewports
             .iter()
@@ -1360,7 +1361,7 @@ fn render_immediate_viewport(
         }
     }
 
-    winit_state.handle_platform_output(window, ids.this, egui_ctx, platform_output);
+    winit_state.handle_platform_output(window, egui_ctx, platform_output);
 
     glutin.handle_viewport_output(viewport_output);
 }
