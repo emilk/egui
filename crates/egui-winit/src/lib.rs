@@ -226,7 +226,7 @@ impl State {
             .then(|| Rect::from_min_size(Pos2::ZERO, screen_size_in_points));
 
         // Tell egui which viewport is now active:
-        self.egui_input.viewport_ids = ids;
+        self.egui_input.viewport_id = ids.this;
         self.egui_input.native_pixels_per_point = Some(native_pixels_per_point(window));
         self.egui_input.take()
     }
