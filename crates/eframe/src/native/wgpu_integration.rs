@@ -140,6 +140,7 @@ impl WgpuWinitApp {
 
     fn init_run_state(
         &mut self,
+        egui_ctx: egui::Context,
         event_loop: &EventLoopWindowTarget<UserEvent>,
         storage: Option<Box<dyn Storage>>,
         window: Window,
@@ -163,12 +164,12 @@ impl WgpuWinitApp {
 
         let system_theme = winit_integration::system_theme(&window, &self.native_options);
         let integration = EpiIntegration::new(
+            egui_ctx,
             &window,
             system_theme,
             &self.app_name,
             &self.native_options,
             storage,
-            winit_integration::IS_DESKTOP,
             #[cfg(feature = "glow")]
             None,
             wgpu_render_state.clone(),
@@ -374,9 +375,10 @@ impl WinitApp for WgpuWinitApp {
                             .as_ref()
                             .unwrap_or(&self.app_name),
                     );
+                    let egui_ctx = winit_integration::create_egui_context(storage.as_deref());
                     let (window, builder) =
                         create_window(event_loop, storage.as_deref(), &mut self.native_options)?;
-                    self.init_run_state(event_loop, storage, window, builder)?
+                    self.init_run_state(egui_ctx, event_loop, storage, window, builder)?
                 };
 
                 EventResult::RepaintNow(

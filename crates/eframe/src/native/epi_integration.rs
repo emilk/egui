@@ -137,21 +137,15 @@ pub struct EpiIntegration {
 impl EpiIntegration {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        egui_ctx: egui::Context,
         window: &winit::window::Window,
         system_theme: Option<Theme>,
         app_name: &str,
         native_options: &crate::NativeOptions,
         storage: Option<Box<dyn epi::Storage>>,
-        is_desktop: bool,
         #[cfg(feature = "glow")] gl: Option<std::rc::Rc<glow::Context>>,
         #[cfg(feature = "wgpu")] wgpu_render_state: Option<egui_wgpu::RenderState>,
     ) -> Self {
-        let egui_ctx = egui::Context::default();
-        egui_ctx.set_embed_viewports(!is_desktop);
-
-        let memory = load_egui_memory(storage.as_deref()).unwrap_or_default();
-        egui_ctx.memory_mut(|mem| *mem = memory);
-
         let frame = epi::Frame {
             info: epi::IntegrationInfo {
                 system_theme,

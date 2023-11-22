@@ -24,8 +24,8 @@ use egui_winit::{
 };
 
 use crate::{
-    native::epi_integration::EpiIntegration, App, AppCreator, CreationContext, NativeOptions,
-    Result, Storage,
+    native::{epi_integration::EpiIntegration, winit_integration::create_egui_context},
+    App, AppCreator, CreationContext, NativeOptions, Result, Storage,
 };
 
 use super::{
@@ -190,6 +190,8 @@ impl GlowWinitApp {
                 .unwrap_or(&self.app_name),
         );
 
+        let egui_ctx = create_egui_context(storage.as_deref());
+
         let (mut glutin, painter) = Self::create_glutin_windowed_context(
             event_loop,
             storage.as_deref(),
@@ -209,12 +211,12 @@ impl GlowWinitApp {
             winit_integration::system_theme(&glutin.window(ViewportId::ROOT), &self.native_options);
 
         let integration = EpiIntegration::new(
+            egui_ctx,
             &glutin.window(ViewportId::ROOT),
             system_theme,
             &self.app_name,
             &self.native_options,
             storage,
-            winit_integration::IS_DESKTOP,
             Some(gl.clone()),
             #[cfg(feature = "wgpu")]
             None,
