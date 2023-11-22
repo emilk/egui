@@ -24,6 +24,15 @@ pub use window_settings::WindowSettings;
 
 use raw_window_handle::HasRawDisplayHandle;
 
+#[allow(unused_imports)]
+pub(crate) use profiling_scopes::*;
+
+use winit::{
+    dpi::{PhysicalPosition, PhysicalSize},
+    event_loop::EventLoopWindowTarget,
+    window::{CursorGrabMode, Window, WindowButtons, WindowLevel},
+};
+
 pub fn screen_size_in_pixels(window: &Window) -> egui::Vec2 {
     let size = window.inner_size();
     egui::vec2(size.width as f32, size.height as f32)
@@ -1034,6 +1043,7 @@ fn translate_cursor(cursor_icon: egui::CursorIcon) -> Option<winit::window::Curs
 // ---------------------------------------------------------------------------
 
 pub fn process_viewport_commands(
+    egui_ctx: &egui::Context,
     info: &mut ViewportInfo,
     commands: impl IntoIterator<Item = ViewportCommand>,
     window: &Window,
@@ -1043,6 +1053,9 @@ pub fn process_viewport_commands(
     crate::profile_function!();
 
     use winit::window::ResizeDirection;
+
+    let egui_zoom_factor = egui_ctx.zoom_factor();
+    let pixels_per_point = egui_zoom_factor * window.scale_factor() as f32;
 
     for command in commands {
         match command {
@@ -1062,9 +1075,9 @@ pub fn process_viewport_commands(
                 }
             }
             ViewportCommand::InnerSize(size) => {
-                let width = size.x.max(1.0);
-                let height = size.y.max(1.0);
-                window.set_inner_size(LogicalSize::new(width, height));
+                let width_px = pixels_per_point * size.x.max(1.0);
+                let height_px = pixels_per_point * size.y.max(1.0);
+                window.set_inner_size(PhysicalSize::new(width_px, height_px));
             }
             ViewportCommand::BeginResize(direction) => {
                 if let Err(err) = window.drag_resize_window(match direction {
@@ -1085,20 +1098,25 @@ pub fn process_viewport_commands(
             ViewportCommand::Transparent(v) => window.set_transparent(v),
             ViewportCommand::Visible(v) => window.set_visible(v),
             ViewportCommand::OuterPosition(pos) => {
-                window.set_outer_position(LogicalPosition::new(pos.x, pos.y));
+                window.set_outer_position(PhysicalPosition::new(
+                    pixels_per_point * pos.x,
+                    pixels_per_point * pos.y,
+                ));
             }
             ViewportCommand::MinInnerSize(s) => {
-                window.set_min_inner_size(
-                    (s.is_finite() && s != Vec2::ZERO).then_some(LogicalSize::new(s.x, s.y)),
-                );
+                window.set_min_inner_size((s.is_finite() && s != Vec2::ZERO).then_some(
+                    PhysicalSize::new(pixels_per_point * s.x, pixels_per_point * s.y),
+                ));
             }
             ViewportCommand::MaxInnerSize(s) => {
-                window.set_max_inner_size(
-                    (s.is_finite() && s != Vec2::INFINITY).then_some(LogicalSize::new(s.x, s.y)),
-                );
+                window.set_max_inner_size((s.is_finite() && s != Vec2::INFINITY).then_some(
+                    PhysicalSize::new(pixels_per_point * s.x, pixels_per_point * s.y),
+                ));
             }
             ViewportCommand::ResizeIncrements(s) => {
-                window.set_resize_increments(s.map(|s| LogicalSize::new(s.x, s.y)));
+                window.set_resize_increments(
+                    s.map(|s| PhysicalSize::new(pixels_per_point * s.x, pixels_per_point * s.y)),
+                );
             }
             ViewportCommand::Resizable(v) => window.set_resizable(v),
             ViewportCommand::EnableButtons {
@@ -1144,7 +1162,10 @@ pub fn process_viewport_commands(
                 }));
             }
             ViewportCommand::IMEPosition(pos) => {
-                window.set_ime_position(LogicalPosition::new(pos.x, pos.y));
+                window.set_ime_position(PhysicalPosition::new(
+                    pixels_per_point * pos.x,
+                    pixels_per_point * pos.y,
+                ));
             }
             ViewportCommand::IMEAllowed(v) => window.set_ime_allowed(v),
             ViewportCommand::IMEPurpose(p) => window.set_ime_purpose(match p {
@@ -1175,7 +1196,10 @@ pub fn process_viewport_commands(
             }),
             ViewportCommand::ContentProtected(v) => window.set_content_protected(v),
             ViewportCommand::CursorPosition(pos) => {
-                if let Err(err) = window.set_cursor_position(LogicalPosition::new(pos.x, pos.y)) {
+                if let Err(err) = window.set_cursor_position(PhysicalPosition::new(
+                    pixels_per_point * pos.x,
+                    pixels_per_point * pos.y,
+                )) {
                     log::warn!("{command:?}: {err}");
                 }
             }
@@ -1201,10 +1225,27 @@ pub fn process_viewport_commands(
     }
 }
 
-pub fn create_winit_window_builder(
+pub fn create_winit_window_builder<T>(
+    egui_ctx: &egui::Context,
+    event_loop: &EventLoopWindowTarget<T>,
     viewport_builder: ViewportBuilder,
 ) -> winit::window::WindowBuilder {
     crate::profile_function!();
+
+    // We set sizes and positions in egui:s own ui points, which depends on the egui
+    // zoom_factor and the native pixels per point, so we need to know that here.
+    let native_pixels_per_point = event_loop
+        .primary_monitor()
+        .or_else(|| event_loop.available_monitors().next())
+        .map_or_else(
+            || {
+                log::debug!("Failed to find a monitor - assuming native_pixels_per_point of 1.0");
+                1.0
+            },
+            |m| m.scale_factor() as f32,
+        );
+    let zoom_factor = egui_ctx.zoom_factor();
+    let pixels_per_point = zoom_factor * native_pixels_per_point;
 
     let ViewportBuilder {
         title,
@@ -1266,27 +1307,31 @@ pub fn create_winit_window_builder(
         .with_active(active.unwrap_or(true));
 
     if let Some(inner_size) = inner_size {
-        window_builder = window_builder
-            .with_inner_size(winit::dpi::LogicalSize::new(inner_size.x, inner_size.y));
+        window_builder = window_builder.with_inner_size(PhysicalSize::new(
+            pixels_per_point * inner_size.x,
+            pixels_per_point * inner_size.y,
+        ));
     }
 
     if let Some(min_inner_size) = min_inner_size {
-        window_builder = window_builder.with_min_inner_size(winit::dpi::LogicalSize::new(
-            min_inner_size.x,
-            min_inner_size.y,
+        window_builder = window_builder.with_min_inner_size(PhysicalSize::new(
+            pixels_per_point * min_inner_size.x,
+            pixels_per_point * min_inner_size.y,
         ));
     }
 
     if let Some(max_inner_size) = max_inner_size {
-        window_builder = window_builder.with_max_inner_size(winit::dpi::LogicalSize::new(
-            max_inner_size.x,
-            max_inner_size.y,
+        window_builder = window_builder.with_max_inner_size(PhysicalSize::new(
+            pixels_per_point * max_inner_size.x,
+            pixels_per_point * max_inner_size.y,
         ));
     }
 
     if let Some(position) = position {
-        window_builder =
-            window_builder.with_position(winit::dpi::LogicalPosition::new(position.x, position.y));
+        window_builder = window_builder.with_position(PhysicalPosition::new(
+            pixels_per_point * position.x,
+            pixels_per_point * position.y,
+        ));
     }
 
     if let Some(icon) = icon {
@@ -1425,10 +1470,3 @@ mod profiling_scopes {
     }
     pub(crate) use profile_scope;
 }
-
-#[allow(unused_imports)]
-pub(crate) use profiling_scopes::*;
-use winit::{
-    dpi::{LogicalPosition, LogicalSize},
-    window::{CursorGrabMode, Window, WindowButtons, WindowLevel},
-};

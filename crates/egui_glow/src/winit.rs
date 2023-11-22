@@ -75,6 +75,7 @@ impl EguiGlow {
         for (_, ViewportOutput { commands, .. }) in viewport_output {
             let mut screenshot_requested = false;
             egui_winit::process_viewport_commands(
+                &self.egui_ctx,
                 &mut self.viewport_info,
                 commands,
                 window,

@@ -124,7 +124,12 @@ impl WgpuWinitApp {
 
         for viewport in viewports.values_mut() {
             if viewport.window.is_none() {
-                viewport.init_window(viewport_from_window, painter, event_loop);
+                viewport.init_window(
+                    &running.integration.egui_ctx,
+                    viewport_from_window,
+                    painter,
+                    event_loop,
+                );
             }
         }
     }
@@ -371,7 +376,7 @@ impl WinitApp for WgpuWinitApp {
                     );
                     let egui_ctx = winit_integration::create_egui_context(storage.as_deref());
                     let (window, builder) = create_window(
-                        egui_ctx.zoom_factor(),
+                        &egui_ctx,
                         event_loop,
                         storage.as_deref(),
                         &mut self.native_options,
@@ -608,7 +613,12 @@ impl WgpuWinitRunning {
 
         let active_viewports_ids: ViewportIdSet = viewport_output.keys().copied().collect();
 
-        handle_viewport_output(viewport_output, viewports, *focused_viewport);
+        handle_viewport_output(
+            &integration.egui_ctx,
+            viewport_output,
+            viewports,
+            *focused_viewport,
+        );
 
         // Prune dead viewports:
         viewports.retain(|id, _| active_viewports_ids.contains(id));
@@ -756,6 +766,7 @@ impl WgpuWinitRunning {
 impl Viewport {
     fn init_window(
         &mut self,
+        egui_ctx: &egui::Context,
         windows_id: &mut HashMap<WindowId, ViewportId>,
         painter: &mut egui_wgpu::winit::Painter,
         event_loop: &EventLoopWindowTarget<UserEvent>,
@@ -764,7 +775,9 @@ impl Viewport {
 
         let viewport_id = self.ids.this;
 
-        match create_winit_window_builder(self.builder.clone()).build(event_loop) {
+        match create_winit_window_builder(egui_ctx, event_loop, self.builder.clone())
+            .build(event_loop)
+        {
             Ok(window) => {
                 apply_viewport_builder_to_new_window(&window, &self.builder);
 
@@ -807,7 +820,7 @@ impl Viewport {
 }
 
 fn create_window(
-    egui_zoom_factor: f32,
+    egui_ctx: &egui::Context,
     event_loop: &EventLoopWindowTarget<UserEvent>,
     storage: Option<&dyn Storage>,
     native_options: &mut NativeOptions,
@@ -816,14 +829,15 @@ fn create_window(
 
     let window_settings = epi_integration::load_window_settings(storage);
     let viewport_builder = epi_integration::viewport_builder(
-        egui_zoom_factor,
+        egui_ctx.zoom_factor(),
         event_loop,
         native_options,
         window_settings,
     );
     let window = {
         crate::profile_scope!("WindowBuilder::build");
-        create_winit_window_builder(viewport_builder.clone()).build(event_loop)?
+        create_winit_window_builder(egui_ctx, event_loop, viewport_builder.clone())
+            .build(event_loop)?
     };
     apply_viewport_builder_to_new_window(&window, &viewport_builder);
     epi_integration::apply_window_settings(&window, window_settings);
@@ -846,6 +860,7 @@ fn render_immediate_viewport(
 
     let input = {
         let SharedState {
+            egui_ctx,
             viewports,
             painter,
             viewport_from_window,
@@ -853,6 +868,7 @@ fn render_immediate_viewport(
         } = &mut *shared.borrow_mut();
 
         let viewport = initialize_or_update_viewport(
+            egui_ctx,
             viewports,
             ids,
             ViewportClass::Immediate,
@@ -861,7 +877,7 @@ fn render_immediate_viewport(
             None,
         );
         if viewport.window.is_none() {
-            viewport.init_window(viewport_from_window, painter, event_loop);
+            viewport.init_window(egui_ctx, viewport_from_window, painter, event_loop);
         }
         viewport.update_viewport_info();
 
@@ -933,11 +949,12 @@ fn render_immediate_viewport(
 
     winit_state.handle_platform_output(window, &egui_ctx, platform_output);
 
-    handle_viewport_output(viewport_output, viewports, *focused_viewport);
+    handle_viewport_output(&egui_ctx, viewport_output, viewports, *focused_viewport);
 }
 
 /// Add new viewports, and update existing ones:
 fn handle_viewport_output(
+    egui_ctx: &egui::Context,
     viewport_output: ViewportIdMap<ViewportOutput>,
     viewports: &mut ViewportIdMap<Viewport>,
     focused_viewport: Option<ViewportId>,
@@ -957,6 +974,7 @@ fn handle_viewport_output(
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent);
 
         let viewport = initialize_or_update_viewport(
+            egui_ctx,
             viewports,
             ids,
             class,
@@ -968,6 +986,7 @@ fn handle_viewport_output(
         if let Some(window) = viewport.window.as_ref() {
             let is_viewport_focused = focused_viewport == Some(viewport_id);
             egui_winit::process_viewport_commands(
+                egui_ctx,
                 &mut viewport.info,
                 commands,
                 window,
@@ -978,14 +997,15 @@ fn handle_viewport_output(
     }
 }
 
-fn initialize_or_update_viewport(
-    viewports: &mut Viewports,
+fn initialize_or_update_viewport<'vp>(
+    egui_ctx: &egui::Context,
+    viewports: &'vp mut Viewports,
     ids: ViewportIdPair,
     class: ViewportClass,
     mut builder: ViewportBuilder,
     viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
     focused_viewport: Option<ViewportId>,
-) -> &mut Viewport {
+) -> &'vp mut Viewport {
     if builder.icon.is_none() {
         // Inherit icon from parent
         builder.icon = viewports
@@ -1030,6 +1050,7 @@ fn initialize_or_update_viewport(
             } else if let Some(window) = &viewport.window {
                 let is_viewport_focused = focused_viewport == Some(ids.this);
                 process_viewport_commands(
+                    egui_ctx,
                     &mut viewport.info,
                     delta_commands,
                     window,
