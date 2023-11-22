@@ -184,7 +184,7 @@ pub struct Options {
     /// presses Cmd+Plus, Cmd+Minus or Cmd+0, just like in a browser.
     ///
     /// This is `true` by default.
-    pub listen_for_zoomn_shortcuts: bool,
+    pub zoom_with_keyboard: bool,
 
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,
@@ -219,7 +219,7 @@ impl Default for Options {
         Self {
             style: Default::default(),
             zoom_factor: 1.0,
-            listen_for_zoomn_shortcuts: true,
+            zoom_with_keyboard: true,
             tessellation_options: Default::default(),
             screen_reader: false,
             preload_font_glyphs: true,

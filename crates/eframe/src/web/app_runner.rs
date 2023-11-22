@@ -60,7 +60,7 @@ impl AppRunner {
 
         egui_ctx.options_mut(|o| {
             // On web, the browser controls the zoom factor:
-            o.listen_for_zoomn_shortcuts = false;
+            o.zoom_with_keyboard = false;
             o.zoom_factor = 1.0;
         });
 

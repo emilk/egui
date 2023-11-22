@@ -1551,8 +1551,8 @@ impl Context {
     pub fn end_frame(&self) -> FullOutput {
         crate::profile_function!();
 
-        if self.options(|o| o.listen_for_zoomn_shortcuts) {
-            crate::gui_zoom::zoom_with_keyboard_shortcuts(self);
+        if self.options(|o| o.zoom_with_keyboard) {
+            crate::gui_zoom::zoom_with_keyboard(self);
         }
 
         self.write(|ctx| ctx.end_frame())

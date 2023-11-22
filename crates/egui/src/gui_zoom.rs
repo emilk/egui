@@ -16,8 +16,8 @@ pub mod kb_shortcuts {
 /// Cmd+Plus, Cmd+Minus or Cmd+0, just like in a browser.
 ///
 /// By default, `egui::Context` calls this function at the end of each frame,
-/// controllable by [`egui::Options::listen_for_zoomn_shortcuts`].
-pub(crate) fn zoom_with_keyboard_shortcuts(ctx: &Context) {
+/// controllable by [`egui::Options::zoom_with_keyboard`].
+pub(crate) fn zoom_with_keyboard(ctx: &Context) {
     if ctx.input_mut(|i| i.consume_shortcut(&kb_shortcuts::ZOOM_RESET)) {
         ctx.set_zoom_factor(1.0);
     } else {
