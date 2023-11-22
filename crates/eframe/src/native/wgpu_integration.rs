@@ -376,8 +376,12 @@ impl WinitApp for WgpuWinitApp {
                             .unwrap_or(&self.app_name),
                     );
                     let egui_ctx = winit_integration::create_egui_context(storage.as_deref());
-                    let (window, builder) =
-                        create_window(event_loop, storage.as_deref(), &mut self.native_options)?;
+                    let (window, builder) = create_window(
+                        egui_ctx.zoom_factor(),
+                        event_loop,
+                        storage.as_deref(),
+                        &mut self.native_options,
+                    )?;
                     self.init_run_state(egui_ctx, event_loop, storage, window, builder)?
                 };
 
@@ -808,6 +812,7 @@ impl Viewport {
 }
 
 fn create_window(
+    egui_zoom_factor: f32,
     event_loop: &EventLoopWindowTarget<UserEvent>,
     storage: Option<&dyn Storage>,
     native_options: &mut NativeOptions,
@@ -815,8 +820,12 @@ fn create_window(
     crate::profile_function!();
 
     let window_settings = epi_integration::load_window_settings(storage);
-    let viewport_builder =
-        epi_integration::viewport_builder(event_loop, native_options, window_settings);
+    let viewport_builder = epi_integration::viewport_builder(
+        egui_zoom_factor,
+        event_loop,
+        native_options,
+        window_settings,
+    );
     let window = {
         crate::profile_scope!("WindowBuilder::build");
         create_winit_window_builder(viewport_builder.clone()).build(event_loop)?

@@ -138,6 +138,7 @@ impl GlowWinitApp {
 
     #[allow(unsafe_code)]
     fn create_glutin_windowed_context(
+        egui_zoom_factor: f32,
         event_loop: &EventLoopWindowTarget<UserEvent>,
         storage: Option<&dyn Storage>,
         native_options: &mut NativeOptions,
@@ -146,8 +147,12 @@ impl GlowWinitApp {
 
         let window_settings = epi_integration::load_window_settings(storage);
 
-        let winit_window_builder =
-            epi_integration::viewport_builder(event_loop, native_options, window_settings);
+        let winit_window_builder = epi_integration::viewport_builder(
+            egui_zoom_factor,
+            event_loop,
+            native_options,
+            window_settings,
+        );
 
         let mut glutin_window_context =
             unsafe { GlutinWindowContext::new(winit_window_builder, native_options, event_loop)? };
@@ -193,6 +198,7 @@ impl GlowWinitApp {
         let egui_ctx = create_egui_context(storage.as_deref());
 
         let (mut glutin, painter) = Self::create_glutin_windowed_context(
+            egui_ctx.zoom_factor(),
             event_loop,
             storage.as_deref(),
             &mut self.native_options,

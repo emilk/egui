@@ -24,10 +24,6 @@ pub use window_settings::WindowSettings;
 
 use raw_window_handle::HasRawDisplayHandle;
 
-pub fn native_pixels_per_point(window: &Window) -> f32 {
-    window.scale_factor() as f32
-}
-
 pub fn screen_size_in_pixels(window: &Window) -> egui::Vec2 {
     let size = window.inner_size();
     egui::vec2(size.width as f32, size.height as f32)
@@ -222,7 +218,7 @@ impl State {
             .viewports
             .entry(self.viewport_id)
             .or_default()
-            .native_pixels_per_point = Some(native_pixels_per_point(window));
+            .native_pixels_per_point = Some(window.scale_factor() as f32);
 
         self.egui_input.take()
     }

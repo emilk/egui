@@ -12,6 +12,7 @@ use egui_winit::{EventResponse, WindowSettings};
 use crate::{epi, Theme};
 
 pub fn viewport_builder<E>(
+    egui_zoom_factor: f32,
     event_loop: &EventLoopWindowTarget<E>,
     native_options: &mut epi::NativeOptions,
     window_settings: Option<WindowSettings>,
@@ -26,8 +27,9 @@ pub fn viewport_builder<E>(
     let inner_size_points = if let Some(mut window_settings) = window_settings {
         // Restore pos/size from previous session
 
-        window_settings.clamp_size_to_sane_values(largest_monitor_point_size(event_loop));
-        window_settings.clamp_position_to_monitors(event_loop);
+        window_settings
+            .clamp_size_to_sane_values(largest_monitor_point_size(egui_zoom_factor, event_loop));
+        window_settings.clamp_position_to_monitors(egui_zoom_factor, event_loop);
 
         viewport_builder = window_settings.initialize_viewport_builder(viewport_builder);
         window_settings.inner_size_points()
@@ -37,8 +39,8 @@ pub fn viewport_builder<E>(
         }
 
         if let Some(initial_window_size) = viewport_builder.inner_size {
-            let initial_window_size =
-                initial_window_size.at_most(largest_monitor_point_size(event_loop));
+            let initial_window_size = initial_window_size
+                .at_most(largest_monitor_point_size(egui_zoom_factor, event_loop));
             viewport_builder = viewport_builder.with_inner_size(initial_window_size);
         }
 
@@ -49,9 +51,11 @@ pub fn viewport_builder<E>(
     if native_options.centered {
         crate::profile_scope!("center");
         if let Some(monitor) = event_loop.available_monitors().next() {
-            let monitor_size = monitor.size().to_logical::<f32>(monitor.scale_factor());
+            let monitor_size = monitor
+                .size()
+                .to_logical::<f32>(egui_zoom_factor as f64 * monitor.scale_factor());
             let inner_size = inner_size_points.unwrap_or(egui::Vec2 { x: 800.0, y: 600.0 });
-            if monitor_size.width > 0.0 && monitor_size.height > 0.0 {
+            if 0.0 < monitor_size.width && 0.0 < monitor_size.height {
                 let x = (monitor_size.width - inner_size.x) / 2.0;
                 let y = (monitor_size.height - inner_size.y) / 2.0;
                 viewport_builder = viewport_builder.with_position([x, y]);
@@ -76,7 +80,10 @@ pub fn apply_window_settings(
     }
 }
 
-fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui::Vec2 {
+fn largest_monitor_point_size<E>(
+    egui_zoom_factor: f32,
+    event_loop: &EventLoopWindowTarget<E>,
+) -> egui::Vec2 {
     crate::profile_function!();
 
     let mut max_size = egui::Vec2::ZERO;
@@ -87,7 +94,9 @@ fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui:
     };
 
     for monitor in available_monitors {
-        let size = monitor.size().to_logical::<f32>(monitor.scale_factor());
+        let size = monitor
+            .size()
+            .to_logical::<f32>(egui_zoom_factor as f64 * monitor.scale_factor());
         let size = egui::vec2(size.width, size.height);
         max_size = max_size.max(size);
     }
@@ -327,7 +336,7 @@ impl EpiIntegration {
                     epi::set_value(
                         storage,
                         STORAGE_WINDOW_KEY,
-                        &WindowSettings::from_display(window),
+                        &WindowSettings::from_window(self.egui_ctx.zoom_factor(), window),
                     );
                 }
             }
