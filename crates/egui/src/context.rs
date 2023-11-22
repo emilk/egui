@@ -200,6 +200,9 @@ struct ContextImpl {
     animation_manager: AnimationManager,
     tex_manager: WrappedTextureManager,
 
+    /// Set during the frame, becomes active at the start of the next frame.
+    new_zoom_factor: Option<f32>,
+
     os: OperatingSystem,
 
     /// How deeply nested are we?
@@ -234,6 +237,8 @@ impl ContextImpl {
             .and_then(|v| v.parent)
             .unwrap_or_default();
         let ids = ViewportIdPair::from_self_and_parent(viewport_id, parent_id);
+
+        let is_outermost_viewport = self.viewport_stack.is_empty(); // not necessarily root, just outermost immediate viewport
         self.viewport_stack.push(ids);
         let viewport = self.viewports.entry(viewport_id).or_default();
 
@@ -252,19 +257,26 @@ impl ContextImpl {
             }
         }
 
-        if let Some(new_pixels_per_point) = self.memory.override_pixels_per_point {
-            if viewport.input.pixels_per_point != new_pixels_per_point {
-                new_raw_input.pixels_per_point = Some(new_pixels_per_point);
+        if is_outermost_viewport {
+            if let Some(new_zoom_factor) = self.new_zoom_factor.take() {
+                let ratio = self.memory.options.zoom_factor / new_zoom_factor;
+                self.memory.options.zoom_factor = new_zoom_factor;
 
                 let input = &viewport.input;
                 // This is a bit hacky, but is required to avoid jitter:
-                let ratio = input.pixels_per_point / new_pixels_per_point;
                 let mut rect = input.screen_rect;
                 rect.min = (ratio * rect.min.to_vec2()).to_pos2();
                 rect.max = (ratio * rect.max.to_vec2()).to_pos2();
                 new_raw_input.screen_rect = Some(rect);
+                // We should really scale everything else in the input too,
+                // but the `screen_rect` is the most important part.
             }
         }
+        let pixels_per_point = self.memory.options.zoom_factor
+            * new_raw_input
+                .viewport()
+                .native_pixels_per_point
+                .unwrap_or(1.0);
 
         viewport.layer_rects_prev_frame = std::mem::take(&mut viewport.layer_rects_this_frame);
 
@@ -275,8 +287,11 @@ impl ContextImpl {
         self.memory
             .begin_frame(&viewport.input, &new_raw_input, &all_viewport_ids);
 
-        viewport.input = std::mem::take(&mut viewport.input)
-            .begin_frame(new_raw_input, viewport.repaint.requested_last_frame);
+        viewport.input = std::mem::take(&mut viewport.input).begin_frame(
+            new_raw_input,
+            viewport.repaint.requested_last_frame,
+            pixels_per_point,
+        );
 
         viewport.frame_state.begin_frame(&viewport.input);
 
@@ -469,13 +484,11 @@ impl std::cmp::PartialEq for Context {
 
 impl Default for Context {
     fn default() -> Self {
-        let s = Self(Arc::new(RwLock::new(ContextImpl::default())));
-
-        s.write(|ctx| {
-            ctx.embed_viewports = true;
-        });
-
-        s
+        let ctx = ContextImpl {
+            embed_viewports: true,
+            ..Default::default()
+        };
+        Self(Arc::new(RwLock::new(ctx)))
     }
 }
 
@@ -1338,44 +1351,85 @@ impl Context {
     }
 
     /// The number of physical pixels for each logical point.
+    ///
+    /// This is calculated as [`Self::zoom_factor`] * [`Self::native_pixels_per_point`]
     #[inline(always)]
     pub fn pixels_per_point(&self) -> f32 {
-        self.input(|i| i.pixels_per_point())
+        self.input(|i| i.pixels_per_point)
     }
 
     /// Set the number of physical pixels for each logical point.
     /// Will become active at the start of the next frame.
     ///
-    /// Note that this may be overwritten by input from the integration via [`RawInput::pixels_per_point`].
-    /// For instance, when using `eframe` on web, the browsers native zoom level will always be used.
+    /// This will actually translate to a call to [`Self::set_zoom_factor`].
     pub fn set_pixels_per_point(&self, pixels_per_point: f32) {
         if pixels_per_point != self.pixels_per_point() {
-            self.write(|ctx| {
-                ctx.memory.override_pixels_per_point = Some(pixels_per_point);
-                for id in ctx.all_viewport_ids() {
-                    ctx.request_repaint(id);
-                }
-            });
+            self.set_zoom_factor(pixels_per_point / self.native_pixels_per_point().unwrap_or(1.0));
         }
     }
 
+    /// The number of physical pixels for each logical point on this monitor.
+    ///
+    /// This is given as input to egui via [`ViewportInfo::native_pixels_per_point`]
+    /// and cannot be changed.
+    #[inline(always)]
+    pub fn native_pixels_per_point(&self) -> Option<f32> {
+        self.input(|i| i.viewport().native_pixels_per_point)
+    }
+
+    /// Global zoom factor of the UI.
+    ///
+    /// This is used to calculate the `pixels_per_point`
+    /// for the UI as `pixels_per_point = zoom_fator * native_pixels_per_point`.
+    ///
+    /// The default is 1.0.
+    /// Make larger to make everything larger.
+    #[inline(always)]
+    pub fn zoom_factor(&self) -> f32 {
+        self.options(|o| o.zoom_factor)
+    }
+
+    /// Sets zoom factor of the UI.
+    /// Will become active at the start of the next frame.
+    ///
+    /// This is used to calculate the `pixels_per_point`
+    /// for the UI as `pixels_per_point = zoom_fator * native_pixels_per_point`.
+    ///
+    /// The default is 1.0.
+    /// Make larger to make everything larger.
+    #[inline(always)]
+    pub fn set_zoom_factor(&self, zoom_factor: f32) {
+        self.write(|ctx| {
+            if ctx.memory.options.zoom_factor != zoom_factor {
+                ctx.new_zoom_factor = Some(zoom_factor);
+                for id in ctx.all_viewport_ids() {
+                    ctx.request_repaint(id);
+                }
+            }
+        });
+    }
+
     /// Useful for pixel-perfect rendering
+    #[inline]
     pub(crate) fn round_to_pixel(&self, point: f32) -> f32 {
         let pixels_per_point = self.pixels_per_point();
         (point * pixels_per_point).round() / pixels_per_point
     }
 
     /// Useful for pixel-perfect rendering
+    #[inline]
     pub(crate) fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
         pos2(self.round_to_pixel(pos.x), self.round_to_pixel(pos.y))
     }
 
     /// Useful for pixel-perfect rendering
+    #[inline]
     pub(crate) fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
         vec2(self.round_to_pixel(vec.x), self.round_to_pixel(vec.y))
     }
 
     /// Useful for pixel-perfect rendering
+    #[inline]
     pub(crate) fn round_rect_to_pixels(&self, rect: Rect) -> Rect {
         Rect {
             min: self.round_pos_to_pixels(rect.min),

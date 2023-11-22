@@ -11,7 +11,10 @@ use crate::{emath::*, ViewportId, ViewportIdMap};
 /// You can check if `egui` is using the inputs using
 /// [`crate::Context::wants_pointer_input`] and [`crate::Context::wants_keyboard_input`].
 ///
-/// All coordinates are in points (logical pixels) with origin (0, 0) in the top left corner.
+/// All coordinates are in points (logical pixels) with origin (0, 0) in the top left .corner.
+///
+/// Ii "points" can be calculated from native physical pixels
+/// using `pixels_per_point` = [`Context::zoom_factor`] * `native_pixels_per_point`;
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RawInput {
@@ -30,20 +33,6 @@ pub struct RawInput {
     ///
     /// `None` will be treated as "same as last frame", with the default being a very big area.
     pub screen_rect: Option<Rect>,
-
-    /// Also known as device pixel ratio, > 1 for high resolution screens.
-    ///
-    /// If text looks blurry you probably forgot to set this.
-    /// Set this the first frame, whenever it changes, or just on every frame.
-    pub pixels_per_point: Option<f32>,
-
-    /// The OS native pixels-per-point.
-    ///
-    /// This should always be set, if known.
-    ///
-    /// On web this takes browser scaling into account,
-    /// and orresponds to [`window.devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) in JavaScript.
-    pub native_pixels_per_point: Option<f32>,
 
     /// Maximum size of one side of the font texture.
     ///
@@ -92,8 +81,6 @@ impl Default for RawInput {
             viewport_id: Default::default(),
             viewports: Default::default(),
             screen_rect: None,
-            pixels_per_point: None,
-            native_pixels_per_point: None,
             max_texture_side: None,
             time: None,
             predicted_dt: 1.0 / 60.0,
@@ -122,8 +109,6 @@ impl RawInput {
             viewport_id: self.viewport_id,
             viewports: self.viewports.clone(),
             screen_rect: self.screen_rect.take(),
-            pixels_per_point: self.pixels_per_point.take(), // take the diff
-            native_pixels_per_point: self.native_pixels_per_point, // copy
             max_texture_side: self.max_texture_side.take(),
             time: self.time.take(),
             predicted_dt: self.predicted_dt,
@@ -141,8 +126,6 @@ impl RawInput {
             viewport_id: viewport_ids,
             viewports,
             screen_rect,
-            pixels_per_point,
-            native_pixels_per_point,
             max_texture_side,
             time,
             predicted_dt,
@@ -156,8 +139,6 @@ impl RawInput {
         self.viewport_id = viewport_ids;
         self.viewports = viewports;
         self.screen_rect = screen_rect.or(self.screen_rect);
-        self.pixels_per_point = pixels_per_point.or(self.pixels_per_point);
-        self.native_pixels_per_point = native_pixels_per_point.or(self.native_pixels_per_point);
         self.max_texture_side = max_texture_side.or(self.max_texture_side);
         self.time = time; // use latest time
         self.predicted_dt = predicted_dt; // use latest dt
@@ -181,10 +162,12 @@ pub enum ViewportEvent {
     Close,
 }
 
-/// Information about the current viewport,
-/// given as input each frame.
+/// Information about the current viewport, given as input each frame.
 ///
 /// `None` means "unknown".
+///
+/// All units are in ui "points", which can be calculated from native physical pixels
+/// using `pixels_per_point` = [`Context::zoom_factor`] * `[Self::native_pixels_per_point`];
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportInfo {
@@ -196,8 +179,13 @@ pub struct ViewportInfo {
 
     pub events: Vec<ViewportEvent>,
 
-    /// Number of physical pixels per ui point.
-    pub pixels_per_point: f32,
+    /// The OS native pixels-per-point.
+    ///
+    /// This should always be set, if known.
+    ///
+    /// On web this takes browser scaling into account,
+    /// and orresponds to [`window.devicePixelRatio`](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio) in JavaScript.
+    pub native_pixels_per_point: Option<f32>,
 
     /// Current monitor size in egui points.
     pub monitor_size: Option<Vec2>,
@@ -239,7 +227,7 @@ impl ViewportInfo {
             parent,
             title,
             events,
-            pixels_per_point,
+            native_pixels_per_point,
             monitor_size,
             inner_rect,
             outer_rect,
@@ -262,8 +250,8 @@ impl ViewportInfo {
             ui.label(format!("{events:?}"));
             ui.end_row();
 
-            ui.label("Pixels per point:");
-            ui.label(pixels_per_point.to_string());
+            ui.label("Native pixels-per-point:");
+            ui.label(opt_as_str(native_pixels_per_point));
             ui.end_row();
 
             ui.label("Monitor size:");
@@ -1115,8 +1103,6 @@ impl RawInput {
             viewport_id,
             viewports,
             screen_rect,
-            pixels_per_point,
-            native_pixels_per_point,
             max_texture_side,
             time,
             predicted_dt,
@@ -1137,16 +1123,7 @@ impl RawInput {
             });
         }
         ui.label(format!("screen_rect: {screen_rect:?} points"));
-        ui.label(format!("pixels_per_point: {pixels_per_point:?}"))
-            .on_hover_text(
-                "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
-            );
-        ui.label(format!(
-            "native_pixels_per_point: {native_pixels_per_point:?}"
-        ))
-        .on_hover_text(
-            "Also called HDPI factor.\nNumber of physical pixels per each logical pixel.",
-        );
+
         ui.label(format!("max_texture_side: {max_texture_side:?}"));
         if let Some(time) = time {
             ui.label(format!("time: {time:.3} s"));

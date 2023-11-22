@@ -245,9 +245,6 @@ impl EpiIntegration {
                 state: ElementState::Pressed,
                 ..
             } => self.can_drag_window = true,
-            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                egui_winit.egui_input_mut().native_pixels_per_point = Some(*scale_factor as _);
-            }
             WindowEvent::ThemeChanged(winit_theme) if self.follow_system_theme => {
                 let theme = theme_from_winit_theme(*winit_theme);
                 self.frame.info.system_theme = Some(theme);

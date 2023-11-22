@@ -111,7 +111,7 @@ impl State {
             pointer_pos_in_points: None,
             any_pointer_button_down: false,
             current_cursor_icon: None,
-            current_pixels_per_point: 1.0,
+            current_pixels_per_point: native_pixels_per_point.unwrap_or(1.0),
 
             clipboard: clipboard::Clipboard::new(display_target),
 
@@ -125,9 +125,13 @@ impl State {
 
             allow_ime: false,
         };
-        if let Some(native_pixels_per_point) = native_pixels_per_point {
-            slf.set_pixels_per_point(native_pixels_per_point);
-        }
+
+        slf.egui_input
+            .viewports
+            .entry(ViewportId::ROOT)
+            .or_default()
+            .native_pixels_per_point = native_pixels_per_point;
+
         if let Some(max_texture_side) = max_texture_side {
             slf.set_max_texture_side(max_texture_side);
         }
@@ -155,19 +159,6 @@ impl State {
         self.egui_input.max_texture_side = Some(max_texture_side);
     }
 
-    /// Call this when a new native Window is created for rendering to initialize the `pixels_per_point`
-    /// for that window.
-    ///
-    /// In particular, on Android it is necessary to call this after each `Resumed` lifecycle
-    /// event, each time a new native window is created.
-    ///
-    /// Once this has been initialized for a new window then this state will be maintained by handling
-    /// [`winit::event::WindowEvent::ScaleFactorChanged`] events.
-    pub fn set_pixels_per_point(&mut self, pixels_per_point: f32) {
-        self.egui_input.pixels_per_point = Some(pixels_per_point);
-        self.current_pixels_per_point = pixels_per_point;
-    }
-
     /// The number of physical pixels per logical point,
     /// as configured on the current egui context (see [`egui::Context::pixels_per_point`]).
     #[inline]
@@ -193,7 +184,7 @@ impl State {
     ///
     /// Call before [`Self::update_viewport_info`]
     pub fn update_viewport_info(&self, info: &mut ViewportInfo, window: &Window) {
-        update_viewport_info(info, window, self.pixels_per_point());
+        update_viewport_info(info, window, self.current_pixels_per_point);
     }
 
     /// Prepare for a new frame by extracting the accumulated input,
@@ -205,8 +196,6 @@ impl State {
     /// viewport.
     pub fn take_egui_input(&mut self, window: &Window) -> egui::RawInput {
         crate::profile_function!();
-
-        let pixels_per_point = self.pixels_per_point();
 
         self.egui_input.time = Some(self.start_time.elapsed().as_secs_f64());
 
@@ -220,7 +209,7 @@ impl State {
         // See: https://github.com/rust-windowing/winit/issues/208
         // This solves an issue where egui window positions would be changed when minimizing on Windows.
         let screen_size_in_pixels = screen_size_in_pixels(window);
-        let screen_size_in_points = screen_size_in_pixels / pixels_per_point;
+        let screen_size_in_points = screen_size_in_pixels / self.current_pixels_per_point;
 
         self.egui_input.screen_rect = (screen_size_in_points.x > 0.0
             && screen_size_in_points.y > 0.0)
@@ -228,7 +217,13 @@ impl State {
 
         // Tell egui which viewport is now active:
         self.egui_input.viewport_id = self.viewport_id;
-        self.egui_input.native_pixels_per_point = Some(native_pixels_per_point(window));
+
+        self.egui_input
+            .viewports
+            .entry(self.viewport_id)
+            .or_default()
+            .native_pixels_per_point = Some(native_pixels_per_point(window));
+
         self.egui_input.take()
     }
 
@@ -245,9 +240,14 @@ impl State {
         use winit::event::WindowEvent;
         match event {
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                let pixels_per_point = *scale_factor as f32;
-                self.egui_input.pixels_per_point = Some(pixels_per_point);
-                self.current_pixels_per_point = pixels_per_point;
+                let native_pixels_per_point = *scale_factor as f32;
+
+                self.egui_input
+                    .viewports
+                    .entry(self.viewport_id)
+                    .or_default()
+                    .native_pixels_per_point = Some(native_pixels_per_point);
+                self.current_pixels_per_point = egui_ctx.zoom_factor() * native_pixels_per_point;
                 EventResponse {
                     repaint: true,
                     consumed: false,
@@ -709,8 +709,7 @@ impl State {
             accesskit_update,
         } = platform_output;
 
-        self.current_pixels_per_point =
-            egui_ctx.input_for(self.viewport_id, |i| i.pixels_per_point); // someone can have changed it to scale the UI
+        self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
 
         self.set_cursor_icon(window, cursor_icon);
 
@@ -829,15 +828,15 @@ fn update_viewport_info(viewport_info: &mut ViewportInfo, window: &Window, pixel
         }
     };
 
-    viewport_info.title = Some(window.title());
-    viewport_info.pixels_per_point = pixels_per_point;
-    viewport_info.monitor_size = monitor_size;
-    viewport_info.inner_rect = inner_rect;
-    viewport_info.outer_rect = outer_rect;
-    viewport_info.fullscreen = Some(window.fullscreen().is_some());
     viewport_info.focused = Some(window.has_focus());
-    viewport_info.minimized = window.is_minimized().or(viewport_info.minimized);
+    viewport_info.fullscreen = Some(window.fullscreen().is_some());
+    viewport_info.inner_rect = inner_rect;
     viewport_info.maximized = Some(window.is_maximized());
+    viewport_info.minimized = window.is_minimized().or(viewport_info.minimized);
+    viewport_info.monitor_size = monitor_size;
+    viewport_info.native_pixels_per_point = Some(window.scale_factor() as f32);
+    viewport_info.outer_rect = outer_rect;
+    viewport_info.title = Some(window.title());
 }
 
 fn open_url_in_browser(_url: &str) {
