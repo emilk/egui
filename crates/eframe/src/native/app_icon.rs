@@ -13,7 +13,13 @@ pub struct AppTitleIconSetter {
 }
 
 impl AppTitleIconSetter {
-    pub fn new(title: String, icon_data: Option<Arc<IconData>>) -> Self {
+    pub fn new(title: String, mut icon_data: Option<Arc<IconData>>) -> Self {
+        if let Some(icon) = &icon_data {
+            if **icon == IconData::default() {
+                icon_data = None;
+            }
+        }
+
         Self {
             title,
             icon_data,

@@ -169,13 +169,19 @@ impl EpiIntegration {
             raw_window_handle: window.raw_window_handle(),
         };
 
+        let icon = native_options
+            .viewport
+            .icon
+            .clone()
+            .unwrap_or_else(|| std::sync::Arc::new(load_default_egui_icon()));
+
         let app_icon_setter = super::app_icon::AppTitleIconSetter::new(
             native_options
                 .viewport
                 .title
                 .clone()
                 .unwrap_or_else(|| app_name.to_owned()),
-            native_options.viewport.icon.clone(),
+            Some(icon),
         );
 
         Self {
@@ -354,6 +360,11 @@ impl EpiIntegration {
             storage.flush();
         }
     }
+}
+
+fn load_default_egui_icon() -> egui::IconData {
+    crate::profile_function!();
+    crate::icon_data::from_png_bytes(&include_bytes!("../../data/icon.png")[..]).unwrap()
 }
 
 #[cfg(feature = "persistence")]
