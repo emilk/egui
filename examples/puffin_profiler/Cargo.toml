@@ -8,6 +8,10 @@ rust-version = "1.72"
 publish = false
 
 
+[features]
+wgpu = ["eframe/wgpu"]
+
+
 [dependencies]
 eframe = { path = "../../crates/eframe", features = [
     "puffin",
