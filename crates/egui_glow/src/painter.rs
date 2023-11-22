@@ -404,10 +404,10 @@ impl Painter {
                         let viewport_px = info.viewport_in_pixels();
                         unsafe {
                             self.gl.viewport(
-                                viewport_px.left_px.round() as _,
-                                viewport_px.from_bottom_px.round() as _,
-                                viewport_px.width_px.round() as _,
-                                viewport_px.height_px.round() as _,
+                                viewport_px.left_px,
+                                viewport_px.from_bottom_px,
+                                viewport_px.width_px,
+                                viewport_px.height_px,
                             );
                         }
 

@@ -803,44 +803,83 @@ pub struct PaintCallbackInfo {
     pub screen_size_px: [u32; 2],
 }
 
+/// Size of the viewport in whole, physical pixels.
 pub struct ViewportInPixels {
     /// Physical pixel offset for left side of the viewport.
-    pub left_px: f32,
+    pub left_px: i32,
 
     /// Physical pixel offset for top side of the viewport.
-    pub top_px: f32,
+    pub top_px: i32,
 
     /// Physical pixel offset for bottom side of the viewport.
     ///
     /// This is what `glViewport`, `glScissor` etc expects for the y axis.
-    pub from_bottom_px: f32,
+    pub from_bottom_px: i32,
 
     /// Viewport width in physical pixels.
-    pub width_px: f32,
+    pub width_px: i32,
 
     /// Viewport height in physical pixels.
-    pub height_px: f32,
+    pub height_px: i32,
+}
+
+impl ViewportInPixels {
+    fn from_points(rect: &Rect, pixels_per_point: f32, screen_size_px: [u32; 2]) -> Self {
+        // Fractional pixel values for viewports are generally valid, but may cause sampling issues
+        // and rounding errors might cause us to get out of bounds.
+
+        // Round:
+        let left_px = (pixels_per_point * rect.min.x).round() as i32; // inclusive
+        let top_px = (pixels_per_point * rect.min.y).round() as i32; // inclusive
+        let right_px = (pixels_per_point * rect.max.x).round() as i32; // exclusive
+        let bottom_px = (pixels_per_point * rect.max.y).round() as i32; // exclusive
+
+        // Clamp to screen:
+        let screen_width = screen_size_px[0] as i32;
+        let screen_height = screen_size_px[1] as i32;
+        let left_px = left_px.clamp(0, screen_width);
+        let right_px = right_px.clamp(left_px, screen_width);
+        let top_px = top_px.clamp(0, screen_height);
+        let bottom_px = bottom_px.clamp(top_px, screen_height);
+
+        let width_px = right_px - left_px;
+        let height_px = bottom_px - top_px;
+
+        Self {
+            left_px,
+            top_px,
+            from_bottom_px: screen_height - height_px - top_px,
+            width_px,
+            height_px,
+        }
+    }
+}
+
+#[test]
+fn test_viewport_rounding() {
+    for i in 0..=10_000 {
+        // Two adjacent viewports should never overlap:
+        let x = i as f32 / 97.0;
+        let left = Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 100.0)).with_max_x(x);
+        let right = Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 100.0)).with_min_x(x);
+
+        for pixels_per_point in [0.618, 1.0, std::f32::consts::PI] {
+            let left = ViewportInPixels::from_points(&left, pixels_per_point, [100, 100]);
+            let right = ViewportInPixels::from_points(&right, pixels_per_point, [100, 100]);
+            assert_eq!(left.left_px + left.width_px, right.left_px);
+        }
+    }
 }
 
 impl PaintCallbackInfo {
-    fn pixels_from_points(&self, rect: &Rect) -> ViewportInPixels {
-        ViewportInPixels {
-            left_px: rect.min.x * self.pixels_per_point,
-            top_px: rect.min.y * self.pixels_per_point,
-            from_bottom_px: self.screen_size_px[1] as f32 - rect.max.y * self.pixels_per_point,
-            width_px: rect.width() * self.pixels_per_point,
-            height_px: rect.height() * self.pixels_per_point,
-        }
-    }
-
     /// The viewport rectangle. This is what you would use in e.g. `glViewport`.
     pub fn viewport_in_pixels(&self) -> ViewportInPixels {
-        self.pixels_from_points(&self.viewport)
+        ViewportInPixels::from_points(&self.viewport, self.pixels_per_point, self.screen_size_px)
     }
 
     /// The "scissor" or "clip" rectangle. This is what you would use in e.g. `glScissor`.
     pub fn clip_rect_in_pixels(&self) -> ViewportInPixels {
-        self.pixels_from_points(&self.clip_rect)
+        ViewportInPixels::from_points(&self.clip_rect, self.pixels_per_point, self.screen_size_px)
     }
 }
 
