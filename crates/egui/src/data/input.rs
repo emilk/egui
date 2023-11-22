@@ -14,7 +14,7 @@ use crate::{emath::*, ViewportId, ViewportIdMap};
 /// All coordinates are in points (logical pixels) with origin (0, 0) in the top left .corner.
 ///
 /// Ii "points" can be calculated from native physical pixels
-/// using `pixels_per_point` = [`Context::zoom_factor`] * `native_pixels_per_point`;
+/// using `pixels_per_point` = [`crate::Context::zoom_factor`] * `native_pixels_per_point`;
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct RawInput {
@@ -167,7 +167,7 @@ pub enum ViewportEvent {
 /// `None` means "unknown".
 ///
 /// All units are in ui "points", which can be calculated from native physical pixels
-/// using `pixels_per_point` = [`Context::zoom_factor`] * `[Self::native_pixels_per_point`];
+/// using `pixels_per_point` = [`crate::Context::zoom_factor`] * `[Self::native_pixels_per_point`];
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ViewportInfo {

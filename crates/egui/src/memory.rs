@@ -180,7 +180,7 @@ pub struct Options {
     /// Make larger to make everything larger.
     pub zoom_factor: f32,
 
-    /// If `true`, egui will change the scale of the ui ([`Context::zoom_factor`]) when the user
+    /// If `true`, egui will change the scale of the ui ([`crate::Context::zoom_factor`]) when the user
     /// presses Cmd+Plus, Cmd+Minus or Cmd+0, just like in a browser.
     ///
     /// This is `true` by default.
