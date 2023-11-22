@@ -58,6 +58,12 @@ impl AppRunner {
         ));
         super::storage::load_memory(&egui_ctx);
 
+        egui_ctx.options_mut(|o| {
+            // On web, the browser controls the zoom factor:
+            o.zoom_with_keyboard = false;
+            o.zoom_factor = 1.0;
+        });
+
         let theme = system_theme.unwrap_or(web_options.default_theme);
         egui_ctx.set_visuals(theme.egui_visuals());
 
@@ -112,7 +118,13 @@ impl AppRunner {
         };
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
-        runner.input.raw.native_pixels_per_point = Some(super::native_pixels_per_point());
+        runner
+            .input
+            .raw
+            .viewports
+            .entry(egui::ViewportId::ROOT)
+            .or_default()
+            .native_pixels_per_point = Some(super::native_pixels_per_point());
 
         Ok(runner)
     }

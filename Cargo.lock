@@ -1317,6 +1317,8 @@ dependencies = [
  "image",
  "log",
  "poll-promise",
+ "puffin",
+ "puffin_http",
  "rfd",
  "serde",
  "wasm-bindgen",

@@ -329,7 +329,12 @@ fn file_menu_button(ui: &mut Ui) {
         // On the web the browser controls the zoom
         #[cfg(not(target_arch = "wasm32"))]
         {
-            egui::gui_zoom::zoom_menu_buttons(ui, None);
+            egui::gui_zoom::zoom_menu_buttons(ui);
+            ui.weak(format!(
+                "Current zoom: {:.0}%",
+                100.0 * ui.ctx().zoom_factor()
+            ))
+            .on_hover_text("The UI zoom level, on top of the operating system's default value");
             ui.separator();
         }
 

@@ -148,6 +148,7 @@ impl InputState {
         mut self,
         mut new: RawInput,
         requested_repaint_last_frame: bool,
+        pixels_per_point: f32,
     ) -> InputState {
         crate::profile_function!();
 
@@ -217,7 +218,7 @@ impl InputState {
             scroll_delta,
             zoom_factor_delta,
             screen_rect,
-            pixels_per_point: new.pixels_per_point.unwrap_or(self.pixels_per_point),
+            pixels_per_point,
             max_texture_side: new.max_texture_side.unwrap_or(self.max_texture_side),
             time,
             unstable_dt,
