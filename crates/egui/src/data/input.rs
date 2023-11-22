@@ -78,8 +78,8 @@ pub struct RawInput {
 impl Default for RawInput {
     fn default() -> Self {
         Self {
-            viewport_id: Default::default(),
-            viewports: Default::default(),
+            viewport_id: ViewportId::ROOT,
+            viewports: std::iter::once((ViewportId::ROOT, Default::default())).collect(),
             screen_rect: None,
             max_texture_side: None,
             time: None,
