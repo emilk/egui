@@ -1,12 +1,12 @@
 [package]
 name = "egui_glow"
-version = "0.23.0"
+version.workspace = true
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glow library"
-edition = "2021"
-rust-version = "1.72"
+edition.workspace = true
+rust-version.workspace = true
 homepage = "https://github.com/emilk/egui/tree/master/crates/egui_glow"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/crates/egui_glow"
 categories = ["gui", "game-development"]

@@ -1,16 +1,16 @@
 [package]
 name = "egui-wgpu"
-version = "0.23.0"
+version.workspace = true
 description = "Bindings for using egui natively using the wgpu library"
 authors = [
   "Nils Hasenbanck <nils@hasenbanck.de>",
   "embotech <opensource@embotech.com>",
   "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
 ]
-edition = "2021"
-rust-version = "1.72"
+edition.workspace = true
+rust-version.workspace = true
 homepage = "https://github.com/emilk/egui/tree/master/crates/egui-wgpu"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/crates/egui-wgpu"
 categories = ["gui", "game-development"]

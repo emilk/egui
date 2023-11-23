@@ -1,12 +1,12 @@
 [package]
 name = "egui_plot"
-version = "0.23.0"
+version.workspace = true
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Immediate mode plotting for the egui GUI library"
-edition = "2021"
-rust-version = "1.72"
+edition.workspace = true
+rust-version.workspace = true
 homepage = "https://github.com/emilk/egui"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 readme = "README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["visualization", "gui"]

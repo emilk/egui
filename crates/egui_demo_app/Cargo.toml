@@ -1,10 +1,10 @@
 [package]
 name = "egui_demo_app"
-version = "0.23.0"
+version.workspace = true
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
-license = "MIT OR Apache-2.0"
-edition = "2021"
-rust-version = "1.72"
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 publish = false
 default-run = "egui_demo_app"
 
