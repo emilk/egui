@@ -405,7 +405,7 @@ impl ViewportBuilder {
 
     /// macOS: Makes the window content appear behind the titlebar.
     ///
-    /// You often want to combine this with [`Self::with_titlebar_transparent`]
+    /// You often want to combine this with [`Self::with_titlebar_shown`]
     /// and [`Self::with_title_shown`].
     #[inline]
     pub fn with_fullsize_content_view(mut self, value: bool) -> Self {
