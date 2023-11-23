@@ -200,6 +200,7 @@ impl WgpuWinitApp {
             });
         }
 
+        #[allow(unused_mut)] // used for accesskit
         let mut egui_winit = egui_winit::State::new(
             ViewportId::ROOT,
             event_loop,
