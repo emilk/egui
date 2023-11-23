@@ -57,7 +57,9 @@ def get_github_token() -> str:
     except Exception:
         pass
 
-    print("ERROR: expected a GitHub token in the environment variable GH_ACCESS_TOKEN or in ~/.githubtoken")
+    print(
+        "ERROR: expected a GitHub token in the environment variable GH_ACCESS_TOKEN or in ~/.githubtoken"
+    )
     sys.exit(1)
 
 
@@ -99,7 +101,7 @@ def get_commit_info(commit: Any) -> CommitInfo:
 
 def remove_prefix(text, prefix):
     if text.startswith(prefix):
-        return text[len(prefix):]
+        return text[len(prefix) :]
     return text  # or whatever
 
 
@@ -110,6 +112,7 @@ def print_section(crate: str, items: List[str]) -> None:
             line = remove_prefix(line, f"[{crate}] ")
             line = remove_prefix(line, f"{crate}: ")
             line = remove_prefix(line, f"`{crate}`: ")
+            line = line[0].upper() + line[1:]  # Upper-case first letter
             print(f"* {line}")
     print()
 
@@ -160,9 +163,9 @@ def main() -> None:
             title = pr_info.pr_title if pr_info else title
             labels = pr_info.labels if pr_info else []
 
-            if 'exclude from changelog' in labels:
+            if "exclude from changelog" in labels:
                 continue
-            if 'typo' in labels:
+            if "typo" in labels:
                 # We get so many typo PRs. Let's not flood the changelog with them.
                 continue
 
