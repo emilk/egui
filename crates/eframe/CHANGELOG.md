@@ -8,6 +8,7 @@ Changes since the last release can be found by running the `scripts/generate_cha
 
 ## Unreleased
 * `NativeOptions::fullsize_content` has been replaced with four settings: `ViewportBuilder::with_fullsize_content_view`, `with_title_shown`, `with_titlebar_shown`, `with_titlebar_buttons_shown`
+* `App::on_close_event` has been replaced with `ctx.input(|i| i.viewport().close_requested())` and `ctx.send_viewport_cmd(ViewportCommand::CancelClose)`.
 
 ## 0.23.0 - 2023-09-27
 * Update MSRV to Rust 1.70.0 [#3310](https://github.com/emilk/egui/pull/3310)

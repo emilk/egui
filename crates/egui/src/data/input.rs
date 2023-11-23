@@ -156,7 +156,12 @@ impl RawInput {
 pub enum ViewportEvent {
     /// The user clicked the close-button on the window, or similar.
     ///
-    /// It is up to the user to react to this by _not_ showing the viewport in the next frame in the parent viewport.
+    /// If this is the root viewport, the application will exit
+    /// after this frame unless you send a
+    /// [`crate::ViewportCommand::CacelClose`] command.
+    ///
+    /// If this is not the root viewport,
+    /// it is up to the user to hide this viewport the next frame.
     ///
     /// This even will wake up both the child and parent viewport.
     Close,
@@ -216,6 +221,14 @@ pub struct ViewportInfo {
 }
 
 impl ViewportInfo {
+    /// This viewport has been told to close.
+    ///
+    /// If this is the root viewport, the application will exit
+    /// after this frame unless you send a
+    /// [`crate::ViewportCommand::CacelClose`] command.
+    ///
+    /// If this is not the root viewport,
+    /// it is up to the user to hide this viewport the next frame.
     pub fn close_requested(&self) -> bool {
         self.events
             .iter()

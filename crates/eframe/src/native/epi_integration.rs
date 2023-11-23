@@ -229,22 +229,14 @@ impl EpiIntegration {
 
     pub fn on_window_event(
         &mut self,
-        app: &mut dyn epi::App,
         event: &winit::event::WindowEvent<'_>,
         egui_winit: &mut egui_winit::State,
-        viewport_id: ViewportId,
     ) -> EventResponse {
         crate::profile_function!(egui_winit::short_window_event_description(event));
 
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
         match event {
-            WindowEvent::CloseRequested => {
-                if viewport_id == ViewportId::ROOT {
-                    self.close = app.on_close_event();
-                    log::debug!("App::on_close_event returned {}", self.close);
-                }
-            }
             WindowEvent::Destroyed => {
                 log::debug!("Received WindowEvent::Destroyed");
                 self.close = true;
@@ -281,22 +273,31 @@ impl EpiIntegration {
     ) -> egui::FullOutput {
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 
+        let close_requested = raw_input.viewport().close_requested();
+
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
                 crate::profile_scope!("viewport_callback");
                 viewport_ui_cb(egui_ctx);
             } else {
-                // Root viewport
-                if egui_ctx.input(|i| i.viewport().close_requested()) {
-                    self.close = app.on_close_event();
-                    log::debug!("App::on_close_event returned {}", self.close);
-                }
-
                 crate::profile_scope!("App::update");
                 app.update(egui_ctx, &mut self.frame);
             }
         });
+
+        let is_root_viewport = viewport_ui_cb.is_none();
+        if is_root_viewport && close_requested {
+            let cancled = full_output.viewport_output[&ViewportId::ROOT]
+                .commands
+                .contains(&egui::ViewportCommand::CancelClose);
+            if cancled {
+                log::debug!("Closing of root viewport cancled with ViewportCommand::CancelClose");
+            } else {
+                log::debug!("Closing root viewport (ViewportCommand::CancelClose was not sent)");
+                self.close = true;
+            }
+        }
 
         self.pending_full_output.append(full_output);
         std::mem::take(&mut self.pending_full_output)

@@ -565,6 +565,8 @@ impl WgpuWinitRunning {
             return EventResult::Wait;
         };
 
+        viewport.info.events.clear(); // they should have been processed
+
         let Viewport {
             window: Some(window),
             egui_winit: Some(egui_winit),
@@ -657,8 +659,8 @@ impl WgpuWinitRunning {
 
         let Self {
             integration,
-            app,
             shared,
+            ..
         } = self;
         let mut shared = shared.borrow_mut();
 
@@ -742,9 +744,10 @@ impl WgpuWinitRunning {
         let event_response = viewport_id
             .and_then(|viewport_id| {
                 shared.viewports.get_mut(&viewport_id).and_then(|viewport| {
-                    viewport.egui_winit.as_mut().map(|egui_winit| {
-                        integration.on_window_event(app.as_mut(), event, egui_winit, viewport_id)
-                    })
+                    viewport
+                        .egui_winit
+                        .as_mut()
+                        .map(|egui_winit| integration.on_window_event(event, egui_winit))
                 })
             })
             .unwrap_or_default();
@@ -923,6 +926,7 @@ fn render_immediate_viewport(
     let Some(viewport) = viewports.get_mut(&ids.this) else {
         return;
     };
+    viewport.info.events.clear(); // they should have been processed
     let Some(winit_state) = &mut viewport.egui_winit else {
         return;
     };
