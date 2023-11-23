@@ -275,10 +275,13 @@ pub struct ViewportBuilder {
     pub icon: Option<Arc<IconData>>,
     pub active: Option<bool>,
     pub visible: Option<bool>,
-    pub title_hidden: Option<bool>,
-    pub titlebar_transparent: Option<bool>,
-    pub fullsize_content_view: Option<bool>,
     pub drag_and_drop: Option<bool>,
+
+    // macOS:
+    pub fullsize_content_view: Option<bool>,
+    pub title_shown: Option<bool>,
+    pub titlebar_buttons_shown: Option<bool>,
+    pub titlebar_shown: Option<bool>,
 
     pub close_button: Option<bool>,
     pub minimize_button: Option<bool>,
@@ -400,32 +403,34 @@ impl ViewportBuilder {
         self
     }
 
-    /// Hides the window title.
+    /// macOS: Makes the window content appear behind the titlebar.
     ///
-    /// Mac Os only.
-    #[inline]
-    pub fn with_title_hidden(mut self, title_hidden: bool) -> Self {
-        self.title_hidden = Some(title_hidden);
-        self
-    }
-
-    /// Makes the titlebar transparent and allows the content to appear behind it.
-    ///
-    /// Mac Os only.
-    #[inline]
-    pub fn with_titlebar_transparent(mut self, value: bool) -> Self {
-        self.titlebar_transparent = Some(value);
-        self
-    }
-
-    /// On Mac: the window doesn't have a titlebar, but floating window buttons.
-    ///
-    /// See [winit's documentation][with_fullsize_content_view] for information on Mac-specific options.
-    ///
-    /// [with_fullsize_content_view]: https://docs.rs/winit/latest/x86_64-apple-darwin/winit/platform/macos/trait.WindowBuilderExtMacOS.html#tymethod.with_fullsize_content_view
+    /// You often want to combine this with [`Self::with_titlebar_transparent`]
+    /// and [`Self::with_title_shown`].
     #[inline]
     pub fn with_fullsize_content_view(mut self, value: bool) -> Self {
         self.fullsize_content_view = Some(value);
+        self
+    }
+
+    /// macOS: Set to `false` to hide the window title.
+    #[inline]
+    pub fn with_title_shown(mut self, title_shown: bool) -> Self {
+        self.title_shown = Some(title_shown);
+        self
+    }
+
+    /// macOS: Set to `false` to hide the titlebar button (close, minimize, maximize)
+    #[inline]
+    pub fn with_titlebar_buttons_shown(mut self, titlebar_buttons_shown: bool) -> Self {
+        self.titlebar_buttons_shown = Some(titlebar_buttons_shown);
+        self
+    }
+
+    /// macOS: Set to `false` to make the titlebar transparent, allowing the content to appear behind it.
+    #[inline]
+    pub fn with_titlebar_shown(mut self, shown: bool) -> Self {
+        self.titlebar_shown = Some(shown);
         self
     }
 
@@ -692,16 +697,23 @@ impl ViewportBuilder {
             }
         }
 
-        if let Some(new_title_hidden) = new.title_hidden {
-            if Some(new_title_hidden) != self.title_hidden {
-                self.title_hidden = Some(new_title_hidden);
+        if let Some(new_title_shown) = new.title_shown {
+            if Some(new_title_shown) != self.title_shown {
+                self.title_shown = Some(new_title_shown);
                 recreate_window = true;
             }
         }
 
-        if let Some(new_titlebar_transparent) = new.titlebar_transparent {
-            if Some(new_titlebar_transparent) != self.titlebar_transparent {
-                self.titlebar_transparent = Some(new_titlebar_transparent);
+        if let Some(new_titlebar_buttons_shown) = new.titlebar_buttons_shown {
+            if Some(new_titlebar_buttons_shown) != self.titlebar_buttons_shown {
+                self.titlebar_buttons_shown = Some(new_titlebar_buttons_shown);
+                recreate_window = true;
+            }
+        }
+
+        if let Some(new_titlebar_shown) = new.titlebar_shown {
+            if Some(new_titlebar_shown) != self.titlebar_shown {
+                self.titlebar_shown = Some(new_titlebar_shown);
                 recreate_window = true;
             }
         }

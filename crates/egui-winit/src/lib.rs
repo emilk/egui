@@ -1292,12 +1292,17 @@ pub fn create_winit_window_builder<T>(
         maximize_button,
         window_level,
 
-        // only handled on some platforms:
-        title_hidden: _title_hidden,
-        titlebar_transparent: _titlebar_transparent,
+        // macOS:
         fullsize_content_view: _fullsize_content_view,
-        app_id: _app_id,
+        title_shown: _title_shown,
+        titlebar_buttons_shown: _titlebar_buttons_shown,
+        titlebar_shown: _titlebar_shown,
+
+        // Windows:
         drag_and_drop: _drag_and_drop,
+
+        // wayland:
+        app_id: _app_id,
 
         mouse_passthrough: _, // handled in `apply_viewport_builder_to_new_window`
     } = viewport_builder;
@@ -1383,8 +1388,9 @@ pub fn create_winit_window_builder<T>(
     {
         use winit::platform::macos::WindowBuilderExtMacOS as _;
         window_builder = window_builder
-            .with_title_hidden(_title_hidden.unwrap_or(false))
-            .with_titlebar_transparent(_titlebar_transparent.unwrap_or(false))
+            .with_title_hidden(!_title_shown.unwrap_or(true))
+            .with_titlebar_buttons_hidden(!_titlebar_buttons_shown.unwrap_or(true))
+            .with_titlebar_transparent(!_titlebar_shown.unwrap_or(true))
             .with_fullsize_content_view(_fullsize_content_view.unwrap_or(false));
     }
 

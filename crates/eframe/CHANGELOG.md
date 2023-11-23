@@ -6,6 +6,9 @@ NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/C
 This file is updated upon each release.
 Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
+## Unreleased
+* `NativeOptions::fullsize_content` has been replaced with four settings: `ViewportBuilder::with_fullsize_content_view`, `with_title_shown`, `with_titlebar_shown`, `with_titlebar_buttons_shown`
+
 ## 0.23.0 - 2023-09-27
 * Update MSRV to Rust 1.70.0 [#3310](https://github.com/emilk/egui/pull/3310)
 * Update to puffin 0.16 [#3144](https://github.com/emilk/egui/pull/3144)
