@@ -5,6 +5,11 @@ This file is updated upon each release.
 Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
 
+## 0.24.0 - 2023-11-23
+* Update MSRV to Rust 1.72 [#3595](https://github.com/emilk/egui/pull/3595)
+* Some breaking changes required for multi-viewport support
+
+
 ## 0.23.0 - 2023-09-27
 * Only show on-screen-keyboard and IME when editing text [#3362](https://github.com/emilk/egui/pull/3362) (thanks [@Barugon](https://github.com/Barugon)!)
 * Replace `instant` with `web_time` [#3296](https://github.com/emilk/egui/pull/3296)

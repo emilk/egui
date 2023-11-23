@@ -5,6 +5,12 @@ This file is updated upon each release.
 Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
 
+## 0.24.0 - 2023-11-23
+* Change `Arc<glow::Context>` to `Rc<glow::Context>` [#3598](https://github.com/emilk/egui/pull/3598)
+* Update MSRV to Rust 1.72 [#3595](https://github.com/emilk/egui/pull/3595)
+* Clamp viewport values [#3604](https://github.com/emilk/egui/pull/3604) (thanks [@Wumpf](https://github.com/Wumpf)!)
+
+
 ## 0.23.0 - 2023-09-27
 * Update `egui`
 

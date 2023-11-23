@@ -6,6 +6,13 @@ This file is updated upon each release.
 Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
 
+
+## 0.24.0 - 2023-11-23
+* Updated to wgpu 0.18 [#3505](https://github.com/emilk/egui/pull/3505) (thanks [@Wumpf](https://github.com/Wumpf)!)
+* Update MSRV to Rust 1.72 [#3595](https://github.com/emilk/egui/pull/3595)
+* Properly clamp and round viewport values, preventing rare warnings [#3604](https://github.com/emilk/egui/pull/3604) (thanks [@Wumpf](https://github.com/Wumpf)!)
+
+
 ## 0.23.0 - 2023-09-27
 * Update to `wgpu` 0.17.0 [#3170](https://github.com/emilk/egui/pull/3170) (thanks [@Aaron1011](https://github.com/Aaron1011)!)
 * Improved wgpu callbacks [#3253](https://github.com/emilk/egui/pull/3253) (thanks [@Wumpf](https://github.com/Wumpf)!)
