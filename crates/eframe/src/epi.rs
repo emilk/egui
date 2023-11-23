@@ -151,7 +151,8 @@ pub trait App {
 
     /// Called once on shutdown, after [`Self::save`].
     ///
-    /// If you need to abort an exit use [`Self::on_close_event`].
+    /// If you need to abort an exit check `ctx.input(|i| i.viewport().close_requested())`
+    /// and respond with [`egui::ViewportCommand::CancelClose`].
     ///
     /// To get a [`glow`] context you need to compile with the `glow` feature flag,
     /// and run eframe with the glow backend.
