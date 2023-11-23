@@ -20,7 +20,7 @@ pub struct FileLoader {
 }
 
 impl FileLoader {
-    pub const ID: &str = egui::generate_loader_id!(FileLoader);
+    pub const ID: &'static str = egui::generate_loader_id!(FileLoader);
 }
 
 const PROTOCOL: &str = "file://";

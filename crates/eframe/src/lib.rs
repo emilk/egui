@@ -166,10 +166,19 @@ mod native;
 #[cfg(feature = "persistence")]
 pub use native::file_storage::storage_dir;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod icon_data;
+
 /// This is how you start a native (desktop) app.
 ///
-/// The first argument is name of your app, used for the title bar of the native window
-/// and the save location of persistence (see [`App::save`]).
+/// The first argument is name of your app, which is a an identifier
+/// used for the save location of persistence (see [`App::save`]).
+/// It is also used as the application id on wayland.
+/// If you set no title on the viewport, the app id will be used
+/// as the title.
+///
+/// For details about application ID conventions, see the
+/// [Desktop Entry Spec](https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#desktop-file-id)
 ///
 /// Call from `fn main` like this:
 /// ``` no_run
@@ -209,7 +218,7 @@ pub use native::file_storage::storage_dir;
 #[allow(clippy::needless_pass_by_value)]
 pub fn run_native(
     app_name: &str,
-    native_options: NativeOptions,
+    mut native_options: NativeOptions,
     app_creator: AppCreator,
 ) -> Result<()> {
     let renderer = native_options.renderer;
@@ -219,6 +228,10 @@ pub fn run_native(
         std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
         "EFRAME_SCREENSHOT_TO found without compiling with the '__screenshot' feature"
     );
+
+    if native_options.viewport.title.is_none() {
+        native_options.viewport.title = Some(app_name.to_owned());
+    }
 
     match renderer {
         #[cfg(feature = "glow")]
@@ -313,6 +326,11 @@ pub enum Error {
     #[error("Found no glutin configs matching the template: {0:?}. Error: {1:?}")]
     NoGlutinConfigs(glutin::config::ConfigTemplate, Box<dyn std::error::Error>),
 
+    /// An error from [`glutin`] when using [`glow`].
+    #[cfg(feature = "glow")]
+    #[error("egui_glow: {0}")]
+    OpenGL(#[from] egui_glow::PainterError),
+
     /// An error from [`wgpu`].
     #[cfg(feature = "wgpu")]
     #[error("WGPU error: {0}")]
@@ -320,7 +338,7 @@ pub enum Error {
 }
 
 /// Short for `Result<T, eframe::Error>`.
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 // ---------------------------------------------------------------------------
 

@@ -1,0 +1,66 @@
+name: Deploy web demo
+
+on:
+  # We only run this on merges to master
+  push:
+    branches: ["master"]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+# to only run when you do a new github release, comment out above part and uncomment the below trigger.
+# on:
+#   release:
+#     types: ["published"]
+
+
+permissions:
+  contents: write # for committing to gh-pages branch
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+env:
+  # web_sys_unstable_apis is required to enable the web_sys clipboard API which eframe web uses,
+  # as well as by the wasm32-backend of the wgpu crate.
+  # https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html
+  # https://rustwasm.github.io/docs/wasm-bindgen/web-sys/unstable-apis.html
+  RUSTFLAGS: --cfg=web_sys_unstable_apis -D warnings
+  RUSTDOCFLAGS: -D warnings
+
+jobs:
+  # Single deploy job since we're just deploying
+  deploy:
+    name: Deploy web demo
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          target: wasm32-unknown-unknown
+          toolchain: 1.72.0
+          override: true
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "web-demo-"
+
+      - name: "Install wasmopt / binaryen"
+        run: |
+          sudo apt-get update && sudo apt-get install binaryen
+
+      - run: |
+          scripts/build_demo_web.sh --release
+
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: web_demo
+          # this option will not maintain any history of your previous pages deployment
+          # set to false if you want all page build to be committed to your gh-pages branch history
+          single-commit: true

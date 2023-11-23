@@ -4,6 +4,22 @@
 
 // When compiling natively:
 fn main() -> Result<(), eframe::Error> {
+    for arg in std::env::args().skip(1) {
+        match arg.as_str() {
+            "--profile" => {
+                #[cfg(feature = "puffin")]
+                start_puffin_server();
+
+                #[cfg(not(feature = "puffin"))]
+                panic!("Unknown argument: {arg} - you need to enable the 'puffin' feature to use this.");
+            }
+
+            _ => {
+                panic!("Unknown argument: {arg}");
+            }
+        }
+    }
+
     {
         // Silence wgpu log spam (https://github.com/gfx-rs/wgpu/issues/3206)
         let mut rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_owned());
@@ -18,9 +34,9 @@ fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
     let options = eframe::NativeOptions {
-        drag_and_drop_support: true,
-
-        initial_window_size: Some([1280.0, 1024.0].into()),
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([1280.0, 1024.0])
+            .with_drag_and_drop(true),
 
         #[cfg(feature = "wgpu")]
         renderer: eframe::Renderer::Wgpu,
@@ -32,4 +48,29 @@ fn main() -> Result<(), eframe::Error> {
         options,
         Box::new(|cc| Box::new(egui_demo_app::WrapApp::new(cc))),
     )
+}
+
+#[cfg(feature = "puffin")]
+fn start_puffin_server() {
+    puffin::set_scopes_on(true); // tell puffin to collect data
+
+    match puffin_http::Server::new("127.0.0.1:8585") {
+        Ok(puffin_server) => {
+            eprintln!("Run:  cargo install puffin_viewer && puffin_viewer --url 127.0.0.1:8585");
+
+            std::process::Command::new("puffin_viewer")
+                .arg("--url")
+                .arg("127.0.0.1:8585")
+                .spawn()
+                .ok();
+
+            // We can store the server if we want, but in this case we just want
+            // it to keep running. Dropping it closes the server, so let's not drop it!
+            #[allow(clippy::mem_forget)]
+            std::mem::forget(puffin_server);
+        }
+        Err(err) => {
+            eprintln!("Failed to start puffin server: {err}");
+        }
+    };
 }

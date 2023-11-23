@@ -135,6 +135,7 @@ impl SidePanel {
     /// * A [`Separator`].
     /// * A [`TextEdit`].
     /// * …
+    #[inline]
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
         self
@@ -143,12 +144,14 @@ impl SidePanel {
     /// Show a separator line, even when not interacting with it?
     ///
     /// Default: `true`.
+    #[inline]
     pub fn show_separator_line(mut self, show_separator_line: bool) -> Self {
         self.show_separator_line = show_separator_line;
         self
     }
 
     /// The initial wrapping width of the [`SidePanel`].
+    #[inline]
     pub fn default_width(mut self, default_width: f32) -> Self {
         self.default_width = default_width;
         self.width_range = Rangef::new(
@@ -159,18 +162,21 @@ impl SidePanel {
     }
 
     /// Minimum width of the panel.
+    #[inline]
     pub fn min_width(mut self, min_width: f32) -> Self {
         self.width_range = Rangef::new(min_width, self.width_range.max.at_least(min_width));
         self
     }
 
     /// Maximum width of the panel.
+    #[inline]
     pub fn max_width(mut self, max_width: f32) -> Self {
         self.width_range = Rangef::new(self.width_range.min.at_most(max_width), max_width);
         self
     }
 
     /// The allowable width range for the panel.
+    #[inline]
     pub fn width_range(mut self, width_range: impl Into<Rangef>) -> Self {
         let width_range = width_range.into();
         self.default_width = clamp_to_range(self.default_width, width_range);
@@ -179,6 +185,7 @@ impl SidePanel {
     }
 
     /// Enforce this exact width.
+    #[inline]
     pub fn exact_width(mut self, width: f32) -> Self {
         self.default_width = width;
         self.width_range = Rangef::point(width);
@@ -186,6 +193,7 @@ impl SidePanel {
     }
 
     /// Change the background color, margins, etc.
+    #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
@@ -582,6 +590,7 @@ impl TopBottomPanel {
     /// * A [`Separator`].
     /// * A [`TextEdit`].
     /// * …
+    #[inline]
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resizable = resizable;
         self
@@ -590,13 +599,15 @@ impl TopBottomPanel {
     /// Show a separator line, even when not interacting with it?
     ///
     /// Default: `true`.
+    #[inline]
     pub fn show_separator_line(mut self, show_separator_line: bool) -> Self {
         self.show_separator_line = show_separator_line;
         self
     }
 
-    /// The initial height of the [`SidePanel`].
+    /// The initial height of the [`TopBottomPanel`].
     /// Defaults to [`style::Spacing::interact_size`].y.
+    #[inline]
     pub fn default_height(mut self, default_height: f32) -> Self {
         self.default_height = Some(default_height);
         self.height_range = Rangef::new(
@@ -607,18 +618,21 @@ impl TopBottomPanel {
     }
 
     /// Minimum height of the panel.
+    #[inline]
     pub fn min_height(mut self, min_height: f32) -> Self {
         self.height_range = Rangef::new(min_height, self.height_range.max.at_least(min_height));
         self
     }
 
     /// Maximum height of the panel.
+    #[inline]
     pub fn max_height(mut self, max_height: f32) -> Self {
         self.height_range = Rangef::new(self.height_range.min.at_most(max_height), max_height);
         self
     }
 
     /// The allowable height range for the panel.
+    #[inline]
     pub fn height_range(mut self, height_range: impl Into<Rangef>) -> Self {
         let height_range = height_range.into();
         self.default_height = self
@@ -629,6 +643,7 @@ impl TopBottomPanel {
     }
 
     /// Enforce this exact height.
+    #[inline]
     pub fn exact_height(mut self, height: f32) -> Self {
         self.default_height = Some(height);
         self.height_range = Rangef::point(height);
@@ -636,6 +651,7 @@ impl TopBottomPanel {
     }
 
     /// Change the background color, margins, etc.
+    #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
@@ -702,9 +718,9 @@ impl TopBottomPanel {
                 if ui.input(|i| i.pointer.any_pressed() && i.pointer.any_down())
                     && mouse_over_resize_line
                 {
-                    ui.memory_mut(|mem| mem.interaction.drag_id = Some(resize_id));
+                    ui.memory_mut(|mem| mem.interaction_mut().drag_id = Some(resize_id));
                 }
-                is_resizing = ui.memory(|mem| mem.interaction.drag_id == Some(resize_id));
+                is_resizing = ui.memory(|mem| mem.interaction().drag_id == Some(resize_id));
                 if is_resizing {
                     let height = (pointer.y - side.side_y(panel_rect)).abs();
                     let height =
@@ -994,6 +1010,7 @@ pub struct CentralPanel {
 
 impl CentralPanel {
     /// Change the background color, margins, etc.
+    #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
@@ -1045,7 +1062,7 @@ impl CentralPanel {
     ) -> InnerResponse<R> {
         let available_rect = ctx.available_rect();
         let layer_id = LayerId::background();
-        let id = Id::new("central_panel");
+        let id = Id::new((ctx.viewport_id(), "central_panel"));
 
         let clip_rect = ctx.screen_rect();
         let mut panel_ui = Ui::new(ctx.clone(), layer_id, id, available_rect, clip_rect);

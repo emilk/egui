@@ -4,7 +4,7 @@ version = "0.23.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.72"
 publish = false
 default-run = "egui_demo_app"
 
@@ -24,9 +24,10 @@ web_app = ["http", "persistence", "web_screen_reader"]
 http = ["ehttp", "image", "poll-promise", "egui_extras/image"]
 image_viewer = ["image", "egui_extras/all_loaders", "rfd"]
 persistence = ["eframe/persistence", "egui/persistence", "serde"]
-web_screen_reader = ["eframe/web_screen_reader"]                  # experimental
+puffin = ["eframe/puffin", "dep:puffin", "dep:puffin_http"]
 serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]
 syntect = ["egui_demo_lib/syntect"]
+web_screen_reader = ["eframe/web_screen_reader"]                  # experimental
 
 glow = ["eframe/glow"]
 wgpu = ["eframe/wgpu", "bytemuck"]
@@ -45,14 +46,17 @@ egui = { version = "0.23.0", path = "../egui", features = [
 egui_demo_lib = { version = "0.23.0", path = "../egui_demo_lib", features = [
   "chrono",
 ] }
+egui_extras = { version = "0.23.0", path = "../egui_extras", features = [
+  "image",
+] }
 log = { version = "0.4", features = ["std"] }
 
 # Optional dependencies:
 
 bytemuck = { version = "1.7.1", optional = true }
-egui_extras = { version = "0.23.0", path = "../egui_extras", features = [
-  "image",
-] }
+puffin = { version = "0.18", optional = true }
+puffin_http = { version = "0.15", optional = true }
+
 
 # feature "http":
 ehttp = { version = "0.3.1", optional = true }
@@ -73,6 +77,6 @@ rfd = { version = "0.11", optional = true }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "=0.2.87"
+wasm-bindgen = "=0.2.88"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3"

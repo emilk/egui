@@ -4,7 +4,7 @@ version = "0.23.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui with winit"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.72"
 homepage = "https://github.com/emilk/egui/tree/master/crates/egui-winit"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -49,17 +49,17 @@ puffin = ["dep:puffin", "egui/puffin"]
 serde = ["egui/serde", "dep:serde"]
 
 ## Enables Wayland support.
-wayland = ["winit/wayland"]
+wayland = ["winit/wayland", "bytemuck"]
 
 ## Enables compiling for x11.
-x11 = ["winit/x11"]
+x11 = ["winit/x11", "bytemuck"]
 
 [dependencies]
 egui = { version = "0.23.0", path = "../egui", default-features = false, features = [
   "log",
 ] }
 log = { version = "0.4", features = ["std"] }
-raw-window-handle = "0.5.0"
+raw-window-handle.workspace = true
 web-time = { version = "0.2" } # We use web-time so we can (maybe) compile for web
 winit = { version = "0.28", default-features = false }
 
@@ -71,7 +71,7 @@ accesskit_winit = { version = "0.15.0", optional = true }
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
 
-puffin = { version = "0.16", optional = true }
+puffin = { workspace = true, optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 webbrowser = { version = "0.8.3", optional = true }
 

@@ -1325,7 +1325,7 @@ impl Ui {
         Hyperlink::new(url).ui(self)
     }
 
-    /// Shortcut for `add(Hyperlink::new(url).text(label))`.
+    /// Shortcut for `add(Hyperlink::from_label_and_url(label, url))`.
     ///
     /// ```
     /// # egui::__run_test_ui(|ui| {

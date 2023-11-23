@@ -187,7 +187,7 @@ impl eframe::App for ImageViewer {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            egui::ScrollArea::new([true, true]).show(ui, |ui| {
+            egui::ScrollArea::both().show(ui, |ui| {
                 let mut image = egui::Image::from_uri(&self.current_uri);
                 image = image.uv(self.image_options.uv);
                 image = image.bg_fill(self.image_options.bg_fill);

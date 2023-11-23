@@ -238,6 +238,15 @@ impl From<Arc<ColorImage>> for ImageData {
     }
 }
 
+impl std::fmt::Debug for ColorImage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ColorImage")
+            .field("size", &self.size)
+            .field("pixel-count", &self.pixels.len())
+            .finish_non_exhaustive()
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// A single-channel image designed for the font texture.

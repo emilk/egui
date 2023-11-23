@@ -52,7 +52,7 @@ impl eframe::App for MyApp {
 fn start_puffin_server() {
     puffin::set_scopes_on(true); // tell puffin to collect data
 
-    match puffin_http::Server::new("0.0.0.0:8585") {
+    match puffin_http::Server::new("127.0.0.1:8585") {
         Ok(puffin_server) => {
             eprintln!("Run:  cargo install puffin_viewer && puffin_viewer --url 127.0.0.1:8585");
 

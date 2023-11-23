@@ -4,9 +4,9 @@ use std::ops::RangeInclusive;
 use egui::*;
 
 use egui_plot::{
-    Arrows, AxisBools, AxisHints, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter,
-    Corner, GridInput, GridMark, HLine, Legend, Line, LineStyle, MarkerShape, Plot, PlotImage,
-    PlotPoint, PlotPoints, PlotResponse, Points, Polygon, Text, VLine,
+    Arrows, AxisHints, Bar, BarChart, BoxElem, BoxPlot, BoxSpread, CoordinatesFormatter, Corner,
+    GridInput, GridMark, HLine, Legend, Line, LineStyle, MarkerShape, Plot, PlotImage, PlotPoint,
+    PlotPoints, PlotResponse, Points, Polygon, Text, VLine,
 };
 
 // ----------------------------------------------------------------------------
@@ -830,8 +830,8 @@ impl Default for Chart {
 struct ChartsDemo {
     chart: Chart,
     vertical: bool,
-    allow_zoom: AxisBools,
-    allow_drag: AxisBools,
+    allow_zoom: Vec2b,
+    allow_drag: Vec2b,
 }
 
 impl Default for ChartsDemo {

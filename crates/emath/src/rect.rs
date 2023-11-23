@@ -150,29 +150,29 @@ impl Rect {
         rect
     }
 
-    #[inline]
     #[must_use]
+    #[inline]
     pub fn with_min_x(mut self, min_x: f32) -> Self {
         self.min.x = min_x;
         self
     }
 
-    #[inline]
     #[must_use]
+    #[inline]
     pub fn with_min_y(mut self, min_y: f32) -> Self {
         self.min.y = min_y;
         self
     }
 
-    #[inline]
     #[must_use]
+    #[inline]
     pub fn with_max_x(mut self, max_x: f32) -> Self {
         self.max.x = max_x;
         self
     }
 
-    #[inline]
     #[must_use]
+    #[inline]
     pub fn with_max_y(mut self, max_y: f32) -> Self {
         self.max.y = max_y;
         self
@@ -620,5 +620,41 @@ impl std::fmt::Debug for Rect {
 impl From<[Pos2; 2]> for Rect {
     fn from([min, max]: [Pos2; 2]) -> Self {
         Self { min, max }
+    }
+}
+
+impl Mul<f32> for Rect {
+    type Output = Rect;
+
+    #[inline]
+    fn mul(self, factor: f32) -> Rect {
+        Rect {
+            min: self.min * factor,
+            max: self.max * factor,
+        }
+    }
+}
+
+impl Mul<Rect> for f32 {
+    type Output = Rect;
+
+    #[inline]
+    fn mul(self, vec: Rect) -> Rect {
+        Rect {
+            min: self * vec.min,
+            max: self * vec.max,
+        }
+    }
+}
+
+impl Div<f32> for Rect {
+    type Output = Rect;
+
+    #[inline]
+    fn div(self, factor: f32) -> Rect {
+        Rect {
+            min: self.min / factor,
+            max: self.max / factor,
+        }
     }
 }

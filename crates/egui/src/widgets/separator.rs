@@ -36,6 +36,7 @@ impl Separator {
     ///
     /// In a horizontal layout, with a vertical Separator,
     /// this is the width of the separator widget.
+    #[inline]
     pub fn spacing(mut self, spacing: f32) -> Self {
         self.spacing = spacing;
         self
@@ -45,6 +46,7 @@ impl Separator {
     ///
     /// By default you will get a horizontal line in vertical layouts,
     /// and a vertical line in horizontal layouts.
+    #[inline]
     pub fn horizontal(mut self) -> Self {
         self.is_horizontal_line = Some(true);
         self
@@ -54,6 +56,7 @@ impl Separator {
     ///
     /// By default you will get a horizontal line in vertical layouts,
     /// and a vertical line in horizontal layouts.
+    #[inline]
     pub fn vertical(mut self) -> Self {
         self.is_horizontal_line = Some(false);
         self
@@ -64,6 +67,7 @@ impl Separator {
     /// The default is to take up the available width/height of the parent.
     ///
     /// This will make the line extend outside the parent ui.
+    #[inline]
     pub fn grow(mut self, extra: f32) -> Self {
         self.grow += extra;
         self
@@ -74,6 +78,7 @@ impl Separator {
     /// The default is to take up the available width/height of the parent.
     ///
     /// This effectively adds margins to the line.
+    #[inline]
     pub fn shrink(mut self, shrink: f32) -> Self {
         self.grow -= shrink;
         self

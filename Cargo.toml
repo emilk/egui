@@ -36,5 +36,12 @@ opt-level = 2 # fast and small wasm, basically same as `opt-level = 's'`
 opt-level = 2
 
 [workspace.dependencies]
+puffin = "0.18"
+raw-window-handle = "0.5.0"
 thiserror = "1.0.37"
-wgpu = "0.17.0"
+
+# Make the renderer `Sync` even on wasm32, because it makes the code simpler:
+wgpu = { version = "0.18.0", features = ["fragile-send-sync-non-atomic-wasm"] }
+
+# Use this to build wgpu with WebGL support on the Web *instead* of using WebGPU.
+#wgpu = { version = "0.18.0", features = ["webgl"] }

@@ -174,7 +174,7 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
     ui.separator();
 
     egui::ScrollArea::vertical()
-        .auto_shrink([false; 2])
+        .auto_shrink(false)
         .show(ui, |ui| {
             egui::CollapsingHeader::new("Response headers")
                 .default_open(false)

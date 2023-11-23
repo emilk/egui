@@ -132,6 +132,7 @@ impl AxisHints {
     /// Specify axis label.
     ///
     /// The default is 'x' for x-axes and 'y' for y-axes.
+    #[inline]
     pub fn label(mut self, label: impl Into<WidgetText>) -> Self {
         self.label = label.into();
         self
@@ -140,6 +141,7 @@ impl AxisHints {
     /// Specify maximum number of digits for ticks.
     ///
     /// This is considered by the default tick formatter and affects the width of the y-axis
+    #[inline]
     pub fn max_digits(mut self, digits: usize) -> Self {
         self.digits = digits;
         self
@@ -149,6 +151,7 @@ impl AxisHints {
     ///
     /// For X-axis, use [`VPlacement`].
     /// For Y-axis, use [`HPlacement`].
+    #[inline]
     pub fn placement(mut self, placement: impl Into<Placement>) -> Self {
         self.placement = placement.into();
         self

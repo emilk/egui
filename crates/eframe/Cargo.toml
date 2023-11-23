@@ -4,7 +4,7 @@ version = "0.23.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "egui framework - write GUI apps that compiles to web and/or natively"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.72"
 homepage = "https://github.com/emilk/egui/tree/master/crates/eframe"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -70,7 +70,13 @@ persistence = [
 ## `eframe` will call `puffin::GlobalProfiler::lock().new_frame()` for you
 ##
 ## Only enabled on native, because of the low resolution (1ms) of clocks in browsers.
-puffin = ["dep:puffin", "egui/puffin", "egui_glow?/puffin", "egui-wgpu?/puffin"]
+puffin = [
+  "dep:puffin",
+  "egui/puffin",
+  "egui_glow?/puffin",
+  "egui-wgpu?/puffin",
+  "egui-winit/puffin",
+]
 
 ## Enables wayland support and fixes clipboard issue.
 wayland = ["egui-winit/wayland"]
@@ -120,7 +126,7 @@ egui-winit = { version = "0.23.0", path = "../egui-winit", default-features = fa
 image = { version = "0.24", default-features = false, features = [
   "png",
 ] } # Needed for app icon
-raw-window-handle = { version = "0.5.0" }
+raw-window-handle.workspace = true
 winit = { version = "0.28.1", default-features = false }
 
 # optional native:
@@ -134,7 +140,7 @@ pollster = { version = "0.3", optional = true } # needed for wgpu
 # this can be done at the same time we expose x11/wayland features of winit crate.
 glutin = { version = "0.30", optional = true }
 glutin-winit = { version = "0.3.0", optional = true }
-puffin = { version = "0.16", optional = true }
+puffin = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true }
 
 # mac:
@@ -152,7 +158,7 @@ winapi = "0.3.9"
 bytemuck = "1.7"
 js-sys = "0.3"
 percent-encoding = "2.1"
-wasm-bindgen = "0.2.87"
+wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3.58", features = [
   "BinaryType",
@@ -200,6 +206,6 @@ web-sys = { version = "0.3.58", features = [
 
 # optional web:
 egui-wgpu = { version = "0.23.0", path = "../egui-wgpu", optional = true } # if wgpu is used, use it without (!) winit
-raw-window-handle = { version = "0.5.2", optional = true }
+raw-window-handle = { workspace = true, optional = true }
 tts = { version = "0.25", optional = true, default-features = false }
 wgpu = { workspace = true, optional = true }

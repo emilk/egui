@@ -4,7 +4,7 @@ version = "0.23.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glow library"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.72"
 homepage = "https://github.com/emilk/egui/tree/master/crates/egui_glow"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -51,7 +51,7 @@ egui = { version = "0.23.0", path = "../egui", default-features = false, feature
 bytemuck = "1.7"
 glow = "0.12"
 log = { version = "0.4", features = ["std"] }
-memoffset = "0.6"
+memoffset = "0.7"
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
@@ -60,17 +60,17 @@ document-features = { version = "0.2", optional = true }
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 egui-winit = { version = "0.23.0", path = "../egui-winit", optional = true, default-features = false }
-puffin = { version = "0.16", optional = true }
+puffin = { workspace = true, optional = true }
 
 # Web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["console"] }
-wasm-bindgen = { version = "0.2" }
+wasm-bindgen = "0.2"
 
 
 [dev-dependencies]
-glutin = "0.30"             # examples/pure_glow
-raw-window-handle = "0.5.0"
+glutin = "0.30"                    # examples/pure_glow
+raw-window-handle.workspace = true
 glutin-winit = "0.3.0"
 
 

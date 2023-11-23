@@ -482,6 +482,7 @@ impl Response {
     /// The highlight takes one frame to take effect if you call this after the widget has been fully rendered.
     ///
     /// See also [`Context::highlight_widget`].
+    #[inline]
     pub fn highlight(mut self) -> Self {
         self.ctx.highlight_widget(self.id);
         self.highlighted = true;

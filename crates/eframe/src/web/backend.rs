@@ -23,12 +23,17 @@ pub(crate) struct WebInput {
 
 impl WebInput {
     pub fn new_frame(&mut self, canvas_size: egui::Vec2) -> egui::RawInput {
-        egui::RawInput {
+        let mut raw_input = egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(Default::default(), canvas_size)),
-            pixels_per_point: Some(super::native_pixels_per_point()), // We ALWAYS use the native pixels-per-point
             time: Some(super::now_sec()),
             ..self.raw.take()
-        }
+        };
+        raw_input
+            .viewports
+            .entry(egui::ViewportId::ROOT)
+            .or_default()
+            .native_pixels_per_point = Some(super::native_pixels_per_point());
+        raw_input
     }
 
     pub fn on_web_page_focus_change(&mut self, focused: bool) {

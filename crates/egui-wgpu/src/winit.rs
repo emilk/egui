@@ -1,4 +1,6 @@
-use std::sync::Arc;
+use std::{num::NonZeroU32, sync::Arc};
+
+use egui::{ViewportId, ViewportIdMap, ViewportIdSet};
 
 use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
 
@@ -77,13 +79,15 @@ pub struct Painter {
     msaa_samples: u32,
     support_transparent_backbuffer: bool,
     depth_format: Option<wgpu::TextureFormat>,
-    depth_texture_view: Option<wgpu::TextureView>,
-    msaa_texture_view: Option<wgpu::TextureView>,
     screen_capture_state: Option<CaptureState>,
 
     instance: wgpu::Instance,
     render_state: Option<RenderState>,
-    surface_state: Option<SurfaceState>,
+
+    // Per viewport/window:
+    depth_texture_view: ViewportIdMap<wgpu::TextureView>,
+    msaa_texture_view: ViewportIdMap<wgpu::TextureView>,
+    surfaces: ViewportIdMap<SurfaceState>,
 }
 
 impl Painter {
@@ -107,7 +111,7 @@ impl Painter {
     ) -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: configuration.supported_backends,
-            dx12_shader_compiler: Default::default(),
+            ..Default::default()
         });
 
         Self {
@@ -115,13 +119,14 @@ impl Painter {
             msaa_samples,
             support_transparent_backbuffer,
             depth_format,
-            depth_texture_view: None,
             screen_capture_state: None,
 
             instance,
             render_state: None,
-            surface_state: None,
-            msaa_texture_view: None,
+
+            depth_texture_view: Default::default(),
+            surfaces: Default::default(),
+            msaa_texture_view: Default::default(),
         }
     }
 
@@ -138,6 +143,7 @@ impl Painter {
         present_mode: wgpu::PresentMode,
     ) {
         crate::profile_function!();
+
         let usage = if surface_state.supports_screenshot {
             wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_DST
         } else {
@@ -180,12 +186,18 @@ impl Painter {
     /// If the provided wgpu configuration does not match an available device.
     pub async fn set_window(
         &mut self,
+        viewport_id: ViewportId,
         window: Option<&winit::window::Window>,
     ) -> Result<(), crate::WgpuError> {
-        crate::profile_function!();
-        match window {
-            Some(window) => {
-                let surface = unsafe { self.instance.create_surface(&window)? };
+        crate::profile_scope!("Painter::set_window"); // profle_function gives bad names for async functions
+
+        if let Some(window) = window {
+            let size = window.inner_size();
+            if self.surfaces.get(&viewport_id).is_none() {
+                let surface = unsafe {
+                    crate::profile_scope!("create_surface");
+                    self.instance.create_surface(&window)?
+                };
 
                 let render_state = if let Some(render_state) = &self.render_state {
                     render_state
@@ -223,19 +235,35 @@ impl Painter {
                 let supports_screenshot =
                     !matches!(render_state.adapter.get_info().backend, wgpu::Backend::Gl);
 
-                let size = window.inner_size();
-                self.surface_state = Some(SurfaceState {
-                    surface,
-                    width: size.width,
-                    height: size.height,
-                    alpha_mode,
-                    supports_screenshot,
-                });
-                self.resize_and_generate_depth_texture_view_and_msaa_view(size.width, size.height);
+                self.surfaces.insert(
+                    viewport_id,
+                    SurfaceState {
+                        surface,
+                        width: size.width,
+                        height: size.height,
+                        alpha_mode,
+                        supports_screenshot,
+                    },
+                );
+
+                let Some(width) = NonZeroU32::new(size.width) else {
+                    log::debug!("The window width was zero; skipping generate textures");
+                    return Ok(());
+                };
+                let Some(height) = NonZeroU32::new(size.height) else {
+                    log::debug!("The window height was zero; skipping generate textures");
+                    return Ok(());
+                };
+
+                self.resize_and_generate_depth_texture_view_and_msaa_view(
+                    viewport_id,
+                    width,
+                    height,
+                );
             }
-            None => {
-                self.surface_state = None;
-            }
+        } else {
+            log::warn!("No window - clearing all surfaces");
+            self.surfaces.clear();
         }
         Ok(())
     }
@@ -253,51 +281,61 @@ impl Painter {
 
     fn resize_and_generate_depth_texture_view_and_msaa_view(
         &mut self,
-        width_in_pixels: u32,
-        height_in_pixels: u32,
+        viewport_id: ViewportId,
+        width_in_pixels: NonZeroU32,
+        height_in_pixels: NonZeroU32,
     ) {
         crate::profile_function!();
-        let render_state = self.render_state.as_ref().unwrap();
-        let surface_state = self.surface_state.as_mut().unwrap();
 
-        surface_state.width = width_in_pixels;
-        surface_state.height = height_in_pixels;
+        let width = width_in_pixels.get();
+        let height = height_in_pixels.get();
+
+        let render_state = self.render_state.as_ref().unwrap();
+        let surface_state = self.surfaces.get_mut(&viewport_id).unwrap();
+
+        surface_state.width = width;
+        surface_state.height = height;
 
         Self::configure_surface(surface_state, render_state, self.configuration.present_mode);
 
-        self.depth_texture_view = self.depth_format.map(|depth_format| {
-            render_state
-                .device
-                .create_texture(&wgpu::TextureDescriptor {
-                    label: Some("egui_depth_texture"),
-                    size: wgpu::Extent3d {
-                        width: width_in_pixels,
-                        height: height_in_pixels,
-                        depth_or_array_layers: 1,
-                    },
-                    mip_level_count: 1,
-                    sample_count: self.msaa_samples,
-                    dimension: wgpu::TextureDimension::D2,
-                    format: depth_format,
-                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT
-                        | wgpu::TextureUsages::TEXTURE_BINDING,
-                    view_formats: &[depth_format],
-                })
-                .create_view(&wgpu::TextureViewDescriptor::default())
-        });
+        if let Some(depth_format) = self.depth_format {
+            self.depth_texture_view.insert(
+                viewport_id,
+                render_state
+                    .device
+                    .create_texture(&wgpu::TextureDescriptor {
+                        label: Some("egui_depth_texture"),
+                        size: wgpu::Extent3d {
+                            width,
+                            height,
+                            depth_or_array_layers: 1,
+                        },
+                        mip_level_count: 1,
+                        sample_count: self.msaa_samples,
+                        dimension: wgpu::TextureDimension::D2,
+                        format: depth_format,
+                        usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                            | wgpu::TextureUsages::TEXTURE_BINDING,
+                        view_formats: &[depth_format],
+                    })
+                    .create_view(&wgpu::TextureViewDescriptor::default()),
+            );
+        }
 
-        self.msaa_texture_view = (self.msaa_samples > 1)
+        if let Some(render_state) = (self.msaa_samples > 1)
             .then_some(self.render_state.as_ref())
             .flatten()
-            .map(|render_state| {
-                let texture_format = render_state.target_format;
+        {
+            let texture_format = render_state.target_format;
+            self.msaa_texture_view.insert(
+                viewport_id,
                 render_state
                     .device
                     .create_texture(&wgpu::TextureDescriptor {
                         label: Some("egui_msaa_texture"),
                         size: wgpu::Extent3d {
-                            width: width_in_pixels,
-                            height: height_in_pixels,
+                            width,
+                            height,
                             depth_or_array_layers: 1,
                         },
                         mip_level_count: 1,
@@ -307,14 +345,22 @@ impl Painter {
                         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                         view_formats: &[texture_format],
                     })
-                    .create_view(&wgpu::TextureViewDescriptor::default())
-            });
+                    .create_view(&wgpu::TextureViewDescriptor::default()),
+            );
+        };
     }
 
-    pub fn on_window_resized(&mut self, width_in_pixels: u32, height_in_pixels: u32) {
+    pub fn on_window_resized(
+        &mut self,
+        viewport_id: ViewportId,
+        width_in_pixels: NonZeroU32,
+        height_in_pixels: NonZeroU32,
+    ) {
         crate::profile_function!();
-        if self.surface_state.is_some() {
+
+        if self.surfaces.contains_key(&viewport_id) {
             self.resize_and_generate_depth_texture_view_and_msaa_view(
+                viewport_id,
                 width_in_pixels,
                 height_in_pixels,
             );
@@ -425,6 +471,7 @@ impl Painter {
     // Returns a vector with the frame's pixel data if it was requested.
     pub fn paint_and_update_textures(
         &mut self,
+        viewport_id: ViewportId,
         pixels_per_point: f32,
         clear_color: [f32; 4],
         clipped_primitives: &[epaint::ClippedPrimitive],
@@ -434,7 +481,7 @@ impl Painter {
         crate::profile_function!();
 
         let render_state = self.render_state.as_mut()?;
-        let surface_state = self.surface_state.as_ref()?;
+        let surface_state = self.surfaces.get(&viewport_id)?;
 
         let output_frame = {
             crate::profile_scope!("get_current_texture");
@@ -444,8 +491,7 @@ impl Painter {
 
         let output_frame = match output_frame {
             Ok(frame) => frame,
-            #[allow(clippy::single_match_else)]
-            Err(e) => match (*self.configuration.on_surface_error)(e) {
+            Err(err) => match (*self.configuration.on_surface_error)(err) {
                 SurfaceErrorAction::RecreateSurface => {
                     Self::configure_surface(
                         surface_state,
@@ -521,13 +567,14 @@ impl Painter {
             };
 
             let (view, resolve_target) = (self.msaa_samples > 1)
-                .then_some(self.msaa_texture_view.as_ref())
+                .then_some(self.msaa_texture_view.get(&viewport_id))
                 .flatten()
                 .map_or((&frame_view, None), |texture_view| {
                     (texture_view, Some(&frame_view))
                 });
 
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("egui_render"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view,
                     resolve_target,
@@ -538,20 +585,23 @@ impl Painter {
                             b: clear_color[2] as f64,
                             a: clear_color[3] as f64,
                         }),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: self.depth_texture_view.as_ref().map(|view| {
+                depth_stencil_attachment: self.depth_texture_view.get(&viewport_id).map(|view| {
                     wgpu::RenderPassDepthStencilAttachment {
                         view,
                         depth_ops: Some(wgpu::Operations {
                             load: wgpu::LoadOp::Clear(1.0),
-                            store: true,
+                            // It is very unlikely that the depth buffer is needed after egui finished rendering
+                            // so no need to store it. (this can improve performance on tiling GPUs like mobile chips or Apple Silicon)
+                            store: wgpu::StoreOp::Discard,
                         }),
                         stencil_ops: None,
                     }
                 }),
-                label: Some("egui_render"),
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
 
             renderer.render(&mut render_pass, clipped_primitives, &screen_descriptor);
@@ -574,7 +624,7 @@ impl Painter {
             crate::profile_scope!("Queue::submit");
             render_state
                 .queue
-                .submit(user_cmd_bufs.into_iter().chain(std::iter::once(encoded)));
+                .submit(user_cmd_bufs.into_iter().chain([encoded]));
         };
 
         let screenshot = if capture {
@@ -589,6 +639,14 @@ impl Painter {
             output_frame.present();
         }
         screenshot
+    }
+
+    pub fn gc_viewports(&mut self, active_viewports: &ViewportIdSet) {
+        self.surfaces.retain(|id, _| active_viewports.contains(id));
+        self.depth_texture_view
+            .retain(|id, _| active_viewports.contains(id));
+        self.msaa_texture_view
+            .retain(|id, _| active_viewports.contains(id));
     }
 
     #[allow(clippy::unused_self)]

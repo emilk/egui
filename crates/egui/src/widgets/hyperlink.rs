@@ -107,6 +107,7 @@ impl Hyperlink {
     }
 
     /// Always open this hyperlink in a new browser tab.
+    #[inline]
     pub fn open_in_new_tab(mut self, new_tab: bool) -> Self {
         self.new_tab = new_tab;
         self

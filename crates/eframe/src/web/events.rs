@@ -19,11 +19,8 @@ fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
 fn paint_if_needed(runner: &mut AppRunner) -> Result<(), JsValue> {
     if runner.needs_repaint.when_to_repaint() <= now_sec() {
         runner.needs_repaint.clear();
-        let (repaint_after, clipped_primitives) = runner.logic();
+        let clipped_primitives = runner.logic();
         runner.paint(&clipped_primitives)?;
-        runner
-            .needs_repaint
-            .repaint_after(repaint_after.as_secs_f64());
         runner.auto_save_if_needed();
     }
     Ok(())
@@ -175,16 +172,34 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
     )?;
 
     #[cfg(web_sys_unstable_apis)]
-    runner_ref.add_event_listener(&document, "cut", |_: web_sys::ClipboardEvent, runner| {
-        runner.input.raw.events.push(egui::Event::Cut);
-        runner.needs_repaint.repaint_asap();
-    })?;
+    runner_ref.add_event_listener(
+        &document,
+        "cut",
+        |event: web_sys::ClipboardEvent, runner| {
+            runner.input.raw.events.push(egui::Event::Cut);
+            // In Safari we are only allowed to write to the clipboard during the
+            // event callback, which is why we run the app logic here and now:
+            runner.logic(); // we ignore the returned triangles, but schedule a repaint right after
+            runner.needs_repaint.repaint_asap();
+            event.stop_propagation();
+            event.prevent_default();
+        },
+    )?;
 
     #[cfg(web_sys_unstable_apis)]
-    runner_ref.add_event_listener(&document, "copy", |_: web_sys::ClipboardEvent, runner| {
-        runner.input.raw.events.push(egui::Event::Copy);
-        runner.needs_repaint.repaint_asap();
-    })?;
+    runner_ref.add_event_listener(
+        &document,
+        "copy",
+        |event: web_sys::ClipboardEvent, runner| {
+            runner.input.raw.events.push(egui::Event::Copy);
+            // In Safari we are only allowed to write to the clipboard during the
+            // event callback, which is why we run the app logic here and now:
+            runner.logic(); // we ignore the returned triangles, but schedule a repaint right after
+            runner.needs_repaint.repaint_asap();
+            event.stop_propagation();
+            event.prevent_default();
+        },
+    )?;
 
     Ok(())
 }

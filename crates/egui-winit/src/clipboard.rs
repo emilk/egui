@@ -112,6 +112,8 @@ impl Clipboard {
 
 #[cfg(all(feature = "arboard", not(target_os = "android")))]
 fn init_arboard() -> Option<arboard::Clipboard> {
+    crate::profile_function!();
+
     log::debug!("Initializing arboard clipboard…");
     match arboard::Clipboard::new() {
         Ok(clipboard) => Some(clipboard),
@@ -135,6 +137,8 @@ fn init_arboard() -> Option<arboard::Clipboard> {
 fn init_smithay_clipboard(
     _display_target: &dyn HasRawDisplayHandle,
 ) -> Option<smithay_clipboard::Clipboard> {
+    crate::profile_function!();
+
     use raw_window_handle::RawDisplayHandle;
     if let RawDisplayHandle::Wayland(display) = _display_target.raw_display_handle() {
         log::debug!("Initializing smithay clipboard…");

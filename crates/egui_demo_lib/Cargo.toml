@@ -4,7 +4,7 @@ version = "0.23.0"
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Example library for egui"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.72"
 homepage = "https://github.com/emilk/egui/tree/master/crates/egui_demo_lib"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
@@ -42,7 +42,7 @@ egui = { version = "0.23.0", path = "../egui", default-features = false }
 egui_extras = { version = "0.23.0", path = "../egui_extras" }
 egui_plot = { version = "0.23.0", path = "../egui_plot" }
 log = { version = "0.4", features = ["std"] }
-unicode_names2 = { version = "0.6.0", default-features = false }
+unicode_names2 = { version = "0.6.0", default-features = false }          # this old version has fewer dependencies
 
 #! ### Optional dependencies
 chrono = { version = "0.4", optional = true, features = ["js-sys", "wasmbind"] }

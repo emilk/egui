@@ -1,3 +1,5 @@
+use egui::Vec2b;
+
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct WindowOptions {
@@ -7,7 +9,7 @@ pub struct WindowOptions {
     collapsible: bool,
     resizable: bool,
     constrain: bool,
-    scroll2: [bool; 2],
+    scroll2: Vec2b,
     disabled_time: f64,
 
     anchored: bool,
@@ -24,7 +26,7 @@ impl Default for WindowOptions {
             collapsible: true,
             resizable: true,
             constrain: true,
-            scroll2: [true; 2],
+            scroll2: Vec2b::TRUE,
             disabled_time: f64::NEG_INFINITY,
             anchored: false,
             anchor: egui::Align2::RIGHT_TOP,

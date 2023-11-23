@@ -109,7 +109,7 @@ pub fn should_ignore_key(key: &str) -> bool {
         )
 }
 
-/// Web sends all all keys as strings, so it is up to us to figure out if it is
+/// Web sends all keys as strings, so it is up to us to figure out if it is
 /// a real text input or the name of a key.
 pub fn translate_key(key: &str) -> Option<egui::Key> {
     use egui::Key;
