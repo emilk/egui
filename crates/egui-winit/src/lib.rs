@@ -1314,7 +1314,7 @@ pub fn create_winit_window_builder<T>(
         .with_resizable(resizable.unwrap_or(true))
         .with_visible(visible.unwrap_or(true))
         .with_maximized(maximized.unwrap_or(false))
-        .with_window_level(match window_level {
+        .with_window_level(match window_level.unwrap_or_default() {
             egui::viewport::WindowLevel::AlwaysOnBottom => WindowLevel::AlwaysOnBottom,
             egui::viewport::WindowLevel::AlwaysOnTop => WindowLevel::AlwaysOnTop,
             egui::viewport::WindowLevel::Normal => WindowLevel::Normal,

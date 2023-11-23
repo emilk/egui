@@ -287,7 +287,7 @@ pub struct ViewportBuilder {
     pub minimize_button: Option<bool>,
     pub maximize_button: Option<bool>,
 
-    pub window_level: WindowLevel,
+    pub window_level: Option<WindowLevel>,
 
     pub mouse_passthrough: Option<bool>,
 }
@@ -544,7 +544,7 @@ impl ViewportBuilder {
     /// Control if window i always-on-top, always-on-bottom, or neither.
     #[inline]
     pub fn with_window_level(mut self, level: WindowLevel) -> Self {
-        self.window_level = level;
+        self.window_level = Some(level);
         self
     }
 
@@ -566,80 +566,107 @@ impl ViewportBuilder {
 
     /// Update this `ViewportBuilder` with a delta,
     /// returning a list of commands and a bool intdicating if the window needs to be recreated.
-    pub fn patch(&mut self, new: &ViewportBuilder) -> (Vec<ViewportCommand>, bool) {
+    pub fn patch(&mut self, new_vp_builder: &ViewportBuilder) -> (Vec<ViewportCommand>, bool) {
+        let ViewportBuilder {
+            title: new_title,
+            app_id: new_app_id,
+            position: new_position,
+            inner_size: new_inner_size,
+            min_inner_size: new_min_inner_size,
+            max_inner_size: new_max_inner_size,
+            fullscreen: new_fullscreen,
+            maximized: new_maximized,
+            resizable: new_resizable,
+            transparent: new_transparent,
+            decorations: new_decorations,
+            icon: new_icon,
+            active: new_active,
+            visible: new_visible,
+            drag_and_drop: new_drag_and_drop,
+            fullsize_content_view: new_fullsize_content_view,
+            title_shown: new_title_shown,
+            titlebar_buttons_shown: new_titlebar_buttons_shown,
+            titlebar_shown: new_titlebar_shown,
+            close_button: new_close_button,
+            minimize_button: new_minimize_button,
+            maximize_button: new_maximize_button,
+            window_level: new_window_level,
+            mouse_passthrough: new_mouse_passthrough,
+        } = new_vp_builder;
+
         let mut commands = Vec::new();
 
-        if let Some(new_title) = &new.title {
+        if let Some(new_title) = new_title {
             if Some(new_title) != self.title.as_ref() {
                 self.title = Some(new_title.clone());
                 commands.push(ViewportCommand::Title(new_title.clone()));
             }
         }
 
-        if let Some(new_position) = new.position {
+        if let Some(new_position) = *new_position {
             if Some(new_position) != self.position {
                 self.position = Some(new_position);
                 commands.push(ViewportCommand::OuterPosition(new_position));
             }
         }
 
-        if let Some(new_inner_size) = new.inner_size {
+        if let Some(new_inner_size) = *new_inner_size {
             if Some(new_inner_size) != self.inner_size {
                 self.inner_size = Some(new_inner_size);
                 commands.push(ViewportCommand::InnerSize(new_inner_size));
             }
         }
 
-        if let Some(new_min_inner_size) = new.min_inner_size {
+        if let Some(new_min_inner_size) = *new_min_inner_size {
             if Some(new_min_inner_size) != self.min_inner_size {
                 self.min_inner_size = Some(new_min_inner_size);
                 commands.push(ViewportCommand::MinInnerSize(new_min_inner_size));
             }
         }
 
-        if let Some(new_max_inner_size) = new.max_inner_size {
+        if let Some(new_max_inner_size) = *new_max_inner_size {
             if Some(new_max_inner_size) != self.max_inner_size {
                 self.max_inner_size = Some(new_max_inner_size);
                 commands.push(ViewportCommand::MaxInnerSize(new_max_inner_size));
             }
         }
 
-        if let Some(new_fullscreen) = new.fullscreen {
+        if let Some(new_fullscreen) = *new_fullscreen {
             if Some(new_fullscreen) != self.fullscreen {
                 self.fullscreen = Some(new_fullscreen);
                 commands.push(ViewportCommand::Fullscreen(new_fullscreen));
             }
         }
 
-        if let Some(new_maximized) = new.maximized {
+        if let Some(new_maximized) = *new_maximized {
             if Some(new_maximized) != self.maximized {
                 self.maximized = Some(new_maximized);
                 commands.push(ViewportCommand::Maximized(new_maximized));
             }
         }
 
-        if let Some(new_resizable) = new.resizable {
+        if let Some(new_resizable) = *new_resizable {
             if Some(new_resizable) != self.resizable {
                 self.resizable = Some(new_resizable);
                 commands.push(ViewportCommand::Resizable(new_resizable));
             }
         }
 
-        if let Some(new_transparent) = new.transparent {
+        if let Some(new_transparent) = *new_transparent {
             if Some(new_transparent) != self.transparent {
                 self.transparent = Some(new_transparent);
                 commands.push(ViewportCommand::Transparent(new_transparent));
             }
         }
 
-        if let Some(new_decorations) = new.decorations {
+        if let Some(new_decorations) = *new_decorations {
             if Some(new_decorations) != self.decorations {
                 self.decorations = Some(new_decorations);
                 commands.push(ViewportCommand::Decorations(new_decorations));
             }
         }
 
-        if let Some(new_icon) = &new.icon {
+        if let Some(new_icon) = new_icon {
             let is_new = match &self.icon {
                 Some(existing) => !Arc::ptr_eq(new_icon, existing),
                 None => true,
@@ -651,78 +678,82 @@ impl ViewportBuilder {
             }
         }
 
-        if let Some(new_visible) = new.visible {
+        if let Some(new_visible) = *new_visible {
             if Some(new_visible) != self.active {
                 self.visible = Some(new_visible);
                 commands.push(ViewportCommand::Visible(new_visible));
             }
         }
 
-        if let Some(new_mouse_passthrough) = new.mouse_passthrough {
+        if let Some(new_mouse_passthrough) = *new_mouse_passthrough {
             if Some(new_mouse_passthrough) != self.mouse_passthrough {
                 self.mouse_passthrough = Some(new_mouse_passthrough);
                 commands.push(ViewportCommand::MousePassthrough(new_mouse_passthrough));
             }
         }
 
-        // TODO: Implement compare for windows buttons
+        if let Some(new_window_level) = *new_window_level {
+            if Some(new_window_level) != self.window_level {
+                self.window_level = Some(new_window_level);
+                commands.push(ViewportCommand::WindowLevel(new_window_level));
+            }
+        }
 
+        // --------------------------------------------------------------
         let mut recreate_window = false;
 
-        if let Some(new_active) = new.active {
-            if Some(new_active) != self.active {
-                self.active = Some(new_active);
-                recreate_window = true;
-            }
+        if new_active.is_some() && self.active != *new_active {
+            self.active = *new_active;
+            recreate_window = true;
         }
 
-        if let Some(new_close_button) = new.close_button {
-            if Some(new_close_button) != self.close_button {
-                self.close_button = Some(new_close_button);
-                recreate_window = true;
-            }
+        if new_app_id.is_some() && self.app_id != *new_app_id {
+            self.app_id = new_app_id.clone();
+            recreate_window = true;
         }
 
-        if let Some(new_minimize_button) = new.minimize_button {
-            if Some(new_minimize_button) != self.minimize_button {
-                self.minimize_button = Some(new_minimize_button);
-                recreate_window = true;
-            }
+        if new_close_button.is_some() && self.close_button != *new_close_button {
+            self.close_button = *new_close_button;
+            recreate_window = true;
         }
 
-        if let Some(new_maximized_button) = new.maximize_button {
-            if Some(new_maximized_button) != self.maximize_button {
-                self.maximize_button = Some(new_maximized_button);
-                recreate_window = true;
-            }
+        if new_minimize_button.is_some() && self.minimize_button != *new_minimize_button {
+            self.minimize_button = *new_minimize_button;
+            recreate_window = true;
         }
 
-        if let Some(new_title_shown) = new.title_shown {
-            if Some(new_title_shown) != self.title_shown {
-                self.title_shown = Some(new_title_shown);
-                recreate_window = true;
-            }
+        if new_maximize_button.is_some() && self.maximize_button != *new_maximize_button {
+            self.maximize_button = *new_maximize_button;
+            recreate_window = true;
         }
 
-        if let Some(new_titlebar_buttons_shown) = new.titlebar_buttons_shown {
-            if Some(new_titlebar_buttons_shown) != self.titlebar_buttons_shown {
-                self.titlebar_buttons_shown = Some(new_titlebar_buttons_shown);
-                recreate_window = true;
-            }
+        if new_title_shown.is_some() && self.title_shown != *new_title_shown {
+            self.title_shown = *new_title_shown;
+            recreate_window = true;
         }
 
-        if let Some(new_titlebar_shown) = new.titlebar_shown {
-            if Some(new_titlebar_shown) != self.titlebar_shown {
-                self.titlebar_shown = Some(new_titlebar_shown);
-                recreate_window = true;
-            }
+        if new_titlebar_buttons_shown.is_some()
+            && self.titlebar_buttons_shown != *new_titlebar_buttons_shown
+        {
+            self.titlebar_buttons_shown = *new_titlebar_buttons_shown;
+            recreate_window = true;
         }
 
-        if let Some(new_fullsize_content_view) = new.fullsize_content_view {
-            if Some(new_fullsize_content_view) != self.fullsize_content_view {
-                self.fullsize_content_view = Some(new_fullsize_content_view);
-                recreate_window = true;
-            }
+        if new_titlebar_shown.is_some() && self.titlebar_shown != *new_titlebar_shown {
+            self.titlebar_shown = *new_titlebar_shown;
+            recreate_window = true;
+        }
+
+        if new_fullsize_content_view.is_some()
+            && self.fullsize_content_view != *new_fullsize_content_view
+        {
+            self.fullsize_content_view = *new_fullsize_content_view;
+            recreate_window = true;
+        }
+
+        if new_drag_and_drop.is_some() && self.drag_and_drop != *new_drag_and_drop {
+            self.drag_and_drop = *new_drag_and_drop;
+            recreate_window = true;
         }
 
         (commands, recreate_window)
