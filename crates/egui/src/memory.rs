@@ -187,6 +187,7 @@ pub struct Options {
     /// presses Cmd+Plus, Cmd+Minus or Cmd+0, just like in a browser.
     ///
     /// This is `true` by default.
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub zoom_with_keyboard: bool,
 
     /// Controls the tessellator.
