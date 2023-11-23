@@ -836,12 +836,18 @@ fn update_viewport_info(viewport_info: &mut ViewportInfo, window: &Window, pixel
     viewport_info.focused = Some(window.has_focus());
     viewport_info.fullscreen = Some(window.fullscreen().is_some());
     viewport_info.inner_rect = inner_rect;
-    viewport_info.maximized = Some(window.is_maximized());
-    viewport_info.minimized = window.is_minimized().or(viewport_info.minimized);
     viewport_info.monitor_size = monitor_size;
     viewport_info.native_pixels_per_point = Some(window.scale_factor() as f32);
     viewport_info.outer_rect = outer_rect;
     viewport_info.title = Some(window.title());
+
+    if false {
+        // It's tempting to do this, but it leads to a deadlock on Mac when running
+        // `cargo run -p custom_window_frame`.
+        // See https://github.com/emilk/egui/issues/3494
+        viewport_info.maximized = Some(window.is_maximized());
+        viewport_info.minimized = window.is_minimized().or(viewport_info.minimized);
+    }
 }
 
 fn open_url_in_browser(_url: &str) {
