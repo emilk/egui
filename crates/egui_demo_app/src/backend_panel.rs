@@ -93,11 +93,12 @@ impl BackendPanel {
         ui.label("egui windows:");
         self.egui_windows.checkboxes(ui);
 
-        ui.separator();
-
         #[cfg(debug_assertions)]
-        if ui.ctx().style().debug.debug_on_hover_with_all_modifiers {
-            ui.label("Press down all modifiers and hover a widget to see a callstack for it");
+        {
+            ui.separator();
+            if ui.ctx().style().debug.debug_on_hover_with_all_modifiers {
+                ui.label("Press down all modifiers and hover a widget to see a callstack for it");
+            }
         }
 
         #[cfg(target_arch = "wasm32")]
@@ -109,20 +110,19 @@ impl BackendPanel {
             ui.ctx().options_mut(|o| o.screen_reader = screen_reader);
         }
 
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            ui.separator();
-            if ui.button("Quit").clicked() {
-                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
-            }
-        }
-
         if cfg!(debug_assertions) && cfg!(target_arch = "wasm32") {
             ui.separator();
             // For testing panic handling on web:
             #[allow(clippy::manual_assert)]
             if ui.button("panic!()").clicked() {
                 panic!("intentional panic!");
+            }
+        }
+
+        if !cfg!(target_arch = "wasm32") {
+            ui.separator();
+            if ui.button("Quit").clicked() {
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
         }
     }
