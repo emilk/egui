@@ -6,7 +6,10 @@ fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
     if cfg!(target_os = "macos") {
-        eprintln!("WARNING: this example does not work on Mac! See https://github.com/emilk/egui/issues/1918");
+        eprintln!(
+            "This example does not work on Mac! See https://github.com/emilk/egui/issues/1918"
+        );
+        return Ok(());
     }
 
     let options = eframe::NativeOptions {
@@ -54,6 +57,11 @@ impl eframe::App for MyApp {
                 "This is the last window. Program will end when closed"
             };
             ui.label(label_text);
+
+            if ctx.os() == egui::os::OperatingSystem::Mac {
+                ui.label("This example doesn't work on Mac!");
+            }
+
             if ui.button("Close").clicked() {
                 eprintln!("Pressed Close button");
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
