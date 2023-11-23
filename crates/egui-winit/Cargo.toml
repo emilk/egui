@@ -55,7 +55,7 @@ wayland = ["winit/wayland", "bytemuck"]
 x11 = ["winit/x11", "bytemuck"]
 
 [dependencies]
-egui = { version = "0.23.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.24.0", path = "../egui", default-features = false, features = [
   "log",
 ] }
 log = { version = "0.4", features = ["std"] }
