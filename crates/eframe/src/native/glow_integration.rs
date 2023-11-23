@@ -1224,13 +1224,13 @@ fn initialize_or_update_viewport<'vp>(
             viewport.class = class;
             viewport.viewport_ui_cb = viewport_ui_cb;
 
-            let (delta_commands, recreate) = viewport.builder.patch(&builder);
+            let (delta_commands, recreate) = viewport.builder.patch(builder);
 
             if recreate {
                 log::debug!(
                     "Recreating window for viewport {:?} ({:?})",
                     ids.this,
-                    builder.title
+                    viewport.builder.title
                 );
                 viewport.window = None;
                 viewport.egui_winit = None;
