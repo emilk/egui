@@ -158,7 +158,7 @@ pub enum ViewportEvent {
     ///
     /// If this is the root viewport, the application will exit
     /// after this frame unless you send a
-    /// [`crate::ViewportCommand::CacelClose`] command.
+    /// [`crate::ViewportCommand::CancelClose`] command.
     ///
     /// If this is not the root viewport,
     /// it is up to the user to hide this viewport the next frame.
@@ -225,7 +225,7 @@ impl ViewportInfo {
     ///
     /// If this is the root viewport, the application will exit
     /// after this frame unless you send a
-    /// [`crate::ViewportCommand::CacelClose`] command.
+    /// [`crate::ViewportCommand::CancelClose`] command.
     ///
     /// If this is not the root viewport,
     /// it is up to the user to hide this viewport the next frame.
