@@ -9,6 +9,13 @@ Changes since the last release can be found by running the `scripts/generate_cha
 
 ## 0.24.0 - 2023-11-23 - Multi-viewport
 
+### ✨ Highlights
+You can now spawn multiple native windows on supported backends (e.g. `eframe`), using [the new `viewport` API](https://docs.rs/egui/latest/egui/viewport/index.html) ([#3172](https://github.com/emilk/egui/pull/3172)).
+
+You can easily zoom any egui app using Cmd+Plus, Cmd+Minus or Cmd+0, just like in a browser ([#3608](https://github.com/emilk/egui/pull/3608)).
+
+Scrollbars are now hidden by default until you hover the `ScrollArea` ([#3539](https://github.com/emilk/egui/pull/3539)).
+
 ### ⭐ Added
 * Multiple viewports/windows [#3172](https://github.com/emilk/egui/pull/3172) (thanks [@konkitoman](https://github.com/konkitoman)!)
 * Introduce global `zoom_factor` [#3608](https://github.com/emilk/egui/pull/3608)
