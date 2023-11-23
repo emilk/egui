@@ -566,6 +566,7 @@ impl ViewportBuilder {
 
     /// Update this `ViewportBuilder` with a delta,
     /// returning a list of commands and a bool intdicating if the window needs to be recreated.
+    #[must_use]
     pub fn patch(&mut self, new_vp_builder: ViewportBuilder) -> (Vec<ViewportCommand>, bool) {
         let ViewportBuilder {
             title: new_title,
@@ -700,6 +701,10 @@ impl ViewportBuilder {
         }
 
         // --------------------------------------------------------------
+        // Things we don't have commands for require a full window recreation.
+        // The reason we don't have commands for them is that `winit` doesn't support
+        // changing them without recreating the window.
+
         let mut recreate_window = false;
 
         if new_active.is_some() && self.active != new_active {
