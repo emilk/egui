@@ -964,6 +964,9 @@ impl ViewportCommand {
 }
 
 /// Describes a viewport, i.e. a native window.
+///
+/// This is returned by [`crate::Context::run`] on each frame, and should be applied
+/// by the integration.
 #[derive(Clone)]
 pub struct ViewportOutput {
     /// Id of our parent viewport.
@@ -976,6 +979,10 @@ pub struct ViewportOutput {
     pub class: ViewportClass,
 
     /// The window attrbiutes such as title, position, size, etc.
+    ///
+    /// Use this when first constructing the native window.
+    /// Also check for changes in it using [`ViewportBuilder::patch`],
+    /// and apply them as needed.
     pub builder: ViewportBuilder,
 
     /// The user-code that shows the GUI, used for deferred viewports.

@@ -27,6 +27,9 @@ pub struct FullOutput {
     pub pixels_per_point: f32,
 
     /// All the active viewports, including the root.
+    ///
+    /// It is up to the integration to spawn a native window for each viewport,
+    /// and to close any window that no longer has a viewport in this map.
     pub viewport_output: ViewportIdMap<ViewportOutput>,
 }
 
