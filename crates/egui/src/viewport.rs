@@ -566,7 +566,7 @@ impl ViewportBuilder {
 
     /// Update this `ViewportBuilder` with a delta,
     /// returning a list of commands and a bool intdicating if the window needs to be recreated.
-    pub fn patch(&mut self, new_vp_builder: &ViewportBuilder) -> (Vec<ViewportCommand>, bool) {
+    pub fn patch(&mut self, new_vp_builder: ViewportBuilder) -> (Vec<ViewportCommand>, bool) {
         let ViewportBuilder {
             title: new_title,
             app_id: new_app_id,
@@ -597,69 +597,69 @@ impl ViewportBuilder {
         let mut commands = Vec::new();
 
         if let Some(new_title) = new_title {
-            if Some(new_title) != self.title.as_ref() {
+            if Some(&new_title) != self.title.as_ref() {
                 self.title = Some(new_title.clone());
-                commands.push(ViewportCommand::Title(new_title.clone()));
+                commands.push(ViewportCommand::Title(new_title));
             }
         }
 
-        if let Some(new_position) = *new_position {
+        if let Some(new_position) = new_position {
             if Some(new_position) != self.position {
                 self.position = Some(new_position);
                 commands.push(ViewportCommand::OuterPosition(new_position));
             }
         }
 
-        if let Some(new_inner_size) = *new_inner_size {
+        if let Some(new_inner_size) = new_inner_size {
             if Some(new_inner_size) != self.inner_size {
                 self.inner_size = Some(new_inner_size);
                 commands.push(ViewportCommand::InnerSize(new_inner_size));
             }
         }
 
-        if let Some(new_min_inner_size) = *new_min_inner_size {
+        if let Some(new_min_inner_size) = new_min_inner_size {
             if Some(new_min_inner_size) != self.min_inner_size {
                 self.min_inner_size = Some(new_min_inner_size);
                 commands.push(ViewportCommand::MinInnerSize(new_min_inner_size));
             }
         }
 
-        if let Some(new_max_inner_size) = *new_max_inner_size {
+        if let Some(new_max_inner_size) = new_max_inner_size {
             if Some(new_max_inner_size) != self.max_inner_size {
                 self.max_inner_size = Some(new_max_inner_size);
                 commands.push(ViewportCommand::MaxInnerSize(new_max_inner_size));
             }
         }
 
-        if let Some(new_fullscreen) = *new_fullscreen {
+        if let Some(new_fullscreen) = new_fullscreen {
             if Some(new_fullscreen) != self.fullscreen {
                 self.fullscreen = Some(new_fullscreen);
                 commands.push(ViewportCommand::Fullscreen(new_fullscreen));
             }
         }
 
-        if let Some(new_maximized) = *new_maximized {
+        if let Some(new_maximized) = new_maximized {
             if Some(new_maximized) != self.maximized {
                 self.maximized = Some(new_maximized);
                 commands.push(ViewportCommand::Maximized(new_maximized));
             }
         }
 
-        if let Some(new_resizable) = *new_resizable {
+        if let Some(new_resizable) = new_resizable {
             if Some(new_resizable) != self.resizable {
                 self.resizable = Some(new_resizable);
                 commands.push(ViewportCommand::Resizable(new_resizable));
             }
         }
 
-        if let Some(new_transparent) = *new_transparent {
+        if let Some(new_transparent) = new_transparent {
             if Some(new_transparent) != self.transparent {
                 self.transparent = Some(new_transparent);
                 commands.push(ViewportCommand::Transparent(new_transparent));
             }
         }
 
-        if let Some(new_decorations) = *new_decorations {
+        if let Some(new_decorations) = new_decorations {
             if Some(new_decorations) != self.decorations {
                 self.decorations = Some(new_decorations);
                 commands.push(ViewportCommand::Decorations(new_decorations));
@@ -668,31 +668,31 @@ impl ViewportBuilder {
 
         if let Some(new_icon) = new_icon {
             let is_new = match &self.icon {
-                Some(existing) => !Arc::ptr_eq(new_icon, existing),
+                Some(existing) => !Arc::ptr_eq(&new_icon, existing),
                 None => true,
             };
 
             if is_new {
                 commands.push(ViewportCommand::Icon(Some(new_icon.clone())));
-                self.icon = Some(new_icon.clone());
+                self.icon = Some(new_icon);
             }
         }
 
-        if let Some(new_visible) = *new_visible {
+        if let Some(new_visible) = new_visible {
             if Some(new_visible) != self.active {
                 self.visible = Some(new_visible);
                 commands.push(ViewportCommand::Visible(new_visible));
             }
         }
 
-        if let Some(new_mouse_passthrough) = *new_mouse_passthrough {
+        if let Some(new_mouse_passthrough) = new_mouse_passthrough {
             if Some(new_mouse_passthrough) != self.mouse_passthrough {
                 self.mouse_passthrough = Some(new_mouse_passthrough);
                 commands.push(ViewportCommand::MousePassthrough(new_mouse_passthrough));
             }
         }
 
-        if let Some(new_window_level) = *new_window_level {
+        if let Some(new_window_level) = new_window_level {
             if Some(new_window_level) != self.window_level {
                 self.window_level = Some(new_window_level);
                 commands.push(ViewportCommand::WindowLevel(new_window_level));
@@ -702,57 +702,57 @@ impl ViewportBuilder {
         // --------------------------------------------------------------
         let mut recreate_window = false;
 
-        if new_active.is_some() && self.active != *new_active {
-            self.active = *new_active;
+        if new_active.is_some() && self.active != new_active {
+            self.active = new_active;
             recreate_window = true;
         }
 
-        if new_app_id.is_some() && self.app_id != *new_app_id {
-            self.app_id = new_app_id.clone();
+        if new_app_id.is_some() && self.app_id != new_app_id {
+            self.app_id = new_app_id;
             recreate_window = true;
         }
 
-        if new_close_button.is_some() && self.close_button != *new_close_button {
-            self.close_button = *new_close_button;
+        if new_close_button.is_some() && self.close_button != new_close_button {
+            self.close_button = new_close_button;
             recreate_window = true;
         }
 
-        if new_minimize_button.is_some() && self.minimize_button != *new_minimize_button {
-            self.minimize_button = *new_minimize_button;
+        if new_minimize_button.is_some() && self.minimize_button != new_minimize_button {
+            self.minimize_button = new_minimize_button;
             recreate_window = true;
         }
 
-        if new_maximize_button.is_some() && self.maximize_button != *new_maximize_button {
-            self.maximize_button = *new_maximize_button;
+        if new_maximize_button.is_some() && self.maximize_button != new_maximize_button {
+            self.maximize_button = new_maximize_button;
             recreate_window = true;
         }
 
-        if new_title_shown.is_some() && self.title_shown != *new_title_shown {
-            self.title_shown = *new_title_shown;
+        if new_title_shown.is_some() && self.title_shown != new_title_shown {
+            self.title_shown = new_title_shown;
             recreate_window = true;
         }
 
         if new_titlebar_buttons_shown.is_some()
-            && self.titlebar_buttons_shown != *new_titlebar_buttons_shown
+            && self.titlebar_buttons_shown != new_titlebar_buttons_shown
         {
-            self.titlebar_buttons_shown = *new_titlebar_buttons_shown;
+            self.titlebar_buttons_shown = new_titlebar_buttons_shown;
             recreate_window = true;
         }
 
-        if new_titlebar_shown.is_some() && self.titlebar_shown != *new_titlebar_shown {
-            self.titlebar_shown = *new_titlebar_shown;
+        if new_titlebar_shown.is_some() && self.titlebar_shown != new_titlebar_shown {
+            self.titlebar_shown = new_titlebar_shown;
             recreate_window = true;
         }
 
         if new_fullsize_content_view.is_some()
-            && self.fullsize_content_view != *new_fullsize_content_view
+            && self.fullsize_content_view != new_fullsize_content_view
         {
-            self.fullsize_content_view = *new_fullsize_content_view;
+            self.fullsize_content_view = new_fullsize_content_view;
             recreate_window = true;
         }
 
-        if new_drag_and_drop.is_some() && self.drag_and_drop != *new_drag_and_drop {
-            self.drag_and_drop = *new_drag_and_drop;
+        if new_drag_and_drop.is_some() && self.drag_and_drop != new_drag_and_drop {
+            self.drag_and_drop = new_drag_and_drop;
             recreate_window = true;
         }
 
@@ -1001,7 +1001,7 @@ impl ViewportOutput {
 
         self.parent = parent;
         self.class = class;
-        self.builder.patch(&builder);
+        self.builder.patch(builder);
         self.viewport_ui_cb = viewport_ui_cb;
         self.commands.append(&mut commands);
         self.repaint_delay = self.repaint_delay.min(repaint_delay);
