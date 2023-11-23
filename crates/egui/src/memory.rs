@@ -5,8 +5,8 @@ use epaint::{emath::Rangef, vec2, Vec2};
 use crate::{
     area,
     window::{self, WindowInteraction},
-    EventFilter, Id, IdMap, InputState, LayerId, Pos2, Rect, Style, ViewportId, ViewportIdMap,
-    ViewportIdSet,
+    EventFilter, Id, IdMap, InputState, LayerId, Order, Pos2, Rect, Style, ViewportId,
+    ViewportIdMap, ViewportIdSet,
 };
 
 // ----------------------------------------------------------------------------

@@ -1907,7 +1907,7 @@ impl Context {
 
     /// Retrieve the `LayerId` of the top level windows.
     pub fn get_top_layer_id(&self) -> Option<LayerId> {
-        self.memory(|mem| mem.areas.top_layer_id(Order::Middle))
+        self.memory(|mem| mem.areas().top_layer_id(Order::Middle))
     }
 
     pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
