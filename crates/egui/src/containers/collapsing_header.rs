@@ -356,7 +356,7 @@ pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
     ));
 }
 
-/// A event to expand / collapse the widget automatically
+/// An event to expand / collapse the widget automatically
 #[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum CollapsingHeaderEvent {
@@ -441,8 +441,11 @@ impl CollapsingHeader {
         self
     }
 
+    /// An event that will change the collapse / hide status of your collapsing header.
+    /// The difference with this and `.open(...)` is the ability to collapse the header.
+    /// It also will consume the event and won't borrow the parameter.
     #[inline]
-    pub fn display(mut self, new_event: &mut Option<CollapsingHeaderEvent>) -> Self {
+    pub fn display_event(mut self, new_event: &mut Option<CollapsingHeaderEvent>) -> Self {
         self.display_event = new_event.take();
         self
     }

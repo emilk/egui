@@ -289,6 +289,9 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// An event that will change the collapse / hide status of your `egui::Window`.
+    /// The difference with this and `.open(...)` is the ability to collapse the header,
+    /// it also will consume the event and won't borrow the passed parameter.
     #[inline]
     pub fn display_event(mut self, new_event: &mut Option<WindowEvent>) -> Self {
         self.display_event = new_event.take();
