@@ -13,8 +13,17 @@ fn main() -> Result<(), eframe::Error> {
     )
 }
 
-#[derive(Default)]
-struct MyApp {}
+struct MyApp {
+    keep_repainting: bool,
+}
+
+impl Default for MyApp {
+    fn default() -> Self {
+        Self {
+            keep_repainting: true,
+        }
+    }
+}
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -34,7 +43,15 @@ impl eframe::App for MyApp {
 
             ui.separator();
 
-            ui.label("Note that this app runs in 'reactive' mode, so you must interact with the app for new profile events to be sent. Waving the mouse over this window is enough.");
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut self.keep_repainting, "Keep repainting");
+                if self.keep_repainting {
+                    ui.spinner();
+                    ui.ctx().request_repaint();
+                } else {
+                    ui.label("Repainting on events (e.g. mouse movement)");
+                }
+            });
 
             if ui
                 .button(
@@ -42,8 +59,14 @@ impl eframe::App for MyApp {
                 )
                 .clicked()
             {
-                puffin::profile_scope!("sleep");
+                puffin::profile_scope!("long_sleep");
                 std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+
+            {
+                // Sleep a bit to emulate some work:
+                puffin::profile_scope!("small_sleep");
+                std::thread::sleep(std::time::Duration::from_millis(10));
             }
         });
     }
