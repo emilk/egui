@@ -281,6 +281,9 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
                     pressed: true,
                     modifiers,
                 });
+                // In Safari we are only allowed to write to the clipboard during the
+                // event callback, which is why we run the app logic here and now:
+                runner.logic(); // we ignore the returned triangles, but schedule a repaint right after
                 runner.needs_repaint.repaint_asap();
             }
             event.stop_propagation();
@@ -310,6 +313,9 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
                 pressed: false,
                 modifiers,
             });
+            // In Safari we are only allowed to write to the clipboard during the
+            // event callback, which is why we run the app logic here and now:
+            runner.logic(); // we ignore the returned triangles, but schedule a repaint right after
             runner.needs_repaint.repaint_asap();
 
             text_agent::update_text_agent(runner);
