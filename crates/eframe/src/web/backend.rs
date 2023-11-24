@@ -73,6 +73,10 @@ impl NeedRepaint {
         *repaint_time = repaint_time.min(super::now_sec() + num_seconds);
     }
 
+    pub fn needs_repaint(&self) -> bool {
+        self.when_to_repaint() <= super::now_sec()
+    }
+
     pub fn repaint_asap(&self) {
         *self.0.lock() = f64::NEG_INFINITY;
     }
