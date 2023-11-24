@@ -19,8 +19,8 @@ fn paint_if_needed(runner: &mut AppRunner) {
     if runner.needs_repaint.needs_repaint() {
         runner.needs_repaint.clear();
         runner.run_and_paint();
-        runner.auto_save_if_needed();
     }
+    runner.auto_save_if_needed();
 }
 
 pub(crate) fn request_animation_frame(runner_ref: WebRunner) -> Result<(), JsValue> {
