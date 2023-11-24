@@ -241,7 +241,7 @@ impl AppRunner {
                 self.egui_ctx.pixels_per_point(),
                 &textures_delta,
             ) {
-                log::error!("Failed to paint: {err:?}");
+                log::error!("Failed to paint: {}", super::string_from_js_value(&err));
             }
         }
     }
