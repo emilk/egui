@@ -1104,7 +1104,7 @@ fn process_viewport_command(
         ViewportCommand::InnerSize(size) => {
             let width_px = pixels_per_point * size.x.max(1.0);
             let height_px = pixels_per_point * size.y.max(1.0);
-            window.set_inner_size(PhysicalSize::new(width_px, height_px));
+            let _ = window.request_inner_size(PhysicalSize::new(width_px, height_px));
         }
         ViewportCommand::BeginResize(direction) => {
             if let Err(err) = window.drag_resize_window(match direction {
@@ -1189,10 +1189,10 @@ fn process_viewport_command(
             }));
         }
         ViewportCommand::IMEPosition(pos) => {
-            window.set_ime_position(PhysicalPosition::new(
-                pixels_per_point * pos.x,
-                pixels_per_point * pos.y,
-            ));
+            window.set_ime_cursor_area(
+                PhysicalPosition::new(pixels_per_point * pos.x, pixels_per_point * pos.y),
+                PhysicalSize::new(100, 100),
+            );
         }
         ViewportCommand::IMEAllowed(v) => window.set_ime_allowed(v),
         ViewportCommand::IMEPurpose(p) => window.set_ime_purpose(match p {
