@@ -1,12 +1,12 @@
 [package]
 name = "egui_glow"
-version = "0.23.0"
+version.workspace = true
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui natively using the glow library"
-edition = "2021"
-rust-version = "1.72"
+edition.workspace = true
+rust-version.workspace = true
 homepage = "https://github.com/emilk/egui/tree/master/crates/egui_glow"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/crates/egui_glow"
 categories = ["gui", "game-development"]
@@ -44,7 +44,7 @@ winit = ["egui-winit"]
 
 
 [dependencies]
-egui = { version = "0.23.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.24.0", path = "../egui", default-features = false, features = [
   "bytemuck",
 ] }
 
@@ -59,7 +59,7 @@ document-features = { version = "0.2", optional = true }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.23.0", path = "../egui-winit", optional = true, default-features = false }
+egui-winit = { version = "0.24.0", path = "../egui-winit", optional = true, default-features = false }
 puffin = { workspace = true, optional = true }
 
 # Web:

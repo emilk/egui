@@ -7,6 +7,57 @@ This file is updated upon each release.
 Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
 
+## 0.24.0 - 2023-11-23 - Multi-viewport
+
+### ✨ Highlights
+You can now spawn multiple native windows on supported backends (e.g. `eframe`), using [the new `viewport` API](https://docs.rs/egui/latest/egui/viewport/index.html) ([#3172](https://github.com/emilk/egui/pull/3172)).
+
+You can easily zoom any egui app using Cmd+Plus, Cmd+Minus or Cmd+0, just like in a browser ([#3608](https://github.com/emilk/egui/pull/3608)).
+
+Scrollbars are now hidden by default until you hover the `ScrollArea` ([#3539](https://github.com/emilk/egui/pull/3539)).
+
+### ⭐ Added
+* Multiple viewports/windows [#3172](https://github.com/emilk/egui/pull/3172) (thanks [@konkitoman](https://github.com/konkitoman)!)
+* Introduce global `zoom_factor` [#3608](https://github.com/emilk/egui/pull/3608)
+* Floating scroll bars [#3539](https://github.com/emilk/egui/pull/3539)
+* Add redo support to `Undoer` [#3478](https://github.com/emilk/egui/pull/3478) (thanks [@LoganDark](https://github.com/LoganDark)!)
+* Add `egui::Vec2b` [#3543](https://github.com/emilk/egui/pull/3543)
+* Add max `Window` size & other size helpers [#3537](https://github.com/emilk/egui/pull/3537) (thanks [@arduano](https://github.com/arduano)!)
+* Allow changing shape of slider handle [#3429](https://github.com/emilk/egui/pull/3429) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+* `RawInput::viewports` contains a list of all viewports. Access the current one with `ctx.input(|i| i.viewport())`
+
+### 🔧 Changed
+* Replace `Id::null()` with `Id::NULL` [#3544](https://github.com/emilk/egui/pull/3544)
+* Update MSRV to Rust 1.72 [#3595](https://github.com/emilk/egui/pull/3595)
+* Update puffin to 0.18 [#3600](https://github.com/emilk/egui/pull/3600)
+
+### 🐛 Fixed
+* Fix upside down slider in the vertical orientation [#3424](https://github.com/emilk/egui/pull/3424) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+* Make slider step account for range start [#3488](https://github.com/emilk/egui/pull/3488) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+* Fix rounding of `ImageButton` [#3531](https://github.com/emilk/egui/pull/3531) (thanks [@chriscate](https://github.com/chriscate)!)
+* Fix naming: `constraint_to` -> `constrain_to` [#3438](https://github.com/emilk/egui/pull/3438) (thanks [@rinde](https://github.com/rinde)!)
+* Fix Shift+Tab behavior when no widget is focused [#3498](https://github.com/emilk/egui/pull/3498) (thanks [@DataTriny](https://github.com/DataTriny)!)
+* Fix scroll not sticking when scrollbar is hidden [#3434](https://github.com/emilk/egui/pull/3434) (thanks [@LoganDark](https://github.com/LoganDark)!)
+* Add `#[inline]` to all builder-pattern functions [#3557](https://github.com/emilk/egui/pull/3557)
+* Properly reverse bool animation if value changes before it's finished [#3577](https://github.com/emilk/egui/pull/3577) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+
+
+### ⚠️ BREAKING
+* `egui::gui_zoom::zoom_with_keyboard_shortcuts` is gone, replaced with `Options::zoom_with_keyboard`, which is `true` by default
+* `Spacing::scroll_bar_X` has been moved to `Spacing::scroll_bar.X`
+* `Context::set_pixels_per_point` now calls `Context::set_zoom_level`, and it may make sense for you to call that directly instead
+* If you are using `eframe`, check out the breaking changes in [the `eframe` changelog](crates/eframe/CHANGELOG.md)
+
+#### For integrations
+There are several changes relevant to integrations.
+
+* Added `crate::RawInput::viewports` with information about all active viewports
+* The repaint callback set by `Context::set_request_repaint_callback` now points to which viewport should be repainted
+* `Context::run` now returns a list of `ViewportOutput` in `FullOutput` which should result in their own independent windows
+* There is a new `Context::set_immediate_viewport_renderer` for setting up the immediate viewport integration
+* If you support viewports, you need to call `Context::set_embed_viewports(false)`, or all new viewports will be embedded (the default behavior)
+
+
 ## 0.23.0 - 2023-09-27 - New image API
 This release contains a simple and powerful image API:
 

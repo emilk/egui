@@ -51,10 +51,6 @@ pub struct BackendPanel {
     // go back to [`RunMode::Reactive`] mode each time we start
     run_mode: RunMode,
 
-    /// current slider value for current gui scale
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pixels_per_point: Option<f32>,
-
     #[cfg_attr(feature = "serde", serde(skip))]
     frame_history: crate::frame_history::FrameHistory,
 
@@ -82,7 +78,7 @@ impl BackendPanel {
     }
 
     pub fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        self.integration_ui(ui, frame);
+        integration_ui(ui, frame);
 
         ui.separator();
 
@@ -97,11 +93,12 @@ impl BackendPanel {
         ui.label("egui windows:");
         self.egui_windows.checkboxes(ui);
 
-        ui.separator();
-
         #[cfg(debug_assertions)]
-        if ui.ctx().style().debug.debug_on_hover_with_all_modifiers {
-            ui.label("Press down all modifiers and hover a widget to see a callstack for it");
+        {
+            ui.separator();
+            if ui.ctx().style().debug.debug_on_hover_with_all_modifiers {
+                ui.label("Press down all modifiers and hover a widget to see a callstack for it");
+            }
         }
 
         #[cfg(target_arch = "wasm32")]
@@ -113,14 +110,6 @@ impl BackendPanel {
             ui.ctx().options_mut(|o| o.screen_reader = screen_reader);
         }
 
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            ui.separator();
-            if ui.button("Quit").clicked() {
-                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
-            }
-        }
-
         if cfg!(debug_assertions) && cfg!(target_arch = "wasm32") {
             ui.separator();
             // For testing panic handling on web:
@@ -129,117 +118,12 @@ impl BackendPanel {
                 panic!("intentional panic!");
             }
         }
-    }
 
-    fn integration_ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 0.0;
-            ui.label("egui running inside ");
-            ui.hyperlink_to(
-                "eframe",
-                "https://github.com/emilk/egui/tree/master/crates/eframe",
-            );
-            ui.label(".");
-        });
-
-        #[cfg(target_arch = "wasm32")]
-        ui.collapsing("Web info (location)", |ui| {
-            ui.style_mut().wrap = Some(false);
-            ui.monospace(format!("{:#?}", frame.info().web_info.location));
-        });
-
-        // On web, the browser controls `pixels_per_point`.
-        let integration_controls_pixels_per_point = frame.is_web();
-        if !integration_controls_pixels_per_point {
-            self.pixels_per_point_ui(ui);
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            ui.horizontal(|ui| {
-                {
-                    let mut fullscreen = ui.input(|i| i.viewport().fullscreen.unwrap_or(false));
-                    if ui
-                        .checkbox(&mut fullscreen, "🗖 Fullscreen (F11)")
-                        .on_hover_text("Fullscreen the window")
-                        .changed()
-                    {
-                        ui.ctx()
-                            .send_viewport_cmd(egui::ViewportCommand::Fullscreen(fullscreen));
-                    }
-                }
-
-                if ui
-                    .button("📱 Phone Size")
-                    .on_hover_text("Resize the window to be small like a phone.")
-                    .clicked()
-                {
-                    // let size = egui::vec2(375.0, 812.0); // iPhone 12 mini
-                    let size = egui::vec2(375.0, 667.0); //  iPhone SE 2nd gen
-
-                    ui.ctx()
-                        .send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
-                    ui.ctx()
-                        .send_viewport_cmd(egui::ViewportCommand::Fullscreen(false));
-                    ui.close_menu();
-                }
-            });
-
-            let fullscreen = ui.input(|i| i.viewport().fullscreen.unwrap_or(false));
-            if !fullscreen
-                && ui
-                    .button("Drag me to drag window")
-                    .is_pointer_button_down_on()
-            {
-                ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
+        if !cfg!(target_arch = "wasm32") {
+            ui.separator();
+            if ui.button("Quit").clicked() {
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
-        }
-    }
-
-    fn pixels_per_point_ui(&mut self, ui: &mut egui::Ui) {
-        let pixels_per_point = self
-            .pixels_per_point
-            .get_or_insert_with(|| ui.ctx().pixels_per_point());
-
-        let mut reset = false;
-
-        ui.horizontal(|ui| {
-            ui.spacing_mut().slider_width = 90.0;
-
-            let response = ui
-                .add(
-                    egui::Slider::new(pixels_per_point, 0.5..=5.0)
-                        .logarithmic(true)
-                        .clamp_to_range(true)
-                        .text("Scale"),
-                )
-                .on_hover_text("Physical pixels per point.");
-
-            if response.drag_released() {
-                // We wait until mouse release to activate:
-                ui.ctx().set_pixels_per_point(*pixels_per_point);
-                reset = true;
-            } else if !response.is_pointer_button_down_on() {
-                // When not dragging, show the current pixels_per_point so others can change it.
-                reset = true;
-            }
-
-            if let Some(native_pixels_per_point) = ui.input(|i| i.raw.native_pixels_per_point) {
-                let enabled = ui.ctx().pixels_per_point() != native_pixels_per_point;
-                if ui
-                    .add_enabled(enabled, egui::Button::new("Reset"))
-                    .on_hover_text(format!(
-                        "Reset scale to native value ({native_pixels_per_point:.1})"
-                    ))
-                    .clicked()
-                {
-                    ui.ctx().set_pixels_per_point(native_pixels_per_point);
-                }
-            }
-        });
-
-        if reset {
-            self.pixels_per_point = None;
         }
     }
 
@@ -282,6 +166,65 @@ impl BackendPanel {
                     }
                 });
             }
+        }
+    }
+}
+
+fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 0.0;
+        ui.label("egui running inside ");
+        ui.hyperlink_to(
+            "eframe",
+            "https://github.com/emilk/egui/tree/master/crates/eframe",
+        );
+        ui.label(".");
+    });
+
+    #[cfg(target_arch = "wasm32")]
+    ui.collapsing("Web info (location)", |ui| {
+        ui.style_mut().wrap = Some(false);
+        ui.monospace(format!("{:#?}", _frame.info().web_info.location));
+    });
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        ui.horizontal(|ui| {
+            {
+                let mut fullscreen = ui.input(|i| i.viewport().fullscreen.unwrap_or(false));
+                if ui
+                    .checkbox(&mut fullscreen, "🗖 Fullscreen (F11)")
+                    .on_hover_text("Fullscreen the window")
+                    .changed()
+                {
+                    ui.ctx()
+                        .send_viewport_cmd(egui::ViewportCommand::Fullscreen(fullscreen));
+                }
+            }
+
+            if ui
+                .button("📱 Phone Size")
+                .on_hover_text("Resize the window to be small like a phone.")
+                .clicked()
+            {
+                // let size = egui::vec2(375.0, 812.0); // iPhone 12 mini
+                let size = egui::vec2(375.0, 667.0); //  iPhone SE 2nd gen
+
+                ui.ctx()
+                    .send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
+                ui.ctx()
+                    .send_viewport_cmd(egui::ViewportCommand::Fullscreen(false));
+                ui.close_menu();
+            }
+        });
+
+        let fullscreen = ui.input(|i| i.viewport().fullscreen.unwrap_or(false));
+        if !fullscreen
+            && ui
+                .button("Drag me to drag window")
+                .is_pointer_button_down_on()
+        {
+            ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
         }
     }
 }

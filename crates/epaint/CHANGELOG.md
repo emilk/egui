@@ -5,6 +5,12 @@ This file is updated upon each release.
 Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
 
+## 0.24.0 - 2023-11-23
+* Use `impl Into<Stroke>` as argument in a few more places [#3420](https://github.com/emilk/egui/pull/3420) (thanks [@Phen-Ro](https://github.com/Phen-Ro)!)
+* Update MSRV to Rust 1.72 [#3595](https://github.com/emilk/egui/pull/3595)
+* Make `ViewportInPixels` use integers, and clamp to bounds [#3604](https://github.com/emilk/egui/pull/3604) (thanks [@Wumpf](https://github.com/Wumpf)!)
+
+
 ## 0.23.0 - 2023-09-27
 * Update MSRV to Rust 1.70.0 [#3310](https://github.com/emilk/egui/pull/3310)
 * Add option to truncate text at wrap width [#3244](https://github.com/emilk/egui/pull/3244) [#3366](https://github.com/emilk/egui/pull/3366)

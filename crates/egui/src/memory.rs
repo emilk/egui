@@ -71,10 +71,6 @@ pub struct Memory {
     pub caches: crate::util::cache::CacheStorage,
 
     // ------------------------------------------
-    /// new scale that will be applied at the start of the next frame
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) override_pixels_per_point: Option<f32>,
-
     /// new fonts that will be applied at the start of the next frame
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) new_font_definitions: Option<epaint::text::FontDefinitions>,
@@ -111,7 +107,6 @@ impl Default for Memory {
             options: Default::default(),
             data: Default::default(),
             caches: Default::default(),
-            override_pixels_per_point: Default::default(),
             new_font_definitions: Default::default(),
             interactions: Default::default(),
             viewport_id: Default::default(),
@@ -176,6 +171,25 @@ pub struct Options {
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) style: std::sync::Arc<Style>,
 
+    /// Global zoom factor of the UI.
+    ///
+    /// This is used to calculate the `pixels_per_point`
+    /// for the UI as `pixels_per_point = zoom_fator * native_pixels_per_point`.
+    ///
+    /// The default is 1.0.
+    /// Make larger to make everything larger.
+    ///
+    /// Please call [`crate::Context::set_zoom_factor`]
+    /// instead of modifying this directly!
+    pub zoom_factor: f32,
+
+    /// If `true`, egui will change the scale of the ui ([`crate::Context::zoom_factor`]) when the user
+    /// presses Cmd+Plus, Cmd+Minus or Cmd+0, just like in a browser.
+    ///
+    /// This is `true` by default.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub zoom_with_keyboard: bool,
+
     /// Controls the tessellator.
     pub tessellation_options: epaint::TessellationOptions,
 
@@ -208,6 +222,8 @@ impl Default for Options {
     fn default() -> Self {
         Self {
             style: Default::default(),
+            zoom_factor: 1.0,
+            zoom_with_keyboard: true,
             tessellation_options: Default::default(),
             screen_reader: false,
             preload_font_glyphs: true,
@@ -559,7 +575,7 @@ impl Memory {
         self.window_interactions
             .retain(|id, _| viewports.contains(id));
 
-        self.viewport_id = new_input.viewport_ids.this;
+        self.viewport_id = new_input.viewport_id;
         self.interactions
             .entry(self.viewport_id)
             .or_default()

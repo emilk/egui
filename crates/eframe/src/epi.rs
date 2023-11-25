@@ -149,25 +149,10 @@ pub trait App {
     /// On native the path is picked using [`crate::storage_dir`].
     fn save(&mut self, _storage: &mut dyn Storage) {}
 
-    /// Called when the user attempts to close the desktop window and/or quit the application.
-    ///
-    /// By returning `false` the closing will be aborted. To continue the closing return `true`.
-    ///
-    /// A scenario where this method will be run is after pressing the close button on a native
-    /// window, which allows you to ask the user whether they want to do something before exiting.
-    /// See the example at <https://github.com/emilk/egui/blob/master/examples/confirm_exit/> for practical usage.
-    ///
-    /// It will _not_ be called on the web or when the window is forcefully closed.
-    #[cfg(not(target_arch = "wasm32"))]
-    #[doc(alias = "exit")]
-    #[doc(alias = "quit")]
-    fn on_close_event(&mut self) -> bool {
-        true
-    }
-
     /// Called once on shutdown, after [`Self::save`].
     ///
-    /// If you need to abort an exit use [`Self::on_close_event`].
+    /// If you need to abort an exit check `ctx.input(|i| i.viewport().close_requested())`
+    /// and respond with [`egui::ViewportCommand::CancelClose`].
     ///
     /// To get a [`glow`] context you need to compile with the `glow` feature flag,
     /// and run eframe with the glow backend.
@@ -248,6 +233,9 @@ pub struct NativeOptions {
     /// Controls the native window of the root viewport.
     ///
     /// This is where you set things like window title and size.
+    ///
+    /// If you don't set an icon, a default egui icon will be used.
+    /// To avoid this, set the icon to [`egui::IconData::default`].
     pub viewport: egui::ViewportBuilder,
 
     /// Turn on vertical syncing, limiting the FPS to the display refresh rate.
@@ -379,13 +367,7 @@ impl Clone for NativeOptions {
 impl Default for NativeOptions {
     fn default() -> Self {
         Self {
-            viewport: egui::ViewportBuilder {
-                icon: Some(std::sync::Arc::new(
-                    crate::icon_data::from_png_bytes(&include_bytes!("../data/icon.png")[..])
-                        .unwrap(),
-                )),
-                ..Default::default()
-            },
+            viewport: Default::default(),
 
             vsync: true,
             multisampling: 0,

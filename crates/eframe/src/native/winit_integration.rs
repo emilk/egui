@@ -11,13 +11,27 @@ use egui_winit::accesskit_winit;
 
 use super::epi_integration::EpiIntegration;
 
-pub const IS_DESKTOP: bool = cfg!(any(
-    target_os = "freebsd",
-    target_os = "linux",
-    target_os = "macos",
-    target_os = "openbsd",
-    target_os = "windows",
-));
+/// Create an egui context, restoring it from storage if possible.
+pub fn create_egui_context(storage: Option<&dyn crate::Storage>) -> egui::Context {
+    crate::profile_function!();
+
+    pub const IS_DESKTOP: bool = cfg!(any(
+        target_os = "freebsd",
+        target_os = "linux",
+        target_os = "macos",
+        target_os = "openbsd",
+        target_os = "windows",
+    ));
+
+    let egui_ctx = egui::Context::default();
+
+    egui_ctx.set_embed_viewports(!IS_DESKTOP);
+
+    let memory = crate::native::epi_integration::load_egui_memory(storage).unwrap_or_default();
+    egui_ctx.memory_mut(|mem| *mem = memory);
+
+    egui_ctx
+}
 
 /// The custom even `eframe` uses with the [`winit`] event loop.
 #[derive(Debug)]

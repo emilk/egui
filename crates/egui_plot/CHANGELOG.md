@@ -5,6 +5,12 @@ This file is updated upon each release.
 Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
 
+## 0.24.0 - 2023-11-23
+* Add `emath::Vec2b`, replacing `egui_plot::AxisBools` [#3543](https://github.com/emilk/egui/pull/3543)
+* Add `auto_bounds/set_auto_bounds` to `PlotUi` [#3587](https://github.com/emilk/egui/pull/3587) [#3586](https://github.com/emilk/egui/pull/3586) (thanks [@abey79](https://github.com/abey79)!)
+* Update MSRV to Rust 1.72 [#3595](https://github.com/emilk/egui/pull/3595)
+
+
 ## 0.23.0 - 2023-09-27 - Initial release, after being forked out from `egui`
 * Draw axis labels and ticks outside of plotting window [#2284](https://github.com/emilk/egui/pull/2284) (thanks [@JohannesProgrammiert](https://github.com/JohannesProgrammiert)!)
 * Add `PlotUi::response()` to replace `plot_clicked()` etc [#3223](https://github.com/emilk/egui/pull/3223)

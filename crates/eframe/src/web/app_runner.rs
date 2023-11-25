@@ -1,5 +1,4 @@
 use egui::TexturesDelta;
-use wasm_bindgen::JsValue;
 
 use crate::{epi, App};
 
@@ -17,7 +16,10 @@ pub struct AppRunner {
     screen_reader: super::screen_reader::ScreenReader,
     pub(crate) text_cursor_pos: Option<egui::Pos2>,
     pub(crate) mutable_text_under_cursor: bool,
+
+    // Output for the last run:
     textures_delta: TexturesDelta,
+    clipped_primitives: Option<Vec<egui::ClippedPrimitive>>,
 }
 
 impl Drop for AppRunner {
@@ -57,6 +59,12 @@ impl AppRunner {
             &super::user_agent().unwrap_or_default(),
         ));
         super::storage::load_memory(&egui_ctx);
+
+        egui_ctx.options_mut(|o| {
+            // On web, the browser controls the zoom factor:
+            o.zoom_with_keyboard = false;
+            o.zoom_factor = 1.0;
+        });
 
         let theme = system_theme.unwrap_or(web_options.default_theme);
         egui_ctx.set_visuals(theme.egui_visuals());
@@ -109,10 +117,17 @@ impl AppRunner {
             text_cursor_pos: None,
             mutable_text_under_cursor: false,
             textures_delta: Default::default(),
+            clipped_primitives: None,
         };
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
-        runner.input.raw.native_pixels_per_point = Some(super::native_pixels_per_point());
+        runner
+            .input
+            .raw
+            .viewports
+            .entry(egui::ViewportId::ROOT)
+            .or_default()
+            .native_pixels_per_point = Some(super::native_pixels_per_point());
 
         Ok(runner)
     }
@@ -158,8 +173,26 @@ impl AppRunner {
         self.painter.destroy();
     }
 
-    /// Call [`Self::paint`] later to paint
-    pub fn logic(&mut self) -> Vec<egui::ClippedPrimitive> {
+    /// Runs the user code and paints the UI.
+    ///
+    /// If there is already an outstanding frame of output,
+    /// that is painted instead.
+    pub fn run_and_paint(&mut self) {
+        if self.clipped_primitives.is_none() {
+            // Run user code, and paint the results:
+            self.logic();
+            self.paint();
+        } else {
+            // We have already run the logic, e.g. in an on-click event,
+            // so let's only present the results:
+            self.paint();
+        }
+    }
+
+    /// Runs the logic, but doesn't paint the result.
+    ///
+    /// The result can be painted later with a call to [`Self::run_and_paint`] or [`Self::paint`].
+    pub fn logic(&mut self) {
         let frame_start = now_sec();
 
         super::resize_canvas_to_screen_size(self.canvas_id(), self.web_options.max_size_points);
@@ -191,25 +224,26 @@ impl AppRunner {
 
         self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
-        let clipped_primitives = self.egui_ctx.tessellate(shapes, pixels_per_point);
+        self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
 
         self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
-
-        clipped_primitives
     }
 
     /// Paint the results of the last call to [`Self::logic`].
-    pub fn paint(&mut self, clipped_primitives: &[egui::ClippedPrimitive]) -> Result<(), JsValue> {
+    pub fn paint(&mut self) {
         let textures_delta = std::mem::take(&mut self.textures_delta);
+        let clipped_primitives = std::mem::take(&mut self.clipped_primitives);
 
-        self.painter.paint_and_update_textures(
-            self.app.clear_color(&self.egui_ctx.style().visuals),
-            clipped_primitives,
-            self.egui_ctx.pixels_per_point(),
-            &textures_delta,
-        )?;
-
-        Ok(())
+        if let Some(clipped_primitives) = clipped_primitives {
+            if let Err(err) = self.painter.paint_and_update_textures(
+                self.app.clear_color(&self.egui_ctx.style().visuals),
+                &clipped_primitives,
+                self.egui_ctx.pixels_per_point(),
+                &textures_delta,
+            ) {
+                log::error!("Failed to paint: {}", super::string_from_js_value(&err));
+            }
+        }
     }
 
     fn handle_platform_output(&mut self, platform_output: egui::PlatformOutput) {

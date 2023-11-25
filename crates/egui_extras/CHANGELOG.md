@@ -5,6 +5,11 @@ This file is updated upon each release.
 Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
 
 
+## 0.24.0 - 2023-11-23
+* Fix Table stripe pattern when combining `row()` and `rows()` [#3442](https://github.com/emilk/egui/pull/3442) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+* Update MSRV to Rust 1.72 [#3595](https://github.com/emilk/egui/pull/3595)
+
+
 ## 0.23.0 - 2023-09-27
 * `egui_extras::install_image_loaders` [#3297](https://github.com/emilk/egui/pull/3297) [#3315](https://github.com/emilk/egui/pull/3315) [#3328](https://github.com/emilk/egui/pull/3328) (thanks [@jprochazk](https://github.com/jprochazk)!)
 * Add syntax highlighting feature to `egui_extras` [#3333](https://github.com/emilk/egui/pull/3333) [#3388](https://github.com/emilk/egui/pull/3388)

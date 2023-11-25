@@ -1,12 +1,12 @@
 [package]
 name = "egui-winit"
-version = "0.23.0"
+version.workspace = true
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Bindings for using egui with winit"
-edition = "2021"
-rust-version = "1.72"
+edition.workspace = true
+rust-version.workspace = true
 homepage = "https://github.com/emilk/egui/tree/master/crates/egui-winit"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/crates/egui-winit"
 categories = ["gui", "game-development"]
@@ -55,7 +55,7 @@ wayland = ["winit/wayland", "bytemuck"]
 x11 = ["winit/x11", "bytemuck"]
 
 [dependencies]
-egui = { version = "0.23.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.24.0", path = "../egui", default-features = false, features = [
   "log",
 ] }
 log = { version = "0.4", features = ["std"] }

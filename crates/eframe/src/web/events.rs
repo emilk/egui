@@ -8,22 +8,19 @@ use super::*;
 fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
     // Only paint and schedule if there has been no panic
     if let Some(mut runner_lock) = runner_ref.try_lock() {
-        paint_if_needed(&mut runner_lock)?;
+        paint_if_needed(&mut runner_lock);
         drop(runner_lock);
         request_animation_frame(runner_ref.clone())?;
     }
-
     Ok(())
 }
 
-fn paint_if_needed(runner: &mut AppRunner) -> Result<(), JsValue> {
-    if runner.needs_repaint.when_to_repaint() <= now_sec() {
+fn paint_if_needed(runner: &mut AppRunner) {
+    if runner.needs_repaint.needs_repaint() {
         runner.needs_repaint.clear();
-        let clipped_primitives = runner.logic();
-        runner.paint(&clipped_primitives)?;
-        runner.auto_save_if_needed();
+        runner.run_and_paint();
     }
-    Ok(())
+    runner.auto_save_if_needed();
 }
 
 pub(crate) fn request_animation_frame(runner_ref: WebRunner) -> Result<(), JsValue> {
@@ -177,10 +174,14 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
         "cut",
         |event: web_sys::ClipboardEvent, runner| {
             runner.input.raw.events.push(egui::Event::Cut);
+
             // In Safari we are only allowed to write to the clipboard during the
             // event callback, which is why we run the app logic here and now:
-            runner.logic(); // we ignore the returned triangles, but schedule a repaint right after
+            runner.logic();
+
+            // Make sure we paint the output of the above logic call asap:
             runner.needs_repaint.repaint_asap();
+
             event.stop_propagation();
             event.prevent_default();
         },
@@ -192,10 +193,14 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
         "copy",
         |event: web_sys::ClipboardEvent, runner| {
             runner.input.raw.events.push(egui::Event::Copy);
+
             // In Safari we are only allowed to write to the clipboard during the
             // event callback, which is why we run the app logic here and now:
-            runner.logic(); // we ignore the returned triangles, but schedule a repaint right after
+            runner.logic();
+
+            // Make sure we paint the output of the above logic call asap:
             runner.needs_repaint.repaint_asap();
+
             event.stop_propagation();
             event.prevent_default();
         },
@@ -281,6 +286,12 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
                     pressed: true,
                     modifiers,
                 });
+
+                // In Safari we are only allowed to write to the clipboard during the
+                // event callback, which is why we run the app logic here and now:
+                runner.logic();
+
+                // Make sure we paint the output of the above logic call asap:
                 runner.needs_repaint.repaint_asap();
             }
             event.stop_propagation();
@@ -310,6 +321,12 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
                 pressed: false,
                 modifiers,
             });
+
+            // In Safari we are only allowed to write to the clipboard during the
+            // event callback, which is why we run the app logic here and now:
+            runner.logic();
+
+            // Make sure we paint the output of the above logic call asap:
             runner.needs_repaint.repaint_asap();
 
             text_agent::update_text_agent(runner);

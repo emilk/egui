@@ -12,6 +12,7 @@ use egui_winit::{EventResponse, WindowSettings};
 use crate::{epi, Theme};
 
 pub fn viewport_builder<E>(
+    egui_zoom_factor: f32,
     event_loop: &EventLoopWindowTarget<E>,
     native_options: &mut epi::NativeOptions,
     window_settings: Option<WindowSettings>,
@@ -26,8 +27,9 @@ pub fn viewport_builder<E>(
     let inner_size_points = if let Some(mut window_settings) = window_settings {
         // Restore pos/size from previous session
 
-        window_settings.clamp_size_to_sane_values(largest_monitor_point_size(event_loop));
-        window_settings.clamp_position_to_monitors(event_loop);
+        window_settings
+            .clamp_size_to_sane_values(largest_monitor_point_size(egui_zoom_factor, event_loop));
+        window_settings.clamp_position_to_monitors(egui_zoom_factor, event_loop);
 
         viewport_builder = window_settings.initialize_viewport_builder(viewport_builder);
         window_settings.inner_size_points()
@@ -37,8 +39,8 @@ pub fn viewport_builder<E>(
         }
 
         if let Some(initial_window_size) = viewport_builder.inner_size {
-            let initial_window_size =
-                initial_window_size.at_most(largest_monitor_point_size(event_loop));
+            let initial_window_size = initial_window_size
+                .at_most(largest_monitor_point_size(egui_zoom_factor, event_loop));
             viewport_builder = viewport_builder.with_inner_size(initial_window_size);
         }
 
@@ -49,9 +51,11 @@ pub fn viewport_builder<E>(
     if native_options.centered {
         crate::profile_scope!("center");
         if let Some(monitor) = event_loop.available_monitors().next() {
-            let monitor_size = monitor.size().to_logical::<f32>(monitor.scale_factor());
+            let monitor_size = monitor
+                .size()
+                .to_logical::<f32>(egui_zoom_factor as f64 * monitor.scale_factor());
             let inner_size = inner_size_points.unwrap_or(egui::Vec2 { x: 800.0, y: 600.0 });
-            if monitor_size.width > 0.0 && monitor_size.height > 0.0 {
+            if 0.0 < monitor_size.width && 0.0 < monitor_size.height {
                 let x = (monitor_size.width - inner_size.x) / 2.0;
                 let y = (monitor_size.height - inner_size.y) / 2.0;
                 viewport_builder = viewport_builder.with_position([x, y]);
@@ -76,7 +80,10 @@ pub fn apply_window_settings(
     }
 }
 
-fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui::Vec2 {
+fn largest_monitor_point_size<E>(
+    egui_zoom_factor: f32,
+    event_loop: &EventLoopWindowTarget<E>,
+) -> egui::Vec2 {
     crate::profile_function!();
 
     let mut max_size = egui::Vec2::ZERO;
@@ -87,7 +94,9 @@ fn largest_monitor_point_size<E>(event_loop: &EventLoopWindowTarget<E>) -> egui:
     };
 
     for monitor in available_monitors {
-        let size = monitor.size().to_logical::<f32>(monitor.scale_factor());
+        let size = monitor
+            .size()
+            .to_logical::<f32>(egui_zoom_factor as f64 * monitor.scale_factor());
         let size = egui::vec2(size.width, size.height);
         max_size = max_size.max(size);
     }
@@ -137,21 +146,15 @@ pub struct EpiIntegration {
 impl EpiIntegration {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        egui_ctx: egui::Context,
         window: &winit::window::Window,
         system_theme: Option<Theme>,
         app_name: &str,
         native_options: &crate::NativeOptions,
         storage: Option<Box<dyn epi::Storage>>,
-        is_desktop: bool,
         #[cfg(feature = "glow")] gl: Option<std::rc::Rc<glow::Context>>,
         #[cfg(feature = "wgpu")] wgpu_render_state: Option<egui_wgpu::RenderState>,
     ) -> Self {
-        let egui_ctx = egui::Context::default();
-        egui_ctx.set_embed_viewports(!is_desktop);
-
-        let memory = load_egui_memory(storage.as_deref()).unwrap_or_default();
-        egui_ctx.memory_mut(|mem| *mem = memory);
-
         let frame = epi::Frame {
             info: epi::IntegrationInfo {
                 system_theme,
@@ -166,13 +169,19 @@ impl EpiIntegration {
             raw_window_handle: window.raw_window_handle(),
         };
 
+        let icon = native_options
+            .viewport
+            .icon
+            .clone()
+            .unwrap_or_else(|| std::sync::Arc::new(load_default_egui_icon()));
+
         let app_icon_setter = super::app_icon::AppTitleIconSetter::new(
             native_options
                 .viewport
                 .title
                 .clone()
                 .unwrap_or_else(|| app_name.to_owned()),
-            native_options.viewport.icon.clone(),
+            Some(icon),
         );
 
         Self {
@@ -220,22 +229,14 @@ impl EpiIntegration {
 
     pub fn on_window_event(
         &mut self,
-        app: &mut dyn epi::App,
         event: &winit::event::WindowEvent,
         egui_winit: &mut egui_winit::State,
-        viewport_id: ViewportId,
     ) -> EventResponse {
         crate::profile_function!(egui_winit::short_window_event_description(event));
 
         use winit::event::{ElementState, MouseButton, WindowEvent};
 
         match event {
-            WindowEvent::CloseRequested => {
-                if viewport_id == ViewportId::ROOT {
-                    self.close = app.on_close_event();
-                    log::debug!("App::on_close_event returned {}", self.close);
-                }
-            }
             WindowEvent::Destroyed => {
                 log::debug!("Received WindowEvent::Destroyed");
                 self.close = true;
@@ -245,9 +246,6 @@ impl EpiIntegration {
                 state: ElementState::Pressed,
                 ..
             } => self.can_drag_window = true,
-            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                egui_winit.egui_input_mut().native_pixels_per_point = Some(*scale_factor as _);
-            }
             WindowEvent::ThemeChanged(winit_theme) if self.follow_system_theme => {
                 let theme = theme_from_winit_theme(*winit_theme);
                 self.frame.info.system_theme = Some(theme);
@@ -275,22 +273,31 @@ impl EpiIntegration {
     ) -> egui::FullOutput {
         raw_input.time = Some(self.beginning.elapsed().as_secs_f64());
 
+        let close_requested = raw_input.viewport().close_requested();
+
         let full_output = self.egui_ctx.run(raw_input, |egui_ctx| {
             if let Some(viewport_ui_cb) = viewport_ui_cb {
                 // Child viewport
                 crate::profile_scope!("viewport_callback");
                 viewport_ui_cb(egui_ctx);
             } else {
-                // Root viewport
-                if egui_ctx.input(|i| i.viewport().close_requested()) {
-                    self.close = app.on_close_event();
-                    log::debug!("App::on_close_event returned {}", self.close);
-                }
-
                 crate::profile_scope!("App::update");
                 app.update(egui_ctx, &mut self.frame);
             }
         });
+
+        let is_root_viewport = viewport_ui_cb.is_none();
+        if is_root_viewport && close_requested {
+            let canceled = full_output.viewport_output[&ViewportId::ROOT]
+                .commands
+                .contains(&egui::ViewportCommand::CancelClose);
+            if canceled {
+                log::debug!("Closing of root viewport canceled with ViewportCommand::CancelClose");
+            } else {
+                log::debug!("Closing root viewport (ViewportCommand::CancelClose was not sent)");
+                self.close = true;
+            }
+        }
 
         self.pending_full_output.append(full_output);
         std::mem::take(&mut self.pending_full_output)
@@ -307,16 +314,6 @@ impl EpiIntegration {
             // We keep hidden until we've painted something. See https://github.com/emilk/egui/pull/2279
             window.set_visible(true);
         }
-    }
-
-    pub fn handle_platform_output(
-        &mut self,
-        window: &winit::window::Window,
-        viewport_id: ViewportId,
-        platform_output: egui::PlatformOutput,
-        egui_winit: &mut egui_winit::State,
-    ) {
-        egui_winit.handle_platform_output(window, viewport_id, &self.egui_ctx, platform_output);
     }
 
     // ------------------------------------------------------------------------
@@ -346,7 +343,7 @@ impl EpiIntegration {
                     epi::set_value(
                         storage,
                         STORAGE_WINDOW_KEY,
-                        &WindowSettings::from_display(window),
+                        &WindowSettings::from_window(self.egui_ctx.zoom_factor(), window),
                     );
                 }
             }
@@ -364,6 +361,11 @@ impl EpiIntegration {
             storage.flush();
         }
     }
+}
+
+fn load_default_egui_icon() -> egui::IconData {
+    crate::profile_function!();
+    crate::icon_data::from_png_bytes(&include_bytes!("../../data/icon.png")[..]).unwrap()
 }
 
 #[cfg(feature = "persistence")]

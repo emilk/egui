@@ -8,9 +8,9 @@ fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
+            .with_decorations(false) // Hide the OS-specific "chrome" around the window
             .with_inner_size([400.0, 100.0])
             .with_min_inner_size([400.0, 100.0])
-            .with_decorations(false) // Hide the OS-specific "chrome" around the window
             .with_transparent(true), // To have rounded corners we need transparency
 
         ..Default::default()
