@@ -837,7 +837,9 @@ fn create_window(
         event_loop,
         native_options,
         window_settings,
-    );
+    )
+    .with_visible(false); // Start hidden until we render the first frame
+
     let window = {
         crate::profile_scope!("WindowBuilder::build");
         create_winit_window_builder(egui_ctx, event_loop, viewport_builder.clone())
