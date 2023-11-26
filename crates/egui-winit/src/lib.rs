@@ -427,18 +427,14 @@ impl State {
             }
 
             // Things that may require repaint:
-            WindowEvent::CloseRequested => EventResponse {
-                consumed: true,
-                repaint: true,
-            },
-
             WindowEvent::CursorEntered { .. }
             | WindowEvent::Destroyed
             | WindowEvent::Occluded(_)
             | WindowEvent::Resized(_)
             | WindowEvent::Moved(_)
             | WindowEvent::ThemeChanged(_)
-            | WindowEvent::TouchpadPressure { .. } => EventResponse {
+            | WindowEvent::TouchpadPressure { .. }
+            | WindowEvent::CloseRequested => EventResponse {
                 repaint: true,
                 consumed: false,
             },
