@@ -127,7 +127,7 @@ image = { version = "0.24", default-features = false, features = [
   "png",
 ] } # Needed for app icon
 raw-window-handle.workspace = true
-winit = { version = "0.29", default-features = false, features = ["rwh_05"] }
+winit = { version = "0.29.4", default-features = false, features = ["rwh_05"] }
 
 # optional native:
 directories-next = { version = "2", optional = true }
