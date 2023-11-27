@@ -76,7 +76,7 @@ fn run_and_return(
 
     let mut returned_result = Ok(());
 
-    let _ = event_loop.run_on_demand(|event, event_loop_window_target| {
+    event_loop.run_on_demand(|event, event_loop_window_target| {
         crate::profile_scope!("winit_event", short_event_description(&event));
 
         let event_result = match &event {
@@ -203,7 +203,7 @@ fn run_and_return(
             }
             event_loop_window_target.set_control_flow(ControlFlow::WaitUntil(next_repaint_time));
         };
-    });
+    })?;
 
     log::debug!("eframe window closed");
 
