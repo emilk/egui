@@ -22,8 +22,8 @@ fn paint_if_needed(runner: &mut AppRunner) {
             // so let's only present the results:
             runner.paint();
 
-            // We schedule another repaint asap,
-            // so that we run the actual logic to schedulte running actual logic:
+            // We schedule another repaint asap, so that we can run the actual logic
+            // again, which may schedule a new repaint (if there's animations):
             runner.needs_repaint.repaint_asap();
         } else {
             // Clear the `needs_repaint` flags _before_
