@@ -204,12 +204,6 @@ impl State {
 
         self.egui_input.time = Some(self.start_time.elapsed().as_secs_f64());
 
-        // TODO remove this in winit 0.29
-        // This hack make the window outer_position and size to be valid, X11 Only
-        // That was happending because winit get the window state before the compositor adds decorations!
-        #[cfg(all(feature = "x11", target_os = "linux"))]
-        window.set_maximized(window.is_maximized());
-
         // On Windows, a minimized window will have 0 width and height.
         // See: https://github.com/rust-windowing/winit/issues/208
         // This solves an issue where egui window positions would be changed when minimizing on Windows.
@@ -1403,6 +1397,12 @@ pub fn apply_viewport_builder_to_new_window(window: &Window, builder: &ViewportB
             log::warn!("set_cursor_hittest failed: {err}");
         }
     }
+
+    // TODO remove this in winit 0.29
+    // This hack make the window outer_position and size to be valid, X11 Only
+    // That was happending because winit get the window state before the compositor adds decorations!
+    #[cfg(all(feature = "x11", target_os = "linux"))]
+    window.set_maximized(builder.maximized.unwrap_or(false));
 }
 
 // ---------------------------------------------------------------------------
