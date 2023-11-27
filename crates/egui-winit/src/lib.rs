@@ -204,12 +204,6 @@ impl State {
 
         self.egui_input.time = Some(self.start_time.elapsed().as_secs_f64());
 
-        // TODO remove this in winit 0.29
-        // This hack make the window outer_position and size to be valid, X11 Only
-        // That was happending because winit get the window state before the compositor adds decorations!
-        #[cfg(all(feature = "x11", target_os = "linux"))]
-        window.set_maximized(window.is_maximized());
-
         // On Windows, a minimized window will have 0 width and height.
         // See: https://github.com/rust-windowing/winit/issues/208
         // This solves an issue where egui window positions would be changed when minimizing on Windows.
@@ -427,18 +421,14 @@ impl State {
             }
 
             // Things that may require repaint:
-            WindowEvent::CloseRequested => EventResponse {
-                consumed: true,
-                repaint: true,
-            },
-
             WindowEvent::CursorEntered { .. }
             | WindowEvent::Destroyed
             | WindowEvent::Occluded(_)
             | WindowEvent::Resized(_)
             | WindowEvent::Moved(_)
             | WindowEvent::ThemeChanged(_)
-            | WindowEvent::TouchpadPressure { .. } => EventResponse {
+            | WindowEvent::TouchpadPressure { .. }
+            | WindowEvent::CloseRequested => EventResponse {
                 repaint: true,
                 consumed: false,
             },
