@@ -408,23 +408,14 @@ impl State {
                 }
             }
 
-            winit::event::WindowEvent::RedrawRequested => EventResponse {
-                repaint: true,
-                consumed: false,
-            },
-
-            winit::event::WindowEvent::ActivationTokenDone { .. } => EventResponse {
-                repaint: false,
-                consumed: false,
-            },
-
             // Things that may require repaint:
             WindowEvent::CloseRequested => EventResponse {
                 consumed: true,
                 repaint: true,
             },
 
-            WindowEvent::CursorEntered { .. }
+            WindowEvent::RedrawRequested
+            | WindowEvent::CursorEntered { .. }
             | WindowEvent::Destroyed
             | WindowEvent::Occluded(_)
             | WindowEvent::Resized(_)
@@ -436,7 +427,8 @@ impl State {
             },
 
             // Things we completely ignore:
-            WindowEvent::AxisMotion { .. }
+            WindowEvent::ActivationTokenDone { .. }
+            | WindowEvent::AxisMotion { .. }
             | WindowEvent::SmartMagnify { .. }
             | WindowEvent::TouchpadRotate { .. } => EventResponse {
                 repaint: false,
