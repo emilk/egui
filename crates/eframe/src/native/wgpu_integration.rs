@@ -830,6 +830,7 @@ fn create_window(
         window_settings,
     )
     .with_visible(false); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
+
     let window = {
         crate::profile_scope!("WindowBuilder::build");
         create_winit_window_builder(egui_ctx, event_loop, viewport_builder.clone())
