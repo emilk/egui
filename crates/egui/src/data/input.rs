@@ -1238,11 +1238,17 @@ pub struct EventFilter {
     /// Default: `false`
     pub tab: bool,
 
-    /// If `true`, pressing arrows will act on the widget,
-    /// and NOT move focus away from the focused widget.
+    /// If `true`, pressing horizontal arrows will act on the
+    /// widget, and NOT move focus away from the focused widget.
     ///
     /// Default: `false`
-    pub arrows: bool,
+    pub horizontal_arrows: bool,
+
+    /// If `true`, pressing vertical arrows will act on the
+    /// widget, and NOT move focus away from the focused widget.
+    ///
+    /// Default: `false`
+    pub vertical_arrows: bool,
 
     /// If `true`, pressing escape will act on the widget,
     /// and NOT surrender focus from the focused widget.
@@ -1256,7 +1262,8 @@ impl Default for EventFilter {
     fn default() -> Self {
         Self {
             tab: false,
-            arrows: false,
+            horizontal_arrows: false,
+            vertical_arrows: false,
             escape: false,
         }
     }
@@ -1267,10 +1274,8 @@ impl EventFilter {
         if let Event::Key { key, .. } = event {
             match key {
                 crate::Key::Tab => self.tab,
-                crate::Key::ArrowUp
-                | crate::Key::ArrowRight
-                | crate::Key::ArrowDown
-                | crate::Key::ArrowLeft => self.arrows,
+                crate::Key::ArrowUp | crate::Key::ArrowDown => self.vertical_arrows,
+                crate::Key::ArrowRight | crate::Key::ArrowLeft => self.horizontal_arrows,
                 crate::Key::Escape => self.escape,
                 _ => true,
             }

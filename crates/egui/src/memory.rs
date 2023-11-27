@@ -675,7 +675,8 @@ impl Memory {
             id,
             EventFilter {
                 tab: lock_focus,
-                arrows: lock_focus,
+                horizontal_arrows: lock_focus,
+                vertical_arrows: lock_focus,
                 escape: false,
             },
         );
