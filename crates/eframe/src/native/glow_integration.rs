@@ -155,7 +155,8 @@ impl GlowWinitApp {
             event_loop,
             native_options,
             window_settings,
-        );
+        )
+        .with_visible(false); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
 
         let mut glutin_window_context = unsafe {
             GlutinWindowContext::new(egui_ctx, winit_window_builder, native_options, event_loop)?
