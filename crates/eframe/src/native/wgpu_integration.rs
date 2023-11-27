@@ -838,7 +838,7 @@ fn create_window(
         native_options,
         window_settings,
     )
-    .with_visible(false); // Start hidden until we render the first frame
+    .with_visible(false); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
 
     let window = {
         crate::profile_scope!("WindowBuilder::build");
