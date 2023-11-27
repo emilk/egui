@@ -69,9 +69,9 @@ wasm-bindgen = "0.2"
 
 
 [dev-dependencies]
-glutin = "0.30"                    # examples/pure_glow
+glutin = "0.31"                    # examples/pure_glow
 raw-window-handle.workspace = true
-glutin-winit = "0.3.0"
+glutin-winit = "0.4.0"
 
 
 [[example]]

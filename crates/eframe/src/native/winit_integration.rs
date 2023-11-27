@@ -79,7 +79,7 @@ pub trait WinitApp {
     fn on_event(
         &mut self,
         event_loop: &EventLoopWindowTarget<UserEvent>,
-        event: &winit::event::Event<'_, UserEvent>,
+        event: &winit::event::Event<UserEvent>,
     ) -> crate::Result<EventResult>;
 }
 
@@ -117,7 +117,7 @@ pub fn system_theme(window: &Window, options: &crate::NativeOptions) -> Option<c
 
 /// Short and fast description of an event.
 /// Useful for logging and profiling.
-pub fn short_event_description(event: &winit::event::Event<'_, UserEvent>) -> &'static str {
+pub fn short_event_description(event: &winit::event::Event<UserEvent>) -> &'static str {
     use winit::event::Event;
 
     match event {

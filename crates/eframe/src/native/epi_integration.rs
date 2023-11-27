@@ -229,7 +229,7 @@ impl EpiIntegration {
 
     pub fn on_window_event(
         &mut self,
-        event: &winit::event::WindowEvent<'_>,
+        event: &winit::event::WindowEvent,
         egui_winit: &mut egui_winit::State,
     ) -> EventResponse {
         crate::profile_function!(egui_winit::short_window_event_description(event));

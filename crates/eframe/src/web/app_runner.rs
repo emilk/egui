@@ -173,8 +173,20 @@ impl AppRunner {
         self.painter.destroy();
     }
 
-    pub fn has_outstanding_paint_data(&self) -> bool {
-        self.clipped_primitives.is_some()
+    /// Runs the user code and paints the UI.
+    ///
+    /// If there is already an outstanding frame of output,
+    /// that is painted instead.
+    pub fn run_and_paint(&mut self) {
+        if self.clipped_primitives.is_none() {
+            // Run user code, and paint the results:
+            self.logic();
+            self.paint();
+        } else {
+            // We have already run the logic, e.g. in an on-click event,
+            // so let's only present the results:
+            self.paint();
+        }
     }
 
     /// Runs the logic, but doesn't paint the result.

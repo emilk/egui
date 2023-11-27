@@ -1,8 +1,9 @@
 use std::{cell::RefCell, rc::Rc, sync::Arc, time::Instant};
 
 use glutin::{
+    context::NotCurrentGlContext,
     display::GetGlDisplay,
-    prelude::{GlDisplay, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentGlContext},
+    prelude::{GlDisplay, PossiblyCurrentGlContext},
     surface::GlSurface,
 };
 use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
@@ -154,8 +155,7 @@ impl GlowWinitApp {
             event_loop,
             native_options,
             window_settings,
-        )
-        .with_visible(false); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
+        );
 
         let mut glutin_window_context = unsafe {
             GlutinWindowContext::new(egui_ctx, winit_window_builder, native_options, event_loop)?
@@ -403,7 +403,7 @@ impl WinitApp for GlowWinitApp {
     fn on_event(
         &mut self,
         event_loop: &EventLoopWindowTarget<UserEvent>,
-        event: &winit::event::Event<'_, UserEvent>,
+        event: &winit::event::Event<UserEvent>,
     ) -> Result<EventResult> {
         crate::profile_function!(winit_integration::short_event_description(event));
 
@@ -431,15 +431,6 @@ impl WinitApp for GlowWinitApp {
             winit::event::Event::Suspended => {
                 if let Some(running) = &mut self.running {
                     running.glutin.borrow_mut().on_suspend()?;
-                }
-                EventResult::Wait
-            }
-
-            winit::event::Event::MainEventsCleared => {
-                if let Some(running) = &self.running {
-                    if let Err(err) = running.glutin.borrow_mut().on_resume(event_loop) {
-                        log::warn!("on_resume failed {err}");
-                    }
                 }
                 EventResult::Wait
             }
@@ -665,7 +656,7 @@ impl GlowWinitRunning {
     fn on_window_event(
         &mut self,
         window_id: WindowId,
-        event: &winit::event::WindowEvent<'_>,
+        event: &winit::event::WindowEvent,
     ) -> EventResult {
         crate::profile_function!(egui_winit::short_window_event_description(event));
 
@@ -704,10 +695,9 @@ impl GlowWinitRunning {
                 }
             }
 
-            winit::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                if let Some(viewport_id) = viewport_id {
+            winit::event::WindowEvent::ScaleFactorChanged { .. } => {
+                if viewport_id.is_some() {
                     repaint_asap = true;
-                    glutin.resize(viewport_id, **new_inner_size);
                 }
             }
 
@@ -822,7 +812,7 @@ impl GlutinWindowContext {
         // Create GL display. This may probably create a window too on most platforms. Definitely on `MS windows`. Never on Android.
         let display_builder = glutin_winit::DisplayBuilder::new()
             // we might want to expose this option to users in the future. maybe using an env var or using native_options.
-            .with_preference(glutin_winit::ApiPrefence::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
+            .with_preference(glutin_winit::ApiPreference::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
             .with_window_builder(Some(create_winit_window_builder(
                 egui_ctx,
                 event_loop,

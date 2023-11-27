@@ -17,25 +17,8 @@ fn paint_and_schedule(runner_ref: &WebRunner) -> Result<(), JsValue> {
 
 fn paint_if_needed(runner: &mut AppRunner) {
     if runner.needs_repaint.needs_repaint() {
-        if runner.has_outstanding_paint_data() {
-            // We have already run the logic, e.g. in an on-click event,
-            // so let's only present the results:
-            runner.paint();
-
-            // We schedule another repaint asap, so that we can run the actual logic
-            // again, which may schedule a new repaint (if there's animations):
-            runner.needs_repaint.repaint_asap();
-        } else {
-            // Clear the `needs_repaint` flags _before_
-            // running the logic, as the logic could cause it to be set again.
-            runner.needs_repaint.clear();
-
-            // Run user code…
-            runner.logic();
-
-            // …and paint the result.
-            runner.paint();
-        }
+        runner.needs_repaint.clear();
+        runner.run_and_paint();
     }
     runner.auto_save_if_needed();
 }
