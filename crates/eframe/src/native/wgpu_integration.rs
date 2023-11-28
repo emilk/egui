@@ -710,9 +710,6 @@ impl WgpuWinitRunning {
                 }
             }
 
-            winit::event::WindowEvent::ScaleFactorChanged { .. } => {
-                repaint_asap = true;
-            }
             winit::event::WindowEvent::CloseRequested => {
                 if viewport_id == Some(ViewportId::ROOT) && integration.should_close() {
                     log::debug!(

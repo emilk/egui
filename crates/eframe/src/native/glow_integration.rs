@@ -703,12 +703,6 @@ impl GlowWinitRunning {
                 }
             }
 
-            winit::event::WindowEvent::ScaleFactorChanged { .. } => {
-                if viewport_id.is_some() {
-                    repaint_asap = true;
-                }
-            }
-
             winit::event::WindowEvent::CloseRequested => {
                 if viewport_id == Some(ViewportId::ROOT) && self.integration.should_close() {
                     log::debug!(
