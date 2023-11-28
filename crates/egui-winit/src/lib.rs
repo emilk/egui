@@ -702,7 +702,7 @@ impl State {
             copied_text,
             events: _,                    // handled elsewhere
             mutable_text_under_cursor: _, // only used in eframe web
-            text_cursor_pos,
+            ime,
             #[cfg(feature = "accesskit")]
             accesskit_update,
         } = platform_output;
@@ -719,19 +719,23 @@ impl State {
             self.clipboard.set(copied_text);
         }
 
-        let allow_ime = text_cursor_pos.is_some();
+        let allow_ime = ime.is_some();
         if self.allow_ime != allow_ime {
             self.allow_ime = allow_ime;
             window.set_ime_allowed(allow_ime);
         }
 
-        if let Some(egui::Pos2 { x, y }) = text_cursor_pos {
+        if let Some(ime) = ime {
+            let rect = ime.rect;
+            let pixels_per_point = self.pixels_per_point();
             window.set_ime_cursor_area(
-                winit::dpi::LogicalPosition { x, y },
-                winit::dpi::LogicalSize {
-                    // TODO: What size to use? New size arg in winit 0.29
-                    width: 10,
-                    height: 10,
+                winit::dpi::PhysicalPosition {
+                    x: pixels_per_point * rect.min.x,
+                    y: pixels_per_point * rect.min.y,
+                },
+                winit::dpi::PhysicalSize {
+                    width: pixels_per_point * rect.width(),
+                    height: pixels_per_point * rect.height(),
                 },
             );
         }
