@@ -34,12 +34,12 @@ fn create_event_loop_builder(
     event_loop_builder
 }
 
-fn create_event_loop(native_options: &mut epi::NativeOptions) -> EventLoop<UserEvent> {
+fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoop<UserEvent>> {
     crate::profile_function!();
     let mut builder = create_event_loop_builder(native_options);
 
     crate::profile_scope!("EventLoopBuilder::build");
-    builder.build().unwrap()
+    Ok(builder.build()?)
 }
 
 /// Access a thread-local event loop.
@@ -49,16 +49,20 @@ fn create_event_loop(native_options: &mut epi::NativeOptions) -> EventLoop<UserE
 fn with_event_loop<R>(
     mut native_options: epi::NativeOptions,
     f: impl FnOnce(&mut EventLoop<UserEvent>, epi::NativeOptions) -> R,
-) -> R {
+) -> Result<R> {
     thread_local!(static EVENT_LOOP: RefCell<Option<EventLoop<UserEvent>>> = RefCell::new(None));
 
     EVENT_LOOP.with(|event_loop| {
         // Since we want to reference NativeOptions when creating the EventLoop we can't
         // do that as part of the lazy thread local storage initialization and so we instead
         // create the event loop lazily here
-        let mut event_loop = event_loop.borrow_mut();
-        let event_loop = event_loop.get_or_insert_with(|| create_event_loop(&mut native_options));
-        f(event_loop, native_options)
+        let mut event_loop_lock = event_loop.borrow_mut();
+        let event_loop = if let Some(event_loop) = &mut *event_loop_lock {
+            event_loop
+        } else {
+            event_loop_lock.insert(create_event_loop(&mut native_options)?)
+        };
+        Ok(f(event_loop, native_options))
     })
 }
 
@@ -389,10 +393,10 @@ pub fn run_glow(
         return with_event_loop(native_options, |event_loop, native_options| {
             let glow_eframe = GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
             run_and_return(event_loop, glow_eframe)
-        });
+        })?;
     }
 
-    let event_loop = create_event_loop(&mut native_options);
+    let event_loop = create_event_loop(&mut native_options)?;
     let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
     run_and_exit(event_loop, glow_eframe)
 }
@@ -412,10 +416,10 @@ pub fn run_wgpu(
         return with_event_loop(native_options, |event_loop, native_options| {
             let wgpu_eframe = WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
             run_and_return(event_loop, wgpu_eframe)
-        });
+        })?;
     }
 
-    let event_loop = create_event_loop(&mut native_options);
+    let event_loop = create_event_loop(&mut native_options)?;
     let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
     run_and_exit(event_loop, wgpu_eframe)
 }
