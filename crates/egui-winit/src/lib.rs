@@ -1007,6 +1007,11 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::PageUp => Key::PageUp,
         KeyCode::PageDown => Key::PageDown,
 
+        KeyCode::Comma => Key::Comma,
+        KeyCode::Period => Key::Period,
+        // KeyCode::Colon => Key::Colon, // NOTE: there is no physical colon key on an american keyboard
+        KeyCode::Semicolon => Key::Semicolon,
+
         KeyCode::Minus | KeyCode::NumpadSubtract => Key::Minus,
 
         // Using Mac the key with the Plus sign on it is reported as the Equals key

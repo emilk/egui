@@ -888,12 +888,28 @@ pub enum Key {
     PageUp,
     PageDown,
 
-    /// The virtual keycode for the Minus key.
+    // ----------------------------------------------
+    // Punctuation:
+    /// `:`
+    Colon,
+
+    /// `,`
+    Comma,
+
+    /// `-`
     Minus,
 
-    /// The virtual keycode for the Plus/Equals key.
+    /// `.`
+    Period,
+
+    /// The for the Plus/Equals key.
     PlusEquals,
 
+    /// `;`
+    Semicolon,
+
+    // ----------------------------------------------
+    // Digits:
     /// Either from the main row or from the numpad.
     Num0,
 
@@ -924,6 +940,8 @@ pub enum Key {
     /// Either from the main row or from the numpad.
     Num9,
 
+    // ----------------------------------------------
+    // Letters:
     A, // Used for cmd+A (select All)
     B,
     C, // |CMD COPY|
@@ -951,7 +969,8 @@ pub enum Key {
     Y,
     Z, // |CMD UNDO|
 
-    // The function keys:
+    // ----------------------------------------------
+    // Function keys:
     F1,
     F2,
     F3,
@@ -972,6 +991,9 @@ pub enum Key {
     F18,
     F19,
     F20,
+    // When adding keys, remember to also update `crates/egui-winit/src/lib.rs`
+    // and [`Self::ALL`].
+    // Also: don't add keys last; add them to the group they best belong to.
 }
 
 impl Key {
@@ -992,8 +1014,14 @@ impl Key {
         Self::End,
         Self::PageUp,
         Self::PageDown,
+        // Punctuation:
+        Self::Colon,
+        Self::Comma,
         Self::Minus,
+        Self::Period,
         Self::PlusEquals,
+        Self::Semicolon,
+        // Digits:
         Self::Num0,
         Self::Num1,
         Self::Num2,
@@ -1004,6 +1032,7 @@ impl Key {
         Self::Num7,
         Self::Num8,
         Self::Num9,
+        // Letters:
         Self::A,
         Self::B,
         Self::C,
@@ -1030,6 +1059,7 @@ impl Key {
         Self::X,
         Self::Y,
         Self::Z,
+        // Function keys:
         Self::F1,
         Self::F2,
         Self::F3,
@@ -1059,89 +1089,93 @@ impl Key {
     /// This will parse the output of both [`Self::name`] and [`Self::symbol_or_name`],
     /// but will also parse single characters, so that both `"-"` and `"Minus"` will return `Key::Minus`.
     pub fn from_name(key: &str) -> Option<Self> {
-        match key {
-            "Down" | "ArrowDown" | "⏷" => Some(Self::ArrowDown),
-            "Left" | "ArrowLeft" | "⏴" => Some(Self::ArrowLeft),
-            "Right" | "ArrowRight" | "⏵" => Some(Self::ArrowRight),
-            "Up" | "ArrowUp" | "⏶" => Some(Self::ArrowUp),
+        Some(match key {
+            "ArrowDown" | "Down" | "⏷" => Self::ArrowDown,
+            "ArrowLeft" | "Left" | "⏴" => Self::ArrowLeft,
+            "ArrowRight" | "Right" | "⏵" => Self::ArrowRight,
+            "ArrowUp" | "Up" | "⏶" => Self::ArrowUp,
 
-            "Esc" | "Escape" => Some(Self::Escape),
-            "Tab" => Some(Self::Tab),
-            "Backspace" => Some(Self::Backspace),
-            "Enter" | "Return" => Some(Self::Enter),
-            "Space" | " " => Some(Self::Space),
+            "Escape" | "Esc" => Self::Escape,
+            "Tab" => Self::Tab,
+            "Backspace" => Self::Backspace,
+            "Enter" | "Return" => Self::Enter,
+            "Space" | " " => Self::Space,
 
-            "Help" | "Insert" => Some(Self::Insert),
-            "Delete" => Some(Self::Delete),
-            "Home" => Some(Self::Home),
-            "End" => Some(Self::End),
-            "PageUp" => Some(Self::PageUp),
-            "PageDown" => Some(Self::PageDown),
+            "Help" | "Insert" => Self::Insert,
+            "Delete" => Self::Delete,
+            "Home" => Self::Home,
+            "End" => Self::End,
+            "PageUp" => Self::PageUp,
+            "PageDown" => Self::PageDown,
 
-            "Minus" | "-" | "−" => Some(Self::Minus),
-            "Plus" | "+" | "Equals" | "=" => Some(Self::PlusEquals),
+            "Colon" | ":" => Self::Colon,
+            "Comma" | "," => Self::Comma,
+            "Minus" | "-" | "−" => Self::Minus,
+            "Period" | "." => Self::Period,
+            "Plus" | "+" | "Equals" | "=" => Self::PlusEquals,
+            "Semicolon" | ";" => Self::Semicolon,
 
-            "0" => Some(Self::Num0),
-            "1" => Some(Self::Num1),
-            "2" => Some(Self::Num2),
-            "3" => Some(Self::Num3),
-            "4" => Some(Self::Num4),
-            "5" => Some(Self::Num5),
-            "6" => Some(Self::Num6),
-            "7" => Some(Self::Num7),
-            "8" => Some(Self::Num8),
-            "9" => Some(Self::Num9),
+            "0" => Self::Num0,
+            "1" => Self::Num1,
+            "2" => Self::Num2,
+            "3" => Self::Num3,
+            "4" => Self::Num4,
+            "5" => Self::Num5,
+            "6" => Self::Num6,
+            "7" => Self::Num7,
+            "8" => Self::Num8,
+            "9" => Self::Num9,
 
-            "a" | "A" => Some(Self::A),
-            "b" | "B" => Some(Self::B),
-            "c" | "C" => Some(Self::C),
-            "d" | "D" => Some(Self::D),
-            "e" | "E" => Some(Self::E),
-            "f" | "F" => Some(Self::F),
-            "g" | "G" => Some(Self::G),
-            "h" | "H" => Some(Self::H),
-            "i" | "I" => Some(Self::I),
-            "j" | "J" => Some(Self::J),
-            "k" | "K" => Some(Self::K),
-            "l" | "L" => Some(Self::L),
-            "m" | "M" => Some(Self::M),
-            "n" | "N" => Some(Self::N),
-            "o" | "O" => Some(Self::O),
-            "p" | "P" => Some(Self::P),
-            "q" | "Q" => Some(Self::Q),
-            "r" | "R" => Some(Self::R),
-            "s" | "S" => Some(Self::S),
-            "t" | "T" => Some(Self::T),
-            "u" | "U" => Some(Self::U),
-            "v" | "V" => Some(Self::V),
-            "w" | "W" => Some(Self::W),
-            "x" | "X" => Some(Self::X),
-            "y" | "Y" => Some(Self::Y),
-            "z" | "Z" => Some(Self::Z),
+            "a" | "A" => Self::A,
+            "b" | "B" => Self::B,
+            "c" | "C" => Self::C,
+            "d" | "D" => Self::D,
+            "e" | "E" => Self::E,
+            "f" | "F" => Self::F,
+            "g" | "G" => Self::G,
+            "h" | "H" => Self::H,
+            "i" | "I" => Self::I,
+            "j" | "J" => Self::J,
+            "k" | "K" => Self::K,
+            "l" | "L" => Self::L,
+            "m" | "M" => Self::M,
+            "n" | "N" => Self::N,
+            "o" | "O" => Self::O,
+            "p" | "P" => Self::P,
+            "q" | "Q" => Self::Q,
+            "r" | "R" => Self::R,
+            "s" | "S" => Self::S,
+            "t" | "T" => Self::T,
+            "u" | "U" => Self::U,
+            "v" | "V" => Self::V,
+            "w" | "W" => Self::W,
+            "x" | "X" => Self::X,
+            "y" | "Y" => Self::Y,
+            "z" | "Z" => Self::Z,
 
-            "F1" => Some(Self::F1),
-            "F2" => Some(Self::F2),
-            "F3" => Some(Self::F3),
-            "F4" => Some(Self::F4),
-            "F5" => Some(Self::F5),
-            "F6" => Some(Self::F6),
-            "F7" => Some(Self::F7),
-            "F8" => Some(Self::F8),
-            "F9" => Some(Self::F9),
-            "F10" => Some(Self::F10),
-            "F11" => Some(Self::F11),
-            "F12" => Some(Self::F12),
-            "F13" => Some(Self::F13),
-            "F14" => Some(Self::F14),
-            "F15" => Some(Self::F15),
-            "F16" => Some(Self::F16),
-            "F17" => Some(Self::F17),
-            "F18" => Some(Self::F18),
-            "F19" => Some(Self::F19),
-            "F20" => Some(Self::F20),
+            "F1" => Self::F1,
+            "F2" => Self::F2,
+            "F3" => Self::F3,
+            "F4" => Self::F4,
+            "F5" => Self::F5,
+            "F6" => Self::F6,
+            "F7" => Self::F7,
+            "F8" => Self::F8,
+            "F9" => Self::F9,
+            "F10" => Self::F10,
+            "F11" => Self::F11,
+            "F12" => Self::F12,
+            "F13" => Self::F13,
+            "F14" => Self::F14,
+            "F15" => Self::F15,
+            "F16" => Self::F16,
+            "F17" => Self::F17,
+            "F18" => Self::F18,
+            "F19" => Self::F19,
+            "F20" => Self::F20,
 
-            _ => None,
-        }
+            _ => return None,
+        })
     }
 
     /// Emoji or name representing the key
@@ -1181,8 +1215,12 @@ impl Key {
             Key::PageUp => "PageUp",
             Key::PageDown => "PageDown",
 
+            Key::Colon => "Colon",
+            Key::Comma => "Comma",
             Key::Minus => "Minus",
+            Key::Period => "Period",
             Key::PlusEquals => "Plus",
+            Key::Semicolon => "Semicolon",
 
             Key::Num0 => "0",
             Key::Num1 => "1",
@@ -1247,6 +1285,12 @@ impl Key {
 
 #[test]
 fn test_key_from_name() {
+    assert_eq!(
+        Key::ALL.len(),
+        Key::F20 as usize + 1,
+        "Some keys are missing in Key::ALL"
+    );
+
     for &key in Key::ALL {
         let name = key.name();
         assert_eq!(
