@@ -19,7 +19,7 @@ crate-type = ["cdylib", "rlib"]
 default = ["glow", "persistence"]
 
 # image_viewer adds about 0.9 MB of WASM
-web_app = ["http", "persistence", "web_screen_reader"]
+web_app = ["http", "persistence"]
 
 http = ["ehttp", "image", "poll-promise", "egui_extras/image"]
 image_viewer = ["image", "egui_extras/all_loaders", "rfd"]
@@ -27,7 +27,6 @@ persistence = ["eframe/persistence", "egui/persistence", "serde"]
 puffin = ["eframe/puffin", "dep:puffin", "dep:puffin_http"]
 serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]
 syntect = ["egui_demo_lib/syntect"]
-web_screen_reader = ["eframe/web_screen_reader"]                  # experimental
 
 glow = ["eframe/glow"]
 wgpu = ["eframe/wgpu", "bytemuck"]
@@ -37,7 +36,9 @@ chrono = { version = "0.4", default-features = false, features = [
   "js-sys",
   "wasmbind",
 ] }
-eframe = { version = "0.24.0", path = "../eframe", default-features = false }
+eframe = { version = "0.24.0", path = "../eframe", default-features = false, features = [
+  "web_screen_reader",
+] }
 egui = { version = "0.24.0", path = "../egui", features = [
   "callstack",
   "extra_debug_asserts",
