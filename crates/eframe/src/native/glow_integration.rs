@@ -745,7 +745,11 @@ impl GlowWinitRunning {
                 event_response = self
                     .integration
                     .on_window_event(event, viewport.egui_winit.as_mut().unwrap());
+            } else {
+                log::trace!("Ignoring event: no viewport for {viewport_id:?}");
             }
+        } else {
+            log::trace!("Ignoring event: no viewport_id");
         }
 
         if event_response.repaint {

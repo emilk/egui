@@ -118,10 +118,8 @@ pub fn system_theme(window: &Window, options: &crate::NativeOptions) -> Option<c
 /// Short and fast description of an event.
 /// Useful for logging and profiling.
 pub fn short_event_description(event: &winit::event::Event<UserEvent>) -> &'static str {
-    use winit::event::Event;
-
     match event {
-        Event::UserEvent(user_event) => match user_event {
+        winit::event::Event::UserEvent(user_event) => match user_event {
             UserEvent::RequestRepaint { .. } => "UserEvent::RequestRepaint",
             #[cfg(feature = "accesskit")]
             UserEvent::AccessKitActionRequest(_) => "UserEvent::AccessKitActionRequest",

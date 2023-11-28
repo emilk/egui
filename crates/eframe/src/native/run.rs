@@ -66,7 +66,7 @@ fn run_and_return(
 ) -> Result<()> {
     use winit::{event_loop::ControlFlow, platform::run_on_demand::EventLoopExtRunOnDemand};
 
-    log::debug!("Entering the winit event loop (run_return)…");
+    log::debug!("Entering the winit event loop (run_on_demand)…");
 
     // When to repaint what window
     let mut windows_next_repaint_times = HashMap::default();
@@ -75,6 +75,12 @@ fn run_and_return(
 
     event_loop.run_on_demand(|event, event_loop_window_target| {
         crate::profile_scope!("winit_event", short_event_description(&event));
+
+        log::trace!("winit event: {event:?}");
+
+        if matches!(event, winit::event::Event::AboutToWait) {
+            return; // early-out: don't trigger another wait
+        }
 
         let event_result = match &event {
             winit::event::Event::LoopExiting => {
@@ -120,7 +126,10 @@ fn run_and_return(
             }
 
             event => match winit_app.on_event(event_loop_window_target, event) {
-                Ok(event_result) => event_result,
+                Ok(event_result) => {
+                    log::trace!("event_result: {event_result:?}");
+                    event_result
+                }
                 Err(err) => {
                     log::error!("Exiting because of error: {err} during event {event:?}");
                     returned_result = Err(err);
@@ -134,7 +143,7 @@ fn run_and_return(
                 event_loop_window_target.set_control_flow(ControlFlow::Wait);
             }
             EventResult::RepaintNow(window_id) => {
-                log::trace!("Repaint caused by {}", short_event_description(&event));
+                log::trace!("RepaintNow caused by {}", short_event_description(&event));
                 if cfg!(target_os = "windows") {
                     // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                     windows_next_repaint_times.remove(&window_id);
@@ -146,6 +155,7 @@ fn run_and_return(
                 }
             }
             EventResult::RepaintNext(window_id) => {
+                log::trace!("RepaintNext caused by {}", short_event_description(&event));
                 windows_next_repaint_times.insert(window_id, Instant::now());
             }
             EventResult::RepaintAt(window_id, repaint_time) => {
@@ -166,38 +176,25 @@ fn run_and_return(
 
         let mut next_repaint_time = windows_next_repaint_times.values().min().copied();
 
-        // This is for not duplicating redraw requests
-        use winit::event::Event;
-        if matches!(
-            event,
-            Event::WindowEvent {
-                event: winit::event::WindowEvent::RedrawRequested,
-                ..
-            } | Event::Resumed
-        ) {
-            windows_next_repaint_times.retain(|window_id, repaint_time| {
-                if Instant::now() < *repaint_time {
-                    return true;
-                };
+        windows_next_repaint_times.retain(|window_id, repaint_time| {
+            if Instant::now() < *repaint_time {
+                return true; // not yet ready
+            };
 
-                next_repaint_time = None;
-                event_loop_window_target.set_control_flow(ControlFlow::Poll);
+            next_repaint_time = None;
+            event_loop_window_target.set_control_flow(ControlFlow::Poll);
 
-                if let Some(window) = winit_app.window(*window_id) {
-                    log::trace!("request_redraw for {window_id:?}");
-                    window.request_redraw();
-                    true
-                } else {
-                    false
-                }
-            });
-        }
+            if let Some(window) = winit_app.window(*window_id) {
+                log::trace!("request_redraw for {window_id:?}");
+                window.request_redraw();
+                true
+            } else {
+                log::trace!("No window found for {window_id:?}");
+                false
+            }
+        });
 
         if let Some(next_repaint_time) = next_repaint_time {
-            let time_until_next = next_repaint_time.saturating_duration_since(Instant::now());
-            if time_until_next < std::time::Duration::from_secs(10_000) {
-                log::trace!("WaitUntil {time_until_next:?}");
-            }
             event_loop_window_target.set_control_flow(ControlFlow::WaitUntil(next_repaint_time));
         };
     })?;
@@ -234,6 +231,12 @@ fn run_and_exit(
     event_loop
         .run(move |event, event_loop_window_target| {
             crate::profile_scope!("winit_event", short_event_description(&event));
+
+            log::trace!("winit event: {event:?}");
+
+            if matches!(event, winit::event::Event::AboutToWait) {
+                return; // early-out: don't trigger another wait
+            }
 
             let event_result = match &event {
                 winit::event::Event::LoopExiting => {
@@ -276,7 +279,10 @@ fn run_and_exit(
                 }
 
                 event => match winit_app.on_event(event_loop_window_target, event) {
-                    Ok(event_result) => event_result,
+                    Ok(event_result) => {
+                        log::trace!("event_result: {event_result:?}");
+                        event_result
+                    }
                     Err(err) => {
                         panic!("eframe encountered a fatal error: {err} during event {event:?}");
                     }
@@ -288,7 +294,7 @@ fn run_and_exit(
                     event_loop_window_target.set_control_flow(ControlFlow::Wait);
                 }
                 EventResult::RepaintNow(window_id) => {
-                    log::trace!("Repaint caused by {}", short_event_description(&event));
+                    log::trace!("RepaintNow caused by {}", short_event_description(&event));
                     if cfg!(target_os = "windows") {
                         // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                         windows_next_repaint_times.remove(&window_id);
@@ -300,7 +306,7 @@ fn run_and_exit(
                     }
                 }
                 EventResult::RepaintNext(window_id) => {
-                    log::trace!("Repaint caused by {}", short_event_description(&event));
+                    log::trace!("RepaintNext caused by {}", short_event_description(&event));
                     windows_next_repaint_times.insert(window_id, Instant::now());
                 }
                 EventResult::RepaintAt(window_id, repaint_time) => {
@@ -321,39 +327,25 @@ fn run_and_exit(
 
             let mut next_repaint_time = windows_next_repaint_times.values().min().copied();
 
-            // This is for not duplicating redraw requests
-            use winit::event::Event;
-            if matches!(
-                event,
-                Event::WindowEvent {
-                    event: winit::event::WindowEvent::RedrawRequested,
-                    ..
-                } | Event::Resumed
-            ) {
-                windows_next_repaint_times.retain(|window_id, repaint_time| {
-                    if Instant::now() < *repaint_time {
-                        return true;
-                    }
-
-                    next_repaint_time = None;
-                    event_loop_window_target.set_control_flow(ControlFlow::Poll);
-
-                    if let Some(window) = winit_app.window(*window_id) {
-                        log::trace!("request_redraw for {window_id:?}");
-                        window.request_redraw();
-                        true
-                    } else {
-                        false
-                    }
-                });
-            }
-
-            if let Some(next_repaint_time) = next_repaint_time {
-                let time_until_next = next_repaint_time.saturating_duration_since(Instant::now());
-                if time_until_next < std::time::Duration::from_secs(10_000) {
-                    log::trace!("WaitUntil {time_until_next:?}");
+            windows_next_repaint_times.retain(|window_id, repaint_time| {
+                if Instant::now() < *repaint_time {
+                    return true; // not yet ready
                 }
 
+                next_repaint_time = None;
+                event_loop_window_target.set_control_flow(ControlFlow::Poll);
+
+                if let Some(window) = winit_app.window(*window_id) {
+                    log::trace!("request_redraw for {window_id:?}");
+                    window.request_redraw();
+                    true
+                } else {
+                    log::trace!("No window found for {window_id:?}");
+                    false
+                }
+            });
+
+            if let Some(next_repaint_time) = next_repaint_time {
                 // WaitUntil seems to not work on iOS
                 #[cfg(target_os = "ios")]
                 winit_app
