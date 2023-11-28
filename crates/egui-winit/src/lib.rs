@@ -388,20 +388,22 @@ impl State {
             }
             WindowEvent::ModifiersChanged(state) => {
                 use winit::keyboard::ModifiersKeyState::Pressed;
-                self.egui_input.modifiers.alt =
-                    state.lalt_state() == Pressed || state.ralt_state() == Pressed;
-                self.egui_input.modifiers.ctrl =
-                    state.lcontrol_state() == Pressed || state.rcontrol_state() == Pressed;
-                self.egui_input.modifiers.shift =
-                    state.lshift_state() == Pressed || state.rshift_state() == Pressed;
-                self.egui_input.modifiers.mac_cmd = cfg!(target_os = "macos")
-                    && (state.lsuper_state() == Pressed || state.rsuper_state() == Pressed);
 
+                let alt = state.lalt_state() == Pressed || state.ralt_state() == Pressed;
+                let ctrl = state.lcontrol_state() == Pressed || state.rcontrol_state() == Pressed;
+                let shift = state.lshift_state() == Pressed || state.rshift_state() == Pressed;
+                let super_ = state.lsuper_state() == Pressed || state.rsuper_state() == Pressed;
+
+                self.egui_input.modifiers.alt = alt;
+                self.egui_input.modifiers.ctrl = ctrl;
+                self.egui_input.modifiers.shift = shift;
+                self.egui_input.modifiers.mac_cmd = cfg!(target_os = "macos") && super_;
                 self.egui_input.modifiers.command = if cfg!(target_os = "macos") {
-                    state.lsuper_state() == Pressed || state.rsuper_state() == Pressed
+                    super_
                 } else {
-                    state.lcontrol_state() == Pressed || state.rcontrol_state() == Pressed
+                    ctrl
                 };
+
                 EventResponse {
                     repaint: true,
                     consumed: false,
