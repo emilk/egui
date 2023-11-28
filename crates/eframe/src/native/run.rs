@@ -1,10 +1,3 @@
-//! Note that this file contains two similar paths - one for [`glow`], one for [`wgpu`].
-//! When making changes to one you often also want to apply it to the other.
-//!
-//! This is also very complex code, and not very pretty.
-//! There is a bunch of improvements we could do,
-//! like removing a bunch of `unwraps`.
-
 use std::{cell::RefCell, time::Instant};
 
 use winit::event_loop::{EventLoop, EventLoopBuilder};
