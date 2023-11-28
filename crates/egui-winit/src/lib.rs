@@ -637,20 +637,53 @@ impl State {
         }
     }
 
-    fn on_keyboard_input(&mut self, input: &winit::event::KeyEvent) -> bool {
-        if let winit::keyboard::PhysicalKey::Code(keycode) = input.physical_key {
-            let pressed = input.state == winit::event::ElementState::Pressed;
+    fn on_keyboard_input(&mut self, event: &winit::event::KeyEvent) -> bool {
+        let winit::event::KeyEvent {
+            // Represents the position of a key independent of the currently active layout.
+            //
+            // It also uniquely identifies the physical key (i.e. it's mostly synonymous with a scancode).
+            // The most prevalent use case for this is games. For example the default keys for the player
+            // to move around might be the W, A, S, and D keys on a US layout. The position of these keys
+            // is more important than their label, so they should map to Z, Q, S, and D on an "AZERTY"
+            // layout. (This value is `KeyCode::KeyW` for the Z key on an AZERTY layout.)
+            physical_key,
 
+            // Represents the results of a keymap, i.e. what character a certain key press represents.
+            // When telling users "Press Ctrl-F to find", this is where we should
+            // look for the "F" key, because they may have a dvorak layout on
+            // a qwerty keyboard, and so the logical "F" character may not be located on the physical `KeyCode::KeyF` position.
+            logical_key,
+
+            text,
+
+            state,
+
+            location: _, // e.g. is it on the numpad?
+            repeat: _,   // egui will figure this out for us
+            ..
+        } = event;
+
+        let pressed = *state == winit::event::ElementState::Pressed;
+
+        let physical_key = if let winit::keyboard::PhysicalKey::Code(keycode) = *physical_key {
+            key_from_key_code(keycode)
+        } else {
+            None
+        };
+
+        let logical_key = key_from_winit_key(logical_key);
+
+        if let Some(logical_key) = logical_key {
             if pressed {
                 // KeyCode::Paste etc in winit are broken/untrustworthy,
                 // so we detect these things manually:
-                if is_cut_command(self.egui_input.modifiers, keycode) {
+                if is_cut_command(self.egui_input.modifiers, logical_key) {
                     self.egui_input.events.push(egui::Event::Cut);
                     return true;
-                } else if is_copy_command(self.egui_input.modifiers, keycode) {
+                } else if is_copy_command(self.egui_input.modifiers, logical_key) {
                     self.egui_input.events.push(egui::Event::Copy);
                     return true;
-                } else if is_paste_command(self.egui_input.modifiers, keycode) {
+                } else if is_paste_command(self.egui_input.modifiers, logical_key) {
                     if let Some(contents) = self.clipboard.get() {
                         let contents = contents.replace("\r\n", "\n");
                         if !contents.is_empty() {
@@ -661,17 +694,16 @@ impl State {
                 }
             }
 
-            if let Some(key) = translate_key_code(keycode) {
-                self.egui_input.events.push(egui::Event::Key {
-                    key,
-                    pressed,
-                    repeat: false, // egui will fill this in for us!
-                    modifiers: self.egui_input.modifiers,
-                });
-            }
+            self.egui_input.events.push(egui::Event::Key {
+                key: logical_key,
+                physical_key,
+                pressed,
+                repeat: false, // egui will fill this in for us!
+                modifiers: self.egui_input.modifiers,
+            });
         }
 
-        if let Some(text) = &input.text {
+        if let Some(text) = &text {
             // On Mac we get here when the user presses Cmd-C (copy), ctrl-W, etc.
             // We need to ignore these characters that are side-effects of commands.
             let is_mac_cmd = cfg!(target_os = "macos") && self.egui_input.modifiers.mac_cmd;
@@ -871,25 +903,19 @@ fn open_url_in_browser(_url: &str) {
     }
 }
 
-fn is_cut_command(modifiers: egui::Modifiers, keycode: winit::keyboard::KeyCode) -> bool {
-    (modifiers.command && keycode == winit::keyboard::KeyCode::KeyX)
-        || (cfg!(target_os = "windows")
-            && modifiers.shift
-            && keycode == winit::keyboard::KeyCode::Delete)
+fn is_cut_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
+    (modifiers.command && keycode == egui::Key::X)
+        || (cfg!(target_os = "windows") && modifiers.shift && keycode == egui::Key::Delete)
 }
 
-fn is_copy_command(modifiers: egui::Modifiers, keycode: winit::keyboard::KeyCode) -> bool {
-    (modifiers.command && keycode == winit::keyboard::KeyCode::KeyC)
-        || (cfg!(target_os = "windows")
-            && modifiers.ctrl
-            && keycode == winit::keyboard::KeyCode::Insert)
+fn is_copy_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
+    (modifiers.command && keycode == egui::Key::C)
+        || (cfg!(target_os = "windows") && modifiers.ctrl && keycode == egui::Key::Insert)
 }
 
-fn is_paste_command(modifiers: egui::Modifiers, keycode: winit::keyboard::KeyCode) -> bool {
-    (modifiers.command && keycode == winit::keyboard::KeyCode::KeyV)
-        || (cfg!(target_os = "windows")
-            && modifiers.shift
-            && keycode == winit::keyboard::KeyCode::Insert)
+fn is_paste_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
+    (modifiers.command && keycode == egui::Key::V)
+        || (cfg!(target_os = "windows") && modifiers.shift && keycode == egui::Key::Insert)
 }
 
 fn translate_mouse_button(button: winit::event::MouseButton) -> Option<egui::PointerButton> {
@@ -903,7 +929,111 @@ fn translate_mouse_button(button: winit::event::MouseButton) -> Option<egui::Poi
     }
 }
 
-fn translate_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
+fn key_from_winit_key(key: &winit::keyboard::Key) -> Option<egui::Key> {
+    match key {
+        winit::keyboard::Key::Named(named_key) => key_from_named_key(*named_key),
+        winit::keyboard::Key::Character(str) => key_from_string(str.as_str()),
+        winit::keyboard::Key::Unidentified(_) | winit::keyboard::Key::Dead(_) => None,
+    }
+}
+
+fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key> {
+    use egui::Key;
+    use winit::keyboard::NamedKey;
+
+    match named_key {
+        NamedKey::Enter => Some(Key::Enter),
+        NamedKey::Tab => Some(Key::Tab),
+        NamedKey::Space => Some(Key::Space),
+        NamedKey::ArrowDown => Some(Key::ArrowDown),
+        NamedKey::ArrowLeft => Some(Key::ArrowLeft),
+        NamedKey::ArrowRight => Some(Key::ArrowRight),
+        NamedKey::ArrowUp => Some(Key::ArrowUp),
+        NamedKey::End => Some(Key::End),
+        NamedKey::Home => Some(Key::Home),
+        NamedKey::PageDown => Some(Key::PageDown),
+        NamedKey::PageUp => Some(Key::PageUp),
+        NamedKey::Backspace => Some(Key::Backspace),
+        NamedKey::Delete => Some(Key::Delete),
+        NamedKey::Insert => Some(Key::Insert),
+        NamedKey::Escape => Some(Key::Escape),
+        NamedKey::F1 => Some(Key::F1),
+        NamedKey::F2 => Some(Key::F2),
+        NamedKey::F3 => Some(Key::F3),
+        NamedKey::F4 => Some(Key::F4),
+        NamedKey::F5 => Some(Key::F5),
+        NamedKey::F6 => Some(Key::F6),
+        NamedKey::F7 => Some(Key::F7),
+        NamedKey::F8 => Some(Key::F8),
+        NamedKey::F9 => Some(Key::F9),
+        NamedKey::F10 => Some(Key::F10),
+        NamedKey::F11 => Some(Key::F11),
+        NamedKey::F12 => Some(Key::F12),
+        NamedKey::F13 => Some(Key::F13),
+        NamedKey::F14 => Some(Key::F14),
+        NamedKey::F15 => Some(Key::F15),
+        NamedKey::F16 => Some(Key::F16),
+        NamedKey::F17 => Some(Key::F17),
+        NamedKey::F18 => Some(Key::F18),
+        NamedKey::F19 => Some(Key::F19),
+        NamedKey::F20 => Some(Key::F20),
+        _ => {
+            log::debug!("Unknown key: {named_key:?}");
+            None
+        }
+    }
+}
+
+fn key_from_string(as_str: &str) -> Option<egui::Key> {
+    use egui::Key;
+
+    match as_str {
+        "-" => Some(Key::Minus),
+        "+" | "=" => Some(Key::PlusEquals),
+
+        "0" => Some(Key::Num0),
+        "1" => Some(Key::Num1),
+        "2" => Some(Key::Num2),
+        "3" => Some(Key::Num3),
+        "4" => Some(Key::Num4),
+        "5" => Some(Key::Num5),
+        "6" => Some(Key::Num6),
+        "7" => Some(Key::Num7),
+        "8" => Some(Key::Num8),
+        "9" => Some(Key::Num9),
+
+        "a" | "A" => Some(Key::A),
+        "b" | "B" => Some(Key::B),
+        "c" | "C" => Some(Key::C),
+        "d" | "D" => Some(Key::D),
+        "e" | "E" => Some(Key::E),
+        "f" | "F" => Some(Key::F),
+        "g" | "G" => Some(Key::G),
+        "h" | "H" => Some(Key::H),
+        "i" | "I" => Some(Key::I),
+        "j" | "J" => Some(Key::J),
+        "k" | "K" => Some(Key::K),
+        "l" | "L" => Some(Key::L),
+        "m" | "M" => Some(Key::M),
+        "n" | "N" => Some(Key::N),
+        "o" | "O" => Some(Key::O),
+        "p" | "P" => Some(Key::P),
+        "q" | "Q" => Some(Key::Q),
+        "r" | "R" => Some(Key::R),
+        "s" | "S" => Some(Key::S),
+        "t" | "T" => Some(Key::T),
+        "u" | "U" => Some(Key::U),
+        "v" | "V" => Some(Key::V),
+        "w" | "W" => Some(Key::W),
+        "x" | "X" => Some(Key::X),
+        "y" | "Y" => Some(Key::Y),
+        "z" | "Z" => Some(Key::Z),
+
+        _ => None,
+    }
+}
+
+fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
     use egui::Key;
     use winit::keyboard::KeyCode;
 
