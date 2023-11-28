@@ -8,6 +8,7 @@
 use std::{cell::RefCell, rc::Rc, sync::Arc, time::Instant};
 
 use glutin::{
+    config::GlConfig,
     context::NotCurrentGlContext,
     display::GetGlDisplay,
     prelude::{GlDisplay, PossiblyCurrentGlContext},
@@ -977,11 +978,16 @@ impl GlutinWindowContext {
             window
         } else {
             log::debug!("Creating a window for viewport {viewport_id:?}");
-            let window = glutin_winit::finalize_window(
-                event_loop,
-                create_winit_window_builder(&self.egui_ctx, event_loop, viewport.builder.clone()),
-                &self.gl_config,
-            )?;
+            let window_builder =
+                create_winit_window_builder(&self.egui_ctx, event_loop, viewport.builder.clone());
+
+            if window_builder.transparent() && self.gl_config.supports_transparency() == Some(false)
+            {
+                log::error!("Cannot create transparent window: the GL config does not support it");
+            }
+
+            let window =
+                glutin_winit::finalize_window(event_loop, window_builder, &self.gl_config)?;
             apply_viewport_builder_to_new_window(&window, &viewport.builder);
             viewport.info.minimized = window.is_minimized();
             viewport.info.maximized = Some(window.is_maximized());
