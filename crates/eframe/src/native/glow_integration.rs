@@ -172,7 +172,7 @@ impl GlowWinitApp {
         };
 
         // Creates the window - must come before we create our glow context
-        glutin_window_context.initialize_all_windows(event_loop)?;
+        glutin_window_context.initialize_window(ViewportId::ROOT, event_loop)?;
 
         {
             let viewport = &glutin_window_context.viewports[&ViewportId::ROOT];
@@ -430,7 +430,7 @@ impl WinitApp for GlowWinitApp {
                     running
                         .glutin
                         .borrow_mut()
-                        .initialize_all_windows(event_loop)?;
+                        .initialize_all_windows(event_loop);
                     running
                 } else {
                     // First resume event. Created our root window etc.
@@ -939,30 +939,29 @@ impl GlutinWindowContext {
             focused_viewport: Some(ViewportId::ROOT),
         };
 
-        slf.initialize_all_windows(event_loop)?;
+        slf.initialize_window(ViewportId::ROOT, event_loop)?;
 
         Ok(slf)
     }
 
     /// Create a surface, window, and winit integration for all viewports lacking any of that.
-    fn initialize_all_windows(
-        &mut self,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
-    ) -> Result<()> {
+    ///
+    /// Errors will be logged.
+    fn initialize_all_windows(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) {
         crate::profile_function!();
 
         let viewports: Vec<ViewportId> = self.viewports.keys().copied().collect();
 
         for viewport_id in viewports {
-            self.initalize_window(viewport_id, event_loop)?;
+            if let Err(err) = self.initialize_window(viewport_id, event_loop) {
+                log::error!("Failed to initialize a window for viewport {viewport_id:?}: {err}");
+            }
         }
-
-        Ok(())
     }
 
     /// Create a surface, window, and winit integration for the viewport, if missing.
     #[allow(unsafe_code)]
-    pub(crate) fn initalize_window(
+    pub(crate) fn initialize_window(
         &mut self,
         viewport_id: ViewportId,
         event_loop: &EventLoopWindowTarget<UserEvent>,
@@ -1046,10 +1045,8 @@ impl GlutinWindowContext {
             self.current_gl_context = Some(current_gl_context);
         }
 
-        self.viewport_from_window
-            .insert(window.id(), viewport.ids.this);
-        self.window_from_viewport
-            .insert(viewport.ids.this, window.id());
+        self.viewport_from_window.insert(window.id(), viewport_id);
+        self.window_from_viewport.insert(viewport_id, window.id());
 
         Ok(())
     }
@@ -1274,10 +1271,12 @@ fn render_immediate_viewport(
         viewport_ui_cb,
     } = immediate_viewport;
 
+    let viewport_id = ids.this;
+
     {
         let mut glutin = glutin.borrow_mut();
 
-        let viewport = initialize_or_update_viewport(
+        initialize_or_update_viewport(
             egui_ctx,
             &mut glutin.viewports,
             ids,
@@ -1287,17 +1286,18 @@ fn render_immediate_viewport(
             None,
         );
 
-        if viewport.gl_surface.is_none() {
-            glutin
-                .initalize_window(ids.this, event_loop)
-                .expect("Failed to initialize window in egui::Context::show_viewport_immediate");
+        if let Err(err) = glutin.initialize_window(viewport_id, event_loop) {
+            log::error!(
+                "Failed to initialize a window for immediate viewport {viewport_id:?}: {err}"
+            );
+            return;
         }
     }
 
     let input = {
         let mut glutin = glutin.borrow_mut();
 
-        let Some(viewport) = glutin.viewports.get_mut(&ids.this) else {
+        let Some(viewport) = glutin.viewports.get_mut(&viewport_id) else {
             return;
         };
         viewport.update_viewport_info();
@@ -1342,7 +1342,7 @@ fn render_immediate_viewport(
         ..
     } = &mut *glutin;
 
-    let Some(viewport) = viewports.get_mut(&ids.this) else {
+    let Some(viewport) = viewports.get_mut(&viewport_id) else {
         return;
     };
     viewport.info.events.clear(); // they should have been processed
@@ -1373,7 +1373,7 @@ fn render_immediate_viewport(
     let current_gl_context = current_gl_context.as_ref().unwrap();
 
     if !gl_surface.is_current(current_gl_context) {
-        log::error!("egui::show_viewport_immediate: viewport {:?}  ({:?}) is not created in main thread, try to use wgpu!", viewport.ids.this, viewport.builder.title);
+        log::error!("egui::show_viewport_immediate: viewport {:?}  ({:?}) is not created in main thread, try to use wgpu!", viewport_id, viewport.builder.title);
     }
 
     let gl = &painter.gl().clone();
