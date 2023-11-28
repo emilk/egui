@@ -1092,7 +1092,12 @@ fn process_viewport_command(
         ViewportCommand::InnerSize(size) => {
             let width_px = pixels_per_point * size.x.max(1.0);
             let height_px = pixels_per_point * size.y.max(1.0);
-            let _ = window.request_inner_size(PhysicalSize::new(width_px, height_px));
+            if window
+                .request_inner_size(PhysicalSize::new(width_px, height_px))
+                .is_some()
+            {
+                log::debug!("ViewportCommand::InnerSize ignored by winit");
+            }
         }
         ViewportCommand::BeginResize(direction) => {
             if let Err(err) = window.drag_resize_window(match direction {
