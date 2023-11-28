@@ -2,6 +2,7 @@
 
 use egui::{mutex::Mutex, TextureFilter, TextureOptions};
 
+#[cfg(feature = "svg")]
 use resvg::{tiny_skia, usvg};
 
 #[cfg(feature = "svg")]
