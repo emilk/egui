@@ -210,9 +210,11 @@ fn run_and_return(
     // we only apply this approach on Windows to minimize the affect.
     #[cfg(target_os = "windows")]
     {
-        event_loop.run_on_demand(|_, event_loop_window_target| {
-            event_loop_window_target.exit();
-        });
+        event_loop
+            .run_on_demand(|_, event_loop_window_target| {
+                event_loop_window_target.exit();
+            })
+            .ok();
     }
 
     returned_result
