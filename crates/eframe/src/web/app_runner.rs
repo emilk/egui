@@ -13,7 +13,6 @@ pub struct AppRunner {
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     last_save_time: f64,
-    screen_reader: super::screen_reader::ScreenReader,
     pub(crate) text_cursor_pos: Option<egui::Pos2>,
     pub(crate) mutable_text_under_cursor: bool,
 
@@ -113,7 +112,6 @@ impl AppRunner {
             app,
             needs_repaint,
             last_save_time: now_sec(),
-            screen_reader: Default::default(),
             text_cursor_pos: None,
             mutable_text_under_cursor: false,
             textures_delta: Default::default(),
@@ -235,9 +233,9 @@ impl AppRunner {
     }
 
     fn handle_platform_output(&mut self, platform_output: egui::PlatformOutput) {
+        #[cfg(feature = "web_screen_reader")]
         if self.egui_ctx.options(|o| o.screen_reader) {
-            self.screen_reader
-                .speak(&platform_output.events_description());
+            super::screen_reader::speak(&platform_output.events_description());
         }
 
         let egui::PlatformOutput {

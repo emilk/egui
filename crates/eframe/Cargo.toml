@@ -32,6 +32,7 @@ default = [
   "default_fonts",
   "glow",
   "wayland",
+  "web_screen_reader",
   "winit/default",
   "x11",
 ]
@@ -84,7 +85,10 @@ wayland = ["egui-winit/wayland"]
 ## Enable screen reader support (requires `ctx.options_mut(|o| o.screen_reader = true);`) on web.
 ##
 ## For other platforms, use the `accesskit` feature instead.
-web_screen_reader = ["tts"]
+web_screen_reader = [
+  "web-sys/SpeechSynthesis",
+  "web-sys/SpeechSynthesisUtterance",
+]
 
 ## Use [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui-wgpu`](https://github.com/emilk/egui/tree/master/crates/egui-wgpu)).
 ## This overrides the `glow` feature.
@@ -207,5 +211,4 @@ web-sys = { version = "0.3.58", features = [
 # optional web:
 egui-wgpu = { version = "0.24.0", path = "../egui-wgpu", optional = true } # if wgpu is used, use it without (!) winit
 raw-window-handle = { workspace = true, optional = true }
-tts = { version = "0.25", optional = true, default-features = false }
 wgpu = { workspace = true, optional = true }
