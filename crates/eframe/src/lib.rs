@@ -316,7 +316,7 @@ pub enum Error {
     #[error("winit error: {0}")]
     Winit(#[from] winit::error::OsError),
 
-    /// An error from [`winit::EventLoop`].
+    /// An error from [`winit::event_loop::EventLoop`].
     #[cfg(not(target_arch = "wasm32"))]
     #[error("winit EventLoopError: {0}")]
     WinitEventLoop(#[from] winit::error::EventLoopError),
