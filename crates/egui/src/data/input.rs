@@ -1088,6 +1088,9 @@ impl Key {
     ///
     /// This will parse the output of both [`Self::name`] and [`Self::symbol_or_name`],
     /// but will also parse single characters, so that both `"-"` and `"Minus"` will return `Key::Minus`.
+    ///
+    /// This should support both the names generated in a web browser,
+    /// and by winit. Please test on both with `eframe`.
     pub fn from_name(key: &str) -> Option<Self> {
         Some(match key {
             "ArrowDown" | "Down" | "⏷" => Self::ArrowDown,
