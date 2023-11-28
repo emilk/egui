@@ -1,10 +1,13 @@
+use std::{mem::size_of, path::Path, sync::Arc};
+
 use egui::{
     ahash::HashMap,
     load::{BytesPoll, ImageLoadResult, ImageLoader, ImagePoll, LoadError, SizeHint},
     mutex::Mutex,
     ColorImage,
 };
-use std::{mem::size_of, path::Path, sync::Arc};
+
+use resvg::usvg;
 
 type Entry = Result<Arc<ColorImage>, String>;
 

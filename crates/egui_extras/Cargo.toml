@@ -53,7 +53,7 @@ image = ["dep:image"]
 puffin = ["dep:puffin", "egui/puffin"]
 
 ## Support loading svg images.
-svg = ["resvg", "tiny-skia", "usvg"]
+svg = ["resvg"]
 
 ## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).
 syntect = ["dep:syntect"]
@@ -93,8 +93,6 @@ syntect = { version = "5", optional = true, default-features = false, features =
 
 # svg feature
 resvg = { version = "0.28", optional = true, default-features = false }
-tiny-skia = { version = "0.8", optional = true, default-features = false } # must be updated in lock-step with resvg
-usvg = { version = "0.28", optional = true, default-features = false }
 
 # http feature
 ehttp = { version = "0.3.1", optional = true, default-features = false }

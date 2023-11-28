@@ -1298,8 +1298,6 @@ dependencies = [
  "resvg",
  "serde",
  "syntect",
- "tiny-skia 0.8.4",
- "usvg",
 ]
 
 [[package]]

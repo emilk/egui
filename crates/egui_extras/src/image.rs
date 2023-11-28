@@ -2,6 +2,8 @@
 
 use egui::{mutex::Mutex, TextureFilter, TextureOptions};
 
+use resvg::{tiny_skia, usvg};
+
 #[cfg(feature = "svg")]
 pub use usvg::FitTo;
 
