@@ -210,7 +210,7 @@ fn run_and_return(
     // we only apply this approach on Windows to minimize the affect.
     #[cfg(target_os = "windows")]
     {
-        event_loop.run_return(|_, _, control_flow| {
+        event_loop.run_on_demand(|_, _, control_flow| {
             control_flow.set_exit();
         });
     }
