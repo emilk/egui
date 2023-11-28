@@ -62,7 +62,7 @@ impl FullOutput {
     }
 }
 
-/// Information about text beeing edited.
+/// Information about text being edited.
 ///
 /// Useful for IME.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
