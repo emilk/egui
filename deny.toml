@@ -34,27 +34,24 @@ deny = [
 ]
 
 skip = [
-    { name = "arrayvec" },            # old version via tiny-skiaz
-    { name = "base64" },              # small crate, old version from usvg
-    { name = "glow" },                # TODO(@wumpf): Old version use for glow backend right now, newer for wgpu. Updating this trickles out to updating winit.
-    { name = "glutin_wgl_sys" },      # TODO(@wumpf): Old version use for glow backend right now, newer for wgpu. Updating this trickles out to updating winit.
-    { name = "libloading" },          # wgpu-hal itself depends on 0.8 while some of its dependencies, like ash and d3d12, depend on 0.7
-    { name = "memoffset" },           # tiny dependency
-    { name = "nix" },                 # old version via winit
-    { name = "redox_syscall" },       # old version via winit
-    { name = "spin" },                # old version via ring through rusttls and other libraries, newer for wgpu.
-    { name = "time" },                # old version pulled in by unmaintianed crate 'chrono'
-    { name = "tiny-skia" },           # winit uses a different version from egui_extras (TODO(emilk): update egui_extras!)
-    { name = "ttf-parser" },          # different versions pulled in by ab_glyph and usvg
-    { name = "wayland-sys" },         # old version via winit
-    { name = "windows_x86_64_msvc" }, # old version via glutin
-    { name = "windows-sys" },         # old version via glutin
-    { name = "windows" },             # old version via accesskit
+    { name = "arrayvec" },       # old version via tiny-skiaz
+    { name = "base64" },         # small crate, old version from usvg
+    { name = "glow" },           # TODO(@wumpf): Old version use for glow backend right now, newer for wgpu. Updating this trickles out to updating winit.
+    { name = "glutin_wgl_sys" }, # TODO(@wumpf): Old version use for glow backend right now, newer for wgpu. Updating this trickles out to updating winit.
+    { name = "libloading" },     # wgpu-hal itself depends on 0.8 while some of its dependencies, like ash and d3d12, depend on 0.7
+    { name = "memoffset" },      # tiny dependency
+    { name = "redox_syscall" },  # old version via directories-next
+    { name = "spin" },           # old version via ring through rusttls and other libraries, newer for wgpu.
+    { name = "time" },           # old version pulled in by unmaintianed crate 'chrono'
+    { name = "ttf-parser" },     # different versions pulled in by ab_glyph and usvg
+    { name = "windows" },        # old version via accesskit_windows
 ]
 skip-tree = [
     { name = "criterion" },     # dev-dependency
     { name = "foreign-types" }, # small crate. Old version via cocoa and core-graphics (winit).
+    { name = "objc2" },         # old version via accesskit_macos
     { name = "rfd" },           # example dependency
+    { name = "tiny-skia" },     # old version via old resvg in egui_extras - see https://github.com/emilk/egui/issues/3652
 ]
 
 
