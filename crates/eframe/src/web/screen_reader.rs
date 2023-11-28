@@ -5,7 +5,7 @@ pub fn speak(text: &str) {
     }
 
     if let Some(window) = web_sys::window() {
-        log::debug!("Speaking: {:?}", text);
+        log::debug!("Speaking {text:?}");
 
         if let Ok(speech_synthesis) = window.speech_synthesis() {
             speech_synthesis.cancel(); // interrupt previous speech, if any
