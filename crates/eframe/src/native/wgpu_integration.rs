@@ -353,7 +353,11 @@ impl WinitApp for WgpuWinitApp {
         }
     }
 
-    fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
+    fn run_ui_and_paint(
+        &mut self,
+        event_loop: &EventLoopWindowTarget<UserEvent>,
+        window_id: WindowId,
+    ) -> EventResult {
         if let Some(running) = &mut self.running {
             running.run_ui_and_paint(window_id)
         } else {

@@ -96,7 +96,7 @@ fn run_and_return(
                 window_id,
             } => {
                 windows_next_repaint_times.remove(window_id);
-                winit_app.run_ui_and_paint(*window_id)
+                winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
             }
 
             winit::event::Event::UserEvent(UserEvent::RequestRepaint {
@@ -151,7 +151,7 @@ fn run_and_return(
                     // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                     windows_next_repaint_times.remove(&window_id);
 
-                    winit_app.run_ui_and_paint(window_id);
+                    winit_app.run_ui_and_paint(event_loop_window_target, window_id);
                 } else {
                     // Fix for https://github.com/emilk/egui/issues/2425
                     windows_next_repaint_times.insert(window_id, Instant::now());
@@ -256,7 +256,7 @@ fn run_and_exit(
                 window_id,
             } => {
                 windows_next_repaint_times.remove(window_id);
-                winit_app.run_ui_and_paint(*window_id)
+                winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
             }
 
             winit::event::Event::UserEvent(UserEvent::RequestRepaint {
@@ -305,7 +305,7 @@ fn run_and_exit(
                     // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                     windows_next_repaint_times.remove(&window_id);
 
-                    winit_app.run_ui_and_paint(window_id);
+                    winit_app.run_ui_and_paint(event_loop_window_target, window_id);
                 } else {
                     // Fix for https://github.com/emilk/egui/issues/2425
                     windows_next_repaint_times.insert(window_id, Instant::now());

@@ -74,7 +74,11 @@ pub trait WinitApp {
 
     fn save_and_destroy(&mut self);
 
-    fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult;
+    fn run_ui_and_paint(
+        &mut self,
+        event_loop: &EventLoopWindowTarget<UserEvent>,
+        window_id: WindowId,
+    ) -> EventResult;
 
     fn on_event(
         &mut self,
