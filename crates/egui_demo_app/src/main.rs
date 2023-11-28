@@ -41,8 +41,6 @@ fn main() -> Result<(), eframe::Error> {
         #[cfg(feature = "wgpu")]
         renderer: eframe::Renderer::Wgpu,
 
-        run_and_return: false,
-
         ..Default::default()
     };
     eframe::run_native(
