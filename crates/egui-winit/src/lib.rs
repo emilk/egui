@@ -1176,10 +1176,13 @@ fn process_viewport_command(
                     .expect("Invalid ICON data!")
             }));
         }
-        ViewportCommand::IMEPosition(pos) => {
+        ViewportCommand::IMERect(rect) => {
             window.set_ime_cursor_area(
-                PhysicalPosition::new(pixels_per_point * pos.x, pixels_per_point * pos.y),
-                PhysicalSize::new(100, 100),
+                PhysicalPosition::new(pixels_per_point * rect.min.x, pixels_per_point * rect.min.y),
+                PhysicalSize::new(
+                    pixels_per_point * rect.size().x,
+                    pixels_per_point * rect.size().y,
+                ),
             );
         }
         ViewportCommand::IMEAllowed(v) => window.set_ime_allowed(v),
