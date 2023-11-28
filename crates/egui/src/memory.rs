@@ -199,7 +199,7 @@ pub struct Options {
     ///
     /// Screen readers is an experimental feature of egui, and not supported on all platforms.
     ///
-    /// `eframe` supports it only on web, using the `web_screen_reader` feature flag,
+    /// `eframe` supports it only on web,
     /// but you should consider using [AccessKit](https://github.com/AccessKit/accesskit) instead,
     /// which `eframe` supports.
     pub screen_reader: bool,

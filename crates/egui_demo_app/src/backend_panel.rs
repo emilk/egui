@@ -94,15 +94,12 @@ impl BackendPanel {
         self.egui_windows.checkboxes(ui);
 
         #[cfg(debug_assertions)]
-        {
+        if ui.ctx().style().debug.debug_on_hover_with_all_modifiers {
             ui.separator();
-            if ui.ctx().style().debug.debug_on_hover_with_all_modifiers {
-                ui.label("Press down all modifiers and hover a widget to see a callstack for it");
-            }
+            ui.label("Press down all modifiers and hover a widget to see a callstack for it");
         }
 
         #[cfg(target_arch = "wasm32")]
-        #[cfg(feature = "web_screen-reader")]
         {
             ui.separator();
             let mut screen_reader = ui.ctx().options(|o| o.screen_reader);
