@@ -932,7 +932,7 @@ fn translate_mouse_button(button: winit::event::MouseButton) -> Option<egui::Poi
 fn key_from_winit_key(key: &winit::keyboard::Key) -> Option<egui::Key> {
     match key {
         winit::keyboard::Key::Named(named_key) => key_from_named_key(*named_key),
-        winit::keyboard::Key::Character(str) => key_from_string(str.as_str()),
+        winit::keyboard::Key::Character(str) => egui::Key::from_name(str.as_str()),
         winit::keyboard::Key::Unidentified(_) | winit::keyboard::Key::Dead(_) => None,
     }
 }
@@ -981,55 +981,6 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
             log::trace!("Unknown key: {named_key:?}");
             None
         }
-    }
-}
-
-fn key_from_string(as_str: &str) -> Option<egui::Key> {
-    use egui::Key;
-
-    match as_str {
-        "-" => Some(Key::Minus),
-        "+" | "=" => Some(Key::PlusEquals),
-
-        "0" => Some(Key::Num0),
-        "1" => Some(Key::Num1),
-        "2" => Some(Key::Num2),
-        "3" => Some(Key::Num3),
-        "4" => Some(Key::Num4),
-        "5" => Some(Key::Num5),
-        "6" => Some(Key::Num6),
-        "7" => Some(Key::Num7),
-        "8" => Some(Key::Num8),
-        "9" => Some(Key::Num9),
-
-        "a" | "A" => Some(Key::A),
-        "b" | "B" => Some(Key::B),
-        "c" | "C" => Some(Key::C),
-        "d" | "D" => Some(Key::D),
-        "e" | "E" => Some(Key::E),
-        "f" | "F" => Some(Key::F),
-        "g" | "G" => Some(Key::G),
-        "h" | "H" => Some(Key::H),
-        "i" | "I" => Some(Key::I),
-        "j" | "J" => Some(Key::J),
-        "k" | "K" => Some(Key::K),
-        "l" | "L" => Some(Key::L),
-        "m" | "M" => Some(Key::M),
-        "n" | "N" => Some(Key::N),
-        "o" | "O" => Some(Key::O),
-        "p" | "P" => Some(Key::P),
-        "q" | "Q" => Some(Key::Q),
-        "r" | "R" => Some(Key::R),
-        "s" | "S" => Some(Key::S),
-        "t" | "T" => Some(Key::T),
-        "u" | "U" => Some(Key::U),
-        "v" | "V" => Some(Key::V),
-        "w" | "W" => Some(Key::W),
-        "x" | "X" => Some(Key::X),
-        "y" | "Y" => Some(Key::Y),
-        "z" | "Z" => Some(Key::Z),
-
-        _ => None,
     }
 }
 

@@ -865,11 +865,8 @@ impl<'a> ModifierNames<'a> {
 
 /// Keyboard keys.
 ///
-/// Includes all keys egui is interested in (such as `Home` and `End`)
-/// plus a few that are useful for detecting keyboard shortcuts.
-///
-/// Many keys are omitted because they are not always physical keys (depending on keyboard language), e.g. `;` and `§`,
-/// and are therefore unsuitable as keyboard shortcuts if you want your app to be portable.
+/// egui usually uses logical keys, i.e. after applying any user keymap.
+// TODO(emilk): split into `LogicalKey` and `PhysicalKey`
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Key {
@@ -978,6 +975,175 @@ pub enum Key {
 }
 
 impl Key {
+    /// All egui keys
+    pub const ALL: &'static [Self] = &[
+        Self::ArrowDown,
+        Self::ArrowLeft,
+        Self::ArrowRight,
+        Self::ArrowUp,
+        Self::Escape,
+        Self::Tab,
+        Self::Backspace,
+        Self::Enter,
+        Self::Space,
+        Self::Insert,
+        Self::Delete,
+        Self::Home,
+        Self::End,
+        Self::PageUp,
+        Self::PageDown,
+        Self::Minus,
+        Self::PlusEquals,
+        Self::Num0,
+        Self::Num1,
+        Self::Num2,
+        Self::Num3,
+        Self::Num4,
+        Self::Num5,
+        Self::Num6,
+        Self::Num7,
+        Self::Num8,
+        Self::Num9,
+        Self::A,
+        Self::B,
+        Self::C,
+        Self::D,
+        Self::E,
+        Self::F,
+        Self::G,
+        Self::H,
+        Self::I,
+        Self::J,
+        Self::K,
+        Self::L,
+        Self::M,
+        Self::N,
+        Self::O,
+        Self::P,
+        Self::Q,
+        Self::R,
+        Self::S,
+        Self::T,
+        Self::U,
+        Self::V,
+        Self::W,
+        Self::X,
+        Self::Y,
+        Self::Z,
+        Self::F1,
+        Self::F2,
+        Self::F3,
+        Self::F4,
+        Self::F5,
+        Self::F6,
+        Self::F7,
+        Self::F8,
+        Self::F9,
+        Self::F10,
+        Self::F11,
+        Self::F12,
+        Self::F13,
+        Self::F14,
+        Self::F15,
+        Self::F16,
+        Self::F17,
+        Self::F18,
+        Self::F19,
+        Self::F20,
+    ];
+
+    /// Converts `"A"` to `Key::A`, `Space` to `Key::Space`, etc.
+    ///
+    /// Makes sense for logical keys.
+    ///
+    /// This will parse the output of both [`Self::name`] and [`Self::symbol_or_name`],
+    /// but will also parse single characters, so that both `"-"` and `"Minus"` will return `Key::Minus`.
+    pub fn from_name(key: &str) -> Option<Self> {
+        match key {
+            "Down" | "ArrowDown" | "⏷" => Some(Self::ArrowDown),
+            "Left" | "ArrowLeft" | "⏴" => Some(Self::ArrowLeft),
+            "Right" | "ArrowRight" | "⏵" => Some(Self::ArrowRight),
+            "Up" | "ArrowUp" | "⏶" => Some(Self::ArrowUp),
+
+            "Esc" | "Escape" => Some(Self::Escape),
+            "Tab" => Some(Self::Tab),
+            "Backspace" => Some(Self::Backspace),
+            "Enter" | "Return" => Some(Self::Enter),
+            "Space" | " " => Some(Self::Space),
+
+            "Help" | "Insert" => Some(Self::Insert),
+            "Delete" => Some(Self::Delete),
+            "Home" => Some(Self::Home),
+            "End" => Some(Self::End),
+            "PageUp" => Some(Self::PageUp),
+            "PageDown" => Some(Self::PageDown),
+
+            "Minus" | "-" | "−" => Some(Self::Minus),
+            "Plus" | "+" | "Equals" | "=" => Some(Self::PlusEquals),
+
+            "0" => Some(Self::Num0),
+            "1" => Some(Self::Num1),
+            "2" => Some(Self::Num2),
+            "3" => Some(Self::Num3),
+            "4" => Some(Self::Num4),
+            "5" => Some(Self::Num5),
+            "6" => Some(Self::Num6),
+            "7" => Some(Self::Num7),
+            "8" => Some(Self::Num8),
+            "9" => Some(Self::Num9),
+
+            "a" | "A" => Some(Self::A),
+            "b" | "B" => Some(Self::B),
+            "c" | "C" => Some(Self::C),
+            "d" | "D" => Some(Self::D),
+            "e" | "E" => Some(Self::E),
+            "f" | "F" => Some(Self::F),
+            "g" | "G" => Some(Self::G),
+            "h" | "H" => Some(Self::H),
+            "i" | "I" => Some(Self::I),
+            "j" | "J" => Some(Self::J),
+            "k" | "K" => Some(Self::K),
+            "l" | "L" => Some(Self::L),
+            "m" | "M" => Some(Self::M),
+            "n" | "N" => Some(Self::N),
+            "o" | "O" => Some(Self::O),
+            "p" | "P" => Some(Self::P),
+            "q" | "Q" => Some(Self::Q),
+            "r" | "R" => Some(Self::R),
+            "s" | "S" => Some(Self::S),
+            "t" | "T" => Some(Self::T),
+            "u" | "U" => Some(Self::U),
+            "v" | "V" => Some(Self::V),
+            "w" | "W" => Some(Self::W),
+            "x" | "X" => Some(Self::X),
+            "y" | "Y" => Some(Self::Y),
+            "z" | "Z" => Some(Self::Z),
+
+            "F1" => Some(Self::F1),
+            "F2" => Some(Self::F2),
+            "F3" => Some(Self::F3),
+            "F4" => Some(Self::F4),
+            "F5" => Some(Self::F5),
+            "F6" => Some(Self::F6),
+            "F7" => Some(Self::F7),
+            "F8" => Some(Self::F8),
+            "F9" => Some(Self::F9),
+            "F10" => Some(Self::F10),
+            "F11" => Some(Self::F11),
+            "F12" => Some(Self::F12),
+            "F13" => Some(Self::F13),
+            "F14" => Some(Self::F14),
+            "F15" => Some(Self::F15),
+            "F16" => Some(Self::F16),
+            "F17" => Some(Self::F17),
+            "F18" => Some(Self::F18),
+            "F19" => Some(Self::F19),
+            "F20" => Some(Self::F20),
+
+            _ => None,
+        }
+    }
+
     /// Emoji or name representing the key
     pub fn symbol_or_name(self) -> &'static str {
         // TODO(emilk): add support for more unicode symbols (see for instance https://wincent.com/wiki/Unicode_representations_of_modifier_keys).
@@ -1001,19 +1167,23 @@ impl Key {
             Key::ArrowLeft => "Left",
             Key::ArrowRight => "Right",
             Key::ArrowUp => "Up",
+
             Key::Escape => "Escape",
             Key::Tab => "Tab",
             Key::Backspace => "Backspace",
             Key::Enter => "Enter",
             Key::Space => "Space",
+
             Key::Insert => "Insert",
             Key::Delete => "Delete",
             Key::Home => "Home",
             Key::End => "End",
             Key::PageUp => "PageUp",
             Key::PageDown => "PageDown",
+
             Key::Minus => "Minus",
             Key::PlusEquals => "Plus",
+
             Key::Num0 => "0",
             Key::Num1 => "1",
             Key::Num2 => "2",
@@ -1024,6 +1194,7 @@ impl Key {
             Key::Num7 => "7",
             Key::Num8 => "8",
             Key::Num9 => "9",
+
             Key::A => "A",
             Key::B => "B",
             Key::C => "C",
@@ -1071,6 +1242,25 @@ impl Key {
             Key::F19 => "F19",
             Key::F20 => "F20",
         }
+    }
+}
+
+#[test]
+fn test_key_from_name() {
+    for &key in Key::ALL {
+        let name = key.name();
+        assert_eq!(
+            Key::from_name(name),
+            Some(key),
+            "Failed to roundtrip {key:?} from name {name:?}"
+        );
+
+        let symbol = key.symbol_or_name();
+        assert_eq!(
+            Key::from_name(symbol),
+            Some(key),
+            "Failed to roundtrip {key:?} from symbol {symbol:?}"
+        );
     }
 }
 
