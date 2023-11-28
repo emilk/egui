@@ -143,7 +143,10 @@ fn run_and_return(
                 event_loop_window_target.set_control_flow(ControlFlow::Wait);
             }
             EventResult::RepaintNow(window_id) => {
-                log::trace!("RepaintNow caused by {}", short_event_description(&event));
+                log::trace!(
+                    "RepaintNow of {window_id:?} caused by {}",
+                    short_event_description(&event)
+                );
                 if cfg!(target_os = "windows") {
                     // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                     windows_next_repaint_times.remove(&window_id);
@@ -155,7 +158,10 @@ fn run_and_return(
                 }
             }
             EventResult::RepaintNext(window_id) => {
-                log::trace!("RepaintNext caused by {}", short_event_description(&event));
+                log::trace!(
+                    "RepaintNext of {window_id:?} caused by {}",
+                    short_event_description(&event)
+                );
                 windows_next_repaint_times.insert(window_id, Instant::now());
             }
             EventResult::RepaintAt(window_id, repaint_time) => {

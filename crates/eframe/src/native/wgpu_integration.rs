@@ -372,6 +372,8 @@ impl WinitApp for WgpuWinitApp {
 
         Ok(match event {
             winit::event::Event::Resumed => {
+                log::debug!("Event::Resumed");
+
                 let running = if let Some(running) = &self.running {
                     running
                 } else {

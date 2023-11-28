@@ -978,7 +978,7 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::F19 => Some(Key::F19),
         NamedKey::F20 => Some(Key::F20),
         _ => {
-            log::debug!("Unknown key: {named_key:?}");
+            log::trace!("Unknown key: {named_key:?}");
             None
         }
     }
