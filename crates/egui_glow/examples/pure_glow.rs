@@ -218,12 +218,6 @@ fn main() {
         };
 
         match event {
-            // Platform-dependent event handlers to workaround a winit bug
-            // See: https://github.com/rust-windowing/winit/issues/987
-            // See: https://github.com/rust-windowing/winit/issues/1619
-            // winit::event::Event::RedrawEventsCleared if cfg!(target_os = "windows") => redraw(),
-            // winit::event::Event::RedrawRequested(_) if !cfg!(target_os = "windows") => redraw(),
-            // TODO: Adopt to above comment (if still relevant)
             winit::event::Event::WindowEvent { event, .. } => {
                 use winit::event::WindowEvent;
                 if matches!(event, WindowEvent::CloseRequested | WindowEvent::Destroyed) {
