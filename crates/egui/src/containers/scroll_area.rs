@@ -439,10 +439,9 @@ struct Prepared {
     scrolling_enabled: bool,
     stick_to_end: Vec2b,
 
-    /// If there was a scroll target before the ScrollArea was added this frame, it
-    /// means it's not coming from our children so we should ignore it and let it be
-    /// handled up in the stack.
-    ignore_scroll_target: Vec2b,
+    /// If there was a scroll target before the ScrollArea was added this frame, it's
+    /// not for us to handle so we save it and restore it after this ScrollArea is done.
+    saved_scroll_target: [Option<(Rangef, Option<Align>)>; 2],
 }
 
 impl ScrollArea {
@@ -586,10 +585,9 @@ impl ScrollArea {
             }
         }
 
-        let ignore_scroll_target = content_ui
+        let saved_scroll_target = content_ui
             .ctx()
-            .frame_state_mut(|state| state.scroll_target.map(|d| d.is_some()))
-            .into();
+            .frame_state_mut(|state| std::mem::take(&mut state.scroll_target));
 
         Prepared {
             id,
@@ -604,7 +602,7 @@ impl ScrollArea {
             viewport,
             scrolling_enabled,
             stick_to_end,
-            ignore_scroll_target,
+            saved_scroll_target,
         }
     }
 
@@ -716,13 +714,13 @@ impl Prepared {
             viewport: _,
             scrolling_enabled,
             stick_to_end,
-            ignore_scroll_target,
+            saved_scroll_target,
         } = self;
 
         let content_size = content_ui.min_size();
 
         for d in 0..2 {
-            if scroll_enabled[d] && !ignore_scroll_target[d] {
+            if scroll_enabled[d] {
                 // We take the scroll target so only this ScrollArea will use it:
                 let scroll_target = content_ui
                     .ctx()
@@ -761,6 +759,13 @@ impl Prepared {
                     }
                 }
             }
+        }
+
+        // Restore scroll target (if any) meant for ScrollAreas up the stack
+        if saved_scroll_target[0].is_some() || saved_scroll_target[1].is_some() {
+            ui.ctx().frame_state_mut(|state| {
+                state.scroll_target = saved_scroll_target;
+            });
         }
 
         let inner_rect = {
