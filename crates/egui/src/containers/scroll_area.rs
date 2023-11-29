@@ -438,6 +438,11 @@ struct Prepared {
 
     scrolling_enabled: bool,
     stick_to_end: Vec2b,
+
+    /// If there was a scroll target before the ScrollArea was added this frame, it
+    /// means it's not coming from our children so we should ignore it and let it be
+    /// handled up in the stack.
+    ignore_scroll_target: Vec2b,
 }
 
 impl ScrollArea {
@@ -581,6 +586,11 @@ impl ScrollArea {
             }
         }
 
+        let ignore_scroll_target = content_ui
+            .ctx()
+            .frame_state_mut(|state| state.scroll_target.map(|d| d.is_some()))
+            .into();
+
         Prepared {
             id,
             state,
@@ -594,6 +604,7 @@ impl ScrollArea {
             viewport,
             scrolling_enabled,
             stick_to_end,
+            ignore_scroll_target,
         }
     }
 
@@ -705,12 +716,13 @@ impl Prepared {
             viewport: _,
             scrolling_enabled,
             stick_to_end,
+            ignore_scroll_target,
         } = self;
 
         let content_size = content_ui.min_size();
 
         for d in 0..2 {
-            if scroll_enabled[d] {
+            if scroll_enabled[d] && !ignore_scroll_target[d] {
                 // We take the scroll target so only this ScrollArea will use it:
                 let scroll_target = content_ui
                     .ctx()
@@ -722,7 +734,7 @@ impl Prepared {
                     let (start, end) = (scroll.min, scroll.max);
                     let clip_start = clip_rect.min[d];
                     let clip_end = clip_rect.max[d];
-                    let mut spacing = ui.spacing().item_spacing[d];
+                    let mut spacing = content_ui.spacing().item_spacing[d];
 
                     let delta = if let Some(align) = align {
                         let center_factor = align.to_factor();
