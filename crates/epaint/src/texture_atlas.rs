@@ -97,7 +97,7 @@ impl TextureAtlas {
         // for r in [1, 2, 4, 8, 16, 32, 64] {
         //     let w = 2 * r + 3;
         //     let hw = w as i32 / 2;
-        const LARGEST_CIRCLE_RADIUS: f32 = 64.0;
+        const LARGEST_CIRCLE_RADIUS: f32 = 8.0; // keep small so that the initial texture atlas is small
         for i in 0.. {
             let r = 2.0_f32.powf(i as f32 / 2.0 - 1.0);
             if r > LARGEST_CIRCLE_RADIUS {

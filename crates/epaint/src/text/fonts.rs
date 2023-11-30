@@ -596,7 +596,7 @@ impl FontsImpl {
         );
 
         let texture_width = max_texture_side.at_most(8 * 1024);
-        let initial_height = 64;
+        let initial_height = 32; // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
         let atlas = TextureAtlas::new([texture_width, initial_height]);
 
         let atlas = Arc::new(Mutex::new(atlas));
