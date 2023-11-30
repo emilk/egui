@@ -93,7 +93,7 @@ pub fn linear_u8_from_linear_f32(a: f32) -> u8 {
 }
 
 fn fast_round(r: f32) -> u8 {
-    (r + 0.5).floor() as _ // rust does a saturating cast since 1.45
+    (r + 0.5) as _ // rust does a saturating cast since 1.45
 }
 
 #[test]

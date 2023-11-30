@@ -528,7 +528,7 @@ impl Renderer {
                     "Mismatch between texture size and texel count"
                 );
                 crate::profile_scope!("font -> sRGBA");
-                Cow::Owned(image.srgba_pixels(None).collect::<Vec<_>>())
+                Cow::Owned(image.srgba_pixels(None).collect::<Vec<egui::Color32>>())
             }
         };
         let data_bytes: &[u8] = bytemuck::cast_slice(data_color32.as_slice());
