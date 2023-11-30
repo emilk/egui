@@ -37,7 +37,7 @@ impl CodeExample {
 
         show_code(
             ui,
-            r#"egui::Slider::new(&mut self.age, 0..=120).text("age")"#,
+            r#"ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));"#,
         );
         ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
         ui.end_row();
