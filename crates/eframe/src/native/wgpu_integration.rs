@@ -869,13 +869,13 @@ fn render_immediate_viewport(
             viewport.init_window(egui_ctx, viewport_from_window, painter, event_loop);
         }
 
-        let (Some(window), Some(winit_state)) = (&viewport.window, &mut viewport.egui_winit) else {
+        let (Some(window), Some(egui_winit)) = (&viewport.window, &mut viewport.egui_winit) else {
             return;
         };
         egui_winit::update_viewport_info(&mut viewport.info, egui_ctx, window);
 
-        winit_state.update_pixels_per_point(egui_ctx, window);
-        let mut input = winit_state.take_egui_input(window);
+        egui_winit.update_pixels_per_point(egui_ctx, window);
+        let mut input = egui_winit.take_egui_input(window);
         input.viewports = viewports
             .iter()
             .map(|(id, viewport)| (*id, viewport.info.clone()))
@@ -914,10 +914,7 @@ fn render_immediate_viewport(
         return;
     };
     viewport.info.events.clear(); // they should have been processed
-    let Some(winit_state) = &mut viewport.egui_winit else {
-        return;
-    };
-    let Some(window) = &viewport.window else {
+    let (Some(egui_winit), Some(window)) = (&mut viewport.egui_winit, &viewport.window) else {
         return;
     };
 
@@ -938,7 +935,7 @@ fn render_immediate_viewport(
         false,
     );
 
-    winit_state.handle_platform_output(window, &egui_ctx, platform_output);
+    egui_winit.handle_platform_output(window, &egui_ctx, platform_output);
 
     handle_viewport_output(&egui_ctx, viewport_output, viewports, *focused_viewport);
 }
