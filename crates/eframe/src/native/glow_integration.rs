@@ -511,8 +511,8 @@ impl GlowWinitRunning {
             let mut glutin = self.glutin.borrow_mut();
             let egui_ctx = glutin.egui_ctx.clone();
             let viewport = glutin.viewports.get_mut(&viewport_id).unwrap();
-            viewport.update_viewport_info(&egui_ctx);
             let window = viewport.window.as_ref().unwrap();
+            egui_winit::update_viewport_info(&mut viewport.info, &egui_ctx, window);
 
             let egui_winit = viewport.egui_winit.as_mut().unwrap();
             egui_winit.update_pixels_per_point(&egui_ctx, window);
@@ -1173,16 +1173,6 @@ impl GlutinWindowContext {
     }
 }
 
-impl Viewport {
-    /// Update the stored `ViewportInfo`.
-    fn update_viewport_info(&mut self, egui_ctx: &egui::Context) {
-        let Some(window) = &self.window else {
-            return;
-        };
-        egui_winit::update_viewport_info(&mut self.info, egui_ctx, window);
-    }
-}
-
 fn initialize_or_update_viewport<'vp>(
     egu_ctx: &'_ egui::Context,
     viewports: &'vp mut ViewportIdMap<Viewport>,
@@ -1297,13 +1287,13 @@ fn render_immediate_viewport(
         let Some(viewport) = glutin.viewports.get_mut(&ids.this) else {
             return;
         };
-        viewport.update_viewport_info(egui_ctx);
         let Some(egui_winit) = &mut viewport.egui_winit else {
             return;
         };
         let Some(window) = &viewport.window else {
             return;
         };
+        egui_winit::update_viewport_info(&mut viewport.info, egui_ctx, window);
 
         egui_winit.update_pixels_per_point(egui_ctx, window);
         let mut raw_input = egui_winit.take_egui_input(window);

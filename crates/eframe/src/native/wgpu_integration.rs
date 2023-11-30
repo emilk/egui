@@ -508,12 +508,12 @@ impl WgpuWinitRunning {
             let Some(viewport) = viewports.get_mut(&viewport_id) else {
                 return EventResult::Wait;
             };
-            viewport.update_viewport_info(&integration.egui_ctx);
 
             let Viewport {
                 viewport_ui_cb,
                 window,
                 egui_winit,
+                info,
                 ..
             } = viewport;
 
@@ -522,6 +522,7 @@ impl WgpuWinitRunning {
             let Some(window) = window else {
                 return EventResult::Wait;
             };
+            egui_winit::update_viewport_info(info, &integration.egui_ctx, window);
 
             {
                 crate::profile_scope!("set_window");
@@ -808,14 +809,6 @@ impl Viewport {
             }
         }
     }
-
-    /// Update the stored `ViewportInfo`.
-    pub fn update_viewport_info(&mut self, egui_ctx: &egui::Context) {
-        let Some(window) = &self.window else {
-            return;
-        };
-        egui_winit::update_viewport_info(&mut self.info, egui_ctx, window);
-    }
 }
 
 fn create_window(
@@ -875,11 +868,11 @@ fn render_immediate_viewport(
         if viewport.window.is_none() {
             viewport.init_window(egui_ctx, viewport_from_window, painter, event_loop);
         }
-        viewport.update_viewport_info(egui_ctx);
 
         let (Some(window), Some(winit_state)) = (&viewport.window, &mut viewport.egui_winit) else {
             return;
         };
+        egui_winit::update_viewport_info(&mut viewport.info, egui_ctx, window);
 
         winit_state.update_pixels_per_point(egui_ctx, window);
         let mut input = winit_state.take_egui_input(window);

@@ -192,8 +192,6 @@ impl State {
     }
 
     /// Update the given viewport info with the current state of the window.
-    ///
-    /// Call before [`Self::update_viewport_info`]
     #[deprecated = "Use egui_winit::update_viewport_info instead"]
     pub fn update_viewport_info(&self, info: &mut ViewportInfo, window: &Window) {
         update_viewport_info_impl(info, window, self.current_pixels_per_point);
@@ -773,7 +771,7 @@ impl State {
 
 /// Update the given viewport info with the current state of the window.
 ///
-/// Call before [`Self::update_viewport_info`]
+/// Call before [`State::take_egui_input`].
 pub fn update_viewport_info(info: &mut ViewportInfo, egui_ctx: &egui::Context, window: &Window) {
     update_viewport_info_impl(info, window, pixels_per_point(egui_ctx, window));
 }
