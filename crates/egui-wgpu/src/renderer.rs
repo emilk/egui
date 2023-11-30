@@ -527,6 +527,7 @@ impl Renderer {
                     image.pixels.len(),
                     "Mismatch between texture size and texel count"
                 );
+                crate::profile_scope!("font -> sRGBA");
                 Cow::Owned(image.srgba_pixels(None).collect::<Vec<_>>())
             }
         };
