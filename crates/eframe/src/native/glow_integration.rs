@@ -533,6 +533,31 @@ impl GlowWinitRunning {
             (raw_input, viewport_ui_cb)
         };
 
+        {
+            // clear before we call update, so users can paint between clear-color and egui windows:
+
+            let clear_color = self
+                .app
+                .clear_color(&self.integration.egui_ctx.style().visuals);
+            let mut glutin = self.glutin.borrow_mut();
+            let GlutinWindowContext {
+                viewports,
+                current_gl_context,
+                ..
+            } = &mut *glutin;
+            let viewport = &viewports[&viewport_id];
+            let window = viewport.window.as_ref().unwrap();
+            let gl_surface = viewport.gl_surface.as_ref().unwrap();
+
+            let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
+
+            change_gl_context(current_gl_context, gl_surface);
+
+            self.painter
+                .borrow()
+                .clear(screen_size_in_pixels, clear_color);
+        }
+
         // ------------------------------------------------------------
         // The update function, which could call immediate viewports,
         // so make sure we don't hold any locks here required by the immediate viewports rendeer.
@@ -579,29 +604,10 @@ impl GlowWinitRunning {
 
         let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
-        {
-            // TODO: only do this if we actually have multiple viewports
-            crate::profile_scope!("change_gl_context");
-
-            let not_current = {
-                crate::profile_scope!("make_not_current");
-                current_gl_context
-                    .take()
-                    .unwrap()
-                    .make_not_current()
-                    .unwrap()
-            };
-
-            crate::profile_scope!("make_current");
-            *current_gl_context = Some(not_current.make_current(gl_surface).unwrap());
-        }
+        // We may need to switch contexts again, because of immediate viewports:
+        change_gl_context(current_gl_context, gl_surface);
 
         let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
-
-        painter.clear(
-            screen_size_in_pixels,
-            app.clear_color(&integration.egui_ctx.style().visuals),
-        );
 
         painter.paint_and_update_textures(
             screen_size_in_pixels,
@@ -768,6 +774,24 @@ impl GlowWinitRunning {
             EventResult::Wait
         }
     }
+}
+
+fn change_gl_context(
+    current_gl_context: &mut Option<glutin::context::PossiblyCurrentContext>,
+    gl_surface: &glutin::surface::Surface<glutin::surface::WindowSurface>,
+) {
+    crate::profile_function!();
+
+    let not_current = {
+        crate::profile_scope!("make_not_current");
+        current_gl_context
+            .take()
+            .unwrap()
+            .make_not_current()
+            .unwrap()
+    };
+    crate::profile_scope!("make_current");
+    *current_gl_context = Some(not_current.make_current(gl_surface).unwrap());
 }
 
 impl GlutinWindowContext {
@@ -1289,10 +1313,7 @@ fn render_immediate_viewport(
         let Some(viewport) = glutin.viewports.get_mut(&ids.this) else {
             return;
         };
-        let Some(egui_winit) = &mut viewport.egui_winit else {
-            return;
-        };
-        let Some(window) = &viewport.window else {
+        let (Some(egui_winit), Some(window)) = (&mut viewport.egui_winit, &viewport.window) else {
             return;
         };
         egui_winit::update_viewport_info(&mut viewport.info, egui_ctx, window);
@@ -1324,6 +1345,8 @@ fn render_immediate_viewport(
 
     // ---------------------------------------------------
 
+    let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
+
     let mut glutin = glutin.borrow_mut();
 
     let GlutinWindowContext {
@@ -1335,41 +1358,49 @@ fn render_immediate_viewport(
     let Some(viewport) = viewports.get_mut(&ids.this) else {
         return;
     };
+
     viewport.info.events.clear(); // they should have been processed
 
-    let Some(winit_state) = &mut viewport.egui_winit else {
-        return;
-    };
-    let (Some(window), Some(gl_surface)) = (&viewport.window, &viewport.gl_surface) else {
+    let (Some(egui_winit), Some(window), Some(gl_surface)) = (
+        &mut viewport.egui_winit,
+        &viewport.window,
+        &viewport.gl_surface,
+    ) else {
         return;
     };
 
     let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
 
-    let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
-
-    let mut painter = painter.borrow_mut();
-
-    *current_gl_context = Some(
-        current_gl_context
-            .take()
-            .unwrap()
-            .make_not_current()
-            .unwrap()
-            .make_current(gl_surface)
-            .unwrap(),
-    );
+    {
+        crate::profile_function!("context-switch");
+        *current_gl_context = Some(
+            current_gl_context
+                .take()
+                .unwrap()
+                .make_not_current()
+                .unwrap()
+                .make_current(gl_surface)
+                .unwrap(),
+        );
+    }
 
     let current_gl_context = current_gl_context.as_ref().unwrap();
 
     if !gl_surface.is_current(current_gl_context) {
-        log::error!("egui::show_viewport_immediate: viewport {:?}  ({:?}) is not created in main thread, try to use wgpu!", viewport.ids.this, viewport.builder.title);
+        log::error!(
+            "egui::show_viewport_immediate: viewport {:?} ({:?}) was not created on main thread.",
+            viewport.ids.this,
+            viewport.builder.title
+        );
     }
 
-    let gl = &painter.gl().clone();
-    egui_glow::painter::clear(gl, screen_size_in_pixels, [0.0, 0.0, 0.0, 0.0]);
+    egui_glow::painter::clear(
+        painter.borrow().gl(),
+        screen_size_in_pixels,
+        [0.0, 0.0, 0.0, 0.0],
+    );
 
-    painter.paint_and_update_textures(
+    painter.borrow_mut().paint_and_update_textures(
         screen_size_in_pixels,
         pixels_per_point,
         &clipped_primitives,
@@ -1383,7 +1414,7 @@ fn render_immediate_viewport(
         }
     }
 
-    winit_state.handle_platform_output(window, egui_ctx, platform_output);
+    egui_winit.handle_platform_output(window, egui_ctx, platform_output);
 
     glutin.handle_viewport_output(egui_ctx, viewport_output);
 }

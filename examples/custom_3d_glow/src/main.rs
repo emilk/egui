@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(unsafe_code)]
 
-use eframe::egui;
+use eframe::{egui, egui_glow, glow};
 
 use egui::mutex::Mutex;
 use std::sync::Arc;
