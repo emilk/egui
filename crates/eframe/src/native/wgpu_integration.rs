@@ -50,7 +50,9 @@ struct WgpuWinitRunning {
     shared: Rc<RefCell<SharedState>>,
 }
 
-/// Everything needed by the immediate viewport renderer.
+/// Everything needed by the immediate viewport renderer.\
+///
+/// This is shared by all viewports.
 ///
 /// Wrapped in an `Rc<RefCell<…>>` so it can be re-entrantly shared via a weak-pointer.
 pub struct SharedState {
@@ -161,7 +163,11 @@ impl WgpuWinitApp {
             ),
             self.native_options.viewport.transparent.unwrap_or(false),
         );
-        pollster::block_on(painter.set_window(ViewportId::ROOT, Some(&window)))?;
+
+        {
+            crate::profile_scope!("set_window");
+            pollster::block_on(painter.set_window(ViewportId::ROOT, Some(&window)))?;
+        }
 
         let wgpu_render_state = painter.render_state();
 
@@ -921,11 +927,14 @@ fn render_immediate_viewport(
         return;
     };
 
-    if let Err(err) = pollster::block_on(painter.set_window(ids.this, Some(window))) {
-        log::error!(
-            "when rendering viewport_id={:?}, set_window Error {err}",
-            ids.this
-        );
+    {
+        crate::profile_scope!("set_window");
+        if let Err(err) = pollster::block_on(painter.set_window(ids.this, Some(window))) {
+            log::error!(
+                "when rendering viewport_id={:?}, set_window Error {err}",
+                ids.this
+            );
+        }
     }
 
     let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
@@ -997,6 +1006,8 @@ fn initialize_or_update_viewport<'vp>(
     viewport_ui_cb: Option<Arc<dyn Fn(&egui::Context) + Send + Sync>>,
     focused_viewport: Option<ViewportId>,
 ) -> &'vp mut Viewport {
+    crate::profile_function!();
+
     if builder.icon.is_none() {
         // Inherit icon from parent
         builder.icon = viewports

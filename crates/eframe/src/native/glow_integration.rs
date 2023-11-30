@@ -65,6 +65,8 @@ struct GlowWinitRunning {
 
     // These needs to be shared with the immediate viewport renderer, hence the Rc/Arc/RefCells:
     glutin: Rc<RefCell<GlutinWindowContext>>,
+
+    // NOTE: one painter shared by all viewports.
     painter: Rc<RefCell<egui_glow::Painter>>,
 }
 

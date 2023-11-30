@@ -425,6 +425,12 @@ impl Fonts {
         self.lock().fonts.atlas.clone()
     }
 
+    /// The full font atlas image.
+    #[inline]
+    pub fn image(&self) -> crate::FontImage {
+        self.lock().fonts.atlas.lock().image().clone()
+    }
+
     /// Current size of the font image.
     /// Pass this to [`crate::Tessellator`].
     pub fn font_image_size(&self) -> [usize; 2] {
@@ -590,7 +596,7 @@ impl FontsImpl {
         );
 
         let texture_width = max_texture_side.at_most(8 * 1024);
-        let initial_height = 64;
+        let initial_height = 32; // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
         let atlas = TextureAtlas::new([texture_width, initial_height]);
 
         let atlas = Arc::new(Mutex::new(atlas));

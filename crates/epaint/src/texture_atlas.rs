@@ -97,7 +97,7 @@ impl TextureAtlas {
         // for r in [1, 2, 4, 8, 16, 32, 64] {
         //     let w = 2 * r + 3;
         //     let hw = w as i32 / 2;
-        const LARGEST_CIRCLE_RADIUS: f32 = 64.0;
+        const LARGEST_CIRCLE_RADIUS: f32 = 8.0; // keep small so that the initial texture atlas is small
         for i in 0.. {
             let r = 2.0_f32.powf(i as f32 / 2.0 - 1.0);
             if r > LARGEST_CIRCLE_RADIUS {
@@ -172,9 +172,21 @@ impl TextureAtlas {
         }
     }
 
+    /// The texture options suitable for a font texture
+    #[inline]
+    pub fn texture_options() -> crate::textures::TextureOptions {
+        crate::textures::TextureOptions::LINEAR
+    }
+
+    /// The full font atlas image.
+    #[inline]
+    pub fn image(&self) -> &FontImage {
+        &self.image
+    }
+
     /// Call to get the change to the image since last call.
     pub fn take_delta(&mut self) -> Option<ImageDelta> {
-        let texture_options = crate::textures::TextureOptions::LINEAR;
+        let texture_options = Self::texture_options();
 
         let dirty = std::mem::replace(&mut self.dirty, Rectu::NOTHING);
         if dirty == Rectu::NOTHING {

@@ -59,6 +59,8 @@ impl From<String> for PainterError {
 ///
 /// This struct must be destroyed with [`Painter::destroy`] before dropping, to ensure OpenGL
 /// objects have been properly deleted and are not leaked.
+///
+/// NOTE: all egui viewports share the same painter.
 pub struct Painter {
     gl: Rc<glow::Context>,
 
