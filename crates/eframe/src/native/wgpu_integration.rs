@@ -14,9 +14,6 @@ use egui::{
 };
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
-use egui_winit::{
-    apply_viewport_builder_to_new_window, create_winit_window_builder, process_viewport_commands,
-};
 
 use crate::{
     native::{epi_integration::EpiIntegration, winit_integration::EventResult},
@@ -779,12 +776,8 @@ impl Viewport {
 
         let viewport_id = self.ids.this;
 
-        match create_winit_window_builder(egui_ctx, event_loop, self.builder.clone())
-            .build(event_loop)
-        {
+        match egui_winit::create_window(egui_ctx, event_loop, &self.builder) {
             Ok(window) => {
-                apply_viewport_builder_to_new_window(&window, &self.builder);
-
                 windows_id.insert(window.id(), viewport_id);
 
                 if let Err(err) = pollster::block_on(painter.set_window(viewport_id, Some(&window)))
@@ -840,12 +833,7 @@ fn create_window(
     )
     .with_visible(false); // Start hidden until we render the first frame to fix white flash on startup (https://github.com/emilk/egui/pull/3631)
 
-    let window = {
-        crate::profile_scope!("WindowBuilder::build");
-        create_winit_window_builder(egui_ctx, event_loop, viewport_builder.clone())
-            .build(event_loop)?
-    };
-    apply_viewport_builder_to_new_window(&window, &viewport_builder);
+    let window = egui_winit::create_window(egui_ctx, event_loop, &viewport_builder)?;
     epi_integration::apply_window_settings(&window, window_settings);
     Ok((window, viewport_builder))
 }
@@ -1056,7 +1044,7 @@ fn initialize_or_update_viewport<'vp>(
                 viewport.egui_winit = None;
             } else if let Some(window) = &viewport.window {
                 let is_viewport_focused = focused_viewport == Some(ids.this);
-                process_viewport_commands(
+                egui_winit::process_viewport_commands(
                     egui_ctx,
                     &mut viewport.info,
                     delta_commands,

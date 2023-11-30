@@ -1244,6 +1244,26 @@ fn process_viewport_command(
     }
 }
 
+/// Build and intitlaize a window.
+///
+/// Wrapper around `create_winit_window_builder` and `apply_viewport_builder_to_window`.
+pub fn create_window<T>(
+    egui_ctx: &egui::Context,
+    event_loop: &EventLoopWindowTarget<T>,
+    viewport_builder: &ViewportBuilder,
+) -> Result<Window, winit::error::OsError> {
+    crate::profile_function!();
+
+    let window_builder =
+        create_winit_window_builder(egui_ctx, event_loop, viewport_builder.clone());
+    let window = {
+        crate::profile_scope!("WindowBuilder::build");
+        window_builder.build(event_loop)?
+    };
+    apply_viewport_builder_to_window(egui_ctx, &window, viewport_builder);
+    Ok(window)
+}
+
 pub fn create_winit_window_builder<T>(
     egui_ctx: &egui::Context,
     event_loop: &EventLoopWindowTarget<T>,
@@ -1253,6 +1273,8 @@ pub fn create_winit_window_builder<T>(
 
     // We set sizes and positions in egui:s own ui points, which depends on the egui
     // zoom_factor and the native pixels per point, so we need to know that here.
+    // We don't know what monitor the window will appear on though, but
+    // we'll try to fix that after the window is created in the vall to `apply_viewport_builder_to_window`.
     let native_pixels_per_point = event_loop
         .primary_monitor()
         .or_else(|| event_loop.available_monitors().next())
@@ -1297,7 +1319,7 @@ pub fn create_winit_window_builder<T>(
         // wayland:
         app_id: _app_id,
 
-        mouse_passthrough: _, // handled in `apply_viewport_builder_to_new_window`
+        mouse_passthrough: _, // handled in `apply_viewport_builder_to_window`
     } = viewport_builder;
 
     let mut window_builder = winit::window::WindowBuilder::new()
@@ -1330,31 +1352,31 @@ pub fn create_winit_window_builder<T>(
         })
         .with_active(active.unwrap_or(true));
 
-    if let Some(inner_size) = inner_size {
+    if let Some(size) = inner_size {
         window_builder = window_builder.with_inner_size(PhysicalSize::new(
-            pixels_per_point * inner_size.x,
-            pixels_per_point * inner_size.y,
+            pixels_per_point * size.x,
+            pixels_per_point * size.y,
         ));
     }
 
-    if let Some(min_inner_size) = min_inner_size {
+    if let Some(size) = min_inner_size {
         window_builder = window_builder.with_min_inner_size(PhysicalSize::new(
-            pixels_per_point * min_inner_size.x,
-            pixels_per_point * min_inner_size.y,
+            pixels_per_point * size.x,
+            pixels_per_point * size.y,
         ));
     }
 
-    if let Some(max_inner_size) = max_inner_size {
+    if let Some(size) = max_inner_size {
         window_builder = window_builder.with_max_inner_size(PhysicalSize::new(
-            pixels_per_point * max_inner_size.x,
-            pixels_per_point * max_inner_size.y,
+            pixels_per_point * size.x,
+            pixels_per_point * size.y,
         ));
     }
 
-    if let Some(position) = position {
+    if let Some(pos) = position {
         window_builder = window_builder.with_position(PhysicalPosition::new(
-            pixels_per_point * position.x,
-            pixels_per_point * position.y,
+            pixels_per_point * pos.x,
+            pixels_per_point * pos.y,
         ));
     }
 
@@ -1391,10 +1413,58 @@ pub fn create_winit_window_builder<T>(
 }
 
 /// Applies what `create_winit_window_builder` couldn't
+#[deprecated = "Use apply_viewport_builder_to_window instead"]
 pub fn apply_viewport_builder_to_new_window(window: &Window, builder: &ViewportBuilder) {
     if let Some(mouse_passthrough) = builder.mouse_passthrough {
         if let Err(err) = window.set_cursor_hittest(!mouse_passthrough) {
             log::warn!("set_cursor_hittest failed: {err}");
+        }
+    }
+}
+
+/// Applies what `create_winit_window_builder` couldn't
+pub fn apply_viewport_builder_to_window(
+    egui_ctx: &egui::Context,
+    window: &Window,
+    builder: &ViewportBuilder,
+) {
+    if let Some(mouse_passthrough) = builder.mouse_passthrough {
+        if let Err(err) = window.set_cursor_hittest(!mouse_passthrough) {
+            log::warn!("set_cursor_hittest failed: {err}");
+        }
+    }
+
+    {
+        // In `create_winit_window_builder` we didn't know
+        // on what monitor the window would appear, so we didn't know
+        // how to translate egui ui point to native physical pixels.
+        // Now we do know:
+
+        let native_pixels_per_point = window.scale_factor() as f32;
+        let zoom_factor = egui_ctx.zoom_factor();
+        let pixels_per_point = zoom_factor * native_pixels_per_point;
+
+        if let Some(size) = builder.inner_size {
+            window.set_inner_size(PhysicalSize::new(
+                pixels_per_point * size.x,
+                pixels_per_point * size.y,
+            ));
+        }
+        if let Some(size) = builder.min_inner_size {
+            window.set_min_inner_size(Some(PhysicalSize::new(
+                pixels_per_point * size.x,
+                pixels_per_point * size.y,
+            )));
+        }
+        if let Some(size) = builder.max_inner_size {
+            window.set_max_inner_size(Some(PhysicalSize::new(
+                pixels_per_point * size.x,
+                pixels_per_point * size.y,
+            )));
+        }
+        if let Some(pos) = builder.position {
+            let pos = PhysicalPosition::new(pixels_per_point * pos.x, pixels_per_point * pos.y);
+            window.set_outer_position(pos);
         }
     }
 }

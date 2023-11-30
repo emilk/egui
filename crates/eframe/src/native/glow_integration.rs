@@ -18,10 +18,6 @@ use egui::{
 };
 #[cfg(feature = "accesskit")]
 use egui_winit::accesskit_winit;
-use egui_winit::{
-    apply_viewport_builder_to_new_window, create_winit_window_builder, process_viewport_commands,
-    EventResponse,
-};
 
 use crate::{
     native::{epi_integration::EpiIntegration, winit_integration::create_egui_context},
@@ -744,7 +740,7 @@ impl GlowWinitRunning {
             return EventResult::Exit;
         }
 
-        let mut event_response = EventResponse {
+        let mut event_response = egui_winit::EventResponse {
             consumed: false,
             repaint: false,
         };
@@ -823,7 +819,7 @@ impl GlutinWindowContext {
         let display_builder = glutin_winit::DisplayBuilder::new()
             // we might want to expose this option to users in the future. maybe using an env var or using native_options.
             .with_preference(glutin_winit::ApiPrefence::FallbackEgl) // https://github.com/emilk/egui/issues/2520#issuecomment-1367841150
-            .with_window_builder(Some(create_winit_window_builder(
+            .with_window_builder(Some(egui_winit::create_winit_window_builder(
                 egui_ctx,
                 event_loop,
                 viewport_builder.clone(),
@@ -849,7 +845,7 @@ impl GlutinWindowContext {
                 .map_err(|e| crate::Error::NoGlutinConfigs(config_template_builder.build(), e))?
         };
         if let Some(window) = &window {
-            apply_viewport_builder_to_new_window(window, &viewport_builder);
+            egui_winit::apply_viewport_builder_to_window(egui_ctx, window, &viewport_builder);
         }
 
         let gl_display = gl_config.display();
@@ -981,12 +977,18 @@ impl GlutinWindowContext {
             window
         } else {
             log::trace!("Window doesn't exist yet. Creating one now with finalize_window");
-            let window = glutin_winit::finalize_window(
+            let window_builder = egui_winit::create_winit_window_builder(
+                &self.egui_ctx,
                 event_loop,
-                create_winit_window_builder(&self.egui_ctx, event_loop, viewport.builder.clone()),
-                &self.gl_config,
-            )?;
-            apply_viewport_builder_to_new_window(&window, &viewport.builder);
+                viewport.builder.clone(),
+            );
+            let window =
+                glutin_winit::finalize_window(event_loop, window_builder, &self.gl_config)?;
+            egui_winit::apply_viewport_builder_to_window(
+                &self.egui_ctx,
+                &window,
+                &viewport.builder,
+            );
             viewport.info.minimized = window.is_minimized();
             viewport.info.maximized = Some(window.is_maximized());
             viewport.window.insert(Rc::new(window))
@@ -1235,7 +1237,7 @@ fn initialize_or_update_viewport<'vp>(
                 viewport.egui_winit = None;
             } else if let Some(window) = &viewport.window {
                 let is_viewport_focused = focused_viewport == Some(ids.this);
-                process_viewport_commands(
+                egui_winit::process_viewport_commands(
                     egu_ctx,
                     &mut viewport.info,
                     delta_commands,
