@@ -704,10 +704,14 @@ impl State {
         }
 
         if let Some(text) = &text {
-            // On Mac we get here when the user presses Cmd-C (copy), ctrl-W, etc.
+            // On some platforms we get here when the user presses Cmd-C (copy), ctrl-W, etc.
             // We need to ignore these characters that are side-effects of commands.
-            let is_mac_cmd = cfg!(target_os = "macos") && self.egui_input.modifiers.mac_cmd;
-            if !is_mac_cmd {
+            // Also make sure the key is pressed (not released). On Linux, text might
+            // contain some data even when the key is released.
+            let is_cmd = self.egui_input.modifiers.ctrl
+                || self.egui_input.modifiers.command
+                || self.egui_input.modifiers.mac_cmd;
+            if pressed && !is_cmd {
                 self.egui_input
                     .events
                     .push(egui::Event::Text(text.to_string()));
