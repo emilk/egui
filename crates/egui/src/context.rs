@@ -3,7 +3,7 @@
 use std::{borrow::Cow, cell::RefCell, sync::Arc, time::Duration};
 
 use ahash::HashMap;
-use epaint::{mutex::*, stats::*, text::Fonts, TessellationOptions, *};
+use epaint::{mutex::*, stats::*, text::Fonts, util::OrderedFloat, TessellationOptions, *};
 
 use crate::{
     animation_manager::AnimationManager,
@@ -194,8 +194,14 @@ impl Default for ViewportRepaintInfo {
 
 #[derive(Default)]
 struct ContextImpl {
-    /// `None` until the start of the first frame.
-    fonts: Option<Fonts>,
+    /// Since we could have multiple viewport across multiple monitors with
+    /// different `pixels_per_point`, we need a `Fonts` instance for each unique
+    /// `pixels_per_point`.
+    /// This is because the `Fonts` depend on `pixels_per_point` for the font atlas
+    /// as well as kerning, font sizes, etc.
+    fonts: std::collections::BTreeMap<OrderedFloat<f32>, Fonts>,
+    font_definitions: FontDefinitions,
+
     memory: Memory,
     animation_manager: AnimationManager,
     tex_manager: WrappedTextureManager,
@@ -335,23 +341,34 @@ impl ContextImpl {
         let max_texture_side = input.max_texture_side;
 
         if let Some(font_definitions) = self.memory.new_font_definitions.take() {
-            crate::profile_scope!("Fonts::new");
-            let fonts = Fonts::new(pixels_per_point, max_texture_side, font_definitions);
-            self.fonts = Some(fonts);
+            // New font definition loaded, so we need to reload all fonts.
+            self.fonts.clear();
+            self.font_definitions = font_definitions;
+            log::debug!("Loading new font definitions");
         }
 
-        let fonts = self.fonts.get_or_insert_with(|| {
-            let font_definitions = FontDefinitions::default();
-            crate::profile_scope!("Fonts::new");
-            Fonts::new(pixels_per_point, max_texture_side, font_definitions)
-        });
+        let mut is_new = false;
+
+        let fonts = self
+            .fonts
+            .entry(pixels_per_point.into())
+            .or_insert_with(|| {
+                is_new = true;
+                log::debug!("Creating new Fonts for pixels_per_point={pixels_per_point}");
+                crate::profile_scope!("Fonts::new");
+                Fonts::new(
+                    pixels_per_point,
+                    max_texture_side,
+                    self.font_definitions.clone(),
+                )
+            });
 
         {
             crate::profile_scope!("Fonts::begin_frame");
             fonts.begin_frame(pixels_per_point, max_texture_side);
         }
 
-        if self.memory.options.preload_font_glyphs {
+        if is_new && self.memory.options.preload_font_glyphs {
             crate::profile_scope!("preload_font_glyphs");
             // Preload the most common characters for the most common fonts.
             // This is not very important to do, but may save a few GPU operations.
@@ -377,6 +394,10 @@ impl ContextImpl {
             parent_builder.push_child(id.accesskit_id());
         }
         builders.get_mut(&id).unwrap()
+    }
+
+    fn pixels_per_point(&mut self) -> f32 {
+        self.viewport().input.pixels_per_point
     }
 
     /// Return the `ViewportId` of the current viewport.
@@ -578,7 +599,7 @@ impl Context {
     /// ```
     #[inline]
     pub fn input<R>(&self, reader: impl FnOnce(&InputState) -> R) -> R {
-        self.input_for(self.viewport_id(), reader)
+        self.write(move |ctx| reader(&ctx.viewport().input))
     }
 
     /// This will create a `InputState::default()` if there is no input state for that viewport
@@ -666,10 +687,11 @@ impl Context {
     /// That's because since we don't know the proper `pixels_per_point` until then.
     #[inline]
     pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
-        self.read(move |ctx| {
+        self.write(move |ctx| {
+            let pixels_per_point = ctx.pixels_per_point();
             reader(
                 ctx.fonts
-                    .as_ref()
+                    .get(&pixels_per_point.into())
                     .expect("No fonts available until first call to Context::run()"),
             )
         })
@@ -677,8 +699,12 @@ impl Context {
 
     /// Read-write access to [`Fonts`].
     #[inline]
-    pub fn fonts_mut<R>(&self, writer: impl FnOnce(&mut Option<Fonts>) -> R) -> R {
-        self.write(move |ctx| writer(&mut ctx.fonts))
+    #[deprecated = "This function will be removed"]
+    pub fn fonts_mut<R>(&self, writer: impl FnOnce(Option<&mut Fonts>) -> R) -> R {
+        self.write(move |ctx| {
+            let pixels_per_point = ctx.pixels_per_point();
+            writer(ctx.fonts.get_mut(&pixels_per_point.into()))
+        })
     }
 
     /// Read-only access to [`Options`].
@@ -1296,12 +1322,18 @@ impl Context {
     ///
     /// The new fonts will become active at the start of the next frame.
     pub fn set_fonts(&self, font_definitions: FontDefinitions) {
-        let update_fonts = self.fonts_mut(|fonts| {
-            if let Some(current_fonts) = fonts {
+        crate::profile_function!();
+
+        let pixels_per_point = self.pixels_per_point();
+
+        let mut update_fonts = true;
+
+        self.read(|ctx| {
+            if let Some(current_fonts) = ctx.fonts.get(&pixels_per_point.into()) {
                 // NOTE: this comparison is expensive since it checks TTF data for equality
-                current_fonts.lock().fonts.definitions() != &font_definitions
-            } else {
-                true
+                if current_fonts.lock().fonts.definitions() == &font_definitions {
+                    update_fonts = false; // no need to update
+                }
             }
         });
 
@@ -1575,8 +1607,11 @@ impl ContextImpl {
         self.memory
             .end_frame(&viewport.input, &viewport.frame_state.used_ids);
 
-        let font_image_delta = self.fonts.as_ref().unwrap().font_image_delta();
-        if let Some(font_image_delta) = font_image_delta {
+        if let Some(font_image_delta) = self
+            .fonts
+            .get(&pixels_per_point.into())
+            .and_then(|f| f.font_image_delta())
+        {
             self.tex_manager
                 .0
                 .write()
@@ -1705,6 +1740,23 @@ impl ContextImpl {
             self.memory.set_viewport_id(viewport_id);
         }
 
+        let active_pixels_per_point: std::collections::BTreeSet<OrderedFloat<f32>> = self
+            .viewports
+            .values()
+            .map(|v| v.input.pixels_per_point.into())
+            .collect();
+        self.fonts.retain(|pixels_per_point, _| {
+            if active_pixels_per_point.contains(pixels_per_point) {
+                true
+            } else {
+                log::debug!(
+                    "Freeing Fonts with pixels_per_point={} because it is no longer needed",
+                    pixels_per_point.into_inner()
+                );
+                false
+            }
+        });
+
         FullOutput {
             platform_output,
             textures_delta,
@@ -1736,7 +1788,7 @@ impl Context {
             let tessellation_options = ctx.memory.options.tessellation_options;
             let texture_atlas = ctx
                 .fonts
-                .as_ref()
+                .get(&pixels_per_point.into())
                 .expect("tessellate called before first call to Context::run()")
                 .texture_atlas();
             let (font_tex_size, prepared_discs) = {
