@@ -351,6 +351,7 @@ impl ContextImpl {
             // New font definition loaded, so we need to reload all fonts.
             self.fonts.clear();
             self.font_definitions = font_definitions;
+            #[cfg(feature = "log")]
             log::debug!("Loading new font definitions");
         }
 
@@ -360,8 +361,10 @@ impl ContextImpl {
             .fonts
             .entry(pixels_per_point.into())
             .or_insert_with(|| {
-                is_new = true;
+                #[cfg(feature = "log")]
                 log::debug!("Creating new Fonts for pixels_per_point={pixels_per_point}");
+
+                is_new = true;
                 crate::profile_scope!("Fonts::new");
                 Fonts::new(
                     pixels_per_point,
@@ -1772,6 +1775,7 @@ impl ContextImpl {
             if active_pixels_per_point.contains(pixels_per_point) {
                 true
             } else {
+                #[cfg(feature = "log")]
                 log::debug!(
                     "Freeing Fonts with pixels_per_point={} because it is no longer needed",
                     pixels_per_point.into_inner()
