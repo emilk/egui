@@ -50,7 +50,9 @@ struct WgpuWinitRunning {
     shared: Rc<RefCell<SharedState>>,
 }
 
-/// Everything needed by the immediate viewport renderer.
+/// Everything needed by the immediate viewport renderer.\
+///
+/// This is shared by all viewports.
 ///
 /// Wrapped in an `Rc<RefCell<…>>` so it can be re-entrantly shared via a weak-pointer.
 pub struct SharedState {

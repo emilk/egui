@@ -172,9 +172,21 @@ impl TextureAtlas {
         }
     }
 
+    /// The texture options suitable for a font texture
+    #[inline]
+    pub fn texture_options() -> crate::textures::TextureOptions {
+        crate::textures::TextureOptions::LINEAR
+    }
+
+    /// The full font atlas image.
+    #[inline]
+    pub fn image(&self) -> &FontImage {
+        &self.image
+    }
+
     /// Call to get the change to the image since last call.
     pub fn take_delta(&mut self) -> Option<ImageDelta> {
-        let texture_options = crate::textures::TextureOptions::LINEAR;
+        let texture_options = Self::texture_options();
 
         let dirty = std::mem::replace(&mut self.dirty, Rectu::NOTHING);
         if dirty == Rectu::NOTHING {

@@ -204,6 +204,13 @@ struct ContextImpl {
 
     memory: Memory,
     animation_manager: AnimationManager,
+
+    /// All viewports share the same texture manager and texture namespace.
+    ///
+    /// In all viewports, [`TextureId::default`] is special, and points to the font atlas.
+    /// The font-atlas texture _may_ be different across viewports, as they may have different
+    /// `pixels_per_point`, so we do special book-keeping for that.
+    /// See <https://github.com/emilk/egui/issues/3664>.
     tex_manager: WrappedTextureManager,
 
     /// Set during the frame, becomes active at the start of the next frame.
@@ -1607,17 +1614,33 @@ impl ContextImpl {
         self.memory
             .end_frame(&viewport.input, &viewport.frame_state.used_ids);
 
-        if let Some(font_image_delta) = self
-            .fonts
-            .get(&pixels_per_point.into())
-            .and_then(|f| f.font_image_delta())
-        {
-            self.tex_manager
-                .0
-                .write()
-                .set(TextureId::default(), font_image_delta);
+        if let Some(fonts) = self.fonts.get(&pixels_per_point.into()) {
+            let tex_mngr = &mut self.tex_manager.0.write();
+            if let Some(font_image_delta) = fonts.font_image_delta() {
+                // A partial font atlas update, e.g. a new glyph has been entered.
+                tex_mngr.set(TextureId::default(), font_image_delta);
+            }
+
+            if 1 < self.fonts.len() {
+                // We have multiple different `pixels_per_point`,
+                // e.g. because we have many viewports spread across
+                // monitors with different DPI scaling.
+                // All viewports share the same texture namespace and renderer,
+                // so the all use `TextureId::default()` for the font texture.
+                // This is a problem.
+                // We solve this with a hack: we always upload the full font atlas
+                // every frame, for all viewports.
+                // This ensures it is up-to-date, solving
+                // https://github.com/emilk/egui/issues/3664
+                // at the cost of a lot of performance.
+                // (This will override any smaller delta that was uploaded above.)
+                crate::profile_scope!("full_font_atlas_update");
+                let full_delta = ImageDelta::full(fonts.image(), TextureAtlas::texture_options());
+                tex_mngr.set(TextureId::default(), full_delta);
+            }
         }
 
+        // Inform the backend of all textures that have been updated (including font atlas).
         let textures_delta = self.tex_manager.0.write().take_delta();
 
         #[cfg_attr(not(feature = "accesskit"), allow(unused_mut))]

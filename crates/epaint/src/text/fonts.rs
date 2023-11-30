@@ -425,6 +425,12 @@ impl Fonts {
         self.lock().fonts.atlas.clone()
     }
 
+    /// The full font atlas image.
+    #[inline]
+    pub fn image(&self) -> crate::FontImage {
+        self.lock().fonts.atlas.lock().image().clone()
+    }
+
     /// Current size of the font image.
     /// Pass this to [`crate::Tessellator`].
     pub fn font_image_size(&self) -> [usize; 2] {
