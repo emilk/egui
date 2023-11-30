@@ -73,6 +73,9 @@ impl ViewportState {
         if immediate {
             let mut vp_state = vp_state.write();
             ctx.show_viewport_immediate(vp_id, viewport, move |ctx, class| {
+                if ctx.input(|i| i.viewport().close_requested()) {
+                    vp_state.visible = false;
+                }
                 show_as_popup(ctx, class, &title, vp_id.into(), |ui: &mut egui::Ui| {
                     generic_child_ui(ui, &mut vp_state);
                 });
@@ -81,6 +84,9 @@ impl ViewportState {
             let count = Arc::new(RwLock::new(0));
             ctx.show_viewport_deferred(vp_id, viewport, move |ctx, class| {
                 let mut vp_state = vp_state.write();
+                if ctx.input(|i| i.viewport().close_requested()) {
+                    vp_state.visible = false;
+                }
                 let count = count.clone();
                 show_as_popup(
                     ctx,
