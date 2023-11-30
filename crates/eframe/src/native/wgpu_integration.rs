@@ -482,7 +482,10 @@ impl WgpuWinitRunning {
             let mut shared_lock = shared.borrow_mut();
 
             let SharedState {
-                viewports, painter, ..
+                egui_ctx,
+                viewports,
+                painter,
+                ..
             } = &mut *shared_lock;
 
             if viewport_id != ViewportId::ROOT {
@@ -505,7 +508,7 @@ impl WgpuWinitRunning {
             let Some(viewport) = viewports.get_mut(&viewport_id) else {
                 return EventResult::Wait;
             };
-            viewport.update_viewport_info();
+            viewport.update_viewport_info(&integration.egui_ctx);
 
             let Viewport {
                 viewport_ui_cb,
@@ -528,7 +531,9 @@ impl WgpuWinitRunning {
                 }
             }
 
-            let mut raw_input = egui_winit.as_mut().unwrap().take_egui_input(window);
+            let egui_winit = egui_winit.as_mut().unwrap();
+            egui_winit.update_pixels_per_point(egui_ctx, window);
+            let mut raw_input = egui_winit.take_egui_input(window);
 
             integration.pre_update();
 
@@ -742,10 +747,11 @@ impl WgpuWinitRunning {
         let event_response = viewport_id
             .and_then(|viewport_id| {
                 shared.viewports.get_mut(&viewport_id).and_then(|viewport| {
-                    viewport
-                        .egui_winit
-                        .as_mut()
-                        .map(|egui_winit| integration.on_window_event(event, egui_winit))
+                    Some(integration.on_window_event(
+                        viewport.window.as_deref()?,
+                        viewport.egui_winit.as_mut()?,
+                        event,
+                    ))
                 })
             })
             .unwrap_or_default();
@@ -804,15 +810,11 @@ impl Viewport {
     }
 
     /// Update the stored `ViewportInfo`.
-    pub fn update_viewport_info(&mut self) {
-        crate::profile_function!();
+    pub fn update_viewport_info(&mut self, egui_ctx: &egui::Context) {
         let Some(window) = &self.window else {
             return;
         };
-        let Some(egui_winit) = &self.egui_winit else {
-            return;
-        };
-        egui_winit.update_viewport_info(&mut self.info, window);
+        egui_winit::update_viewport_info(&mut self.info, egui_ctx, window);
     }
 }
 
@@ -873,12 +875,13 @@ fn render_immediate_viewport(
         if viewport.window.is_none() {
             viewport.init_window(egui_ctx, viewport_from_window, painter, event_loop);
         }
-        viewport.update_viewport_info();
+        viewport.update_viewport_info(egui_ctx);
 
         let (Some(window), Some(winit_state)) = (&viewport.window, &mut viewport.egui_winit) else {
             return;
         };
 
+        winit_state.update_pixels_per_point(egui_ctx, window);
         let mut input = winit_state.take_egui_input(window);
         input.viewports = viewports
             .iter()

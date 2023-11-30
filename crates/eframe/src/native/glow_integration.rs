@@ -509,11 +509,13 @@ impl GlowWinitRunning {
 
         let (raw_input, viewport_ui_cb) = {
             let mut glutin = self.glutin.borrow_mut();
+            let egui_ctx = glutin.egui_ctx.clone();
             let viewport = glutin.viewports.get_mut(&viewport_id).unwrap();
-            viewport.update_viewport_info();
+            viewport.update_viewport_info(&egui_ctx);
             let window = viewport.window.as_ref().unwrap();
 
             let egui_winit = viewport.egui_winit.as_mut().unwrap();
+            egui_winit.update_pixels_per_point(&egui_ctx, window);
             let mut raw_input = egui_winit.take_egui_input(window);
             let viewport_ui_cb = viewport.viewport_ui_cb.clone();
 
@@ -746,9 +748,11 @@ impl GlowWinitRunning {
         };
         if let Some(viewport_id) = viewport_id {
             if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
-                event_response = self
-                    .integration
-                    .on_window_event(event, viewport.egui_winit.as_mut().unwrap());
+                if let (Some(window), Some(egui_winit)) =
+                    (&viewport.window, &mut viewport.egui_winit)
+                {
+                    event_response = self.integration.on_window_event(window, egui_winit, event);
+                }
             }
         }
 
@@ -1171,14 +1175,11 @@ impl GlutinWindowContext {
 
 impl Viewport {
     /// Update the stored `ViewportInfo`.
-    fn update_viewport_info(&mut self) {
+    fn update_viewport_info(&mut self, egui_ctx: &egui::Context) {
         let Some(window) = &self.window else {
             return;
         };
-        let Some(egui_winit) = &self.egui_winit else {
-            return;
-        };
-        egui_winit.update_viewport_info(&mut self.info, window);
+        egui_winit::update_viewport_info(&mut self.info, egui_ctx, window);
     }
 }
 
@@ -1296,15 +1297,16 @@ fn render_immediate_viewport(
         let Some(viewport) = glutin.viewports.get_mut(&ids.this) else {
             return;
         };
-        viewport.update_viewport_info();
-        let Some(winit_state) = &mut viewport.egui_winit else {
+        viewport.update_viewport_info(egui_ctx);
+        let Some(egui_winit) = &mut viewport.egui_winit else {
             return;
         };
         let Some(window) = &viewport.window else {
             return;
         };
 
-        let mut raw_input = winit_state.take_egui_input(window);
+        egui_winit.update_pixels_per_point(egui_ctx, window);
+        let mut raw_input = egui_winit.take_egui_input(window);
         raw_input.viewports = glutin
             .viewports
             .iter()
