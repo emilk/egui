@@ -55,6 +55,13 @@ impl<T: Float> Hash for OrderedFloat<T> {
     }
 }
 
+impl<T> From<T> for OrderedFloat<T> {
+    #[inline]
+    fn from(val: T) -> Self {
+        OrderedFloat(val)
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// Extension trait to provide `ord()` method.

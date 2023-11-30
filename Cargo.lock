@@ -1022,9 +1022,7 @@ name = "custom_3d_glow"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "egui_glow",
  "env_logger",
- "glow 0.12.3",
 ]
 
 [[package]]
@@ -1148,7 +1146,7 @@ checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 
 [[package]]
 name = "ecolor"
-version = "0.24.0"
+version = "0.24.1"
 dependencies = [
  "bytemuck",
  "cint",
@@ -1159,7 +1157,7 @@ dependencies = [
 
 [[package]]
 name = "eframe"
-version = "0.24.0"
+version = "0.24.1"
 dependencies = [
  "bytemuck",
  "cocoa",
@@ -1195,7 +1193,7 @@ dependencies = [
 
 [[package]]
 name = "egui"
-version = "0.24.0"
+version = "0.24.1"
 dependencies = [
  "accesskit",
  "ahash",
@@ -1211,7 +1209,7 @@ dependencies = [
 
 [[package]]
 name = "egui-wgpu"
-version = "0.24.0"
+version = "0.24.1"
 dependencies = [
  "bytemuck",
  "document-features",
@@ -1227,7 +1225,7 @@ dependencies = [
 
 [[package]]
 name = "egui-winit"
-version = "0.24.0"
+version = "0.24.1"
 dependencies = [
  "accesskit_winit",
  "arboard",
@@ -1245,7 +1243,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_app"
-version = "0.24.0"
+version = "0.24.1"
 dependencies = [
  "bytemuck",
  "chrono",
@@ -1269,7 +1267,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_lib"
-version = "0.24.0"
+version = "0.24.1"
 dependencies = [
  "chrono",
  "criterion",
@@ -1284,7 +1282,7 @@ dependencies = [
 
 [[package]]
 name = "egui_extras"
-version = "0.24.0"
+version = "0.24.1"
 dependencies = [
  "chrono",
  "document-features",
@@ -1302,7 +1300,7 @@ dependencies = [
 
 [[package]]
 name = "egui_glow"
-version = "0.24.0"
+version = "0.24.1"
 dependencies = [
  "bytemuck",
  "document-features",
@@ -1321,7 +1319,7 @@ dependencies = [
 
 [[package]]
 name = "egui_plot"
-version = "0.24.0"
+version = "0.24.1"
 dependencies = [
  "document-features",
  "egui",
@@ -1350,7 +1348,7 @@ checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
 
 [[package]]
 name = "emath"
-version = "0.24.0"
+version = "0.24.1"
 dependencies = [
  "bytemuck",
  "document-features",
@@ -1426,7 +1424,7 @@ dependencies = [
 
 [[package]]
 name = "epaint"
-version = "0.24.0"
+version = "0.24.1"
 dependencies = [
  "ab_glyph",
  "ahash",
@@ -3640,6 +3638,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6093bad37da69aab9d123a8091e4be0aa4a03e4d601ec641c327398315f62b64"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "test_inline_glow_paint"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "env_logger",
 ]
 
 [[package]]

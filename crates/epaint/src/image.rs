@@ -350,7 +350,7 @@ impl From<FontImage> for ImageData {
 
 #[inline]
 fn fast_round(r: f32) -> u8 {
-    (r + 0.5).floor() as _ // rust does a saturating cast since 1.45
+    (r + 0.5) as _ // rust does a saturating cast since 1.45
 }
 
 // ----------------------------------------------------------------------------

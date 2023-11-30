@@ -102,7 +102,7 @@ x11 = ["egui-winit/x11"]
 __screenshot = []
 
 [dependencies]
-egui = { version = "0.24.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.24.1", path = "../egui", default-features = false, features = [
   "bytemuck",
   "log",
 ] }
@@ -115,7 +115,7 @@ thiserror.workspace = true
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
 
-egui_glow = { version = "0.24.0", path = "../egui_glow", optional = true, default-features = false }
+egui_glow = { version = "0.24.1", path = "../egui_glow", optional = true, default-features = false }
 glow = { version = "0.12", optional = true }
 ron = { version = "0.8", optional = true, features = ["integer128"] }
 serde = { version = "1", optional = true, features = ["derive"] }
@@ -123,7 +123,7 @@ serde = { version = "1", optional = true, features = ["derive"] }
 # -------------------------------------------
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.24.0", path = "../egui-winit", default-features = false, features = [
+egui-winit = { version = "0.24.1", path = "../egui-winit", default-features = false, features = [
   "clipboard",
   "links",
 ] }
@@ -135,7 +135,7 @@ winit = { version = "0.29.4", default-features = false, features = ["rwh_05"] }
 
 # optional native:
 directories-next = { version = "2", optional = true }
-egui-wgpu = { version = "0.24.0", path = "../egui-wgpu", optional = true, features = [
+egui-wgpu = { version = "0.24.1", path = "../egui-wgpu", optional = true, features = [
   "winit",
 ] } # if wgpu is used, use it with winit
 pollster = { version = "0.3", optional = true } # needed for wgpu
@@ -209,6 +209,6 @@ web-sys = { version = "0.3.58", features = [
 ] }
 
 # optional web:
-egui-wgpu = { version = "0.24.0", path = "../egui-wgpu", optional = true } # if wgpu is used, use it without (!) winit
+egui-wgpu = { version = "0.24.1", path = "../egui-wgpu", optional = true } # if wgpu is used, use it without (!) winit
 raw-window-handle = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true }

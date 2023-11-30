@@ -229,8 +229,9 @@ impl EpiIntegration {
 
     pub fn on_window_event(
         &mut self,
-        event: &winit::event::WindowEvent,
+        window: &winit::window::Window,
         egui_winit: &mut egui_winit::State,
+        event: &winit::event::WindowEvent,
     ) -> EventResponse {
         crate::profile_function!(egui_winit::short_window_event_description(event));
 
@@ -254,6 +255,7 @@ impl EpiIntegration {
             _ => {}
         }
 
+        egui_winit.update_pixels_per_point(&self.egui_ctx, window);
         egui_winit.on_window_event(&self.egui_ctx, event)
     }
 

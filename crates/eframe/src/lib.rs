@@ -221,8 +221,6 @@ pub fn run_native(
     mut native_options: NativeOptions,
     app_creator: AppCreator,
 ) -> Result<()> {
-    let renderer = native_options.renderer;
-
     #[cfg(not(feature = "__screenshot"))]
     assert!(
         std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
@@ -231,6 +229,17 @@ pub fn run_native(
 
     if native_options.viewport.title.is_none() {
         native_options.viewport.title = Some(app_name.to_owned());
+    }
+
+    let renderer = native_options.renderer;
+
+    #[cfg(all(feature = "glow", feature = "wgpu"))]
+    {
+        match renderer {
+            Renderer::Glow => "glow",
+            Renderer::Wgpu => "wgpu",
+        };
+        log::info!("Both the glow and wgpu renderers are available. Using {renderer}.");
     }
 
     match renderer {

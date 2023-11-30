@@ -38,6 +38,13 @@ pub fn screen_size_in_pixels(window: &Window) -> egui::Vec2 {
     egui::vec2(size.width as f32, size.height as f32)
 }
 
+/// Calculate the `pixels_per_point` for a given window, given the current egui zoom factor
+pub fn pixels_per_point(egui_ctx: &egui::Context, window: &Window) -> f32 {
+    let native_pixels_per_point = window.scale_factor() as f32;
+    let egui_zoom_factor = egui_ctx.zoom_factor();
+    egui_zoom_factor * native_pixels_per_point
+}
+
 // ----------------------------------------------------------------------------
 
 #[must_use]
@@ -70,7 +77,7 @@ pub struct State {
     current_cursor_icon: Option<egui::CursorIcon>,
 
     /// What egui uses.
-    current_pixels_per_point: f32,
+    current_pixels_per_point: f32, // TODO: remove - calculate with [`pixels_per_point`] instead
 
     clipboard: clipboard::Clipboard,
 
@@ -164,9 +171,8 @@ impl State {
         self.egui_input.max_texture_side = Some(max_texture_side);
     }
 
-    /// The number of physical pixels per logical point,
-    /// as configured on the current egui context (see [`egui::Context::pixels_per_point`]).
     #[inline]
+    #[deprecated = "Use egui_winit::pixels_per_point instead"]
     pub fn pixels_per_point(&self) -> f32 {
         self.current_pixels_per_point
     }
@@ -186,10 +192,9 @@ impl State {
     }
 
     /// Update the given viewport info with the current state of the window.
-    ///
-    /// Call before [`Self::update_viewport_info`]
+    #[deprecated = "Use egui_winit::update_viewport_info instead"]
     pub fn update_viewport_info(&self, info: &mut ViewportInfo, window: &Window) {
-        update_viewport_info(info, window, self.current_pixels_per_point);
+        update_viewport_info_impl(info, window, self.current_pixels_per_point);
     }
 
     /// Prepare for a new frame by extracting the accumulated input,
@@ -224,6 +229,12 @@ impl State {
             .native_pixels_per_point = Some(window.scale_factor() as f32);
 
         self.egui_input.take()
+    }
+
+    // TODO(emilk): remove asap.
+    #[doc(hidden)]
+    pub fn update_pixels_per_point(&mut self, egui_ctx: &egui::Context, window: &Window) {
+        self.current_pixels_per_point = pixels_per_point(egui_ctx, window);
     }
 
     /// Call this when there is a new event.
@@ -503,8 +514,8 @@ impl State {
 
     fn on_cursor_moved(&mut self, pos_in_pixels: winit::dpi::PhysicalPosition<f64>) {
         let pos_in_points = egui::pos2(
-            pos_in_pixels.x as f32 / self.pixels_per_point(),
-            pos_in_pixels.y as f32 / self.pixels_per_point(),
+            pos_in_pixels.x as f32 / self.current_pixels_per_point,
+            pos_in_pixels.y as f32 / self.current_pixels_per_point,
         );
         self.pointer_pos_in_points = Some(pos_in_points);
 
@@ -541,8 +552,8 @@ impl State {
                 winit::event::TouchPhase::Cancelled => egui::TouchPhase::Cancel,
             },
             pos: egui::pos2(
-                touch.location.x as f32 / self.pixels_per_point(),
-                touch.location.y as f32 / self.pixels_per_point(),
+                touch.location.x as f32 / self.current_pixels_per_point,
+                touch.location.y as f32 / self.current_pixels_per_point,
             ),
             force: match touch.force {
                 Some(winit::event::Force::Normalized(force)) => Some(force as f32),
@@ -602,7 +613,7 @@ impl State {
                     y,
                 }) => (
                     egui::MouseWheelUnit::Point,
-                    egui::vec2(x as f32, y as f32) / self.pixels_per_point(),
+                    egui::vec2(x as f32, y as f32) / self.current_pixels_per_point,
                 ),
             };
             let modifiers = self.egui_input.modifiers;
@@ -618,7 +629,7 @@ impl State {
                 egui::vec2(x, y) * points_per_scroll_line
             }
             winit::event::MouseScrollDelta::PixelDelta(delta) => {
-                egui::vec2(delta.x as f32, delta.y as f32) / self.pixels_per_point()
+                egui::vec2(delta.x as f32, delta.y as f32) / self.current_pixels_per_point
             }
         };
 
@@ -768,7 +779,7 @@ impl State {
 
         if let Some(ime) = ime {
             let rect = ime.rect;
-            let pixels_per_point = self.pixels_per_point();
+            let pixels_per_point = self.current_pixels_per_point;
             window.set_ime_cursor_area(
                 winit::dpi::PhysicalPosition {
                     x: pixels_per_point * rect.min.x,
@@ -813,7 +824,18 @@ impl State {
     }
 }
 
-fn update_viewport_info(viewport_info: &mut ViewportInfo, window: &Window, pixels_per_point: f32) {
+/// Update the given viewport info with the current state of the window.
+///
+/// Call before [`State::take_egui_input`].
+pub fn update_viewport_info(info: &mut ViewportInfo, egui_ctx: &egui::Context, window: &Window) {
+    update_viewport_info_impl(info, window, pixels_per_point(egui_ctx, window));
+}
+
+fn update_viewport_info_impl(
+    viewport_info: &mut ViewportInfo,
+    window: &Window,
+    pixels_per_point: f32,
+) {
     crate::profile_function!();
 
     let has_a_position = match window.is_minimized() {
@@ -1168,8 +1190,7 @@ fn process_viewport_command(
 
     log::debug!("Processing ViewportCommand::{command:?}");
 
-    let egui_zoom_factor = egui_ctx.zoom_factor();
-    let pixels_per_point = egui_zoom_factor * window.scale_factor() as f32;
+    let pixels_per_point = pixels_per_point(egui_ctx, window);
 
     match command {
         ViewportCommand::Close => {
@@ -1348,6 +1369,26 @@ fn process_viewport_command(
     }
 }
 
+/// Build and intitlaize a window.
+///
+/// Wrapper around `create_winit_window_builder` and `apply_viewport_builder_to_window`.
+pub fn create_window<T>(
+    egui_ctx: &egui::Context,
+    event_loop: &EventLoopWindowTarget<T>,
+    viewport_builder: &ViewportBuilder,
+) -> Result<Window, winit::error::OsError> {
+    crate::profile_function!();
+
+    let window_builder =
+        create_winit_window_builder(egui_ctx, event_loop, viewport_builder.clone());
+    let window = {
+        crate::profile_scope!("WindowBuilder::build");
+        window_builder.build(event_loop)?
+    };
+    apply_viewport_builder_to_window(egui_ctx, &window, viewport_builder);
+    Ok(window)
+}
+
 pub fn create_winit_window_builder<T>(
     egui_ctx: &egui::Context,
     event_loop: &EventLoopWindowTarget<T>,
@@ -1357,6 +1398,8 @@ pub fn create_winit_window_builder<T>(
 
     // We set sizes and positions in egui:s own ui points, which depends on the egui
     // zoom_factor and the native pixels per point, so we need to know that here.
+    // We don't know what monitor the window will appear on though, but
+    // we'll try to fix that after the window is created in the vall to `apply_viewport_builder_to_window`.
     let native_pixels_per_point = event_loop
         .primary_monitor()
         .or_else(|| event_loop.available_monitors().next())
@@ -1401,7 +1444,7 @@ pub fn create_winit_window_builder<T>(
         // wayland:
         app_id: _app_id,
 
-        mouse_passthrough: _, // handled in `apply_viewport_builder_to_new_window`
+        mouse_passthrough: _, // handled in `apply_viewport_builder_to_window`
     } = viewport_builder;
 
     let mut window_builder = winit::window::WindowBuilder::new()
@@ -1434,31 +1477,31 @@ pub fn create_winit_window_builder<T>(
         })
         .with_active(active.unwrap_or(true));
 
-    if let Some(inner_size) = inner_size {
+    if let Some(size) = inner_size {
         window_builder = window_builder.with_inner_size(PhysicalSize::new(
-            pixels_per_point * inner_size.x,
-            pixels_per_point * inner_size.y,
+            pixels_per_point * size.x,
+            pixels_per_point * size.y,
         ));
     }
 
-    if let Some(min_inner_size) = min_inner_size {
+    if let Some(size) = min_inner_size {
         window_builder = window_builder.with_min_inner_size(PhysicalSize::new(
-            pixels_per_point * min_inner_size.x,
-            pixels_per_point * min_inner_size.y,
+            pixels_per_point * size.x,
+            pixels_per_point * size.y,
         ));
     }
 
-    if let Some(max_inner_size) = max_inner_size {
+    if let Some(size) = max_inner_size {
         window_builder = window_builder.with_max_inner_size(PhysicalSize::new(
-            pixels_per_point * max_inner_size.x,
-            pixels_per_point * max_inner_size.y,
+            pixels_per_point * size.x,
+            pixels_per_point * size.y,
         ));
     }
 
-    if let Some(position) = position {
+    if let Some(pos) = position {
         window_builder = window_builder.with_position(PhysicalPosition::new(
-            pixels_per_point * position.x,
-            pixels_per_point * position.y,
+            pixels_per_point * pos.x,
+            pixels_per_point * pos.y,
         ));
     }
 
@@ -1495,10 +1538,61 @@ pub fn create_winit_window_builder<T>(
 }
 
 /// Applies what `create_winit_window_builder` couldn't
+#[deprecated = "Use apply_viewport_builder_to_window instead"]
 pub fn apply_viewport_builder_to_new_window(window: &Window, builder: &ViewportBuilder) {
     if let Some(mouse_passthrough) = builder.mouse_passthrough {
         if let Err(err) = window.set_cursor_hittest(!mouse_passthrough) {
             log::warn!("set_cursor_hittest failed: {err}");
+        }
+    }
+}
+
+/// Applies what `create_winit_window_builder` couldn't
+pub fn apply_viewport_builder_to_window(
+    egui_ctx: &egui::Context,
+    window: &Window,
+    builder: &ViewportBuilder,
+) {
+    if let Some(mouse_passthrough) = builder.mouse_passthrough {
+        if let Err(err) = window.set_cursor_hittest(!mouse_passthrough) {
+            log::warn!("set_cursor_hittest failed: {err}");
+        }
+    }
+
+    {
+        // In `create_winit_window_builder` we didn't know
+        // on what monitor the window would appear, so we didn't know
+        // how to translate egui ui point to native physical pixels.
+        // Now we do know:
+
+        let pixels_per_point = pixels_per_point(egui_ctx, window);
+
+        if let Some(size) = builder.inner_size {
+            if window
+                .request_inner_size(PhysicalSize::new(
+                    pixels_per_point * size.x,
+                    pixels_per_point * size.y,
+                ))
+                .is_some()
+            {
+                log::debug!("Failed to set window size");
+            }
+        }
+        if let Some(size) = builder.min_inner_size {
+            window.set_min_inner_size(Some(PhysicalSize::new(
+                pixels_per_point * size.x,
+                pixels_per_point * size.y,
+            )));
+        }
+        if let Some(size) = builder.max_inner_size {
+            window.set_max_inner_size(Some(PhysicalSize::new(
+                pixels_per_point * size.x,
+                pixels_per_point * size.y,
+            )));
+        }
+        if let Some(pos) = builder.position {
+            let pos = PhysicalPosition::new(pixels_per_point * pos.x, pixels_per_point * pos.y);
+            window.set_outer_position(pos);
         }
     }
 }

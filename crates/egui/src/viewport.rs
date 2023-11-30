@@ -262,6 +262,7 @@ pub struct ViewportBuilder {
     /// This is wayland only. See [`Self::with_app_id`].
     pub app_id: Option<String>,
 
+    /// The desired outer position of the window.
     pub position: Option<Pos2>,
     pub inner_size: Option<Vec2>,
     pub min_inner_size: Option<Vec2>,
@@ -506,7 +507,8 @@ impl ViewportBuilder {
         self
     }
 
-    /// This will probably not work as expected!
+    /// The initial "outer" position of the window,
+    /// i.e. where the top-left corner of the frame/chrome should be.
     #[inline]
     pub fn with_position(mut self, pos: impl Into<Pos2>) -> Self {
         self.position = Some(pos.into());

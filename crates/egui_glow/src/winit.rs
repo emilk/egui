@@ -40,7 +40,6 @@ impl EguiGlow {
             native_pixels_per_point,
             Some(painter.max_texture_side()),
         );
-        let pixels_per_point = egui_winit.pixels_per_point();
 
         Self {
             egui_ctx: Default::default(),
@@ -48,7 +47,7 @@ impl EguiGlow {
             painter,
             viewport_info: Default::default(),
             shapes: Default::default(),
-            pixels_per_point,
+            pixels_per_point: native_pixels_per_point.unwrap_or(1.0),
             textures_delta: Default::default(),
         }
     }

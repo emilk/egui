@@ -4,7 +4,20 @@ All notable changes to the `eframe` crate.
 NOTE: [`egui-winit`](../egui-winit/CHANGELOG.md), [`egui_glium`](../egui_glium/CHANGELOG.md), [`egui_glow`](../egui_glow/CHANGELOG.md),and [`egui-wgpu`](../egui-wgpu/CHANGELOG.md) have their own changelogs!
 
 This file is updated upon each release.
-Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
+Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
+
+
+## 0.24.1 - 2023-11-30
+#### Desktop/Native:
+* Fix window flashing white on launch [#3631](https://github.com/emilk/egui/pull/3631) (thanks [@zeozeozeo](https://github.com/zeozeozeo)!)
+* Fix windowing problems when using the `x11` feature on Linux [#3643](https://github.com/emilk/egui/pull/3643)
+* Fix bugs when there are multiple monitors with different scales [#3663](https://github.com/emilk/egui/pull/3663)
+* `glow` backend: clear framebuffer color before calling `App::update` [#3665](https://github.com/emilk/egui/pull/3665)
+
+#### Web:
+* Fix click-to-copy on Safari [#3621](https://github.com/emilk/egui/pull/3621)
+* Don't throw away frames on click/copy/cut [#3623](https://github.com/emilk/egui/pull/3623)
+* Remove dependency on `tts` [#3651](https://github.com/emilk/egui/pull/3651)
 
 
 ## 0.24.0 - 2023-11-23
