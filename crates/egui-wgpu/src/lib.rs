@@ -166,6 +166,10 @@ pub enum SurfaceErrorAction {
 }
 
 /// Configuration for using wgpu with eframe or the egui-wgpu winit feature.
+///
+/// This can be configured with the environment variables:
+/// * `WGPU_BACKEND`: `vulkan`, `dx11`, `dx12`, `metal`, `opengl`, `webgpu`
+/// * `WGPU_POWER_PREF`: `low`, `high` or `none`
 #[derive(Clone)]
 pub struct WgpuConfiguration {
     /// Backends that should be supported (wgpu will pick one of these)
@@ -201,6 +205,7 @@ impl Default for WgpuConfiguration {
             // (note however, that the GL backend needs to be opted-in via a wgpu feature flag)
             supported_backends: wgpu::util::backend_bits_from_env()
                 .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL),
+
             device_descriptor: Arc::new(|adapter| {
                 let base_limits = if adapter.get_info().backend == wgpu::Backend::Gl {
                     wgpu::Limits::downlevel_webgl2_defaults()
@@ -219,7 +224,9 @@ impl Default for WgpuConfiguration {
                     },
                 }
             }),
+
             present_mode: wgpu::PresentMode::AutoVsync,
+
             power_preference: wgpu::util::power_preference_from_env()
                 .unwrap_or(wgpu::PowerPreference::HighPerformance),
 
