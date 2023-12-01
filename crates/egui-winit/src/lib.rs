@@ -715,17 +715,21 @@ impl State {
         }
 
         if let Some(text) = &text {
-            // On some platforms we get here when the user presses Cmd-C (copy), ctrl-W, etc.
-            // We need to ignore these characters that are side-effects of commands.
-            // Also make sure the key is pressed (not released). On Linux, text might
-            // contain some data even when the key is released.
-            let is_cmd = self.egui_input.modifiers.ctrl
-                || self.egui_input.modifiers.command
-                || self.egui_input.modifiers.mac_cmd;
-            if pressed && !is_cmd {
-                self.egui_input
-                    .events
-                    .push(egui::Event::Text(text.to_string()));
+            // Make sure there is text, and that it is not control characters
+            // (e.g. delete is sent as "\u{f728}" on macOS).
+            if !text.is_empty() && text.chars().all(is_printable_char) {
+                // On some platforms we get here when the user presses Cmd-C (copy), ctrl-W, etc.
+                // We need to ignore these characters that are side-effects of commands.
+                // Also make sure the key is pressed (not released). On Linux, text might
+                // contain some data even when the key is released.
+                let is_cmd = self.egui_input.modifiers.ctrl
+                    || self.egui_input.modifiers.command
+                    || self.egui_input.modifiers.mac_cmd;
+                if pressed && !is_cmd {
+                    self.egui_input
+                        .events
+                        .push(egui::Event::Text(text.to_string()));
+                }
             }
         }
 
@@ -927,6 +931,18 @@ fn open_url_in_browser(_url: &str) {
     {
         log::warn!("Cannot open url - feature \"links\" not enabled.");
     }
+}
+
+/// Winit sends special keys (backspace, delete, F1, …) as characters.
+/// Ignore those.
+/// We also ignore '\r', '\n', '\t'.
+/// Newlines are handled by the `Key::Enter` event.
+fn is_printable_char(chr: char) -> bool {
+    let is_in_private_use_area = '\u{e000}' <= chr && chr <= '\u{f8ff}'
+        || '\u{f0000}' <= chr && chr <= '\u{ffffd}'
+        || '\u{100000}' <= chr && chr <= '\u{10fffd}';
+
+    !is_in_private_use_area && !chr.is_ascii_control()
 }
 
 fn is_cut_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
