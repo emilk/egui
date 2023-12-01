@@ -69,6 +69,8 @@ impl RenderState {
     ) -> Result<Self, WgpuError> {
         crate::profile_scope!("RenderState::create"); // async yield give bad names using `profile_function`
 
+        let adaptors: Vec<_> = instance.enumerate_adapters(wgpu::Backends::all()).collect();
+
         let adapter = {
             crate::profile_scope!("request_adapter");
             instance
@@ -78,8 +80,39 @@ impl RenderState {
                     force_fallback_adapter: false,
                 })
                 .await
-                .ok_or(WgpuError::NoSuitableAdapterFound)?
+                .ok_or_else(|| {
+                    let adaptors: Vec<_> =
+                        instance.enumerate_adapters(wgpu::Backends::all()).collect();
+                    if adaptors.is_empty() {
+                        log::info!("No wgpu adaptors found");
+                    } else {
+                        log::info!(
+                            "No suitable wgpu adapter found out of the {} available ones: {}",
+                            adaptors.len(),
+                            describe_adaptors(&adaptors)
+                        );
+                    }
+
+                    WgpuError::NoSuitableAdapterFound
+                })?
         };
+
+        if adaptors.len() == 1 {
+            log::debug!(
+                "Picked the only available wgpu adaptor: {}",
+                adapter_info_summary(&adapter.get_info())
+            );
+        } else {
+            log::info!(
+                "There were {} available wgpu adaptors: {}",
+                adaptors.len(),
+                describe_adaptors(&adaptors)
+            );
+            log::debug!(
+                "Picked wgpu adaptor: {}",
+                adapter_info_summary(&adapter.get_info())
+            );
+        }
 
         let capabilities = {
             crate::profile_scope!("get_capabilities");
@@ -103,6 +136,23 @@ impl RenderState {
             target_format,
             renderer: Arc::new(RwLock::new(renderer)),
         })
+    }
+}
+
+fn describe_adaptors(adaptors: &[wgpu::Adapter]) -> String {
+    if adaptors.is_empty() {
+        "(none)".to_owned()
+    } else if adaptors.len() == 1 {
+        adapter_info_summary(&adaptors[0].get_info())
+    } else {
+        let mut list_string = String::new();
+        for adaptor in adaptors {
+            if !list_string.is_empty() {
+                list_string += ", ";
+            }
+            list_string += &format!("{{{}}}", adapter_info_summary(&adaptor.get_info()));
+        }
+        list_string
     }
 }
 
@@ -220,6 +270,40 @@ pub fn depth_format_from_bits(depth_buffer: u8, stencil_buffer: u8) -> Option<wg
         (32, 8) => Some(wgpu::TextureFormat::Depth32FloatStencil8),
         _ => None,
     }
+}
+
+// ---------------------------------------------------------------------------
+
+/// A human-readable summary about an adapter
+pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
+    let wgpu::AdapterInfo {
+        name,
+        vendor: _, // skip integer id
+        device: _, // skip integer id
+        device_type,
+        driver,
+        driver_info,
+        backend,
+    } = &info;
+
+    // Example values:
+    // > name: "llvmpipe (LLVM 16.0.6, 256 bits)", device_type: Cpu, backend: Vulkan, driver: "llvmpipe", driver_info: "Mesa 23.1.6-arch1.4 (LLVM 16.0.6)"
+    // > name: "Apple M1 Pro", device_type: IntegratedGpu, backend: Metal, driver: "", driver_info: ""
+    // > name: "ANGLE (Apple, Apple M1 Pro, OpenGL 4.1)", device_type: IntegratedGpu, backend: Gl, driver: "", driver_info: ""
+
+    let mut summary = format!("backend: {backend:?}, device_type: {device_type:?}");
+
+    if !name.is_empty() {
+        summary += &format!(", name: {name:?}");
+    }
+    if !driver.is_empty() {
+        summary += &format!(", driver: {driver:?}");
+    }
+    if !driver_info.is_empty() {
+        summary += &format!(", driver_info: {driver_info:?}");
+    }
+
+    summary
 }
 
 // ---------------------------------------------------------------------------
