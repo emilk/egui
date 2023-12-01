@@ -69,6 +69,7 @@ impl RenderState {
     ) -> Result<Self, WgpuError> {
         crate::profile_scope!("RenderState::create"); // async yield give bad names using `profile_function`
 
+        #[cfg(not(target_arch = "wasm32"))]
         let adaptors: Vec<_> = instance.enumerate_adapters(wgpu::Backends::all()).collect();
 
         let adapter = {
@@ -81,8 +82,7 @@ impl RenderState {
                 })
                 .await
                 .ok_or_else(|| {
-                    let adaptors: Vec<_> =
-                        instance.enumerate_adapters(wgpu::Backends::all()).collect();
+                    #[cfg(not(target_arch = "wasm32"))]
                     if adaptors.is_empty() {
                         log::info!("No wgpu adaptors found");
                     } else if adaptors.len() == 1 {
@@ -102,6 +102,13 @@ impl RenderState {
                 })?
         };
 
+        #[cfg(target_arch = "wasm32")]
+        log::debug!(
+            "Picked wgpu adaptor: {}",
+            adapter_info_summary(&adapter.get_info())
+        );
+
+        #[cfg(not(target_arch = "wasm32"))]
         if adaptors.len() == 1 {
             log::debug!(
                 "Picked the only available wgpu adaptor: {}",
@@ -144,6 +151,7 @@ impl RenderState {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn describe_adaptors(adaptors: &[wgpu::Adapter]) -> String {
     if adaptors.is_empty() {
         "(none)".to_owned()
