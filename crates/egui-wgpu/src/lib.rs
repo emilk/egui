@@ -85,6 +85,11 @@ impl RenderState {
                         instance.enumerate_adapters(wgpu::Backends::all()).collect();
                     if adaptors.is_empty() {
                         log::info!("No wgpu adaptors found");
+                    } else if adaptors.len() == 1 {
+                        log::info!(
+                            "The only available wgpu adaptor was not suitable: {}",
+                            adapter_info_summary(&adaptors[0].get_info())
+                        );
                     } else {
                         log::info!(
                             "No suitable wgpu adapter found out of the {} available ones: {}",
