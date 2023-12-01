@@ -1,16 +1,16 @@
 [package]
 name = "egui_extras"
-version = "0.23.0"
+version.workspace = true
 authors = [
   "Dominik Rössler <dominik@freshx.de>",
   "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
   "René Rössler <rene@freshx.de>",
 ]
 description = "Extra functionality and widgets for the egui GUI library"
-edition = "2021"
-rust-version = "1.70"
+edition.workspace = true
+rust-version.workspace = true
 homepage = "https://github.com/emilk/egui"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 readme = "README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["gui", "game-development"]
@@ -60,7 +60,7 @@ syntect = ["dep:syntect"]
 
 
 [dependencies]
-egui = { version = "0.23.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.24.1", path = "../egui", default-features = false, features = [
   "serde",
 ] }
 enum-map = { version = "2", features = ["serde"] }
@@ -85,7 +85,7 @@ image = { version = "0.24", optional = true, default-features = false }
 # file feature
 mime_guess2 = { version = "2", optional = true, default-features = false }
 
-puffin = { version = "0.16", optional = true }
+puffin = { workspace = true, optional = true }
 
 syntect = { version = "5", optional = true, default-features = false, features = [
   "default-fancy",

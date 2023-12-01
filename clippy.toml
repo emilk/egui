@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # Section identical to scripts/clippy_wasm/clippy.toml:
 
-msrv = "1.70"
+msrv = "1.72"
 
 allow-unwrap-in-tests = true
 
@@ -60,6 +60,9 @@ disallowed-types = [
     # "std::sync::Once",  # enabled for now as the `log_once` macro uses it internally
 
     "ring::digest::SHA1_FOR_LEGACY_USE_ONLY", # SHA1 is cryptographically broken
+
+    "winit::dpi::LogicalSize",     # We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account
+    "winit::dpi::LogicalPosition", # We do our own pixels<->point conversion, taking `egui_ctx.zoom_factor` into account
 ]
 
 # -----------------------------------------------------------------------------

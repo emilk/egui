@@ -27,6 +27,7 @@ impl Default for Demos {
             Box::<super::context_menu::ContextMenus>::default(),
             Box::<super::dancing_strings::DancingStrings>::default(),
             Box::<super::drag_and_drop::DragAndDropDemo>::default(),
+            Box::<super::extra_viewport::ExtraViewport>::default(),
             Box::<super::font_book::FontBook>::default(),
             Box::<super::MiscDemoWindow>::default(),
             Box::<super::multi_touch::MultiTouch>::default(),
@@ -61,9 +62,11 @@ impl Demos {
     pub fn checkboxes(&mut self, ui: &mut Ui) {
         let Self { demos, open } = self;
         for demo in demos {
-            let mut is_open = open.contains(demo.name());
-            ui.toggle_value(&mut is_open, demo.name());
-            set_open(open, demo.name(), is_open);
+            if demo.is_enabled(ui.ctx()) {
+                let mut is_open = open.contains(demo.name());
+                ui.toggle_value(&mut is_open, demo.name());
+                set_open(open, demo.name(), is_open);
+            }
         }
     }
 
@@ -326,7 +329,12 @@ fn file_menu_button(ui: &mut Ui) {
         // On the web the browser controls the zoom
         #[cfg(not(target_arch = "wasm32"))]
         {
-            egui::gui_zoom::zoom_menu_buttons(ui, None);
+            egui::gui_zoom::zoom_menu_buttons(ui);
+            ui.weak(format!(
+                "Current zoom: {:.0}%",
+                100.0 * ui.ctx().zoom_factor()
+            ))
+            .on_hover_text("The UI zoom level, on top of the operating system's default value");
             ui.separator();
         }
 

@@ -3,7 +3,17 @@ All notable changes to the `ecolor` crate will be noted in this file.
 
 
 This file is updated upon each release.
-Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
+Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
+
+
+## 0.24.1 - 2023-11-30
+* Optimize color conversions [#3666](https://github.com/emilk/egui/pull/3666)
+
+
+
+## 0.24.0 - 2023-11-23
+* Update MSRV to Rust 1.72 [#3595](https://github.com/emilk/egui/pull/3595)
+* Add `#[inline]` to all color-related function [38b4234](https://github.com/emilk/egui/commit/38b4234c3282a7c044c18b77234ee8c204efe171)
 
 
 ## 0.22.0 - 2023-05-23

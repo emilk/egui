@@ -55,6 +55,7 @@ warn = [
   "clippy::large_digit_groups",
   "clippy::large_include_file",
   "clippy::large_stack_arrays",
+  "clippy::large_stack_frames",
   "clippy::large_types_passed_by_value",
   "clippy::let_unit_value",
   "clippy::linkedlist",
@@ -90,7 +91,9 @@ warn = [
   "clippy::option_option",
   "clippy::path_buf_push_overwrite",
   "clippy::ptr_as_ptr",
+  "clippy::ptr_cast_constness",
   "clippy::rc_mutex",
+  "clippy::redundant_type_annotations",
   "clippy::ref_option_ref",
   "clippy::rest_pat_in_fully_bound_structs",
   "clippy::same_functions_in_if_condition",
@@ -106,6 +109,7 @@ warn = [
   "clippy::todo",
   "clippy::trailing_empty_array",
   "clippy::trait_duplication_in_bounds",
+  "clippy::tuple_array_conversions",
   "clippy::unchecked_duration_subtraction",
   "clippy::unimplemented",
   "clippy::uninlined_format_args",
@@ -129,23 +133,24 @@ warn = [
   "rustdoc::missing_crate_level_docs",
   "semicolon_in_expressions_from_macros",
   "trivial_numeric_casts",
+  "unsafe_op_in_unsafe_fn",                     # `unsafe_op_in_unsafe_fn` may become the default in future Rust versions: https://github.com/rust-lang/rust/issues/71668
   "unused_extern_crates",
   "unused_import_braces",
   "unused_lifetimes",
 ]
 
 allow = [
-  "clippy::manual_range_contains", # this one is just worse imho
-
-  "clippy::significant_drop_tightening", # False positives
+  "clippy::manual_range_contains",       # this one is just worse imho
+  "clippy::significant_drop_tightening", # A lot of false positives
 
   # TODO(emilk): enable more of these lints:
+  "clippy::cloned_instead_of_copied",
   "clippy::let_underscore_untyped",
   "clippy::missing_assert_message",
+  "clippy::missing_errors_doc",
   "clippy::undocumented_unsafe_blocks",
   "clippy::unwrap_used",
-  "clippy::wildcard_imports",
+  "clippy::wildcard_imports",           # we do this a lot
   "trivial_casts",
-  "unsafe_op_in_unsafe_fn",             # `unsafe_op_in_unsafe_fn` may become the default in future Rust versions: https://github.com/rust-lang/rust/issues/71668
   "unused_qualifications",
 ]

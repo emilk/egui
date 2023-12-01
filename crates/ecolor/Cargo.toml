@@ -1,15 +1,15 @@
 [package]
 name = "ecolor"
-version = "0.23.0"
+version.workspace = true
 authors = [
   "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
   "Andreas Reich <reichandreas@gmx.de>",
 ]
 description = "Color structs and color conversion utilities"
-edition = "2021"
-rust-version = "1.70"
+edition.workspace = true
+rust-version.workspace = true
 homepage = "https://github.com/emilk/egui"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 readme = "README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["mathematics", "encoding"]

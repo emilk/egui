@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+#[cfg(feature = "accesskit")]
+use accesskit::Role;
 use epaint::text::{cursor::*, Galley, LayoutJob};
 
 use crate::{output::OutputEvent, *};
@@ -137,12 +139,14 @@ impl<'t> TextEdit<'t> {
     }
 
     /// Use if you want to set an explicit [`Id`] for this widget.
+    #[inline]
     pub fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
     }
 
     /// A source for the unique [`Id`], e.g. `.id_source("second_text_edit_field")` or `.id_source(loop_index)`.
+    #[inline]
     pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
         self.id_source = Some(Id::new(id_source));
         self
@@ -169,18 +173,21 @@ impl<'t> TextEdit<'t> {
     /// painter.galley(output.text_draw_pos, galley);
     /// # });
     /// ```
+    #[inline]
     pub fn hint_text(mut self, hint_text: impl Into<WidgetText>) -> Self {
         self.hint_text = hint_text.into();
         self
     }
 
     /// If true, hide the letters from view and prevent copying from the field.
+    #[inline]
     pub fn password(mut self, password: bool) -> Self {
         self.password = password;
         self
     }
 
     /// Pick a [`FontId`] or [`TextStyle`].
+    #[inline]
     pub fn font(mut self, font_selection: impl Into<FontSelection>) -> Self {
         self.font_selection = font_selection.into();
         self
@@ -191,11 +198,13 @@ impl<'t> TextEdit<'t> {
         self.font(text_style)
     }
 
+    #[inline]
     pub fn text_color(mut self, text_color: Color32) -> Self {
         self.text_color = Some(text_color);
         self
     }
 
+    #[inline]
     pub fn text_color_opt(mut self, text_color: Option<Color32>) -> Self {
         self.text_color = text_color;
         self
@@ -224,6 +233,7 @@ impl<'t> TextEdit<'t> {
     /// ui.add(egui::TextEdit::multiline(&mut my_code).layouter(&mut layouter));
     /// # });
     /// ```
+    #[inline]
     pub fn layouter(mut self, layouter: &'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>) -> Self {
         self.layouter = Some(layouter);
 
@@ -233,18 +243,21 @@ impl<'t> TextEdit<'t> {
     /// Default is `true`. If set to `false` then you cannot interact with the text (neither edit or select it).
     ///
     /// Consider using [`Ui::add_enabled`] instead to also give the [`TextEdit`] a greyed out look.
+    #[inline]
     pub fn interactive(mut self, interactive: bool) -> Self {
         self.interactive = interactive;
         self
     }
 
     /// Default is `true`. If set to `false` there will be no frame showing that this is editable text!
+    #[inline]
     pub fn frame(mut self, frame: bool) -> Self {
         self.frame = frame;
         self
     }
 
     /// Set margin of text. Default is [4.0,2.0]
+    #[inline]
     pub fn margin(mut self, margin: Vec2) -> Self {
         self.margin = margin;
         self
@@ -252,6 +265,7 @@ impl<'t> TextEdit<'t> {
 
     /// Set to 0.0 to keep as small as possible.
     /// Set to [`f32::INFINITY`] to take up all available space (i.e. disable automatic word wrap).
+    #[inline]
     pub fn desired_width(mut self, desired_width: f32) -> Self {
         self.desired_width = Some(desired_width);
         self
@@ -260,6 +274,7 @@ impl<'t> TextEdit<'t> {
     /// Set the number of rows to show by default.
     /// The default for singleline text is `1`.
     /// The default for multiline text is `4`.
+    #[inline]
     pub fn desired_rows(mut self, desired_height_rows: usize) -> Self {
         self.desired_height_rows = desired_height_rows;
         self
@@ -270,6 +285,7 @@ impl<'t> TextEdit<'t> {
     ///
     /// When `true`, the widget will keep the focus and pressing TAB
     /// will insert the `'\t'` character.
+    #[inline]
     pub fn lock_focus(mut self, tab_will_indent: bool) -> Self {
         self.event_filter.tab = tab_will_indent;
         self
@@ -278,6 +294,7 @@ impl<'t> TextEdit<'t> {
     /// When `true` (default), the cursor will initially be placed at the end of the text.
     ///
     /// When `false`, the cursor will initially be placed at the beginning of the text.
+    #[inline]
     pub fn cursor_at_end(mut self, b: bool) -> Self {
         self.cursor_at_end = b;
         self
@@ -288,6 +305,7 @@ impl<'t> TextEdit<'t> {
     /// When `false`, widget width will expand to make all text visible.
     ///
     /// This only works for singleline [`TextEdit`].
+    #[inline]
     pub fn clip_text(mut self, b: bool) -> Self {
         // always show everything in multiline
         if !self.multiline {
@@ -299,24 +317,28 @@ impl<'t> TextEdit<'t> {
     /// Sets the limit for the amount of characters can be entered
     ///
     /// This only works for singleline [`TextEdit`]
+    #[inline]
     pub fn char_limit(mut self, limit: usize) -> Self {
         self.char_limit = limit;
         self
     }
 
     /// Set the horizontal align of the inner text.
+    #[inline]
     pub fn horizontal_align(mut self, align: Align) -> Self {
         self.align.0[0] = align;
         self
     }
 
     /// Set the vertical align of the inner text.
+    #[inline]
     pub fn vertical_align(mut self, align: Align) -> Self {
         self.align.0[1] = align;
         self
     }
 
     /// Set the minimum size of the [`TextEdit`].
+    #[inline]
     pub fn min_size(mut self, min_size: Vec2) -> Self {
         self.min_size = min_size;
         self
@@ -751,7 +773,7 @@ impl<'t> TextEdit<'t> {
 
                 builder.set_default_action_verb(accesskit::DefaultActionVerb::Focus);
                 if self.multiline {
-                    builder.set_multiline();
+                    builder.set_role(Role::MultilineTextInput);
                 }
 
                 parent_id
@@ -759,7 +781,7 @@ impl<'t> TextEdit<'t> {
 
             if let Some(parent_id) = parent_id {
                 // drop ctx lock before further processing
-                use accesskit::{Role, TextDirection};
+                use accesskit::TextDirection;
 
                 ui.ctx().with_accessibility_parent(parent_id, || {
                     for (i, row) in galley.rows.iter().enumerate() {
@@ -780,12 +802,9 @@ impl<'t> TextEdit<'t> {
                             let glyph_count = row.glyphs.len();
                             let mut value = String::new();
                             value.reserve(glyph_count);
-                            let mut character_lengths = Vec::<u8>::new();
-                            character_lengths.reserve(glyph_count);
-                            let mut character_positions = Vec::<f32>::new();
-                            character_positions.reserve(glyph_count);
-                            let mut character_widths = Vec::<f32>::new();
-                            character_widths.reserve(glyph_count);
+                            let mut character_lengths = Vec::<u8>::with_capacity(glyph_count);
+                            let mut character_positions = Vec::<f32>::with_capacity(glyph_count);
+                            let mut character_widths = Vec::<f32>::with_capacity(glyph_count);
                             let mut word_lengths = Vec::<u8>::new();
                             let mut was_at_word_end = false;
                             let mut last_word_start = 0usize;
@@ -984,8 +1003,7 @@ fn events(
                 pressed: true,
                 modifiers,
                 ..
-            } if modifiers.command && !modifiers.shift => {
-                // TODO(emilk): redo
+            } if modifiers.matches(Modifiers::COMMAND) => {
                 if let Some((undo_ccursor_range, undo_txt)) = state
                     .undoer
                     .lock()
@@ -993,6 +1011,25 @@ fn events(
                 {
                     text.replace(undo_txt);
                     Some(*undo_ccursor_range)
+                } else {
+                    None
+                }
+            }
+            Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                ..
+            } if (modifiers.matches(Modifiers::COMMAND) && *key == Key::Y)
+                || (modifiers.matches(Modifiers::SHIFT | Modifiers::COMMAND) && *key == Key::Z) =>
+            {
+                if let Some((redo_ccursor_range, redo_txt)) = state
+                    .undoer
+                    .lock()
+                    .redo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
+                {
+                    text.replace(redo_txt);
+                    Some(*redo_ccursor_range)
                 } else {
                     None
                 }

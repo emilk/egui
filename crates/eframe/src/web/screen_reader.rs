@@ -1,51 +1,20 @@
-/// Screen reader support.
-pub struct ScreenReader {
-    #[cfg(feature = "tts")]
-    tts: Option<tts::Tts>,
-}
-
-#[cfg(not(feature = "tts"))]
-#[allow(clippy::derivable_impls)] // False positive
-impl Default for ScreenReader {
-    fn default() -> Self {
-        Self {}
+/// Speak the given text out loud.
+pub fn speak(text: &str) {
+    if text.is_empty() {
+        return;
     }
-}
 
-#[cfg(feature = "tts")]
-impl Default for ScreenReader {
-    fn default() -> Self {
-        let tts = match tts::Tts::default() {
-            Ok(screen_reader) => {
-                log::debug!("Initialized screen reader.");
-                Some(screen_reader)
-            }
-            Err(err) => {
-                log::warn!("Failed to load screen reader: {}", err);
-                None
-            }
-        };
-        Self { tts }
-    }
-}
+    if let Some(window) = web_sys::window() {
+        log::debug!("Speaking {text:?}");
 
-impl ScreenReader {
-    /// Speak the given text out loud.
-    #[cfg(not(feature = "tts"))]
-    #[allow(clippy::unused_self)]
-    pub fn speak(&mut self, _text: &str) {}
+        if let Ok(speech_synthesis) = window.speech_synthesis() {
+            speech_synthesis.cancel(); // interrupt previous speech, if any
 
-    /// Speak the given text out loud.
-    #[cfg(feature = "tts")]
-    pub fn speak(&mut self, text: &str) {
-        if text.is_empty() {
-            return;
-        }
-        if let Some(tts) = &mut self.tts {
-            log::debug!("Speaking: {:?}", text);
-            let interrupt = true;
-            if let Err(err) = tts.speak(text, interrupt) {
-                log::warn!("Failed to read: {}", err);
+            if let Ok(utterance) = web_sys::SpeechSynthesisUtterance::new_with_text(text) {
+                utterance.set_rate(1.0);
+                utterance.set_pitch(1.0);
+                utterance.set_volume(1.0);
+                speech_synthesis.speak(&utterance);
             }
         }
     }

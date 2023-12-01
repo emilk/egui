@@ -12,24 +12,14 @@ pub mod kb_shortcuts {
     pub const ZOOM_RESET: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::Num0);
 }
 
-/// Let the user scale the GUI (change `Context::pixels_per_point`) by pressing
+/// Let the user scale the GUI (change [`Context::zoom_factor`]) by pressing
 /// Cmd+Plus, Cmd+Minus or Cmd+0, just like in a browser.
 ///
-/// When using [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe), you want to call this as:
-/// ```ignore
-/// // On web, the browser controls the gui zoom.
-/// if !frame.is_web() {
-///     egui::gui_zoom::zoom_with_keyboard_shortcuts(
-///         ctx,
-///         frame.info().native_pixels_per_point,
-///     );
-/// }
-/// ```
-pub fn zoom_with_keyboard_shortcuts(ctx: &Context, native_pixels_per_point: Option<f32>) {
+/// By default, [`crate::Context`] calls this function at the end of each frame,
+/// controllable by [`crate::Options::zoom_with_keyboard`].
+pub(crate) fn zoom_with_keyboard(ctx: &Context) {
     if ctx.input_mut(|i| i.consume_shortcut(&kb_shortcuts::ZOOM_RESET)) {
-        if let Some(native_pixels_per_point) = native_pixels_per_point {
-            ctx.set_pixels_per_point(native_pixels_per_point);
-        }
+        ctx.set_zoom_factor(1.0);
     } else {
         if ctx.input_mut(|i| i.consume_shortcut(&kb_shortcuts::ZOOM_IN)) {
             zoom_in(ctx);
@@ -40,47 +30,34 @@ pub fn zoom_with_keyboard_shortcuts(ctx: &Context, native_pixels_per_point: Opti
     }
 }
 
-const MIN_PIXELS_PER_POINT: f32 = 0.2;
-const MAX_PIXELS_PER_POINT: f32 = 4.0;
+const MIN_ZOOM_FACTOR: f32 = 0.2;
+const MAX_ZOOM_FACTOR: f32 = 5.0;
 
-/// Make everything larger.
+/// Make everything larger by increasing [`Context::zoom_factor`].
 pub fn zoom_in(ctx: &Context) {
-    let mut pixels_per_point = ctx.pixels_per_point();
-    pixels_per_point += 0.1;
-    pixels_per_point = pixels_per_point.clamp(MIN_PIXELS_PER_POINT, MAX_PIXELS_PER_POINT);
-    pixels_per_point = (pixels_per_point * 10.).round() / 10.;
-    ctx.set_pixels_per_point(pixels_per_point);
+    let mut zoom_factor = ctx.zoom_factor();
+    zoom_factor += 0.1;
+    zoom_factor = zoom_factor.clamp(MIN_ZOOM_FACTOR, MAX_ZOOM_FACTOR);
+    zoom_factor = (zoom_factor * 10.).round() / 10.;
+    ctx.set_zoom_factor(zoom_factor);
 }
 
-/// Make everything smaller.
+/// Make everything smaller by decreasing [`Context::zoom_factor`].
 pub fn zoom_out(ctx: &Context) {
-    let mut pixels_per_point = ctx.pixels_per_point();
-    pixels_per_point -= 0.1;
-    pixels_per_point = pixels_per_point.clamp(MIN_PIXELS_PER_POINT, MAX_PIXELS_PER_POINT);
-    pixels_per_point = (pixels_per_point * 10.).round() / 10.;
-    ctx.set_pixels_per_point(pixels_per_point);
+    let mut zoom_factor = ctx.zoom_factor();
+    zoom_factor -= 0.1;
+    zoom_factor = zoom_factor.clamp(MIN_ZOOM_FACTOR, MAX_ZOOM_FACTOR);
+    zoom_factor = (zoom_factor * 10.).round() / 10.;
+    ctx.set_zoom_factor(zoom_factor);
 }
 
 /// Show buttons for zooming the ui.
 ///
 /// This is meant to be called from within a menu (See [`Ui::menu_button`]).
-///
-/// When using [`eframe`](https://github.com/emilk/egui/tree/master/crates/eframe), you want to call this as:
-/// ```ignore
-/// // On web, the browser controls the gui zoom.
-/// if !frame.is_web() {
-///     ui.menu_button("View", |ui| {
-///         egui::gui_zoom::zoom_menu_buttons(
-///             ui,
-///             frame.info().native_pixels_per_point,
-///         );
-///     });
-/// }
-/// ```
-pub fn zoom_menu_buttons(ui: &mut Ui, native_pixels_per_point: Option<f32>) {
+pub fn zoom_menu_buttons(ui: &mut Ui) {
     if ui
         .add_enabled(
-            ui.ctx().pixels_per_point() < MAX_PIXELS_PER_POINT,
+            ui.ctx().zoom_factor() < MAX_ZOOM_FACTOR,
             Button::new("Zoom In").shortcut_text(ui.ctx().format_shortcut(&kb_shortcuts::ZOOM_IN)),
         )
         .clicked()
@@ -91,7 +68,7 @@ pub fn zoom_menu_buttons(ui: &mut Ui, native_pixels_per_point: Option<f32>) {
 
     if ui
         .add_enabled(
-            ui.ctx().pixels_per_point() > MIN_PIXELS_PER_POINT,
+            ui.ctx().zoom_factor() > MIN_ZOOM_FACTOR,
             Button::new("Zoom Out")
                 .shortcut_text(ui.ctx().format_shortcut(&kb_shortcuts::ZOOM_OUT)),
         )
@@ -101,17 +78,15 @@ pub fn zoom_menu_buttons(ui: &mut Ui, native_pixels_per_point: Option<f32>) {
         ui.close_menu();
     }
 
-    if let Some(native_pixels_per_point) = native_pixels_per_point {
-        if ui
-            .add_enabled(
-                ui.ctx().pixels_per_point() != native_pixels_per_point,
-                Button::new("Reset Zoom")
-                    .shortcut_text(ui.ctx().format_shortcut(&kb_shortcuts::ZOOM_RESET)),
-            )
-            .clicked()
-        {
-            ui.ctx().set_pixels_per_point(native_pixels_per_point);
-            ui.close_menu();
-        }
+    if ui
+        .add_enabled(
+            ui.ctx().zoom_factor() != 1.0,
+            Button::new("Reset Zoom")
+                .shortcut_text(ui.ctx().format_shortcut(&kb_shortcuts::ZOOM_RESET)),
+        )
+        .clicked()
+    {
+        ui.ctx().set_zoom_factor(1.0);
+        ui.close_menu();
     }
 }

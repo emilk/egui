@@ -2,7 +2,16 @@
 All notable changes to the `egui_extras` integration will be noted in this file.
 
 This file is updated upon each release.
-Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
+Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
+
+
+## 0.24.1 - 2023-11-30
+* Add more years for datepicker [#3599](https://github.com/emilk/egui/pull/3599) (thanks [@vaqxai](https://github.com/vaqxai)!)
+
+
+## 0.24.0 - 2023-11-23
+* Fix Table stripe pattern when combining `row()` and `rows()` [#3442](https://github.com/emilk/egui/pull/3442) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+* Update MSRV to Rust 1.72 [#3595](https://github.com/emilk/egui/pull/3595)
 
 
 ## 0.23.0 - 2023-09-27

@@ -77,7 +77,7 @@ impl WebPainterWgpu {
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: options.wgpu_options.supported_backends,
-            dx12_shader_compiler: Default::default(),
+            ..Default::default()
         });
 
         let canvas = super::canvas_element_or_die(canvas_id);
@@ -208,8 +208,7 @@ impl WebPainter for WebPainterWgpu {
 
             let frame = match self.surface.get_current_texture() {
                 Ok(frame) => frame,
-                #[allow(clippy::single_match_else)]
-                Err(e) => match (*self.on_surface_error)(e) {
+                Err(err) => match (*self.on_surface_error)(err) {
                     SurfaceErrorAction::RecreateSurface => {
                         self.surface
                             .configure(&render_state.device, &self.surface_configuration);
@@ -237,7 +236,7 @@ impl WebPainter for WebPainterWgpu {
                                 b: clear_color[2] as f64,
                                 a: clear_color[3] as f64,
                             }),
-                            store: true,
+                            store: wgpu::StoreOp::Store,
                         },
                     })],
                     depth_stencil_attachment: self.depth_texture_view.as_ref().map(|view| {
@@ -245,12 +244,16 @@ impl WebPainter for WebPainterWgpu {
                             view,
                             depth_ops: Some(wgpu::Operations {
                                 load: wgpu::LoadOp::Clear(1.0),
-                                store: false,
+                                // It is very unlikely that the depth buffer is needed after egui finished rendering
+                                // so no need to store it. (this can improve performance on tiling GPUs like mobile chips or Apple Silicon)
+                                store: wgpu::StoreOp::Discard,
                             }),
                             stencil_ops: None,
                         }
                     }),
                     label: Some("egui_render"),
+                    occlusion_query_set: None,
+                    timestamp_writes: None,
                 });
 
                 renderer.render(&mut render_pass, clipped_primitives, &screen_descriptor);
@@ -267,11 +270,9 @@ impl WebPainter for WebPainterWgpu {
         }
 
         // Submit the commands: both the main buffer and user-defined ones.
-        render_state.queue.submit(
-            user_cmd_bufs
-                .into_iter()
-                .chain(std::iter::once(encoder.finish())),
-        );
+        render_state
+            .queue
+            .submit(user_cmd_bufs.into_iter().chain([encoder.finish()]));
 
         if let Some(frame) = frame {
             frame.present();

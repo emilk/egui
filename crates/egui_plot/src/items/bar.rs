@@ -55,18 +55,21 @@ impl Bar {
 
     /// Name of this bar chart element.
     #[allow(clippy::needless_pass_by_value)]
+    #[inline]
     pub fn name(mut self, name: impl ToString) -> Self {
         self.name = name.to_string();
         self
     }
 
     /// Add a custom stroke.
+    #[inline]
     pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
         self.stroke = stroke.into();
         self
     }
 
     /// Add a custom fill color.
+    #[inline]
     pub fn fill(mut self, color: impl Into<Color32>) -> Self {
         self.fill = color.into();
         self
@@ -75,24 +78,28 @@ impl Bar {
     /// Offset the base of the bar.
     /// This offset is on the Y axis for a vertical bar
     /// and on the X axis for a horizontal bar.
+    #[inline]
     pub fn base_offset(mut self, offset: f64) -> Self {
         self.base_offset = Some(offset);
         self
     }
 
     /// Set the bar width.
+    #[inline]
     pub fn width(mut self, width: f64) -> Self {
         self.bar_width = width;
         self
     }
 
     /// Set orientation of the element as vertical. Argument axis is X.
+    #[inline]
     pub fn vertical(mut self) -> Self {
         self.orientation = Orientation::Vertical;
         self
     }
 
     /// Set orientation of the element as horizontal. Argument axis is Y.
+    #[inline]
     pub fn horizontal(mut self) -> Self {
         self.orientation = Orientation::Horizontal;
         self

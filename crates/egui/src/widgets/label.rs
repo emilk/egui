@@ -85,6 +85,7 @@ impl Label {
     /// }
     /// # });
     /// ```
+    #[inline]
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = Some(sense);
         self

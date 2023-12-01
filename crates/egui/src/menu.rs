@@ -453,6 +453,7 @@ impl SubMenuButton {
         }
     }
 
+    #[inline]
     pub fn icon(mut self, icon: impl Into<WidgetText>) -> Self {
         self.icon = icon.into();
         self

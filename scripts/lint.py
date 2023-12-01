@@ -19,12 +19,11 @@ def lint_file_path(filepath, args) -> int:
         print(error)
 
     if args.fix and lines_in != lines_out:
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             f.writelines(lines_out)
-        print(f'{filepath} fixed.')
+        print(f"{filepath} fixed.")
 
     return len(errors)
-
 
 
 def lint_lines(filepath, lines_in):
@@ -32,29 +31,44 @@ def lint_lines(filepath, lines_in):
 
     errors = []
     lines_out = []
+    prev_line = ""
 
     for line_nr, line in enumerate(lines_in):
-        line_nr = line_nr+1
+        line_nr = line_nr + 1
 
         # TODO: only # and /// on lines before a keyword
 
-        pattern = r'^\s*((///)|((pub(\(\w*\))? )?((impl|fn|struct|enum|union|trait)\b))).*$'
+        pattern = (
+            r"^\s*((///)|((pub(\(\w*\))? )?((impl|fn|struct|enum|union|trait)\b))).*$"
+        )
         if re.match(pattern, line):
+            stripped = prev_line.strip()
+            last_line_was_empty = (
+                stripped == ""
+                or stripped.startswith("#")
+                or stripped.startswith("//")
+                or stripped.endswith("{")
+                or stripped.endswith("(")
+                or stripped.endswith("\\")
+                or stripped.endswith('r"')
+                or stripped.endswith("]")
+            )
             if not last_line_was_empty:
                 errors.append(
-                    f'{filepath}:{line_nr}: for readability, add newline before `{line.strip()}`')
+                    f"{filepath}:{line_nr}: for readability, add newline before `{line.strip()}`"
+                )
                 lines_out.append("\n")
+
+        if re.search(r"\(mut self.*-> Self", line):
+            if prev_line.strip() != "#[inline]":
+                errors.append(
+                    f"{filepath}:{line_nr}: builder methods should be marked #[inline]"
+                )
+                lines_out.append("#[inline]")
+
         lines_out.append(line)
 
-        stripped = line.strip()
-        last_line_was_empty = stripped == '' or \
-            stripped.startswith('#') or \
-            stripped.startswith('//') or \
-            stripped.endswith('{') or \
-            stripped.endswith('(') or \
-            stripped.endswith('\\') or \
-            stripped.endswith('r"') or \
-            stripped.endswith(']')
+        prev_line = line
 
     return errors, lines_out
 
@@ -68,7 +82,14 @@ def test_lint():
 
         /// docstring
         bar
+        """,
         """
+        #[inline]
+        pub fn with_color(mut self, color: Color32) -> Self {
+            self.color = color;
+            self
+        }
+        """,
     ]
 
     should_fail = [
@@ -77,29 +98,41 @@ def test_lint():
         foo
         /// docstring
         bar
+        """,
         """
+        // not inlined
+        pub fn with_color(mut self, color: Color32) -> Self {
+            self.color = color;
+            self
+        }
+        """,
     ]
 
     for code in should_pass:
-        errors, _ = lint_lines("test.py", code.split('\n'))
-        assert len(errors) == 0, f'expected this to pass:\n{code}\ngot: {errors}'
+        errors, _ = lint_lines("test.py", code.split("\n"))
+        assert len(errors) == 0, f"expected this to pass:\n{code}\ngot: {errors}"
 
     for code in should_fail:
-        errors, _ = lint_lines("test.py", code.split('\n'))
-        assert len(errors) > 0, f'expected this to fail:\n{code}'
+        errors, _ = lint_lines("test.py", code.split("\n"))
+        assert len(errors) > 0, f"expected this to fail:\n{code}"
 
     pass
 
 
 def main():
-    test_lint() # Make sure we are bug free before we run!
+    test_lint()  # Make sure we are bug free before we run!
 
-    parser = argparse.ArgumentParser(
-        description='Lint Rust code with custom linter.')
-    parser.add_argument('files', metavar='file', type=str, nargs='*',
-                        help='File paths. Empty = all files, recursively.')
-    parser.add_argument('--fix', dest='fix', action='store_true',
-                        help='Automatically fix the files')
+    parser = argparse.ArgumentParser(description="Lint Rust code with custom linter.")
+    parser.add_argument(
+        "files",
+        metavar="file",
+        type=str,
+        nargs="*",
+        help="File paths. Empty = all files, recursively.",
+    )
+    parser.add_argument(
+        "--fix", dest="fix", action="store_true", help="Automatically fix the files"
+    )
 
     args = parser.parse_args()
 
@@ -110,14 +143,14 @@ def main():
             num_errors += lint_file_path(filepath, args)
     else:
         script_dirpath = os.path.dirname(os.path.realpath(__file__))
-        root_dirpath = os.path.abspath(f'{script_dirpath}/..')
+        root_dirpath = os.path.abspath(f"{script_dirpath}/..")
         os.chdir(root_dirpath)
 
-        exclude = set(['target', 'target_ra'])
-        for root, dirs, files in os.walk('.', topdown=True):
+        exclude = set(["target", "target_ra", "target_wasm"])
+        for root, dirs, files in os.walk(".", topdown=True):
             dirs[:] = [d for d in dirs if d not in exclude]
             for filename in files:
-                if filename.endswith('.rs'):
+                if filename.endswith(".rs"):
                     filepath = os.path.join(root, filename)
                     num_errors += lint_file_path(filepath, args)
 
@@ -128,5 +161,6 @@ def main():
         print(f"{sys.argv[0]} found {num_errors} errors.")
         sys.exit(1)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

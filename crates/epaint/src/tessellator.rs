@@ -535,6 +535,7 @@ pub mod path {
             add_circle_quadrant(path, pos2(min.x + r.sw, max.y - r.sw), r.sw, 1.0);
             add_circle_quadrant(path, pos2(min.x + r.nw, min.y + r.nw), r.nw, 2.0);
             add_circle_quadrant(path, pos2(max.x - r.ne, min.y + r.ne), r.ne, 3.0);
+            path.dedup(); // We get duplicates for thin rectangles, producing visual artifats
         }
     }
 
@@ -701,7 +702,7 @@ fn fill_closed_path(feathering: f32, path: &mut [PathPoint], color: Color32, out
         if cw_signed_area(path) < 0.0 {
             // Wrong winding order - fix:
             path.reverse();
-            for point in path.iter_mut() {
+            for point in &mut *path {
                 point.normal = -point.normal;
             }
         }
@@ -771,7 +772,7 @@ fn fill_closed_path_with_uv(
         if cw_signed_area(path) < 0.0 {
             // Wrong winding order - fix:
             path.reverse();
-            for point in path.iter_mut() {
+            for point in &mut *path {
                 point.normal = -point.normal;
             }
         }

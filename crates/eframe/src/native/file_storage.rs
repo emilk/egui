@@ -6,8 +6,9 @@ use std::{
 
 /// The folder where `eframe` will store its state.
 ///
-/// The given `app_id` is either [`crate::NativeOptions::app_id`] or
-/// the title argument to [`crate::run_native`].
+/// The given `app_id` is either the
+/// [`egui::ViewportBuilder::app_id`] of [`crate::NativeOptions::viewport`]
+/// or the title argument to [`crate::run_native`].
 ///
 /// On native the path is picked using [`directories_next::ProjectDirs::data_dir`](https://docs.rs/directories-next/2.0.0/directories_next/struct.ProjectDirs.html#method.data_dir) which is:
 /// * Linux:   `/home/UserName/.local/share/APP_ID`

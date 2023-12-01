@@ -170,7 +170,9 @@ impl GraphicLayers {
             .or_default()
     }
 
-    pub fn drain(&mut self, area_order: &[LayerId]) -> impl ExactSizeIterator<Item = ClippedShape> {
+    pub fn drain(&mut self, area_order: &[LayerId]) -> Vec<ClippedShape> {
+        crate::profile_function!();
+
         let mut all_shapes: Vec<_> = Default::default();
 
         for &order in &Order::ALL {
@@ -196,6 +198,6 @@ impl GraphicLayers {
             }
         }
 
-        all_shapes.into_iter()
+        all_shapes
     }
 }

@@ -2,17 +2,17 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use eframe::egui;
+use eframe::egui::{self, ViewportCommand};
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
-        // Hide the OS-specific "chrome" around the window:
-        decorated: false,
-        // To have rounded corners we need transparency:
-        transparent: true,
-        min_window_size: Some(egui::vec2(400.0, 100.0)),
-        initial_window_size: Some(egui::vec2(400.0, 240.0)),
+        viewport: egui::ViewportBuilder::default()
+            .with_decorations(false) // Hide the OS-specific "chrome" around the window
+            .with_inner_size([400.0, 100.0])
+            .with_min_inner_size([400.0, 100.0])
+            .with_transparent(true), // To have rounded corners we need transparency
+
         ..Default::default()
     };
     eframe::run_native(
@@ -30,8 +30,8 @@ impl eframe::App for MyApp {
         egui::Rgba::TRANSPARENT.to_array() // Make sure we don't paint anything behind the rounded corners
     }
 
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        custom_window_frame(ctx, frame, "egui with custom frame", |ui| {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        custom_window_frame(ctx, "egui with custom frame", |ui| {
             ui.label("This is just the contents of the window.");
             ui.horizontal(|ui| {
                 ui.label("egui theme:");
@@ -41,12 +41,7 @@ impl eframe::App for MyApp {
     }
 }
 
-fn custom_window_frame(
-    ctx: &egui::Context,
-    frame: &mut eframe::Frame,
-    title: &str,
-    add_contents: impl FnOnce(&mut egui::Ui),
-) {
+fn custom_window_frame(ctx: &egui::Context, title: &str, add_contents: impl FnOnce(&mut egui::Ui)) {
     use egui::*;
 
     let panel_frame = egui::Frame {
@@ -66,7 +61,7 @@ fn custom_window_frame(
             rect.max.y = rect.min.y + title_bar_height;
             rect
         };
-        title_bar_ui(ui, frame, title_bar_rect, title);
+        title_bar_ui(ui, title_bar_rect, title);
 
         // Add the contents:
         let content_rect = {
@@ -80,12 +75,7 @@ fn custom_window_frame(
     });
 }
 
-fn title_bar_ui(
-    ui: &mut egui::Ui,
-    frame: &mut eframe::Frame,
-    title_bar_rect: eframe::epaint::Rect,
-    title: &str,
-) {
+fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: &str) {
     use egui::*;
 
     let painter = ui.painter();
@@ -112,9 +102,11 @@ fn title_bar_ui(
 
     // Interact with the title bar (drag to move window):
     if title_bar_response.double_clicked() {
-        frame.set_maximized(!frame.info().window_info.maximized);
+        let is_maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
+        ui.ctx()
+            .send_viewport_cmd(ViewportCommand::Maximized(!is_maximized));
     } else if title_bar_response.is_pointer_button_down_on() {
-        frame.drag_window();
+        ui.ctx().send_viewport_cmd(ViewportCommand::StartDrag);
     }
 
     ui.allocate_ui_at_rect(title_bar_rect, |ui| {
@@ -122,13 +114,13 @@ fn title_bar_ui(
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.visuals_mut().button_frame = false;
             ui.add_space(8.0);
-            close_maximize_minimize(ui, frame);
+            close_maximize_minimize(ui);
         });
     });
 }
 
 /// Show some close/maximize/minimize buttons for the native window.
-fn close_maximize_minimize(ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+fn close_maximize_minimize(ui: &mut egui::Ui) {
     use egui::{Button, RichText};
 
     let button_height = 12.0;
@@ -137,22 +129,24 @@ fn close_maximize_minimize(ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         .add(Button::new(RichText::new("❌").size(button_height)))
         .on_hover_text("Close the window");
     if close_response.clicked() {
-        frame.close();
+        ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
     }
 
-    if frame.info().window_info.maximized {
+    let is_maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
+    if is_maximized {
         let maximized_response = ui
             .add(Button::new(RichText::new("🗗").size(button_height)))
             .on_hover_text("Restore window");
         if maximized_response.clicked() {
-            frame.set_maximized(false);
+            ui.ctx()
+                .send_viewport_cmd(ViewportCommand::Maximized(false));
         }
     } else {
         let maximized_response = ui
             .add(Button::new(RichText::new("🗗").size(button_height)))
             .on_hover_text("Maximize window");
         if maximized_response.clicked() {
-            frame.set_maximized(true);
+            ui.ctx().send_viewport_cmd(ViewportCommand::Maximized(true));
         }
     }
 
@@ -160,6 +154,6 @@ fn close_maximize_minimize(ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         .add(Button::new(RichText::new("🗕").size(button_height)))
         .on_hover_text("Minimize the window");
     if minimized_response.clicked() {
-        frame.set_minimized(true);
+        ui.ctx().send_viewport_cmd(ViewportCommand::Minimized(true));
     }
 }
