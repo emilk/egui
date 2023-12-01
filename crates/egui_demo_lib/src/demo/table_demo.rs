@@ -125,7 +125,10 @@ impl TableDemo {
     fn table_ui(&mut self, ui: &mut egui::Ui) {
         use egui_extras::{Column, TableBuilder};
 
-        let text_height = egui::TextStyle::Body.resolve(ui.style()).size;
+        let text_height = egui::TextStyle::Body
+            .resolve(ui.style())
+            .size
+            .max(ui.spacing().interact_size.y);
 
         let mut table = TableBuilder::new(ui)
             .sense(egui::Sense::click())

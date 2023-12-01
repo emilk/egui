@@ -32,6 +32,7 @@ pub(crate) struct StripLayoutFlags {
     pub(crate) clip: bool,
     pub(crate) striped: bool,
     pub(crate) highlighted: bool,
+    pub(crate) hovered: bool,
 }
 
 /// Positions cells in [`CellDirection`] and starts a new line on [`StripLayout::end_line`]
@@ -117,7 +118,8 @@ impl<'l> StripLayout<'l> {
         let max_rect = self.cell_rect(&width, &height);
 
         // Make sure we don't have a gap in the stripe/frame/selection background:
-        let gapless_rect = || max_rect.expand2(0.5 * self.ui.spacing().item_spacing);
+        let item_spacing = self.ui.spacing().item_spacing;
+        let gapless_rect = || max_rect.expand2(0.5 * item_spacing);
 
         if flags.striped {
             self.ui.painter().rect_filled(
@@ -135,8 +137,28 @@ impl<'l> StripLayout<'l> {
             );
         }
 
+        if flags.hovered && !flags.highlighted {
+            self.ui.painter().rect_filled(
+                gapless_rect(),
+                egui::Rounding::ZERO,
+                self.ui.visuals().widgets.hovered.bg_fill,
+            );
+        }
+
+        if flags.hovered {
+            let rect = gapless_rect();
+            self.ui.painter().line_segment(
+                [rect.left_top(), rect.right_top()],
+                self.ui.visuals().widgets.hovered.bg_stroke,
+            );
+            self.ui.painter().line_segment(
+                [rect.left_bottom(), rect.right_bottom()],
+                self.ui.visuals().widgets.hovered.bg_stroke,
+            );
+        }
+
         let response = self.ui.allocate_rect(max_rect, self.sense);
-        let used_rect = self.cell(flags.clip, max_rect, add_cell_contents);
+        let used_rect = self.cell(flags, max_rect, add_cell_contents);
 
         self.set_pos(max_rect);
 
@@ -173,14 +195,26 @@ impl<'l> StripLayout<'l> {
         self.ui.allocate_rect(rect, Sense::hover());
     }
 
-    fn cell(&mut self, clip: bool, rect: Rect, add_cell_contents: impl FnOnce(&mut Ui)) -> Rect {
+    fn cell(
+        &mut self,
+        flags: StripLayoutFlags,
+        rect: Rect,
+        add_cell_contents: impl FnOnce(&mut Ui),
+    ) -> Rect {
         let mut child_ui = self.ui.child_ui(rect, self.cell_layout);
 
-        if clip {
+        if flags.clip {
             let margin = egui::Vec2::splat(self.ui.visuals().clip_rect_margin);
             let margin = margin.min(0.5 * self.ui.spacing().item_spacing);
             let clip_rect = rect.expand2(margin);
             child_ui.set_clip_rect(clip_rect.intersect(child_ui.clip_rect()));
+        }
+        if flags.hovered || flags.highlighted {
+            // This seems unnatural.  It is because we are essentially forcing the
+            // widgets draw into the table to look like they are interactive because
+            // the table itself is interactive.
+            child_ui.style_mut().visuals.widgets.noninteractive = self.ui.visuals().widgets.hovered;
+            child_ui.style_mut().visuals.widgets.inactive = self.ui.visuals().widgets.hovered;
         }
 
         add_cell_contents(&mut child_ui);
