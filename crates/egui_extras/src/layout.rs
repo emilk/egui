@@ -137,7 +137,7 @@ impl<'l> StripLayout<'l> {
             );
         }
 
-        if flags.hovered && !flags.selected {
+        if flags.hovered && !flags.selected && self.sense.interactive() {
             self.ui.painter().rect_filled(
                 gapless_rect(),
                 egui::Rounding::ZERO,

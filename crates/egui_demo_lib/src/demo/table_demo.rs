@@ -12,6 +12,7 @@ pub struct TableDemo {
     demo: DemoType,
     striped: bool,
     resizable: bool,
+    clickable: bool,
     num_rows: usize,
     scroll_to_row_slider: usize,
     scroll_to_row: Option<usize>,
@@ -25,6 +26,7 @@ impl Default for TableDemo {
             demo: DemoType::Manual,
             striped: true,
             resizable: true,
+            clickable: true,
             num_rows: 10_000,
             scroll_to_row_slider: 0,
             scroll_to_row: None,
@@ -58,6 +60,7 @@ impl super::View for TableDemo {
             ui.horizontal(|ui| {
                 ui.checkbox(&mut self.striped, "Striped");
                 ui.checkbox(&mut self.resizable, "Resizable columns");
+                ui.checkbox(&mut self.clickable, "Clickable rows");
             });
 
             ui.label("Table type:");
@@ -131,7 +134,6 @@ impl TableDemo {
             .max(ui.spacing().interact_size.y);
 
         let mut table = TableBuilder::new(ui)
-            .sense(egui::Sense::click())
             .striped(self.striped)
             .resizable(self.resizable)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
@@ -141,6 +143,10 @@ impl TableDemo {
             .column(Column::initial(100.0).at_least(40.0).clip(true))
             .column(Column::remainder())
             .min_scrolled_height(0.0);
+
+        if self.clickable {
+            table = table.sense(egui::Sense::click());
+        }
 
         if let Some(row_nr) = self.scroll_to_row.take() {
             table = table.scroll_to_row(row_nr, None);
