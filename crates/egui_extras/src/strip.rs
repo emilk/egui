@@ -77,6 +77,7 @@ impl<'a> StripBuilder<'a> {
     }
 
     /// What should strip cells sense for? Default: [`egui::Sense::hover()`].
+    #[inline]
     pub fn sense(mut self, sense: egui::Sense) -> Self {
         self.sense = sense;
         self

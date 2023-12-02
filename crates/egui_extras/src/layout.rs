@@ -31,8 +31,8 @@ pub(crate) enum CellDirection {
 pub(crate) struct StripLayoutFlags {
     pub(crate) clip: bool,
     pub(crate) striped: bool,
-    pub(crate) highlighted: bool,
     pub(crate) hovered: bool,
+    pub(crate) selected: bool,
 }
 
 /// Positions cells in [`CellDirection`] and starts a new line on [`StripLayout::end_line`]
@@ -129,7 +129,7 @@ impl<'l> StripLayout<'l> {
             );
         }
 
-        if flags.highlighted {
+        if flags.selected {
             self.ui.painter().rect_filled(
                 gapless_rect(),
                 egui::Rounding::ZERO,
@@ -137,23 +137,11 @@ impl<'l> StripLayout<'l> {
             );
         }
 
-        if flags.hovered && !flags.highlighted {
+        if flags.hovered && !flags.selected {
             self.ui.painter().rect_filled(
                 gapless_rect(),
                 egui::Rounding::ZERO,
                 self.ui.visuals().widgets.hovered.bg_fill,
-            );
-        }
-
-        if flags.hovered {
-            let rect = gapless_rect();
-            self.ui.painter().line_segment(
-                [rect.left_top(), rect.right_top()],
-                self.ui.visuals().widgets.hovered.bg_stroke,
-            );
-            self.ui.painter().line_segment(
-                [rect.left_bottom(), rect.right_bottom()],
-                self.ui.visuals().widgets.hovered.bg_stroke,
             );
         }
 
@@ -208,13 +196,6 @@ impl<'l> StripLayout<'l> {
             let margin = margin.min(0.5 * self.ui.spacing().item_spacing);
             let clip_rect = rect.expand2(margin);
             child_ui.set_clip_rect(clip_rect.intersect(child_ui.clip_rect()));
-        }
-        if flags.hovered || flags.highlighted {
-            // This seems unnatural.  It is because we are essentially forcing the
-            // widgets draw into the table to look like they are interactive because
-            // the table itself is interactive.
-            child_ui.style_mut().visuals.widgets.noninteractive = self.ui.visuals().widgets.hovered;
-            child_ui.style_mut().visuals.widgets.inactive = self.ui.visuals().widgets.hovered;
         }
 
         add_cell_contents(&mut child_ui);

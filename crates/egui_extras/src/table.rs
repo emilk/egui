@@ -258,6 +258,7 @@ impl<'a> TableBuilder<'a> {
     }
 
     /// What should table cells sense for? (default: [`egui::Sense::hover()`]).
+    #[inline]
     pub fn sense(mut self, sense: egui::Sense) -> Self {
         self.sense = sense;
         self
@@ -440,8 +441,8 @@ impl<'a> TableBuilder<'a> {
                 col_index: 0,
                 height,
                 striped: false,
-                selected: false,
                 hovered: false,
+                selected: false,
                 response: &mut response,
             });
             layout.allocate_rect();
@@ -655,8 +656,8 @@ impl<'a> Table<'a> {
                     end_y: avail_rect.bottom(),
                     scroll_to_row: scroll_to_row.map(|(r, _)| r),
                     scroll_to_y_range: &mut scroll_to_y_range,
-                    highlighted_row: hovered_row,
-                    highlighted_row_id: id,
+                    hovered_row,
+                    hovered_row_id: id,
                 });
 
                 if scroll_to_row.is_some() && scroll_to_y_range.is_none() {
@@ -794,13 +795,12 @@ pub struct TableBody<'a> {
     /// Look for this row to scroll to.
     scroll_to_row: Option<usize>,
 
-    highlighted_row: Option<usize>,
-
-    highlighted_row_id: egui::Id,
-
     /// If we find the correct row to scroll to,
     /// this is set to the y-range of the row.
     scroll_to_y_range: &'a mut Option<Rangef>,
+
+    hovered_row: Option<usize>,
+    hovered_row_id: egui::Id,
 }
 
 impl<'a> TableBody<'a> {
@@ -837,7 +837,6 @@ impl<'a> TableBody<'a> {
     pub fn row(&mut self, height: f32, add_row_content: impl FnOnce(TableRow<'a, '_>)) {
         let mut response: Option<Response> = None;
         let top_y = self.layout.cursor.y;
-        let hovered = self.highlighted_row == Some(self.row_nr);
         add_row_content(TableRow {
             layout: &mut self.layout,
             columns: self.columns,
@@ -847,8 +846,8 @@ impl<'a> TableBody<'a> {
             col_index: 0,
             height,
             striped: self.striped && self.row_nr % 2 == 0,
+            hovered: self.hovered_row == Some(self.row_nr),
             selected: false,
-            hovered,
             response: &mut response,
         });
         self.capture_hover_state(&response, self.row_nr);
@@ -916,23 +915,22 @@ impl<'a> TableBody<'a> {
             ((scroll_offset_y + max_height) / row_height_with_spacing).ceil() as usize + 1;
         let max_row = max_row.min(total_rows);
 
-        let hovered_row = self.highlighted_row;
-        for idx in min_row..max_row {
+        for row_index in min_row..max_row {
             let mut response: Option<Response> = None;
             add_row_content(TableRow {
                 layout: &mut self.layout,
                 columns: self.columns,
                 widths: self.widths,
                 max_used_widths: self.max_used_widths,
-                row_index: idx,
+                row_index,
                 col_index: 0,
                 height: row_height_sans_spacing,
-                striped: self.striped && (idx + self.row_nr) % 2 == 0,
+                striped: self.striped && (row_index + self.row_nr) % 2 == 0,
+                hovered: self.hovered_row == Some(row_index),
                 selected: false,
-                hovered: Some(idx) == hovered_row,
                 response: &mut response,
             });
-            self.capture_hover_state(&response, idx);
+            self.capture_hover_state(&response, row_index);
         }
 
         if total_rows - max_row > 0 {
@@ -985,7 +983,6 @@ impl<'a> TableBody<'a> {
         let mut cursor_y: f64 = 0.0;
 
         // Skip the invisible rows, and populate the first non-virtual row.
-        let hovered_row = self.highlighted_row;
         for (row_index, row_height) in &mut enumerated_heights {
             let old_cursor_y = cursor_y;
             cursor_y += (row_height + spacing.y) as f64;
@@ -1000,7 +997,6 @@ impl<'a> TableBody<'a> {
             if cursor_y >= scroll_offset_y {
                 // This row is visible:
                 self.add_buffer(old_cursor_y as f32); // skip all the invisible rows
-                let hovered = hovered_row == Some(row_index);
                 let mut response: Option<Response> = None;
                 add_row_content(TableRow {
                     layout: &mut self.layout,
@@ -1011,8 +1007,8 @@ impl<'a> TableBody<'a> {
                     col_index: 0,
                     height: row_height,
                     striped: self.striped && (row_index + self.row_nr) % 2 == 0,
+                    hovered: self.hovered_row == Some(row_index),
                     selected: false,
-                    hovered,
                     response: &mut response,
                 });
                 self.capture_hover_state(&response, row_index);
@@ -1023,7 +1019,6 @@ impl<'a> TableBody<'a> {
         // populate visible rows:
         for (row_index, row_height) in &mut enumerated_heights {
             let top_y = cursor_y;
-            let hovered = hovered_row == Some(row_index);
             let mut response: Option<Response> = None;
             add_row_content(TableRow {
                 layout: &mut self.layout,
@@ -1034,8 +1029,8 @@ impl<'a> TableBody<'a> {
                 col_index: 0,
                 height: row_height,
                 striped: self.striped && (row_index + self.row_nr) % 2 == 0,
+                hovered: self.hovered_row == Some(row_index),
                 selected: false,
-                hovered,
                 response: &mut response,
             });
             self.capture_hover_state(&response, row_index);
@@ -1087,13 +1082,14 @@ impl<'a> TableBody<'a> {
         self.layout.skip_space(egui::vec2(0.0, height));
     }
 
-    // Capture the hover information for the just created row.  This is used in the next render
+    // Capture the hover information for the just created row. This is used in the next render
     // to ensure that the entire row is highlighted.
     fn capture_hover_state(&mut self, response: &Option<Response>, row_index: usize) {
-        let id = self.highlighted_row_id;
+        let id = self.hovered_row_id;
         let is_row_hovered = response.as_ref().map_or(false, |r| r.hovered());
         if is_row_hovered {
-            self.ui_mut()
+            self.layout
+                .ui
                 .memory_mut(|w| w.data.insert_temp(id, row_index));
         }
     }
@@ -1120,8 +1116,8 @@ pub struct TableRow<'a, 'b> {
     height: f32,
 
     striped: bool,
-    selected: bool,
     hovered: bool,
+    selected: bool,
 
     response: &'b mut Option<Response>,
 }
@@ -1129,7 +1125,7 @@ pub struct TableRow<'a, 'b> {
 impl<'a, 'b> TableRow<'a, 'b> {
     /// Add the contents of a column.
     ///
-    /// Return the used space (`min_rect`) plus the [`Response`] of the whole cell.
+    /// Returns the used space (`min_rect`) plus the [`Response`] of the whole cell.
     #[cfg_attr(debug_assertions, track_caller)]
     pub fn col(&mut self, add_cell_contents: impl FnOnce(&mut Ui)) -> (Rect, Response) {
         let col_index = self.col_index;
@@ -1153,8 +1149,8 @@ impl<'a, 'b> TableRow<'a, 'b> {
         let flags = StripLayoutFlags {
             clip,
             striped: self.striped,
-            highlighted: self.selected,
             hovered: self.hovered,
+            selected: self.selected,
         };
 
         let (used_rect, response) = self.layout.add(flags, width, height, add_cell_contents);
@@ -1177,20 +1173,19 @@ impl<'a, 'b> TableRow<'a, 'b> {
         self.selected = selected;
     }
 
-    // TODO: Make this part of the entire row response?
-    /// Return a union of the [`Response`]s of the cells added to the row up to this point.
+    /// Returns a union of the [`Response`]s of the cells added to the row up to this point.
     pub fn response(&self) -> Response {
         self.response
             .clone()
             .expect("Should only be called after `col`")
     }
 
-    /// Return the index of the row.
+    /// Returns the index of the row.
     pub fn index(&self) -> usize {
         self.row_index
     }
 
-    /// Return the index of the column. Incremented after a column is added.
+    /// Returns the index of the column. Incremented after a column is added.
     pub fn col_index(&self) -> usize {
         self.col_index
     }

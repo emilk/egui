@@ -224,14 +224,8 @@ impl TableDemo {
                     });
                 }
                 DemoType::ManyHeterogenous => {
-                    fn row_thickness(row_index: usize) -> f32 {
-                        if thick_row(row_index) {
-                            30.0
-                        } else {
-                            18.0
-                        }
-                    }
-                    body.heterogeneous_rows((0..self.num_rows).map(row_thickness), |mut row| {
+                    let row_height = |i: usize| if thick_row(i) { 30.0 } else { 18.0 };
+                    body.heterogeneous_rows((0..self.num_rows).map(row_height), |mut row| {
                         let row_index = row.index();
                         row.select(self.selection.contains(&row_index));
 
