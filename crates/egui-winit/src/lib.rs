@@ -196,7 +196,7 @@ impl State {
     /// as well as setting [the time](egui::RawInput::time) and [screen rectangle](egui::RawInput::screen_rect).
     ///
     /// You need to set [`egui::RawInput::viewports`] yourself though.
-    /// Use [`Self::update_viewport_info`] to update the info for each
+    /// Use [`update_viewport_info`] to update the info for each
     /// viewport.
     pub fn take_egui_input(&mut self, window: &Window) -> egui::RawInput {
         crate::profile_function!();
@@ -768,16 +768,14 @@ impl State {
 /// Update the given viewport info with the current state of the window.
 ///
 /// Call before [`State::take_egui_input`].
-pub fn update_viewport_info(info: &mut ViewportInfo, egui_ctx: &egui::Context, window: &Window) {
-    update_viewport_info_impl(info, window, pixels_per_point(egui_ctx, window));
-}
-
-fn update_viewport_info_impl(
+pub fn update_viewport_info(
     viewport_info: &mut ViewportInfo,
+    egui_ctx: &egui::Context,
     window: &Window,
-    pixels_per_point: f32,
 ) {
     crate::profile_function!();
+
+    let pixels_per_point = pixels_per_point(egui_ctx, window);
 
     let has_a_position = match window.is_minimized() {
         None | Some(true) => false,
