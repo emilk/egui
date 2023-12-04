@@ -70,7 +70,7 @@ impl RenderState {
         crate::profile_scope!("RenderState::create"); // async yield give bad names using `profile_function`
 
         #[cfg(not(target_arch = "wasm32"))]
-        let adaptors: Vec<_> = instance.enumerate_adapters(wgpu::Backends::all()).collect();
+        let adapters: Vec<_> = instance.enumerate_adapters(wgpu::Backends::all()).collect();
 
         let adapter = {
             crate::profile_scope!("request_adapter");
@@ -83,18 +83,18 @@ impl RenderState {
                 .await
                 .ok_or_else(|| {
                     #[cfg(not(target_arch = "wasm32"))]
-                    if adaptors.is_empty() {
-                        log::info!("No wgpu adaptors found");
-                    } else if adaptors.len() == 1 {
+                    if adapters.is_empty() {
+                        log::info!("No wgpu adapters found");
+                    } else if adapters.len() == 1 {
                         log::info!(
-                            "The only available wgpu adaptor was not suitable: {}",
-                            adapter_info_summary(&adaptors[0].get_info())
+                            "The only available wgpu adapter was not suitable: {}",
+                            adapter_info_summary(&adapters[0].get_info())
                         );
                     } else {
                         log::info!(
                             "No suitable wgpu adapter found out of the {} available ones: {}",
-                            adaptors.len(),
-                            describe_adaptors(&adaptors)
+                            adapters.len(),
+                            describe_adapters(&adapters)
                         );
                     }
 
@@ -104,24 +104,24 @@ impl RenderState {
 
         #[cfg(target_arch = "wasm32")]
         log::debug!(
-            "Picked wgpu adaptor: {}",
+            "Picked wgpu adapter: {}",
             adapter_info_summary(&adapter.get_info())
         );
 
         #[cfg(not(target_arch = "wasm32"))]
-        if adaptors.len() == 1 {
+        if adapters.len() == 1 {
             log::debug!(
-                "Picked the only available wgpu adaptor: {}",
+                "Picked the only available wgpu adapter: {}",
                 adapter_info_summary(&adapter.get_info())
             );
         } else {
             log::info!(
-                "There were {} available wgpu adaptors: {}",
-                adaptors.len(),
-                describe_adaptors(&adaptors)
+                "There were {} available wgpu adapters: {}",
+                adapters.len(),
+                describe_adapters(&adapters)
             );
             log::debug!(
-                "Picked wgpu adaptor: {}",
+                "Picked wgpu adapter: {}",
                 adapter_info_summary(&adapter.get_info())
             );
         }
@@ -152,18 +152,18 @@ impl RenderState {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn describe_adaptors(adaptors: &[wgpu::Adapter]) -> String {
-    if adaptors.is_empty() {
+fn describe_adapters(adapters: &[wgpu::Adapter]) -> String {
+    if adapters.is_empty() {
         "(none)".to_owned()
-    } else if adaptors.len() == 1 {
-        adapter_info_summary(&adaptors[0].get_info())
+    } else if adapters.len() == 1 {
+        adapter_info_summary(&adapters[0].get_info())
     } else {
         let mut list_string = String::new();
-        for adaptor in adaptors {
+        for adapter in adapters {
             if !list_string.is_empty() {
                 list_string += ", ";
             }
-            list_string += &format!("{{{}}}", adapter_info_summary(&adaptor.get_info()));
+            list_string += &format!("{{{}}}", adapter_info_summary(&adapter.get_info()));
         }
         list_string
     }
