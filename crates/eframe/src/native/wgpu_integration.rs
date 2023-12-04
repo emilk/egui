@@ -388,13 +388,25 @@ impl WinitApp for WgpuWinitApp {
                     self.init_run_state(egui_ctx, event_loop, storage, window, builder)?
                 };
 
-                EventResult::RepaintNow(
-                    running.shared.borrow().viewports[&ViewportId::ROOT]
-                        .window
-                        .as_ref()
-                        .unwrap()
-                        .id(),
-                )
+                let SharedState {
+                    egui_ctx,
+                    viewports,
+                    painter,
+                    viewport_from_window,
+                    ..
+                } = &mut *running.shared.borrow_mut();
+
+                let viewport = viewports.get_mut(&ViewportId::ROOT).unwrap();
+
+                if viewport.window.is_none() {
+                    viewport.init_window(egui_ctx, viewport_from_window, painter, event_loop);
+                }
+
+                if let Some(window) = &viewport.window {
+                    EventResult::RepaintNow(window.id())
+                } else {
+                    EventResult::Wait
+                }
             }
 
             winit::event::Event::Suspended => {
