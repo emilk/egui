@@ -323,7 +323,7 @@ pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
         summary += &format!(", driver_info: {driver_info:?}");
     }
     if *vendor != 0 {
-        // TODO(emilk): decode using https://github.com/gfx-rs/wgpu/blob/trunk/wgpu-hal/src/auxil/mod.rs#L7
+        // TODO(emilk): decode using https://github.com/gfx-rs/wgpu/blob/767ac03245ee937d3dc552edc13fe7ab0a860eec/wgpu-hal/src/auxil/mod.rs#L7
         summary += &format!(", vendor: 0x{vendor:04X}");
     }
     if *device != 0 {
