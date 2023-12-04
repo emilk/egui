@@ -235,7 +235,7 @@ fn main() {
                     gl_window.resize(**new_inner_size);
                 }
 
-                let event_response = egui_glow.on_window_event(&event);
+                let event_response = egui_glow.on_window_event(gl_window.window(), &event);
 
                 if event_response.repaint {
                     gl_window.window().request_redraw();

@@ -34,7 +34,10 @@ impl EguiGlow {
             })
             .unwrap();
 
+        let egui_ctx = egui::Context::default();
+
         let egui_winit = egui_winit::State::new(
+            egui_ctx.clone(),
             ViewportId::ROOT,
             event_loop,
             native_pixels_per_point,
@@ -42,7 +45,7 @@ impl EguiGlow {
         );
 
         Self {
-            egui_ctx: Default::default(),
+            egui_ctx,
             egui_winit,
             painter,
             viewport_info: Default::default(),
@@ -52,8 +55,12 @@ impl EguiGlow {
         }
     }
 
-    pub fn on_window_event(&mut self, event: &winit::event::WindowEvent<'_>) -> EventResponse {
-        self.egui_winit.on_window_event(&self.egui_ctx, event)
+    pub fn on_window_event(
+        &mut self,
+        window: &winit::window::Window,
+        event: &winit::event::WindowEvent<'_>,
+    ) -> EventResponse {
+        self.egui_winit.on_window_event(window, event)
     }
 
     /// Call [`Self::paint`] later to paint.
@@ -87,7 +94,7 @@ impl EguiGlow {
         }
 
         self.egui_winit
-            .handle_platform_output(window, &self.egui_ctx, platform_output);
+            .handle_platform_output(window, platform_output);
 
         self.shapes = shapes;
         self.pixels_per_point = pixels_per_point;
