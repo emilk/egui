@@ -298,8 +298,8 @@ pub fn depth_format_from_bits(depth_buffer: u8, stencil_buffer: u8) -> Option<wg
 pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
     let wgpu::AdapterInfo {
         name,
-        vendor: _, // skip integer id
-        device: _, // skip integer id
+        vendor,
+        device,
         device_type,
         driver,
         driver_info,
@@ -321,6 +321,13 @@ pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
     }
     if !driver_info.is_empty() {
         summary += &format!(", driver_info: {driver_info:?}");
+    }
+    if *vendor != 0 {
+        // TODO(emilk): decode using https://github.com/gfx-rs/wgpu/blob/trunk/wgpu-hal/src/auxil/mod.rs#L7
+        summary += &format!(", vendor: 0x{vendor:04X}");
+    }
+    if *device != 0 {
+        summary += &format!(", device: 0x{device:02X}");
     }
 
     summary
