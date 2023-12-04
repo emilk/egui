@@ -191,12 +191,6 @@ impl State {
         &mut self.egui_input
     }
 
-    /// Update the given viewport info with the current state of the window.
-    #[deprecated = "Use egui_winit::update_viewport_info instead"]
-    pub fn update_viewport_info(&self, info: &mut ViewportInfo, window: &Window) {
-        update_viewport_info_impl(info, window, pixels_per_point(&self.egui_ctx, window));
-    }
-
     /// Prepare for a new frame by extracting the accumulated input,
     ///
     /// as well as setting [the time](egui::RawInput::time) and [screen rectangle](egui::RawInput::screen_rect).
@@ -1433,16 +1427,6 @@ pub fn create_winit_window_builder<T>(
     }
 
     window_builder
-}
-
-/// Applies what `create_winit_window_builder` couldn't
-#[deprecated = "Use apply_viewport_builder_to_window instead"]
-pub fn apply_viewport_builder_to_new_window(window: &Window, builder: &ViewportBuilder) {
-    if let Some(mouse_passthrough) = builder.mouse_passthrough {
-        if let Err(err) = window.set_cursor_hittest(!mouse_passthrough) {
-            log::warn!("set_cursor_hittest failed: {err}");
-        }
-    }
 }
 
 /// Applies what `create_winit_window_builder` couldn't
