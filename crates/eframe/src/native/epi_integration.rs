@@ -255,8 +255,7 @@ impl EpiIntegration {
             _ => {}
         }
 
-        egui_winit.update_pixels_per_point(&self.egui_ctx, window);
-        egui_winit.on_window_event(&self.egui_ctx, event)
+        egui_winit.on_window_event(window, event)
     }
 
     pub fn pre_update(&mut self) {

@@ -69,15 +69,15 @@ pub struct EventResponse {
 ///
 /// Instantiate one of these per viewport/window.
 pub struct State {
+    /// Shared clone.
+    egui_ctx: egui::Context,
+
     viewport_id: ViewportId,
     start_time: web_time::Instant,
     egui_input: egui::RawInput,
     pointer_pos_in_points: Option<egui::Pos2>,
     any_pointer_button_down: bool,
     current_cursor_icon: Option<egui::CursorIcon>,
-
-    /// What egui uses.
-    current_pixels_per_point: f32, // TODO: remove - calculate with [`pixels_per_point`] instead
 
     clipboard: clipboard::Clipboard,
 
@@ -104,6 +104,7 @@ pub struct State {
 impl State {
     /// Construct a new instance
     pub fn new(
+        egui_ctx: egui::Context,
         viewport_id: ViewportId,
         display_target: &dyn HasRawDisplayHandle,
         native_pixels_per_point: Option<f32>,
@@ -117,13 +118,13 @@ impl State {
         };
 
         let mut slf = Self {
+            egui_ctx,
             viewport_id,
             start_time: web_time::Instant::now(),
             egui_input,
             pointer_pos_in_points: None,
             any_pointer_button_down: false,
             current_cursor_icon: None,
-            current_pixels_per_point: native_pixels_per_point.unwrap_or(1.0),
 
             clipboard: clipboard::Clipboard::new(display_target),
 
@@ -172,9 +173,8 @@ impl State {
     }
 
     #[inline]
-    #[deprecated = "Use egui_winit::pixels_per_point instead"]
-    pub fn pixels_per_point(&self) -> f32 {
-        self.current_pixels_per_point
+    pub fn egui_ctx(&self) -> &egui::Context {
+        &self.egui_ctx
     }
 
     /// The current input state.
@@ -191,18 +191,12 @@ impl State {
         &mut self.egui_input
     }
 
-    /// Update the given viewport info with the current state of the window.
-    #[deprecated = "Use egui_winit::update_viewport_info instead"]
-    pub fn update_viewport_info(&self, info: &mut ViewportInfo, window: &Window) {
-        update_viewport_info_impl(info, window, self.current_pixels_per_point);
-    }
-
     /// Prepare for a new frame by extracting the accumulated input,
     ///
     /// as well as setting [the time](egui::RawInput::time) and [screen rectangle](egui::RawInput::screen_rect).
     ///
     /// You need to set [`egui::RawInput::viewports`] yourself though.
-    /// Use [`Self::update_viewport_info`] to update the info for each
+    /// Use [`update_viewport_info`] to update the info for each
     /// viewport.
     pub fn take_egui_input(&mut self, window: &Window) -> egui::RawInput {
         crate::profile_function!();
@@ -213,7 +207,8 @@ impl State {
         // See: https://github.com/rust-windowing/winit/issues/208
         // This solves an issue where egui window positions would be changed when minimizing on Windows.
         let screen_size_in_pixels = screen_size_in_pixels(window);
-        let screen_size_in_points = screen_size_in_pixels / self.current_pixels_per_point;
+        let screen_size_in_points =
+            screen_size_in_pixels / pixels_per_point(&self.egui_ctx, window);
 
         self.egui_input.screen_rect = (screen_size_in_points.x > 0.0
             && screen_size_in_points.y > 0.0)
@@ -231,18 +226,12 @@ impl State {
         self.egui_input.take()
     }
 
-    // TODO(emilk): remove asap.
-    #[doc(hidden)]
-    pub fn update_pixels_per_point(&mut self, egui_ctx: &egui::Context, window: &Window) {
-        self.current_pixels_per_point = pixels_per_point(egui_ctx, window);
-    }
-
     /// Call this when there is a new event.
     ///
     /// The result can be found in [`Self::egui_input`] and be extracted with [`Self::take_egui_input`].
     pub fn on_window_event(
         &mut self,
-        egui_ctx: &egui::Context,
+        window: &Window,
         event: &winit::event::WindowEvent<'_>,
     ) -> EventResponse {
         crate::profile_function!(short_window_event_description(event));
@@ -257,7 +246,7 @@ impl State {
                     .entry(self.viewport_id)
                     .or_default()
                     .native_pixels_per_point = Some(native_pixels_per_point);
-                self.current_pixels_per_point = egui_ctx.zoom_factor() * native_pixels_per_point;
+
                 EventResponse {
                     repaint: true,
                     consumed: false,
@@ -267,21 +256,21 @@ impl State {
                 self.on_mouse_button_input(*state, *button);
                 EventResponse {
                     repaint: true,
-                    consumed: egui_ctx.wants_pointer_input(),
+                    consumed: self.egui_ctx.wants_pointer_input(),
                 }
             }
             WindowEvent::MouseWheel { delta, .. } => {
-                self.on_mouse_wheel(*delta);
+                self.on_mouse_wheel(window, *delta);
                 EventResponse {
                     repaint: true,
-                    consumed: egui_ctx.wants_pointer_input(),
+                    consumed: self.egui_ctx.wants_pointer_input(),
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {
-                self.on_cursor_moved(*position);
+                self.on_cursor_moved(window, *position);
                 EventResponse {
                     repaint: true,
-                    consumed: egui_ctx.is_using_pointer(),
+                    consumed: self.egui_ctx.is_using_pointer(),
                 }
             }
             WindowEvent::CursorLeft { .. } => {
@@ -294,12 +283,12 @@ impl State {
             }
             // WindowEvent::TouchpadPressure {device_id, pressure, stage, ..  } => {} // TODO
             WindowEvent::Touch(touch) => {
-                self.on_touch(touch);
+                self.on_touch(window, touch);
                 let consumed = match touch.phase {
                     winit::event::TouchPhase::Started
                     | winit::event::TouchPhase::Ended
-                    | winit::event::TouchPhase::Cancelled => egui_ctx.wants_pointer_input(),
-                    winit::event::TouchPhase::Moved => egui_ctx.is_using_pointer(),
+                    | winit::event::TouchPhase::Cancelled => self.egui_ctx.wants_pointer_input(),
+                    winit::event::TouchPhase::Moved => self.egui_ctx.is_using_pointer(),
                 };
                 EventResponse {
                     repaint: true,
@@ -316,7 +305,7 @@ impl State {
                     self.egui_input
                         .events
                         .push(egui::Event::Text(ch.to_string()));
-                    egui_ctx.wants_keyboard_input()
+                    self.egui_ctx.wants_keyboard_input()
                 } else {
                     false
                 };
@@ -361,13 +350,13 @@ impl State {
 
                 EventResponse {
                     repaint: true,
-                    consumed: egui_ctx.wants_keyboard_input(),
+                    consumed: self.egui_ctx.wants_keyboard_input(),
                 }
             }
             WindowEvent::KeyboardInput { input, .. } => {
                 self.on_keyboard_input(input);
                 // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
-                let consumed = egui_ctx.wants_keyboard_input()
+                let consumed = self.egui_ctx.wants_keyboard_input()
                     || input.virtual_keycode == Some(winit::event::VirtualKeyCode::Tab);
                 EventResponse {
                     repaint: true,
@@ -459,7 +448,7 @@ impl State {
                 self.egui_input.events.push(egui::Event::Zoom(zoom_factor));
                 EventResponse {
                     repaint: true,
-                    consumed: egui_ctx.wants_pointer_input(),
+                    consumed: self.egui_ctx.wants_pointer_input(),
                 }
             }
         }
@@ -520,10 +509,16 @@ impl State {
         }
     }
 
-    fn on_cursor_moved(&mut self, pos_in_pixels: winit::dpi::PhysicalPosition<f64>) {
+    fn on_cursor_moved(
+        &mut self,
+        window: &Window,
+        pos_in_pixels: winit::dpi::PhysicalPosition<f64>,
+    ) {
+        let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
+
         let pos_in_points = egui::pos2(
-            pos_in_pixels.x as f32 / self.current_pixels_per_point,
-            pos_in_pixels.y as f32 / self.current_pixels_per_point,
+            pos_in_pixels.x as f32 / pixels_per_point,
+            pos_in_pixels.y as f32 / pixels_per_point,
         );
         self.pointer_pos_in_points = Some(pos_in_points);
 
@@ -548,7 +543,9 @@ impl State {
         }
     }
 
-    fn on_touch(&mut self, touch: &winit::event::Touch) {
+    fn on_touch(&mut self, window: &Window, touch: &winit::event::Touch) {
+        let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
+
         // Emit touch event
         self.egui_input.events.push(egui::Event::Touch {
             device_id: egui::TouchDeviceId(egui::epaint::util::hash(touch.device_id)),
@@ -560,8 +557,8 @@ impl State {
                 winit::event::TouchPhase::Cancelled => egui::TouchPhase::Cancel,
             },
             pos: egui::pos2(
-                touch.location.x as f32 / self.current_pixels_per_point,
-                touch.location.y as f32 / self.current_pixels_per_point,
+                touch.location.x as f32 / pixels_per_point,
+                touch.location.y as f32 / pixels_per_point,
             ),
             force: match touch.force {
                 Some(winit::event::Force::Normalized(force)) => Some(force as f32),
@@ -581,14 +578,14 @@ impl State {
                 winit::event::TouchPhase::Started => {
                     self.pointer_touch_id = Some(touch.id);
                     // First move the pointer to the right location
-                    self.on_cursor_moved(touch.location);
+                    self.on_cursor_moved(window, touch.location);
                     self.on_mouse_button_input(
                         winit::event::ElementState::Pressed,
                         winit::event::MouseButton::Left,
                     );
                 }
                 winit::event::TouchPhase::Moved => {
-                    self.on_cursor_moved(touch.location);
+                    self.on_cursor_moved(window, touch.location);
                 }
                 winit::event::TouchPhase::Ended => {
                     self.pointer_touch_id = None;
@@ -610,7 +607,9 @@ impl State {
         }
     }
 
-    fn on_mouse_wheel(&mut self, delta: winit::event::MouseScrollDelta) {
+    fn on_mouse_wheel(&mut self, window: &Window, delta: winit::event::MouseScrollDelta) {
+        let pixels_per_point = pixels_per_point(&self.egui_ctx, window);
+
         {
             let (unit, delta) = match delta {
                 winit::event::MouseScrollDelta::LineDelta(x, y) => {
@@ -621,7 +620,7 @@ impl State {
                     y,
                 }) => (
                     egui::MouseWheelUnit::Point,
-                    egui::vec2(x as f32, y as f32) / self.current_pixels_per_point,
+                    egui::vec2(x as f32, y as f32) / pixels_per_point,
                 ),
             };
             let modifiers = self.egui_input.modifiers;
@@ -637,7 +636,7 @@ impl State {
                 egui::vec2(x, y) * points_per_scroll_line
             }
             winit::event::MouseScrollDelta::PixelDelta(delta) => {
-                egui::vec2(delta.x as f32, delta.y as f32) / self.current_pixels_per_point
+                egui::vec2(delta.x as f32, delta.y as f32) / pixels_per_point
             }
         };
 
@@ -699,7 +698,6 @@ impl State {
     pub fn handle_platform_output(
         &mut self,
         window: &Window,
-        egui_ctx: &egui::Context,
         platform_output: egui::PlatformOutput,
     ) {
         crate::profile_function!();
@@ -714,8 +712,6 @@ impl State {
             #[cfg(feature = "accesskit")]
             accesskit_update,
         } = platform_output;
-
-        self.current_pixels_per_point = egui_ctx.pixels_per_point(); // someone can have changed it to scale the UI
 
         self.set_cursor_icon(window, cursor_icon);
 
@@ -772,16 +768,14 @@ impl State {
 /// Update the given viewport info with the current state of the window.
 ///
 /// Call before [`State::take_egui_input`].
-pub fn update_viewport_info(info: &mut ViewportInfo, egui_ctx: &egui::Context, window: &Window) {
-    update_viewport_info_impl(info, window, pixels_per_point(egui_ctx, window));
-}
-
-fn update_viewport_info_impl(
+pub fn update_viewport_info(
     viewport_info: &mut ViewportInfo,
+    egui_ctx: &egui::Context,
     window: &Window,
-    pixels_per_point: f32,
 ) {
     crate::profile_function!();
+
+    let pixels_per_point = pixels_per_point(egui_ctx, window);
 
     let has_a_position = match window.is_minimized() {
         None | Some(true) => false,
@@ -1431,16 +1425,6 @@ pub fn create_winit_window_builder<T>(
     }
 
     window_builder
-}
-
-/// Applies what `create_winit_window_builder` couldn't
-#[deprecated = "Use apply_viewport_builder_to_window instead"]
-pub fn apply_viewport_builder_to_new_window(window: &Window, builder: &ViewportBuilder) {
-    if let Some(mouse_passthrough) = builder.mouse_passthrough {
-        if let Err(err) = window.set_cursor_hittest(!mouse_passthrough) {
-            log::warn!("set_cursor_hittest failed: {err}");
-        }
-    }
 }
 
 /// Applies what `create_winit_window_builder` couldn't
