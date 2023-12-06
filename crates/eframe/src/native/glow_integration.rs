@@ -181,7 +181,7 @@ impl GlowWinitApp {
 
         let gl = unsafe {
             crate::profile_scope!("glow::Context::from_loader_function");
-            Rc::new(glow::Context::from_loader_function(|s| {
+            Arc::new(glow::Context::from_loader_function(|s| {
                 let s = std::ffi::CString::new(s)
                     .expect("failed to construct C string from string for gl proc address");
 
@@ -525,7 +525,6 @@ impl GlowWinitRunning {
             egui_winit::update_viewport_info(&mut viewport.info, &egui_ctx, window);
 
             let egui_winit = viewport.egui_winit.as_mut().unwrap();
-            egui_winit.update_pixels_per_point(&egui_ctx, window);
             let mut raw_input = egui_winit.take_egui_input(window);
             let viewport_ui_cb = viewport.viewport_ui_cb.clone();
 
@@ -608,7 +607,7 @@ impl GlowWinitRunning {
         let egui_winit = viewport.egui_winit.as_mut().unwrap();
 
         integration.post_update();
-        egui_winit.handle_platform_output(window, &integration.egui_ctx, platform_output);
+        egui_winit.handle_platform_output(window, platform_output);
 
         let clipped_primitives = integration.egui_ctx.tessellate(shapes, pixels_per_point);
 
@@ -1028,6 +1027,7 @@ impl GlutinWindowContext {
         viewport.egui_winit.get_or_insert_with(|| {
             log::debug!("Initializing egui_winit for viewport {viewport_id:?}");
             egui_winit::State::new(
+                self.egui_ctx.clone(),
                 viewport_id,
                 event_loop,
                 Some(window.scale_factor() as f32),
@@ -1329,7 +1329,6 @@ fn render_immediate_viewport(
         };
         egui_winit::update_viewport_info(&mut viewport.info, egui_ctx, window);
 
-        egui_winit.update_pixels_per_point(egui_ctx, window);
         let mut raw_input = egui_winit.take_egui_input(window);
         raw_input.viewports = glutin
             .viewports
@@ -1425,7 +1424,7 @@ fn render_immediate_viewport(
         }
     }
 
-    egui_winit.handle_platform_output(window, egui_ctx, platform_output);
+    egui_winit.handle_platform_output(window, platform_output);
 
     glutin.handle_viewport_output(event_loop, egui_ctx, viewport_output);
 }

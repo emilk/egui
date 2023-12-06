@@ -69,6 +69,9 @@ impl RenderState {
     ) -> Result<Self, WgpuError> {
         crate::profile_scope!("RenderState::create"); // async yield give bad names using `profile_function`
 
+        #[cfg(not(target_arch = "wasm32"))]
+        let adapters: Vec<_> = instance.enumerate_adapters(wgpu::Backends::all()).collect();
+
         let adapter = {
             crate::profile_scope!("request_adapter");
             instance
@@ -78,8 +81,50 @@ impl RenderState {
                     force_fallback_adapter: false,
                 })
                 .await
-                .ok_or(WgpuError::NoSuitableAdapterFound)?
+                .ok_or_else(|| {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    if adapters.is_empty() {
+                        log::info!("No wgpu adapters found");
+                    } else if adapters.len() == 1 {
+                        log::info!(
+                            "The only available wgpu adapter was not suitable: {}",
+                            adapter_info_summary(&adapters[0].get_info())
+                        );
+                    } else {
+                        log::info!(
+                            "No suitable wgpu adapter found out of the {} available ones: {}",
+                            adapters.len(),
+                            describe_adapters(&adapters)
+                        );
+                    }
+
+                    WgpuError::NoSuitableAdapterFound
+                })?
         };
+
+        #[cfg(target_arch = "wasm32")]
+        log::debug!(
+            "Picked wgpu adapter: {}",
+            adapter_info_summary(&adapter.get_info())
+        );
+
+        #[cfg(not(target_arch = "wasm32"))]
+        if adapters.len() == 1 {
+            log::debug!(
+                "Picked the only available wgpu adapter: {}",
+                adapter_info_summary(&adapter.get_info())
+            );
+        } else {
+            log::info!(
+                "There were {} available wgpu adapters: {}",
+                adapters.len(),
+                describe_adapters(&adapters)
+            );
+            log::debug!(
+                "Picked wgpu adapter: {}",
+                adapter_info_summary(&adapter.get_info())
+            );
+        }
 
         let capabilities = {
             crate::profile_scope!("get_capabilities");
@@ -106,6 +151,24 @@ impl RenderState {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn describe_adapters(adapters: &[wgpu::Adapter]) -> String {
+    if adapters.is_empty() {
+        "(none)".to_owned()
+    } else if adapters.len() == 1 {
+        adapter_info_summary(&adapters[0].get_info())
+    } else {
+        let mut list_string = String::new();
+        for adapter in adapters {
+            if !list_string.is_empty() {
+                list_string += ", ";
+            }
+            list_string += &format!("{{{}}}", adapter_info_summary(&adapter.get_info()));
+        }
+        list_string
+    }
+}
+
 /// Specifies which action should be taken as consequence of a [`wgpu::SurfaceError`]
 pub enum SurfaceErrorAction {
     /// Do nothing and skip the current frame.
@@ -116,6 +179,10 @@ pub enum SurfaceErrorAction {
 }
 
 /// Configuration for using wgpu with eframe or the egui-wgpu winit feature.
+///
+/// This can be configured with the environment variables:
+/// * `WGPU_BACKEND`: `vulkan`, `dx11`, `dx12`, `metal`, `opengl`, `webgpu`
+/// * `WGPU_POWER_PREF`: `low`, `high` or `none`
 #[derive(Clone)]
 pub struct WgpuConfiguration {
     /// Backends that should be supported (wgpu will pick one of these)
@@ -151,6 +218,7 @@ impl Default for WgpuConfiguration {
             // (note however, that the GL backend needs to be opted-in via a wgpu feature flag)
             supported_backends: wgpu::util::backend_bits_from_env()
                 .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL),
+
             device_descriptor: Arc::new(|adapter| {
                 let base_limits = if adapter.get_info().backend == wgpu::Backend::Gl {
                     wgpu::Limits::downlevel_webgl2_defaults()
@@ -169,7 +237,9 @@ impl Default for WgpuConfiguration {
                     },
                 }
             }),
+
             present_mode: wgpu::PresentMode::AutoVsync,
+
             power_preference: wgpu::util::power_preference_from_env()
                 .unwrap_or(wgpu::PowerPreference::HighPerformance),
 
@@ -220,6 +290,47 @@ pub fn depth_format_from_bits(depth_buffer: u8, stencil_buffer: u8) -> Option<wg
         (32, 8) => Some(wgpu::TextureFormat::Depth32FloatStencil8),
         _ => None,
     }
+}
+
+// ---------------------------------------------------------------------------
+
+/// A human-readable summary about an adapter
+pub fn adapter_info_summary(info: &wgpu::AdapterInfo) -> String {
+    let wgpu::AdapterInfo {
+        name,
+        vendor,
+        device,
+        device_type,
+        driver,
+        driver_info,
+        backend,
+    } = &info;
+
+    // Example values:
+    // > name: "llvmpipe (LLVM 16.0.6, 256 bits)", device_type: Cpu, backend: Vulkan, driver: "llvmpipe", driver_info: "Mesa 23.1.6-arch1.4 (LLVM 16.0.6)"
+    // > name: "Apple M1 Pro", device_type: IntegratedGpu, backend: Metal, driver: "", driver_info: ""
+    // > name: "ANGLE (Apple, Apple M1 Pro, OpenGL 4.1)", device_type: IntegratedGpu, backend: Gl, driver: "", driver_info: ""
+
+    let mut summary = format!("backend: {backend:?}, device_type: {device_type:?}");
+
+    if !name.is_empty() {
+        summary += &format!(", name: {name:?}");
+    }
+    if !driver.is_empty() {
+        summary += &format!(", driver: {driver:?}");
+    }
+    if !driver_info.is_empty() {
+        summary += &format!(", driver_info: {driver_info:?}");
+    }
+    if *vendor != 0 {
+        // TODO(emilk): decode using https://github.com/gfx-rs/wgpu/blob/767ac03245ee937d3dc552edc13fe7ab0a860eec/wgpu-hal/src/auxil/mod.rs#L7
+        summary += &format!(", vendor: 0x{vendor:04X}");
+    }
+    if *device != 0 {
+        summary += &format!(", device: 0x{device:02X}");
+    }
+
+    summary
 }
 
 // ---------------------------------------------------------------------------

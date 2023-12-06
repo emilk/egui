@@ -154,7 +154,7 @@ fn main() {
         .build()
         .unwrap();
     let (gl_window, gl) = create_display(&event_loop);
-    let gl = std::rc::Rc::new(gl);
+    let gl = std::sync::Arc::new(gl);
 
     let mut egui_glow = egui_glow::EguiGlow::new(&event_loop, gl.clone(), None, None);
 
@@ -234,7 +234,7 @@ fn main() {
                     gl_window.resize(*physical_size);
                 }
 
-                let event_response = egui_glow.on_window_event(&event);
+                let event_response = egui_glow.on_window_event(gl_window.window(), &event);
 
                 if event_response.repaint {
                     gl_window.window().request_redraw();

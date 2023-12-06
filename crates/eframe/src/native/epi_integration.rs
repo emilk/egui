@@ -152,7 +152,7 @@ impl EpiIntegration {
         app_name: &str,
         native_options: &crate::NativeOptions,
         storage: Option<Box<dyn epi::Storage>>,
-        #[cfg(feature = "glow")] gl: Option<std::rc::Rc<glow::Context>>,
+        #[cfg(feature = "glow")] gl: Option<std::sync::Arc<glow::Context>>,
         #[cfg(feature = "wgpu")] wgpu_render_state: Option<egui_wgpu::RenderState>,
     ) -> Self {
         let frame = epi::Frame {
@@ -255,8 +255,7 @@ impl EpiIntegration {
             _ => {}
         }
 
-        egui_winit.update_pixels_per_point(&self.egui_ctx, window);
-        egui_winit.on_window_event(&self.egui_ctx, event)
+        egui_winit.on_window_event(window, event)
     }
 
     pub fn pre_update(&mut self) {

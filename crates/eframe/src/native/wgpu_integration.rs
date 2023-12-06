@@ -211,6 +211,7 @@ impl WgpuWinitApp {
 
         #[allow(unused_mut)] // used for accesskit
         let mut egui_winit = egui_winit::State::new(
+            egui_ctx.clone(),
             ViewportId::ROOT,
             event_loop,
             Some(window.scale_factor() as f32),
@@ -502,10 +503,7 @@ impl WgpuWinitRunning {
             let mut shared_lock = shared.borrow_mut();
 
             let SharedState {
-                egui_ctx,
-                viewports,
-                painter,
-                ..
+                viewports, painter, ..
             } = &mut *shared_lock;
 
             if viewport_id != ViewportId::ROOT {
@@ -553,7 +551,6 @@ impl WgpuWinitRunning {
             }
 
             let egui_winit = egui_winit.as_mut().unwrap();
-            egui_winit.update_pixels_per_point(egui_ctx, window);
             let mut raw_input = egui_winit.take_egui_input(window);
 
             integration.pre_update();
@@ -610,7 +607,7 @@ impl WgpuWinitRunning {
             viewport_output,
         } = full_output;
 
-        egui_winit.handle_platform_output(window, egui_ctx, platform_output);
+        egui_winit.handle_platform_output(window, platform_output);
 
         {
             let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
@@ -806,6 +803,7 @@ impl Viewport {
                 }
 
                 self.egui_winit = Some(egui_winit::State::new(
+                    egui_ctx.clone(),
                     viewport_id,
                     event_loop,
                     Some(window.scale_factor() as f32),
@@ -887,7 +885,6 @@ fn render_immediate_viewport(
         };
         egui_winit::update_viewport_info(&mut viewport.info, egui_ctx, window);
 
-        egui_winit.update_pixels_per_point(egui_ctx, window);
         let mut input = egui_winit.take_egui_input(window);
         input.viewports = viewports
             .iter()
@@ -951,7 +948,7 @@ fn render_immediate_viewport(
         false,
     );
 
-    egui_winit.handle_platform_output(window, &egui_ctx, platform_output);
+    egui_winit.handle_platform_output(window, platform_output);
 
     handle_viewport_output(&egui_ctx, viewport_output, viewports, *focused_viewport);
 }

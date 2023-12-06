@@ -1,7 +1,7 @@
 #![allow(clippy::collapsible_else_if)]
 #![allow(unsafe_code)]
 
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, sync::Arc};
 
 use egui::{
     emath::Rect,
@@ -62,7 +62,7 @@ impl From<String> for PainterError {
 ///
 /// NOTE: all egui viewports share the same painter.
 pub struct Painter {
-    gl: Rc<glow::Context>,
+    gl: Arc<glow::Context>,
 
     max_texture_side: usize,
 
@@ -120,7 +120,7 @@ impl Painter {
     /// * failed to create postprocess on webgl with `sRGB` support
     /// * failed to create buffer
     pub fn new(
-        gl: Rc<glow::Context>,
+        gl: Arc<glow::Context>,
         shader_prefix: &str,
         shader_version: Option<ShaderVersion>,
     ) -> Result<Painter, PainterError> {
@@ -250,7 +250,7 @@ impl Painter {
     }
 
     /// Access the shared glow context.
-    pub fn gl(&self) -> &Rc<glow::Context> {
+    pub fn gl(&self) -> &Arc<glow::Context> {
         &self.gl
     }
 
