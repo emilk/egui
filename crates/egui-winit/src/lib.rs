@@ -388,12 +388,12 @@ impl State {
                 }
             }
             WindowEvent::ModifiersChanged(state) => {
-                use winit::keyboard::ModifiersKeyState::Pressed;
+                let state = state.state();
 
-                let alt = state.lalt_state() == Pressed || state.ralt_state() == Pressed;
-                let ctrl = state.lcontrol_state() == Pressed || state.rcontrol_state() == Pressed;
-                let shift = state.lshift_state() == Pressed || state.rshift_state() == Pressed;
-                let super_ = state.lsuper_state() == Pressed || state.rsuper_state() == Pressed;
+                let alt = state.alt_key();
+                let ctrl = state.control_key();
+                let shift = state.shift_key();
+                let super_ = state.super_key();
 
                 self.egui_input.modifiers.alt = alt;
                 self.egui_input.modifiers.ctrl = ctrl;
