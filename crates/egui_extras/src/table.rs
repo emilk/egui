@@ -278,11 +278,6 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
-    #[deprecated = "Renamed to vscroll"]
-    pub fn scroll(self, vscroll: bool) -> Self {
-        self.vscroll(vscroll)
-    }
-
     /// Enables scrolling the table's contents using mouse drag (default: `true`).
     ///
     /// See [`ScrollArea::drag_to_scroll`] for more.

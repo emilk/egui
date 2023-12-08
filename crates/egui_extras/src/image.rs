@@ -123,14 +123,6 @@ impl RetainedImage {
         self
     }
 
-    #[deprecated = "Use with_options instead"]
-    pub fn with_texture_filter(self, filter: TextureFilter) -> Self {
-        self.with_options(TextureOptions {
-            magnification: filter,
-            minification: filter,
-        })
-    }
-
     /// The size of the image data (number of pixels wide/high).
     pub fn size(&self) -> [usize; 2] {
         self.size

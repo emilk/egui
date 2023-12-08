@@ -193,11 +193,6 @@ impl<'t> TextEdit<'t> {
         self
     }
 
-    #[deprecated = "Use .font(…) instead"]
-    pub fn text_style(self, text_style: TextStyle) -> Self {
-        self.font(text_style)
-    }
-
     #[inline]
     pub fn text_color(mut self, text_color: Color32) -> Self {
         self.text_color = Some(text_color);

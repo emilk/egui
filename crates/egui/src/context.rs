@@ -707,16 +707,6 @@ impl Context {
         })
     }
 
-    /// Read-write access to [`Fonts`].
-    #[inline]
-    #[deprecated = "This function will be removed"]
-    pub fn fonts_mut<R>(&self, writer: impl FnOnce(Option<&mut Fonts>) -> R) -> R {
-        self.write(move |ctx| {
-            let pixels_per_point = ctx.pixels_per_point();
-            writer(ctx.fonts.get_mut(&pixels_per_point.into()))
-        })
-    }
-
     /// Read-only access to [`Options`].
     #[inline]
     pub fn options<R>(&self, reader: impl FnOnce(&Options) -> R) -> R {

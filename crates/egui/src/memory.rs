@@ -666,21 +666,6 @@ impl Memory {
         }
     }
 
-    /// Set an event filter for a widget.
-    ///
-    /// You must first give focus to the widget before calling this.
-    #[deprecated = "Use set_focus_lock_filter instead"]
-    pub fn lock_focus(&mut self, id: Id, lock_focus: bool) {
-        self.set_focus_lock_filter(
-            id,
-            EventFilter {
-                tab: lock_focus,
-                arrows: lock_focus,
-                escape: false,
-            },
-        );
-    }
-
     /// Give keyboard focus to a specific widget.
     /// See also [`crate::Response::request_focus`].
     #[inline(always)]

@@ -37,11 +37,6 @@ impl Id {
     /// though obviously it will lead to a lot of collisions if you do use it!
     pub const NULL: Self = Self(0);
 
-    #[deprecated = "Use Id::NULL"]
-    pub fn null() -> Self {
-        Self(0)
-    }
-
     pub(crate) const fn background() -> Self {
         Self(1)
     }

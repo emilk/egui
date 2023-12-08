@@ -572,15 +572,6 @@ impl Modifiers {
         command: false,
     };
 
-    #[deprecated = "Use `Modifiers::ALT | Modifiers::SHIFT` instead"]
-    pub const ALT_SHIFT: Self = Self {
-        alt: true,
-        ctrl: false,
-        shift: true,
-        mac_cmd: false,
-        command: false,
-    };
-
     /// The Mac ⌘ Command key
     pub const MAC_CMD: Self = Self {
         alt: false,

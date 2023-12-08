@@ -19,12 +19,6 @@ impl Stroke {
         color: Color32::TRANSPARENT,
     };
 
-    #[deprecated = "Use Stroke::NONE instead"]
-    #[inline(always)]
-    pub fn none() -> Self {
-        Self::new(0.0, Color32::TRANSPARENT)
-    }
-
     #[inline]
     pub fn new(width: impl Into<f32>, color: impl Into<Color32>) -> Self {
         Self {

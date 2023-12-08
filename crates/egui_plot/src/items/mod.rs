@@ -574,20 +574,6 @@ impl Polygon {
         self
     }
 
-    #[deprecated = "Use `fill_color`."]
-    #[allow(unused, clippy::needless_pass_by_value)]
-    #[inline]
-    pub fn color(mut self, color: impl Into<Color32>) -> Self {
-        self
-    }
-
-    #[deprecated = "Use `fill_color`."]
-    #[allow(unused, clippy::needless_pass_by_value)]
-    #[inline]
-    pub fn fill_alpha(mut self, _alpha: impl Into<f32>) -> Self {
-        self
-    }
-
     /// Fill color. Defaults to the stroke color with added transparency.
     #[inline]
     pub fn fill_color(mut self, color: impl Into<Color32>) -> Self {
