@@ -4,7 +4,7 @@ use super::*;
 
 /// Describes the width and color of a line.
 ///
-/// The default stroke is the same as [`Stroke::none`].
+/// The default stroke is the same as [`Stroke::NONE`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Stroke {
