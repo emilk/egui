@@ -799,12 +799,18 @@ impl Prepared {
             for d in 0..2 {
                 if scroll_enabled[d] {
                     let scroll_delta = ui.ctx().frame_state(|fs| fs.scroll_delta);
-                    if mouse_wheel_scroll[0] {
-                        let scrolling_left = state.offset[d] > 0.0 && scroll_delta[1] > 0.0;
+                    if mouse_wheel_scroll.x {
+                        ui.input_mut(|input| {
+                        input
+                            .events
+                            .push(Event::Scroll(vec2(scroll_delta.x + scroll_delta.y, 0.0)));
+                    });
+
+                        let scrolling_left = state.offset[d] > 0.0 && scroll_delta[d]+scroll_delta.y> 0.0;
                         let scrolling_right =
-                            state.offset[d] < max_offset[d] && scroll_delta[1] < 0.0;
+                            state.offset[d] < max_offset[d] && scroll_delta[d]+scroll_delta.y < 0.0;
                         if scrolling_left || scrolling_right {
-                            state.offset[d] -= scroll_delta[1];
+                            state.offset[d] -= scroll_delta[d]+scroll_delta.y;
                             // Clear scroll delta so no parent scroll will use it.
                             ui.ctx().frame_state_mut(|fs| fs.scroll_delta[d] = 0.0);
                             state.scroll_stuck_to_end[d] = false;
