@@ -624,11 +624,6 @@ impl Painter {
         self.textures.get(&texture_id).copied()
     }
 
-    #[deprecated = "renamed 'texture'"]
-    pub fn get_texture(&self, texture_id: egui::TextureId) -> Option<glow::Texture> {
-        self.texture(texture_id)
-    }
-
     #[allow(clippy::needless_pass_by_value)] // False positive
     pub fn register_native_texture(&mut self, native: glow::Texture) -> egui::TextureId {
         self.assert_not_destroyed();

@@ -83,16 +83,6 @@ impl Painter {
     pub(crate) fn set_invisible(&mut self) {
         self.fade_to_color = Some(Color32::TRANSPARENT);
     }
-
-    #[deprecated = "Use Painter::with_clip_rect"] // Deprecated in 2022-04-18, before egui 0.18
-    pub fn sub_region(&self, rect: Rect) -> Self {
-        Self {
-            ctx: self.ctx.clone(),
-            layer_id: self.layer_id,
-            clip_rect: rect.intersect(self.clip_rect),
-            fade_to_color: self.fade_to_color,
-        }
-    }
 }
 
 /// ## Accessors etc
