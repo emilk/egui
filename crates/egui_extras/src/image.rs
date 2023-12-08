@@ -1,6 +1,6 @@
 #![allow(deprecated)]
 
-use egui::{mutex::Mutex, TextureFilter, TextureOptions};
+use egui::{mutex::Mutex, TextureOptions};
 
 #[cfg(feature = "svg")]
 pub use usvg::FitTo;
