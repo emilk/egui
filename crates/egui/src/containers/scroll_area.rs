@@ -165,6 +165,8 @@ pub struct ScrollArea {
     /// end position until user manually changes position. It will become true
     /// again once scroll handle makes contact with end.
     stick_to_end: Vec2b,
+    //If true for vertical or horizontal the scroll wheel will
+    mouse_wheel_scroll: Vec2b,
 }
 
 impl ScrollArea {
@@ -208,6 +210,7 @@ impl ScrollArea {
             scrolling_enabled: true,
             drag_to_scroll: true,
             stick_to_end: Vec2b::FALSE,
+            mouse_wheel_scroll: Vec2b::new(false, true),
         }
     }
 
@@ -400,6 +403,18 @@ impl ScrollArea {
         self.stick_to_end[1] = stick;
         self
     }
+
+    //Control whether the mouse_wheel event scrolls horizontally
+
+    pub fn on_mouse_wheel_horizontal(mut self, state: bool) -> Self {
+        self.mouse_wheel_scroll = Vec2b::new(state, false);
+        self
+    }
+
+    pub fn on_mouse_wheel_vertical(mut self, state: bool) -> Self {
+        self.mouse_wheel_scroll = Vec2b::new(false, state);
+        self
+    }
 }
 
 struct Prepared {
@@ -438,6 +453,7 @@ struct Prepared {
 
     scrolling_enabled: bool,
     stick_to_end: Vec2b,
+    mouse_wheel_scroll: Vec2b,
 }
 
 impl ScrollArea {
@@ -454,6 +470,7 @@ impl ScrollArea {
             scrolling_enabled,
             drag_to_scroll,
             stick_to_end,
+            mouse_wheel_scroll,
         } = self;
 
         let ctx = ui.ctx().clone();
@@ -594,6 +611,7 @@ impl ScrollArea {
             viewport,
             scrolling_enabled,
             stick_to_end,
+            mouse_wheel_scroll,
         }
     }
 
@@ -705,6 +723,7 @@ impl Prepared {
             viewport: _,
             scrolling_enabled,
             stick_to_end,
+            mouse_wheel_scroll,
         } = self;
 
         let content_size = content_ui.min_size();
@@ -780,15 +799,27 @@ impl Prepared {
             for d in 0..2 {
                 if scroll_enabled[d] {
                     let scroll_delta = ui.ctx().frame_state(|fs| fs.scroll_delta);
+                    if mouse_wheel_scroll[0] {
+                        let scrolling_left = state.offset[d] > 0.0 && scroll_delta[1] > 0.0;
+                        let scrolling_right =
+                            state.offset[d] < max_offset[d] && scroll_delta[1] < 0.0;
+                        if scrolling_left || scrolling_right {
+                            state.offset[d] -= scroll_delta[1];
+                            // Clear scroll delta so no parent scroll will use it.
+                            ui.ctx().frame_state_mut(|fs| fs.scroll_delta[d] = 0.0);
+                            state.scroll_stuck_to_end[d] = false;
+                        }
+                    } else {
+                        let scrolling_up = state.offset[d] > 0.0 && scroll_delta[d] > 0.0;
+                        let scrolling_down =
+                            state.offset[d] < max_offset[d] && scroll_delta[d] < 0.0;
 
-                    let scrolling_up = state.offset[d] > 0.0 && scroll_delta[d] > 0.0;
-                    let scrolling_down = state.offset[d] < max_offset[d] && scroll_delta[d] < 0.0;
-
-                    if scrolling_up || scrolling_down {
-                        state.offset[d] -= scroll_delta[d];
-                        // Clear scroll delta so no parent scroll will use it.
-                        ui.ctx().frame_state_mut(|fs| fs.scroll_delta[d] = 0.0);
-                        state.scroll_stuck_to_end[d] = false;
+                        if scrolling_up || scrolling_down {
+                            state.offset[d] -= scroll_delta[d];
+                            // Clear scroll delta so no parent scroll will use it.
+                            ui.ctx().frame_state_mut(|fs| fs.scroll_delta[d] = 0.0);
+                            state.scroll_stuck_to_end[d] = false;
+                        }
                     }
                 }
             }
