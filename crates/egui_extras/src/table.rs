@@ -802,7 +802,8 @@ impl<'a> TableBody<'a> {
 
     /// Add a single row with the given height.
     ///
-    /// If you have many thousands of row it can be more performant to instead use [`Self::rows`] or [`Self::heterogeneous_rows`].
+    /// ⚠️ It is much more performant to use [`Self::rows`] or [`Self::heterogeneous_rows`],
+    /// as those functions will only render the visible rows.
     pub fn row(&mut self, height: f32, add_row_content: impl FnOnce(TableRow<'a, '_>)) {
         let top_y = self.layout.cursor.y;
         add_row_content(TableRow {
