@@ -73,7 +73,10 @@ serde = { version = "1", optional = true, features = ["derive"] }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-env_logger = "0.10"
+env_logger = { version = "0.10", default-features = false, features = [
+  "auto-color",
+  "humantime",
+] }
 rfd = { version = "0.11", optional = true }
 
 # web:

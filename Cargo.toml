@@ -48,6 +48,7 @@ opt-level = 2
 
 
 [workspace.dependencies]
+criterion = { version = "0.5.1", default-features = false }
 puffin = "0.18"
 raw-window-handle = "0.5.0"
 thiserror = "1.0.37"
