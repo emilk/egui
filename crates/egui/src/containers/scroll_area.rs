@@ -161,6 +161,9 @@ pub struct ScrollArea {
     scrolling_enabled: bool,
     drag_to_scroll: bool,
 
+    /// If true and scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift
+    always_scroll_the_only_direction: bool,
+
     /// If true for vertical or horizontal the scroll wheel will stick to the
     /// end position until user manually changes position. It will become true
     /// again once scroll handle makes contact with end.
@@ -207,6 +210,7 @@ impl ScrollArea {
             offset_y: None,
             scrolling_enabled: true,
             drag_to_scroll: true,
+            always_scroll_the_only_direction: true,
             stick_to_end: Vec2b::FALSE,
         }
     }
@@ -360,6 +364,21 @@ impl ScrollArea {
         self
     }
 
+    /// If `true` and scrolling is enabled for only one direction,
+    /// use scroll input from both directions to scroll the enabled direction.
+    ///
+    /// This can be used to allow horizontal scrolling without pressing shift if vertical scrolling is disabled.
+    ///
+    /// Default: `true`.
+    #[inline]
+    pub fn always_scroll_the_only_direction(
+        mut self,
+        always_scroll_the_only_direction: bool,
+    ) -> Self {
+        self.always_scroll_the_only_direction = always_scroll_the_only_direction;
+        self
+    }
+
     /// For each axis, should the containing area shrink if the content is small?
     ///
     /// * If `true`, egui will add blank space outside the scroll area.
@@ -414,6 +433,8 @@ struct Prepared {
     /// Smoothly interpolated boolean of whether or not to show the scroll bars.
     show_bars_factor: Vec2,
 
+    always_scroll_the_only_direction: bool,
+
     /// How much horizontal and vertical space are used up by the
     /// width of the vertical bar, and the height of the horizontal bar?
     ///
@@ -453,6 +474,7 @@ impl ScrollArea {
             offset_y,
             scrolling_enabled,
             drag_to_scroll,
+            always_scroll_the_only_direction,
             stick_to_end,
         } = self;
 
@@ -587,6 +609,7 @@ impl ScrollArea {
             auto_shrink,
             scroll_enabled,
             show_bars_factor,
+            always_scroll_the_only_direction,
             current_bar_use,
             scroll_bar_visibility,
             inner_rect,
@@ -699,6 +722,7 @@ impl Prepared {
             auto_shrink,
             scroll_enabled,
             mut show_bars_factor,
+            always_scroll_the_only_direction,
             current_bar_use,
             scroll_bar_visibility,
             content_ui,
@@ -779,15 +803,33 @@ impl Prepared {
         if scrolling_enabled && is_hovering_outer_rect {
             for d in 0..2 {
                 if scroll_enabled[d] {
-                    let scroll_delta = ui.ctx().frame_state(|fs| fs.scroll_delta);
+                    let scroll_delta = ui.ctx().frame_state(|fs| {
+                        if always_scroll_the_only_direction
+                            && scroll_enabled[0] != scroll_enabled[1]
+                        {
+                            // no bidirectional scrolling; allow horizontal scrolling without pressing shift
+                            fs.scroll_delta[0] + fs.scroll_delta[1]
+                        } else {
+                            fs.scroll_delta[d]
+                        }
+                    });
 
-                    let scrolling_up = state.offset[d] > 0.0 && scroll_delta[d] > 0.0;
-                    let scrolling_down = state.offset[d] < max_offset[d] && scroll_delta[d] < 0.0;
+                    let scrolling_up = state.offset[d] > 0.0 && scroll_delta > 0.0;
+                    let scrolling_down = state.offset[d] < max_offset[d] && scroll_delta < 0.0;
 
                     if scrolling_up || scrolling_down {
-                        state.offset[d] -= scroll_delta[d];
+                        state.offset[d] -= scroll_delta;
                         // Clear scroll delta so no parent scroll will use it.
-                        ui.ctx().frame_state_mut(|fs| fs.scroll_delta[d] = 0.0);
+                        ui.ctx().frame_state_mut(|fs| {
+                            if always_scroll_the_only_direction
+                                && scroll_enabled[0] != scroll_enabled[1]
+                            {
+                                fs.scroll_delta[0] = 0.0;
+                                fs.scroll_delta[1] = 0.0;
+                            } else {
+                                fs.scroll_delta[d] = 0.0;
+                            }
+                        });
                         state.scroll_stuck_to_end[d] = false;
                     }
                 }
