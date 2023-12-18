@@ -209,15 +209,6 @@ impl<'open> Window<'open> {
         self
     }
 
-    #[deprecated = "Use `constrain_to` instead"]
-    #[inline]
-    pub fn drag_bounds(mut self, constrain_rect: Rect) -> Self {
-        #![allow(deprecated)]
-
-        self.area = self.area.drag_bounds(constrain_rect);
-        self
-    }
-
     /// Where the "root" of the window is.
     ///
     /// For instance, if you set this to [`Align2::RIGHT_TOP`]

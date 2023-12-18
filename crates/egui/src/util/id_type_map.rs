@@ -318,7 +318,7 @@ use crate::Id;
 ///
 /// Values can either be "persisted" (serializable) or "temporary" (cleared when egui is shut down).
 ///
-/// You can store state using the key [`Id::null`]. The state will then only be identified by its type.
+/// You can store state using the key [`Id::NULL`]. The state will then only be identified by its type.
 ///
 /// ```
 /// # use egui::{Id, util::IdTypeMap};

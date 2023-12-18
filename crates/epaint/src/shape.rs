@@ -622,17 +622,6 @@ impl Rounding {
         }
     }
 
-    #[inline]
-    #[deprecated = "Use Rounding::ZERO"]
-    pub fn none() -> Self {
-        Self {
-            nw: 0.0,
-            ne: 0.0,
-            sw: 0.0,
-            se: 0.0,
-        }
-    }
-
     /// Do all corners have the same rounding?
     #[inline]
     pub fn is_same(&self) -> bool {

@@ -1,6 +1,6 @@
 #![allow(deprecated)]
 
-use egui::{mutex::Mutex, TextureFilter, TextureOptions};
+use egui::{mutex::Mutex, TextureOptions};
 
 #[cfg(feature = "svg")]
 use resvg::{tiny_skia, usvg};
@@ -124,14 +124,6 @@ impl RetainedImage {
         *self.texture.lock() = None;
 
         self
-    }
-
-    #[deprecated = "Use with_options instead"]
-    pub fn with_texture_filter(self, filter: TextureFilter) -> Self {
-        self.with_options(TextureOptions {
-            magnification: filter,
-            minification: filter,
-        })
     }
 
     /// The size of the image data (number of pixels wide/high).
