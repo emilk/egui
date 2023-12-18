@@ -145,12 +145,14 @@ pub enum SizeHint {
 }
 
 impl Default for SizeHint {
+    #[inline]
     fn default() -> Self {
         Self::Scale(1.0.ord())
     }
 }
 
 impl From<Vec2> for SizeHint {
+    #[inline]
     fn from(value: Vec2) -> Self {
         Self::Size(value.x.round() as u32, value.y.round() as u32)
     }
@@ -412,6 +414,7 @@ impl From<(TextureId, Vec2)> for SizedTexture {
 }
 
 impl<'a> From<&'a TextureHandle> for SizedTexture {
+    #[inline]
     fn from(handle: &'a TextureHandle) -> Self {
         Self::from_handle(handle)
     }
@@ -435,6 +438,7 @@ pub enum TexturePoll {
 }
 
 impl TexturePoll {
+    #[inline]
     pub fn size(self) -> Option<Vec2> {
         match self {
             TexturePoll::Pending { size } => size,
