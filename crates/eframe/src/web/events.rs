@@ -517,6 +517,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
 
         move |event: web_sys::DragEvent, runner| {
             if let Some(data_transfer) = event.data_transfer() {
+                // TODO(https://github.com/emilk/egui/issues/3702): support dropping folders
                 runner.input.raw.hovered_files.clear();
                 runner.needs_repaint.repaint_asap();
 
