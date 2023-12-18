@@ -899,7 +899,8 @@ pub enum ViewportCommand {
     /// The the window icon.
     Icon(Option<Arc<IconData>>),
 
-    IMEPosition(Pos2),
+    /// Set the IME cursor editing area.
+    IMERect(crate::Rect),
     IMEAllowed(bool),
     IMEPurpose(IMEPurpose),
 

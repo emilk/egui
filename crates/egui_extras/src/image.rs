@@ -3,6 +3,9 @@
 use egui::{mutex::Mutex, TextureOptions};
 
 #[cfg(feature = "svg")]
+use resvg::{tiny_skia, usvg};
+
+#[cfg(feature = "svg")]
 pub use usvg::FitTo;
 
 /// An image to be shown in egui.

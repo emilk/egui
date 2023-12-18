@@ -51,7 +51,7 @@ wgpu.workspace = true
 ## Enable this when generating docs.
 document-features = { version = "0.2", optional = true }
 
-winit = { version = "0.28", default-features = false, optional = true }
+winit = { version = "0.29.4", default-features = false, optional = true, features = ["rwh_05"] }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

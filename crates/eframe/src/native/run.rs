@@ -1,10 +1,3 @@
-//! Note that this file contains two similar paths - one for [`glow`], one for [`wgpu`].
-//! When making changes to one you often also want to apply it to the other.
-//!
-//! This is also very complex code, and not very pretty.
-//! There is a bunch of improvements we could do,
-//! like removing a bunch of `unwraps`.
-
 use std::{cell::RefCell, time::Instant};
 
 use winit::event_loop::{EventLoop, EventLoopBuilder};
@@ -34,12 +27,12 @@ fn create_event_loop_builder(
     event_loop_builder
 }
 
-fn create_event_loop(native_options: &mut epi::NativeOptions) -> EventLoop<UserEvent> {
+fn create_event_loop(native_options: &mut epi::NativeOptions) -> Result<EventLoop<UserEvent>> {
     crate::profile_function!();
     let mut builder = create_event_loop_builder(native_options);
 
     crate::profile_scope!("EventLoopBuilder::build");
-    builder.build()
+    Ok(builder.build()?)
 }
 
 /// Access a thread-local event loop.
@@ -49,16 +42,20 @@ fn create_event_loop(native_options: &mut epi::NativeOptions) -> EventLoop<UserE
 fn with_event_loop<R>(
     mut native_options: epi::NativeOptions,
     f: impl FnOnce(&mut EventLoop<UserEvent>, epi::NativeOptions) -> R,
-) -> R {
+) -> Result<R> {
     thread_local!(static EVENT_LOOP: RefCell<Option<EventLoop<UserEvent>>> = RefCell::new(None));
 
     EVENT_LOOP.with(|event_loop| {
         // Since we want to reference NativeOptions when creating the EventLoop we can't
         // do that as part of the lazy thread local storage initialization and so we instead
         // create the event loop lazily here
-        let mut event_loop = event_loop.borrow_mut();
-        let event_loop = event_loop.get_or_insert_with(|| create_event_loop(&mut native_options));
-        f(event_loop, native_options)
+        let mut event_loop_lock = event_loop.borrow_mut();
+        let event_loop = if let Some(event_loop) = &mut *event_loop_lock {
+            event_loop
+        } else {
+            event_loop_lock.insert(create_event_loop(&mut native_options)?)
+        };
+        Ok(f(event_loop, native_options))
     })
 }
 
@@ -67,31 +64,39 @@ fn run_and_return(
     event_loop: &mut EventLoop<UserEvent>,
     mut winit_app: impl WinitApp,
 ) -> Result<()> {
-    use winit::{event_loop::ControlFlow, platform::run_return::EventLoopExtRunReturn as _};
+    use winit::{event_loop::ControlFlow, platform::run_on_demand::EventLoopExtRunOnDemand};
 
-    log::debug!("Entering the winit event loop (run_return)…");
+    log::debug!("Entering the winit event loop (run_on_demand)…");
 
     // When to repaint what window
     let mut windows_next_repaint_times = HashMap::default();
 
     let mut returned_result = Ok(());
 
-    event_loop.run_return(|event, event_loop, control_flow| {
+    event_loop.run_on_demand(|event, event_loop_window_target| {
         crate::profile_scope!("winit_event", short_event_description(&event));
 
+        log::trace!("winit event: {event:?}");
+
+        if matches!(event, winit::event::Event::AboutToWait) {
+            return; // early-out: don't trigger another wait
+        }
+
         let event_result = match &event {
-            winit::event::Event::LoopDestroyed => {
-                // On Mac, Cmd-Q we get here and then `run_return` doesn't return (despite its name),
+            winit::event::Event::LoopExiting => {
+                // On Mac, Cmd-Q we get here and then `run_on_demand` doesn't return (despite its name),
                 // so we need to save state now:
-                log::debug!("Received Event::LoopDestroyed - saving app state…");
+                log::debug!("Received Event::LoopExiting - saving app state…");
                 winit_app.save_and_destroy();
-                *control_flow = ControlFlow::Exit;
                 return;
             }
 
-            winit::event::Event::RedrawRequested(window_id) => {
+            winit::event::Event::WindowEvent {
+                event: winit::event::WindowEvent::RedrawRequested,
+                window_id,
+            } => {
                 windows_next_repaint_times.remove(window_id);
-                winit_app.run_ui_and_paint(*window_id)
+                winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
             }
 
             winit::event::Event::UserEvent(UserEvent::RequestRepaint {
@@ -120,8 +125,11 @@ fn run_and_return(
                 EventResult::Wait
             }
 
-            event => match winit_app.on_event(event_loop, event) {
-                Ok(event_result) => event_result,
+            event => match winit_app.on_event(event_loop_window_target, event) {
+                Ok(event_result) => {
+                    log::trace!("event_result: {event_result:?}");
+                    event_result
+                }
                 Err(err) => {
                     log::error!("Exiting because of error: {err} during event {event:?}");
                     returned_result = Err(err);
@@ -132,21 +140,28 @@ fn run_and_return(
 
         match event_result {
             EventResult::Wait => {
-                control_flow.set_wait();
+                event_loop_window_target.set_control_flow(ControlFlow::Wait);
             }
             EventResult::RepaintNow(window_id) => {
-                log::trace!("Repaint caused by {}", short_event_description(&event));
+                log::trace!(
+                    "RepaintNow of {window_id:?} caused by {}",
+                    short_event_description(&event)
+                );
                 if cfg!(target_os = "windows") {
                     // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                     windows_next_repaint_times.remove(&window_id);
 
-                    winit_app.run_ui_and_paint(window_id);
+                    winit_app.run_ui_and_paint(event_loop_window_target, window_id);
                 } else {
                     // Fix for https://github.com/emilk/egui/issues/2425
                     windows_next_repaint_times.insert(window_id, Instant::now());
                 }
             }
             EventResult::RepaintNext(window_id) => {
+                log::trace!(
+                    "RepaintNext of {window_id:?} caused by {}",
+                    short_event_description(&event)
+                );
                 windows_next_repaint_times.insert(window_id, Instant::now());
             }
             EventResult::RepaintAt(window_id, repaint_time) => {
@@ -160,45 +175,35 @@ fn run_and_return(
             EventResult::Exit => {
                 log::debug!("Asking to exit event loop…");
                 winit_app.save_and_destroy();
-                *control_flow = ControlFlow::Exit;
+                event_loop_window_target.exit();
                 return;
             }
         }
 
         let mut next_repaint_time = windows_next_repaint_times.values().min().copied();
 
-        // This is for not duplicating redraw requests
-        use winit::event::Event;
-        if matches!(
-            event,
-            Event::RedrawEventsCleared | Event::RedrawRequested(_) | Event::Resumed
-        ) {
-            windows_next_repaint_times.retain(|window_id, repaint_time| {
-                if Instant::now() < *repaint_time {
-                    return true;
-                };
+        windows_next_repaint_times.retain(|window_id, repaint_time| {
+            if Instant::now() < *repaint_time {
+                return true; // not yet ready
+            };
 
-                next_repaint_time = None;
-                control_flow.set_poll();
+            next_repaint_time = None;
+            event_loop_window_target.set_control_flow(ControlFlow::Poll);
 
-                if let Some(window) = winit_app.window(*window_id) {
-                    log::trace!("request_redraw for {window_id:?}");
-                    window.request_redraw();
-                    true
-                } else {
-                    false
-                }
-            });
-        }
+            if let Some(window) = winit_app.window(*window_id) {
+                log::trace!("request_redraw for {window_id:?}");
+                window.request_redraw();
+                true
+            } else {
+                log::trace!("No window found for {window_id:?}");
+                false
+            }
+        });
 
         if let Some(next_repaint_time) = next_repaint_time {
-            let time_until_next = next_repaint_time.saturating_duration_since(Instant::now());
-            if time_until_next < std::time::Duration::from_secs(10_000) {
-                log::trace!("WaitUntil {time_until_next:?}");
-            }
-            control_flow.set_wait_until(next_repaint_time);
+            event_loop_window_target.set_control_flow(ControlFlow::WaitUntil(next_repaint_time));
         };
-    });
+    })?;
 
     log::debug!("eframe window closed");
 
@@ -211,32 +216,47 @@ fn run_and_return(
     // we only apply this approach on Windows to minimize the affect.
     #[cfg(target_os = "windows")]
     {
-        event_loop.run_return(|_, _, control_flow| {
-            control_flow.set_exit();
-        });
+        event_loop
+            .run_on_demand(|_, event_loop_window_target| {
+                event_loop_window_target.exit();
+            })
+            .ok();
     }
 
     returned_result
 }
 
-fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp + 'static) -> ! {
+fn run_and_exit(
+    event_loop: EventLoop<UserEvent>,
+    mut winit_app: impl WinitApp + 'static,
+) -> Result<()> {
+    use winit::event_loop::ControlFlow;
     log::debug!("Entering the winit event loop (run)…");
 
     // When to repaint what window
     let mut windows_next_repaint_times = HashMap::default();
 
-    event_loop.run(move |event, event_loop, control_flow| {
+    event_loop.run(move |event, event_loop_window_target| {
         crate::profile_scope!("winit_event", short_event_description(&event));
 
+        log::trace!("winit event: {event:?}");
+
+        if matches!(event, winit::event::Event::AboutToWait) {
+            return; // early-out: don't trigger another wait
+        }
+
         let event_result = match &event {
-            winit::event::Event::LoopDestroyed => {
-                log::debug!("Received Event::LoopDestroyed");
+            winit::event::Event::LoopExiting => {
+                log::debug!("Received Event::LoopExiting");
                 EventResult::Exit
             }
 
-            winit::event::Event::RedrawRequested(window_id) => {
+            winit::event::Event::WindowEvent {
+                event: winit::event::WindowEvent::RedrawRequested,
+                window_id,
+            } => {
                 windows_next_repaint_times.remove(window_id);
-                winit_app.run_ui_and_paint(*window_id)
+                winit_app.run_ui_and_paint(event_loop_window_target, *window_id)
             }
 
             winit::event::Event::UserEvent(UserEvent::RequestRepaint {
@@ -264,8 +284,11 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                 EventResult::Wait
             }
 
-            event => match winit_app.on_event(event_loop, event) {
-                Ok(event_result) => event_result,
+            event => match winit_app.on_event(event_loop_window_target, event) {
+                Ok(event_result) => {
+                    log::trace!("event_result: {event_result:?}");
+                    event_result
+                }
                 Err(err) => {
                     panic!("eframe encountered a fatal error: {err} during event {event:?}");
                 }
@@ -274,22 +297,22 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 
         match event_result {
             EventResult::Wait => {
-                control_flow.set_wait();
+                event_loop_window_target.set_control_flow(ControlFlow::Wait);
             }
             EventResult::RepaintNow(window_id) => {
-                log::trace!("Repaint caused by {}", short_event_description(&event));
+                log::trace!("RepaintNow caused by {}", short_event_description(&event));
                 if cfg!(target_os = "windows") {
                     // Fix flickering on Windows, see https://github.com/emilk/egui/pull/2280
                     windows_next_repaint_times.remove(&window_id);
 
-                    winit_app.run_ui_and_paint(window_id);
+                    winit_app.run_ui_and_paint(event_loop_window_target, window_id);
                 } else {
                     // Fix for https://github.com/emilk/egui/issues/2425
                     windows_next_repaint_times.insert(window_id, Instant::now());
                 }
             }
             EventResult::RepaintNext(window_id) => {
-                log::trace!("Repaint caused by {}", short_event_description(&event));
+                log::trace!("RepaintNext caused by {}", short_event_description(&event));
                 windows_next_repaint_times.insert(window_id, Instant::now());
             }
             EventResult::RepaintAt(window_id, repaint_time) => {
@@ -303,6 +326,8 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
             EventResult::Exit => {
                 log::debug!("Quitting - saving app state…");
                 winit_app.save_and_destroy();
+
+                log::debug!("Exiting with return code 0");
                 #[allow(clippy::exit)]
                 std::process::exit(0);
             }
@@ -310,36 +335,25 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
 
         let mut next_repaint_time = windows_next_repaint_times.values().min().copied();
 
-        // This is for not duplicating redraw requests
-        use winit::event::Event;
-        if matches!(
-            event,
-            Event::RedrawEventsCleared | Event::RedrawRequested(_) | Event::Resumed
-        ) {
-            windows_next_repaint_times.retain(|window_id, repaint_time| {
-                if Instant::now() < *repaint_time {
-                    return true;
-                }
-
-                next_repaint_time = None;
-                control_flow.set_poll();
-
-                if let Some(window) = winit_app.window(*window_id) {
-                    log::trace!("request_redraw for {window_id:?}");
-                    window.request_redraw();
-                    true
-                } else {
-                    false
-                }
-            });
-        }
-
-        if let Some(next_repaint_time) = next_repaint_time {
-            let time_until_next = next_repaint_time.saturating_duration_since(Instant::now());
-            if time_until_next < std::time::Duration::from_secs(10_000) {
-                log::trace!("WaitUntil {time_until_next:?}");
+        windows_next_repaint_times.retain(|window_id, repaint_time| {
+            if Instant::now() < *repaint_time {
+                return true; // not yet ready
             }
 
+            next_repaint_time = None;
+            event_loop_window_target.set_control_flow(ControlFlow::Poll);
+
+            if let Some(window) = winit_app.window(*window_id) {
+                log::trace!("request_redraw for {window_id:?}");
+                window.request_redraw();
+                true
+            } else {
+                log::trace!("No window found for {window_id:?}");
+                false
+            }
+        });
+
+        if let Some(next_repaint_time) = next_repaint_time {
             // WaitUntil seems to not work on iOS
             #[cfg(target_os = "ios")]
             winit_app
@@ -350,9 +364,13 @@ fn run_and_exit(event_loop: EventLoop<UserEvent>, mut winit_app: impl WinitApp +
                         .map(|window| window.request_redraw())
                 });
 
-            control_flow.set_wait_until(next_repaint_time);
+            event_loop_window_target.set_control_flow(ControlFlow::WaitUntil(next_repaint_time));
         };
-    })
+    })?;
+
+    log::debug!("winit event loop unexpectedly returned");
+
+    Ok(())
 }
 
 // ----------------------------------------------------------------------------
@@ -370,12 +388,12 @@ pub fn run_glow(
         return with_event_loop(native_options, |event_loop, native_options| {
             let glow_eframe = GlowWinitApp::new(event_loop, app_name, native_options, app_creator);
             run_and_return(event_loop, glow_eframe)
-        });
+        })?;
     }
 
-    let event_loop = create_event_loop(&mut native_options);
+    let event_loop = create_event_loop(&mut native_options)?;
     let glow_eframe = GlowWinitApp::new(&event_loop, app_name, native_options, app_creator);
-    run_and_exit(event_loop, glow_eframe);
+    run_and_exit(event_loop, glow_eframe)
 }
 
 // ----------------------------------------------------------------------------
@@ -393,10 +411,10 @@ pub fn run_wgpu(
         return with_event_loop(native_options, |event_loop, native_options| {
             let wgpu_eframe = WgpuWinitApp::new(event_loop, app_name, native_options, app_creator);
             run_and_return(event_loop, wgpu_eframe)
-        });
+        })?;
     }
 
-    let event_loop = create_event_loop(&mut native_options);
+    let event_loop = create_event_loop(&mut native_options)?;
     let wgpu_eframe = WgpuWinitApp::new(&event_loop, app_name, native_options, app_creator);
-    run_and_exit(event_loop, wgpu_eframe);
+    run_and_exit(event_loop, wgpu_eframe)
 }

@@ -683,7 +683,7 @@ impl<'t> TextEdit<'t> {
                     paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursor_range);
 
                     if text.is_mutable() {
-                        let cursor_pos = paint_cursor_end(
+                        let cursor_rect = paint_cursor_end(
                             ui,
                             row_height,
                             &painter,
@@ -694,23 +694,14 @@ impl<'t> TextEdit<'t> {
 
                         let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO: remove this HACK workaround for https://github.com/emilk/egui/issues/1531
                         if (response.changed || selection_changed) && !is_fully_visible {
-                            ui.scroll_to_rect(cursor_pos, None); // keep cursor in view
+                            ui.scroll_to_rect(cursor_rect, None); // keep cursor in view
                         }
 
                         if interactive {
-                            // eframe web uses `text_cursor_pos` when showing IME,
-                            // so only set it when text is editable and visible!
-                            // But `winit` and `egui_web` differs in how to set the
-                            // position of IME.
-                            if cfg!(target_arch = "wasm32") {
-                                ui.ctx().output_mut(|o| {
-                                    o.text_cursor_pos = Some(cursor_pos.left_top());
-                                });
-                            } else {
-                                ui.ctx().output_mut(|o| {
-                                    o.text_cursor_pos = Some(cursor_pos.left_bottom());
-                                });
-                            }
+                            // For IME, so only set it when text is editable and visible!
+                            ui.ctx().output_mut(|o| {
+                                o.ime = Some(crate::output::IMEOutput { rect, cursor_rect });
+                            });
                         }
                     }
                 }

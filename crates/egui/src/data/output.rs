@@ -64,6 +64,21 @@ impl FullOutput {
     }
 }
 
+/// Information about text being edited.
+///
+/// Useful for IME.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub struct IMEOutput {
+    /// Where the [`crate::TextEdit`] is located on screen.
+    pub rect: crate::Rect,
+
+    /// Where the cursor is.
+    ///
+    /// This is a very thin rectangle.
+    pub cursor_rect: crate::Rect,
+}
+
 /// The non-rendering part of what egui emits each frame.
 ///
 /// You can access (and modify) this with [`crate::Context::output`].
@@ -98,10 +113,10 @@ pub struct PlatformOutput {
     /// Use by `eframe` web to show/hide mobile keyboard and IME agent.
     pub mutable_text_under_cursor: bool,
 
-    /// Screen-space position of text edit cursor (used for IME).
+    /// This is et if, and only if, the user is currently editing text.
     ///
-    /// Iff `Some`, the user is editing text.
-    pub text_cursor_pos: Option<crate::Pos2>,
+    /// Useful for IME.
+    pub ime: Option<IMEOutput>,
 
     /// The difference in the widget tree since last frame.
     ///
@@ -137,7 +152,7 @@ impl PlatformOutput {
             copied_text,
             mut events,
             mutable_text_under_cursor,
-            text_cursor_pos,
+            ime,
             #[cfg(feature = "accesskit")]
             accesskit_update,
         } = newer;
@@ -151,7 +166,7 @@ impl PlatformOutput {
         }
         self.events.append(&mut events);
         self.mutable_text_under_cursor = mutable_text_under_cursor;
-        self.text_cursor_pos = text_cursor_pos.or(self.text_cursor_pos);
+        self.ime = ime.or(self.ime);
 
         #[cfg(feature = "accesskit")]
         {

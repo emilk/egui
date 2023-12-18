@@ -231,7 +231,7 @@ impl EpiIntegration {
         &mut self,
         window: &winit::window::Window,
         egui_winit: &mut egui_winit::State,
-        event: &winit::event::WindowEvent<'_>,
+        event: &winit::event::WindowEvent,
     ) -> EventResponse {
         crate::profile_function!(egui_winit::short_window_event_description(event));
 
