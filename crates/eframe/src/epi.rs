@@ -217,7 +217,7 @@ pub enum HardwareAcceleration {
 
 /// Options controlling the behavior of a native window.
 ///
-/// Addintional windows can be opened using (egui viewports)[`egui::viewport`].
+/// Additional windows can be opened using (egui viewports)[`egui::viewport`].
 ///
 /// Set the window title and size using [`Self::viewport`].
 ///
