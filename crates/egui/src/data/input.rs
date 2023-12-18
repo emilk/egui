@@ -1060,6 +1060,7 @@ impl Key {
 /// Can be used with [`crate::InputState::consume_shortcut`]
 /// and [`crate::Context::format_shortcut`].
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct KeyboardShortcut {
     pub modifiers: Modifiers,
     pub key: Key,
