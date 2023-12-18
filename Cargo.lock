@@ -1169,7 +1169,7 @@ dependencies = [
  "egui-wgpu",
  "egui-winit",
  "egui_glow",
- "glow 0.12.3",
+ "glow",
  "glutin",
  "glutin-winit",
  "image",
@@ -1308,7 +1308,7 @@ dependencies = [
  "document-features",
  "egui",
  "egui-winit",
- "glow 0.12.3",
+ "glow",
  "glutin",
  "glutin-winit",
  "log",
@@ -1764,18 +1764,6 @@ checksum = "c61a4f46316d06bfa33a7ac22df6f0524c8be58e3db2d9ca99ccb1f357b62a65"
 dependencies = [
  "libc",
  "system-deps",
-]
-
-[[package]]
-name = "glow"
-version = "0.12.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca0fe580e4b60a8ab24a868bc08e2f03cbcb20d3d676601fa909386713333728"
-dependencies = [
- "js-sys",
- "slotmap",
- "wasm-bindgen",
- "web-sys",
 ]
 
 [[package]]
@@ -4286,7 +4274,7 @@ dependencies = [
  "block",
  "core-graphics-types",
  "d3d12",
- "glow 0.13.0",
+ "glow",
  "glutin_wgl_sys",
  "gpu-alloc",
  "gpu-allocator",

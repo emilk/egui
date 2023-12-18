@@ -5,6 +5,8 @@
 //! There is a bunch of improvements we could do,
 //! like removing a bunch of `unwraps`.
 
+#![allow(clippy::arc_with_non_send_sync)] // glow::Context was accidentally non-Sync in glow 0.13, but that will be fixed in future releases of glow: https://github.com/grovesNL/glow/commit/c4a5f7151b9b4bbb380faa06ec27415235d1bf7e
+
 use std::{cell::RefCell, rc::Rc, sync::Arc, time::Instant};
 
 use glutin::{
