@@ -238,8 +238,8 @@ impl Default for WgpuConfiguration {
                 }
             }),
 
-            present_mode: wgpu::PresentMode::AutoVsync,
-
+            present_mode: wgpu::PresentMode::AutoNoVsync, // double-buffered: low-latency, may have tearing
+            // present_mode: wgpu::PresentMode::AutoVsync, // triple-buffered: high-latency, no tearing
             power_preference: wgpu::util::power_preference_from_env()
                 .unwrap_or(wgpu::PowerPreference::HighPerformance),
 
