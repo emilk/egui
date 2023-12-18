@@ -540,12 +540,16 @@ impl GlowWinitRunning {
             (raw_input, viewport_ui_cb)
         };
 
-        {
+        let clear_color = self
+            .app
+            .clear_color(&self.integration.egui_ctx.style().visuals);
+
+        let has_many_viewports = self.glutin.borrow().viewports.len() > 1;
+        let clear_before_update = !has_many_viewports; // HACK: for some reason, an early clear doesn't "take" on Mac with multiple viewports.
+
+        if clear_before_update {
             // clear before we call update, so users can paint between clear-color and egui windows:
 
-            let clear_color = self
-                .app
-                .clear_color(&self.integration.egui_ctx.style().visuals);
             let mut glutin = self.glutin.borrow_mut();
             let GlutinWindowContext {
                 viewports,
@@ -615,6 +619,10 @@ impl GlowWinitRunning {
         change_gl_context(current_gl_context, gl_surface);
 
         let screen_size_in_pixels: [u32; 2] = window.inner_size().into();
+
+        if !clear_before_update {
+            painter.clear(screen_size_in_pixels, clear_color);
+        }
 
         painter.paint_and_update_textures(
             screen_size_in_pixels,
