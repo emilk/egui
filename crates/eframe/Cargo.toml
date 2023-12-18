@@ -116,7 +116,7 @@ thiserror.workspace = true
 document-features = { version = "0.2", optional = true }
 
 egui_glow = { version = "0.24.1", path = "../egui_glow", optional = true, default-features = false }
-glow = { version = "0.12", optional = true }
+glow = { workspace = true, optional = true }
 ron = { version = "0.8", optional = true, features = ["integer128"] }
 serde = { version = "1", optional = true, features = ["derive"] }
 

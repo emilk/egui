@@ -49,7 +49,7 @@ egui = { version = "0.24.1", path = "../egui", default-features = false, feature
 ] }
 
 bytemuck = "1.7"
-glow = "0.12"
+glow.workspace = true
 log = { version = "0.4", features = ["std"] }
 memoffset = "0.7"
 
