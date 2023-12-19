@@ -34,8 +34,6 @@ deny = [
 ]
 
 skip = [
-    { name = "arrayvec" },      # old version via tiny-skiaz
-    { name = "base64" },        # small crate, old version from usvg
     { name = "bitflags" },      # old 1.0 version via glutin, png, spirv, …
     { name = "libloading" },    # wgpu-hal itself depends on 0.8 while some of its dependencies, like ash and d3d12, depend on 0.7
     { name = "memoffset" },     # tiny dependency
@@ -43,7 +41,6 @@ skip = [
     { name = "redox_syscall" }, # old version via directories-next
     { name = "spin" },          # old version via ring through rusttls and other libraries, newer for wgpu.
     { name = "time" },          # old version pulled in by unmaintianed crate 'chrono'
-    { name = "ttf-parser" },    # different versions pulled in by ab_glyph and usvg
     { name = "windows" },       # old version via accesskit_windows
 ]
 skip-tree = [
@@ -51,7 +48,6 @@ skip-tree = [
     { name = "foreign-types" }, # small crate. Old version via cocoa and core-graphics (winit).
     { name = "objc2" },         # old version via accesskit_macos
     { name = "rfd" },           # example dependency
-    { name = "tiny-skia" },     # old version via old resvg in egui_extras - see https://github.com/emilk/egui/issues/3652
 ]
 
 
