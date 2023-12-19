@@ -418,11 +418,18 @@ impl<'a> Widget for Checkbox<'a> {
             response.mark_changed();
         }
         response.widget_info(|| {
-            WidgetInfo::selected(
-                WidgetType::Checkbox,
-                *checked,
-                galley.as_ref().map_or("", |x| x.text()),
-            )
+            if indeterminate {
+                WidgetInfo::labeled(
+                    WidgetType::Checkbox,
+                    galley.as_ref().map_or("", |x| x.text()),
+                )
+            } else {
+                WidgetInfo::selected(
+                    WidgetType::Checkbox,
+                    *checked,
+                    galley.as_ref().map_or("", |x| x.text()),
+                )
+            }
         });
 
         if ui.is_rect_visible(rect) {
