@@ -622,12 +622,9 @@ impl Painter {
         };
 
         // Submit the commands: both the main buffer and user-defined ones.
-        {
-            crate::profile_scope!("Queue::submit");
-            render_state
-                .queue
-                .submit(user_cmd_bufs.into_iter().chain([encoded]));
-        };
+        render_state
+            .queue
+            .submit(user_cmd_bufs.into_iter().chain([encoded]));
 
         let screenshot = if capture {
             let screen_capture_state = self.screen_capture_state.as_ref()?;
@@ -636,10 +633,8 @@ impl Painter {
             None
         };
 
-        {
-            crate::profile_scope!("present");
-            output_frame.present();
-        }
+        output_frame.present();
+
         screenshot
     }
 
