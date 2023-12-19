@@ -225,7 +225,7 @@ impl Plot {
             allow_scroll: true,
             allow_double_click_reset: true,
             allow_boxed_zoom: true,
-            default_auto_bounds: false.into(),
+            default_auto_bounds: true.into(),
             min_auto_bounds: PlotBounds::NOTHING,
             margin_fraction: Vec2::splat(0.05),
             boxed_zoom_pointer_button: PointerButton::Secondary,
@@ -498,7 +498,17 @@ impl Plot {
         self
     }
 
+    /// Set whether the bounds should be automatically set based on data by default.
+    ///
+    /// This is enabled by default.
+    #[inline]
+    pub fn auto_bounds(mut self, auto_bounds: Vec2b) -> Self {
+        self.default_auto_bounds = auto_bounds;
+        self
+    }
+
     /// Expand bounds to fit all items across the x axis, including values given by `include_x`.
+    #[deprecated = "Use `auto_bounds` instead"]
     #[inline]
     pub fn auto_bounds_x(mut self) -> Self {
         self.default_auto_bounds.x = true;
@@ -506,6 +516,7 @@ impl Plot {
     }
 
     /// Expand bounds to fit all items across the y axis, including values given by `include_y`.
+    #[deprecated = "Use `auto_bounds` instead"]
     #[inline]
     pub fn auto_bounds_y(mut self) -> Self {
         self.default_auto_bounds.y = true;
