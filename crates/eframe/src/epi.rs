@@ -526,16 +526,23 @@ pub enum Renderer {
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 impl Default for Renderer {
     fn default() -> Self {
+        #[cfg(not(feature = "glow"))]
+        #[cfg(not(feature = "wgpu"))]
+        compile_error!("eframe: you must enable at least one of the rendering backend features: 'glow' or 'wgpu'");
+
         #[cfg(feature = "glow")]
+        #[cfg(not(feature = "wgpu"))]
         return Self::Glow;
 
         #[cfg(not(feature = "glow"))]
         #[cfg(feature = "wgpu")]
         return Self::Wgpu;
 
-        #[cfg(not(feature = "glow"))]
-        #[cfg(not(feature = "wgpu"))]
-        compile_error!("eframe: you must enable at least one of the rendering backend features: 'glow' or 'wgpu'");
+        // By default, only the `glow` feature is enabled, so if the user added `wgpu` to the feature list
+        // they probably wanted to use wgpu:
+        #[cfg(feature = "glow")]
+        #[cfg(feature = "wgpu")]
+        return Self::Wgpu;
     }
 }
 
