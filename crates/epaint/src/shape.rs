@@ -144,7 +144,34 @@ impl Shape {
         gap_length: f32,
     ) -> Vec<Self> {
         let mut shapes = Vec::new();
-        dashes_from_line(path, stroke.into(), dash_length, gap_length, &mut shapes);
+        dashes_from_line(
+            path,
+            stroke.into(),
+            dash_length,
+            gap_length,
+            &mut shapes,
+            0.,
+        );
+        shapes
+    }
+
+    /// Turn a line into dashes with an offset.
+    pub fn dashed_line_with_offset(
+        path: &[Pos2],
+        stroke: impl Into<Stroke>,
+        dash_length: f32,
+        gap_length: f32,
+        dash_offset: f32,
+    ) -> Vec<Self> {
+        let mut shapes = Vec::new();
+        dashes_from_line(
+            path,
+            stroke.into(),
+            dash_length,
+            gap_length,
+            &mut shapes,
+            dash_offset,
+        );
         shapes
     }
 
@@ -157,7 +184,27 @@ impl Shape {
         gap_length: f32,
         shapes: &mut Vec<Shape>,
     ) {
-        dashes_from_line(points, stroke.into(), dash_length, gap_length, shapes);
+        dashes_from_line(points, stroke.into(), dash_length, gap_length, shapes, 0.);
+    }
+
+    /// Turn a line into dashes with offset. If you need to create many dashed lines use this
+    /// instead of [`Self::dashed_line_offset`]
+    pub fn dashed_line_many_with_offset(
+        points: &[Pos2],
+        stroke: impl Into<Stroke>,
+        dash_length: f32,
+        gap_length: f32,
+        dash_offset: f32,
+        shapes: &mut Vec<Shape>,
+    ) {
+        dashes_from_line(
+            points,
+            stroke.into(),
+            dash_length,
+            gap_length,
+            shapes,
+            dash_offset,
+        );
     }
 
     /// A convex polygon with a fill and optional stroke.
@@ -736,8 +783,9 @@ fn dashes_from_line(
     dash_length: f32,
     gap_length: f32,
     shapes: &mut Vec<Shape>,
+    dash_offset: f32,
 ) {
-    let mut position_on_segment = 0.0;
+    let mut position_on_segment = dash_offset;
     let mut drawing_dash = false;
     path.windows(2).for_each(|window| {
         let (start, end) = (window[0], window[1]);
