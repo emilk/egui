@@ -92,7 +92,7 @@ syntect = { version = "5", optional = true, default-features = false, features =
 ] }
 
 # svg feature
-resvg = { version = "0.28", optional = true, default-features = false }
+resvg = { version = "0.37", optional = true, default-features = false }
 
 # http feature
 ehttp = { version = "0.3.1", optional = true, default-features = false }

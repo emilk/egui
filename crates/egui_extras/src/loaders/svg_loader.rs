@@ -7,8 +7,6 @@ use egui::{
     ColorImage,
 };
 
-use resvg::usvg;
-
 type Entry = Result<Arc<ColorImage>, String>;
 
 #[derive(Default)]
@@ -51,14 +49,8 @@ impl ImageLoader for SvgLoader {
             match ctx.try_load_bytes(&uri) {
                 Ok(BytesPoll::Ready { bytes, .. }) => {
                     log::trace!("started loading {uri:?}");
-                    let fit_to = match size_hint {
-                        SizeHint::Scale(factor) => usvg::FitTo::Zoom(factor.into_inner()),
-                        SizeHint::Width(w) => usvg::FitTo::Width(w),
-                        SizeHint::Height(h) => usvg::FitTo::Height(h),
-                        SizeHint::Size(w, h) => usvg::FitTo::Size(w, h),
-                    };
-                    let result =
-                        crate::image::load_svg_bytes_with_size(&bytes, fit_to).map(Arc::new);
+                    let result = crate::image::load_svg_bytes_with_size(&bytes, Some(size_hint))
+                        .map(Arc::new);
                     log::trace!("finished loading {uri:?}");
                     cache.insert((uri, size_hint), result.clone());
                     match result {

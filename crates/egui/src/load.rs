@@ -127,8 +127,6 @@ pub type Result<T, E = LoadError> = std::result::Result<T, E>;
 /// Used mostly for rendering SVG:s to a good size.
 ///
 /// All variants will preserve the original aspect ratio.
-///
-/// Similar to `usvg::FitTo`.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SizeHint {
     /// Scale original size by some factor.
