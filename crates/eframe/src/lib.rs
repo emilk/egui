@@ -325,6 +325,11 @@ pub enum Error {
     #[error("winit error: {0}")]
     Winit(#[from] winit::error::OsError),
 
+    /// An error from [`winit::event_loop::EventLoop`].
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("winit EventLoopError: {0}")]
+    WinitEventLoop(#[from] winit::error::EventLoopError),
+
     /// An error from [`glutin`] when using [`glow`].
     #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
     #[error("glutin error: {0}")]

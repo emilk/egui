@@ -217,7 +217,7 @@ pub enum HardwareAcceleration {
 
 /// Options controlling the behavior of a native window.
 ///
-/// Addintional windows can be opened using (egui viewports)[`egui::viewport`].
+/// Additional windows can be opened using (egui viewports)[`egui::viewport`].
 ///
 /// Set the window title and size using [`Self::viewport`].
 ///
@@ -298,7 +298,7 @@ pub struct NativeOptions {
     ///
     /// This feature was introduced in <https://github.com/emilk/egui/pull/1889>.
     ///
-    /// When `true`, [`winit::platform::run_return::EventLoopExtRunReturn::run_return`] is used.
+    /// When `true`, [`winit::platform::run_on_demand::EventLoopExtRunOnDemand`] is used.
     /// When `false`, [`winit::event_loop::EventLoop::run`] is used.
     pub run_and_return: bool,
 
@@ -526,16 +526,23 @@ pub enum Renderer {
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 impl Default for Renderer {
     fn default() -> Self {
+        #[cfg(not(feature = "glow"))]
+        #[cfg(not(feature = "wgpu"))]
+        compile_error!("eframe: you must enable at least one of the rendering backend features: 'glow' or 'wgpu'");
+
         #[cfg(feature = "glow")]
+        #[cfg(not(feature = "wgpu"))]
         return Self::Glow;
 
         #[cfg(not(feature = "glow"))]
         #[cfg(feature = "wgpu")]
         return Self::Wgpu;
 
-        #[cfg(not(feature = "glow"))]
-        #[cfg(not(feature = "wgpu"))]
-        compile_error!("eframe: you must enable at least one of the rendering backend features: 'glow' or 'wgpu'");
+        // By default, only the `glow` feature is enabled, so if the user added `wgpu` to the feature list
+        // they probably wanted to use wgpu:
+        #[cfg(feature = "glow")]
+        #[cfg(feature = "wgpu")]
+        return Self::Wgpu;
     }
 }
 

@@ -409,13 +409,7 @@ impl Rect {
 
     /// Linearly interpolate so that `[0, 0]` is [`Self::min`] and
     /// `[1, 1]` is [`Self::max`].
-    #[deprecated = "Use `lerp_inside` instead"]
-    pub fn lerp(&self, t: Vec2) -> Pos2 {
-        self.lerp_inside(t)
-    }
-
-    /// Linearly interpolate so that `[0, 0]` is [`Self::min`] and
-    /// `[1, 1]` is [`Self::max`].
+    #[inline]
     pub fn lerp_inside(&self, t: Vec2) -> Pos2 {
         Pos2 {
             x: lerp(self.min.x..=self.max.x, t.x),
@@ -424,6 +418,7 @@ impl Rect {
     }
 
     /// Linearly self towards other rect.
+    #[inline]
     pub fn lerp_towards(&self, other: &Rect, t: f32) -> Self {
         Self {
             min: self.min.lerp(other.min, t),
@@ -618,6 +613,7 @@ impl std::fmt::Debug for Rect {
 
 /// from (min, max) or (left top, right bottom)
 impl From<[Pos2; 2]> for Rect {
+    #[inline]
     fn from([min, max]: [Pos2; 2]) -> Self {
         Self { min, max }
     }

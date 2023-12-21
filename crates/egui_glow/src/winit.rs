@@ -58,7 +58,7 @@ impl EguiGlow {
     pub fn on_window_event(
         &mut self,
         window: &winit::window::Window,
-        event: &winit::event::WindowEvent<'_>,
+        event: &winit::event::WindowEvent,
     ) -> EventResponse {
         self.egui_winit.on_window_event(window, event)
     }

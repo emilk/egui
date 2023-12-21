@@ -424,36 +424,6 @@ impl CollapsingHeader {
         self
     }
 
-    /// Can the [`CollapsingHeader`] be selected by clicking it? Default: `false`.
-    #[deprecated = "Use the more powerful egui::collapsing_header::CollapsingState::show_header"] // Deprecated in 2022-04-28, before egui 0.18
-    #[inline]
-    pub fn selectable(mut self, selectable: bool) -> Self {
-        self.selectable = selectable;
-        self
-    }
-
-    /// If you set this to 'true', the [`CollapsingHeader`] will be shown as selected.
-    ///
-    /// Example:
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// let mut selected = false;
-    /// let response = egui::CollapsingHeader::new("Select and open me")
-    ///     .selectable(true)
-    ///     .selected(selected)
-    ///     .show(ui, |ui| ui.label("Body"));
-    /// if response.header_response.clicked() {
-    ///     selected = true;
-    /// }
-    /// # });
-    /// ```
-    #[deprecated = "Use the more powerful egui::collapsing_header::CollapsingState::show_header"] // Deprecated in 2022-04-28, before egui 0.18
-    #[inline]
-    pub fn selected(mut self, selected: bool) -> Self {
-        self.selected = selected;
-        self
-    }
-
     /// Should the [`CollapsingHeader`] show a background behind it? Default: `false`.
     ///
     /// To show it behind all [`CollapsingHeader`] you can just use:

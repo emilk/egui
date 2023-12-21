@@ -1,3 +1,10 @@
+//! Note that this file contains code very similar to [`glow_integration`].
+//! When making changes to one you often also want to apply it to the other.
+//!
+//! This is also very complex code, and not very pretty.
+//! There is a bunch of improvements we could do,
+//! like removing a bunch of `unwraps`.
+
 use std::{cell::RefCell, rc::Rc, sync::Arc, time::Instant};
 
 use parking_lot::Mutex;
@@ -109,7 +116,8 @@ impl WgpuWinitApp {
         }
     }
 
-    fn build_windows(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) {
+    /// Create a window for all viewports lacking one.
+    fn initialized_all_windows(&mut self, event_loop: &EventLoopWindowTarget<UserEvent>) {
         let Some(running) = &mut self.running else {
             return;
         };
@@ -122,14 +130,12 @@ impl WgpuWinitApp {
         } = &mut *shared;
 
         for viewport in viewports.values_mut() {
-            if viewport.window.is_none() {
-                viewport.init_window(
-                    &running.integration.egui_ctx,
-                    viewport_from_window,
-                    painter,
-                    event_loop,
-                );
-            }
+            viewport.initialize_window(
+                event_loop,
+                &running.integration.egui_ctx,
+                viewport_from_window,
+                painter,
+            );
         }
     }
 
@@ -350,7 +356,13 @@ impl WinitApp for WgpuWinitApp {
         }
     }
 
-    fn run_ui_and_paint(&mut self, window_id: WindowId) -> EventResult {
+    fn run_ui_and_paint(
+        &mut self,
+        event_loop: &EventLoopWindowTarget<UserEvent>,
+        window_id: WindowId,
+    ) -> EventResult {
+        self.initialized_all_windows(event_loop);
+
         if let Some(running) = &mut self.running {
             running.run_ui_and_paint(window_id)
         } else {
@@ -361,14 +373,16 @@ impl WinitApp for WgpuWinitApp {
     fn on_event(
         &mut self,
         event_loop: &EventLoopWindowTarget<UserEvent>,
-        event: &winit::event::Event<'_, UserEvent>,
+        event: &winit::event::Event<UserEvent>,
     ) -> Result<EventResult> {
         crate::profile_function!(winit_integration::short_event_description(event));
 
-        self.build_windows(event_loop);
+        self.initialized_all_windows(event_loop);
 
         Ok(match event {
             winit::event::Event::Resumed => {
+                log::debug!("Event::Resumed");
+
                 let running = if let Some(running) = &self.running {
                     running
                 } else {
@@ -660,7 +674,7 @@ impl WgpuWinitRunning {
     fn on_window_event(
         &mut self,
         window_id: WindowId,
-        event: &winit::event::WindowEvent<'_>,
+        event: &winit::event::WindowEvent,
     ) -> EventResult {
         crate::profile_function!(egui_winit::short_window_event_description(event));
 
@@ -706,18 +720,6 @@ impl WgpuWinitRunning {
                         repaint_asap = true;
                         shared.painter.on_window_resized(viewport_id, width, height);
                     }
-                }
-            }
-
-            winit::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                use std::num::NonZeroU32;
-                if let (Some(width), Some(height), Some(viewport_id)) = (
-                    NonZeroU32::new(new_inner_size.width),
-                    NonZeroU32::new(new_inner_size.height),
-                    viewport_id,
-                ) {
-                    repaint_asap = true;
-                    shared.painter.on_window_resized(viewport_id, width, height);
                 }
             }
 
@@ -775,13 +777,18 @@ impl WgpuWinitRunning {
 }
 
 impl Viewport {
-    fn init_window(
+    /// Create winit window, if needed.
+    fn initialize_window(
         &mut self,
+        event_loop: &EventLoopWindowTarget<UserEvent>,
         egui_ctx: &egui::Context,
         windows_id: &mut HashMap<WindowId, ViewportId>,
         painter: &mut egui_wgpu::winit::Painter,
-        event_loop: &EventLoopWindowTarget<UserEvent>,
     ) {
+        if self.window.is_some() {
+            return; // we already have one
+        }
+
         crate::profile_function!();
 
         let viewport_id = self.ids.this;
@@ -870,7 +877,7 @@ fn render_immediate_viewport(
             None,
         );
         if viewport.window.is_none() {
-            viewport.init_window(egui_ctx, viewport_from_window, painter, event_loop);
+            viewport.initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
         }
 
         let (Some(window), Some(egui_winit)) = (&viewport.window, &mut viewport.egui_winit) else {

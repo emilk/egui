@@ -49,7 +49,7 @@ egui = { version = "0.24.1", path = "../egui", default-features = false, feature
 ] }
 
 bytemuck = "1.7"
-glow = "0.12"
+glow.workspace = true
 log = { version = "0.4", features = ["std"] }
 memoffset = "0.7"
 
@@ -69,9 +69,9 @@ wasm-bindgen = "0.2"
 
 
 [dev-dependencies]
-glutin = "0.30"                    # examples/pure_glow
+glutin = "0.31"                    # examples/pure_glow
 raw-window-handle.workspace = true
-glutin-winit = "0.3.0"
+glutin-winit = "0.4.0"
 
 
 [[example]]
