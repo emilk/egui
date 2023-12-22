@@ -495,22 +495,22 @@ impl CollapsingHeader {
         let text_pos = available.min + vec2(ui.spacing().indent, 0.0);
         let wrap_width = available.right() - text_pos.x;
         let wrap = Some(false);
-        let text = text.into_galley(ui, wrap, wrap_width, TextStyle::Button);
-        let text_max_x = text_pos.x + text.size().x;
+        let galley = text.into_galley(ui, wrap, wrap_width, TextStyle::Button);
+        let text_max_x = text_pos.x + galley.size().x;
 
         let mut desired_width = text_max_x + button_padding.x - available.left();
         if ui.visuals().collapsing_header_frame {
             desired_width = desired_width.max(available.width()); // fill full width
         }
 
-        let mut desired_size = vec2(desired_width, text.size().y + 2.0 * button_padding.y);
+        let mut desired_size = vec2(desired_width, galley.size().y + 2.0 * button_padding.y);
         desired_size = desired_size.at_least(ui.spacing().interact_size);
         let (_, rect) = ui.allocate_space(desired_size);
 
         let mut header_response = ui.interact(rect, id, Sense::click());
         let text_pos = pos2(
             text_pos.x,
-            header_response.rect.center().y - text.size().y / 2.0,
+            header_response.rect.center().y - galley.size().y / 2.0,
         );
 
         let mut state = CollapsingState::load_with_default_open(ui.ctx(), id, default_open);
@@ -525,7 +525,7 @@ impl CollapsingHeader {
         }
 
         header_response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, text.text()));
+            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, galley.text()));
 
         let openness = state.openness(ui.ctx());
 
@@ -563,7 +563,7 @@ impl CollapsingHeader {
                 }
             }
 
-            text.paint_with_visuals(ui.painter(), text_pos, &visuals);
+            ui.painter().galley(text_pos, galley, visuals.text_color());
         }
 
         Prepared {

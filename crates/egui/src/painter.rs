@@ -88,7 +88,7 @@ impl Painter {
 /// ## Accessors etc
 impl Painter {
     /// Get a reference to the parent [`Context`].
-    #[inline(always)]
+    #[inline]
     pub fn ctx(&self) -> &Context {
         &self.ctx
     }
@@ -96,45 +96,45 @@ impl Painter {
     /// Read-only access to the shared [`Fonts`].
     ///
     /// See [`Context`] documentation for how locks work.
-    #[inline(always)]
+    #[inline]
     pub fn fonts<R>(&self, reader: impl FnOnce(&Fonts) -> R) -> R {
         self.ctx.fonts(reader)
     }
 
     /// Where we paint
-    #[inline(always)]
+    #[inline]
     pub fn layer_id(&self) -> LayerId {
         self.layer_id
     }
 
     /// Everything painted in this [`Painter`] will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
-    #[inline(always)]
+    #[inline]
     pub fn clip_rect(&self) -> Rect {
         self.clip_rect
     }
 
     /// Everything painted in this [`Painter`] will be clipped against this.
     /// This means nothing outside of this rectangle will be visible on screen.
-    #[inline(always)]
+    #[inline]
     pub fn set_clip_rect(&mut self, clip_rect: Rect) {
         self.clip_rect = clip_rect;
     }
 
     /// Useful for pixel-perfect rendering.
-    #[inline(always)]
+    #[inline]
     pub fn round_to_pixel(&self, point: f32) -> f32 {
         self.ctx().round_to_pixel(point)
     }
 
     /// Useful for pixel-perfect rendering.
-    #[inline(always)]
+    #[inline]
     pub fn round_vec_to_pixels(&self, vec: Vec2) -> Vec2 {
         self.ctx().round_vec_to_pixels(vec)
     }
 
     /// Useful for pixel-perfect rendering.
-    #[inline(always)]
+    #[inline]
     pub fn round_pos_to_pixels(&self, pos: Pos2) -> Pos2 {
         self.ctx().round_pos_to_pixels(pos)
     }
@@ -236,7 +236,7 @@ impl Painter {
             0.0,
             Color32::from_black_alpha(150),
         ));
-        self.galley(rect.min, galley);
+        self.galley(rect.min, galley, color);
         frame_rect
     }
 }
@@ -379,14 +379,15 @@ impl Painter {
     ) -> Rect {
         let galley = self.layout_no_wrap(text.to_string(), font_id, text_color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
-        self.galley(rect.min, galley);
+        self.galley(rect.min, galley, text_color);
         rect
     }
 
     /// Will wrap text at the given width and line break at `\n`.
     ///
     /// Paint the results with [`Self::galley`].
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn layout(
         &self,
         text: String,
@@ -400,7 +401,8 @@ impl Painter {
     /// Will line break at `\n`.
     ///
     /// Paint the results with [`Self::galley`].
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn layout_no_wrap(
         &self,
         text: String,
@@ -414,11 +416,13 @@ impl Painter {
     ///
     /// You can create the [`Galley`] with [`Self::layout`].
     ///
-    /// If you want to change the color of the text, use [`Self::galley_with_color`].
-    #[inline(always)]
-    pub fn galley(&self, pos: Pos2, galley: Arc<Galley>) {
+    /// Any uncolored parts of the [`Galley`] (using [`Color32::PLACEHOLDER`]) will be replaced with the given color.
+    ///
+    /// Any non-placeholder color in the galley takes precedence over this fallback color.
+    #[inline]
+    pub fn galley(&self, pos: Pos2, galley: Arc<Galley>, fallback_color: Color32) {
         if !galley.is_empty() {
-            self.add(Shape::galley(pos, galley));
+            self.add(Shape::galley(pos, galley, fallback_color));
         }
     }
 
@@ -426,11 +430,28 @@ impl Painter {
     ///
     /// You can create the [`Galley`] with [`Self::layout`].
     ///
-    /// The text color in the [`Galley`] will be replaced with the given color.
-    #[inline(always)]
+    /// All text color in the [`Galley`] will be replaced with the given color.
+    #[inline]
+    pub fn galley_with_override_text_color(
+        &self,
+        pos: Pos2,
+        galley: Arc<Galley>,
+        text_color: Color32,
+    ) {
+        if !galley.is_empty() {
+            self.add(Shape::galley_with_override_text_color(
+                pos, galley, text_color,
+            ));
+        }
+    }
+
+    #[deprecated = "Use `Painter::galley` or `Painter::galley_with_override_text_color` instead"]
+    #[inline]
     pub fn galley_with_color(&self, pos: Pos2, galley: Arc<Galley>, text_color: Color32) {
         if !galley.is_empty() {
-            self.add(Shape::galley_with_color(pos, galley, text_color));
+            self.add(Shape::galley_with_override_text_color(
+                pos, galley, text_color,
+            ));
         }
     }
 }

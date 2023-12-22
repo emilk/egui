@@ -7,6 +7,8 @@ use crate::{gamma_u8_from_linear_f32, linear_f32_from_gamma_u8, linear_f32_from_
 ///
 /// Internally this uses 0-255 gamma space `sRGBA` color with premultiplied alpha.
 /// Alpha channel is in linear space.
+///
+/// The special value of alpha=0 means the color is to be treated as an additive color.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -61,7 +63,16 @@ impl Color32 {
     pub const DEBUG_COLOR: Color32 = Color32::from_rgba_premultiplied(0, 200, 0, 128);
 
     /// An ugly color that is planned to be replaced before making it to the screen.
-    pub const TEMPORARY_COLOR: Color32 = Color32::from_rgb(64, 254, 0);
+    ///
+    /// This is an invalid color, in that it does not correspond to a valid multiplied color,
+    /// nor to an additive color.
+    ///
+    /// This is used as a special color key,
+    /// i.e. often taken to mean "no color".
+    pub const PLACEHOLDER: Color32 = Color32::from_rgba_premultiplied(64, 254, 0, 128);
+
+    #[deprecated = "Renmaed to PLACEHOLDER"]
+    pub const TEMPORARY_COLOR: Color32 = Self::PLACEHOLDER;
 
     #[inline]
     pub const fn from_rgb(r: u8, g: u8, b: u8) -> Self {

@@ -164,13 +164,14 @@ impl<'t> TextEdit<'t> {
     ///     .desired_width(f32::INFINITY);
     /// let output = text_edit.show(ui);
     /// let painter = ui.painter_at(output.response.rect);
+    /// let text_color = Color32::from_rgba_premultiplied(100, 100, 100, 100);
     /// let galley = painter.layout(
     ///     String::from("Enter text"),
     ///     FontId::default(),
-    ///     Color32::from_rgba_premultiplied(100, 100, 100, 100),
+    ///     text_color,
     ///     f32::INFINITY
     /// );
-    /// painter.galley(output.text_draw_pos, galley);
+    /// painter.galley(output.text_draw_pos, galley, text_color);
     /// # });
     /// ```
     #[inline]
@@ -664,7 +665,7 @@ impl<'t> TextEdit<'t> {
         };
 
         if ui.is_rect_visible(rect) {
-            painter.galley(text_draw_pos, galley.clone());
+            painter.galley(text_draw_pos, galley.clone(), text_color);
 
             if text.as_str().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
@@ -673,7 +674,7 @@ impl<'t> TextEdit<'t> {
                 } else {
                     hint_text.into_galley(ui, Some(false), f32::INFINITY, font_id)
                 };
-                galley.paint_with_fallback_color(&painter, response.rect.min, hint_text_color);
+                painter.galley(response.rect.min, galley, hint_text_color);
             }
 
             if ui.memory(|mem| mem.has_focus(id)) {

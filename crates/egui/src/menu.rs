@@ -503,8 +503,8 @@ impl SubMenuButton {
             }
 
             let text_color = visuals.text_color();
-            text_galley.paint_with_fallback_color(ui.painter(), text_pos, text_color);
-            icon_galley.paint_with_fallback_color(ui.painter(), icon_pos, text_color);
+            ui.painter().galley(text_pos, text_galley, text_color);
+            ui.painter().galley(icon_pos, icon_galley, text_color);
         }
         response
     }

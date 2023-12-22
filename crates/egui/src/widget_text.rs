@@ -1,8 +1,8 @@
 use std::{borrow::Cow, sync::Arc};
 
 use crate::{
-    style::WidgetVisuals, text::LayoutJob, Align, Color32, FontFamily, FontSelection, Galley, Pos2,
-    Style, TextStyle, Ui, Visuals,
+    text::LayoutJob, Align, Color32, FontFamily, FontSelection, Galley, Style, TextStyle, Ui,
+    Visuals,
 };
 
 /// Text and optional style choices for it.
@@ -247,6 +247,9 @@ impl RichText {
     }
 
     /// Override text color.
+    ///
+    /// If not set, [`Color32::PLACEHOLDER`] will be used,
+    /// which will be replaced with a color chosen by the widget that paints the text.
     #[inline]
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.text_color = Some(color.into());
@@ -310,17 +313,14 @@ impl RichText {
         layout_job.append(&text, 0.0, format);
     }
 
-    fn into_text_job(
+    fn into_layout_job(
         self,
         style: &Style,
         fallback_font: FontSelection,
         default_valign: Align,
-    ) -> WidgetTextJob {
-        let job_has_color = self.get_text_color(&style.visuals).is_some();
+    ) -> LayoutJob {
         let (text, text_format) = self.into_text_and_format(style, fallback_font, default_valign);
-
-        let job = LayoutJob::single_section(text, text_format);
-        WidgetTextJob { job, job_has_color }
+        LayoutJob::single_section(text, text_format)
     }
 
     fn into_text_and_format(
@@ -350,7 +350,7 @@ impl RichText {
         } = self;
 
         let line_color = text_color.unwrap_or_else(|| style.visuals.text_color());
-        let text_color = text_color.unwrap_or(crate::Color32::TEMPORARY_COLOR);
+        let text_color = text_color.unwrap_or(crate::Color32::PLACEHOLDER);
 
         let font_id = {
             let mut font_id = text_style
@@ -429,6 +429,9 @@ impl RichText {
 /// but it can be a [`RichText`] (text with color, style, etc),
 /// a [`LayoutJob`] (for when you want full control of how the text looks)
 /// or text that has already been laid out in a [`Galley`].
+///
+/// You can color the text however you want, or use [`Color32::PLACEHOLDER`]
+/// which will be replaced with a color chosen by the widget that paints the text.
 #[derive(Clone)]
 pub enum WidgetText {
     RichText(RichText),
@@ -442,9 +445,15 @@ pub enum WidgetText {
     /// of the [`Ui`] the widget is placed in.
     /// If you want all parts of the [`LayoutJob`] respected, then convert it to a
     /// [`Galley`] and use [`Self::Galley`] instead.
+    ///
+    /// You can color the text however you want, or use [`Color32::PLACEHOLDER`]
+    /// which will be replaced with a color chosen by the widget that paints the text.
     LayoutJob(LayoutJob),
 
     /// Use exactly this galley when painting the text.
+    ///
+    /// You can color the text however you want, or use [`Color32::PLACEHOLDER`]
+    /// which will be replaced with a color chosen by the widget that paints the text.
     Galley(Arc<Galley>),
 }
 
@@ -616,25 +625,16 @@ impl WidgetText {
         }
     }
 
-    pub fn into_text_job(
+    pub fn into_layout_job(
         self,
         style: &Style,
         fallback_font: FontSelection,
         default_valign: Align,
-    ) -> WidgetTextJob {
+    ) -> LayoutJob {
         match self {
-            Self::RichText(text) => text.into_text_job(style, fallback_font, default_valign),
-            Self::LayoutJob(job) => WidgetTextJob {
-                job,
-                job_has_color: true,
-            },
-            Self::Galley(galley) => {
-                let job: LayoutJob = (*galley.job).clone();
-                WidgetTextJob {
-                    job,
-                    job_has_color: true,
-                }
-            }
+            Self::RichText(text) => text.into_layout_job(style, fallback_font, default_valign),
+            Self::LayoutJob(job) => job,
+            Self::Galley(galley) => (*galley.job).clone(),
         }
     }
 
@@ -647,31 +647,22 @@ impl WidgetText {
         wrap: Option<bool>,
         available_width: f32,
         fallback_font: impl Into<FontSelection>,
-    ) -> WidgetTextGalley {
+    ) -> Arc<Galley> {
         let wrap = wrap.unwrap_or_else(|| ui.wrap_text());
         let wrap_width = if wrap { available_width } else { f32::INFINITY };
 
         match self {
             Self::RichText(text) => {
                 let valign = ui.layout().vertical_align();
-                let mut text_job = text.into_text_job(ui.style(), fallback_font.into(), valign);
-                text_job.job.wrap.max_width = wrap_width;
-                WidgetTextGalley {
-                    galley: ui.fonts(|f| f.layout_job(text_job.job)),
-                    galley_has_color: text_job.job_has_color,
-                }
+                let mut layout_job = text.into_layout_job(ui.style(), fallback_font.into(), valign);
+                layout_job.wrap.max_width = wrap_width;
+                ui.fonts(|f| f.layout_job(layout_job))
             }
             Self::LayoutJob(mut job) => {
                 job.wrap.max_width = wrap_width;
-                WidgetTextGalley {
-                    galley: ui.fonts(|f| f.layout_job(job)),
-                    galley_has_color: true,
-                }
+                ui.fonts(|f| f.layout_job(job))
             }
-            Self::Galley(galley) => WidgetTextGalley {
-                galley,
-                galley_has_color: true,
-            },
+            Self::Galley(galley) => galley,
         }
     }
 }
@@ -722,88 +713,5 @@ impl From<Arc<Galley>> for WidgetText {
     #[inline]
     fn from(galley: Arc<Galley>) -> Self {
         Self::Galley(galley)
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-#[derive(Clone, PartialEq)]
-pub struct WidgetTextJob {
-    pub job: LayoutJob,
-    pub job_has_color: bool,
-}
-
-impl WidgetTextJob {
-    pub fn into_galley(self, fonts: &crate::text::Fonts) -> WidgetTextGalley {
-        let Self { job, job_has_color } = self;
-        let galley = fonts.layout_job(job);
-        WidgetTextGalley {
-            galley,
-            galley_has_color: job_has_color,
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-
-/// Text that has been laid out and ready to be painted.
-#[derive(Clone, PartialEq)]
-pub struct WidgetTextGalley {
-    pub galley: Arc<Galley>,
-    pub galley_has_color: bool,
-}
-
-impl WidgetTextGalley {
-    /// Size of the laid out text.
-    #[inline]
-    pub fn size(&self) -> crate::Vec2 {
-        self.galley.size()
-    }
-
-    /// The full, non-elided text of the input job.
-    #[inline]
-    pub fn text(&self) -> &str {
-        self.galley.text()
-    }
-
-    #[inline]
-    pub fn galley(&self) -> &Arc<Galley> {
-        &self.galley
-    }
-
-    /// Use the colors in the original [`WidgetText`] if any,
-    /// else fall back to the one specified by the [`WidgetVisuals`].
-    pub fn paint_with_visuals(
-        self,
-        painter: &crate::Painter,
-        text_pos: Pos2,
-        visuals: &WidgetVisuals,
-    ) {
-        self.paint_with_fallback_color(painter, text_pos, visuals.text_color());
-    }
-
-    /// Use the colors in the original [`WidgetText`] if any,
-    /// else fall back to the given color.
-    pub fn paint_with_fallback_color(
-        self,
-        painter: &crate::Painter,
-        text_pos: Pos2,
-        text_color: Color32,
-    ) {
-        if self.galley_has_color {
-            painter.galley(text_pos, self.galley);
-        } else {
-            painter.galley_with_color(text_pos, self.galley, text_color);
-        }
-    }
-
-    /// Paint with this specific color.
-    pub fn paint_with_color_override(
-        self,
-        painter: &crate::Painter,
-        text_pos: Pos2,
-        text_color: Color32,
-    ) {
-        painter.galley_with_color(text_pos, self.galley, text_color);
     }
 }
