@@ -71,7 +71,7 @@ impl Color32 {
     /// i.e. often taken to mean "no color".
     pub const PLACEHOLDER: Color32 = Color32::from_rgba_premultiplied(64, 254, 0, 128);
 
-    #[deprecated = "Renmaed to PLACEHOLDER"]
+    #[deprecated = "Renamed to PLACEHOLDER"]
     pub const TEMPORARY_COLOR: Color32 = Self::PLACEHOLDER;
 
     #[inline]

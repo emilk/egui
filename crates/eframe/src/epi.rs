@@ -581,7 +581,7 @@ impl std::str::FromStr for Renderer {
 /// Represents the surroundings of your app.
 ///
 /// It provides methods to inspect the surroundings (are we on the web?),
-/// allocate textures, and change settings (e.g. window size).
+/// access to persistent storage, and access to the rendering backend.
 pub struct Frame {
     /// Information about the integration.
     pub(crate) info: IntegrationInfo,
