@@ -732,11 +732,7 @@ impl PlotItem for Text {
             .anchor
             .anchor_rect(Rect::from_min_size(pos, galley.size()));
 
-        let mut text_shape = epaint::TextShape::new(rect.min, galley.galley);
-        if !galley.galley_has_color {
-            text_shape.override_text_color = Some(color);
-        }
-        shapes.push(text_shape.into());
+        shapes.push(epaint::TextShape::new(rect.min, galley, color).into());
 
         if self.highlight {
             shapes.push(Shape::rect_stroke(

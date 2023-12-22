@@ -211,24 +211,36 @@ impl Shape {
     ) -> Self {
         let galley = fonts.layout_no_wrap(text.to_string(), font_id, color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
-        Self::galley(rect.min, galley)
+        Self::galley(rect.min, galley, color)
+    }
+
+    /// Any uncolored parts of the [`Galley`] (using [`Color32::PLACEHOLDER`]) will be replaced with the given color.
+    ///
+    /// Any non-placeholder color in the galley takes precedence over this fallback color.
+    #[inline]
+    pub fn galley(pos: Pos2, galley: Arc<Galley>, fallback_color: Color32) -> Self {
+        TextShape::new(pos, galley, fallback_color).into()
+    }
+
+    /// All text color in the [`Galley`] will be replaced with the given color.
+    #[inline]
+    pub fn galley_with_override_text_color(
+        pos: Pos2,
+        galley: Arc<Galley>,
+        text_color: Color32,
+    ) -> Self {
+        TextShape::new(pos, galley, text_color)
+            .with_override_text_color(text_color)
+            .into()
     }
 
     #[inline]
-    pub fn galley(pos: Pos2, galley: Arc<Galley>) -> Self {
-        TextShape::new(pos, galley).into()
-    }
-
-    #[inline]
-    /// The text color in the [`Galley`] will be replaced with the given color.
+    #[deprecated = "Use `Shape::galley` or `Shape::galley_with_override_text_color` instead"]
     pub fn galley_with_color(pos: Pos2, galley: Arc<Galley>, text_color: Color32) -> Self {
-        TextShape {
-            override_text_color: Some(text_color),
-            ..TextShape::new(pos, galley)
-        }
-        .into()
+        Self::galley_with_override_text_color(pos, galley, text_color)
     }
 
+    #[inline]
     pub fn mesh(mesh: Mesh) -> Self {
         crate::epaint_assert!(mesh.is_valid());
         Self::Mesh(mesh)
@@ -669,9 +681,14 @@ pub struct TextShape {
     /// You can also set an underline when creating the galley.
     pub underline: Stroke,
 
+    /// Any [`Color32::PLACEHOLDER`] in the galley will be replaced by the given color.
+    /// Affects everything: backgrounds, glyphs, strikethough, underline, etc.
+    pub fallback_color: Color32,
+
     /// If set, the text color in the galley will be ignored and replaced
     /// with the given color.
-    /// This will NOT replace background color nor strikethrough/underline color.
+    ///
+    /// This only affects the glyphs and will NOT replace background color nor strikethrough/underline color.
     pub override_text_color: Option<Color32>,
 
     /// Rotate text by this many radians clockwise.
@@ -680,12 +697,16 @@ pub struct TextShape {
 }
 
 impl TextShape {
+    /// The given fallback color will be used for any uncolored part of the galley (using [`Color32::PLACEHOLDER`]).
+    ///
+    /// Any non-placeholder color in the galley takes precedence over this fallback color.
     #[inline]
-    pub fn new(pos: Pos2, galley: Arc<Galley>) -> Self {
+    pub fn new(pos: Pos2, galley: Arc<Galley>, fallback_color: Color32) -> Self {
         Self {
             pos,
             galley,
             underline: Stroke::NONE,
+            fallback_color,
             override_text_color: None,
             angle: 0.0,
         }
@@ -695,6 +716,27 @@ impl TextShape {
     #[inline]
     pub fn visual_bounding_rect(&self) -> Rect {
         self.galley.mesh_bounds.translate(self.pos.to_vec2())
+    }
+
+    #[inline]
+    pub fn with_underline(mut self, underline: Stroke) -> Self {
+        self.underline = underline;
+        self
+    }
+
+    /// Use the given color for the text, regardless of what color is already in the galley.
+    #[inline]
+    pub fn with_override_text_color(mut self, override_text_color: Color32) -> Self {
+        self.override_text_color = Some(override_text_color);
+        self
+    }
+
+    /// Rotate text by this many radians clockwise.
+    /// The pivot is `pos` (the upper left corner of the text).
+    #[inline]
+    pub fn with_angle(mut self, angle: f32) -> Self {
+        self.angle = angle;
+        self
     }
 }
 

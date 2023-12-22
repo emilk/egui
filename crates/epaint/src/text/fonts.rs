@@ -531,12 +531,7 @@ impl Fonts {
         font_id: FontId,
         wrap_width: f32,
     ) -> Arc<Galley> {
-        self.layout_job(LayoutJob::simple(
-            text,
-            font_id,
-            crate::Color32::TEMPORARY_COLOR,
-            wrap_width,
-        ))
+        self.layout(text, font_id, crate::Color32::PLACEHOLDER, wrap_width)
     }
 }
 
