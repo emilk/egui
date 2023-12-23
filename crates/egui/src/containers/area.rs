@@ -265,7 +265,13 @@ impl Area {
 
         let layer_id = LayerId::new(order, id);
 
-        let state = ctx.memory(|mem| mem.areas().get(id).copied());
+        let state = ctx
+            .memory(|mem| mem.areas().get(id).copied())
+            .map(|mut state| {
+                // override the saved state with the correct value
+                state.pivot = pivot;
+                state
+            });
         let is_new = state.is_none();
         if is_new {
             ctx.request_repaint(); // if we don't know the previous size we are likely drawing the area in the wrong place
