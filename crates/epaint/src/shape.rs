@@ -144,12 +144,39 @@ impl Shape {
         gap_length: f32,
     ) -> Vec<Self> {
         let mut shapes = Vec::new();
-        dashes_from_line(path, stroke.into(), dash_length, gap_length, &mut shapes);
+        dashes_from_line(
+            path,
+            stroke.into(),
+            &[dash_length],
+            &[gap_length],
+            &mut shapes,
+            0.,
+        );
+        shapes
+    }
+
+    /// Turn a line into dashes with different dash/gap lengths and a start offset.
+    pub fn dashed_line_with_offset(
+        path: &[Pos2],
+        stroke: impl Into<Stroke>,
+        dash_lengths: &[f32],
+        gap_lengths: &[f32],
+        dash_offset: f32,
+    ) -> Vec<Self> {
+        let mut shapes = Vec::new();
+        dashes_from_line(
+            path,
+            stroke.into(),
+            dash_lengths,
+            gap_lengths,
+            &mut shapes,
+            dash_offset,
+        );
         shapes
     }
 
     /// Turn a line into dashes. If you need to create many dashed lines use this instead of
-    /// [`Self::dashed_line`]
+    /// [`Self::dashed_line`].
     pub fn dashed_line_many(
         points: &[Pos2],
         stroke: impl Into<Stroke>,
@@ -157,7 +184,34 @@ impl Shape {
         gap_length: f32,
         shapes: &mut Vec<Shape>,
     ) {
-        dashes_from_line(points, stroke.into(), dash_length, gap_length, shapes);
+        dashes_from_line(
+            points,
+            stroke.into(),
+            &[dash_length],
+            &[gap_length],
+            shapes,
+            0.,
+        );
+    }
+
+    /// Turn a line into dashes with different dash/gap lengths and a start offset. If you need to
+    /// create many dashed lines use this instead of [`Self::dashed_line_with_offset`].
+    pub fn dashed_line_many_with_offset(
+        points: &[Pos2],
+        stroke: impl Into<Stroke>,
+        dash_lengths: &[f32],
+        gap_lengths: &[f32],
+        dash_offset: f32,
+        shapes: &mut Vec<Shape>,
+    ) {
+        dashes_from_line(
+            points,
+            stroke.into(),
+            dash_lengths,
+            gap_lengths,
+            shapes,
+            dash_offset,
+        );
     }
 
     /// A convex polygon with a fill and optional stroke.
@@ -775,12 +829,16 @@ fn points_from_line(
 fn dashes_from_line(
     path: &[Pos2],
     stroke: Stroke,
-    dash_length: f32,
-    gap_length: f32,
+    dash_lengths: &[f32],
+    gap_lengths: &[f32],
     shapes: &mut Vec<Shape>,
+    dash_offset: f32,
 ) {
-    let mut position_on_segment = 0.0;
+    assert_eq!(dash_lengths.len(), gap_lengths.len());
+    let mut position_on_segment = dash_offset;
     let mut drawing_dash = false;
+    let mut step = 0;
+    let steps = dash_lengths.len();
     path.windows(2).for_each(|window| {
         let (start, end) = (window[0], window[1]);
         let vector = end - start;
@@ -792,11 +850,16 @@ fn dashes_from_line(
             if drawing_dash {
                 // This is the end point.
                 shapes.push(Shape::line_segment([start_point, new_point], stroke));
-                position_on_segment += gap_length;
+                position_on_segment += gap_lengths[step];
+                // Increment step counter
+                step += 1;
+                if step >= steps {
+                    step = 0;
+                }
             } else {
                 // Start a new dash.
                 start_point = new_point;
-                position_on_segment += dash_length;
+                position_on_segment += dash_lengths[step];
             }
             drawing_dash = !drawing_dash;
         }
