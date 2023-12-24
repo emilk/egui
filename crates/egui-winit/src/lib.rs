@@ -236,6 +236,11 @@ impl State {
     ) -> EventResponse {
         crate::profile_function!(short_window_event_description(event));
 
+        #[cfg(feature = "accesskit")]
+        if let Some(accesskit) = &self.accesskit {
+            accesskit.process_event(window, event);
+        }
+
         use winit::event::WindowEvent;
         match event {
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
