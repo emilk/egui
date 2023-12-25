@@ -879,6 +879,10 @@ pub enum Key {
     PageUp,
     PageDown,
 
+    Copy,
+    Cut,
+    Paste,
+
     // ----------------------------------------------
     // Punctuation:
     /// `:`
@@ -1005,6 +1009,9 @@ impl Key {
         Self::End,
         Self::PageUp,
         Self::PageDown,
+        Self::Copy,
+        Self::Cut,
+        Self::Paste,
         // Punctuation:
         Self::Colon,
         Self::Comma,
@@ -1101,6 +1108,10 @@ impl Key {
             "End" => Self::End,
             "PageUp" => Self::PageUp,
             "PageDown" => Self::PageDown,
+
+            "Copy" => Self::Copy,
+            "Cut" => Self::Cut,
+            "Paste" => Self::Paste,
 
             "Colon" | ":" => Self::Colon,
             "Comma" | "," => Self::Comma,
@@ -1208,6 +1219,10 @@ impl Key {
             Key::End => "End",
             Key::PageUp => "PageUp",
             Key::PageDown => "PageDown",
+
+            Key::Copy => "Copy",
+            Key::Cut => "Cut",
+            Key::Paste => "Paste",
 
             Key::Colon => "Colon",
             Key::Comma => "Comma",

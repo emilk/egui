@@ -691,8 +691,6 @@ impl State {
 
         if let Some(logical_key) = logical_key {
             if pressed {
-                // KeyCode::Paste etc in winit are broken/untrustworthy,
-                // so we detect these things manually:
                 if is_cut_command(self.egui_input.modifiers, logical_key) {
                     self.egui_input.events.push(egui::Event::Cut);
                     return true;
@@ -946,17 +944,20 @@ fn is_printable_char(chr: char) -> bool {
 }
 
 fn is_cut_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
-    (modifiers.command && keycode == egui::Key::X)
+    keycode == egui::Key::Cut
+        || (modifiers.command && keycode == egui::Key::X)
         || (cfg!(target_os = "windows") && modifiers.shift && keycode == egui::Key::Delete)
 }
 
 fn is_copy_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
-    (modifiers.command && keycode == egui::Key::C)
+    keycode == egui::Key::Copy
+        || (modifiers.command && keycode == egui::Key::C)
         || (cfg!(target_os = "windows") && modifiers.ctrl && keycode == egui::Key::Insert)
 }
 
 fn is_paste_command(modifiers: egui::Modifiers, keycode: egui::Key) -> bool {
-    (modifiers.command && keycode == egui::Key::V)
+    keycode == egui::Key::Paste
+        || (modifiers.command && keycode == egui::Key::V)
         || (cfg!(target_os = "windows") && modifiers.shift && keycode == egui::Key::Insert)
 }
 
@@ -983,47 +984,50 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
     use egui::Key;
     use winit::keyboard::NamedKey;
 
-    match named_key {
-        NamedKey::Enter => Some(Key::Enter),
-        NamedKey::Tab => Some(Key::Tab),
-        NamedKey::Space => Some(Key::Space),
-        NamedKey::ArrowDown => Some(Key::ArrowDown),
-        NamedKey::ArrowLeft => Some(Key::ArrowLeft),
-        NamedKey::ArrowRight => Some(Key::ArrowRight),
-        NamedKey::ArrowUp => Some(Key::ArrowUp),
-        NamedKey::End => Some(Key::End),
-        NamedKey::Home => Some(Key::Home),
-        NamedKey::PageDown => Some(Key::PageDown),
-        NamedKey::PageUp => Some(Key::PageUp),
-        NamedKey::Backspace => Some(Key::Backspace),
-        NamedKey::Delete => Some(Key::Delete),
-        NamedKey::Insert => Some(Key::Insert),
-        NamedKey::Escape => Some(Key::Escape),
-        NamedKey::F1 => Some(Key::F1),
-        NamedKey::F2 => Some(Key::F2),
-        NamedKey::F3 => Some(Key::F3),
-        NamedKey::F4 => Some(Key::F4),
-        NamedKey::F5 => Some(Key::F5),
-        NamedKey::F6 => Some(Key::F6),
-        NamedKey::F7 => Some(Key::F7),
-        NamedKey::F8 => Some(Key::F8),
-        NamedKey::F9 => Some(Key::F9),
-        NamedKey::F10 => Some(Key::F10),
-        NamedKey::F11 => Some(Key::F11),
-        NamedKey::F12 => Some(Key::F12),
-        NamedKey::F13 => Some(Key::F13),
-        NamedKey::F14 => Some(Key::F14),
-        NamedKey::F15 => Some(Key::F15),
-        NamedKey::F16 => Some(Key::F16),
-        NamedKey::F17 => Some(Key::F17),
-        NamedKey::F18 => Some(Key::F18),
-        NamedKey::F19 => Some(Key::F19),
-        NamedKey::F20 => Some(Key::F20),
+    Some(match named_key {
+        NamedKey::Enter => Key::Enter,
+        NamedKey::Tab => Key::Tab,
+        NamedKey::Space => Key::Space,
+        NamedKey::ArrowDown => Key::ArrowDown,
+        NamedKey::ArrowLeft => Key::ArrowLeft,
+        NamedKey::ArrowRight => Key::ArrowRight,
+        NamedKey::ArrowUp => Key::ArrowUp,
+        NamedKey::End => Key::End,
+        NamedKey::Home => Key::Home,
+        NamedKey::PageDown => Key::PageDown,
+        NamedKey::PageUp => Key::PageUp,
+        NamedKey::Backspace => Key::Backspace,
+        NamedKey::Delete => Key::Delete,
+        NamedKey::Insert => Key::Insert,
+        NamedKey::Escape => Key::Escape,
+        NamedKey::Cut => Key::Cut,
+        NamedKey::Copy => Key::Copy,
+        NamedKey::Paste => Key::Paste,
+        NamedKey::F1 => Key::F1,
+        NamedKey::F2 => Key::F2,
+        NamedKey::F3 => Key::F3,
+        NamedKey::F4 => Key::F4,
+        NamedKey::F5 => Key::F5,
+        NamedKey::F6 => Key::F6,
+        NamedKey::F7 => Key::F7,
+        NamedKey::F8 => Key::F8,
+        NamedKey::F9 => Key::F9,
+        NamedKey::F10 => Key::F10,
+        NamedKey::F11 => Key::F11,
+        NamedKey::F12 => Key::F12,
+        NamedKey::F13 => Key::F13,
+        NamedKey::F14 => Key::F14,
+        NamedKey::F15 => Key::F15,
+        NamedKey::F16 => Key::F16,
+        NamedKey::F17 => Key::F17,
+        NamedKey::F18 => Key::F18,
+        NamedKey::F19 => Key::F19,
+        NamedKey::F20 => Key::F20,
         _ => {
             log::trace!("Unknown key: {named_key:?}");
-            None
+            return None;
         }
-    }
+    })
 }
 
 fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
@@ -1053,6 +1057,10 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::Period => Key::Period,
         // KeyCode::Colon => Key::Colon, // NOTE: there is no physical colon key on an american keyboard
         KeyCode::Semicolon => Key::Semicolon,
+
+        KeyCode::Cut => Key::Cut,
+        KeyCode::Copy => Key::Copy,
+        KeyCode::Paste => Key::Paste,
 
         KeyCode::Minus | KeyCode::NumpadSubtract => Key::Minus,
 
