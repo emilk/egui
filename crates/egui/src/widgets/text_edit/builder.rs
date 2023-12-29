@@ -996,7 +996,7 @@ fn events(
                     .lock()
                     .undo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
                 {
-                    text.replace(undo_txt);
+                    text.replace_with(undo_txt);
                     Some(*undo_ccursor_range)
                 } else {
                     None
@@ -1015,7 +1015,7 @@ fn events(
                     .lock()
                     .redo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
                 {
-                    text.replace(redo_txt);
+                    text.replace_with(redo_txt);
                     Some(*redo_ccursor_range)
                 } else {
                     None
