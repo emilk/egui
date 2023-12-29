@@ -95,8 +95,7 @@ impl BytesLoader for EhttpLoader {
                         }
                     };
                     log::trace!("finished loading {uri:?}");
-                    let prev = cache.lock().insert(uri, Poll::Ready(result));
-                    assert!(matches!(prev, Some(Poll::Pending)));
+                    cache.lock().insert(uri, Poll::Ready(result));
                     ctx.request_repaint();
                 }
             });
