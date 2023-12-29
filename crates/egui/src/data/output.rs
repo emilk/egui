@@ -408,6 +408,21 @@ impl Default for CursorIcon {
     }
 }
 
+impl Into<CursorIcon> for crate::ResizeDirection {
+    fn into(self) -> CursorIcon {
+        match self {
+            crate::ResizeDirection::North => CursorIcon::ResizeNorth,
+            crate::ResizeDirection::South => CursorIcon::ResizeSouth,
+            crate::ResizeDirection::West => CursorIcon::ResizeWest,
+            crate::ResizeDirection::East => CursorIcon::ResizeEast,
+            crate::ResizeDirection::NorthEast => CursorIcon::ResizeNorthEast,
+            crate::ResizeDirection::SouthEast => CursorIcon::ResizeSouthEast,
+            crate::ResizeDirection::NorthWest => CursorIcon::ResizeNorthWest,
+            crate::ResizeDirection::SouthWest => CursorIcon::ResizeSouthWest,
+        }
+    }
+}
+
 /// Things that happened during this frame that the integration may be interested in.
 ///
 /// In particular, these events may be useful for accessibility, i.e. for screen readers.
