@@ -808,6 +808,7 @@ pub enum CursorGrab {
 pub enum ResizeDirection {
     North,
     South,
+    East,
     West,
     NorthEast,
     SouthEast,

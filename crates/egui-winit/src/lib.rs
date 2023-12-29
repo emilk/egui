@@ -1249,6 +1249,7 @@ fn process_viewport_command(
             if let Err(err) = window.drag_resize_window(match direction {
                 egui::viewport::ResizeDirection::North => ResizeDirection::North,
                 egui::viewport::ResizeDirection::South => ResizeDirection::South,
+                egui::viewport::ResizeDirection::East => ResizeDirection::East,
                 egui::viewport::ResizeDirection::West => ResizeDirection::West,
                 egui::viewport::ResizeDirection::NorthEast => ResizeDirection::NorthEast,
                 egui::viewport::ResizeDirection::SouthEast => ResizeDirection::SouthEast,
