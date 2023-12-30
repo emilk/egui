@@ -61,7 +61,7 @@ egui = { version = "0.24.1", path = "../egui", default-features = false, feature
 log = { version = "0.4", features = ["std"] }
 raw-window-handle.workspace = true
 web-time = { version = "0.2" } # We use web-time so we can (maybe) compile for web
-winit = { version = "0.29.4", default-features = false, features = ["rwh_05"] }
+winit = { version = "0.29.7", default-features = false, features = ["rwh_05"] }
 
 #! ### Optional dependencies
 
