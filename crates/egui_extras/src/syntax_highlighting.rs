@@ -3,6 +3,8 @@
 //! Turn on the `syntect` feature for great syntax highlighting of any language.
 //! Otherwise, a very simple fallback will be used, that works okish for C, C++, Rust, and Python.
 
+#![allow(clippy::mem_forget)] // False positive from enum_map macro
+
 use egui::text::LayoutJob;
 
 /// View some code with syntax highlighting and selection.

@@ -274,7 +274,7 @@ pub fn preferred_framebuffer_format(
     }
 
     formats
-        .get(0)
+        .first()
         .copied()
         .ok_or(WgpuError::NoSurfaceFormatsAvailable)
 }
