@@ -12,8 +12,6 @@
 
 #[cfg(feature = "cint")]
 mod cint_impl;
-#[cfg(feature = "cint")]
-pub use cint_impl::*;
 
 mod color32;
 pub use color32::*;
