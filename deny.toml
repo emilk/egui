@@ -42,8 +42,8 @@ skip = [
   { name = "spin" },           # old version via ring through rusttls and other libraries, newer for wgpu.
   { name = "time" },           # old version pulled in by unmaintianed crate 'chrono'
   { name = "windows" },        # old version via accesskit_windows
-  { name = "x11rb" },          #
-  { name = "x11rb-protocol" }, #
+  { name = "x11rb" },          # old version via arboard
+  { name = "x11rb-protocol" }, # old version via arboard
 ]
 skip-tree = [
   { name = "criterion" },     # dev-dependency
