@@ -34,15 +34,15 @@ deny = [
 ]
 
 skip = [
-  { name = "bitflags" },      # old 1.0 version via glutin, png, spirv, …
-  { name = "libloading" },    # wgpu-hal itself depends on 0.8 while some of its dependencies, like ash and d3d12, depend on 0.7
-  { name = "memoffset" },     # tiny dependency
-  { name = "quick-xml" },     # old version via wayland-scanner
-  { name = "redox_syscall" }, # old version via directories-next
-  { name = "spin" },          # old version via ring through rusttls and other libraries, newer for wgpu.
-  { name = "time" },          # old version pulled in by unmaintianed crate 'chrono'
-  { name = "windows" },       # old version via accesskit_windows
-  { name = "x11rb" },         #
+  { name = "bitflags" },       # old 1.0 version via glutin, png, spirv, …
+  { name = "libloading" },     # wgpu-hal itself depends on 0.8 while some of its dependencies, like ash and d3d12, depend on 0.7
+  { name = "memoffset" },      # tiny dependency
+  { name = "quick-xml" },      # old version via wayland-scanner
+  { name = "redox_syscall" },  # old version via directories-next
+  { name = "spin" },           # old version via ring through rusttls and other libraries, newer for wgpu.
+  { name = "time" },           # old version pulled in by unmaintianed crate 'chrono'
+  { name = "windows" },        # old version via accesskit_windows
+  { name = "x11rb-protocol" }, #
 ]
 skip-tree = [
   { name = "criterion" },     # dev-dependency
