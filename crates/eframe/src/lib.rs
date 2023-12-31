@@ -9,6 +9,21 @@
 //! In short, you implement [`App`] (especially [`App::update`]) and then
 //! call [`crate::run_native`] from your `main.rs`, and/or use `eframe::WebRunner` from your `lib.rs`.
 //!
+//! ## Compiling for web
+//! To get copy-paste working on web, you need to compile with
+//! `export RUSTFLAGS=--cfg=web_sys_unstable_apis`.
+//!
+//! You need to install the `wasm32` target with `rustup target add wasm32-unknown-unknown`.
+//!
+//! Build the `.wasm` using `cargo build --target wasm32-unknown-unknown`
+//! and then use [`wasm-bindgen`](https://github.com/rustwasm/wasm-bindgen) to generate the JavaScript glue code.
+//!
+//! See the [`eframe_template` repository](https://github.com/emilk/eframe_template/) for more.
+//!
+//! ## Simplified usage
+//! If your app is only for native, and you don't need advanced features like state persistence,
+//! then you can use the simpler function [`run_simple_native`].
+//!
 //! ## Usage, native:
 //! ``` no_run
 //! use eframe::egui;
@@ -113,10 +128,6 @@
 //!     }
 //! }
 //! ```
-//!
-//! ## Simplified usage
-//! If your app is only for native, and you don't need advanced features like state persistence,
-//! then you can use the simpler function [`run_simple_native`].
 //!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
