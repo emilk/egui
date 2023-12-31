@@ -1397,7 +1397,7 @@ impl Style {
                 "Show explanatory text when hovering DragValue:s and other egui widgets",
             );
 
-        ui.checkbox(always_scroll_the_only_direction, "Always scroll the onls direction")
+        ui.checkbox(always_scroll_the_only_direction, "Always scroll the only enabled direction")
             .on_hover_text(
                 "If scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift",
             );
