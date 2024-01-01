@@ -408,9 +408,9 @@ impl Default for CursorIcon {
     }
 }
 
-impl Into<CursorIcon> for crate::ResizeDirection {
-    fn into(self) -> CursorIcon {
-        match self {
+impl From<crate::ResizeDirection> for CursorIcon {
+    fn from(direction: crate::ResizeDirection) -> Self {
+        match direction {
             crate::ResizeDirection::North => CursorIcon::ResizeNorth,
             crate::ResizeDirection::South => CursorIcon::ResizeSouth,
             crate::ResizeDirection::West => CursorIcon::ResizeWest,

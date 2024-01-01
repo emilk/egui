@@ -93,7 +93,7 @@ fn handle_resize(ui: &mut egui::Ui) -> bool {
     let south_snap = (screen_rect.bottom() - pos.y).abs() <= SNAP_DIST;
     let north_snap = !south_snap && (screen_rect.top() - pos.y).abs() <= SNAP_DIST;
 
-    let posible_resize_direction = match (north_snap, east_snap, west_snap, south_snap) {
+    let possible_resize_direction = match (north_snap, east_snap, west_snap, south_snap) {
         (true, true, false, false) => Some(egui::ResizeDirection::NorthEast),
         (false, true, false, true) => Some(egui::ResizeDirection::SouthEast),
         (true, false, true, false) => Some(egui::ResizeDirection::NorthWest),
@@ -105,7 +105,7 @@ fn handle_resize(ui: &mut egui::Ui) -> bool {
         _ => None,
     };
 
-    let Some(resize_direction) = posible_resize_direction else {
+    let Some(resize_direction) = possible_resize_direction else {
         return false;
     };
 
