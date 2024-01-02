@@ -450,39 +450,35 @@ impl Renderer {
                         continue;
                     };
 
-                    if callback.rect.is_positive() {
+                    let info = PaintCallbackInfo {
+                        viewport: callback.rect,
+                        clip_rect: *clip_rect,
+                        pixels_per_point,
+                        screen_size_px: size_in_pixels,
+                    };
+
+                    let viewport_px = info.viewport_in_pixels();
+                    if viewport_px.width_px > 0 && viewport_px.height_px > 0 {
                         crate::profile_scope!("callback");
 
                         needs_reset = true;
 
-                        let info = PaintCallbackInfo {
-                            viewport: callback.rect,
-                            clip_rect: *clip_rect,
-                            pixels_per_point,
-                            screen_size_px: size_in_pixels,
-                        };
-
-                        {
-                            // We're setting a default viewport for the render pass as a
-                            // courtesy for the user, so that they don't have to think about
-                            // it in the simple case where they just want to fill the whole
-                            // paint area.
-                            //
-                            // The user still has the possibility of setting their own custom
-                            // viewport during the paint callback, effectively overriding this
-                            // one.
-
-                            let viewport_px = info.viewport_in_pixels();
-
-                            render_pass.set_viewport(
-                                viewport_px.left_px as f32,
-                                viewport_px.top_px as f32,
-                                viewport_px.width_px as f32,
-                                viewport_px.height_px as f32,
-                                0.0,
-                                1.0,
-                            );
-                        }
+                        // We're setting a default viewport for the render pass as a
+                        // courtesy for the user, so that they don't have to think about
+                        // it in the simple case where they just want to fill the whole
+                        // paint area.
+                        //
+                        // The user still has the possibility of setting their own custom
+                        // viewport during the paint callback, effectively overriding this
+                        // one.
+                        render_pass.set_viewport(
+                            viewport_px.left_px as f32,
+                            viewport_px.top_px as f32,
+                            viewport_px.width_px as f32,
+                            viewport_px.height_px as f32,
+                            0.0,
+                            1.0,
+                        );
 
                         cbfn.0.paint(info, render_pass, &self.callback_resources);
                     }
