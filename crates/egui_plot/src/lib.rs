@@ -779,7 +779,7 @@ impl Plot {
             max: pos + size,
         };
         // Next we want to create this layout.
-        // Incides are only examples.
+        // Indices are only examples.
         //
         //  left                     right
         //  +---+---------x----------+   +
