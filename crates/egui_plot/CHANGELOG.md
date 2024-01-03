@@ -5,6 +5,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.24.1 - 2024-12-03
+* Fix plot auto-bounds default [#3722](https://github.com/emilk/egui/pull/3722) (thanks [@abey79](https://github.com/abey79)!)
+
+
 ## 0.24.0 - 2023-11-23
 * Add `emath::Vec2b`, replacing `egui_plot::AxisBools` [#3543](https://github.com/emilk/egui/pull/3543)
 * Add `auto_bounds/set_auto_bounds` to `PlotUi` [#3587](https://github.com/emilk/egui/pull/3587) [#3586](https://github.com/emilk/egui/pull/3586) (thanks [@abey79](https://github.com/abey79)!)
