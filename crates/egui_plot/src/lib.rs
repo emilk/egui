@@ -508,7 +508,6 @@ impl Plot {
     }
 
     /// Expand bounds to fit all items across the x axis, including values given by `include_x`.
-    #[deprecated = "Use `auto_bounds` instead"]
     #[inline]
     pub fn auto_bounds_x(mut self) -> Self {
         self.default_auto_bounds.x = true;
@@ -516,7 +515,6 @@ impl Plot {
     }
 
     /// Expand bounds to fit all items across the y axis, including values given by `include_y`.
-    #[deprecated = "Use `auto_bounds` instead"]
     #[inline]
     pub fn auto_bounds_y(mut self) -> Self {
         self.default_auto_bounds.y = true;
