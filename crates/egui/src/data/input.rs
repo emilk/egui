@@ -1399,13 +1399,15 @@ fn test_key_from_name() {
 pub struct KeyboardShortcut {
     pub modifiers: Modifiers,
 
-    /// The logical key.
-    pub key: Key,
+    pub logical_key: Key,
 }
 
 impl KeyboardShortcut {
-    pub const fn new(modifiers: Modifiers, key: Key) -> Self {
-        Self { modifiers, key }
+    pub const fn new(modifiers: Modifiers, logical_key: Key) -> Self {
+        Self {
+            modifiers,
+            logical_key,
+        }
     }
 
     pub fn format(&self, names: &ModifierNames<'_>, is_mac: bool) -> String {
@@ -1414,9 +1416,9 @@ impl KeyboardShortcut {
             s += names.concat;
         }
         if names.is_short {
-            s += self.key.symbol_or_name();
+            s += self.logical_key.symbol_or_name();
         } else {
-            s += self.key.name();
+            s += self.logical_key.name();
         }
         s
     }
