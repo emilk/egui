@@ -1073,9 +1073,8 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
 
         KeyCode::Minus | KeyCode::NumpadSubtract => Key::Minus,
 
-        // Using Mac the key with the Plus sign on it is reported as the Equals key
-        // (with both English and Swedish keyboard).
-        KeyCode::Equal | KeyCode::NumpadAdd => Key::PlusEquals,
+        KeyCode::NumpadAdd => Key::Plus,
+        KeyCode::Equal => Key::Equals,
 
         KeyCode::Digit0 | KeyCode::Numpad0 => Key::Num0,
         KeyCode::Digit1 | KeyCode::Numpad1 => Key::Num1,

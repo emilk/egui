@@ -968,8 +968,11 @@ pub enum Key {
     /// `.`
     Period,
 
-    /// The for the Plus/Equals key.
-    PlusEquals,
+    /// `+`
+    Plus,
+
+    /// `=`
+    Equals,
 
     /// `;`
     Semicolon,
@@ -1088,7 +1091,8 @@ impl Key {
         Self::Comma,
         Self::Minus,
         Self::Period,
-        Self::PlusEquals,
+        Self::Plus,
+        Self::Equals,
         Self::Semicolon,
         // Digits:
         Self::Num0,
@@ -1188,7 +1192,8 @@ impl Key {
             "Comma" | "," => Self::Comma,
             "Minus" | "-" | "−" => Self::Minus,
             "Period" | "." => Self::Period,
-            "Plus" | "+" | "Equals" | "=" => Self::PlusEquals,
+            "Plus" | "+" => Self::Plus,
+            "Equals" | "=" => Self::Equals,
             "Semicolon" | ";" => Self::Semicolon,
 
             "0" => Self::Num0,
@@ -1265,7 +1270,8 @@ impl Key {
             Key::ArrowRight => "⏵",
             Key::ArrowUp => "⏶",
             Key::Minus => crate::MINUS_CHAR_STR,
-            Key::PlusEquals => "+",
+            Key::Plus => "+",
+            Key::Equals => "=",
             _ => self.name(),
         }
     }
@@ -1299,7 +1305,8 @@ impl Key {
             Key::Comma => "Comma",
             Key::Minus => "Minus",
             Key::Period => "Period",
-            Key::PlusEquals => "Plus",
+            Key::Plus => "Plus",
+            Key::Equals => "Equals",
             Key::Semicolon => "Semicolon",
 
             Key::Num0 => "0",
