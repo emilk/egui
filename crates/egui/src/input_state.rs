@@ -289,7 +289,13 @@ impl InputState {
     /// Count presses of a key. If non-zero, the presses are consumed, so that this will only return non-zero once.
     ///
     /// Includes key-repeat events.
-    pub fn count_and_consume_key(&mut self, modifiers: Modifiers, key: Key) -> usize {
+    ///
+    /// This uses [`Modifiers::matches_logically`] to match modifiers.
+    /// This means that e.g. the shortcut `Ctrl` + `Key::Plus` will be matched
+    /// as long as `Ctrl` and `Plus` are pressed, ignoring if
+    /// `Shift` or `Alt` are also pressed (because those modifiers might
+    /// be required to produce the logical `Key::Plus`).
+    pub fn count_and_consume_key(&mut self, modifiers: Modifiers, logical_key: Key) -> usize {
         let mut count = 0usize;
 
         self.events.retain(|event| {
@@ -300,7 +306,7 @@ impl InputState {
                     modifiers: ev_mods,
                     pressed: true,
                     ..
-                } if *ev_key == key && ev_mods.matches(modifiers)
+                } if *ev_key == logical_key && ev_mods.matches_logically(modifiers)
             );
 
             count += is_match as usize;
