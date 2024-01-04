@@ -689,6 +689,15 @@ impl State {
 
         let logical_key = key_from_winit_key(logical_key);
 
+        // Helpful logging to enable when adding new key support
+        log::trace!(
+            "logical {:?} -> {:?},  physical {:?} -> {:?}",
+            event.logical_key,
+            logical_key,
+            event.physical_key,
+            physical_key
+        );
+
         if let Some(logical_key) = logical_key {
             if pressed {
                 if is_cut_command(self.egui_input.modifiers, logical_key) {
