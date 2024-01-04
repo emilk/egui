@@ -1050,7 +1050,7 @@ fn events(
             }
 
             Event::CompositionEnd(prediction) => {
-                // CompositionEnd only characters may be typed into TextEdit without trigger CompositionStart first, so do not check ```state.has_ime = true``` in the following statement.
+                // CompositionEnd only characters may be typed into TextEdit without trigger CompositionStart first, so do not check `state.has_ime = true` in the following statement.
                 if prediction != "\n" && prediction != "\r" {
                     state.has_ime = false;
                     let mut ccursor = delete_selected(text, &cursor_range);
