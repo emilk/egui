@@ -705,15 +705,18 @@ impl Plot {
     }
 
     /// Interact with and add items to the plot and finally draw it.
-    pub fn show<R>(self, ui: &mut Ui, build_fn: impl FnOnce(&mut PlotUi) -> R) -> PlotResponse<R> {
-        self.show_dyn(ui, Box::new(build_fn))
-    }
+    pub fn show<'data, FN, R>(self, ui: &mut Ui, build_fn: FN) -> PlotResponse<R>
+    where
+        FN: FnOnce(&mut PlotUi<'data>) -> R,
+    {
+        //     self.show_dyn(ui, Box::new(build_fn))
+        // }
 
-    fn show_dyn<'a, R>(
-        self,
-        ui: &mut Ui,
-        build_fn: Box<dyn FnOnce(&mut PlotUi) -> R + 'a>,
-    ) -> PlotResponse<R> {
+        // fn show_dyn<'a, R>(
+        //     self,
+        //     ui: &mut Ui,
+        //     build_fn: Box<dyn FnOnce(&mut PlotUi) -> R + 'a>,
+        // ) -> PlotResponse<R> {
         let Self {
             id_source,
             center_axis,
@@ -886,7 +889,7 @@ impl Plot {
         } = memory;
 
         // Call the plot build function.
-        let mut plot_ui = PlotUi {
+        let mut plot_ui = PlotUi::<'data> {
             items: Vec::new(),
             next_auto_color_idx: 0,
             last_plot_transform,
@@ -896,6 +899,7 @@ impl Plot {
             ctx: ui.ctx().clone(),
         };
         let inner = build_fn(&mut plot_ui);
+
         let PlotUi {
             mut items,
             mut response,
@@ -924,8 +928,10 @@ impl Plot {
             show_x = false;
             show_y = false;
         }
+
         // Remove the deselected items.
         items.retain(|item| !hidden_items.contains(item.name()));
+
         // Highlight the hovered items.
         if let Some(hovered_name) = &hovered_entry {
             items
@@ -933,6 +939,7 @@ impl Plot {
                 .filter(|entry| entry.name() == hovered_name)
                 .for_each(|entry| entry.highlight());
         }
+
         // Move highlighted items to front.
         items.sort_by_key(|item| item.highlighted());
 
@@ -1345,8 +1352,8 @@ enum BoundsModification {
 
 /// Provides methods to interact with a plot while building it. It is the single argument of the closure
 /// provided to [`Plot::show`]. See [`Plot`] for an example of how to use it.
-pub struct PlotUi {
-    items: Vec<Box<dyn PlotItem>>,
+pub struct PlotUi<'data> {
+    items: Vec<Box<dyn PlotItem + 'data>>,
     next_auto_color_idx: usize,
     last_plot_transform: PlotTransform,
     last_auto_bounds: Vec2b,
@@ -1355,7 +1362,7 @@ pub struct PlotUi {
     ctx: Context,
 }
 
-impl PlotUi {
+impl<'data> PlotUi<'data> {
     fn auto_color(&mut self) -> Color32 {
         let i = self.next_auto_color_idx;
         self.next_auto_color_idx += 1;
@@ -1435,7 +1442,7 @@ impl PlotUi {
     }
 
     /// Add a data line.
-    pub fn line(&mut self, mut line: Line) {
+    pub fn line(&mut self, mut line: Line<'data>) {
         if line.series.is_empty() {
             return;
         };
@@ -1448,7 +1455,7 @@ impl PlotUi {
     }
 
     /// Add a polygon. The polygon has to be convex.
-    pub fn polygon(&mut self, mut polygon: Polygon) {
+    pub fn polygon(&mut self, mut polygon: Polygon<'data>) {
         if polygon.series.is_empty() {
             return;
         };
@@ -1470,7 +1477,7 @@ impl PlotUi {
     }
 
     /// Add data points.
-    pub fn points(&mut self, mut points: Points) {
+    pub fn points(&mut self, mut points: Points<'data>) {
         if points.series.is_empty() {
             return;
         };
@@ -1483,7 +1490,7 @@ impl PlotUi {
     }
 
     /// Add arrows.
-    pub fn arrows(&mut self, mut arrows: Arrows) {
+    pub fn arrows(&mut self, mut arrows: Arrows<'data>) {
         if arrows.origins.is_empty() || arrows.tips.is_empty() {
             return;
         };
@@ -1622,8 +1629,8 @@ pub fn uniform_grid_spacer(spacer: impl Fn(GridInput) -> [f64; 3] + 'static) -> 
 
 // ----------------------------------------------------------------------------
 
-struct PreparedPlot {
-    items: Vec<Box<dyn PlotItem>>,
+struct PreparedPlot<'data> {
+    items: Vec<Box<dyn PlotItem + 'data>>,
     show_x: bool,
     show_y: bool,
     label_formatter: LabelFormatter,
@@ -1640,7 +1647,7 @@ struct PreparedPlot {
     clamp_grid: bool,
 }
 
-impl PreparedPlot {
+impl<'data> PreparedPlot<'data> {
     fn ui(self, ui: &mut Ui, response: &Response) -> Vec<Cursor> {
         let mut axes_shapes = Vec::new();
 

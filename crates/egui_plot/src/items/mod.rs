@@ -357,8 +357,8 @@ impl PlotItem for VLine {
 }
 
 /// A series of values forming a path.
-pub struct Line {
-    pub(super) series: PlotPoints,
+pub struct Line<'data> {
+    pub(super) series: PlotPoints<'data>,
     pub(super) stroke: Stroke,
     pub(super) name: String,
     pub(super) highlight: bool,
@@ -366,8 +366,8 @@ pub struct Line {
     pub(super) style: LineStyle,
 }
 
-impl Line {
-    pub fn new(series: impl Into<PlotPoints>) -> Self {
+impl<'data> Line<'data> {
+    pub fn new(series: impl Into<PlotPoints<'data>>) -> Self {
         Self {
             series: series.into(),
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
@@ -441,7 +441,7 @@ fn y_intersection(p1: &Pos2, p2: &Pos2, y: f32) -> Option<f32> {
         .then_some(((y * (p1.x - p2.x)) - (p1.x * p2.y - p1.y * p2.x)) / (p1.y - p2.y))
 }
 
-impl PlotItem for Line {
+impl<'data> PlotItem for Line<'data> {
     fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let Self {
             series,
@@ -531,8 +531,8 @@ impl PlotItem for Line {
 }
 
 /// A convex polygon.
-pub struct Polygon {
-    pub(super) series: PlotPoints,
+pub struct Polygon<'data> {
+    pub(super) series: PlotPoints<'data>,
     pub(super) stroke: Stroke,
     pub(super) name: String,
     pub(super) highlight: bool,
@@ -540,8 +540,8 @@ pub struct Polygon {
     pub(super) style: LineStyle,
 }
 
-impl Polygon {
-    pub fn new(series: impl Into<PlotPoints>) -> Self {
+impl<'data> Polygon<'data> {
+    pub fn new(series: impl Into<PlotPoints<'data>>) -> Self {
         Self {
             series: series.into(),
             stroke: Stroke::new(1.0, Color32::TRANSPARENT),
@@ -602,7 +602,7 @@ impl Polygon {
     }
 }
 
-impl PlotItem for Polygon {
+impl<'data> PlotItem for Polygon<'data> {
     fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let Self {
             series,
@@ -773,8 +773,8 @@ impl PlotItem for Text {
 }
 
 /// A set of points.
-pub struct Points {
-    pub(super) series: PlotPoints,
+pub struct Points<'data> {
+    pub(super) series: PlotPoints<'data>,
 
     pub(super) shape: MarkerShape,
 
@@ -794,8 +794,8 @@ pub struct Points {
     pub(super) stems: Option<f32>,
 }
 
-impl Points {
-    pub fn new(series: impl Into<PlotPoints>) -> Self {
+impl<'data> Points<'data> {
+    pub fn new(series: impl Into<PlotPoints<'data>>) -> Self {
         Self {
             series: series.into(),
             shape: MarkerShape::Circle,
@@ -864,7 +864,7 @@ impl Points {
     }
 }
 
-impl PlotItem for Points {
+impl<'data> PlotItem for Points<'data> {
     fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         let sqrt_3 = 3_f32.sqrt();
         let frac_sqrt_3_2 = 3_f32.sqrt() / 2.0;
@@ -1023,17 +1023,17 @@ impl PlotItem for Points {
 }
 
 /// A set of arrows.
-pub struct Arrows {
-    pub(super) origins: PlotPoints,
-    pub(super) tips: PlotPoints,
+pub struct Arrows<'data> {
+    pub(super) origins: PlotPoints<'data>,
+    pub(super) tips: PlotPoints<'data>,
     pub(super) tip_length: Option<f32>,
     pub(super) color: Color32,
     pub(super) name: String,
     pub(super) highlight: bool,
 }
 
-impl Arrows {
-    pub fn new(origins: impl Into<PlotPoints>, tips: impl Into<PlotPoints>) -> Self {
+impl<'data> Arrows<'data> {
+    pub fn new(origins: impl Into<PlotPoints<'data>>, tips: impl Into<PlotPoints<'data>>) -> Self {
         Self {
             origins: origins.into(),
             tips: tips.into(),
@@ -1079,7 +1079,7 @@ impl Arrows {
     }
 }
 
-impl PlotItem for Arrows {
+impl<'data> PlotItem for Arrows<'data> {
     fn shapes(&self, _ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
         use crate::emath::*;
         let Self {
