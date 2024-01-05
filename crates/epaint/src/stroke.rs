@@ -4,7 +4,7 @@ use super::*;
 
 /// Describes the width and color of a line.
 ///
-/// The default stroke is the same as [`Stroke::none`].
+/// The default stroke is the same as [`Stroke::NONE`].
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct Stroke {
@@ -18,12 +18,6 @@ impl Stroke {
         width: 0.0,
         color: Color32::TRANSPARENT,
     };
-
-    #[deprecated = "Use Stroke::NONE instead"]
-    #[inline(always)]
-    pub fn none() -> Self {
-        Self::new(0.0, Color32::TRANSPARENT)
-    }
 
     #[inline]
     pub fn new(width: impl Into<f32>, color: impl Into<Color32>) -> Self {

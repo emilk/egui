@@ -127,8 +127,6 @@ pub type Result<T, E = LoadError> = std::result::Result<T, E>;
 /// Used mostly for rendering SVG:s to a good size.
 ///
 /// All variants will preserve the original aspect ratio.
-///
-/// Similar to `usvg::FitTo`.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SizeHint {
     /// Scale original size by some factor.
@@ -145,12 +143,14 @@ pub enum SizeHint {
 }
 
 impl Default for SizeHint {
+    #[inline]
     fn default() -> Self {
         Self::Scale(1.0.ord())
     }
 }
 
 impl From<Vec2> for SizeHint {
+    #[inline]
     fn from(value: Vec2) -> Self {
         Self::Size(value.x.round() as u32, value.y.round() as u32)
     }
@@ -412,6 +412,7 @@ impl From<(TextureId, Vec2)> for SizedTexture {
 }
 
 impl<'a> From<&'a TextureHandle> for SizedTexture {
+    #[inline]
     fn from(handle: &'a TextureHandle) -> Self {
         Self::from_handle(handle)
     }
@@ -435,10 +436,19 @@ pub enum TexturePoll {
 }
 
 impl TexturePoll {
-    pub fn size(self) -> Option<Vec2> {
+    #[inline]
+    pub fn size(&self) -> Option<Vec2> {
         match self {
-            TexturePoll::Pending { size } => size,
+            TexturePoll::Pending { size } => *size,
             TexturePoll::Ready { texture } => Some(texture.size),
+        }
+    }
+
+    #[inline]
+    pub fn texture_id(&self) -> Option<TextureId> {
+        match self {
+            TexturePoll::Pending { .. } => None,
+            TexturePoll::Ready { texture } => Some(texture.id),
         }
     }
 }

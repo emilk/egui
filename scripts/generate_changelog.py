@@ -191,6 +191,8 @@ def main() -> None:
                     unsorted_prs.append(summary)
 
     print()
+    print(f"Full diff at https://github.com/emilk/egui/compare/{COMMIT_RANGE}")
+    print()
     for crate in crate_names:
         if crate in sections:
             summary = sections[crate]

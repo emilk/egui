@@ -38,9 +38,9 @@ syntect = ["egui_extras/syntect"]
 
 
 [dependencies]
-egui = { version = "0.24.0", path = "../egui", default-features = false }
-egui_extras = { version = "0.24.0", path = "../egui_extras" }
-egui_plot = { version = "0.24.0", path = "../egui_plot" }
+egui = { version = "0.24.1", path = "../egui", default-features = false }
+egui_extras = { version = "0.24.1", path = "../egui_extras" }
+egui_plot = { version = "0.24.1", path = "../egui_plot" }
 log = { version = "0.4", features = ["std"] }
 unicode_names2 = { version = "0.6.0", default-features = false }          # this old version has fewer dependencies
 
@@ -52,7 +52,7 @@ serde = { version = "1", optional = true, features = ["derive"] }
 
 
 [dev-dependencies]
-criterion = { version = "0.4", default-features = false }
+criterion.workspace = true
 
 
 [[bench]]

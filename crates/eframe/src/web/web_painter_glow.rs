@@ -15,7 +15,7 @@ pub(crate) struct WebPainterGlow {
 }
 
 impl WebPainterGlow {
-    pub fn gl(&self) -> &std::rc::Rc<glow::Context> {
+    pub fn gl(&self) -> &std::sync::Arc<glow::Context> {
         self.painter.gl()
     }
 
@@ -24,7 +24,8 @@ impl WebPainterGlow {
 
         let (gl, shader_prefix) =
             init_glow_context_from_canvas(&canvas, options.webgl_context_option)?;
-        let gl = std::rc::Rc::new(gl);
+        #[allow(clippy::arc_with_non_send_sync)]
+        let gl = std::sync::Arc::new(gl);
 
         let painter = egui_glow::Painter::new(gl, shader_prefix, None)
             .map_err(|err| format!("Error starting glow painter: {err}"))?;

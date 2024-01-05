@@ -68,11 +68,14 @@ impl ViewportState {
 
         let viewport = ViewportBuilder::default()
             .with_title(&title)
-            .with_inner_size([450.0, 400.0]);
+            .with_inner_size([500.0, 500.0]);
 
         if immediate {
             let mut vp_state = vp_state.write();
             ctx.show_viewport_immediate(vp_id, viewport, move |ctx, class| {
+                if ctx.input(|i| i.viewport().close_requested()) {
+                    vp_state.visible = false;
+                }
                 show_as_popup(ctx, class, &title, vp_id.into(), |ui: &mut egui::Ui| {
                     generic_child_ui(ui, &mut vp_state);
                 });
@@ -81,6 +84,9 @@ impl ViewportState {
             let count = Arc::new(RwLock::new(0));
             ctx.show_viewport_deferred(vp_id, viewport, move |ctx, class| {
                 let mut vp_state = vp_state.write();
+                if ctx.input(|i| i.viewport().close_requested()) {
+                    vp_state.visible = false;
+                }
                 let count = count.clone();
                 show_as_popup(
                     ctx,
@@ -220,22 +226,36 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>]) {
         ctx.parent_viewport_id()
     ));
 
-    ui.add_space(8.0);
+    ui.collapsing("Info", |ui| {
+        ui.label(format!("zoom_factor: {}", ctx.zoom_factor()));
+        ui.label(format!("pixels_per_point: {}", ctx.pixels_per_point()));
 
-    if let Some(inner_rect) = ctx.input(|i| i.viewport().inner_rect) {
-        ui.label(format!(
-            "Inner Rect: Pos: {:?}, Size: {:?}",
-            inner_rect.min,
-            inner_rect.size()
-        ));
-    }
-    if let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect) {
-        ui.label(format!(
-            "Outer Rect: Pos: {:?}, Size: {:?}",
-            outer_rect.min,
-            outer_rect.size()
-        ));
-    }
+        if let Some(native_pixels_per_point) = ctx.input(|i| i.viewport().native_pixels_per_point) {
+            ui.label(format!(
+                "native_pixels_per_point: {native_pixels_per_point:?}"
+            ));
+        }
+        if let Some(monitor_size) = ctx.input(|i| i.viewport().monitor_size) {
+            ui.label(format!("monitor_size: {monitor_size:?} (points)"));
+        }
+        if let Some(screen_rect) = ui.input(|i| i.raw.screen_rect) {
+            ui.label(format!("Screen rect size: Pos: {:?}", screen_rect.size()));
+        }
+        if let Some(inner_rect) = ctx.input(|i| i.viewport().inner_rect) {
+            ui.label(format!(
+                "Inner Rect: Pos: {:?}, Size: {:?} (points)",
+                inner_rect.min,
+                inner_rect.size()
+            ));
+        }
+        if let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect) {
+            ui.label(format!(
+                "Outer Rect: Pos: {:?}, Size: {:?} (points)",
+                outer_rect.min,
+                outer_rect.size()
+            ));
+        }
+    });
 
     if ctx.viewport_id() != ctx.parent_viewport_id() {
         let parent = ctx.parent_viewport_id();

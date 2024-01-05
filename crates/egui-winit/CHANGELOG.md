@@ -2,7 +2,12 @@
 All notable changes to the `egui-winit` integration will be noted in this file.
 
 This file is updated upon each release.
-Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
+Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
+
+
+## 0.24.1 - 2023-11-30
+* Don't treat `WindowEvent::CloseRequested` as consumed [#3627](https://github.com/emilk/egui/pull/3627) (thanks [@Aaron1011](https://github.com/Aaron1011)!)
+* Fix windowing problems when using the `x11` feature on Linux [#3643](https://github.com/emilk/egui/pull/3643)
 
 
 ## 0.24.0 - 2023-11-23

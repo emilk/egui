@@ -1,26 +1,45 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+
 use eframe::egui;
 
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     start_puffin_server(); // NOTE: you may only want to call this if the users specifies some flag or clicks a button!
-    let options = eframe::NativeOptions::default();
+
     eframe::run_native(
         "My egui App",
-        options,
+        eframe::NativeOptions {
+            viewport: egui::ViewportBuilder::default(),
+
+            #[cfg(feature = "wgpu")]
+            renderer: eframe::Renderer::Wgpu,
+
+            ..Default::default()
+        },
         Box::new(|_cc| Box::<MyApp>::default()),
     )
 }
 
 struct MyApp {
     keep_repainting: bool,
+
+    // It is useful to be able t oinspect how eframe acts with multiple viewport
+    // so we have two viewports here that we can toggle on/off.
+    show_immediate_viewport: bool,
+    show_deferred_viewport: Arc<AtomicBool>,
 }
 
 impl Default for MyApp {
     fn default() -> Self {
         Self {
             keep_repainting: true,
+            show_immediate_viewport: Default::default(),
+            show_deferred_viewport: Default::default(),
         }
     }
 }
@@ -63,12 +82,86 @@ impl eframe::App for MyApp {
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }
 
-            {
-                // Sleep a bit to emulate some work:
-                puffin::profile_scope!("small_sleep");
-                std::thread::sleep(std::time::Duration::from_millis(10));
-            }
+            ui.checkbox(
+                &mut self.show_immediate_viewport,
+                "Show immediate child viewport",
+            );
+
+            let mut show_deferred_viewport = self.show_deferred_viewport.load(Ordering::Relaxed);
+            ui.checkbox(&mut show_deferred_viewport, "Show deferred child viewport");
+            self.show_deferred_viewport
+                .store(show_deferred_viewport, Ordering::Relaxed);
         });
+
+        {
+            // Sleep a bit to emulate some work:
+            puffin::profile_scope!("small_sleep");
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+
+        if self.show_immediate_viewport {
+            ctx.show_viewport_immediate(
+                egui::ViewportId::from_hash_of("immediate_viewport"),
+                egui::ViewportBuilder::default()
+                    .with_title("Immediate Viewport")
+                    .with_inner_size([200.0, 100.0]),
+                |ctx, class| {
+                    puffin::profile_scope!("immediate_viewport");
+
+                    assert!(
+                        class == egui::ViewportClass::Immediate,
+                        "This egui backend doesn't support multiple viewports"
+                    );
+
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        ui.label("Hello from immediate viewport");
+                    });
+
+                    if ctx.input(|i| i.viewport().close_requested()) {
+                        // Tell parent viewport that we should not show next frame:
+                        self.show_immediate_viewport = false;
+                    }
+
+                    {
+                        // Sleep a bit to emulate some work:
+                        puffin::profile_scope!("small_sleep");
+                        std::thread::sleep(std::time::Duration::from_millis(10));
+                    }
+                },
+            );
+        }
+
+        if self.show_deferred_viewport.load(Ordering::Relaxed) {
+            let show_deferred_viewport = self.show_deferred_viewport.clone();
+            ctx.show_viewport_deferred(
+                egui::ViewportId::from_hash_of("deferred_viewport"),
+                egui::ViewportBuilder::default()
+                    .with_title("Deferred Viewport")
+                    .with_inner_size([200.0, 100.0]),
+                move |ctx, class| {
+                    puffin::profile_scope!("deferred_viewport");
+
+                    assert!(
+                        class == egui::ViewportClass::Deferred,
+                        "This egui backend doesn't support multiple viewports"
+                    );
+
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        ui.label("Hello from deferred viewport");
+                    });
+                    if ctx.input(|i| i.viewport().close_requested()) {
+                        // Tell parent to close us.
+                        show_deferred_viewport.store(false, Ordering::Relaxed);
+                    }
+
+                    {
+                        // Sleep a bit to emulate some work:
+                        puffin::profile_scope!("small_sleep");
+                        std::thread::sleep(std::time::Duration::from_millis(10));
+                    }
+                },
+            );
+        }
     }
 }
 

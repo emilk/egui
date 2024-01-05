@@ -152,12 +152,6 @@ impl Frame {
         self
     }
 
-    #[deprecated = "Renamed inner_margin in egui 0.18"]
-    #[inline]
-    pub fn margin(self, margin: impl Into<Margin>) -> Self {
-        self.inner_margin(margin)
-    }
-
     #[inline]
     pub fn shadow(mut self, shadow: Shadow) -> Self {
         self.shadow = shadow;

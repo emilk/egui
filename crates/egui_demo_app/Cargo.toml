@@ -19,7 +19,7 @@ crate-type = ["cdylib", "rlib"]
 default = ["glow", "persistence"]
 
 # image_viewer adds about 0.9 MB of WASM
-web_app = ["http", "persistence", "web_screen_reader"]
+web_app = ["http", "persistence"]
 
 http = ["ehttp", "image", "poll-promise", "egui_extras/image"]
 image_viewer = ["image", "egui_extras/all_loaders", "rfd"]
@@ -27,7 +27,6 @@ persistence = ["eframe/persistence", "egui/persistence", "serde"]
 puffin = ["eframe/puffin", "dep:puffin", "dep:puffin_http"]
 serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]
 syntect = ["egui_demo_lib/syntect"]
-web_screen_reader = ["eframe/web_screen_reader"]                  # experimental
 
 glow = ["eframe/glow"]
 wgpu = ["eframe/wgpu", "bytemuck"]
@@ -37,16 +36,18 @@ chrono = { version = "0.4", default-features = false, features = [
   "js-sys",
   "wasmbind",
 ] }
-eframe = { version = "0.24.0", path = "../eframe", default-features = false }
-egui = { version = "0.24.0", path = "../egui", features = [
+eframe = { version = "0.24.1", path = "../eframe", default-features = false, features = [
+  "web_screen_reader",
+] }
+egui = { version = "0.24.1", path = "../egui", features = [
   "callstack",
   "extra_debug_asserts",
   "log",
 ] }
-egui_demo_lib = { version = "0.24.0", path = "../egui_demo_lib", features = [
+egui_demo_lib = { version = "0.24.1", path = "../egui_demo_lib", features = [
   "chrono",
 ] }
-egui_extras = { version = "0.24.0", path = "../egui_extras", features = [
+egui_extras = { version = "0.24.1", path = "../egui_extras", features = [
   "image",
 ] }
 log = { version = "0.4", features = ["std"] }
@@ -72,11 +73,14 @@ serde = { version = "1", optional = true, features = ["derive"] }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-env_logger = "0.10"
+env_logger = { version = "0.10", default-features = false, features = [
+  "auto-color",
+  "humantime",
+] }
 rfd = { version = "0.11", optional = true }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "=0.2.88"
+wasm-bindgen = "=0.2.89"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3"

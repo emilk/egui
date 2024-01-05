@@ -1473,6 +1473,7 @@ impl Tessellator {
             galley,
             underline,
             override_text_color,
+            fallback_color,
             angle,
         } = text_shape;
 
@@ -1539,10 +1540,15 @@ impl Tessellator {
                         let Vertex { pos, uv, mut color } = *vertex;
 
                         if let Some(override_text_color) = override_text_color {
+                            // Only override the glyph color (not background color, strike-through color, etc)
                             if row.visuals.glyph_vertex_range.contains(&i) {
                                 color = *override_text_color;
                             }
+                        } else if color == Color32::PLACEHOLDER {
+                            color = *fallback_color;
                         }
+
+                        crate::epaint_assert!(color != Color32::PLACEHOLDER, "A placeholder color made it to the tessellator. You forgot to set a fallback color.");
 
                         let offset = if *angle == 0.0 {
                             pos.to_vec2()

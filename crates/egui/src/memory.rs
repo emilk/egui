@@ -39,7 +39,7 @@ pub struct Memory {
     ///
     /// This will be saved between different program runs if you use the `persistence` feature.
     ///
-    /// To store a state common for all your widgets (a singleton), use [`Id::null`] as the key.
+    /// To store a state common for all your widgets (a singleton), use [`Id::NULL`] as the key.
     pub data: crate::util::IdTypeMap,
 
     // ------------------------------------------
@@ -199,7 +199,7 @@ pub struct Options {
     ///
     /// Screen readers is an experimental feature of egui, and not supported on all platforms.
     ///
-    /// `eframe` supports it only on web, using the `web_screen_reader` feature flag,
+    /// `eframe` supports it only on web,
     /// but you should consider using [AccessKit](https://github.com/AccessKit/accesskit) instead,
     /// which `eframe` supports.
     pub screen_reader: bool,
@@ -664,22 +664,6 @@ impl Memory {
                 }
             }
         }
-    }
-
-    /// Set an event filter for a widget.
-    ///
-    /// You must first give focus to the widget before calling this.
-    #[deprecated = "Use set_focus_lock_filter instead"]
-    pub fn lock_focus(&mut self, id: Id, lock_focus: bool) {
-        self.set_focus_lock_filter(
-            id,
-            EventFilter {
-                tab: lock_focus,
-                horizontal_arrows: lock_focus,
-                vertical_arrows: lock_focus,
-                escape: false,
-            },
-        );
     }
 
     /// Give keyboard focus to a specific widget.

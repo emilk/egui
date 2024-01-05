@@ -210,8 +210,9 @@ impl Widget for Button<'_> {
             text_wrap_width -= 60.0; // Some space for the shortcut text (which we never wrap).
         }
 
-        let text = text.map(|text| text.into_galley(ui, wrap, text_wrap_width, TextStyle::Button));
-        let shortcut_text = (!shortcut_text.is_empty())
+        let galley =
+            text.map(|text| text.into_galley(ui, wrap, text_wrap_width, TextStyle::Button));
+        let shortcut_galley = (!shortcut_text.is_empty())
             .then(|| shortcut_text.into_galley(ui, Some(false), f32::INFINITY, TextStyle::Button));
 
         let mut desired_size = Vec2::ZERO;
@@ -219,14 +220,14 @@ impl Widget for Button<'_> {
             desired_size.x += image_size.x;
             desired_size.y = desired_size.y.max(image_size.y);
         }
-        if image.is_some() && text.is_some() {
+        if image.is_some() && galley.is_some() {
             desired_size.x += ui.spacing().icon_spacing;
         }
-        if let Some(text) = &text {
+        if let Some(text) = &galley {
             desired_size.x += text.size().x;
             desired_size.y = desired_size.y.max(text.size().y);
         }
-        if let Some(shortcut_text) = &shortcut_text {
+        if let Some(shortcut_text) = &shortcut_galley {
             desired_size.x += ui.spacing().item_spacing.x + shortcut_text.size().x;
             desired_size.y = desired_size.y.max(shortcut_text.size().y);
         }
@@ -238,8 +239,8 @@ impl Widget for Button<'_> {
 
         let (rect, mut response) = ui.allocate_at_least(desired_size, sense);
         response.widget_info(|| {
-            if let Some(text) = &text {
-                WidgetInfo::labeled(WidgetType::Button, text.text())
+            if let Some(galley) = &galley {
+                WidgetInfo::labeled(WidgetType::Button, galley.text())
             } else {
                 WidgetInfo::new(WidgetType::Button)
             }
@@ -297,30 +298,30 @@ impl Widget for Button<'_> {
                     widgets::image::texture_load_result_response(image.source(), &tlr, response);
             }
 
-            if image.is_some() && text.is_some() {
+            if image.is_some() && galley.is_some() {
                 cursor_x += ui.spacing().icon_spacing;
             }
 
-            if let Some(text) = text {
-                let text_pos = if image.is_some() || shortcut_text.is_some() {
-                    pos2(cursor_x, rect.center().y - 0.5 * text.size().y)
+            if let Some(galley) = galley {
+                let text_pos = if image.is_some() || shortcut_galley.is_some() {
+                    pos2(cursor_x, rect.center().y - 0.5 * galley.size().y)
                 } else {
                     // Make sure button text is centered if within a centered layout
                     ui.layout()
-                        .align_size_within_rect(text.size(), rect.shrink2(button_padding))
+                        .align_size_within_rect(galley.size(), rect.shrink2(button_padding))
                         .min
                 };
-                text.paint_with_visuals(ui.painter(), text_pos, visuals);
+                ui.painter().galley(text_pos, galley, visuals.text_color());
             }
 
-            if let Some(shortcut_text) = shortcut_text {
+            if let Some(shortcut_galley) = shortcut_galley {
                 let shortcut_text_pos = pos2(
-                    rect.max.x - button_padding.x - shortcut_text.size().x,
-                    rect.center().y - 0.5 * shortcut_text.size().y,
+                    rect.max.x - button_padding.x - shortcut_galley.size().x,
+                    rect.center().y - 0.5 * shortcut_galley.size().y,
                 );
-                shortcut_text.paint_with_fallback_color(
-                    ui.painter(),
+                ui.painter().galley(
                     shortcut_text_pos,
+                    shortcut_galley,
                     ui.visuals().weak_text_color(),
                 );
             }
@@ -378,18 +379,18 @@ impl<'a> Widget for Checkbox<'a> {
         let icon_width = spacing.icon_width;
         let icon_spacing = spacing.icon_spacing;
 
-        let (text, mut desired_size) = if text.is_empty() {
+        let (galley, mut desired_size) = if text.is_empty() {
             (None, vec2(icon_width, 0.0))
         } else {
             let total_extra = vec2(icon_width + icon_spacing, 0.0);
 
             let wrap_width = ui.available_width() - total_extra.x;
-            let text = text.into_galley(ui, None, wrap_width, TextStyle::Button);
+            let galley = text.into_galley(ui, None, wrap_width, TextStyle::Button);
 
-            let mut desired_size = total_extra + text.size();
+            let mut desired_size = total_extra + galley.size();
             desired_size = desired_size.at_least(spacing.interact_size);
 
-            (Some(text), desired_size)
+            (Some(galley), desired_size)
         };
 
         desired_size = desired_size.at_least(Vec2::splat(spacing.interact_size.y));
@@ -404,7 +405,7 @@ impl<'a> Widget for Checkbox<'a> {
             WidgetInfo::selected(
                 WidgetType::Checkbox,
                 *checked,
-                text.as_ref().map_or("", |x| x.text()),
+                galley.as_ref().map_or("", |x| x.text()),
             )
         });
 
@@ -430,12 +431,12 @@ impl<'a> Widget for Checkbox<'a> {
                     visuals.fg_stroke,
                 ));
             }
-            if let Some(text) = text {
+            if let Some(galley) = galley {
                 let text_pos = pos2(
                     rect.min.x + icon_width + icon_spacing,
-                    rect.center().y - 0.5 * text.size().y,
+                    rect.center().y - 0.5 * galley.size().y,
                 );
-                text.paint_with_visuals(ui.painter(), text_pos, visuals);
+                ui.painter().galley(text_pos, galley, visuals.text_color());
             }
         }
 
@@ -487,7 +488,7 @@ impl Widget for RadioButton {
         let icon_width = spacing.icon_width;
         let icon_spacing = spacing.icon_spacing;
 
-        let (text, mut desired_size) = if text.is_empty() {
+        let (galley, mut desired_size) = if text.is_empty() {
             (None, vec2(icon_width, 0.0))
         } else {
             let total_extra = vec2(icon_width + icon_spacing, 0.0);
@@ -509,7 +510,7 @@ impl Widget for RadioButton {
             WidgetInfo::selected(
                 WidgetType::RadioButton,
                 checked,
-                text.as_ref().map_or("", |x| x.text()),
+                galley.as_ref().map_or("", |x| x.text()),
             )
         });
 
@@ -538,12 +539,12 @@ impl Widget for RadioButton {
                 });
             }
 
-            if let Some(text) = text {
+            if let Some(galley) = galley {
                 let text_pos = pos2(
                     rect.min.x + icon_width + icon_spacing,
-                    rect.center().y - 0.5 * text.size().y,
+                    rect.center().y - 0.5 * galley.size().y,
                 );
-                text.paint_with_visuals(ui.painter(), text_pos, visuals);
+                ui.painter().galley(text_pos, galley, visuals.text_color());
             }
         }
 

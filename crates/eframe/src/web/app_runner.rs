@@ -13,8 +13,7 @@ pub struct AppRunner {
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     last_save_time: f64,
-    screen_reader: super::screen_reader::ScreenReader,
-    pub(crate) text_cursor_pos: Option<egui::Pos2>,
+    pub(crate) ime: Option<egui::output::IMEOutput>,
     pub(crate) mutable_text_under_cursor: bool,
 
     // Output for the last run:
@@ -113,8 +112,7 @@ impl AppRunner {
             app,
             needs_repaint,
             last_save_time: now_sec(),
-            screen_reader: Default::default(),
-            text_cursor_pos: None,
+            ime: None,
             mutable_text_under_cursor: false,
             textures_delta: Default::default(),
             clipped_primitives: None,
@@ -235,9 +233,9 @@ impl AppRunner {
     }
 
     fn handle_platform_output(&mut self, platform_output: egui::PlatformOutput) {
+        #[cfg(feature = "web_screen_reader")]
         if self.egui_ctx.options(|o| o.screen_reader) {
-            self.screen_reader
-                .speak(&platform_output.events_description());
+            super::screen_reader::speak(&platform_output.events_description());
         }
 
         let egui::PlatformOutput {
@@ -246,7 +244,7 @@ impl AppRunner {
             copied_text,
             events: _, // already handled
             mutable_text_under_cursor,
-            text_cursor_pos,
+            ime,
             #[cfg(feature = "accesskit")]
                 accesskit_update: _, // not currently implemented
         } = platform_output;
@@ -266,9 +264,9 @@ impl AppRunner {
 
         self.mutable_text_under_cursor = mutable_text_under_cursor;
 
-        if self.text_cursor_pos != text_cursor_pos {
-            super::text_agent::move_text_cursor(text_cursor_pos, self.canvas_id());
-            self.text_cursor_pos = text_cursor_pos;
+        if self.ime != ime {
+            super::text_agent::move_text_cursor(ime, self.canvas_id());
+            self.ime = ime;
         }
     }
 }

@@ -2,7 +2,11 @@
 All notable changes to the `egui_plot` integration will be noted in this file.
 
 This file is updated upon each release.
-Changes since the last release can be found by running the `scripts/generate_changelog.py` script.
+Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
+
+
+## 0.24.1 - 2024-12-03
+* Fix plot auto-bounds default [#3722](https://github.com/emilk/egui/pull/3722) (thanks [@abey79](https://github.com/abey79)!)
 
 
 ## 0.24.0 - 2023-11-23
