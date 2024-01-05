@@ -689,6 +689,15 @@ impl State {
 
         let logical_key = key_from_winit_key(logical_key);
 
+        // Helpful logging to enable when adding new key support
+        log::trace!(
+            "logical {:?} -> {:?},  physical {:?} -> {:?}",
+            event.logical_key,
+            logical_key,
+            event.physical_key,
+            physical_key
+        );
+
         if let Some(logical_key) = logical_key {
             if pressed {
                 if is_cut_command(self.egui_input.modifiers, logical_key) {
@@ -1064,9 +1073,8 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
 
         KeyCode::Minus | KeyCode::NumpadSubtract => Key::Minus,
 
-        // Using Mac the key with the Plus sign on it is reported as the Equals key
-        // (with both English and Swedish keyboard).
-        KeyCode::Equal | KeyCode::NumpadAdd => Key::PlusEquals,
+        KeyCode::NumpadAdd => Key::Plus,
+        KeyCode::Equal => Key::Equals,
 
         KeyCode::Digit0 | KeyCode::Numpad0 => Key::Num0,
         KeyCode::Digit1 | KeyCode::Numpad1 => Key::Num1,

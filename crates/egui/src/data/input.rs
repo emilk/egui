@@ -655,13 +655,68 @@ impl Modifiers {
         !self.alt && !self.shift && self.command
     }
 
-    /// Check for equality but with proper handling of [`Self::command`].
+    /// Checks that the `ctrl/cmd` matches, and that the `shift/alt` of the argument is a subset
+    /// of the pressed ksey (`self`).
+    ///
+    /// This means that if the pattern has not set `shift`, then `self` can have `shift` set or not.
+    ///
+    /// The reason is that many logical keys require `shift` or `alt` on some keyboard layouts.
+    /// For instance, in order to press `+` on an English keyboard, you need to press `shift` and `=`,
+    /// but a Swedish keyboard has dedicated `+` key.
+    /// So if you want to make a [`KeyboardShortcut`] looking for `Cmd` + `+`, it makes sense
+    /// to ignore the shift key.
+    /// Similarly, the `Alt` key is sometimes used to type special characters.
+    ///
+    /// However, if the pattern (the argument) explicitly requires the `shift` or `alt` keys
+    /// to be pressed, then they must be pressed.
     ///
     /// # Example:
     /// ```
     /// # use egui::Modifiers;
-    /// # let current_modifiers = Modifiers::default();
-    /// if current_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
+    /// # let pressed_modifiers = Modifiers::default();
+    /// if pressed_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
+    ///     // Alt and Shift are pressed, and nothing else
+    /// }
+    /// ```
+    ///
+    /// ## Behavior:
+    /// ```
+    /// # use egui::Modifiers;
+    /// assert!(Modifiers::CTRL.matches_logically(Modifiers::CTRL));
+    /// assert!(!Modifiers::CTRL.matches_logically(Modifiers::CTRL | Modifiers::SHIFT));
+    /// assert!((Modifiers::CTRL | Modifiers::SHIFT).matches_logically(Modifiers::CTRL));
+    /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches_logically(Modifiers::CTRL));
+    /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches_logically(Modifiers::COMMAND));
+    /// assert!((Modifiers::MAC_CMD | Modifiers::COMMAND).matches_logically(Modifiers::COMMAND));
+    /// assert!(!Modifiers::COMMAND.matches_logically(Modifiers::MAC_CMD));
+    /// ```
+    pub fn matches_logically(&self, pattern: Modifiers) -> bool {
+        if pattern.alt && !self.alt {
+            return false;
+        }
+        if pattern.shift && !self.shift {
+            return false;
+        }
+
+        self.cmd_ctrl_matches(pattern)
+    }
+
+    /// Check for equality but with proper handling of [`Self::command`].
+    ///
+    /// `self` here are the currently pressed modifiers,
+    /// and the argument the pattern we are testing for.
+    ///
+    /// Note that this will require the `shift` and `alt` keys match, even though
+    /// these modifiers are sometimes required to produce some logical keys.
+    /// For instance, to press `+` on an English keyboard, you need to press `shift` and `=`,
+    /// but on a Swedish keyboard you can press the dedicated `+` key.
+    /// Therefore, you often want to use [`Self::matches_logically`] instead.
+    ///
+    /// # Example:
+    /// ```
+    /// # use egui::Modifiers;
+    /// # let pressed_modifiers = Modifiers::default();
+    /// if pressed_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
     ///     // Alt and Shift are pressed, and nothing else
     /// }
     /// ```
@@ -677,12 +732,28 @@ impl Modifiers {
     /// assert!((Modifiers::MAC_CMD | Modifiers::COMMAND).matches(Modifiers::COMMAND));
     /// assert!(!Modifiers::COMMAND.matches(Modifiers::MAC_CMD));
     /// ```
-    pub fn matches(&self, pattern: Modifiers) -> bool {
+    pub fn matches_exact(&self, pattern: Modifiers) -> bool {
         // alt and shift must always match the pattern:
         if pattern.alt != self.alt || pattern.shift != self.shift {
             return false;
         }
 
+        self.cmd_ctrl_matches(pattern)
+    }
+
+    #[deprecated = "Renamed `matches_exact`, but maybe you want to use `matches_logically` instead"]
+    pub fn matches(&self, pattern: Modifiers) -> bool {
+        self.matches_exact(pattern)
+    }
+
+    /// Checks only cmd/ctrl, not alt/shift.
+    ///
+    /// `self` here are the currently pressed modifiers,
+    /// and the argument the pattern we are testing for.
+    ///
+    /// This takes care to properly handle the difference between
+    /// [`Self::ctrl`], [`Self::command`] and [`Self::mac_cmd`].
+    pub fn cmd_ctrl_matches(&self, pattern: Modifiers) -> bool {
         if pattern.mac_cmd {
             // Mac-specific match:
             if !self.mac_cmd {
@@ -897,8 +968,11 @@ pub enum Key {
     /// `.`
     Period,
 
-    /// The for the Plus/Equals key.
-    PlusEquals,
+    /// `+`
+    Plus,
+
+    /// `=`
+    Equals,
 
     /// `;`
     Semicolon,
@@ -1017,7 +1091,8 @@ impl Key {
         Self::Comma,
         Self::Minus,
         Self::Period,
-        Self::PlusEquals,
+        Self::Plus,
+        Self::Equals,
         Self::Semicolon,
         // Digits:
         Self::Num0,
@@ -1117,7 +1192,8 @@ impl Key {
             "Comma" | "," => Self::Comma,
             "Minus" | "-" | "−" => Self::Minus,
             "Period" | "." => Self::Period,
-            "Plus" | "+" | "Equals" | "=" => Self::PlusEquals,
+            "Plus" | "+" => Self::Plus,
+            "Equals" | "=" => Self::Equals,
             "Semicolon" | ";" => Self::Semicolon,
 
             "0" => Self::Num0,
@@ -1194,7 +1270,8 @@ impl Key {
             Key::ArrowRight => "⏵",
             Key::ArrowUp => "⏶",
             Key::Minus => crate::MINUS_CHAR_STR,
-            Key::PlusEquals => "+",
+            Key::Plus => "+",
+            Key::Equals => "=",
             _ => self.name(),
         }
     }
@@ -1228,7 +1305,8 @@ impl Key {
             Key::Comma => "Comma",
             Key::Minus => "Minus",
             Key::Period => "Period",
-            Key::PlusEquals => "Plus",
+            Key::Plus => "Plus",
+            Key::Equals => "Equals",
             Key::Semicolon => "Semicolon",
 
             Key::Num0 => "0",
@@ -1327,12 +1405,16 @@ fn test_key_from_name() {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct KeyboardShortcut {
     pub modifiers: Modifiers,
-    pub key: Key,
+
+    pub logical_key: Key,
 }
 
 impl KeyboardShortcut {
-    pub const fn new(modifiers: Modifiers, key: Key) -> Self {
-        Self { modifiers, key }
+    pub const fn new(modifiers: Modifiers, logical_key: Key) -> Self {
+        Self {
+            modifiers,
+            logical_key,
+        }
     }
 
     pub fn format(&self, names: &ModifierNames<'_>, is_mac: bool) -> String {
@@ -1341,9 +1423,9 @@ impl KeyboardShortcut {
             s += names.concat;
         }
         if names.is_short {
-            s += self.key.symbol_or_name();
+            s += self.logical_key.symbol_or_name();
         } else {
-            s += self.key.name();
+            s += self.logical_key.name();
         }
         s
     }
