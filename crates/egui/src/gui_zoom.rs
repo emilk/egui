@@ -11,12 +11,10 @@ pub mod kb_shortcuts {
 
     /// Secondary keyboard shortcut for zooming in (`Cmd` + `=`).
     ///
-    /// On an English keyboard `+` is `Shift` + `=` on,
+    /// On an English keyboard `+` is `Shift` + `=`,
     /// but it is annoying to have to press shift.
     /// So most browsers also allow `Cmd` + `=` for zooming in.
-    ///
-    /// Also, on Mac winit reports `SHIFT =` as `+`, but `CMD SHIFT =` as `=`,
-    /// so we really need to check this.
+    /// We do the same.
     pub const ZOOM_IN_SECONDARY: KeyboardShortcut =
         KeyboardShortcut::new(Modifiers::COMMAND, Key::Equals);
 
