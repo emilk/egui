@@ -48,20 +48,20 @@ impl Display for HexColor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             HexColor::Hex3(color) => {
-                let [r, g, b, _] = color.to_array().map(|u| u >> 4);
+                let [r, g, b, _] = color.to_srgba_unmultiplied().map(|u| u >> 4);
                 f.write_fmt(format_args!("#{r:x}{g:x}{b:x}"))
             }
             HexColor::Hex4(color) => {
-                let [r, g, b, a] = color.to_array().map(|u| u >> 4);
+                let [r, g, b, a] = color.to_srgba_unmultiplied().map(|u| u >> 4);
                 f.write_fmt(format_args!("#{r:x}{g:x}{b:x}{a:x}"))
             }
             HexColor::Hex6(color) => {
-                let [r, g, b, _] = color.to_array();
+                let [r, g, b, _] = color.to_srgba_unmultiplied();
                 let u = u32::from_be_bytes([0, r, g, b]);
                 f.write_fmt(format_args!("#{u:06x}"))
             }
             HexColor::Hex8(color) => {
-                let [r, g, b, a] = color.to_array();
+                let [r, g, b, a] = color.to_srgba_unmultiplied();
                 let u = u32::from_be_bytes([r, g, b, a]);
                 f.write_fmt(format_args!("#{u:08x}"))
             }
@@ -97,11 +97,11 @@ impl HexColor {
                 Ok(HexColor::Hex3(Color32::from_rgb(r, g, b)))
             }
             4 => {
-                let [rg, ba] = u16::from_str_radix(s, 16)
+                let [r_g, b_a] = u16::from_str_radix(s, 16)
                     .map_err(ParseHexColorError::InvalidInt)?
                     .to_be_bytes();
-                let [r, g, b, a] = [rg >> 4, rg & 0x0f, ba >> 4, ba & 0x0f].map(|u| u << 4 | u);
-                Ok(HexColor::Hex4(Color32::from_rgba_premultiplied(r, g, b, a)))
+                let [r, g, b, a] = [r_g >> 4, r_g & 0x0f, b_a >> 4, b_a & 0x0f].map(|u| u << 4 | u);
+                Ok(HexColor::Hex4(Color32::from_rgba_unmultiplied(r, g, b, a)))
             }
             6 => {
                 let [_, r, g, b] = u32::from_str_radix(s, 16)
@@ -113,7 +113,7 @@ impl HexColor {
                 let [r, g, b, a] = u32::from_str_radix(s, 16)
                     .map_err(ParseHexColorError::InvalidInt)?
                     .to_be_bytes();
-                Ok(HexColor::Hex8(Color32::from_rgba_premultiplied(r, g, b, a)))
+                Ok(HexColor::Hex8(Color32::from_rgba_unmultiplied(r, g, b, a)))
             }
             _ => Err(ParseHexColorError::InvalidLength)?,
         }
@@ -207,12 +207,12 @@ mod tests {
     fn hex_string_round_trip() {
         use Color32 as C;
         let cases = [
-            C::from_rgba_premultiplied(10, 20, 30, 0),
-            C::from_rgba_premultiplied(10, 20, 30, 40),
-            C::from_rgba_premultiplied(10, 20, 30, 255),
-            C::from_rgba_premultiplied(0, 20, 30, 0),
-            C::from_rgba_premultiplied(10, 0, 30, 40),
-            C::from_rgba_premultiplied(10, 20, 0, 255),
+            C::from_rgba_unmultiplied(10, 20, 30, 0),
+            C::from_rgba_unmultiplied(10, 20, 30, 40),
+            C::from_rgba_unmultiplied(10, 20, 30, 255),
+            C::from_rgba_unmultiplied(0, 20, 30, 0),
+            C::from_rgba_unmultiplied(10, 0, 30, 40),
+            C::from_rgba_unmultiplied(10, 20, 0, 255),
         ];
         for color in cases {
             assert_eq!(
