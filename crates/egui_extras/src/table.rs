@@ -651,7 +651,7 @@ impl<'a> Table<'a> {
                     widths: widths_ref,
                     max_used_widths: max_used_widths_ref,
                     striped,
-                    row_nr: 0,
+                    row_index: 0,
                     start_y: avail_rect.top(),
                     end_y: avail_rect.bottom(),
                     scroll_to_row: scroll_to_row.map(|(r, _)| r),
@@ -788,7 +788,7 @@ pub struct TableBody<'a> {
     max_used_widths: &'a mut [f32],
 
     striped: bool,
-    row_nr: usize,
+    row_index: usize,
     start_y: f32,
     end_y: f32,
 
@@ -842,22 +842,22 @@ impl<'a> TableBody<'a> {
             columns: self.columns,
             widths: self.widths,
             max_used_widths: self.max_used_widths,
-            row_index: self.row_nr,
+            row_index: self.row_index,
             col_index: 0,
             height,
-            striped: self.striped && self.row_nr % 2 == 0,
-            hovered: self.hovered_row == Some(self.row_nr),
+            striped: self.striped && self.row_index % 2 == 0,
+            hovered: self.hovered_row == Some(self.row_index),
             selected: false,
             response: &mut response,
         });
-        self.capture_hover_state(&response, self.row_nr);
+        self.capture_hover_state(&response, self.row_index);
         let bottom_y = self.layout.cursor.y;
 
-        if Some(self.row_nr) == self.scroll_to_row {
+        if Some(self.row_index) == self.scroll_to_row {
             *self.scroll_to_y_range = Some(Rangef::new(top_y, bottom_y));
         }
 
-        self.row_nr += 1;
+        self.row_index += 1;
     }
 
     /// Add many rows with same height.
@@ -925,7 +925,7 @@ impl<'a> TableBody<'a> {
                 row_index,
                 col_index: 0,
                 height: row_height_sans_spacing,
-                striped: self.striped && (row_index + self.row_nr) % 2 == 0,
+                striped: self.striped && (row_index + self.row_index) % 2 == 0,
                 hovered: self.hovered_row == Some(row_index),
                 selected: false,
                 response: &mut response,
@@ -1006,7 +1006,7 @@ impl<'a> TableBody<'a> {
                     row_index,
                     col_index: 0,
                     height: row_height,
-                    striped: self.striped && (row_index + self.row_nr) % 2 == 0,
+                    striped: self.striped && (row_index + self.row_index) % 2 == 0,
                     hovered: self.hovered_row == Some(row_index),
                     selected: false,
                     response: &mut response,
@@ -1028,7 +1028,7 @@ impl<'a> TableBody<'a> {
                 row_index,
                 col_index: 0,
                 height: row_height,
-                striped: self.striped && (row_index + self.row_nr) % 2 == 0,
+                striped: self.striped && (row_index + self.row_index) % 2 == 0,
                 hovered: self.hovered_row == Some(row_index),
                 selected: false,
                 response: &mut response,

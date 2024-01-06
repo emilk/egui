@@ -148,8 +148,8 @@ impl TableDemo {
             table = table.sense(egui::Sense::click());
         }
 
-        if let Some(row_nr) = self.scroll_to_row.take() {
-            table = table.scroll_to_row(row_nr, None);
+        if let Some(row_index) = self.scroll_to_row.take() {
+            table = table.scroll_to_row(row_index, None);
         }
 
         table
