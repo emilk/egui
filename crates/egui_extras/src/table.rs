@@ -636,10 +636,10 @@ impl<'a> Table<'a> {
 
             // Hide first-frame-jitters when auto-sizing.
             ui.add_visible_ui(!first_frame_auto_size_columns, |ui| {
-                let id = self.state_id.with("__table_hovered_row");
-                let hovered_row = ui.memory_mut(|w| {
-                    let hovered_row = w.data.get_temp(id);
-                    w.data.remove::<usize>(id);
+                let hovered_row_index_id = self.state_id.with("__table_hovered_row");
+                let hovered_row_index = ui.memory_mut(|w| {
+                    let hovered_row = w.data.get_temp(hovered_row_index_id);
+                    w.data.remove::<usize>(hovered_row_index_id);
                     hovered_row
                 });
 
@@ -656,8 +656,8 @@ impl<'a> Table<'a> {
                     end_y: avail_rect.bottom(),
                     scroll_to_row: scroll_to_row.map(|(r, _)| r),
                     scroll_to_y_range: &mut scroll_to_y_range,
-                    hovered_row,
-                    hovered_row_id: id,
+                    hovered_row_index,
+                    hovered_row_index_id,
                 });
 
                 if scroll_to_row.is_some() && scroll_to_y_range.is_none() {
@@ -799,8 +799,10 @@ pub struct TableBody<'a> {
     /// this is set to the y-range of the row.
     scroll_to_y_range: &'a mut Option<Rangef>,
 
-    hovered_row: Option<usize>,
-    hovered_row_id: egui::Id,
+    hovered_row_index: Option<usize>,
+
+    /// Used to store the hovered row index between frames.
+    hovered_row_index_id: egui::Id,
 }
 
 impl<'a> TableBody<'a> {
@@ -846,7 +848,7 @@ impl<'a> TableBody<'a> {
             col_index: 0,
             height,
             striped: self.striped && self.row_index % 2 == 0,
-            hovered: self.hovered_row == Some(self.row_index),
+            hovered: self.hovered_row_index == Some(self.row_index),
             selected: false,
             response: &mut response,
         });
@@ -926,7 +928,7 @@ impl<'a> TableBody<'a> {
                 col_index: 0,
                 height: row_height_sans_spacing,
                 striped: self.striped && (row_index + self.row_index) % 2 == 0,
-                hovered: self.hovered_row == Some(row_index),
+                hovered: self.hovered_row_index == Some(row_index),
                 selected: false,
                 response: &mut response,
             });
@@ -1007,7 +1009,7 @@ impl<'a> TableBody<'a> {
                     col_index: 0,
                     height: row_height,
                     striped: self.striped && (row_index + self.row_index) % 2 == 0,
-                    hovered: self.hovered_row == Some(row_index),
+                    hovered: self.hovered_row_index == Some(row_index),
                     selected: false,
                     response: &mut response,
                 });
@@ -1029,7 +1031,7 @@ impl<'a> TableBody<'a> {
                 col_index: 0,
                 height: row_height,
                 striped: self.striped && (row_index + self.row_index) % 2 == 0,
-                hovered: self.hovered_row == Some(row_index),
+                hovered: self.hovered_row_index == Some(row_index),
                 selected: false,
                 response: &mut response,
             });
@@ -1085,12 +1087,11 @@ impl<'a> TableBody<'a> {
     // Capture the hover information for the just created row. This is used in the next render
     // to ensure that the entire row is highlighted.
     fn capture_hover_state(&mut self, response: &Option<Response>, row_index: usize) {
-        let id = self.hovered_row_id;
         let is_row_hovered = response.as_ref().map_or(false, |r| r.hovered());
         if is_row_hovered {
             self.layout
                 .ui
-                .memory_mut(|w| w.data.insert_temp(id, row_index));
+                .memory_mut(|w| w.data.insert_temp(self.hovered_row_index_id, row_index));
         }
     }
 }
