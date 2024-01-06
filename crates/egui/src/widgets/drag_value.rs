@@ -483,6 +483,23 @@ impl<'a> Widget for DragValue<'a> {
 
         let text_style = ui.style().drag_value_text_style.clone();
 
+        let lost_focus = ui.memory(|mem| mem.lost_focus(id));
+        if lost_focus {
+            let value_text = ui.memory_mut(|mem| mem.drag_value.edit_string.take());
+            if let Some(value_text) = value_text {
+                // We we're editing the value as text last frame, but lost focus.
+                // Apply the text as a value.
+                let parsed_value = match &custom_parser {
+                    Some(parser) => parser(&value_text),
+                    None => value_text.parse().ok(),
+                };
+                if let Some(parsed_value) = parsed_value {
+                    let parsed_value = clamp_to_range(parsed_value, clamp_range.clone());
+                    set(&mut get_set_value, parsed_value);
+                }
+            }
+        }
+
         // some clones below are redundant if AccessKit is disabled
         #[allow(clippy::redundant_clone)]
         let mut response = if is_kb_editing {
@@ -509,7 +526,7 @@ impl<'a> Widget for DragValue<'a> {
                 response.lost_focus()
             };
             if update {
-                let parsed_value = match custom_parser {
+                let parsed_value = match &custom_parser {
                     Some(parser) => parser(&value_text),
                     None => value_text.parse().ok(),
                 };
