@@ -464,8 +464,8 @@ impl<'a> Widget for DragValue<'a> {
         if ui.memory(|mem| mem.lost_focus(id)) {
             let value_text = ui.data_mut(|data| data.remove_temp::<String>(id));
             if let Some(value_text) = value_text {
-                // We we're editing the value as text last frame, but lost focus.
-                // Apply the text as a value.
+                // We were editing the value as text last frame, but lost focus.
+                // Make sure we applied the last text value:
                 let parsed_value = match &custom_parser {
                     Some(parser) => parser(&value_text),
                     None => value_text.parse().ok(),
@@ -481,7 +481,7 @@ impl<'a> Widget for DragValue<'a> {
         #[allow(clippy::redundant_clone)]
         let mut response = if is_kb_editing {
             let mut value_text = ui
-                .data_mut(|data| data.remove_temp(id))
+                .data_mut(|data| data.remove_temp::<String>(id))
                 .unwrap_or_else(|| value_text.clone());
             let response = ui.add(
                 TextEdit::singleline(&mut value_text)
@@ -527,7 +527,7 @@ impl<'a> Widget for DragValue<'a> {
             let mut response = response.on_hover_cursor(CursorIcon::ResizeHorizontal);
 
             if ui.style().explanation_tooltips {
-                response = response .on_hover_text(format!(
+                response = response.on_hover_text(format!(
                     "{}{}{}\nDrag to edit or click to enter a value.\nPress 'Shift' while dragging for better control.",
                     prefix,
                     value as f32, // Show full precision value on-hover. TODO(emilk): figure out f64 vs f32
@@ -558,7 +558,7 @@ impl<'a> Widget for DragValue<'a> {
 
                 if delta_value != 0.0 {
                     // Since we round the value being dragged, we need to store the full precision value in memory:
-                    let stored_value = ui.data_mut(|d| d.get_temp(id));
+                    let stored_value = ui.data_mut(|data| data.get_temp(id));
                     let stored_value = stored_value.unwrap_or(value);
                     let stored_value = stored_value + delta_value;
 
