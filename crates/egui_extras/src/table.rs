@@ -1169,11 +1169,14 @@ impl<'a, 'b> TableRow<'a, 'b> {
     }
 
     /// Set the selection highlight state for cells added after a call to this function.
+    #[inline]
     pub fn set_selected(&mut self, selected: bool) {
         self.selected = selected;
     }
 
     /// Returns a union of the [`Response`]s of the cells added to the row up to this point.
+    ///
+    /// You need to add at least one row to the table before calling this function.
     pub fn response(&self) -> Response {
         self.response
             .clone()
@@ -1181,17 +1184,20 @@ impl<'a, 'b> TableRow<'a, 'b> {
     }
 
     /// Returns the index of the row.
+    #[inline]
     pub fn index(&self) -> usize {
         self.row_index
     }
 
     /// Returns the index of the column. Incremented after a column is added.
+    #[inline]
     pub fn col_index(&self) -> usize {
         self.col_index
     }
 }
 
 impl<'a, 'b> Drop for TableRow<'a, 'b> {
+    #[inline]
     fn drop(&mut self) {
         self.layout.end_line();
     }
