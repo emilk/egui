@@ -1608,8 +1608,7 @@ impl ContextImpl {
 
         viewport.repaint.frame_nr += 1;
 
-        self.memory
-            .end_frame(&viewport.input, &viewport.frame_state.used_ids);
+        self.memory.end_frame(&viewport.frame_state.used_ids);
 
         if let Some(fonts) = self.fonts.get(&pixels_per_point.into()) {
             let tex_mngr = &mut self.tex_manager.0.write();
