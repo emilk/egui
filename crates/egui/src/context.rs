@@ -707,16 +707,6 @@ impl Context {
         })
     }
 
-    /// Read-write access to [`Fonts`].
-    #[inline]
-    #[deprecated = "This function will be removed"]
-    pub fn fonts_mut<R>(&self, writer: impl FnOnce(Option<&mut Fonts>) -> R) -> R {
-        self.write(move |ctx| {
-            let pixels_per_point = ctx.pixels_per_point();
-            writer(ctx.fonts.get_mut(&pixels_per_point.into()))
-        })
-    }
-
     /// Read-only access to [`Options`].
     #[inline]
     pub fn options<R>(&self, reader: impl FnOnce(&Options) -> R) -> R {
@@ -1201,11 +1191,13 @@ impl Context {
     /// If this is called at least once in a frame, then there will be another frame right after this.
     /// Call as many times as you wish, only one repaint will be issued.
     ///
+    /// To request repaint with a delay, use [`Self::request_repaint_after`].
+    ///
     /// If called from outside the UI thread, the UI thread will wake up and run,
     /// provided the egui integration has set that up via [`Self::set_request_repaint_callback`]
     /// (this will work on `eframe`).
     ///
-    /// This will repaint the current viewport
+    /// This will repaint the current viewport.
     pub fn request_repaint(&self) {
         self.request_repaint_of(self.viewport_id());
     }
@@ -1215,11 +1207,13 @@ impl Context {
     /// If this is called at least once in a frame, then there will be another frame right after this.
     /// Call as many times as you wish, only one repaint will be issued.
     ///
+    /// To request repaint with a delay, use [`Self::request_repaint_after_for`].
+    ///
     /// If called from outside the UI thread, the UI thread will wake up and run,
     /// provided the egui integration has set that up via [`Self::set_request_repaint_callback`]
     /// (this will work on `eframe`).
     ///
-    /// This will repaint the specified viewport
+    /// This will repaint the specified viewport.
     pub fn request_repaint_of(&self, id: ViewportId) {
         self.write(|ctx| ctx.request_repaint(id));
     }

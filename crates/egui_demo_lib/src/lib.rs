@@ -18,7 +18,7 @@ mod demo;
 pub mod easy_mark;
 
 pub use color_test::ColorTest;
-pub use demo::DemoWindows;
+pub use demo::{DemoWindows, WidgetGallery};
 
 /// View some Rust code with syntax highlighting and selection.
 pub(crate) fn rust_view_ui(ui: &mut egui::Ui, code: &str) {

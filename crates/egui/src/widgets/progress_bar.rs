@@ -161,11 +161,9 @@ impl Widget for ProgressBar {
                 let text_color = visuals
                     .override_text_color
                     .unwrap_or(visuals.selection.stroke.color);
-                galley.paint_with_fallback_color(
-                    &ui.painter().with_clip_rect(outer_rect),
-                    text_pos,
-                    text_color,
-                );
+                ui.painter()
+                    .with_clip_rect(outer_rect)
+                    .galley(text_pos, galley, text_color);
             }
         }
 

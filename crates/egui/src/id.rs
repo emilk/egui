@@ -37,21 +37,13 @@ impl Id {
     /// though obviously it will lead to a lot of collisions if you do use it!
     pub const NULL: Self = Self(0);
 
-    #[deprecated = "Use Id::NULL"]
-    pub fn null() -> Self {
-        Self(0)
-    }
-
     pub(crate) const fn background() -> Self {
         Self(1)
     }
 
     /// Generate a new [`Id`] by hashing some source (e.g. a string or integer).
     pub fn new(source: impl std::hash::Hash) -> Id {
-        use std::hash::{BuildHasher, Hasher};
-        let mut hasher = epaint::ahash::RandomState::with_seeds(1, 2, 3, 4).build_hasher();
-        source.hash(&mut hasher);
-        Id(hasher.finish())
+        Id(epaint::ahash::RandomState::with_seeds(1, 2, 3, 4).hash_one(source))
     }
 
     /// Generate a new [`Id`] by hashing the parent [`Id`] and the given argument.

@@ -91,6 +91,7 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
             if let Some(key) = egui_key {
                 runner.input.raw.events.push(egui::Event::Key {
                     key,
+                    physical_key: None, // TODO
                     pressed: true,
                     repeat: false, // egui will fill this in for us!
                     modifiers,
@@ -157,6 +158,7 @@ pub(crate) fn install_document_events(runner_ref: &WebRunner) -> Result<(), JsVa
             if let Some(key) = translate_key(&event.key()) {
                 runner.input.raw.events.push(egui::Event::Key {
                     key,
+                    physical_key: None, // TODO
                     pressed: false,
                     repeat: false,
                     modifiers,
@@ -515,6 +517,7 @@ pub(crate) fn install_canvas_events(runner_ref: &WebRunner) -> Result<(), JsValu
 
         move |event: web_sys::DragEvent, runner| {
             if let Some(data_transfer) = event.data_transfer() {
+                // TODO(https://github.com/emilk/egui/issues/3702): support dropping folders
                 runner.input.raw.hovered_files.clear();
                 runner.needs_repaint.repaint_asap();
 

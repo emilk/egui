@@ -98,7 +98,7 @@ backtrace = { version = "0.3", optional = true }
 
 
 [dev-dependencies]
-criterion = { version = "0.4", default-features = false }
+criterion.workspace = true
 
 
 [[bench]]

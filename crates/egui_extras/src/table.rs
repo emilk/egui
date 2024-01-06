@@ -287,11 +287,6 @@ impl<'a> TableBuilder<'a> {
         self
     }
 
-    #[deprecated = "Renamed to vscroll"]
-    pub fn scroll(self, vscroll: bool) -> Self {
-        self.vscroll(vscroll)
-    }
-
     /// Enables scrolling the table's contents using mouse drag (default: `true`).
     ///
     /// See [`ScrollArea::drag_to_scroll`] for more.
@@ -613,7 +608,7 @@ impl<'a> Table<'a> {
             auto_shrink,
         } = scroll_options;
 
-        let avail_rect = ui.available_rect_before_wrap();
+        let cursor_position = ui.cursor().min;
 
         let mut scroll_area = ScrollArea::new([false, vscroll])
             .auto_shrink(true)
@@ -634,6 +629,8 @@ impl<'a> Table<'a> {
         scroll_area.show(ui, move |ui| {
             let mut scroll_to_y_range = None;
 
+            let clip_rect = ui.clip_rect();
+
             // Hide first-frame-jitters when auto-sizing.
             ui.add_visible_ui(!first_frame_auto_size_columns, |ui| {
                 let hovered_row_index_id = self.state_id.with("__table_hovered_row");
@@ -652,8 +649,8 @@ impl<'a> Table<'a> {
                     max_used_widths: max_used_widths_ref,
                     striped,
                     row_index: 0,
-                    start_y: avail_rect.top(),
-                    end_y: avail_rect.bottom(),
+                    start_y: clip_rect.top(),
+                    end_y: clip_rect.bottom(),
                     scroll_to_row: scroll_to_row.map(|(r, _)| r),
                     scroll_to_y_range: &mut scroll_to_y_range,
                     hovered_row_index,
@@ -677,7 +674,7 @@ impl<'a> Table<'a> {
         let bottom = ui.min_rect().bottom();
 
         let spacing_x = ui.spacing().item_spacing.x;
-        let mut x = avail_rect.left() - spacing_x * 0.5;
+        let mut x = cursor_position.x - spacing_x * 0.5;
         for (i, column_width) in state.column_widths.iter_mut().enumerate() {
             let column = &columns[i];
             let column_is_resizable = column.resizable.unwrap_or(resizable);
@@ -835,7 +832,8 @@ impl<'a> TableBody<'a> {
 
     /// Add a single row with the given height.
     ///
-    /// If you have many thousands of row it can be more performant to instead use [`Self::rows`] or [`Self::heterogeneous_rows`].
+    /// ⚠️ It is much more performant to use [`Self::rows`] or [`Self::heterogeneous_rows`],
+    /// as those functions will only render the visible rows.
     pub fn row(&mut self, height: f32, add_row_content: impl FnOnce(TableRow<'a, '_>)) {
         let mut response: Option<Response> = None;
         let top_y = self.layout.cursor.y;

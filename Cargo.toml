@@ -20,7 +20,7 @@ members = [
 edition = "2021"
 license = "MIT OR Apache-2.0"
 rust-version = "1.72"
-version = "0.24.1"
+version = "0.24.2"
 
 
 [profile.release]
@@ -48,6 +48,8 @@ opt-level = 2
 
 
 [workspace.dependencies]
+criterion = { version = "0.5.1", default-features = false }
+glow = "0.13"
 puffin = "0.18"
 raw-window-handle = "0.5.0"
 thiserror = "1.0.37"

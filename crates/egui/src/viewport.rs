@@ -439,7 +439,7 @@ impl ViewportBuilder {
     ///
     /// If this is not set, some platform-specific dimensions will be used.
     ///
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     /// Look at winit for more details
     #[inline]
     pub fn with_inner_size(mut self, size: impl Into<Vec2>) -> Self {
@@ -452,7 +452,7 @@ impl ViewportBuilder {
     /// If this is not set, the window will have no minimum dimensions (aside
     /// from reserved).
     ///
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     /// Look at winit for more details
     #[inline]
     pub fn with_min_inner_size(mut self, size: impl Into<Vec2>) -> Self {
@@ -465,7 +465,7 @@ impl ViewportBuilder {
     /// If this is not set, the window will have no maximum or will be set to
     /// the primary monitor's dimensions by the platform.
     ///
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     /// Look at winit for more details
     #[inline]
     pub fn with_max_inner_size(mut self, size: impl Into<Vec2>) -> Self {
@@ -808,6 +808,7 @@ pub enum CursorGrab {
 pub enum ResizeDirection {
     North,
     South,
+    East,
     West,
     NorthEast,
     SouthEast,
@@ -854,16 +855,16 @@ pub enum ViewportCommand {
     /// Set the outer position of the viewport, i.e. moves the window.
     OuterPosition(Pos2),
 
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     InnerSize(Vec2),
 
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     MinInnerSize(Vec2),
 
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     MaxInnerSize(Vec2),
 
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     ResizeIncrements(Option<Vec2>),
 
     /// Begin resizing the viewport with the left mouse button until the button is released.
@@ -899,7 +900,8 @@ pub enum ViewportCommand {
     /// The the window icon.
     Icon(Option<Arc<IconData>>),
 
-    IMEPosition(Pos2),
+    /// Set the IME cursor editing area.
+    IMERect(crate::Rect),
     IMEAllowed(bool),
     IMEPurpose(IMEPurpose),
 

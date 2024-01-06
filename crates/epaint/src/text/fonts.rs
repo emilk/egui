@@ -348,6 +348,7 @@ impl FontDefinitions {
 /// If you are using `egui`, use `egui::Context::set_fonts` and `egui::Context::fonts`.
 ///
 /// You need to call [`Self::begin_frame`] and [`Self::font_image_delta`] once every frame.
+#[derive(Clone)]
 pub struct Fonts(Arc<Mutex<FontsAndCache>>);
 
 impl Fonts {
@@ -531,12 +532,7 @@ impl Fonts {
         font_id: FontId,
         wrap_width: f32,
     ) -> Arc<Galley> {
-        self.layout_job(LayoutJob::simple(
-            text,
-            font_id,
-            crate::Color32::TEMPORARY_COLOR,
-            wrap_width,
-        ))
+        self.layout(text, font_id, crate::Color32::PLACEHOLDER, wrap_width)
     }
 }
 

@@ -333,6 +333,10 @@
 //! }); // the temporary settings are reverted here
 //! # });
 //! ```
+//!
+//! ## Installing additional fonts
+//! The default egui fonts only support latin and cryllic characters, and some emojis.
+//! To use egui with e.g. asian characters you need to install your own font (`.ttf` or `.otf`) using [`Context::set_fonts`].
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]

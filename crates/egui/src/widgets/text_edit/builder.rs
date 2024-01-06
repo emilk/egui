@@ -164,13 +164,14 @@ impl<'t> TextEdit<'t> {
     ///     .desired_width(f32::INFINITY);
     /// let output = text_edit.show(ui);
     /// let painter = ui.painter_at(output.response.rect);
+    /// let text_color = Color32::from_rgba_premultiplied(100, 100, 100, 100);
     /// let galley = painter.layout(
     ///     String::from("Enter text"),
     ///     FontId::default(),
-    ///     Color32::from_rgba_premultiplied(100, 100, 100, 100),
+    ///     text_color,
     ///     f32::INFINITY
     /// );
-    /// painter.galley(output.text_draw_pos, galley);
+    /// painter.galley(output.text_draw_pos, galley, text_color);
     /// # });
     /// ```
     #[inline]
@@ -191,11 +192,6 @@ impl<'t> TextEdit<'t> {
     pub fn font(mut self, font_selection: impl Into<FontSelection>) -> Self {
         self.font_selection = font_selection.into();
         self
-    }
-
-    #[deprecated = "Use .font(…) instead"]
-    pub fn text_style(self, text_style: TextStyle) -> Self {
-        self.font(text_style)
     }
 
     #[inline]
@@ -669,7 +665,7 @@ impl<'t> TextEdit<'t> {
         };
 
         if ui.is_rect_visible(rect) {
-            painter.galley(text_draw_pos, galley.clone());
+            painter.galley(text_draw_pos, galley.clone(), text_color);
 
             if text.as_str().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
@@ -678,7 +674,7 @@ impl<'t> TextEdit<'t> {
                 } else {
                     hint_text.into_galley(ui, Some(false), f32::INFINITY, font_id)
                 };
-                galley.paint_with_fallback_color(&painter, response.rect.min, hint_text_color);
+                painter.galley(response.rect.min, galley, hint_text_color);
             }
 
             if ui.memory(|mem| mem.has_focus(id)) {
@@ -688,7 +684,7 @@ impl<'t> TextEdit<'t> {
                     paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursor_range);
 
                     if text.is_mutable() {
-                        let cursor_pos = paint_cursor_end(
+                        let cursor_rect = paint_cursor_end(
                             ui,
                             row_height,
                             &painter,
@@ -699,23 +695,14 @@ impl<'t> TextEdit<'t> {
 
                         let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO: remove this HACK workaround for https://github.com/emilk/egui/issues/1531
                         if (response.changed || selection_changed) && !is_fully_visible {
-                            ui.scroll_to_rect(cursor_pos, None); // keep cursor in view
+                            ui.scroll_to_rect(cursor_rect, None); // keep cursor in view
                         }
 
                         if interactive {
-                            // eframe web uses `text_cursor_pos` when showing IME,
-                            // so only set it when text is editable and visible!
-                            // But `winit` and `egui_web` differs in how to set the
-                            // position of IME.
-                            if cfg!(target_arch = "wasm32") {
-                                ui.ctx().output_mut(|o| {
-                                    o.text_cursor_pos = Some(cursor_pos.left_top());
-                                });
-                            } else {
-                                ui.ctx().output_mut(|o| {
-                                    o.text_cursor_pos = Some(cursor_pos.left_bottom());
-                                });
-                            }
+                            // For IME, so only set it when text is editable and visible!
+                            ui.ctx().output_mut(|o| {
+                                o.ime = Some(crate::output::IMEOutput { rect, cursor_rect });
+                            });
                         }
                     }
                 }
@@ -1003,13 +990,13 @@ fn events(
                 pressed: true,
                 modifiers,
                 ..
-            } if modifiers.matches(Modifiers::COMMAND) => {
+            } if modifiers.matches_logically(Modifiers::COMMAND) => {
                 if let Some((undo_ccursor_range, undo_txt)) = state
                     .undoer
                     .lock()
                     .undo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
                 {
-                    text.replace(undo_txt);
+                    text.replace_with(undo_txt);
                     Some(*undo_ccursor_range)
                 } else {
                     None
@@ -1020,15 +1007,16 @@ fn events(
                 pressed: true,
                 modifiers,
                 ..
-            } if (modifiers.matches(Modifiers::COMMAND) && *key == Key::Y)
-                || (modifiers.matches(Modifiers::SHIFT | Modifiers::COMMAND) && *key == Key::Z) =>
+            } if (modifiers.matches_logically(Modifiers::COMMAND) && *key == Key::Y)
+                || (modifiers.matches_logically(Modifiers::SHIFT | Modifiers::COMMAND)
+                    && *key == Key::Z) =>
             {
                 if let Some((redo_ccursor_range, redo_txt)) = state
                     .undoer
                     .lock()
                     .redo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
                 {
-                    text.replace(redo_txt);
+                    text.replace_with(redo_txt);
                     Some(*redo_ccursor_range)
                 } else {
                     None
@@ -1063,7 +1051,8 @@ fn events(
             }
 
             Event::CompositionEnd(prediction) => {
-                if prediction != "\n" && prediction != "\r" && state.has_ime {
+                // CompositionEnd only characters may be typed into TextEdit without trigger CompositionStart first, so do not check `state.has_ime = true` in the following statement.
+                if prediction != "\n" && prediction != "\r" {
                     state.has_ime = false;
                     let mut ccursor = delete_selected(text, &cursor_range);
                     if !prediction.is_empty() {

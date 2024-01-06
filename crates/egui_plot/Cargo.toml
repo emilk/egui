@@ -1,7 +1,11 @@
 [package]
 name = "egui_plot"
 version.workspace = true
-authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+authors = [
+    "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",    # https://github.com/emilk
+    "Jan Haller <bromeon@gmail.com>",                 # https://github.com/Bromeon
+    "Sven Niederberger <s-niederberger@outlook.com>", # https://github.com/EmbersArc
+]
 description = "Immediate mode plotting for the egui GUI library"
 edition.workspace = true
 rust-version.workspace = true
