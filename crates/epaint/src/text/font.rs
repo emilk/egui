@@ -141,7 +141,7 @@ impl FontImpl {
     fn ignore_character(&self, chr: char) -> bool {
         use crate::text::FontDefinitions;
 
-        if !FontDefinitions::builtin_font_names().contains(&self.name.as_str()) {
+        if !FontDefinitions::builtin_font_names().contains(&self.name) {
             return false;
         }
 
