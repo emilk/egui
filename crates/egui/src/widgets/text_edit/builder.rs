@@ -118,8 +118,10 @@ impl<'t> TextEdit<'t> {
             desired_width: None,
             desired_height_rows: 4,
             event_filter: EventFilter {
-                arrows: true, // moving the cursor is really important
-                tab: false,   // tab is used to change focus, not to insert a tab character
+                // moving the cursor is really important
+                horizontal_arrows: true,
+                vertical_arrows: true,
+                tab: false, // tab is used to change focus, not to insert a tab character
                 ..Default::default()
             },
             cursor_at_end: true,
