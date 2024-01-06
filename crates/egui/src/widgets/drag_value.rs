@@ -535,6 +535,11 @@ impl<'a> Widget for DragValue<'a> {
                 ));
             }
 
+            if ui.input(|i| i.pointer.any_pressed() || i.pointer.any_released()) {
+                // Reset memory of preciely dagged value.
+                ui.data_mut(|data| data.remove::<f64>(id));
+            }
+
             if response.clicked() {
                 ui.data_mut(|data| data.remove::<String>(id));
                 ui.memory_mut(|mem| {
@@ -558,21 +563,21 @@ impl<'a> Widget for DragValue<'a> {
 
                 if delta_value != 0.0 {
                     // Since we round the value being dragged, we need to store the full precision value in memory:
-                    let stored_value = ui.data_mut(|data| data.get_temp(id));
-                    let stored_value = stored_value.unwrap_or(value);
-                    let stored_value = stored_value + delta_value;
+                    let precise_value = ui.data_mut(|data| data.get_temp::<f64>(id));
+                    let precise_value = precise_value.unwrap_or(value);
+                    let precise_value = precise_value + delta_value;
 
                     let aim_delta = aim_rad * speed;
                     let rounded_new_value = emath::smart_aim::best_in_range_f64(
-                        stored_value - aim_delta,
-                        stored_value + aim_delta,
+                        precise_value - aim_delta,
+                        precise_value + aim_delta,
                     );
                     let rounded_new_value =
                         emath::round_to_decimals(rounded_new_value, auto_decimals);
                     let rounded_new_value = clamp_to_range(rounded_new_value, clamp_range.clone());
                     set(&mut get_set_value, rounded_new_value);
 
-                    ui.data_mut(|data| data.insert_temp(id, value));
+                    ui.data_mut(|data| data.insert_temp::<f64>(id, precise_value));
                 }
             }
 
