@@ -186,10 +186,7 @@ impl LegendWidget {
         hidden_items: &ahash::HashSet<String>, // Existing hiddent items in the plot memory.
     ) -> Option<Self> {
         // If `config.hidden_items` is not `None`, it is used.
-        let hidden_items = match &config.hidden_items {
-            Some(h) => h,
-            None => hidden_items,
-        };
+        let hidden_items = config.hidden_items.as_ref().unwrap_or(hidden_items);
 
         // Collect the legend entries. If multiple items have the same name, they share a
         // checkbox. If their colors don't match, we pick a neutral color for the checkbox.
