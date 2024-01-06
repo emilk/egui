@@ -876,8 +876,9 @@ impl<'a> TableBody<'a> {
     ///         let row_height = 18.0;
     ///         let num_rows = 10_000;
     ///         body.rows(row_height, num_rows, |mut row| {
+    ///             let row_index = row.index();
     ///             row.col(|ui| {
-    ///                 ui.label(format!("First column of row {}", row.index()));
+    ///                 ui.label(format!("First column of row {row_index}"));
     ///             });
     ///         });
     ///     });
