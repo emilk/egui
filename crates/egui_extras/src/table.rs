@@ -1169,7 +1169,7 @@ impl<'a, 'b> TableRow<'a, 'b> {
     }
 
     /// Set the selection highlight state for cells added after a call to this function.
-    pub fn select(&mut self, selected: bool) {
+    pub fn set_selected(&mut self, selected: bool) {
         self.selected = selected;
     }
 

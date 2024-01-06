@@ -176,7 +176,7 @@ impl TableDemo {
                         let is_thick = thick_row(row_index);
                         let row_height = if is_thick { 30.0 } else { 18.0 };
                         body.row(row_height, |mut row| {
-                            row.select(self.selection.contains(&row_index));
+                            row.set_selected(self.selection.contains(&row_index));
 
                             row.col(|ui| {
                                 ui.label(row_index.to_string());
@@ -206,7 +206,7 @@ impl TableDemo {
                 DemoType::ManyHomogeneous => {
                     body.rows(text_height, self.num_rows, |mut row| {
                         let row_index = row.index();
-                        row.select(self.selection.contains(&row_index));
+                        row.set_selected(self.selection.contains(&row_index));
 
                         row.col(|ui| {
                             ui.label(row_index.to_string());
@@ -233,7 +233,7 @@ impl TableDemo {
                     let row_height = |i: usize| if thick_row(i) { 30.0 } else { 18.0 };
                     body.heterogeneous_rows((0..self.num_rows).map(row_height), |mut row| {
                         let row_index = row.index();
-                        row.select(self.selection.contains(&row_index));
+                        row.set_selected(self.selection.contains(&row_index));
 
                         row.col(|ui| {
                             ui.label(row_index.to_string());
