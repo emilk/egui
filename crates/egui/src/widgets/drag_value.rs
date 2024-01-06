@@ -542,13 +542,11 @@ impl<'a> Widget for DragValue<'a> {
 
             if response.clicked() {
                 ui.data_mut(|data| data.remove::<String>(id));
-                ui.memory_mut(|mem| {
-                    mem.request_focus(id);
-                });
+                ui.memory_mut(|mem| mem.request_focus(id));
                 let mut state = TextEdit::load_state(ui.ctx(), id).unwrap_or_default();
                 state.set_ccursor_range(Some(text::CCursorRange::two(
-                    epaint::text::cursor::CCursor::default(),
-                    epaint::text::cursor::CCursor::new(value_text.chars().count()),
+                    text::CCursor::default(),
+                    text::CCursor::new(value_text.chars().count()),
                 )));
                 state.store(ui.ctx(), response.id);
             } else if response.dragged() {
