@@ -372,7 +372,7 @@ impl<'a> Checkbox<'a> {
         Self::new(checked, WidgetText::default())
     }
 
-    /// Display an indeterminate state (neither checked not unchecked)
+    /// Display an indeterminate state (neither checked nor unchecked)
     ///
     /// This only affects the checkbox's appearance. It will still toggle its boolean value when
     /// clicked.
@@ -445,11 +445,9 @@ impl<'a> Widget for Checkbox<'a> {
 
             if indeterminate {
                 // Horizontal line:
-                ui.painter().add(Shape::line(
-                    vec![
-                        pos2(small_icon_rect.left(), small_icon_rect.center().y),
-                        pos2(small_icon_rect.right(), small_icon_rect.center().y),
-                    ],
+                ui.painter().add(Shape::hline(
+                    small_icon_rect.x_range(),
+                    small_icon_rect.center().y,
                     visuals.fg_stroke,
                 ));
             } else if *checked {
