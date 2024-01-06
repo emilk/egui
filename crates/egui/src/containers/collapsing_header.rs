@@ -6,7 +6,11 @@ use epaint::Shape;
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub(crate) struct InnerState {
+    /// Expand / collapse
     open: bool,
+
+    /// Show / Hide (only used on egui::Window components)
+    hidden: bool,
 
     /// Height of the region when open. Used for animations
     #[cfg_attr(feature = "serde", serde(default))]
@@ -25,13 +29,6 @@ pub struct CollapsingState {
 }
 
 impl CollapsingState {
-    pub fn load(ctx: &Context, id: Id) -> Option<Self> {
-        ctx.data_mut(|d| {
-            d.get_persisted::<InnerState>(id)
-                .map(|state| Self { id, state })
-        })
-    }
-
     pub fn store(&self, ctx: &Context) {
         ctx.data_mut(|d| d.insert_persisted(self.id, self.state));
     }
@@ -44,14 +41,24 @@ impl CollapsingState {
         self.id
     }
 
-    pub fn load_with_default_open(ctx: &Context, id: Id, default_open: bool) -> Self {
-        Self::load(ctx, id).unwrap_or(CollapsingState {
+    pub fn load(ctx: &Context, id: Id, default_open: bool) -> Self {
+        ctx.data_mut(|d| {
+            d.get_persisted::<InnerState>(id)
+                .map(|state| Self { id, state })
+        })
+        .unwrap_or(CollapsingState {
             id,
             state: InnerState {
                 open: default_open,
+                hidden: false,
                 open_height: None,
             },
         })
+    }
+
+    #[deprecated = "use load instead"]
+    pub fn load_with_default_open(ctx: &Context, id: Id, default_open: bool) -> Self {
+        Self::load(ctx, id, default_open)
     }
 
     pub fn is_open(&self) -> bool {
@@ -62,9 +69,24 @@ impl CollapsingState {
         self.state.open = open;
     }
 
-    pub fn toggle(&mut self, ui: &Ui) {
+    pub fn toggle_open(&mut self, ui: &Ui) {
         self.state.open = !self.state.open;
         ui.ctx().request_repaint();
+    }
+
+    /// Only used on `egui::Window` components
+    pub fn is_hidden(&self) -> bool {
+        self.state.hidden
+    }
+
+    /// Only used on `egui::Window` components
+    pub fn toggle_hidden(&mut self) {
+        self.state.hidden = !self.state.hidden;
+    }
+
+    /// Only used on `egui::Window` components
+    pub fn set_hidden(&mut self, hidden: bool) {
+        self.state.hidden = hidden;
     }
 
     /// 0 for closed, 1 for open, with tweening
@@ -85,7 +107,7 @@ impl CollapsingState {
         let (_id, rect) = ui.allocate_space(button_size);
         let response = ui.interact(rect, self.id, Sense::click());
         if response.clicked() {
-            self.toggle(ui);
+            self.toggle_open(ui);
         }
         let openness = self.openness(ui.ctx());
         paint_default_icon(ui, openness, &response);
@@ -107,7 +129,7 @@ impl CollapsingState {
         let (_id, rect) = ui.allocate_space(size);
         let response = ui.interact(rect, self.id, Sense::click());
         if response.clicked() {
-            self.toggle(ui);
+            self.toggle_open(ui);
         }
 
         let (mut icon_rect, _) = ui.spacing().icon_rectangles(response.rect);
@@ -132,7 +154,7 @@ impl CollapsingState {
     /// ```
     /// # egui::__run_test_ui(|ui| {
     /// let id = ui.make_persistent_id("my_collapsing_header");
-    /// egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
+    /// egui::collapsing_header::CollapsingState::load(ui.ctx(), id, false)
     ///     .show_header(ui, |ui| {
     ///         ui.label("Header"); // you can put checkboxes or whatever here
     ///     })
@@ -239,7 +261,7 @@ impl CollapsingState {
     ///     ui.painter().circle_filled(response.rect.center(), radius, stroke.color);
     /// }
     ///
-    /// let mut state = egui::collapsing_header::CollapsingState::load_with_default_open(
+    /// let mut state = egui::collapsing_header::CollapsingState::load(
     ///     ui.ctx(),
     ///     ui.make_persistent_id("my_collapsing_state"),
     ///     false,
@@ -334,6 +356,16 @@ pub fn paint_default_icon(ui: &mut Ui, openness: f32, response: &Response) {
     ));
 }
 
+/// An event to expand / collapse the widget automatically
+#[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum CollapsingHeaderEvent {
+    #[default]
+    Expand,
+    Collapse,
+    ToggleCollapse,
+}
+
 /// A function that paints an icon indicating if the region is open or not
 pub type IconPainter = Box<dyn FnOnce(&mut Ui, f32, &Response)>;
 
@@ -357,6 +389,7 @@ pub struct CollapsingHeader {
     text: WidgetText,
     default_open: bool,
     open: Option<bool>,
+    display_event: Option<CollapsingHeaderEvent>,
     id_source: Id,
     enabled: bool,
     selectable: bool,
@@ -385,6 +418,7 @@ impl CollapsingHeader {
             selected: false,
             show_background: false,
             icon: None,
+            display_event: None,
         }
     }
 
@@ -404,6 +438,15 @@ impl CollapsingHeader {
     #[inline]
     pub fn open(mut self, open: Option<bool>) -> Self {
         self.open = open;
+        self
+    }
+
+    /// An event that will change the collapse / hide status of your collapsing header.
+    /// The difference with this and `.open(...)` is the ability to collapse the header.
+    /// It also will consume the event and won't borrow the parameter.
+    #[inline]
+    pub fn display_event(mut self, new_event: &mut Option<CollapsingHeaderEvent>) -> Self {
+        self.display_event = new_event.take();
         self
     }
 
@@ -484,8 +527,8 @@ impl CollapsingHeader {
             selectable,
             selected,
             show_background,
+            display_event,
         } = self;
-
         // TODO(emilk): horizontal layout, with icon and text as labels. Insert background behind using Frame.
 
         let id = ui.make_persistent_id(id_source);
@@ -513,14 +556,26 @@ impl CollapsingHeader {
             header_response.rect.center().y - galley.size().y / 2.0,
         );
 
-        let mut state = CollapsingState::load_with_default_open(ui.ctx(), id, default_open);
-        if let Some(open) = open {
+        let mut state = CollapsingState::load(ui.ctx(), id, default_open);
+
+        let request_repaint = display_event.is_some();
+
+        match display_event {
+            Some(CollapsingHeaderEvent::Expand) => state.set_open(true),
+            Some(CollapsingHeaderEvent::Collapse) => state.set_open(false),
+            Some(CollapsingHeaderEvent::ToggleCollapse) => state.set_open(!state.is_open()),
+            None => {}
+        }
+
+        if request_repaint {
+            ui.ctx().request_repaint();
+        } else if let Some(open) = open {
             if open != state.is_open() {
-                state.toggle(ui);
+                state.toggle_open(ui);
                 header_response.mark_changed();
             }
         } else if header_response.clicked() {
-            state.toggle(ui);
+            state.toggle_open(ui);
             header_response.mark_changed();
         }
 

@@ -32,7 +32,6 @@ use super::*;
 #[must_use = "You should call .show()"]
 pub struct Window<'open> {
     title: WidgetText,
-    open: Option<&'open mut bool>,
     area: Area,
     frame: Option<Frame>,
     resize: Resize,
@@ -40,6 +39,31 @@ pub struct Window<'open> {
     collapsible: bool,
     default_open: bool,
     with_title_bar: bool,
+    with_closing_btn: bool,
+    display_event: Option<WindowEvent>,
+    open: Option<&'open mut bool>,
+}
+
+#[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum WindowEvent {
+    #[default]
+    Expand,
+    Collapse,
+    Hide,
+    ToggleCollapse,
+    ToggleHidden,
+}
+
+// Helper function for user space
+pub trait SetEvent {
+    fn set(&mut self, display_event: WindowEvent);
+}
+
+impl SetEvent for Option<WindowEvent> {
+    fn set(&mut self, display_event: WindowEvent) {
+        *self = Some(display_event);
+    }
 }
 
 impl<'open> Window<'open> {
@@ -49,6 +73,7 @@ impl<'open> Window<'open> {
     pub fn new(title: impl Into<WidgetText>) -> Self {
         let title = title.into().fallback_text_style(TextStyle::Heading);
         let area = Area::new(Id::new(title.text())).constrain(true);
+
         Self {
             title,
             open: None,
@@ -60,8 +85,10 @@ impl<'open> Window<'open> {
                 .default_size([340.0, 420.0]), // Default inner size of a window
             scroll: ScrollArea::neither(),
             collapsible: true,
-            default_open: true,
             with_title_bar: true,
+            with_closing_btn: false,
+            default_open: true,
+            display_event: None,
         }
     }
 
@@ -80,6 +107,13 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn open(mut self, open: &'open mut bool) -> Self {
         self.open = Some(open);
+        self.with_closing_btn = true;
+        self
+    }
+
+    #[inline]
+    pub fn closing_button(mut self, closing_button: bool) -> Self {
+        self.with_closing_btn = closing_button;
         self
     }
 
@@ -248,6 +282,15 @@ impl<'open> Window<'open> {
         self
     }
 
+    /// An event that will change the collapse / hide status of your `egui::Window`.
+    /// The difference with this and `.open(...)` is the ability to collapse the header,
+    /// it also will consume the event and won't borrow the passed parameter.
+    #[inline]
+    pub fn display_event(mut self, new_event: &mut Option<WindowEvent>) -> Self {
+        self.display_event = new_event.take();
+        self
+    }
+
     /// Set initial size of the window.
     #[inline]
     pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
@@ -372,33 +415,66 @@ impl<'open> Window<'open> {
     ) -> Option<InnerResponse<Option<R>>> {
         let Window {
             title,
-            open,
+            mut open,
             area,
             frame,
             resize,
             scroll,
             collapsible,
-            default_open,
             with_title_bar,
+            with_closing_btn,
+            default_open,
+            display_event,
         } = self;
 
         let frame = frame.unwrap_or_else(|| Frame::window(&ctx.style()));
 
-        let is_explicitly_closed = matches!(open, Some(false));
-        let is_open = !is_explicitly_closed || ctx.memory(|mem| mem.everything_is_visible());
+        let area_id = area.id;
+        let mut collapsing = CollapsingState::load(ctx, area_id.with("collapsing"), default_open);
+
+        // Borrow open to not consume it.
+        // This is for backwards compatibility with events
+        fn backwards_compatibility_open(
+            open: &mut Option<&mut bool>,
+            collapsing: &CollapsingState,
+        ) {
+            if let Some(open) = open {
+                **open = !collapsing.is_hidden();
+            }
+        }
+
+        match display_event {
+            Some(WindowEvent::Hide) => collapsing.set_hidden(true),
+            Some(WindowEvent::Expand) => collapsing.set_open(true),
+            Some(WindowEvent::Collapse) => collapsing.set_open(false),
+            Some(WindowEvent::ToggleHidden) => collapsing.toggle_hidden(),
+            Some(WindowEvent::ToggleCollapse) => collapsing.set_open(!collapsing.is_open()),
+            None => match &open {
+                Some(false) => {
+                    collapsing.set_hidden(true);
+                }
+                Some(true) => {
+                    collapsing.set_hidden(false);
+                }
+                _ => {}
+            },
+        }
+
+        let is_open = !collapsing.is_hidden() || ctx.memory(|mem| mem.everything_is_visible());
         area.show_open_close_animation(ctx, &frame, is_open);
 
+        backwards_compatibility_open(&mut open, &collapsing);
+
         if !is_open {
+            collapsing.store(ctx);
             return None;
         }
 
-        let area_id = area.id;
-        let area_layer_id = area.layer();
         let resize_id = area_id.with("resize");
-        let mut collapsing =
-            CollapsingState::load_with_default_open(ctx, area_id.with("collapsing"), default_open);
+        let area_layer_id = area.layer();
 
         let is_collapsed = with_title_bar && !collapsing.is_open();
+
         let possible = PossibleInteractions::new(&area, &resize, is_collapsed);
 
         let area = area.movable(false); // We move it manually, or the area will move the window when we want to resize it
@@ -443,6 +519,7 @@ impl<'open> Window<'open> {
         } else {
             None
         };
+
         let hover_interaction = resize_hover(ctx, possible, area_layer_id, last_frame_outer_rect);
 
         let mut area_content_ui = area.content_ui(ctx);
@@ -452,12 +529,11 @@ impl<'open> Window<'open> {
             let frame_stroke = frame.stroke;
             let mut frame = frame.begin(&mut area_content_ui);
 
-            let show_close_button = open.is_some();
             let title_bar = if with_title_bar {
                 let title_bar = show_title_bar(
                     &mut frame.content_ui,
                     title,
-                    show_close_button,
+                    with_closing_btn,
                     &mut collapsing,
                     collapsible,
                 );
@@ -493,7 +569,7 @@ impl<'open> Window<'open> {
                     &mut area_content_ui,
                     outer_rect,
                     &content_response,
-                    open,
+                    with_closing_btn,
                     &mut collapsing,
                     collapsible,
                 );
@@ -523,11 +599,13 @@ impl<'open> Window<'open> {
 
         let full_response = area.end(ctx, area_content_ui);
 
-        let inner_response = InnerResponse {
+        // Hide butten could have been pressed
+        backwards_compatibility_open(&mut open, &collapsing);
+
+        Some(InnerResponse {
             inner: content_inner,
             response: full_response,
-        };
-        Some(inner_response)
+        })
     }
 }
 
@@ -967,7 +1045,7 @@ impl TitleBar {
         ui: &mut Ui,
         outer_rect: Rect,
         content_response: &Option<Response>,
-        open: Option<&mut bool>,
+        with_closing_btn: bool,
         collapsing: &mut CollapsingState,
         collapsible: bool,
     ) {
@@ -976,11 +1054,9 @@ impl TitleBar {
             self.rect.max.x = self.rect.max.x.max(content_response.rect.max.x);
         }
 
-        if let Some(open) = open {
-            // Add close button now that we know our full width:
-            if self.close_button_ui(ui).clicked() {
-                *open = false;
-            }
+        // Add close button now that we know our full width:
+        if with_closing_btn && self.close_button_ui(ui).clicked() {
+            collapsing.toggle_hidden();
         }
 
         let full_top_rect = Rect::from_x_y_ranges(self.rect.x_range(), self.min_rect.y_range());
@@ -1010,7 +1086,7 @@ impl TitleBar {
             .double_clicked()
             && collapsible
         {
-            collapsing.toggle(ui);
+            collapsing.toggle_open(ui);
         }
     }
 
