@@ -483,6 +483,15 @@ impl IdTypeMap {
         self.map.remove(&hash);
     }
 
+    /// Remove and fetch the state of this type an id.
+    #[inline]
+    pub fn remove_temp<T: 'static + Clone>(&mut self, id: Id) -> Option<T> {
+        let hash = hash(TypeId::of::<T>(), id);
+        self.map
+            .remove(&hash)
+            .and_then(|element| element.get_temp().cloned())
+    }
+
     /// Note all state of the given type.
     pub fn remove_by_type<T: 'static>(&mut self) {
         let key = TypeId::of::<T>();

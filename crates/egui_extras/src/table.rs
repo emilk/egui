@@ -634,11 +634,8 @@ impl<'a> Table<'a> {
             // Hide first-frame-jitters when auto-sizing.
             ui.add_visible_ui(!first_frame_auto_size_columns, |ui| {
                 let hovered_row_index_id = self.state_id.with("__table_hovered_row");
-                let hovered_row_index = ui.memory_mut(|w| {
-                    let hovered_row = w.data.get_temp(hovered_row_index_id);
-                    w.data.remove::<usize>(hovered_row_index_id);
-                    hovered_row
-                });
+                let hovered_row_index =
+                    ui.data_mut(|data| data.remove_temp::<usize>(hovered_row_index_id));
 
                 let layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout, sense);
 
