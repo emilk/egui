@@ -74,7 +74,7 @@ impl<'a> DragValue<'a> {
             max_decimals: None,
             custom_formatter: None,
             custom_parser: None,
-            update_while_editing: false,
+            update_while_editing: true,
         }
     }
 
