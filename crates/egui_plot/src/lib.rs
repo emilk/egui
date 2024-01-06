@@ -1398,21 +1398,25 @@ impl PlotUi {
         &self.response
     }
 
-    /// Scale the plot bounds around a position in screen coordinates. Can be useful for
-    /// implementing alternative plot navigation methods.
+    /// Scale the plot bounds around a position in screen coordinates.
+    ///
+    /// Can be useful for implementing alternative plot navigation methods.
+    ///
     /// The plot bounds are divided by `zoom_factor`, therefore:
-    /// `zoom_factor < 1.0` zooms out, i.e., increases the visible range to show more data.
-    /// `zoom_factor > 1.0` zooms in, i.e., reduces the visible range to show more detail.
+    /// - `zoom_factor < 1.0` zooms out, i.e., increases the visible range to show more data.
+    /// - `zoom_factor > 1.0` zooms in, i.e., reduces the visible range to show more detail.
     pub fn zoom_bounds(&mut self, zoom_factor: Vec2, center: PlotPoint) {
         self.bounds_modifications
             .push(BoundsModification::Zoom(zoom_factor, center));
     }
 
-    /// Scale the plot bounds around the hovered position, if any. Can be useful for implementing
-    /// alternative plot navigation methods.
+    /// Scale the plot bounds around the hovered position, if any.
+    ///
+    /// Can be useful for implementing alternative plot navigation methods.
+    ///
     /// The plot bounds are divided by `zoom_factor`, therefore:
-    /// `zoom_factor < 1.0` zooms out, i.e., increases the visible range to show more data.
-    /// `zoom_factor > 1.0` zooms in, i.e., reduces the visible range to show more detail.
+    /// - `zoom_factor < 1.0` zooms out, i.e., increases the visible range to show more data.
+    /// - `zoom_factor > 1.0` zooms in, i.e., reduces the visible range to show more detail.
     pub fn zoom_bounds_around_hovered(&mut self, zoom_factor: Vec2) {
         if let Some(hover_pos) = self.pointer_coordinate() {
             self.zoom_bounds(zoom_factor, hover_pos);
