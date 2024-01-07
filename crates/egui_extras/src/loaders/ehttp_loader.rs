@@ -45,7 +45,7 @@ pub struct EhttpLoader {
 }
 
 impl EhttpLoader {
-    pub const ID: &str = egui::generate_loader_id!(EhttpLoader);
+    pub const ID: &'static str = egui::generate_loader_id!(EhttpLoader);
 }
 
 const PROTOCOLS: &[&str] = &["http://", "https://"];
@@ -95,8 +95,7 @@ impl BytesLoader for EhttpLoader {
                         }
                     };
                     log::trace!("finished loading {uri:?}");
-                    let prev = cache.lock().insert(uri, Poll::Ready(result));
-                    assert!(matches!(prev, Some(Poll::Pending)));
+                    cache.lock().insert(uri, Poll::Ready(result));
                     ctx.request_repaint();
                 }
             });

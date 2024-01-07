@@ -150,6 +150,13 @@ impl PlotBounds {
         self.translate_y(delta.y as f64);
     }
 
+    pub(crate) fn zoom(&mut self, zoom_factor: Vec2, center: PlotPoint) {
+        self.min[0] = center.x + (self.min[0] - center.x) / (zoom_factor.x as f64);
+        self.max[0] = center.x + (self.max[0] - center.x) / (zoom_factor.x as f64);
+        self.min[1] = center.y + (self.min[1] - center.y) / (zoom_factor.y as f64);
+        self.max[1] = center.y + (self.max[1] - center.y) / (zoom_factor.y as f64);
+    }
+
     pub(crate) fn add_relative_margin_x(&mut self, margin_fraction: Vec2) {
         let width = self.width().max(0.0);
         self.expand_x(margin_fraction.x as f64 * width);
@@ -255,10 +262,7 @@ impl PlotTransform {
         let center = self.value_from_position(center);
 
         let mut new_bounds = self.bounds;
-        new_bounds.min[0] = center.x + (new_bounds.min[0] - center.x) / (zoom_factor.x as f64);
-        new_bounds.max[0] = center.x + (new_bounds.max[0] - center.x) / (zoom_factor.x as f64);
-        new_bounds.min[1] = center.y + (new_bounds.min[1] - center.y) / (zoom_factor.y as f64);
-        new_bounds.max[1] = center.y + (new_bounds.max[1] - center.y) / (zoom_factor.y as f64);
+        new_bounds.zoom(zoom_factor, center);
 
         if new_bounds.is_valid() {
             self.bounds = new_bounds;

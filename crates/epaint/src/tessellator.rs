@@ -535,6 +535,7 @@ pub mod path {
             add_circle_quadrant(path, pos2(min.x + r.sw, max.y - r.sw), r.sw, 1.0);
             add_circle_quadrant(path, pos2(min.x + r.nw, min.y + r.nw), r.nw, 2.0);
             add_circle_quadrant(path, pos2(max.x - r.ne, min.y + r.ne), r.ne, 3.0);
+            path.dedup(); // We get duplicates for thin rectangles, producing visual artifats
         }
     }
 
@@ -701,7 +702,7 @@ fn fill_closed_path(feathering: f32, path: &mut [PathPoint], color: Color32, out
         if cw_signed_area(path) < 0.0 {
             // Wrong winding order - fix:
             path.reverse();
-            for point in path.iter_mut() {
+            for point in &mut *path {
                 point.normal = -point.normal;
             }
         }
@@ -771,7 +772,7 @@ fn fill_closed_path_with_uv(
         if cw_signed_area(path) < 0.0 {
             // Wrong winding order - fix:
             path.reverse();
-            for point in path.iter_mut() {
+            for point in &mut *path {
                 point.normal = -point.normal;
             }
         }
@@ -1472,6 +1473,7 @@ impl Tessellator {
             galley,
             underline,
             override_text_color,
+            fallback_color,
             angle,
         } = text_shape;
 
@@ -1538,10 +1540,15 @@ impl Tessellator {
                         let Vertex { pos, uv, mut color } = *vertex;
 
                         if let Some(override_text_color) = override_text_color {
+                            // Only override the glyph color (not background color, strike-through color, etc)
                             if row.visuals.glyph_vertex_range.contains(&i) {
                                 color = *override_text_color;
                             }
+                        } else if color == Color32::PLACEHOLDER {
+                            color = *fallback_color;
                         }
+
+                        crate::epaint_assert!(color != Color32::PLACEHOLDER, "A placeholder color made it to the tessellator. You forgot to set a fallback color.");
 
                         let offset = if *angle == 0.0 {
                             pos.to_vec2()

@@ -238,6 +238,15 @@ impl From<Arc<ColorImage>> for ImageData {
     }
 }
 
+impl std::fmt::Debug for ColorImage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ColorImage")
+            .field("size", &self.size)
+            .field("pixel-count", &self.pixels.len())
+            .finish_non_exhaustive()
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// A single-channel image designed for the font texture.
@@ -341,7 +350,7 @@ impl From<FontImage> for ImageData {
 
 #[inline]
 fn fast_round(r: f32) -> u8 {
-    (r + 0.5).floor() as _ // rust does a saturating cast since 1.45
+    (r + 0.5) as _ // rust does a saturating cast since 1.45
 }
 
 // ----------------------------------------------------------------------------

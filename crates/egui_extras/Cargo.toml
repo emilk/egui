@@ -1,16 +1,16 @@
 [package]
 name = "egui_extras"
-version = "0.23.0"
+version.workspace = true
 authors = [
   "Dominik Rössler <dominik@freshx.de>",
   "Emil Ernerfeldt <emil.ernerfeldt@gmail.com>",
   "René Rössler <rene@freshx.de>",
 ]
 description = "Extra functionality and widgets for the egui GUI library"
-edition = "2021"
-rust-version = "1.70"
+edition.workspace = true
+rust-version.workspace = true
 homepage = "https://github.com/emilk/egui"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 readme = "README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["gui", "game-development"]
@@ -24,7 +24,7 @@ all-features = true
 
 
 [features]
-default = ["dep:mime_guess"]
+default = ["dep:mime_guess2"]
 
 ## Shorthand for enabling the different types of image loaders (`file`, `http`, `image`, `svg`).
 all_loaders = ["file", "http", "image", "svg"]
@@ -33,7 +33,7 @@ all_loaders = ["file", "http", "image", "svg"]
 datepicker = ["chrono"]
 
 ## Add support for loading images from `file://` URIs.
-file = ["dep:mime_guess"]
+file = ["dep:mime_guess2"]
 
 ## Add support for loading images via HTTP.
 http = ["dep:ehttp"]
@@ -53,14 +53,14 @@ image = ["dep:image"]
 puffin = ["dep:puffin", "egui/puffin"]
 
 ## Support loading svg images.
-svg = ["resvg", "tiny-skia", "usvg"]
+svg = ["resvg"]
 
 ## Enable better syntax highlighting using [`syntect`](https://docs.rs/syntect).
 syntect = ["dep:syntect"]
 
 
 [dependencies]
-egui = { version = "0.23.0", path = "../egui", default-features = false, features = [
+egui = { version = "0.24.1", path = "../egui", default-features = false, features = [
   "serde",
 ] }
 enum-map = { version = "2", features = ["serde"] }
@@ -83,18 +83,16 @@ document-features = { version = "0.2", optional = true }
 image = { version = "0.24", optional = true, default-features = false }
 
 # file feature
-mime_guess = { version = "2.0.4", optional = true, default-features = false }
+mime_guess2 = { version = "2", optional = true, default-features = false }
 
-puffin = { version = "0.16", optional = true }
+puffin = { workspace = true, optional = true }
 
 syntect = { version = "5", optional = true, default-features = false, features = [
   "default-fancy",
 ] }
 
 # svg feature
-resvg = { version = "0.28", optional = true, default-features = false }
-tiny-skia = { version = "0.8", optional = true, default-features = false } # must be updated in lock-step with resvg
-usvg = { version = "0.28", optional = true, default-features = false }
+resvg = { version = "0.37", optional = true, default-features = false }
 
 # http feature
 ehttp = { version = "0.3.1", optional = true, default-features = false }

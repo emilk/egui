@@ -109,94 +109,10 @@ pub fn should_ignore_key(key: &str) -> bool {
         )
 }
 
-/// Web sends all all keys as strings, so it is up to us to figure out if it is
+/// Web sends all keys as strings, so it is up to us to figure out if it is
 /// a real text input or the name of a key.
 pub fn translate_key(key: &str) -> Option<egui::Key> {
-    use egui::Key;
-
-    match key {
-        "ArrowDown" => Some(Key::ArrowDown),
-        "ArrowLeft" => Some(Key::ArrowLeft),
-        "ArrowRight" => Some(Key::ArrowRight),
-        "ArrowUp" => Some(Key::ArrowUp),
-
-        "Esc" | "Escape" => Some(Key::Escape),
-        "Tab" => Some(Key::Tab),
-        "Backspace" => Some(Key::Backspace),
-        "Enter" => Some(Key::Enter),
-        "Space" | " " => Some(Key::Space),
-
-        "Help" | "Insert" => Some(Key::Insert),
-        "Delete" => Some(Key::Delete),
-        "Home" => Some(Key::Home),
-        "End" => Some(Key::End),
-        "PageUp" => Some(Key::PageUp),
-        "PageDown" => Some(Key::PageDown),
-
-        "-" => Some(Key::Minus),
-        "+" | "=" => Some(Key::PlusEquals),
-
-        "0" => Some(Key::Num0),
-        "1" => Some(Key::Num1),
-        "2" => Some(Key::Num2),
-        "3" => Some(Key::Num3),
-        "4" => Some(Key::Num4),
-        "5" => Some(Key::Num5),
-        "6" => Some(Key::Num6),
-        "7" => Some(Key::Num7),
-        "8" => Some(Key::Num8),
-        "9" => Some(Key::Num9),
-
-        "a" | "A" => Some(Key::A),
-        "b" | "B" => Some(Key::B),
-        "c" | "C" => Some(Key::C),
-        "d" | "D" => Some(Key::D),
-        "e" | "E" => Some(Key::E),
-        "f" | "F" => Some(Key::F),
-        "g" | "G" => Some(Key::G),
-        "h" | "H" => Some(Key::H),
-        "i" | "I" => Some(Key::I),
-        "j" | "J" => Some(Key::J),
-        "k" | "K" => Some(Key::K),
-        "l" | "L" => Some(Key::L),
-        "m" | "M" => Some(Key::M),
-        "n" | "N" => Some(Key::N),
-        "o" | "O" => Some(Key::O),
-        "p" | "P" => Some(Key::P),
-        "q" | "Q" => Some(Key::Q),
-        "r" | "R" => Some(Key::R),
-        "s" | "S" => Some(Key::S),
-        "t" | "T" => Some(Key::T),
-        "u" | "U" => Some(Key::U),
-        "v" | "V" => Some(Key::V),
-        "w" | "W" => Some(Key::W),
-        "x" | "X" => Some(Key::X),
-        "y" | "Y" => Some(Key::Y),
-        "z" | "Z" => Some(Key::Z),
-
-        "F1" => Some(Key::F1),
-        "F2" => Some(Key::F2),
-        "F3" => Some(Key::F3),
-        "F4" => Some(Key::F4),
-        "F5" => Some(Key::F5),
-        "F6" => Some(Key::F6),
-        "F7" => Some(Key::F7),
-        "F8" => Some(Key::F8),
-        "F9" => Some(Key::F9),
-        "F10" => Some(Key::F10),
-        "F11" => Some(Key::F11),
-        "F12" => Some(Key::F12),
-        "F13" => Some(Key::F13),
-        "F14" => Some(Key::F14),
-        "F15" => Some(Key::F15),
-        "F16" => Some(Key::F16),
-        "F17" => Some(Key::F17),
-        "F18" => Some(Key::F18),
-        "F19" => Some(Key::F19),
-        "F20" => Some(Key::F20),
-
-        _ => None,
-    }
+    egui::Key::from_name(key)
 }
 
 pub fn modifiers_from_event(event: &web_sys::KeyboardEvent) -> egui::Modifiers {

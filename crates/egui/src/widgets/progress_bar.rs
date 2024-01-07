@@ -32,30 +32,35 @@ impl ProgressBar {
     }
 
     /// The desired width of the bar. Will use all horizontal space if not set.
+    #[inline]
     pub fn desired_width(mut self, desired_width: f32) -> Self {
         self.desired_width = Some(desired_width);
         self
     }
 
     /// The desired height of the bar. Will use the default interaction size if not set.
+    #[inline]
     pub fn desired_height(mut self, desired_height: f32) -> Self {
         self.desired_height = Some(desired_height);
         self
     }
 
     /// The fill color of the bar.
+    #[inline]
     pub fn fill(mut self, color: Color32) -> Self {
         self.fill = Some(color);
         self
     }
 
     /// A custom text to display on the progress bar.
+    #[inline]
     pub fn text(mut self, text: impl Into<WidgetText>) -> Self {
         self.text = Some(ProgressBarText::Custom(text.into()));
         self
     }
 
     /// Show the progress in percent on the progress bar.
+    #[inline]
     pub fn show_percentage(mut self) -> Self {
         self.text = Some(ProgressBarText::Percentage);
         self
@@ -64,6 +69,7 @@ impl ProgressBar {
     /// Whether to display a loading animation when progress `< 1`.
     /// Note that this will cause the UI to be redrawn.
     /// Defaults to `false`.
+    #[inline]
     pub fn animate(mut self, animate: bool) -> Self {
         self.animate = animate;
         self
@@ -155,11 +161,9 @@ impl Widget for ProgressBar {
                 let text_color = visuals
                     .override_text_color
                     .unwrap_or(visuals.selection.stroke.color);
-                galley.paint_with_fallback_color(
-                    &ui.painter().with_clip_rect(outer_rect),
-                    text_pos,
-                    text_color,
-                );
+                ui.painter()
+                    .with_clip_rect(outer_rect)
+                    .galley(text_pos, galley, text_color);
             }
         }
 

@@ -12,6 +12,7 @@ mod web_logger;
 mod web_runner;
 
 /// Access to the browser screen reader.
+#[cfg(feature = "web_screen_reader")]
 pub mod screen_reader;
 
 /// Access to local browser storage.
@@ -48,6 +49,10 @@ use input::*;
 use crate::Theme;
 
 // ----------------------------------------------------------------------------
+
+pub(crate) fn string_from_js_value(value: &JsValue) -> String {
+    value.as_string().unwrap_or_else(|| format!("{value:#?}"))
+}
 
 /// Current time in seconds (since undefined point in time).
 ///
@@ -196,7 +201,7 @@ fn set_clipboard_text(s: &str) {
             let future = wasm_bindgen_futures::JsFuture::from(promise);
             let future = async move {
                 if let Err(err) = future.await {
-                    log::error!("Copy/cut action failed: {err:?}");
+                    log::error!("Copy/cut action failed: {}", string_from_js_value(&err));
                 }
             };
             wasm_bindgen_futures::spawn_local(future);

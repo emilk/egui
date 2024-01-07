@@ -3,8 +3,7 @@
 # run:      typos
 
 [default.extend-words]
-nknown = "nknown"     # part of @55nknown username
-Prefence = "Prefence" # typo in glutin_winit API
+nknown = "nknown" # part of @55nknown username
 
 [files]
-extend-exclude = ["docs/egui_demo_app.js"] # auto-generated
+extend-exclude = ["web_demo/egui_demo_app.js"] # auto-generated

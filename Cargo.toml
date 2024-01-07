@@ -16,6 +16,13 @@ members = [
     "examples/*",
 ]
 
+[workspace.package]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+rust-version = "1.72"
+version = "0.24.2"
+
+
 [profile.release]
 # lto = true # VERY slightly smaller wasm
 # opt-level = 's' # 10-20% smaller wasm compared to `opt-level = 3`
@@ -25,16 +32,30 @@ opt-level = 2 # fast and small wasm, basically same as `opt-level = 's'`
 
 # debug = true # include debug symbols, useful when profiling wasm
 
+panic = "abort" # This leads to better optimizations and smaller binaries (and is the default in Wasm anyways).
+
 
 [profile.dev]
 # Can't leave this on by default, because it breaks the Windows build. Related: https://github.com/rust-lang/cargo/issues/4897
 # split-debuginfo = "unpacked" # faster debug builds on mac
 # opt-level = 1                # Make debug builds run faster
 
-# Optimize all dependencies even in debug builds (does not affect workspace packages):
+panic = "abort" # This leads to better optimizations and smaller binaries (and is the default in Wasm anyways).
+
 [profile.dev.package."*"]
+# Optimize all dependencies even in debug builds (does not affect workspace packages):
 opt-level = 2
 
+
 [workspace.dependencies]
+criterion = { version = "0.5.1", default-features = false }
+glow = "0.13"
+puffin = "0.18"
+raw-window-handle = "0.5.0"
 thiserror = "1.0.37"
-wgpu = "0.17.0"
+
+# Make the renderer `Sync` even on wasm32, because it makes the code simpler:
+wgpu = { version = "0.18.0", features = ["fragile-send-sync-non-atomic-wasm"] }
+
+# Use this to build wgpu with WebGL support on the Web *instead* of using WebGPU.
+#wgpu = { version = "0.18.0", features = ["webgl"] }

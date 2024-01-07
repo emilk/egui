@@ -1,6 +1,6 @@
 use std::ops::{RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
 
-/// Includive range of floats, i.e. `min..=max`, but more ergonomic than [`RangeInclusive`].
+/// Inclusive range of floats, i.e. `min..=max`, but more ergonomic than [`RangeInclusive`].
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -94,6 +94,16 @@ impl Rangef {
         Self {
             min: self.min - amnt,
             max: self.max + amnt,
+        }
+    }
+
+    /// Flip the min and the max
+    #[inline]
+    #[must_use]
+    pub fn flip(self) -> Self {
+        Self {
+            min: self.max,
+            max: self.min,
         }
     }
 

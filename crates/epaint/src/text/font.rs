@@ -139,6 +139,12 @@ impl FontImpl {
     ///
     /// See also [`invisible_char`].
     fn ignore_character(&self, chr: char) -> bool {
+        use crate::text::FontDefinitions;
+
+        if !FontDefinitions::builtin_font_names().contains(&self.name.as_str()) {
+            return false;
+        }
+
         if self.name == "emoji-icon-font" {
             // HACK: https://github.com/emilk/egui/issues/1284 https://github.com/jslegers/emoji-icon-font/issues/18
             // Don't show the wrong fullwidth capital letters:
@@ -273,15 +279,18 @@ impl FontImpl {
             if glyph_width == 0 || glyph_height == 0 {
                 UvRect::default()
             } else {
-                let atlas = &mut self.atlas.lock();
-                let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
-                glyph.draw(|x, y, v| {
-                    if v > 0.0 {
-                        let px = glyph_pos.0 + x as usize;
-                        let py = glyph_pos.1 + y as usize;
-                        image[(px, py)] = v;
-                    }
-                });
+                let glyph_pos = {
+                    let atlas = &mut self.atlas.lock();
+                    let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
+                    glyph.draw(|x, y, v| {
+                        if 0.0 < v {
+                            let px = glyph_pos.0 + x as usize;
+                            let py = glyph_pos.1 + y as usize;
+                            image[(px, py)] = v;
+                        }
+                    });
+                    glyph_pos
+                };
 
                 let offset_in_pixels = vec2(bb.min.x, bb.min.y);
                 let offset =

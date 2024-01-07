@@ -174,7 +174,7 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
     ui.separator();
 
     egui::ScrollArea::vertical()
-        .auto_shrink([false; 2])
+        .auto_shrink(false)
         .show(ui, |ui| {
             egui::CollapsingHeader::new("Response headers")
                 .default_open(false)
@@ -260,7 +260,11 @@ impl ColoredText {
             job.wrap.max_width = ui.available_width();
             let galley = ui.fonts(|f| f.layout_job(job));
             let (response, painter) = ui.allocate_painter(galley.size(), egui::Sense::hover());
-            painter.add(egui::Shape::galley(response.rect.min, galley));
+            painter.add(egui::Shape::galley(
+                response.rect.min,
+                galley,
+                ui.visuals().text_color(),
+            ));
         }
     }
 }

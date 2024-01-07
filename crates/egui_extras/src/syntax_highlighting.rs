@@ -3,6 +3,8 @@
 //! Turn on the `syntect` feature for great syntax highlighting of any language.
 //! Otherwise, a very simple fallback will be used, that works okish for C, C++, Rust, and Python.
 
+#![allow(clippy::mem_forget)] // False positive from enum_map macro
+
 use egui::text::LayoutJob;
 
 /// View some code with syntax highlighting and selection.
@@ -248,7 +250,7 @@ impl CodeTheme {
     /// Show UI for changing the color theme.
     pub fn ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal_top(|ui| {
-            let selected_id = egui::Id::null();
+            let selected_id = egui::Id::NULL;
             let mut selected_tt: TokenType =
                 ui.data_mut(|d| *d.get_persisted_mut_or(selected_id, TokenType::Comment));
 

@@ -367,20 +367,18 @@ impl MenuRoot {
         let response = response.interact(Sense::click());
         response.ctx.input(|input| {
             let pointer = &input.pointer;
-            if pointer.any_pressed() {
-                if let Some(pos) = pointer.interact_pos() {
-                    let mut destroy = false;
-                    let mut in_old_menu = false;
-                    if let Some(root) = root {
-                        in_old_menu = root.menu_state.read().area_contains(pos);
-                        destroy = root.id == response.id;
-                    }
-                    if !in_old_menu {
-                        if response.hovered() && pointer.secondary_down() {
-                            return MenuResponse::Create(pos, id);
-                        } else if (response.hovered() && pointer.primary_down()) || destroy {
-                            return MenuResponse::Close;
-                        }
+            if let Some(pos) = pointer.interact_pos() {
+                let mut in_old_menu = false;
+                let mut destroy = false;
+                if let Some(root) = root {
+                    in_old_menu = root.menu_state.read().area_contains(pos);
+                    destroy = !in_old_menu && pointer.any_pressed() && root.id == response.id;
+                }
+                if !in_old_menu {
+                    if response.hovered() && response.secondary_clicked() {
+                        return MenuResponse::Create(pos, id);
+                    } else if (response.hovered() && pointer.primary_down()) || destroy {
+                        return MenuResponse::Close;
                     }
                 }
             }
@@ -453,6 +451,7 @@ impl SubMenuButton {
         }
     }
 
+    #[inline]
     pub fn icon(mut self, icon: impl Into<WidgetText>) -> Self {
         self.icon = icon.into();
         self
@@ -502,8 +501,8 @@ impl SubMenuButton {
             }
 
             let text_color = visuals.text_color();
-            text_galley.paint_with_fallback_color(ui.painter(), text_pos, text_color);
-            icon_galley.paint_with_fallback_color(ui.painter(), icon_pos, text_color);
+            ui.painter().galley(text_pos, text_galley, text_color);
+            ui.painter().galley(icon_pos, icon_galley, text_color);
         }
         response
     }

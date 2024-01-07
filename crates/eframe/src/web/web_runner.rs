@@ -58,8 +58,7 @@ impl WebRunner {
 
         let follow_system_theme = web_options.follow_system_theme;
 
-        let mut runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
-        runner.warm_up();
+        let runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
         self.runner.replace(Some(runner));
 
         {
@@ -96,7 +95,10 @@ impl WebRunner {
             log::debug!("Unsubscribing from {} events", events_to_unsubscribe.len());
             for x in events_to_unsubscribe {
                 if let Err(err) = x.unsubscribe() {
-                    log::warn!("Failed to unsubscribe from event: {err:?}");
+                    log::warn!(
+                        "Failed to unsubscribe from event: {}",
+                        super::string_from_js_value(&err)
+                    );
                 }
             }
         }

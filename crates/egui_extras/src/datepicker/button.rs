@@ -33,36 +33,42 @@ impl<'a> DatePickerButton<'a> {
 
     /// Add id source.
     /// Must be set if multiple date picker buttons are in the same Ui.
+    #[inline]
     pub fn id_source(mut self, id_source: &'a str) -> Self {
         self.id_source = Some(id_source);
         self
     }
 
     /// Show combo boxes in date picker popup. (Default: true)
+    #[inline]
     pub fn combo_boxes(mut self, combo_boxes: bool) -> Self {
         self.combo_boxes = combo_boxes;
         self
     }
 
     /// Show arrows in date picker popup. (Default: true)
+    #[inline]
     pub fn arrows(mut self, arrows: bool) -> Self {
         self.arrows = arrows;
         self
     }
 
     /// Show calendar in date picker popup. (Default: true)
+    #[inline]
     pub fn calendar(mut self, calendar: bool) -> Self {
         self.calendar = calendar;
         self
     }
 
     /// Show calendar week in date picker popup. (Default: true)
+    #[inline]
     pub fn calendar_week(mut self, week: bool) -> Self {
         self.calendar_week = week;
         self
     }
 
     /// Show the calendar icon on the button. (Default: true)
+    #[inline]
     pub fn show_icon(mut self, show_icon: bool) -> Self {
         self.show_icon = show_icon;
         self

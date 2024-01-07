@@ -1,12 +1,12 @@
 [package]
 name = "egui"
-version = "0.23.0"
+version.workspace = true
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "An easy-to-use immediate mode GUI that runs on both web and native"
-edition = "2021"
-rust-version = "1.70"
+edition.workspace = true
+rust-version.workspace = true
 homepage = "https://github.com/emilk/egui"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 readme = "../../README.md"
 repository = "https://github.com/emilk/egui"
 categories = ["gui", "game-development"]
@@ -76,16 +76,16 @@ unity = ["epaint/unity"]
 
 
 [dependencies]
-epaint = { version = "0.23.0", path = "../epaint", default-features = false }
+epaint = { version = "0.24.1", path = "../epaint", default-features = false }
 
-ahash = { version = "0.8.1", default-features = false, features = [
+ahash = { version = "0.8.6", default-features = false, features = [
     "no-rng", # we don't need DOS-protection, so we let users opt-in to it instead
     "std",
 ] }
 nohash-hasher = "0.2"
 
 #! ### Optional dependencies
-accesskit = { version = "0.11", optional = true }
+accesskit = { version = "0.12", optional = true }
 
 backtrace = { version = "0.3", optional = true }
 
@@ -93,6 +93,6 @@ backtrace = { version = "0.3", optional = true }
 document-features = { version = "0.2", optional = true }
 
 log = { version = "0.4", optional = true, features = ["std"] }
-puffin = { version = "0.16", optional = true }
+puffin = { workspace = true, optional = true }
 ron = { version = "0.8", optional = true }
 serde = { version = "1", optional = true, features = ["derive", "rc"] }

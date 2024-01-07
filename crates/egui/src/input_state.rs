@@ -148,8 +148,10 @@ impl InputState {
         mut self,
         mut new: RawInput,
         requested_repaint_last_frame: bool,
+        pixels_per_point: f32,
     ) -> InputState {
         crate::profile_function!();
+
         let time = new.time.unwrap_or(self.time + new.predicted_dt as f64);
         let unstable_dt = (time - self.time) as f32;
 
@@ -216,7 +218,7 @@ impl InputState {
             scroll_delta,
             zoom_factor_delta,
             screen_rect,
-            pixels_per_point: new.pixels_per_point.unwrap_or(self.pixels_per_point),
+            pixels_per_point,
             max_texture_side: new.max_texture_side.unwrap_or(self.max_texture_side),
             time,
             unstable_dt,
@@ -228,6 +230,12 @@ impl InputState {
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
         }
+    }
+
+    /// Info about the active viewport
+    #[inline]
+    pub fn viewport(&self) -> &ViewportInfo {
+        self.raw.viewport()
     }
 
     #[inline(always)]
@@ -281,7 +289,13 @@ impl InputState {
     /// Count presses of a key. If non-zero, the presses are consumed, so that this will only return non-zero once.
     ///
     /// Includes key-repeat events.
-    pub fn count_and_consume_key(&mut self, modifiers: Modifiers, key: Key) -> usize {
+    ///
+    /// This uses [`Modifiers::matches_logically`] to match modifiers.
+    /// This means that e.g. the shortcut `Ctrl` + `Key::Plus` will be matched
+    /// as long as `Ctrl` and `Plus` are pressed, ignoring if
+    /// `Shift` or `Alt` are also pressed (because those modifiers might
+    /// be required to produce the logical `Key::Plus`).
+    pub fn count_and_consume_key(&mut self, modifiers: Modifiers, logical_key: Key) -> usize {
         let mut count = 0usize;
 
         self.events.retain(|event| {
@@ -292,7 +306,7 @@ impl InputState {
                     modifiers: ev_mods,
                     pressed: true,
                     ..
-                } if *ev_key == key && ev_mods.matches(modifiers)
+                } if *ev_key == logical_key && ev_mods.matches_logically(modifiers)
             );
 
             count += is_match as usize;
@@ -306,8 +320,8 @@ impl InputState {
     /// Check for a key press. If found, `true` is returned and the key pressed is consumed, so that this will only return `true` once.
     ///
     /// Includes key-repeat events.
-    pub fn consume_key(&mut self, modifiers: Modifiers, key: Key) -> bool {
-        self.count_and_consume_key(modifiers, key) > 0
+    pub fn consume_key(&mut self, modifiers: Modifiers, logical_key: Key) -> bool {
+        self.count_and_consume_key(modifiers, logical_key) > 0
     }
 
     /// Check if the given shortcut has been pressed.
@@ -316,8 +330,11 @@ impl InputState {
     ///
     /// Includes key-repeat events.
     pub fn consume_shortcut(&mut self, shortcut: &KeyboardShortcut) -> bool {
-        let KeyboardShortcut { modifiers, key } = *shortcut;
-        self.consume_key(modifiers, key)
+        let KeyboardShortcut {
+            modifiers,
+            logical_key,
+        } = *shortcut;
+        self.consume_key(modifiers, logical_key)
     }
 
     /// Was the given key pressed this frame?

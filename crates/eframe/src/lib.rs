@@ -9,6 +9,21 @@
 //! In short, you implement [`App`] (especially [`App::update`]) and then
 //! call [`crate::run_native`] from your `main.rs`, and/or use `eframe::WebRunner` from your `lib.rs`.
 //!
+//! ## Compiling for web
+//! To get copy-paste working on web, you need to compile with
+//! `export RUSTFLAGS=--cfg=web_sys_unstable_apis`.
+//!
+//! You need to install the `wasm32` target with `rustup target add wasm32-unknown-unknown`.
+//!
+//! Build the `.wasm` using `cargo build --target wasm32-unknown-unknown`
+//! and then use [`wasm-bindgen`](https://github.com/rustwasm/wasm-bindgen) to generate the JavaScript glue code.
+//!
+//! See the [`eframe_template` repository](https://github.com/emilk/eframe_template/) for more.
+//!
+//! ## Simplified usage
+//! If your app is only for native, and you don't need advanced features like state persistence,
+//! then you can use the simpler function [`run_simple_native`].
+//!
 //! ## Usage, native:
 //! ``` no_run
 //! use eframe::egui;
@@ -114,10 +129,6 @@
 //! }
 //! ```
 //!
-//! ## Simplified usage
-//! If your app is only for native, and you don't need advanced features like state persistence,
-//! then you can use the simpler function [`run_simple_native`].
-//!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
@@ -166,10 +177,19 @@ mod native;
 #[cfg(feature = "persistence")]
 pub use native::file_storage::storage_dir;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod icon_data;
+
 /// This is how you start a native (desktop) app.
 ///
-/// The first argument is name of your app, used for the title bar of the native window
-/// and the save location of persistence (see [`App::save`]).
+/// The first argument is name of your app, which is a an identifier
+/// used for the save location of persistence (see [`App::save`]).
+/// It is also used as the application id on wayland.
+/// If you set no title on the viewport, the app id will be used
+/// as the title.
+///
+/// For details about application ID conventions, see the
+/// [Desktop Entry Spec](https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#desktop-file-id)
 ///
 /// Call from `fn main` like this:
 /// ``` no_run
@@ -209,16 +229,29 @@ pub use native::file_storage::storage_dir;
 #[allow(clippy::needless_pass_by_value)]
 pub fn run_native(
     app_name: &str,
-    native_options: NativeOptions,
+    mut native_options: NativeOptions,
     app_creator: AppCreator,
 ) -> Result<()> {
-    let renderer = native_options.renderer;
-
     #[cfg(not(feature = "__screenshot"))]
     assert!(
         std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
         "EFRAME_SCREENSHOT_TO found without compiling with the '__screenshot' feature"
     );
+
+    if native_options.viewport.title.is_none() {
+        native_options.viewport.title = Some(app_name.to_owned());
+    }
+
+    let renderer = native_options.renderer;
+
+    #[cfg(all(feature = "glow", feature = "wgpu"))]
+    {
+        match renderer {
+            Renderer::Glow => "glow",
+            Renderer::Wgpu => "wgpu",
+        };
+        log::info!("Both the glow and wgpu renderers are available. Using {renderer}.");
+    }
 
     match renderer {
         #[cfg(feature = "glow")]
@@ -303,6 +336,11 @@ pub enum Error {
     #[error("winit error: {0}")]
     Winit(#[from] winit::error::OsError),
 
+    /// An error from [`winit::event_loop::EventLoop`].
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("winit EventLoopError: {0}")]
+    WinitEventLoop(#[from] winit::error::EventLoopError),
+
     /// An error from [`glutin`] when using [`glow`].
     #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
     #[error("glutin error: {0}")]
@@ -313,6 +351,11 @@ pub enum Error {
     #[error("Found no glutin configs matching the template: {0:?}. Error: {1:?}")]
     NoGlutinConfigs(glutin::config::ConfigTemplate, Box<dyn std::error::Error>),
 
+    /// An error from [`glutin`] when using [`glow`].
+    #[cfg(feature = "glow")]
+    #[error("egui_glow: {0}")]
+    OpenGL(#[from] egui_glow::PainterError),
+
     /// An error from [`wgpu`].
     #[cfg(feature = "wgpu")]
     #[error("WGPU error: {0}")]
@@ -320,7 +363,7 @@ pub enum Error {
 }
 
 /// Short for `Result<T, eframe::Error>`.
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 // ---------------------------------------------------------------------------
 

@@ -5,7 +5,7 @@ Also see [`CONTRIBUTING.md`](CONTRIBUTING.md) for what to do before opening a PR
 
 
 ## Crate overview
-The crates in this repository are: `egui, emath, epaint, egui_extras, egui_plot, egui-winit, egui_glium, egui_glow, egui_demo_lib, egui_demo_app`.
+The crates in this repository are: `egui, emath, epaint, egui_extras, egui_plot, egui-winit, egui_glow, egui_demo_lib, egui_demo_app`.
 
 ### `egui`: The main GUI library.
 Example code: `if ui.button("Click me").clicked() { … }`
@@ -31,9 +31,6 @@ Plotting for `egui`.
 This crates provides bindings between [`egui`](https://github.com/emilk/egui) and [winit](https://crates.io/crates/winit).
 
 The library translates winit events to egui, handled copy/paste, updates the cursor, open links clicked in egui, etc.
-
-### `egui_glium`
-Puts an egui app inside a native window on your laptop. Paints the triangles that egui outputs using [glium](https://github.com/glium/glium).
 
 ### `egui_glow`
 Puts an egui app inside a native window on your laptop. Paints the triangles that egui outputs using [glow](https://github.com/grovesNL/glow).

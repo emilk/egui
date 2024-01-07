@@ -20,7 +20,7 @@ pub struct FileLoader {
 }
 
 impl FileLoader {
-    pub const ID: &str = egui::generate_loader_id!(FileLoader);
+    pub const ID: &'static str = egui::generate_loader_id!(FileLoader);
 }
 
 const PROTOCOL: &str = "file://";
@@ -68,7 +68,7 @@ impl BytesLoader for FileLoader {
                         let result = match std::fs::read(&path) {
                             Ok(bytes) => {
                                 #[cfg(feature = "mime_guess")]
-                                let mime = mime_guess::from_path(&path)
+                                let mime = mime_guess2::from_path(&path)
                                     .first_raw()
                                     .map(|v| v.to_owned());
 

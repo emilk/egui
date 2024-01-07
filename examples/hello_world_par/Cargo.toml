@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Maxim Osipenko <maxim1999max@gmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.72"
 publish = false
 
 
@@ -14,4 +14,7 @@ eframe = { path = "../../crates/eframe", default-features = false, features = [
     "default_fonts",
     "wgpu",
 ] }
-env_logger = "0.10"
+env_logger = { version = "0.10", default-features = false, features = [
+    "auto-color",
+    "humantime",
+] }

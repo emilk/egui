@@ -1,4 +1,6 @@
-use crate::{widget_text::WidgetTextGalley, *};
+use std::sync::Arc;
+
+use crate::*;
 
 /// Static text.
 ///
@@ -85,6 +87,7 @@ impl Label {
     /// }
     /// # });
     /// ```
+    #[inline]
     pub fn sense(mut self, sense: Sense) -> Self {
         self.sense = Some(sense);
         self
@@ -93,7 +96,7 @@ impl Label {
 
 impl Label {
     /// Do layout and position the galley in the ui, without painting it or adding widget info.
-    pub fn layout_in_ui(self, ui: &mut Ui) -> (Pos2, WidgetTextGalley, Response) {
+    pub fn layout_in_ui(self, ui: &mut Ui) -> (Pos2, Arc<Galley>, Response) {
         let sense = self.sense.unwrap_or_else(|| {
             // We only want to focus labels if the screen reader is on.
             if ui.memory(|mem| mem.options.screen_reader) {
@@ -110,17 +113,13 @@ impl Label {
                 Align::Center => rect.center_top(),
                 Align::RIGHT => rect.right_top(),
             };
-            let text_galley = WidgetTextGalley {
-                galley,
-                galley_has_color: true,
-            };
-            return (pos, text_galley, response);
+            return (pos, galley, response);
         }
 
         let valign = ui.layout().vertical_align();
-        let mut text_job = self
+        let mut layout_job = self
             .text
-            .into_text_job(ui.style(), FontSelection::Default, valign);
+            .into_layout_job(ui.style(), FontSelection::Default, valign);
 
         let truncate = self.truncate;
         let wrap = !truncate && self.wrap.unwrap_or_else(|| ui.wrap_text());
@@ -138,70 +137,65 @@ impl Label {
             let first_row_indentation = available_width - ui.available_size_before_wrap().x;
             egui_assert!(first_row_indentation.is_finite());
 
-            text_job.job.wrap.max_width = available_width;
-            text_job.job.first_row_min_height = cursor.height();
-            text_job.job.halign = Align::Min;
-            text_job.job.justify = false;
-            if let Some(first_section) = text_job.job.sections.first_mut() {
+            layout_job.wrap.max_width = available_width;
+            layout_job.first_row_min_height = cursor.height();
+            layout_job.halign = Align::Min;
+            layout_job.justify = false;
+            if let Some(first_section) = layout_job.sections.first_mut() {
                 first_section.leading_space = first_row_indentation;
             }
-            let text_galley = ui.fonts(|f| text_job.into_galley(f));
+            let galley = ui.fonts(|fonts| fonts.layout_job(layout_job));
 
             let pos = pos2(ui.max_rect().left(), ui.cursor().top());
-            assert!(
-                !text_galley.galley.rows.is_empty(),
-                "Galleys are never empty"
-            );
+            assert!(!galley.rows.is_empty(), "Galleys are never empty");
             // collect a response from many rows:
-            let rect = text_galley.galley.rows[0]
-                .rect
-                .translate(vec2(pos.x, pos.y));
+            let rect = galley.rows[0].rect.translate(vec2(pos.x, pos.y));
             let mut response = ui.allocate_rect(rect, sense);
-            for row in text_galley.galley.rows.iter().skip(1) {
+            for row in galley.rows.iter().skip(1) {
                 let rect = row.rect.translate(vec2(pos.x, pos.y));
                 response |= ui.allocate_rect(rect, sense);
             }
-            (pos, text_galley, response)
+            (pos, galley, response)
         } else {
             if truncate {
-                text_job.job.wrap.max_width = available_width;
-                text_job.job.wrap.max_rows = 1;
-                text_job.job.wrap.break_anywhere = true;
+                layout_job.wrap.max_width = available_width;
+                layout_job.wrap.max_rows = 1;
+                layout_job.wrap.break_anywhere = true;
             } else if wrap {
-                text_job.job.wrap.max_width = available_width;
+                layout_job.wrap.max_width = available_width;
             } else {
-                text_job.job.wrap.max_width = f32::INFINITY;
+                layout_job.wrap.max_width = f32::INFINITY;
             };
 
             if ui.is_grid() {
                 // TODO(emilk): remove special Grid hacks like these
-                text_job.job.halign = Align::LEFT;
-                text_job.job.justify = false;
+                layout_job.halign = Align::LEFT;
+                layout_job.justify = false;
             } else {
-                text_job.job.halign = ui.layout().horizontal_placement();
-                text_job.job.justify = ui.layout().horizontal_justify();
+                layout_job.halign = ui.layout().horizontal_placement();
+                layout_job.justify = ui.layout().horizontal_justify();
             };
 
-            let text_galley = ui.fonts(|f| text_job.into_galley(f));
-            let (rect, response) = ui.allocate_exact_size(text_galley.size(), sense);
-            let pos = match text_galley.galley.job.halign {
+            let galley = ui.fonts(|fonts| fonts.layout_job(layout_job));
+            let (rect, response) = ui.allocate_exact_size(galley.size(), sense);
+            let pos = match galley.job.halign {
                 Align::LEFT => rect.left_top(),
                 Align::Center => rect.center_top(),
                 Align::RIGHT => rect.right_top(),
             };
-            (pos, text_galley, response)
+            (pos, galley, response)
         }
     }
 }
 
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
-        let (pos, text_galley, mut response) = self.layout_in_ui(ui);
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, text_galley.text()));
+        let (pos, galley, mut response) = self.layout_in_ui(ui);
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, galley.text()));
 
-        if text_galley.galley.elided {
+        if galley.elided {
             // Show the full (non-elided) text on hover:
-            response = response.on_hover_text(text_galley.text());
+            response = response.on_hover_text(galley.text());
         }
 
         if ui.is_rect_visible(response.rect) {
@@ -213,19 +207,8 @@ impl Widget for Label {
                 Stroke::NONE
             };
 
-            let override_text_color = if text_galley.galley_has_color {
-                None
-            } else {
-                Some(response_color)
-            };
-
-            ui.painter().add(epaint::TextShape {
-                pos,
-                galley: text_galley.galley,
-                override_text_color,
-                underline,
-                angle: 0.0,
-            });
+            ui.painter()
+                .add(epaint::TextShape::new(pos, galley, response_color).with_underline(underline));
         }
 
         response

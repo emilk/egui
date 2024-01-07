@@ -78,12 +78,14 @@ impl ComboBox {
     }
 
     /// Set the outer width of the button and menu.
+    #[inline]
     pub fn width(mut self, width: f32) -> Self {
         self.width = Some(width);
         self
     }
 
     /// What we show as the currently selected value
+    #[inline]
     pub fn selected_text(mut self, selected_text: impl Into<WidgetText>) -> Self {
         self.selected_text = selected_text.into();
         self
@@ -129,6 +131,7 @@ impl ComboBox {
     }
 
     /// Controls whether text wrap is used for the selected text
+    #[inline]
     pub fn wrap(mut self, wrap: bool) -> Self {
         self.wrap_enabled = wrap;
         self
@@ -244,7 +247,7 @@ fn combo_box_dyn<'c, R>(
 
     let is_popup_open = ui.memory(|m| m.is_popup_open(popup_id));
 
-    let popup_height = ui.memory(|m| m.areas.get(popup_id).map_or(100.0, |state| state.size.y));
+    let popup_height = ui.memory(|m| m.areas().get(popup_id).map_or(100.0, |state| state.size.y));
 
     let above_or_below =
         if ui.next_widget_position().y + ui.spacing().interact_size.y + popup_height
@@ -324,7 +327,8 @@ fn combo_box_dyn<'c, R>(
             }
 
             let text_rect = Align2::LEFT_CENTER.align_size_within_rect(galley.size(), rect);
-            galley.paint_with_visuals(ui.painter(), text_rect.min, visuals);
+            ui.painter()
+                .galley(text_rect.min, galley, visuals.text_color());
         }
     });
 

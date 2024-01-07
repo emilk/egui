@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------------------
 # Section identical to the root clippy.toml:
 
-msrv = "1.70"
+msrv = "1.72"
 
 allow-unwrap-in-tests = true
 

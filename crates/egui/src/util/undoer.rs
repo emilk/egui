@@ -57,15 +57,22 @@ pub struct Undoer<State> {
     /// The latest undo point may (often) be the current state.
     undos: VecDeque<State>,
 
+    /// Stores redos immediately after a sequence of undos.
+    /// Gets cleared every time the state changes.
+    /// Does not need to be a deque, because there can only be up to undos.len() redos,
+    /// which is already limited to settings.max_undos.
+    redos: Vec<State>,
+
     #[cfg_attr(feature = "serde", serde(skip))]
     flux: Option<Flux<State>>,
 }
 
 impl<State> std::fmt::Debug for Undoer<State> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self { undos, .. } = self;
+        let Self { undos, redos, .. } = self;
         f.debug_struct("Undoer")
             .field("undo count", &undos.len())
+            .field("redo count", &redos.len())
             .finish()
     }
 }
@@ -91,6 +98,10 @@ where
         }
     }
 
+    pub fn has_redo(&self, current_state: &State) -> bool {
+        !self.redos.is_empty() && self.undos.back() == Some(current_state)
+    }
+
     /// Return true if the state is currently changing
     pub fn is_in_flux(&self) -> bool {
         self.flux.is_some()
@@ -101,7 +112,9 @@ where
             self.flux = None;
 
             if self.undos.back() == Some(current_state) {
-                self.undos.pop_back();
+                self.redos.push(self.undos.pop_back().unwrap());
+            } else {
+                self.redos.push(current_state.clone());
             }
 
             // Note: we keep the undo point intact.
@@ -111,9 +124,20 @@ where
         }
     }
 
+    pub fn redo(&mut self, current_state: &State) -> Option<&State> {
+        if !self.undos.is_empty() && self.undos.back() != Some(current_state) {
+            // state changed since the last undo, redos should be cleared.
+            self.redos.clear();
+            None
+        } else if let Some(state) = self.redos.pop() {
+            self.undos.push_back(state);
+            self.undos.back()
+        } else {
+            None
+        }
+    }
+
     /// Add an undo point if, and only if, there has been a change since the latest undo point.
-    ///
-    /// * `time`: current time in seconds.
     pub fn add_undo(&mut self, current_state: &State) {
         if self.undos.back() != Some(current_state) {
             self.undos.push_back(current_state.clone());
@@ -139,6 +163,8 @@ where
                 if latest_undo == current_state {
                     self.flux = None;
                 } else {
+                    self.redos.clear();
+
                     match self.flux.as_mut() {
                         None => {
                             self.flux = Some(Flux {

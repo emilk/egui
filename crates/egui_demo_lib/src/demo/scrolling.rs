@@ -1,8 +1,9 @@
-use egui::*;
+use egui::{scroll_area::ScrollBarVisibility, *};
 
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum ScrollDemo {
+    ScrollAppearance,
     ScrollTo,
     ManyLines,
     LargeCanvas,
@@ -12,7 +13,7 @@ enum ScrollDemo {
 
 impl Default for ScrollDemo {
     fn default() -> Self {
-        Self::ScrollTo
+        Self::ScrollAppearance
     }
 }
 
@@ -20,6 +21,7 @@ impl Default for ScrollDemo {
 #[cfg_attr(feature = "serde", serde(default))]
 #[derive(Default, PartialEq)]
 pub struct Scrolling {
+    appearance: ScrollAppearance,
     demo: ScrollDemo,
     scroll_to: ScrollTo,
     scroll_stick_to: ScrollStickTo,
@@ -33,7 +35,9 @@ impl super::Demo for Scrolling {
     fn show(&mut self, ctx: &egui::Context, open: &mut bool) {
         egui::Window::new(self.name())
             .open(open)
-            .resizable(false)
+            .resizable(true)
+            .hscroll(false)
+            .vscroll(false)
             .show(ctx, |ui| {
                 use super::View as _;
                 self.ui(ui);
@@ -44,6 +48,7 @@ impl super::Demo for Scrolling {
 impl super::View for Scrolling {
     fn ui(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
+            ui.selectable_value(&mut self.demo, ScrollDemo::ScrollAppearance, "Appearance");
             ui.selectable_value(&mut self.demo, ScrollDemo::ScrollTo, "Scroll to");
             ui.selectable_value(
                 &mut self.demo,
@@ -60,6 +65,9 @@ impl super::View for Scrolling {
         });
         ui.separator();
         match self.demo {
+            ScrollDemo::ScrollAppearance => {
+                self.appearance.ui(ui);
+            }
             ScrollDemo::ScrollTo => {
                 self.scroll_to.ui(ui);
             }
@@ -84,6 +92,75 @@ impl super::View for Scrolling {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(default))]
+#[derive(PartialEq)]
+struct ScrollAppearance {
+    num_lorem_ipsums: usize,
+    visibility: ScrollBarVisibility,
+}
+
+impl Default for ScrollAppearance {
+    fn default() -> Self {
+        Self {
+            num_lorem_ipsums: 2,
+            visibility: ScrollBarVisibility::default(),
+        }
+    }
+}
+
+impl ScrollAppearance {
+    fn ui(&mut self, ui: &mut egui::Ui) {
+        let Self {
+            num_lorem_ipsums,
+            visibility,
+        } = self;
+
+        let mut style: Style = (*ui.ctx().style()).clone();
+
+        style.spacing.scroll.ui(ui);
+
+        ui.add_space(8.0);
+
+        ui.horizontal(|ui| {
+            ui.label("ScrollBarVisibility:");
+            for option in ScrollBarVisibility::ALL {
+                ui.selectable_value(visibility, option, format!("{option:?}"));
+            }
+        });
+        ui.weak("When to show scroll bars; resize the window to see the effect.");
+
+        ui.add_space(8.0);
+
+        ui.ctx().set_style(style.clone());
+        ui.set_style(style);
+
+        ui.separator();
+
+        ui.add(
+            egui::Slider::new(num_lorem_ipsums, 1..=100)
+                .text("Content length")
+                .logarithmic(true),
+        );
+
+        ui.separator();
+
+        ScrollArea::vertical()
+            .auto_shrink(false)
+            .scroll_bar_visibility(*visibility)
+            .show(ui, |ui| {
+                ui.with_layout(
+                    egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(true),
+                    |ui| {
+                        for _ in 0..*num_lorem_ipsums {
+                            ui.label(crate::LOREM_IPSUM_LONG);
+                        }
+                    },
+                );
+            });
+    }
+}
+
 fn huge_content_lines(ui: &mut egui::Ui) {
     ui.label(
         "A lot of rows, but only the visible ones are laid out, so performance is still good:",
@@ -93,7 +170,7 @@ fn huge_content_lines(ui: &mut egui::Ui) {
     let text_style = TextStyle::Body;
     let row_height = ui.text_style_height(&text_style);
     let num_rows = 10_000;
-    ScrollArea::vertical().auto_shrink([false; 2]).show_rows(
+    ScrollArea::vertical().auto_shrink(false).show_rows(
         ui,
         row_height,
         num_rows,
@@ -116,7 +193,7 @@ fn huge_content_painter(ui: &mut egui::Ui) {
     let num_rows = 10_000;
 
     ScrollArea::vertical()
-        .auto_shrink([false; 2])
+        .auto_shrink(false)
         .show_viewport(ui, |ui, viewport| {
             ui.set_height(row_height * num_rows as f32);
 
@@ -215,9 +292,7 @@ impl super::View for ScrollTo {
             scroll_bottom |= ui.button("Scroll to bottom").clicked();
         });
 
-        let mut scroll_area = ScrollArea::vertical()
-            .max_height(200.0)
-            .auto_shrink([false; 2]);
+        let mut scroll_area = ScrollArea::vertical().max_height(200.0).auto_shrink(false);
         if go_to_scroll_offset {
             scroll_area = scroll_area.vertical_scroll_offset(self.offset);
         }

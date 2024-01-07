@@ -14,7 +14,7 @@ pub struct ImageCrateLoader {
 }
 
 impl ImageCrateLoader {
-    pub const ID: &str = egui::generate_loader_id!(ImageCrateLoader);
+    pub const ID: &'static str = egui::generate_loader_id!(ImageCrateLoader);
 }
 
 fn is_supported_uri(uri: &str) -> bool {

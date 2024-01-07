@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["hacknus <l_stoeckli@bluewin.ch>"]
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.72"
 publish = false
 
 [dependencies]
@@ -14,4 +14,7 @@ eframe = { path = "../../crates/eframe", features = [
 egui_plot = { path = "../../crates/egui_plot" }
 image = { version = "0.24", default-features = false, features = ["png"] }
 rfd = "0.11.0"
-env_logger = "0.10"
+env_logger = { version = "0.10", default-features = false, features = [
+    "auto-color",
+    "humantime",
+] }

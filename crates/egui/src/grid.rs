@@ -319,6 +319,7 @@ impl Grid {
     }
 
     /// Setting this will allow for dynamic coloring of rows of the grid object
+    #[inline]
     pub fn with_row_color<F>(mut self, color_picker: F) -> Self
     where
         F: Send + Sync + Fn(usize, &Style) -> Option<Color32> + 'static,
@@ -328,6 +329,7 @@ impl Grid {
     }
 
     /// Setting this will allow the last column to expand to take up the rest of the space of the parent [`Ui`].
+    #[inline]
     pub fn num_columns(mut self, num_columns: usize) -> Self {
         self.num_columns = Some(num_columns);
         self
@@ -339,19 +341,18 @@ impl Grid {
     /// Default is whatever is in [`crate::Visuals::striped`].
     pub fn striped(self, striped: bool) -> Self {
         if striped {
-            self.with_row_color(move |row, style| {
-                if row % 2 == 1 {
-                    return Some(style.visuals.faint_bg_color);
-                }
-                None
-            })
+            self.with_row_color(striped_row_color)
         } else {
-            self
+            // Explicitly set the row color to nothing.
+            // Needed so that when the style.visuals.striped value is checked later on,
+            // it is clear that the user does not want stripes on this specific Grid.
+            self.with_row_color(|_row: usize, _style: &Style| None)
         }
     }
 
     /// Set minimum width of each column.
     /// Default: [`crate::style::Spacing::interact_size`]`.x`.
+    #[inline]
     pub fn min_col_width(mut self, min_col_width: f32) -> Self {
         self.min_col_width = Some(min_col_width);
         self
@@ -359,12 +360,14 @@ impl Grid {
 
     /// Set minimum height of each row.
     /// Default: [`crate::style::Spacing::interact_size`]`.y`.
+    #[inline]
     pub fn min_row_height(mut self, min_row_height: f32) -> Self {
         self.min_row_height = Some(min_row_height);
         self
     }
 
     /// Set soft maximum width (wrapping width) of each column.
+    #[inline]
     pub fn max_col_width(mut self, max_col_width: f32) -> Self {
         self.max_cell_size.x = max_col_width;
         self
@@ -372,6 +375,7 @@ impl Grid {
 
     /// Set spacing between columns/rows.
     /// Default: [`crate::style::Spacing::item_spacing`].
+    #[inline]
     pub fn spacing(mut self, spacing: impl Into<Vec2>) -> Self {
         self.spacing = Some(spacing.into());
         self
@@ -379,6 +383,7 @@ impl Grid {
 
     /// Change which row number the grid starts on.
     /// This can be useful when you have a large [`Grid`] inside of [`ScrollArea::show_rows`].
+    #[inline]
     pub fn start_row(mut self, start_row: usize) -> Self {
         self.start_row = start_row;
         self
@@ -403,11 +408,14 @@ impl Grid {
             max_cell_size,
             spacing,
             start_row,
-            color_picker,
+            mut color_picker,
         } = self;
         let min_col_width = min_col_width.unwrap_or_else(|| ui.spacing().interact_size.x);
         let min_row_height = min_row_height.unwrap_or_else(|| ui.spacing().interact_size.y);
         let spacing = spacing.unwrap_or_else(|| ui.spacing().item_spacing);
+        if color_picker.is_none() && ui.visuals().striped {
+            color_picker = Some(Box::new(striped_row_color));
+        }
 
         let id = ui.make_persistent_id(id_source);
         let prev_state = State::load(ui.ctx(), id);
@@ -446,4 +454,11 @@ impl Grid {
             .inner
         })
     }
+}
+
+fn striped_row_color(row: usize, style: &Style) -> Option<Color32> {
+    if row % 2 == 1 {
+        return Some(style.visuals.faint_bg_color);
+    }
+    None
 }

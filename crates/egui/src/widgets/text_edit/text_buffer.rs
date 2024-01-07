@@ -44,7 +44,7 @@ pub trait TextBuffer {
     }
 
     /// Replaces all contents of this string with `text`
-    fn replace(&mut self, text: &str) {
+    fn replace_with(&mut self, text: &str) {
         self.clear();
         self.insert_text(text, 0);
     }
@@ -91,7 +91,7 @@ impl TextBuffer for String {
         self.clear();
     }
 
-    fn replace(&mut self, text: &str) {
+    fn replace_with(&mut self, text: &str) {
         *self = text.to_owned();
     }
 
@@ -121,7 +121,7 @@ impl<'a> TextBuffer for Cow<'a, str> {
         <String as TextBuffer>::clear(self.to_mut());
     }
 
-    fn replace(&mut self, text: &str) {
+    fn replace_with(&mut self, text: &str) {
         *self = Cow::Owned(text.to_owned());
     }
 

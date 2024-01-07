@@ -119,7 +119,7 @@ impl std::fmt::Debug for Element {
         match &self {
             Self::Value { value, .. } => f
                 .debug_struct("Element::Value")
-                .field("type_id", &value.type_id())
+                .field("type_id", &(**value).type_id())
                 .finish_non_exhaustive(),
             Self::Serialized(SerializedElement {
                 type_id,
@@ -318,7 +318,7 @@ use crate::Id;
 ///
 /// Values can either be "persisted" (serializable) or "temporary" (cleared when egui is shut down).
 ///
-/// You can store state using the key [`Id::null`]. The state will then only be identified by its type.
+/// You can store state using the key [`Id::NULL`]. The state will then only be identified by its type.
 ///
 /// ```
 /// # use egui::{Id, util::IdTypeMap};
@@ -476,11 +476,20 @@ impl IdTypeMap {
         }
     }
 
-    /// Remove the state of this type an id.
+    /// Remove the state of this type and id.
     #[inline]
     pub fn remove<T: 'static>(&mut self, id: Id) {
         let hash = hash(TypeId::of::<T>(), id);
         self.map.remove(&hash);
+    }
+
+    /// Remove and fetch the state of this type and id.
+    #[inline]
+    pub fn remove_temp<T: 'static + Clone>(&mut self, id: Id) -> Option<T> {
+        let hash = hash(TypeId::of::<T>(), id);
+        self.map
+            .remove(&hash)
+            .and_then(|element| element.get_temp().cloned())
     }
 
     /// Note all state of the given type.

@@ -79,7 +79,7 @@ impl<'a> DatePickerPopup<'a> {
                                 ComboBox::from_id_source("date_picker_year")
                                     .selected_text(popup_state.year.to_string())
                                     .show_ui(ui, |ui| {
-                                        for year in today.year() - 5..today.year() + 10 {
+                                        for year in today.year() - 100..today.year() + 10 {
                                             if ui
                                                 .selectable_value(
                                                     &mut popup_state.year,
