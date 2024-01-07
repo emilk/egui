@@ -212,6 +212,9 @@ pub struct Style {
     ///
     /// This only affects a few egui widgets.
     pub explanation_tooltips: bool,
+
+    /// If true and scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift
+    pub always_scroll_the_only_direction: bool,
 }
 
 impl Style {
@@ -1076,6 +1079,7 @@ impl Default for Style {
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
+            always_scroll_the_only_direction: false,
         }
     }
 }
@@ -1332,6 +1336,7 @@ impl Style {
             #[cfg(debug_assertions)]
             debug,
             explanation_tooltips,
+            always_scroll_the_only_direction,
         } = self;
 
         visuals.light_dark_radio_buttons(ui);
@@ -1399,6 +1404,11 @@ impl Style {
         ui.checkbox(explanation_tooltips, "Explanation tooltips")
             .on_hover_text(
                 "Show explanatory text when hovering DragValue:s and other egui widgets",
+            );
+
+        ui.checkbox(always_scroll_the_only_direction, "Always scroll the only enabled direction")
+            .on_hover_text(
+                "If scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift",
             );
 
         ui.vertical_centered(|ui| reset_button(ui, self));
