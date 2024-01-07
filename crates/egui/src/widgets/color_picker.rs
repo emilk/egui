@@ -237,7 +237,7 @@ pub enum Alpha {
 }
 
 fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
-    use crate::style::ColorPickerInputType;
+    use crate::style::NumericColorSpace;
 
     let alpha_control = if is_additive_alpha(hsvag.a) {
         Alpha::Opaque // no alpha control for additive colors
@@ -245,8 +245,8 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
         alpha
     };
 
-    match ui.style().visuals.color_picker_input_values_type {
-        ColorPickerInputType::U8 => {
+    match ui.style().visuals.numeric_color_space {
+        NumericColorSpace::GammaByte => {
             let mut srgba_unmultiplied = Hsva::from(*hsvag).to_srgba_unmultiplied();
             // Only update if changed to avoid rounding issues.
             if srgba_edit_ui(ui, &mut srgba_unmultiplied, alpha_control) {
@@ -267,7 +267,8 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
                 }
             }
         }
-        ColorPickerInputType::F32 => {
+
+        NumericColorSpace::Linear => {
             let mut rgba_unmultiplied = Hsva::from(*hsvag).to_rgba_unmultiplied();
             // Only update if changed to avoid rounding issues.
             if rgba_edit_ui(ui, &mut rgba_unmultiplied, alpha_control) {
@@ -361,10 +362,10 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
 }
 
 fn input_type_button_ui(ui: &mut Ui) {
-    let mut input_type = ui.ctx().style().visuals.color_picker_input_values_type;
+    let mut input_type = ui.ctx().style().visuals.numeric_color_space;
     if input_type.toggle_button_ui(ui).changed() {
         ui.ctx().style_mut(|s| {
-            s.visuals.color_picker_input_values_type = input_type;
+            s.visuals.numeric_color_space = input_type;
         });
     }
 }

@@ -140,6 +140,8 @@ impl Hsva {
         }
     }
 
+    /// To linear space rgba in 0-1 range.
+    ///
     /// Represents additive colors using a negative alpha.
     #[inline]
     pub fn to_rgba_unmultiplied(&self) -> [f32; 4] {
@@ -159,6 +161,7 @@ impl Hsva {
         ]
     }
 
+    /// To gamma-space 0-255.
     #[inline]
     pub fn to_srgba_unmultiplied(&self) -> [u8; 4] {
         let [r, g, b, a] = self.to_rgba_unmultiplied();

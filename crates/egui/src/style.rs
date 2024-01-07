@@ -830,8 +830,8 @@ pub struct Visuals {
     /// Show a spinner when loading an image.
     pub image_loading_spinners: bool,
 
-    /// Sets the color picker's input values type.
-    pub color_picker_input_values_type: ColorPickerInputType,
+    /// How to display numeric color values.
+    pub numeric_color_space: NumericColorSpace,
 }
 
 impl Visuals {
@@ -1153,7 +1153,7 @@ impl Visuals {
 
             image_loading_spinners: true,
 
-            color_picker_input_values_type: ColorPickerInputType::U8,
+            numeric_color_space: NumericColorSpace::GammaByte,
         }
     }
 
@@ -1717,7 +1717,7 @@ impl Visuals {
 
             image_loading_spinners,
 
-            color_picker_input_values_type,
+            numeric_color_space,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1800,7 +1800,7 @@ impl Visuals {
 
         ui.horizontal(|ui| {
             ui.label("Color picker type:");
-            color_picker_input_values_type.toggle_button_ui(ui);
+            numeric_color_space.toggle_button_ui(ui);
         });
 
         ui.vertical_centered(|ui| reset_button(ui, self));
@@ -1931,20 +1931,32 @@ impl HandleShape {
     }
 }
 
+/// How to display numeric color values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
-pub enum ColorPickerInputType {
-    U8,
-    F32,
+pub enum NumericColorSpace {
+    /// RGB is 0-255 in gamma space.
+    ///
+    /// Alpha is 0-255 in linear space .
+    GammaByte,
+
+    /// 0-1 in linear space.
+    Linear,
+    // TODO(emilk): add Hex as an option
 }
 
-impl ColorPickerInputType {
+impl NumericColorSpace {
     pub fn toggle_button_ui(&mut self, ui: &mut Ui) -> crate::Response {
-        let mut response = ui.button(self.to_string());
+        let tooltip = match self {
+            Self::GammaByte => "Showing color values in 0-255 gamma space",
+            Self::Linear => "Showing color values in 0-1 linear space",
+        };
+
+        let mut response = ui.button(self.to_string()).on_hover_text(tooltip);
         if response.clicked() {
             *self = match self {
-                Self::U8 => Self::F32,
-                Self::F32 => Self::U8,
+                Self::GammaByte => Self::Linear,
+                Self::Linear => Self::GammaByte,
             };
             response.mark_changed();
         }
@@ -1952,11 +1964,11 @@ impl ColorPickerInputType {
     }
 }
 
-impl std::fmt::Display for ColorPickerInputType {
+impl std::fmt::Display for NumericColorSpace {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ColorPickerInputType::U8 => write!(f, "U8"),
-            ColorPickerInputType::F32 => write!(f, "F32"),
+            NumericColorSpace::GammaByte => write!(f, "U8"),
+            NumericColorSpace::Linear => write!(f, "F"),
         }
     }
 }
