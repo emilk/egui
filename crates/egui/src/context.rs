@@ -1392,11 +1392,16 @@ impl Context {
     /// Sets zoom factor of the UI.
     /// Will become active at the start of the next frame.
     ///
+    /// Note that calling this will not update [`Self::zoom_factor`] until the end of the frame.
+    ///
     /// This is used to calculate the `pixels_per_point`
     /// for the UI as `pixels_per_point = zoom_fator * native_pixels_per_point`.
     ///
     /// The default is 1.0.
     /// Make larger to make everything larger.
+    ///
+    /// It is better to call this than modifying
+    /// [`Options::zoom_factor`].
     #[inline(always)]
     pub fn set_zoom_factor(&self, zoom_factor: f32) {
         self.write(|ctx| {

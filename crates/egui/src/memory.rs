@@ -178,6 +178,9 @@ pub struct Options {
     ///
     /// The default is 1.0.
     /// Make larger to make everything larger.
+    ///
+    /// Please call [`crate::Context::set_zoom_factor`]
+    /// instead of modifying this directly!
     pub zoom_factor: f32,
 
     /// If `true`, egui will change the scale of the ui ([`crate::Context::zoom_factor`]) when the user

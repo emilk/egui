@@ -831,6 +831,9 @@ pub enum ViewportCommand {
     /// For other viewports, the [`crate::ViewportInfo::close_requested`] flag will be set.
     Close,
 
+    /// Calcel the closing that was signaled by [`crate::ViewportInfo::close_requested`].
+    CancelClose,
+
     /// Set the window title.
     Title(String),
 

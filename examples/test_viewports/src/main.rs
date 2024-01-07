@@ -237,29 +237,6 @@ fn generic_ui(ui: &mut egui::Ui, children: &[Arc<RwLock<ViewportState>>]) {
         ));
     }
 
-    let tmp_pixels_per_point = ctx.pixels_per_point();
-    let mut pixels_per_point = ui.data_mut(|data| {
-        *data.get_temp_mut_or(container_id.with("pixels_per_point"), tmp_pixels_per_point)
-    });
-    let res = ui.add(
-        egui::DragValue::new(&mut pixels_per_point)
-            .prefix("Pixels per Point: ")
-            .speed(0.1)
-            .clamp_range(0.5..=4.0),
-    );
-    if res.drag_released() {
-        ctx.set_pixels_per_point(pixels_per_point);
-    }
-    if res.dragged() {
-        ui.data_mut(|data| {
-            data.insert_temp(container_id.with("pixels_per_point"), pixels_per_point);
-        });
-    } else {
-        ui.data_mut(|data| {
-            data.insert_temp(container_id.with("pixels_per_point"), tmp_pixels_per_point);
-        });
-    }
-
     if ctx.viewport_id() != ctx.parent_viewport_id() {
         let parent = ctx.parent_viewport_id();
         if ui.button("Set parent pos 0,0").clicked() {

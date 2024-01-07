@@ -568,6 +568,7 @@ impl GlowWinitRunning {
         } = &mut *glutin;
 
         let viewport = viewports.get_mut(&viewport_id).unwrap();
+        viewport.info.events.clear(); // they should have been processed
         let window = viewport.window.as_ref().unwrap();
         let gl_surface = viewport.gl_surface.as_ref().unwrap();
         let egui_winit = viewport.egui_winit.as_mut().unwrap();
@@ -748,12 +749,9 @@ impl GlowWinitRunning {
         };
         if let Some(viewport_id) = viewport_id {
             if let Some(viewport) = glutin.viewports.get_mut(&viewport_id) {
-                event_response = self.integration.on_window_event(
-                    self.app.as_mut(),
-                    event,
-                    viewport.egui_winit.as_mut().unwrap(),
-                    viewport.ids.this,
-                );
+                event_response = self
+                    .integration
+                    .on_window_event(event, viewport.egui_winit.as_mut().unwrap());
             }
         }
 
@@ -1340,6 +1338,7 @@ fn render_immediate_viewport(
     let Some(viewport) = viewports.get_mut(&ids.this) else {
         return;
     };
+    viewport.info.events.clear(); // they should have been processed
 
     let Some(winit_state) = &mut viewport.egui_winit else {
         return;

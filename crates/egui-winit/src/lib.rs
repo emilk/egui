@@ -1089,6 +1089,9 @@ fn process_viewport_command(
         ViewportCommand::Close => {
             info.events.push(egui::ViewportEvent::Close);
         }
+        ViewportCommand::CancelClose => {
+            // Need to be handled elsewhere
+        }
         ViewportCommand::StartDrag => {
             // If `is_viewport_focused` is not checked on x11 the input will be permanently taken until the app is killed!
 
