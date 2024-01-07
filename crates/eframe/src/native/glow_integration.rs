@@ -1218,7 +1218,7 @@ impl GlutinWindowContext {
 }
 
 fn initialize_or_update_viewport<'vp>(
-    egu_ctx: &'_ egui::Context,
+    egu_ctx: &egui::Context,
     viewports: &'vp mut ViewportIdMap<Viewport>,
     ids: ViewportIdPair,
     class: ViewportClass,

@@ -440,8 +440,8 @@ impl SubMenuButton {
 
     fn visuals<'a>(
         ui: &'a Ui,
-        response: &'_ Response,
-        menu_state: &'_ MenuState,
+        response: &Response,
+        menu_state: &MenuState,
         sub_id: Id,
     ) -> &'a WidgetVisuals {
         if menu_state.is_open(sub_id) {
