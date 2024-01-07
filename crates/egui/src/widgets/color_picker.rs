@@ -226,11 +226,13 @@ fn is_additive_alpha(a: f32) -> bool {
 /// What options to show for alpha
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Alpha {
-    // Set alpha to 1.0, and show no option for it.
+    /// Set alpha to 1.0, and show no option for it.
     Opaque,
-    // Only show normal blend options for it.
+
+    /// Only show normal blend options for alpha.
     OnlyBlend,
-    // Show both blend and additive options.
+
+    /// Show both blend and additive options.
     BlendOrAdditive,
 }
 
