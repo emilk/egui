@@ -502,7 +502,7 @@ impl<'open> Window<'open> {
             // END FRAME --------------------------------
 
             if let Some(title_bar) = title_bar {
-                if on_top {
+                if on_top && area_content_ui.visuals().window_highlight_topmost {
                     let rect = Rect::from_min_size(
                         outer_rect.min,
                         Vec2 {
