@@ -225,7 +225,7 @@ impl Plot {
             allow_scroll: true,
             allow_double_click_reset: true,
             allow_boxed_zoom: true,
-            default_auto_bounds: false.into(),
+            default_auto_bounds: true.into(),
             min_auto_bounds: PlotBounds::NOTHING,
             margin_fraction: Vec2::splat(0.05),
             boxed_zoom_pointer_button: PointerButton::Secondary,
@@ -498,7 +498,17 @@ impl Plot {
         self
     }
 
+    /// Set whether the bounds should be automatically set based on data by default.
+    ///
+    /// This is enabled by default.
+    #[inline]
+    pub fn auto_bounds(mut self, auto_bounds: Vec2b) -> Self {
+        self.default_auto_bounds = auto_bounds;
+        self
+    }
+
     /// Expand bounds to fit all items across the x axis, including values given by `include_x`.
+    #[deprecated = "Use `auto_bounds` instead"]
     #[inline]
     pub fn auto_bounds_x(mut self) -> Self {
         self.default_auto_bounds.x = true;
@@ -506,6 +516,7 @@ impl Plot {
     }
 
     /// Expand bounds to fit all items across the y axis, including values given by `include_y`.
+    #[deprecated = "Use `auto_bounds` instead"]
     #[inline]
     pub fn auto_bounds_y(mut self) -> Self {
         self.default_auto_bounds.y = true;
@@ -770,7 +781,7 @@ impl Plot {
             max: pos + size,
         };
         // Next we want to create this layout.
-        // Incides are only examples.
+        // Indices are only examples.
         //
         //  left                     right
         //  +---+---------x----------+   +
@@ -991,6 +1002,10 @@ impl Plot {
                     auto_bounds = false.into();
                 }
                 BoundsModification::AutoBounds(new_auto_bounds) => auto_bounds = new_auto_bounds,
+                BoundsModification::Zoom(zoom_factor, center) => {
+                    bounds.zoom(zoom_factor, center);
+                    auto_bounds = false.into();
+                }
             }
         }
 
@@ -1330,6 +1345,7 @@ enum BoundsModification {
     Set(PlotBounds),
     Translate(Vec2),
     AutoBounds(Vec2b),
+    Zoom(Vec2, PlotPoint),
 }
 
 /// Provides methods to interact with a plot while building it. It is the single argument of the closure
@@ -1393,22 +1409,29 @@ impl PlotUi {
         &self.response
     }
 
-    /// Returns `true` if the plot area is currently hovered.
-    #[deprecated = "Use plot_ui.response().hovered()"]
-    pub fn plot_hovered(&self) -> bool {
-        self.response.hovered()
+    /// Scale the plot bounds around a position in screen coordinates.
+    ///
+    /// Can be useful for implementing alternative plot navigation methods.
+    ///
+    /// The plot bounds are divided by `zoom_factor`, therefore:
+    /// - `zoom_factor < 1.0` zooms out, i.e., increases the visible range to show more data.
+    /// - `zoom_factor > 1.0` zooms in, i.e., reduces the visible range to show more detail.
+    pub fn zoom_bounds(&mut self, zoom_factor: Vec2, center: PlotPoint) {
+        self.bounds_modifications
+            .push(BoundsModification::Zoom(zoom_factor, center));
     }
 
-    /// Returns `true` if the plot was clicked by the primary button.
-    #[deprecated = "Use plot_ui.response().clicked()"]
-    pub fn plot_clicked(&self) -> bool {
-        self.response.clicked()
-    }
-
-    /// Returns `true` if the plot was clicked by the secondary button.
-    #[deprecated = "Use plot_ui.response().secondary_clicked()"]
-    pub fn plot_secondary_clicked(&self) -> bool {
-        self.response.secondary_clicked()
+    /// Scale the plot bounds around the hovered position, if any.
+    ///
+    /// Can be useful for implementing alternative plot navigation methods.
+    ///
+    /// The plot bounds are divided by `zoom_factor`, therefore:
+    /// - `zoom_factor < 1.0` zooms out, i.e., increases the visible range to show more data.
+    /// - `zoom_factor > 1.0` zooms in, i.e., reduces the visible range to show more detail.
+    pub fn zoom_bounds_around_hovered(&mut self, zoom_factor: Vec2) {
+        if let Some(hover_pos) = self.pointer_coordinate() {
+            self.zoom_bounds(zoom_factor, hover_pos);
+        }
     }
 
     /// The pointer position in plot coordinates. Independent of whether the pointer is in the plot area.

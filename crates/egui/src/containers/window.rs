@@ -1,7 +1,9 @@
 // WARNING: the code in here is horrible. It is a behemoth that needs breaking up into simpler parts.
 
+use std::sync::Arc;
+
 use crate::collapsing_header::CollapsingState;
-use crate::{widget_text::WidgetTextGalley, *};
+use crate::*;
 use epaint::*;
 
 use super::*;
@@ -206,15 +208,6 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {
         self.area = self.area.constrain_to(constrain_rect);
-        self
-    }
-
-    #[deprecated = "Use `constrain_to` instead"]
-    #[inline]
-    pub fn drag_bounds(mut self, constrain_rect: Rect) -> Self {
-        #![allow(deprecated)]
-
-        self.area = self.area.drag_bounds(constrain_rect);
         self
     }
 
@@ -920,7 +913,7 @@ struct TitleBar {
     id: Id,
 
     /// Prepared text in the title
-    title_galley: WidgetTextGalley,
+    title_galley: Arc<Galley>,
 
     /// Size of the title bar in a collapsed state (if window is collapsible),
     /// which includes all necessary space for showing the expand button, the
@@ -1019,11 +1012,11 @@ impl TitleBar {
         let full_top_rect = Rect::from_x_y_ranges(self.rect.x_range(), self.min_rect.y_range());
         let text_pos =
             emath::align::center_size_in_rect(self.title_galley.size(), full_top_rect).left_top();
-        let text_pos = text_pos - self.title_galley.galley().rect.min.to_vec2();
+        let text_pos = text_pos - self.title_galley.rect.min.to_vec2();
         let text_pos = text_pos - 1.5 * Vec2::Y; // HACK: center on x-height of text (looks better)
-        self.title_galley.paint_with_fallback_color(
-            ui.painter(),
+        ui.painter().galley(
             text_pos,
+            self.title_galley.clone(),
             ui.visuals().text_color(),
         );
 

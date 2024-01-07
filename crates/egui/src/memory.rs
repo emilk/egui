@@ -1,11 +1,9 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
-use epaint::{emath::Rangef, vec2, Vec2};
-
 use crate::{
-    area,
+    area, vec2,
     window::{self, WindowInteraction},
-    EventFilter, Id, IdMap, InputState, LayerId, Order, Pos2, Rect, Style, ViewportId,
+    EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, Rect, Style, Vec2, ViewportId,
     ViewportIdMap, ViewportIdSet,
 };
 
@@ -39,7 +37,7 @@ pub struct Memory {
     ///
     /// This will be saved between different program runs if you use the `persistence` feature.
     ///
-    /// To store a state common for all your widgets (a singleton), use [`Id::null`] as the key.
+    /// To store a state common for all your widgets (a singleton), use [`Id::NULL`] as the key.
     pub data: crate::util::IdTypeMap,
 
     // ------------------------------------------
@@ -79,9 +77,6 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) viewport_id: ViewportId,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) drag_value: crate::widgets::drag_value::MonoState,
-
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.
     #[cfg_attr(feature = "persistence", serde(skip))]
@@ -111,7 +106,6 @@ impl Default for Memory {
             interactions: Default::default(),
             viewport_id: Default::default(),
             window_interactions: Default::default(),
-            drag_value: Default::default(),
             areas: Default::default(),
             popup: Default::default(),
             everything_is_visible: Default::default(),
@@ -187,6 +181,7 @@ pub struct Options {
     /// presses Cmd+Plus, Cmd+Minus or Cmd+0, just like in a browser.
     ///
     /// This is `true` by default.
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub zoom_with_keyboard: bool,
 
     /// Controls the tessellator.
@@ -198,7 +193,7 @@ pub struct Options {
     ///
     /// Screen readers is an experimental feature of egui, and not supported on all platforms.
     ///
-    /// `eframe` supports it only on web, using the `web_screen_reader` feature flag,
+    /// `eframe` supports it only on web,
     /// but you should consider using [AccessKit](https://github.com/AccessKit/accesskit) instead,
     /// which `eframe` supports.
     pub screen_reader: bool,
@@ -586,11 +581,10 @@ impl Memory {
         }
     }
 
-    pub(crate) fn end_frame(&mut self, input: &InputState, used_ids: &IdMap<Rect>) {
+    pub(crate) fn end_frame(&mut self, used_ids: &IdMap<Rect>) {
         self.caches.update();
         self.areas_mut().end_frame();
         self.interaction_mut().focus.end_frame(used_ids);
-        self.drag_value.end_frame(input);
     }
 
     pub(crate) fn set_viewport_id(&mut self, viewport_id: ViewportId) {
@@ -663,21 +657,6 @@ impl Memory {
                 }
             }
         }
-    }
-
-    /// Set an event filter for a widget.
-    ///
-    /// You must first give focus to the widget before calling this.
-    #[deprecated = "Use set_focus_lock_filter instead"]
-    pub fn lock_focus(&mut self, id: Id, lock_focus: bool) {
-        self.set_focus_lock_filter(
-            id,
-            EventFilter {
-                tab: lock_focus,
-                arrows: lock_focus,
-                escape: false,
-            },
-        );
     }
 
     /// Give keyboard focus to a specific widget.

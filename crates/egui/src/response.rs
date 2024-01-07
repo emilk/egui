@@ -655,6 +655,9 @@ impl Response {
             } else {
                 Checked::False
             });
+        } else if matches!(info.typ, WidgetType::Checkbox) {
+            // Indeterminate state
+            builder.set_checked(Checked::Mixed);
         }
     }
 

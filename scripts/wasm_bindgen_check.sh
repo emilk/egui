@@ -12,7 +12,7 @@ else
 fi
 
 CRATE_NAME="egui_demo_app"
-FEATURES="glow,http,persistence,web_screen_reader"
+FEATURES="glow,http,persistence"
 
 # This is required to enable the web_sys clipboard API which eframe web uses
 # https://rustwasm.github.io/wasm-bindgen/api/web_sys/struct.Clipboard.html

@@ -16,4 +16,7 @@ eframe = { path = "../../crates/eframe", features = [
 # For image support:
 egui_extras = { path = "../../crates/egui_extras", features = ["image"] }
 
-env_logger = "0.10"
+env_logger = { version = "0.10", default-features = false, features = [
+    "auto-color",
+    "humantime",
+] }

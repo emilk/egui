@@ -367,20 +367,18 @@ impl MenuRoot {
         let response = response.interact(Sense::click());
         response.ctx.input(|input| {
             let pointer = &input.pointer;
-            if pointer.any_pressed() {
-                if let Some(pos) = pointer.interact_pos() {
-                    let mut destroy = false;
-                    let mut in_old_menu = false;
-                    if let Some(root) = root {
-                        in_old_menu = root.menu_state.read().area_contains(pos);
-                        destroy = root.id == response.id;
-                    }
-                    if !in_old_menu {
-                        if response.hovered() && pointer.secondary_down() {
-                            return MenuResponse::Create(pos, id);
-                        } else if (response.hovered() && pointer.primary_down()) || destroy {
-                            return MenuResponse::Close;
-                        }
+            if let Some(pos) = pointer.interact_pos() {
+                let mut in_old_menu = false;
+                let mut destroy = false;
+                if let Some(root) = root {
+                    in_old_menu = root.menu_state.read().area_contains(pos);
+                    destroy = !in_old_menu && pointer.any_pressed() && root.id == response.id;
+                }
+                if !in_old_menu {
+                    if response.hovered() && response.secondary_clicked() {
+                        return MenuResponse::Create(pos, id);
+                    } else if (response.hovered() && pointer.primary_down()) || destroy {
+                        return MenuResponse::Close;
                     }
                 }
             }
@@ -503,8 +501,8 @@ impl SubMenuButton {
             }
 
             let text_color = visuals.text_color();
-            text_galley.paint_with_fallback_color(ui.painter(), text_pos, text_color);
-            icon_galley.paint_with_fallback_color(ui.painter(), icon_pos, text_color);
+            ui.painter().galley(text_pos, text_galley, text_color);
+            ui.painter().galley(icon_pos, icon_galley, text_color);
         }
         response
     }
@@ -618,8 +616,6 @@ impl MenuState {
         } else if !open && button.hovered() {
             let pos = button.rect.right_top();
             self.open_submenu(sub_id, pos);
-        } else if open && !button.hovered() && !self.hovering_current_submenu(&pointer) {
-            self.close_submenu();
         }
     }
 
@@ -639,16 +635,6 @@ impl MenuState {
         if let Some(sub_menu) = self.current_submenu() {
             if let Some(pos) = pointer.hover_pos() {
                 return Self::points_at_left_of_rect(pos, pointer.velocity(), sub_menu.read().rect);
-            }
-        }
-        false
-    }
-
-    /// Check if pointer is hovering current submenu.
-    fn hovering_current_submenu(&self, pointer: &PointerState) -> bool {
-        if let Some(sub_menu) = self.current_submenu() {
-            if let Some(pos) = pointer.hover_pos() {
-                return sub_menu.read().area_contains(pos);
             }
         }
         false
@@ -684,9 +670,5 @@ impl MenuState {
         if !self.is_open(id) {
             self.sub_menu = Some((id, Arc::new(RwLock::new(MenuState::new(pos)))));
         }
-    }
-
-    fn close_submenu(&mut self) {
-        self.sub_menu = None;
     }
 }

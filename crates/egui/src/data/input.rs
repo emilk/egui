@@ -361,7 +361,19 @@ pub enum Event {
 
     /// A key was pressed or released.
     Key {
+        /// The logical key, heeding the users keymap.
+        ///
+        /// For instance, if the user is using Dvorak keyboard layout,
+        /// this will take that into account.
         key: Key,
+
+        /// The physical key, corresponding to the actual position on the keyboard.
+        ///
+        /// This ignored keymaps, so it is not recommended to use this.
+        /// The only thing it makes sense for is things like games,
+        /// where e.g. the physical location of WSAD on QWERTY should always map to movement,
+        /// even if the user is using Dvorak or AZERTY.
+        physical_key: Option<Key>,
 
         /// Was it pressed or released?
         pressed: bool,
@@ -572,15 +584,6 @@ impl Modifiers {
         command: false,
     };
 
-    #[deprecated = "Use `Modifiers::ALT | Modifiers::SHIFT` instead"]
-    pub const ALT_SHIFT: Self = Self {
-        alt: true,
-        ctrl: false,
-        shift: true,
-        mac_cmd: false,
-        command: false,
-    };
-
     /// The Mac ⌘ Command key
     pub const MAC_CMD: Self = Self {
         alt: false,
@@ -652,13 +655,68 @@ impl Modifiers {
         !self.alt && !self.shift && self.command
     }
 
-    /// Check for equality but with proper handling of [`Self::command`].
+    /// Checks that the `ctrl/cmd` matches, and that the `shift/alt` of the argument is a subset
+    /// of the pressed ksey (`self`).
+    ///
+    /// This means that if the pattern has not set `shift`, then `self` can have `shift` set or not.
+    ///
+    /// The reason is that many logical keys require `shift` or `alt` on some keyboard layouts.
+    /// For instance, in order to press `+` on an English keyboard, you need to press `shift` and `=`,
+    /// but a Swedish keyboard has dedicated `+` key.
+    /// So if you want to make a [`KeyboardShortcut`] looking for `Cmd` + `+`, it makes sense
+    /// to ignore the shift key.
+    /// Similarly, the `Alt` key is sometimes used to type special characters.
+    ///
+    /// However, if the pattern (the argument) explicitly requires the `shift` or `alt` keys
+    /// to be pressed, then they must be pressed.
     ///
     /// # Example:
     /// ```
     /// # use egui::Modifiers;
-    /// # let current_modifiers = Modifiers::default();
-    /// if current_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
+    /// # let pressed_modifiers = Modifiers::default();
+    /// if pressed_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
+    ///     // Alt and Shift are pressed, and nothing else
+    /// }
+    /// ```
+    ///
+    /// ## Behavior:
+    /// ```
+    /// # use egui::Modifiers;
+    /// assert!(Modifiers::CTRL.matches_logically(Modifiers::CTRL));
+    /// assert!(!Modifiers::CTRL.matches_logically(Modifiers::CTRL | Modifiers::SHIFT));
+    /// assert!((Modifiers::CTRL | Modifiers::SHIFT).matches_logically(Modifiers::CTRL));
+    /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches_logically(Modifiers::CTRL));
+    /// assert!((Modifiers::CTRL | Modifiers::COMMAND).matches_logically(Modifiers::COMMAND));
+    /// assert!((Modifiers::MAC_CMD | Modifiers::COMMAND).matches_logically(Modifiers::COMMAND));
+    /// assert!(!Modifiers::COMMAND.matches_logically(Modifiers::MAC_CMD));
+    /// ```
+    pub fn matches_logically(&self, pattern: Modifiers) -> bool {
+        if pattern.alt && !self.alt {
+            return false;
+        }
+        if pattern.shift && !self.shift {
+            return false;
+        }
+
+        self.cmd_ctrl_matches(pattern)
+    }
+
+    /// Check for equality but with proper handling of [`Self::command`].
+    ///
+    /// `self` here are the currently pressed modifiers,
+    /// and the argument the pattern we are testing for.
+    ///
+    /// Note that this will require the `shift` and `alt` keys match, even though
+    /// these modifiers are sometimes required to produce some logical keys.
+    /// For instance, to press `+` on an English keyboard, you need to press `shift` and `=`,
+    /// but on a Swedish keyboard you can press the dedicated `+` key.
+    /// Therefore, you often want to use [`Self::matches_logically`] instead.
+    ///
+    /// # Example:
+    /// ```
+    /// # use egui::Modifiers;
+    /// # let pressed_modifiers = Modifiers::default();
+    /// if pressed_modifiers.matches(Modifiers::ALT | Modifiers::SHIFT) {
     ///     // Alt and Shift are pressed, and nothing else
     /// }
     /// ```
@@ -674,12 +732,28 @@ impl Modifiers {
     /// assert!((Modifiers::MAC_CMD | Modifiers::COMMAND).matches(Modifiers::COMMAND));
     /// assert!(!Modifiers::COMMAND.matches(Modifiers::MAC_CMD));
     /// ```
-    pub fn matches(&self, pattern: Modifiers) -> bool {
+    pub fn matches_exact(&self, pattern: Modifiers) -> bool {
         // alt and shift must always match the pattern:
         if pattern.alt != self.alt || pattern.shift != self.shift {
             return false;
         }
 
+        self.cmd_ctrl_matches(pattern)
+    }
+
+    #[deprecated = "Renamed `matches_exact`, but maybe you want to use `matches_logically` instead"]
+    pub fn matches(&self, pattern: Modifiers) -> bool {
+        self.matches_exact(pattern)
+    }
+
+    /// Checks only cmd/ctrl, not alt/shift.
+    ///
+    /// `self` here are the currently pressed modifiers,
+    /// and the argument the pattern we are testing for.
+    ///
+    /// This takes care to properly handle the difference between
+    /// [`Self::ctrl`], [`Self::command`] and [`Self::mac_cmd`].
+    pub fn cmd_ctrl_matches(&self, pattern: Modifiers) -> bool {
         if pattern.mac_cmd {
             // Mac-specific match:
             if !self.mac_cmd {
@@ -853,11 +927,8 @@ impl<'a> ModifierNames<'a> {
 
 /// Keyboard keys.
 ///
-/// Includes all keys egui is interested in (such as `Home` and `End`)
-/// plus a few that are useful for detecting keyboard shortcuts.
-///
-/// Many keys are omitted because they are not always physical keys (depending on keyboard language), e.g. `;` and `§`,
-/// and are therefore unsuitable as keyboard shortcuts if you want your app to be portable.
+/// egui usually uses logical keys, i.e. after applying any user keymap.
+// TODO(emilk): split into `LogicalKey` and `PhysicalKey`
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum Key {
@@ -879,12 +950,35 @@ pub enum Key {
     PageUp,
     PageDown,
 
-    /// The virtual keycode for the Minus key.
+    Copy,
+    Cut,
+    Paste,
+
+    // ----------------------------------------------
+    // Punctuation:
+    /// `:`
+    Colon,
+
+    /// `,`
+    Comma,
+
+    /// `-`
     Minus,
 
-    /// The virtual keycode for the Plus/Equals key.
-    PlusEquals,
+    /// `.`
+    Period,
 
+    /// `+`
+    Plus,
+
+    /// `=`
+    Equals,
+
+    /// `;`
+    Semicolon,
+
+    // ----------------------------------------------
+    // Digits:
     /// Either from the main row or from the numpad.
     Num0,
 
@@ -915,6 +1009,8 @@ pub enum Key {
     /// Either from the main row or from the numpad.
     Num9,
 
+    // ----------------------------------------------
+    // Letters:
     A, // Used for cmd+A (select All)
     B,
     C, // |CMD COPY|
@@ -942,7 +1038,8 @@ pub enum Key {
     Y,
     Z, // |CMD UNDO|
 
-    // The function keys:
+    // ----------------------------------------------
+    // Function keys:
     F1,
     F2,
     F3,
@@ -963,9 +1060,205 @@ pub enum Key {
     F18,
     F19,
     F20,
+    // When adding keys, remember to also update `crates/egui-winit/src/lib.rs`
+    // and [`Self::ALL`].
+    // Also: don't add keys last; add them to the group they best belong to.
 }
 
 impl Key {
+    /// All egui keys
+    pub const ALL: &'static [Self] = &[
+        Self::ArrowDown,
+        Self::ArrowLeft,
+        Self::ArrowRight,
+        Self::ArrowUp,
+        Self::Escape,
+        Self::Tab,
+        Self::Backspace,
+        Self::Enter,
+        Self::Space,
+        Self::Insert,
+        Self::Delete,
+        Self::Home,
+        Self::End,
+        Self::PageUp,
+        Self::PageDown,
+        Self::Copy,
+        Self::Cut,
+        Self::Paste,
+        // Punctuation:
+        Self::Colon,
+        Self::Comma,
+        Self::Minus,
+        Self::Period,
+        Self::Plus,
+        Self::Equals,
+        Self::Semicolon,
+        // Digits:
+        Self::Num0,
+        Self::Num1,
+        Self::Num2,
+        Self::Num3,
+        Self::Num4,
+        Self::Num5,
+        Self::Num6,
+        Self::Num7,
+        Self::Num8,
+        Self::Num9,
+        // Letters:
+        Self::A,
+        Self::B,
+        Self::C,
+        Self::D,
+        Self::E,
+        Self::F,
+        Self::G,
+        Self::H,
+        Self::I,
+        Self::J,
+        Self::K,
+        Self::L,
+        Self::M,
+        Self::N,
+        Self::O,
+        Self::P,
+        Self::Q,
+        Self::R,
+        Self::S,
+        Self::T,
+        Self::U,
+        Self::V,
+        Self::W,
+        Self::X,
+        Self::Y,
+        Self::Z,
+        // Function keys:
+        Self::F1,
+        Self::F2,
+        Self::F3,
+        Self::F4,
+        Self::F5,
+        Self::F6,
+        Self::F7,
+        Self::F8,
+        Self::F9,
+        Self::F10,
+        Self::F11,
+        Self::F12,
+        Self::F13,
+        Self::F14,
+        Self::F15,
+        Self::F16,
+        Self::F17,
+        Self::F18,
+        Self::F19,
+        Self::F20,
+    ];
+
+    /// Converts `"A"` to `Key::A`, `Space` to `Key::Space`, etc.
+    ///
+    /// Makes sense for logical keys.
+    ///
+    /// This will parse the output of both [`Self::name`] and [`Self::symbol_or_name`],
+    /// but will also parse single characters, so that both `"-"` and `"Minus"` will return `Key::Minus`.
+    ///
+    /// This should support both the names generated in a web browser,
+    /// and by winit. Please test on both with `eframe`.
+    pub fn from_name(key: &str) -> Option<Self> {
+        Some(match key {
+            "ArrowDown" | "Down" | "⏷" => Self::ArrowDown,
+            "ArrowLeft" | "Left" | "⏴" => Self::ArrowLeft,
+            "ArrowRight" | "Right" | "⏵" => Self::ArrowRight,
+            "ArrowUp" | "Up" | "⏶" => Self::ArrowUp,
+
+            "Escape" | "Esc" => Self::Escape,
+            "Tab" => Self::Tab,
+            "Backspace" => Self::Backspace,
+            "Enter" | "Return" => Self::Enter,
+            "Space" | " " => Self::Space,
+
+            "Help" | "Insert" => Self::Insert,
+            "Delete" => Self::Delete,
+            "Home" => Self::Home,
+            "End" => Self::End,
+            "PageUp" => Self::PageUp,
+            "PageDown" => Self::PageDown,
+
+            "Copy" => Self::Copy,
+            "Cut" => Self::Cut,
+            "Paste" => Self::Paste,
+
+            "Colon" | ":" => Self::Colon,
+            "Comma" | "," => Self::Comma,
+            "Minus" | "-" | "−" => Self::Minus,
+            "Period" | "." => Self::Period,
+            "Plus" | "+" => Self::Plus,
+            "Equals" | "=" => Self::Equals,
+            "Semicolon" | ";" => Self::Semicolon,
+
+            "0" => Self::Num0,
+            "1" => Self::Num1,
+            "2" => Self::Num2,
+            "3" => Self::Num3,
+            "4" => Self::Num4,
+            "5" => Self::Num5,
+            "6" => Self::Num6,
+            "7" => Self::Num7,
+            "8" => Self::Num8,
+            "9" => Self::Num9,
+
+            "a" | "A" => Self::A,
+            "b" | "B" => Self::B,
+            "c" | "C" => Self::C,
+            "d" | "D" => Self::D,
+            "e" | "E" => Self::E,
+            "f" | "F" => Self::F,
+            "g" | "G" => Self::G,
+            "h" | "H" => Self::H,
+            "i" | "I" => Self::I,
+            "j" | "J" => Self::J,
+            "k" | "K" => Self::K,
+            "l" | "L" => Self::L,
+            "m" | "M" => Self::M,
+            "n" | "N" => Self::N,
+            "o" | "O" => Self::O,
+            "p" | "P" => Self::P,
+            "q" | "Q" => Self::Q,
+            "r" | "R" => Self::R,
+            "s" | "S" => Self::S,
+            "t" | "T" => Self::T,
+            "u" | "U" => Self::U,
+            "v" | "V" => Self::V,
+            "w" | "W" => Self::W,
+            "x" | "X" => Self::X,
+            "y" | "Y" => Self::Y,
+            "z" | "Z" => Self::Z,
+
+            "F1" => Self::F1,
+            "F2" => Self::F2,
+            "F3" => Self::F3,
+            "F4" => Self::F4,
+            "F5" => Self::F5,
+            "F6" => Self::F6,
+            "F7" => Self::F7,
+            "F8" => Self::F8,
+            "F9" => Self::F9,
+            "F10" => Self::F10,
+            "F11" => Self::F11,
+            "F12" => Self::F12,
+            "F13" => Self::F13,
+            "F14" => Self::F14,
+            "F15" => Self::F15,
+            "F16" => Self::F16,
+            "F17" => Self::F17,
+            "F18" => Self::F18,
+            "F19" => Self::F19,
+            "F20" => Self::F20,
+
+            _ => return None,
+        })
+    }
+
     /// Emoji or name representing the key
     pub fn symbol_or_name(self) -> &'static str {
         // TODO(emilk): add support for more unicode symbols (see for instance https://wincent.com/wiki/Unicode_representations_of_modifier_keys).
@@ -977,7 +1270,8 @@ impl Key {
             Key::ArrowRight => "⏵",
             Key::ArrowUp => "⏶",
             Key::Minus => crate::MINUS_CHAR_STR,
-            Key::PlusEquals => "+",
+            Key::Plus => "+",
+            Key::Equals => "=",
             _ => self.name(),
         }
     }
@@ -989,19 +1283,32 @@ impl Key {
             Key::ArrowLeft => "Left",
             Key::ArrowRight => "Right",
             Key::ArrowUp => "Up",
+
             Key::Escape => "Escape",
             Key::Tab => "Tab",
             Key::Backspace => "Backspace",
             Key::Enter => "Enter",
             Key::Space => "Space",
+
             Key::Insert => "Insert",
             Key::Delete => "Delete",
             Key::Home => "Home",
             Key::End => "End",
             Key::PageUp => "PageUp",
             Key::PageDown => "PageDown",
+
+            Key::Copy => "Copy",
+            Key::Cut => "Cut",
+            Key::Paste => "Paste",
+
+            Key::Colon => "Colon",
+            Key::Comma => "Comma",
             Key::Minus => "Minus",
-            Key::PlusEquals => "Plus",
+            Key::Period => "Period",
+            Key::Plus => "Plus",
+            Key::Equals => "Equals",
+            Key::Semicolon => "Semicolon",
+
             Key::Num0 => "0",
             Key::Num1 => "1",
             Key::Num2 => "2",
@@ -1012,6 +1319,7 @@ impl Key {
             Key::Num7 => "7",
             Key::Num8 => "8",
             Key::Num9 => "9",
+
             Key::A => "A",
             Key::B => "B",
             Key::C => "C",
@@ -1062,6 +1370,31 @@ impl Key {
     }
 }
 
+#[test]
+fn test_key_from_name() {
+    assert_eq!(
+        Key::ALL.len(),
+        Key::F20 as usize + 1,
+        "Some keys are missing in Key::ALL"
+    );
+
+    for &key in Key::ALL {
+        let name = key.name();
+        assert_eq!(
+            Key::from_name(name),
+            Some(key),
+            "Failed to roundtrip {key:?} from name {name:?}"
+        );
+
+        let symbol = key.symbol_or_name();
+        assert_eq!(
+            Key::from_name(symbol),
+            Some(key),
+            "Failed to roundtrip {key:?} from symbol {symbol:?}"
+        );
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// A keyboard shortcut, e.g. `Ctrl+Alt+W`.
@@ -1069,14 +1402,19 @@ impl Key {
 /// Can be used with [`crate::InputState::consume_shortcut`]
 /// and [`crate::Context::format_shortcut`].
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct KeyboardShortcut {
     pub modifiers: Modifiers,
-    pub key: Key,
+
+    pub logical_key: Key,
 }
 
 impl KeyboardShortcut {
-    pub const fn new(modifiers: Modifiers, key: Key) -> Self {
-        Self { modifiers, key }
+    pub const fn new(modifiers: Modifiers, logical_key: Key) -> Self {
+        Self {
+            modifiers,
+            logical_key,
+        }
     }
 
     pub fn format(&self, names: &ModifierNames<'_>, is_mac: bool) -> String {
@@ -1085,9 +1423,9 @@ impl KeyboardShortcut {
             s += names.concat;
         }
         if names.is_short {
-            s += self.key.symbol_or_name();
+            s += self.logical_key.symbol_or_name();
         } else {
-            s += self.key.name();
+            s += self.logical_key.name();
         }
         s
     }
@@ -1238,11 +1576,17 @@ pub struct EventFilter {
     /// Default: `false`
     pub tab: bool,
 
-    /// If `true`, pressing arrows will act on the widget,
-    /// and NOT move focus away from the focused widget.
+    /// If `true`, pressing horizontal arrows will act on the
+    /// widget, and NOT move focus away from the focused widget.
     ///
     /// Default: `false`
-    pub arrows: bool,
+    pub horizontal_arrows: bool,
+
+    /// If `true`, pressing vertical arrows will act on the
+    /// widget, and NOT move focus away from the focused widget.
+    ///
+    /// Default: `false`
+    pub vertical_arrows: bool,
 
     /// If `true`, pressing escape will act on the widget,
     /// and NOT surrender focus from the focused widget.
@@ -1256,7 +1600,8 @@ impl Default for EventFilter {
     fn default() -> Self {
         Self {
             tab: false,
-            arrows: false,
+            horizontal_arrows: false,
+            vertical_arrows: false,
             escape: false,
         }
     }
@@ -1267,10 +1612,8 @@ impl EventFilter {
         if let Event::Key { key, .. } = event {
             match key {
                 crate::Key::Tab => self.tab,
-                crate::Key::ArrowUp
-                | crate::Key::ArrowRight
-                | crate::Key::ArrowDown
-                | crate::Key::ArrowLeft => self.arrows,
+                crate::Key::ArrowUp | crate::Key::ArrowDown => self.vertical_arrows,
+                crate::Key::ArrowRight | crate::Key::ArrowLeft => self.horizontal_arrows,
                 crate::Key::Escape => self.escape,
                 _ => true,
             }

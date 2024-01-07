@@ -527,12 +527,14 @@ impl Renderer {
                     image.pixels.len(),
                     "Mismatch between texture size and texel count"
                 );
-                Cow::Owned(image.srgba_pixels(None).collect::<Vec<_>>())
+                crate::profile_scope!("font -> sRGBA");
+                Cow::Owned(image.srgba_pixels(None).collect::<Vec<egui::Color32>>())
             }
         };
         let data_bytes: &[u8] = bytemuck::cast_slice(data_color32.as_slice());
 
         let queue_write_data_to_texture = |texture, origin| {
+            crate::profile_scope!("write_texture");
             queue.write_texture(
                 wgpu::ImageCopyTexture {
                     texture,
@@ -570,16 +572,19 @@ impl Renderer {
             // Use same label for all resources associated with this texture id (no point in retyping the type)
             let label_str = format!("egui_texid_{id:?}");
             let label = Some(label_str.as_str());
-            let texture = device.create_texture(&wgpu::TextureDescriptor {
-                label,
-                size,
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8UnormSrgb, // Minspec for wgpu WebGL emulation is WebGL2, so this should always be supported.
-                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
-            });
+            let texture = {
+                crate::profile_scope!("create_texture");
+                device.create_texture(&wgpu::TextureDescriptor {
+                    label,
+                    size,
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8UnormSrgb, // Minspec for wgpu WebGL emulation is WebGL2, so this should always be supported.
+                    usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                    view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
+                })
+            };
             let sampler = self
                 .samplers
                 .entry(image_delta.options)

@@ -93,28 +93,18 @@ impl BackendPanel {
         ui.label("egui windows:");
         self.egui_windows.checkboxes(ui);
 
-        ui.separator();
-
         #[cfg(debug_assertions)]
         if ui.ctx().style().debug.debug_on_hover_with_all_modifiers {
+            ui.separator();
             ui.label("Press down all modifiers and hover a widget to see a callstack for it");
         }
 
         #[cfg(target_arch = "wasm32")]
-        #[cfg(feature = "web_screen-reader")]
         {
             ui.separator();
             let mut screen_reader = ui.ctx().options(|o| o.screen_reader);
             ui.checkbox(&mut screen_reader, "🔈 Screen reader").on_hover_text("Experimental feature: checking this will turn on the screen reader on supported platforms");
             ui.ctx().options_mut(|o| o.screen_reader = screen_reader);
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            ui.separator();
-            if ui.button("Quit").clicked() {
-                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
-            }
         }
 
         if cfg!(debug_assertions) && cfg!(target_arch = "wasm32") {
@@ -123,6 +113,13 @@ impl BackendPanel {
             #[allow(clippy::manual_assert)]
             if ui.button("panic!()").clicked() {
                 panic!("intentional panic!");
+            }
+        }
+
+        if !cfg!(target_arch = "wasm32") {
+            ui.separator();
+            if ui.button("Quit").clicked() {
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
         }
     }

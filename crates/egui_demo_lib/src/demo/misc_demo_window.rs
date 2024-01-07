@@ -15,6 +15,7 @@ pub struct MiscDemoWindow {
 
     dummy_bool: bool,
     dummy_usize: usize,
+    checklist: [bool; 3],
 }
 
 impl Default for MiscDemoWindow {
@@ -30,6 +31,7 @@ impl Default for MiscDemoWindow {
 
             dummy_bool: false,
             dummy_usize: 0,
+            checklist: std::array::from_fn(|i| i == 0),
         }
     }
 }
@@ -107,6 +109,24 @@ impl View for MiscDemoWindow {
                     }
                 });
                 ui.radio_value(&mut self.dummy_usize, 64, "radio_value");
+                ui.label("Checkboxes can be in an indeterminate state:");
+                let mut all_checked = self.checklist.iter().all(|item| *item);
+                let any_checked = self.checklist.iter().any(|item| *item);
+                let indeterminate = any_checked && !all_checked;
+                if ui
+                    .add(
+                        Checkbox::new(&mut all_checked, "Check/uncheck all")
+                            .indeterminate(indeterminate),
+                    )
+                    .changed()
+                {
+                    self.checklist
+                        .iter_mut()
+                        .for_each(|checked| *checked = all_checked);
+                }
+                for (i, checked) in self.checklist.iter_mut().enumerate() {
+                    ui.checkbox(checked, format!("Item {}", i + 1));
+                }
             });
 
         ui.collapsing("Columns", |ui| {

@@ -509,8 +509,9 @@ pub struct RowVisuals {
     /// Does NOT include leading or trailing whitespace glyphs!!
     pub mesh_bounds: Rect,
 
-    /// The range of vertices in the mesh the contain glyphs.
-    /// Before comes backgrounds (if any), and after any underlines and strikethrough.
+    /// The range of vertices in the mesh that contain glyphs (as opposed to background, underlines, strikethorugh, etc).
+    ///
+    /// The glyph vertices comes before backgrounds (if any), and after any underlines and strikethrough.
     pub glyph_vertex_range: Range<usize>,
 }
 

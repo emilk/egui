@@ -1,5 +1,4 @@
 use egui::TexturesDelta;
-use wasm_bindgen::JsValue;
 
 use crate::{epi, App};
 
@@ -14,10 +13,12 @@ pub struct AppRunner {
     app: Box<dyn epi::App>,
     pub(crate) needs_repaint: std::sync::Arc<NeedRepaint>,
     last_save_time: f64,
-    screen_reader: super::screen_reader::ScreenReader,
-    pub(crate) text_cursor_pos: Option<egui::Pos2>,
+    pub(crate) ime: Option<egui::output::IMEOutput>,
     pub(crate) mutable_text_under_cursor: bool,
+
+    // Output for the last run:
     textures_delta: TexturesDelta,
+    clipped_primitives: Option<Vec<egui::ClippedPrimitive>>,
 }
 
 impl Drop for AppRunner {
@@ -111,10 +112,10 @@ impl AppRunner {
             app,
             needs_repaint,
             last_save_time: now_sec(),
-            screen_reader: Default::default(),
-            text_cursor_pos: None,
+            ime: None,
             mutable_text_under_cursor: false,
             textures_delta: Default::default(),
+            clipped_primitives: None,
         };
 
         runner.input.raw.max_texture_side = Some(runner.painter.max_texture_side());
@@ -170,8 +171,14 @@ impl AppRunner {
         self.painter.destroy();
     }
 
-    /// Call [`Self::paint`] later to paint
-    pub fn logic(&mut self) -> Vec<egui::ClippedPrimitive> {
+    pub fn has_outstanding_paint_data(&self) -> bool {
+        self.clipped_primitives.is_some()
+    }
+
+    /// Runs the logic, but doesn't paint the result.
+    ///
+    /// The result can be painted later with a call to [`Self::run_and_paint`] or [`Self::paint`].
+    pub fn logic(&mut self) {
         let frame_start = now_sec();
 
         super::resize_canvas_to_screen_size(self.canvas_id(), self.web_options.max_size_points);
@@ -203,31 +210,32 @@ impl AppRunner {
 
         self.handle_platform_output(platform_output);
         self.textures_delta.append(textures_delta);
-        let clipped_primitives = self.egui_ctx.tessellate(shapes, pixels_per_point);
+        self.clipped_primitives = Some(self.egui_ctx.tessellate(shapes, pixels_per_point));
 
         self.frame.info.cpu_usage = Some((now_sec() - frame_start) as f32);
-
-        clipped_primitives
     }
 
     /// Paint the results of the last call to [`Self::logic`].
-    pub fn paint(&mut self, clipped_primitives: &[egui::ClippedPrimitive]) -> Result<(), JsValue> {
+    pub fn paint(&mut self) {
         let textures_delta = std::mem::take(&mut self.textures_delta);
+        let clipped_primitives = std::mem::take(&mut self.clipped_primitives);
 
-        self.painter.paint_and_update_textures(
-            self.app.clear_color(&self.egui_ctx.style().visuals),
-            clipped_primitives,
-            self.egui_ctx.pixels_per_point(),
-            &textures_delta,
-        )?;
-
-        Ok(())
+        if let Some(clipped_primitives) = clipped_primitives {
+            if let Err(err) = self.painter.paint_and_update_textures(
+                self.app.clear_color(&self.egui_ctx.style().visuals),
+                &clipped_primitives,
+                self.egui_ctx.pixels_per_point(),
+                &textures_delta,
+            ) {
+                log::error!("Failed to paint: {}", super::string_from_js_value(&err));
+            }
+        }
     }
 
     fn handle_platform_output(&mut self, platform_output: egui::PlatformOutput) {
+        #[cfg(feature = "web_screen_reader")]
         if self.egui_ctx.options(|o| o.screen_reader) {
-            self.screen_reader
-                .speak(&platform_output.events_description());
+            super::screen_reader::speak(&platform_output.events_description());
         }
 
         let egui::PlatformOutput {
@@ -236,7 +244,7 @@ impl AppRunner {
             copied_text,
             events: _, // already handled
             mutable_text_under_cursor,
-            text_cursor_pos,
+            ime,
             #[cfg(feature = "accesskit")]
                 accesskit_update: _, // not currently implemented
         } = platform_output;
@@ -256,9 +264,9 @@ impl AppRunner {
 
         self.mutable_text_under_cursor = mutable_text_under_cursor;
 
-        if self.text_cursor_pos != text_cursor_pos {
-            super::text_agent::move_text_cursor(text_cursor_pos, self.canvas_id());
-            self.text_cursor_pos = text_cursor_pos;
+        if self.ime != ime {
+            super::text_agent::move_text_cursor(ime, self.canvas_id());
+            self.ime = ime;
         }
     }
 }

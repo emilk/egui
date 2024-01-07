@@ -255,13 +255,14 @@ pub type ImmediateViewportRendererCallback = dyn for<'a> Fn(&Context, ImmediateV
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 #[allow(clippy::option_option)]
 pub struct ViewportBuilder {
-    /// The title of the vieweport.
+    /// The title of the viewport.
     /// `eframe` will use this as the title of the native window.
     pub title: Option<String>,
 
     /// This is wayland only. See [`Self::with_app_id`].
     pub app_id: Option<String>,
 
+    /// The desired outer position of the window.
     pub position: Option<Pos2>,
     pub inner_size: Option<Vec2>,
     pub min_inner_size: Option<Vec2>,
@@ -438,7 +439,7 @@ impl ViewportBuilder {
     ///
     /// If this is not set, some platform-specific dimensions will be used.
     ///
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     /// Look at winit for more details
     #[inline]
     pub fn with_inner_size(mut self, size: impl Into<Vec2>) -> Self {
@@ -451,7 +452,7 @@ impl ViewportBuilder {
     /// If this is not set, the window will have no minimum dimensions (aside
     /// from reserved).
     ///
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     /// Look at winit for more details
     #[inline]
     pub fn with_min_inner_size(mut self, size: impl Into<Vec2>) -> Self {
@@ -464,7 +465,7 @@ impl ViewportBuilder {
     /// If this is not set, the window will have no maximum or will be set to
     /// the primary monitor's dimensions by the platform.
     ///
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     /// Look at winit for more details
     #[inline]
     pub fn with_max_inner_size(mut self, size: impl Into<Vec2>) -> Self {
@@ -506,7 +507,8 @@ impl ViewportBuilder {
         self
     }
 
-    /// This will probably not work as expected!
+    /// The initial "outer" position of the window,
+    /// i.e. where the top-left corner of the frame/chrome should be.
     #[inline]
     pub fn with_position(mut self, pos: impl Into<Pos2>) -> Self {
         self.position = Some(pos.into());
@@ -806,6 +808,7 @@ pub enum CursorGrab {
 pub enum ResizeDirection {
     North,
     South,
+    East,
     West,
     NorthEast,
     SouthEast,
@@ -852,16 +855,16 @@ pub enum ViewportCommand {
     /// Set the outer position of the viewport, i.e. moves the window.
     OuterPosition(Pos2),
 
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     InnerSize(Vec2),
 
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     MinInnerSize(Vec2),
 
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     MaxInnerSize(Vec2),
 
-    /// Should be bigger then 0
+    /// Should be bigger than 0
     ResizeIncrements(Option<Vec2>),
 
     /// Begin resizing the viewport with the left mouse button until the button is released.
@@ -897,7 +900,8 @@ pub enum ViewportCommand {
     /// The the window icon.
     Icon(Option<Arc<IconData>>),
 
-    IMEPosition(Pos2),
+    /// Set the IME cursor editing area.
+    IMERect(crate::Rect),
     IMEAllowed(bool),
     IMEPurpose(IMEPurpose),
 
@@ -964,6 +968,9 @@ impl ViewportCommand {
 }
 
 /// Describes a viewport, i.e. a native window.
+///
+/// This is returned by [`crate::Context::run`] on each frame, and should be applied
+/// by the integration.
 #[derive(Clone)]
 pub struct ViewportOutput {
     /// Id of our parent viewport.
@@ -976,6 +983,10 @@ pub struct ViewportOutput {
     pub class: ViewportClass,
 
     /// The window attrbiutes such as title, position, size, etc.
+    ///
+    /// Use this when first constructing the native window.
+    /// Also check for changes in it using [`ViewportBuilder::patch`],
+    /// and apply them as needed.
     pub builder: ViewportBuilder,
 
     /// The user-code that shows the GUI, used for deferred viewports.

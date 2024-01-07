@@ -1,12 +1,12 @@
 [package]
 name = "egui_demo_lib"
-version = "0.23.0"
+version.workspace = true
 authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
 description = "Example library for egui"
-edition = "2021"
-rust-version = "1.72"
+edition.workspace = true
+rust-version.workspace = true
 homepage = "https://github.com/emilk/egui/tree/master/crates/egui_demo_lib"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 readme = "README.md"
 repository = "https://github.com/emilk/egui/tree/master/crates/egui_demo_lib"
 categories = ["gui", "graphics"]
@@ -38,9 +38,9 @@ syntect = ["egui_extras/syntect"]
 
 
 [dependencies]
-egui = { version = "0.23.0", path = "../egui", default-features = false }
-egui_extras = { version = "0.23.0", path = "../egui_extras" }
-egui_plot = { version = "0.23.0", path = "../egui_plot" }
+egui = { version = "0.24.1", path = "../egui", default-features = false }
+egui_extras = { version = "0.24.1", path = "../egui_extras" }
+egui_plot = { version = "0.24.1", path = "../egui_plot" }
 log = { version = "0.4", features = ["std"] }
 unicode_names2 = { version = "0.6.0", default-features = false }          # this old version has fewer dependencies
 
@@ -52,7 +52,7 @@ serde = { version = "1", optional = true, features = ["derive"] }
 
 
 [dev-dependencies]
-criterion = { version = "0.4", default-features = false }
+criterion.workspace = true
 
 
 [[bench]]

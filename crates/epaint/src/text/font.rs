@@ -139,6 +139,12 @@ impl FontImpl {
     ///
     /// See also [`invisible_char`].
     fn ignore_character(&self, chr: char) -> bool {
+        use crate::text::FontDefinitions;
+
+        if !FontDefinitions::builtin_font_names().contains(&self.name.as_str()) {
+            return false;
+        }
+
         if self.name == "emoji-icon-font" {
             // HACK: https://github.com/emilk/egui/issues/1284 https://github.com/jslegers/emoji-icon-font/issues/18
             // Don't show the wrong fullwidth capital letters:
