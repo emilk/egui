@@ -412,7 +412,7 @@ impl<'open> Window<'open> {
         let resize = resize.resizable(false); // We move it manually
         let mut resize = resize.id(resize_id);
 
-        let on_top = Some(area_layer_id) == ctx.get_top_layer_id();
+        let on_top = Some(area_layer_id) == ctx.top_layer_id();
         let mut area = area.begin(ctx);
 
         let title_content_spacing = 2.0 * ctx.style().spacing.item_spacing.y;

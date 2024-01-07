@@ -138,7 +138,7 @@ impl super::View for WindowOptions {
         });
 
         ui.separator();
-        let on_top = Some(ui.layer_id()) == ui.ctx().get_top_layer_id();
+        let on_top = Some(ui.layer_id()) == ui.ctx().top_layer_id();
         ui.label(format!("This window is on top: {on_top}."));
 
         ui.separator();
