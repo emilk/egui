@@ -777,12 +777,12 @@ impl Prepared {
         let max_offset = content_size - inner_rect.size();
         let is_hovering_outer_rect = ui.rect_contains_pointer(outer_rect);
         if scrolling_enabled && is_hovering_outer_rect {
+            let always_scroll_enabled_direction = ui.style().always_scroll_the_only_direction
+                && scroll_enabled[0] != scroll_enabled[1];
             for d in 0..2 {
                 if scroll_enabled[d] {
                     let scroll_delta = ui.ctx().frame_state(|fs| {
-                        if ui.style().always_scroll_the_only_direction
-                            && scroll_enabled[0] != scroll_enabled[1]
-                        {
+                        if always_scroll_enabled_direction {
                             // no bidirectional scrolling; allow horizontal scrolling without pressing shift
                             fs.scroll_delta[0] + fs.scroll_delta[1]
                         } else {
@@ -797,9 +797,7 @@ impl Prepared {
                         state.offset[d] -= scroll_delta;
                         // Clear scroll delta so no parent scroll will use it.
                         ui.ctx().frame_state_mut(|fs| {
-                            if ui.style().always_scroll_the_only_direction
-                                && scroll_enabled[0] != scroll_enabled[1]
-                            {
+                            if always_scroll_enabled_direction {
                                 fs.scroll_delta[0] = 0.0;
                                 fs.scroll_delta[1] = 0.0;
                             } else {
