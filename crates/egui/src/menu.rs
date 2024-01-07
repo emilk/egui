@@ -616,8 +616,6 @@ impl MenuState {
         } else if !open && button.hovered() {
             let pos = button.rect.right_top();
             self.open_submenu(sub_id, pos);
-        } else if open && !button.hovered() && !self.hovering_current_submenu(&pointer) {
-            self.close_submenu();
         }
     }
 
@@ -637,16 +635,6 @@ impl MenuState {
         if let Some(sub_menu) = self.current_submenu() {
             if let Some(pos) = pointer.hover_pos() {
                 return Self::points_at_left_of_rect(pos, pointer.velocity(), sub_menu.read().rect);
-            }
-        }
-        false
-    }
-
-    /// Check if pointer is hovering current submenu.
-    fn hovering_current_submenu(&self, pointer: &PointerState) -> bool {
-        if let Some(sub_menu) = self.current_submenu() {
-            if let Some(pos) = pointer.hover_pos() {
-                return sub_menu.read().area_contains(pos);
             }
         }
         false
@@ -682,9 +670,5 @@ impl MenuState {
         if !self.is_open(id) {
             self.sub_menu = Some((id, Arc::new(RwLock::new(MenuState::new(pos)))));
         }
-    }
-
-    fn close_submenu(&mut self) {
-        self.sub_menu = None;
     }
 }
