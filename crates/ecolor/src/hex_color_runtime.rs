@@ -121,42 +121,47 @@ impl HexColor {
 }
 
 impl Color32 {
-    /// Parses a color from a hex string
+    /// Parses a color from a hex string.
     ///
-    /// Supports the 3, 4, 6, and 8-digit formats.
+    /// Supports the 3, 4, 6, and 8-digit formats, according to the specification in
+    /// <https://drafts.csswg.org/css-color-4/#hex-color>
+    ///
+    /// To parse hex colors at compile-time (e.g. for use in `const` contexts)
+    /// use the macro [`crate::hex_color!`] instead.
     ///
     /// # Example
     /// ```rust
     /// use ecolor::Color32;
-    /// assert_eq!(Ok(Color32::RED), Color32::from_hex_string("#ff0000"));
-    /// assert_eq!(Ok(Color32::GREEN), Color32::from_hex_string("#00ff00ff"));
-    /// assert_eq!(Ok(Color32::BLUE), Color32::from_hex_string("#00f"));
-    /// assert_eq!(Ok(Color32::TRANSPARENT), Color32::from_hex_string("#0000"));
+    /// assert_eq!(Ok(Color32::RED), Color32::from_hex("#ff0000"));
+    /// assert_eq!(Ok(Color32::GREEN), Color32::from_hex("#00ff00ff"));
+    /// assert_eq!(Ok(Color32::BLUE), Color32::from_hex("#00f"));
+    /// assert_eq!(Ok(Color32::TRANSPARENT), Color32::from_hex("#0000"));
     /// ```
     ///
     /// # Errors
     /// Returns an error if the string doesn't start with the hash `#` character, if the remaining
     /// length does not correspond to one of the standard formats (3, 4, 6, or 8), if it contains
     /// non-hex characters.
-    pub fn from_hex_string(hex: &str) -> Result<Self, ParseHexColorError> {
+    pub fn from_hex(hex: &str) -> Result<Self, ParseHexColorError> {
         HexColor::from_str(hex).map(|h| h.color())
     }
 
-    /// Formats the color as a hex string
+    /// Formats the color as a hex string.
     ///
     /// # Example
     /// ```rust
     /// use ecolor::Color32;
-    /// assert_eq!(Color32::RED.to_hex_string(), "#ff0000ff");
-    /// assert_eq!(Color32::GREEN.to_hex_string(), "#00ff00ff");
-    /// assert_eq!(Color32::BLUE.to_hex_string(), "#0000ffff");
-    /// assert_eq!(Color32::TRANSPARENT.to_hex_string(), "#00000000");
+    /// assert_eq!(Color32::RED.to_hex(), "#ff0000ff");
+    /// assert_eq!(Color32::GREEN.to_hex(), "#00ff00ff");
+    /// assert_eq!(Color32::BLUE.to_hex(), "#0000ffff");
+    /// assert_eq!(Color32::TRANSPARENT.to_hex(), "#00000000");
     /// ```
     ///
-    /// Uses the 8-digit format, as that is the only format that is lossless.
+    /// Uses the 8-digit format described in <https://drafts.csswg.org/css-color-4/#hex-color>,
+    /// as that is the only format that is lossless.
     /// For other formats, see [`HexColor`].
     #[inline]
-    pub fn to_hex_string(&self) -> String {
+    pub fn to_hex(&self) -> String {
         HexColor::Hex8(*self).to_string()
     }
 }
@@ -215,10 +220,7 @@ mod tests {
             C::from_rgba_unmultiplied(10, 20, 0, 255),
         ];
         for color in cases {
-            assert_eq!(
-                C::from_hex_string(color.to_hex_string().as_str()),
-                Ok(color)
-            );
+            assert_eq!(C::from_hex(color.to_hex().as_str()), Ok(color));
         }
     }
 }
