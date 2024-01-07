@@ -1087,7 +1087,7 @@ impl<'a> TableBody<'a> {
         if is_row_hovered {
             self.layout
                 .ui
-                .memory_mut(|w| w.data.insert_temp(self.hovered_row_index_id, row_index));
+                .data_mut(|data| data.insert_temp(self.hovered_row_index_id, row_index));
         }
     }
 }

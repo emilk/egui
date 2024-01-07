@@ -854,9 +854,8 @@ impl Plot {
         ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
         let memory = if reset {
             if let Some((name, _)) = linked_axes.as_ref() {
-                ui.memory_mut(|memory| {
-                    let link_groups: &mut BoundsLinkGroups =
-                        memory.data.get_temp_mut_or_default(Id::NULL);
+                ui.data_mut(|data| {
+                    let link_groups: &mut BoundsLinkGroups = data.get_temp_mut_or_default(Id::NULL);
                     link_groups.0.remove(name);
                 });
             };
@@ -941,8 +940,8 @@ impl Plot {
 
         // Find the cursors from other plots we need to draw
         let draw_cursors: Vec<Cursor> = if let Some((id, _)) = linked_cursors.as_ref() {
-            ui.memory_mut(|memory| {
-                let frames: &mut CursorLinkGroups = memory.data.get_temp_mut_or_default(Id::NULL);
+            ui.data_mut(|data| {
+                let frames: &mut CursorLinkGroups = data.get_temp_mut_or_default(Id::NULL);
                 let cursors = frames.0.entry(*id).or_default();
 
                 // Look for our previous frame
@@ -969,9 +968,8 @@ impl Plot {
 
         // Transfer the bounds from a link group.
         if let Some((id, axes)) = linked_axes.as_ref() {
-            ui.memory_mut(|memory| {
-                let link_groups: &mut BoundsLinkGroups =
-                    memory.data.get_temp_mut_or_default(Id::NULL);
+            ui.data_mut(|data| {
+                let link_groups: &mut BoundsLinkGroups = data.get_temp_mut_or_default(Id::NULL);
                 if let Some(linked_bounds) = link_groups.0.get(id) {
                     if axes.x {
                         bounds.set_x(&linked_bounds.bounds);
@@ -1218,8 +1216,8 @@ impl Plot {
 
         if let Some((id, _)) = linked_cursors.as_ref() {
             // Push the frame we just drew to the list of frames
-            ui.memory_mut(|memory| {
-                let frames: &mut CursorLinkGroups = memory.data.get_temp_mut_or_default(Id::NULL);
+            ui.data_mut(|data| {
+                let frames: &mut CursorLinkGroups = data.get_temp_mut_or_default(Id::NULL);
                 let cursors = frames.0.entry(*id).or_default();
                 cursors.push(PlotFrameCursors {
                     id: plot_id,
@@ -1230,9 +1228,8 @@ impl Plot {
 
         if let Some((id, _)) = linked_axes.as_ref() {
             // Save the linked bounds.
-            ui.memory_mut(|memory| {
-                let link_groups: &mut BoundsLinkGroups =
-                    memory.data.get_temp_mut_or_default(Id::NULL);
+            ui.data_mut(|data| {
+                let link_groups: &mut BoundsLinkGroups = data.get_temp_mut_or_default(Id::NULL);
                 link_groups.0.insert(
                     *id,
                     LinkedBounds {
