@@ -640,16 +640,6 @@ impl MenuState {
         false
     }
 
-    /// Check if pointer is hovering current submenu.
-    fn hovering_current_submenu(&self, pointer: &PointerState) -> bool {
-        if let Some(sub_menu) = self.current_submenu() {
-            if let Some(pos) = pointer.hover_pos() {
-                return sub_menu.read().area_contains(pos);
-            }
-        }
-        false
-    }
-
     /// Cascade close response to menu root.
     fn cascade_close_response(&mut self, response: MenuResponse) {
         if response.is_close() {
@@ -680,9 +670,5 @@ impl MenuState {
         if !self.is_open(id) {
             self.sub_menu = Some((id, Arc::new(RwLock::new(MenuState::new(pos)))));
         }
-    }
-
-    fn close_submenu(&mut self) {
-        self.sub_menu = None;
     }
 }
