@@ -248,18 +248,19 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
     match ui.style().visuals.color_picker_input_values_type {
         ColorPickerInputType::U8 => {
             let mut srgba_unmultiplied = Hsva::from(*hsvag).to_srgba_unmultiplied();
-            // Update hsvag only if the converted srgba is changed, this is because hsvag is made of f32,
-            // and the conversion between u8 and f32 loses a bit of the color precision, causing little flickering on hsvag based ui widgets.
+            // Only update if changed to avoid rounding issues.
             if srgba_edit_ui(ui, &mut srgba_unmultiplied, alpha_control) {
                 if is_additive_alpha(hsvag.a) {
-                    let stored_a = hsvag.a;
-                    // Alpha to 0 instead of negative, so it won't pop back to Normal blending when RGB are modified.
-                    srgba_unmultiplied[3] = 0;
-                    // This conversion above sets Alpha to 0 in case it was negative, stored_a is used to back-up that value.
-                    *hsvag = HsvaGamma::from(Hsva::from_srgba_unmultiplied(srgba_unmultiplied));
-                    // stored_a keeps the Alpha value that was set during Normal blending so that in case we alter RGB in Additive blending (negative Alpha)
-                    // and then switch back to Normal blending it gets that Alpha value back.
-                    hsvag.a = stored_a;
+                    let alpha = hsvag.a;
+
+                    *hsvag = HsvaGamma::from(Hsva::from_additive_srgb([
+                        srgba_unmultiplied[0],
+                        srgba_unmultiplied[1],
+                        srgba_unmultiplied[2],
+                    ]));
+
+                    // Don't edit the alpha:
+                    hsvag.a = alpha;
                 } else {
                     // Normal blending.
                     *hsvag = HsvaGamma::from(Hsva::from_srgba_unmultiplied(srgba_unmultiplied));
@@ -268,22 +269,19 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
         }
         ColorPickerInputType::F32 => {
             let mut rgba_unmultiplied = Hsva::from(*hsvag).to_rgba_unmultiplied();
-            // Update hsvag only if the converted srgba is changed, this is because hsvag is made of f32,
-            // and the conversion between u8 and f32 loses a bit of the color precision, causing little flickering on hsvag based ui widgets.
+            // Only update if changed to avoid rounding issues.
             if rgba_edit_ui(ui, &mut rgba_unmultiplied, alpha_control) {
                 if is_additive_alpha(hsvag.a) {
-                    let stored_a = hsvag.a;
-                    // Alpha to 0 instead of negative, so it won't pop back to Normal blending when RGB are modified.
-                    rgba_unmultiplied[3] = 0.0;
-                    // This conversion above sets Alpha to 0 in case it was negative, stored_a is used to back-up that value.
+                    let alpha = hsvag.a;
+
                     *hsvag = HsvaGamma::from(Hsva::from_rgb([
                         rgba_unmultiplied[0],
                         rgba_unmultiplied[1],
                         rgba_unmultiplied[2],
                     ]));
-                    // stored_a keeps the Alpha value that was set during Normal blending so that in case we alter RGB in Additive blending (negative Alpha)
-                    // and then switch back to Normal blending it gets that Alpha value back.
-                    hsvag.a = stored_a;
+
+                    // Don't edit the alpha:
+                    hsvag.a = alpha;
                 } else {
                     // Normal blending.
                     *hsvag = HsvaGamma::from(Hsva::from_rgba_unmultiplied(

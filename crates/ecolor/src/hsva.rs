@@ -28,23 +28,23 @@ impl Hsva {
 
     /// From `sRGBA` with premultiplied alpha
     #[inline]
-    pub fn from_srgba_premultiplied(srgba: [u8; 4]) -> Self {
+    pub fn from_srgba_premultiplied([r, g, b, a]: [u8; 4]) -> Self {
         Self::from_rgba_premultiplied(
-            linear_f32_from_gamma_u8(srgba[0]),
-            linear_f32_from_gamma_u8(srgba[1]),
-            linear_f32_from_gamma_u8(srgba[2]),
-            linear_f32_from_linear_u8(srgba[3]),
+            linear_f32_from_gamma_u8(r),
+            linear_f32_from_gamma_u8(g),
+            linear_f32_from_gamma_u8(b),
+            linear_f32_from_linear_u8(a),
         )
     }
 
     /// From `sRGBA` without premultiplied alpha
     #[inline]
-    pub fn from_srgba_unmultiplied(srgba: [u8; 4]) -> Self {
+    pub fn from_srgba_unmultiplied([r, g, b, a]: [u8; 4]) -> Self {
         Self::from_rgba_unmultiplied(
-            linear_f32_from_gamma_u8(srgba[0]),
-            linear_f32_from_gamma_u8(srgba[1]),
-            linear_f32_from_gamma_u8(srgba[2]),
-            linear_f32_from_linear_u8(srgba[3]),
+            linear_f32_from_gamma_u8(r),
+            linear_f32_from_gamma_u8(g),
+            linear_f32_from_gamma_u8(b),
+            linear_f32_from_linear_u8(a),
         )
     }
 
@@ -81,6 +81,15 @@ impl Hsva {
             v,
             a: -0.5, // anything negative is treated as additive
         }
+    }
+
+    #[inline]
+    pub fn from_additive_srgb([r, g, b]: [u8; 3]) -> Self {
+        Self::from_additive_rgb([
+            linear_f32_from_gamma_u8(r),
+            linear_f32_from_gamma_u8(g),
+            linear_f32_from_gamma_u8(b),
+        ])
     }
 
     #[inline]
