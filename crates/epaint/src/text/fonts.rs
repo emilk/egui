@@ -396,8 +396,7 @@ impl Fonts {
     pub fn begin_frame(&self, pixels_per_point: f32, max_texture_side: usize) {
         let mut fonts_and_cache = self.0.lock();
 
-        let pixels_per_point_changed =
-            (fonts_and_cache.fonts.pixels_per_point - pixels_per_point).abs() > 1e-3;
+        let pixels_per_point_changed = fonts_and_cache.fonts.pixels_per_point != pixels_per_point;
         let max_texture_side_changed = fonts_and_cache.fonts.max_texture_side != max_texture_side;
         let font_atlas_almost_full = fonts_and_cache.fonts.atlas.lock().fill_ratio() > 0.8;
         let needs_recreate =
