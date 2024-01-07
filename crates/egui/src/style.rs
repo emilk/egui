@@ -1929,11 +1929,25 @@ impl HandleShape {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub enum ColorPickerInputType {
     U8,
     F32,
+}
+
+impl ColorPickerInputType {
+    pub fn toggle_button_ui(&mut self, ui: &mut Ui) -> crate::Response {
+        let mut response = ui.button(self.to_string());
+        if response.clicked() {
+            *self = match self {
+                Self::U8 => Self::F32,
+                Self::F32 => Self::U8,
+            };
+            response.mark_changed();
+        }
+        response
+    }
 }
 
 impl std::fmt::Display for ColorPickerInputType {

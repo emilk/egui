@@ -304,24 +304,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
         let a = &mut hsvag.a;
         let mut additive = is_additive_alpha(*a);
         ui.horizontal(|ui| {
-            if ui
-                .button(
-                    ui.style()
-                        .visuals
-                        .color_picker_input_values_type
-                        .to_string(),
-                )
-                .clicked()
-            {
-                let color_picker_input_values_type =
-                    match ui.style().visuals.color_picker_input_values_type {
-                        ColorPickerInputType::U8 => ColorPickerInputType::F32,
-                        ColorPickerInputType::F32 => ColorPickerInputType::U8,
-                    };
-                ui.ctx().style_mut(|s| {
-                    s.visuals.color_picker_input_values_type = color_picker_input_values_type;
-                });
-            }
+            input_type_button_ui(ui);
             ui.label("Blending:");
             ui.radio_value(&mut additive, false, "Normal");
             ui.radio_value(&mut additive, true, "Additive");
@@ -376,6 +359,15 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
         } else if !additive {
             color_slider_1d(ui, a, |a| HsvaGamma { a, ..opaque }.into()).on_hover_text("Alpha");
         }
+    }
+}
+
+fn input_type_button_ui(ui: &mut Ui) {
+    let mut input_type = ui.ctx().style().visuals.color_picker_input_values_type;
+    if input_type.toggle_button_ui(ui).changed() {
+        ui.ctx().style_mut(|s| {
+            s.visuals.color_picker_input_values_type = input_type;
+        });
     }
 }
 
