@@ -216,50 +216,92 @@ fn color_slider_2d(
     response
 }
 
+/// We use a negative alpha for additive colors within this file (a bit ironic).
+///
+/// We use alpha=0 to mean "transparent".
+fn is_additive_alpha(a: f32) -> bool {
+    a < 0.0
+}
+
 /// What options to show for alpha
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Alpha {
-    // Set alpha to 1.0, and show no option for it.
+    /// Set alpha to 1.0, and show no option for it.
     Opaque,
-    // Only show normal blend options for it.
+
+    /// Only show normal blend options for alpha.
     OnlyBlend,
-    // Show both blend and additive options.
+
+    /// Show both blend and additive options.
     BlendOrAdditive,
 }
 
-fn color_text_ui(ui: &mut Ui, color: impl Into<Color32>, alpha: Alpha) {
-    let color = color.into();
-    ui.horizontal(|ui| {
-        let [r, g, b, a] = color.to_array();
+fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
+    use crate::style::NumericColorSpace;
 
-        if ui.button("📋").on_hover_text("Click to copy").clicked() {
-            if alpha == Alpha::Opaque {
-                ui.ctx().copy_text(format!("{r}, {g}, {b}"));
-            } else {
-                ui.ctx().copy_text(format!("{r}, {g}, {b}, {a}"));
+    let alpha_control = if is_additive_alpha(hsvag.a) {
+        Alpha::Opaque // no alpha control for additive colors
+    } else {
+        alpha
+    };
+
+    match ui.style().visuals.numeric_color_space {
+        NumericColorSpace::GammaByte => {
+            let mut srgba_unmultiplied = Hsva::from(*hsvag).to_srgba_unmultiplied();
+            // Only update if changed to avoid rounding issues.
+            if srgba_edit_ui(ui, &mut srgba_unmultiplied, alpha_control) {
+                if is_additive_alpha(hsvag.a) {
+                    let alpha = hsvag.a;
+
+                    *hsvag = HsvaGamma::from(Hsva::from_additive_srgb([
+                        srgba_unmultiplied[0],
+                        srgba_unmultiplied[1],
+                        srgba_unmultiplied[2],
+                    ]));
+
+                    // Don't edit the alpha:
+                    hsvag.a = alpha;
+                } else {
+                    // Normal blending.
+                    *hsvag = HsvaGamma::from(Hsva::from_srgba_unmultiplied(srgba_unmultiplied));
+                }
             }
         }
 
-        if alpha == Alpha::Opaque {
-            ui.label(format!("rgb({r}, {g}, {b})"))
-                .on_hover_text("Red Green Blue");
-        } else {
-            ui.label(format!("rgba({r}, {g}, {b}, {a})"))
-                .on_hover_text("Red Green Blue with premultiplied Alpha");
+        NumericColorSpace::Linear => {
+            let mut rgba_unmultiplied = Hsva::from(*hsvag).to_rgba_unmultiplied();
+            // Only update if changed to avoid rounding issues.
+            if rgba_edit_ui(ui, &mut rgba_unmultiplied, alpha_control) {
+                if is_additive_alpha(hsvag.a) {
+                    let alpha = hsvag.a;
+
+                    *hsvag = HsvaGamma::from(Hsva::from_rgb([
+                        rgba_unmultiplied[0],
+                        rgba_unmultiplied[1],
+                        rgba_unmultiplied[2],
+                    ]));
+
+                    // Don't edit the alpha:
+                    hsvag.a = alpha;
+                } else {
+                    // Normal blending.
+                    *hsvag = HsvaGamma::from(Hsva::from_rgba_unmultiplied(
+                        rgba_unmultiplied[0],
+                        rgba_unmultiplied[1],
+                        rgba_unmultiplied[2],
+                        rgba_unmultiplied[3],
+                    ));
+                }
+            }
         }
-    });
-}
+    }
 
-fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
     let current_color_size = vec2(ui.spacing().slider_width, ui.spacing().interact_size.y);
-    show_color(ui, *hsva, current_color_size).on_hover_text("Selected color");
-
-    color_text_ui(ui, *hsva, alpha);
+    show_color(ui, *hsvag, current_color_size).on_hover_text("Selected color");
 
     if alpha == Alpha::BlendOrAdditive {
-        // We signal additive blending by storing a negative alpha (a bit ironic).
-        let a = &mut hsva.a;
-        let mut additive = *a < 0.0;
+        let a = &mut hsvag.a;
+        let mut additive = is_additive_alpha(*a);
         ui.horizontal(|ui| {
             ui.label("Blending:");
             ui.radio_value(&mut additive, false, "Normal");
@@ -274,26 +316,20 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
             }
         });
     }
-    let additive = hsva.a < 0.0;
 
-    let opaque = HsvaGamma { a: 1.0, ..*hsva };
+    let opaque = HsvaGamma { a: 1.0, ..*hsvag };
 
-    if alpha == Alpha::Opaque {
-        hsva.a = 1.0;
-    } else {
-        let a = &mut hsva.a;
+    let HsvaGamma { h, s, v, a: _ } = hsvag;
 
-        if alpha == Alpha::OnlyBlend {
-            if *a < 0.0 {
-                *a = 0.5; // was additive, but isn't allowed to be
-            }
-            color_slider_1d(ui, a, |a| HsvaGamma { a, ..opaque }.into()).on_hover_text("Alpha");
-        } else if !additive {
-            color_slider_1d(ui, a, |a| HsvaGamma { a, ..opaque }.into()).on_hover_text("Alpha");
-        }
+    if false {
+        color_slider_1d(ui, s, |s| HsvaGamma { s, ..opaque }.into()).on_hover_text("Saturation");
     }
 
-    let HsvaGamma { h, s, v, a: _ } = hsva;
+    if false {
+        color_slider_1d(ui, v, |v| HsvaGamma { v, ..opaque }.into()).on_hover_text("Value");
+    }
+
+    color_slider_2d(ui, s, v, |s, v| HsvaGamma { s, v, ..opaque }.into());
 
     color_slider_1d(ui, h, |h| {
         HsvaGamma {
@@ -306,15 +342,106 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsva: &mut HsvaGamma, alpha: Alpha) {
     })
     .on_hover_text("Hue");
 
-    if false {
-        color_slider_1d(ui, s, |s| HsvaGamma { s, ..opaque }.into()).on_hover_text("Saturation");
+    let additive = is_additive_alpha(hsvag.a);
+
+    if alpha == Alpha::Opaque {
+        hsvag.a = 1.0;
+    } else {
+        let a = &mut hsvag.a;
+
+        if alpha == Alpha::OnlyBlend {
+            if is_additive_alpha(*a) {
+                *a = 0.5; // was additive, but isn't allowed to be
+            }
+            color_slider_1d(ui, a, |a| HsvaGamma { a, ..opaque }.into()).on_hover_text("Alpha");
+        } else if !additive {
+            color_slider_1d(ui, a, |a| HsvaGamma { a, ..opaque }.into()).on_hover_text("Alpha");
+        }
+    }
+}
+
+fn input_type_button_ui(ui: &mut Ui) {
+    let mut input_type = ui.ctx().style().visuals.numeric_color_space;
+    if input_type.toggle_button_ui(ui).changed() {
+        ui.ctx().style_mut(|s| {
+            s.visuals.numeric_color_space = input_type;
+        });
+    }
+}
+
+/// Shows 4 `DragValue` widgets to be used to edit the RGBA u8 values.
+/// Alpha's `DragValue` is hidden when `Alpha::Opaque`.
+///
+/// Returns `true` on change.
+fn srgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [u8; 4], alpha: Alpha) -> bool {
+    let mut edited = false;
+
+    ui.horizontal(|ui| {
+        input_type_button_ui(ui);
+
+        if ui
+            .button("📋")
+            .on_hover_text("Click to copy color values")
+            .clicked()
+        {
+            if alpha == Alpha::Opaque {
+                ui.ctx().copy_text(format!("{r}, {g}, {b}"));
+            } else {
+                ui.ctx().copy_text(format!("{r}, {g}, {b}, {a}"));
+            }
+        }
+        edited |= DragValue::new(r).speed(0.5).prefix("R ").ui(ui).changed();
+        edited |= DragValue::new(g).speed(0.5).prefix("G ").ui(ui).changed();
+        edited |= DragValue::new(b).speed(0.5).prefix("B ").ui(ui).changed();
+        if alpha != Alpha::Opaque {
+            edited |= DragValue::new(a).speed(0.5).prefix("A ").ui(ui).changed();
+        }
+    });
+
+    edited
+}
+
+/// Shows 4 `DragValue` widgets to be used to edit the RGBA f32 values.
+/// Alpha's `DragValue` is hidden when `Alpha::Opaque`.
+///
+/// Returns `true` on change.
+fn rgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [f32; 4], alpha: Alpha) -> bool {
+    fn drag_value(ui: &mut Ui, prefix: &str, value: &mut f32) -> Response {
+        DragValue::new(value)
+            .speed(0.003)
+            .prefix(prefix)
+            .clamp_range(0.0..=1.0)
+            .custom_formatter(|n, _| format!("{n:.03}"))
+            .ui(ui)
     }
 
-    if false {
-        color_slider_1d(ui, v, |v| HsvaGamma { v, ..opaque }.into()).on_hover_text("Value");
-    }
+    let mut edited = false;
 
-    color_slider_2d(ui, s, v, |s, v| HsvaGamma { s, v, ..opaque }.into());
+    ui.horizontal(|ui| {
+        input_type_button_ui(ui);
+
+        if ui
+            .button("📋")
+            .on_hover_text("Click to copy color values")
+            .clicked()
+        {
+            if alpha == Alpha::Opaque {
+                ui.ctx().copy_text(format!("{r:.03}, {g:.03}, {b:.03}"));
+            } else {
+                ui.ctx()
+                    .copy_text(format!("{r:.03}, {g:.03}, {b:.03}, {a:.03}"));
+            }
+        }
+
+        edited |= drag_value(ui, "R ", r).changed();
+        edited |= drag_value(ui, "G ", g).changed();
+        edited |= drag_value(ui, "B ", b).changed();
+        if alpha != Alpha::Opaque {
+            edited |= drag_value(ui, "A ", a).changed();
+        }
+    });
+
+    edited
 }
 
 /// Shows a color picker where the user can change the given [`Hsva`] color.
@@ -357,7 +484,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
         ui.memory_mut(|mem| mem.toggle_popup(popup_id));
     }
 
-    const COLOR_SLIDER_WIDTH: f32 = 210.0;
+    const COLOR_SLIDER_WIDTH: f32 = 275.0;
 
     // TODO(emilk): make it easier to show a temporary popup that closes when you click outside it
     if ui.memory(|mem| mem.is_popup_open(popup_id)) {

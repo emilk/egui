@@ -829,6 +829,9 @@ pub struct Visuals {
 
     /// Show a spinner when loading an image.
     pub image_loading_spinners: bool,
+
+    /// How to display numeric color values.
+    pub numeric_color_space: NumericColorSpace,
 }
 
 impl Visuals {
@@ -1149,6 +1152,8 @@ impl Visuals {
             interact_cursor: None,
 
             image_loading_spinners: true,
+
+            numeric_color_space: NumericColorSpace::GammaByte,
         }
     }
 
@@ -1711,6 +1716,8 @@ impl Visuals {
             interact_cursor,
 
             image_loading_spinners,
+
+            numeric_color_space,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1790,6 +1797,11 @@ impl Visuals {
 
         ui.checkbox(image_loading_spinners, "Image loading spinners")
             .on_hover_text("Show a spinner when an Image is loading");
+
+        ui.horizontal(|ui| {
+            ui.label("Color picker type:");
+            numeric_color_space.toggle_button_ui(ui);
+        });
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -1916,5 +1928,47 @@ impl HandleShape {
                 ui.add(Slider::new(aspect_ratio, 0.1..=3.0).text("Aspect ratio"));
             }
         });
+    }
+}
+
+/// How to display numeric color values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum NumericColorSpace {
+    /// RGB is 0-255 in gamma space.
+    ///
+    /// Alpha is 0-255 in linear space .
+    GammaByte,
+
+    /// 0-1 in linear space.
+    Linear,
+    // TODO(emilk): add Hex as an option
+}
+
+impl NumericColorSpace {
+    pub fn toggle_button_ui(&mut self, ui: &mut Ui) -> crate::Response {
+        let tooltip = match self {
+            Self::GammaByte => "Showing color values in 0-255 gamma space",
+            Self::Linear => "Showing color values in 0-1 linear space",
+        };
+
+        let mut response = ui.button(self.to_string()).on_hover_text(tooltip);
+        if response.clicked() {
+            *self = match self {
+                Self::GammaByte => Self::Linear,
+                Self::Linear => Self::GammaByte,
+            };
+            response.mark_changed();
+        }
+        response
+    }
+}
+
+impl std::fmt::Display for NumericColorSpace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NumericColorSpace::GammaByte => write!(f, "U8"),
+            NumericColorSpace::Linear => write!(f, "F"),
+        }
     }
 }
