@@ -1073,7 +1073,7 @@ impl Default for Style {
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
-            always_scroll_the_only_direction: true,
+            always_scroll_the_only_direction: false,
         }
     }
 }
