@@ -125,6 +125,9 @@ impl Color32 {
     ///
     /// Supports the 3, 4, 6, and 8-digit formats.
     ///
+    /// To use hex colors in `const` contexts,
+    /// use the macro [`crate::hex_color!`] instead.
+    ///
     /// # Example
     /// ```rust
     /// use ecolor::Color32;

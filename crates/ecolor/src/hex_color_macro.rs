@@ -1,5 +1,9 @@
 /// Construct a [`crate::Color32`] from a hex RGB or RGBA string.
 ///
+/// Requires the "color-hex" feature.
+///
+/// See also [`crate::Color32::from_hex_string`] and [`crate::Color32::to_hex_string`].
+///
 /// ```
 /// # use ecolor::{hex_color, Color32};
 /// assert_eq!(hex_color!("#202122"), Color32::from_rgb(0x20, 0x21, 0x22));
