@@ -12,8 +12,6 @@
 
 #[cfg(feature = "cint")]
 mod cint_impl;
-#[cfg(feature = "cint")]
-pub use cint_impl::*;
 
 mod color32;
 pub use color32::*;
@@ -29,6 +27,9 @@ mod hex_color_macro;
 
 mod rgba;
 pub use rgba::*;
+
+mod hex_color_runtime;
+pub use hex_color_runtime::*;
 
 // ----------------------------------------------------------------------------
 // Color conversion:
@@ -93,7 +94,7 @@ pub fn linear_u8_from_linear_f32(a: f32) -> u8 {
 }
 
 fn fast_round(r: f32) -> u8 {
-    (r + 0.5).floor() as _ // rust does a saturating cast since 1.45
+    (r + 0.5) as _ // rust does a saturating cast since 1.45
 }
 
 #[test]

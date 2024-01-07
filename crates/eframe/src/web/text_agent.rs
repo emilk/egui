@@ -101,15 +101,13 @@ pub fn install_text_agent(runner_ref: &WebRunner) -> Result<(), JsValue> {
 
     // When input lost focus, focus on it again.
     // It is useful when user click somewhere outside canvas.
+    let input_refocus = input.clone();
     runner_ref.add_event_listener(&input, "focusout", move |_event: web_sys::MouseEvent, _| {
         // Delay 10 ms, and focus again.
-        let func = js_sys::Function::new_no_args(&format!(
-            "document.getElementById('{}').focus()",
-            AGENT_ID
-        ));
-        window
-            .set_timeout_with_callback_and_timeout_and_arguments_0(&func, 10)
-            .unwrap();
+        let input_refocus = input_refocus.clone();
+        call_after_delay(std::time::Duration::from_millis(10), move || {
+            input_refocus.focus().ok();
+        });
     })?;
 
     body.append_child(&input)?;
@@ -207,11 +205,13 @@ fn is_mobile() -> Option<bool> {
 // candidate window moves following text element (agent),
 // so it appears that the IME candidate window moves with text cursor.
 // On mobile devices, there is no need to do that.
-pub fn move_text_cursor(cursor: Option<egui::Pos2>, canvas_id: &str) -> Option<()> {
+pub fn move_text_cursor(ime: Option<egui::output::IMEOutput>, canvas_id: &str) -> Option<()> {
     let style = text_agent().style();
-    // Note: movint agent on mobile devices will lead to unpredictable scroll.
+    // Note: moving agent on mobile devices will lead to unpredictable scroll.
     if is_mobile() == Some(false) {
-        cursor.as_ref().and_then(|&egui::Pos2 { x, y }| {
+        ime.as_ref().and_then(|ime| {
+            let egui::Pos2 { x, y } = ime.cursor_rect.left_top();
+
             let canvas = canvas_element(canvas_id)?;
             let bounding_rect = text_agent().get_bounding_client_rect();
             let y = (y + (canvas.scroll_top() + canvas.offset_top()) as f32)
@@ -221,8 +221,8 @@ pub fn move_text_cursor(cursor: Option<egui::Pos2>, canvas_id: &str) -> Option<(
             let x = (x - canvas.offset_width() as f32 / 2.0)
                 .min(canvas.client_width() as f32 - bounding_rect.width() as f32);
             style.set_property("position", "absolute").ok()?;
-            style.set_property("top", &format!("{}px", y)).ok()?;
-            style.set_property("left", &format!("{}px", x)).ok()
+            style.set_property("top", &format!("{y}px")).ok()?;
+            style.set_property("left", &format!("{x}px")).ok()
         })
     } else {
         style.set_property("position", "absolute").ok()?;

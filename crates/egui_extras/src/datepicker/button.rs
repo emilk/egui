@@ -7,6 +7,7 @@ pub(crate) struct DatePickerButtonState {
     pub picker_visible: bool,
 }
 
+/// Shows a date, and will open a date picker popup when clicked.
 pub struct DatePickerButton<'a> {
     selection: &'a mut NaiveDate,
     id_source: Option<&'a str>,
@@ -32,36 +33,42 @@ impl<'a> DatePickerButton<'a> {
 
     /// Add id source.
     /// Must be set if multiple date picker buttons are in the same Ui.
+    #[inline]
     pub fn id_source(mut self, id_source: &'a str) -> Self {
         self.id_source = Some(id_source);
         self
     }
 
     /// Show combo boxes in date picker popup. (Default: true)
+    #[inline]
     pub fn combo_boxes(mut self, combo_boxes: bool) -> Self {
         self.combo_boxes = combo_boxes;
         self
     }
 
     /// Show arrows in date picker popup. (Default: true)
+    #[inline]
     pub fn arrows(mut self, arrows: bool) -> Self {
         self.arrows = arrows;
         self
     }
 
     /// Show calendar in date picker popup. (Default: true)
+    #[inline]
     pub fn calendar(mut self, calendar: bool) -> Self {
         self.calendar = calendar;
         self
     }
 
     /// Show calendar week in date picker popup. (Default: true)
+    #[inline]
     pub fn calendar_week(mut self, week: bool) -> Self {
         self.calendar_week = week;
         self
     }
 
-    /// Show the calender icon on the button. (Default: true)
+    /// Show the calendar icon on the button. (Default: true)
+    #[inline]
     pub fn show_icon(mut self, show_icon: bool) -> Self {
         self.show_icon = show_icon;
         self
@@ -116,6 +123,7 @@ impl<'a> Widget for DatePickerButton<'a> {
             } = Area::new(ui.make_persistent_id(self.id_source))
                 .order(Order::Foreground)
                 .fixed_pos(pos)
+                .constrain_to(ui.ctx().screen_rect())
                 .show(ui.ctx(), |ui| {
                     let frame = Frame::popup(ui.style());
                     frame

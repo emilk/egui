@@ -43,17 +43,6 @@ pub struct GlyphInfo {
     /// Unit: points.
     pub advance_width: f32,
 
-    /// `ascent` value from the font metrics.
-    /// this is the distance from the top to the baseline.
-    ///
-    /// Unit: points.
-    pub ascent: f32,
-
-    /// row height computed from the font metrics.
-    ///
-    /// Unit: points.
-    pub row_height: f32,
-
     /// Texture coordinates.
     pub uv_rect: UvRect,
 }
@@ -64,8 +53,6 @@ impl Default for GlyphInfo {
         Self {
             id: ab_glyph::GlyphId(0),
             advance_width: 0.0,
-            ascent: 0.0,
-            row_height: 0.0,
             uv_rect: Default::default(),
         }
     }
@@ -78,11 +65,15 @@ impl Default for GlyphInfo {
 pub struct FontImpl {
     name: String,
     ab_glyph_font: ab_glyph::FontArc,
+
     /// Maximum character height
     scale_in_pixels: u32,
+
     height_in_points: f32,
+
     // move each character by this much (hack)
-    y_offset: f32,
+    y_offset_in_points: f32,
+
     ascent: f32,
     pixels_per_point: f32,
     glyph_info_cache: RwLock<ahash::HashMap<char, GlyphInfo>>, // TODO(emilk): standard Mutex
@@ -120,22 +111,23 @@ impl FontImpl {
             scale_in_points * tweak.y_offset_factor
         } + tweak.y_offset;
 
-        // center scaled glyphs properly
-        let y_offset_points = y_offset_points + (tweak.scale - 1.0) * 0.5 * (ascent + descent);
+        // Center scaled glyphs properly:
+        let height = ascent + descent;
+        let y_offset_points = y_offset_points - (1.0 - tweak.scale) * 0.5 * height;
 
         // Round to an even number of physical pixels to get even kerning.
         // See https://github.com/emilk/egui/issues/382
         let scale_in_pixels = scale_in_pixels.round() as u32;
 
         // Round to closest pixel:
-        let y_offset = (y_offset_points * pixels_per_point).round() / pixels_per_point;
+        let y_offset_in_points = (y_offset_points * pixels_per_point).round() / pixels_per_point;
 
         Self {
             name,
             ab_glyph_font,
             scale_in_pixels,
             height_in_points: ascent - descent + line_gap,
-            y_offset,
+            y_offset_in_points,
             ascent: ascent + baseline_offset,
             pixels_per_point,
             glyph_info_cache: Default::default(),
@@ -147,6 +139,12 @@ impl FontImpl {
     ///
     /// See also [`invisible_char`].
     fn ignore_character(&self, chr: char) -> bool {
+        use crate::text::FontDefinitions;
+
+        if !FontDefinitions::builtin_font_names().contains(&self.name.as_str()) {
+            return false;
+        }
+
         if self.name == "emoji-icon-font" {
             // HACK: https://github.com/emilk/egui/issues/1284 https://github.com/jslegers/emoji-icon-font/issues/18
             // Don't show the wrong fullwidth capital letters:
@@ -190,7 +188,7 @@ impl FontImpl {
             if let Some(space) = self.glyph_info(' ') {
                 let glyph_info = GlyphInfo {
                     advance_width: crate::text::TAB_SIZE as f32 * space.advance_width,
-                    ..GlyphInfo::default()
+                    ..space
                 };
                 self.glyph_info_cache.write().insert(c, glyph_info);
                 return Some(glyph_info);
@@ -207,7 +205,7 @@ impl FontImpl {
                 let advance_width = f32::min(em / 6.0, space.advance_width * 0.5);
                 let glyph_info = GlyphInfo {
                     advance_width,
-                    ..GlyphInfo::default()
+                    ..space
                 };
                 self.glyph_info_cache.write().insert(c, glyph_info);
                 return Some(glyph_info);
@@ -246,7 +244,7 @@ impl FontImpl {
             / self.pixels_per_point
     }
 
-    /// Height of one row of text. In points
+    /// Height of one row of text in points.
     #[inline(always)]
     pub fn row_height(&self) -> f32 {
         self.height_in_points
@@ -255,6 +253,14 @@ impl FontImpl {
     #[inline(always)]
     pub fn pixels_per_point(&self) -> f32 {
         self.pixels_per_point
+    }
+
+    /// This is the distance from the top to the baseline.
+    ///
+    /// Unit: points.
+    #[inline(always)]
+    pub fn ascent(&self) -> f32 {
+        self.ascent
     }
 
     fn allocate_glyph(&self, glyph_id: ab_glyph::GlyphId) -> GlyphInfo {
@@ -273,18 +279,22 @@ impl FontImpl {
             if glyph_width == 0 || glyph_height == 0 {
                 UvRect::default()
             } else {
-                let atlas = &mut self.atlas.lock();
-                let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
-                glyph.draw(|x, y, v| {
-                    if v > 0.0 {
-                        let px = glyph_pos.0 + x as usize;
-                        let py = glyph_pos.1 + y as usize;
-                        image[(px, py)] = v;
-                    }
-                });
+                let glyph_pos = {
+                    let atlas = &mut self.atlas.lock();
+                    let (glyph_pos, image) = atlas.allocate((glyph_width, glyph_height));
+                    glyph.draw(|x, y, v| {
+                        if 0.0 < v {
+                            let px = glyph_pos.0 + x as usize;
+                            let py = glyph_pos.1 + y as usize;
+                            image[(px, py)] = v;
+                        }
+                    });
+                    glyph_pos
+                };
 
                 let offset_in_pixels = vec2(bb.min.x, bb.min.y);
-                let offset = offset_in_pixels / self.pixels_per_point + self.y_offset * Vec2::Y;
+                let offset =
+                    offset_in_pixels / self.pixels_per_point + self.y_offset_in_points * Vec2::Y;
                 UvRect {
                     offset,
                     size: vec2(glyph_width as f32, glyph_height as f32) / self.pixels_per_point,
@@ -307,8 +317,6 @@ impl FontImpl {
         GlyphInfo {
             id: glyph_id,
             advance_width: advance_width_in_points,
-            ascent: self.ascent,
-            row_height: self.row_height(),
             uv_rect,
         }
     }
@@ -320,8 +328,10 @@ type FontIndex = usize;
 /// Wrapper over multiple [`FontImpl`] (e.g. a primary + fallbacks for emojis)
 pub struct Font {
     fonts: Vec<Arc<FontImpl>>,
+
     /// Lazily calculated.
     characters: Option<BTreeSet<char>>,
+
     replacement_glyph: (FontIndex, GlyphInfo),
     pixels_per_point: f32,
     row_height: f32,
@@ -361,8 +371,7 @@ impl Font {
             .or_else(|| slf.glyph_info_no_cache_or_fallback(FALLBACK_REPLACEMENT_CHAR))
             .unwrap_or_else(|| {
                 panic!(
-                    "Failed to find replacement characters {:?} or {:?}",
-                    PRIMARY_REPLACEMENT_CHAR, FALLBACK_REPLACEMENT_CHAR
+                    "Failed to find replacement characters {PRIMARY_REPLACEMENT_CHAR:?} or {FALLBACK_REPLACEMENT_CHAR:?}"
                 )
             });
         slf.replacement_glyph = replacement_glyph;
@@ -444,7 +453,7 @@ impl Font {
     }
 
     #[inline]
-    pub(crate) fn glyph_info_and_font_impl(&mut self, c: char) -> (Option<&FontImpl>, GlyphInfo) {
+    pub(crate) fn font_impl_and_glyph_info(&mut self, c: char) -> (Option<&FontImpl>, GlyphInfo) {
         if self.fonts.is_empty() {
             return (None, self.replacement_glyph.1);
         }

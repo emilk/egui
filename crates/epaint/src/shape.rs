@@ -1,6 +1,5 @@
 //! The different shapes that can be painted.
 
-use std::ops::RangeInclusive;
 use std::{any::Any, sync::Arc};
 
 use crate::{
@@ -94,17 +93,19 @@ impl Shape {
     }
 
     /// A horizontal line.
-    pub fn hline(x: RangeInclusive<f32>, y: f32, stroke: impl Into<Stroke>) -> Self {
+    pub fn hline(x: impl Into<Rangef>, y: f32, stroke: impl Into<Stroke>) -> Self {
+        let x = x.into();
         Shape::LineSegment {
-            points: [pos2(*x.start(), y), pos2(*x.end(), y)],
+            points: [pos2(x.min, y), pos2(x.max, y)],
             stroke: stroke.into(),
         }
     }
 
     /// A vertical line.
-    pub fn vline(x: f32, y: RangeInclusive<f32>, stroke: impl Into<Stroke>) -> Self {
+    pub fn vline(x: f32, y: impl Into<Rangef>, stroke: impl Into<Stroke>) -> Self {
+        let y = y.into();
         Shape::LineSegment {
-            points: [pos2(x, *y.start()), pos2(x, *y.end())],
+            points: [pos2(x, y.min), pos2(x, y.max)],
             stroke: stroke.into(),
         }
     }
@@ -143,12 +144,39 @@ impl Shape {
         gap_length: f32,
     ) -> Vec<Self> {
         let mut shapes = Vec::new();
-        dashes_from_line(path, stroke.into(), dash_length, gap_length, &mut shapes);
+        dashes_from_line(
+            path,
+            stroke.into(),
+            &[dash_length],
+            &[gap_length],
+            &mut shapes,
+            0.,
+        );
+        shapes
+    }
+
+    /// Turn a line into dashes with different dash/gap lengths and a start offset.
+    pub fn dashed_line_with_offset(
+        path: &[Pos2],
+        stroke: impl Into<Stroke>,
+        dash_lengths: &[f32],
+        gap_lengths: &[f32],
+        dash_offset: f32,
+    ) -> Vec<Self> {
+        let mut shapes = Vec::new();
+        dashes_from_line(
+            path,
+            stroke.into(),
+            dash_lengths,
+            gap_lengths,
+            &mut shapes,
+            dash_offset,
+        );
         shapes
     }
 
     /// Turn a line into dashes. If you need to create many dashed lines use this instead of
-    /// [`Self::dashed_line`]
+    /// [`Self::dashed_line`].
     pub fn dashed_line_many(
         points: &[Pos2],
         stroke: impl Into<Stroke>,
@@ -156,7 +184,34 @@ impl Shape {
         gap_length: f32,
         shapes: &mut Vec<Shape>,
     ) {
-        dashes_from_line(points, stroke.into(), dash_length, gap_length, shapes);
+        dashes_from_line(
+            points,
+            stroke.into(),
+            &[dash_length],
+            &[gap_length],
+            shapes,
+            0.,
+        );
+    }
+
+    /// Turn a line into dashes with different dash/gap lengths and a start offset. If you need to
+    /// create many dashed lines use this instead of [`Self::dashed_line_with_offset`].
+    pub fn dashed_line_many_with_offset(
+        points: &[Pos2],
+        stroke: impl Into<Stroke>,
+        dash_lengths: &[f32],
+        gap_lengths: &[f32],
+        dash_offset: f32,
+        shapes: &mut Vec<Shape>,
+    ) {
+        dashes_from_line(
+            points,
+            stroke.into(),
+            dash_lengths,
+            gap_lengths,
+            shapes,
+            dash_offset,
+        );
     }
 
     /// A convex polygon with a fill and optional stroke.
@@ -210,24 +265,36 @@ impl Shape {
     ) -> Self {
         let galley = fonts.layout_no_wrap(text.to_string(), font_id, color);
         let rect = anchor.anchor_rect(Rect::from_min_size(pos, galley.size()));
-        Self::galley(rect.min, galley)
+        Self::galley(rect.min, galley, color)
+    }
+
+    /// Any uncolored parts of the [`Galley`] (using [`Color32::PLACEHOLDER`]) will be replaced with the given color.
+    ///
+    /// Any non-placeholder color in the galley takes precedence over this fallback color.
+    #[inline]
+    pub fn galley(pos: Pos2, galley: Arc<Galley>, fallback_color: Color32) -> Self {
+        TextShape::new(pos, galley, fallback_color).into()
+    }
+
+    /// All text color in the [`Galley`] will be replaced with the given color.
+    #[inline]
+    pub fn galley_with_override_text_color(
+        pos: Pos2,
+        galley: Arc<Galley>,
+        text_color: Color32,
+    ) -> Self {
+        TextShape::new(pos, galley, text_color)
+            .with_override_text_color(text_color)
+            .into()
     }
 
     #[inline]
-    pub fn galley(pos: Pos2, galley: Arc<Galley>) -> Self {
-        TextShape::new(pos, galley).into()
-    }
-
-    #[inline]
-    /// The text color in the [`Galley`] will be replaced with the given color.
+    #[deprecated = "Use `Shape::galley` or `Shape::galley_with_override_text_color` instead"]
     pub fn galley_with_color(pos: Pos2, galley: Arc<Galley>, text_color: Color32) -> Self {
-        TextShape {
-            override_text_color: Some(text_color),
-            ..TextShape::new(pos, galley)
-        }
-        .into()
+        Self::galley_with_override_text_color(pos, galley, text_color)
     }
 
+    #[inline]
     pub fn mesh(mesh: Mesh) -> Self {
         crate::epaint_assert!(mesh.is_valid());
         Self::Mesh(mesh)
@@ -281,6 +348,8 @@ impl Shape {
     pub fn texture_id(&self) -> super::TextureId {
         if let Shape::Mesh(mesh) = self {
             mesh.texture_id
+        } else if let Shape::Rect(rect_shape) = self {
+            rect_shape.fill_texture_id
         } else {
             super::TextureId::default()
         }
@@ -405,6 +474,8 @@ pub struct PathShape {
 
     /// Color and thickness of the line.
     pub stroke: Stroke,
+    // TODO(emilk): Add texture support either by supplying uv for each point,
+    // or by some transform from points to uv (e.g. a callback or a linear transform matrix).
 }
 
 impl PathShape {
@@ -475,7 +546,7 @@ impl From<PathShape> for Shape {
 pub struct RectShape {
     pub rect: Rect,
 
-    /// How rounded the corners are. Use `Rounding::none()` for no rounding.
+    /// How rounded the corners are. Use `Rounding::ZERO` for no rounding.
     pub rounding: Rounding,
 
     /// How to fill the rectangle.
@@ -483,9 +554,39 @@ pub struct RectShape {
 
     /// The thickness and color of the outline.
     pub stroke: Stroke,
+
+    /// If the rect should be filled with a texture, which one?
+    ///
+    /// The texture is multiplied with [`Self::fill`].
+    pub fill_texture_id: TextureId,
+
+    /// What UV coordinates to use for the texture?
+    ///
+    /// To display a texture, set [`Self::fill_texture_id`],
+    /// and set this to `Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0))`.
+    ///
+    /// Use [`Rect::ZERO`] to turn off texturing.
+    pub uv: Rect,
 }
 
 impl RectShape {
+    #[inline]
+    pub fn new(
+        rect: Rect,
+        rounding: impl Into<Rounding>,
+        fill_color: impl Into<Color32>,
+        stroke: impl Into<Stroke>,
+    ) -> Self {
+        Self {
+            rect,
+            rounding: rounding.into(),
+            fill: fill_color.into(),
+            stroke: stroke.into(),
+            fill_texture_id: Default::default(),
+            uv: Rect::ZERO,
+        }
+    }
+
     #[inline]
     pub fn filled(
         rect: Rect,
@@ -497,6 +598,8 @@ impl RectShape {
             rounding: rounding.into(),
             fill: fill_color.into(),
             stroke: Default::default(),
+            fill_texture_id: Default::default(),
+            uv: Rect::ZERO,
         }
     }
 
@@ -507,6 +610,8 @@ impl RectShape {
             rounding: rounding.into(),
             fill: Default::default(),
             stroke: stroke.into(),
+            fill_texture_id: Default::default(),
+            uv: Rect::ZERO,
         }
     }
 
@@ -548,7 +653,7 @@ pub struct Rounding {
 impl Default for Rounding {
     #[inline]
     fn default() -> Self {
-        Self::none()
+        Self::ZERO
     }
 }
 
@@ -565,6 +670,14 @@ impl From<f32> for Rounding {
 }
 
 impl Rounding {
+    /// No rounding on any corner.
+    pub const ZERO: Self = Self {
+        nw: 0.0,
+        ne: 0.0,
+        sw: 0.0,
+        se: 0.0,
+    };
+
     #[inline]
     pub fn same(radius: f32) -> Self {
         Self {
@@ -572,16 +685,6 @@ impl Rounding {
             ne: radius,
             sw: radius,
             se: radius,
-        }
-    }
-
-    #[inline]
-    pub fn none() -> Self {
-        Self {
-            nw: 0.0,
-            ne: 0.0,
-            sw: 0.0,
-            se: 0.0,
         }
     }
 
@@ -632,9 +735,14 @@ pub struct TextShape {
     /// You can also set an underline when creating the galley.
     pub underline: Stroke,
 
+    /// Any [`Color32::PLACEHOLDER`] in the galley will be replaced by the given color.
+    /// Affects everything: backgrounds, glyphs, strikethough, underline, etc.
+    pub fallback_color: Color32,
+
     /// If set, the text color in the galley will be ignored and replaced
     /// with the given color.
-    /// This will NOT replace background color nor strikethrough/underline color.
+    ///
+    /// This only affects the glyphs and will NOT replace background color nor strikethrough/underline color.
     pub override_text_color: Option<Color32>,
 
     /// Rotate text by this many radians clockwise.
@@ -643,12 +751,16 @@ pub struct TextShape {
 }
 
 impl TextShape {
+    /// The given fallback color will be used for any uncolored part of the galley (using [`Color32::PLACEHOLDER`]).
+    ///
+    /// Any non-placeholder color in the galley takes precedence over this fallback color.
     #[inline]
-    pub fn new(pos: Pos2, galley: Arc<Galley>) -> Self {
+    pub fn new(pos: Pos2, galley: Arc<Galley>, fallback_color: Color32) -> Self {
         Self {
             pos,
             galley,
             underline: Stroke::NONE,
+            fallback_color,
             override_text_color: None,
             angle: 0.0,
         }
@@ -658,6 +770,27 @@ impl TextShape {
     #[inline]
     pub fn visual_bounding_rect(&self) -> Rect {
         self.galley.mesh_bounds.translate(self.pos.to_vec2())
+    }
+
+    #[inline]
+    pub fn with_underline(mut self, underline: Stroke) -> Self {
+        self.underline = underline;
+        self
+    }
+
+    /// Use the given color for the text, regardless of what color is already in the galley.
+    #[inline]
+    pub fn with_override_text_color(mut self, override_text_color: Color32) -> Self {
+        self.override_text_color = Some(override_text_color);
+        self
+    }
+
+    /// Rotate text by this many radians clockwise.
+    /// The pivot is `pos` (the upper left corner of the text).
+    #[inline]
+    pub fn with_angle(mut self, angle: f32) -> Self {
+        self.angle = angle;
+        self
     }
 }
 
@@ -696,12 +829,16 @@ fn points_from_line(
 fn dashes_from_line(
     path: &[Pos2],
     stroke: Stroke,
-    dash_length: f32,
-    gap_length: f32,
+    dash_lengths: &[f32],
+    gap_lengths: &[f32],
     shapes: &mut Vec<Shape>,
+    dash_offset: f32,
 ) {
-    let mut position_on_segment = 0.0;
+    assert_eq!(dash_lengths.len(), gap_lengths.len());
+    let mut position_on_segment = dash_offset;
     let mut drawing_dash = false;
+    let mut step = 0;
+    let steps = dash_lengths.len();
     path.windows(2).for_each(|window| {
         let (start, end) = (window[0], window[1]);
         let vector = end - start;
@@ -713,11 +850,16 @@ fn dashes_from_line(
             if drawing_dash {
                 // This is the end point.
                 shapes.push(Shape::line_segment([start_point, new_point], stroke));
-                position_on_segment += gap_length;
+                position_on_segment += gap_lengths[step];
+                // Increment step counter
+                step += 1;
+                if step >= steps {
+                    step = 0;
+                }
             } else {
                 // Start a new dash.
                 start_point = new_point;
-                position_on_segment += dash_length;
+                position_on_segment += dash_lengths[step];
             }
             drawing_dash = !drawing_dash;
         }
@@ -741,6 +883,8 @@ pub struct PaintCallbackInfo {
     /// Rect is the [-1, +1] of the Normalized Device Coordinates.
     ///
     /// Note than only a portion of this may be visible due to [`Self::clip_rect`].
+    ///
+    /// This comes from [`PaintCallback::rect`].
     pub viewport: Rect,
 
     /// Clip rectangle in points.
@@ -753,44 +897,83 @@ pub struct PaintCallbackInfo {
     pub screen_size_px: [u32; 2],
 }
 
+/// Size of the viewport in whole, physical pixels.
 pub struct ViewportInPixels {
     /// Physical pixel offset for left side of the viewport.
-    pub left_px: f32,
+    pub left_px: i32,
 
     /// Physical pixel offset for top side of the viewport.
-    pub top_px: f32,
+    pub top_px: i32,
 
     /// Physical pixel offset for bottom side of the viewport.
     ///
     /// This is what `glViewport`, `glScissor` etc expects for the y axis.
-    pub from_bottom_px: f32,
+    pub from_bottom_px: i32,
 
     /// Viewport width in physical pixels.
-    pub width_px: f32,
+    pub width_px: i32,
 
     /// Viewport height in physical pixels.
-    pub height_px: f32,
+    pub height_px: i32,
+}
+
+impl ViewportInPixels {
+    fn from_points(rect: &Rect, pixels_per_point: f32, screen_size_px: [u32; 2]) -> Self {
+        // Fractional pixel values for viewports are generally valid, but may cause sampling issues
+        // and rounding errors might cause us to get out of bounds.
+
+        // Round:
+        let left_px = (pixels_per_point * rect.min.x).round() as i32; // inclusive
+        let top_px = (pixels_per_point * rect.min.y).round() as i32; // inclusive
+        let right_px = (pixels_per_point * rect.max.x).round() as i32; // exclusive
+        let bottom_px = (pixels_per_point * rect.max.y).round() as i32; // exclusive
+
+        // Clamp to screen:
+        let screen_width = screen_size_px[0] as i32;
+        let screen_height = screen_size_px[1] as i32;
+        let left_px = left_px.clamp(0, screen_width);
+        let right_px = right_px.clamp(left_px, screen_width);
+        let top_px = top_px.clamp(0, screen_height);
+        let bottom_px = bottom_px.clamp(top_px, screen_height);
+
+        let width_px = right_px - left_px;
+        let height_px = bottom_px - top_px;
+
+        Self {
+            left_px,
+            top_px,
+            from_bottom_px: screen_height - height_px - top_px,
+            width_px,
+            height_px,
+        }
+    }
+}
+
+#[test]
+fn test_viewport_rounding() {
+    for i in 0..=10_000 {
+        // Two adjacent viewports should never overlap:
+        let x = i as f32 / 97.0;
+        let left = Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 100.0)).with_max_x(x);
+        let right = Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 100.0)).with_min_x(x);
+
+        for pixels_per_point in [0.618, 1.0, std::f32::consts::PI] {
+            let left = ViewportInPixels::from_points(&left, pixels_per_point, [100, 100]);
+            let right = ViewportInPixels::from_points(&right, pixels_per_point, [100, 100]);
+            assert_eq!(left.left_px + left.width_px, right.left_px);
+        }
+    }
 }
 
 impl PaintCallbackInfo {
-    fn points_to_pixels(&self, rect: &Rect) -> ViewportInPixels {
-        ViewportInPixels {
-            left_px: rect.min.x * self.pixels_per_point,
-            top_px: rect.min.y * self.pixels_per_point,
-            from_bottom_px: self.screen_size_px[1] as f32 - rect.max.y * self.pixels_per_point,
-            width_px: rect.width() * self.pixels_per_point,
-            height_px: rect.height() * self.pixels_per_point,
-        }
-    }
-
     /// The viewport rectangle. This is what you would use in e.g. `glViewport`.
     pub fn viewport_in_pixels(&self) -> ViewportInPixels {
-        self.points_to_pixels(&self.viewport)
+        ViewportInPixels::from_points(&self.viewport, self.pixels_per_point, self.screen_size_px)
     }
 
     /// The "scissor" or "clip" rectangle. This is what you would use in e.g. `glScissor`.
     pub fn clip_rect_in_pixels(&self) -> ViewportInPixels {
-        self.points_to_pixels(&self.clip_rect)
+        ViewportInPixels::from_points(&self.clip_rect, self.pixels_per_point, self.screen_size_px)
     }
 }
 
@@ -800,13 +983,15 @@ impl PaintCallbackInfo {
 #[derive(Clone)]
 pub struct PaintCallback {
     /// Where to paint.
+    ///
+    /// This will become [`PaintCallbackInfo::viewport`].
     pub rect: Rect,
 
     /// Paint something custom (e.g. 3D stuff).
     ///
     /// The concrete value of `callback` depends on the rendering backend used. For instance, the
     /// `glow` backend requires that callback be an `egui_glow::CallbackFn` while the `wgpu`
-    /// backend requires a `egui_wgpu::CallbackFn`.
+    /// backend requires a `egui_wgpu::Callback`.
     ///
     /// If the type cannot be downcast to the type expected by the current backend the callback
     /// will not be drawn.
@@ -816,7 +1001,9 @@ pub struct PaintCallback {
     ///
     /// The rendering backend is also responsible for restoring any state, such as the bound shader
     /// program, vertex array, etc.
-    pub callback: Arc<dyn Any + Sync + Send>,
+    ///
+    /// Shape has to be clone, therefore this has to be an `Arc` instead of a `Box`.
+    pub callback: Arc<dyn Any + Send + Sync>,
 }
 
 impl std::fmt::Debug for PaintCallback {

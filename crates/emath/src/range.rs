@@ -1,6 +1,6 @@
 use std::ops::{RangeFrom, RangeFull, RangeInclusive, RangeToInclusive};
 
-/// Includive range of floats, i.e. `min..=max`, but more ergonomic than [`RangeInclusive`].
+/// Inclusive range of floats, i.e. `min..=max`, but more ergonomic than [`RangeInclusive`].
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -36,13 +36,94 @@ impl Rangef {
     }
 
     #[inline]
-    pub fn span(&self) -> f32 {
+    pub fn point(min_and_max: f32) -> Self {
+        Self {
+            min: min_and_max,
+            max: min_and_max,
+        }
+    }
+
+    /// The length of the range, i.e. `max - min`.
+    #[inline]
+    pub fn span(self) -> f32 {
         self.max - self.min
     }
 
+    /// The center of the range
     #[inline]
-    pub fn contains(&self, x: f32) -> bool {
+    pub fn center(self) -> f32 {
+        0.5 * (self.min + self.max)
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn contains(self, x: f32) -> bool {
         self.min <= x && x <= self.max
+    }
+
+    /// Equivalent to `x.clamp(min, max)`
+    #[inline]
+    #[must_use]
+    pub fn clamp(self, x: f32) -> f32 {
+        x.clamp(self.min, self.max)
+    }
+
+    /// Flip `min` and `max` if needed, so that `min <= max` after.
+    #[inline]
+    pub fn as_positive(self) -> Self {
+        Rangef {
+            min: self.min.min(self.max),
+            max: self.min.max(self.max),
+        }
+    }
+
+    /// Shrink by this much on each side, keeping the center
+    #[inline]
+    #[must_use]
+    pub fn shrink(self, amnt: f32) -> Self {
+        Self {
+            min: self.min + amnt,
+            max: self.max - amnt,
+        }
+    }
+
+    /// Expand by this much on each side, keeping the center
+    #[inline]
+    #[must_use]
+    pub fn expand(self, amnt: f32) -> Self {
+        Self {
+            min: self.min - amnt,
+            max: self.max + amnt,
+        }
+    }
+
+    /// Flip the min and the max
+    #[inline]
+    #[must_use]
+    pub fn flip(self) -> Self {
+        Self {
+            min: self.max,
+            max: self.min,
+        }
+    }
+
+    /// The overlap of two ranges, i.e. the range that is contained by both.
+    ///
+    /// If the ranges do not overlap, returns a range with `span() < 0.0`.
+    ///
+    /// ```
+    /// # use emath::Rangef;
+    /// assert_eq!(Rangef::new(0.0, 10.0).intersection(Rangef::new(5.0, 15.0)), Rangef::new(5.0, 10.0));
+    /// assert_eq!(Rangef::new(0.0, 10.0).intersection(Rangef::new(10.0, 20.0)), Rangef::new(10.0, 10.0));
+    /// assert!(Rangef::new(0.0, 10.0).intersection(Rangef::new(20.0, 30.0)).span() < 0.0);
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn intersection(self, other: Self) -> Self {
+        Self {
+            min: self.min.max(other.min),
+            max: self.max.min(other.max),
+        }
     }
 }
 
@@ -106,5 +187,19 @@ impl From<RangeToInclusive<f32>> for Rangef {
     #[inline]
     fn from(range: RangeToInclusive<f32>) -> Self {
         Self::new(f32::NEG_INFINITY, range.end)
+    }
+}
+
+impl PartialEq<RangeInclusive<f32>> for Rangef {
+    #[inline]
+    fn eq(&self, other: &RangeInclusive<f32>) -> bool {
+        self.min == *other.start() && self.max == *other.end()
+    }
+}
+
+impl PartialEq<Rangef> for RangeInclusive<f32> {
+    #[inline]
+    fn eq(&self, other: &Rangef) -> bool {
+        *self.start() == other.min && *self.end() == other.max
     }
 }

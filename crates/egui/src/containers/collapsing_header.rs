@@ -36,6 +36,10 @@ impl CollapsingState {
         ctx.data_mut(|d| d.insert_persisted(self.id, self.state));
     }
 
+    pub fn remove(&self, ctx: &Context) {
+        ctx.data_mut(|d| d.remove::<InnerState>(self.id));
+    }
+
     pub fn id(&self) -> Id {
         self.id
     }
@@ -386,6 +390,7 @@ impl CollapsingHeader {
 
     /// By default, the [`CollapsingHeader`] is collapsed.
     /// Call `.default_open(true)` to change this.
+    #[inline]
     pub fn default_open(mut self, open: bool) -> Self {
         self.default_open = open;
         self
@@ -396,6 +401,7 @@ impl CollapsingHeader {
     /// Calling `.open(Some(false))` will make the collapsing header close this frame (or stay closed).
     ///
     /// Calling `.open(None)` has no effect (default).
+    #[inline]
     pub fn open(mut self, open: Option<bool>) -> Self {
         self.open = open;
         self
@@ -403,6 +409,7 @@ impl CollapsingHeader {
 
     /// Explicitly set the source of the [`Id`] of this widget, instead of using title label.
     /// This is useful if the title label is dynamic or not unique.
+    #[inline]
     pub fn id_source(mut self, id_source: impl Hash) -> Self {
         self.id_source = Id::new(id_source);
         self
@@ -411,36 +418,9 @@ impl CollapsingHeader {
     /// If you set this to `false`, the [`CollapsingHeader`] will be grayed out and un-clickable.
     ///
     /// This is a convenience for [`Ui::set_enabled`].
+    #[inline]
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
-        self
-    }
-
-    /// Can the [`CollapsingHeader`] be selected by clicking it? Default: `false`.
-    #[deprecated = "Use the more powerful egui::collapsing_header::CollapsingState::show_header"] // Deprecated in 2022-04-28, before egui 0.18
-    pub fn selectable(mut self, selectable: bool) -> Self {
-        self.selectable = selectable;
-        self
-    }
-
-    /// If you set this to 'true', the [`CollapsingHeader`] will be shown as selected.
-    ///
-    /// Example:
-    /// ```
-    /// # egui::__run_test_ui(|ui| {
-    /// let mut selected = false;
-    /// let response = egui::CollapsingHeader::new("Select and open me")
-    ///     .selectable(true)
-    ///     .selected(selected)
-    ///     .show(ui, |ui| ui.label("Body"));
-    /// if response.header_response.clicked() {
-    ///     selected = true;
-    /// }
-    /// # });
-    /// ```
-    #[deprecated = "Use the more powerful egui::collapsing_header::CollapsingState::show_header"] // Deprecated in 2022-04-28, before egui 0.18
-    pub fn selected(mut self, selected: bool) -> Self {
-        self.selected = selected;
         self
     }
 
@@ -452,6 +432,7 @@ impl CollapsingHeader {
     /// ui.visuals_mut().collapsing_header_frame = true;
     /// # });
     /// ```
+    #[inline]
     pub fn show_background(mut self, show_background: bool) -> Self {
         self.show_background = show_background;
         self
@@ -474,6 +455,7 @@ impl CollapsingHeader {
     ///   .show(ui, |ui| { ui.label("Hi!"); });
     /// # });
     /// ```
+    #[inline]
     pub fn icon(mut self, icon_fn: impl FnOnce(&mut Ui, f32, &Response) + 'static) -> Self {
         self.icon = Some(Box::new(icon_fn));
         self
@@ -513,22 +495,22 @@ impl CollapsingHeader {
         let text_pos = available.min + vec2(ui.spacing().indent, 0.0);
         let wrap_width = available.right() - text_pos.x;
         let wrap = Some(false);
-        let text = text.into_galley(ui, wrap, wrap_width, TextStyle::Button);
-        let text_max_x = text_pos.x + text.size().x;
+        let galley = text.into_galley(ui, wrap, wrap_width, TextStyle::Button);
+        let text_max_x = text_pos.x + galley.size().x;
 
         let mut desired_width = text_max_x + button_padding.x - available.left();
         if ui.visuals().collapsing_header_frame {
             desired_width = desired_width.max(available.width()); // fill full width
         }
 
-        let mut desired_size = vec2(desired_width, text.size().y + 2.0 * button_padding.y);
+        let mut desired_size = vec2(desired_width, galley.size().y + 2.0 * button_padding.y);
         desired_size = desired_size.at_least(ui.spacing().interact_size);
         let (_, rect) = ui.allocate_space(desired_size);
 
         let mut header_response = ui.interact(rect, id, Sense::click());
         let text_pos = pos2(
             text_pos.x,
-            header_response.rect.center().y - text.size().y / 2.0,
+            header_response.rect.center().y - galley.size().y / 2.0,
         );
 
         let mut state = CollapsingState::load_with_default_open(ui.ctx(), id, default_open);
@@ -543,7 +525,7 @@ impl CollapsingHeader {
         }
 
         header_response
-            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, text.text()));
+            .widget_info(|| WidgetInfo::labeled(WidgetType::CollapsingHeader, galley.text()));
 
         let openness = state.openness(ui.ctx());
 
@@ -551,13 +533,12 @@ impl CollapsingHeader {
             let visuals = ui.style().interact_selectable(&header_response, selected);
 
             if ui.visuals().collapsing_header_frame || show_background {
-                ui.painter().add(epaint::RectShape {
-                    rect: header_response.rect.expand(visuals.expansion),
-                    rounding: visuals.rounding,
-                    fill: visuals.weak_bg_fill,
-                    stroke: visuals.bg_stroke,
-                    // stroke: Default::default(),
-                });
+                ui.painter().add(epaint::RectShape::new(
+                    header_response.rect.expand(visuals.expansion),
+                    visuals.rounding,
+                    visuals.weak_bg_fill,
+                    visuals.bg_stroke,
+                ));
             }
 
             if selected || selectable && (header_response.hovered() || header_response.has_focus())
@@ -582,7 +563,7 @@ impl CollapsingHeader {
                 }
             }
 
-            text.paint_with_visuals(ui.painter(), text_pos, &visuals);
+            ui.painter().galley(text_pos, galley, visuals.text_color());
         }
 
         Prepared {

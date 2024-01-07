@@ -1,8 +1,25 @@
 # Changelog for egui-winit
 All notable changes to the `egui-winit` integration will be noted in this file.
 
+This file is updated upon each release.
+Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
-## Unreleased
+
+## 0.24.1 - 2023-11-30
+* Don't treat `WindowEvent::CloseRequested` as consumed [#3627](https://github.com/emilk/egui/pull/3627) (thanks [@Aaron1011](https://github.com/Aaron1011)!)
+* Fix windowing problems when using the `x11` feature on Linux [#3643](https://github.com/emilk/egui/pull/3643)
+
+
+## 0.24.0 - 2023-11-23
+* Update MSRV to Rust 1.72 [#3595](https://github.com/emilk/egui/pull/3595)
+* Some breaking changes required for multi-viewport support
+
+
+## 0.23.0 - 2023-09-27
+* Only show on-screen-keyboard and IME when editing text [#3362](https://github.com/emilk/egui/pull/3362) (thanks [@Barugon](https://github.com/Barugon)!)
+* Replace `instant` with `web_time` [#3296](https://github.com/emilk/egui/pull/3296)
+* Allow users to opt-out of default `winit` features [#3228](https://github.com/emilk/egui/pull/3228)
+* Recognize numpad enter/plus/minus [#3285](https://github.com/emilk/egui/pull/3285)
 
 
 ## 0.22.0 - 2023-05-23

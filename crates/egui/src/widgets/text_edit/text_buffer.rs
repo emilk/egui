@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{borrow::Cow, ops::Range};
 
 /// Trait constraining what types [`crate::TextEdit`] may use as
 /// an underlying buffer.
@@ -44,7 +44,7 @@ pub trait TextBuffer {
     }
 
     /// Replaces all contents of this string with `text`
-    fn replace(&mut self, text: &str) {
+    fn replace_with(&mut self, text: &str) {
         self.clear();
         self.insert_text(text, 0);
     }
@@ -91,12 +91,42 @@ impl TextBuffer for String {
         self.clear();
     }
 
-    fn replace(&mut self, text: &str) {
+    fn replace_with(&mut self, text: &str) {
         *self = text.to_owned();
     }
 
     fn take(&mut self) -> String {
         std::mem::take(self)
+    }
+}
+
+impl<'a> TextBuffer for Cow<'a, str> {
+    fn is_mutable(&self) -> bool {
+        true
+    }
+
+    fn as_str(&self) -> &str {
+        self.as_ref()
+    }
+
+    fn insert_text(&mut self, text: &str, char_index: usize) -> usize {
+        <String as TextBuffer>::insert_text(self.to_mut(), text, char_index)
+    }
+
+    fn delete_char_range(&mut self, char_range: Range<usize>) {
+        <String as TextBuffer>::delete_char_range(self.to_mut(), char_range);
+    }
+
+    fn clear(&mut self) {
+        <String as TextBuffer>::clear(self.to_mut());
+    }
+
+    fn replace_with(&mut self, text: &str) {
+        *self = Cow::Owned(text.to_owned());
+    }
+
+    fn take(&mut self) -> String {
+        std::mem::take(self).into_owned()
     }
 }
 

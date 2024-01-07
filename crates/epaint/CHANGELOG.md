@@ -1,8 +1,30 @@
 # epaint changelog
 All notable changes to the epaint crate will be documented in this file.
 
+This file is updated upon each release.
+Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
-## Unreleased
+
+## 0.24.1 - 2023-11-30
+* Optimize `FontImage::srgba_pixels` and reduce the initial font atlas texture size from 8MiB -> 1MiB [#3666](https://github.com/emilk/egui/pull/3666)
+
+
+## 0.24.0 - 2023-11-23
+* Use `impl Into<Stroke>` as argument in a few more places [#3420](https://github.com/emilk/egui/pull/3420) (thanks [@Phen-Ro](https://github.com/Phen-Ro)!)
+* Update MSRV to Rust 1.72 [#3595](https://github.com/emilk/egui/pull/3595)
+* Make `ViewportInPixels` use integers, and clamp to bounds [#3604](https://github.com/emilk/egui/pull/3604) (thanks [@Wumpf](https://github.com/Wumpf)!)
+
+
+## 0.23.0 - 2023-09-27
+* Update MSRV to Rust 1.70.0 [#3310](https://github.com/emilk/egui/pull/3310)
+* Add option to truncate text at wrap width [#3244](https://github.com/emilk/egui/pull/3244) [#3366](https://github.com/emilk/egui/pull/3366)
+* Add control of line height and letter spacing [#3302](https://github.com/emilk/egui/pull/3302)
+* Support images with rounded corners [#3257](https://github.com/emilk/egui/pull/3257)
+* Add `ColorImage::from_gray` [#3166](https://github.com/emilk/egui/pull/3166) (thanks [@thomaseliot](https://github.com/thomaseliot)!)
+* Provide `into_inner()` for `egui::mutex::{Mutex, RwLock}` [#3110](https://github.com/emilk/egui/pull/3110) (thanks [@KmolYuan](https://github.com/KmolYuan)!)
+* Fix problems with tabs in text [#3355](https://github.com/emilk/egui/pull/3355)
+* Refactor: change `ClippedShape` from struct-enum to a normal struct [#3225](https://github.com/emilk/egui/pull/3225)
+* Document when `Galley`s get invalidated [#3024](https://github.com/emilk/egui/pull/3024) (thanks [@e00E](https://github.com/e00E)!)
 
 
 ## 0.22.0 - 2023-05-23

@@ -9,8 +9,10 @@ use crate::{ImageData, ImageDelta, TextureId};
 pub struct TextureManager {
     /// We allocate texture id:s linearly.
     next_id: u64,
+
     /// Information about currently allocated textures.
     metas: ahash::HashMap<TextureId, TextureMeta>,
+
     delta: TexturesDelta,
 }
 
@@ -213,7 +215,7 @@ impl TexturesDelta {
     }
 
     pub fn append(&mut self, mut newer: TexturesDelta) {
-        self.set.extend(newer.set.into_iter());
+        self.set.extend(newer.set);
         self.free.append(&mut newer.free);
     }
 

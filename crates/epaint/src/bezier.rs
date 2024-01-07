@@ -1,4 +1,6 @@
 #![allow(clippy::many_single_char_names)]
+#![allow(clippy::wrong_self_convention)] // False positives
+
 use std::ops::Range;
 
 use crate::{shape::Shape, Color32, PathShape, Stroke};

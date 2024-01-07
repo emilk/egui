@@ -51,7 +51,7 @@ impl FontId {
     }
 }
 
-#[allow(clippy::derive_hash_xor_eq)]
+#[allow(clippy::derived_hash_with_manual_eq)]
 impl std::hash::Hash for FontId {
     #[inline(always)]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -200,7 +200,7 @@ fn ab_glyph_font_from_font_data(name: &str, data: &FontData) -> ab_glyph::FontAr
                 .map(ab_glyph::FontArc::from)
         }
     }
-    .unwrap_or_else(|err| panic!("Error parsing {:?} TTF/OTF font file: {}", name, err))
+    .unwrap_or_else(|err| panic!("Error parsing {name:?} TTF/OTF font file: {err}"))
 }
 
 /// Describes the font data and the sizes to use.
@@ -335,6 +335,23 @@ impl FontDefinitions {
             families,
         }
     }
+
+    /// List of all the builtin font names used by `epaint`.
+    #[cfg(feature = "default_fonts")]
+    pub fn builtin_font_names() -> &'static [&'static str] {
+        &[
+            "Ubuntu-Light",
+            "NotoEmoji-Regular",
+            "emoji-icon-font",
+            "Hack",
+        ]
+    }
+
+    /// List of all the builtin font names used by `epaint`.
+    #[cfg(not(feature = "default_fonts"))]
+    pub fn builtin_font_names() -> &'static [&'static str] {
+        &[]
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -348,6 +365,7 @@ impl FontDefinitions {
 /// If you are using `egui`, use `egui::Context::set_fonts` and `egui::Context::fonts`.
 ///
 /// You need to call [`Self::begin_frame`] and [`Self::font_image_delta`] once every frame.
+#[derive(Clone)]
 pub struct Fonts(Arc<Mutex<FontsAndCache>>);
 
 impl Fonts {
@@ -423,6 +441,12 @@ impl Fonts {
     /// Pass this to [`crate::Tessellator`].
     pub fn texture_atlas(&self) -> Arc<Mutex<TextureAtlas>> {
         self.lock().fonts.atlas.clone()
+    }
+
+    /// The full font atlas image.
+    #[inline]
+    pub fn image(&self) -> crate::FontImage {
+        self.lock().fonts.atlas.lock().image().clone()
     }
 
     /// Current size of the font image.
@@ -525,12 +549,7 @@ impl Fonts {
         font_id: FontId,
         wrap_width: f32,
     ) -> Arc<Galley> {
-        self.layout_job(LayoutJob::simple(
-            text,
-            font_id,
-            crate::Color32::TEMPORARY_COLOR,
-            wrap_width,
-        ))
+        self.layout(text, font_id, crate::Color32::PLACEHOLDER, wrap_width)
     }
 }
 
@@ -552,7 +571,7 @@ impl FontsAndCache {
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct HashableF32(f32);
 
-#[allow(clippy::derive_hash_xor_eq)]
+#[allow(clippy::derived_hash_with_manual_eq)]
 impl std::hash::Hash for HashableF32 {
     #[inline(always)]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -586,12 +605,11 @@ impl FontsImpl {
     ) -> Self {
         assert!(
             0.0 < pixels_per_point && pixels_per_point < 100.0,
-            "pixels_per_point out of range: {}",
-            pixels_per_point
+            "pixels_per_point out of range: {pixels_per_point}"
         );
 
         let texture_width = max_texture_side.at_most(8 * 1024);
-        let initial_height = 64;
+        let initial_height = 32; // Keep initial font atlas small, so it is fast to upload to GPU. This will expand as needed anyways.
         let atlas = TextureAtlas::new([texture_width, initial_height]);
 
         let atlas = Arc::new(Mutex::new(atlas));
@@ -627,9 +645,8 @@ impl FontsImpl {
             .entry((HashableF32(*size), family.clone()))
             .or_insert_with(|| {
                 let fonts = &self.definitions.families.get(family);
-                let fonts = fonts.unwrap_or_else(|| {
-                    panic!("FontFamily::{:?} is not bound to any fonts", family)
-                });
+                let fonts = fonts
+                    .unwrap_or_else(|| panic!("FontFamily::{family:?} is not bound to any fonts"));
 
                 let fonts: Vec<Arc<FontImpl>> = fonts
                     .iter()
@@ -655,7 +672,7 @@ impl FontsImpl {
         self.font(font_id).has_glyphs(s)
     }
 
-    /// Height of one row of text. In points
+    /// Height of one row of text in points.
     fn row_height(&mut self, font_id: &FontId) -> f32 {
         self.font(font_id).row_height()
     }
@@ -752,17 +769,14 @@ impl FontImplCache {
         let (tweak, ab_glyph_font) = self
             .ab_glyph_fonts
             .get(font_name)
-            .unwrap_or_else(|| panic!("No font data found for {:?}", font_name))
+            .unwrap_or_else(|| panic!("No font data found for {font_name:?}"))
             .clone();
 
         let scale_in_pixels = self.pixels_per_point * scale_in_points;
 
         // Scale the font properly (see https://github.com/emilk/egui/issues/2068).
         let units_per_em = ab_glyph_font.units_per_em().unwrap_or_else(|| {
-            panic!(
-                "The font unit size of {:?} exceeds the expected range (16..=16384)",
-                font_name
-            )
+            panic!("The font unit size of {font_name:?} exceeds the expected range (16..=16384)")
         });
         let font_scaling = ab_glyph_font.height_unscaled() / units_per_em;
         let scale_in_pixels = scale_in_pixels * font_scaling;

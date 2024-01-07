@@ -50,7 +50,7 @@ impl super::View for MultiTouch {
         ui.label("Try touch gestures Pinch/Stretch, Rotation, and Pressure with 2+ fingers.");
 
         let num_touches = ui.input(|i| i.multi_touch().map_or(0, |mt| mt.num_touches));
-        ui.label(format!("Current touches: {}", num_touches));
+        ui.label(format!("Current touches: {num_touches}"));
 
         let color = if ui.visuals().dark_mode {
             Color32::WHITE

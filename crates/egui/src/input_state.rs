@@ -148,7 +148,10 @@ impl InputState {
         mut self,
         mut new: RawInput,
         requested_repaint_last_frame: bool,
+        pixels_per_point: f32,
     ) -> InputState {
+        crate::profile_function!();
+
         let time = new.time.unwrap_or(self.time + new.predicted_dt as f64);
         let unstable_dt = (time - self.time) as f32;
 
@@ -215,7 +218,7 @@ impl InputState {
             scroll_delta,
             zoom_factor_delta,
             screen_rect,
-            pixels_per_point: new.pixels_per_point.unwrap_or(self.pixels_per_point),
+            pixels_per_point,
             max_texture_side: new.max_texture_side.unwrap_or(self.max_texture_side),
             time,
             unstable_dt,
@@ -227,6 +230,12 @@ impl InputState {
             events: new.events.clone(), // TODO(emilk): remove clone() and use raw.events
             raw: new,
         }
+    }
+
+    /// Info about the active viewport
+    #[inline]
+    pub fn viewport(&self) -> &ViewportInfo {
+        self.raw.viewport()
     }
 
     #[inline(always)]
@@ -280,7 +289,13 @@ impl InputState {
     /// Count presses of a key. If non-zero, the presses are consumed, so that this will only return non-zero once.
     ///
     /// Includes key-repeat events.
-    pub fn count_and_consume_key(&mut self, modifiers: Modifiers, key: Key) -> usize {
+    ///
+    /// This uses [`Modifiers::matches_logically`] to match modifiers.
+    /// This means that e.g. the shortcut `Ctrl` + `Key::Plus` will be matched
+    /// as long as `Ctrl` and `Plus` are pressed, ignoring if
+    /// `Shift` or `Alt` are also pressed (because those modifiers might
+    /// be required to produce the logical `Key::Plus`).
+    pub fn count_and_consume_key(&mut self, modifiers: Modifiers, logical_key: Key) -> usize {
         let mut count = 0usize;
 
         self.events.retain(|event| {
@@ -291,7 +306,7 @@ impl InputState {
                     modifiers: ev_mods,
                     pressed: true,
                     ..
-                } if *ev_key == key && ev_mods.matches(modifiers)
+                } if *ev_key == logical_key && ev_mods.matches_logically(modifiers)
             );
 
             count += is_match as usize;
@@ -305,8 +320,8 @@ impl InputState {
     /// Check for a key press. If found, `true` is returned and the key pressed is consumed, so that this will only return `true` once.
     ///
     /// Includes key-repeat events.
-    pub fn consume_key(&mut self, modifiers: Modifiers, key: Key) -> bool {
-        self.count_and_consume_key(modifiers, key) > 0
+    pub fn consume_key(&mut self, modifiers: Modifiers, logical_key: Key) -> bool {
+        self.count_and_consume_key(modifiers, logical_key) > 0
     }
 
     /// Check if the given shortcut has been pressed.
@@ -315,8 +330,11 @@ impl InputState {
     ///
     /// Includes key-repeat events.
     pub fn consume_shortcut(&mut self, shortcut: &KeyboardShortcut) -> bool {
-        let KeyboardShortcut { modifiers, key } = *shortcut;
-        self.consume_key(modifiers, key)
+        let KeyboardShortcut {
+            modifiers,
+            logical_key,
+        } = *shortcut;
+        self.consume_key(modifiers, logical_key)
     }
 
     /// Was the given key pressed this frame?
@@ -460,6 +478,15 @@ impl InputState {
     pub fn num_accesskit_action_requests(&self, id: crate::Id, action: accesskit::Action) -> usize {
         self.accesskit_action_requests(id, action).count()
     }
+
+    /// Get all events that matches the given filter.
+    pub fn filtered_events(&self, filter: &EventFilter) -> Vec<Event> {
+        self.events
+            .iter()
+            .filter(|event| filter.matches(event))
+            .cloned()
+            .collect()
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -566,6 +593,10 @@ pub struct PointerState {
     /// Used to check for triple-clicks.
     last_last_click_time: f64,
 
+    /// When was the pointer last moved?
+    /// Used for things like showing hover ui/tooltip with a delay.
+    last_move_time: f64,
+
     /// All button events that occurred this frame
     pub(crate) pointer_events: Vec<PointerEvent>,
 }
@@ -585,6 +616,7 @@ impl Default for PointerState {
             has_moved_too_much_for_a_click: false,
             last_click_time: std::f64::NEG_INFINITY,
             last_last_click_time: std::f64::NEG_INFINITY,
+            last_move_time: std::f64::NEG_INFINITY,
             pointer_events: vec![],
         }
     }
@@ -709,6 +741,9 @@ impl PointerState {
         } else {
             Vec2::default()
         };
+        if self.velocity != Vec2::ZERO {
+            self.last_move_time = time;
+        }
 
         self
     }
@@ -746,7 +781,7 @@ impl PointerState {
     /// Latest reported pointer position.
     /// When tapping a touch screen, this will be `None`.
     #[inline(always)]
-    pub(crate) fn latest_pos(&self) -> Option<Pos2> {
+    pub fn latest_pos(&self) -> Option<Pos2> {
         self.latest_pos
     }
 
@@ -786,6 +821,12 @@ impl PointerState {
     #[inline]
     pub fn is_moving(&self) -> bool {
         self.velocity != Vec2::ZERO
+    }
+
+    /// How long has it been (in seconds) since the pointer was last moved?
+    #[inline(always)]
+    pub fn time_since_last_movement(&self) -> f64 {
+        self.time - self.last_move_time
     }
 
     /// Was any pointer button pressed (`!down -> down`) this frame?
@@ -990,30 +1031,28 @@ impl InputState {
             });
         }
 
-        ui.label(format!("scroll_delta: {:?} points", scroll_delta));
-        ui.label(format!("zoom_factor_delta: {:4.2}x", zoom_factor_delta));
-        ui.label(format!("screen_rect: {:?} points", screen_rect));
+        ui.label(format!("scroll_delta: {scroll_delta:?} points"));
+        ui.label(format!("zoom_factor_delta: {zoom_factor_delta:4.2}x"));
+        ui.label(format!("screen_rect: {screen_rect:?} points"));
         ui.label(format!(
-            "{} physical pixels for each logical point",
-            pixels_per_point
+            "{pixels_per_point} physical pixels for each logical point"
         ));
         ui.label(format!(
-            "max texture size (on each side): {}",
-            max_texture_side
+            "max texture size (on each side): {max_texture_side}"
         ));
-        ui.label(format!("time: {:.3} s", time));
+        ui.label(format!("time: {time:.3} s"));
         ui.label(format!(
             "time since previous frame: {:.1} ms",
             1e3 * unstable_dt
         ));
         ui.label(format!("predicted_dt: {:.1} ms", 1e3 * predicted_dt));
         ui.label(format!("stable_dt:    {:.1} ms", 1e3 * stable_dt));
-        ui.label(format!("focused:   {}", focused));
-        ui.label(format!("modifiers: {:#?}", modifiers));
-        ui.label(format!("keys_down: {:?}", keys_down));
+        ui.label(format!("focused:   {focused}"));
+        ui.label(format!("modifiers: {modifiers:#?}"));
+        ui.label(format!("keys_down: {keys_down:?}"));
         ui.scope(|ui| {
             ui.set_min_height(150.0);
-            ui.label(format!("events: {:#?}", events))
+            ui.label(format!("events: {events:#?}"))
                 .on_hover_text("key presses etc");
         });
     }
@@ -1035,24 +1074,25 @@ impl PointerState {
             last_click_time,
             last_last_click_time,
             pointer_events,
+            last_move_time,
         } = self;
 
-        ui.label(format!("latest_pos: {:?}", latest_pos));
-        ui.label(format!("interact_pos: {:?}", interact_pos));
-        ui.label(format!("delta: {:?}", delta));
+        ui.label(format!("latest_pos: {latest_pos:?}"));
+        ui.label(format!("interact_pos: {interact_pos:?}"));
+        ui.label(format!("delta: {delta:?}"));
         ui.label(format!(
             "velocity: [{:3.0} {:3.0}] points/sec",
             velocity.x, velocity.y
         ));
-        ui.label(format!("down: {:#?}", down));
-        ui.label(format!("press_origin: {:?}", press_origin));
-        ui.label(format!("press_start_time: {:?} s", press_start_time));
+        ui.label(format!("down: {down:#?}"));
+        ui.label(format!("press_origin: {press_origin:?}"));
+        ui.label(format!("press_start_time: {press_start_time:?} s"));
         ui.label(format!(
-            "has_moved_too_much_for_a_click: {}",
-            has_moved_too_much_for_a_click
+            "has_moved_too_much_for_a_click: {has_moved_too_much_for_a_click}"
         ));
-        ui.label(format!("last_click_time: {:#?}", last_click_time));
-        ui.label(format!("last_last_click_time: {:#?}", last_last_click_time));
-        ui.label(format!("pointer_events: {:?}", pointer_events));
+        ui.label(format!("last_click_time: {last_click_time:#?}"));
+        ui.label(format!("last_last_click_time: {last_last_click_time:#?}"));
+        ui.label(format!("last_move_time: {last_move_time:#?}"));
+        ui.label(format!("pointer_events: {pointer_events:?}"));
     }
 }

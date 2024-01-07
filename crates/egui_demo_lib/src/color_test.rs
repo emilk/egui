@@ -87,8 +87,12 @@ impl ColorTest {
                 let tex = self.tex_mngr.get(ui.ctx(), &g);
                 let texel_offset = 0.5 / (g.0.len() as f32);
                 let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
-                ui.add(Image::new(tex, GRADIENT_SIZE).tint(vertex_color).uv(uv))
-                    .on_hover_text(format!("A texture that is {} texels wide", g.0.len()));
+                ui.add(
+                    Image::from_texture((tex.id(), GRADIENT_SIZE))
+                        .tint(vertex_color)
+                        .uv(uv),
+                )
+                .on_hover_text(format!("A texture that is {} texels wide", g.0.len()));
                 ui.label("GPU result");
             });
         });
@@ -225,11 +229,15 @@ impl ColorTest {
             let tex = self.tex_mngr.get(ui.ctx(), gradient);
             let texel_offset = 0.5 / (gradient.0.len() as f32);
             let uv = Rect::from_min_max(pos2(texel_offset, 0.0), pos2(1.0 - texel_offset, 1.0));
-            ui.add(Image::new(tex, GRADIENT_SIZE).bg_fill(bg_fill).uv(uv))
-                .on_hover_text(format!(
-                    "A texture that is {} texels wide",
-                    gradient.0.len()
-                ));
+            ui.add(
+                Image::from_texture((tex.id(), GRADIENT_SIZE))
+                    .bg_fill(bg_fill)
+                    .uv(uv),
+            )
+            .on_hover_text(format!(
+                "A texture that is {} texels wide",
+                gradient.0.len()
+            ));
             ui.label(label);
         });
     }

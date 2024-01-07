@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+#[cfg(feature = "accesskit")]
+use accesskit::Role;
 use epaint::text::{cursor::*, Galley, LayoutJob};
 
 use crate::{output::OutputEvent, *};
@@ -65,7 +67,7 @@ pub struct TextEdit<'t> {
     interactive: bool,
     desired_width: Option<f32>,
     desired_height_rows: usize,
-    lock_focus: bool,
+    event_filter: EventFilter,
     cursor_at_end: bool,
     min_size: Vec2,
     align: Align2,
@@ -115,7 +117,13 @@ impl<'t> TextEdit<'t> {
             interactive: true,
             desired_width: None,
             desired_height_rows: 4,
-            lock_focus: false,
+            event_filter: EventFilter {
+                // moving the cursor is really important
+                horizontal_arrows: true,
+                vertical_arrows: true,
+                tab: false, // tab is used to change focus, not to insert a tab character
+                ..Default::default()
+            },
             cursor_at_end: true,
             min_size: Vec2::ZERO,
             align: Align2::LEFT_TOP,
@@ -127,18 +135,20 @@ impl<'t> TextEdit<'t> {
     /// Build a [`TextEdit`] focused on code editing.
     /// By default it comes with:
     /// - monospaced font
-    /// - focus lock
+    /// - focus lock (tab will insert a tab character instead of moving focus)
     pub fn code_editor(self) -> Self {
         self.font(TextStyle::Monospace).lock_focus(true)
     }
 
     /// Use if you want to set an explicit [`Id`] for this widget.
+    #[inline]
     pub fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
     }
 
     /// A source for the unique [`Id`], e.g. `.id_source("second_text_edit_field")` or `.id_source(loop_index)`.
+    #[inline]
     pub fn id_source(mut self, id_source: impl std::hash::Hash) -> Self {
         self.id_source = Some(Id::new(id_source));
         self
@@ -156,42 +166,43 @@ impl<'t> TextEdit<'t> {
     ///     .desired_width(f32::INFINITY);
     /// let output = text_edit.show(ui);
     /// let painter = ui.painter_at(output.response.rect);
+    /// let text_color = Color32::from_rgba_premultiplied(100, 100, 100, 100);
     /// let galley = painter.layout(
     ///     String::from("Enter text"),
     ///     FontId::default(),
-    ///     Color32::from_rgba_premultiplied(100, 100, 100, 100),
+    ///     text_color,
     ///     f32::INFINITY
     /// );
-    /// painter.galley(output.text_draw_pos, galley);
+    /// painter.galley(output.text_draw_pos, galley, text_color);
     /// # });
     /// ```
+    #[inline]
     pub fn hint_text(mut self, hint_text: impl Into<WidgetText>) -> Self {
         self.hint_text = hint_text.into();
         self
     }
 
     /// If true, hide the letters from view and prevent copying from the field.
+    #[inline]
     pub fn password(mut self, password: bool) -> Self {
         self.password = password;
         self
     }
 
     /// Pick a [`FontId`] or [`TextStyle`].
+    #[inline]
     pub fn font(mut self, font_selection: impl Into<FontSelection>) -> Self {
         self.font_selection = font_selection.into();
         self
     }
 
-    #[deprecated = "Use .font(…) instead"]
-    pub fn text_style(self, text_style: TextStyle) -> Self {
-        self.font(text_style)
-    }
-
+    #[inline]
     pub fn text_color(mut self, text_color: Color32) -> Self {
         self.text_color = Some(text_color);
         self
     }
 
+    #[inline]
     pub fn text_color_opt(mut self, text_color: Option<Color32>) -> Self {
         self.text_color = text_color;
         self
@@ -220,6 +231,7 @@ impl<'t> TextEdit<'t> {
     /// ui.add(egui::TextEdit::multiline(&mut my_code).layouter(&mut layouter));
     /// # });
     /// ```
+    #[inline]
     pub fn layouter(mut self, layouter: &'t mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>) -> Self {
         self.layouter = Some(layouter);
 
@@ -229,18 +241,21 @@ impl<'t> TextEdit<'t> {
     /// Default is `true`. If set to `false` then you cannot interact with the text (neither edit or select it).
     ///
     /// Consider using [`Ui::add_enabled`] instead to also give the [`TextEdit`] a greyed out look.
+    #[inline]
     pub fn interactive(mut self, interactive: bool) -> Self {
         self.interactive = interactive;
         self
     }
 
     /// Default is `true`. If set to `false` there will be no frame showing that this is editable text!
+    #[inline]
     pub fn frame(mut self, frame: bool) -> Self {
         self.frame = frame;
         self
     }
 
     /// Set margin of text. Default is [4.0,2.0]
+    #[inline]
     pub fn margin(mut self, margin: Vec2) -> Self {
         self.margin = margin;
         self
@@ -248,6 +263,7 @@ impl<'t> TextEdit<'t> {
 
     /// Set to 0.0 to keep as small as possible.
     /// Set to [`f32::INFINITY`] to take up all available space (i.e. disable automatic word wrap).
+    #[inline]
     pub fn desired_width(mut self, desired_width: f32) -> Self {
         self.desired_width = Some(desired_width);
         self
@@ -256,6 +272,7 @@ impl<'t> TextEdit<'t> {
     /// Set the number of rows to show by default.
     /// The default for singleline text is `1`.
     /// The default for multiline text is `4`.
+    #[inline]
     pub fn desired_rows(mut self, desired_height_rows: usize) -> Self {
         self.desired_height_rows = desired_height_rows;
         self
@@ -266,14 +283,16 @@ impl<'t> TextEdit<'t> {
     ///
     /// When `true`, the widget will keep the focus and pressing TAB
     /// will insert the `'\t'` character.
-    pub fn lock_focus(mut self, b: bool) -> Self {
-        self.lock_focus = b;
+    #[inline]
+    pub fn lock_focus(mut self, tab_will_indent: bool) -> Self {
+        self.event_filter.tab = tab_will_indent;
         self
     }
 
     /// When `true` (default), the cursor will initially be placed at the end of the text.
     ///
     /// When `false`, the cursor will initially be placed at the beginning of the text.
+    #[inline]
     pub fn cursor_at_end(mut self, b: bool) -> Self {
         self.cursor_at_end = b;
         self
@@ -284,6 +303,7 @@ impl<'t> TextEdit<'t> {
     /// When `false`, widget width will expand to make all text visible.
     ///
     /// This only works for singleline [`TextEdit`].
+    #[inline]
     pub fn clip_text(mut self, b: bool) -> Self {
         // always show everything in multiline
         if !self.multiline {
@@ -295,24 +315,28 @@ impl<'t> TextEdit<'t> {
     /// Sets the limit for the amount of characters can be entered
     ///
     /// This only works for singleline [`TextEdit`]
+    #[inline]
     pub fn char_limit(mut self, limit: usize) -> Self {
         self.char_limit = limit;
         self
     }
 
     /// Set the horizontal align of the inner text.
+    #[inline]
     pub fn horizontal_align(mut self, align: Align) -> Self {
         self.align.0[0] = align;
         self
     }
 
     /// Set the vertical align of the inner text.
+    #[inline]
     pub fn vertical_align(mut self, align: Align) -> Self {
         self.align.0[1] = align;
         self
     }
 
     /// Set the minimum size of the [`TextEdit`].
+    #[inline]
     pub fn min_size(mut self, min_size: Vec2) -> Self {
         self.min_size = min_size;
         self
@@ -352,7 +376,9 @@ impl<'t> TextEdit<'t> {
         let margin = self.margin;
         let max_rect = ui.available_rect_before_wrap().shrink2(margin);
         let mut content_ui = ui.child_ui(max_rect, *ui.layout());
+
         let mut output = self.show_content(&mut content_ui);
+
         let id = output.response.id;
         let frame_rect = output.response.rect.expand2(margin);
         ui.allocate_space(frame_rect.size());
@@ -368,31 +394,27 @@ impl<'t> TextEdit<'t> {
             let frame_rect = frame_rect.expand(visuals.expansion);
             let shape = if is_mutable {
                 if output.response.has_focus() {
-                    epaint::RectShape {
-                        rect: frame_rect,
-                        rounding: visuals.rounding,
-                        // fill: ui.visuals().selection.bg_fill,
-                        fill: ui.visuals().extreme_bg_color,
-                        stroke: ui.visuals().selection.stroke,
-                    }
+                    epaint::RectShape::new(
+                        frame_rect,
+                        visuals.rounding,
+                        ui.visuals().extreme_bg_color,
+                        ui.visuals().selection.stroke,
+                    )
                 } else {
-                    epaint::RectShape {
-                        rect: frame_rect,
-                        rounding: visuals.rounding,
-                        fill: ui.visuals().extreme_bg_color,
-                        stroke: visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
-                    }
+                    epaint::RectShape::new(
+                        frame_rect,
+                        visuals.rounding,
+                        ui.visuals().extreme_bg_color,
+                        visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                    )
                 }
             } else {
                 let visuals = &ui.style().visuals.widgets.inactive;
-                epaint::RectShape {
-                    rect: frame_rect,
-                    rounding: visuals.rounding,
-                    // fill: ui.visuals().extreme_bg_color,
-                    // fill: visuals.bg_fill,
-                    fill: Color32::TRANSPARENT,
-                    stroke: visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
-                }
+                epaint::RectShape::stroke(
+                    frame_rect,
+                    visuals.rounding,
+                    visuals.bg_stroke, // TODO(emilk): we want to show something here, or a text-edit field doesn't "pop".
+                )
             };
 
             ui.painter().set(where_to_put_background, shape);
@@ -417,7 +439,7 @@ impl<'t> TextEdit<'t> {
             interactive,
             desired_width,
             desired_height_rows,
-            lock_focus,
+            event_filter,
             cursor_at_end,
             min_size,
             align,
@@ -573,7 +595,7 @@ impl<'t> TextEdit<'t> {
         let mut cursor_range = None;
         let prev_cursor_range = state.cursor_range(&galley);
         if interactive && ui.memory(|mem| mem.has_focus(id)) {
-            ui.memory_mut(|mem| mem.lock_focus(id, lock_focus));
+            ui.memory_mut(|mem| mem.set_focus_lock_filter(id, event_filter));
 
             let default_cursor_range = if cursor_at_end {
                 CursorRange::one(galley.end())
@@ -593,6 +615,7 @@ impl<'t> TextEdit<'t> {
                 password,
                 default_cursor_range,
                 char_limit,
+                event_filter,
             );
 
             if changed {
@@ -644,7 +667,7 @@ impl<'t> TextEdit<'t> {
         };
 
         if ui.is_rect_visible(rect) {
-            painter.galley(text_draw_pos, galley.clone());
+            painter.galley(text_draw_pos, galley.clone(), text_color);
 
             if text.as_str().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
@@ -653,7 +676,7 @@ impl<'t> TextEdit<'t> {
                 } else {
                     hint_text.into_galley(ui, Some(false), f32::INFINITY, font_id)
                 };
-                galley.paint_with_fallback_color(&painter, response.rect.min, hint_text_color);
+                painter.galley(response.rect.min, galley, hint_text_color);
             }
 
             if ui.memory(|mem| mem.has_focus(id)) {
@@ -663,7 +686,7 @@ impl<'t> TextEdit<'t> {
                     paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursor_range);
 
                     if text.is_mutable() {
-                        let cursor_pos = paint_cursor_end(
+                        let cursor_rect = paint_cursor_end(
                             ui,
                             row_height,
                             &painter,
@@ -674,23 +697,14 @@ impl<'t> TextEdit<'t> {
 
                         let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO: remove this HACK workaround for https://github.com/emilk/egui/issues/1531
                         if (response.changed || selection_changed) && !is_fully_visible {
-                            ui.scroll_to_rect(cursor_pos, None); // keep cursor in view
+                            ui.scroll_to_rect(cursor_rect, None); // keep cursor in view
                         }
 
                         if interactive {
-                            // eframe web uses `text_cursor_pos` when showing IME,
-                            // so only set it when text is editable and visible!
-                            // But `winit` and `egui_web` differs in how to set the
-                            // position of IME.
-                            if cfg!(target_arch = "wasm32") {
-                                ui.ctx().output_mut(|o| {
-                                    o.text_cursor_pos = Some(cursor_pos.left_top());
-                                });
-                            } else {
-                                ui.ctx().output_mut(|o| {
-                                    o.text_cursor_pos = Some(cursor_pos.left_bottom());
-                                });
-                            }
+                            // For IME, so only set it when text is editable and visible!
+                            ui.ctx().output_mut(|o| {
+                                o.ime = Some(crate::output::IMEOutput { rect, cursor_rect });
+                            });
                         }
                     }
                 }
@@ -748,7 +762,7 @@ impl<'t> TextEdit<'t> {
 
                 builder.set_default_action_verb(accesskit::DefaultActionVerb::Focus);
                 if self.multiline {
-                    builder.set_multiline();
+                    builder.set_role(Role::MultilineTextInput);
                 }
 
                 parent_id
@@ -756,7 +770,7 @@ impl<'t> TextEdit<'t> {
 
             if let Some(parent_id) = parent_id {
                 // drop ctx lock before further processing
-                use accesskit::{Role, TextDirection};
+                use accesskit::TextDirection;
 
                 ui.ctx().with_accessibility_parent(parent_id, || {
                     for (i, row) in galley.rows.iter().enumerate() {
@@ -777,12 +791,9 @@ impl<'t> TextEdit<'t> {
                             let glyph_count = row.glyphs.len();
                             let mut value = String::new();
                             value.reserve(glyph_count);
-                            let mut character_lengths = Vec::<u8>::new();
-                            character_lengths.reserve(glyph_count);
-                            let mut character_positions = Vec::<f32>::new();
-                            character_positions.reserve(glyph_count);
-                            let mut character_widths = Vec::<f32>::new();
-                            character_widths.reserve(glyph_count);
+                            let mut character_lengths = Vec::<u8>::with_capacity(glyph_count);
+                            let mut character_positions = Vec::<f32>::with_capacity(glyph_count);
+                            let mut character_widths = Vec::<f32>::with_capacity(glyph_count);
                             let mut word_lengths = Vec::<u8>::new();
                             let mut was_at_word_end = false;
                             let mut last_word_start = 0usize;
@@ -873,7 +884,7 @@ fn ccursor_from_accesskit_text_position(
 /// Check for (keyboard) events to edit the cursor and/or text.
 #[allow(clippy::too_many_arguments)]
 fn events(
-    ui: &mut crate::Ui,
+    ui: &crate::Ui,
     state: &mut TextEditState,
     text: &mut dyn TextBuffer,
     galley: &mut Arc<Galley>,
@@ -884,6 +895,7 @@ fn events(
     password: bool,
     default_cursor_range: CursorRange,
     char_limit: usize,
+    event_filter: EventFilter,
 ) -> (bool, CursorRange) {
     let mut cursor_range = state.cursor_range(galley).unwrap_or(default_cursor_range);
 
@@ -896,13 +908,13 @@ fn events(
 
     let copy_if_not_password = |ui: &Ui, text: String| {
         if !password {
-            ui.ctx().output_mut(|o| o.copied_text = text);
+            ui.ctx().copy_text(text);
         }
     };
 
     let mut any_change = false;
 
-    let events = ui.input(|i| i.events.clone()); // avoid dead-lock by cloning. TODO(emilk): optimize
+    let events = ui.input(|i| i.filtered_events(&event_filter));
     for event in &events {
         let did_mutate_text = match event {
             Event::Copy => {
@@ -950,19 +962,15 @@ fn events(
                 pressed: true,
                 modifiers,
                 ..
-            } => {
-                if multiline && ui.memory(|mem| mem.has_lock_focus(id)) {
-                    let mut ccursor = delete_selected(text, &cursor_range);
-                    if modifiers.shift {
-                        // TODO(emilk): support removing indentation over a selection?
-                        decrease_indentation(&mut ccursor, text);
-                    } else {
-                        insert_text(&mut ccursor, text, "\t", char_limit);
-                    }
-                    Some(CCursorRange::one(ccursor))
+            } if multiline => {
+                let mut ccursor = delete_selected(text, &cursor_range);
+                if modifiers.shift {
+                    // TODO(emilk): support removing indentation over a selection?
+                    decrease_indentation(&mut ccursor, text);
                 } else {
-                    None
+                    insert_text(&mut ccursor, text, "\t", char_limit);
                 }
+                Some(CCursorRange::one(ccursor))
             }
             Event::Key {
                 key: Key::Enter,
@@ -984,15 +992,34 @@ fn events(
                 pressed: true,
                 modifiers,
                 ..
-            } if modifiers.command && !modifiers.shift => {
-                // TODO(emilk): redo
+            } if modifiers.matches_logically(Modifiers::COMMAND) => {
                 if let Some((undo_ccursor_range, undo_txt)) = state
                     .undoer
                     .lock()
                     .undo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
                 {
-                    text.replace(undo_txt);
+                    text.replace_with(undo_txt);
                     Some(*undo_ccursor_range)
+                } else {
+                    None
+                }
+            }
+            Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                ..
+            } if (modifiers.matches_logically(Modifiers::COMMAND) && *key == Key::Y)
+                || (modifiers.matches_logically(Modifiers::SHIFT | Modifiers::COMMAND)
+                    && *key == Key::Z) =>
+            {
+                if let Some((redo_ccursor_range, redo_txt)) = state
+                    .undoer
+                    .lock()
+                    .redo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
+                {
+                    text.replace_with(redo_txt);
+                    Some(*redo_ccursor_range)
                 } else {
                     None
                 }
@@ -1026,7 +1053,8 @@ fn events(
             }
 
             Event::CompositionEnd(prediction) => {
-                if prediction != "\n" && prediction != "\r" && state.has_ime {
+                // CompositionEnd only characters may be typed into TextEdit without trigger CompositionStart first, so do not check `state.has_ime = true` in the following statement.
+                if prediction != "\n" && prediction != "\r" {
                     state.has_ime = false;
                     let mut ccursor = delete_selected(text, &cursor_range);
                     if !prediction.is_empty() {
@@ -1089,7 +1117,7 @@ fn events(
 // ----------------------------------------------------------------------------
 
 fn paint_cursor_selection(
-    ui: &mut Ui,
+    ui: &Ui,
     painter: &Painter,
     pos: Pos2,
     galley: &Galley,
@@ -1131,14 +1159,14 @@ fn paint_cursor_selection(
 }
 
 fn paint_cursor_end(
-    ui: &mut Ui,
+    ui: &Ui,
     row_height: f32,
     painter: &Painter,
     pos: Pos2,
     galley: &Galley,
     cursor: &Cursor,
 ) -> Rect {
-    let stroke = ui.visuals().selection.stroke;
+    let stroke = ui.visuals().text_cursor;
 
     let mut cursor_pos = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
     cursor_pos.max.y = cursor_pos.max.y.at_least(cursor_pos.min.y + row_height); // Handle completely empty galleys
@@ -1147,10 +1175,7 @@ fn paint_cursor_end(
     let top = cursor_pos.center_top();
     let bottom = cursor_pos.center_bottom();
 
-    painter.line_segment(
-        [top, bottom],
-        (ui.visuals().text_cursor_width, stroke.color),
-    );
+    painter.line_segment([top, bottom], (stroke.width, stroke.color));
 
     if false {
         // Roof/floor:
@@ -1185,7 +1210,7 @@ fn insert_text(
     if char_limit < usize::MAX {
         let mut new_string = text_to_insert;
         // Avoid subtract with overflow panic
-        let cutoff = char_limit.saturating_sub(text.as_str().len());
+        let cutoff = char_limit.saturating_sub(text.as_str().chars().count());
 
         new_string = match new_string.char_indices().nth(cutoff) {
             None => new_string,

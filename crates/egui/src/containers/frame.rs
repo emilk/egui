@@ -127,8 +127,8 @@ impl Frame {
     }
 
     #[inline]
-    pub fn stroke(mut self, stroke: Stroke) -> Self {
-        self.stroke = stroke;
+    pub fn stroke(mut self, stroke: impl Into<Stroke>) -> Self {
+        self.stroke = stroke.into();
         self
     }
 
@@ -152,18 +152,13 @@ impl Frame {
         self
     }
 
-    #[deprecated = "Renamed inner_margin in egui 0.18"]
-    #[inline]
-    pub fn margin(self, margin: impl Into<Margin>) -> Self {
-        self.inner_margin(margin)
-    }
-
     #[inline]
     pub fn shadow(mut self, shadow: Shadow) -> Self {
         self.shadow = shadow;
         self
     }
 
+    #[inline]
     pub fn multiply_with_opacity(mut self, opacity: f32) -> Self {
         self.fill = self.fill.linear_multiply(opacity);
         self.stroke.color = self.stroke.color.linear_multiply(opacity);
@@ -193,9 +188,7 @@ impl Frame {
         let where_to_put_background = ui.painter().add(Shape::Noop);
         let outer_rect_bounds = ui.available_rect_before_wrap();
 
-        let mut inner_rect = outer_rect_bounds;
-        inner_rect.min += self.outer_margin.left_top() + self.inner_margin.left_top();
-        inner_rect.max -= self.outer_margin.right_bottom() + self.inner_margin.right_bottom();
+        let mut inner_rect = (self.inner_margin + self.outer_margin).shrink_rect(outer_rect_bounds);
 
         // Make sure we don't shrink to the negative:
         inner_rect.max.x = inner_rect.max.x.max(inner_rect.min.x);
@@ -237,12 +230,7 @@ impl Frame {
             stroke,
         } = *self;
 
-        let frame_shape = Shape::Rect(epaint::RectShape {
-            rect: outer_rect,
-            rounding,
-            fill,
-            stroke,
-        });
+        let frame_shape = Shape::Rect(epaint::RectShape::new(outer_rect, rounding, fill, stroke));
 
         if shadow == Default::default() {
             frame_shape
@@ -256,17 +244,13 @@ impl Frame {
 
 impl Prepared {
     fn paint_rect(&self) -> Rect {
-        let mut rect = self.content_ui.min_rect();
-        rect.min -= self.frame.inner_margin.left_top();
-        rect.max += self.frame.inner_margin.right_bottom();
-        rect
+        self.frame
+            .inner_margin
+            .expand_rect(self.content_ui.min_rect())
     }
 
     fn content_with_margin(&self) -> Rect {
-        let mut rect = self.content_ui.min_rect();
-        rect.min -= self.frame.inner_margin.left_top() + self.frame.outer_margin.left_top();
-        rect.max += self.frame.inner_margin.right_bottom() + self.frame.outer_margin.right_bottom();
-        rect
+        (self.frame.inner_margin + self.frame.outer_margin).expand_rect(self.content_ui.min_rect())
     }
 
     pub fn end(self, ui: &mut Ui) -> Response {

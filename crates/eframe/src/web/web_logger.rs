@@ -4,12 +4,14 @@ pub struct WebLogger {
 }
 
 impl WebLogger {
-    /// Pipe all [`log`] events to the web console.
+    /// Install a new `WebLogger`, piping all [`log`] events to the web console.
     pub fn init(filter: log::LevelFilter) -> Result<(), log::SetLoggerError> {
         log::set_max_level(filter);
         log::set_boxed_logger(Box::new(WebLogger::new(filter)))
     }
 
+    /// Create a new [`WebLogger`] with the given filter,
+    /// but don't install it.
     pub fn new(filter: log::LevelFilter) -> Self {
         Self { filter }
     }

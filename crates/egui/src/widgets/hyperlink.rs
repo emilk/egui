@@ -34,8 +34,8 @@ impl Widget for Link {
         let Link { text } = self;
         let label = Label::new(text).sense(Sense::click());
 
-        let (pos, text_galley, response) = label.layout_in_ui(ui);
-        response.widget_info(|| WidgetInfo::labeled(WidgetType::Link, text_galley.text()));
+        let (pos, galley, response) = label.layout_in_ui(ui);
+        response.widget_info(|| WidgetInfo::labeled(WidgetType::Link, galley.text()));
 
         if response.hovered() {
             ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
@@ -51,13 +51,8 @@ impl Widget for Link {
                 Stroke::NONE
             };
 
-            ui.painter().add(epaint::TextShape {
-                pos,
-                galley: text_galley.galley,
-                override_text_color: Some(color),
-                underline,
-                angle: 0.0,
-            });
+            ui.painter()
+                .add(epaint::TextShape::new(pos, galley, color).with_underline(underline));
         }
 
         response
@@ -83,6 +78,7 @@ impl Widget for Link {
 pub struct Hyperlink {
     url: String,
     text: WidgetText,
+    new_tab: bool,
 }
 
 impl Hyperlink {
@@ -92,6 +88,7 @@ impl Hyperlink {
         Self {
             url: url.clone(),
             text: url.into(),
+            new_tab: false,
         }
     }
 
@@ -100,30 +97,35 @@ impl Hyperlink {
         Self {
             url: url.to_string(),
             text: text.into(),
+            new_tab: false,
         }
+    }
+
+    /// Always open this hyperlink in a new browser tab.
+    #[inline]
+    pub fn open_in_new_tab(mut self, new_tab: bool) -> Self {
+        self.new_tab = new_tab;
+        self
     }
 }
 
 impl Widget for Hyperlink {
     fn ui(self, ui: &mut Ui) -> Response {
-        let Self { url, text } = self;
+        let Self { url, text, new_tab } = self;
 
         let response = ui.add(Link::new(text));
+
         if response.clicked() {
             let modifiers = ui.ctx().input(|i| i.modifiers);
-            ui.ctx().output_mut(|o| {
-                o.open_url = Some(crate::output::OpenUrl {
-                    url: url.clone(),
-                    new_tab: modifiers.any(),
-                });
+            ui.ctx().open_url(crate::OpenUrl {
+                url: url.clone(),
+                new_tab: new_tab || modifiers.any(),
             });
         }
         if response.middle_clicked() {
-            ui.ctx().output_mut(|o| {
-                o.open_url = Some(crate::output::OpenUrl {
-                    url: url.clone(),
-                    new_tab: true,
-                });
+            ui.ctx().open_url(crate::OpenUrl {
+                url: url.clone(),
+                new_tab: true,
             });
         }
         response.on_hover_text(url)

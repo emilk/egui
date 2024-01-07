@@ -206,7 +206,7 @@ impl std::ops::Index<usize> for Pos2 {
         match index {
             0 => &self.x,
             1 => &self.y,
-            _ => panic!("Pos2 index out of bounds: {}", index),
+            _ => panic!("Pos2 index out of bounds: {index}"),
         }
     }
 }
@@ -217,7 +217,7 @@ impl std::ops::IndexMut<usize> for Pos2 {
         match index {
             0 => &mut self.x,
             1 => &mut self.y,
-            _ => panic!("Pos2 index out of bounds: {}", index),
+            _ => panic!("Pos2 index out of bounds: {index}"),
         }
     }
 }
@@ -276,6 +276,42 @@ impl Sub<Vec2> for Pos2 {
         Pos2 {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
+        }
+    }
+}
+
+impl Mul<f32> for Pos2 {
+    type Output = Pos2;
+
+    #[inline(always)]
+    fn mul(self, factor: f32) -> Pos2 {
+        Pos2 {
+            x: self.x * factor,
+            y: self.y * factor,
+        }
+    }
+}
+
+impl Mul<Pos2> for f32 {
+    type Output = Pos2;
+
+    #[inline(always)]
+    fn mul(self, vec: Pos2) -> Pos2 {
+        Pos2 {
+            x: self * vec.x,
+            y: self * vec.y,
+        }
+    }
+}
+
+impl Div<f32> for Pos2 {
+    type Output = Pos2;
+
+    #[inline(always)]
+    fn div(self, factor: f32) -> Pos2 {
+        Pos2 {
+            x: self.x / factor,
+            y: self.y / factor,
         }
     }
 }

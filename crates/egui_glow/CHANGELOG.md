@@ -1,11 +1,26 @@
 # Changelog for egui_glow
 All notable changes to the `egui_glow` integration will be noted in this file.
 
+This file is updated upon each release.
+Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
-## Unreleased
+
+## 0.24.1 - 2023-11-30
+* Improve a docstring
+
+
+## 0.24.0 - 2023-11-23
+* Change `Arc<glow::Context>` to `Rc<glow::Context>` [#3598](https://github.com/emilk/egui/pull/3598)
+* Update MSRV to Rust 1.72 [#3595](https://github.com/emilk/egui/pull/3595)
+* Clamp viewport values [#3604](https://github.com/emilk/egui/pull/3604) (thanks [@Wumpf](https://github.com/Wumpf)!)
+
+
+## 0.23.0 - 2023-09-27
+* Update `egui`
 
 
 ## 0.22.0 - 2023-05-23
+* Update `egui`
 
 
 ## 0.21.0 - 2023-02-08

@@ -3,7 +3,7 @@ use raw_window_handle::HasRawDisplayHandle;
 /// Handles interfacing with the OS clipboard.
 ///
 /// If the "clipboard" feature is off, or we cannot connect to the OS clipboard,
-/// then a fallback clipboard that just works works within the same app is used instead.
+/// then a fallback clipboard that just works within the same app is used instead.
 pub struct Clipboard {
     #[cfg(all(feature = "arboard", not(target_os = "android")))]
     arboard: Option<arboard::Clipboard>,
@@ -26,10 +26,6 @@ pub struct Clipboard {
 
 impl Clipboard {
     /// Construct a new instance
-    ///
-    /// # Safety
-    ///
-    /// The returned `Clipboard` must not outlive the input `_display_target`.
     pub fn new(_display_target: &dyn HasRawDisplayHandle) -> Self {
         Self {
             #[cfg(all(feature = "arboard", not(target_os = "android")))]
@@ -116,6 +112,8 @@ impl Clipboard {
 
 #[cfg(all(feature = "arboard", not(target_os = "android")))]
 fn init_arboard() -> Option<arboard::Clipboard> {
+    crate::profile_function!();
+
     log::debug!("Initializing arboard clipboard…");
     match arboard::Clipboard::new() {
         Ok(clipboard) => Some(clipboard),
@@ -139,6 +137,8 @@ fn init_arboard() -> Option<arboard::Clipboard> {
 fn init_smithay_clipboard(
     _display_target: &dyn HasRawDisplayHandle,
 ) -> Option<smithay_clipboard::Clipboard> {
+    crate::profile_function!();
+
     use raw_window_handle::RawDisplayHandle;
     if let RawDisplayHandle::Wayland(display) = _display_target.raw_display_handle() {
         log::debug!("Initializing smithay clipboard…");

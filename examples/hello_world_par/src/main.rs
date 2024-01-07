@@ -10,7 +10,7 @@ use eframe::egui;
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(1024.0, 768.0)),
+        viewport: egui::ViewportBuilder::default().with_inner_size([1024.0, 768.0]),
         ..Default::default()
     };
     eframe::run_native(
@@ -63,7 +63,7 @@ fn new_worker(
 ) -> (JoinHandle<()>, mpsc::SyncSender<egui::Context>) {
     let (show_tx, show_rc) = mpsc::sync_channel(0);
     let handle = std::thread::Builder::new()
-        .name(format!("EguiPanelWorker {}", thread_nr))
+        .name(format!("EguiPanelWorker {thread_nr}"))
         .spawn(move || {
             let mut state = ThreadState::new(thread_nr);
             while let Ok(ctx) = show_rc.recv() {

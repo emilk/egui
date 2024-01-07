@@ -1,5 +1,6 @@
-use egui::{Context, Modifiers, ScrollArea, Ui};
 use std::collections::BTreeSet;
+
+use egui::{Context, Modifiers, NumExt as _, ScrollArea, Ui};
 
 use super::About;
 use super::Demo;
@@ -26,6 +27,7 @@ impl Default for Demos {
             Box::<super::context_menu::ContextMenus>::default(),
             Box::<super::dancing_strings::DancingStrings>::default(),
             Box::<super::drag_and_drop::DragAndDropDemo>::default(),
+            Box::<super::extra_viewport::ExtraViewport>::default(),
             Box::<super::font_book::FontBook>::default(),
             Box::<super::MiscDemoWindow>::default(),
             Box::<super::multi_touch::MultiTouch>::default(),
@@ -35,7 +37,8 @@ impl Default for Demos {
             Box::<super::sliders::Sliders>::default(),
             Box::<super::strip_demo::StripDemo>::default(),
             Box::<super::table_demo::TableDemo>::default(),
-            Box::<super::text_edit::TextEdit>::default(),
+            Box::<super::text_edit::TextEditDemo>::default(),
+            Box::<super::text_layout::TextLayoutDemo>::default(),
             Box::<super::widget_gallery::WidgetGallery>::default(),
             Box::<super::window_options::WindowOptions>::default(),
             Box::<super::tests::WindowResizeTest>::default(),
@@ -59,9 +62,11 @@ impl Demos {
     pub fn checkboxes(&mut self, ui: &mut Ui) {
         let Self { demos, open } = self;
         for demo in demos {
-            let mut is_open = open.contains(demo.name());
-            ui.toggle_value(&mut is_open, demo.name());
-            set_open(open, demo.name(), is_open);
+            if demo.is_enabled(ui.ctx()) {
+                let mut is_open = open.contains(demo.name());
+                ui.toggle_value(&mut is_open, demo.name());
+                set_open(open, demo.name(), is_open);
+            }
         }
     }
 
@@ -179,7 +184,7 @@ impl DemoWindows {
     fn mobile_ui(&mut self, ctx: &Context) {
         if self.about_is_open {
             let screen_size = ctx.input(|i| i.screen_rect.size());
-            let default_width = (screen_size.x - 20.0).min(400.0);
+            let default_width = (screen_size.x - 32.0).at_most(400.0);
 
             let mut close = false;
             egui::Window::new(self.about.name())
@@ -242,7 +247,6 @@ impl DemoWindows {
             .resizable(false)
             .default_width(150.0)
             .show(ctx, |ui| {
-                egui::trace!(ui);
                 ui.vertical_centered(|ui| {
                     ui.heading("✒ egui demos");
                 });
@@ -251,11 +255,11 @@ impl DemoWindows {
 
                 use egui::special_emojis::{GITHUB, TWITTER};
                 ui.hyperlink_to(
-                    format!("{} egui on GitHub", GITHUB),
+                    format!("{GITHUB} egui on GitHub"),
                     "https://github.com/emilk/egui",
                 );
                 ui.hyperlink_to(
-                    format!("{} @ernerfeldt", TWITTER),
+                    format!("{TWITTER} @ernerfeldt"),
                     "https://twitter.com/ernerfeldt",
                 );
 
@@ -325,7 +329,12 @@ fn file_menu_button(ui: &mut Ui) {
         // On the web the browser controls the zoom
         #[cfg(not(target_arch = "wasm32"))]
         {
-            egui::gui_zoom::zoom_menu_buttons(ui, None);
+            egui::gui_zoom::zoom_menu_buttons(ui);
+            ui.weak(format!(
+                "Current zoom: {:.0}%",
+                100.0 * ui.ctx().zoom_factor()
+            ))
+            .on_hover_text("The UI zoom level, on top of the operating system's default value");
             ui.separator();
         }
 

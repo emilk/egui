@@ -1,7 +1,9 @@
 // WARNING: the code in here is horrible. It is a behemoth that needs breaking up into simpler parts.
 
+use std::sync::Arc;
+
 use crate::collapsing_header::CollapsingState;
-use crate::{widget_text::WidgetTextGalley, *};
+use crate::*;
 use epaint::*;
 
 use super::*;
@@ -21,6 +23,12 @@ use super::*;
 ///    ui.label("Hello World!");
 /// });
 /// # });
+/// ```
+///
+/// The previous rectangle used by this window can be obtained through [`crate::Memory::area_rect()`].
+///
+/// Note that this is NOT a native OS window.
+/// To create a new native OS window, use [`crate::Context::show_viewport_deferred`].
 #[must_use = "You should call .show()"]
 pub struct Window<'open> {
     title: WidgetText,
@@ -40,7 +48,9 @@ impl<'open> Window<'open> {
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl Into<WidgetText>) -> Self {
         let title = title.into().fallback_text_style(TextStyle::Heading);
-        let area = Area::new(Id::new(title.text())).edges_padded_for_resize(true);
+        let area = Area::new(Id::new(title.text()))
+            .constrain(true)
+            .edges_padded_for_resize(true);
         Self {
             title,
             open: None,
@@ -58,6 +68,7 @@ impl<'open> Window<'open> {
     }
 
     /// Assign a unique id to the Window. Required if the title changes, or is shared with another window.
+    #[inline]
     pub fn id(mut self, id: Id) -> Self {
         self.area = self.area.id(id);
         self
@@ -68,24 +79,28 @@ impl<'open> Window<'open> {
     /// * If `*open == false`, the window will not be visible.
     /// * If `*open == true`, the window will have a close button.
     /// * If the close button is pressed, `*open` will be set to `false`.
+    #[inline]
     pub fn open(mut self, open: &'open mut bool) -> Self {
         self.open = Some(open);
         self
     }
 
     /// If `false` the window will be grayed out and non-interactive.
+    #[inline]
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.area = self.area.enabled(enabled);
         self
     }
 
     /// If `false` the window will be non-interactive.
+    #[inline]
     pub fn interactable(mut self, interactable: bool) -> Self {
         self.area = self.area.interactable(interactable);
         self
     }
 
     /// If `false` the window will be immovable.
+    #[inline]
     pub fn movable(mut self, movable: bool) -> Self {
         self.area = self.area.movable(movable);
         self
@@ -93,6 +108,7 @@ impl<'open> Window<'open> {
 
     /// Usage: `Window::new(…).mutate(|w| w.resize = w.resize.auto_expand_width(true))`
     // TODO(emilk): I'm not sure this is a good interface for this.
+    #[inline]
     pub fn mutate(mut self, mutate: impl Fn(&mut Self)) -> Self {
         mutate(&mut self);
         self
@@ -100,6 +116,7 @@ impl<'open> Window<'open> {
 
     /// Usage: `Window::new(…).resize(|r| r.auto_expand_width(true))`
     // TODO(emilk): I'm not sure this is a good interface for this.
+    #[inline]
     pub fn resize(mut self, mutate: impl Fn(Resize) -> Resize) -> Self {
         self.resize = mutate(self.resize);
         self.area = self
@@ -109,45 +126,93 @@ impl<'open> Window<'open> {
     }
 
     /// Change the background color, margins, etc.
+    #[inline]
     pub fn frame(mut self, frame: Frame) -> Self {
         self.frame = Some(frame);
         self
     }
 
     /// Set minimum width of the window.
+    #[inline]
     pub fn min_width(mut self, min_width: f32) -> Self {
         self.resize = self.resize.min_width(min_width);
         self
     }
 
     /// Set minimum height of the window.
+    #[inline]
     pub fn min_height(mut self, min_height: f32) -> Self {
         self.resize = self.resize.min_height(min_height);
         self
     }
 
+    /// Set minimum size of the window, equivalent to calling both `min_width` and `min_height`.
+    #[inline]
+    pub fn min_size(mut self, min_size: impl Into<Vec2>) -> Self {
+        self.resize = self.resize.min_size(min_size);
+        self
+    }
+
+    /// Set maximum width of the window.
+    #[inline]
+    pub fn max_width(mut self, max_width: f32) -> Self {
+        self.resize = self.resize.max_width(max_width);
+        self
+    }
+
+    /// Set maximum height of the window.
+    #[inline]
+    pub fn max_height(mut self, max_height: f32) -> Self {
+        self.resize = self.resize.max_height(max_height);
+        self
+    }
+
+    /// Set maximum size of the window, equivalent to calling both `max_width` and `max_height`.
+    #[inline]
+    pub fn max_size(mut self, max_size: impl Into<Vec2>) -> Self {
+        self.resize = self.resize.max_size(max_size);
+        self
+    }
+
     /// Set current position of the window.
     /// If the window is movable it is up to you to keep track of where it moved to!
+    #[inline]
     pub fn current_pos(mut self, current_pos: impl Into<Pos2>) -> Self {
         self.area = self.area.current_pos(current_pos);
         self
     }
 
     /// Set initial position of the window.
+    #[inline]
     pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
         self.area = self.area.default_pos(default_pos);
         self
     }
 
     /// Sets the window position and prevents it from being dragged around.
+    #[inline]
     pub fn fixed_pos(mut self, pos: impl Into<Pos2>) -> Self {
         self.area = self.area.fixed_pos(pos);
         self
     }
 
     /// Constrains this window to the screen bounds.
+    ///
+    /// To change the area to constrain to, use [`Self::constrain_to`].
+    ///
+    /// Default: `true`.
+    #[inline]
     pub fn constrain(mut self, constrain: bool) -> Self {
         self.area = self.area.constrain(constrain);
+        self
+    }
+
+    /// Constrain the movement of the window to the given rectangle.
+    ///
+    /// For instance: `.constrain_to(ctx.screen_rect())`.
+    #[inline]
+    pub fn constrain_to(mut self, constrain_rect: Rect) -> Self {
+        self.area = self.area.constrain_to(constrain_rect);
         self
     }
 
@@ -158,6 +223,7 @@ impl<'open> Window<'open> {
     /// corner of the window.
     ///
     /// Default: [`Align2::LEFT_TOP`].
+    #[inline]
     pub fn pivot(mut self, pivot: Align2) -> Self {
         self.area = self.area.pivot(pivot);
         self
@@ -174,36 +240,42 @@ impl<'open> Window<'open> {
     /// Anchoring also makes the window immovable.
     ///
     /// It is an error to set both an anchor and a position.
+    #[inline]
     pub fn anchor(mut self, align: Align2, offset: impl Into<Vec2>) -> Self {
         self.area = self.area.anchor(align, offset);
         self
     }
 
     /// Set initial collapsed state of the window
+    #[inline]
     pub fn default_open(mut self, default_open: bool) -> Self {
         self.default_open = default_open;
         self
     }
 
     /// Set initial size of the window.
+    #[inline]
     pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.default_size(default_size);
         self
     }
 
     /// Set initial width of the window.
+    #[inline]
     pub fn default_width(mut self, default_width: f32) -> Self {
         self.resize = self.resize.default_width(default_width);
         self
     }
 
     /// Set initial height of the window.
+    #[inline]
     pub fn default_height(mut self, default_height: f32) -> Self {
         self.resize = self.resize.default_height(default_height);
         self
     }
 
     /// Sets the window size and prevents it from being resized by dragging its edges.
+    #[inline]
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.fixed_size(size);
         self.area = self.area.edges_padded_for_resize(false);
@@ -221,7 +293,11 @@ impl<'open> Window<'open> {
     }
 
     /// Can the user resize the window by dragging its edges?
+    ///
     /// Note that even if you set this to `false` the window may still auto-resize.
+    ///
+    /// Default is `true`.
+    #[inline]
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resize = self.resize.resizable(resizable);
         self.area = self.area.edges_padded_for_resize(resizable);
@@ -229,6 +305,7 @@ impl<'open> Window<'open> {
     }
 
     /// Can the window be collapsed by clicking on its title?
+    #[inline]
     pub fn collapsible(mut self, collapsible: bool) -> Self {
         self.collapsible = collapsible;
         self
@@ -236,6 +313,7 @@ impl<'open> Window<'open> {
 
     /// Show title bar on top of the window?
     /// If `false`, the window will not be collapsible nor have a close-button.
+    #[inline]
     pub fn title_bar(mut self, title_bar: bool) -> Self {
         self.with_title_bar = title_bar;
         self
@@ -244,6 +322,7 @@ impl<'open> Window<'open> {
     /// Not resizable, just takes the size of its contents.
     /// Also disabled scrolling.
     /// Text will not wrap, but will instead make your window width expand.
+    #[inline]
     pub fn auto_sized(mut self) -> Self {
         self.resize = self.resize.auto_sized();
         self.scroll = ScrollArea::neither();
@@ -252,26 +331,32 @@ impl<'open> Window<'open> {
     }
 
     /// Enable/disable horizontal/vertical scrolling. `false` by default.
-    pub fn scroll2(mut self, scroll: [bool; 2]) -> Self {
+    #[inline]
+    pub fn scroll2(mut self, scroll: impl Into<Vec2b>) -> Self {
         self.scroll = self.scroll.scroll2(scroll);
         self
     }
 
     /// Enable/disable horizontal scrolling. `false` by default.
+    #[inline]
     pub fn hscroll(mut self, hscroll: bool) -> Self {
         self.scroll = self.scroll.hscroll(hscroll);
         self
     }
 
     /// Enable/disable vertical scrolling. `false` by default.
+    #[inline]
     pub fn vscroll(mut self, vscroll: bool) -> Self {
         self.scroll = self.scroll.vscroll(vscroll);
         self
     }
 
-    /// Constrain the area up to which the window can be dragged.
-    pub fn drag_bounds(mut self, bounds: Rect) -> Self {
-        self.area = self.area.drag_bounds(bounds);
+    /// Enable/disable scrolling on the window by dragging with the pointer. `true` by default.
+    ///
+    /// See [`ScrollArea::drag_to_scroll`] for more.
+    #[inline]
+    pub fn drag_to_scroll(mut self, drag_to_scroll: bool) -> Self {
+        self.scroll = self.scroll.drag_to_scroll(drag_to_scroll);
         self
     }
 }
@@ -397,7 +482,7 @@ impl<'open> Window<'open> {
                             ui.add_space(title_content_spacing);
                         }
 
-                        if scroll.has_any_bar() {
+                        if scroll.is_any_scroll_enabled() {
                             scroll.show(ui, add_contents).inner
                         } else {
                             add_contents(ui)
@@ -407,7 +492,7 @@ impl<'open> Window<'open> {
                 .map_or((None, None), |ir| (Some(ir.inner), Some(ir.response)));
 
             let outer_rect = frame.end(&mut area_content_ui).rect;
-            paint_resize_corner(&mut area_content_ui, &possible, outer_rect, frame_stroke);
+            paint_resize_corner(&area_content_ui, &possible, outer_rect, frame_stroke);
 
             // END FRAME --------------------------------
 
@@ -426,7 +511,7 @@ impl<'open> Window<'open> {
 
             if let Some(interaction) = interaction {
                 paint_frame_interaction(
-                    &mut area_content_ui,
+                    &area_content_ui,
                     outer_rect,
                     interaction,
                     ctx.style().visuals.widgets.active,
@@ -434,7 +519,7 @@ impl<'open> Window<'open> {
             } else if let Some(hover_interaction) = hover_interaction {
                 if ctx.input(|i| i.pointer.has_pointer()) {
                     paint_frame_interaction(
-                        &mut area_content_ui,
+                        &area_content_ui,
                         outer_rect,
                         hover_interaction,
                         ctx.style().visuals.widgets.hovered,
@@ -443,13 +528,6 @@ impl<'open> Window<'open> {
             }
             content_inner
         };
-
-        {
-            let pos = ctx
-                .constrain_window_rect_to_area(area.state().rect(), area.drag_bounds())
-                .left_top();
-            area.state_mut().set_left_top_pos(pos);
-        }
 
         let full_response = area.end(ctx, area_content_ui);
 
@@ -462,10 +540,10 @@ impl<'open> Window<'open> {
 }
 
 fn paint_resize_corner(
-    ui: &mut Ui,
+    ui: &Ui,
     possible: &PossibleInteractions,
     outer_rect: Rect,
-    stroke: Stroke,
+    stroke: impl Into<Stroke>,
 ) {
     let corner = if possible.resize_right && possible.resize_bottom {
         Align2::RIGHT_BOTTOM
@@ -554,9 +632,11 @@ fn interact(
     resize_id: Id,
 ) -> Option<WindowInteraction> {
     let new_rect = move_and_resize_window(ctx, &window_interaction)?;
-    let new_rect = ctx.round_rect_to_pixels(new_rect);
+    let mut new_rect = ctx.round_rect_to_pixels(new_rect);
 
-    let new_rect = ctx.constrain_window_rect_to_area(new_rect, area.drag_bounds());
+    if area.constrain() {
+        new_rect = ctx.constrain_window_rect_to_area(new_rect, area.constrain_rect());
+    }
 
     // TODO(emilk): add this to a Window state instead as a command "move here next frame"
     area.state_mut().set_left_top_pos(new_rect.left_top());
@@ -568,7 +648,7 @@ fn interact(
         }
     }
 
-    ctx.memory_mut(|mem| mem.areas.move_to_top(area_layer_id));
+    ctx.memory_mut(|mem| mem.areas_mut().move_to_top(area_layer_id));
     Some(window_interaction)
 }
 
@@ -621,31 +701,31 @@ fn window_interaction(
     rect: Rect,
 ) -> Option<WindowInteraction> {
     {
-        let drag_id = ctx.memory(|mem| mem.interaction.drag_id);
+        let drag_id = ctx.memory(|mem| mem.interaction().drag_id);
 
         if drag_id.is_some() && drag_id != Some(id) {
             return None;
         }
     }
 
-    let mut window_interaction = ctx.memory(|mem| mem.window_interaction);
+    let mut window_interaction = ctx.memory(|mem| mem.window_interaction());
 
     if window_interaction.is_none() {
         if let Some(hover_window_interaction) = resize_hover(ctx, possible, area_layer_id, rect) {
             hover_window_interaction.set_cursor(ctx);
             if ctx.input(|i| i.pointer.any_pressed() && i.pointer.primary_down()) {
                 ctx.memory_mut(|mem| {
-                    mem.interaction.drag_id = Some(id);
-                    mem.interaction.drag_is_window = true;
+                    mem.interaction_mut().drag_id = Some(id);
+                    mem.interaction_mut().drag_is_window = true;
                     window_interaction = Some(hover_window_interaction);
-                    mem.window_interaction = window_interaction;
+                    mem.set_window_interaction(window_interaction);
                 });
             }
         }
     }
 
     if let Some(window_interaction) = window_interaction {
-        let is_active = ctx.memory_mut(|mem| mem.interaction.drag_id == Some(id));
+        let is_active = ctx.memory_mut(|mem| mem.interaction().drag_id == Some(id));
 
         if is_active && window_interaction.area_layer_id == area_layer_id {
             return Some(window_interaction);
@@ -673,7 +753,7 @@ fn resize_hover(
         }
     }
 
-    if ctx.memory(|mem| mem.interaction.drag_interest) {
+    if ctx.memory(|mem| mem.interaction().drag_interest) {
         // Another widget will become active if we drag here
         return None;
     }
@@ -741,7 +821,7 @@ fn resize_hover(
 
 /// Fill in parts of the window frame when we resize by dragging that part
 fn paint_frame_interaction(
-    ui: &mut Ui,
+    ui: &Ui,
     rect: Rect,
     interaction: WindowInteraction,
     visuals: style::WidgetVisuals,
@@ -815,7 +895,7 @@ struct TitleBar {
     id: Id,
 
     /// Prepared text in the title
-    title_galley: WidgetTextGalley,
+    title_galley: Arc<Galley>,
 
     /// Size of the title bar in a collapsed state (if window is collapsible),
     /// which includes all necessary space for showing the expand button, the
@@ -914,11 +994,11 @@ impl TitleBar {
         let full_top_rect = Rect::from_x_y_ranges(self.rect.x_range(), self.min_rect.y_range());
         let text_pos =
             emath::align::center_size_in_rect(self.title_galley.size(), full_top_rect).left_top();
-        let text_pos = text_pos - self.title_galley.galley().rect.min.to_vec2();
+        let text_pos = text_pos - self.title_galley.rect.min.to_vec2();
         let text_pos = text_pos - 1.5 * Vec2::Y; // HACK: center on x-height of text (looks better)
-        self.title_galley.paint_with_fallback_color(
-            ui.painter(),
+        ui.painter().galley(
             text_pos,
+            self.title_galley.clone(),
             ui.visuals().text_color(),
         );
 

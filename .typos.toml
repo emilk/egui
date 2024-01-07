@@ -1,0 +1,9 @@
+# https://github.com/crate-ci/typos
+# install:  cargo install typos-cli
+# run:      typos
+
+[default.extend-words]
+nknown = "nknown" # part of @55nknown username
+
+[files]
+extend-exclude = ["web_demo/egui_demo_app.js"] # auto-generated

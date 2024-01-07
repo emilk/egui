@@ -68,7 +68,7 @@ impl eframe::App for ColorTestApp {
                 );
                 ui.separator();
             }
-            egui::ScrollArea::both().auto_shrink([false; 2]).show(ui, |ui| {
+            egui::ScrollArea::both().auto_shrink(false).show(ui, |ui| {
                 self.color_test.ui(ui);
             });
         });
@@ -82,6 +82,8 @@ enum Anchor {
     EasyMarkEditor,
     #[cfg(feature = "http")]
     Http,
+    #[cfg(feature = "image_viewer")]
+    ImageViewer,
     Clock,
     #[cfg(any(feature = "glow", feature = "wgpu"))]
     Custom3d,
@@ -124,6 +126,15 @@ impl Default for Anchor {
 
 // ----------------------------------------------------------------------------
 
+#[derive(Clone, Copy, Debug)]
+#[must_use]
+enum Command {
+    Nothing,
+    ResetEverything,
+}
+
+// ----------------------------------------------------------------------------
+
 /// The state that we persist (serialize).
 #[derive(Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -133,6 +144,8 @@ pub struct State {
     easy_mark_editor: EasyMarkApp,
     #[cfg(feature = "http")]
     http: crate::apps::HttpApp,
+    #[cfg(feature = "image_viewer")]
+    image_viewer: crate::apps::ImageViewer,
     clock: FractalClockApp,
     color_test: ColorTestApp,
 
@@ -151,19 +164,22 @@ pub struct WrapApp {
 }
 
 impl WrapApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // This gives us image support:
+        egui_extras::install_image_loaders(&cc.egui_ctx);
+
         #[allow(unused_mut)]
         let mut slf = Self {
             state: State::default(),
 
             #[cfg(any(feature = "glow", feature = "wgpu"))]
-            custom3d: crate::apps::Custom3d::new(_cc),
+            custom3d: crate::apps::Custom3d::new(cc),
 
             dropped_files: Default::default(),
         };
 
         #[cfg(feature = "persistence")]
-        if let Some(storage) = _cc.storage {
+        if let Some(storage) = cc.storage {
             if let Some(state) = eframe::get_value(storage, eframe::APP_KEY) {
                 slf.state = state;
             }
@@ -194,6 +210,12 @@ impl WrapApp {
                 "🕑 Fractal Clock",
                 Anchor::Clock,
                 &mut self.state.clock as &mut dyn eframe::App,
+            ),
+            #[cfg(feature = "image_viewer")]
+            (
+                "🖼 Image Viewer",
+                Anchor::ImageViewer,
+                &mut self.state.image_viewer as &mut dyn eframe::App,
             ),
         ];
 
@@ -237,21 +259,22 @@ impl eframe::App for WrapApp {
 
         #[cfg(not(target_arch = "wasm32"))]
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::F11)) {
-            frame.set_fullscreen(!frame.info().window_info.fullscreen);
+            let fullscreen = ctx.input(|i| i.viewport().fullscreen.unwrap_or(false));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(!fullscreen));
         }
 
+        let mut cmd = Command::Nothing;
         egui::TopBottomPanel::top("wrap_app_top_bar").show(ctx, |ui| {
-            egui::trace!(ui);
             ui.horizontal_wrapped(|ui| {
                 ui.visuals_mut().button_frame = false;
-                self.bar_contents(ui, frame);
+                self.bar_contents(ui, frame, &mut cmd);
             });
         });
 
         self.state.backend_panel.update(ctx, frame);
 
         if !is_mobile(ctx) {
-            self.backend_panel(ctx, frame);
+            cmd = self.backend_panel(ctx, frame);
         }
 
         self.show_selected_app(ctx, frame);
@@ -260,10 +283,7 @@ impl eframe::App for WrapApp {
 
         self.ui_file_drag_and_drop(ctx);
 
-        // On web, the browser controls `pixels_per_point`.
-        if !frame.is_web() {
-            egui::gui_zoom::zoom_with_keyboard_shortcuts(ctx, frame.info().native_pixels_per_point);
-        }
+        self.run_cmd(ctx, cmd);
     }
 
     #[cfg(feature = "glow")]
@@ -280,11 +300,13 @@ impl eframe::App for WrapApp {
 }
 
 impl WrapApp {
-    fn backend_panel(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn backend_panel(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) -> Command {
         // The backend-panel can be toggled on/off.
         // We show a little animation when the user switches it.
         let is_open =
             self.state.backend_panel.open || ctx.memory(|mem| mem.everything_is_visible());
+
+        let mut cmd = Command::Nothing;
 
         egui::SidePanel::left("backend_panel")
             .resizable(false)
@@ -294,11 +316,28 @@ impl WrapApp {
                 });
 
                 ui.separator();
-                self.backend_panel_contents(ui, frame);
+                self.backend_panel_contents(ui, frame, &mut cmd);
             });
+
+        cmd
     }
 
-    fn backend_panel_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+    fn run_cmd(&mut self, ctx: &egui::Context, cmd: Command) {
+        match cmd {
+            Command::Nothing => {}
+            Command::ResetEverything => {
+                self.state = Default::default();
+                ctx.memory_mut(|mem| *mem = Default::default());
+            }
+        }
+    }
+
+    fn backend_panel_contents(
+        &mut self,
+        ui: &mut egui::Ui,
+        frame: &mut eframe::Frame,
+        cmd: &mut Command,
+    ) {
         self.state.backend_panel.ui(ui, frame);
 
         ui.separator();
@@ -314,8 +353,7 @@ impl WrapApp {
             }
 
             if ui.button("Reset everything").clicked() {
-                self.state = Default::default();
-                ui.ctx().memory_mut(|mem| *mem = Default::default());
+                *cmd = Command::ResetEverything;
                 ui.close_menu();
             }
         });
@@ -330,7 +368,7 @@ impl WrapApp {
         }
     }
 
-    fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+    fn bar_contents(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame, cmd: &mut Command) {
         egui::widgets::global_dark_light_mode_switch(ui);
 
         ui.separator();
@@ -338,7 +376,7 @@ impl WrapApp {
         if is_mobile(ui.ctx()) {
             ui.menu_button("💻 Backend", |ui| {
                 ui.set_style(ui.ctx().style()); // ignore the "menu" style set by `menu_button`.
-                self.backend_panel_contents(ui, frame);
+                self.backend_panel_contents(ui, frame, cmd);
             });
         } else {
             ui.toggle_value(&mut self.state.backend_panel.open, "💻 Backend");
@@ -354,7 +392,8 @@ impl WrapApp {
             {
                 selected_anchor = anchor;
                 if frame.is_web() {
-                    ui.output_mut(|o| o.open_url(format!("#{}", anchor)));
+                    ui.ctx()
+                        .open_url(egui::OpenUrl::same_tab(format!("#{anchor}")));
                 }
             }
         }
@@ -366,7 +405,7 @@ impl WrapApp {
                 if clock_button(ui, crate::seconds_since_midnight()).clicked() {
                     self.state.selected_anchor = Anchor::Clock;
                     if frame.is_web() {
-                        ui.output_mut(|o| o.open_url("#clock"));
+                        ui.ctx().open_url(egui::OpenUrl::same_tab("#clock"));
                     }
                 }
             }
@@ -430,9 +469,18 @@ impl WrapApp {
                         } else {
                             "???".to_owned()
                         };
-                        if let Some(bytes) = &file.bytes {
-                            write!(info, " ({} bytes)", bytes.len()).ok();
+
+                        let mut additional_info = vec![];
+                        if !file.mime.is_empty() {
+                            additional_info.push(format!("type: {}", file.mime));
                         }
+                        if let Some(bytes) = &file.bytes {
+                            additional_info.push(format!("{} bytes", bytes.len()));
+                        }
+                        if !additional_info.is_empty() {
+                            info += &format!(" ({})", additional_info.join(", "));
+                        }
+
                         ui.label(info);
                     }
                 });
