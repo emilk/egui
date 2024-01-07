@@ -1717,7 +1717,7 @@ impl Visuals {
 
             image_loading_spinners,
 
-            color_picker_input_values_type: _,
+            color_picker_input_values_type,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1798,8 +1798,10 @@ impl Visuals {
         ui.checkbox(image_loading_spinners, "Image loading spinners")
             .on_hover_text("Show a spinner when an Image is loading");
 
-        ui.checkbox(image_loading_spinners, "Image loading spinners")
-            .on_hover_text("Show a spinner when an Image is loading");
+        ui.horizontal(|ui| {
+            ui.label("Color picker type:");
+            color_picker_input_values_type.toggle_button_ui(ui);
+        });
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
