@@ -216,6 +216,13 @@ fn color_slider_2d(
     response
 }
 
+/// We use a negative alpha for additive colors within this file (a bit ironic).
+///
+/// We use alpha=0 to mean "transparent".
+fn is_additive_alpha(a: f32) -> bool {
+    a < 0.0
+}
+
 /// What options to show for alpha
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Alpha {
@@ -230,9 +237,11 @@ pub enum Alpha {
 fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
     use crate::style::ColorPickerInputType;
 
-    // Send an Opaque Alpha also when Alpha is BlendOrAdditive with negative alpha value (signals Additive blending),
-    // so to hide the alpha's DragValue in both cases.
-    let alpha_control = if hsvag.a < 0.0 { Alpha::Opaque } else { alpha };
+    let alpha_control = if is_additive_alpha(hsvag.a) {
+        Alpha::Opaque // no alpha control for additive colors
+    } else {
+        alpha
+    };
 
     match ui.style().visuals.color_picker_input_values_type {
         ColorPickerInputType::U8 => {
@@ -240,8 +249,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
             // Update hsvag only if the converted srgba is changed, this is because hsvag is made of f32,
             // and the conversion between u8 and f32 loses a bit of the color precision, causing little flickering on hsvag based ui widgets.
             if srgba_edit_ui(ui, &mut srgba_unmultiplied, alpha_control) {
-                // Additive blending, signaled by the negative Alpha.
-                if hsvag.a < 0.0 {
+                if is_additive_alpha(hsvag.a) {
                     let stored_a = hsvag.a;
                     // Alpha to 0 instead of negative, so it won't pop back to Normal blending when RGB are modified.
                     srgba_unmultiplied[3] = 0;
@@ -250,9 +258,8 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
                     // stored_a keeps the Alpha value that was set during Normal blending so that in case we alter RGB in Additive blending (negative Alpha)
                     // and then switch back to Normal blending it gets that Alpha value back.
                     hsvag.a = stored_a;
-                }
-                // Normal blending.
-                else {
+                } else {
+                    // Normal blending.
                     *hsvag = HsvaGamma::from(Hsva::from_srgba_unmultiplied(srgba_unmultiplied));
                 }
             }
@@ -262,8 +269,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
             // Update hsvag only if the converted srgba is changed, this is because hsvag is made of f32,
             // and the conversion between u8 and f32 loses a bit of the color precision, causing little flickering on hsvag based ui widgets.
             if rgba_edit_ui(ui, &mut rgba_unmultiplied, alpha_control) {
-                // Additive blending, signaled by the negative Alpha.
-                if hsvag.a < 0.0 {
+                if is_additive_alpha(hsvag.a) {
                     let stored_a = hsvag.a;
                     // Alpha to 0 instead of negative, so it won't pop back to Normal blending when RGB are modified.
                     rgba_unmultiplied[3] = 0.0;
@@ -276,9 +282,8 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
                     // stored_a keeps the Alpha value that was set during Normal blending so that in case we alter RGB in Additive blending (negative Alpha)
                     // and then switch back to Normal blending it gets that Alpha value back.
                     hsvag.a = stored_a;
-                }
-                // Normal blending.
-                else {
+                } else {
+                    // Normal blending.
                     *hsvag = HsvaGamma::from(Hsva::from_rgba_unmultiplied(
                         rgba_unmultiplied[0],
                         rgba_unmultiplied[1],
@@ -294,9 +299,8 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
     show_color(ui, *hsvag, current_color_size).on_hover_text("Selected color");
 
     if alpha == Alpha::BlendOrAdditive {
-        // We signal additive blending by storing a negative alpha (a bit ironic).
         let a = &mut hsvag.a;
-        let mut additive = *a < 0.0;
+        let mut additive = is_additive_alpha(*a);
         ui.horizontal(|ui| {
             if ui
                 .button(
@@ -355,7 +359,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
     })
     .on_hover_text("Hue");
 
-    let additive = hsvag.a < 0.0;
+    let additive = is_additive_alpha(hsvag.a);
 
     if alpha == Alpha::Opaque {
         hsvag.a = 1.0;
@@ -363,7 +367,7 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
         let a = &mut hsvag.a;
 
         if alpha == Alpha::OnlyBlend {
-            if *a < 0.0 {
+            if is_additive_alpha(*a) {
                 *a = 0.5; // was additive, but isn't allowed to be
             }
             color_slider_1d(ui, a, |a| HsvaGamma { a, ..opaque }.into()).on_hover_text("Alpha");
