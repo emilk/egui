@@ -528,15 +528,15 @@ impl SubMenu {
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> InnerResponse<Option<R>> {
         let sub_id = ui.id().with(self.button.index);
-        let button = self.button.show(ui, &self.parent_state.read(), sub_id);
+        let response = self.button.show(ui, &self.parent_state.read(), sub_id);
         self.parent_state
             .write()
-            .submenu_button_interaction(ui, sub_id, &button);
+            .submenu_button_interaction(ui, sub_id, &response);
         let inner = self
             .parent_state
             .write()
             .show_submenu(ui.ctx(), sub_id, add_contents);
-        InnerResponse::new(inner, button)
+        InnerResponse::new(inner, response)
     }
 }
 
