@@ -1905,8 +1905,8 @@ impl Context {
         self.memory_mut(|mem| mem.areas_mut().move_to_top(layer_id));
     }
 
-    /// Retrieve the `LayerId` of the top level windows.
-    pub fn get_top_layer_id(&self) -> Option<LayerId> {
+    /// Retrieve the [`LayerId`] of the top level windows.
+    pub fn top_layer_id(&self) -> Option<LayerId> {
         self.memory(|mem| mem.areas().top_layer_id(Order::Middle))
     }
 
