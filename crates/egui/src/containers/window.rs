@@ -502,7 +502,7 @@ impl<'open> Window<'open> {
             // END FRAME --------------------------------
 
             if let Some(title_bar) = title_bar {
-                if on_top {
+                if on_top && area_content_ui.visuals().window_highlight_topmost {
                     let rect = Rect::from_min_size(
                         outer_rect.min,
                         Vec2 {
@@ -515,7 +515,7 @@ impl<'open> Window<'open> {
                         round.se = 0.0;
                         round.sw = 0.0;
                     }
-                    let header_color = area_content_ui.visuals().widgets.hovered.bg_fill;
+                    let header_color = area_content_ui.visuals().widgets.open.weak_bg_fill;
 
                     area_content_ui.painter().set(
                         *where_to_put_header_background,

@@ -7,6 +7,7 @@ The result can be copy-pasted into CHANGELOG.md,
 though it often needs some manual editing too.
 """
 
+import argparse
 import multiprocessing
 import re
 import sys
@@ -19,7 +20,6 @@ from tqdm import tqdm
 
 OWNER = "emilk"
 REPO = "egui"
-COMMIT_RANGE = "latest..HEAD"
 INCLUDE_LABELS = False  # It adds quite a bit of visual noise
 OFFICIAL_DEVS = [
     "emilk",
@@ -118,8 +118,12 @@ def print_section(crate: str, items: List[str]) -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Generate a changelog.")
+    parser.add_argument("--commit-range", help="e.g. 0.24.0..HEAD")
+    args = parser.parse_args()
+
     repo = Repo(".")
-    commits = list(repo.iter_commits(COMMIT_RANGE))
+    commits = list(repo.iter_commits(args.commit_range))
     commits.reverse()  # Most recent last
     commit_infos = list(map(get_commit_info, commits))
 
@@ -191,7 +195,7 @@ def main() -> None:
                     unsorted_prs.append(summary)
 
     print()
-    print(f"Full diff at https://github.com/emilk/egui/compare/{COMMIT_RANGE}")
+    print(f"Full diff at https://github.com/emilk/egui/compare/{args.commit_range}")
     print()
     for crate in crate_names:
         if crate in sections:

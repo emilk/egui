@@ -779,6 +779,9 @@ pub struct Visuals {
     pub window_fill: Color32,
     pub window_stroke: Stroke,
 
+    /// Highlight the topmost window.
+    pub window_highlight_topmost: bool,
+
     pub menu_rounding: Rounding,
 
     /// Panel background color
@@ -1130,6 +1133,7 @@ impl Visuals {
             window_shadow: Shadow::big_dark(),
             window_fill: Color32::from_gray(27),
             window_stroke: Stroke::new(1.0, Color32::from_gray(60)),
+            window_highlight_topmost: true,
 
             menu_rounding: Rounding::same(6.0),
 
@@ -1247,7 +1251,7 @@ impl Widgets {
                 expansion: 1.0,
             },
             open: WidgetVisuals {
-                weak_bg_fill: Color32::from_gray(27),
+                weak_bg_fill: Color32::from_gray(45),
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
@@ -1694,6 +1698,7 @@ impl Visuals {
             window_shadow,
             window_fill,
             window_stroke,
+            window_highlight_topmost,
 
             menu_rounding,
 
@@ -1736,6 +1741,7 @@ impl Visuals {
             stroke_ui(ui, window_stroke, "Outline");
             rounding_ui(ui, window_rounding);
             shadow_ui(ui, window_shadow, "Shadow");
+            ui.checkbox(window_highlight_topmost, "Highlight topmost Window");
         });
 
         ui.collapsing("Menus and popups", |ui| {
