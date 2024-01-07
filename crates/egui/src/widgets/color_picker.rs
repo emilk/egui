@@ -303,7 +303,6 @@ fn color_picker_hsvag_2d(ui: &mut Ui, hsvag: &mut HsvaGamma, alpha: Alpha) {
         let a = &mut hsvag.a;
         let mut additive = is_additive_alpha(*a);
         ui.horizontal(|ui| {
-            input_type_button_ui(ui);
             ui.label("Blending:");
             ui.radio_value(&mut additive, false, "Normal");
             ui.radio_value(&mut additive, true, "Additive");
@@ -374,12 +373,17 @@ fn input_type_button_ui(ui: &mut Ui) {
 /// Alpha's `DragValue` is hidden when `Alpha::Opaque`.
 ///
 /// Returns `true` on change.
-fn srgba_edit_ui(ui: &mut Ui, rgba: &mut [u8; 4], alpha: Alpha) -> bool {
-    let [r, g, b, a] = rgba;
-
+fn srgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [u8; 4], alpha: Alpha) -> bool {
     let mut edited = false;
+
     ui.horizontal(|ui| {
-        if ui.button("📋").on_hover_text("Click to copy").clicked() {
+        input_type_button_ui(ui);
+
+        if ui
+            .button("📋")
+            .on_hover_text("Click to copy color values")
+            .clicked()
+        {
             if alpha == Alpha::Opaque {
                 ui.ctx().copy_text(format!("{r}, {g}, {b}"));
             } else {
@@ -401,7 +405,7 @@ fn srgba_edit_ui(ui: &mut Ui, rgba: &mut [u8; 4], alpha: Alpha) -> bool {
 /// Alpha's `DragValue` is hidden when `Alpha::Opaque`.
 ///
 /// Returns `true` on change.
-fn rgba_edit_ui(ui: &mut Ui, rgba: &mut [f32; 4], alpha: Alpha) -> bool {
+fn rgba_edit_ui(ui: &mut Ui, [r, g, b, a]: &mut [f32; 4], alpha: Alpha) -> bool {
     fn drag_value(ui: &mut Ui, prefix: &str, value: &mut f32) -> Response {
         DragValue::new(value)
             .speed(0.003)
@@ -411,11 +415,16 @@ fn rgba_edit_ui(ui: &mut Ui, rgba: &mut [f32; 4], alpha: Alpha) -> bool {
             .ui(ui)
     }
 
-    let [r, g, b, a] = rgba;
-
     let mut edited = false;
+
     ui.horizontal(|ui| {
-        if ui.button("📋").on_hover_text("Click to copy").clicked() {
+        input_type_button_ui(ui);
+
+        if ui
+            .button("📋")
+            .on_hover_text("Click to copy color values")
+            .clicked()
+        {
             if alpha == Alpha::Opaque {
                 ui.ctx().copy_text(format!("{r:.03}, {g:.03}, {b:.03}"));
             } else {
@@ -475,7 +484,7 @@ pub fn color_edit_button_hsva(ui: &mut Ui, hsva: &mut Hsva, alpha: Alpha) -> Res
         ui.memory_mut(|mem| mem.toggle_popup(popup_id));
     }
 
-    const COLOR_SLIDER_WIDTH: f32 = 260.0;
+    const COLOR_SLIDER_WIDTH: f32 = 275.0;
 
     // TODO(emilk): make it easier to show a temporary popup that closes when you click outside it
     if ui.memory(|mem| mem.is_popup_open(popup_id)) {
