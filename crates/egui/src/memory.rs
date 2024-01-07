@@ -862,8 +862,11 @@ impl Areas {
                 if let Some(state) = self.areas.get(&layer.id) {
                     let mut rect = state.rect();
                     if state.interactable {
-                        // Allow us to resize by dragging just outside the window:
-                        rect = rect.expand(resize_interact_radius_side);
+                        if state.edges_padded_for_resize {
+                            // Allow us to resize by dragging just outside the window:
+                            rect = rect.expand(resize_interact_radius_side);
+                        }
+
                         if rect.contains(pos) {
                             return Some(*layer);
                         }

@@ -48,7 +48,9 @@ impl<'open> Window<'open> {
     /// If you need a changing title, you must call `window.id(…)` with a fixed id.
     pub fn new(title: impl Into<WidgetText>) -> Self {
         let title = title.into().fallback_text_style(TextStyle::Heading);
-        let area = Area::new(Id::new(title.text())).constrain(true);
+        let area = Area::new(Id::new(title.text()))
+            .constrain(true)
+            .edges_padded_for_resize(true);
         Self {
             title,
             open: None,
@@ -117,6 +119,9 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn resize(mut self, mutate: impl Fn(Resize) -> Resize) -> Self {
         self.resize = mutate(self.resize);
+        self.area = self
+            .area
+            .edges_padded_for_resize(self.resize.is_resizable());
         self
     }
 
@@ -273,6 +278,7 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn fixed_size(mut self, size: impl Into<Vec2>) -> Self {
         self.resize = self.resize.fixed_size(size);
+        self.area = self.area.edges_padded_for_resize(false);
         self
     }
 
@@ -294,6 +300,7 @@ impl<'open> Window<'open> {
     #[inline]
     pub fn resizable(mut self, resizable: bool) -> Self {
         self.resize = self.resize.resizable(resizable);
+        self.area = self.area.edges_padded_for_resize(resizable);
         self
     }
 
@@ -319,6 +326,7 @@ impl<'open> Window<'open> {
     pub fn auto_sized(mut self) -> Self {
         self.resize = self.resize.auto_sized();
         self.scroll = ScrollArea::neither();
+        self.area = self.area.edges_padded_for_resize(false);
         self
     }
 
