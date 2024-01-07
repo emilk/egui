@@ -1,11 +1,10 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
-use epaint::{emath::Rangef, vec2, Vec2};
-
 use crate::{
-    area,
+    area, vec2,
     window::{self, WindowInteraction},
-    EventFilter, Id, IdMap, LayerId, Pos2, Rect, Style, ViewportId, ViewportIdMap, ViewportIdSet,
+    EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, Rect, Style, Vec2, ViewportId,
+    ViewportIdMap, ViewportIdSet,
 };
 
 // ----------------------------------------------------------------------------
@@ -906,6 +905,14 @@ impl Areas {
         if !self.order.iter().any(|x| *x == layer_id) {
             self.order.push(layer_id);
         }
+    }
+
+    pub fn top_layer_id(&self, order: Order) -> Option<LayerId> {
+        self.order
+            .iter()
+            .filter(|layer| layer.order == order)
+            .last()
+            .copied()
     }
 
     pub(crate) fn end_frame(&mut self) {

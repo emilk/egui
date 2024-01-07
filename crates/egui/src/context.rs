@@ -1982,6 +1982,11 @@ impl Context {
         self.memory_mut(|mem| mem.areas_mut().move_to_top(layer_id));
     }
 
+    /// Retrieve the [`LayerId`] of the top level windows.
+    pub fn top_layer_id(&self) -> Option<LayerId> {
+        self.memory(|mem| mem.areas().top_layer_id(Order::Middle))
+    }
+
     pub(crate) fn rect_contains_pointer(&self, layer_id: LayerId, rect: Rect) -> bool {
         rect.is_positive() && {
             let pointer_pos = self.input(|i| i.pointer.interact_pos());
