@@ -1247,7 +1247,7 @@ impl Widgets {
                 expansion: 1.0,
             },
             open: WidgetVisuals {
-                weak_bg_fill: Color32::from_gray(27),
+                weak_bg_fill: Color32::from_gray(45),
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
