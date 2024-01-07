@@ -390,8 +390,9 @@ fn srgba_edit_ui(ui: &mut Ui, rgba: &mut [u8; 4], alpha: Alpha) -> bool {
         edited |= DragValue::new(r).speed(0.5).prefix("R ").ui(ui).changed();
         edited |= DragValue::new(g).speed(0.5).prefix("G ").ui(ui).changed();
         edited |= DragValue::new(b).speed(0.5).prefix("B ").ui(ui).changed();
-        edited |=
-            alpha != Alpha::Opaque && DragValue::new(a).speed(0.5).prefix("A ").ui(ui).changed();
+        if alpha != Alpha::Opaque {
+            edited |= DragValue::new(a).speed(0.5).prefix("A ").ui(ui).changed();
+        }
     });
 
     edited
@@ -402,7 +403,14 @@ fn srgba_edit_ui(ui: &mut Ui, rgba: &mut [u8; 4], alpha: Alpha) -> bool {
 ///
 /// Returns `true` on change.
 fn rgba_edit_ui(ui: &mut Ui, rgba: &mut [f32; 4], alpha: Alpha) -> bool {
-    use core::ops::RangeInclusive;
+    fn drag_value(ui: &mut Ui, prefix: &str, value: &mut f32) -> Response {
+        DragValue::new(value)
+            .speed(0.003)
+            .prefix(prefix)
+            .clamp_range(0.0..=1.0)
+            .custom_formatter(|n, _| format!("{n:.03}"))
+            .ui(ui)
+    }
 
     let [r, g, b, a] = rgba;
 
@@ -415,35 +423,13 @@ fn rgba_edit_ui(ui: &mut Ui, rgba: &mut [f32; 4], alpha: Alpha) -> bool {
                 ui.ctx().copy_text(format!("{r}, {g}, {b}, {a}"));
             }
         }
-        edited |= DragValue::new(r)
-            .speed(0.003)
-            .prefix("R ")
-            .clamp_range(RangeInclusive::new(0., 1.))
-            .custom_formatter(|n, _| format!("{n:.03}"))
-            .ui(ui)
-            .changed();
-        edited |= DragValue::new(g)
-            .speed(0.003)
-            .prefix("G ")
-            .clamp_range(RangeInclusive::new(0., 1.))
-            .custom_formatter(|n, _| format!("{n:.03}"))
-            .ui(ui)
-            .changed();
-        edited |= DragValue::new(b)
-            .speed(0.003)
-            .prefix("B ")
-            .clamp_range(RangeInclusive::new(0., 1.))
-            .custom_formatter(|n, _| format!("{n:.03}"))
-            .ui(ui)
-            .changed();
-        edited |= alpha != Alpha::Opaque
-            && DragValue::new(a)
-                .speed(0.003)
-                .prefix("A ")
-                .clamp_range(RangeInclusive::new(0., 1.))
-                .custom_formatter(|n, _| format!("{n:.03}"))
-                .ui(ui)
-                .changed();
+
+        edited |= drag_value(ui, "R ", r).changed();
+        edited |= drag_value(ui, "G ", g).changed();
+        edited |= drag_value(ui, "B ", b).changed();
+        if alpha != Alpha::Opaque {
+            edited |= drag_value(ui, "A ", a).changed();
+        }
     });
 
     edited
