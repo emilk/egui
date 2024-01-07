@@ -2,7 +2,7 @@
 ///
 /// Requires the "color-hex" feature.
 ///
-/// See also [`crate::Color32::from_hex_string`] and [`crate::Color32::to_hex_string`].
+/// See also [`crate::Color32::from_hex`] and [`crate::Color32::to_hex`].
 ///
 /// ```
 /// # use ecolor::{hex_color, Color32};
