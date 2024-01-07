@@ -226,6 +226,7 @@ impl Area {
 
     /// When `true`, this `Area` belongs to a resizable window, so it needs to
     /// receive mouse input which occurs a short distance beyond its bounding rect.
+    #[inline]
     pub(crate) fn edges_padded_for_resize(mut self, edges_padded_for_resize: bool) -> Self {
         self.edges_padded_for_resize = edges_padded_for_resize;
         self
