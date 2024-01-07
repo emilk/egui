@@ -121,11 +121,12 @@ impl HexColor {
 }
 
 impl Color32 {
-    /// Parses a color from a hex string
+    /// Parses a color from a hex string.
     ///
-    /// Supports the 3, 4, 6, and 8-digit formats.
+    /// Supports the 3, 4, 6, and 8-digit formats, according to the specification in
+    /// <https://drafts.csswg.org/css-color-4/#hex-color>
     ///
-    /// To use hex colors in `const` contexts,
+    /// To parse hex colors at compile-time (e.g. for use in `const` contexts)
     /// use the macro [`crate::hex_color!`] instead.
     ///
     /// # Example
@@ -145,7 +146,7 @@ impl Color32 {
         HexColor::from_str(hex).map(|h| h.color())
     }
 
-    /// Formats the color as a hex string
+    /// Formats the color as a hex string.
     ///
     /// # Example
     /// ```rust
@@ -156,7 +157,8 @@ impl Color32 {
     /// assert_eq!(Color32::TRANSPARENT.to_hex(), "#00000000");
     /// ```
     ///
-    /// Uses the 8-digit format, as that is the only format that is lossless.
+    /// Uses the 8-digit format described in <https://drafts.csswg.org/css-color-4/#hex-color>,
+    /// as that is the only format that is lossless.
     /// For other formats, see [`HexColor`].
     #[inline]
     pub fn to_hex(&self) -> String {
