@@ -539,6 +539,7 @@ pub struct Table<'a> {
     cell_layout: egui::Layout,
 
     scroll_options: TableScrollOptions,
+
     /// The `header_response` is passed down from [`TableBuilder::header()`] so that it can be returned to the user after the body is built.
     /// If no header is specified, it is `None`.
     header_response: Option<Response>,
