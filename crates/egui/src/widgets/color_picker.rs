@@ -416,9 +416,10 @@ fn rgba_edit_ui(ui: &mut Ui, rgba: &mut [f32; 4], alpha: Alpha) -> bool {
     ui.horizontal(|ui| {
         if ui.button("📋").on_hover_text("Click to copy").clicked() {
             if alpha == Alpha::Opaque {
-                ui.ctx().copy_text(format!("{r}, {g}, {b}"));
+                ui.ctx().copy_text(format!("{r:.03}, {g:.03}, {b:.03}"));
             } else {
-                ui.ctx().copy_text(format!("{r}, {g}, {b}, {a}"));
+                ui.ctx()
+                    .copy_text(format!("{r:.03}, {g:.03}, {b:.03}, {a:.03}"));
             }
         }
 
