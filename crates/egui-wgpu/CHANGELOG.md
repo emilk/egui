@@ -6,6 +6,10 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.25.0 - 2024-01-08
+* Only call wgpu paint callback if viewport is positive [#3778](https://github.com/emilk/egui/pull/3778) (thanks [@msparkles](https://github.com/msparkles)!)
+
+
 ## 0.24.1 - 2023-11-30
 * Add a few `puffin` profile scopes
 

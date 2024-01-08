@@ -1151,7 +1151,7 @@ checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 
 [[package]]
 name = "ecolor"
-version = "0.24.2"
+version = "0.25.0"
 dependencies = [
  "bytemuck",
  "cint",
@@ -1162,7 +1162,7 @@ dependencies = [
 
 [[package]]
 name = "eframe"
-version = "0.24.2"
+version = "0.25.0"
 dependencies = [
  "bytemuck",
  "cocoa",
@@ -1198,7 +1198,7 @@ dependencies = [
 
 [[package]]
 name = "egui"
-version = "0.24.2"
+version = "0.25.0"
 dependencies = [
  "accesskit",
  "ahash",
@@ -1214,7 +1214,7 @@ dependencies = [
 
 [[package]]
 name = "egui-wgpu"
-version = "0.24.2"
+version = "0.25.0"
 dependencies = [
  "bytemuck",
  "document-features",
@@ -1230,7 +1230,7 @@ dependencies = [
 
 [[package]]
 name = "egui-winit"
-version = "0.24.2"
+version = "0.25.0"
 dependencies = [
  "accesskit_winit",
  "arboard",
@@ -1248,7 +1248,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_app"
-version = "0.24.2"
+version = "0.25.0"
 dependencies = [
  "bytemuck",
  "chrono",
@@ -1272,7 +1272,7 @@ dependencies = [
 
 [[package]]
 name = "egui_demo_lib"
-version = "0.24.2"
+version = "0.25.0"
 dependencies = [
  "chrono",
  "criterion",
@@ -1287,7 +1287,7 @@ dependencies = [
 
 [[package]]
 name = "egui_extras"
-version = "0.24.2"
+version = "0.25.0"
 dependencies = [
  "chrono",
  "document-features",
@@ -1305,7 +1305,7 @@ dependencies = [
 
 [[package]]
 name = "egui_glow"
-version = "0.24.2"
+version = "0.25.0"
 dependencies = [
  "bytemuck",
  "document-features",
@@ -1324,7 +1324,7 @@ dependencies = [
 
 [[package]]
 name = "egui_plot"
-version = "0.24.2"
+version = "0.25.0"
 dependencies = [
  "document-features",
  "egui",
@@ -1353,7 +1353,7 @@ checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
 
 [[package]]
 name = "emath"
-version = "0.24.2"
+version = "0.25.0"
 dependencies = [
  "bytemuck",
  "document-features",
@@ -1428,7 +1428,7 @@ dependencies = [
 
 [[package]]
 name = "epaint"
-version = "0.24.2"
+version = "0.25.0"
 dependencies = [
  "ab_glyph",
  "ahash",

@@ -36,8 +36,8 @@ winit = ["dep:winit"]
 
 
 [dependencies]
-egui = { version = "0.24.1", path = "../egui", default-features = false }
-epaint = { version = "0.24.1", path = "../epaint", default-features = false, features = [
+egui = { version = "0.25.0", path = "../egui", default-features = false }
+epaint = { version = "0.25.0", path = "../epaint", default-features = false, features = [
   "bytemuck",
 ] }
 

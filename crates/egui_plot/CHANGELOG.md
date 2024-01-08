@@ -5,6 +5,12 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.25.0 - 2024-01-08
+* Fix plot auto-bounds unset by default [#3722](https://github.com/emilk/egui/pull/3722) (thanks [@abey79](https://github.com/abey79)!)
+* Add methods to zoom a `Plot` programmatically [#2714](https://github.com/emilk/egui/pull/2714) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+* Add a public API for overriding plot legend traces' visibilities [#3534](https://github.com/emilk/egui/pull/3534) (thanks [@jayzhudev](https://github.com/jayzhudev)!)
+
+
 ## 0.24.1 - 2024-12-03
 * Fix plot auto-bounds default [#3722](https://github.com/emilk/egui/pull/3722) (thanks [@abey79](https://github.com/abey79)!)
 

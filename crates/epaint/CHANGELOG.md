@@ -5,6 +5,14 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.25.0 - 2024-01-08
+* Replace a special `Color32::PLACEHOLDER` with widget fallback color [#3727](https://github.com/emilk/egui/pull/3727)
+* Add support for dashed lines with offset [#3720](https://github.com/emilk/egui/pull/3720) (thanks [@oscargus](https://github.com/oscargus)!)
+* Impl `Clone` for `Fonts` [#3737](https://github.com/emilk/egui/pull/3737)
+* Fix: allow using the full Private Use Area for custom fonts [#3509](https://github.com/emilk/egui/pull/3509) (thanks [@varphone](https://github.com/varphone)!)
+* Add `Color32::from_hex` and `Color32::to_hex` [#3570](https://github.com/emilk/egui/pull/3570) [#3777](https://github.com/emilk/egui/pull/3777) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+
+
 ## 0.24.1 - 2023-11-30
 * Optimize `FontImage::srgba_pixels` and reduce the initial font atlas texture size from 8MiB -> 1MiB [#3666](https://github.com/emilk/egui/pull/3666)
 

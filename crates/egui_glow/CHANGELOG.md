@@ -5,6 +5,12 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+
+## 0.25.0 - 2024-01-08
+* Update to glow 0.13 [#3715](https://github.com/emilk/egui/pull/3715)
+* Make glow `Send + Sync` again [#3646](https://github.com/emilk/egui/pull/3646) (thanks [@surban](https://github.com/surban)!)
+
+
 ## 0.24.1 - 2023-11-30
 * Improve a docstring
 
