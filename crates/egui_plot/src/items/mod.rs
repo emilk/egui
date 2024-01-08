@@ -1599,6 +1599,7 @@ impl BoxPlot {
 
     /// Add a custom way to format an element.
     /// Can be used to display a set number of decimals or custom labels.
+    #[inline]
     pub fn element_formatter(mut self, formatter: Box<dyn Fn(&BoxElem, &Self) -> String>) -> Self {
         self.element_formatter = Some(formatter);
         self
