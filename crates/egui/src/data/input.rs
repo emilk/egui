@@ -369,10 +369,12 @@ pub enum Event {
 
         /// The physical key, corresponding to the actual position on the keyboard.
         ///
-        /// This ignored keymaps, so it is not recommended to use this.
+        /// This ignores keymaps, so it is not recommended to use this.
         /// The only thing it makes sense for is things like games,
         /// where e.g. the physical location of WSAD on QWERTY should always map to movement,
         /// even if the user is using Dvorak or AZERTY.
+        ///
+        /// `eframe` does not (yet) implement this on web.
         physical_key: Option<Key>,
 
         /// Was it pressed or released?
