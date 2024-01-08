@@ -393,7 +393,7 @@ impl Ui {
     /// Read-only access to the ui local [`IdTypeMap`], which stores temporary widget state for
     /// this instance of [`Ui`] and its child Uis. This is not shared between different frames, and this is cloned
     /// and inherited to child ui instance on [`Self::child_ui`]. Compared to `data` this is more efficient since it does not require locking.
-    /// This returns `None` if [`Self::set_local_data()`] is not called yet for this instance or
+    /// This returns `None` if [`Self::local_data_mut()`] is not called yet for this instance or
     /// parent instance.
     /// You can serialize or deserialize this map in any time, so `_persisted` methods on [`IdTypeMap`] has meaning while this is a frame temporary map.
     #[inline]
