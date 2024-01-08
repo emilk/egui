@@ -7,7 +7,7 @@ impl WebLogger {
     /// Install a new `WebLogger`, piping all [`log`] events to the web console.
     pub fn init(filter: log::LevelFilter) -> Result<(), log::SetLoggerError> {
         log::set_max_level(filter);
-        log::set_boxed_logger(Box::new(WebLogger::new(filter)))
+        log::set_boxed_logger(Box::new(Self::new(filter)))
     }
 
     /// Create a new [`WebLogger`] with the given filter,
