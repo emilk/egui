@@ -45,7 +45,7 @@ impl CollapsingState {
     }
 
     pub fn load_with_default_open(ctx: &Context, id: Id, default_open: bool) -> Self {
-        Self::load(ctx, id).unwrap_or(CollapsingState {
+        Self::load(ctx, id).unwrap_or(Self {
             id,
             state: InnerState {
                 open: default_open,

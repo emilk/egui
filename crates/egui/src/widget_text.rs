@@ -42,28 +42,28 @@ pub struct RichText {
 impl From<&str> for RichText {
     #[inline]
     fn from(text: &str) -> Self {
-        RichText::new(text)
+        Self::new(text)
     }
 }
 
 impl From<&String> for RichText {
     #[inline]
     fn from(text: &String) -> Self {
-        RichText::new(text)
+        Self::new(text)
     }
 }
 
 impl From<&mut String> for RichText {
     #[inline]
     fn from(text: &mut String) -> Self {
-        RichText::new(text.clone())
+        Self::new(text.clone())
     }
 }
 
 impl From<String> for RichText {
     #[inline]
     fn from(text: String) -> Self {
-        RichText::new(text)
+        Self::new(text)
     }
 }
 

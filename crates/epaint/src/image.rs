@@ -301,7 +301,7 @@ impl FontImage {
     }
 
     /// Clone a sub-region as a new image.
-    pub fn region(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> FontImage {
+    pub fn region(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> Self {
         assert!(x + w <= self.width());
         assert!(y + h <= self.height());
 
@@ -311,7 +311,7 @@ impl FontImage {
             pixels.extend(&self.pixels[offset..(offset + w)]);
         }
         assert_eq!(pixels.len(), w * h);
-        FontImage {
+        Self {
             size: [w, h],
             pixels,
         }

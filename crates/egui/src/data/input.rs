@@ -104,8 +104,8 @@ impl RawInput {
     ///
     /// * [`Self::hovered_files`] is cloned.
     /// * [`Self::dropped_files`] is moved.
-    pub fn take(&mut self) -> RawInput {
-        RawInput {
+    pub fn take(&mut self) -> Self {
+        Self {
             viewport_id: self.viewport_id,
             viewports: self.viewports.clone(),
             screen_rect: self.screen_rect.take(),
@@ -692,7 +692,7 @@ impl Modifiers {
     /// assert!((Modifiers::MAC_CMD | Modifiers::COMMAND).matches_logically(Modifiers::COMMAND));
     /// assert!(!Modifiers::COMMAND.matches_logically(Modifiers::MAC_CMD));
     /// ```
-    pub fn matches_logically(&self, pattern: Modifiers) -> bool {
+    pub fn matches_logically(&self, pattern: Self) -> bool {
         if pattern.alt && !self.alt {
             return false;
         }
@@ -734,7 +734,7 @@ impl Modifiers {
     /// assert!((Modifiers::MAC_CMD | Modifiers::COMMAND).matches(Modifiers::COMMAND));
     /// assert!(!Modifiers::COMMAND.matches(Modifiers::MAC_CMD));
     /// ```
-    pub fn matches_exact(&self, pattern: Modifiers) -> bool {
+    pub fn matches_exact(&self, pattern: Self) -> bool {
         // alt and shift must always match the pattern:
         if pattern.alt != self.alt || pattern.shift != self.shift {
             return false;
@@ -744,7 +744,7 @@ impl Modifiers {
     }
 
     #[deprecated = "Renamed `matches_exact`, but maybe you want to use `matches_logically` instead"]
-    pub fn matches(&self, pattern: Modifiers) -> bool {
+    pub fn matches(&self, pattern: Self) -> bool {
         self.matches_exact(pattern)
     }
 
@@ -755,7 +755,7 @@ impl Modifiers {
     ///
     /// This takes care to properly handle the difference between
     /// [`Self::ctrl`], [`Self::command`] and [`Self::mac_cmd`].
-    pub fn cmd_ctrl_matches(&self, pattern: Modifiers) -> bool {
+    pub fn cmd_ctrl_matches(&self, pattern: Self) -> bool {
         if pattern.mac_cmd {
             // Mac-specific match:
             if !self.mac_cmd {
@@ -800,12 +800,12 @@ impl Modifiers {
     /// assert!((Modifiers::CTRL | Modifiers::SHIFT).contains(Modifiers::CTRL));
     /// assert!(!Modifiers::CTRL.contains(Modifiers::CTRL | Modifiers::SHIFT));
     /// ```
-    pub fn contains(&self, query: Modifiers) -> bool {
-        if query == Modifiers::default() {
+    pub fn contains(&self, query: Self) -> bool {
+        if query == Self::default() {
             return true;
         }
 
-        let Modifiers {
+        let Self {
             alt,
             ctrl,
             shift,
@@ -814,27 +814,27 @@ impl Modifiers {
         } = *self;
 
         if alt && query.alt {
-            return self.contains(Modifiers {
+            return self.contains(Self {
                 alt: false,
                 ..query
             });
         }
         if shift && query.shift {
-            return self.contains(Modifiers {
+            return self.contains(Self {
                 shift: false,
                 ..query
             });
         }
 
         if (ctrl || command) && (query.ctrl || query.command) {
-            return self.contains(Modifiers {
+            return self.contains(Self {
                 command: false,
                 ctrl: false,
                 ..query
             });
         }
         if (mac_cmd || command) && (query.mac_cmd || query.command) {
-            return self.contains(Modifiers {
+            return self.contains(Self {
                 mac_cmd: false,
                 command: false,
                 ..query
@@ -1287,13 +1287,13 @@ impl Key {
         // Before we do we must first make sure they are supported in `Fonts` though,
         // so perhaps this functions needs to take a `supports_character: impl Fn(char) -> bool` or something.
         match self {
-            Key::ArrowDown => "⏷",
-            Key::ArrowLeft => "⏴",
-            Key::ArrowRight => "⏵",
-            Key::ArrowUp => "⏶",
-            Key::Minus => crate::MINUS_CHAR_STR,
-            Key::Plus => "+",
-            Key::Equals => "=",
+            Self::ArrowDown => "⏷",
+            Self::ArrowLeft => "⏴",
+            Self::ArrowRight => "⏵",
+            Self::ArrowUp => "⏶",
+            Self::Minus => crate::MINUS_CHAR_STR,
+            Self::Plus => "+",
+            Self::Equals => "=",
             _ => self.name(),
         }
     }
@@ -1301,98 +1301,98 @@ impl Key {
     /// Human-readable English name.
     pub fn name(self) -> &'static str {
         match self {
-            Key::ArrowDown => "Down",
-            Key::ArrowLeft => "Left",
-            Key::ArrowRight => "Right",
-            Key::ArrowUp => "Up",
+            Self::ArrowDown => "Down",
+            Self::ArrowLeft => "Left",
+            Self::ArrowRight => "Right",
+            Self::ArrowUp => "Up",
 
-            Key::Escape => "Escape",
-            Key::Tab => "Tab",
-            Key::Backspace => "Backspace",
-            Key::Enter => "Enter",
-            Key::Space => "Space",
+            Self::Escape => "Escape",
+            Self::Tab => "Tab",
+            Self::Backspace => "Backspace",
+            Self::Enter => "Enter",
+            Self::Space => "Space",
 
-            Key::Insert => "Insert",
-            Key::Delete => "Delete",
-            Key::Home => "Home",
-            Key::End => "End",
-            Key::PageUp => "PageUp",
-            Key::PageDown => "PageDown",
+            Self::Insert => "Insert",
+            Self::Delete => "Delete",
+            Self::Home => "Home",
+            Self::End => "End",
+            Self::PageUp => "PageUp",
+            Self::PageDown => "PageDown",
 
-            Key::Copy => "Copy",
-            Key::Cut => "Cut",
-            Key::Paste => "Paste",
+            Self::Copy => "Copy",
+            Self::Cut => "Cut",
+            Self::Paste => "Paste",
 
-            Key::Colon => "Colon",
-            Key::Comma => "Comma",
-            Key::Minus => "Minus",
-            Key::Period => "Period",
-            Key::Plus => "Plus",
-            Key::Equals => "Equals",
-            Key::Semicolon => "Semicolon",
+            Self::Colon => "Colon",
+            Self::Comma => "Comma",
+            Self::Minus => "Minus",
+            Self::Period => "Period",
+            Self::Plus => "Plus",
+            Self::Equals => "Equals",
+            Self::Semicolon => "Semicolon",
 
-            Key::Backslash => "Backslash",
-            Key::OpenBracket => "OpenBracket",
-            Key::CloseBracket => "CloseBracket",
-            Key::Backtick => "Backtick",
+            Self::Backslash => "Backslash",
+            Self::OpenBracket => "OpenBracket",
+            Self::CloseBracket => "CloseBracket",
+            Self::Backtick => "Backtick",
 
-            Key::Num0 => "0",
-            Key::Num1 => "1",
-            Key::Num2 => "2",
-            Key::Num3 => "3",
-            Key::Num4 => "4",
-            Key::Num5 => "5",
-            Key::Num6 => "6",
-            Key::Num7 => "7",
-            Key::Num8 => "8",
-            Key::Num9 => "9",
+            Self::Num0 => "0",
+            Self::Num1 => "1",
+            Self::Num2 => "2",
+            Self::Num3 => "3",
+            Self::Num4 => "4",
+            Self::Num5 => "5",
+            Self::Num6 => "6",
+            Self::Num7 => "7",
+            Self::Num8 => "8",
+            Self::Num9 => "9",
 
-            Key::A => "A",
-            Key::B => "B",
-            Key::C => "C",
-            Key::D => "D",
-            Key::E => "E",
-            Key::F => "F",
-            Key::G => "G",
-            Key::H => "H",
-            Key::I => "I",
-            Key::J => "J",
-            Key::K => "K",
-            Key::L => "L",
-            Key::M => "M",
-            Key::N => "N",
-            Key::O => "O",
-            Key::P => "P",
-            Key::Q => "Q",
-            Key::R => "R",
-            Key::S => "S",
-            Key::T => "T",
-            Key::U => "U",
-            Key::V => "V",
-            Key::W => "W",
-            Key::X => "X",
-            Key::Y => "Y",
-            Key::Z => "Z",
-            Key::F1 => "F1",
-            Key::F2 => "F2",
-            Key::F3 => "F3",
-            Key::F4 => "F4",
-            Key::F5 => "F5",
-            Key::F6 => "F6",
-            Key::F7 => "F7",
-            Key::F8 => "F8",
-            Key::F9 => "F9",
-            Key::F10 => "F10",
-            Key::F11 => "F11",
-            Key::F12 => "F12",
-            Key::F13 => "F13",
-            Key::F14 => "F14",
-            Key::F15 => "F15",
-            Key::F16 => "F16",
-            Key::F17 => "F17",
-            Key::F18 => "F18",
-            Key::F19 => "F19",
-            Key::F20 => "F20",
+            Self::A => "A",
+            Self::B => "B",
+            Self::C => "C",
+            Self::D => "D",
+            Self::E => "E",
+            Self::F => "F",
+            Self::G => "G",
+            Self::H => "H",
+            Self::I => "I",
+            Self::J => "J",
+            Self::K => "K",
+            Self::L => "L",
+            Self::M => "M",
+            Self::N => "N",
+            Self::O => "O",
+            Self::P => "P",
+            Self::Q => "Q",
+            Self::R => "R",
+            Self::S => "S",
+            Self::T => "T",
+            Self::U => "U",
+            Self::V => "V",
+            Self::W => "W",
+            Self::X => "X",
+            Self::Y => "Y",
+            Self::Z => "Z",
+            Self::F1 => "F1",
+            Self::F2 => "F2",
+            Self::F3 => "F3",
+            Self::F4 => "F4",
+            Self::F5 => "F5",
+            Self::F6 => "F6",
+            Self::F7 => "F7",
+            Self::F8 => "F8",
+            Self::F9 => "F9",
+            Self::F10 => "F10",
+            Self::F11 => "F11",
+            Self::F12 => "F12",
+            Self::F13 => "F13",
+            Self::F14 => "F14",
+            Self::F15 => "F15",
+            Self::F16 => "F16",
+            Self::F17 => "F17",
+            Self::F18 => "F18",
+            Self::F19 => "F19",
+            Self::F20 => "F20",
         }
     }
 }

@@ -962,7 +962,7 @@ impl GlutinWindowContext {
         // help us start from scratch again if we fail context creation and go back to preferEgl or try with different config etc..
         // https://github.com/emilk/egui/pull/2541#issuecomment-1370767582
 
-        let mut slf = GlutinWindowContext {
+        let mut slf = Self {
             egui_ctx: egui_ctx.clone(),
             swap_interval,
             gl_config,

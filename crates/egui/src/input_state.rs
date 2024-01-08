@@ -149,7 +149,7 @@ impl InputState {
         mut new: RawInput,
         requested_repaint_last_frame: bool,
         pixels_per_point: f32,
-    ) -> InputState {
+    ) -> Self {
         crate::profile_function!();
 
         let time = new.time.unwrap_or(self.time + new.predicted_dt as f64);
@@ -212,7 +212,7 @@ impl InputState {
             keys_down = Default::default();
         }
 
-        InputState {
+        Self {
             pointer,
             touch_states: self.touch_states,
             scroll_delta,
@@ -538,15 +538,15 @@ pub(crate) enum PointerEvent {
 
 impl PointerEvent {
     pub fn is_press(&self) -> bool {
-        matches!(self, PointerEvent::Pressed { .. })
+        matches!(self, Self::Pressed { .. })
     }
 
     pub fn is_release(&self) -> bool {
-        matches!(self, PointerEvent::Released { .. })
+        matches!(self, Self::Released { .. })
     }
 
     pub fn is_click(&self) -> bool {
-        matches!(self, PointerEvent::Released { click: Some(_), .. })
+        matches!(self, Self::Released { click: Some(_), .. })
     }
 }
 
@@ -634,7 +634,7 @@ impl Default for PointerState {
 
 impl PointerState {
     #[must_use]
-    pub(crate) fn begin_frame(mut self, time: f64, new: &RawInput) -> PointerState {
+    pub(crate) fn begin_frame(mut self, time: f64, new: &RawInput) -> Self {
         self.time = time;
 
         self.pointer_events.clear();

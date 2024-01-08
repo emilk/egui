@@ -141,7 +141,7 @@ impl RenderState {
 
         let renderer = Renderer::new(&device, target_format, depth_format, msaa_samples);
 
-        Ok(RenderState {
+        Ok(Self {
             adapter: Arc::new(adapter),
             device: Arc::new(device),
             queue: Arc::new(queue),

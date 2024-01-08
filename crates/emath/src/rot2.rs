@@ -62,7 +62,7 @@ impl Rot2 {
     }
 
     #[must_use]
-    pub fn inverse(self) -> Rot2 {
+    pub fn inverse(self) -> Self {
         Self {
             s: -self.s,
             c: self.c,
@@ -92,15 +92,15 @@ impl std::fmt::Debug for Rot2 {
     }
 }
 
-impl std::ops::Mul<Rot2> for Rot2 {
-    type Output = Rot2;
+impl std::ops::Mul<Self> for Rot2 {
+    type Output = Self;
 
-    fn mul(self, r: Rot2) -> Rot2 {
+    fn mul(self, r: Self) -> Self {
         /*
         |lc -ls| * |rc -rs|
         |ls  lc|   |rs  rc|
         */
-        Rot2 {
+        Self {
             c: self.c * r.c - self.s * r.s,
             s: self.s * r.c + self.c * r.s,
         }
@@ -133,10 +133,10 @@ impl std::ops::Mul<Rot2> for f32 {
 
 /// Scales the rotor.
 impl std::ops::Mul<f32> for Rot2 {
-    type Output = Rot2;
+    type Output = Self;
 
-    fn mul(self, r: f32) -> Rot2 {
-        Rot2 {
+    fn mul(self, r: f32) -> Self {
+        Self {
             c: self.c * r,
             s: self.s * r,
         }
@@ -145,10 +145,10 @@ impl std::ops::Mul<f32> for Rot2 {
 
 /// Scales the rotor.
 impl std::ops::Div<f32> for Rot2 {
-    type Output = Rot2;
+    type Output = Self;
 
-    fn div(self, r: f32) -> Rot2 {
-        Rot2 {
+    fn div(self, r: f32) -> Self {
+        Self {
             c: self.c / r,
             s: self.s / r,
         }

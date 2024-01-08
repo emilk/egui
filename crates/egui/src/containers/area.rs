@@ -263,7 +263,7 @@ impl Area {
     }
 
     pub(crate) fn begin(self, ctx: &Context) -> Prepared {
-        let Area {
+        let Self {
             id,
             movable,
             order,
@@ -458,7 +458,7 @@ impl Prepared {
 
     #[allow(clippy::needless_pass_by_value)] // intentional to swallow up `content_ui`.
     pub(crate) fn end(self, ctx: &Context, content_ui: Ui) -> Response {
-        let Prepared {
+        let Self {
             layer_id,
             mut state,
             move_response,

@@ -127,6 +127,7 @@ warn = [
   "clippy::unused_peekable",
   "clippy::unused_rounding",
   "clippy::unused_self",
+  "clippy::use_self",
   "clippy::useless_transmute",
   "clippy::verbose_file_reads",
   "clippy::wildcard_dependencies",
@@ -168,7 +169,6 @@ allow = [
   "clippy::too_many_lines",
   "clippy::undocumented_unsafe_blocks",
   "clippy::unwrap_used",
-  "clippy::use_self",
   "clippy::useless_let_if_seq",         # False positives
   "clippy::wildcard_imports",           # We do this a lot
   "trivial_casts",

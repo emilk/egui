@@ -71,7 +71,7 @@ impl Rangef {
     /// Flip `min` and `max` if needed, so that `min <= max` after.
     #[inline]
     pub fn as_positive(self) -> Self {
-        Rangef {
+        Self {
             min: self.min.min(self.max),
             max: self.min.max(self.max),
         }

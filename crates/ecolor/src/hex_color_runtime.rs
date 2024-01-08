@@ -47,20 +47,20 @@ impl FromStr for HexColor {
 impl Display for HexColor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HexColor::Hex3(color) => {
+            Self::Hex3(color) => {
                 let [r, g, b, _] = color.to_srgba_unmultiplied().map(|u| u >> 4);
                 f.write_fmt(format_args!("#{r:x}{g:x}{b:x}"))
             }
-            HexColor::Hex4(color) => {
+            Self::Hex4(color) => {
                 let [r, g, b, a] = color.to_srgba_unmultiplied().map(|u| u >> 4);
                 f.write_fmt(format_args!("#{r:x}{g:x}{b:x}{a:x}"))
             }
-            HexColor::Hex6(color) => {
+            Self::Hex6(color) => {
                 let [r, g, b, _] = color.to_srgba_unmultiplied();
                 let u = u32::from_be_bytes([0, r, g, b]);
                 f.write_fmt(format_args!("#{u:06x}"))
             }
-            HexColor::Hex8(color) => {
+            Self::Hex8(color) => {
                 let [r, g, b, a] = color.to_srgba_unmultiplied();
                 let u = u32::from_be_bytes([r, g, b, a]);
                 f.write_fmt(format_args!("#{u:08x}"))
@@ -74,10 +74,7 @@ impl HexColor {
     #[inline]
     pub fn color(&self) -> Color32 {
         match self {
-            HexColor::Hex3(color)
-            | HexColor::Hex4(color)
-            | HexColor::Hex6(color)
-            | HexColor::Hex8(color) => *color,
+            Self::Hex3(color) | Self::Hex4(color) | Self::Hex6(color) | Self::Hex8(color) => *color,
         }
     }
 
@@ -94,26 +91,26 @@ impl HexColor {
                     .map_err(ParseHexColorError::InvalidInt)?
                     .to_be_bytes();
                 let [r, g, b] = [r, gb >> 4, gb & 0x0f].map(|u| u << 4 | u);
-                Ok(HexColor::Hex3(Color32::from_rgb(r, g, b)))
+                Ok(Self::Hex3(Color32::from_rgb(r, g, b)))
             }
             4 => {
                 let [r_g, b_a] = u16::from_str_radix(s, 16)
                     .map_err(ParseHexColorError::InvalidInt)?
                     .to_be_bytes();
                 let [r, g, b, a] = [r_g >> 4, r_g & 0x0f, b_a >> 4, b_a & 0x0f].map(|u| u << 4 | u);
-                Ok(HexColor::Hex4(Color32::from_rgba_unmultiplied(r, g, b, a)))
+                Ok(Self::Hex4(Color32::from_rgba_unmultiplied(r, g, b, a)))
             }
             6 => {
                 let [_, r, g, b] = u32::from_str_radix(s, 16)
                     .map_err(ParseHexColorError::InvalidInt)?
                     .to_be_bytes();
-                Ok(HexColor::Hex6(Color32::from_rgb(r, g, b)))
+                Ok(Self::Hex6(Color32::from_rgb(r, g, b)))
             }
             8 => {
                 let [r, g, b, a] = u32::from_str_radix(s, 16)
                     .map_err(ParseHexColorError::InvalidInt)?
                     .to_be_bytes();
-                Ok(HexColor::Hex8(Color32::from_rgba_unmultiplied(r, g, b, a)))
+                Ok(Self::Hex8(Color32::from_rgba_unmultiplied(r, g, b, a)))
             }
             _ => Err(ParseHexColorError::InvalidLength)?,
         }

@@ -95,7 +95,7 @@ impl ProgressBar {
 
 impl Widget for ProgressBar {
     fn ui(self, ui: &mut Ui) -> Response {
-        let ProgressBar {
+        let Self {
             progress,
             desired_width,
             desired_height,

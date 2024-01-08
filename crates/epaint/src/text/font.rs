@@ -88,7 +88,7 @@ impl FontImpl {
         ab_glyph_font: ab_glyph::FontArc,
         scale_in_pixels: f32,
         tweak: FontTweak,
-    ) -> FontImpl {
+    ) -> Self {
         assert!(scale_in_pixels > 0.0);
         assert!(pixels_per_point > 0.0);
 

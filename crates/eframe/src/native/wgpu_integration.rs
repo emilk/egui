@@ -492,7 +492,7 @@ impl WgpuWinitRunning {
         #[cfg(feature = "puffin")]
         puffin::GlobalProfiler::lock().new_frame();
 
-        let WgpuWinitRunning {
+        let Self {
             app,
             integration,
             shared,

@@ -50,12 +50,12 @@ impl std::hash::Hash for Rgba {
 }
 
 impl Rgba {
-    pub const TRANSPARENT: Rgba = Rgba::from_rgba_premultiplied(0.0, 0.0, 0.0, 0.0);
-    pub const BLACK: Rgba = Rgba::from_rgb(0.0, 0.0, 0.0);
-    pub const WHITE: Rgba = Rgba::from_rgb(1.0, 1.0, 1.0);
-    pub const RED: Rgba = Rgba::from_rgb(1.0, 0.0, 0.0);
-    pub const GREEN: Rgba = Rgba::from_rgb(0.0, 1.0, 0.0);
-    pub const BLUE: Rgba = Rgba::from_rgb(0.0, 0.0, 1.0);
+    pub const TRANSPARENT: Self = Self::from_rgba_premultiplied(0.0, 0.0, 0.0, 0.0);
+    pub const BLACK: Self = Self::from_rgb(0.0, 0.0, 0.0);
+    pub const WHITE: Self = Self::from_rgb(1.0, 1.0, 1.0);
+    pub const RED: Self = Self::from_rgb(1.0, 0.0, 0.0);
+    pub const GREEN: Self = Self::from_rgb(0.0, 1.0, 0.0);
+    pub const BLUE: Self = Self::from_rgb(0.0, 0.0, 1.0);
 
     #[inline]
     pub const fn from_rgba_premultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
@@ -220,11 +220,11 @@ impl Rgba {
 }
 
 impl std::ops::Add for Rgba {
-    type Output = Rgba;
+    type Output = Self;
 
     #[inline]
-    fn add(self, rhs: Rgba) -> Rgba {
-        Rgba([
+    fn add(self, rhs: Self) -> Self {
+        Self([
             self[0] + rhs[0],
             self[1] + rhs[1],
             self[2] + rhs[2],
@@ -233,12 +233,12 @@ impl std::ops::Add for Rgba {
     }
 }
 
-impl std::ops::Mul<Rgba> for Rgba {
-    type Output = Rgba;
+impl std::ops::Mul for Rgba {
+    type Output = Self;
 
     #[inline]
-    fn mul(self, other: Rgba) -> Rgba {
-        Rgba([
+    fn mul(self, other: Self) -> Self {
+        Self([
             self[0] * other[0],
             self[1] * other[1],
             self[2] * other[2],
@@ -248,11 +248,11 @@ impl std::ops::Mul<Rgba> for Rgba {
 }
 
 impl std::ops::Mul<f32> for Rgba {
-    type Output = Rgba;
+    type Output = Self;
 
     #[inline]
-    fn mul(self, factor: f32) -> Rgba {
-        Rgba([
+    fn mul(self, factor: f32) -> Self {
+        Self([
             self[0] * factor,
             self[1] * factor,
             self[2] * factor,

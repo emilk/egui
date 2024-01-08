@@ -87,7 +87,7 @@ impl Separator {
 
 impl Widget for Separator {
     fn ui(self, ui: &mut Ui) -> Response {
-        let Separator {
+        let Self {
             spacing,
             grow,
             is_horizontal_line,

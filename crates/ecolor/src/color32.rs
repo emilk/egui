@@ -34,33 +34,33 @@ impl std::ops::IndexMut<usize> for Color32 {
 impl Color32 {
     // Mostly follows CSS names:
 
-    pub const TRANSPARENT: Color32 = Color32::from_rgba_premultiplied(0, 0, 0, 0);
-    pub const BLACK: Color32 = Color32::from_rgb(0, 0, 0);
-    pub const DARK_GRAY: Color32 = Color32::from_rgb(96, 96, 96);
-    pub const GRAY: Color32 = Color32::from_rgb(160, 160, 160);
-    pub const LIGHT_GRAY: Color32 = Color32::from_rgb(220, 220, 220);
-    pub const WHITE: Color32 = Color32::from_rgb(255, 255, 255);
+    pub const TRANSPARENT: Self = Self::from_rgba_premultiplied(0, 0, 0, 0);
+    pub const BLACK: Self = Self::from_rgb(0, 0, 0);
+    pub const DARK_GRAY: Self = Self::from_rgb(96, 96, 96);
+    pub const GRAY: Self = Self::from_rgb(160, 160, 160);
+    pub const LIGHT_GRAY: Self = Self::from_rgb(220, 220, 220);
+    pub const WHITE: Self = Self::from_rgb(255, 255, 255);
 
-    pub const BROWN: Color32 = Color32::from_rgb(165, 42, 42);
-    pub const DARK_RED: Color32 = Color32::from_rgb(0x8B, 0, 0);
-    pub const RED: Color32 = Color32::from_rgb(255, 0, 0);
-    pub const LIGHT_RED: Color32 = Color32::from_rgb(255, 128, 128);
+    pub const BROWN: Self = Self::from_rgb(165, 42, 42);
+    pub const DARK_RED: Self = Self::from_rgb(0x8B, 0, 0);
+    pub const RED: Self = Self::from_rgb(255, 0, 0);
+    pub const LIGHT_RED: Self = Self::from_rgb(255, 128, 128);
 
-    pub const YELLOW: Color32 = Color32::from_rgb(255, 255, 0);
-    pub const LIGHT_YELLOW: Color32 = Color32::from_rgb(255, 255, 0xE0);
-    pub const KHAKI: Color32 = Color32::from_rgb(240, 230, 140);
+    pub const YELLOW: Self = Self::from_rgb(255, 255, 0);
+    pub const LIGHT_YELLOW: Self = Self::from_rgb(255, 255, 0xE0);
+    pub const KHAKI: Self = Self::from_rgb(240, 230, 140);
 
-    pub const DARK_GREEN: Color32 = Color32::from_rgb(0, 0x64, 0);
-    pub const GREEN: Color32 = Color32::from_rgb(0, 255, 0);
-    pub const LIGHT_GREEN: Color32 = Color32::from_rgb(0x90, 0xEE, 0x90);
+    pub const DARK_GREEN: Self = Self::from_rgb(0, 0x64, 0);
+    pub const GREEN: Self = Self::from_rgb(0, 255, 0);
+    pub const LIGHT_GREEN: Self = Self::from_rgb(0x90, 0xEE, 0x90);
 
-    pub const DARK_BLUE: Color32 = Color32::from_rgb(0, 0, 0x8B);
-    pub const BLUE: Color32 = Color32::from_rgb(0, 0, 255);
-    pub const LIGHT_BLUE: Color32 = Color32::from_rgb(0xAD, 0xD8, 0xE6);
+    pub const DARK_BLUE: Self = Self::from_rgb(0, 0, 0x8B);
+    pub const BLUE: Self = Self::from_rgb(0, 0, 255);
+    pub const LIGHT_BLUE: Self = Self::from_rgb(0xAD, 0xD8, 0xE6);
 
-    pub const GOLD: Color32 = Color32::from_rgb(255, 215, 0);
+    pub const GOLD: Self = Self::from_rgb(255, 215, 0);
 
-    pub const DEBUG_COLOR: Color32 = Color32::from_rgba_premultiplied(0, 200, 0, 128);
+    pub const DEBUG_COLOR: Self = Self::from_rgba_premultiplied(0, 200, 0, 128);
 
     /// An ugly color that is planned to be replaced before making it to the screen.
     ///
@@ -69,10 +69,10 @@ impl Color32 {
     ///
     /// This is used as a special color key,
     /// i.e. often taken to mean "no color".
-    pub const PLACEHOLDER: Color32 = Color32::from_rgba_premultiplied(64, 254, 0, 128);
+    pub const PLACEHOLDER: Self = Self::from_rgba_premultiplied(64, 254, 0, 128);
 
     #[deprecated = "Renamed to PLACEHOLDER"]
-    pub const TEMPORARY_COLOR: Color32 = Self::PLACEHOLDER;
+    pub const TEMPORARY_COLOR: Self = Self::PLACEHOLDER;
 
     #[inline]
     pub const fn from_rgb(r: u8, g: u8, b: u8) -> Self {
@@ -198,7 +198,7 @@ impl Color32 {
     ///
     /// This is perceptually even, and faster that [`Self::linear_multiply`].
     #[inline]
-    pub fn gamma_multiply(self, factor: f32) -> Color32 {
+    pub fn gamma_multiply(self, factor: f32) -> Self {
         crate::ecolor_assert!(0.0 <= factor && factor <= 1.0);
         let Self([r, g, b, a]) = self;
         Self([
@@ -214,7 +214,7 @@ impl Color32 {
     /// This is using linear space, which is not perceptually even.
     /// You may want to use [`Self::gamma_multiply`] instead.
     #[inline]
-    pub fn linear_multiply(self, factor: f32) -> Color32 {
+    pub fn linear_multiply(self, factor: f32) -> Self {
         crate::ecolor_assert!(0.0 <= factor && factor <= 1.0);
         // As an unfortunate side-effect of using premultiplied alpha
         // we need a somewhat expensive conversion to linear space and back.

@@ -14,7 +14,7 @@ pub struct Stroke {
 
 impl Stroke {
     /// Same as [`Stroke::default`].
-    pub const NONE: Stroke = Stroke {
+    pub const NONE: Self = Self {
         width: 0.0,
         color: Color32::TRANSPARENT,
     };
@@ -39,8 +39,8 @@ where
     Color: Into<Color32>,
 {
     #[inline(always)]
-    fn from((width, color): (f32, Color)) -> Stroke {
-        Stroke::new(width, color)
+    fn from((width, color): (f32, Color)) -> Self {
+        Self::new(width, color)
     }
 }
 

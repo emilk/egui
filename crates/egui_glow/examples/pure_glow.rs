@@ -111,7 +111,7 @@ impl GlutinWindowContext {
             )
             .unwrap();
 
-        GlutinWindowContext {
+        Self {
             window,
             gl_context,
             gl_display,

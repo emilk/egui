@@ -35,7 +35,7 @@ enum RunMode {
 ///    so there are no events to miss.
 impl Default for RunMode {
     fn default() -> Self {
-        RunMode::Reactive
+        Self::Reactive
     }
 }
 
@@ -242,7 +242,7 @@ struct EguiWindows {
 
 impl Default for EguiWindows {
     fn default() -> Self {
-        EguiWindows::none()
+        Self::none()
     }
 }
 

@@ -144,12 +144,9 @@ enum FocusDirection {
 impl FocusDirection {
     fn is_cardinal(&self) -> bool {
         match self {
-            FocusDirection::Up
-            | FocusDirection::Right
-            | FocusDirection::Down
-            | FocusDirection::Left => true,
+            Self::Up | Self::Right | Self::Down | Self::Left => true,
 
-            FocusDirection::Previous | FocusDirection::Next | FocusDirection::None => false,
+            Self::Previous | Self::Next | Self::None => false,
         }
     }
 }

@@ -33,7 +33,7 @@ impl File {
         let mime = response.content_type().map(|v| v.to_owned());
         let bytes = response.bytes.into();
 
-        Ok(File { bytes, mime })
+        Ok(Self { bytes, mime })
     }
 }
 
