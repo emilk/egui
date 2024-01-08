@@ -32,6 +32,10 @@ impl super::Demo for TextEditDemo {
 
 impl super::View for TextEditDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.vertical_centered(|ui| {
+            ui.add(crate::egui_github_link_file!());
+        });
+
         let Self { text } = self;
 
         ui.horizontal(|ui| {
