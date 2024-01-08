@@ -1786,11 +1786,11 @@ pub(super) fn rulers_at_value(
         cursors.push(Cursor::Horizontal { y: value.y });
     }
 
-    let mut prefix = String::new();
-
-    if !name.is_empty() {
-        prefix = format!("{name}\n");
-    }
+    let prefix = if name.is_empty() {
+        String::new()
+    } else {
+        format!("{name}\n")
+    };
 
     let text = {
         let scale = plot.transform.dvalue_dpos();
