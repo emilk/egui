@@ -156,6 +156,7 @@ def main() -> None:
     for commit_info, pr_info in zip(commit_infos, pr_infos):
         hexsha = commit_info.hexsha
         title = commit_info.title
+        title = title.rstrip(".").strip()  # Some PR end with an unnecessary period
         pr_number = commit_info.pr_number
 
         if pr_number is None:
