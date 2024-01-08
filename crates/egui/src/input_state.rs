@@ -290,11 +290,11 @@ impl InputState {
     ///
     /// Includes key-repeat events.
     ///
-    /// This uses [`Modifiers::matches_logically`] to match modifiers.
-    /// This means that e.g. the shortcut `Ctrl` + `Key::Plus` will be matched
-    /// as long as `Ctrl` and `Plus` are pressed, ignoring if
-    /// `Shift` or `Alt` are also pressed (because those modifiers might
-    /// be required to produce the logical `Key::Plus`).
+    /// This uses [`Modifiers::matches_logically`] to match modifiers,
+    /// meaning extra Shift and Alt modifiers are ignored.
+    /// Therefore, you should match most specific shortcuts first,
+    /// i.e. check for `Cmd-Shift-S` ("Save as…") before `Cmd-S` ("Save"),
+    /// so that a user pressing `Cmd-Shift-S` won't trigger the wrong command!
     pub fn count_and_consume_key(&mut self, modifiers: Modifiers, logical_key: Key) -> usize {
         let mut count = 0usize;
 
@@ -320,6 +320,12 @@ impl InputState {
     /// Check for a key press. If found, `true` is returned and the key pressed is consumed, so that this will only return `true` once.
     ///
     /// Includes key-repeat events.
+    ///
+    /// This uses [`Modifiers::matches_logically`] to match modifiers,
+    /// meaning extra Shift and Alt modifiers are ignored.
+    /// Therefore, you should match most specific shortcuts first,
+    /// i.e. check for `Cmd-Shift-S` ("Save as…") before `Cmd-S` ("Save"),
+    /// so that a user pressing `Cmd-Shift-S` won't trigger the wrong command!
     pub fn consume_key(&mut self, modifiers: Modifiers, logical_key: Key) -> bool {
         self.count_and_consume_key(modifiers, logical_key) > 0
     }
@@ -328,7 +334,11 @@ impl InputState {
     ///
     /// If so, `true` is returned and the key pressed is consumed, so that this will only return `true` once.
     ///
-    /// Includes key-repeat events.
+    /// This uses [`Modifiers::matches_logically`] to match modifiers,
+    /// meaning extra Shift and Alt modifiers are ignored.
+    /// Therefore, you should match most specific shortcuts first,
+    /// i.e. check for `Cmd-Shift-S` ("Save as…") before `Cmd-S` ("Save"),
+    /// so that a user pressing `Cmd-Shift-S` won't trigger the wrong command!
     pub fn consume_shortcut(&mut self, shortcut: &KeyboardShortcut) -> bool {
         let KeyboardShortcut {
             modifiers,
