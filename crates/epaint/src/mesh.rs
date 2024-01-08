@@ -105,7 +105,7 @@ impl Mesh {
     }
 
     /// Append all the indices and vertices of `other` to `self`.
-    pub fn append(&mut self, other: Mesh) {
+    pub fn append(&mut self, other: Self) {
         crate::epaint_assert!(other.is_valid());
 
         if self.is_empty() {
@@ -117,7 +117,7 @@ impl Mesh {
 
     /// Append all the indices and vertices of `other` to `self` without
     /// taking ownership.
-    pub fn append_ref(&mut self, other: &Mesh) {
+    pub fn append_ref(&mut self, other: &Self) {
         crate::epaint_assert!(other.is_valid());
 
         if self.is_empty() {

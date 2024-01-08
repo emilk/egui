@@ -94,14 +94,14 @@ impl Anchor {
     #[cfg(target_arch = "wasm32")]
     fn all() -> Vec<Self> {
         vec![
-            Anchor::Demo,
-            Anchor::EasyMarkEditor,
+            Self::Demo,
+            Self::EasyMarkEditor,
             #[cfg(feature = "http")]
-            Anchor::Http,
-            Anchor::Clock,
+            Self::Http,
+            Self::Clock,
             #[cfg(any(feature = "glow", feature = "wgpu"))]
-            Anchor::Custom3d,
-            Anchor::Colors,
+            Self::Custom3d,
+            Self::Colors,
         ]
     }
 }

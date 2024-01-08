@@ -19,8 +19,8 @@ pub struct MiscDemoWindow {
 }
 
 impl Default for MiscDemoWindow {
-    fn default() -> MiscDemoWindow {
-        MiscDemoWindow {
+    fn default() -> Self {
+        Self {
             num_columns: 2,
 
             widgets: Default::default(),
@@ -299,7 +299,7 @@ struct ColorWidgets {
 impl Default for ColorWidgets {
     fn default() -> Self {
         // Approximately the same color.
-        ColorWidgets {
+        Self {
             srgba_unmul: [0, 255, 183, 127],
             srgba_premul: [0, 187, 140, 127],
             rgba_unmul: [0.0, 1.0, 0.5, 0.5],
@@ -452,8 +452,8 @@ struct Tree(Vec<Tree>);
 impl Tree {
     pub fn demo() -> Self {
         Self(vec![
-            Tree(vec![Tree::default(); 4]),
-            Tree(vec![Tree(vec![Tree::default(); 2]); 3]),
+            Self(vec![Self::default(); 4]),
+            Self(vec![Self(vec![Self::default(); 2]); 3]),
         ])
     }
 
@@ -494,7 +494,7 @@ impl Tree {
             .collect();
 
         if ui.button("+").clicked() {
-            self.0.push(Tree::default());
+            self.0.push(Self::default());
         }
 
         Action::Keep

@@ -54,13 +54,13 @@ impl Hsva {
         #![allow(clippy::many_single_char_names)]
         if a == 0.0 {
             if r == 0.0 && b == 0.0 && a == 0.0 {
-                Hsva::default()
+                Self::default()
             } else {
-                Hsva::from_additive_rgb([r, g, b])
+                Self::from_additive_rgb([r, g, b])
             }
         } else {
             let (h, s, v) = hsv_from_rgb([r / a, g / a, b / a]);
-            Hsva { h, s, v, a }
+            Self { h, s, v, a }
         }
     }
 
@@ -69,13 +69,13 @@ impl Hsva {
     pub fn from_rgba_unmultiplied(r: f32, g: f32, b: f32, a: f32) -> Self {
         #![allow(clippy::many_single_char_names)]
         let (h, s, v) = hsv_from_rgb([r, g, b]);
-        Hsva { h, s, v, a }
+        Self { h, s, v, a }
     }
 
     #[inline]
     pub fn from_additive_rgb(rgb: [f32; 3]) -> Self {
         let (h, s, v) = hsv_from_rgb(rgb);
-        Hsva {
+        Self {
             h,
             s,
             v,
@@ -95,7 +95,7 @@ impl Hsva {
     #[inline]
     pub fn from_rgb(rgb: [f32; 3]) -> Self {
         let (h, s, v) = hsv_from_rgb(rgb);
-        Hsva { h, s, v, a: 1.0 }
+        Self { h, s, v, a: 1.0 }
     }
 
     #[inline]
@@ -145,7 +145,7 @@ impl Hsva {
     /// Represents additive colors using a negative alpha.
     #[inline]
     pub fn to_rgba_unmultiplied(&self) -> [f32; 4] {
-        let Hsva { h, s, v, a } = *self;
+        let Self { h, s, v, a } = *self;
         let [r, g, b] = rgb_from_hsv((h, s, v));
         [r, g, b, a]
     }
@@ -176,29 +176,29 @@ impl Hsva {
 
 impl From<Hsva> for Rgba {
     #[inline]
-    fn from(hsva: Hsva) -> Rgba {
-        Rgba(hsva.to_rgba_premultiplied())
+    fn from(hsva: Hsva) -> Self {
+        Self(hsva.to_rgba_premultiplied())
     }
 }
 
 impl From<Rgba> for Hsva {
     #[inline]
-    fn from(rgba: Rgba) -> Hsva {
+    fn from(rgba: Rgba) -> Self {
         Self::from_rgba_premultiplied(rgba.0[0], rgba.0[1], rgba.0[2], rgba.0[3])
     }
 }
 
 impl From<Hsva> for Color32 {
     #[inline]
-    fn from(hsva: Hsva) -> Color32 {
-        Color32::from(Rgba::from(hsva))
+    fn from(hsva: Hsva) -> Self {
+        Self::from(Rgba::from(hsva))
     }
 }
 
 impl From<Color32> for Hsva {
     #[inline]
-    fn from(srgba: Color32) -> Hsva {
-        Hsva::from(Rgba::from(srgba))
+    fn from(srgba: Color32) -> Self {
+        Self::from(Rgba::from(srgba))
     }
 }
 

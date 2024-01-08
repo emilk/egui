@@ -1933,14 +1933,14 @@ impl HandleShape {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.label("Widget handle shape");
         ui.horizontal(|ui| {
-            ui.radio_value(self, HandleShape::Circle, "Circle");
+            ui.radio_value(self, Self::Circle, "Circle");
             if ui
-                .radio(matches!(self, HandleShape::Rect { .. }), "Rectangle")
+                .radio(matches!(self, Self::Rect { .. }), "Rectangle")
                 .clicked()
             {
-                *self = HandleShape::Rect { aspect_ratio: 0.5 };
+                *self = Self::Rect { aspect_ratio: 0.5 };
             }
-            if let HandleShape::Rect { aspect_ratio } = self {
+            if let Self::Rect { aspect_ratio } = self {
                 ui.add(Slider::new(aspect_ratio, 0.1..=3.0).text("Aspect ratio"));
             }
         });
@@ -1983,8 +1983,8 @@ impl NumericColorSpace {
 impl std::fmt::Display for NumericColorSpace {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            NumericColorSpace::GammaByte => write!(f, "U8"),
-            NumericColorSpace::Linear => write!(f, "F"),
+            Self::GammaByte => write!(f, "U8"),
+            Self::Linear => write!(f, "F"),
         }
     }
 }

@@ -184,7 +184,7 @@ impl HLine {
 
 impl PlotItem for HLine {
     fn shapes(&self, ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
-        let HLine {
+        let Self {
             y,
             stroke,
             highlight,
@@ -306,7 +306,7 @@ impl VLine {
 
 impl PlotItem for VLine {
     fn shapes(&self, ui: &mut Ui, transform: &PlotTransform, shapes: &mut Vec<Shape>) {
-        let VLine {
+        let Self {
             x,
             stroke,
             highlight,
@@ -1350,8 +1350,8 @@ pub struct BarChart {
 
 impl BarChart {
     /// Create a bar chart. It defaults to vertically oriented elements.
-    pub fn new(bars: Vec<Bar>) -> BarChart {
-        BarChart {
+    pub fn new(bars: Vec<Bar>) -> Self {
+        Self {
             bars,
             default_color: Color32::TRANSPARENT,
             name: String::new(),
@@ -1427,7 +1427,7 @@ impl BarChart {
     /// Add a custom way to format an element.
     /// Can be used to display a set number of decimals or custom labels.
     #[inline]
-    pub fn element_formatter(mut self, formatter: Box<dyn Fn(&Bar, &BarChart) -> String>) -> Self {
+    pub fn element_formatter(mut self, formatter: Box<dyn Fn(&Bar, &Self) -> String>) -> Self {
         self.element_formatter = Some(formatter);
         self
     }
@@ -1436,7 +1436,7 @@ impl BarChart {
     /// Positive values are stacked on top of other positive values.
     /// Negative values are stacked below other negative values.
     #[inline]
-    pub fn stack_on(mut self, others: &[&BarChart]) -> Self {
+    pub fn stack_on(mut self, others: &[&Self]) -> Self {
         for (index, bar) in self.bars.iter_mut().enumerate() {
             let new_base_offset = if bar.value.is_sign_positive() {
                 others
@@ -1599,10 +1599,8 @@ impl BoxPlot {
 
     /// Add a custom way to format an element.
     /// Can be used to display a set number of decimals or custom labels.
-    pub fn element_formatter(
-        mut self,
-        formatter: Box<dyn Fn(&BoxElem, &BoxPlot) -> String>,
-    ) -> Self {
+    #[inline]
+    pub fn element_formatter(mut self, formatter: Box<dyn Fn(&BoxElem, &Self) -> String>) -> Self {
         self.element_formatter = Some(formatter);
         self
     }
@@ -1786,11 +1784,11 @@ pub(super) fn rulers_at_value(
         cursors.push(Cursor::Horizontal { y: value.y });
     }
 
-    let mut prefix = String::new();
-
-    if !name.is_empty() {
-        prefix = format!("{name}\n");
-    }
+    let prefix = if name.is_empty() {
+        String::new()
+    } else {
+        format!("{name}\n")
+    };
 
     let text = {
         let scale = plot.transform.dvalue_dpos();

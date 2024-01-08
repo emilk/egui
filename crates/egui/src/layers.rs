@@ -31,7 +31,7 @@ pub enum Order {
 
 impl Order {
     const COUNT: usize = 6;
-    const ALL: [Order; Self::COUNT] = [
+    const ALL: [Self; Self::COUNT] = [
         Self::Background,
         Self::PanelResizeLine,
         Self::Middle,

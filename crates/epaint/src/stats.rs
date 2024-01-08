@@ -32,9 +32,9 @@ impl<T> From<&[T]> for AllocInfo {
 }
 
 impl std::ops::Add for AllocInfo {
-    type Output = AllocInfo;
+    type Output = Self;
 
-    fn add(self, rhs: AllocInfo) -> AllocInfo {
+    fn add(self, rhs: Self) -> Self {
         use ElementSize::{Heterogenous, Homogeneous, Unknown};
         let element_size = match (self.element_size, rhs.element_size) {
             (Heterogenous, _) | (_, Heterogenous) => Heterogenous,
@@ -43,7 +43,7 @@ impl std::ops::Add for AllocInfo {
             _ => Heterogenous,
         };
 
-        AllocInfo {
+        Self {
             element_size,
             num_allocs: self.num_allocs + rhs.num_allocs,
             num_elements: self.num_elements + rhs.num_elements,
@@ -53,7 +53,7 @@ impl std::ops::Add for AllocInfo {
 }
 
 impl std::ops::AddAssign for AllocInfo {
-    fn add_assign(&mut self, rhs: AllocInfo) {
+    fn add_assign(&mut self, rhs: Self) {
         *self = *self + rhs;
     }
 }

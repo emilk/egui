@@ -141,15 +141,15 @@ impl Align {
 pub struct Align2(pub [Align; 2]);
 
 impl Align2 {
-    pub const LEFT_BOTTOM: Align2 = Align2([Align::Min, Align::Max]);
-    pub const LEFT_CENTER: Align2 = Align2([Align::Min, Align::Center]);
-    pub const LEFT_TOP: Align2 = Align2([Align::Min, Align::Min]);
-    pub const CENTER_BOTTOM: Align2 = Align2([Align::Center, Align::Max]);
-    pub const CENTER_CENTER: Align2 = Align2([Align::Center, Align::Center]);
-    pub const CENTER_TOP: Align2 = Align2([Align::Center, Align::Min]);
-    pub const RIGHT_BOTTOM: Align2 = Align2([Align::Max, Align::Max]);
-    pub const RIGHT_CENTER: Align2 = Align2([Align::Max, Align::Center]);
-    pub const RIGHT_TOP: Align2 = Align2([Align::Max, Align::Min]);
+    pub const LEFT_BOTTOM: Self = Self([Align::Min, Align::Max]);
+    pub const LEFT_CENTER: Self = Self([Align::Min, Align::Center]);
+    pub const LEFT_TOP: Self = Self([Align::Min, Align::Min]);
+    pub const CENTER_BOTTOM: Self = Self([Align::Center, Align::Max]);
+    pub const CENTER_CENTER: Self = Self([Align::Center, Align::Center]);
+    pub const CENTER_TOP: Self = Self([Align::Center, Align::Min]);
+    pub const RIGHT_BOTTOM: Self = Self([Align::Max, Align::Max]);
+    pub const RIGHT_CENTER: Self = Self([Align::Max, Align::Center]);
+    pub const RIGHT_TOP: Self = Self([Align::Max, Align::Min]);
 }
 
 impl Align2 {

@@ -57,8 +57,8 @@ impl From<HPlacement> for Placement {
     #[inline]
     fn from(placement: HPlacement) -> Self {
         match placement {
-            HPlacement::Left => Placement::LeftBottom,
-            HPlacement::Right => Placement::RightTop,
+            HPlacement::Left => Self::LeftBottom,
+            HPlacement::Right => Self::RightTop,
         }
     }
 }
@@ -67,8 +67,8 @@ impl From<VPlacement> for Placement {
     #[inline]
     fn from(placement: VPlacement) -> Self {
         match placement {
-            VPlacement::Top => Placement::RightTop,
-            VPlacement::Bottom => Placement::LeftBottom,
+            VPlacement::Top => Self::RightTop,
+            VPlacement::Bottom => Self::LeftBottom,
         }
     }
 }

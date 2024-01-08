@@ -14,12 +14,12 @@ pub enum Corner {
 }
 
 impl Corner {
-    pub fn all() -> impl Iterator<Item = Corner> {
+    pub fn all() -> impl Iterator<Item = Self> {
         [
-            Corner::LeftTop,
-            Corner::RightTop,
-            Corner::LeftBottom,
-            Corner::RightBottom,
+            Self::LeftTop,
+            Self::RightTop,
+            Self::LeftBottom,
+            Self::RightBottom,
         ]
         .iter()
         .copied()

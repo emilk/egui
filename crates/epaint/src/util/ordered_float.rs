@@ -58,7 +58,7 @@ impl<T: Float> Hash for OrderedFloat<T> {
 impl<T> From<T> for OrderedFloat<T> {
     #[inline]
     fn from(val: T) -> Self {
-        OrderedFloat(val)
+        Self(val)
     }
 }
 
@@ -84,14 +84,14 @@ pub trait FloatOrd {
 
 impl FloatOrd for f32 {
     #[inline]
-    fn ord(self) -> OrderedFloat<f32> {
+    fn ord(self) -> OrderedFloat<Self> {
         OrderedFloat(self)
     }
 }
 
 impl FloatOrd for f64 {
     #[inline]
-    fn ord(self) -> OrderedFloat<f64> {
+    fn ord(self) -> OrderedFloat<Self> {
         OrderedFloat(self)
     }
 }
@@ -119,7 +119,7 @@ mod private {
     impl FloatImpl for f32 {
         #[inline]
         fn is_nan(&self) -> bool {
-            f32::is_nan(*self)
+            Self::is_nan(*self)
         }
 
         #[inline]
@@ -131,7 +131,7 @@ mod private {
     impl FloatImpl for f64 {
         #[inline]
         fn is_nan(&self) -> bool {
-            f64::is_nan(*self)
+            Self::is_nan(*self)
         }
 
         #[inline]

@@ -187,7 +187,7 @@ impl From<IconData> for epaint::ColorImage {
             width,
             height,
         } = icon;
-        epaint::ColorImage::from_rgba_premultiplied([width as usize, height as usize], &rgba)
+        Self::from_rgba_premultiplied([width as usize, height as usize], &rgba)
     }
 }
 
@@ -199,7 +199,7 @@ impl From<&IconData> for epaint::ColorImage {
             width,
             height,
         } = icon;
-        epaint::ColorImage::from_rgba_premultiplied([*width as usize, *height as usize], rgba)
+        Self::from_rgba_premultiplied([*width as usize, *height as usize], rgba)
     }
 }
 
@@ -569,8 +569,8 @@ impl ViewportBuilder {
     /// Update this `ViewportBuilder` with a delta,
     /// returning a list of commands and a bool intdicating if the window needs to be recreated.
     #[must_use]
-    pub fn patch(&mut self, new_vp_builder: ViewportBuilder) -> (Vec<ViewportCommand>, bool) {
-        let ViewportBuilder {
+    pub fn patch(&mut self, new_vp_builder: Self) -> (Vec<ViewportCommand>, bool) {
+        let Self {
             title: new_title,
             app_id: new_app_id,
             position: new_position,

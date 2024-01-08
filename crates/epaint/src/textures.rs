@@ -214,7 +214,7 @@ impl TexturesDelta {
         self.set.is_empty() && self.free.is_empty()
     }
 
-    pub fn append(&mut self, mut newer: TexturesDelta) {
+    pub fn append(&mut self, mut newer: Self) {
         self.set.extend(newer.set);
         self.free.append(&mut newer.free);
     }

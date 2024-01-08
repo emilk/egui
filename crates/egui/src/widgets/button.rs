@@ -512,7 +512,7 @@ impl RadioButton {
 
 impl Widget for RadioButton {
     fn ui(self, ui: &mut Ui) -> Response {
-        let RadioButton { checked, text } = self;
+        let Self { checked, text } = self;
 
         let spacing = &ui.spacing();
         let icon_width = spacing.icon_width;

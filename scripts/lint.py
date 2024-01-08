@@ -59,7 +59,7 @@ def lint_lines(filepath, lines_in):
                 )
                 lines_out.append("\n")
 
-        if re.search(r"\(mut self.*-> Self", line):
+        if re.search(r"\(mut self.*-> Self", line) and "pub(crate)" not in line:
             if prev_line.strip() != "#[inline]":
                 errors.append(
                     f"{filepath}:{line_nr}: builder methods should be marked #[inline]"

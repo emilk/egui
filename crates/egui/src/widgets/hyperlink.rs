@@ -31,7 +31,7 @@ impl Link {
 
 impl Widget for Link {
     fn ui(self, ui: &mut Ui) -> Response {
-        let Link { text } = self;
+        let Self { text } = self;
         let label = Label::new(text).sense(Sense::click());
 
         let (pos, galley, response) = label.layout_in_ui(ui);

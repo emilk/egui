@@ -509,7 +509,7 @@ impl std::fmt::Debug for Context {
 }
 
 impl std::cmp::PartialEq for Context {
-    fn eq(&self, other: &Context) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
     }
 }
@@ -558,7 +558,7 @@ impl Context {
     /// // handle full_output
     /// ```
     #[must_use]
-    pub fn run(&self, new_input: RawInput, run_ui: impl FnOnce(&Context)) -> FullOutput {
+    pub fn run(&self, new_input: RawInput, run_ui: impl FnOnce(&Self)) -> FullOutput {
         crate::profile_function!();
 
         self.begin_frame(new_input);
@@ -2675,7 +2675,7 @@ impl Context {
     /// * Handle the output from [`Context::run`], including rendering
     #[allow(clippy::unused_self)]
     pub fn set_immediate_viewport_renderer(
-        callback: impl for<'a> Fn(&Context, ImmediateViewport<'a>) + 'static,
+        callback: impl for<'a> Fn(&Self, ImmediateViewport<'a>) + 'static,
     ) {
         let callback = Box::new(callback);
         IMMEDIATE_VIEWPORT_RENDERER.with(|render_sync| {
@@ -2752,7 +2752,7 @@ impl Context {
         &self,
         new_viewport_id: ViewportId,
         viewport_builder: ViewportBuilder,
-        viewport_ui_cb: impl Fn(&Context, ViewportClass) + Send + Sync + 'static,
+        viewport_ui_cb: impl Fn(&Self, ViewportClass) + Send + Sync + 'static,
     ) {
         crate::profile_function!();
 
@@ -2804,7 +2804,7 @@ impl Context {
         &self,
         new_viewport_id: ViewportId,
         builder: ViewportBuilder,
-        viewport_ui_cb: impl FnOnce(&Context, ViewportClass) -> T,
+        viewport_ui_cb: impl FnOnce(&Self, ViewportClass) -> T,
     ) -> T {
         crate::profile_function!();
 

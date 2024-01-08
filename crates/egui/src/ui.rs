@@ -1,4 +1,5 @@
 #![warn(missing_docs)] // Let's keep `Ui` well-documented.
+#![allow(clippy::use_self)]
 
 use std::hash::Hash;
 use std::sync::Arc;

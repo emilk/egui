@@ -692,7 +692,7 @@ impl ScrollArea {
 impl Prepared {
     /// Returns content size and state
     fn end(self, ui: &mut Ui) -> (Vec2, State) {
-        let Prepared {
+        let Self {
             id,
             mut state,
             inner_rect,

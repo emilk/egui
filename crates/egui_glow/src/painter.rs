@@ -28,8 +28,8 @@ trait TextureFilterExt {
 impl TextureFilterExt for egui::TextureFilter {
     fn glow_code(&self) -> u32 {
         match self {
-            egui::TextureFilter::Linear => glow::LINEAR,
-            egui::TextureFilter::Nearest => glow::NEAREST,
+            Self::Linear => glow::LINEAR,
+            Self::Nearest => glow::NEAREST,
         }
     }
 }
@@ -102,7 +102,7 @@ pub struct CallbackFn {
 impl CallbackFn {
     pub fn new<F: Fn(PaintCallbackInfo, &Painter) + Sync + Send + 'static>(callback: F) -> Self {
         let f = Box::new(callback);
-        CallbackFn { f }
+        Self { f }
     }
 }
 
@@ -123,7 +123,7 @@ impl Painter {
         gl: Arc<glow::Context>,
         shader_prefix: &str,
         shader_version: Option<ShaderVersion>,
-    ) -> Result<Painter, PainterError> {
+    ) -> Result<Self, PainterError> {
         crate::profile_function!();
         crate::check_for_gl_error_even_in_release!(&gl, "before Painter::new");
 
@@ -230,7 +230,7 @@ impl Painter {
 
             crate::check_for_gl_error_even_in_release!(&gl, "after Painter::new");
 
-            Ok(Painter {
+            Ok(Self {
                 gl,
                 max_texture_side,
                 program,

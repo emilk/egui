@@ -408,7 +408,7 @@ impl LegendDemo {
     }
 
     fn ui(&mut self, ui: &mut Ui) -> Response {
-        let LegendDemo { config } = self;
+        let Self { config } = self;
 
         egui::Grid::new("settings").show(ui, |ui| {
             ui.label("Text style:");
@@ -442,11 +442,11 @@ impl LegendDemo {
             .data_aspect(1.0);
         legend_plot
             .show(ui, |plot_ui| {
-                plot_ui.line(LegendDemo::line_with_slope(0.5).name("lines"));
-                plot_ui.line(LegendDemo::line_with_slope(1.0).name("lines"));
-                plot_ui.line(LegendDemo::line_with_slope(2.0).name("lines"));
-                plot_ui.line(LegendDemo::sin().name("sin(x)"));
-                plot_ui.line(LegendDemo::cos().name("cos(x)"));
+                plot_ui.line(Self::line_with_slope(0.5).name("lines"));
+                plot_ui.line(Self::line_with_slope(1.0).name("lines"));
+                plot_ui.line(Self::line_with_slope(2.0).name("lines"));
+                plot_ui.line(Self::sin().name("sin(x)"));
+                plot_ui.line(Self::cos().name("cos(x)"));
             })
             .response
     }
@@ -467,7 +467,7 @@ impl CustomAxesDemo {
         }
 
         let values = PlotPoints::from_explicit_callback(
-            move |x| 1.0 / (1.0 + (-2.5 * (x / CustomAxesDemo::MINS_PER_DAY - 2.0)).exp()),
+            move |x| 1.0 / (1.0 + (-2.5 * (x / Self::MINS_PER_DAY - 2.0)).exp()),
             days(0.0)..days(5.0),
             100,
         );
@@ -581,10 +581,10 @@ impl CustomAxesDemo {
             .data_aspect(2.0 * MINS_PER_DAY as f32)
             .custom_x_axes(x_axes)
             .custom_y_axes(y_axes)
-            .x_grid_spacer(CustomAxesDemo::x_grid)
+            .x_grid_spacer(Self::x_grid)
             .label_formatter(label_fmt)
             .show(ui, |plot_ui| {
-                plot_ui.line(CustomAxesDemo::logistic_fn());
+                plot_ui.line(Self::logistic_fn());
             })
             .response
     }
@@ -637,11 +637,11 @@ impl LinkedAxesDemo {
     }
 
     fn configure_plot(plot_ui: &mut egui_plot::PlotUi) {
-        plot_ui.line(LinkedAxesDemo::line_with_slope(0.5));
-        plot_ui.line(LinkedAxesDemo::line_with_slope(1.0));
-        plot_ui.line(LinkedAxesDemo::line_with_slope(2.0));
-        plot_ui.line(LinkedAxesDemo::sin());
-        plot_ui.line(LinkedAxesDemo::cos());
+        plot_ui.line(Self::line_with_slope(0.5));
+        plot_ui.line(Self::line_with_slope(1.0));
+        plot_ui.line(Self::line_with_slope(2.0));
+        plot_ui.line(Self::sin());
+        plot_ui.line(Self::cos());
     }
 
     fn ui(&mut self, ui: &mut Ui) -> Response {
@@ -664,7 +664,7 @@ impl LinkedAxesDemo {
                 .height(250.0)
                 .link_axis(link_group_id, self.link_x, self.link_y)
                 .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
-                .show(ui, LinkedAxesDemo::configure_plot);
+                .show(ui, Self::configure_plot);
             Plot::new("right-top")
                 .data_aspect(2.0)
                 .width(150.0)
@@ -674,7 +674,7 @@ impl LinkedAxesDemo {
                 .y_axis_position(egui_plot::HPlacement::Right)
                 .link_axis(link_group_id, self.link_x, self.link_y)
                 .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
-                .show(ui, LinkedAxesDemo::configure_plot);
+                .show(ui, Self::configure_plot);
         });
         Plot::new("left-bottom")
             .data_aspect(0.5)
@@ -683,7 +683,7 @@ impl LinkedAxesDemo {
             .x_axis_label("x")
             .link_axis(link_group_id, self.link_x, self.link_y)
             .link_cursor(link_group_id, self.link_cursor_x, self.link_cursor_y)
-            .show(ui, LinkedAxesDemo::configure_plot)
+            .show(ui, Self::configure_plot)
             .response
     }
 }

@@ -359,11 +359,7 @@ impl MenuRoot {
     }
 
     /// Interaction with a context menu (secondary clicks).
-    fn context_interaction(
-        response: &Response,
-        root: &mut Option<MenuRoot>,
-        id: Id,
-    ) -> MenuResponse {
+    fn context_interaction(response: &Response, root: &mut Option<Self>, id: Id) -> MenuResponse {
         let response = response.interact(Sense::click());
         response.ctx.input(|input| {
             let pointer = &input.pointer;
@@ -389,7 +385,7 @@ impl MenuRoot {
     fn handle_menu_response(root: &mut MenuRootManager, menu_response: MenuResponse) {
         match menu_response {
             MenuResponse::Create(pos, id) => {
-                root.inner = Some(MenuRoot::new(pos, id));
+                root.inner = Some(Self::new(pos, id));
             }
             MenuResponse::Close => root.inner = None,
             MenuResponse::Stay => {}
@@ -458,7 +454,7 @@ impl SubMenuButton {
     }
 
     pub(crate) fn show(self, ui: &mut Ui, menu_state: &MenuState, sub_id: Id) -> Response {
-        let SubMenuButton { text, icon, .. } = self;
+        let Self { text, icon, .. } = self;
 
         let text_style = TextStyle::Button;
         let sense = Sense::click();
@@ -655,11 +651,11 @@ impl MenuState {
         self.sub_menu.as_ref().map(|(id, _)| *id)
     }
 
-    fn current_submenu(&self) -> Option<&Arc<RwLock<MenuState>>> {
+    fn current_submenu(&self) -> Option<&Arc<RwLock<Self>>> {
         self.sub_menu.as_ref().map(|(_, sub)| sub)
     }
 
-    fn submenu(&mut self, id: Id) -> Option<&Arc<RwLock<MenuState>>> {
+    fn submenu(&mut self, id: Id) -> Option<&Arc<RwLock<Self>>> {
         self.sub_menu
             .as_ref()
             .and_then(|(k, sub)| if id == *k { Some(sub) } else { None })
@@ -668,7 +664,7 @@ impl MenuState {
     /// Open submenu at position, if not already open.
     fn open_submenu(&mut self, id: Id, pos: Pos2) {
         if !self.is_open(id) {
-            self.sub_menu = Some((id, Arc::new(RwLock::new(MenuState::new(pos)))));
+            self.sub_menu = Some((id, Arc::new(RwLock::new(Self::new(pos)))));
         }
     }
 }

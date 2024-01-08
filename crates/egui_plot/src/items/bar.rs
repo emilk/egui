@@ -40,8 +40,8 @@ impl Bar {
     /// - `value`: Height of the bar (if vertical).
     ///
     /// By default the bar is vertical and its base is at zero.
-    pub fn new(argument: f64, height: f64) -> Bar {
-        Bar {
+    pub fn new(argument: f64, height: f64) -> Self {
+        Self {
             argument,
             value: height,
             orientation: Orientation::default(),
