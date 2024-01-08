@@ -61,6 +61,12 @@ pub struct Ui {
 
     /// Indicates whether this Ui belongs to a Menu.
     menu_state: Option<Arc<RwLock<MenuState>>>,
+
+    /// Local data tied to this ui instance.
+    /// Option to avoid allocating when not needed.
+    /// This is useful to store temporary state without locking the global `Memory`.
+    /// This will be cloned and inherited to child ui instance on [`Self::child_ui`].
+    local_data: Option<IdTypeMap>,
 }
 
 impl Ui {
@@ -81,6 +87,7 @@ impl Ui {
             placer: Placer::new(max_rect, Layout::default()),
             enabled: true,
             menu_state: None,
+            local_data: None,
         }
     }
 
@@ -108,6 +115,7 @@ impl Ui {
             placer: Placer::new(max_rect, layout),
             enabled: self.enabled,
             menu_state,
+            local_data: self.local_data.clone(),
         }
     }
 
@@ -380,6 +388,26 @@ impl Ui {
     #[inline]
     pub fn data_mut<R>(&self, writer: impl FnOnce(&mut IdTypeMap) -> R) -> R {
         self.ctx().data_mut(writer)
+    }
+
+    /// Read-only access to the ui local [`IdTypeMap`], which stores temporary widget state for
+    /// this instance of [`Ui`] and its child Uis. This is not shared between different frames, and this is cloned
+    /// and inherited to child ui instance on [`Self::child_ui`]. Compared to `data` this is more efficient since it does not require locking.
+    /// This returns `None` if [`Self::set_local_data()`] is not called yet for this instance or
+    /// parent instance.
+    /// You can serialize or deserialize this map in any time, so `_persisted` methods on [`IdTypeMap`] has meaning while this is a frame temporary map.
+    #[inline]
+    pub fn local_data(&self) -> Option<&IdTypeMap> {
+        self.local_data.as_ref()
+    }
+
+    /// Read-write access to the ui local [`IdTypeMap`], which stores temporary widget state for
+    /// this instance of [`Ui`] and its child Uis. This is not shared between different frames, and this is cloned
+    /// and inherited to child ui instance on [`Self::child_ui`]. Compared to `data_mut` this is more efficient since it does not require locking.
+    /// You can serialize or deserialize this map in any time, so `_persisted` methods on [`IdTypeMap`] has meaning while this is a frame temporary map.
+    #[inline]
+    pub fn local_data_mut(&mut self) -> &mut IdTypeMap {
+        self.local_data.get_or_insert_with(IdTypeMap::default)
     }
 
     /// Read-only access to the shared [`PlatformOutput`].
