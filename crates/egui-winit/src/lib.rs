@@ -182,9 +182,9 @@ impl State {
         self.allow_ime
     }
 
-    /// Returns [`false`] or the last value that [`Window::set_ime_allowed()`] was called with, used for debouncing.
-    pub fn allow_ime_mut(&mut self) -> &mut bool {
-        &mut self.allow_ime
+    /// Set the last value that [`Window::set_ime_allowed()`] was called with.
+    pub fn set_allow_ime(&mut self, allow: bool) {
+        self.allow_ime = allow;
     }
 
     #[inline]
