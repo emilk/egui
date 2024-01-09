@@ -179,7 +179,7 @@ impl State {
 
     /// Places the text onto the clipboard.
     pub fn set_clipboard_text(&mut self, text: String) {
-        self.clipboard.set(text)
+        self.clipboard.set(text);
     }
 
     /// Returns [`false`] or the last value that [`Window::set_ime_allowed()`] was called with, used for debouncing.
