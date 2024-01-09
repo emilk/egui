@@ -96,3 +96,12 @@ log = { version = "0.4", optional = true, features = ["std"] }
 puffin = { workspace = true, optional = true }
 ron = { version = "0.8", optional = true }
 serde = { version = "1", optional = true, features = ["derive", "rc"] }
+
+[dev-dependencies]
+criterion = "0.5"
+egui_master = { package = "egui", git = "https://github.com/ryo33/egui.git", rev = "937c09f14aaf7dd6dd6291be9e0de3728e3c6f12" }
+
+[[bench]]
+name = "local_data"
+harness = false
+path = "../../benches/local_data.rs"

@@ -957,6 +957,8 @@ dependencies = [
  "num-traits",
  "once_cell",
  "oorandom",
+ "plotters",
+ "rayon",
  "regex",
  "serde",
  "serde_derive",
@@ -983,6 +985,30 @@ checksum = "a33c2bf77f2df06183c3aa30d1e96c0695a313d4f9c453cc3762a6db39f99200"
 dependencies = [
  "cfg-if",
  "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-deque"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce6fd6f855243022dcecf8702fef0c297d4338e226845fe067f6341ad9fa0cef"
+dependencies = [
+ "cfg-if",
+ "crossbeam-epoch",
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-epoch"
+version = "0.9.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae211234986c545741a7dc064309f67ee1e5ad243d0e48335adc0484d960bcc7"
+dependencies = [
+ "autocfg",
+ "cfg-if",
+ "crossbeam-utils",
+ "memoffset 0.9.0",
+ "scopeguard",
 ]
 
 [[package]]
@@ -1161,6 +1187,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "ecolor"
+version = "0.24.2"
+source = "git+https://github.com/ryo33/egui.git?rev=937c09f14aaf7dd6dd6291be9e0de3728e3c6f12#937c09f14aaf7dd6dd6291be9e0de3728e3c6f12"
+
+[[package]]
 name = "eframe"
 version = "0.24.2"
 dependencies = [
@@ -1168,7 +1199,7 @@ dependencies = [
  "cocoa",
  "directories-next",
  "document-features",
- "egui",
+ "egui 0.24.2",
  "egui-wgpu",
  "egui-winit",
  "egui_glow",
@@ -1203,8 +1234,10 @@ dependencies = [
  "accesskit",
  "ahash",
  "backtrace",
+ "criterion",
  "document-features",
- "epaint",
+ "egui 0.24.2 (git+https://github.com/ryo33/egui.git?rev=937c09f14aaf7dd6dd6291be9e0de3728e3c6f12)",
+ "epaint 0.24.2",
  "log",
  "nohash-hasher",
  "puffin",
@@ -1213,13 +1246,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui"
+version = "0.24.2"
+source = "git+https://github.com/ryo33/egui.git?rev=937c09f14aaf7dd6dd6291be9e0de3728e3c6f12#937c09f14aaf7dd6dd6291be9e0de3728e3c6f12"
+dependencies = [
+ "ahash",
+ "epaint 0.24.2 (git+https://github.com/ryo33/egui.git?rev=937c09f14aaf7dd6dd6291be9e0de3728e3c6f12)",
+ "nohash-hasher",
+]
+
+[[package]]
 name = "egui-wgpu"
 version = "0.24.2"
 dependencies = [
  "bytemuck",
  "document-features",
- "egui",
- "epaint",
+ "egui 0.24.2",
+ "epaint 0.24.2",
  "log",
  "puffin",
  "thiserror",
@@ -1235,7 +1278,7 @@ dependencies = [
  "accesskit_winit",
  "arboard",
  "document-features",
- "egui",
+ "egui 0.24.2",
  "log",
  "puffin",
  "raw-window-handle 0.5.2",
@@ -1253,7 +1296,7 @@ dependencies = [
  "bytemuck",
  "chrono",
  "eframe",
- "egui",
+ "egui 0.24.2",
  "egui_demo_lib",
  "egui_extras",
  "ehttp",
@@ -1277,7 +1320,7 @@ dependencies = [
  "chrono",
  "criterion",
  "document-features",
- "egui",
+ "egui 0.24.2",
  "egui_extras",
  "egui_plot",
  "log",
@@ -1291,7 +1334,7 @@ version = "0.24.2"
 dependencies = [
  "chrono",
  "document-features",
- "egui",
+ "egui 0.24.2",
  "ehttp",
  "enum-map",
  "image",
@@ -1309,13 +1352,13 @@ version = "0.24.2"
 dependencies = [
  "bytemuck",
  "document-features",
- "egui",
+ "egui 0.24.2",
  "egui-winit",
  "glow",
  "glutin",
  "glutin-winit",
  "log",
- "memoffset",
+ "memoffset 0.7.1",
  "puffin",
  "raw-window-handle 0.5.2",
  "wasm-bindgen",
@@ -1327,7 +1370,7 @@ name = "egui_plot"
 version = "0.24.2"
 dependencies = [
  "document-features",
- "egui",
+ "egui 0.24.2",
  "serde",
 ]
 
@@ -1360,6 +1403,11 @@ dependencies = [
  "mint",
  "serde",
 ]
+
+[[package]]
+name = "emath"
+version = "0.24.2"
+source = "git+https://github.com/ryo33/egui.git?rev=937c09f14aaf7dd6dd6291be9e0de3728e3c6f12#937c09f14aaf7dd6dd6291be9e0de3728e3c6f12"
 
 [[package]]
 name = "enum-map"
@@ -1436,12 +1484,25 @@ dependencies = [
  "bytemuck",
  "criterion",
  "document-features",
- "ecolor",
- "emath",
+ "ecolor 0.24.2",
+ "emath 0.24.2",
  "log",
  "nohash-hasher",
  "parking_lot",
  "serde",
+]
+
+[[package]]
+name = "epaint"
+version = "0.24.2"
+source = "git+https://github.com/ryo33/egui.git?rev=937c09f14aaf7dd6dd6291be9e0de3728e3c6f12#937c09f14aaf7dd6dd6291be9e0de3728e3c6f12"
+dependencies = [
+ "ab_glyph",
+ "ahash",
+ "ecolor 0.24.2 (git+https://github.com/ryo33/egui.git?rev=937c09f14aaf7dd6dd6291be9e0de3728e3c6f12)",
+ "emath 0.24.2 (git+https://github.com/ryo33/egui.git?rev=937c09f14aaf7dd6dd6291be9e0de3728e3c6f12)",
+ "nohash-hasher",
+ "parking_lot",
 ]
 
 [[package]]
@@ -2359,6 +2420,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "memoffset"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a634b1c61a95585bd15607c6ab0c4e5b226e695ff2800ba0cdccddf208c406c"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
 name = "metal"
 version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2488,7 +2558,7 @@ dependencies = [
  "bitflags 1.3.2",
  "cfg-if",
  "libc",
- "memoffset",
+ "memoffset 0.7.1",
 ]
 
 [[package]]
@@ -2797,6 +2867,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "plotters"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2c224ba00d7cadd4d5c660deaf2098e5e80e07846537c51f9cfa4be50c1fd45"
+dependencies = [
+ "num-traits",
+ "plotters-backend",
+ "plotters-svg",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "plotters-backend"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e76628b4d3a7581389a35d5b6e2139607ad7c75b17aed325f210aa91f4a9609"
+
+[[package]]
+name = "plotters-svg"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38f6d39893cca0701371e3c27294f09797214b86f1fb951b89ade8ec04e2abab"
+dependencies = [
+ "plotters-backend",
+]
+
+[[package]]
 name = "png"
 version = "0.17.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3010,6 +3108,26 @@ name = "raw-window-handle"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42a9830a0e1b9fb145ebb365b8bc4ccd75f290f98c0247deafbbe2c75cefb544"
+
+[[package]]
+name = "rayon"
+version = "1.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c27db03db7734835b3f53954b534c91069375ce6ccaa2e065441e07d9b6cdb1"
+dependencies = [
+ "either",
+ "rayon-core",
+]
+
+[[package]]
+name = "rayon-core"
+version = "1.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ce3fb6ad83f861aac485e76e1985cd109d9a3713802152be56c3b1f0e0658ed"
+dependencies = [
+ "crossbeam-deque",
+ "crossbeam-utils",
+]
 
 [[package]]
 name = "rctree"
