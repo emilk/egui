@@ -173,12 +173,12 @@ impl State {
     }
 
     /// Fetches text from the clipboard and returns it.
-    pub fn clipboard(&mut self) -> Option<String> {
+    pub fn clipboard_text(&mut self) -> Option<String> {
         self.clipboard.get()
     }
 
     /// Places the text onto the clipboard.
-    pub fn set_clipboard(&mut self, text: String) {
+    pub fn set_clipboard_text(&mut self, text: String) {
         self.clipboard.set(text)
     }
 
