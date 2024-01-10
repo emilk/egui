@@ -29,6 +29,15 @@ egui can be used anywhere you can draw textured triangles, which means you can e
 
 ## Example
 
+First, execute this command to add Egui as a project dependency:
+
+
+```
+cargo add egui
+```
+
+Here's an example of a basic Egui application
+
 ``` rust
 ui.heading("My egui Application");
 ui.horizontal(|ui| {
@@ -42,6 +51,9 @@ if ui.button("Click each year").clicked() {
 ui.label(format!("Hello '{name}', age {age}"));
 ui.image(egui::include_image!("ferris.png"));
 ```
+
+
+Here's the output the program:
 
 <img src="media/demo.gif">
 
