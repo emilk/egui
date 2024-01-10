@@ -47,7 +47,7 @@ pub trait View {
 
 /// Something to view
 pub trait Demo {
-    /// Is the demo enabled for this integraton?
+    /// Is the demo enabled for this integration?
     fn is_enabled(&self, _ctx: &egui::Context) -> bool {
         true
     }
