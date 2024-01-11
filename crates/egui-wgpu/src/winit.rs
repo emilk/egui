@@ -5,7 +5,7 @@ use egui::{ViewportId, ViewportIdMap, ViewportIdSet};
 use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
 
 struct SurfaceState {
-    surface: wgpu::Surface,
+    surface: wgpu::Surface<'static>,
     alpha_mode: wgpu::CompositeAlphaMode,
     width: u32,
     height: u32,
@@ -198,7 +198,8 @@ impl Painter {
             if self.surfaces.get(&viewport_id).is_none() {
                 let surface = unsafe {
                     crate::profile_scope!("create_surface");
-                    self.instance.create_surface(&window)?
+                    self.instance
+                        .create_surface_unsafe(wgpu::SurfaceTargetUnsafe::from_window(&window)?)?
                 };
 
                 let render_state = if let Some(render_state) = &self.render_state {

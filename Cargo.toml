@@ -54,8 +54,9 @@ puffin = "0.18"
 raw-window-handle = "0.5.0"
 thiserror = "1.0.37"
 
-# Make the renderer `Sync` even on wasm32, because it makes the code simpler:
-wgpu = { version = "0.18.0", features = ["fragile-send-sync-non-atomic-wasm"] }
+wgpu = { path = "../wgpu/wgpu", features = [
+    "fragile-send-sync-non-atomic-wasm",
+] } # Make the renderer `Sync` even on wasm32, because it makes the code simpler:
 
 # Use this to build wgpu with WebGL support on the Web *instead* of using WebGPU.
 #wgpu = { version = "0.18.0", features = ["webgl"] }

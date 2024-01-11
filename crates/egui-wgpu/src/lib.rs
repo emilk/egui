@@ -34,6 +34,9 @@ pub enum WgpuError {
 
     #[error(transparent)]
     CreateSurfaceError(#[from] wgpu::CreateSurfaceError),
+
+    #[error(transparent)]
+    HandleError(#[from] ::winit::raw_window_handle::HandleError),
 }
 
 /// Access to the render state for egui.
@@ -63,14 +66,14 @@ impl RenderState {
     pub async fn create(
         config: &WgpuConfiguration,
         instance: &wgpu::Instance,
-        surface: &wgpu::Surface,
+        surface: &wgpu::Surface<'static>,
         depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
     ) -> Result<Self, WgpuError> {
         crate::profile_scope!("RenderState::create"); // async yield give bad names using `profile_function`
 
         #[cfg(not(target_arch = "wasm32"))]
-        let adapters: Vec<_> = instance.enumerate_adapters(wgpu::Backends::all()).collect();
+        let adapters: Vec<_> = instance.enumerate_adapters(wgpu::Backends::all());
 
         let adapter = {
             crate::profile_scope!("request_adapter");
@@ -228,8 +231,8 @@ impl Default for WgpuConfiguration {
 
                 wgpu::DeviceDescriptor {
                     label: Some("egui wgpu device"),
-                    features: wgpu::Features::default(),
-                    limits: wgpu::Limits {
+                    required_features: wgpu::Features::default(),
+                    required_limits: wgpu::Limits {
                         // When using a depth buffer, we have to be able to create a texture
                         // large enough for the entire surface, and we want to support 4k+ displays.
                         max_texture_dimension_2d: 8192,
