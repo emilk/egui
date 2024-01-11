@@ -34,8 +34,9 @@ while test $# -gt 0; do
       echo "  --release: Build with --release, and then run wasm-opt."
       echo "             NOTE: --release also removes debug symbols, unless you also use -g."
       echo ""
-      echo "  --webgpu:  Build a binary for WebGPU instead of WebGL."
-      echo "             Note that the resulting wasm will ONLY work on browsers with WebGPU."
+      echo "  --wgpu:    Build a binary using wgpu instead of glow/webgl."
+      echo "             The resulting binary will automatically use WebGPU if available and"
+      echo "             fall back to a WebGL emulation layer otherwise."
       exit 0
       ;;
 
@@ -57,9 +58,9 @@ while test $# -gt 0; do
       BUILD_FLAGS="--release"
       ;;
 
-    --webgpu)
+    --wgpu)
       shift
-      WEB_GPU=true
+      WGPU=true
       ;;
 
     *)
@@ -71,8 +72,8 @@ done
 
 OUT_FILE_NAME="egui_demo_app"
 
-if [[ "${WEB_GPU}" == true ]]; then
-  FEATURES="${FEATURES},wgpu"
+if [[ "${WGPU}" == true ]]; then
+  FEATURES="${FEATURES},wgpu-with-webgl-fallback"
 else
   FEATURES="${FEATURES},glow"
 fi

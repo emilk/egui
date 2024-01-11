@@ -95,6 +95,10 @@ web_screen_reader = [
 ## This overrides the `glow` feature.
 wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster", "dep:raw-window-handle"]
 
+## Use [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui-wgpu`](https://github.com/emilk/egui/tree/master/crates/egui-wgpu))
+## and on the web use a WebGL emulation layer if WebGPU is not available.
+wgpu-with-webgl-fallback = ["wgpu", "wgpu?/webgl"]
+
 ## Enables compiling for x11.
 x11 = ["egui-winit/x11"]
 
