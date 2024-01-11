@@ -30,7 +30,7 @@ unsafe impl raw_window_handle::HasRawDisplayHandle for EguiWebWindow {
 pub(crate) struct WebPainterWgpu {
     canvas: HtmlCanvasElement,
     canvas_id: String,
-    surface: wgpu::Surface,
+    surface: wgpu::Surface<'static>,
     surface_configuration: wgpu::SurfaceConfiguration,
     render_state: Option<RenderState>,
     on_surface_error: Arc<dyn Fn(wgpu::SurfaceError) -> SurfaceErrorAction>,
@@ -82,20 +82,9 @@ impl WebPainterWgpu {
 
         let canvas = super::canvas_element_or_die(canvas_id);
 
-        let surface = if false {
-            instance.create_surface_from_canvas(canvas.clone())
-        } else {
-            // Workaround for https://github.com/gfx-rs/wgpu/issues/3710:
-            // Don't use `create_surface_from_canvas`, but `create_surface` instead!
-            let raw_window = EguiWebWindow(egui::util::hash(("egui on wgpu", canvas_id)) as u32);
-            canvas.set_attribute("data-raw-handle", &raw_window.0.to_string());
-
-            #[allow(unsafe_code)]
-            unsafe {
-                instance.create_surface(&raw_window)
-            }
-        }
-        .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
+        let surface = instance
+            .create_surface(wgpu::SurfaceTarget::Canvas(canvas.clone()))
+            .map_err(|err| format!("failed to create wgpu surface: {err}"))?;
 
         let depth_format = egui_wgpu::depth_format_from_bits(options.depth_buffer, 0);
         let render_state =

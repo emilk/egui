@@ -35,6 +35,7 @@ pub enum WgpuError {
     #[error(transparent)]
     CreateSurfaceError(#[from] wgpu::CreateSurfaceError),
 
+    #[cfg(feature = "winit")]
     #[error(transparent)]
     HandleError(#[from] ::winit::raw_window_handle::HandleError),
 }
