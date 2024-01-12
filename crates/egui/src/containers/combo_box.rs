@@ -82,6 +82,8 @@ impl ComboBox {
     }
 
     /// Set the outer width of the button and menu.
+    ///
+    /// Default is [`Spacing::combo_width`].
     #[inline]
     pub fn width(mut self, width: f32) -> Self {
         self.width = Some(width);
