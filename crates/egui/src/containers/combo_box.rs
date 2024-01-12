@@ -2,6 +2,9 @@ use epaint::Shape;
 
 use crate::{style::WidgetVisuals, *};
 
+#[allow(unused_imports)] // Documentation
+use crate::style::Spacing;
+
 /// Indicate whether or not a popup will be shown above or below the box.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum AboveOrBelow {
