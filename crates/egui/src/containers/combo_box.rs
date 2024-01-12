@@ -188,8 +188,7 @@ impl ComboBox {
                 menu_contents,
                 icon,
                 wrap_enabled,
-                width,
-                height,
+                (width, height),
             );
             if let Some(label) = label {
                 ir.response
@@ -258,9 +257,10 @@ fn combo_box_dyn<'c, R>(
     menu_contents: Box<dyn FnOnce(&mut Ui) -> R + 'c>,
     icon: Option<IconPainter>,
     wrap_enabled: bool,
-    width: Option<f32>,
-    height: Option<f32>,
+    width_and_height: (Option<f32>, Option<f32>),
 ) -> InnerResponse<Option<R>> {
+	let (width, height) = width_and_height;
+
     let popup_id = button_id.with("popup");
 
     let is_popup_open = ui.memory(|m| m.is_popup_open(popup_id));
