@@ -259,7 +259,7 @@ fn combo_box_dyn<'c, R>(
     wrap_enabled: bool,
     width_and_height: (Option<f32>, Option<f32>),
 ) -> InnerResponse<Option<R>> {
-	let (width, height) = width_and_height;
+    let (width, height) = width_and_height;
 
     let popup_id = button_id.with("popup");
 
