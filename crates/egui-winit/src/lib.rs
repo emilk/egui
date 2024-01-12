@@ -341,9 +341,10 @@ impl State {
                 }
             }
             WindowEvent::KeyboardInput { event, .. } => {
+                self.on_keyboard_input(event);
+
                 // When pressing the Tab key, egui focuses the first focusable element, hence Tab always consumes.
-                let consumed = self.on_keyboard_input(event)
-                    || self.egui_ctx.wants_keyboard_input()
+                let consumed = self.egui_ctx.wants_keyboard_input()
                     || event.logical_key
                         == winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab);
                 EventResponse {
@@ -653,7 +654,7 @@ impl State {
         }
     }
 
-    fn on_keyboard_input(&mut self, event: &winit::event::KeyEvent) -> bool {
+    fn on_keyboard_input(&mut self, event: &winit::event::KeyEvent) {
         let winit::event::KeyEvent {
             // Represents the position of a key independent of the currently active layout.
             //
@@ -702,10 +703,10 @@ impl State {
             if pressed {
                 if is_cut_command(self.egui_input.modifiers, logical_key) {
                     self.egui_input.events.push(egui::Event::Cut);
-                    return true;
+                    return;
                 } else if is_copy_command(self.egui_input.modifiers, logical_key) {
                     self.egui_input.events.push(egui::Event::Copy);
-                    return true;
+                    return;
                 } else if is_paste_command(self.egui_input.modifiers, logical_key) {
                     if let Some(contents) = self.clipboard.get() {
                         let contents = contents.replace("\r\n", "\n");
@@ -713,7 +714,7 @@ impl State {
                             self.egui_input.events.push(egui::Event::Paste(contents));
                         }
                     }
-                    return true;
+                    return;
                 }
             }
 
@@ -744,8 +745,6 @@ impl State {
                 }
             }
         }
-
-        false
     }
 
     /// Call with the output given by `egui`.
