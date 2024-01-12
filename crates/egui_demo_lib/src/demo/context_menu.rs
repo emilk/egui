@@ -1,3 +1,5 @@
+use egui::Vec2b;
+
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 enum Plot {
@@ -19,7 +21,7 @@ fn sigmoid(x: f64) -> f64 {
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ContextMenus {
     plot: Plot,
-    show_axes: [bool; 2],
+    show_axes: Vec2b,
     allow_drag: bool,
     allow_zoom: bool,
     allow_scroll: bool,
@@ -33,7 +35,7 @@ impl Default for ContextMenus {
     fn default() -> Self {
         Self {
             plot: Plot::Sin,
-            show_axes: [true, true],
+            show_axes: Vec2b::TRUE,
             allow_drag: true,
             allow_zoom: true,
             allow_scroll: true,
@@ -66,6 +68,11 @@ impl super::View for ContextMenus {
             ui.menu_button("Click for menu", Self::nested_menus);
             ui.button("Right-click for menu")
                 .context_menu(Self::nested_menus);
+            if ui.ctx().is_context_menu_open() {
+                ui.label("Context menu is open");
+            } else {
+                ui.label("Context menu is closed");
+            }
         });
 
         ui.separator();
@@ -117,7 +124,7 @@ impl super::View for ContextMenus {
 
 impl ContextMenus {
     fn example_plot(&self, ui: &mut egui::Ui) -> egui::Response {
-        use egui::plot::{Line, PlotPoints};
+        use egui_plot::{Line, PlotPoints};
         let n = 128;
         let line = Line::new(
             (0..=n)
@@ -132,7 +139,7 @@ impl ContextMenus {
                 })
                 .collect::<PlotPoints>(),
         );
-        egui::plot::Plot::new("example_plot")
+        egui_plot::Plot::new("example_plot")
             .show_axes(self.show_axes)
             .allow_drag(self.allow_drag)
             .allow_zoom(self.allow_zoom)

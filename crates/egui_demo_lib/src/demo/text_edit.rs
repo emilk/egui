@@ -1,12 +1,12 @@
-/// Showcase [`TextEdit`].
+/// Showcase [`egui::TextEdit`].
 #[derive(PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
-pub struct TextEdit {
+pub struct TextEditDemo {
     pub text: String,
 }
 
-impl Default for TextEdit {
+impl Default for TextEditDemo {
     fn default() -> Self {
         Self {
             text: "Edit this text".to_owned(),
@@ -14,7 +14,7 @@ impl Default for TextEdit {
     }
 }
 
-impl super::Demo for TextEdit {
+impl super::Demo for TextEditDemo {
     fn name(&self) -> &'static str {
         "🖹 TextEdit"
     }
@@ -30,8 +30,12 @@ impl super::Demo for TextEdit {
     }
 }
 
-impl super::View for TextEdit {
+impl super::View for TextEditDemo {
     fn ui(&mut self, ui: &mut egui::Ui) {
+        ui.vertical_centered(|ui| {
+            ui.add(crate::egui_github_link_file!());
+        });
+
         let Self { text } = self;
 
         ui.horizontal(|ui| {

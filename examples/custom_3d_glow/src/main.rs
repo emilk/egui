@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 #![allow(unsafe_code)]
 
-use eframe::egui;
+use eframe::{egui, egui_glow, glow};
 
 use egui::mutex::Mutex;
 use std::sync::Arc;
@@ -9,7 +9,7 @@ use std::sync::Arc;
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(350.0, 380.0)),
+        viewport: egui::ViewportBuilder::default().with_inner_size([350.0, 380.0]),
         multisampling: 4,
         renderer: eframe::Renderer::Glow,
         ..Default::default()
@@ -144,7 +144,7 @@ impl RotatingTriangle {
                     let shader = gl
                         .create_shader(*shader_type)
                         .expect("Cannot create shader");
-                    gl.shader_source(shader, &format!("{}\n{}", shader_version, shader_source));
+                    gl.shader_source(shader, &format!("{shader_version}\n{shader_source}"));
                     gl.compile_shader(shader);
                     assert!(
                         gl.get_shader_compile_status(shader),

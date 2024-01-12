@@ -7,7 +7,22 @@
 //! To learn how to set up `eframe` for web and native, go to <https://github.com/emilk/eframe_template/> and follow the instructions there!
 //!
 //! In short, you implement [`App`] (especially [`App::update`]) and then
-//! call [`crate::run_native`] from your `main.rs`, and/or call `eframe::start_web` from your `lib.rs`.
+//! call [`crate::run_native`] from your `main.rs`, and/or use `eframe::WebRunner` from your `lib.rs`.
+//!
+//! ## Compiling for web
+//! To get copy-paste working on web, you need to compile with
+//! `export RUSTFLAGS=--cfg=web_sys_unstable_apis`.
+//!
+//! You need to install the `wasm32` target with `rustup target add wasm32-unknown-unknown`.
+//!
+//! Build the `.wasm` using `cargo build --target wasm32-unknown-unknown`
+//! and then use [`wasm-bindgen`](https://github.com/rustwasm/wasm-bindgen) to generate the JavaScript glue code.
+//!
+//! See the [`eframe_template` repository](https://github.com/emilk/eframe_template/) for more.
+//!
+//! ## Simplified usage
+//! If your app is only for native, and you don't need advanced features like state persistence,
+//! then you can use the simpler function [`run_simple_native`].
 //!
 //! ## Usage, native:
 //! ``` no_run
@@ -50,7 +65,7 @@
 //! #[derive(Clone)]
 //! #[wasm_bindgen]
 //! pub struct WebHandle {
-//!     runner: WebRunner,
+//!     runner: eframe::WebRunner,
 //! }
 //!
 //! # #[cfg(target_arch = "wasm32")]
@@ -61,10 +76,10 @@
 //!     #[wasm_bindgen(constructor)]
 //!     pub fn new() -> Self {
 //!         // Redirect [`log`] message to `console.log` and friends:
-//!         eframe::web::WebLogger::init(log::LevelFilter::Debug).ok();
+//!         eframe::WebLogger::init(log::LevelFilter::Debug).ok();
 //!
 //!         Self {
-//!             runner: WebRunner::new(),
+//!             runner: eframe::WebRunner::new(),
 //!         }
 //!     }
 //!
@@ -82,6 +97,7 @@
 //!
 //!     // The following are optional:
 //!
+//!     /// Shut down eframe and clean up resources.
 //!     #[wasm_bindgen]
 //!     pub fn destroy(&self) {
 //!         self.runner.destroy();
@@ -113,14 +129,11 @@
 //! }
 //! ```
 //!
-//! ## Simplified usage
-//! If your app is only for native, and you don't need advanced features like state persistence,
-//! then you can use the simpler function [`run_simple_native`].
-//!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
 
+#![warn(missing_docs)] // let's keep eframe well-documented
 #![allow(clippy::needless_doctest_main)]
 
 // Re-export all useful libraries:
@@ -150,7 +163,7 @@ pub use web_sys;
 pub mod web;
 
 #[cfg(target_arch = "wasm32")]
-pub use web::WebRunner;
+pub use web::{WebLogger, WebRunner};
 
 // ----------------------------------------------------------------------------
 // When compiling natively
@@ -159,10 +172,24 @@ pub use web::WebRunner;
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 mod native;
 
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[cfg(feature = "persistence")]
+pub use native::file_storage::storage_dir;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod icon_data;
+
 /// This is how you start a native (desktop) app.
 ///
-/// The first argument is name of your app, used for the title bar of the native window
-/// and the save location of persistence (see [`App::save`]).
+/// The first argument is name of your app, which is a an identifier
+/// used for the save location of persistence (see [`App::save`]).
+/// It is also used as the application id on wayland.
+/// If you set no title on the viewport, the app id will be used
+/// as the title.
+///
+/// For details about application ID conventions, see the
+/// [Desktop Entry Spec](https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html#desktop-file-id)
 ///
 /// Call from `fn main` like this:
 /// ``` no_run
@@ -202,16 +229,29 @@ mod native;
 #[allow(clippy::needless_pass_by_value)]
 pub fn run_native(
     app_name: &str,
-    native_options: NativeOptions,
+    mut native_options: NativeOptions,
     app_creator: AppCreator,
 ) -> Result<()> {
-    let renderer = native_options.renderer;
-
     #[cfg(not(feature = "__screenshot"))]
     assert!(
         std::env::var("EFRAME_SCREENSHOT_TO").is_err(),
         "EFRAME_SCREENSHOT_TO found without compiling with the '__screenshot' feature"
     );
+
+    if native_options.viewport.title.is_none() {
+        native_options.viewport.title = Some(app_name.to_owned());
+    }
+
+    let renderer = native_options.renderer;
+
+    #[cfg(all(feature = "glow", feature = "wgpu"))]
+    {
+        match renderer {
+            Renderer::Glow => "glow",
+            Renderer::Wgpu => "wgpu",
+        };
+        log::info!("Both the glow and wgpu renderers are available. Using {renderer}.");
+    }
 
     match renderer {
         #[cfg(feature = "glow")]
@@ -254,7 +294,7 @@ pub fn run_native(
 ///             if ui.button("Click each year").clicked() {
 ///                 age += 1;
 ///             }
-///             ui.label(format!("Hello '{}', age {}", name, age));
+///             ui.label(format!("Hello '{name}', age {age}"));
 ///         });
 ///     })
 /// }
@@ -272,7 +312,8 @@ pub fn run_simple_native(
     struct SimpleApp<U> {
         update_fun: U,
     }
-    impl<U: FnMut(&egui::Context, &mut Frame)> App for SimpleApp<U> {
+
+    impl<U: FnMut(&egui::Context, &mut Frame) + 'static> App for SimpleApp<U> {
         fn update(&mut self, ctx: &egui::Context, frame: &mut Frame) {
             (self.update_fun)(ctx, frame);
         }
@@ -290,49 +331,66 @@ pub fn run_simple_native(
 /// The different problems that can occur when trying to run `eframe`.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
+    /// An error from [`winit`].
     #[cfg(not(target_arch = "wasm32"))]
     #[error("winit error: {0}")]
     Winit(#[from] winit::error::OsError),
 
+    /// An error from [`winit::event_loop::EventLoop`].
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("winit EventLoopError: {0}")]
+    WinitEventLoop(#[from] winit::error::EventLoopError),
+
+    /// An error from [`glutin`] when using [`glow`].
     #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
     #[error("glutin error: {0}")]
     Glutin(#[from] glutin::error::Error),
 
+    /// An error from [`glutin`] when using [`glow`].
     #[cfg(all(feature = "glow", not(target_arch = "wasm32")))]
-    #[error("Found no glutin configs matching the template: {0:?}. error: {1:?}")]
+    #[error("Found no glutin configs matching the template: {0:?}. Error: {1:?}")]
     NoGlutinConfigs(glutin::config::ConfigTemplate, Box<dyn std::error::Error>),
 
+    /// An error from [`glutin`] when using [`glow`].
+    #[cfg(feature = "glow")]
+    #[error("egui_glow: {0}")]
+    OpenGL(#[from] egui_glow::PainterError),
+
+    /// An error from [`wgpu`].
     #[cfg(feature = "wgpu")]
     #[error("WGPU error: {0}")]
     Wgpu(#[from] egui_wgpu::WgpuError),
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+/// Short for `Result<T, eframe::Error>`.
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 // ---------------------------------------------------------------------------
 
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
 mod profiling_scopes {
+    #![allow(unused_macros)]
+    #![allow(unused_imports)]
+
     /// Profiling macro for feature "puffin"
     macro_rules! profile_function {
-    ($($arg: tt)*) => {
-        #[cfg(feature = "puffin")]
-        puffin::profile_function!($($arg)*);
-    };
-}
+        ($($arg: tt)*) => {
+            #[cfg(feature = "puffin")]
+            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
+            puffin::profile_function!($($arg)*);
+        };
+    }
     pub(crate) use profile_function;
 
     /// Profiling macro for feature "puffin"
     macro_rules! profile_scope {
-    ($($arg: tt)*) => {
-        #[cfg(feature = "puffin")]
-        puffin::profile_scope!($($arg)*);
-    };
-}
+        ($($arg: tt)*) => {
+            #[cfg(feature = "puffin")]
+            #[cfg(not(target_arch = "wasm32"))] // Disabled on web because of the coarse 1ms clock resolution there.
+            puffin::profile_scope!($($arg)*);
+        };
+    }
     pub(crate) use profile_scope;
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[cfg(any(feature = "glow", feature = "wgpu"))]
+#[allow(unused_imports)]
 pub(crate) use profiling_scopes::*;

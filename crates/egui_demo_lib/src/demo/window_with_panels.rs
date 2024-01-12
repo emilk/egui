@@ -67,6 +67,9 @@ impl super::View for WindowWithPanels {
                 ui.vertical_centered(|ui| {
                     ui.heading("Bottom Panel");
                 });
+                ui.vertical_centered(|ui| {
+                    ui.add(crate::egui_github_link_file!());
+                });
             });
 
         egui::CentralPanel::default().show_inside(ui, |ui| {

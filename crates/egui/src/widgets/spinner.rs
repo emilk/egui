@@ -1,4 +1,4 @@
-use epaint::{emath::lerp, vec2, Color32, Pos2, Shape, Stroke};
+use epaint::{emath::lerp, vec2, Color32, Pos2, Rect, Shape, Stroke};
 
 use crate::{Response, Sense, Ui, Widget};
 
@@ -21,31 +21,27 @@ impl Spinner {
 
     /// Sets the spinner's size. The size sets both the height and width, as the spinner is always
     /// square. If the size isn't set explicitly, the active style's `interact_size` is used.
+    #[inline]
     pub fn size(mut self, size: f32) -> Self {
         self.size = Some(size);
         self
     }
 
     /// Sets the spinner's color.
+    #[inline]
     pub fn color(mut self, color: impl Into<Color32>) -> Self {
         self.color = Some(color.into());
         self
     }
-}
 
-impl Widget for Spinner {
-    fn ui(self, ui: &mut Ui) -> Response {
-        let size = self
-            .size
-            .unwrap_or_else(|| ui.style().spacing.interact_size.y);
-        let color = self
-            .color
-            .unwrap_or_else(|| ui.visuals().strong_text_color());
-        let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
-
+    /// Paint the spinner in the given rectangle.
+    pub fn paint_at(&self, ui: &Ui, rect: Rect) {
         if ui.is_rect_visible(rect) {
-            ui.ctx().request_repaint();
+            ui.ctx().request_repaint(); // because it is animated
 
+            let color = self
+                .color
+                .unwrap_or_else(|| ui.visuals().strong_text_color());
             let radius = (rect.height() / 2.0) - 2.0;
             let n_points = 20;
             let time = ui.input(|i| i.time);
@@ -61,6 +57,16 @@ impl Widget for Spinner {
             ui.painter()
                 .add(Shape::line(points, Stroke::new(3.0, color)));
         }
+    }
+}
+
+impl Widget for Spinner {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let size = self
+            .size
+            .unwrap_or_else(|| ui.style().spacing.interact_size.y);
+        let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
+        self.paint_at(ui, rect);
 
         response
     }

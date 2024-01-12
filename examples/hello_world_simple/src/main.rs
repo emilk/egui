@@ -6,7 +6,7 @@ fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
 
     let options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(320.0, 240.0)),
+        viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]),
         ..Default::default()
     };
 
@@ -26,7 +26,7 @@ fn main() -> Result<(), eframe::Error> {
             if ui.button("Click each year").clicked() {
                 age += 1;
             }
-            ui.label(format!("Hello '{}', age {}", name, age));
+            ui.label(format!("Hello '{name}', age {age}"));
         });
     })
 }

@@ -1,7 +1,6 @@
-use eframe::{
-    wasm_bindgen::{self, prelude::*},
-    web::WebRunner,
-};
+#![allow(clippy::mem_forget)] // False positives from #[wasm_bindgen] macro
+
+use eframe::wasm_bindgen::{self, prelude::*};
 
 use crate::WrapApp;
 
@@ -9,7 +8,7 @@ use crate::WrapApp;
 #[derive(Clone)]
 #[wasm_bindgen]
 pub struct WebHandle {
-    runner: WebRunner,
+    runner: eframe::WebRunner,
 }
 
 #[wasm_bindgen]
@@ -19,10 +18,10 @@ impl WebHandle {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         // Redirect [`log`] message to `console.log` and friends:
-        eframe::web::WebLogger::init(log::LevelFilter::Debug).ok();
+        eframe::WebLogger::init(log::LevelFilter::Debug).ok();
 
         Self {
-            runner: WebRunner::new(),
+            runner: eframe::WebRunner::new(),
         }
     }
 

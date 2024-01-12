@@ -1,9 +1,42 @@
 # Changelog for egui-winit
 All notable changes to the `egui-winit` integration will be noted in this file.
 
+This file is updated upon each release.
+Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
-## Unreleased
-* Fix unsafe API: remove `State::new_with_wayland_display`; change `Clipboard::new` to take `&EventLoopWindowTarget<T>`.
+
+## 0.25.0 - 2024-01-08
+* Update to winit 0.29 [#3649](https://github.com/emilk/egui/pull/3649) (thanks [@fornwall](https://github.com/fornwall)!)
+* Fix: Let `accesskit` process window events [#3733](https://github.com/emilk/egui/pull/3733) (thanks [@DataTriny](https://github.com/DataTriny)!)
+* Simplify `egui_winit::State` [#3678](https://github.com/emilk/egui/pull/3678)
+
+
+## 0.24.1 - 2023-11-30
+* Don't treat `WindowEvent::CloseRequested` as consumed [#3627](https://github.com/emilk/egui/pull/3627) (thanks [@Aaron1011](https://github.com/Aaron1011)!)
+* Fix windowing problems when using the `x11` feature on Linux [#3643](https://github.com/emilk/egui/pull/3643)
+
+
+## 0.24.0 - 2023-11-23
+* Update MSRV to Rust 1.72 [#3595](https://github.com/emilk/egui/pull/3595)
+* Some breaking changes required for multi-viewport support
+
+
+## 0.23.0 - 2023-09-27
+* Only show on-screen-keyboard and IME when editing text [#3362](https://github.com/emilk/egui/pull/3362) (thanks [@Barugon](https://github.com/Barugon)!)
+* Replace `instant` with `web_time` [#3296](https://github.com/emilk/egui/pull/3296)
+* Allow users to opt-out of default `winit` features [#3228](https://github.com/emilk/egui/pull/3228)
+* Recognize numpad enter/plus/minus [#3285](https://github.com/emilk/egui/pull/3285)
+
+
+## 0.22.0 - 2023-05-23
+* Only use `wasm-bindgen` feature for `instant` when building for wasm32 [#2808](https://github.com/emilk/egui/pull/2808) (thanks [@gferon](https://github.com/gferon)!)
+* Fix unsafe API of `Clipboard::new` [#2765](https://github.com/emilk/egui/pull/2765) (thanks [@dhardy](https://github.com/dhardy)!)
+* Remove `android-activity` dependency + add `Activity` backend features [#2863](https://github.com/emilk/egui/pull/2863) (thanks [@rib](https://github.com/rib)!)
+* Use `RawDisplayHandle` for smithay clipboard init [#2914](https://github.com/emilk/egui/pull/2914) (thanks [@lunixbochs](https://github.com/lunixbochs)!)
+* Clear all keys and modifies on focus change [#2933](https://github.com/emilk/egui/pull/2933)
+* Support Wasm target [#2949](https://github.com/emilk/egui/pull/2949) (thanks [@jinleili](https://github.com/jinleili)!)
+* Fix unsafe API: remove `State::new_with_wayland_display`; change `Clipboard::new` to take `&EventLoopWindowTarget<T>`
+
 
 ## 0.21.1 - 2023-02-12
 * Fixed crash when window position is in an invalid state, which could happen e.g. due to changes in monitor size or DPI ([#2722](https://github.com/emilk/egui/issues/2722)).

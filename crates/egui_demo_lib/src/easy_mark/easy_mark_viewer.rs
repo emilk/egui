@@ -161,7 +161,7 @@ fn numbered_point(ui: &mut Ui, width: f32, number: &str) -> Response {
     let font_id = TextStyle::Body.resolve(ui.style());
     let row_height = ui.fonts(|f| f.row_height(&font_id));
     let (rect, response) = ui.allocate_exact_size(vec2(width, row_height), Sense::hover());
-    let text = format!("{}.", number);
+    let text = format!("{number}.");
     let text_color = ui.visuals().strong_text_color();
     ui.painter().text(
         rect.right_center(),

@@ -26,16 +26,16 @@ impl CCursor {
 /// Two `CCursor`s are considered equal if they refer to the same character boundary,
 /// even if one prefers the start of the next row.
 impl PartialEq for CCursor {
-    fn eq(&self, other: &CCursor) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.index == other.index
     }
 }
 
 impl std::ops::Add<usize> for CCursor {
-    type Output = CCursor;
+    type Output = Self;
 
     fn add(self, rhs: usize) -> Self::Output {
-        CCursor {
+        Self {
             index: self.index.saturating_add(rhs),
             prefer_next_row: self.prefer_next_row,
         }
@@ -43,10 +43,10 @@ impl std::ops::Add<usize> for CCursor {
 }
 
 impl std::ops::Sub<usize> for CCursor {
-    type Output = CCursor;
+    type Output = Self;
 
     fn sub(self, rhs: usize) -> Self::Output {
-        CCursor {
+        Self {
             index: self.index.saturating_sub(rhs),
             prefer_next_row: self.prefer_next_row,
         }
@@ -104,7 +104,7 @@ pub struct PCursor {
 /// Two `PCursor`s are considered equal if they refer to the same character boundary,
 /// even if one prefers the start of the next row.
 impl PartialEq for PCursor {
-    fn eq(&self, other: &PCursor) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.paragraph == other.paragraph && self.offset == other.offset
     }
 }

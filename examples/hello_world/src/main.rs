@@ -5,13 +5,18 @@ use eframe::egui;
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(320.0, 240.0)),
+        viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]),
         ..Default::default()
     };
     eframe::run_native(
         "My egui App",
         options,
-        Box::new(|_cc| Box::<MyApp>::default()),
+        Box::new(|cc| {
+            // This gives us image support:
+            egui_extras::install_image_loaders(&cc.egui_ctx);
+
+            Box::<MyApp>::default()
+        }),
     )
 }
 
@@ -43,6 +48,10 @@ impl eframe::App for MyApp {
                 self.age += 1;
             }
             ui.label(format!("Hello '{}', age {}", self.name, self.age));
+
+            ui.image(egui::include_image!(
+                "../../../crates/egui/assets/ferris.png"
+            ));
         });
     }
 }

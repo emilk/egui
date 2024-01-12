@@ -6,9 +6,30 @@ use crate::*;
 
 use super::{CCursorRange, CursorRange};
 
-type Undoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
+pub type TextEditUndoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
 
 /// The text edit state stored between frames.
+///
+/// Attention: You also need to `store` the updated state.
+/// ```
+/// # use egui::text::CCursor;
+/// # use egui::text_edit::{CCursorRange, TextEditOutput};
+/// # use egui::TextEdit;
+/// # egui::__run_test_ui(|ui| {
+/// # let mut text = String::new();
+/// let mut output = TextEdit::singleline(&mut text).show(ui);
+///
+/// // Create a new selection range
+/// let min = CCursor::new(0);
+/// let max = CCursor::new(0);
+/// let new_range = CCursorRange::two(min, max);
+///
+/// // Update the state
+/// output.state.set_ccursor_range(Some(new_range));
+/// // Store the updated state
+/// output.state.store(ui.ctx(), output.response.id);
+/// # });
+/// ```
 #[derive(Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
@@ -21,7 +42,7 @@ pub struct TextEditState {
 
     /// Wrapped in Arc for cheaper clones.
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub(crate) undoer: Arc<Mutex<Undoer>>,
+    pub(crate) undoer: Arc<Mutex<TextEditUndoer>>,
 
     // If IME candidate window is shown on this text edit.
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -58,6 +79,18 @@ impl TextEditState {
     pub fn set_cursor_range(&mut self, cursor_range: Option<CursorRange>) {
         self.cursor_range = cursor_range;
         self.ccursor_range = None;
+    }
+
+    pub fn undoer(&self) -> TextEditUndoer {
+        self.undoer.lock().clone()
+    }
+
+    pub fn set_undoer(&mut self, undoer: TextEditUndoer) {
+        *self.undoer.lock() = undoer;
+    }
+
+    pub fn clear_undoer(&mut self) {
+        self.set_undoer(TextEditUndoer::default());
     }
 
     pub fn cursor_range(&mut self, galley: &Galley) -> Option<CursorRange> {

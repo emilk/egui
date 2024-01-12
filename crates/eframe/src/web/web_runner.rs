@@ -27,7 +27,7 @@ pub struct WebRunner {
 }
 
 impl WebRunner {
-    // Will install a panic handler that will catch and log any panics
+    /// Will install a panic handler that will catch and log any panics
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         #[cfg(not(web_sys_unstable_apis))]
@@ -58,8 +58,7 @@ impl WebRunner {
 
         let follow_system_theme = web_options.follow_system_theme;
 
-        let mut runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
-        runner.warm_up();
+        let runner = AppRunner::new(canvas_id, web_options, app_creator).await?;
         self.runner.replace(Some(runner));
 
         {
@@ -96,12 +95,16 @@ impl WebRunner {
             log::debug!("Unsubscribing from {} events", events_to_unsubscribe.len());
             for x in events_to_unsubscribe {
                 if let Err(err) = x.unsubscribe() {
-                    log::warn!("Failed to unsubscribe from event: {err:?}");
+                    log::warn!(
+                        "Failed to unsubscribe from event: {}",
+                        super::string_from_js_value(&err)
+                    );
                 }
             }
         }
     }
 
+    /// Shut down eframe and clean up resources.
     pub fn destroy(&self) {
         self.unsubscribe_from_all_events();
 
@@ -202,14 +205,14 @@ enum EventToUnsubscribe {
 impl EventToUnsubscribe {
     pub fn unsubscribe(self) -> Result<(), JsValue> {
         match self {
-            EventToUnsubscribe::TargetEvent(handle) => {
+            Self::TargetEvent(handle) => {
                 handle.target.remove_event_listener_with_callback(
                     handle.event_name.as_str(),
                     handle.closure.as_ref().unchecked_ref(),
                 )?;
                 Ok(())
             }
-            EventToUnsubscribe::IntervalHandle(handle) => {
+            Self::IntervalHandle(handle) => {
                 let window = web_sys::window().unwrap();
                 window.clear_interval_with_handle(handle.handle);
                 Ok(())
