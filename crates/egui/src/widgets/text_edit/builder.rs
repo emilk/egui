@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use epaint::text::{cursor::*, Galley, LayoutJob};
 
-use crate::{output::OutputEvent, *};
+use crate::{output::OutputEvent, text_edit::cursor_interaction::cursor_rect, *};
 
 use super::{
     cursor_interaction::{ccursor_next_word, ccursor_previous_word, find_line_start},
@@ -538,14 +538,9 @@ impl<'t> TextEdit<'t> {
                     && ui.input(|i| i.pointer.is_moving())
                 {
                     // preview:
-                    paint_cursor_end(
-                        &painter,
-                        ui.visuals(),
-                        row_height,
-                        response.rect.min,
-                        &galley,
-                        &cursor_at_pointer,
-                    );
+                    let cursor_rect =
+                        cursor_rect(response.rect.min, &galley, &cursor_at_pointer, row_height);
+                    paint_cursor(&painter, ui.visuals(), cursor_rect);
                 }
 
                 state
@@ -657,25 +652,25 @@ impl<'t> TextEdit<'t> {
                         &cursor_range,
                     );
 
-                    if text.is_mutable() {
-                        let cursor_rect = paint_cursor_end(
-                            &painter,
-                            ui.visuals(),
-                            row_height,
-                            galley_pos,
-                            &galley,
-                            &cursor_range.primary,
-                        );
+                    let primary_cursor_rect =
+                        cursor_rect(galley_pos, &galley, &cursor_range.primary, row_height);
 
-                        let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO: remove this HACK workaround for https://github.com/emilk/egui/issues/1531
-                        if (response.changed || selection_changed) && !is_fully_visible {
-                            ui.scroll_to_rect(cursor_rect, None); // keep cursor in view
-                        }
+                    let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO: remove this HACK workaround for https://github.com/emilk/egui/issues/1531
+                    if (response.changed || selection_changed) && !is_fully_visible {
+                        // Scroll to keep primary cursor in view:
+                        ui.scroll_to_rect(primary_cursor_rect, None);
+                    }
+
+                    if text.is_mutable() {
+                        paint_cursor(&painter, ui.visuals(), primary_cursor_rect);
 
                         if interactive {
                             // For IME, so only set it when text is editable and visible!
                             ui.ctx().output_mut(|o| {
-                                o.ime = Some(crate::output::IMEOutput { rect, cursor_rect });
+                                o.ime = Some(crate::output::IMEOutput {
+                                    rect,
+                                    cursor_rect: primary_cursor_rect,
+                                });
                             });
                         }
                     }
@@ -1016,22 +1011,12 @@ pub fn paint_cursor_selection(
     }
 }
 
-fn paint_cursor_end(
-    painter: &Painter,
-    visuals: &Visuals,
-    row_height: f32,
-    pos: Pos2,
-    galley: &Galley,
-    cursor: &Cursor,
-) -> Rect {
+/// Paint one end of the selection, e.g. the primary cursor.
+fn paint_cursor(painter: &Painter, visuals: &Visuals, cursor_rect: Rect) {
     let stroke = visuals.text_cursor;
 
-    let mut cursor_pos = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
-    cursor_pos.max.y = cursor_pos.max.y.at_least(cursor_pos.min.y + row_height); // Handle completely empty galleys
-    cursor_pos = cursor_pos.expand(1.5); // slightly above/below row
-
-    let top = cursor_pos.center_top();
-    let bottom = cursor_pos.center_bottom();
+    let top = cursor_rect.center_top();
+    let bottom = cursor_rect.center_bottom();
 
     painter.line_segment([top, bottom], (stroke.width, stroke.color));
 
@@ -1048,8 +1033,6 @@ fn paint_cursor_end(
             (width, stroke.color),
         );
     }
-
-    cursor_pos
 }
 
 // ----------------------------------------------------------------------------

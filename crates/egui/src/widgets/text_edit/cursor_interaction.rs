@@ -310,3 +310,15 @@ pub fn slice_char_range(s: &str, char_range: std::ops::Range<usize>) -> &str {
     let end_byte = byte_index_from_char_index(s, char_range.end);
     &s[start_byte..end_byte]
 }
+
+/// The thin rectangle of one end of the selection, e.g. the primary cursor.
+pub fn cursor_rect(galley_pos: Pos2, galley: &Galley, cursor: &Cursor, row_height: f32) -> Rect {
+    let mut cursor_pos = galley
+        .pos_from_cursor(cursor)
+        .translate(galley_pos.to_vec2());
+    cursor_pos.max.y = cursor_pos.max.y.at_least(cursor_pos.min.y + row_height);
+    // Handle completely empty galleys
+    cursor_pos = cursor_pos.expand(1.5);
+    // slightly above/below row
+    cursor_pos
+}

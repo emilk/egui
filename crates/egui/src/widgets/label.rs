@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use crate::{
-    text_edit::{paint_cursor_selection, CursorRange, TextCursorState},
+    text_edit::{
+        cursor_interaction::cursor_rect, paint_cursor_selection, CursorRange, TextCursorState,
+    },
     *,
 };
 
@@ -254,7 +256,7 @@ impl Widget for Label {
 
             let selectable = selectable.unwrap_or_else(|| ui.style().interaction.selectable_labels);
             if selectable {
-                text_selection(ui, &response, &galley, galley_pos);
+                text_selection(ui, &response, galley_pos, &galley);
             }
         }
 
@@ -268,7 +270,7 @@ impl Widget for Label {
 ///
 /// This should be called after painting the text, because this will also
 /// paint the text cursor/selection on top.
-pub fn text_selection(ui: &Ui, response: &Response, galley: &Galley, galley_pos: Pos2) {
+pub fn text_selection(ui: &Ui, response: &Response, galley_pos: Pos2, galley: &Galley) {
     let mut cursor_state = LabelSelectionState::load(ui.ctx(), response.id);
 
     if response.hovered {
@@ -278,6 +280,8 @@ pub fn text_selection(ui: &Ui, response: &Response, galley: &Galley, galley_pos:
         cursor_state = Default::default();
         LabelSelectionState::store(ui.ctx(), response.id, cursor_state);
     }
+
+    let original_cursor = cursor_state.range(galley);
 
     if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
         let cursor_at_pointer = galley.cursor_from_pos(pointer_pos - galley_pos);
@@ -301,6 +305,18 @@ pub fn text_selection(ui: &Ui, response: &Response, galley: &Galley, galley_pos:
             galley,
             &cursor_range,
         );
+
+        let selection_changed = original_cursor != Some(cursor_range);
+
+        let is_fully_visible = ui.clip_rect().contains_rect(response.rect); // TODO: remove this HACK workaround for https://github.com/emilk/egui/issues/1531
+
+        if selection_changed && !is_fully_visible {
+            // Scroll to keep primary cursor in view:
+            let row_height = estimate_row_height(galley);
+            let primary_cursor_rect =
+                cursor_rect(galley_pos, galley, &cursor_range.primary, row_height);
+            ui.scroll_to_rect(primary_cursor_rect, None);
+        }
     }
 
     #[cfg(feature = "accesskit")]
@@ -315,6 +331,14 @@ pub fn text_selection(ui: &Ui, response: &Response, galley: &Galley, galley_pos:
 
     if !cursor_state.is_empty() {
         LabelSelectionState::store(ui.ctx(), response.id, cursor_state);
+    }
+}
+
+fn estimate_row_height(galley: &Galley) -> f32 {
+    if let Some(row) = galley.rows.first() {
+        row.rect.height()
+    } else {
+        galley.size().y
     }
 }
 

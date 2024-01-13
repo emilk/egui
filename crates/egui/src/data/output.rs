@@ -73,7 +73,7 @@ pub struct IMEOutput {
     /// Where the [`crate::TextEdit`] is located on screen.
     pub rect: crate::Rect,
 
-    /// Where the cursor is.
+    /// Where the primary cursor is.
     ///
     /// This is a very thin rectangle.
     pub cursor_rect: crate::Rect,
