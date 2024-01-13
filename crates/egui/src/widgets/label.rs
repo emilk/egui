@@ -212,19 +212,17 @@ impl Label {
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
         let interactive = self.sense.map_or(false, |sense| sense != Sense::hover());
-        let selectable = self
-            .selectable
-            .unwrap_or_else(|| ui.style().interaction.selectable_labels);
+        let selectable = self.selectable;
 
         let (pos, galley, mut response) = self.layout_in_ui(ui);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, galley.text()));
 
-        if galley.elided {
-            // Show the full (non-elided) text on hover:
-            response = response.on_hover_text(galley.text());
-        }
-
         if ui.is_rect_visible(response.rect) {
+            if galley.elided {
+                // Show the full (non-elided) text on hover:
+                response = response.on_hover_text(galley.text());
+            }
+
             let response_color = if interactive {
                 ui.style().interact(&response).text_color()
             } else {
@@ -242,6 +240,7 @@ impl Widget for Label {
                     .with_underline(underline),
             );
 
+            let selectable = selectable.unwrap_or_else(|| ui.style().interaction.selectable_labels);
             if selectable {
                 text_selection(ui, &response, &galley, pos);
             }
