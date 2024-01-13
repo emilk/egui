@@ -9,6 +9,8 @@ use super::{CCursorRange, CursorRange};
 pub type TextEditUndoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
 
 /// The state of a text cursor selection.
+///
+/// Used for [`crate::TextEdit`] and [`crate::Label`].
 #[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]

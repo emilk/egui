@@ -174,7 +174,7 @@ impl<'t> TextEdit<'t> {
     ///     text_color,
     ///     f32::INFINITY
     /// );
-    /// painter.galley(output.text_draw_pos, galley, text_color);
+    /// painter.galley(output.galley_pos, galley, text_color);
     /// # });
     /// ```
     #[inline]
@@ -720,15 +720,15 @@ impl<'t> TextEdit<'t> {
                 id,
                 cursor_range,
                 role,
-                &galley,
                 galley_pos,
+                &galley,
             );
         }
 
         TextEditOutput {
             response,
             galley,
-            text_draw_pos: galley_pos,
+            galley_pos,
             text_clip_rect,
             state,
             cursor_range,

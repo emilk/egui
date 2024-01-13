@@ -227,7 +227,11 @@ impl Label {
 
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
+        // Interactive = the uses asked to sense interaction.
+        // We DON'T want to have the color respond just because the text is selectable;
+        // the cursor is enough to communicate that.
         let interactive = self.sense.map_or(false, |sense| sense != Sense::hover());
+
         let selectable = self.selectable;
 
         let (galley_pos, galley, mut response) = self.layout_in_ui(ui);
@@ -274,6 +278,7 @@ impl Widget for Label {
 /// paint the text cursor/selection on top.
 pub fn text_selection(ui: &Ui, response: &Response, galley_pos: Pos2, galley: &Galley) {
     let mut cursor_state = LabelSelectionState::load(ui.ctx(), response.id);
+    let original_cursor = cursor_state.range(galley);
 
     if response.hovered {
         ui.ctx().set_cursor_icon(CursorIcon::Text);
@@ -282,8 +287,6 @@ pub fn text_selection(ui: &Ui, response: &Response, galley_pos: Pos2, galley: &G
         cursor_state = Default::default();
         LabelSelectionState::store(ui.ctx(), response.id, cursor_state);
     }
-
-    let original_cursor = cursor_state.range(galley);
 
     if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
         let cursor_at_pointer = galley.cursor_from_pos(pointer_pos - galley_pos);
@@ -327,8 +330,8 @@ pub fn text_selection(ui: &Ui, response: &Response, galley_pos: Pos2, galley: &G
         response.id,
         cursor_range,
         accesskit::Role::StaticText,
-        galley,
         galley_pos,
+        galley,
     );
 
     if !cursor_state.is_empty() {
@@ -387,7 +390,7 @@ fn process_selection_key_events(
 
 // ----------------------------------------------------------------------------
 
-/// One state for all labels.
+/// One state for all labels, because we only support text selection in one label at a time.
 #[derive(Clone, Copy, Debug, Default)]
 struct LabelSelectionState {
     /// Id of the (only) label with a selection, if any

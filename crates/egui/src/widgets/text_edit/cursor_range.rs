@@ -2,7 +2,7 @@ use epaint::{text::cursor::*, Galley};
 
 use crate::{Event, Id, Key, Modifiers};
 
-use super::cursor_interaction::{move_single_cursor, slice_char_range};
+use super::cursor_interaction::{ccursor_next_word, ccursor_previous_word, slice_char_range};
 
 /// A selected text range (could be a range of length zero).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -282,4 +282,79 @@ fn ccursor_from_accesskit_text_position(
         total_length += row.glyphs.len() + (row.ends_with_newline as usize);
     }
     None
+}
+
+// ----------------------------------------------------------------------------
+
+/// Move a text cursor based on keyboard
+fn move_single_cursor(cursor: &mut Cursor, galley: &Galley, key: Key, modifiers: &Modifiers) {
+    if cfg!(target_os = "macos") && modifiers.ctrl && !modifiers.shift {
+        match key {
+            Key::A => *cursor = galley.cursor_begin_of_row(cursor),
+            Key::E => *cursor = galley.cursor_end_of_row(cursor),
+            Key::P => *cursor = galley.cursor_up_one_row(cursor),
+            Key::N => *cursor = galley.cursor_down_one_row(cursor),
+            Key::B => *cursor = galley.cursor_left_one_character(cursor),
+            Key::F => *cursor = galley.cursor_right_one_character(cursor),
+            _ => (),
+        }
+        return;
+    }
+    match key {
+        Key::ArrowLeft => {
+            if modifiers.alt || modifiers.ctrl {
+                // alt on mac, ctrl on windows
+                *cursor = galley.from_ccursor(ccursor_previous_word(galley, cursor.ccursor));
+            } else if modifiers.mac_cmd {
+                *cursor = galley.cursor_begin_of_row(cursor);
+            } else {
+                *cursor = galley.cursor_left_one_character(cursor);
+            }
+        }
+        Key::ArrowRight => {
+            if modifiers.alt || modifiers.ctrl {
+                // alt on mac, ctrl on windows
+                *cursor = galley.from_ccursor(ccursor_next_word(galley, cursor.ccursor));
+            } else if modifiers.mac_cmd {
+                *cursor = galley.cursor_end_of_row(cursor);
+            } else {
+                *cursor = galley.cursor_right_one_character(cursor);
+            }
+        }
+        Key::ArrowUp => {
+            if modifiers.command {
+                // mac and windows behavior
+                *cursor = Cursor::default();
+            } else {
+                *cursor = galley.cursor_up_one_row(cursor);
+            }
+        }
+        Key::ArrowDown => {
+            if modifiers.command {
+                // mac and windows behavior
+                *cursor = galley.end();
+            } else {
+                *cursor = galley.cursor_down_one_row(cursor);
+            }
+        }
+
+        Key::Home => {
+            if modifiers.ctrl {
+                // windows behavior
+                *cursor = Cursor::default();
+            } else {
+                *cursor = galley.cursor_begin_of_row(cursor);
+            }
+        }
+        Key::End => {
+            if modifiers.ctrl {
+                // windows behavior
+                *cursor = galley.end();
+            } else {
+                *cursor = galley.cursor_end_of_row(cursor);
+            }
+        }
+
+        _ => unreachable!(),
+    }
 }

@@ -8,8 +8,8 @@ pub fn update_accesskit_for_text_widget(
     widget_id: Id,
     cursor_range: Option<CursorRange>,
     role: accesskit::Role,
-    galley: &Galley,
     galley_pos: Pos2,
+    galley: &Galley,
 ) {
     let parent_id = ctx.accesskit_node_builder(widget_id, |builder| {
         let parent_id = widget_id;
