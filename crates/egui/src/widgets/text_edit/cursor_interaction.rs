@@ -9,13 +9,15 @@ use super::{CCursorRange, CursorRange};
 
 impl TextCursorState {
     /// Handle clicking and/or dragging text.
+    ///
+    /// Returns `true` if there was interaction.
     pub fn pointer_interaction(
         &mut self,
         ui: &Ui,
         response: &Response,
         cursor_at_pointer: Cursor,
         galley: &Galley,
-    ) {
+    ) -> bool {
         let text = galley.text();
 
         if response.double_clicked() {
@@ -25,6 +27,7 @@ impl TextCursorState {
                 primary: galley.from_ccursor(ccursor_range.primary),
                 secondary: galley.from_ccursor(ccursor_range.secondary),
             }));
+            true
         } else if response.triple_clicked() {
             // Select line:
             let ccursor_range = select_line_at(text, cursor_at_pointer.ccursor);
@@ -32,6 +35,7 @@ impl TextCursorState {
                 primary: galley.from_ccursor(ccursor_range.primary),
                 secondary: galley.from_ccursor(ccursor_range.secondary),
             }));
+            true
         } else if response.sense.drag {
             if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
                 if ui.input(|i| i.modifiers.shift) {
@@ -44,13 +48,19 @@ impl TextCursorState {
                 } else {
                     self.set_range(Some(CursorRange::one(cursor_at_pointer)));
                 }
+                true
             } else if ui.input(|i| i.pointer.any_down()) && response.is_pointer_button_down_on() {
                 // drag to select text:
                 if let Some(mut cursor_range) = self.range(galley) {
                     cursor_range.primary = cursor_at_pointer;
                     self.set_range(Some(cursor_range));
                 }
+                true
+            } else {
+                false
             }
+        } else {
+            false
         }
     }
 }

@@ -543,9 +543,14 @@ impl<'t> TextEdit<'t> {
                     paint_cursor(&painter, ui.visuals(), cursor_rect);
                 }
 
-                state
-                    .cursor
-                    .pointer_interaction(ui, &response, cursor_at_pointer, &galley);
+                let did_interact =
+                    state
+                        .cursor
+                        .pointer_interaction(ui, &response, cursor_at_pointer, &galley);
+
+                if did_interact {
+                    ui.memory_mut(|mem| mem.request_focus(response.id));
+                }
             }
         }
 
