@@ -35,7 +35,6 @@ impl TextCursorState {
             }));
         } else if allow_drag_to_select {
             if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
-                ui.memory_mut(|mem| mem.request_focus(response.id));
                 if ui.input(|i| i.modifiers.shift) {
                     if let Some(mut cursor_range) = self.range(galley) {
                         cursor_range.primary = cursor_at_pointer;
