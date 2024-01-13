@@ -82,7 +82,7 @@ impl Label {
 
     /// Can the user select the text with the mouse?
     ///
-    /// Overrides [`crate::Interaction::selectable_labels`].
+    /// Overrides [`crate::style::Interaction::selectable_labels`].
     #[inline]
     pub fn selectable(mut self, selectable: bool) -> Self {
         self.selectable = Some(selectable);
