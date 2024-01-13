@@ -849,6 +849,7 @@ impl Visuals {
         &self.widgets.noninteractive
     }
 
+    // Non-interactive text color.
     pub fn text_color(&self) -> Color32 {
         self.override_text_color
             .unwrap_or_else(|| self.widgets.noninteractive.text_color())

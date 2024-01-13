@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::*;
+use crate::{
+    text_edit::{paint_cursor_selection, TextCursorState},
+    *,
+};
 
 /// Static text.
 ///
@@ -208,6 +211,11 @@ impl Label {
 
 impl Widget for Label {
     fn ui(self, ui: &mut Ui) -> Response {
+        let interactive = self.sense.map_or(false, |sense| sense != Sense::hover());
+        let selectable = self
+            .selectable
+            .unwrap_or_else(|| ui.style().interaction.selectable_labels);
+
         let (pos, galley, mut response) = self.layout_in_ui(ui);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, galley.text()));
 
@@ -217,7 +225,11 @@ impl Widget for Label {
         }
 
         if ui.is_rect_visible(response.rect) {
-            let response_color = ui.style().interact(&response).text_color();
+            let response_color = if interactive {
+                ui.style().interact(&response).text_color()
+            } else {
+                ui.style().visuals.text_color()
+            };
 
             let underline = if response.has_focus() || response.highlighted() {
                 Stroke::new(1.0, response_color)
@@ -225,10 +237,89 @@ impl Widget for Label {
                 Stroke::NONE
             };
 
-            ui.painter()
-                .add(epaint::TextShape::new(pos, galley, response_color).with_underline(underline));
+            ui.painter().add(
+                epaint::TextShape::new(pos, galley.clone(), response_color)
+                    .with_underline(underline),
+            );
+
+            if selectable {
+                let mut cursor_state = LabelSelectionState::load(ui.ctx(), response.id);
+
+                if response.hovered {
+                    ui.ctx().set_cursor_icon(CursorIcon::Text);
+                } else if !cursor_state.is_empty() && ui.input(|i| i.pointer.any_pressed()) {
+                    // We clicked somewhere else - deselect this label.
+                    cursor_state = Default::default();
+                    LabelSelectionState::store(ui.ctx(), response.id, cursor_state);
+                }
+
+                if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
+                    let cursor_at_pointer = galley.cursor_from_pos(pointer_pos - response.rect.min);
+
+                    let allow_drag_to_select = true;
+                    cursor_state.pointer_interaction(
+                        ui,
+                        &response,
+                        cursor_at_pointer,
+                        &galley,
+                        allow_drag_to_select,
+                    );
+                }
+
+                if let Some(cursor_range) = cursor_state.range(&galley) {
+                    // We paint the cursor on top of the text, in case
+                    // the text galley has backgrounds (as e.g. `code` snippets in markup do).
+                    paint_cursor_selection(ui.visuals(), ui.painter(), pos, &galley, &cursor_range);
+                }
+
+                if !cursor_state.is_empty() {
+                    LabelSelectionState::store(ui.ctx(), response.id, cursor_state);
+                }
+            }
         }
 
         response
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+/// One state for all labels.
+#[derive(Clone, Copy, Debug, Default)]
+struct LabelSelectionState {
+    /// Id of the (only) label with a selection, if any
+    id: Option<Id>,
+
+    /// The current selection, if any.
+    selection: TextCursorState,
+}
+
+impl LabelSelectionState {
+    fn load(ctx: &Context, id: Id) -> TextCursorState {
+        ctx.data(|data| data.get_temp::<Self>(Id::NULL))
+            .and_then(|state| (state.id == Some(id)).then_some(state.selection))
+            .unwrap_or_default()
+    }
+
+    fn store(ctx: &Context, id: Id, selection: TextCursorState) {
+        ctx.data_mut(|data| {
+            data.insert_temp(
+                Id::NULL,
+                Self {
+                    id: Some(id),
+                    selection,
+                },
+            );
+        });
+    }
+
+    /// If this labels was selected, then deselect it:
+    fn deselect(ctx: &Context, id: Id) {
+        ctx.data_mut(|data| {
+            let state = data.get_temp_mut_or_default::<Self>(Id::NULL);
+            if state.id == Some(id) {
+                *state = Default::default();
+            }
+        });
     }
 }
