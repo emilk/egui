@@ -717,6 +717,9 @@ pub struct Interaction {
 
     /// Delay in seconds before showing tooltips after the mouse stops moving
     pub tooltip_delay: f64,
+
+    /// Can you select the text on a [`crate::Label`] by default?
+    pub selectable_labels: bool,
 }
 
 /// Controls the visual style (colors etc) of egui.
@@ -1114,6 +1117,7 @@ impl Default for Interaction {
             resize_grab_radius_corner: 10.0,
             show_tooltips_only_when_still: true,
             tooltip_delay: 0.0,
+            selectable_labels: true,
         }
     }
 }
@@ -1573,6 +1577,7 @@ impl Interaction {
             resize_grab_radius_corner,
             show_tooltips_only_when_still,
             tooltip_delay,
+            selectable_labels,
         } = self;
         ui.add(Slider::new(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
         ui.add(
@@ -1583,6 +1588,7 @@ impl Interaction {
             "Only show tooltips if mouse is still",
         );
         ui.add(Slider::new(tooltip_delay, 0.0..=1.0).text("tooltip_delay"));
+        ui.checkbox(selectable_labels, "Selectable text in labels");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }

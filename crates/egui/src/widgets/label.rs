@@ -23,6 +23,7 @@ pub struct Label {
     wrap: Option<bool>,
     truncate: bool,
     sense: Option<Sense>,
+    selectable: Option<bool>,
 }
 
 impl Label {
@@ -32,6 +33,7 @@ impl Label {
             wrap: None,
             truncate: false,
             sense: None,
+            selectable: None,
         }
     }
 
@@ -73,6 +75,15 @@ impl Label {
         self
     }
 
+    /// Can the user select the text with the mouse?
+    ///
+    /// Overrides [`crate::Interaction::selectable_labels`].
+    #[inline]
+    pub fn selectable(mut self, selectable: bool) -> Self {
+        self.selectable = Some(selectable);
+        self
+    }
+
     /// Make the label respond to clicks and/or drags.
     ///
     /// By default, a label is inert and does not respond to click or drags.
@@ -97,14 +108,21 @@ impl Label {
 impl Label {
     /// Do layout and position the galley in the ui, without painting it or adding widget info.
     pub fn layout_in_ui(self, ui: &mut Ui) -> (Pos2, Arc<Galley>, Response) {
+        let selectable = self
+            .selectable
+            .unwrap_or_else(|| ui.style().interaction.selectable_labels);
+
         let sense = self.sense.unwrap_or_else(|| {
-            // We only want to focus labels if the screen reader is on.
-            if ui.memory(|mem| mem.options.screen_reader) {
+            if selectable {
+                Sense::click_and_drag()
+            } else if ui.memory(|mem| mem.options.screen_reader) {
+                // We only want to focus labels if the screen reader is on.
                 Sense::focusable_noninteractive()
             } else {
                 Sense::hover()
             }
         });
+
         if let WidgetText::Galley(galley) = self.text {
             // If the user said "use this specific galley", then just use it:
             let (rect, response) = ui.allocate_exact_size(galley.size(), sense);
