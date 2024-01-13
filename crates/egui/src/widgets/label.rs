@@ -117,28 +117,30 @@ impl Label {
             .selectable
             .unwrap_or_else(|| ui.style().interaction.selectable_labels);
 
-        let sense = if selectable {
+        let mut sense = self.sense.unwrap_or_else(|| {
+            if ui.memory(|mem| mem.options.screen_reader) {
+                // We only want to focus labels if the screen reader is on.
+                Sense::focusable_noninteractive()
+            } else {
+                Sense::hover()
+            }
+        });
+
+        if selectable {
             // On touch screens (e.g. mobile in `eframe` web), should
             // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
             // Since currently copying selected text in not supported on `eframe` web,
             // we prioritize touch-scrolling:
             let allow_drag_to_select = ui.input(|i| !i.any_touches());
 
-            if allow_drag_to_select {
+            let select_sense = if allow_drag_to_select {
                 Sense::click_and_drag()
             } else {
                 Sense::click()
-            }
-        } else {
-            self.sense.unwrap_or_else(|| {
-                if ui.memory(|mem| mem.options.screen_reader) {
-                    // We only want to focus labels if the screen reader is on.
-                    Sense::focusable_noninteractive()
-                } else {
-                    Sense::hover()
-                }
-            })
-        };
+            };
+
+            sense = sense.union(select_sense);
+        }
 
         if let WidgetText::Galley(galley) = self.text {
             // If the user said "use this specific galley", then just use it:
