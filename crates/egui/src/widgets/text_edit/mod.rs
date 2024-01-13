@@ -1,4 +1,5 @@
 mod builder;
+pub mod cursor_interaction;
 mod cursor_range;
 mod output;
 mod state;
