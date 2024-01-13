@@ -11,7 +11,7 @@ impl TextCursorState {
     /// Handle clicking and/or dragging text.
     pub fn pointer_interaction(
         &mut self,
-        ui: &mut Ui,
+        ui: &Ui,
         response: &Response,
         cursor_at_pointer: Cursor,
         galley: &Galley,

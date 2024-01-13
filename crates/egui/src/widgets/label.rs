@@ -243,47 +243,57 @@ impl Widget for Label {
             );
 
             if selectable {
-                let mut cursor_state = LabelSelectionState::load(ui.ctx(), response.id);
-
-                if response.hovered {
-                    ui.ctx().set_cursor_icon(CursorIcon::Text);
-                } else if !cursor_state.is_empty() && ui.input(|i| i.pointer.any_pressed()) {
-                    // We clicked somewhere else - deselect this label.
-                    cursor_state = Default::default();
-                    LabelSelectionState::store(ui.ctx(), response.id, cursor_state);
-                }
-
-                if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
-                    let cursor_at_pointer = galley.cursor_from_pos(pointer_pos - response.rect.min);
-
-                    let allow_drag_to_select = true;
-                    cursor_state.pointer_interaction(
-                        ui,
-                        &response,
-                        cursor_at_pointer,
-                        &galley,
-                        allow_drag_to_select,
-                    );
-                }
-
-                if let Some(mut cursor_range) = cursor_state.range(&galley) {
-                    process_selection_key_events(ui, &galley, response.id, &mut cursor_range);
-                    cursor_state.set_range(Some(cursor_range));
-                }
-
-                if let Some(cursor_range) = cursor_state.range(&galley) {
-                    // We paint the cursor on top of the text, in case
-                    // the text galley has backgrounds (as e.g. `code` snippets in markup do).
-                    paint_cursor_selection(ui.visuals(), ui.painter(), pos, &galley, &cursor_range);
-                }
-
-                if !cursor_state.is_empty() {
-                    LabelSelectionState::store(ui.ctx(), response.id, cursor_state);
-                }
+                text_selection(ui, &response, &galley, pos);
             }
         }
 
         response
+    }
+}
+
+/// Handle text selection state for a label or similar widget.
+///
+/// Make sure the widget senses to clicks and drags.
+///
+/// This should be called after painting the text, because this will also
+/// paint the text cursor/selection on top.
+pub fn text_selection(ui: &Ui, response: &Response, galley: &Galley, text_pos: Pos2) {
+    let mut cursor_state = LabelSelectionState::load(ui.ctx(), response.id);
+
+    if response.hovered {
+        ui.ctx().set_cursor_icon(CursorIcon::Text);
+    } else if !cursor_state.is_empty() && ui.input(|i| i.pointer.any_pressed()) {
+        // We clicked somewhere else - deselect this label.
+        cursor_state = Default::default();
+        LabelSelectionState::store(ui.ctx(), response.id, cursor_state);
+    }
+
+    if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
+        let cursor_at_pointer = galley.cursor_from_pos(pointer_pos - response.rect.min);
+
+        let allow_drag_to_select = true;
+        cursor_state.pointer_interaction(
+            ui,
+            response,
+            cursor_at_pointer,
+            galley,
+            allow_drag_to_select,
+        );
+    }
+
+    if let Some(mut cursor_range) = cursor_state.range(galley) {
+        process_selection_key_events(ui, galley, response.id, &mut cursor_range);
+        cursor_state.set_range(Some(cursor_range));
+    }
+
+    if let Some(cursor_range) = cursor_state.range(galley) {
+        // We paint the cursor on top of the text, in case
+        // the text galley has backgrounds (as e.g. `code` snippets in markup do).
+        paint_cursor_selection(ui.visuals(), ui.painter(), text_pos, galley, &cursor_range);
+    }
+
+    if !cursor_state.is_empty() {
+        LabelSelectionState::store(ui.ctx(), response.id, cursor_state);
     }
 }
 
