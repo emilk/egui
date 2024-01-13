@@ -9,7 +9,7 @@ pub fn update_accesskit_for_text_widget(
     cursor_range: Option<CursorRange>,
     role: accesskit::Role,
     galley: &Galley,
-    text_draw_pos: Pos2,
+    galley_pos: Pos2,
 ) {
     let parent_id = ctx.accesskit_node_builder(widget_id, |builder| {
         let parent_id = widget_id;
@@ -45,7 +45,7 @@ pub fn update_accesskit_for_text_widget(
             let row_id = parent_id.with(row_index);
             ctx.accesskit_node_builder(row_id, |builder| {
                 builder.set_role(accesskit::Role::InlineTextBox);
-                let rect = row.rect.translate(text_draw_pos.to_vec2());
+                let rect = row.rect.translate(galley_pos.to_vec2());
                 builder.set_bounds(accesskit::Rect {
                     x0: rect.min.x.into(),
                     y0: rect.min.y.into(),

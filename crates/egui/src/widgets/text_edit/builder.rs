@@ -594,11 +594,11 @@ impl<'t> TextEdit<'t> {
             cursor_range = Some(new_cursor_range);
         }
 
-        let mut text_draw_pos = align
+        let mut galley_pos = align
             .align_size_within_rect(galley.size(), response.rect)
             .intersect(response.rect) // limit pos to the response rect area
             .min;
-        let align_offset = response.rect.left() - text_draw_pos.x;
+        let align_offset = response.rect.left() - galley_pos.x;
 
         // Visual clipping for singleline text editor with text larger than width
         if clip_text && align_offset == 0.0 {
@@ -623,7 +623,7 @@ impl<'t> TextEdit<'t> {
                 .at_least(0.0);
 
             state.singleline_offset = offset_x;
-            text_draw_pos -= vec2(offset_x, 0.0);
+            galley_pos -= vec2(offset_x, 0.0);
         } else {
             state.singleline_offset = align_offset;
         }
@@ -637,7 +637,7 @@ impl<'t> TextEdit<'t> {
         };
 
         if ui.is_rect_visible(rect) {
-            painter.galley(text_draw_pos, galley.clone(), text_color);
+            painter.galley(galley_pos, galley.clone(), text_color);
 
             if text.as_str().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
@@ -656,7 +656,7 @@ impl<'t> TextEdit<'t> {
                     paint_cursor_selection(
                         ui.visuals(),
                         &painter,
-                        text_draw_pos,
+                        galley_pos,
                         &galley,
                         &cursor_range,
                     );
@@ -666,7 +666,7 @@ impl<'t> TextEdit<'t> {
                             &painter,
                             ui.visuals(),
                             row_height,
-                            text_draw_pos,
+                            galley_pos,
                             &galley,
                             &cursor_range.primary,
                         );
@@ -730,14 +730,14 @@ impl<'t> TextEdit<'t> {
                 cursor_range,
                 role,
                 &galley,
-                text_draw_pos,
+                galley_pos,
             );
         }
 
         TextEditOutput {
             response,
             galley,
-            text_draw_pos,
+            text_draw_pos: galley_pos,
             text_clip_rect,
             state,
             cursor_range,
@@ -981,7 +981,7 @@ fn events(
 pub fn paint_cursor_selection(
     visuals: &Visuals,
     painter: &Painter,
-    pos: Pos2,
+    galley_pos: Pos2,
     galley: &Galley,
     cursor_range: &CursorRange,
 ) {
@@ -1013,8 +1013,8 @@ pub fn paint_cursor_selection(
             row.rect.right() + newline_size
         };
         let rect = Rect::from_min_max(
-            pos + vec2(left, row.min_y()),
-            pos + vec2(right, row.max_y()),
+            galley_pos + vec2(left, row.min_y()),
+            galley_pos + vec2(right, row.max_y()),
         );
         painter.rect_filled(rect, 0.0, color);
     }

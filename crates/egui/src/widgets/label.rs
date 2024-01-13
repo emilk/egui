@@ -201,12 +201,12 @@ impl Label {
 
             let galley = ui.fonts(|fonts| fonts.layout_job(layout_job));
             let (rect, response) = ui.allocate_exact_size(galley.size(), sense);
-            let pos = match galley.job.halign {
+            let galley_pos = match galley.job.halign {
                 Align::LEFT => rect.left_top(),
                 Align::Center => rect.center_top(),
                 Align::RIGHT => rect.right_top(),
             };
-            (pos, galley, response)
+            (galley_pos, galley, response)
         }
     }
 }
@@ -216,7 +216,7 @@ impl Widget for Label {
         let interactive = self.sense.map_or(false, |sense| sense != Sense::hover());
         let selectable = self.selectable;
 
-        let (pos, galley, mut response) = self.layout_in_ui(ui);
+        let (galley_pos, galley, mut response) = self.layout_in_ui(ui);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Label, galley.text()));
 
         if ui.is_rect_visible(response.rect) {
@@ -238,13 +238,13 @@ impl Widget for Label {
             };
 
             ui.painter().add(
-                epaint::TextShape::new(pos, galley.clone(), response_color)
+                epaint::TextShape::new(galley_pos, galley.clone(), response_color)
                     .with_underline(underline),
             );
 
             let selectable = selectable.unwrap_or_else(|| ui.style().interaction.selectable_labels);
             if selectable {
-                text_selection(ui, &response, &galley, pos);
+                text_selection(ui, &response, &galley, galley_pos);
             }
         }
 
@@ -258,7 +258,7 @@ impl Widget for Label {
 ///
 /// This should be called after painting the text, because this will also
 /// paint the text cursor/selection on top.
-pub fn text_selection(ui: &Ui, response: &Response, galley: &Galley, text_pos: Pos2) {
+pub fn text_selection(ui: &Ui, response: &Response, galley: &Galley, galley_pos: Pos2) {
     let mut cursor_state = LabelSelectionState::load(ui.ctx(), response.id);
 
     if response.hovered {
@@ -292,7 +292,13 @@ pub fn text_selection(ui: &Ui, response: &Response, galley: &Galley, text_pos: P
     if let Some(cursor_range) = cursor_range {
         // We paint the cursor on top of the text, in case
         // the text galley has backgrounds (as e.g. `code` snippets in markup do).
-        paint_cursor_selection(ui.visuals(), ui.painter(), text_pos, galley, &cursor_range);
+        paint_cursor_selection(
+            ui.visuals(),
+            ui.painter(),
+            galley_pos,
+            galley,
+            &cursor_range,
+        );
     }
 
     #[cfg(feature = "accesskit")]
@@ -302,7 +308,7 @@ pub fn text_selection(ui: &Ui, response: &Response, galley: &Galley, text_pos: P
         cursor_range,
         accesskit::Role::StaticText,
         galley,
-        text_pos,
+        galley_pos,
     );
 
     if !cursor_state.is_empty() {
