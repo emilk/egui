@@ -270,7 +270,7 @@ pub fn text_selection(ui: &Ui, response: &Response, galley: &Galley, galley_pos:
     }
 
     if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
-        let cursor_at_pointer = galley.cursor_from_pos(pointer_pos - response.rect.min);
+        let cursor_at_pointer = galley.cursor_from_pos(pointer_pos - galley_pos);
 
         let allow_drag_to_select = true;
         cursor_state.pointer_interaction(
