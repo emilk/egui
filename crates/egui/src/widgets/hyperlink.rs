@@ -37,10 +37,6 @@ impl Widget for Link {
         let (pos, galley, response) = label.layout_in_ui(ui);
         response.widget_info(|| WidgetInfo::labeled(WidgetType::Link, galley.text()));
 
-        if response.hovered() {
-            ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
-        }
-
         if ui.is_rect_visible(response.rect) {
             let color = ui.visuals().hyperlink_color;
             let visuals = ui.style().interact(&response);
@@ -52,7 +48,16 @@ impl Widget for Link {
             };
 
             ui.painter()
-                .add(epaint::TextShape::new(pos, galley, color).with_underline(underline));
+                .add(epaint::TextShape::new(pos, galley.clone(), color).with_underline(underline));
+
+            let selectable = ui.style().interaction.selectable_labels;
+            if selectable {
+                crate::widgets::label::text_selection(ui, &response, &galley, pos);
+            }
+
+            if response.hovered() {
+                ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
+            }
         }
 
         response

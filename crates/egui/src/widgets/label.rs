@@ -115,16 +115,18 @@ impl Label {
             .selectable
             .unwrap_or_else(|| ui.style().interaction.selectable_labels);
 
-        let sense = self.sense.unwrap_or_else(|| {
-            if selectable {
-                Sense::click_and_drag()
-            } else if ui.memory(|mem| mem.options.screen_reader) {
-                // We only want to focus labels if the screen reader is on.
-                Sense::focusable_noninteractive()
-            } else {
-                Sense::hover()
-            }
-        });
+        let sense = if selectable {
+            Sense::click_and_drag()
+        } else {
+            self.sense.unwrap_or_else(|| {
+                if ui.memory(|mem| mem.options.screen_reader) {
+                    // We only want to focus labels if the screen reader is on.
+                    Sense::focusable_noninteractive()
+                } else {
+                    Sense::hover()
+                }
+            })
+        };
 
         if let WidgetText::Galley(galley) = self.text {
             // If the user said "use this specific galley", then just use it:
