@@ -36,6 +36,11 @@ impl CursorRange {
         }
     }
 
+    /// Select all the text in a galley
+    pub fn select_all(galley: &Galley) -> Self {
+        Self::two(Cursor::default(), galley.end())
+    }
+
     pub fn as_ccursor_range(&self) -> CCursorRange {
         CCursorRange {
             primary: self.primary.ccursor,
@@ -56,6 +61,14 @@ impl CursorRange {
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.primary.ccursor == self.secondary.ccursor
+    }
+
+    /// Is `self` a super-set of the the other range?
+    pub fn contains(&self, other: &Self) -> bool {
+        let [self_min, self_max] = self.sorted_cursors();
+        let [other_min, other_max] = other.sorted_cursors();
+        self_min.ccursor.index <= other_min.ccursor.index
+            && other_max.ccursor.index <= self_max.ccursor.index
     }
 
     /// If there is a selection, None is returned.
@@ -105,8 +118,7 @@ impl CursorRange {
     pub fn on_key_press(&mut self, galley: &Galley, modifiers: &Modifiers, key: Key) -> bool {
         match key {
             Key::A if modifiers.command => {
-                // select all
-                *self = Self::two(Cursor::default(), galley.end());
+                *self = Self::select_all(galley);
                 true
             }
 

@@ -357,7 +357,14 @@ fn process_selection_key_events(
         for event in &i.events {
             match event {
                 Event::Copy | Event::Cut => {
-                    if cursor_range.is_empty() {
+                    // This logic means we can select everything in an ellided label (including the `…`)
+                    // and still copy the entire un-ellided text!
+                    let everything_is_selected =
+                        cursor_range.contains(&CursorRange::select_all(galley));
+
+                    let copy_everything = cursor_range.is_empty() || everything_is_selected;
+
+                    if copy_everything {
                         copy_text = Some(galley.as_str().to_owned());
                     } else {
                         copy_text = Some(cursor_range.slice_str(galley).to_owned());
