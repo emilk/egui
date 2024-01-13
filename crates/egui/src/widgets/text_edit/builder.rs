@@ -550,7 +550,7 @@ impl<'t> TextEdit<'t> {
                     // Select word:
                     let center = cursor_at_pointer;
                     let ccursor_range = select_word_at(text.as_str(), center.ccursor);
-                    state.set_cursor_range(Some(CursorRange {
+                    state.cursor.set_range(Some(CursorRange {
                         primary: galley.from_ccursor(ccursor_range.primary),
                         secondary: galley.from_ccursor(ccursor_range.secondary),
                     }));
@@ -558,7 +558,7 @@ impl<'t> TextEdit<'t> {
                     // Select line:
                     let center = cursor_at_pointer;
                     let ccursor_range = select_line_at(text.as_str(), center.ccursor);
-                    state.set_cursor_range(Some(CursorRange {
+                    state.cursor.set_range(Some(CursorRange {
                         primary: galley.from_ccursor(ccursor_range.primary),
                         secondary: galley.from_ccursor(ccursor_range.secondary),
                     }));
@@ -566,22 +566,26 @@ impl<'t> TextEdit<'t> {
                     if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
                         ui.memory_mut(|mem| mem.request_focus(id));
                         if ui.input(|i| i.modifiers.shift) {
-                            if let Some(mut cursor_range) = state.cursor_range(&galley) {
+                            if let Some(mut cursor_range) = state.cursor.range(&galley) {
                                 cursor_range.primary = cursor_at_pointer;
-                                state.set_cursor_range(Some(cursor_range));
+                                state.cursor.set_range(Some(cursor_range));
                             } else {
-                                state.set_cursor_range(Some(CursorRange::one(cursor_at_pointer)));
+                                state
+                                    .cursor
+                                    .set_range(Some(CursorRange::one(cursor_at_pointer)));
                             }
                         } else {
-                            state.set_cursor_range(Some(CursorRange::one(cursor_at_pointer)));
+                            state
+                                .cursor
+                                .set_range(Some(CursorRange::one(cursor_at_pointer)));
                         }
                     } else if ui.input(|i| i.pointer.any_down())
                         && response.is_pointer_button_down_on()
                     {
                         // drag to select text:
-                        if let Some(mut cursor_range) = state.cursor_range(&galley) {
+                        if let Some(mut cursor_range) = state.cursor.range(&galley) {
                             cursor_range.primary = cursor_at_pointer;
-                            state.set_cursor_range(Some(cursor_range));
+                            state.cursor.set_range(Some(cursor_range));
                         }
                     }
                 }
@@ -593,7 +597,7 @@ impl<'t> TextEdit<'t> {
         }
 
         let mut cursor_range = None;
-        let prev_cursor_range = state.cursor_range(&galley);
+        let prev_cursor_range = state.cursor.range(&galley);
         if interactive && ui.memory(|mem| mem.has_focus(id)) {
             ui.memory_mut(|mem| mem.set_focus_lock_filter(id, event_filter));
 
@@ -680,7 +684,7 @@ impl<'t> TextEdit<'t> {
             }
 
             if ui.memory(|mem| mem.has_focus(id)) {
-                if let Some(cursor_range) = state.cursor_range(&galley) {
+                if let Some(cursor_range) = state.cursor.range(&galley) {
                     // We paint the cursor on top of the text, in case
                     // the text galley has backgrounds (as e.g. `code` snippets in markup do).
                     paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursor_range);
@@ -897,7 +901,7 @@ fn events(
     char_limit: usize,
     event_filter: EventFilter,
 ) -> (bool, CursorRange) {
-    let mut cursor_range = state.cursor_range(galley).unwrap_or(default_cursor_range);
+    let mut cursor_range = state.cursor.range(galley).unwrap_or(default_cursor_range);
 
     // We feed state to the undoer both before and after handling input
     // so that the undoer creates automatic saves even when there are no events for a while.
@@ -1104,7 +1108,7 @@ fn events(
         }
     }
 
-    state.set_cursor_range(Some(cursor_range));
+    state.cursor.set_range(Some(cursor_range));
 
     state.undoer.lock().feed_state(
         ui.input(|i| i.time),
