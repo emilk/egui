@@ -53,9 +53,7 @@ impl super::View for TextEditDemo {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.label("Selected text: ");
             if let Some(text_cursor_range) = output.cursor_range {
-                use egui::TextBuffer as _;
-                let selected_chars = text_cursor_range.as_sorted_char_range();
-                let selected_text = text.char_range(selected_chars);
+                let selected_text = text_cursor_range.slice_str(text);
                 ui.code(selected_text);
             }
         });

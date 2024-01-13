@@ -907,7 +907,7 @@ fn events(
                 if cursor_range.is_empty() {
                     copy_if_not_password(ui, text.as_str().to_owned());
                 } else {
-                    copy_if_not_password(ui, selected_str(text, &cursor_range).to_owned());
+                    copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
                 }
                 None
             }
@@ -916,7 +916,7 @@ fn events(
                     copy_if_not_password(ui, text.take());
                     Some(CCursorRange::default())
                 } else {
-                    copy_if_not_password(ui, selected_str(text, &cursor_range).to_owned());
+                    copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
                     Some(CCursorRange::one(delete_selected(text, &cursor_range)))
                 }
             }
@@ -1181,11 +1181,6 @@ fn paint_cursor_end(
 }
 
 // ----------------------------------------------------------------------------
-
-fn selected_str<'s>(text: &'s dyn TextBuffer, cursor_range: &CursorRange) -> &'s str {
-    let [min, max] = cursor_range.sorted_cursors();
-    text.char_range(min.ccursor.index..max.ccursor.index)
-}
 
 fn insert_text(
     ccursor: &mut CCursor,

@@ -629,8 +629,36 @@ impl Galley {
         &self.job.text
     }
 
+    /// The full, non-elided text of the input job.
+    #[inline(always)]
+    pub fn as_str(&self) -> &str {
+        &self.job.text
+    }
+
     pub fn size(&self) -> Vec2 {
         self.rect.size()
+    }
+}
+
+impl AsRef<str> for Galley {
+    #[inline(always)]
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl std::borrow::Borrow<str> for Galley {
+    #[inline]
+    fn borrow(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl std::ops::Deref for Galley {
+    type Target = str;
+    #[inline]
+    fn deref(&self) -> &str {
+        self.as_str()
     }
 }
 

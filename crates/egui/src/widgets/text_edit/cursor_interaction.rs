@@ -295,3 +295,19 @@ pub fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
         None => CCursor::new(0),
     }
 }
+
+pub fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
+    for (ci, (bi, _)) in s.char_indices().enumerate() {
+        if ci == char_index {
+            return bi;
+        }
+    }
+    s.len()
+}
+
+pub fn slice_char_range(s: &str, char_range: std::ops::Range<usize>) -> &str {
+    assert!(char_range.start <= char_range.end);
+    let start_byte = byte_index_from_char_index(s, char_range.start);
+    let end_byte = byte_index_from_char_index(s, char_range.end);
+    &s[start_byte..end_byte]
+}

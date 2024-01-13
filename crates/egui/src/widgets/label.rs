@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    text_edit::{paint_cursor_selection, TextCursorState},
+    text_edit::{paint_cursor_selection, CursorRange, TextCursorState},
     *,
 };
 
@@ -266,6 +266,11 @@ impl Widget for Label {
                     );
                 }
 
+                if let Some(mut cursor_range) = cursor_state.range(&galley) {
+                    process_selection_key_events(ui, &galley, &mut cursor_range);
+                    cursor_state.set_range(Some(cursor_range));
+                }
+
                 if let Some(cursor_range) = cursor_state.range(&galley) {
                     // We paint the cursor on top of the text, in case
                     // the text galley has backgrounds (as e.g. `code` snippets in markup do).
@@ -279,6 +284,24 @@ impl Widget for Label {
         }
 
         response
+    }
+}
+
+fn process_selection_key_events(ui: &Ui, galley: &Galley, cursor_range: &mut CursorRange) {
+    let events = ui.input(|i| i.events.clone());
+
+    for event in events {
+        match event {
+            Event::Copy | Event::Cut => {
+                if cursor_range.is_empty() {
+                    ui.ctx().copy_text(galley.text().to_owned());
+                } else {
+                    ui.ctx()
+                        .copy_text(cursor_range.slice_str(galley).to_owned());
+                }
+            }
+            _ => {}
+        }
     }
 }
 
@@ -310,16 +333,6 @@ impl LabelSelectionState {
                     selection,
                 },
             );
-        });
-    }
-
-    /// If this labels was selected, then deselect it:
-    fn deselect(ctx: &Context, id: Id) {
-        ctx.data_mut(|data| {
-            let state = data.get_temp_mut_or_default::<Self>(Id::NULL);
-            if state.id == Some(id) {
-                *state = Default::default();
-            }
         });
     }
 }

@@ -1,5 +1,7 @@
 use epaint::text::cursor::*;
 
+use super::cursor_interaction::slice_char_range;
+
 /// A selected text range (could be a range of length zero).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
@@ -85,6 +87,11 @@ impl CursorRange {
         } else {
             [self.secondary, self.primary]
         }
+    }
+
+    pub fn slice_str<'s>(&self, text: &'s str) -> &'s str {
+        let [min, max] = self.sorted_cursors();
+        slice_char_range(text, min.ccursor.index..max.ccursor.index)
     }
 }
 
