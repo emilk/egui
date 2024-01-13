@@ -548,13 +548,9 @@ impl<'t> TextEdit<'t> {
                     );
                 }
 
-                state.cursor.pointer_interaction(
-                    ui,
-                    &response,
-                    cursor_at_pointer,
-                    &galley,
-                    allow_drag_to_select,
-                );
+                state
+                    .cursor
+                    .pointer_interaction(ui, &response, cursor_at_pointer, &galley);
             }
         }
 

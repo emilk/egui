@@ -116,7 +116,17 @@ impl Label {
             .unwrap_or_else(|| ui.style().interaction.selectable_labels);
 
         let sense = if selectable {
-            Sense::click_and_drag()
+            // On touch screens (e.g. mobile in `eframe` web), should
+            // dragging select text, or scroll the enclosing [`ScrollArea`] (if any)?
+            // Since currently copying selected text in not supported on `eframe` web,
+            // we prioritize touch-scrolling:
+            let allow_drag_to_select = ui.input(|i| !i.any_touches());
+
+            if allow_drag_to_select {
+                Sense::click_and_drag()
+            } else {
+                Sense::click()
+            }
         } else {
             self.sense.unwrap_or_else(|| {
                 if ui.memory(|mem| mem.options.screen_reader) {
@@ -271,15 +281,7 @@ pub fn text_selection(ui: &Ui, response: &Response, galley: &Galley, galley_pos:
 
     if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
         let cursor_at_pointer = galley.cursor_from_pos(pointer_pos - galley_pos);
-
-        let allow_drag_to_select = true;
-        cursor_state.pointer_interaction(
-            ui,
-            response,
-            cursor_at_pointer,
-            galley,
-            allow_drag_to_select,
-        );
+        cursor_state.pointer_interaction(ui, response, cursor_at_pointer, galley);
     }
 
     if let Some(mut cursor_range) = cursor_state.range(galley) {

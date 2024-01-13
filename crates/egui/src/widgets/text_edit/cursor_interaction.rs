@@ -15,7 +15,6 @@ impl TextCursorState {
         response: &Response,
         cursor_at_pointer: Cursor,
         galley: &Galley,
-        allow_drag_to_select: bool,
     ) {
         let text = galley.text();
 
@@ -33,7 +32,7 @@ impl TextCursorState {
                 primary: galley.from_ccursor(ccursor_range.primary),
                 secondary: galley.from_ccursor(ccursor_range.secondary),
             }));
-        } else if allow_drag_to_select {
+        } else if response.sense.drag {
             if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
                 if ui.input(|i| i.modifiers.shift) {
                     if let Some(mut cursor_range) = self.range(galley) {
