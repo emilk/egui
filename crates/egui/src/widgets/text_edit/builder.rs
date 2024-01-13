@@ -1,8 +1,5 @@
 use std::sync::Arc;
 
-#[cfg(feature = "accesskit")]
-use accesskit::Role;
-
 use epaint::text::{cursor::*, Galley, LayoutJob};
 
 use crate::{output::OutputEvent, *};
@@ -719,37 +716,22 @@ impl<'t> TextEdit<'t> {
 
         #[cfg(feature = "accesskit")]
         {
-            let parent_id = ui.ctx().accesskit_node_builder(response.id, |builder| {
-                use accesskit::{TextPosition, TextSelection};
+            let role = if password {
+                accesskit::Role::PasswordInput
+            } else if multiline {
+                accesskit::Role::MultilineTextInput
+            } else {
+                accesskit::Role::TextInput
+            };
 
-                let parent_id = response.id;
-
-                if let Some(cursor_range) = &cursor_range {
-                    let anchor = &cursor_range.secondary.rcursor;
-                    let focus = &cursor_range.primary.rcursor;
-                    builder.set_text_selection(TextSelection {
-                        anchor: TextPosition {
-                            node: parent_id.with(anchor.row).accesskit_id(),
-                            character_index: anchor.column,
-                        },
-                        focus: TextPosition {
-                            node: parent_id.with(focus.row).accesskit_id(),
-                            character_index: focus.column,
-                        },
-                    });
-                }
-
-                builder.set_default_action_verb(accesskit::DefaultActionVerb::Focus);
-                if self.multiline {
-                    builder.set_role(Role::MultilineTextInput);
-                }
-
-                parent_id
-            });
-
-            if let Some(parent_id) = parent_id {
-                update_accesskit(ui.ctx(), parent_id, &galley, text_draw_pos);
-            }
+            super::accesskit_text::update_accesskit_for_text_widget(
+                ui.ctx(),
+                id,
+                cursor_range,
+                role,
+                &galley,
+                text_draw_pos,
+            );
         }
 
         TextEditOutput {
@@ -761,70 +743,6 @@ impl<'t> TextEdit<'t> {
             cursor_range,
         }
     }
-}
-
-#[cfg(feature = "accesskit")]
-fn update_accesskit(ctx: &Context, parent_id: Id, galley: &Arc<Galley>, text_draw_pos: Pos2) {
-    use accesskit::TextDirection;
-
-    use text_edit::cursor_interaction::is_word_char;
-
-    ctx.with_accessibility_parent(parent_id, || {
-        for (i, row) in galley.rows.iter().enumerate() {
-            let id = parent_id.with(i);
-            ctx.accesskit_node_builder(id, |builder| {
-                builder.set_role(Role::InlineTextBox);
-                let rect = row.rect.translate(text_draw_pos.to_vec2());
-                builder.set_bounds(accesskit::Rect {
-                    x0: rect.min.x.into(),
-                    y0: rect.min.y.into(),
-                    x1: rect.max.x.into(),
-                    y1: rect.max.y.into(),
-                });
-                builder.set_text_direction(TextDirection::LeftToRight);
-                // TODO(mwcampbell): Set more node fields for the row
-                // once AccessKit adapters expose text formatting info.
-
-                let glyph_count = row.glyphs.len();
-                let mut value = String::new();
-                value.reserve(glyph_count);
-                let mut character_lengths = Vec::<u8>::with_capacity(glyph_count);
-                let mut character_positions = Vec::<f32>::with_capacity(glyph_count);
-                let mut character_widths = Vec::<f32>::with_capacity(glyph_count);
-                let mut word_lengths = Vec::<u8>::new();
-                let mut was_at_word_end = false;
-                let mut last_word_start = 0usize;
-
-                for glyph in &row.glyphs {
-                    let is_word_char = is_word_char(glyph.chr);
-                    if is_word_char && was_at_word_end {
-                        word_lengths.push((character_lengths.len() - last_word_start) as _);
-                        last_word_start = character_lengths.len();
-                    }
-                    was_at_word_end = !is_word_char;
-                    let old_len = value.len();
-                    value.push(glyph.chr);
-                    character_lengths.push((value.len() - old_len) as _);
-                    character_positions.push(glyph.pos.x - row.rect.min.x);
-                    character_widths.push(glyph.size.x);
-                }
-
-                if row.ends_with_newline {
-                    value.push('\n');
-                    character_lengths.push(1);
-                    character_positions.push(row.rect.max.x - row.rect.min.x);
-                    character_widths.push(0.0);
-                }
-                word_lengths.push((character_lengths.len() - last_word_start) as _);
-
-                builder.set_value(value);
-                builder.set_character_lengths(character_lengths);
-                builder.set_character_positions(character_positions);
-                builder.set_character_widths(character_widths);
-                builder.set_word_lengths(word_lengths);
-            });
-        }
-    });
 }
 
 fn mask_if_password(is_password: bool, text: &str) -> String {

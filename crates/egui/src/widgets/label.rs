@@ -287,11 +287,23 @@ pub fn text_selection(ui: &Ui, response: &Response, galley: &Galley, text_pos: P
         cursor_state.set_range(Some(cursor_range));
     }
 
-    if let Some(cursor_range) = cursor_state.range(galley) {
+    let cursor_range = cursor_state.range(galley);
+
+    if let Some(cursor_range) = cursor_range {
         // We paint the cursor on top of the text, in case
         // the text galley has backgrounds (as e.g. `code` snippets in markup do).
         paint_cursor_selection(ui.visuals(), ui.painter(), text_pos, galley, &cursor_range);
     }
+
+    #[cfg(feature = "accesskit")]
+    text_edit::accesskit_text::update_accesskit_for_text_widget(
+        ui.ctx(),
+        response.id,
+        cursor_range,
+        accesskit::Role::StaticText,
+        galley,
+        text_pos,
+    );
 
     if !cursor_state.is_empty() {
         LabelSelectionState::store(ui.ctx(), response.id, cursor_state);

@@ -5,6 +5,9 @@ mod output;
 mod state;
 mod text_buffer;
 
+#[cfg(feature = "accesskit")]
+pub mod accesskit_text;
+
 pub use {
     builder::{paint_cursor_selection, TextEdit},
     cursor_range::*,
