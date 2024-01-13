@@ -546,49 +546,14 @@ impl<'t> TextEdit<'t> {
                     );
                 }
 
-                if response.double_clicked() {
-                    // Select word:
-                    let center = cursor_at_pointer;
-                    let ccursor_range = select_word_at(text.as_str(), center.ccursor);
-                    state.cursor.set_range(Some(CursorRange {
-                        primary: galley.from_ccursor(ccursor_range.primary),
-                        secondary: galley.from_ccursor(ccursor_range.secondary),
-                    }));
-                } else if response.triple_clicked() {
-                    // Select line:
-                    let center = cursor_at_pointer;
-                    let ccursor_range = select_line_at(text.as_str(), center.ccursor);
-                    state.cursor.set_range(Some(CursorRange {
-                        primary: galley.from_ccursor(ccursor_range.primary),
-                        secondary: galley.from_ccursor(ccursor_range.secondary),
-                    }));
-                } else if allow_drag_to_select {
-                    if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
-                        ui.memory_mut(|mem| mem.request_focus(id));
-                        if ui.input(|i| i.modifiers.shift) {
-                            if let Some(mut cursor_range) = state.cursor.range(&galley) {
-                                cursor_range.primary = cursor_at_pointer;
-                                state.cursor.set_range(Some(cursor_range));
-                            } else {
-                                state
-                                    .cursor
-                                    .set_range(Some(CursorRange::one(cursor_at_pointer)));
-                            }
-                        } else {
-                            state
-                                .cursor
-                                .set_range(Some(CursorRange::one(cursor_at_pointer)));
-                        }
-                    } else if ui.input(|i| i.pointer.any_down())
-                        && response.is_pointer_button_down_on()
-                    {
-                        // drag to select text:
-                        if let Some(mut cursor_range) = state.cursor.range(&galley) {
-                            cursor_range.primary = cursor_at_pointer;
-                            state.cursor.set_range(Some(cursor_range));
-                        }
-                    }
-                }
+                mouse_selection(
+                    ui,
+                    &response,
+                    cursor_at_pointer,
+                    &galley,
+                    allow_drag_to_select,
+                    &mut state.cursor,
+                );
             }
         }
 
@@ -1480,6 +1445,54 @@ fn move_single_cursor(cursor: &mut Cursor, galley: &Galley, key: Key, modifiers:
 }
 
 // ----------------------------------------------------------------------------
+
+/// Handle clicking and/or dragging text.
+fn mouse_selection(
+    ui: &mut Ui,
+    response: &Response,
+    cursor_at_pointer: Cursor,
+    galley: &Galley,
+    allow_drag_to_select: bool,
+    cursor_state: &mut text_edit::state::TextCursorState,
+) {
+    let text = galley.text();
+
+    if response.double_clicked() {
+        // Select word:
+        let ccursor_range = select_word_at(text, cursor_at_pointer.ccursor);
+        cursor_state.set_range(Some(CursorRange {
+            primary: galley.from_ccursor(ccursor_range.primary),
+            secondary: galley.from_ccursor(ccursor_range.secondary),
+        }));
+    } else if response.triple_clicked() {
+        // Select line:
+        let ccursor_range = select_line_at(text, cursor_at_pointer.ccursor);
+        cursor_state.set_range(Some(CursorRange {
+            primary: galley.from_ccursor(ccursor_range.primary),
+            secondary: galley.from_ccursor(ccursor_range.secondary),
+        }));
+    } else if allow_drag_to_select {
+        if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
+            ui.memory_mut(|mem| mem.request_focus(response.id));
+            if ui.input(|i| i.modifiers.shift) {
+                if let Some(mut cursor_range) = cursor_state.range(galley) {
+                    cursor_range.primary = cursor_at_pointer;
+                    cursor_state.set_range(Some(cursor_range));
+                } else {
+                    cursor_state.set_range(Some(CursorRange::one(cursor_at_pointer)));
+                }
+            } else {
+                cursor_state.set_range(Some(CursorRange::one(cursor_at_pointer)));
+            }
+        } else if ui.input(|i| i.pointer.any_down()) && response.is_pointer_button_down_on() {
+            // drag to select text:
+            if let Some(mut cursor_range) = cursor_state.range(galley) {
+                cursor_range.primary = cursor_at_pointer;
+                cursor_state.set_range(Some(cursor_range));
+            }
+        }
+    }
+}
 
 fn select_word_at(text: &str, ccursor: CCursor) -> CCursorRange {
     if ccursor.index == 0 {
