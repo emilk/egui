@@ -142,7 +142,7 @@ impl LayoutJob {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.sections.is_empty()
     }
@@ -618,39 +618,34 @@ impl Row {
 }
 
 impl Galley {
-    #[inline(always)]
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.job.is_empty()
     }
 
     /// The full, non-elided text of the input job.
-    #[inline(always)]
+    #[inline]
     pub fn text(&self) -> &str {
         &self.job.text
     }
 
-    /// The full, non-elided text of the input job.
-    #[inline(always)]
-    pub fn as_str(&self) -> &str {
-        &self.job.text
-    }
-
+    #[inline]
     pub fn size(&self) -> Vec2 {
         self.rect.size()
     }
 }
 
 impl AsRef<str> for Galley {
-    #[inline(always)]
+    #[inline]
     fn as_ref(&self) -> &str {
-        self.as_str()
+        self.text()
     }
 }
 
 impl std::borrow::Borrow<str> for Galley {
     #[inline]
     fn borrow(&self) -> &str {
-        self.as_str()
+        self.text()
     }
 }
 
@@ -658,7 +653,7 @@ impl std::ops::Deref for Galley {
     type Target = str;
     #[inline]
     fn deref(&self) -> &str {
-        self.as_str()
+        self.text()
     }
 }
 

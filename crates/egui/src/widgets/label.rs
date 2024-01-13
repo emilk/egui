@@ -365,7 +365,7 @@ fn process_selection_key_events(
                     let copy_everything = cursor_range.is_empty() || everything_is_selected;
 
                     if copy_everything {
-                        copy_text = Some(galley.as_str().to_owned());
+                        copy_text = Some(galley.text().to_owned());
                     } else {
                         copy_text = Some(cursor_range.slice_str(galley).to_owned());
                     }
