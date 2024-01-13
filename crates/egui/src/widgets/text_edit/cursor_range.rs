@@ -20,6 +20,7 @@ pub struct CursorRange {
 
 impl CursorRange {
     /// The empty range.
+    #[inline]
     pub fn one(cursor: Cursor) -> Self {
         Self {
             primary: cursor,
@@ -27,6 +28,7 @@ impl CursorRange {
         }
     }
 
+    #[inline]
     pub fn two(min: Cursor, max: Cursor) -> Self {
         Self {
             primary: max,
@@ -51,6 +53,7 @@ impl CursorRange {
     }
 
     /// True if the selected range contains no characters.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.primary.ccursor == self.secondary.ccursor
     }
@@ -198,6 +201,7 @@ pub struct CCursorRange {
 
 impl CCursorRange {
     /// The empty range.
+    #[inline]
     pub fn one(ccursor: CCursor) -> Self {
         Self {
             primary: ccursor,
@@ -205,6 +209,7 @@ impl CCursorRange {
         }
     }
 
+    #[inline]
     pub fn two(min: CCursor, max: CCursor) -> Self {
         Self {
             primary: max,
@@ -212,6 +217,7 @@ impl CCursorRange {
         }
     }
 
+    #[inline]
     pub fn is_sorted(&self) -> bool {
         let p = self.primary;
         let s = self.secondary;
@@ -219,6 +225,7 @@ impl CCursorRange {
     }
 
     /// returns the two ends ordered
+    #[inline]
     pub fn sorted(&self) -> [CCursor; 2] {
         if self.is_sorted() {
             [self.primary, self.secondary]
