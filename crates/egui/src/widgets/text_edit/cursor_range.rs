@@ -159,7 +159,7 @@ impl CursorRange {
     /// Check for events that modify the cursor range.
     ///
     /// Returns `true` if such an event was found and handled.
-    pub fn on_event(&mut self, event: &Event, galley: &Galley, widget_id: Id) -> bool {
+    pub fn on_event(&mut self, event: &Event, galley: &Galley, _widget_id: Id) -> bool {
         match event {
             Event::Key {
                 modifiers,
@@ -174,11 +174,11 @@ impl CursorRange {
                 target,
                 data: Some(accesskit::ActionData::SetTextSelection(selection)),
             }) => {
-                if widget_id.accesskit_id() == *target {
+                if _widget_id.accesskit_id() == *target {
                     let primary =
-                        ccursor_from_accesskit_text_position(widget_id, galley, &selection.focus);
+                        ccursor_from_accesskit_text_position(_widget_id, galley, &selection.focus);
                     let secondary =
-                        ccursor_from_accesskit_text_position(widget_id, galley, &selection.anchor);
+                        ccursor_from_accesskit_text_position(_widget_id, galley, &selection.anchor);
                     if let (Some(primary), Some(secondary)) = (primary, secondary) {
                         *self = Self {
                             primary: galley.from_ccursor(primary),
