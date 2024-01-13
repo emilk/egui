@@ -8,9 +8,7 @@ use epaint::text::{cursor::*, Galley, LayoutJob};
 use crate::{output::OutputEvent, *};
 
 use super::{
-    cursor_interaction::{
-        ccursor_next_word, ccursor_previous_word, find_line_start, move_single_cursor,
-    },
+    cursor_interaction::{ccursor_next_word, ccursor_previous_word, find_line_start},
     CCursorRange, CursorRange, TextEditOutput, TextEditState,
 };
 
@@ -845,28 +843,6 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
 
 // ----------------------------------------------------------------------------
 
-#[cfg(feature = "accesskit")]
-fn ccursor_from_accesskit_text_position(
-    id: Id,
-    galley: &Galley,
-    position: &accesskit::TextPosition,
-) -> Option<CCursor> {
-    let mut total_length = 0usize;
-    for (i, row) in galley.rows.iter().enumerate() {
-        let row_id = id.with(i);
-        if row_id.accesskit_id() == position.node {
-            return Some(CCursor {
-                index: total_length + position.character_index,
-                prefer_next_row: !(position.character_index == row.glyphs.len()
-                    && !row.ends_with_newline
-                    && (i + 1) < galley.rows.len()),
-            });
-        }
-        total_length += row.glyphs.len() + (row.ends_with_newline as usize);
-    }
-    None
-}
-
 /// Check for (keyboard) events to edit the cursor and/or text.
 #[allow(clippy::too_many_arguments)]
 fn events(
@@ -903,6 +879,9 @@ fn events(
     let events = ui.input(|i| i.filtered_events(&event_filter));
     for event in &events {
         let did_mutate_text = match event {
+            // First handle events that only changes the selection cursor, not the text:
+            event if cursor_range.on_event(event, galley, id) => None,
+
             Event::Copy => {
                 if cursor_range.is_empty() {
                     copy_if_not_password(ui, text.as_str().to_owned());
@@ -1012,11 +991,11 @@ fn events(
             }
 
             Event::Key {
+                modifiers,
                 key,
                 pressed: true,
-                modifiers,
                 ..
-            } => on_key_press(&mut cursor_range, text, galley, *key, modifiers),
+            } => check_for_mutating_key_press(&mut cursor_range, text, galley, modifiers, *key),
 
             Event::CompositionStart => {
                 state.has_ime = true;
@@ -1047,27 +1026,6 @@ fn events(
                         insert_text(&mut ccursor, text, prediction, char_limit);
                     }
                     Some(CCursorRange::one(ccursor))
-                } else {
-                    None
-                }
-            }
-
-            #[cfg(feature = "accesskit")]
-            Event::AccessKitActionRequest(accesskit::ActionRequest {
-                action: accesskit::Action::SetTextSelection,
-                target,
-                data: Some(accesskit::ActionData::SetTextSelection(selection)),
-            }) => {
-                if id.accesskit_id() == *target {
-                    let primary =
-                        ccursor_from_accesskit_text_position(id, galley, &selection.focus);
-                    let secondary =
-                        ccursor_from_accesskit_text_position(id, galley, &selection.anchor);
-                    if let (Some(primary), Some(secondary)) = (primary, secondary) {
-                        Some(CCursorRange { primary, secondary })
-                    } else {
-                        None
-                    }
                 } else {
                     None
                 }
@@ -1282,12 +1240,12 @@ fn delete_paragraph_after_cursor(
 // ----------------------------------------------------------------------------
 
 /// Returns `Some(new_cursor)` if we did mutate `text`.
-fn on_key_press(
+fn check_for_mutating_key_press(
     cursor_range: &mut CursorRange,
     text: &mut dyn TextBuffer,
     galley: &Galley,
-    key: Key,
     modifiers: &Modifiers,
+    key: Key,
 ) -> Option<CCursorRange> {
     match key {
         Key::Backspace => {
@@ -1305,6 +1263,7 @@ fn on_key_press(
             };
             Some(CCursorRange::one(ccursor))
         }
+
         Key::Delete if !modifiers.shift || !cfg!(target_os = "windows") => {
             let ccursor = if modifiers.mac_cmd {
                 delete_paragraph_after_cursor(text, galley, cursor_range)
@@ -1323,12 +1282,6 @@ fn on_key_press(
                 ..ccursor
             };
             Some(CCursorRange::one(ccursor))
-        }
-
-        Key::A if modifiers.command => {
-            // select all
-            *cursor_range = CursorRange::two(Cursor::default(), galley.end());
-            None
         }
 
         Key::H if modifiers.ctrl => {
@@ -1353,31 +1306,6 @@ fn on_key_press(
                 delete_selected(text, cursor_range)
             };
             Some(CCursorRange::one(ccursor))
-        }
-
-        Key::ArrowLeft | Key::ArrowRight if modifiers.is_none() && !cursor_range.is_empty() => {
-            if key == Key::ArrowLeft {
-                *cursor_range = CursorRange::one(cursor_range.sorted_cursors()[0]);
-            } else {
-                *cursor_range = CursorRange::one(cursor_range.sorted_cursors()[1]);
-            }
-            None
-        }
-
-        Key::ArrowLeft | Key::ArrowRight | Key::ArrowUp | Key::ArrowDown | Key::Home | Key::End => {
-            move_single_cursor(&mut cursor_range.primary, galley, key, modifiers);
-            if !modifiers.shift {
-                cursor_range.secondary = cursor_range.primary;
-            }
-            None
-        }
-
-        Key::P | Key::N | Key::B | Key::F | Key::A | Key::E
-            if cfg!(target_os = "macos") && modifiers.ctrl && !modifiers.shift =>
-        {
-            move_single_cursor(&mut cursor_range.primary, galley, key, modifiers);
-            cursor_range.secondary = cursor_range.primary;
-            None
         }
 
         _ => None,

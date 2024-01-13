@@ -267,7 +267,7 @@ impl Widget for Label {
                 }
 
                 if let Some(mut cursor_range) = cursor_state.range(&galley) {
-                    process_selection_key_events(ui, &galley, &mut cursor_range);
+                    process_selection_key_events(ui, &galley, response.id, &mut cursor_range);
                     cursor_state.set_range(Some(cursor_range));
                 }
 
@@ -287,21 +287,37 @@ impl Widget for Label {
     }
 }
 
-fn process_selection_key_events(ui: &Ui, galley: &Galley, cursor_range: &mut CursorRange) {
-    let events = ui.input(|i| i.events.clone());
+fn process_selection_key_events(
+    ui: &Ui,
+    galley: &Galley,
+    widget_id: Id,
+    cursor_range: &mut CursorRange,
+) {
+    let mut copy_text = None;
 
-    for event in events {
-        match event {
-            Event::Copy | Event::Cut => {
-                if cursor_range.is_empty() {
-                    ui.ctx().copy_text(galley.text().to_owned());
-                } else {
-                    ui.ctx()
-                        .copy_text(cursor_range.slice_str(galley).to_owned());
+    ui.input(|i| {
+        // NOTE: we have a lock on ui/ctx here,
+        // so be careful to not call into `ui` or `ctx` again.
+
+        for event in &i.events {
+            match event {
+                Event::Copy | Event::Cut => {
+                    if cursor_range.is_empty() {
+                        copy_text = Some(galley.as_str().to_owned());
+                    } else {
+                        copy_text = Some(cursor_range.slice_str(galley).to_owned());
+                    }
+                }
+
+                event => {
+                    cursor_range.on_event(event, galley, widget_id);
                 }
             }
-            _ => {}
         }
+    });
+
+    if let Some(copy_text) = copy_text {
+        ui.ctx().copy_text(copy_text);
     }
 }
 
