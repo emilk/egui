@@ -1,54 +1,57 @@
 //! Text cursor changes/interaction, without modifying the text.
 
 use epaint::text::{cursor::*, Galley};
+use text_edit::state::TextCursorState;
 
 use crate::*;
 
 use super::{CCursorRange, CursorRange};
 
-/// Handle clicking and/or dragging text.
-pub fn mouse_selection(
-    ui: &mut Ui,
-    response: &Response,
-    cursor_at_pointer: Cursor,
-    galley: &Galley,
-    allow_drag_to_select: bool,
-    cursor_state: &mut text_edit::state::TextCursorState,
-) {
-    let text = galley.text();
+impl TextCursorState {
+    /// Handle clicking and/or dragging text.
+    pub fn pointer_interaction(
+        &mut self,
+        ui: &mut Ui,
+        response: &Response,
+        cursor_at_pointer: Cursor,
+        galley: &Galley,
+        allow_drag_to_select: bool,
+    ) {
+        let text = galley.text();
 
-    if response.double_clicked() {
-        // Select word:
-        let ccursor_range = select_word_at(text, cursor_at_pointer.ccursor);
-        cursor_state.set_range(Some(CursorRange {
-            primary: galley.from_ccursor(ccursor_range.primary),
-            secondary: galley.from_ccursor(ccursor_range.secondary),
-        }));
-    } else if response.triple_clicked() {
-        // Select line:
-        let ccursor_range = select_line_at(text, cursor_at_pointer.ccursor);
-        cursor_state.set_range(Some(CursorRange {
-            primary: galley.from_ccursor(ccursor_range.primary),
-            secondary: galley.from_ccursor(ccursor_range.secondary),
-        }));
-    } else if allow_drag_to_select {
-        if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
-            ui.memory_mut(|mem| mem.request_focus(response.id));
-            if ui.input(|i| i.modifiers.shift) {
-                if let Some(mut cursor_range) = cursor_state.range(galley) {
-                    cursor_range.primary = cursor_at_pointer;
-                    cursor_state.set_range(Some(cursor_range));
+        if response.double_clicked() {
+            // Select word:
+            let ccursor_range = select_word_at(text, cursor_at_pointer.ccursor);
+            self.set_range(Some(CursorRange {
+                primary: galley.from_ccursor(ccursor_range.primary),
+                secondary: galley.from_ccursor(ccursor_range.secondary),
+            }));
+        } else if response.triple_clicked() {
+            // Select line:
+            let ccursor_range = select_line_at(text, cursor_at_pointer.ccursor);
+            self.set_range(Some(CursorRange {
+                primary: galley.from_ccursor(ccursor_range.primary),
+                secondary: galley.from_ccursor(ccursor_range.secondary),
+            }));
+        } else if allow_drag_to_select {
+            if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
+                ui.memory_mut(|mem| mem.request_focus(response.id));
+                if ui.input(|i| i.modifiers.shift) {
+                    if let Some(mut cursor_range) = self.range(galley) {
+                        cursor_range.primary = cursor_at_pointer;
+                        self.set_range(Some(cursor_range));
+                    } else {
+                        self.set_range(Some(CursorRange::one(cursor_at_pointer)));
+                    }
                 } else {
-                    cursor_state.set_range(Some(CursorRange::one(cursor_at_pointer)));
+                    self.set_range(Some(CursorRange::one(cursor_at_pointer)));
                 }
-            } else {
-                cursor_state.set_range(Some(CursorRange::one(cursor_at_pointer)));
-            }
-        } else if ui.input(|i| i.pointer.any_down()) && response.is_pointer_button_down_on() {
-            // drag to select text:
-            if let Some(mut cursor_range) = cursor_state.range(galley) {
-                cursor_range.primary = cursor_at_pointer;
-                cursor_state.set_range(Some(cursor_range));
+            } else if ui.input(|i| i.pointer.any_down()) && response.is_pointer_button_down_on() {
+                // drag to select text:
+                if let Some(mut cursor_range) = self.range(galley) {
+                    cursor_range.primary = cursor_at_pointer;
+                    self.set_range(Some(cursor_range));
+                }
             }
         }
     }

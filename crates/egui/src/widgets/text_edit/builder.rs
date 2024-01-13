@@ -5,11 +5,7 @@ use accesskit::Role;
 
 use epaint::text::{cursor::*, Galley, LayoutJob};
 
-use crate::{
-    output::OutputEvent,
-    text_edit::cursor_interaction::{is_word_char, mouse_selection},
-    *,
-};
+use crate::{output::OutputEvent, *};
 
 use super::{
     cursor_interaction::{
@@ -537,6 +533,7 @@ impl<'t> TextEdit<'t> {
                 }
 
                 // TODO(emilk): drag selected text to either move or clone (ctrl on windows, alt on mac)
+
                 let singleline_offset = vec2(state.singleline_offset, 0.0);
                 let cursor_at_pointer =
                     galley.cursor_from_pos(pointer_pos - response.rect.min + singleline_offset);
@@ -547,22 +544,21 @@ impl<'t> TextEdit<'t> {
                 {
                     // preview:
                     paint_cursor_end(
-                        ui,
-                        row_height,
                         &painter,
+                        ui.visuals(),
+                        row_height,
                         response.rect.min,
                         &galley,
                         &cursor_at_pointer,
                     );
                 }
 
-                mouse_selection(
+                state.cursor.pointer_interaction(
                     ui,
                     &response,
                     cursor_at_pointer,
                     &galley,
                     allow_drag_to_select,
-                    &mut state.cursor,
                 );
             }
         }
@@ -662,13 +658,19 @@ impl<'t> TextEdit<'t> {
                 if let Some(cursor_range) = state.cursor.range(&galley) {
                     // We paint the cursor on top of the text, in case
                     // the text galley has backgrounds (as e.g. `code` snippets in markup do).
-                    paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursor_range);
+                    paint_cursor_selection(
+                        ui.visuals(),
+                        &painter,
+                        text_draw_pos,
+                        &galley,
+                        &cursor_range,
+                    );
 
                     if text.is_mutable() {
                         let cursor_rect = paint_cursor_end(
-                            ui,
-                            row_height,
                             &painter,
+                            ui.visuals(),
+                            row_height,
                             text_draw_pos,
                             &galley,
                             &cursor_range.primary,
@@ -748,66 +750,7 @@ impl<'t> TextEdit<'t> {
             });
 
             if let Some(parent_id) = parent_id {
-                // drop ctx lock before further processing
-                use accesskit::TextDirection;
-
-                ui.ctx().with_accessibility_parent(parent_id, || {
-                    for (i, row) in galley.rows.iter().enumerate() {
-                        let id = parent_id.with(i);
-                        ui.ctx().accesskit_node_builder(id, |builder| {
-                            builder.set_role(Role::InlineTextBox);
-                            let rect = row.rect.translate(text_draw_pos.to_vec2());
-                            builder.set_bounds(accesskit::Rect {
-                                x0: rect.min.x.into(),
-                                y0: rect.min.y.into(),
-                                x1: rect.max.x.into(),
-                                y1: rect.max.y.into(),
-                            });
-                            builder.set_text_direction(TextDirection::LeftToRight);
-                            // TODO(mwcampbell): Set more node fields for the row
-                            // once AccessKit adapters expose text formatting info.
-
-                            let glyph_count = row.glyphs.len();
-                            let mut value = String::new();
-                            value.reserve(glyph_count);
-                            let mut character_lengths = Vec::<u8>::with_capacity(glyph_count);
-                            let mut character_positions = Vec::<f32>::with_capacity(glyph_count);
-                            let mut character_widths = Vec::<f32>::with_capacity(glyph_count);
-                            let mut word_lengths = Vec::<u8>::new();
-                            let mut was_at_word_end = false;
-                            let mut last_word_start = 0usize;
-
-                            for glyph in &row.glyphs {
-                                let is_word_char = is_word_char(glyph.chr);
-                                if is_word_char && was_at_word_end {
-                                    word_lengths
-                                        .push((character_lengths.len() - last_word_start) as _);
-                                    last_word_start = character_lengths.len();
-                                }
-                                was_at_word_end = !is_word_char;
-                                let old_len = value.len();
-                                value.push(glyph.chr);
-                                character_lengths.push((value.len() - old_len) as _);
-                                character_positions.push(glyph.pos.x - row.rect.min.x);
-                                character_widths.push(glyph.size.x);
-                            }
-
-                            if row.ends_with_newline {
-                                value.push('\n');
-                                character_lengths.push(1);
-                                character_positions.push(row.rect.max.x - row.rect.min.x);
-                                character_widths.push(0.0);
-                            }
-                            word_lengths.push((character_lengths.len() - last_word_start) as _);
-
-                            builder.set_value(value);
-                            builder.set_character_lengths(character_lengths);
-                            builder.set_character_positions(character_positions);
-                            builder.set_character_widths(character_widths);
-                            builder.set_word_lengths(word_lengths);
-                        });
-                    }
-                });
+                update_accesskit(ui.ctx(), parent_id, &galley, text_draw_pos);
             }
         }
 
@@ -820,6 +763,70 @@ impl<'t> TextEdit<'t> {
             cursor_range,
         }
     }
+}
+
+#[cfg(feature = "accesskit")]
+fn update_accesskit(ctx: &Context, parent_id: Id, galley: &Arc<Galley>, text_draw_pos: Pos2) {
+    use accesskit::TextDirection;
+
+    use text_edit::cursor_interaction::is_word_char;
+
+    ctx.with_accessibility_parent(parent_id, || {
+        for (i, row) in galley.rows.iter().enumerate() {
+            let id = parent_id.with(i);
+            ctx.accesskit_node_builder(id, |builder| {
+                builder.set_role(Role::InlineTextBox);
+                let rect = row.rect.translate(text_draw_pos.to_vec2());
+                builder.set_bounds(accesskit::Rect {
+                    x0: rect.min.x.into(),
+                    y0: rect.min.y.into(),
+                    x1: rect.max.x.into(),
+                    y1: rect.max.y.into(),
+                });
+                builder.set_text_direction(TextDirection::LeftToRight);
+                // TODO(mwcampbell): Set more node fields for the row
+                // once AccessKit adapters expose text formatting info.
+
+                let glyph_count = row.glyphs.len();
+                let mut value = String::new();
+                value.reserve(glyph_count);
+                let mut character_lengths = Vec::<u8>::with_capacity(glyph_count);
+                let mut character_positions = Vec::<f32>::with_capacity(glyph_count);
+                let mut character_widths = Vec::<f32>::with_capacity(glyph_count);
+                let mut word_lengths = Vec::<u8>::new();
+                let mut was_at_word_end = false;
+                let mut last_word_start = 0usize;
+
+                for glyph in &row.glyphs {
+                    let is_word_char = is_word_char(glyph.chr);
+                    if is_word_char && was_at_word_end {
+                        word_lengths.push((character_lengths.len() - last_word_start) as _);
+                        last_word_start = character_lengths.len();
+                    }
+                    was_at_word_end = !is_word_char;
+                    let old_len = value.len();
+                    value.push(glyph.chr);
+                    character_lengths.push((value.len() - old_len) as _);
+                    character_positions.push(glyph.pos.x - row.rect.min.x);
+                    character_widths.push(glyph.size.x);
+                }
+
+                if row.ends_with_newline {
+                    value.push('\n');
+                    character_lengths.push(1);
+                    character_positions.push(row.rect.max.x - row.rect.min.x);
+                    character_widths.push(0.0);
+                }
+                word_lengths.push((character_lengths.len() - last_word_start) as _);
+
+                builder.set_value(value);
+                builder.set_character_lengths(character_lengths);
+                builder.set_character_positions(character_positions);
+                builder.set_character_widths(character_widths);
+                builder.set_word_lengths(word_lengths);
+            });
+        }
+    });
 }
 
 fn mask_if_password(is_password: bool, text: &str) -> String {
@@ -1095,8 +1102,8 @@ fn events(
 
 // ----------------------------------------------------------------------------
 
-fn paint_cursor_selection(
-    ui: &Ui,
+pub fn paint_cursor_selection(
+    visuals: &Visuals,
     painter: &Painter,
     pos: Pos2,
     galley: &Galley,
@@ -1107,7 +1114,7 @@ fn paint_cursor_selection(
     }
 
     // We paint the cursor selection on top of the text, so make it transparent:
-    let color = ui.visuals().selection.bg_fill.linear_multiply(0.5);
+    let color = visuals.selection.bg_fill.linear_multiply(0.5);
     let [min, max] = cursor_range.sorted_cursors();
     let min = min.rcursor;
     let max = max.rcursor;
@@ -1138,14 +1145,14 @@ fn paint_cursor_selection(
 }
 
 fn paint_cursor_end(
-    ui: &Ui,
-    row_height: f32,
     painter: &Painter,
+    visuals: &Visuals,
+    row_height: f32,
     pos: Pos2,
     galley: &Galley,
     cursor: &Cursor,
 ) -> Rect {
-    let stroke = ui.visuals().text_cursor;
+    let stroke = visuals.text_cursor;
 
     let mut cursor_pos = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
     cursor_pos.max.y = cursor_pos.max.y.at_least(cursor_pos.min.y + row_height); // Handle completely empty galleys

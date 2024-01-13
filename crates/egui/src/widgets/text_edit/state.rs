@@ -9,7 +9,7 @@ use super::{CCursorRange, CursorRange};
 pub type TextEditUndoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
 
 /// The state of a text cursor selection.
-#[derive(Clone, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(default))]
 pub struct TextCursorState {
@@ -21,6 +21,10 @@ pub struct TextCursorState {
 }
 
 impl TextCursorState {
+    pub fn is_empty(&self) -> bool {
+        self.cursor_range.is_none() && self.ccursor_range.is_none()
+    }
+
     /// The the currently selected range of characters.
     pub fn char_range(&self) -> Option<CCursorRange> {
         self.ccursor_range.or_else(|| {

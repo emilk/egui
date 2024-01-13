@@ -6,6 +6,10 @@ mod state;
 mod text_buffer;
 
 pub use {
-    builder::TextEdit, cursor_range::*, output::TextEditOutput, state::TextEditState,
+    builder::{paint_cursor_selection, TextEdit},
+    cursor_range::*,
+    output::TextEditOutput,
+    state::TextCursorState,
+    state::TextEditState,
     text_buffer::TextBuffer,
 };
