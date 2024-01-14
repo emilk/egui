@@ -41,6 +41,9 @@ pub enum Key {
     /// '/'
     Slash,
 
+    /// '|', a vertical bar
+    Pipe,
+
     /// `?`
     Questionmark,
 
@@ -190,6 +193,7 @@ impl Key {
         Self::Backtick,
         Self::Backslash,
         Self::Slash,
+        Self::Pipe,
         Self::Questionmark,
         // Digits:
         Self::Num0,
@@ -294,6 +298,7 @@ impl Key {
             ";" | "Semicolon" => Self::Semicolon,
             "\\" | "Backslash" => Self::Backslash,
             "/" | "Slash" => Self::Slash,
+            "|" | "Pipe" => Self::Pipe,
             "?" | "Questionmark" => Self::Questionmark,
             "[" | "OpenBracket" => Self::OpenBracket,
             "]" | "CloseBracket" => Self::CloseBracket,
@@ -382,6 +387,7 @@ impl Key {
             Self::Semicolon => ";",
             Self::Backslash => "\\",
             Self::Slash => "/",
+            Self::Pipe => "|",
             Self::Questionmark => "?",
             Self::OpenBracket => "[",
             Self::CloseBracket => "]",
@@ -425,6 +431,7 @@ impl Key {
             Self::Semicolon => "Semicolon",
             Self::Backslash => "Backslash",
             Self::Slash => "Slash",
+            Self::Pipe => "Pipe",
             Self::Questionmark => "Questionmark",
             Self::OpenBracket => "OpenBracket",
             Self::CloseBracket => "CloseBracket",
