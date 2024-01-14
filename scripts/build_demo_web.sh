@@ -18,7 +18,7 @@ OPEN=false
 OPTIMIZE=false
 BUILD=debug
 BUILD_FLAGS=""
-WEB_GPU=false
+WGPU=false
 WASM_OPT_FLAGS="-O2 --fast-math"
 
 while test $# -gt 0; do
@@ -73,7 +73,7 @@ done
 OUT_FILE_NAME="egui_demo_app"
 
 if [[ "${WGPU}" == true ]]; then
-  FEATURES="${FEATURES},wgpu-with-webgl-fallback"
+  FEATURES="${FEATURES},wgpu"
 else
   FEATURES="${FEATURES},glow"
 fi

@@ -29,8 +29,7 @@ serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]
 syntect = ["egui_demo_lib/syntect"]
 
 glow = ["eframe/glow"]
-wgpu = ["eframe/wgpu", "bytemuck"]
-wgpu-with-webgl-fallback = ["wgpu", "eframe/wgpu-with-webgl-fallback"]
+wgpu = ["eframe/wgpu", "bytemuck", "dep:wgpu"]
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = [
@@ -58,6 +57,8 @@ log = { version = "0.4", features = ["std"] }
 bytemuck = { version = "1.7.1", optional = true }
 puffin = { version = "0.18", optional = true }
 puffin_http = { version = "0.15", optional = true }
+# Enable both webgl & webgpu for targeting the web (these features have no effect when not targeting wasm32)
+wgpu = { workspace = true, features = ["webgpu", "webgl"], optional = true }
 
 
 # feature "http":
