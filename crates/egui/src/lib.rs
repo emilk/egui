@@ -413,6 +413,7 @@ pub use {
         output::{
             self, CursorIcon, FullOutput, OpenUrl, PlatformOutput, UserAttentionType, WidgetInfo,
         },
+        Key,
     },
     grid::Grid,
     id::{Id, IdMap},

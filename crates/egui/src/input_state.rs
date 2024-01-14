@@ -4,7 +4,7 @@ use crate::data::input::*;
 use crate::{emath::*, util::History};
 use std::collections::{BTreeMap, HashSet};
 
-pub use crate::data::input::Key;
+pub use crate::Key;
 pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
 
