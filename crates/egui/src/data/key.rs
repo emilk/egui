@@ -41,6 +41,9 @@ pub enum Key {
     /// '/'
     Slash,
 
+    /// `?`
+    Questionmark,
+
     // '['
     OpenBracket,
 
@@ -164,7 +167,6 @@ impl Key {
         Self::Tab,
         Self::Backspace,
         Self::Enter,
-        Self::Space,
         Self::Insert,
         Self::Delete,
         Self::Home,
@@ -175,6 +177,7 @@ impl Key {
         Self::Cut,
         Self::Paste,
         // Punctuation:
+        Self::Space,
         Self::Colon,
         Self::Comma,
         Self::Minus,
@@ -187,6 +190,7 @@ impl Key {
         Self::Backtick,
         Self::Backslash,
         Self::Slash,
+        Self::Questionmark,
         // Digits:
         Self::Num0,
         Self::Num1,
@@ -268,7 +272,6 @@ impl Key {
             "Tab" => Self::Tab,
             "Backspace" => Self::Backspace,
             "Enter" | "Return" => Self::Enter,
-            " " | "Space" => Self::Space,
 
             "Help" | "Insert" => Self::Insert,
             "Delete" => Self::Delete,
@@ -281,15 +284,17 @@ impl Key {
             "Cut" => Self::Cut,
             "Paste" => Self::Paste,
 
+            " " | "Space" => Self::Space,
             ":" | "Colon" => Self::Colon,
             "," | "Comma" => Self::Comma,
             "-" | "−" | "Minus" => Self::Minus,
             "." | "Period" => Self::Period,
             "+" | "Plus" => Self::Plus,
-            "=" | "Equals" => Self::Equals,
+            "=" | "Equal" | "Equals" | "NumpadEqual" => Self::Equals,
             ";" | "Semicolon" => Self::Semicolon,
             "\\" | "Backslash" => Self::Backslash,
             "/" | "Slash" => Self::Slash,
+            "?" | "Questionmark" => Self::Questionmark,
             "[" | "OpenBracket" => Self::OpenBracket,
             "]" | "CloseBracket" => Self::CloseBracket,
             "`" | "Backtick" | "Backquote" | "Grave" => Self::Backtick,
@@ -377,6 +382,7 @@ impl Key {
             Self::Semicolon => ";",
             Self::Backslash => "\\",
             Self::Slash => "/",
+            Self::Questionmark => "?",
             Self::OpenBracket => "[",
             Self::CloseBracket => "]",
             Self::Backtick => "`",
@@ -397,7 +403,6 @@ impl Key {
             Self::Tab => "Tab",
             Self::Backspace => "Backspace",
             Self::Enter => "Enter",
-            Self::Space => "Space",
 
             Self::Insert => "Insert",
             Self::Delete => "Delete",
@@ -410,6 +415,7 @@ impl Key {
             Self::Cut => "Cut",
             Self::Paste => "Paste",
 
+            Self::Space => "Space",
             Self::Colon => "Colon",
             Self::Comma => "Comma",
             Self::Minus => "Minus",
@@ -419,6 +425,7 @@ impl Key {
             Self::Semicolon => "Semicolon",
             Self::Backslash => "Backslash",
             Self::Slash => "Slash",
+            Self::Questionmark => "Questionmark",
             Self::OpenBracket => "OpenBracket",
             Self::CloseBracket => "CloseBracket",
             Self::Backtick => "Backtick",

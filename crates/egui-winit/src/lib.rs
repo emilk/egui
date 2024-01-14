@@ -996,7 +996,6 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
     Some(match named_key {
         NamedKey::Enter => Key::Enter,
         NamedKey::Tab => Key::Tab,
-        NamedKey::Space => Key::Space,
         NamedKey::ArrowDown => Key::ArrowDown,
         NamedKey::ArrowLeft => Key::ArrowLeft,
         NamedKey::ArrowRight => Key::ArrowRight,
@@ -1012,6 +1011,9 @@ fn key_from_named_key(named_key: winit::keyboard::NamedKey) -> Option<egui::Key>
         NamedKey::Cut => Key::Cut,
         NamedKey::Copy => Key::Copy,
         NamedKey::Paste => Key::Paste,
+
+        NamedKey::Space => Key::Space,
+
         NamedKey::F1 => Key::F1,
         NamedKey::F2 => Key::F2,
         NamedKey::F3 => Key::F3,
@@ -1053,7 +1055,6 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::Tab => Key::Tab,
         KeyCode::Backspace => Key::Backspace,
         KeyCode::Enter | KeyCode::NumpadEnter => Key::Enter,
-        KeyCode::Space => Key::Space,
 
         KeyCode::Insert => Key::Insert,
         KeyCode::Delete => Key::Delete,
@@ -1062,12 +1063,14 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::PageUp => Key::PageUp,
         KeyCode::PageDown => Key::PageDown,
 
+        // Punctuation
+        KeyCode::Space => Key::Space,
         KeyCode::Comma => Key::Comma,
         KeyCode::Period => Key::Period,
         // KeyCode::Colon => Key::Colon, // NOTE: there is no physical colon key on an american keyboard
         KeyCode::Semicolon => Key::Semicolon,
         KeyCode::Backslash => Key::Backslash,
-        KeyCode::Slash => Key::Slash,
+        KeyCode::Slash | KeyCode::NumpadDivide => Key::Slash,
         KeyCode::BracketLeft => Key::OpenBracket,
         KeyCode::BracketRight => Key::CloseBracket,
         KeyCode::Backquote => Key::Backtick,
@@ -1075,9 +1078,7 @@ fn key_from_key_code(key: winit::keyboard::KeyCode) -> Option<egui::Key> {
         KeyCode::Cut => Key::Cut,
         KeyCode::Copy => Key::Copy,
         KeyCode::Paste => Key::Paste,
-
         KeyCode::Minus | KeyCode::NumpadSubtract => Key::Minus,
-
         KeyCode::NumpadAdd => Key::Plus,
         KeyCode::Equal => Key::Equals,
 
