@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
-#[cfg(feature = "accesskit")]
-use accesskit::Role;
 use epaint::text::{cursor::*, Galley, LayoutJob};
 
-use crate::{output::OutputEvent, *};
+use crate::{output::OutputEvent, text_edit::cursor_interaction::cursor_rect, *};
 
-use super::{CCursorRange, CursorRange, TextEditOutput, TextEditState};
+use super::{
+    cursor_interaction::{ccursor_next_word, ccursor_previous_word, find_line_start},
+    CCursorRange, CursorRange, TextEditOutput, TextEditState,
+};
 
 /// A text region that the user can edit the contents of.
 ///
@@ -173,7 +174,7 @@ impl<'t> TextEdit<'t> {
     ///     text_color,
     ///     f32::INFINITY
     /// );
-    /// painter.galley(output.text_draw_pos, galley, text_color);
+    /// painter.galley(output.galley_pos, galley, text_color);
     /// # });
     /// ```
     #[inline]
@@ -527,6 +528,7 @@ impl<'t> TextEdit<'t> {
                 }
 
                 // TODO(emilk): drag selected text to either move or clone (ctrl on windows, alt on mac)
+
                 let singleline_offset = vec2(state.singleline_offset, 0.0);
                 let cursor_at_pointer =
                     galley.cursor_from_pos(pointer_pos - response.rect.min + singleline_offset);
@@ -536,54 +538,18 @@ impl<'t> TextEdit<'t> {
                     && ui.input(|i| i.pointer.is_moving())
                 {
                     // preview:
-                    paint_cursor_end(
-                        ui,
-                        row_height,
-                        &painter,
-                        response.rect.min,
-                        &galley,
-                        &cursor_at_pointer,
-                    );
+                    let cursor_rect =
+                        cursor_rect(response.rect.min, &galley, &cursor_at_pointer, row_height);
+                    paint_cursor(&painter, ui.visuals(), cursor_rect);
                 }
 
-                if response.double_clicked() {
-                    // Select word:
-                    let center = cursor_at_pointer;
-                    let ccursor_range = select_word_at(text.as_str(), center.ccursor);
-                    state.set_cursor_range(Some(CursorRange {
-                        primary: galley.from_ccursor(ccursor_range.primary),
-                        secondary: galley.from_ccursor(ccursor_range.secondary),
-                    }));
-                } else if response.triple_clicked() {
-                    // Select line:
-                    let center = cursor_at_pointer;
-                    let ccursor_range = select_line_at(text.as_str(), center.ccursor);
-                    state.set_cursor_range(Some(CursorRange {
-                        primary: galley.from_ccursor(ccursor_range.primary),
-                        secondary: galley.from_ccursor(ccursor_range.secondary),
-                    }));
-                } else if allow_drag_to_select {
-                    if response.hovered() && ui.input(|i| i.pointer.any_pressed()) {
-                        ui.memory_mut(|mem| mem.request_focus(id));
-                        if ui.input(|i| i.modifiers.shift) {
-                            if let Some(mut cursor_range) = state.cursor_range(&galley) {
-                                cursor_range.primary = cursor_at_pointer;
-                                state.set_cursor_range(Some(cursor_range));
-                            } else {
-                                state.set_cursor_range(Some(CursorRange::one(cursor_at_pointer)));
-                            }
-                        } else {
-                            state.set_cursor_range(Some(CursorRange::one(cursor_at_pointer)));
-                        }
-                    } else if ui.input(|i| i.pointer.any_down())
-                        && response.is_pointer_button_down_on()
-                    {
-                        // drag to select text:
-                        if let Some(mut cursor_range) = state.cursor_range(&galley) {
-                            cursor_range.primary = cursor_at_pointer;
-                            state.set_cursor_range(Some(cursor_range));
-                        }
-                    }
+                let did_interact =
+                    state
+                        .cursor
+                        .pointer_interaction(ui, &response, cursor_at_pointer, &galley);
+
+                if did_interact {
+                    ui.memory_mut(|mem| mem.request_focus(response.id));
                 }
             }
         }
@@ -593,7 +559,7 @@ impl<'t> TextEdit<'t> {
         }
 
         let mut cursor_range = None;
-        let prev_cursor_range = state.cursor_range(&galley);
+        let prev_cursor_range = state.cursor.range(&galley);
         if interactive && ui.memory(|mem| mem.has_focus(id)) {
             ui.memory_mut(|mem| mem.set_focus_lock_filter(id, event_filter));
 
@@ -624,11 +590,11 @@ impl<'t> TextEdit<'t> {
             cursor_range = Some(new_cursor_range);
         }
 
-        let mut text_draw_pos = align
+        let mut galley_pos = align
             .align_size_within_rect(galley.size(), response.rect)
             .intersect(response.rect) // limit pos to the response rect area
             .min;
-        let align_offset = response.rect.left() - text_draw_pos.x;
+        let align_offset = response.rect.left() - galley_pos.x;
 
         // Visual clipping for singleline text editor with text larger than width
         if clip_text && align_offset == 0.0 {
@@ -653,7 +619,7 @@ impl<'t> TextEdit<'t> {
                 .at_least(0.0);
 
             state.singleline_offset = offset_x;
-            text_draw_pos -= vec2(offset_x, 0.0);
+            galley_pos -= vec2(offset_x, 0.0);
         } else {
             state.singleline_offset = align_offset;
         }
@@ -667,7 +633,7 @@ impl<'t> TextEdit<'t> {
         };
 
         if ui.is_rect_visible(rect) {
-            painter.galley(text_draw_pos, galley.clone(), text_color);
+            painter.galley(galley_pos, galley.clone(), text_color);
 
             if text.as_str().is_empty() && !hint_text.is_empty() {
                 let hint_text_color = ui.visuals().weak_text_color();
@@ -680,30 +646,36 @@ impl<'t> TextEdit<'t> {
             }
 
             if ui.memory(|mem| mem.has_focus(id)) {
-                if let Some(cursor_range) = state.cursor_range(&galley) {
+                if let Some(cursor_range) = state.cursor.range(&galley) {
                     // We paint the cursor on top of the text, in case
                     // the text galley has backgrounds (as e.g. `code` snippets in markup do).
-                    paint_cursor_selection(ui, &painter, text_draw_pos, &galley, &cursor_range);
+                    paint_cursor_selection(
+                        ui.visuals(),
+                        &painter,
+                        galley_pos,
+                        &galley,
+                        &cursor_range,
+                    );
+
+                    let primary_cursor_rect =
+                        cursor_rect(galley_pos, &galley, &cursor_range.primary, row_height);
+
+                    let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO: remove this HACK workaround for https://github.com/emilk/egui/issues/1531
+                    if (response.changed || selection_changed) && !is_fully_visible {
+                        // Scroll to keep primary cursor in view:
+                        ui.scroll_to_rect(primary_cursor_rect, None);
+                    }
 
                     if text.is_mutable() {
-                        let cursor_rect = paint_cursor_end(
-                            ui,
-                            row_height,
-                            &painter,
-                            text_draw_pos,
-                            &galley,
-                            &cursor_range.primary,
-                        );
-
-                        let is_fully_visible = ui.clip_rect().contains_rect(rect); // TODO: remove this HACK workaround for https://github.com/emilk/egui/issues/1531
-                        if (response.changed || selection_changed) && !is_fully_visible {
-                            ui.scroll_to_rect(cursor_rect, None); // keep cursor in view
-                        }
+                        paint_cursor(&painter, ui.visuals(), primary_cursor_rect);
 
                         if interactive {
                             // For IME, so only set it when text is editable and visible!
                             ui.ctx().output_mut(|o| {
-                                o.ime = Some(crate::output::IMEOutput { rect, cursor_rect });
+                                o.ime = Some(crate::output::IMEOutput {
+                                    rect,
+                                    cursor_rect: primary_cursor_rect,
+                                });
                             });
                         }
                     }
@@ -740,102 +712,28 @@ impl<'t> TextEdit<'t> {
 
         #[cfg(feature = "accesskit")]
         {
-            let parent_id = ui.ctx().accesskit_node_builder(response.id, |builder| {
-                use accesskit::{TextPosition, TextSelection};
+            let role = if password {
+                accesskit::Role::PasswordInput
+            } else if multiline {
+                accesskit::Role::MultilineTextInput
+            } else {
+                accesskit::Role::TextInput
+            };
 
-                let parent_id = response.id;
-
-                if let Some(cursor_range) = &cursor_range {
-                    let anchor = &cursor_range.secondary.rcursor;
-                    let focus = &cursor_range.primary.rcursor;
-                    builder.set_text_selection(TextSelection {
-                        anchor: TextPosition {
-                            node: parent_id.with(anchor.row).accesskit_id(),
-                            character_index: anchor.column,
-                        },
-                        focus: TextPosition {
-                            node: parent_id.with(focus.row).accesskit_id(),
-                            character_index: focus.column,
-                        },
-                    });
-                }
-
-                builder.set_default_action_verb(accesskit::DefaultActionVerb::Focus);
-                if self.multiline {
-                    builder.set_role(Role::MultilineTextInput);
-                }
-
-                parent_id
-            });
-
-            if let Some(parent_id) = parent_id {
-                // drop ctx lock before further processing
-                use accesskit::TextDirection;
-
-                ui.ctx().with_accessibility_parent(parent_id, || {
-                    for (i, row) in galley.rows.iter().enumerate() {
-                        let id = parent_id.with(i);
-                        ui.ctx().accesskit_node_builder(id, |builder| {
-                            builder.set_role(Role::InlineTextBox);
-                            let rect = row.rect.translate(text_draw_pos.to_vec2());
-                            builder.set_bounds(accesskit::Rect {
-                                x0: rect.min.x.into(),
-                                y0: rect.min.y.into(),
-                                x1: rect.max.x.into(),
-                                y1: rect.max.y.into(),
-                            });
-                            builder.set_text_direction(TextDirection::LeftToRight);
-                            // TODO(mwcampbell): Set more node fields for the row
-                            // once AccessKit adapters expose text formatting info.
-
-                            let glyph_count = row.glyphs.len();
-                            let mut value = String::new();
-                            value.reserve(glyph_count);
-                            let mut character_lengths = Vec::<u8>::with_capacity(glyph_count);
-                            let mut character_positions = Vec::<f32>::with_capacity(glyph_count);
-                            let mut character_widths = Vec::<f32>::with_capacity(glyph_count);
-                            let mut word_lengths = Vec::<u8>::new();
-                            let mut was_at_word_end = false;
-                            let mut last_word_start = 0usize;
-
-                            for glyph in &row.glyphs {
-                                let is_word_char = is_word_char(glyph.chr);
-                                if is_word_char && was_at_word_end {
-                                    word_lengths
-                                        .push((character_lengths.len() - last_word_start) as _);
-                                    last_word_start = character_lengths.len();
-                                }
-                                was_at_word_end = !is_word_char;
-                                let old_len = value.len();
-                                value.push(glyph.chr);
-                                character_lengths.push((value.len() - old_len) as _);
-                                character_positions.push(glyph.pos.x - row.rect.min.x);
-                                character_widths.push(glyph.size.x);
-                            }
-
-                            if row.ends_with_newline {
-                                value.push('\n');
-                                character_lengths.push(1);
-                                character_positions.push(row.rect.max.x - row.rect.min.x);
-                                character_widths.push(0.0);
-                            }
-                            word_lengths.push((character_lengths.len() - last_word_start) as _);
-
-                            builder.set_value(value);
-                            builder.set_character_lengths(character_lengths);
-                            builder.set_character_positions(character_positions);
-                            builder.set_character_widths(character_widths);
-                            builder.set_word_lengths(word_lengths);
-                        });
-                    }
-                });
-            }
+            super::accesskit_text::update_accesskit_for_text_widget(
+                ui.ctx(),
+                id,
+                cursor_range,
+                role,
+                galley_pos,
+                &galley,
+            );
         }
 
         TextEditOutput {
             response,
             galley,
-            text_draw_pos,
+            galley_pos,
             text_clip_rect,
             state,
             cursor_range,
@@ -859,28 +757,6 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
 
 // ----------------------------------------------------------------------------
 
-#[cfg(feature = "accesskit")]
-fn ccursor_from_accesskit_text_position(
-    id: Id,
-    galley: &Galley,
-    position: &accesskit::TextPosition,
-) -> Option<CCursor> {
-    let mut total_length = 0usize;
-    for (i, row) in galley.rows.iter().enumerate() {
-        let row_id = id.with(i);
-        if row_id.accesskit_id() == position.node {
-            return Some(CCursor {
-                index: total_length + position.character_index,
-                prefer_next_row: !(position.character_index == row.glyphs.len()
-                    && !row.ends_with_newline
-                    && (i + 1) < galley.rows.len()),
-            });
-        }
-        total_length += row.glyphs.len() + (row.ends_with_newline as usize);
-    }
-    None
-}
-
 /// Check for (keyboard) events to edit the cursor and/or text.
 #[allow(clippy::too_many_arguments)]
 fn events(
@@ -897,7 +773,7 @@ fn events(
     char_limit: usize,
     event_filter: EventFilter,
 ) -> (bool, CursorRange) {
-    let mut cursor_range = state.cursor_range(galley).unwrap_or(default_cursor_range);
+    let mut cursor_range = state.cursor.range(galley).unwrap_or(default_cursor_range);
 
     // We feed state to the undoer both before and after handling input
     // so that the undoer creates automatic saves even when there are no events for a while.
@@ -917,11 +793,14 @@ fn events(
     let events = ui.input(|i| i.filtered_events(&event_filter));
     for event in &events {
         let did_mutate_text = match event {
+            // First handle events that only changes the selection cursor, not the text:
+            event if cursor_range.on_event(event, galley, id) => None,
+
             Event::Copy => {
                 if cursor_range.is_empty() {
                     copy_if_not_password(ui, text.as_str().to_owned());
                 } else {
-                    copy_if_not_password(ui, selected_str(text, &cursor_range).to_owned());
+                    copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
                 }
                 None
             }
@@ -930,7 +809,7 @@ fn events(
                     copy_if_not_password(ui, text.take());
                     Some(CCursorRange::default())
                 } else {
-                    copy_if_not_password(ui, selected_str(text, &cursor_range).to_owned());
+                    copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
                     Some(CCursorRange::one(delete_selected(text, &cursor_range)))
                 }
             }
@@ -1026,11 +905,11 @@ fn events(
             }
 
             Event::Key {
+                modifiers,
                 key,
                 pressed: true,
-                modifiers,
                 ..
-            } => on_key_press(&mut cursor_range, text, galley, *key, modifiers),
+            } => check_for_mutating_key_press(&mut cursor_range, text, galley, modifiers, *key),
 
             Event::CompositionStart => {
                 state.has_ime = true;
@@ -1066,27 +945,6 @@ fn events(
                 }
             }
 
-            #[cfg(feature = "accesskit")]
-            Event::AccessKitActionRequest(accesskit::ActionRequest {
-                action: accesskit::Action::SetTextSelection,
-                target,
-                data: Some(accesskit::ActionData::SetTextSelection(selection)),
-            }) => {
-                if id.accesskit_id() == *target {
-                    let primary =
-                        ccursor_from_accesskit_text_position(id, galley, &selection.focus);
-                    let secondary =
-                        ccursor_from_accesskit_text_position(id, galley, &selection.anchor);
-                    if let (Some(primary), Some(secondary)) = (primary, secondary) {
-                        Some(CCursorRange { primary, secondary })
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            }
-
             _ => None,
         };
 
@@ -1104,7 +962,7 @@ fn events(
         }
     }
 
-    state.set_cursor_range(Some(cursor_range));
+    state.cursor.set_range(Some(cursor_range));
 
     state.undoer.lock().feed_state(
         ui.input(|i| i.time),
@@ -1116,10 +974,10 @@ fn events(
 
 // ----------------------------------------------------------------------------
 
-fn paint_cursor_selection(
-    ui: &Ui,
+pub fn paint_cursor_selection(
+    visuals: &Visuals,
     painter: &Painter,
-    pos: Pos2,
+    galley_pos: Pos2,
     galley: &Galley,
     cursor_range: &CursorRange,
 ) {
@@ -1128,7 +986,7 @@ fn paint_cursor_selection(
     }
 
     // We paint the cursor selection on top of the text, so make it transparent:
-    let color = ui.visuals().selection.bg_fill.linear_multiply(0.5);
+    let color = visuals.selection.bg_fill.linear_multiply(0.5);
     let [min, max] = cursor_range.sorted_cursors();
     let min = min.rcursor;
     let max = max.rcursor;
@@ -1151,29 +1009,19 @@ fn paint_cursor_selection(
             row.rect.right() + newline_size
         };
         let rect = Rect::from_min_max(
-            pos + vec2(left, row.min_y()),
-            pos + vec2(right, row.max_y()),
+            galley_pos + vec2(left, row.min_y()),
+            galley_pos + vec2(right, row.max_y()),
         );
         painter.rect_filled(rect, 0.0, color);
     }
 }
 
-fn paint_cursor_end(
-    ui: &Ui,
-    row_height: f32,
-    painter: &Painter,
-    pos: Pos2,
-    galley: &Galley,
-    cursor: &Cursor,
-) -> Rect {
-    let stroke = ui.visuals().text_cursor;
+/// Paint one end of the selection, e.g. the primary cursor.
+fn paint_cursor(painter: &Painter, visuals: &Visuals, cursor_rect: Rect) {
+    let stroke = visuals.text_cursor;
 
-    let mut cursor_pos = galley.pos_from_cursor(cursor).translate(pos.to_vec2());
-    cursor_pos.max.y = cursor_pos.max.y.at_least(cursor_pos.min.y + row_height); // Handle completely empty galleys
-    cursor_pos = cursor_pos.expand(1.5); // slightly above/below row
-
-    let top = cursor_pos.center_top();
-    let bottom = cursor_pos.center_bottom();
+    let top = cursor_rect.center_top();
+    let bottom = cursor_rect.center_bottom();
 
     painter.line_segment([top, bottom], (stroke.width, stroke.color));
 
@@ -1190,16 +1038,9 @@ fn paint_cursor_end(
             (width, stroke.color),
         );
     }
-
-    cursor_pos
 }
 
 // ----------------------------------------------------------------------------
-
-fn selected_str<'s>(text: &'s dyn TextBuffer, cursor_range: &CursorRange) -> &'s str {
-    let [min, max] = cursor_range.sorted_cursors();
-    text.char_range(min.ccursor.index..max.ccursor.index)
-}
 
 fn insert_text(
     ccursor: &mut CCursor,
@@ -1301,12 +1142,12 @@ fn delete_paragraph_after_cursor(
 // ----------------------------------------------------------------------------
 
 /// Returns `Some(new_cursor)` if we did mutate `text`.
-fn on_key_press(
+fn check_for_mutating_key_press(
     cursor_range: &mut CursorRange,
     text: &mut dyn TextBuffer,
     galley: &Galley,
-    key: Key,
     modifiers: &Modifiers,
+    key: Key,
 ) -> Option<CCursorRange> {
     match key {
         Key::Backspace => {
@@ -1324,6 +1165,7 @@ fn on_key_press(
             };
             Some(CCursorRange::one(ccursor))
         }
+
         Key::Delete if !modifiers.shift || !cfg!(target_os = "windows") => {
             let ccursor = if modifiers.mac_cmd {
                 delete_paragraph_after_cursor(text, galley, cursor_range)
@@ -1342,12 +1184,6 @@ fn on_key_press(
                 ..ccursor
             };
             Some(CCursorRange::one(ccursor))
-        }
-
-        Key::A if modifiers.command => {
-            // select all
-            *cursor_range = CursorRange::two(Cursor::default(), galley.end());
-            None
         }
 
         Key::H if modifiers.ctrl => {
@@ -1374,275 +1210,11 @@ fn on_key_press(
             Some(CCursorRange::one(ccursor))
         }
 
-        Key::ArrowLeft | Key::ArrowRight if modifiers.is_none() && !cursor_range.is_empty() => {
-            if key == Key::ArrowLeft {
-                *cursor_range = CursorRange::one(cursor_range.sorted_cursors()[0]);
-            } else {
-                *cursor_range = CursorRange::one(cursor_range.sorted_cursors()[1]);
-            }
-            None
-        }
-
-        Key::ArrowLeft | Key::ArrowRight | Key::ArrowUp | Key::ArrowDown | Key::Home | Key::End => {
-            move_single_cursor(&mut cursor_range.primary, galley, key, modifiers);
-            if !modifiers.shift {
-                cursor_range.secondary = cursor_range.primary;
-            }
-            None
-        }
-
-        Key::P | Key::N | Key::B | Key::F | Key::A | Key::E
-            if cfg!(target_os = "macos") && modifiers.ctrl && !modifiers.shift =>
-        {
-            move_single_cursor(&mut cursor_range.primary, galley, key, modifiers);
-            cursor_range.secondary = cursor_range.primary;
-            None
-        }
-
         _ => None,
     }
 }
 
-fn move_single_cursor(cursor: &mut Cursor, galley: &Galley, key: Key, modifiers: &Modifiers) {
-    if cfg!(target_os = "macos") && modifiers.ctrl && !modifiers.shift {
-        match key {
-            Key::A => *cursor = galley.cursor_begin_of_row(cursor),
-            Key::E => *cursor = galley.cursor_end_of_row(cursor),
-            Key::P => *cursor = galley.cursor_up_one_row(cursor),
-            Key::N => *cursor = galley.cursor_down_one_row(cursor),
-            Key::B => *cursor = galley.cursor_left_one_character(cursor),
-            Key::F => *cursor = galley.cursor_right_one_character(cursor),
-            _ => (),
-        }
-        return;
-    }
-    match key {
-        Key::ArrowLeft => {
-            if modifiers.alt || modifiers.ctrl {
-                // alt on mac, ctrl on windows
-                *cursor = galley.from_ccursor(ccursor_previous_word(galley.text(), cursor.ccursor));
-            } else if modifiers.mac_cmd {
-                *cursor = galley.cursor_begin_of_row(cursor);
-            } else {
-                *cursor = galley.cursor_left_one_character(cursor);
-            }
-        }
-        Key::ArrowRight => {
-            if modifiers.alt || modifiers.ctrl {
-                // alt on mac, ctrl on windows
-                *cursor = galley.from_ccursor(ccursor_next_word(galley.text(), cursor.ccursor));
-            } else if modifiers.mac_cmd {
-                *cursor = galley.cursor_end_of_row(cursor);
-            } else {
-                *cursor = galley.cursor_right_one_character(cursor);
-            }
-        }
-        Key::ArrowUp => {
-            if modifiers.command {
-                // mac and windows behavior
-                *cursor = Cursor::default();
-            } else {
-                *cursor = galley.cursor_up_one_row(cursor);
-            }
-        }
-        Key::ArrowDown => {
-            if modifiers.command {
-                // mac and windows behavior
-                *cursor = galley.end();
-            } else {
-                *cursor = galley.cursor_down_one_row(cursor);
-            }
-        }
-
-        Key::Home => {
-            if modifiers.ctrl {
-                // windows behavior
-                *cursor = Cursor::default();
-            } else {
-                *cursor = galley.cursor_begin_of_row(cursor);
-            }
-        }
-        Key::End => {
-            if modifiers.ctrl {
-                // windows behavior
-                *cursor = galley.end();
-            } else {
-                *cursor = galley.cursor_end_of_row(cursor);
-            }
-        }
-
-        _ => unreachable!(),
-    }
-}
-
 // ----------------------------------------------------------------------------
-
-fn select_word_at(text: &str, ccursor: CCursor) -> CCursorRange {
-    if ccursor.index == 0 {
-        CCursorRange::two(ccursor, ccursor_next_word(text, ccursor))
-    } else {
-        let it = text.chars();
-        let mut it = it.skip(ccursor.index - 1);
-        if let Some(char_before_cursor) = it.next() {
-            if let Some(char_after_cursor) = it.next() {
-                if is_word_char(char_before_cursor) && is_word_char(char_after_cursor) {
-                    let min = ccursor_previous_word(text, ccursor + 1);
-                    let max = ccursor_next_word(text, min);
-                    CCursorRange::two(min, max)
-                } else if is_word_char(char_before_cursor) {
-                    let min = ccursor_previous_word(text, ccursor);
-                    let max = ccursor_next_word(text, min);
-                    CCursorRange::two(min, max)
-                } else if is_word_char(char_after_cursor) {
-                    let max = ccursor_next_word(text, ccursor);
-                    CCursorRange::two(ccursor, max)
-                } else {
-                    let min = ccursor_previous_word(text, ccursor);
-                    let max = ccursor_next_word(text, ccursor);
-                    CCursorRange::two(min, max)
-                }
-            } else {
-                let min = ccursor_previous_word(text, ccursor);
-                CCursorRange::two(min, ccursor)
-            }
-        } else {
-            let max = ccursor_next_word(text, ccursor);
-            CCursorRange::two(ccursor, max)
-        }
-    }
-}
-
-fn select_line_at(text: &str, ccursor: CCursor) -> CCursorRange {
-    if ccursor.index == 0 {
-        CCursorRange::two(ccursor, ccursor_next_line(text, ccursor))
-    } else {
-        let it = text.chars();
-        let mut it = it.skip(ccursor.index - 1);
-        if let Some(char_before_cursor) = it.next() {
-            if let Some(char_after_cursor) = it.next() {
-                if (!is_linebreak(char_before_cursor)) && (!is_linebreak(char_after_cursor)) {
-                    let min = ccursor_previous_line(text, ccursor + 1);
-                    let max = ccursor_next_line(text, min);
-                    CCursorRange::two(min, max)
-                } else if !is_linebreak(char_before_cursor) {
-                    let min = ccursor_previous_line(text, ccursor);
-                    let max = ccursor_next_line(text, min);
-                    CCursorRange::two(min, max)
-                } else if !is_linebreak(char_after_cursor) {
-                    let max = ccursor_next_line(text, ccursor);
-                    CCursorRange::two(ccursor, max)
-                } else {
-                    let min = ccursor_previous_line(text, ccursor);
-                    let max = ccursor_next_line(text, ccursor);
-                    CCursorRange::two(min, max)
-                }
-            } else {
-                let min = ccursor_previous_line(text, ccursor);
-                CCursorRange::two(min, ccursor)
-            }
-        } else {
-            let max = ccursor_next_line(text, ccursor);
-            CCursorRange::two(ccursor, max)
-        }
-    }
-}
-
-fn ccursor_next_word(text: &str, ccursor: CCursor) -> CCursor {
-    CCursor {
-        index: next_word_boundary_char_index(text.chars(), ccursor.index),
-        prefer_next_row: false,
-    }
-}
-
-fn ccursor_next_line(text: &str, ccursor: CCursor) -> CCursor {
-    CCursor {
-        index: next_line_boundary_char_index(text.chars(), ccursor.index),
-        prefer_next_row: false,
-    }
-}
-
-fn ccursor_previous_word(text: &str, ccursor: CCursor) -> CCursor {
-    let num_chars = text.chars().count();
-    CCursor {
-        index: num_chars
-            - next_word_boundary_char_index(text.chars().rev(), num_chars - ccursor.index),
-        prefer_next_row: true,
-    }
-}
-
-fn ccursor_previous_line(text: &str, ccursor: CCursor) -> CCursor {
-    let num_chars = text.chars().count();
-    CCursor {
-        index: num_chars
-            - next_line_boundary_char_index(text.chars().rev(), num_chars - ccursor.index),
-        prefer_next_row: true,
-    }
-}
-
-fn next_word_boundary_char_index(it: impl Iterator<Item = char>, mut index: usize) -> usize {
-    let mut it = it.skip(index);
-    if let Some(_first) = it.next() {
-        index += 1;
-
-        if let Some(second) = it.next() {
-            index += 1;
-            for next in it {
-                if is_word_char(next) != is_word_char(second) {
-                    break;
-                }
-                index += 1;
-            }
-        }
-    }
-    index
-}
-
-fn next_line_boundary_char_index(it: impl Iterator<Item = char>, mut index: usize) -> usize {
-    let mut it = it.skip(index);
-    if let Some(_first) = it.next() {
-        index += 1;
-
-        if let Some(second) = it.next() {
-            index += 1;
-            for next in it {
-                if is_linebreak(next) != is_linebreak(second) {
-                    break;
-                }
-                index += 1;
-            }
-        }
-    }
-    index
-}
-
-fn is_word_char(c: char) -> bool {
-    c.is_ascii_alphanumeric() || c == '_'
-}
-
-fn is_linebreak(c: char) -> bool {
-    c == '\r' || c == '\n'
-}
-
-/// Accepts and returns character offset (NOT byte offset!).
-fn find_line_start(text: &str, current_index: CCursor) -> CCursor {
-    // We know that new lines, '\n', are a single byte char, but we have to
-    // work with char offsets because before the new line there may be any
-    // number of multi byte chars.
-    // We need to know the char index to be able to correctly set the cursor
-    // later.
-    let chars_count = text.chars().count();
-
-    let position = text
-        .chars()
-        .rev()
-        .skip(chars_count - current_index.index)
-        .position(|x| x == '\n');
-
-    match position {
-        Some(pos) => CCursor::new(current_index.index - pos),
-        None => CCursor::new(0),
-    }
-}
 
 fn decrease_indentation(ccursor: &mut CCursor, text: &mut dyn TextBuffer) {
     let line_start = find_line_start(text.as_str(), *ccursor);

@@ -544,7 +544,7 @@ impl<'a> Widget for DragValue<'a> {
                 ui.data_mut(|data| data.remove::<String>(id));
                 ui.memory_mut(|mem| mem.request_focus(id));
                 let mut state = TextEdit::load_state(ui.ctx(), id).unwrap_or_default();
-                state.set_ccursor_range(Some(text::CCursorRange::two(
+                state.cursor.set_char_range(Some(text::CCursorRange::two(
                     text::CCursor::default(),
                     text::CCursor::new(value_text.chars().count()),
                 )));

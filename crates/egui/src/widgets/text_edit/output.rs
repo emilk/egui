@@ -9,7 +9,7 @@ pub struct TextEditOutput {
     pub galley: Arc<crate::Galley>,
 
     /// Where the text in [`Self::galley`] ended up on the screen.
-    pub text_draw_pos: crate::Pos2,
+    pub galley_pos: crate::Pos2,
 
     /// The text was clipped to this rectangle when painted.
     pub text_clip_rect: crate::Rect,
@@ -19,6 +19,13 @@ pub struct TextEditOutput {
 
     /// Where the text cursor is.
     pub cursor_range: Option<super::CursorRange>,
+}
+
+impl TextEditOutput {
+    #[deprecated = "Renamed `self.galley_pos`"]
+    pub fn text_draw_pos(&self) -> crate::Pos2 {
+        self.galley_pos
+    }
 }
 
 // TODO(emilk): add `output.paint` and `output.store` and split out that code from `TextEdit::show`.
