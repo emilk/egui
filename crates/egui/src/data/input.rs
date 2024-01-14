@@ -964,8 +964,11 @@ pub enum Key {
     /// `,`
     Comma,
 
-    /// '/'
+    /// '\\'
     Backslash,
+
+    /// '/'
+    Slash,
 
     // '['
     OpenBracket,
@@ -973,7 +976,7 @@ pub enum Key {
     // ']'
     CloseBracket,
 
-    /// '`'
+    /// '`', also known as "backquote" or "grave"
     Backtick,
 
     /// `-`
@@ -1112,6 +1115,7 @@ impl Key {
         Self::CloseBracket,
         Self::Backtick,
         Self::Backslash,
+        Self::Slash,
         // Digits:
         Self::Num0,
         Self::Num1,
@@ -1184,16 +1188,16 @@ impl Key {
     /// and by winit. Please test on both with `eframe`.
     pub fn from_name(key: &str) -> Option<Self> {
         Some(match key {
-            "ArrowDown" | "Down" | "⏷" => Self::ArrowDown,
-            "ArrowLeft" | "Left" | "⏴" => Self::ArrowLeft,
-            "ArrowRight" | "Right" | "⏵" => Self::ArrowRight,
-            "ArrowUp" | "Up" | "⏶" => Self::ArrowUp,
+            "⏷" | "ArrowDown" | "Down" => Self::ArrowDown,
+            "⏴" | "ArrowLeft" | "Left" => Self::ArrowLeft,
+            "⏵" | "ArrowRight" | "Right" => Self::ArrowRight,
+            "⏶" | "ArrowUp" | "Up" => Self::ArrowUp,
 
             "Escape" | "Esc" => Self::Escape,
             "Tab" => Self::Tab,
             "Backspace" => Self::Backspace,
             "Enter" | "Return" => Self::Enter,
-            "Space" | " " => Self::Space,
+            " " | "Space" => Self::Space,
 
             "Help" | "Insert" => Self::Insert,
             "Delete" => Self::Delete,
@@ -1206,28 +1210,29 @@ impl Key {
             "Cut" => Self::Cut,
             "Paste" => Self::Paste,
 
-            "Colon" | ":" => Self::Colon,
-            "Comma" | "," => Self::Comma,
-            "Minus" | "-" | "−" => Self::Minus,
-            "Period" | "." => Self::Period,
-            "Plus" | "+" => Self::Plus,
-            "Equals" | "=" => Self::Equals,
-            "Semicolon" | ";" => Self::Semicolon,
-            "Backslash" | "\\" => Self::Backslash,
-            "OpenBracket" | "[" => Self::OpenBracket,
-            "CloseBracket" | "]" => Self::CloseBracket,
-            "Backtick" | "`" => Self::Backtick,
+            ":" | "Colon" => Self::Colon,
+            "," | "Comma" => Self::Comma,
+            "-" | "−" | "Minus" => Self::Minus,
+            "." | "Period" => Self::Period,
+            "+" | "Plus" => Self::Plus,
+            "=" | "Equals" => Self::Equals,
+            ";" | "Semicolon" => Self::Semicolon,
+            "\\" | "Backslash" => Self::Backslash,
+            "/" | "Slash" => Self::Slash,
+            "[" | "OpenBracket" => Self::OpenBracket,
+            "]" | "CloseBracket" => Self::CloseBracket,
+            "`" | "Backtick" | "Backquote" | "Grave" => Self::Backtick,
 
-            "0" => Self::Num0,
-            "1" => Self::Num1,
-            "2" => Self::Num2,
-            "3" => Self::Num3,
-            "4" => Self::Num4,
-            "5" => Self::Num5,
-            "6" => Self::Num6,
-            "7" => Self::Num7,
-            "8" => Self::Num8,
-            "9" => Self::Num9,
+            "0" | "Digit0" | "Numpad0" => Self::Num0,
+            "1" | "Digit1" | "Numpad1" => Self::Num1,
+            "2" | "Digit2" | "Numpad2" => Self::Num2,
+            "3" | "Digit3" | "Numpad3" => Self::Num3,
+            "4" | "Digit4" | "Numpad4" => Self::Num4,
+            "5" | "Digit5" | "Numpad5" => Self::Num5,
+            "6" | "Digit6" | "Numpad6" => Self::Num6,
+            "7" | "Digit7" | "Numpad7" => Self::Num7,
+            "8" | "Digit8" | "Numpad8" => Self::Num8,
+            "9" | "Digit9" | "Numpad9" => Self::Num9,
 
             "a" | "A" => Self::A,
             "b" | "B" => Self::B,
@@ -1291,9 +1296,20 @@ impl Key {
             Self::ArrowLeft => "⏴",
             Self::ArrowRight => "⏵",
             Self::ArrowUp => "⏶",
+
+            Self::Colon => ":",
+            Self::Comma => ",",
             Self::Minus => crate::MINUS_CHAR_STR,
+            Self::Period => ".",
             Self::Plus => "+",
             Self::Equals => "=",
+            Self::Semicolon => ";",
+            Self::Backslash => "\\",
+            Self::Slash => "/",
+            Self::OpenBracket => "[",
+            Self::CloseBracket => "]",
+            Self::Backtick => "`",
+
             _ => self.name(),
         }
     }
@@ -1330,8 +1346,8 @@ impl Key {
             Self::Plus => "Plus",
             Self::Equals => "Equals",
             Self::Semicolon => "Semicolon",
-
             Self::Backslash => "Backslash",
+            Self::Slash => "Slash",
             Self::OpenBracket => "OpenBracket",
             Self::CloseBracket => "CloseBracket",
             Self::Backtick => "Backtick",
