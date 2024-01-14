@@ -1,4 +1,4 @@
-use std::{rc::Rc, time::Instant};
+use std::{sync::Arc, time::Instant};
 
 use winit::{
     event_loop::EventLoopWindowTarget,
@@ -68,7 +68,7 @@ pub trait WinitApp {
 
     fn integration(&self) -> Option<&EpiIntegration>;
 
-    fn window(&self, window_id: WindowId) -> Option<Rc<Window>>;
+    fn window(&self, window_id: WindowId) -> Option<Arc<Window>>;
 
     fn window_id_from_viewport_id(&self, id: ViewportId) -> Option<WindowId>;
 

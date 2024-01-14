@@ -126,7 +126,7 @@ struct Viewport {
     // These three live and die together.
     // TODO(emilk): clump them together into one struct!
     gl_surface: Option<glutin::surface::Surface<glutin::surface::WindowSurface>>,
-    window: Option<Rc<Window>>,
+    window: Option<Arc<Window>>,
     egui_winit: Option<egui_winit::State>,
 }
 
@@ -373,7 +373,7 @@ impl WinitApp for GlowWinitApp {
         self.running.as_ref().map(|r| &r.integration)
     }
 
-    fn window(&self, window_id: WindowId) -> Option<Rc<Window>> {
+    fn window(&self, window_id: WindowId) -> Option<Arc<Window>> {
         let running = self.running.as_ref()?;
         let glutin = running.glutin.borrow();
         let viewport_id = *glutin.viewport_from_window.get(&window_id)?;
@@ -952,7 +952,7 @@ impl GlutinWindowContext {
                 screenshot_requested: false,
                 viewport_ui_cb: None,
                 gl_surface: None,
-                window: window.map(Rc::new),
+                window: window.map(Arc::new),
                 egui_winit: None,
             },
         );
@@ -1031,7 +1031,7 @@ impl GlutinWindowContext {
             );
             viewport.info.minimized = window.is_minimized();
             viewport.info.maximized = Some(window.is_maximized());
-            viewport.window.insert(Rc::new(window))
+            viewport.window.insert(Arc::new(window))
         };
 
         viewport.egui_winit.get_or_insert_with(|| {
@@ -1120,7 +1120,7 @@ impl GlutinWindowContext {
             .expect("viewport doesn't exist")
     }
 
-    fn window(&self, viewport_id: ViewportId) -> Rc<Window> {
+    fn window(&self, viewport_id: ViewportId) -> Arc<Window> {
         self.viewport(viewport_id)
             .window
             .clone()

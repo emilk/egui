@@ -1079,9 +1079,10 @@ dependencies = [
 [[package]]
 name = "d3d12"
 version = "0.7.0"
+source = "git+https://github.com/gfx-rs/wgpu#7774f310218bd688e27e7688f3ddf8cd39226c96"
 dependencies = [
  "bitflags 2.4.0",
- "libloading 0.8.0",
+ "libloading 0.7.4",
  "winapi",
 ]
 
@@ -2441,6 +2442,7 @@ dependencies = [
 [[package]]
 name = "naga"
 version = "0.14.2"
+source = "git+https://github.com/gfx-rs/wgpu#7774f310218bd688e27e7688f3ddf8cd39226c96"
 dependencies = [
  "bit-set",
  "bitflags 2.4.0",
@@ -4224,6 +4226,7 @@ checksum = "14247bb57be4f377dfb94c72830b8ce8fc6beac03cf4bf7b9732eadd414123fc"
 [[package]]
 name = "wgpu"
 version = "0.18.0"
+source = "git+https://github.com/gfx-rs/wgpu#7774f310218bd688e27e7688f3ddf8cd39226c96"
 dependencies = [
  "arrayvec",
  "cfg-if",
@@ -4247,10 +4250,12 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "0.18.0"
+source = "git+https://github.com/gfx-rs/wgpu#7774f310218bd688e27e7688f3ddf8cd39226c96"
 dependencies = [
  "arrayvec",
  "bit-vec",
  "bitflags 2.4.0",
+ "cfg_aliases",
  "codespan-reporting",
  "indexmap",
  "log",
@@ -4270,6 +4275,7 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "0.18.0"
+source = "git+https://github.com/gfx-rs/wgpu#7774f310218bd688e27e7688f3ddf8cd39226c96"
 dependencies = [
  "android_system_properties",
  "arrayvec",
@@ -4277,6 +4283,7 @@ dependencies = [
  "bit-set",
  "bitflags 2.4.0",
  "block",
+ "cfg_aliases",
  "core-graphics-types",
  "d3d12",
  "glow 0.13.0 (git+https://github.com/grovesNL/glow.git?rev=29ff917a2b2ff7ce0a81b2cc5681de6d4735b36e)",
@@ -4288,7 +4295,7 @@ dependencies = [
  "js-sys",
  "khronos-egl",
  "libc",
- "libloading 0.8.0",
+ "libloading 0.7.4",
  "log",
  "metal",
  "naga",
@@ -4311,6 +4318,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.18.0"
+source = "git+https://github.com/gfx-rs/wgpu#7774f310218bd688e27e7688f3ddf8cd39226c96"
 dependencies = [
  "bitflags 2.4.0",
  "js-sys",
