@@ -892,7 +892,7 @@ impl Context {
                                 if prev_id == id {
                                     break; // there is no other interactive widget covering us at the pointer position.
                                 }
-                                // Check whether the previous widget was using a sense that conflicts with ours.
+                                // We don't want a click-only button to block drag-events to a `ScrollArea`:
                                 let has_conflicting_sense = (prev_sense.click && sense.click)
                                     || (prev_sense.drag && sense.drag);
                                 if prev_rect.contains(pointer_pos) && has_conflicting_sense {
