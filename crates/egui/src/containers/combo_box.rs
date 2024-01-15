@@ -93,7 +93,7 @@ impl ComboBox {
         self
     }
 
-    /// Set the outer height of the button and menu.
+    /// Set the maximum outer height of the menu.
     ///
     /// Default is [`Spacing::combo_height`].
     #[inline]
