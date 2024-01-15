@@ -248,23 +248,23 @@ pub fn load_svg_bytes_with_size(
         Some(SizeHint::Size(w, h)) => {
             size = size.scale_to(
                 IntSize::from_wh(w, h).ok_or_else(|| format!("Failed to scale SVG to {w}x{h}"))?,
-            )
+            );
         }
         Some(SizeHint::Height(h)) => {
             size = size
                 .scale_to_height(h)
-                .ok_or_else(|| format!("Failed to scale SVG to height {h}"))?
+                .ok_or_else(|| format!("Failed to scale SVG to height {h}"))?;
         }
         Some(SizeHint::Width(w)) => {
             size = size
                 .scale_to_width(w)
-                .ok_or_else(|| format!("Failed to scale SVG to width {w}"))?
+                .ok_or_else(|| format!("Failed to scale SVG to width {w}"))?;
         }
         Some(SizeHint::Scale(z)) => {
             let z_inner = z.into_inner();
             size = size
                 .scale_by(z_inner)
-                .ok_or_else(|| format!("Failed to scale SVG by {}", z_inner))?
+                .ok_or_else(|| format!("Failed to scale SVG by {z_inner}"))?;
         }
     };
     let (w, h) = (size.width(), size.height());
