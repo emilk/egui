@@ -112,6 +112,14 @@ impl ContextImpl {
 
 // ----------------------------------------------------------------------------
 
+/// Used to store each widgets [Id], [Rect] and [Sense] each frame.
+/// Used to check for overlaps between widgets when handling events.
+struct WidgetRect {
+    id: Id,
+    rect: Rect,
+    sense: Sense,
+}
+
 /// State stored per viewport
 #[derive(Default)]
 struct ViewportState {
@@ -138,10 +146,10 @@ struct ViewportState {
     used: bool,
 
     /// Written to during the frame.
-    layer_rects_this_frame: HashMap<LayerId, Vec<(Id, Rect)>>,
+    layer_rects_this_frame: HashMap<LayerId, Vec<WidgetRect>>,
 
     /// Read
-    layer_rects_prev_frame: HashMap<LayerId, Vec<(Id, Rect)>>,
+    layer_rects_prev_frame: HashMap<LayerId, Vec<WidgetRect>>,
 
     /// State related to repaint scheduling.
     repaint: ViewportRepaintInfo,
@@ -865,17 +873,29 @@ impl Context {
                     .layer_rects_this_frame
                     .entry(layer_id)
                     .or_default()
-                    .push((id, interact_rect));
+                    .push(WidgetRect {
+                        id,
+                        rect: interact_rect,
+                        sense,
+                    });
 
                 if hovered {
                     let pointer_pos = viewport.input.pointer.interact_pos();
                     if let Some(pointer_pos) = pointer_pos {
                         if let Some(rects) = viewport.layer_rects_prev_frame.get(&layer_id) {
-                            for &(prev_id, prev_rect) in rects.iter().rev() {
+                            for &WidgetRect {
+                                id: prev_id,
+                                rect: prev_rect,
+                                sense: prev_sense,
+                            } in rects.iter().rev()
+                            {
                                 if prev_id == id {
                                     break; // there is no other interactive widget covering us at the pointer position.
                                 }
-                                if prev_rect.contains(pointer_pos) {
+                                // We don't want a click-only button to block drag-events to a `ScrollArea`:
+                                let has_conflicting_sense = (prev_sense.click && sense.click)
+                                    || (prev_sense.drag && sense.drag);
+                                if prev_rect.contains(pointer_pos) && has_conflicting_sense {
                                     // Another interactive widget is covering us at the pointer position,
                                     // so we aren't hovered.
 
