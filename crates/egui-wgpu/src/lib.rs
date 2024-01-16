@@ -1,5 +1,13 @@
 //! This crates provides bindings between [`egui`](https://github.com/emilk/egui) and [wgpu](https://crates.io/crates/wgpu).
 //!
+//! If you're targeting the web, you also need to turn on the
+//! `webgl` and/or `webgpu` features of the `wgpu` crate.
+//! ```
+//! # Enable both WebGL and WebGPU backends on web.
+//! # egui-wgpu will prefer WebGPU and fall back on WebGL.
+//! wgpu = { version = "*", features = ["webgpu", "webgl"] }
+//! ```
+//!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
@@ -21,6 +29,7 @@ use std::sync::Arc;
 
 use epaint::mutex::RwLock;
 
+/// An error produced by egui-wgpu.
 #[derive(thiserror::Error, Debug)]
 pub enum WgpuError {
     #[error("Failed to create wgpu adapter, no suitable adapter found.")]

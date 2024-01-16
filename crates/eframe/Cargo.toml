@@ -95,7 +95,7 @@ web_screen_reader = [
 ##
 ## This overrides the `glow` feature.
 ##
-## If you're targetting the web, you also need to turn on the
+## If you're targeting the web, you also need to turn on the
 ## `webgl` and/or `webgpu` features of the `wgpu` crate.
 ## If you turn on both, eframe will prefer WebGPU and fall back on WebGL:
 ## ```
