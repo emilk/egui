@@ -92,7 +92,15 @@ web_screen_reader = [
 ]
 
 ## Use [`wgpu`](https://docs.rs/wgpu) for painting (via [`egui-wgpu`](https://github.com/emilk/egui/tree/master/crates/egui-wgpu)).
+##
 ## This overrides the `glow` feature.
+##
+## If you're targetting the web, you also need to turn on the
+## `webgl` and/or `webgpu` features of the `wgpu` crate.
+## If you turn on both, eframe will prefer WebGPU and fall back on WebGL:
+## ```
+## wgpu = { version = "*", features = ["webgpu", "webgl"] }
+## ```
 wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster", "dep:raw-window-handle"]
 
 ## Enables compiling for x11.
