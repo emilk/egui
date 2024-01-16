@@ -2,7 +2,8 @@
 //!
 //! If you're targeting the web, you also need to turn on the
 //! `webgl` and/or `webgpu` features of the `wgpu` crate.
-//! ```
+//!
+//! ```ignore
 //! # Enable both WebGL and WebGPU backends on web.
 //! # egui-wgpu will prefer WebGPU and fall back on WebGL.
 //! wgpu = { version = "*", features = ["webgpu", "webgl"] }

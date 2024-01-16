@@ -98,7 +98,8 @@ web_screen_reader = [
 ## If you're targeting the web, you also need to turn on the
 ## `webgl` and/or `webgpu` features of the `wgpu` crate.
 ## If you turn on both, eframe will prefer WebGPU and fall back on WebGL:
-## ```
+##
+## ```ignore
 ## wgpu = { version = "*", features = ["webgpu", "webgl"] }
 ## ```
 wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster", "dep:raw-window-handle"]
