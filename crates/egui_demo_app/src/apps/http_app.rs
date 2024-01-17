@@ -182,9 +182,9 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
                     egui::Grid::new("response_headers")
                         .spacing(egui::vec2(ui.spacing().item_spacing.x * 2.0, 0.0))
                         .show(ui, |ui| {
-                            for header in &response.headers {
-                                ui.label(header.0);
-                                ui.label(header.1);
+                            for (k, v) in &response.headers {
+                                ui.label(k);
+                                ui.label(v);
                                 ui.end_row();
                             }
                         })
