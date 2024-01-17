@@ -1080,8 +1080,8 @@ impl Context {
                                     response.triple_clicked[*button as usize] =
                                         clicked && click.is_triple();
                                 }
-                                response.is_pointer_button_down_on = false;
                             }
+                            response.is_pointer_button_down_on = false;
                         }
                     }
                 }
