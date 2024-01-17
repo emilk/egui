@@ -103,8 +103,7 @@ fn title_bar_ui(ui: &mut egui::Ui, title_bar_rect: eframe::epaint::Rect, title: 
     // Interact with the title bar (drag to move window):
     if title_bar_response.double_clicked() {
         let is_maximized = ui.input(|i| i.viewport().maximized.unwrap_or(false));
-        ui.ctx()
-            .send_viewport_cmd(ViewportCommand::Maximized(!is_maximized));
+        ui.ctx().send_viewport_cmd(ViewportCommand::Maximized(!is_maximized));
     }
     
     if title_bar_response.is_pointer_button_down_on() {
