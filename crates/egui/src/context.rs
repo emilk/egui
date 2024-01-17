@@ -118,9 +118,9 @@ impl ContextImpl {
     }
 
     #[must_use]
-    fn requested_immediated_repaint_previous_frame(&self, viewport_id: &ViewportId) -> bool {
+    fn requested_immediate_repaint_prev_frame(&self, viewport_id: &ViewportId) -> bool {
         self.viewports.get(viewport_id).map_or(false, |v| {
-            v.repaint.requested_immediated_repaint_previous_frame()
+            v.repaint.requested_immediate_repaint_prev_frame()
         })
     }
 
@@ -224,7 +224,7 @@ impl Default for ViewportRepaintInfo {
 }
 
 impl ViewportRepaintInfo {
-    pub fn requested_immediated_repaint_previous_frame(&self) -> bool {
+    pub fn requested_immediate_repaint_prev_frame(&self) -> bool {
         self.prev_frame_paint_delay == Duration::ZERO
     }
 }
@@ -329,9 +329,7 @@ impl ContextImpl {
 
         viewport.input = std::mem::take(&mut viewport.input).begin_frame(
             new_raw_input,
-            viewport
-                .repaint
-                .requested_immediated_repaint_previous_frame(),
+            viewport.repaint.requested_immediate_repaint_prev_frame(),
             pixels_per_point,
         );
 
@@ -1333,7 +1331,7 @@ impl Context {
     /// Was a repaint requested last frame for the given viewport?
     #[must_use]
     pub fn requested_repaint_last_frame_for(&self, viewport_id: &ViewportId) -> bool {
-        self.read(|ctx| ctx.requested_immediated_repaint_previous_frame(viewport_id))
+        self.read(|ctx| ctx.requested_immediate_repaint_prev_frame(viewport_id))
     }
 
     /// Has a repaint been requested for the current viewport?
