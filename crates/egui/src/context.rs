@@ -68,6 +68,28 @@ impl Default for WrappedTextureManager {
 
 /// Repaint-logic
 impl ContextImpl {
+    /// This is where we update the repaint logic.
+    fn begin_frame_repaint_logic(&mut self, viewport_id: ViewportId) {
+        let viewport = self.viewports.entry(viewport_id).or_default();
+
+        viewport.repaint.prev_frame_paint_delay = viewport.repaint.repaint_delay;
+
+        if viewport.repaint.outstanding == 0 {
+            // We are repainting now, so we can wait a while for the next repaint.
+            viewport.repaint.repaint_delay = Duration::MAX;
+        } else {
+            viewport.repaint.repaint_delay = Duration::ZERO;
+            viewport.repaint.outstanding -= 1;
+            if let Some(callback) = &self.request_repaint_callback {
+                (callback)(RequestRepaintInfo {
+                    viewport_id,
+                    delay: Duration::ZERO,
+                    current_frame_nr: viewport.repaint.frame_nr,
+                });
+            }
+        }
+    }
+
     fn request_repaint(&mut self, viewport_id: ViewportId) {
         self.request_repaint_after(Duration::ZERO, viewport_id);
     }
@@ -79,13 +101,13 @@ impl ContextImpl {
         // This solves some corner-cases of missing repaints on frame-delayed responses.
         viewport.repaint.outstanding = 1;
 
-        if let Some(callback) = &self.request_repaint_callback {
-            // We save some CPU time by only calling the callback if we need to.
-            // If the new delay is greater or equal to the previous lowest,
-            // it means we have already called the callback, and don't need to do it again.
-            if delay < viewport.repaint.repaint_delay {
-                viewport.repaint.repaint_delay = delay;
+        // We save some CPU time by only calling the callback if we need to.
+        // If the new delay is greater or equal to the previous lowest,
+        // it means we have already called the callback, and don't need to do it again.
+        if delay < viewport.repaint.repaint_delay {
+            viewport.repaint.repaint_delay = delay;
 
+            if let Some(callback) = &self.request_repaint_callback {
                 (callback)(RequestRepaintInfo {
                     viewport_id,
                     delay,
@@ -96,10 +118,10 @@ impl ContextImpl {
     }
 
     #[must_use]
-    fn requested_repaint_last_frame(&self, viewport_id: &ViewportId) -> bool {
-        self.viewports
-            .get(viewport_id)
-            .map_or(false, |v| v.repaint.requested_last_frame)
+    fn requested_immediate_repaint_prev_frame(&self, viewport_id: &ViewportId) -> bool {
+        self.viewports.get(viewport_id).map_or(false, |v| {
+            v.repaint.requested_immediate_repaint_prev_frame()
+        })
     }
 
     #[must_use]
@@ -178,8 +200,11 @@ struct ViewportRepaintInfo {
     /// While positive, keep requesting repaints. Decrement at the start of each frame.
     outstanding: u8,
 
-    /// Did we?
-    requested_last_frame: bool,
+    /// What was the output of `repaint_delay` on the previous frame?
+    ///
+    /// If this was zero, we are repaining as quickly as possible
+    /// (as far as we know).
+    prev_frame_paint_delay: Duration,
 }
 
 impl Default for ViewportRepaintInfo {
@@ -193,8 +218,14 @@ impl Default for ViewportRepaintInfo {
             // Let's run a couple of frames at the start, because why not.
             outstanding: 1,
 
-            requested_last_frame: false,
+            prev_frame_paint_delay: Duration::MAX,
         }
+    }
+}
+
+impl ViewportRepaintInfo {
+    pub fn requested_immediate_repaint_prev_frame(&self) -> bool {
+        self.prev_frame_paint_delay == Duration::ZERO
     }
 }
 
@@ -261,22 +292,10 @@ impl ContextImpl {
 
         let is_outermost_viewport = self.viewport_stack.is_empty(); // not necessarily root, just outermost immediate viewport
         self.viewport_stack.push(ids);
-        let viewport = self.viewports.entry(viewport_id).or_default();
 
-        if viewport.repaint.outstanding == 0 {
-            // We are repainting now, so we can wait a while for the next repaint.
-            viewport.repaint.repaint_delay = Duration::MAX;
-        } else {
-            viewport.repaint.repaint_delay = Duration::ZERO;
-            viewport.repaint.outstanding -= 1;
-            if let Some(callback) = &self.request_repaint_callback {
-                (callback)(RequestRepaintInfo {
-                    viewport_id,
-                    delay: Duration::ZERO,
-                    current_frame_nr: viewport.repaint.frame_nr,
-                });
-            }
-        }
+        self.begin_frame_repaint_logic(viewport_id);
+
+        let viewport = self.viewports.entry(viewport_id).or_default();
 
         if is_outermost_viewport {
             if let Some(new_zoom_factor) = self.new_zoom_factor.take() {
@@ -310,7 +329,7 @@ impl ContextImpl {
 
         viewport.input = std::mem::take(&mut viewport.input).begin_frame(
             new_raw_input,
-            viewport.repaint.requested_last_frame,
+            viewport.repaint.requested_immediate_repaint_prev_frame(),
             pixels_per_point,
         );
 
@@ -1312,7 +1331,7 @@ impl Context {
     /// Was a repaint requested last frame for the given viewport?
     #[must_use]
     pub fn requested_repaint_last_frame_for(&self, viewport_id: &ViewportId) -> bool {
-        self.read(|ctx| ctx.requested_repaint_last_frame(viewport_id))
+        self.read(|ctx| ctx.requested_immediate_repaint_prev_frame(viewport_id))
     }
 
     /// Has a repaint been requested for the current viewport?

@@ -147,7 +147,7 @@ impl InputState {
     pub fn begin_frame(
         mut self,
         mut new: RawInput,
-        requested_repaint_last_frame: bool,
+        requested_immediate_repaint_prev_frame: bool,
         pixels_per_point: f32,
     ) -> Self {
         crate::profile_function!();
@@ -155,7 +155,7 @@ impl InputState {
         let time = new.time.unwrap_or(self.time + new.predicted_dt as f64);
         let unstable_dt = (time - self.time) as f32;
 
-        let stable_dt = if requested_repaint_last_frame {
+        let stable_dt = if requested_immediate_repaint_prev_frame {
             // we should have had a repaint straight away,
             // so this should be trustable.
             unstable_dt
