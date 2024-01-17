@@ -918,12 +918,12 @@ pub fn update_viewport_info(
     viewport_info.outer_rect = outer_rect;
     viewport_info.title = Some(window.title());
 
-    if false {
+    if cfg!(target_os = "windows") {
         // It's tempting to do this, but it leads to a deadlock on Mac when running
         // `cargo run -p custom_window_frame`.
         // See https://github.com/emilk/egui/issues/3494
         viewport_info.maximized = Some(window.is_maximized());
-        viewport_info.minimized = window.is_minimized().or(viewport_info.minimized);
+        viewport_info.minimized = Some(window.is_minimized().unwrap_or(false));
     }
 }
 
