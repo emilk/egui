@@ -1081,6 +1081,7 @@ impl Context {
                                         clicked && click.is_triple();
                                 }
                             }
+                            response.is_pointer_button_down_on = false;
                         }
                     }
                 }
