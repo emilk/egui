@@ -924,7 +924,7 @@ pub fn update_viewport_info(
         // `cargo run -p custom_window_frame`.
         // See https://github.com/emilk/egui/issues/3494
         viewport_info.maximized = Some(window.is_maximized());
-        viewport_info.minimized = Some(window.is_minimized().unwrap_or( false ));
+        viewport_info.minimized = Some(window.is_minimized().unwrap_or(false));
     }
 }
 
