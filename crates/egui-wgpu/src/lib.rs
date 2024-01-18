@@ -57,6 +57,10 @@ pub struct RenderState {
     pub adapter: Arc<wgpu::Adapter>,
 
     /// All the available adapters.
+    ///
+    /// This is not availabler on web.
+    /// On web, we always select WebGPU is available, then fall back to WebGL if not.
+    #[cfg(not(target_arch = "wasm32"))]
     pub available_adapters: Arc<[wgpu::Adapter]>,
 
     /// Wgpu device used for rendering, created from the adapter.
@@ -86,7 +90,9 @@ impl RenderState {
     ) -> Result<Self, WgpuError> {
         crate::profile_scope!("RenderState::create"); // async yield give bad names using `profile_function`
 
-        let available_adapters: Vec<_> = instance.enumerate_adapters(wgpu::Backends::all());
+        // This is always an empty list on web.
+        #[cfg(not(target_arch = "wasm32"))]
+        let available_adapters = instance.enumerate_adapters(wgpu::Backends::all());
 
         let adapter = {
             crate::profile_scope!("request_adapter");
@@ -118,6 +124,13 @@ impl RenderState {
                 })?
         };
 
+        #[cfg(target_arch = "wasm32")]
+        log::debug!(
+            "Picked wgpu adapter: {}",
+            adapter_info_summary(&adapter.get_info())
+        );
+
+        #[cfg(not(target_arch = "wasm32"))]
         if available_adapters.len() == 1 {
             log::debug!(
                 "Picked the only available wgpu adapter: {}",
@@ -152,6 +165,7 @@ impl RenderState {
 
         Ok(Self {
             adapter: Arc::new(adapter),
+            #[cfg(not(target_arch = "wasm32"))]
             available_adapters: available_adapters.into(),
             device: Arc::new(device),
             queue: Arc::new(queue),
@@ -161,6 +175,7 @@ impl RenderState {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn describe_adapters(adapters: &[wgpu::Adapter]) -> String {
     if adapters.is_empty() {
         "(none)".to_owned()

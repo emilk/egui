@@ -266,6 +266,7 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
             wgpu_adapter_ui(ui, &render_state.adapter);
             ui.end_row();
 
+            #[cfg(not(target_arch = "wasm32"))]
             if 1 < render_state.available_adapters.len() {
                 ui.label("Others:");
                 ui.vertical(|ui| {
