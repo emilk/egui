@@ -142,7 +142,7 @@ fn init_smithay_clipboard(
     if let Some(RawDisplayHandle::Wayland(display)) = raw_display_handle {
         log::debug!("Initializing smithay clipboard…");
         #[allow(unsafe_code)]
-        Some(unsafe { smithay_clipboard::Clipboard::new(display.display) })
+        Some(unsafe { smithay_clipboard::Clipboard::new(display.display.as_ptr()) })
     } else {
         #[cfg(feature = "wayland")]
         log::debug!("Cannot init smithay clipboard without a Wayland display handle");
