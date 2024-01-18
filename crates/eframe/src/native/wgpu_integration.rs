@@ -8,7 +8,7 @@
 use std::{cell::RefCell, rc::Rc, sync::Arc, time::Instant};
 
 use parking_lot::Mutex;
-use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
+use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 use winit::{
     event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
     window::{Window, WindowId},
@@ -237,8 +237,8 @@ impl WgpuWinitApp {
             #[cfg(feature = "glow")]
             gl: None,
             wgpu_render_state,
-            raw_display_handle: window.raw_display_handle(),
-            raw_window_handle: window.raw_window_handle(),
+            raw_display_handle: window.display_handle().map(|h| h.as_raw()),
+            raw_window_handle: window.window_handle().map(|h| h.as_raw()),
         };
         let app = {
             crate::profile_scope!("user_app_creator");

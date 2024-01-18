@@ -16,7 +16,6 @@ use glutin::{
     prelude::{GlDisplay, PossiblyCurrentGlContext},
     surface::GlSurface,
 };
-use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
 use winit::{
     event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
     window::{Window, WindowId},
@@ -294,6 +293,9 @@ impl GlowWinitApp {
             .expect("Single-use AppCreator has unexpectedly already been taken");
 
         let app = {
+            // Use latest raw_window_handle for eframe compatibility
+            use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
+
             let window = glutin.window(ViewportId::ROOT);
             let cc = CreationContext {
                 egui_ctx: integration.egui_ctx.clone(),
@@ -302,8 +304,8 @@ impl GlowWinitApp {
                 gl: Some(gl),
                 #[cfg(feature = "wgpu")]
                 wgpu_render_state: None,
-                raw_display_handle: window.raw_display_handle(),
-                raw_window_handle: window.raw_window_handle(),
+                raw_display_handle: window.display_handle().map(|h| h.as_raw()),
+                raw_window_handle: window.window_handle().map(|h| h.as_raw()),
             };
             crate::profile_scope!("app_creator");
             app_creator(&cc)
@@ -898,15 +900,18 @@ impl GlutinWindowContext {
             gl_display.version_string(),
             gl_display.supported_features()
         );
-        let raw_window_handle = window.as_ref().map(|w| w.raw_window_handle());
-        log::debug!("creating gl context using raw window handle: {raw_window_handle:?}");
+        let glutin_raw_window_handle = window.as_ref().map(|w| {
+            use rwh_05::HasRawWindowHandle as _; // glutin stuck on old version of raw-window-handle
+            w.raw_window_handle()
+        });
+        log::debug!("creating gl context using raw window handle: {glutin_raw_window_handle:?}");
 
         // create gl context. if core context cannot be created, try gl es context as fallback.
         let context_attributes =
-            glutin::context::ContextAttributesBuilder::new().build(raw_window_handle);
+            glutin::context::ContextAttributesBuilder::new().build(glutin_raw_window_handle);
         let fallback_context_attributes = glutin::context::ContextAttributesBuilder::new()
             .with_context_api(glutin::context::ContextApi::Gles(None))
-            .build(raw_window_handle);
+            .build(glutin_raw_window_handle);
 
         let gl_context_result = unsafe {
             crate::profile_scope!("create_context");
@@ -1052,9 +1057,11 @@ impl GlutinWindowContext {
             let (width_px, height_px): (u32, u32) = window.inner_size().into();
             let width_px = std::num::NonZeroU32::new(width_px.at_least(1)).unwrap();
             let height_px = std::num::NonZeroU32::new(height_px.at_least(1)).unwrap();
-            let surface_attributes =
+            let surface_attributes = {
+                use rwh_05::HasRawWindowHandle as _; // glutin stuck on old version of raw-window-handle
                 glutin::surface::SurfaceAttributesBuilder::<glutin::surface::WindowSurface>::new()
-                    .build(window.raw_window_handle(), width_px, height_px);
+                    .build(window.raw_window_handle(), width_px, height_px)
+            };
 
             log::trace!("creating surface with attributes: {surface_attributes:?}");
             let gl_surface = unsafe {
