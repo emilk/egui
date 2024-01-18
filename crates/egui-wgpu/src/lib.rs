@@ -58,7 +58,7 @@ pub struct RenderState {
 
     /// All the available adapters.
     ///
-    /// This is not availabler on web.
+    /// This is not available on web.
     /// On web, we always select WebGPU is available, then fall back to WebGL if not.
     #[cfg(not(target_arch = "wasm32"))]
     pub available_adapters: Arc<[wgpu::Adapter]>,
