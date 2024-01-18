@@ -56,7 +56,7 @@ pub struct RenderState {
     /// Wgpu adapter used for rendering.
     pub adapter: Arc<wgpu::Adapter>,
 
-    /// All the avilable adapters.
+    /// All the available adapters.
     pub available_adapters: Arc<[wgpu::Adapter]>,
 
     /// Wgpu device used for rendering, created from the adapter.
