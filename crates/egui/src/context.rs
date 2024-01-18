@@ -1240,6 +1240,11 @@ impl Context {
     ///
     /// This will repaint the current viewport.
     pub fn request_repaint(&self) {
+        if cfg!(target_os = "windows") {
+            if self.input(|i| i.viewport().minimized.unwrap_or(false)) {
+                return;
+            }
+        }
         self.request_repaint_of(self.viewport_id());
     }
 
