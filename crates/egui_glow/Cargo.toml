@@ -66,6 +66,7 @@ egui-winit = { version = "0.25.0", path = "../egui-winit", optional = true, defa
 puffin = { workspace = true, optional = true }
 winit = { workspace = true, optional = true, default-features = false, features = [
   "rwh_05",
+  "rwh_06", # for compatibility with egui-winit
 ] } # glutin stuck on old version of raw-window-handle
 
 # Web:

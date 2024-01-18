@@ -56,7 +56,14 @@ android-native-activity = ["egui-winit/android-native-activity"]
 default_fonts = ["egui/default_fonts"]
 
 ## Use [`glow`](https://github.com/grovesNL/glow) for painting, via [`egui_glow`](https://github.com/emilk/egui/tree/master/crates/egui_glow).
-glow = ["dep:glow", "dep:egui_glow", "dep:glutin", "dep:glutin-winit"]
+glow = [
+  "dep:egui_glow",
+  "dep:glow",
+  "dep:glutin-winit",
+  "dep:glutin",
+  "dep:rwh_05",
+  "winit/rwh_05",
+]
 
 ## Enable saving app state to disk.
 persistence = [
@@ -102,7 +109,7 @@ web_screen_reader = [
 ## ```ignore
 ## wgpu = { version = "*", features = ["webgpu", "webgl"] }
 ## ```
-wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster", "dep:raw-window-handle"]
+wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
 
 ## Enables compiling for x11.
 x11 = ["egui-winit/x11"]
@@ -118,6 +125,7 @@ egui = { version = "0.25.0", path = "../egui", default-features = false, feature
 ] }
 log = { version = "0.4", features = ["std"] }
 parking_lot = "0.12"
+raw-window-handle.workspace = true
 static_assertions = "1.1.0"
 thiserror.workspace = true
 
@@ -127,6 +135,9 @@ document-features = { version = "0.2", optional = true }
 
 egui_glow = { version = "0.25.0", path = "../egui_glow", optional = true, default-features = false }
 glow = { workspace = true, optional = true }
+rwh_05 = { package = "raw-window-handle", version = "0.5.2", optional = true, features = [
+  "std",
+] } # glutin stuck on old version of raw-window-handle
 ron = { version = "0.8", optional = true, features = ["integer128"] }
 serde = { version = "1", optional = true, features = ["derive"] }
 
@@ -140,11 +151,7 @@ egui-winit = { version = "0.25.0", path = "../egui-winit", default-features = fa
 image = { version = "0.24", default-features = false, features = [
   "png",
 ] } # Needed for app icon
-raw-window-handle.workspace = true
-rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
-  "std",
-] } # glutin stuck on old version of raw-window-handle
-winit = { workspace = true, default-features = false, features = ["rwh_05"] }
+winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
 # optional native:
 directories-next = { version = "2", optional = true }
@@ -223,5 +230,4 @@ web-sys = { version = "0.3.58", features = [
 
 # optional web:
 egui-wgpu = { version = "0.25.0", path = "../egui-wgpu", optional = true } # if wgpu is used, use it without (!) winit
-raw-window-handle = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true }
