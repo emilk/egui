@@ -87,6 +87,10 @@ impl WebPainterWgpu {
     pub async fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
 
+        if crate::web::web_location().hostname == "0.0.0.0" {
+            log::warn!("Due to a chromium bug, WebGPU doesn't work when the hostname is '0.0.0.0'");
+        }
+
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: options.wgpu_options.supported_backends,
             ..Default::default()
