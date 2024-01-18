@@ -43,7 +43,6 @@ while test $# -gt 0; do
     -g)
       shift
       WASM_OPT_FLAGS="${WASM_OPT_FLAGS} -g"
-      echo "'${WASM_OPT_FLAGS}'"
       ;;
 
     --open)
