@@ -161,6 +161,7 @@ impl Painter {
                 present_mode,
                 alpha_mode: surface_state.alpha_mode,
                 view_formats: vec![render_state.target_format],
+                desired_maximum_frame_latency: 2, // TODO(emilk): expose to users
             },
         );
     }
