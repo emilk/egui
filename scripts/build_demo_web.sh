@@ -88,6 +88,7 @@ echo "Building rust…"
 (cd crates/$CRATE_NAME &&
   cargo build \
     ${BUILD_FLAGS} \
+    --quiet \
     --lib \
     --target wasm32-unknown-unknown \
     --no-default-features \
