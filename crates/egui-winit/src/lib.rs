@@ -22,7 +22,7 @@ mod window_settings;
 
 pub use window_settings::WindowSettings;
 
-use raw_window_handle::HasRawDisplayHandle;
+use raw_window_handle::HasDisplayHandle;
 
 #[allow(unused_imports)]
 pub(crate) use profiling_scopes::*;
@@ -106,7 +106,7 @@ impl State {
     pub fn new(
         egui_ctx: egui::Context,
         viewport_id: ViewportId,
-        display_target: &dyn HasRawDisplayHandle,
+        display_target: &dyn HasDisplayHandle,
         native_pixels_per_point: Option<f32>,
         max_texture_side: Option<usize>,
     ) -> Self {
@@ -126,7 +126,9 @@ impl State {
             any_pointer_button_down: false,
             current_cursor_icon: None,
 
-            clipboard: clipboard::Clipboard::new(display_target),
+            clipboard: clipboard::Clipboard::new(
+                display_target.display_handle().ok().map(|h| h.as_raw()),
+            ),
 
             simulate_touch_screen: false,
             pointer_touch_id: None,

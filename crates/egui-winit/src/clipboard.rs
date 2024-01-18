@@ -1,4 +1,4 @@
-use raw_window_handle::HasRawDisplayHandle;
+use raw_window_handle::RawDisplayHandle;
 
 /// Handles interfacing with the OS clipboard.
 ///
@@ -26,7 +26,7 @@ pub struct Clipboard {
 
 impl Clipboard {
     /// Construct a new instance
-    pub fn new(_display_target: &dyn HasRawDisplayHandle) -> Self {
+    pub fn new(_raw_display_handle: Option<RawDisplayHandle>) -> Self {
         Self {
             #[cfg(all(feature = "arboard", not(target_os = "android")))]
             arboard: init_arboard(),
@@ -41,7 +41,7 @@ impl Clipboard {
                 ),
                 feature = "smithay-clipboard"
             ))]
-            smithay: init_smithay_clipboard(_display_target),
+            smithay: init_smithay_clipboard(_raw_display_handle),
 
             clipboard: Default::default(),
         }
@@ -135,12 +135,11 @@ fn init_arboard() -> Option<arboard::Clipboard> {
     feature = "smithay-clipboard"
 ))]
 fn init_smithay_clipboard(
-    _display_target: &dyn HasRawDisplayHandle,
+    raw_display_handle: Option<RawDisplayHandle>,
 ) -> Option<smithay_clipboard::Clipboard> {
     crate::profile_function!();
 
-    use raw_window_handle::RawDisplayHandle;
-    if let RawDisplayHandle::Wayland(display) = _display_target.raw_display_handle() {
+    if let Some(RawDisplayHandle::Wayland(display)) = raw_display_handle {
         log::debug!("Initializing smithay clipboard…");
         #[allow(unsafe_code)]
         Some(unsafe { smithay_clipboard::Clipboard::new(display.display) })
