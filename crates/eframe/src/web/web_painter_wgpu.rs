@@ -18,7 +18,7 @@ struct EguiWebWindow(u32);
 #[allow(unsafe_code)]
 impl HasWindowHandle for EguiWebWindow {
     fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
-        // SAFETY: it's web. I'm sure its fine.
+        // SAFETY: there is no lifetime here.
         unsafe {
             Ok(WindowHandle::borrow_raw(RawWindowHandle::Web(
                 WebWindowHandle::new(self.0),
@@ -30,7 +30,7 @@ impl HasWindowHandle for EguiWebWindow {
 #[allow(unsafe_code)]
 impl HasDisplayHandle for EguiWebWindow {
     fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
-        // SAFETY: it's web. I'm sure its fine.
+        // SAFETY: there is no lifetime here.
         unsafe {
             Ok(DisplayHandle::borrow_raw(RawDisplayHandle::Web(
                 WebDisplayHandle::new(),

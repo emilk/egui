@@ -52,9 +52,10 @@ bytemuck = "1.7"
 glow.workspace = true
 log = { version = "0.4", features = ["std"] }
 memoffset = "0.7"
+# glutin stuck on old version of raw-window-handle:
 rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
   "std",
-] } # glutin stuck on old version of raw-window-handle
+] }
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
@@ -65,9 +66,9 @@ document-features = { version = "0.2", optional = true }
 egui-winit = { version = "0.25.0", path = "../egui-winit", optional = true, default-features = false }
 puffin = { workspace = true, optional = true }
 winit = { workspace = true, optional = true, default-features = false, features = [
-  "rwh_05",
+  "rwh_05", # glutin stuck on old version of raw-window-handle
   "rwh_06", # for compatibility with egui-winit
-] } # glutin stuck on old version of raw-window-handle
+] }
 
 # Web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
