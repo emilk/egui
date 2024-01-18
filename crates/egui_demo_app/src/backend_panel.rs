@@ -310,15 +310,6 @@ fn integration_ui(ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
                 ui.close_menu();
             }
         });
-
-        let fullscreen = ui.input(|i| i.viewport().fullscreen.unwrap_or(false));
-        if !fullscreen
-            && ui
-                .button("Drag me to drag window")
-                .is_pointer_button_down_on()
-        {
-            ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
-        }
     }
 }
 
