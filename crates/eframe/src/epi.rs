@@ -13,9 +13,11 @@ use std::any::Any;
 #[cfg(any(feature = "glow", feature = "wgpu"))]
 pub use crate::native::winit_integration::UserEvent;
 
-use raw_window_handle::{DisplayHandle, HandleError, WindowHandle};
 #[cfg(not(target_arch = "wasm32"))]
-use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle};
+use raw_window_handle::{
+    DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
+    RawWindowHandle, WindowHandle,
+};
 #[cfg(not(target_arch = "wasm32"))]
 use static_assertions::assert_not_impl_any;
 

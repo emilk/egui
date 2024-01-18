@@ -1,5 +1,9 @@
 use std::sync::Arc;
 
+use raw_window_handle::{
+    DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
+    RawWindowHandle, WebDisplayHandle, WebWindowHandle, WindowHandle,
+};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
@@ -12,18 +16,26 @@ use super::web_painter::WebPainter;
 struct EguiWebWindow(u32);
 
 #[allow(unsafe_code)]
-unsafe impl raw_window_handle::HasRawWindowHandle for EguiWebWindow {
-    fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-        let mut window_handle = raw_window_handle::WebWindowHandle::empty();
-        window_handle.id = self.0;
-        raw_window_handle::RawWindowHandle::Web(window_handle)
+impl HasWindowHandle for EguiWebWindow {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        // SAFETY: it's web. I'm sure its fine.
+        unsafe {
+            Ok(WindowHandle::borrow_raw(RawWindowHandle::Web(
+                WebWindowHandle::new(self.0),
+            )))
+        }
     }
 }
 
 #[allow(unsafe_code)]
-unsafe impl raw_window_handle::HasRawDisplayHandle for EguiWebWindow {
-    fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
-        raw_window_handle::RawDisplayHandle::Web(raw_window_handle::WebDisplayHandle::empty())
+impl HasDisplayHandle for EguiWebWindow {
+    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        // SAFETY: it's web. I'm sure its fine.
+        unsafe {
+            Ok(DisplayHandle::borrow_raw(RawDisplayHandle::Web(
+                WebDisplayHandle::new(),
+            )))
+        }
     }
 }
 
@@ -100,6 +112,7 @@ impl WebPainterWgpu {
             present_mode: options.wgpu_options.present_mode,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![render_state.target_format],
+            desired_maximum_frame_latency: 2, // TODO(emilk): expose to eframe users
         };
 
         log::debug!("wgpu painter initialized.");
