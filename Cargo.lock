@@ -1347,6 +1347,7 @@ dependencies = [
  "raw-window-handle 0.5.2",
  "wasm-bindgen",
  "web-sys",
+ "winit",
 ]
 
 [[package]]

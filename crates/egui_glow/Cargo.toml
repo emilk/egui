@@ -40,7 +40,7 @@ links = ["egui-winit?/links"]
 puffin = ["dep:puffin", "egui-winit?/puffin", "egui/puffin"]
 
 ## Enable [`winit`](https://docs.rs/winit) integration.
-winit = ["egui-winit"]
+winit = ["egui-winit", "dep:winit"]
 
 
 [dependencies]
@@ -64,6 +64,9 @@ document-features = { version = "0.2", optional = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 egui-winit = { version = "0.25.0", path = "../egui-winit", optional = true, default-features = false }
 puffin = { workspace = true, optional = true }
+winit = { workspace = true, optional = true, default-features = false, features = [
+  "rwh_05",
+] } # glutin stuck on old version of raw-window-handle
 
 # Web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
