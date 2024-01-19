@@ -158,14 +158,16 @@ impl Painter {
         surface_state.surface.configure(
             &render_state.device,
             &wgpu::SurfaceConfiguration {
+                // TODO(emilk): expose `desired_maximum_frame_latency` to eframe users
                 usage,
                 format: render_state.target_format,
-                width,
-                height,
                 present_mode,
                 alpha_mode: surface_state.alpha_mode,
                 view_formats: vec![render_state.target_format],
-                desired_maximum_frame_latency: 2, // TODO(emilk): expose to eframe users
+                ..surface_state
+                    .surface
+                    .get_default_config(&render_state.adapter, width, height)
+                    .expect("The surface isn't supported by this adapter")
             },
         );
     }
