@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use epaint::text::{cursor::*, Galley, LayoutJob};
 
-use crate::{output::OutputEvent, text_edit::cursor_interaction::cursor_rect, *};
+use crate::{
+    os::OperatingSystem, output::OutputEvent, text_edit::cursor_interaction::cursor_rect, *,
+};
 
 use super::{
     cursor_interaction::{ccursor_next_word, ccursor_previous_word, find_line_start},
@@ -773,6 +775,8 @@ fn events(
     char_limit: usize,
     event_filter: EventFilter,
 ) -> (bool, CursorRange) {
+    let os = ui.ctx().os();
+
     let mut cursor_range = state.cursor.range(galley).unwrap_or(default_cursor_range);
 
     // We feed state to the undoer both before and after handling input
@@ -794,7 +798,7 @@ fn events(
     for event in &events {
         let did_mutate_text = match event {
             // First handle events that only changes the selection cursor, not the text:
-            event if cursor_range.on_event(event, galley, id) => None,
+            event if cursor_range.on_event(os, event, galley, id) => None,
 
             Event::Copy => {
                 if cursor_range.is_empty() {
@@ -909,7 +913,7 @@ fn events(
                 key,
                 pressed: true,
                 ..
-            } => check_for_mutating_key_press(&mut cursor_range, text, galley, modifiers, *key),
+            } => check_for_mutating_key_press(os, &mut cursor_range, text, galley, modifiers, *key),
 
             Event::CompositionStart => {
                 state.has_ime = true;
@@ -1143,6 +1147,7 @@ fn delete_paragraph_after_cursor(
 
 /// Returns `Some(new_cursor)` if we did mutate `text`.
 fn check_for_mutating_key_press(
+    os: OperatingSystem,
     cursor_range: &mut CursorRange,
     text: &mut dyn TextBuffer,
     galley: &Galley,
@@ -1166,7 +1171,7 @@ fn check_for_mutating_key_press(
             Some(CCursorRange::one(ccursor))
         }
 
-        Key::Delete if !modifiers.shift || !cfg!(target_os = "windows") => {
+        Key::Delete if !modifiers.shift || os != OperatingSystem::Windows => {
             let ccursor = if modifiers.mac_cmd {
                 delete_paragraph_after_cursor(text, galley, cursor_range)
             } else if let Some(cursor) = cursor_range.single() {

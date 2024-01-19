@@ -377,7 +377,7 @@ fn process_selection_key_events(
                 }
 
                 event => {
-                    cursor_range.on_event(event, galley, widget_id);
+                    cursor_range.on_event(ui.ctx().os(), event, galley, widget_id);
                 }
             }
         }
