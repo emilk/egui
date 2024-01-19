@@ -1338,10 +1338,8 @@ fn process_viewport_command(
             egui::viewport::WindowLevel::Normal => WindowLevel::Normal,
         }),
         ViewportCommand::Icon(icon) => {
-            window.set_window_icon(icon.map(|icon| {
-                winit::window::Icon::from_rgba(icon.rgba.clone(), icon.width, icon.height)
-                    .expect("Invalid ICON data!")
-            }));
+            let winit_icon = icon.and_then(|icon| to_winit_icon(&icon));
+            window.set_window_icon(winit_icon);
         }
         ViewportCommand::IMERect(rect) => {
             window.set_ime_cursor_area(
@@ -1546,10 +1544,8 @@ pub fn create_winit_window_builder<T>(
     }
 
     if let Some(icon) = icon {
-        window_builder = window_builder.with_window_icon(Some(
-            winit::window::Icon::from_rgba(icon.rgba.clone(), icon.width, icon.height)
-                .expect("Invalid Icon Data!"),
-        ));
+        let winit_icon = to_winit_icon(&icon);
+        window_builder = window_builder.with_window_icon(winit_icon);
     }
 
     #[cfg(all(feature = "wayland", target_os = "linux"))]
@@ -1575,6 +1571,21 @@ pub fn create_winit_window_builder<T>(
     }
 
     window_builder
+}
+
+fn to_winit_icon(icon: &egui::IconData) -> Option<winit::window::Icon> {
+    if icon.is_empty() {
+        None
+    } else {
+        crate::profile_function!();
+        match winit::window::Icon::from_rgba(icon.rgba.clone(), icon.width, icon.height) {
+            Ok(winit_icon) => Some(winit_icon),
+            Err(err) => {
+                log::warn!("Invalid IconData: {err}");
+                None
+            }
+        }
+    }
 }
 
 /// Applies what `create_winit_window_builder` couldn't

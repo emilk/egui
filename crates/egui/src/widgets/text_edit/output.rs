@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use crate::text::CursorRange;
+
 /// The output from a [`TextEdit`](crate::TextEdit).
 pub struct TextEditOutput {
     /// The interaction response.
@@ -18,7 +20,7 @@ pub struct TextEditOutput {
     pub state: super::TextEditState,
 
     /// Where the text cursor is.
-    pub cursor_range: Option<super::CursorRange>,
+    pub cursor_range: Option<CursorRange>,
 }
 
 impl TextEditOutput {

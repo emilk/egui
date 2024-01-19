@@ -1,8 +1,8 @@
 use epaint::{text::cursor::*, Galley};
 
-use crate::{Event, Id, Key, Modifiers};
+use crate::{os::OperatingSystem, Event, Id, Key, Modifiers};
 
-use super::cursor_interaction::{ccursor_next_word, ccursor_previous_word, slice_char_range};
+use super::text_cursor_state::{ccursor_next_word, ccursor_previous_word, slice_char_range};
 
 /// A selected text range (could be a range of length zero).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -115,7 +115,13 @@ impl CursorRange {
     /// Check for key presses that are moving the cursor.
     ///
     /// Returns `true` if we did mutate `self`.
-    pub fn on_key_press(&mut self, galley: &Galley, modifiers: &Modifiers, key: Key) -> bool {
+    pub fn on_key_press(
+        &mut self,
+        os: OperatingSystem,
+        galley: &Galley,
+        modifiers: &Modifiers,
+        key: Key,
+    ) -> bool {
         match key {
             Key::A if modifiers.command => {
                 *self = Self::select_all(galley);
@@ -137,7 +143,7 @@ impl CursorRange {
             | Key::ArrowDown
             | Key::Home
             | Key::End => {
-                move_single_cursor(&mut self.primary, galley, key, modifiers);
+                move_single_cursor(os, &mut self.primary, galley, key, modifiers);
                 if !modifiers.shift {
                     self.secondary = self.primary;
                 }
@@ -145,9 +151,9 @@ impl CursorRange {
             }
 
             Key::P | Key::N | Key::B | Key::F | Key::A | Key::E
-                if cfg!(target_os = "macos") && modifiers.ctrl && !modifiers.shift =>
+                if os == OperatingSystem::Mac && modifiers.ctrl && !modifiers.shift =>
             {
-                move_single_cursor(&mut self.primary, galley, key, modifiers);
+                move_single_cursor(os, &mut self.primary, galley, key, modifiers);
                 self.secondary = self.primary;
                 true
             }
@@ -159,14 +165,20 @@ impl CursorRange {
     /// Check for events that modify the cursor range.
     ///
     /// Returns `true` if such an event was found and handled.
-    pub fn on_event(&mut self, event: &Event, galley: &Galley, _widget_id: Id) -> bool {
+    pub fn on_event(
+        &mut self,
+        os: OperatingSystem,
+        event: &Event,
+        galley: &Galley,
+        _widget_id: Id,
+    ) -> bool {
         match event {
             Event::Key {
                 modifiers,
                 key,
                 pressed: true,
                 ..
-            } => self.on_key_press(galley, modifiers, *key),
+            } => self.on_key_press(os, galley, modifiers, *key),
 
             #[cfg(feature = "accesskit")]
             Event::AccessKitActionRequest(accesskit::ActionRequest {
@@ -287,8 +299,14 @@ fn ccursor_from_accesskit_text_position(
 // ----------------------------------------------------------------------------
 
 /// Move a text cursor based on keyboard
-fn move_single_cursor(cursor: &mut Cursor, galley: &Galley, key: Key, modifiers: &Modifiers) {
-    if cfg!(target_os = "macos") && modifiers.ctrl && !modifiers.shift {
+fn move_single_cursor(
+    os: OperatingSystem,
+    cursor: &mut Cursor,
+    galley: &Galley,
+    key: Key,
+    modifiers: &Modifiers,
+) {
+    if os == OperatingSystem::Mac && modifiers.ctrl && !modifiers.shift {
         match key {
             Key::A => *cursor = galley.cursor_begin_of_row(cursor),
             Key::E => *cursor = galley.cursor_end_of_row(cursor),

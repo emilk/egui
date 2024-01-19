@@ -66,6 +66,15 @@ def lint_lines(filepath, lines_in):
                 )
                 lines_out.append("#[inline]")
 
+        if (
+            "(target_os" in line
+            and filepath.startswith("./crates/egui/")
+            and filepath != "./crates/egui/src/os.rs"
+        ):
+            errors.append(
+                f"{filepath}:{line_nr}: Don't use `target_os` - use ctx.os() instead."
+            )
+
         lines_out.append(line)
 
         prev_line = line

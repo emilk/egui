@@ -390,7 +390,7 @@ impl ContextImpl {
             .entry(pixels_per_point.into())
             .or_insert_with(|| {
                 #[cfg(feature = "log")]
-                log::debug!("Creating new Fonts for pixels_per_point={pixels_per_point}");
+                log::trace!("Creating new Fonts for pixels_per_point={pixels_per_point}");
 
                 is_new = true;
                 crate::profile_scope!("Fonts::new");
@@ -1810,7 +1810,7 @@ impl ContextImpl {
                 true
             } else {
                 #[cfg(feature = "log")]
-                log::debug!(
+                log::trace!(
                     "Freeing Fonts with pixels_per_point={} because it is no longer needed",
                     pixels_per_point.into_inner()
                 );
