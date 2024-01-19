@@ -364,6 +364,7 @@ pub(crate) mod placer;
 mod response;
 mod sense;
 pub mod style;
+pub mod text_selection;
 mod ui;
 pub mod util;
 pub mod viewport;
@@ -398,7 +399,7 @@ pub use epaint::{
 };
 
 pub mod text {
-    pub use crate::text_edit::CCursorRange;
+    pub use crate::text_selection::{CCursorRange, CursorRange};
     pub use epaint::text::{
         cursor::CCursor, FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob,
         LayoutSection, TextFormat, TextWrapping, TAB_SIZE,

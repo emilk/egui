@@ -1,6 +1,6 @@
 use crate::{Context, Galley, Id, Pos2};
 
-use super::{cursor_interaction::is_word_char, CursorRange};
+use super::{text_cursor_state::is_word_char, CursorRange};
 
 /// Update accesskit with the current text state.
 pub fn update_accesskit_for_text_widget(
