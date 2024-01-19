@@ -102,13 +102,15 @@ web_screen_reader = [
 ##
 ## This overrides the `glow` feature.
 ##
-## If you're targeting the web, you also need to turn on the
-## `webgl` and/or `webgpu` features of the `wgpu` crate.
-## If you turn on both, eframe will prefer WebGPU and fall back on WebGL:
+## By default, only WebGPU is enabled on web.
+## If you want to enable WebGL, you need to turn on the `webgl` feature of crate `wgpu`:
 ##
 ## ```ignore
 ## wgpu = { version = "*", features = ["webgpu", "webgl"] }
 ## ```
+##
+## By default, eframe will prefer WebGPU over WebGL, but
+## you can configure this at run-time with [`NativeOptions::wgpu_options`].
 wgpu = ["dep:wgpu", "dep:egui-wgpu", "dep:pollster"]
 
 ## Enables compiling for x11.

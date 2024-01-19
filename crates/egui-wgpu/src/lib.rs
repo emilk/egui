@@ -1,13 +1,16 @@
 //! This crates provides bindings between [`egui`](https://github.com/emilk/egui) and [wgpu](https://crates.io/crates/wgpu).
 //!
-//! If you're targeting the web, you also need to turn on the
-//! `webgl` and/or `webgpu` features of the `wgpu` crate.
+//! If you're targeting WebGL you also need to turn on the
+//! `webgl` feature of the `wgpu` crate:
 //!
 //! ```ignore
 //! # Enable both WebGL and WebGPU backends on web.
-//! # egui-wgpu will prefer WebGPU and fall back on WebGL.
 //! wgpu = { version = "*", features = ["webgpu", "webgl"] }
 //! ```
+//!
+//! You can control whether WebGL or WebGPU will be picked at runtime by setting
+//! [`WgpuConfiguration::supported_backends`].
+//! The default is to prefer WebGPU and fall back on WebGL.
 //!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
@@ -204,7 +207,7 @@ pub enum SurfaceErrorAction {
 
 /// Configuration for using wgpu with eframe or the egui-wgpu winit feature.
 ///
-/// This can be configured with the environment variables:
+/// This can also be configured with the environment variables:
 /// * `WGPU_BACKEND`: `vulkan`, `dx11`, `dx12`, `metal`, `opengl`, `webgpu`
 /// * `WGPU_POWER_PREF`: `low`, `high` or `none`
 #[derive(Clone)]
@@ -213,6 +216,10 @@ pub struct WgpuConfiguration {
     ///
     /// For instance, if you only want to support WebGL (and not WebGPU),
     /// you can set this to [`wgpu::Backends::GL`].
+    ///
+    /// By default on web, WebGPU will be used if available.
+    /// WebGL will only be used as a fallback,
+    /// and only if you have enabled the `webgl` feature of crate `wgpu`.
     pub supported_backends: wgpu::Backends,
 
     /// Configuration passed on device request, given an adapter
