@@ -209,7 +209,10 @@ pub enum SurfaceErrorAction {
 /// * `WGPU_POWER_PREF`: `low`, `high` or `none`
 #[derive(Clone)]
 pub struct WgpuConfiguration {
-    /// Backends that should be supported (wgpu will pick one of these)
+    /// Backends that should be supported (wgpu will pick one of these).
+    ///
+    /// For instance, if you only want to support WebGL (and not WebGPU),
+    /// you can set this to [`wgpu::Backends::GL`].
     pub supported_backends: wgpu::Backends,
 
     /// Configuration passed on device request, given an adapter
@@ -239,7 +242,7 @@ impl Default for WgpuConfiguration {
     fn default() -> Self {
         Self {
             // Add GL backend, primarily because WebGPU is not stable enough yet.
-            // (note however, that the GL backend needs to be opted-in via a wgpu feature flag)
+            // (note however, that the GL backend needs to be opted-in via the wgpu feature flag "webgl")
             supported_backends: wgpu::util::backend_bits_from_env()
                 .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL),
 
