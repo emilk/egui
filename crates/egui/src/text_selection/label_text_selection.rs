@@ -116,6 +116,7 @@ fn process_selection_key_events(
     cursor_range: &mut CursorRange,
 ) {
     let mut copy_text = None;
+    let os = ctx.os();
 
     ctx.input(|i| {
         // NOTE: we have a lock on ui/ctx here,
@@ -139,7 +140,7 @@ fn process_selection_key_events(
                 }
 
                 event => {
-                    cursor_range.on_event(ctx.os(), event, galley, widget_id);
+                    cursor_range.on_event(os, event, galley, widget_id);
                 }
             }
         }
