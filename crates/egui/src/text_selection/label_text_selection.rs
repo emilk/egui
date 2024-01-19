@@ -1,11 +1,11 @@
 use epaint::{Galley, Pos2};
 
 use crate::{
-    text_edit::{
-        cursor_interaction::cursor_rect, paint_cursor_selection, CursorRange, TextCursorState,
-    },
+    text_edit::{cursor_interaction::cursor_rect, CursorRange, TextCursorState},
     Context, CursorIcon, Event, Id, Response, Ui,
 };
+
+use super::visuals::paint_text_selection;
 
 /// Handle text selection state for a label or similar widget.
 ///
@@ -40,9 +40,9 @@ pub fn label_text_selection(ui: &Ui, response: &Response, galley_pos: Pos2, gall
     if let Some(cursor_range) = cursor_range {
         // We paint the cursor on top of the text, in case
         // the text galley has backgrounds (as e.g. `code` snippets in markup do).
-        paint_cursor_selection(
-            ui.visuals(),
+        paint_text_selection(
             ui.painter(),
+            ui.visuals(),
             galley_pos,
             galley,
             &cursor_range,

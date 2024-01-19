@@ -3,7 +3,11 @@ use std::sync::Arc;
 use epaint::text::{cursor::*, Galley, LayoutJob};
 
 use crate::{
-    os::OperatingSystem, output::OutputEvent, text_edit::cursor_interaction::cursor_rect, *,
+    os::OperatingSystem,
+    output::OutputEvent,
+    text_edit::cursor_interaction::cursor_rect,
+    text_selection::visuals::{paint_cursor, paint_text_selection},
+    *,
 };
 
 use super::{
@@ -651,9 +655,9 @@ impl<'t> TextEdit<'t> {
                 if let Some(cursor_range) = state.cursor.range(&galley) {
                     // We paint the cursor on top of the text, in case
                     // the text galley has backgrounds (as e.g. `code` snippets in markup do).
-                    paint_cursor_selection(
-                        ui.visuals(),
+                    paint_text_selection(
                         &painter,
+                        ui.visuals(),
                         galley_pos,
                         &galley,
                         &cursor_range,
@@ -974,74 +978,6 @@ fn events(
     );
 
     (any_change, cursor_range)
-}
-
-// ----------------------------------------------------------------------------
-
-pub fn paint_cursor_selection(
-    visuals: &Visuals,
-    painter: &Painter,
-    galley_pos: Pos2,
-    galley: &Galley,
-    cursor_range: &CursorRange,
-) {
-    if cursor_range.is_empty() {
-        return;
-    }
-
-    // We paint the cursor selection on top of the text, so make it transparent:
-    let color = visuals.selection.bg_fill.linear_multiply(0.5);
-    let [min, max] = cursor_range.sorted_cursors();
-    let min = min.rcursor;
-    let max = max.rcursor;
-
-    for ri in min.row..=max.row {
-        let row = &galley.rows[ri];
-        let left = if ri == min.row {
-            row.x_offset(min.column)
-        } else {
-            row.rect.left()
-        };
-        let right = if ri == max.row {
-            row.x_offset(max.column)
-        } else {
-            let newline_size = if row.ends_with_newline {
-                row.height() / 2.0 // visualize that we select the newline
-            } else {
-                0.0
-            };
-            row.rect.right() + newline_size
-        };
-        let rect = Rect::from_min_max(
-            galley_pos + vec2(left, row.min_y()),
-            galley_pos + vec2(right, row.max_y()),
-        );
-        painter.rect_filled(rect, 0.0, color);
-    }
-}
-
-/// Paint one end of the selection, e.g. the primary cursor.
-fn paint_cursor(painter: &Painter, visuals: &Visuals, cursor_rect: Rect) {
-    let stroke = visuals.text_cursor;
-
-    let top = cursor_rect.center_top();
-    let bottom = cursor_rect.center_bottom();
-
-    painter.line_segment([top, bottom], (stroke.width, stroke.color));
-
-    if false {
-        // Roof/floor:
-        let extrusion = 3.0;
-        let width = 1.0;
-        painter.line_segment(
-            [top - vec2(extrusion, 0.0), top + vec2(extrusion, 0.0)],
-            (width, stroke.color),
-        );
-        painter.line_segment(
-            [bottom - vec2(extrusion, 0.0), bottom + vec2(extrusion, 0.0)],
-            (width, stroke.color),
-        );
-    }
 }
 
 // ----------------------------------------------------------------------------
