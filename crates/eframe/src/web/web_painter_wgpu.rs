@@ -91,7 +91,7 @@ impl WebPainterWgpu {
             let is_secure_context = web_sys::window().map_or(false, |w| w.is_secure_context());
             if !is_secure_context {
                 log::info!(
-                    "WebGPU is only available in seucre contexts, i.e. on HTTPS and on localhost"
+                    "WebGPU is only available in secure contexts, i.e. on HTTPS and on localhost"
                 );
             }
         }
