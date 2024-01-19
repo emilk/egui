@@ -140,6 +140,32 @@ impl WgpuWinitApp {
     }
 
     #[cfg(target_os = "android")]
+    fn recreate_window(
+        &self,
+        event_loop: &EventLoopWindowTarget<UserEvent>,
+        running: &WgpuWinitRunning,
+    ) {
+        let SharedState {
+            egui_ctx,
+            viewports,
+            viewport_from_window,
+            painter,
+            ..
+        } = &mut *running.shared.borrow_mut();
+
+        initialize_or_update_viewport(
+            egui_ctx,
+            viewports,
+            ViewportIdPair::ROOT,
+            ViewportClass::Root,
+            self.native_options.viewport.clone(),
+            None,
+            None,
+        )
+        .initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
+    }
+
+    #[cfg(target_os = "android")]
     fn drop_window(&mut self) -> Result<(), egui_wgpu::WgpuError> {
         if let Some(running) = &mut self.running {
             let mut shared = running.shared.borrow_mut();
@@ -386,6 +412,8 @@ impl WinitApp for WgpuWinitApp {
                 log::debug!("Event::Resumed");
 
                 let running = if let Some(running) = &self.running {
+                    #[cfg(target_os = "android")]
+                    self.recreate_window(event_loop, running);
                     running
                 } else {
                     let storage = epi_integration::create_storage(
