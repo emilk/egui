@@ -170,6 +170,13 @@ pub struct IconData {
     pub height: u32,
 }
 
+impl IconData {
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.rgba.is_empty()
+    }
+}
+
 impl std::fmt::Debug for IconData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("IconData")
