@@ -7,8 +7,14 @@ use epaint::{ahash::HashMap, emath::NumExt, PaintCallbackInfo, Primitive, Vertex
 use wgpu;
 use wgpu::util::DeviceExt as _;
 
+/// You can use this for storage when implementing [`CallbackTrait`].
 pub type CallbackResources = type_map::concurrent::TypeMap;
 
+/// You can use this to do custom `wgpu` rendering in an egui app.
+///
+/// Implement [`CallbackTrait`] and call [`Callback::new_paint_callback`].
+///
+/// This can be turned into a [`epaint::PaintCallback`] and [`epaint::Shape`].
 pub struct Callback(Box<dyn CallbackTrait>);
 
 impl Callback {

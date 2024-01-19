@@ -15,7 +15,8 @@ pub use crate::native::winit_integration::UserEvent;
 
 #[cfg(not(target_arch = "wasm32"))]
 use raw_window_handle::{
-    HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
+    DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
+    RawWindowHandle, WindowHandle,
 };
 #[cfg(not(target_arch = "wasm32"))]
 use static_assertions::assert_not_impl_any;
@@ -76,30 +77,28 @@ pub struct CreationContext<'s> {
 
     /// Raw platform window handle
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) raw_window_handle: RawWindowHandle,
+    pub(crate) raw_window_handle: Result<RawWindowHandle, HandleError>,
 
     /// Raw platform display handle for window
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) raw_display_handle: RawDisplayHandle,
+    pub(crate) raw_display_handle: Result<RawDisplayHandle, HandleError>,
 }
-
-// Implementing `Clone` would violate the guarantees of `HasRawWindowHandle` and `HasRawDisplayHandle`.
-#[cfg(not(target_arch = "wasm32"))]
-assert_not_impl_any!(CreationContext<'_>: Clone);
 
 #[allow(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
-unsafe impl HasRawWindowHandle for CreationContext<'_> {
-    fn raw_window_handle(&self) -> RawWindowHandle {
-        self.raw_window_handle
+impl HasWindowHandle for CreationContext<'_> {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        // Safety: the lifetime is correct.
+        unsafe { Ok(WindowHandle::borrow_raw(self.raw_window_handle.clone()?)) }
     }
 }
 
 #[allow(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
-unsafe impl HasRawDisplayHandle for CreationContext<'_> {
-    fn raw_display_handle(&self) -> RawDisplayHandle {
-        self.raw_display_handle
+impl HasDisplayHandle for CreationContext<'_> {
+    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        // Safety: the lifetime is correct.
+        unsafe { Ok(DisplayHandle::borrow_raw(self.raw_display_handle.clone()?)) }
     }
 }
 
@@ -599,30 +598,32 @@ pub struct Frame {
 
     /// Raw platform window handle
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) raw_window_handle: RawWindowHandle,
+    pub(crate) raw_window_handle: Result<RawWindowHandle, HandleError>,
 
     /// Raw platform display handle for window
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) raw_display_handle: RawDisplayHandle,
+    pub(crate) raw_display_handle: Result<RawDisplayHandle, HandleError>,
 }
 
-// Implementing `Clone` would violate the guarantees of `HasRawWindowHandle` and `HasRawDisplayHandle`.
+// Implementing `Clone` would violate the guarantees of `HasWindowHandle` and `HasDisplayHandle`.
 #[cfg(not(target_arch = "wasm32"))]
 assert_not_impl_any!(Frame: Clone);
 
 #[allow(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
-unsafe impl HasRawWindowHandle for Frame {
-    fn raw_window_handle(&self) -> RawWindowHandle {
-        self.raw_window_handle
+impl HasWindowHandle for Frame {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        // Safety: the lifetime is correct.
+        unsafe { Ok(WindowHandle::borrow_raw(self.raw_window_handle.clone()?)) }
     }
 }
 
 #[allow(unsafe_code)]
 #[cfg(not(target_arch = "wasm32"))]
-unsafe impl HasRawDisplayHandle for Frame {
-    fn raw_display_handle(&self) -> RawDisplayHandle {
-        self.raw_display_handle
+impl HasDisplayHandle for Frame {
+    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        // Safety: the lifetime is correct.
+        unsafe { Ok(DisplayHandle::borrow_raw(self.raw_display_handle.clone()?)) }
     }
 }
 
