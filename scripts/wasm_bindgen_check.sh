@@ -24,6 +24,7 @@ BUILD=debug # debug builds are faster
 
 (cd crates/$CRATE_NAME &&
   cargo build \
+    --quiet \
     --lib \
     --target wasm32-unknown-unknown \
     --no-default-features \
