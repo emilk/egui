@@ -113,15 +113,17 @@ impl WebPainterWgpu {
                 .await
                 .map_err(|err| err.to_string())?;
 
+        let (width, height) = (0, 0);
+
         let surface_configuration = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: render_state.target_format,
-            width: 0,
-            height: 0,
             present_mode: options.wgpu_options.present_mode,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![render_state.target_format],
-            desired_maximum_frame_latency: 2, // TODO(emilk): expose to eframe users
+            ..surface
+                .get_default_config(adapter, width, height)
+                .ok_or_else(|| "The surface isn't supported by this adapter")?
         };
 
         log::debug!("wgpu painter initialized.");

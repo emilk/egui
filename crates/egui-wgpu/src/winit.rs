@@ -151,17 +151,21 @@ impl Painter {
         } else {
             wgpu::TextureUsages::RENDER_ATTACHMENT
         };
+
+        let width = surface_state.width;
+        let height = surface_state.height;
+
         surface_state.surface.configure(
             &render_state.device,
             &wgpu::SurfaceConfiguration {
                 usage,
                 format: render_state.target_format,
-                width: surface_state.width,
-                height: surface_state.height,
+                width,
+                height,
                 present_mode,
                 alpha_mode: surface_state.alpha_mode,
                 view_formats: vec![render_state.target_format],
-                desired_maximum_frame_latency: 2, // TODO(emilk): expose to users
+                desired_maximum_frame_latency: 2, // TODO(emilk): expose to eframe users
             },
         );
     }
