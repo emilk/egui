@@ -53,7 +53,7 @@ impl Widget for Link {
 
             let selectable = ui.style().interaction.selectable_labels;
             if selectable {
-                crate::widgets::label::text_selection(ui, &response, galley_pos, &galley);
+                crate::text_selection::label_text_selection(ui, &response, galley_pos, &galley);
             }
 
             if response.hovered() {

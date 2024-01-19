@@ -364,6 +364,7 @@ pub(crate) mod placer;
 mod response;
 mod sense;
 pub mod style;
+pub mod text_selection;
 mod ui;
 pub mod util;
 pub mod viewport;
