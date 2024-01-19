@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::text_selection::CursorRange;
+use crate::text::CursorRange;
 
 /// The output from a [`TextEdit`](crate::TextEdit).
 pub struct TextEditOutput {
