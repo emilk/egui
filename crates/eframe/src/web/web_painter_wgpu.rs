@@ -123,7 +123,7 @@ impl WebPainterWgpu {
             view_formats: vec![render_state.target_format],
             ..surface
                 .get_default_config(&render_state.adapter, width, height)
-                .ok_or_else(|| "The surface isn't supported by this adapter")?
+                .ok_or("The surface isn't supported by this adapter")?
         };
 
         log::debug!("wgpu painter initialized.");
