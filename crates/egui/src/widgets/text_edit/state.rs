@@ -12,12 +12,11 @@ pub type TextEditUndoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
 ///
 /// Attention: You also need to `store` the updated state.
 /// ```
-/// # use egui::text::CCursor;
-/// # use egui::text_edit::{CCursorRange, TextEditOutput};
-/// # use egui::TextEdit;
 /// # egui::__run_test_ui(|ui| {
 /// # let mut text = String::new();
-/// let mut output = TextEdit::singleline(&mut text).show(ui);
+/// use egui::text::{CCursor, CCursorRange};
+///
+/// let mut output = egui::TextEdit::singleline(&mut text).show(ui);
 ///
 /// // Create a new selection range
 /// let min = CCursor::new(0);
@@ -25,7 +24,7 @@ pub type TextEditUndoer = crate::util::undoer::Undoer<(CCursorRange, String)>;
 /// let new_range = CCursorRange::two(min, max);
 ///
 /// // Update the state
-/// output.state.set_ccursor_range(Some(new_range));
+/// output.state.cursor.set_char_range(Some(new_range));
 /// // Store the updated state
 /// output.state.store(ui.ctx(), output.response.id);
 /// # });
