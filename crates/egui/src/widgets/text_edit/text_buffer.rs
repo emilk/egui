@@ -1,6 +1,6 @@
 use std::{borrow::Cow, ops::Range};
 
-use super::cursor_interaction::{byte_index_from_char_index, slice_char_range};
+use crate::text_selection::text_cursor_state::{byte_index_from_char_index, slice_char_range};
 
 /// Trait constraining what types [`crate::TextEdit`] may use as
 /// an underlying buffer.

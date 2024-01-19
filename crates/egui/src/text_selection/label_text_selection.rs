@@ -1,11 +1,10 @@
 use epaint::{Galley, Pos2};
 
-use crate::{
-    text_edit::{cursor_interaction::cursor_rect, CursorRange, TextCursorState},
-    Context, CursorIcon, Event, Id, Response, Ui,
-};
+use crate::{Context, CursorIcon, Event, Id, Response, Ui};
 
-use super::visuals::paint_text_selection;
+use super::{
+    text_cursor_state::cursor_rect, visuals::paint_text_selection, CursorRange, TextCursorState,
+};
 
 /// Handle text selection state for a label or similar widget.
 ///
@@ -62,7 +61,7 @@ pub fn label_text_selection(ui: &Ui, response: &Response, galley_pos: Pos2, gall
     }
 
     #[cfg(feature = "accesskit")]
-    crate::text_edit::accesskit_text::update_accesskit_for_text_widget(
+    super::accesskit_text::update_accesskit_for_text_widget(
         ui.ctx(),
         response.id,
         cursor_range,

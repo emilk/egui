@@ -5,15 +5,20 @@ use epaint::text::{cursor::*, Galley, LayoutJob};
 use crate::{
     os::OperatingSystem,
     output::OutputEvent,
-    text_edit::cursor_interaction::cursor_rect,
-    text_selection::visuals::{paint_cursor, paint_text_selection},
+    text_selection::{
+        text_cursor_state::cursor_rect,
+        visuals::{paint_cursor, paint_text_selection},
+        CursorRange,
+    },
     *,
 };
 
-use super::{
-    cursor_interaction::{ccursor_next_word, ccursor_previous_word, find_line_start},
-    CCursorRange, CursorRange, TextEditOutput, TextEditState,
+use self::text_selection::{
+    text_cursor_state::{ccursor_next_word, ccursor_previous_word, find_line_start},
+    CCursorRange,
 };
+
+use super::{TextEditOutput, TextEditState};
 
 /// A text region that the user can edit the contents of.
 ///
@@ -726,7 +731,7 @@ impl<'t> TextEdit<'t> {
                 accesskit::Role::TextInput
             };
 
-            super::accesskit_text::update_accesskit_for_text_widget(
+            crate::text_selection::accesskit_text::update_accesskit_for_text_widget(
                 ui.ctx(),
                 id,
                 cursor_range,

@@ -2,7 +2,7 @@ use epaint::{text::cursor::*, Galley};
 
 use crate::{os::OperatingSystem, Event, Id, Key, Modifiers};
 
-use super::cursor_interaction::{ccursor_next_word, ccursor_previous_word, slice_char_range};
+use super::text_cursor_state::{ccursor_next_word, ccursor_previous_word, slice_char_range};
 
 /// A selected text range (could be a range of length zero).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

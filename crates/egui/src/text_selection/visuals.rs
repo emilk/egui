@@ -1,6 +1,6 @@
 use crate::*;
 
-use self::text_edit::CursorRange;
+use super::CursorRange;
 
 pub fn paint_text_selection(
     painter: &Painter,
