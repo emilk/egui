@@ -114,7 +114,7 @@ impl Clipboard {
 fn init_arboard() -> Option<arboard::Clipboard> {
     crate::profile_function!();
 
-    log::debug!("Initializing arboard clipboard…");
+    log::trace!("Initializing arboard clipboard…");
     match arboard::Clipboard::new() {
         Ok(clipboard) => Some(clipboard),
         Err(err) => {
@@ -140,7 +140,7 @@ fn init_smithay_clipboard(
     crate::profile_function!();
 
     if let Some(RawDisplayHandle::Wayland(display)) = raw_display_handle {
-        log::debug!("Initializing smithay clipboard…");
+        log::trace!("Initializing smithay clipboard…");
         #[allow(unsafe_code)]
         Some(unsafe { smithay_clipboard::Clipboard::new(display.display.as_ptr()) })
     } else {
