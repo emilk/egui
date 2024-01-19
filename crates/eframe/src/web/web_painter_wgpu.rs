@@ -87,8 +87,13 @@ impl WebPainterWgpu {
     pub async fn new(canvas_id: &str, options: &WebOptions) -> Result<Self, String> {
         log::debug!("Creating wgpu painter");
 
-        if crate::web::web_location().hostname == "0.0.0.0" {
-            log::warn!("Due to a chromium bug, WebGPU doesn't work when the hostname is '0.0.0.0'");
+        {
+            let is_secure_context = web_sys::window().map_or(false, |w| w.is_secure_context());
+            if !is_secure_context {
+                log::info!(
+                    "WebGPU is only available in seucre contexts, i.e. on HTTPS and on localhost"
+                );
+            }
         }
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
