@@ -122,7 +122,7 @@ impl WebPainterWgpu {
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![render_state.target_format],
             ..surface
-                .get_default_config(adapter, width, height)
+                .get_default_config(&render_state.adapter, width, height)
                 .ok_or_else(|| "The surface isn't supported by this adapter")?
         };
 
