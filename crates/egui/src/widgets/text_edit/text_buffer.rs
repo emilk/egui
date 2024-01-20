@@ -93,7 +93,7 @@ pub trait TextBuffer {
         char_limit: usize,
     ) {
         let tab_size: usize = TAB_SIZE;
-        let mut text_to_insert: String = text_to_insert.to_string();
+        let mut text_to_insert: String = text_to_insert.to_owned();
         if text_to_insert == "\t" {
             let mut line_indexes: Vec<usize> =
                 crate::text_selection::text_cursor_state::create_char_line_indexes(self.as_str());
