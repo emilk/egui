@@ -349,7 +349,7 @@ pub fn get_current_column_total_column_total_line(
         if c == '\n' {
             break;
         } else if c == '\t' {
-            total_columns += 4;
+            total_columns += text::TAB_SIZE;
         } else {
             // The simple( not exact ) width :
             let width = match c.len_utf8() > 2 {
