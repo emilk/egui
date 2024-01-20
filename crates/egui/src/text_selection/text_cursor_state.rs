@@ -300,7 +300,7 @@ pub fn create_char_line_indexes(text: &str) -> Vec<usize> {
     line_indexes
 }
 
-pub fn get_line_start_index(line_indexes: &mut Vec<usize>, index: usize) -> usize {
+pub fn get_line_start_index(line_indexes: &mut [usize], index: usize) -> usize {
     let mut current_line = 1;
     for (i, line_start) in line_indexes.iter().enumerate() {
         current_line = i;
