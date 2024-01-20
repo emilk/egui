@@ -340,7 +340,7 @@ pub fn get_current_column_total_column_total_line(
 ) -> (usize, usize, usize) {
     let line_start_index = get_line_start_index(line_indexes, index);
 
-    let total_line = line_indexes.len() - 1;
+    let total_lines = line_indexes.len() - 1;
 
     let mut i: usize = line_start_index;
     let mut current_column: usize = 1;
@@ -367,7 +367,7 @@ pub fn get_current_column_total_column_total_line(
         i += 1;
     }
 
-    (current_column, total_columns, total_line)
+    (current_column, total_columns, total_lines)
 }
 
 pub fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
