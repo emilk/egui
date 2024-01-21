@@ -352,12 +352,14 @@ pub fn get_current_column_total_column_total_line(
             total_columns += text::TAB_SIZE;
         } else {
             // The simple( not exact ) width :
-            let width = match c.len_utf8() > 2 {
-                true => 2,
-                false => 1,
-            };
+            // let width = match c.len_utf8() > 2 {
+            //     true => 2,
+            //     false => 1,
+            // };
+            
             // The exact width :
-            // let width = unicode_width::UnicodeWidthChar::width_cjk(c).unwrap_or(2);
+            let width = unicode_width::UnicodeWidthChar::width_cjk(c).unwrap_or(2);
+            
             total_columns += width;
         }
 
