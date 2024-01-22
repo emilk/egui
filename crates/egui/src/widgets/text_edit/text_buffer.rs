@@ -103,10 +103,7 @@ pub trait TextBuffer {
                 ccursor.index,
             );
             let tab_size_gap = (current_column - 1) % tab_size;
-            let add_space_size = match tab_size_gap < tab_size {
-                true => tab_size - tab_size_gap,
-                false => tab_size,
-            };
+            let add_space_size = tab_size - tab_size_gap;
 
             text_to_insert = " ".repeat(add_space_size);
         }
