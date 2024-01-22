@@ -186,6 +186,23 @@ impl Align2 {
         Rect::from_min_size(pos2(x, y), rect.size())
     }
 
+    /// Use this anchor to position something around `pos`,
+    /// e.g. [`Self::RIGHT_TOP`] means the right-top of the rect
+    /// will end up at `pos`.
+    pub fn anchor_size(self, pos: Pos2, size: Vec2) -> Rect {
+        let x = match self.x() {
+            Align::Min => pos.x,
+            Align::Center => pos.x - 0.5 * size.x,
+            Align::Max => pos.x - size.x,
+        };
+        let y = match self.y() {
+            Align::Min => pos.y,
+            Align::Center => pos.y - 0.5 * size.y,
+            Align::Max => pos.y - size.y,
+        };
+        Rect::from_min_size(pos2(x, y), size)
+    }
+
     /// e.g. center a size within a given frame
     pub fn align_size_within_rect(self, size: Vec2, frame: Rect) -> Rect {
         let x_range = self.x().align_size_within_range(size.x, frame.x_range());
