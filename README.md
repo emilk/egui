@@ -311,7 +311,7 @@ If you call `.await` in your GUI code, the UI will freeze, which is very bad UX.
 * [`eventuals::Eventual`](https://docs.rs/eventuals/latest/eventuals/struct.Eventual.html)
 * [`tokio::sync::watch::channel`](https://docs.rs/tokio/latest/tokio/sync/watch/fn.channel.html)
 
-### How to do cross platfrom file dialogs?
+### How to do cross-platform file dialogs?
 
 The async version of [rfd](https://docs.rs/rfd/latest/rfd/) supports both native and WASM. See example app here https://github.com/woelper/egui_pick_file which also has a demo available via [gitub pages](https://woelper.github.io/egui_pick_file/).
 
