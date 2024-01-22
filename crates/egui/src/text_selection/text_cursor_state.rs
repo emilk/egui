@@ -20,6 +20,27 @@ pub struct TextCursorState {
     ccursor_range: Option<CCursorRange>,
 }
 
+impl From<CursorRange> for TextCursorState {
+    fn from(cursor_range: CursorRange) -> Self {
+        Self {
+            cursor_range: Some(cursor_range),
+            ccursor_range: Some(CCursorRange {
+                primary: cursor_range.primary.ccursor,
+                secondary: cursor_range.secondary.ccursor,
+            }),
+        }
+    }
+}
+
+impl From<CCursorRange> for TextCursorState {
+    fn from(ccursor_range: CCursorRange) -> Self {
+        Self {
+            cursor_range: None,
+            ccursor_range: Some(ccursor_range),
+        }
+    }
+}
+
 impl TextCursorState {
     pub fn is_empty(&self) -> bool {
         self.cursor_range.is_none() && self.ccursor_range.is_none()
@@ -33,7 +54,7 @@ impl TextCursorState {
         })
     }
 
-    pub fn range(&mut self, galley: &Galley) -> Option<CursorRange> {
+    pub fn range(&self, galley: &Galley) -> Option<CursorRange> {
         self.cursor_range
             .map(|cursor_range| {
                 // We only use the PCursor (paragraph number, and character offset within that paragraph).

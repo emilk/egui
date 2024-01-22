@@ -38,7 +38,7 @@ impl CursorRange {
 
     /// Select all the text in a galley
     pub fn select_all(galley: &Galley) -> Self {
-        Self::two(Cursor::default(), galley.end())
+        Self::two(galley.begin(), galley.end())
     }
 
     pub fn as_ccursor_range(&self) -> CCursorRange {
@@ -342,7 +342,7 @@ fn move_single_cursor(
         Key::ArrowUp => {
             if modifiers.command {
                 // mac and windows behavior
-                *cursor = Cursor::default();
+                *cursor = galley.begin();
             } else {
                 *cursor = galley.cursor_up_one_row(cursor);
             }
@@ -359,7 +359,7 @@ fn move_single_cursor(
         Key::Home => {
             if modifiers.ctrl {
                 // windows behavior
-                *cursor = Cursor::default();
+                *cursor = galley.begin();
             } else {
                 *cursor = galley.cursor_begin_of_row(cursor);
             }
