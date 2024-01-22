@@ -212,13 +212,26 @@ impl Response {
 
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
     ///
-    /// Note that this is slightly different from checking `response.rect.contains(pointer_pos)`.
+    /// This will be `false` whenever some other widget is being dragged.
+    ///
+    /// Note that this is slightly different from [`Self::contains_pointer`].
     /// For one, the hover rectangle is slightly larger, by half of the current item spacing
     /// (to make it easier to click things). But `hovered` also checks that no other area
     /// is covering this response rectangle.
     #[inline(always)]
     pub fn hovered(&self) -> bool {
         self.hovered
+    }
+
+    /// Returns true if the pointer is contained by the response rect.
+    ///
+    /// In contrast to [`Self::hovered`], this can be `true` even if some other widget is being dragged.
+    /// This means it is useful for styling things like drag-and-drop targets.
+    ///
+    /// In contrast to [`Self::hovered`], this is true even when dragging some other widget
+    /// onto this one.
+    pub fn contains_pointer(&self) -> bool {
+        self.ctx.rect_contains_pointer(self.layer_id, self.rect)
     }
 
     /// The widget is highlighted via a call to [`Self::highlight`] or [`Context::highlight_widget`].
