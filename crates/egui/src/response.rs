@@ -148,36 +148,43 @@ impl Response {
     }
 
     /// Returns true if this widget was clicked this frame by the given button.
+    #[inline]
     pub fn clicked_by(&self, button: PointerButton) -> bool {
         self.clicked[button as usize]
     }
 
     /// Returns true if this widget was clicked this frame by the secondary mouse button (e.g. the right mouse button).
+    #[inline]
     pub fn secondary_clicked(&self) -> bool {
         self.clicked[PointerButton::Secondary as usize]
     }
 
     /// Returns true if this widget was clicked this frame by the middle mouse button.
+    #[inline]
     pub fn middle_clicked(&self) -> bool {
         self.clicked[PointerButton::Middle as usize]
     }
 
     /// Returns true if this widget was double-clicked this frame by the primary button.
+    #[inline]
     pub fn double_clicked(&self) -> bool {
         self.double_clicked[PointerButton::Primary as usize]
     }
 
     /// Returns true if this widget was triple-clicked this frame by the primary button.
+    #[inline]
     pub fn triple_clicked(&self) -> bool {
         self.triple_clicked[PointerButton::Primary as usize]
     }
 
     /// Returns true if this widget was double-clicked this frame by the given button.
+    #[inline]
     pub fn double_clicked_by(&self, button: PointerButton) -> bool {
         self.double_clicked[button as usize]
     }
 
     /// Returns true if this widget was triple-clicked this frame by the given button.
+    #[inline]
     pub fn triple_clicked_by(&self, button: PointerButton) -> bool {
         self.triple_clicked[button as usize]
     }
@@ -302,21 +309,25 @@ impl Response {
         self.dragged
     }
 
+    #[inline]
     pub fn dragged_by(&self, button: PointerButton) -> bool {
         self.dragged() && self.ctx.input(|i| i.pointer.button_down(button))
     }
 
     /// Did a drag on this widgets begin this frame?
+    #[inline]
     pub fn drag_started(&self) -> bool {
         self.dragged && self.ctx.input(|i| i.pointer.any_pressed())
     }
 
     /// Did a drag on this widgets by the button begin this frame?
+    #[inline]
     pub fn drag_started_by(&self, button: PointerButton) -> bool {
         self.drag_started() && self.ctx.input(|i| i.pointer.button_pressed(button))
     }
 
     /// The widget was being dragged, but now it has been released.
+    #[inline]
     pub fn drag_released(&self) -> bool {
         self.drag_released
     }
@@ -327,6 +338,7 @@ impl Response {
     }
 
     /// If dragged, how many points were we dragged and in what direction?
+    #[inline]
     pub fn drag_delta(&self) -> Vec2 {
         if self.dragged() {
             self.ctx.input(|i| i.pointer.delta())
@@ -337,12 +349,14 @@ impl Response {
 
     /// Where the pointer (mouse/touch) were when when this widget was clicked or dragged.
     /// `None` if the widget is not being interacted with.
+    #[inline]
     pub fn interact_pointer_pos(&self) -> Option<Pos2> {
         self.interact_pointer_pos
     }
 
     /// If it is a good idea to show a tooltip, where is pointer?
     /// None if the pointer is outside the response area.
+    #[inline]
     pub fn hover_pos(&self) -> Option<Pos2> {
         if self.hovered() {
             self.ctx.input(|i| i.pointer.hover_pos())
@@ -516,6 +530,7 @@ impl Response {
     }
 
     /// When hovered, use this icon for the mouse cursor.
+    #[inline]
     pub fn on_hover_cursor(self, cursor: CursorIcon) -> Self {
         if self.hovered() {
             self.ctx.set_cursor_icon(cursor);
@@ -524,6 +539,7 @@ impl Response {
     }
 
     /// When hovered or dragged, use this icon for the mouse cursor.
+    #[inline]
     pub fn on_hover_and_drag_cursor(self, cursor: CursorIcon) -> Self {
         if self.hovered() || self.dragged() {
             self.ctx.set_cursor_icon(cursor);
@@ -781,6 +797,7 @@ impl Response {
 
 impl Response {
     /// Returns a response with a modified [`Self::rect`].
+    #[inline]
     pub fn with_new_rect(self, rect: Rect) -> Self {
         Self { rect, ..self }
     }
