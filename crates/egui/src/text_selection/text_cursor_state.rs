@@ -356,10 +356,10 @@ pub fn get_current_column_total_column_total_line(
             //     true => 2,
             //     false => 1,
             // };
-            
+
             // The exact width :
             let width = unicode_width::UnicodeWidthChar::width_cjk(c).unwrap_or(2);
-            
+
             total_columns += width;
         }
 
