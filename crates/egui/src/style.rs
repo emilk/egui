@@ -212,6 +212,9 @@ pub struct Style {
     ///
     /// This only affects a few egui widgets.
     pub explanation_tooltips: bool,
+
+    /// If true and scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift
+    pub always_scroll_the_only_direction: bool,
 }
 
 impl Style {
@@ -714,6 +717,9 @@ pub struct Interaction {
 
     /// Delay in seconds before showing tooltips after the mouse stops moving
     pub tooltip_delay: f64,
+
+    /// Can you select the text on a [`crate::Label`] by default?
+    pub selectable_labels: bool,
 }
 
 /// Controls the visual style (colors etc) of egui.
@@ -779,6 +785,9 @@ pub struct Visuals {
     pub window_fill: Color32,
     pub window_stroke: Stroke,
 
+    /// Highlight the topmost window.
+    pub window_highlight_topmost: bool,
+
     pub menu_rounding: Rounding,
 
     /// Panel background color
@@ -829,6 +838,9 @@ pub struct Visuals {
 
     /// Show a spinner when loading an image.
     pub image_loading_spinners: bool,
+
+    /// How to display numeric color values.
+    pub numeric_color_space: NumericColorSpace,
 }
 
 impl Visuals {
@@ -837,6 +849,7 @@ impl Visuals {
         &self.widgets.noninteractive
     }
 
+    // Non-interactive text color.
     pub fn text_color(&self) -> Color32 {
         self.override_text_color
             .unwrap_or_else(|| self.widgets.noninteractive.text_color())
@@ -929,7 +942,8 @@ impl Widgets {
     pub fn style(&self, response: &Response) -> &WidgetVisuals {
         if !response.sense.interactive() {
             &self.noninteractive
-        } else if response.is_pointer_button_down_on() || response.has_focus() {
+        } else if response.is_pointer_button_down_on() || response.has_focus() || response.clicked()
+        {
             &self.active
         } else if response.hovered() || response.highlighted() {
             &self.hovered
@@ -1070,6 +1084,7 @@ impl Default for Style {
             #[cfg(debug_assertions)]
             debug: Default::default(),
             explanation_tooltips: false,
+            always_scroll_the_only_direction: false,
         }
     }
 }
@@ -1104,6 +1119,7 @@ impl Default for Interaction {
             resize_grab_radius_corner: 10.0,
             show_tooltips_only_when_still: true,
             tooltip_delay: 0.0,
+            selectable_labels: true,
         }
     }
 }
@@ -1127,6 +1143,7 @@ impl Visuals {
             window_shadow: Shadow::big_dark(),
             window_fill: Color32::from_gray(27),
             window_stroke: Stroke::new(1.0, Color32::from_gray(60)),
+            window_highlight_topmost: true,
 
             menu_rounding: Rounding::same(6.0),
 
@@ -1149,6 +1166,8 @@ impl Visuals {
             interact_cursor: None,
 
             image_loading_spinners: true,
+
+            numeric_color_space: NumericColorSpace::GammaByte,
         }
     }
 
@@ -1242,7 +1261,7 @@ impl Widgets {
                 expansion: 1.0,
             },
             open: WidgetVisuals {
-                weak_bg_fill: Color32::from_gray(27),
+                weak_bg_fill: Color32::from_gray(45),
                 bg_fill: Color32::from_gray(27),
                 bg_stroke: Stroke::new(1.0, Color32::from_gray(60)),
                 fg_stroke: Stroke::new(1.0, Color32::from_gray(210)),
@@ -1323,6 +1342,7 @@ impl Style {
             #[cfg(debug_assertions)]
             debug,
             explanation_tooltips,
+            always_scroll_the_only_direction,
         } = self;
 
         visuals.light_dark_radio_buttons(ui);
@@ -1390,6 +1410,11 @@ impl Style {
         ui.checkbox(explanation_tooltips, "Explanation tooltips")
             .on_hover_text(
                 "Show explanatory text when hovering DragValue:s and other egui widgets",
+            );
+
+        ui.checkbox(always_scroll_the_only_direction, "Always scroll the only enabled direction")
+            .on_hover_text(
+                "If scrolling is enabled for only one direction, allow horizontal scrolling without pressing shift",
             );
 
         ui.vertical_centered(|ui| reset_button(ui, self));
@@ -1554,6 +1579,7 @@ impl Interaction {
             resize_grab_radius_corner,
             show_tooltips_only_when_still,
             tooltip_delay,
+            selectable_labels,
         } = self;
         ui.add(Slider::new(resize_grab_radius_side, 0.0..=20.0).text("resize_grab_radius_side"));
         ui.add(
@@ -1564,6 +1590,7 @@ impl Interaction {
             "Only show tooltips if mouse is still",
         );
         ui.add(Slider::new(tooltip_delay, 0.0..=1.0).text("tooltip_delay"));
+        ui.checkbox(selectable_labels, "Selectable text in labels");
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -1689,6 +1716,7 @@ impl Visuals {
             window_shadow,
             window_fill,
             window_stroke,
+            window_highlight_topmost,
 
             menu_rounding,
 
@@ -1711,6 +1739,8 @@ impl Visuals {
             interact_cursor,
 
             image_loading_spinners,
+
+            numeric_color_space,
         } = self;
 
         ui.collapsing("Background Colors", |ui| {
@@ -1729,6 +1759,7 @@ impl Visuals {
             stroke_ui(ui, window_stroke, "Outline");
             rounding_ui(ui, window_rounding);
             shadow_ui(ui, window_shadow, "Shadow");
+            ui.checkbox(window_highlight_topmost, "Highlight topmost Window");
         });
 
         ui.collapsing("Menus and popups", |ui| {
@@ -1790,6 +1821,11 @@ impl Visuals {
 
         ui.checkbox(image_loading_spinners, "Image loading spinners")
             .on_hover_text("Show a spinner when an Image is loading");
+
+        ui.horizontal(|ui| {
+            ui.label("Color picker type:");
+            numeric_color_space.toggle_button_ui(ui);
+        });
 
         ui.vertical_centered(|ui| reset_button(ui, self));
     }
@@ -1905,16 +1941,58 @@ impl HandleShape {
     pub fn ui(&mut self, ui: &mut Ui) {
         ui.label("Widget handle shape");
         ui.horizontal(|ui| {
-            ui.radio_value(self, HandleShape::Circle, "Circle");
+            ui.radio_value(self, Self::Circle, "Circle");
             if ui
-                .radio(matches!(self, HandleShape::Rect { .. }), "Rectangle")
+                .radio(matches!(self, Self::Rect { .. }), "Rectangle")
                 .clicked()
             {
-                *self = HandleShape::Rect { aspect_ratio: 0.5 };
+                *self = Self::Rect { aspect_ratio: 0.5 };
             }
-            if let HandleShape::Rect { aspect_ratio } = self {
+            if let Self::Rect { aspect_ratio } = self {
                 ui.add(Slider::new(aspect_ratio, 0.1..=3.0).text("Aspect ratio"));
             }
         });
+    }
+}
+
+/// How to display numeric color values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+pub enum NumericColorSpace {
+    /// RGB is 0-255 in gamma space.
+    ///
+    /// Alpha is 0-255 in linear space .
+    GammaByte,
+
+    /// 0-1 in linear space.
+    Linear,
+    // TODO(emilk): add Hex as an option
+}
+
+impl NumericColorSpace {
+    pub fn toggle_button_ui(&mut self, ui: &mut Ui) -> crate::Response {
+        let tooltip = match self {
+            Self::GammaByte => "Showing color values in 0-255 gamma space",
+            Self::Linear => "Showing color values in 0-1 linear space",
+        };
+
+        let mut response = ui.button(self.to_string()).on_hover_text(tooltip);
+        if response.clicked() {
+            *self = match self {
+                Self::GammaByte => Self::Linear,
+                Self::Linear => Self::GammaByte,
+            };
+            response.mark_changed();
+        }
+        response
+    }
+}
+
+impl std::fmt::Display for NumericColorSpace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::GammaByte => write!(f, "U8"),
+            Self::Linear => write!(f, "F"),
+        }
     }
 }

@@ -73,7 +73,7 @@ pub struct IMEOutput {
     /// Where the [`crate::TextEdit`] is located on screen.
     pub rect: crate::Rect,
 
-    /// Where the cursor is.
+    /// Where the primary cursor is.
     ///
     /// This is a very thin rectangle.
     pub cursor_rect: crate::Rect,
@@ -363,42 +363,42 @@ pub enum CursorIcon {
 }
 
 impl CursorIcon {
-    pub const ALL: [CursorIcon; 35] = [
-        CursorIcon::Default,
-        CursorIcon::None,
-        CursorIcon::ContextMenu,
-        CursorIcon::Help,
-        CursorIcon::PointingHand,
-        CursorIcon::Progress,
-        CursorIcon::Wait,
-        CursorIcon::Cell,
-        CursorIcon::Crosshair,
-        CursorIcon::Text,
-        CursorIcon::VerticalText,
-        CursorIcon::Alias,
-        CursorIcon::Copy,
-        CursorIcon::Move,
-        CursorIcon::NoDrop,
-        CursorIcon::NotAllowed,
-        CursorIcon::Grab,
-        CursorIcon::Grabbing,
-        CursorIcon::AllScroll,
-        CursorIcon::ResizeHorizontal,
-        CursorIcon::ResizeNeSw,
-        CursorIcon::ResizeNwSe,
-        CursorIcon::ResizeVertical,
-        CursorIcon::ResizeEast,
-        CursorIcon::ResizeSouthEast,
-        CursorIcon::ResizeSouth,
-        CursorIcon::ResizeSouthWest,
-        CursorIcon::ResizeWest,
-        CursorIcon::ResizeNorthWest,
-        CursorIcon::ResizeNorth,
-        CursorIcon::ResizeNorthEast,
-        CursorIcon::ResizeColumn,
-        CursorIcon::ResizeRow,
-        CursorIcon::ZoomIn,
-        CursorIcon::ZoomOut,
+    pub const ALL: [Self; 35] = [
+        Self::Default,
+        Self::None,
+        Self::ContextMenu,
+        Self::Help,
+        Self::PointingHand,
+        Self::Progress,
+        Self::Wait,
+        Self::Cell,
+        Self::Crosshair,
+        Self::Text,
+        Self::VerticalText,
+        Self::Alias,
+        Self::Copy,
+        Self::Move,
+        Self::NoDrop,
+        Self::NotAllowed,
+        Self::Grab,
+        Self::Grabbing,
+        Self::AllScroll,
+        Self::ResizeHorizontal,
+        Self::ResizeNeSw,
+        Self::ResizeNwSe,
+        Self::ResizeVertical,
+        Self::ResizeEast,
+        Self::ResizeSouthEast,
+        Self::ResizeSouth,
+        Self::ResizeSouthWest,
+        Self::ResizeWest,
+        Self::ResizeNorthWest,
+        Self::ResizeNorth,
+        Self::ResizeNorthEast,
+        Self::ResizeColumn,
+        Self::ResizeRow,
+        Self::ZoomIn,
+        Self::ZoomOut,
     ];
 }
 
@@ -436,12 +436,12 @@ pub enum OutputEvent {
 impl OutputEvent {
     pub fn widget_info(&self) -> &WidgetInfo {
         match self {
-            OutputEvent::Clicked(info)
-            | OutputEvent::DoubleClicked(info)
-            | OutputEvent::TripleClicked(info)
-            | OutputEvent::FocusGained(info)
-            | OutputEvent::TextSelectionChanged(info)
-            | OutputEvent::ValueChanged(info) => info,
+            Self::Clicked(info)
+            | Self::DoubleClicked(info)
+            | Self::TripleClicked(info)
+            | Self::FocusGained(info)
+            | Self::TextSelectionChanged(info)
+            | Self::ValueChanged(info) => info,
         }
     }
 }

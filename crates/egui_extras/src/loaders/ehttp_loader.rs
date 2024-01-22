@@ -33,7 +33,7 @@ impl File {
         let mime = response.content_type().map(|v| v.to_owned());
         let bytes = response.bytes.into();
 
-        Ok(File { bytes, mime })
+        Ok(Self { bytes, mime })
     }
 }
 
@@ -95,8 +95,7 @@ impl BytesLoader for EhttpLoader {
                         }
                     };
                     log::trace!("finished loading {uri:?}");
-                    let prev = cache.lock().insert(uri, Poll::Ready(result));
-                    assert!(matches!(prev, Some(Poll::Pending)));
+                    cache.lock().insert(uri, Poll::Ready(result));
                     ctx.request_repaint();
                 }
             });

@@ -256,7 +256,7 @@ impl Prepared {
     pub fn end(self, ui: &mut Ui) -> Response {
         let paint_rect = self.paint_rect();
 
-        let Prepared {
+        let Self {
             frame,
             where_to_put_background,
             ..

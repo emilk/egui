@@ -356,6 +356,7 @@ impl Widget for Button<'_> {
 pub struct Checkbox<'a> {
     checked: &'a mut bool,
     text: WidgetText,
+    indeterminate: bool,
 }
 
 impl<'a> Checkbox<'a> {
@@ -363,17 +364,32 @@ impl<'a> Checkbox<'a> {
         Checkbox {
             checked,
             text: text.into(),
+            indeterminate: false,
         }
     }
 
     pub fn without_text(checked: &'a mut bool) -> Self {
         Self::new(checked, WidgetText::default())
     }
+
+    /// Display an indeterminate state (neither checked nor unchecked)
+    ///
+    /// This only affects the checkbox's appearance. It will still toggle its boolean value when
+    /// clicked.
+    #[inline]
+    pub fn indeterminate(mut self, indeterminate: bool) -> Self {
+        self.indeterminate = indeterminate;
+        self
+    }
 }
 
 impl<'a> Widget for Checkbox<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let Checkbox { checked, text } = self;
+        let Checkbox {
+            checked,
+            text,
+            indeterminate,
+        } = self;
 
         let spacing = &ui.spacing();
         let icon_width = spacing.icon_width;
@@ -402,11 +418,18 @@ impl<'a> Widget for Checkbox<'a> {
             response.mark_changed();
         }
         response.widget_info(|| {
-            WidgetInfo::selected(
-                WidgetType::Checkbox,
-                *checked,
-                galley.as_ref().map_or("", |x| x.text()),
-            )
+            if indeterminate {
+                WidgetInfo::labeled(
+                    WidgetType::Checkbox,
+                    galley.as_ref().map_or("", |x| x.text()),
+                )
+            } else {
+                WidgetInfo::selected(
+                    WidgetType::Checkbox,
+                    *checked,
+                    galley.as_ref().map_or("", |x| x.text()),
+                )
+            }
         });
 
         if ui.is_rect_visible(rect) {
@@ -420,7 +443,14 @@ impl<'a> Widget for Checkbox<'a> {
                 visuals.bg_stroke,
             ));
 
-            if *checked {
+            if indeterminate {
+                // Horizontal line:
+                ui.painter().add(Shape::hline(
+                    small_icon_rect.x_range(),
+                    small_icon_rect.center().y,
+                    visuals.fg_stroke,
+                ));
+            } else if *checked {
                 // Check mark:
                 ui.painter().add(Shape::line(
                     vec![
@@ -482,7 +512,7 @@ impl RadioButton {
 
 impl Widget for RadioButton {
     fn ui(self, ui: &mut Ui) -> Response {
-        let RadioButton { checked, text } = self;
+        let Self { checked, text } = self;
 
         let spacing = &ui.spacing();
         let icon_width = spacing.icon_width;

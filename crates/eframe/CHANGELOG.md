@@ -7,6 +7,19 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.25.0 - 2024-01-08
+* If both `glow` and `wgpu` features are enabled, default to `wgpu` [#3717](https://github.com/emilk/egui/pull/3717)
+
+#### Desktop/Native:
+* Update to winit 0.29 [#3649](https://github.com/emilk/egui/pull/3649) (thanks [@fornwall](https://github.com/fornwall)!)
+* Make glow `Send + Sync` again [#3646](https://github.com/emilk/egui/pull/3646) (thanks [@surban](https://github.com/surban)!)
+* Bug fix: framebuffer clear when using glow with multi-viewports [#3713](https://github.com/emilk/egui/pull/3713)
+* Fix: Let `accesskit` process window events [#3733](https://github.com/emilk/egui/pull/3733) (thanks [@DataTriny](https://github.com/DataTriny)!)
+
+#### Web:
+* Fix building the `wasm32` docs for `docs.rs` [#3757](https://github.com/emilk/egui/pull/3757)
+
+
 ## 0.24.1 - 2023-11-30
 #### Desktop/Native:
 * Fix window flashing white on launch [#3631](https://github.com/emilk/egui/pull/3631) (thanks [@zeozeozeo](https://github.com/zeozeozeo)!)

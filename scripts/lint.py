@@ -59,12 +59,21 @@ def lint_lines(filepath, lines_in):
                 )
                 lines_out.append("\n")
 
-        if re.search(r"\(mut self.*-> Self", line):
+        if re.search(r"\(mut self.*-> Self", line) and "pub(crate)" not in line:
             if prev_line.strip() != "#[inline]":
                 errors.append(
                     f"{filepath}:{line_nr}: builder methods should be marked #[inline]"
                 )
                 lines_out.append("#[inline]")
+
+        if (
+            "(target_os" in line
+            and filepath.startswith("./crates/egui/")
+            and filepath != "./crates/egui/src/os.rs"
+        ):
+            errors.append(
+                f"{filepath}:{line_nr}: Don't use `target_os` - use ctx.os() instead."
+            )
 
         lines_out.append(line)
 

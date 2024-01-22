@@ -5,7 +5,7 @@ use egui::{ViewportId, ViewportIdMap, ViewportIdSet};
 use crate::{renderer, RenderState, SurfaceErrorAction, WgpuConfiguration};
 
 struct SurfaceState {
-    surface: wgpu::Surface,
+    surface: wgpu::Surface<'static>,
     alpha_mode: wgpu::CompositeAlphaMode,
     width: u32,
     height: u32,
@@ -151,16 +151,23 @@ impl Painter {
         } else {
             wgpu::TextureUsages::RENDER_ATTACHMENT
         };
+
+        let width = surface_state.width;
+        let height = surface_state.height;
+
         surface_state.surface.configure(
             &render_state.device,
             &wgpu::SurfaceConfiguration {
+                // TODO(emilk): expose `desired_maximum_frame_latency` to eframe users
                 usage,
                 format: render_state.target_format,
-                width: surface_state.width,
-                height: surface_state.height,
                 present_mode,
                 alpha_mode: surface_state.alpha_mode,
                 view_formats: vec![render_state.target_format],
+                ..surface_state
+                    .surface
+                    .get_default_config(&render_state.adapter, width, height)
+                    .expect("The surface isn't supported by this adapter")
             },
         );
     }
@@ -189,84 +196,107 @@ impl Painter {
     pub async fn set_window(
         &mut self,
         viewport_id: ViewportId,
-        window: Option<&winit::window::Window>,
+        window: Option<Arc<winit::window::Window>>,
     ) -> Result<(), crate::WgpuError> {
-        crate::profile_scope!("Painter::set_window"); // profle_function gives bad names for async functions
+        crate::profile_scope!("Painter::set_window"); // profile_function gives bad names for async functions
 
         if let Some(window) = window {
             let size = window.inner_size();
             if self.surfaces.get(&viewport_id).is_none() {
-                let surface = unsafe {
-                    crate::profile_scope!("create_surface");
-                    self.instance.create_surface(&window)?
-                };
-
-                let render_state = if let Some(render_state) = &self.render_state {
-                    render_state
-                } else {
-                    let render_state = RenderState::create(
-                        &self.configuration,
-                        &self.instance,
-                        &surface,
-                        self.depth_format,
-                        self.msaa_samples,
-                    )
-                    .await?;
-                    self.render_state.get_or_insert(render_state)
-                };
-
-                let alpha_mode = if self.support_transparent_backbuffer {
-                    let supported_alpha_modes =
-                        surface.get_capabilities(&render_state.adapter).alpha_modes;
-
-                    // Prefer pre multiplied over post multiplied!
-                    if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
-                        wgpu::CompositeAlphaMode::PreMultiplied
-                    } else if supported_alpha_modes
-                        .contains(&wgpu::CompositeAlphaMode::PostMultiplied)
-                    {
-                        wgpu::CompositeAlphaMode::PostMultiplied
-                    } else {
-                        log::warn!("Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency.");
-                        wgpu::CompositeAlphaMode::Auto
-                    }
-                } else {
-                    wgpu::CompositeAlphaMode::Auto
-                };
-
-                let supports_screenshot =
-                    !matches!(render_state.adapter.get_info().backend, wgpu::Backend::Gl);
-
-                self.surfaces.insert(
-                    viewport_id,
-                    SurfaceState {
-                        surface,
-                        width: size.width,
-                        height: size.height,
-                        alpha_mode,
-                        supports_screenshot,
-                    },
-                );
-
-                let Some(width) = NonZeroU32::new(size.width) else {
-                    log::debug!("The window width was zero; skipping generate textures");
-                    return Ok(());
-                };
-                let Some(height) = NonZeroU32::new(size.height) else {
-                    log::debug!("The window height was zero; skipping generate textures");
-                    return Ok(());
-                };
-
-                self.resize_and_generate_depth_texture_view_and_msaa_view(
-                    viewport_id,
-                    width,
-                    height,
-                );
+                let surface = self.instance.create_surface(window)?;
+                self.add_surface(surface, viewport_id, size).await?;
             }
         } else {
             log::warn!("No window - clearing all surfaces");
             self.surfaces.clear();
         }
+        Ok(())
+    }
+
+    /// Updates (or clears) the [`winit::window::Window`] associated with the [`Painter`] without taking ownership of the window.
+    ///
+    /// Like [`set_window`](Self::set_window) except:
+    ///
+    /// # Safety
+    /// The user is responsible for ensuring that the window is alive for as long as it is set.
+    pub async unsafe fn set_window_unsafe(
+        &mut self,
+        viewport_id: ViewportId,
+        window: Option<&winit::window::Window>,
+    ) -> Result<(), crate::WgpuError> {
+        crate::profile_scope!("Painter::set_window_unsafe"); // profile_function gives bad names for async functions
+
+        if let Some(window) = window {
+            let size = window.inner_size();
+            if self.surfaces.get(&viewport_id).is_none() {
+                let surface = unsafe {
+                    self.instance
+                        .create_surface_unsafe(wgpu::SurfaceTargetUnsafe::from_window(&window)?)?
+                };
+                self.add_surface(surface, viewport_id, size).await?;
+            }
+        } else {
+            log::warn!("No window - clearing all surfaces");
+            self.surfaces.clear();
+        }
+        Ok(())
+    }
+
+    async fn add_surface(
+        &mut self,
+        surface: wgpu::Surface<'static>,
+        viewport_id: ViewportId,
+        size: winit::dpi::PhysicalSize<u32>,
+    ) -> Result<(), crate::WgpuError> {
+        let render_state = if let Some(render_state) = &self.render_state {
+            render_state
+        } else {
+            let render_state = RenderState::create(
+                &self.configuration,
+                &self.instance,
+                &surface,
+                self.depth_format,
+                self.msaa_samples,
+            )
+            .await?;
+            self.render_state.get_or_insert(render_state)
+        };
+        let alpha_mode = if self.support_transparent_backbuffer {
+            let supported_alpha_modes = surface.get_capabilities(&render_state.adapter).alpha_modes;
+
+            // Prefer pre multiplied over post multiplied!
+            if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PreMultiplied) {
+                wgpu::CompositeAlphaMode::PreMultiplied
+            } else if supported_alpha_modes.contains(&wgpu::CompositeAlphaMode::PostMultiplied) {
+                wgpu::CompositeAlphaMode::PostMultiplied
+            } else {
+                log::warn!("Transparent window was requested, but the active wgpu surface does not support a `CompositeAlphaMode` with transparency.");
+                wgpu::CompositeAlphaMode::Auto
+            }
+        } else {
+            wgpu::CompositeAlphaMode::Auto
+        };
+        let supports_screenshot =
+            !matches!(render_state.adapter.get_info().backend, wgpu::Backend::Gl);
+        self.surfaces.insert(
+            viewport_id,
+            SurfaceState {
+                surface,
+                width: size.width,
+                height: size.height,
+                alpha_mode,
+                supports_screenshot,
+            },
+        );
+        let Some(width) = NonZeroU32::new(size.width) else {
+            log::debug!("The window width was zero; skipping generate textures");
+            return Ok(());
+        };
+        let Some(height) = NonZeroU32::new(size.height) else {
+            log::debug!("The window height was zero; skipping generate textures");
+            return Ok(());
+        };
+        self.resize_and_generate_depth_texture_view_and_msaa_view(viewport_id, width, height);
         Ok(())
     }
 

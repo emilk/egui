@@ -468,6 +468,9 @@ impl super::Demo for WindowResizeTest {
             .default_size([250.0, 150.0])
             .show(ctx, |ui| {
                 ui.label("This window has empty space that fills up the available space, preventing auto-shrink.");
+                ui.vertical_centered(|ui| {
+                    ui.add(crate::egui_github_link_file!());
+                });
                 ui.allocate_space(ui.available_size());
             });
     }

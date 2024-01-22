@@ -34,7 +34,7 @@ pub struct ViewportState {
 impl ViewportState {
     pub fn new_deferred(
         title: &'static str,
-        children: Vec<Arc<RwLock<ViewportState>>>,
+        children: Vec<Arc<RwLock<Self>>>,
     ) -> Arc<RwLock<Self>> {
         Arc::new(RwLock::new(Self {
             id: ViewportId::from_hash_of(title),
@@ -47,7 +47,7 @@ impl ViewportState {
 
     pub fn new_immediate(
         title: &'static str,
-        children: Vec<Arc<RwLock<ViewportState>>>,
+        children: Vec<Arc<RwLock<Self>>>,
     ) -> Arc<RwLock<Self>> {
         Arc::new(RwLock::new(Self {
             id: ViewportId::from_hash_of(title),
@@ -58,7 +58,7 @@ impl ViewportState {
         }))
     }
 
-    pub fn show(vp_state: Arc<RwLock<ViewportState>>, ctx: &egui::Context) {
+    pub fn show(vp_state: Arc<RwLock<Self>>, ctx: &egui::Context) {
         if !vp_state.read().visible {
             return;
         }

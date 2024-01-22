@@ -108,27 +108,27 @@ impl PlotBounds {
         self.max[1] += pad;
     }
 
-    pub(crate) fn merge_x(&mut self, other: &PlotBounds) {
+    pub(crate) fn merge_x(&mut self, other: &Self) {
         self.min[0] = self.min[0].min(other.min[0]);
         self.max[0] = self.max[0].max(other.max[0]);
     }
 
-    pub(crate) fn merge_y(&mut self, other: &PlotBounds) {
+    pub(crate) fn merge_y(&mut self, other: &Self) {
         self.min[1] = self.min[1].min(other.min[1]);
         self.max[1] = self.max[1].max(other.max[1]);
     }
 
-    pub(crate) fn set_x(&mut self, other: &PlotBounds) {
+    pub(crate) fn set_x(&mut self, other: &Self) {
         self.min[0] = other.min[0];
         self.max[0] = other.max[0];
     }
 
-    pub(crate) fn set_y(&mut self, other: &PlotBounds) {
+    pub(crate) fn set_y(&mut self, other: &Self) {
         self.min[1] = other.min[1];
         self.max[1] = other.max[1];
     }
 
-    pub(crate) fn merge(&mut self, other: &PlotBounds) {
+    pub(crate) fn merge(&mut self, other: &Self) {
         self.min[0] = self.min[0].min(other.min[0]);
         self.min[1] = self.min[1].min(other.min[1]);
         self.max[0] = self.max[0].max(other.max[0]);
@@ -148,6 +148,13 @@ impl PlotBounds {
     pub(crate) fn translate(&mut self, delta: Vec2) {
         self.translate_x(delta.x as f64);
         self.translate_y(delta.y as f64);
+    }
+
+    pub(crate) fn zoom(&mut self, zoom_factor: Vec2, center: PlotPoint) {
+        self.min[0] = center.x + (self.min[0] - center.x) / (zoom_factor.x as f64);
+        self.max[0] = center.x + (self.max[0] - center.x) / (zoom_factor.x as f64);
+        self.min[1] = center.y + (self.min[1] - center.y) / (zoom_factor.y as f64);
+        self.max[1] = center.y + (self.max[1] - center.y) / (zoom_factor.y as f64);
     }
 
     pub(crate) fn add_relative_margin_x(&mut self, margin_fraction: Vec2) {
@@ -255,10 +262,7 @@ impl PlotTransform {
         let center = self.value_from_position(center);
 
         let mut new_bounds = self.bounds;
-        new_bounds.min[0] = center.x + (new_bounds.min[0] - center.x) / (zoom_factor.x as f64);
-        new_bounds.max[0] = center.x + (new_bounds.max[0] - center.x) / (zoom_factor.x as f64);
-        new_bounds.min[1] = center.y + (new_bounds.min[1] - center.y) / (zoom_factor.y as f64);
-        new_bounds.max[1] = center.y + (new_bounds.max[1] - center.y) / (zoom_factor.y as f64);
+        new_bounds.zoom(zoom_factor, center);
 
         if new_bounds.is_valid() {
             self.bounds = new_bounds;

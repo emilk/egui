@@ -55,13 +55,13 @@ wayland = ["winit/wayland", "bytemuck"]
 x11 = ["winit/x11", "bytemuck"]
 
 [dependencies]
-egui = { version = "0.24.1", path = "../egui", default-features = false, features = [
+egui = { version = "0.25.0", path = "../egui", default-features = false, features = [
   "log",
 ] }
 log = { version = "0.4", features = ["std"] }
 raw-window-handle.workspace = true
 web-time = { version = "0.2" } # We use web-time so we can (maybe) compile for web
-winit = { version = "0.29.4", default-features = false, features = ["rwh_05"] }
+winit = { workspace = true, default-features = false, features = ["rwh_06"] }
 
 #! ### Optional dependencies
 

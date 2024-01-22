@@ -177,28 +177,28 @@ impl Debug for Bytes {
 impl From<&'static [u8]> for Bytes {
     #[inline]
     fn from(value: &'static [u8]) -> Self {
-        Bytes::Static(value)
+        Self::Static(value)
     }
 }
 
 impl<const N: usize> From<&'static [u8; N]> for Bytes {
     #[inline]
     fn from(value: &'static [u8; N]) -> Self {
-        Bytes::Static(value)
+        Self::Static(value)
     }
 }
 
 impl From<Arc<[u8]>> for Bytes {
     #[inline]
     fn from(value: Arc<[u8]>) -> Self {
-        Bytes::Shared(value)
+        Self::Shared(value)
     }
 }
 
 impl From<Vec<u8>> for Bytes {
     #[inline]
     fn from(value: Vec<u8>) -> Self {
-        Bytes::Shared(value.into())
+        Self::Shared(value.into())
     }
 }
 
@@ -206,8 +206,8 @@ impl AsRef<[u8]> for Bytes {
     #[inline]
     fn as_ref(&self) -> &[u8] {
         match self {
-            Bytes::Static(bytes) => bytes,
-            Bytes::Shared(bytes) => bytes,
+            Self::Static(bytes) => bytes,
+            Self::Shared(bytes) => bytes,
         }
     }
 }
@@ -439,16 +439,16 @@ impl TexturePoll {
     #[inline]
     pub fn size(&self) -> Option<Vec2> {
         match self {
-            TexturePoll::Pending { size } => *size,
-            TexturePoll::Ready { texture } => Some(texture.size),
+            Self::Pending { size } => *size,
+            Self::Ready { texture } => Some(texture.size),
         }
     }
 
     #[inline]
     pub fn texture_id(&self) -> Option<TextureId> {
         match self {
-            TexturePoll::Pending { .. } => None,
-            TexturePoll::Ready { texture } => Some(texture.id),
+            Self::Pending { .. } => None,
+            Self::Ready { texture } => Some(texture.id),
         }
     }
 }

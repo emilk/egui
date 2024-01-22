@@ -182,9 +182,9 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
                     egui::Grid::new("response_headers")
                         .spacing(egui::vec2(ui.spacing().item_spacing.x * 2.0, 0.0))
                         .show(ui, |ui| {
-                            for header in &response.headers {
-                                ui.label(header.0);
-                                ui.label(header.1);
+                            for (k, v) in &response.headers {
+                                ui.label(k);
+                                ui.label(v);
                                 ui.end_row();
                             }
                         })
@@ -205,19 +205,11 @@ fn ui_resource(ui: &mut egui::Ui, resource: &Resource) {
             } else if let Some(colored_text) = colored_text {
                 colored_text.ui(ui);
             } else if let Some(text) = &text {
-                selectable_text(ui, text);
+                ui.add(egui::Label::new(text).selectable(true));
             } else {
                 ui.monospace("[binary]");
             }
         });
-}
-
-fn selectable_text(ui: &mut egui::Ui, mut text: &str) {
-    ui.add(
-        egui::TextEdit::multiline(&mut text)
-            .desired_width(f32::INFINITY)
-            .font(egui::TextStyle::Monospace),
-    );
 }
 
 // ----------------------------------------------------------------------------
@@ -240,31 +232,9 @@ struct ColoredText(egui::text::LayoutJob);
 
 impl ColoredText {
     pub fn ui(&self, ui: &mut egui::Ui) {
-        if true {
-            // Selectable text:
-            let mut layouter = |ui: &egui::Ui, _string: &str, wrap_width: f32| {
-                let mut layout_job = self.0.clone();
-                layout_job.wrap.max_width = wrap_width;
-                ui.fonts(|f| f.layout_job(layout_job))
-            };
-
-            let mut text = self.0.text.as_str();
-            ui.add(
-                egui::TextEdit::multiline(&mut text)
-                    .font(egui::TextStyle::Monospace)
-                    .desired_width(f32::INFINITY)
-                    .layouter(&mut layouter),
-            );
-        } else {
-            let mut job = self.0.clone();
-            job.wrap.max_width = ui.available_width();
-            let galley = ui.fonts(|f| f.layout_job(job));
-            let (response, painter) = ui.allocate_painter(galley.size(), egui::Sense::hover());
-            painter.add(egui::Shape::galley(
-                response.rect.min,
-                galley,
-                ui.visuals().text_color(),
-            ));
-        }
+        let mut job = self.0.clone();
+        job.wrap.max_width = ui.available_width();
+        let galley = ui.fonts(|f| f.layout_job(job));
+        ui.add(egui::Label::new(galley).selectable(true));
     }
 }

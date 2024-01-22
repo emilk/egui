@@ -49,11 +49,14 @@ pub fn drop_target<R>(
     let outer_rect = Rect::from_min_max(outer_rect_bounds.min, content_ui.min_rect().max + margin);
     let (rect, response) = ui.allocate_at_least(outer_rect.size(), Sense::hover());
 
-    let style = if is_being_dragged && can_accept_what_is_being_dragged && response.hovered() {
-        ui.visuals().widgets.active
-    } else {
-        ui.visuals().widgets.inactive
-    };
+    // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
+    // `hovered` is always false when another widget is being dragged.
+    let style =
+        if is_being_dragged && can_accept_what_is_being_dragged && response.contains_pointer() {
+            ui.visuals().widgets.active
+        } else {
+            ui.visuals().widgets.inactive
+        };
 
     let mut fill = style.bg_fill;
     let mut stroke = style.bg_stroke;
@@ -149,7 +152,12 @@ impl super::View for DragAndDropDemo {
                 });
 
                 let is_being_dragged = ui.memory(|mem| mem.is_anything_being_dragged());
-                if is_being_dragged && can_accept_what_is_being_dragged && response.hovered() {
+                // NOTE: we use `response.contains_pointer` here instead of `hovered`, because
+                // `hovered` is always false when another widget is being dragged.
+                if is_being_dragged
+                    && can_accept_what_is_being_dragged
+                    && response.contains_pointer()
+                {
                     drop_col = Some(col_idx);
                 }
             }

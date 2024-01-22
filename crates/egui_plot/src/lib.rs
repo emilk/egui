@@ -781,7 +781,7 @@ impl Plot {
             max: pos + size,
         };
         // Next we want to create this layout.
-        // Incides are only examples.
+        // Indices are only examples.
         //
         //  left                     right
         //  +---+---------x----------+   +
@@ -854,9 +854,8 @@ impl Plot {
         ui.ctx().check_for_id_clash(plot_id, rect, "Plot");
         let memory = if reset {
             if let Some((name, _)) = linked_axes.as_ref() {
-                ui.memory_mut(|memory| {
-                    let link_groups: &mut BoundsLinkGroups =
-                        memory.data.get_temp_mut_or_default(Id::NULL);
+                ui.data_mut(|data| {
+                    let link_groups: &mut BoundsLinkGroups = data.get_temp_mut_or_default(Id::NULL);
                     link_groups.0.remove(name);
                 });
             };
@@ -941,8 +940,8 @@ impl Plot {
 
         // Find the cursors from other plots we need to draw
         let draw_cursors: Vec<Cursor> = if let Some((id, _)) = linked_cursors.as_ref() {
-            ui.memory_mut(|memory| {
-                let frames: &mut CursorLinkGroups = memory.data.get_temp_mut_or_default(Id::NULL);
+            ui.data_mut(|data| {
+                let frames: &mut CursorLinkGroups = data.get_temp_mut_or_default(Id::NULL);
                 let cursors = frames.0.entry(*id).or_default();
 
                 // Look for our previous frame
@@ -969,9 +968,8 @@ impl Plot {
 
         // Transfer the bounds from a link group.
         if let Some((id, axes)) = linked_axes.as_ref() {
-            ui.memory_mut(|memory| {
-                let link_groups: &mut BoundsLinkGroups =
-                    memory.data.get_temp_mut_or_default(Id::NULL);
+            ui.data_mut(|data| {
+                let link_groups: &mut BoundsLinkGroups = data.get_temp_mut_or_default(Id::NULL);
                 if let Some(linked_bounds) = link_groups.0.get(id) {
                     if axes.x {
                         bounds.set_x(&linked_bounds.bounds);
@@ -1002,6 +1000,10 @@ impl Plot {
                     auto_bounds = false.into();
                 }
                 BoundsModification::AutoBounds(new_auto_bounds) => auto_bounds = new_auto_bounds,
+                BoundsModification::Zoom(zoom_factor, center) => {
+                    bounds.zoom(zoom_factor, center);
+                    auto_bounds = false.into();
+                }
             }
         }
 
@@ -1214,8 +1216,8 @@ impl Plot {
 
         if let Some((id, _)) = linked_cursors.as_ref() {
             // Push the frame we just drew to the list of frames
-            ui.memory_mut(|memory| {
-                let frames: &mut CursorLinkGroups = memory.data.get_temp_mut_or_default(Id::NULL);
+            ui.data_mut(|data| {
+                let frames: &mut CursorLinkGroups = data.get_temp_mut_or_default(Id::NULL);
                 let cursors = frames.0.entry(*id).or_default();
                 cursors.push(PlotFrameCursors {
                     id: plot_id,
@@ -1226,9 +1228,8 @@ impl Plot {
 
         if let Some((id, _)) = linked_axes.as_ref() {
             // Save the linked bounds.
-            ui.memory_mut(|memory| {
-                let link_groups: &mut BoundsLinkGroups =
-                    memory.data.get_temp_mut_or_default(Id::NULL);
+            ui.data_mut(|data| {
+                let link_groups: &mut BoundsLinkGroups = data.get_temp_mut_or_default(Id::NULL);
                 link_groups.0.insert(
                     *id,
                     LinkedBounds {
@@ -1341,6 +1342,7 @@ enum BoundsModification {
     Set(PlotBounds),
     Translate(Vec2),
     AutoBounds(Vec2b),
+    Zoom(Vec2, PlotPoint),
 }
 
 /// Provides methods to interact with a plot while building it. It is the single argument of the closure
@@ -1402,6 +1404,31 @@ impl PlotUi {
     /// Can be used to check if the plot was hovered or clicked.
     pub fn response(&self) -> &Response {
         &self.response
+    }
+
+    /// Scale the plot bounds around a position in screen coordinates.
+    ///
+    /// Can be useful for implementing alternative plot navigation methods.
+    ///
+    /// The plot bounds are divided by `zoom_factor`, therefore:
+    /// - `zoom_factor < 1.0` zooms out, i.e., increases the visible range to show more data.
+    /// - `zoom_factor > 1.0` zooms in, i.e., reduces the visible range to show more detail.
+    pub fn zoom_bounds(&mut self, zoom_factor: Vec2, center: PlotPoint) {
+        self.bounds_modifications
+            .push(BoundsModification::Zoom(zoom_factor, center));
+    }
+
+    /// Scale the plot bounds around the hovered position, if any.
+    ///
+    /// Can be useful for implementing alternative plot navigation methods.
+    ///
+    /// The plot bounds are divided by `zoom_factor`, therefore:
+    /// - `zoom_factor < 1.0` zooms out, i.e., increases the visible range to show more data.
+    /// - `zoom_factor > 1.0` zooms in, i.e., reduces the visible range to show more detail.
+    pub fn zoom_bounds_around_hovered(&mut self, zoom_factor: Vec2) {
+        if let Some(hover_pos) = self.pointer_coordinate() {
+            self.zoom_bounds(zoom_factor, hover_pos);
+        }
     }
 
     /// The pointer position in plot coordinates. Independent of whether the pointer is in the plot area.

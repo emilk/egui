@@ -290,10 +290,7 @@ impl FontImage {
     ///
     /// If you are having problems with text looking skinny and pixelated, try using a low gamma, e.g. `0.4`.
     #[inline]
-    pub fn srgba_pixels(
-        &'_ self,
-        gamma: Option<f32>,
-    ) -> impl ExactSizeIterator<Item = Color32> + '_ {
+    pub fn srgba_pixels(&self, gamma: Option<f32>) -> impl ExactSizeIterator<Item = Color32> + '_ {
         let gamma = gamma.unwrap_or(0.55); // TODO(emilk): this default coverage gamma is a magic constant, chosen by eye. I don't even know why we need it.
         self.pixels.iter().map(move |coverage| {
             let alpha = coverage.powf(gamma);
@@ -304,7 +301,7 @@ impl FontImage {
     }
 
     /// Clone a sub-region as a new image.
-    pub fn region(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> FontImage {
+    pub fn region(&self, [x, y]: [usize; 2], [w, h]: [usize; 2]) -> Self {
         assert!(x + w <= self.width());
         assert!(y + h <= self.height());
 
@@ -314,7 +311,7 @@ impl FontImage {
             pixels.extend(&self.pixels[offset..(offset + w)]);
         }
         assert_eq!(pixels.len(), w * h);
-        FontImage {
+        Self {
             size: [w, h],
             pixels,
         }

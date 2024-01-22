@@ -24,7 +24,7 @@ impl GlutinWindowContext {
         use glutin::display::GetGlDisplay;
         use glutin::display::GlDisplay;
         use glutin::prelude::GlSurface;
-        use raw_window_handle::HasRawWindowHandle;
+        use rwh_05::HasRawWindowHandle;
         let winit_window_builder = winit::window::WindowBuilder::new()
             .with_resizable(true)
             .with_inner_size(winit::dpi::LogicalSize {
@@ -111,7 +111,7 @@ impl GlutinWindowContext {
             )
             .unwrap();
 
-        GlutinWindowContext {
+        Self {
             window,
             gl_context,
             gl_display,

@@ -8,7 +8,7 @@
 use std::{cell::RefCell, rc::Rc, sync::Arc, time::Instant};
 
 use parking_lot::Mutex;
-use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
+use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 use winit::{
     event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
     window::{Window, WindowId},
@@ -84,7 +84,7 @@ pub struct Viewport {
 
     /// Window surface state that's initialized when the app starts running via a Resumed event
     /// and on Android will also be destroyed if the application is paused.
-    window: Option<Rc<Window>>,
+    window: Option<Arc<Window>>,
 
     /// `window` and `egui_winit` are initialized together.
     egui_winit: Option<egui_winit::State>,
@@ -140,6 +140,32 @@ impl WgpuWinitApp {
     }
 
     #[cfg(target_os = "android")]
+    fn recreate_window(
+        &self,
+        event_loop: &EventLoopWindowTarget<UserEvent>,
+        running: &WgpuWinitRunning,
+    ) {
+        let SharedState {
+            egui_ctx,
+            viewports,
+            viewport_from_window,
+            painter,
+            ..
+        } = &mut *running.shared.borrow_mut();
+
+        initialize_or_update_viewport(
+            egui_ctx,
+            viewports,
+            ViewportIdPair::ROOT,
+            ViewportClass::Root,
+            self.native_options.viewport.clone(),
+            None,
+            None,
+        )
+        .initialize_window(event_loop, egui_ctx, viewport_from_window, painter);
+    }
+
+    #[cfg(target_os = "android")]
     fn drop_window(&mut self) -> Result<(), egui_wgpu::WgpuError> {
         if let Some(running) = &mut self.running {
             let mut shared = running.shared.borrow_mut();
@@ -170,9 +196,11 @@ impl WgpuWinitApp {
             self.native_options.viewport.transparent.unwrap_or(false),
         );
 
+        let window = Arc::new(window);
+
         {
             crate::profile_scope!("set_window");
-            pollster::block_on(painter.set_window(ViewportId::ROOT, Some(&window)))?;
+            pollster::block_on(painter.set_window(ViewportId::ROOT, Some(window.clone())))?;
         }
 
         let wgpu_render_state = painter.render_state();
@@ -235,8 +263,8 @@ impl WgpuWinitApp {
             #[cfg(feature = "glow")]
             gl: None,
             wgpu_render_state,
-            raw_display_handle: window.raw_display_handle(),
-            raw_window_handle: window.raw_window_handle(),
+            raw_display_handle: window.display_handle().map(|h| h.as_raw()),
+            raw_window_handle: window.window_handle().map(|h| h.as_raw()),
         };
         let app = {
             crate::profile_scope!("user_app_creator");
@@ -260,7 +288,7 @@ impl WgpuWinitApp {
                 },
                 screenshot_requested: false,
                 viewport_ui_cb: None,
-                window: Some(Rc::new(window)),
+                window: Some(window),
                 egui_winit: Some(egui_winit),
             },
         );
@@ -323,7 +351,7 @@ impl WinitApp for WgpuWinitApp {
         self.running.as_ref().map(|r| &r.integration)
     }
 
-    fn window(&self, window_id: WindowId) -> Option<Rc<Window>> {
+    fn window(&self, window_id: WindowId) -> Option<Arc<Window>> {
         self.running
             .as_ref()
             .and_then(|r| {
@@ -384,6 +412,8 @@ impl WinitApp for WgpuWinitApp {
                 log::debug!("Event::Resumed");
 
                 let running = if let Some(running) = &self.running {
+                    #[cfg(target_os = "android")]
+                    self.recreate_window(event_loop, running);
                     running
                 } else {
                     let storage = epi_integration::create_storage(
@@ -492,7 +522,7 @@ impl WgpuWinitRunning {
         #[cfg(feature = "puffin")]
         puffin::GlobalProfiler::lock().new_frame();
 
-        let WgpuWinitRunning {
+        let Self {
             app,
             integration,
             shared,
@@ -544,7 +574,8 @@ impl WgpuWinitRunning {
 
             {
                 crate::profile_scope!("set_window");
-                if let Err(err) = pollster::block_on(painter.set_window(viewport_id, Some(window)))
+                if let Err(err) =
+                    pollster::block_on(painter.set_window(viewport_id, Some(window.clone())))
                 {
                     log::warn!("Failed to set window: {err}");
                 }
@@ -797,7 +828,10 @@ impl Viewport {
             Ok(window) => {
                 windows_id.insert(window.id(), viewport_id);
 
-                if let Err(err) = pollster::block_on(painter.set_window(viewport_id, Some(&window)))
+                let window = Arc::new(window);
+
+                if let Err(err) =
+                    pollster::block_on(painter.set_window(viewport_id, Some(window.clone())))
                 {
                     log::error!("on set_window: viewport_id {viewport_id:?} {err}");
                 }
@@ -813,7 +847,7 @@ impl Viewport {
                 self.info.minimized = window.is_minimized();
                 self.info.maximized = Some(window.is_maximized());
 
-                self.window = Some(Rc::new(window));
+                self.window = Some(window);
             }
             Err(err) => {
                 log::error!("Failed to create window: {err}");
@@ -930,7 +964,7 @@ fn render_immediate_viewport(
 
     {
         crate::profile_scope!("set_window");
-        if let Err(err) = pollster::block_on(painter.set_window(ids.this, Some(window))) {
+        if let Err(err) = pollster::block_on(painter.set_window(ids.this, Some(window.clone()))) {
             log::error!(
                 "when rendering viewport_id={:?}, set_window Error {err}",
                 ids.this

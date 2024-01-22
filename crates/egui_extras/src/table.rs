@@ -6,7 +6,7 @@
 use egui::{Align, NumExt as _, Rangef, Rect, Response, ScrollArea, Ui, Vec2, Vec2b};
 
 use crate::{
-    layout::{CellDirection, CellSize},
+    layout::{CellDirection, CellSize, StripLayoutFlags},
     StripLayout,
 };
 
@@ -231,6 +231,7 @@ pub struct TableBuilder<'a> {
     resizable: bool,
     cell_layout: egui::Layout,
     scroll_options: TableScrollOptions,
+    sense: egui::Sense,
 }
 
 impl<'a> TableBuilder<'a> {
@@ -243,6 +244,7 @@ impl<'a> TableBuilder<'a> {
             resizable: false,
             cell_layout,
             scroll_options: Default::default(),
+            sense: egui::Sense::hover(),
         }
     }
 
@@ -252,6 +254,13 @@ impl<'a> TableBuilder<'a> {
     #[inline]
     pub fn striped(mut self, striped: bool) -> Self {
         self.striped = Some(striped);
+        self
+    }
+
+    /// What should table cells sense for? (default: [`egui::Sense::hover()`]).
+    #[inline]
+    pub fn sense(mut self, sense: egui::Sense) -> Self {
+        self.sense = sense;
         self
     }
 
@@ -398,6 +407,7 @@ impl<'a> TableBuilder<'a> {
             resizable,
             cell_layout,
             scroll_options,
+            sense,
         } = self;
 
         let striped = striped.unwrap_or(ui.visuals().striped);
@@ -415,15 +425,20 @@ impl<'a> TableBuilder<'a> {
 
         // Hide first-frame-jitters when auto-sizing.
         ui.add_visible_ui(!first_frame_auto_size_columns, |ui| {
-            let mut layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout);
+            let mut layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout, sense);
+            let mut response: Option<Response> = None;
             add_header_row(TableRow {
                 layout: &mut layout,
                 columns: &columns,
                 widths: &state.column_widths,
                 max_used_widths: &mut max_used_widths,
+                row_index: 0,
                 col_index: 0,
-                striped: false,
                 height,
+                striped: false,
+                hovered: false,
+                selected: false,
+                response: &mut response,
             });
             layout.allocate_rect();
         });
@@ -441,6 +456,7 @@ impl<'a> TableBuilder<'a> {
             striped,
             cell_layout,
             scroll_options,
+            sense,
         }
     }
 
@@ -458,6 +474,7 @@ impl<'a> TableBuilder<'a> {
             resizable,
             cell_layout,
             scroll_options,
+            sense,
         } = self;
 
         let striped = striped.unwrap_or(ui.visuals().striped);
@@ -486,6 +503,7 @@ impl<'a> TableBuilder<'a> {
             striped,
             cell_layout,
             scroll_options,
+            sense,
         }
         .body(add_body_contents);
     }
@@ -546,6 +564,8 @@ pub struct Table<'a> {
     cell_layout: egui::Layout,
 
     scroll_options: TableScrollOptions,
+
+    sense: egui::Sense,
 }
 
 impl<'a> Table<'a> {
@@ -574,6 +594,7 @@ impl<'a> Table<'a> {
             striped,
             cell_layout,
             scroll_options,
+            sense,
         } = self;
 
         let TableScrollOptions {
@@ -612,7 +633,11 @@ impl<'a> Table<'a> {
 
             // Hide first-frame-jitters when auto-sizing.
             ui.add_visible_ui(!first_frame_auto_size_columns, |ui| {
-                let layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout);
+                let hovered_row_index_id = self.state_id.with("__table_hovered_row");
+                let hovered_row_index =
+                    ui.data_mut(|data| data.remove_temp::<usize>(hovered_row_index_id));
+
+                let layout = StripLayout::new(ui, CellDirection::Horizontal, cell_layout, sense);
 
                 add_body_contents(TableBody {
                     layout,
@@ -620,11 +645,13 @@ impl<'a> Table<'a> {
                     widths: widths_ref,
                     max_used_widths: max_used_widths_ref,
                     striped,
-                    row_nr: 0,
+                    row_index: 0,
                     start_y: clip_rect.top(),
                     end_y: clip_rect.bottom(),
                     scroll_to_row: scroll_to_row.map(|(r, _)| r),
                     scroll_to_y_range: &mut scroll_to_y_range,
+                    hovered_row_index,
+                    hovered_row_index_id,
                 });
 
                 if scroll_to_row.is_some() && scroll_to_y_range.is_none() {
@@ -755,7 +782,7 @@ pub struct TableBody<'a> {
     max_used_widths: &'a mut [f32],
 
     striped: bool,
-    row_nr: usize,
+    row_index: usize,
     start_y: f32,
     end_y: f32,
 
@@ -765,6 +792,11 @@ pub struct TableBody<'a> {
     /// If we find the correct row to scroll to,
     /// this is set to the y-range of the row.
     scroll_to_y_range: &'a mut Option<Rangef>,
+
+    hovered_row_index: Option<usize>,
+
+    /// Used to store the hovered row index between frames.
+    hovered_row_index_id: egui::Id,
 }
 
 impl<'a> TableBody<'a> {
@@ -800,23 +832,29 @@ impl<'a> TableBody<'a> {
     /// ⚠️ It is much more performant to use [`Self::rows`] or [`Self::heterogeneous_rows`],
     /// as those functions will only render the visible rows.
     pub fn row(&mut self, height: f32, add_row_content: impl FnOnce(TableRow<'a, '_>)) {
+        let mut response: Option<Response> = None;
         let top_y = self.layout.cursor.y;
         add_row_content(TableRow {
             layout: &mut self.layout,
             columns: self.columns,
             widths: self.widths,
             max_used_widths: self.max_used_widths,
+            row_index: self.row_index,
             col_index: 0,
-            striped: self.striped && self.row_nr % 2 == 0,
             height,
+            striped: self.striped && self.row_index % 2 == 0,
+            hovered: self.hovered_row_index == Some(self.row_index),
+            selected: false,
+            response: &mut response,
         });
+        self.capture_hover_state(&response, self.row_index);
         let bottom_y = self.layout.cursor.y;
 
-        if Some(self.row_nr) == self.scroll_to_row {
+        if Some(self.row_index) == self.scroll_to_row {
             *self.scroll_to_y_range = Some(Rangef::new(top_y, bottom_y));
         }
 
-        self.row_nr += 1;
+        self.row_index += 1;
     }
 
     /// Add many rows with same height.
@@ -834,9 +872,10 @@ impl<'a> TableBody<'a> {
     ///     .body(|mut body| {
     ///         let row_height = 18.0;
     ///         let num_rows = 10_000;
-    ///         body.rows(row_height, num_rows, |row_index, mut row| {
+    ///         body.rows(row_height, num_rows, |mut row| {
+    ///             let row_index = row.index();
     ///             row.col(|ui| {
-    ///                 ui.label("First column");
+    ///                 ui.label(format!("First column of row {row_index}"));
     ///             });
     ///         });
     ///     });
@@ -846,7 +885,7 @@ impl<'a> TableBody<'a> {
         mut self,
         row_height_sans_spacing: f32,
         total_rows: usize,
-        mut add_row_content: impl FnMut(usize, TableRow<'_, '_>),
+        mut add_row_content: impl FnMut(TableRow<'_, '_>),
     ) {
         let spacing = self.layout.ui.spacing().item_spacing;
         let row_height_with_spacing = row_height_sans_spacing + spacing.y;
@@ -874,19 +913,22 @@ impl<'a> TableBody<'a> {
             ((scroll_offset_y + max_height) / row_height_with_spacing).ceil() as usize + 1;
         let max_row = max_row.min(total_rows);
 
-        for idx in min_row..max_row {
-            add_row_content(
-                idx,
-                TableRow {
-                    layout: &mut self.layout,
-                    columns: self.columns,
-                    widths: self.widths,
-                    max_used_widths: self.max_used_widths,
-                    col_index: 0,
-                    striped: self.striped && (idx + self.row_nr) % 2 == 0,
-                    height: row_height_sans_spacing,
-                },
-            );
+        for row_index in min_row..max_row {
+            let mut response: Option<Response> = None;
+            add_row_content(TableRow {
+                layout: &mut self.layout,
+                columns: self.columns,
+                widths: self.widths,
+                max_used_widths: self.max_used_widths,
+                row_index,
+                col_index: 0,
+                height: row_height_sans_spacing,
+                striped: self.striped && (row_index + self.row_index) % 2 == 0,
+                hovered: self.hovered_row_index == Some(row_index),
+                selected: false,
+                response: &mut response,
+            });
+            self.capture_hover_state(&response, row_index);
         }
 
         if total_rows - max_row > 0 {
@@ -911,7 +953,8 @@ impl<'a> TableBody<'a> {
     ///     .column(Column::remainder().at_least(100.0))
     ///     .body(|mut body| {
     ///         let row_heights: Vec<f32> = vec![60.0, 18.0, 31.0, 240.0];
-    ///         body.heterogeneous_rows(row_heights.into_iter(), |row_index, mut row| {
+    ///         body.heterogeneous_rows(row_heights.into_iter(), |mut row| {
+    ///             let row_index = row.index();
     ///             let thick = row_index % 6 == 0;
     ///             row.col(|ui| {
     ///                 ui.centered_and_justified(|ui| {
@@ -925,7 +968,7 @@ impl<'a> TableBody<'a> {
     pub fn heterogeneous_rows(
         mut self,
         heights: impl Iterator<Item = f32>,
-        mut add_row_content: impl FnMut(usize, TableRow<'_, '_>),
+        mut add_row_content: impl FnMut(TableRow<'_, '_>),
     ) {
         let spacing = self.layout.ui.spacing().item_spacing;
         let mut enumerated_heights = heights.enumerate();
@@ -952,19 +995,21 @@ impl<'a> TableBody<'a> {
             if cursor_y >= scroll_offset_y {
                 // This row is visible:
                 self.add_buffer(old_cursor_y as f32); // skip all the invisible rows
-
-                add_row_content(
+                let mut response: Option<Response> = None;
+                add_row_content(TableRow {
+                    layout: &mut self.layout,
+                    columns: self.columns,
+                    widths: self.widths,
+                    max_used_widths: self.max_used_widths,
                     row_index,
-                    TableRow {
-                        layout: &mut self.layout,
-                        columns: self.columns,
-                        widths: self.widths,
-                        max_used_widths: self.max_used_widths,
-                        col_index: 0,
-                        striped: self.striped && (row_index + self.row_nr) % 2 == 0,
-                        height: row_height,
-                    },
-                );
+                    col_index: 0,
+                    height: row_height,
+                    striped: self.striped && (row_index + self.row_index) % 2 == 0,
+                    hovered: self.hovered_row_index == Some(row_index),
+                    selected: false,
+                    response: &mut response,
+                });
+                self.capture_hover_state(&response, row_index);
                 break;
             }
         }
@@ -972,18 +1017,21 @@ impl<'a> TableBody<'a> {
         // populate visible rows:
         for (row_index, row_height) in &mut enumerated_heights {
             let top_y = cursor_y;
-            add_row_content(
+            let mut response: Option<Response> = None;
+            add_row_content(TableRow {
+                layout: &mut self.layout,
+                columns: self.columns,
+                widths: self.widths,
+                max_used_widths: self.max_used_widths,
                 row_index,
-                TableRow {
-                    layout: &mut self.layout,
-                    columns: self.columns,
-                    widths: self.widths,
-                    max_used_widths: self.max_used_widths,
-                    col_index: 0,
-                    striped: self.striped && (row_index + self.row_nr) % 2 == 0,
-                    height: row_height,
-                },
-            );
+                col_index: 0,
+                height: row_height,
+                striped: self.striped && (row_index + self.row_index) % 2 == 0,
+                hovered: self.hovered_row_index == Some(row_index),
+                selected: false,
+                response: &mut response,
+            });
+            self.capture_hover_state(&response, row_index);
             cursor_y += (row_height + spacing.y) as f64;
 
             if Some(row_index) == self.scroll_to_row {
@@ -1031,6 +1079,17 @@ impl<'a> TableBody<'a> {
     fn add_buffer(&mut self, height: f32) {
         self.layout.skip_space(egui::vec2(0.0, height));
     }
+
+    // Capture the hover information for the just created row. This is used in the next render
+    // to ensure that the entire row is highlighted.
+    fn capture_hover_state(&mut self, response: &Option<Response>, row_index: usize) {
+        let is_row_hovered = response.as_ref().map_or(false, |r| r.hovered());
+        if is_row_hovered {
+            self.layout
+                .ui
+                .data_mut(|data| data.insert_temp(self.hovered_row_index_id, row_index));
+        }
+    }
 }
 
 impl<'a> Drop for TableBody<'a> {
@@ -1049,15 +1108,21 @@ pub struct TableRow<'a, 'b> {
     /// grows during building with the maximum widths
     max_used_widths: &'b mut [f32],
 
+    row_index: usize,
     col_index: usize,
-    striped: bool,
     height: f32,
+
+    striped: bool,
+    hovered: bool,
+    selected: bool,
+
+    response: &'b mut Option<Response>,
 }
 
 impl<'a, 'b> TableRow<'a, 'b> {
     /// Add the contents of a column.
     ///
-    /// Return the used space (`min_rect`) plus the [`Response`] of the whole cell.
+    /// Returns the used space (`min_rect`) plus the [`Response`] of the whole cell.
     #[cfg_attr(debug_assertions, track_caller)]
     pub fn col(&mut self, add_cell_contents: impl FnOnce(&mut Ui)) -> (Rect, Response) {
         let col_index = self.col_index;
@@ -1078,19 +1143,58 @@ impl<'a, 'b> TableRow<'a, 'b> {
         let width = CellSize::Absolute(width);
         let height = CellSize::Absolute(self.height);
 
-        let (used_rect, response) =
-            self.layout
-                .add(clip, self.striped, width, height, add_cell_contents);
+        let flags = StripLayoutFlags {
+            clip,
+            striped: self.striped,
+            hovered: self.hovered,
+            selected: self.selected,
+        };
+
+        let (used_rect, response) = self.layout.add(flags, width, height, add_cell_contents);
 
         if let Some(max_w) = self.max_used_widths.get_mut(col_index) {
             *max_w = max_w.max(used_rect.width());
         }
 
+        *self.response = Some(
+            self.response
+                .as_ref()
+                .map_or(response.clone(), |r| r.union(response.clone())),
+        );
+
         (used_rect, response)
+    }
+
+    /// Set the selection highlight state for cells added after a call to this function.
+    #[inline]
+    pub fn set_selected(&mut self, selected: bool) {
+        self.selected = selected;
+    }
+
+    /// Returns a union of the [`Response`]s of the cells added to the row up to this point.
+    ///
+    /// You need to add at least one row to the table before calling this function.
+    pub fn response(&self) -> Response {
+        self.response
+            .clone()
+            .expect("Should only be called after `col`")
+    }
+
+    /// Returns the index of the row.
+    #[inline]
+    pub fn index(&self) -> usize {
+        self.row_index
+    }
+
+    /// Returns the index of the column. Incremented after a column is added.
+    #[inline]
+    pub fn col_index(&self) -> usize {
+        self.col_index
     }
 }
 
 impl<'a, 'b> Drop for TableRow<'a, 'b> {
+    #[inline]
     fn drop(&mut self) {
         self.layout.end_line();
     }

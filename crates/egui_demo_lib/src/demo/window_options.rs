@@ -138,7 +138,10 @@ impl super::View for WindowOptions {
         });
 
         ui.separator();
+        let on_top = Some(ui.layer_id()) == ui.ctx().top_layer_id();
+        ui.label(format!("This window is on top: {on_top}."));
 
+        ui.separator();
         ui.horizontal(|ui| {
             if ui.button("Disable for 2 seconds").clicked() {
                 self.disabled_time = ui.input(|i| i.time);

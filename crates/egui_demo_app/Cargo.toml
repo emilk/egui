@@ -29,25 +29,25 @@ serde = ["dep:serde", "egui_demo_lib/serde", "egui/serde"]
 syntect = ["egui_demo_lib/syntect"]
 
 glow = ["eframe/glow"]
-wgpu = ["eframe/wgpu", "bytemuck"]
+wgpu = ["eframe/wgpu", "bytemuck", "dep:wgpu"]
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = [
   "js-sys",
   "wasmbind",
 ] }
-eframe = { version = "0.24.1", path = "../eframe", default-features = false, features = [
+eframe = { version = "0.25.0", path = "../eframe", default-features = false, features = [
   "web_screen_reader",
 ] }
-egui = { version = "0.24.1", path = "../egui", features = [
+egui = { version = "0.25.0", path = "../egui", features = [
   "callstack",
   "extra_debug_asserts",
   "log",
 ] }
-egui_demo_lib = { version = "0.24.1", path = "../egui_demo_lib", features = [
+egui_demo_lib = { version = "0.25.0", path = "../egui_demo_lib", features = [
   "chrono",
 ] }
-egui_extras = { version = "0.24.1", path = "../egui_extras", features = [
+egui_extras = { version = "0.25.0", path = "../egui_extras", features = [
   "image",
 ] }
 log = { version = "0.4", features = ["std"] }
@@ -57,10 +57,12 @@ log = { version = "0.4", features = ["std"] }
 bytemuck = { version = "1.7.1", optional = true }
 puffin = { version = "0.18", optional = true }
 puffin_http = { version = "0.15", optional = true }
+# Enable both WebGL & WebGPU when targeting the web (these features have no effect when not targeting wasm32)
+wgpu = { workspace = true, features = ["webgpu", "webgl"], optional = true }
 
 
 # feature "http":
-ehttp = { version = "0.3.1", optional = true }
+ehttp = { version = "0.4", optional = true }
 image = { version = "0.24", optional = true, default-features = false, features = [
   "jpeg",
   "png",
@@ -81,6 +83,6 @@ rfd = { version = "0.11", optional = true }
 
 # web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "=0.2.89"
+wasm-bindgen = "=0.2.90"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3"

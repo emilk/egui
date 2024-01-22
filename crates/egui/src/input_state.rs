@@ -4,7 +4,7 @@ use crate::data::input::*;
 use crate::{emath::*, util::History};
 use std::collections::{BTreeMap, HashSet};
 
-pub use crate::data::input::Key;
+pub use crate::Key;
 pub use touch_state::MultiTouchInfo;
 use touch_state::TouchState;
 
@@ -147,15 +147,15 @@ impl InputState {
     pub fn begin_frame(
         mut self,
         mut new: RawInput,
-        requested_repaint_last_frame: bool,
+        requested_immediate_repaint_prev_frame: bool,
         pixels_per_point: f32,
-    ) -> InputState {
+    ) -> Self {
         crate::profile_function!();
 
         let time = new.time.unwrap_or(self.time + new.predicted_dt as f64);
         let unstable_dt = (time - self.time) as f32;
 
-        let stable_dt = if requested_repaint_last_frame {
+        let stable_dt = if requested_immediate_repaint_prev_frame {
             // we should have had a repaint straight away,
             // so this should be trustable.
             unstable_dt
@@ -212,7 +212,7 @@ impl InputState {
             keys_down = Default::default();
         }
 
-        InputState {
+        Self {
             pointer,
             touch_states: self.touch_states,
             scroll_delta,
@@ -289,7 +289,13 @@ impl InputState {
     /// Count presses of a key. If non-zero, the presses are consumed, so that this will only return non-zero once.
     ///
     /// Includes key-repeat events.
-    pub fn count_and_consume_key(&mut self, modifiers: Modifiers, key: Key) -> usize {
+    ///
+    /// This uses [`Modifiers::matches_logically`] to match modifiers,
+    /// meaning extra Shift and Alt modifiers are ignored.
+    /// Therefore, you should match most specific shortcuts first,
+    /// i.e. check for `Cmd-Shift-S` ("Save as…") before `Cmd-S` ("Save"),
+    /// so that a user pressing `Cmd-Shift-S` won't trigger the wrong command!
+    pub fn count_and_consume_key(&mut self, modifiers: Modifiers, logical_key: Key) -> usize {
         let mut count = 0usize;
 
         self.events.retain(|event| {
@@ -300,7 +306,7 @@ impl InputState {
                     modifiers: ev_mods,
                     pressed: true,
                     ..
-                } if *ev_key == key && ev_mods.matches(modifiers)
+                } if *ev_key == logical_key && ev_mods.matches_logically(modifiers)
             );
 
             count += is_match as usize;
@@ -314,18 +320,31 @@ impl InputState {
     /// Check for a key press. If found, `true` is returned and the key pressed is consumed, so that this will only return `true` once.
     ///
     /// Includes key-repeat events.
-    pub fn consume_key(&mut self, modifiers: Modifiers, key: Key) -> bool {
-        self.count_and_consume_key(modifiers, key) > 0
+    ///
+    /// This uses [`Modifiers::matches_logically`] to match modifiers,
+    /// meaning extra Shift and Alt modifiers are ignored.
+    /// Therefore, you should match most specific shortcuts first,
+    /// i.e. check for `Cmd-Shift-S` ("Save as…") before `Cmd-S` ("Save"),
+    /// so that a user pressing `Cmd-Shift-S` won't trigger the wrong command!
+    pub fn consume_key(&mut self, modifiers: Modifiers, logical_key: Key) -> bool {
+        self.count_and_consume_key(modifiers, logical_key) > 0
     }
 
     /// Check if the given shortcut has been pressed.
     ///
     /// If so, `true` is returned and the key pressed is consumed, so that this will only return `true` once.
     ///
-    /// Includes key-repeat events.
+    /// This uses [`Modifiers::matches_logically`] to match modifiers,
+    /// meaning extra Shift and Alt modifiers are ignored.
+    /// Therefore, you should match most specific shortcuts first,
+    /// i.e. check for `Cmd-Shift-S` ("Save as…") before `Cmd-S` ("Save"),
+    /// so that a user pressing `Cmd-Shift-S` won't trigger the wrong command!
     pub fn consume_shortcut(&mut self, shortcut: &KeyboardShortcut) -> bool {
-        let KeyboardShortcut { modifiers, key } = *shortcut;
-        self.consume_key(modifiers, key)
+        let KeyboardShortcut {
+            modifiers,
+            logical_key,
+        } = *shortcut;
+        self.consume_key(modifiers, logical_key)
     }
 
     /// Was the given key pressed this frame?
@@ -519,15 +538,15 @@ pub(crate) enum PointerEvent {
 
 impl PointerEvent {
     pub fn is_press(&self) -> bool {
-        matches!(self, PointerEvent::Pressed { .. })
+        matches!(self, Self::Pressed { .. })
     }
 
     pub fn is_release(&self) -> bool {
-        matches!(self, PointerEvent::Released { .. })
+        matches!(self, Self::Released { .. })
     }
 
     pub fn is_click(&self) -> bool {
-        matches!(self, PointerEvent::Released { click: Some(_), .. })
+        matches!(self, Self::Released { click: Some(_), .. })
     }
 }
 
@@ -615,7 +634,7 @@ impl Default for PointerState {
 
 impl PointerState {
     #[must_use]
-    pub(crate) fn begin_frame(mut self, time: f64, new: &RawInput) -> PointerState {
+    pub(crate) fn begin_frame(mut self, time: f64, new: &RawInput) -> Self {
         self.time = time;
 
         self.pointer_events.clear();

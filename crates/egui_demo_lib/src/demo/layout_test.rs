@@ -113,6 +113,10 @@ impl super::View for LayoutTest {
                 }
             });
         ui.label("Resize to see effect");
+
+        ui.vertical_centered(|ui| {
+            ui.add(crate::egui_github_link_file!());
+        });
     }
 }
 

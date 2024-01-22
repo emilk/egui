@@ -1,5 +1,17 @@
 //! This crates provides bindings between [`egui`](https://github.com/emilk/egui) and [wgpu](https://crates.io/crates/wgpu).
 //!
+//! If you're targeting WebGL you also need to turn on the
+//! `webgl` feature of the `wgpu` crate:
+//!
+//! ```ignore
+//! # Enable both WebGL and WebGPU backends on web.
+//! wgpu = { version = "*", features = ["webgpu", "webgl"] }
+//! ```
+//!
+//! You can control whether WebGL or WebGPU will be picked at runtime by setting
+//! [`WgpuConfiguration::supported_backends`].
+//! The default is to prefer WebGPU and fall back on WebGL.
+//!
 //! ## Feature flags
 #![cfg_attr(feature = "document-features", doc = document_features::document_features!())]
 //!
@@ -21,6 +33,7 @@ use std::sync::Arc;
 
 use epaint::mutex::RwLock;
 
+/// An error produced by egui-wgpu.
 #[derive(thiserror::Error, Debug)]
 pub enum WgpuError {
     #[error("Failed to create wgpu adapter, no suitable adapter found.")]
@@ -34,6 +47,10 @@ pub enum WgpuError {
 
     #[error(transparent)]
     CreateSurfaceError(#[from] wgpu::CreateSurfaceError),
+
+    #[cfg(feature = "winit")]
+    #[error(transparent)]
+    HandleError(#[from] ::winit::raw_window_handle::HandleError),
 }
 
 /// Access to the render state for egui.
@@ -41,6 +58,13 @@ pub enum WgpuError {
 pub struct RenderState {
     /// Wgpu adapter used for rendering.
     pub adapter: Arc<wgpu::Adapter>,
+
+    /// All the available adapters.
+    ///
+    /// This is not available on web.
+    /// On web, we always select WebGPU is available, then fall back to WebGL if not.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub available_adapters: Arc<[wgpu::Adapter]>,
 
     /// Wgpu device used for rendering, created from the adapter.
     pub device: Arc<wgpu::Device>,
@@ -63,14 +87,15 @@ impl RenderState {
     pub async fn create(
         config: &WgpuConfiguration,
         instance: &wgpu::Instance,
-        surface: &wgpu::Surface,
+        surface: &wgpu::Surface<'static>,
         depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
     ) -> Result<Self, WgpuError> {
         crate::profile_scope!("RenderState::create"); // async yield give bad names using `profile_function`
 
+        // This is always an empty list on web.
         #[cfg(not(target_arch = "wasm32"))]
-        let adapters: Vec<_> = instance.enumerate_adapters(wgpu::Backends::all()).collect();
+        let available_adapters = instance.enumerate_adapters(wgpu::Backends::all());
 
         let adapter = {
             crate::profile_scope!("request_adapter");
@@ -83,18 +108,18 @@ impl RenderState {
                 .await
                 .ok_or_else(|| {
                     #[cfg(not(target_arch = "wasm32"))]
-                    if adapters.is_empty() {
+                    if available_adapters.is_empty() {
                         log::info!("No wgpu adapters found");
-                    } else if adapters.len() == 1 {
+                    } else if available_adapters.len() == 1 {
                         log::info!(
                             "The only available wgpu adapter was not suitable: {}",
-                            adapter_info_summary(&adapters[0].get_info())
+                            adapter_info_summary(&available_adapters[0].get_info())
                         );
                     } else {
                         log::info!(
                             "No suitable wgpu adapter found out of the {} available ones: {}",
-                            adapters.len(),
-                            describe_adapters(&adapters)
+                            available_adapters.len(),
+                            describe_adapters(&available_adapters)
                         );
                     }
 
@@ -109,7 +134,7 @@ impl RenderState {
         );
 
         #[cfg(not(target_arch = "wasm32"))]
-        if adapters.len() == 1 {
+        if available_adapters.len() == 1 {
             log::debug!(
                 "Picked the only available wgpu adapter: {}",
                 adapter_info_summary(&adapter.get_info())
@@ -117,8 +142,8 @@ impl RenderState {
         } else {
             log::info!(
                 "There were {} available wgpu adapters: {}",
-                adapters.len(),
-                describe_adapters(&adapters)
+                available_adapters.len(),
+                describe_adapters(&available_adapters)
             );
             log::debug!(
                 "Picked wgpu adapter: {}",
@@ -141,8 +166,10 @@ impl RenderState {
 
         let renderer = Renderer::new(&device, target_format, depth_format, msaa_samples);
 
-        Ok(RenderState {
+        Ok(Self {
             adapter: Arc::new(adapter),
+            #[cfg(not(target_arch = "wasm32"))]
+            available_adapters: available_adapters.into(),
             device: Arc::new(device),
             queue: Arc::new(queue),
             target_format,
@@ -180,12 +207,19 @@ pub enum SurfaceErrorAction {
 
 /// Configuration for using wgpu with eframe or the egui-wgpu winit feature.
 ///
-/// This can be configured with the environment variables:
+/// This can also be configured with the environment variables:
 /// * `WGPU_BACKEND`: `vulkan`, `dx11`, `dx12`, `metal`, `opengl`, `webgpu`
 /// * `WGPU_POWER_PREF`: `low`, `high` or `none`
 #[derive(Clone)]
 pub struct WgpuConfiguration {
-    /// Backends that should be supported (wgpu will pick one of these)
+    /// Backends that should be supported (wgpu will pick one of these).
+    ///
+    /// For instance, if you only want to support WebGL (and not WebGPU),
+    /// you can set this to [`wgpu::Backends::GL`].
+    ///
+    /// By default on web, WebGPU will be used if available.
+    /// WebGL will only be used as a fallback,
+    /// and only if you have enabled the `webgl` feature of crate `wgpu`.
     pub supported_backends: wgpu::Backends,
 
     /// Configuration passed on device request, given an adapter
@@ -215,7 +249,7 @@ impl Default for WgpuConfiguration {
     fn default() -> Self {
         Self {
             // Add GL backend, primarily because WebGPU is not stable enough yet.
-            // (note however, that the GL backend needs to be opted-in via a wgpu feature flag)
+            // (note however, that the GL backend needs to be opted-in via the wgpu feature flag "webgl")
             supported_backends: wgpu::util::backend_bits_from_env()
                 .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL),
 
@@ -228,8 +262,8 @@ impl Default for WgpuConfiguration {
 
                 wgpu::DeviceDescriptor {
                     label: Some("egui wgpu device"),
-                    features: wgpu::Features::default(),
-                    limits: wgpu::Limits {
+                    required_features: wgpu::Features::default(),
+                    required_limits: wgpu::Limits {
                         // When using a depth buffer, we have to be able to create a texture
                         // large enough for the entire surface, and we want to support 4k+ displays.
                         max_texture_dimension_2d: 8192,
@@ -274,7 +308,7 @@ pub fn preferred_framebuffer_format(
     }
 
     formats
-        .get(0)
+        .first()
         .copied()
         .ok_or(WgpuError::NoSurfaceFormatsAvailable)
 }

@@ -7,6 +7,47 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.25.0 - 2024-01-08 - Better keyboard input
+
+### ⚠️ BREAKING
+* Ignore extra SHIFT and ALT when matching modifiers [#3769](https://github.com/emilk/egui/pull/3769)
+* Replace `Key::PlusEquals` with `Key::Plus` and `Key::Equals` [#3769](https://github.com/emilk/egui/pull/3769)
+* Removed `WidgetTextGalley`, `WidgetTextJob`, `RichText::into_text_job`, `WidgetText::into_text_job` [#3727](https://github.com/emilk/egui/pull/3727)
+* Rename `TextBuffer::replace` to `replace_with` [#3751](https://github.com/emilk/egui/pull/3751)
+
+### ⭐ Added
+* Replace a special `Color32::PLACEHOLDER` with widget fallback color [#3727](https://github.com/emilk/egui/pull/3727)
+* Add `Key`s for `Cut` `Copy` `Paste` `[` `]` `,` `\` `:` `.` `;` `+` `=`  [#3725](https://github.com/emilk/egui/pull/3725) [#3373](https://github.com/emilk/egui/pull/3373) [#3649](https://github.com/emilk/egui/pull/3649) [#3769](https://github.com/emilk/egui/pull/3769) (thanks [@MarijnS95](https://github.com/MarijnS95) and [@mkrueger](https://github.com/mkrueger)!)
+* Add `Key::from_name`, `Key::ALL` [#3649](https://github.com/emilk/egui/pull/3649)
+* Add `Event::Key::physical_key` [#3649](https://github.com/emilk/egui/pull/3649)
+* Add indeterminate state to checkbox [#3605](https://github.com/emilk/egui/pull/3605) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+* Add `Color32::from_hex` and `Color32::to_hex` [#3570](https://github.com/emilk/egui/pull/3570) [#3777](https://github.com/emilk/egui/pull/3777) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+* Add `DragValue`s for RGB(A) in the color picker [#2734](https://github.com/emilk/egui/pull/2734) (thanks [@IVAN-MK7](https://github.com/IVAN-MK7)!)
+* Add option to customize progress bar rounding [#2881](https://github.com/emilk/egui/pull/2881) (thanks [@YgorSouza](https://github.com/YgorSouza)!)
+* Add methods to load/store `TextEditState` undoer [#3479](https://github.com/emilk/egui/pull/3479) (thanks [@LoganDark](https://github.com/LoganDark)!)
+* `ScrollArea`: Add option to always scroll the only enabled direction [#3710](https://github.com/emilk/egui/pull/3710) (thanks [@untbu](https://github.com/untbu)!)
+
+### 🔧 Changed
+* `Grid` now follows `style.visuals.striped` if not explicitly overwritten [#3723](https://github.com/emilk/egui/pull/3723) (thanks [@Wcubed](https://github.com/Wcubed)!)
+* Allow arrow keys to move away focus from a Slider [#3641](https://github.com/emilk/egui/pull/3641) (thanks [@fornwall](https://github.com/fornwall)!)
+* Keep submenus open until another one is hovered [#3055](https://github.com/emilk/egui/pull/3055) (thanks [@DannyStoll1](https://github.com/DannyStoll1)!)
+* Highlight the header of the topmost `Window`, controlled by `Visuals.window_highlight_topmost` [#3515](https://github.com/emilk/egui/pull/3515) (thanks [@GuillaumeSchmid](https://github.com/GuillaumeSchmid)!)
+
+### 🐛 Fixed
+* Derive `serde` `Serialize` and `Deserialize` for `KeyboardShortcut` [#3694](https://github.com/emilk/egui/pull/3694) (thanks [@zeozeozeo](https://github.com/zeozeozeo)!)
+* Fix `Window` positioning bug when bad `pivot` is stored in app data [#3721](https://github.com/emilk/egui/pull/3721) (thanks [@abey79](https://github.com/abey79)!)
+* Impl `Clone` for `Fonts` [#3737](https://github.com/emilk/egui/pull/3737)
+* Add missing `ResizeDirection::East` [#3749](https://github.com/emilk/egui/pull/3749) (thanks [@dbuch](https://github.com/dbuch)!)
+* Fix: don't open context menu on drag [#3767](https://github.com/emilk/egui/pull/3767)
+* Fix IME input of `CompositionEnd` without a `CompositionStart` [#3768](https://github.com/emilk/egui/pull/3768) (thanks [@FrankLeeC](https://github.com/FrankLeeC)!)
+* Fix: allow using the full Private Use Area for custom fonts [#3509](https://github.com/emilk/egui/pull/3509) (thanks [@varphone](https://github.com/varphone)!)
+* Fix: apply edited `DragValue` when it looses focus [#3776](https://github.com/emilk/egui/pull/3776)
+* Fix: Non-resizable `Area`s now ignore mouse input outside their bounds [#3039](https://github.com/emilk/egui/pull/3039) (thanks [@fleabitdev](https://github.com/fleabitdev)!)
+* Highlight submenu buttons when hovered and open [#3780](https://github.com/emilk/egui/pull/3780)
+* Invalidate font atlas on any change to `pixels_per_point`, not matter how small [#3698](https://github.com/emilk/egui/pull/3698) (thanks [@StarStarJ](https://github.com/StarStarJ)!)
+* Fix zoom-in shortcut (`Cmd +`) on non-English keyboards [#3769](https://github.com/emilk/egui/pull/3769)
+
+
 ## 0.24.1 - 2023-11-30 - Bug fixes
 * Fix buggy text with multiple viewports on monitors with different scales [#3666](https://github.com/emilk/egui/pull/3666)
 

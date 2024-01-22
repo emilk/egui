@@ -1,12 +1,10 @@
 #![warn(missing_docs)] // Let's keep this file well-documented.` to memory.rs
 
-use epaint::{emath::Rangef, vec2, Vec2};
-
 use crate::{
-    area,
+    area, vec2,
     window::{self, WindowInteraction},
-    EventFilter, Id, IdMap, InputState, LayerId, Pos2, Rect, Style, ViewportId, ViewportIdMap,
-    ViewportIdSet,
+    EventFilter, Id, IdMap, LayerId, Order, Pos2, Rangef, Rect, Style, Vec2, ViewportId,
+    ViewportIdMap, ViewportIdSet,
 };
 
 // ----------------------------------------------------------------------------
@@ -79,9 +77,6 @@ pub struct Memory {
     #[cfg_attr(feature = "persistence", serde(skip))]
     pub(crate) viewport_id: ViewportId,
 
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    pub(crate) drag_value: crate::widgets::drag_value::MonoState,
-
     /// Which popup-window is open (if any)?
     /// Could be a combo box, color picker, menu etc.
     #[cfg_attr(feature = "persistence", serde(skip))]
@@ -111,7 +106,6 @@ impl Default for Memory {
             interactions: Default::default(),
             viewport_id: Default::default(),
             window_interactions: Default::default(),
-            drag_value: Default::default(),
             areas: Default::default(),
             popup: Default::default(),
             everything_is_visible: Default::default(),
@@ -150,12 +144,9 @@ enum FocusDirection {
 impl FocusDirection {
     fn is_cardinal(&self) -> bool {
         match self {
-            FocusDirection::Up
-            | FocusDirection::Right
-            | FocusDirection::Down
-            | FocusDirection::Left => true,
+            Self::Up | Self::Right | Self::Down | Self::Left => true,
 
-            FocusDirection::Previous | FocusDirection::Next | FocusDirection::None => false,
+            Self::Previous | Self::Next | Self::None => false,
         }
     }
 }
@@ -587,11 +578,10 @@ impl Memory {
         }
     }
 
-    pub(crate) fn end_frame(&mut self, input: &InputState, used_ids: &IdMap<Rect>) {
+    pub(crate) fn end_frame(&mut self, used_ids: &IdMap<Rect>) {
         self.caches.update();
         self.areas_mut().end_frame();
         self.interaction_mut().focus.end_frame(used_ids);
-        self.drag_value.end_frame(input);
     }
 
     pub(crate) fn set_viewport_id(&mut self, viewport_id: ViewportId) {
@@ -869,8 +859,11 @@ impl Areas {
                 if let Some(state) = self.areas.get(&layer.id) {
                     let mut rect = state.rect();
                     if state.interactable {
-                        // Allow us to resize by dragging just outside the window:
-                        rect = rect.expand(resize_interact_radius_side);
+                        if state.edges_padded_for_resize {
+                            // Allow us to resize by dragging just outside the window:
+                            rect = rect.expand(resize_interact_radius_side);
+                        }
+
                         if rect.contains(pos) {
                             return Some(*layer);
                         }
@@ -912,6 +905,14 @@ impl Areas {
         if !self.order.iter().any(|x| *x == layer_id) {
             self.order.push(layer_id);
         }
+    }
+
+    pub fn top_layer_id(&self, order: Order) -> Option<LayerId> {
+        self.order
+            .iter()
+            .filter(|layer| layer.order == order)
+            .last()
+            .copied()
     }
 
     pub(crate) fn end_frame(&mut self) {

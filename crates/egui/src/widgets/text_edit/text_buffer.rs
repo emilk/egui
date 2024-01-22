@@ -1,5 +1,21 @@
 use std::{borrow::Cow, ops::Range};
 
+use epaint::{
+    text::{
+        cursor::{CCursor, PCursor},
+        TAB_SIZE,
+    },
+    Galley,
+};
+
+use crate::text_selection::{
+    text_cursor_state::{
+        byte_index_from_char_index, ccursor_next_word, ccursor_previous_word, find_line_start,
+        slice_char_range,
+    },
+    CursorRange,
+};
+
 /// Trait constraining what types [`crate::TextEdit`] may use as
 /// an underlying buffer.
 ///
@@ -10,18 +26,6 @@ pub trait TextBuffer {
 
     /// Returns this buffer as a `str`.
     fn as_str(&self) -> &str;
-
-    /// Reads the given character range.
-    fn char_range(&self, char_range: Range<usize>) -> &str {
-        assert!(char_range.start <= char_range.end);
-        let start_byte = self.byte_index_from_char_index(char_range.start);
-        let end_byte = self.byte_index_from_char_index(char_range.end);
-        &self.as_str()[start_byte..end_byte]
-    }
-
-    fn byte_index_from_char_index(&self, char_index: usize) -> usize {
-        byte_index_from_char_index(self.as_str(), char_index)
-    }
 
     /// Inserts text `text` into this buffer at character index `char_index`.
     ///
@@ -38,13 +42,22 @@ pub trait TextBuffer {
     /// `char_range` is a *character range*, not a byte range.
     fn delete_char_range(&mut self, char_range: Range<usize>);
 
+    /// Reads the given character range.
+    fn char_range(&self, char_range: Range<usize>) -> &str {
+        slice_char_range(self.as_str(), char_range)
+    }
+
+    fn byte_index_from_char_index(&self, char_index: usize) -> usize {
+        byte_index_from_char_index(self.as_str(), char_index)
+    }
+
     /// Clears all characters in this buffer
     fn clear(&mut self) {
         self.delete_char_range(0..self.as_str().len());
     }
 
     /// Replaces all contents of this string with `text`
-    fn replace(&mut self, text: &str) {
+    fn replace_with(&mut self, text: &str) {
         self.clear();
         self.insert_text(text, 0);
     }
@@ -54,6 +67,119 @@ pub trait TextBuffer {
         let s = self.as_str().to_owned();
         self.clear();
         s
+    }
+
+    fn insert_text_at(&mut self, ccursor: &mut CCursor, text_to_insert: &str, char_limit: usize) {
+        if char_limit < usize::MAX {
+            let mut new_string = text_to_insert;
+            // Avoid subtract with overflow panic
+            let cutoff = char_limit.saturating_sub(self.as_str().chars().count());
+
+            new_string = match new_string.char_indices().nth(cutoff) {
+                None => new_string,
+                Some((idx, _)) => &new_string[..idx],
+            };
+
+            ccursor.index += self.insert_text(new_string, ccursor.index);
+        } else {
+            ccursor.index += self.insert_text(text_to_insert, ccursor.index);
+        }
+    }
+
+    fn decrease_indentation(&mut self, ccursor: &mut CCursor) {
+        let line_start = find_line_start(self.as_str(), *ccursor);
+
+        let remove_len = if self.as_str()[line_start.index..].starts_with('\t') {
+            Some(1)
+        } else if self.as_str()[line_start.index..]
+            .chars()
+            .take(TAB_SIZE)
+            .all(|c| c == ' ')
+        {
+            Some(TAB_SIZE)
+        } else {
+            None
+        };
+
+        if let Some(len) = remove_len {
+            self.delete_char_range(line_start.index..(line_start.index + len));
+            if *ccursor != line_start {
+                *ccursor -= len;
+            }
+        }
+    }
+
+    fn delete_selected(&mut self, cursor_range: &CursorRange) -> CCursor {
+        let [min, max] = cursor_range.sorted_cursors();
+        self.delete_selected_ccursor_range([min.ccursor, max.ccursor])
+    }
+
+    fn delete_selected_ccursor_range(&mut self, [min, max]: [CCursor; 2]) -> CCursor {
+        self.delete_char_range(min.index..max.index);
+        CCursor {
+            index: min.index,
+            prefer_next_row: true,
+        }
+    }
+
+    fn delete_previous_char(&mut self, ccursor: CCursor) -> CCursor {
+        if ccursor.index > 0 {
+            let max_ccursor = ccursor;
+            let min_ccursor = max_ccursor - 1;
+            self.delete_selected_ccursor_range([min_ccursor, max_ccursor])
+        } else {
+            ccursor
+        }
+    }
+
+    fn delete_next_char(&mut self, ccursor: CCursor) -> CCursor {
+        self.delete_selected_ccursor_range([ccursor, ccursor + 1])
+    }
+
+    fn delete_previous_word(&mut self, max_ccursor: CCursor) -> CCursor {
+        let min_ccursor = ccursor_previous_word(self.as_str(), max_ccursor);
+        self.delete_selected_ccursor_range([min_ccursor, max_ccursor])
+    }
+
+    fn delete_next_word(&mut self, min_ccursor: CCursor) -> CCursor {
+        let max_ccursor = ccursor_next_word(self.as_str(), min_ccursor);
+        self.delete_selected_ccursor_range([min_ccursor, max_ccursor])
+    }
+
+    fn delete_paragraph_before_cursor(
+        &mut self,
+        galley: &Galley,
+        cursor_range: &CursorRange,
+    ) -> CCursor {
+        let [min, max] = cursor_range.sorted_cursors();
+        let min = galley.from_pcursor(PCursor {
+            paragraph: min.pcursor.paragraph,
+            offset: 0,
+            prefer_next_row: true,
+        });
+        if min.ccursor == max.ccursor {
+            self.delete_previous_char(min.ccursor)
+        } else {
+            self.delete_selected(&CursorRange::two(min, max))
+        }
+    }
+
+    fn delete_paragraph_after_cursor(
+        &mut self,
+        galley: &Galley,
+        cursor_range: &CursorRange,
+    ) -> CCursor {
+        let [min, max] = cursor_range.sorted_cursors();
+        let max = galley.from_pcursor(PCursor {
+            paragraph: max.pcursor.paragraph,
+            offset: usize::MAX, // end of paragraph
+            prefer_next_row: false,
+        });
+        if min.ccursor == max.ccursor {
+            self.delete_next_char(min.ccursor)
+        } else {
+            self.delete_selected(&CursorRange::two(min, max))
+        }
     }
 }
 
@@ -68,7 +194,7 @@ impl TextBuffer for String {
 
     fn insert_text(&mut self, text: &str, char_index: usize) -> usize {
         // Get the byte index from the character index
-        let byte_idx = self.byte_index_from_char_index(char_index);
+        let byte_idx = byte_index_from_char_index(self.as_str(), char_index);
 
         // Then insert the string
         self.insert_str(byte_idx, text);
@@ -80,8 +206,8 @@ impl TextBuffer for String {
         assert!(char_range.start <= char_range.end);
 
         // Get both byte indices
-        let byte_start = self.byte_index_from_char_index(char_range.start);
-        let byte_end = self.byte_index_from_char_index(char_range.end);
+        let byte_start = byte_index_from_char_index(self.as_str(), char_range.start);
+        let byte_end = byte_index_from_char_index(self.as_str(), char_range.end);
 
         // Then drain all characters within this range
         self.drain(byte_start..byte_end);
@@ -91,7 +217,7 @@ impl TextBuffer for String {
         self.clear();
     }
 
-    fn replace(&mut self, text: &str) {
+    fn replace_with(&mut self, text: &str) {
         *self = text.to_owned();
     }
 
@@ -121,7 +247,7 @@ impl<'a> TextBuffer for Cow<'a, str> {
         <String as TextBuffer>::clear(self.to_mut());
     }
 
-    fn replace(&mut self, text: &str) {
+    fn replace_with(&mut self, text: &str) {
         *self = Cow::Owned(text.to_owned());
     }
 
@@ -145,13 +271,4 @@ impl<'a> TextBuffer for &'a str {
     }
 
     fn delete_char_range(&mut self, _ch_range: Range<usize>) {}
-}
-
-fn byte_index_from_char_index(s: &str, char_index: usize) -> usize {
-    for (ci, (bi, _)) in s.char_indices().enumerate() {
-        if ci == char_index {
-            return bi;
-        }
-    }
-    s.len()
 }

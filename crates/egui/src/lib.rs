@@ -333,6 +333,10 @@
 //! }); // the temporary settings are reverted here
 //! # });
 //! ```
+//!
+//! ## Installing additional fonts
+//! The default egui fonts only support latin and cryllic characters, and some emojis.
+//! To use egui with e.g. asian characters you need to install your own font (`.ttf` or `.otf`) using [`Context::set_fonts`].
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::manual_range_contains)]
@@ -360,6 +364,7 @@ pub(crate) mod placer;
 mod response;
 mod sense;
 pub mod style;
+pub mod text_selection;
 mod ui;
 pub mod util;
 pub mod viewport;
@@ -394,7 +399,7 @@ pub use epaint::{
 };
 
 pub mod text {
-    pub use crate::text_edit::CCursorRange;
+    pub use crate::text_selection::{CCursorRange, CursorRange};
     pub use epaint::text::{
         cursor::CCursor, FontData, FontDefinitions, FontFamily, Fonts, Galley, LayoutJob,
         LayoutSection, TextFormat, TextWrapping, TAB_SIZE,
@@ -409,6 +414,7 @@ pub use {
         output::{
             self, CursorIcon, FullOutput, OpenUrl, PlatformOutput, UserAttentionType, WidgetInfo,
         },
+        Key,
     },
     grid::Grid,
     id::{Id, IdMap},

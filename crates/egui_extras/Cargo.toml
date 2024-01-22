@@ -60,7 +60,7 @@ syntect = ["dep:syntect"]
 
 
 [dependencies]
-egui = { version = "0.24.1", path = "../egui", default-features = false, features = [
+egui = { version = "0.25.0", path = "../egui", default-features = false, features = [
   "serde",
 ] }
 enum-map = { version = "2", features = ["serde"] }
@@ -95,4 +95,4 @@ syntect = { version = "5", optional = true, default-features = false, features =
 resvg = { version = "0.37", optional = true, default-features = false }
 
 # http feature
-ehttp = { version = "0.3.1", optional = true, default-features = false }
+ehttp = { version = "0.4", optional = true, default-features = false }

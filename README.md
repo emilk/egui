@@ -282,7 +282,7 @@ If your GUI is highly interactive, then immediate mode may actually be more perf
 #### IDs
 There are some GUI state that you want the GUI library to retain, even in an immediate mode library such as `egui`. This includes position and sizes of windows and how far the user has scrolled in some UI. In these cases you need to provide `egui` with a seed of a unique identifier (unique within the parent UI). For instance: by default `egui` uses the window titles as unique IDs to store window positions. If you want two windows with the same name (or one window with a dynamic name) you must provide some other ID source to `egui` (some unique integer or string).
 
-`egui` also needs to track which widget is being interacted with (e.g. which slider is being dragged). `egui` uses unique id:s for this awell, but in this case the IDs are automatically generated, so there is no need for the user to worry about it. In particular, having two buttons with the same name is no problem (this is in contrast with [`Dear ImGui`](https://github.com/ocornut/imgui)).
+`egui` also needs to track which widget is being interacted with (e.g. which slider is being dragged). `egui` uses unique IDs for this as well, but in this case the IDs are automatically generated, so there is no need for the user to worry about it. In particular, having two buttons with the same name is no problem (this is in contrast with [`Dear ImGui`](https://github.com/ocornut/imgui)).
 
 Overall, ID handling is a rare inconvenience, and not a big disadvantage.
 
@@ -310,6 +310,10 @@ If you call `.await` in your GUI code, the UI will freeze, which is very bad UX.
 * [`poll_promise::Promise`](https://docs.rs/poll-promise)
 * [`eventuals::Eventual`](https://docs.rs/eventuals/latest/eventuals/struct.Eventual.html)
 * [`tokio::sync::watch::channel`](https://docs.rs/tokio/latest/tokio/sync/watch/fn.channel.html)
+
+### How to do cross-platform file dialogs?
+
+The async version of [rfd](https://docs.rs/rfd/latest/rfd/) supports both native and WASM. See example app here https://github.com/woelper/egui_pick_file which also has a demo available via [gitub pages](https://woelper.github.io/egui_pick_file/).
 
 ### What about accessibility, such as screen readers?
 egui includes optional support for [AccessKit](https://accesskit.dev/), which currently implements the native accessibility APIs on Windows and macOS. This feature is enabled by default in eframe. For platforms that AccessKit doesn't yet support, including web, there is an experimental built-in screen reader; in [the web demo](https://www.egui.rs/#demo) you can enable it in the "Backend" tab.

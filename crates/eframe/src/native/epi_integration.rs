@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use winit::event_loop::EventLoopWindowTarget;
 
-use raw_window_handle::{HasRawDisplayHandle as _, HasRawWindowHandle as _};
+use raw_window_handle::{HasDisplayHandle as _, HasWindowHandle as _};
 
 use egui::{DeferredViewportUiCallback, NumExt as _, ViewportBuilder, ViewportId};
 use egui_winit::{EventResponse, WindowSettings};
@@ -165,8 +165,8 @@ impl EpiIntegration {
             gl,
             #[cfg(feature = "wgpu")]
             wgpu_render_state,
-            raw_display_handle: window.raw_display_handle(),
-            raw_window_handle: window.raw_window_handle(),
+            raw_display_handle: window.display_handle().map(|h| h.as_raw()),
+            raw_window_handle: window.window_handle().map(|h| h.as_raw()),
         };
 
         let icon = native_options

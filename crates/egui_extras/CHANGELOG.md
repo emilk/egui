@@ -5,6 +5,13 @@ This file is updated upon each release.
 Changes since the last release can be found at <https://github.com/emilk/egui/compare/latest...HEAD> or by running the `scripts/generate_changelog.py` script.
 
 
+## 0.25.0 - 2024-01-08
+* Implement table row selection and hover highlighting [#3347](https://github.com/emilk/egui/pull/3347) (thanks [@laurooyen](https://github.com/laurooyen)!)
+* Fix `egui_extras::Table` scrolling bug [#3690](https://github.com/emilk/egui/pull/3690) (thanks [@abey79](https://github.com/abey79)!)
+* Fix crash due to assertion during image loading from http [#3750](https://github.com/emilk/egui/pull/3750)
+* Update resvg dependency of egui_extras [#3719](https://github.com/emilk/egui/pull/3719) (thanks [@PingPongun](https://github.com/PingPongun)!)
+
+
 ## 0.24.2 - 2023-12-08 - `Table` scroll bug fix
 * Fix `Table` scrolling bug [#3690](https://github.com/emilk/egui/pull/3690)
 

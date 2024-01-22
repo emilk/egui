@@ -20,7 +20,7 @@ members = [
 edition = "2021"
 license = "MIT OR Apache-2.0"
 rust-version = "1.72"
-version = "0.24.2"
+version = "0.25.0"
 
 
 [profile.release]
@@ -51,11 +51,10 @@ opt-level = 2
 criterion = { version = "0.5.1", default-features = false }
 glow = "0.13"
 puffin = "0.18"
-raw-window-handle = "0.5.0"
+raw-window-handle = "0.6.0"
 thiserror = "1.0.37"
-
-# Make the renderer `Sync` even on wasm32, because it makes the code simpler:
-wgpu = { version = "0.18.0", features = ["fragile-send-sync-non-atomic-wasm"] }
-
-# Use this to build wgpu with WebGL support on the Web *instead* of using WebGPU.
-#wgpu = { version = "0.18.0", features = ["webgl"] }
+wgpu = { version = "0.19", features = [
+    # Make the renderer `Sync` even on wasm32, because it makes the code simpler:
+    "fragile-send-sync-non-atomic-wasm",
+] }
+winit = { version = "0.29.4", default-features = false }

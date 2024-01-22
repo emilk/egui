@@ -40,11 +40,11 @@ links = ["egui-winit?/links"]
 puffin = ["dep:puffin", "egui-winit?/puffin", "egui/puffin"]
 
 ## Enable [`winit`](https://docs.rs/winit) integration.
-winit = ["egui-winit"]
+winit = ["egui-winit", "dep:winit"]
 
 
 [dependencies]
-egui = { version = "0.24.1", path = "../egui", default-features = false, features = [
+egui = { version = "0.25.0", path = "../egui", default-features = false, features = [
   "bytemuck",
 ] }
 
@@ -52,6 +52,10 @@ bytemuck = "1.7"
 glow.workspace = true
 log = { version = "0.4", features = ["std"] }
 memoffset = "0.7"
+# glutin stuck on old version of raw-window-handle:
+rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
+  "std",
+] }
 
 #! ### Optional dependencies
 ## Enable this when generating docs.
@@ -59,8 +63,12 @@ document-features = { version = "0.2", optional = true }
 
 # Native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-egui-winit = { version = "0.24.1", path = "../egui-winit", optional = true, default-features = false }
+egui-winit = { version = "0.25.0", path = "../egui-winit", optional = true, default-features = false }
 puffin = { workspace = true, optional = true }
+winit = { workspace = true, optional = true, default-features = false, features = [
+  "rwh_05", # glutin stuck on old version of raw-window-handle
+  "rwh_06", # for compatibility with egui-winit
+] }
 
 # Web:
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -69,8 +77,7 @@ wasm-bindgen = "0.2"
 
 
 [dev-dependencies]
-glutin = "0.31"                    # examples/pure_glow
-raw-window-handle.workspace = true
+glutin = "0.31"        # examples/pure_glow
 glutin-winit = "0.4.0"
 
 

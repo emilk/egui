@@ -12,8 +12,6 @@
 
 #[cfg(feature = "cint")]
 mod cint_impl;
-#[cfg(feature = "cint")]
-pub use cint_impl::*;
 
 mod color32;
 pub use color32::*;
@@ -30,12 +28,15 @@ mod hex_color_macro;
 mod rgba;
 pub use rgba::*;
 
+mod hex_color_runtime;
+pub use hex_color_runtime::*;
+
 // ----------------------------------------------------------------------------
 // Color conversion:
 
 impl From<Color32> for Rgba {
-    fn from(srgba: Color32) -> Rgba {
-        Rgba([
+    fn from(srgba: Color32) -> Self {
+        Self([
             linear_f32_from_gamma_u8(srgba.0[0]),
             linear_f32_from_gamma_u8(srgba.0[1]),
             linear_f32_from_gamma_u8(srgba.0[2]),
@@ -45,8 +46,8 @@ impl From<Color32> for Rgba {
 }
 
 impl From<Rgba> for Color32 {
-    fn from(rgba: Rgba) -> Color32 {
-        Color32([
+    fn from(rgba: Rgba) -> Self {
+        Self([
             gamma_u8_from_linear_f32(rgba.0[0]),
             gamma_u8_from_linear_f32(rgba.0[1]),
             gamma_u8_from_linear_f32(rgba.0[2]),

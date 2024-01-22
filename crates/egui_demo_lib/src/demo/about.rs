@@ -49,7 +49,13 @@ impl super::View for About {
             ui.spacing_mut().item_spacing.x = 0.0;
             ui.label("egui development is sponsored by ");
             ui.hyperlink_to("Rerun.io", "https://www.rerun.io/");
-            ui.label(", a startup building an SDK for visualizing streams of multimodal data");
+            ui.label(", a startup building an SDK for visualizing streams of multimodal data.");
+        });
+
+        ui.add_space(12.0);
+
+        ui.vertical_centered(|ui| {
+            ui.add(crate::egui_github_link_file!());
         });
     }
 }
