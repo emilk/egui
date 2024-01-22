@@ -311,6 +311,10 @@ If you call `.await` in your GUI code, the UI will freeze, which is very bad UX.
 * [`eventuals::Eventual`](https://docs.rs/eventuals/latest/eventuals/struct.Eventual.html)
 * [`tokio::sync::watch::channel`](https://docs.rs/tokio/latest/tokio/sync/watch/fn.channel.html)
 
+### How to do cross-platform file dialogs?
+
+The async version of [rfd](https://docs.rs/rfd/latest/rfd/) supports both native and WASM. See example app here https://github.com/woelper/egui_pick_file which also has a demo available via [gitub pages](https://woelper.github.io/egui_pick_file/).
+
 ### What about accessibility, such as screen readers?
 egui includes optional support for [AccessKit](https://accesskit.dev/), which currently implements the native accessibility APIs on Windows and macOS. This feature is enabled by default in eframe. For platforms that AccessKit doesn't yet support, including web, there is an experimental built-in screen reader; in [the web demo](https://www.egui.rs/#demo) you can enable it in the "Backend" tab.
 
