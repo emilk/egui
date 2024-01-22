@@ -104,7 +104,6 @@ pub trait TextBuffer {
             );
             let tab_size_gap = (current_column - 1) % tab_size;
             let add_space_size = tab_size - tab_size_gap;
-
             text_to_insert = " ".repeat(add_space_size);
         }
 
