@@ -39,6 +39,10 @@ pub struct Response {
     pub enabled: bool,
 
     // OUT:
+    /// The pointer is hovering above this widget.
+    #[doc(hidden)]
+    pub contains_pointer: bool,
+
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
     #[doc(hidden)]
     pub hovered: bool,
@@ -95,6 +99,7 @@ impl std::fmt::Debug for Response {
             rect,
             sense,
             enabled,
+            contains_pointer,
             hovered,
             highlighted,
             clicked,
@@ -112,6 +117,7 @@ impl std::fmt::Debug for Response {
             .field("rect", rect)
             .field("sense", sense)
             .field("enabled", enabled)
+            .field("contains_pointer", contains_pointer)
             .field("hovered", hovered)
             .field("highlighted", highlighted)
             .field("clicked", clicked)
@@ -212,12 +218,8 @@ impl Response {
 
     /// The pointer is hovering above this widget or the widget was clicked/tapped this frame.
     ///
-    /// This will be `false` whenever some other widget is being dragged.
-    ///
-    /// Note that this is slightly different from [`Self::contains_pointer`].
-    /// For one, the hover rectangle is slightly larger, by half of the current item spacing
-    /// (to make it easier to click things). But `hovered` also checks that no other area
-    /// is covering this response rectangle.
+    /// In contrast to [`Self::contains_pointer`], this will be `false` whenever some other widget is being dragged.
+    /// `hovered` is always `false` for disabled widgets.
     #[inline(always)]
     pub fn hovered(&self) -> bool {
         self.hovered
@@ -227,15 +229,19 @@ impl Response {
     ///
     /// In contrast to [`Self::hovered`], this can be `true` even if some other widget is being dragged.
     /// This means it is useful for styling things like drag-and-drop targets.
+    /// `contains_pointer` can also be `true` for disabled widgets.
     ///
-    /// In contrast to [`Self::hovered`], this is true even when dragging some other widget
-    /// onto this one.
+    /// This is slightly different from [`Ui::rect_contains_pointer`] and [`Context::rect_contains_pointer`],
+    /// The rectangle used here is slightly larger, by half of the current item spacing.
+    /// [`Self::contains_pointer`] also checks that no other widget is covering this response rectangle.
+    #[inline(always)]
     pub fn contains_pointer(&self) -> bool {
-        self.ctx.rect_contains_pointer(self.layer_id, self.rect)
+        self.contains_pointer
     }
 
     /// The widget is highlighted via a call to [`Self::highlight`] or [`Context::highlight_widget`].
     #[doc(hidden)]
+    #[inline(always)]
     pub fn highlighted(&self) -> bool {
         self.highlighted
     }
@@ -739,6 +745,7 @@ impl Response {
             rect: self.rect.union(other.rect),
             sense: self.sense.union(other.sense),
             enabled: self.enabled || other.enabled,
+            contains_pointer: self.contains_pointer || other.contains_pointer,
             hovered: self.hovered || other.hovered,
             highlighted: self.highlighted || other.highlighted,
             clicked: [
