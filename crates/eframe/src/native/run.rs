@@ -192,7 +192,9 @@ fn run_and_return(
 
             if let Some(window) = winit_app.window(*window_id) {
                 log::trace!("request_redraw for {window_id:?}");
-                window.request_redraw();
+                if !window.is_minimized().unwrap_or(false) {
+                    window.request_redraw();
+                }
                 true
             } else {
                 log::trace!("No window found for {window_id:?}");
