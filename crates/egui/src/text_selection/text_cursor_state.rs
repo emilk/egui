@@ -54,7 +54,7 @@ impl TextCursorState {
         })
     }
 
-    pub fn range(&mut self, galley: &Galley) -> Option<CursorRange> {
+    pub fn range(&self, galley: &Galley) -> Option<CursorRange> {
         self.cursor_range
             .map(|cursor_range| {
                 // We only use the PCursor (paragraph number, and character offset within that paragraph).
