@@ -625,7 +625,7 @@ impl Context {
     /// ```
     pub fn begin_frame(&self, new_input: RawInput) {
         crate::profile_function!();
-
+        crate::text_selection::LabelSelectionState::begin_frame(self);
         self.write(|ctx| ctx.begin_frame_mut(new_input));
     }
 }
@@ -1616,6 +1616,8 @@ impl Context {
             crate::gui_zoom::zoom_with_keyboard(self);
         }
 
+        crate::text_selection::LabelSelectionState::end_frame(self);
+
         let debug_texts = self.write(|ctx| std::mem::take(&mut ctx.debug_texts));
         if !debug_texts.is_empty() {
             // Show debug-text next to the cursor.
@@ -2351,6 +2353,15 @@ impl Context {
             .show(ui, |ui| {
                 let font_image_size = self.fonts(|f| f.font_image_size());
                 crate::introspection::font_texture_ui(ui, font_image_size);
+            });
+
+        CollapsingHeader::new("Label text selection state")
+            .default_open(false)
+            .show(ui, |ui| {
+                ui.label(format!(
+                    "{:#?}",
+                    crate::text_selection::LabelSelectionState::load(ui.ctx())
+                ));
             });
     }
 

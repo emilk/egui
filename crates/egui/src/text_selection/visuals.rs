@@ -1,5 +1,7 @@
 use crate::*;
 
+use self::layers::ShapeIdx;
+
 use super::CursorRange;
 
 pub fn paint_text_selection(
@@ -8,6 +10,7 @@ pub fn paint_text_selection(
     galley_pos: Pos2,
     galley: &Galley,
     cursor_range: &CursorRange,
+    mut out_shaped_idx: Option<&mut Vec<ShapeIdx>>,
 ) {
     if cursor_range.is_empty() {
         return;
@@ -40,7 +43,10 @@ pub fn paint_text_selection(
             galley_pos + vec2(left, row.min_y()),
             galley_pos + vec2(right, row.max_y()),
         );
-        painter.rect_filled(rect, 0.0, color);
+        let shape_idx = painter.rect_filled(rect, 0.0, color);
+        if let Some(out_shaped_idx) = &mut out_shaped_idx {
+            out_shaped_idx.push(shape_idx);
+        }
     }
 }
 
