@@ -219,7 +219,9 @@ impl Painter {
         self.debug_text(pos, Align2::LEFT_TOP, color, format!("🔥 {text}"))
     }
 
-    /// text with a background
+    /// Text with a background.
+    ///
+    /// See also [`Context::debug_text`].
     #[allow(clippy::needless_pass_by_value)]
     pub fn debug_text(
         &self,
