@@ -701,6 +701,12 @@ impl Context {
         self.write(move |ctx| writer(&mut ctx.viewport().graphics))
     }
 
+    /// Read-only access to [`GraphicLayers`], where painted [`crate::Shape`]s are written to.
+    #[inline]
+    pub(crate) fn graphics<R>(&self, reader: impl FnOnce(&GraphicLayers) -> R) -> R {
+        self.write(move |ctx| reader(&ctx.viewport().graphics))
+    }
+
     /// Read-only access to [`PlatformOutput`].
     ///
     /// This is what egui outputs each frame.

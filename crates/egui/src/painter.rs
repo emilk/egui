@@ -193,6 +193,17 @@ impl Painter {
         self.transform_shape(&mut shape);
         self.paint_list(|l| l.set(idx, self.clip_rect, shape));
     }
+
+    /// Access all shapes added this frame.
+    pub fn for_each_shape(&self, mut reader: impl FnMut(ShapeIdx, &Shape)) {
+        self.ctx.graphics(|g| {
+            g.existing_list(self.layer_id).map(|l| {
+                for (i, s) in l.all_entries() {
+                    reader(i, s);
+                }
+            })
+        });
+    }
 }
 
 /// ## Debug painting

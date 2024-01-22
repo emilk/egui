@@ -158,6 +158,14 @@ impl PaintList {
             shape.translate(delta);
         }
     }
+
+    /// Read-only access to all held shapes.
+    pub fn all_entries(&self) -> impl Iterator<Item = (ShapeIdx, &Shape)> {
+        self.0
+            .iter()
+            .enumerate()
+            .map(|(i, clipped)| (ShapeIdx(i), &clipped.shape))
+    }
 }
 
 #[derive(Clone, Default)]
@@ -168,6 +176,10 @@ impl GraphicLayers {
         self.0[layer_id.order as usize]
             .entry(layer_id.id)
             .or_default()
+    }
+
+    pub fn existing_list(&self, layer_id: LayerId) -> Option<&PaintList> {
+        self.0[layer_id.order as usize].get(&layer_id.id)
     }
 
     pub fn drain(&mut self, area_order: &[LayerId]) -> Vec<ClippedShape> {
