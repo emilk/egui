@@ -712,8 +712,25 @@ impl Galley {
         self.pos_from_pcursor(cursor.pcursor) // pcursor is what TextEdit stores
     }
 
-    /// Cursor at the given position within the galley
+    /// Cursor at the given position within the galley.
+    ///
+    /// A cursor above the galley is considered
+    /// same as a cursor at the start,
+    /// and a cursor below the galley is considered
+    /// same as a cursor at the end.
+    /// This allows implementing text-selection by dragging above/below the galley.
     pub fn cursor_from_pos(&self, pos: Vec2) -> Cursor {
+        if let Some(first_row) = self.rows.first() {
+            if pos.y < first_row.min_y() {
+                return self.begin();
+            }
+        }
+        if let Some(last_row) = self.rows.last() {
+            if last_row.max_y() < pos.y {
+                return self.end();
+            }
+        }
+
         let mut best_y_dist = f32::INFINITY;
         let mut cursor = Cursor::default();
 
@@ -721,7 +738,7 @@ impl Galley {
         let mut pcursor_it = PCursor::default();
 
         for (row_nr, row) in self.rows.iter().enumerate() {
-            let is_pos_within_row = pos.y >= row.min_y() && pos.y <= row.max_y();
+            let is_pos_within_row = row.min_y() <= pos.y && pos.y <= row.max_y();
             let y_dist = (row.min_y() - pos.y).abs().min((row.max_y() - pos.y).abs());
             if is_pos_within_row || y_dist < best_y_dist {
                 best_y_dist = y_dist;
@@ -755,12 +772,22 @@ impl Galley {
                 pcursor_it.offset += row.char_count_including_newline();
             }
         }
+
         cursor
     }
 }
 
 /// ## Cursor positions
 impl Galley {
+    /// Cursor to the first character.
+    ///
+    /// This is the same as [`Cursor::default`].
+    #[inline]
+    #[allow(clippy::unused_self)]
+    pub fn begin(&self) -> Cursor {
+        Cursor::default()
+    }
+
     /// Cursor to one-past last character.
     pub fn end(&self) -> Cursor {
         if self.rows.is_empty() {
