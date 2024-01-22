@@ -435,7 +435,7 @@ impl WinitApp for GlowWinitApp {
                         #[cfg(target_os = "android")]
                         glutin.on_resume(self.native_options.viewport.clone(), event_loop)?;
                         #[cfg(not(target_os = "android"))]
-                        glutin.initialize_all_windows(event_loop)
+                        glutin.initialize_all_windows(event_loop);
                     }
 
                     running
