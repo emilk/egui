@@ -929,10 +929,11 @@ impl Context {
         if !enabled || !sense.focusable || !layer_id.allow_interaction() {
             // Not interested or allowed input:
             self.memory_mut(|mem| mem.surrender_focus(id));
-            return response;
         }
 
-        self.check_for_id_clash(id, rect, "widget");
+        if sense.interactive() || sense.focusable {
+            self.check_for_id_clash(id, rect, "widget");
+        }
 
         #[cfg(feature = "accesskit")]
         if sense.focusable {
@@ -960,12 +961,10 @@ impl Context {
             }
 
             #[cfg(feature = "accesskit")]
+            if sense.click
+                && input.has_accesskit_action_request(response.id, accesskit::Action::Default)
             {
-                if sense.click
-                    && input.has_accesskit_action_request(response.id, accesskit::Action::Default)
-                {
-                    response.clicked[PointerButton::Primary as usize] = true;
-                }
+                response.clicked[PointerButton::Primary as usize] = true;
             }
 
             if sense.click || sense.drag {
@@ -1032,9 +1031,9 @@ impl Context {
                 response.interact_pointer_pos = input.pointer.interact_pos();
             }
 
-            if input.pointer.any_down() {
+            if input.pointer.any_down() && !response.is_pointer_button_down_on {
                 // We don't hover widgets while interacting with *other* widgets:
-                response.hovered &= response.is_pointer_button_down_on;
+                response.hovered = false;
             }
 
             if memory.has_focus(response.id) && clicked_elsewhere {
