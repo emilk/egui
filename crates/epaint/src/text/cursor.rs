@@ -17,6 +17,7 @@ pub struct CCursor {
 }
 
 impl CCursor {
+    #[inline]
     pub fn new(index: usize) -> Self {
         Self {
             index,
@@ -25,9 +26,17 @@ impl CCursor {
     }
 }
 
+impl From<Cursor> for CCursor {
+    #[inline]
+    fn from(c: Cursor) -> Self {
+        c.ccursor
+    }
+}
+
 /// Two `CCursor`s are considered equal if they refer to the same character boundary,
 /// even if one prefers the start of the next row.
 impl PartialEq for CCursor {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.index == other.index
     }
@@ -106,6 +115,7 @@ pub struct PCursor {
 /// Two `PCursor`s are considered equal if they refer to the same character boundary,
 /// even if one prefers the start of the next row.
 impl PartialEq for PCursor {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.paragraph == other.paragraph && self.offset == other.offset
     }
