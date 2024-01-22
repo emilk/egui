@@ -18,6 +18,7 @@ pub struct Sense {
 impl Sense {
     /// Senses no clicks or drags. Only senses mouse hover.
     #[doc(alias = "none")]
+    #[inline]
     pub fn hover() -> Self {
         Self {
             click: false,
@@ -28,6 +29,7 @@ impl Sense {
 
     /// Senses no clicks or drags, but can be focused with the keyboard.
     /// Used for labels that can be focused for the benefit of screen readers.
+    #[inline]
     pub fn focusable_noninteractive() -> Self {
         Self {
             click: false,
@@ -37,6 +39,7 @@ impl Sense {
     }
 
     /// Sense clicks and hover, but not drags.
+    #[inline]
     pub fn click() -> Self {
         Self {
             click: true,
@@ -46,6 +49,7 @@ impl Sense {
     }
 
     /// Sense drags and hover, but not clicks.
+    #[inline]
     pub fn drag() -> Self {
         Self {
             click: false,
@@ -55,6 +59,7 @@ impl Sense {
     }
 
     /// Sense both clicks, drags and hover (e.g. a slider or window).
+    #[inline]
     pub fn click_and_drag() -> Self {
         Self {
             click: true,
@@ -65,6 +70,7 @@ impl Sense {
 
     /// The logical "or" of two [`Sense`]s.
     #[must_use]
+    #[inline]
     pub fn union(self, other: Self) -> Self {
         Self {
             click: self.click | other.click,
@@ -74,6 +80,7 @@ impl Sense {
     }
 
     /// Returns true if we sense either clicks or drags.
+    #[inline]
     pub fn interactive(&self) -> bool {
         self.click || self.drag
     }
