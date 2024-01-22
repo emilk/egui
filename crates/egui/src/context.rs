@@ -231,6 +231,11 @@ impl ViewportRepaintInfo {
 
 // ----------------------------------------------------------------------------
 
+struct DebugText {
+    location: String,
+    text: WidgetText,
+}
+
 #[derive(Default)]
 struct ContextImpl {
     /// Since we could have multiple viewport across multiple monitors with
@@ -278,6 +283,8 @@ struct ContextImpl {
     accesskit_node_classes: accesskit::NodeClassSet,
 
     loaders: Arc<Loaders>,
+
+    debug_texts: Vec<DebugText>,
 }
 
 impl ContextImpl {
@@ -1060,6 +1067,31 @@ impl Context {
         Self::layer_painter(self, LayerId::debug())
     }
 
+    /// Print this text next to the cursor at the end of the frame.
+    ///
+    /// If you call this multiple times, the text will be appended.
+    ///
+    /// This only works if compiled with `debug_assertions`.
+    ///
+    /// ```
+    /// # let ctx = egui::Context::default();
+    /// # let state = true;
+    /// ctx.debug_text(format!("State: {state;?}"));
+    /// ```
+    #[track_caller]
+    pub fn debug_text(&self, text: impl Into<WidgetText>) {
+        if cfg!(debug_assertions) {
+            let location = std::panic::Location::caller();
+            let location = format!("{}:{}", location.file(), location.line());
+            self.write(|c| {
+                c.debug_texts.push(DebugText {
+                    location,
+                    text: text.into(),
+                });
+            });
+        }
+    }
+
     /// What operating system are we running on?
     ///
     /// When compiling natively, this is
@@ -1576,6 +1608,63 @@ impl Context {
 
         if self.options(|o| o.zoom_with_keyboard) {
             crate::gui_zoom::zoom_with_keyboard(self);
+        }
+
+        let debug_texts = self.write(|ctx| std::mem::take(&mut ctx.debug_texts));
+        if !debug_texts.is_empty() {
+            // Show debug-text next to the cursor.
+            let mut pos = self
+                .input(|i| i.pointer.latest_pos())
+                .unwrap_or_else(|| self.screen_rect().center())
+                + 8.0 * Vec2::Y;
+
+            let painter = self.debug_painter();
+            let where_to_put_background = painter.add(Shape::Noop);
+
+            let mut bounding_rect = Rect::from_points(&[pos]);
+
+            let color = Color32::GRAY;
+            let font_id = FontId::new(10.0, FontFamily::Proportional);
+
+            for DebugText { location, text } in debug_texts {
+                {
+                    // Paint location to left of `pos`:
+                    let location_galley =
+                        self.fonts(|f| f.layout(location, font_id.clone(), color, f32::INFINITY));
+                    let location_rect =
+                        Align2::RIGHT_TOP.anchor_size(pos - 4.0 * Vec2::X, location_galley.size());
+                    painter.galley(location_rect.min, location_galley, color);
+                    bounding_rect = bounding_rect.union(location_rect);
+                }
+
+                {
+                    // Paint `text` to right of `pos`:
+                    let wrap = true;
+                    let available_width = self.screen_rect().max.x - pos.x;
+                    let galley = text.into_galley_impl(
+                        self,
+                        &self.style(),
+                        wrap,
+                        available_width,
+                        font_id.clone().into(),
+                        Align::TOP,
+                    );
+                    let rect = Align2::LEFT_TOP.anchor_size(pos, galley.size());
+                    painter.galley(rect.min, galley, color);
+                    bounding_rect = bounding_rect.union(rect);
+                }
+
+                pos.y = bounding_rect.max.y + 4.0;
+            }
+
+            painter.set(
+                where_to_put_background,
+                Shape::rect_filled(
+                    bounding_rect.expand(4.0),
+                    2.0,
+                    Color32::from_black_alpha(192),
+                ),
+            );
         }
 
         self.write(|ctx| ctx.end_frame())
