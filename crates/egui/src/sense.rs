@@ -2,13 +2,14 @@
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 // #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Sense {
-    /// buttons, sliders, windows, …
+    /// Buttons, sliders, windows, …
     pub click: bool,
 
-    /// sliders, windows, scroll bars, scroll areas, …
+    /// Sliders, windows, scroll bars, scroll areas, …
     pub drag: bool,
 
-    /// this widgets want focus.
+    /// This widget wants focus.
+    ///
     /// Anything interactive + labels that can be focused
     /// for the benefit of screen readers.
     pub focusable: bool,
