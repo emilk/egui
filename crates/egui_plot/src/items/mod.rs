@@ -728,9 +728,7 @@ impl PlotItem for Text {
                 .into_galley(ui, Some(false), f32::INFINITY, TextStyle::Small);
 
         let pos = transform.position_from_point(&self.position);
-        let rect = self
-            .anchor
-            .anchor_rect(Rect::from_min_size(pos, galley.size()));
+        let rect = self.anchor.anchor_size(pos, galley.size());
 
         shapes.push(epaint::TextShape::new(rect.min, galley, color).into());
 
